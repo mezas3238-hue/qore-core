@@ -131,12 +131,19 @@ class BlockingMiddleware:
 
 
 class FailingAfterMiddleware:
+    def __init__(self, calls: list[str] | None = None) -> None:
+        self.calls = calls
+
     def before(self, message: Message) -> Result[None, DomainError]:
         _ = message
+        if self.calls is not None:
+            self.calls.append("before:fail-after")
         return Success(None)
 
     def after(self, message: Message, result: MessageResult) -> None:
         _ = message, result
+        if self.calls is not None:
+            self.calls.append("after:fail-after")
         raise RuntimeError("after boom")
 
 
@@ -233,9 +240,7 @@ class TestMessageBus:
         first: MessageMiddleware = RecordingMiddleware("first", calls)
         blocker: MessageMiddleware = BlockingMiddleware(calls)
         bus = MessageBus(registry=registry, middleware=(first, blocker))
-
         result: CommandResult[str] = bus.dispatch_command(command())
-
         assert isinstance(result, Failure)
         assert calls == ["before:first", "before:block", "after:first"]
 
@@ -246,6 +251,26 @@ class TestMessageBus:
         result: CommandResult[str] = bus.dispatch_command(command())
         assert isinstance(result, Failure)
         assert isinstance(result.error, HandlerExecutionError)
+
+    def test_outer_finalizers_still_run_after_inner_finalizer_fails(self) -> None:
+        calls: list[str] = []
+        registry = HandlerRegistry()
+        registry.register_command(Command, ExampleCommandHandler(calls))
+        outer: MessageMiddleware = RecordingMiddleware("outer", calls)
+        inner: MessageMiddleware = FailingAfterMiddleware(calls)
+        bus = MessageBus(registry=registry, middleware=(outer, inner))
+
+        result: CommandResult[str] = bus.dispatch_command(command())
+
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, HandlerExecutionError)
+        assert calls == [
+            "before:outer",
+            "before:fail-after",
+            "qore.test.execute",
+            "after:fail-after",
+            "after:outer",
+        ]
 
 
 class TestRetryContracts:
