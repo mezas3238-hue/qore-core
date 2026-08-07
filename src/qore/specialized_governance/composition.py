@@ -7,6 +7,9 @@ from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
 from qore.core.lifecycle import Clock
 from qore.core.runtime import RuntimeContext
+from qore.domain.composition import ComposableDomainModule
+from qore.governance.composition import FunctionalModules
+from qore.governance.decision_flow import CrossModuleDecisionFlow
 from qore.kernel.errors import KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
 from qore.modules.knowledge.module import KnowledgeServiceModule
@@ -45,7 +48,7 @@ class SpecializedServiceModules:
         KnowledgeServiceModule,
         OptimizationServiceModule,
     ]:
-        """Return the official deterministic module registration order."""
+        """Return the official deterministic specialized-module order."""
         return (
             self.trader,
             self.validation,
@@ -57,10 +60,12 @@ class SpecializedServiceModules:
 
 @dataclass(frozen=True, slots=True)
 class SpecializedGovernanceApplication:
-    """Specialized-services root object built above the official Core."""
+    """PHASE-05 root object above Functional Governance and the official Core."""
 
     core: CoreApplication
+    functional_modules: FunctionalModules
     modules: SpecializedServiceModules
+    functional_decision_flow: CrossModuleDecisionFlow
     decision_flow: SpecializedServicesDecisionFlow
 
 
@@ -70,14 +75,21 @@ def compose_specialized_governance(
     runtime_context: RuntimeContext | None = None,
     clock: Clock | None = None,
 ) -> Result[SpecializedGovernanceApplication, KernelError]:
-    """Compose all PHASE-05 specialized services through Core bootstrap()."""
+    """Compose PHASE-04 and PHASE-05 modules through one official Core bootstrap."""
     if (runtime_context is None) != (clock is None):
         return Failure(
             ValidationError("runtime_context and clock must be provided together")
         )
 
+    functional_modules = FunctionalModules.create()
     modules = SpecializedServiceModules.create()
-    domain_modules = modules.domain_modules()
+    domain_modules: tuple[ComposableDomainModule, ...] = (
+        functional_modules.cio,
+        functional_modules.cibo,
+        functional_modules.portfolio,
+        functional_modules.risk,
+        *modules.domain_modules(),
+    )
     if runtime_context is None:
         boot = bootstrap(configuration, domain_modules=domain_modules)
     else:
@@ -95,7 +107,11 @@ def compose_specialized_governance(
     return Success(
         SpecializedGovernanceApplication(
             core=core,
+            functional_modules=functional_modules,
             modules=modules,
+            functional_decision_flow=CrossModuleDecisionFlow(
+                message_bus=core.domain.message_bus,
+            ),
             decision_flow=SpecializedServicesDecisionFlow(
                 message_bus=core.domain.message_bus,
             ),
