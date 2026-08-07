@@ -31,6 +31,11 @@ class CoreEngine:
         self._lifecycle = lifecycle
 
     @property
+    def component_name(self) -> str:
+        """Nombre estable del componente dentro del runtime."""
+        return "core-engine"
+
+    @property
     def configuration(self) -> Configuration:
         return self._config
 

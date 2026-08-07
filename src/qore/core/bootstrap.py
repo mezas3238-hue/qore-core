@@ -9,10 +9,11 @@ from qore.core.application import CoreApplication
 from qore.core.configuration import Configuration
 from qore.core.engine import CoreEngine
 from qore.core.event_bus import EventBus
-from qore.core.lifecycle import ApplicationLifecycle
+from qore.core.lifecycle import ApplicationLifecycle, Clock
+from qore.core.runtime import RuntimeContext
 from qore.core.service_registry import ServiceRegistry
-from qore.kernel.errors import KernelError
-from qore.kernel.result import Result, Success
+from qore.kernel.errors import KernelError, ValidationError
+from qore.kernel.result import Failure, Result, Success
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,21 +33,45 @@ def bootstrap() -> CoreIdentity: ...
 def bootstrap(configuration: Configuration) -> Result[CoreApplication, KernelError]: ...
 
 
+@overload
+def bootstrap(
+    configuration: Configuration,
+    *,
+    runtime_context: RuntimeContext,
+    clock: Clock,
+) -> Result[CoreApplication, KernelError]: ...
+
+
 def bootstrap(
     configuration: Configuration | None = None,
+    *,
+    runtime_context: RuntimeContext | None = None,
+    clock: Clock | None = None,
 ) -> CoreIdentity | Result[CoreApplication, KernelError]:
     """Construir el Core o preservar el bootstrap histórico de Genesis.
 
     Sin argumentos mantiene la API Genesis ya publicada. Con ``Configuration``
-    ensambla el Core mínimo sin infraestructura, reloj, estado global ni efectos externos.
+    ensambla el Core mínimo. ``RuntimeContext`` y ``clock`` son opt-in y deben
+    suministrarse juntos para activar los contratos de runtime de PHASE-02.
     """
     if configuration is None:
+        if runtime_context is not None or clock is not None:
+            return Failure(
+                ValidationError("configuration is required when runtime arguments are provided")
+            )
         return CoreIdentity(name="QORE", version="0.1.0", mode="GENESIS")
+
+    if (runtime_context is None) != (clock is None):
+        return Failure(ValidationError("runtime_context and clock must be provided together"))
 
     service_registry = ServiceRegistry()
     event_bus = EventBus()
     engine = CoreEngine(configuration, service_registry, event_bus)
-    lifecycle = ApplicationLifecycle(engine)
+    lifecycle = ApplicationLifecycle(
+        engine,
+        runtime_context=runtime_context,
+        clock=clock,
+    )
 
     return Success(
         CoreApplication(
@@ -55,5 +80,6 @@ def bootstrap(
             event_bus=event_bus,
             engine=engine,
             lifecycle=lifecycle,
+            runtime_context=runtime_context,
         )
     )
