@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from qore.domain.commands import Command
@@ -140,7 +141,11 @@ class SummarizeValidationAssessmentsCommand(Command):
             1 for item in self.assessments if item.verdict is ValidationVerdict.PASSED
         )
         failed_count = sample_size - passed_count
-        mean = sum(item.observed_confidence.value for item in self.assessments) / sample_size
+        confidence_total = sum(
+            (Decimal(str(item.observed_confidence.value)) for item in self.assessments),
+            Decimal(0),
+        )
+        mean = confidence_total / Decimal(sample_size)
         return StatisticsSnapshot(
             snapshot_id=self.snapshot_id,
             timestamp=self.timestamp,
