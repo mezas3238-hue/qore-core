@@ -297,7 +297,9 @@ class SpecializedServicesDecisionFlow:
         if optimization.source_knowledge is not knowledge:
             return Failure(SpecializedGovernanceValidationError("optimization source mismatch"))
         if optimization.correlation_id != plan.correlation_id:
-            return Failure(SpecializedGovernanceValidationError("optimization correlation mismatch"))
+            return Failure(
+                SpecializedGovernanceValidationError("optimization correlation mismatch")
+            )
 
         return Success(
             SpecializedServicesDecisionFlowResult(
