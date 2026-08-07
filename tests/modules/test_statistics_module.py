@@ -43,7 +43,16 @@ from qore.modules.validation.contracts import (
     ValidationPolicy,
     ValidationVerdict,
 )
-from qore.specialist.analysis import SpecialistAnalysisId, SpecialistConfidence
+from qore.specialist.analysis import (
+    SpecialistAnalysis,
+    SpecialistAnalysisId,
+    SpecialistAnalysisStatus,
+    SpecialistConfidence,
+    SpecialistKind,
+    SpecialistMetadata,
+    SpecialistReason,
+    SpecialistReasonCode,
+)
 
 _TIMESTAMP = datetime(2026, 8, 7, 23, 30, tzinfo=UTC)
 _CORRELATION = CorrelationId(UUID("94000000-0000-0000-0000-000000000001"))
@@ -52,14 +61,31 @@ _SNAPSHOT_ID = StatisticsSnapshotId(UUID("94000000-0000-0000-0000-000000000003")
 _EVENT_ID = DomainEventId(UUID("94000000-0000-0000-0000-000000000004"))
 
 
+def _source_analysis(index: int, confidence: float) -> SpecialistAnalysis:
+    return SpecialistAnalysis(
+        analysis_id=SpecialistAnalysisId(
+            UUID(f"94000000-0000-0000-0000-{100 + index:012d}")
+        ),
+        timestamp=_TIMESTAMP,
+        kind=SpecialistKind("virtual-trader.statistics-source"),
+        status=SpecialistAnalysisStatus.COMPLETED,
+        metadata=SpecialistMetadata(correlation_id=_CORRELATION),
+        confidence=SpecialistConfidence(confidence),
+        reasons=(
+            SpecialistReason(
+                code=SpecialistReasonCode("virtual-trader.explicit"),
+                summary="Explicit statistics evidence",
+            ),
+        ),
+    )
+
+
 def _assessment(
     index: int,
     confidence: float,
     verdict: ValidationVerdict,
 ) -> ValidationAssessment:
-    source_id = SpecialistAnalysisId(
-        UUID(f"94000000-0000-0000-0000-{100 + index:012d}")
-    )
+    source = _source_analysis(index, confidence)
     assessment_id = ValidationAssessmentId(
         UUID(f"94000000-0000-0000-0000-{200 + index:012d}")
     )
@@ -68,9 +94,9 @@ def _assessment(
     return ValidationAssessment(
         assessment_id=assessment_id,
         timestamp=_TIMESTAMP,
-        source_analysis_id=source_id,
+        source_analysis=source,
         correlation_id=_CORRELATION,
-        causation_id=CausationId(source_id.value),
+        causation_id=CausationId(source.analysis_id.value),
         policy=ValidationPolicy(SpecialistConfidence(threshold)),
         verdict=verdict,
         observed_confidence=SpecialistConfidence(confidence),
@@ -96,8 +122,9 @@ def _command() -> SummarizeValidationAssessmentsCommand:
 
 
 def test_command_produces_deterministic_descriptive_snapshot() -> None:
-    snapshot = _command().to_snapshot()
-
+    command = _command()
+    snapshot = command.to_snapshot()
+    assert snapshot.source_assessments == command.assessments
     assert snapshot.sample_size == 2
     assert snapshot.passed_count == 1
     assert snapshot.failed_count == 1
@@ -163,7 +190,6 @@ def test_command_rejects_duplicate_sources_and_wrong_causation() -> None:
             snapshot_id=_SNAPSHOT_ID,
             assessments=(item, item),
         )
-
     with pytest.raises(StatisticsInvariantError, match="causation"):
         SummarizeValidationAssessmentsCommand(
             command_id=_COMMAND_ID,
@@ -171,9 +197,7 @@ def test_command_rejects_duplicate_sources_and_wrong_causation() -> None:
             name=CommandName("statistics.summarize-validations"),
             metadata=CommandMetadata(
                 correlation_id=_CORRELATION,
-                causation_id=CausationId(
-                    UUID("94000000-0000-0000-0000-000000000099")
-                ),
+                causation_id=CausationId(UUID("94000000-0000-0000-0000-000000000099")),
             ),
             snapshot_id=_SNAPSHOT_ID,
             assessments=(item,),
@@ -196,19 +220,31 @@ def test_command_rejects_snapshot_identity_reuse() -> None:
         )
 
 
-def test_snapshot_rejects_inconsistent_derived_values_runtime_bypass() -> None:
+def test_snapshot_rejects_metrics_divergent_from_source_evidence() -> None:
     item = _assessment(1, 0.8, ValidationVerdict.PASSED)
     with pytest.raises(StatisticsInvariantError, match="pass_rate"):
         StatisticsSnapshot(
             snapshot_id=_SNAPSHOT_ID,
             timestamp=_TIMESTAMP,
             correlation_id=_CORRELATION,
-            source_assessment_ids=(item.assessment_id.value,),
+            source_assessments=(item,),
             sample_size=1,
             passed_count=1,
             failed_count=0,
             pass_rate=0.0,
             mean_observed_confidence=SpecialistConfidence(0.8),
+        )
+    with pytest.raises(StatisticsInvariantError, match="mean_observed_confidence"):
+        StatisticsSnapshot(
+            snapshot_id=_SNAPSHOT_ID,
+            timestamp=_TIMESTAMP,
+            correlation_id=_CORRELATION,
+            source_assessments=(item,),
+            sample_size=1,
+            passed_count=1,
+            failed_count=0,
+            pass_rate=1.0,
+            mean_observed_confidence=SpecialistConfidence(0.7),
         )
 
 
@@ -250,7 +286,6 @@ def test_module_registration_bootstrap_and_runtime_isolation() -> None:
     assert isinstance(registration, Success)
     assert registered is module.statistics_handler
     assert module.descriptor.name == ModuleName("statistics")
-
     boot = bootstrap(
         Configuration(application_name="qore-statistics-test"),
         domain_modules=(module,),
