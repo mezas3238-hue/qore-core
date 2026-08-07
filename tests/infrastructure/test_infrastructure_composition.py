@@ -41,7 +41,8 @@ from qore.infrastructure.ports import (
     ExternalSourceDescriptor,
     PortName,
     SourceId,
-)\nfrom qore.infrastructure.reference_adapters import ReferenceAdapterValidationError
+)
+from qore.infrastructure.reference_adapters import ReferenceAdapterValidationError
 from qore.kernel.result import Failure, Result, Success
 from qore.specialized_governance.composition import compose_specialized_governance
 
@@ -64,6 +65,7 @@ _CORRELATION = CorrelationId(UUID("f1000000-0000-0000-0000-000000000005"))
 _CAUSATION = CausationId(UUID("f1000000-0000-0000-0000-000000000006"))
 _KEY = PersistenceKey("infra.composition", "snapshot/reference")
 _VERSION_ZERO = PersistenceVersion(0)
+
 
 def _metadata() -> ExternalRequestMetadata:
     return ExternalRequestMetadata(
