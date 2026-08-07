@@ -35,30 +35,48 @@ class RuntimeSupervisor:
         """Nombres activos en el orden efectivo de arranque."""
         return tuple(spec.component_name for spec in self._active)
 
+    def _state_projection(
+        self,
+    ) -> tuple[
+        RuntimeStatus,
+        RuntimeComponentStatus,
+        tuple[str, ...],
+        tuple[str, ...],
+    ]:
+        """Derivar una única representación observable del estado interno."""
+        active_names = self.active_component_names
+        if self._running:
+            return (
+                RuntimeStatus.RUNNING,
+                RuntimeComponentStatus.ACTIVE,
+                active_names,
+                (),
+            )
+        if active_names:
+            return (
+                RuntimeStatus.DEGRADED,
+                RuntimeComponentStatus.RESIDUAL,
+                (),
+                active_names,
+            )
+        return (
+            RuntimeStatus.STOPPED,
+            RuntimeComponentStatus.INACTIVE,
+            (),
+            (),
+        )
+
     def snapshot(self) -> RuntimeSnapshot:
         """Construir una vista de solo lectura del estado actual del runtime."""
-        active_names = self.active_component_names
-        active_set = set(active_names)
-
-        if self._running:
-            status = RuntimeStatus.RUNNING
-            residual_names: tuple[str, ...] = ()
-            active_status = RuntimeComponentStatus.ACTIVE
-        elif active_names:
-            status = RuntimeStatus.DEGRADED
-            residual_names = active_names
-            active_status = RuntimeComponentStatus.RESIDUAL
-        else:
-            status = RuntimeStatus.STOPPED
-            residual_names = ()
-            active_status = RuntimeComponentStatus.INACTIVE
+        status, present_status, active_names, residual_names = self._state_projection()
+        present_names = set(active_names or residual_names)
 
         components = tuple(
             RuntimeComponentSnapshot(
                 component_name=spec.component_name,
                 status=(
-                    active_status
-                    if spec.component_name in active_set
+                    present_status
+                    if spec.component_name in present_names
                     else RuntimeComponentStatus.INACTIVE
                 ),
                 depends_on=tuple(spec.depends_on),
@@ -70,7 +88,7 @@ class RuntimeSupervisor:
             context=self._runtime_context,
             status=status,
             components=components,
-            active_component_names=active_names if self._running else (),
+            active_component_names=active_names,
             residual_component_names=residual_names,
         )
 
