@@ -144,6 +144,15 @@ class CrossModuleDecisionFlow:
         self,
         plan: CrossModuleDecisionFlowPlan,
     ) -> Result[CrossModuleDecisionFlowResult, DomainError]:
+        try:
+            return self._execute(plan)
+        except DomainError as error:
+            return Failure(error)
+
+    def _execute(
+        self,
+        plan: CrossModuleDecisionFlowPlan,
+    ) -> Result[CrossModuleDecisionFlowResult, DomainError]:
         cio_result: Result[FunctionalDecision, DomainError] = (
             self._message_bus.dispatch_command(
                 CreateCioDecisionCommand(
