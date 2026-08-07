@@ -9,6 +9,7 @@ from qore.domain.commands import Command
 from qore.domain.events import (
     BusinessDomainEvent,
     CausationId,
+    CorrelationId,
     DomainEventId,
     DomainEventMetadata,
     DomainEventVersion,
@@ -72,15 +73,13 @@ class ValidationAssessment:
     assessment_id: ValidationAssessmentId
     timestamp: datetime
     source_analysis_id: SpecialistAnalysisId
-    correlation_id: object
+    correlation_id: CorrelationId
     causation_id: CausationId
     policy: ValidationPolicy
     verdict: ValidationVerdict
     observed_confidence: SpecialistConfidence
 
     def __post_init__(self) -> None:
-        from qore.domain.events import CorrelationId
-
         if not isinstance(self.assessment_id, ValidationAssessmentId):
             raise ValidationInvariantError(
                 "validation assessment_id must be ValidationAssessmentId"
@@ -220,15 +219,9 @@ class ValidationAssessmentProducedEvent(BusinessDomainEvent):
         metadata: DomainEventMetadata,
         assessment: ValidationAssessment,
     ) -> None:
-        from qore.domain.events import CorrelationId
-
         if not isinstance(assessment, ValidationAssessment):
             raise ValidationInvariantError(
                 "validation event assessment must be ValidationAssessment"
-            )
-        if not isinstance(assessment.correlation_id, CorrelationId):
-            raise ValidationInvariantError(
-                "validation assessment correlation_id must be CorrelationId"
             )
         if metadata.correlation_id != assessment.correlation_id:
             raise ValidationInvariantError(
