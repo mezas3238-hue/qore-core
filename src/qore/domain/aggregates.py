@@ -83,10 +83,10 @@ class AggregateRoot(Entity):
         self,
         *,
         aggregate_id: EntityId,
-        version: AggregateVersion = AggregateVersion(0),
+        version: AggregateVersion | None = None,
     ) -> None:
         super().__init__(entity_id=aggregate_id)
-        self._version = version
+        self._version = AggregateVersion(0) if version is None else version
         self._pending_events: list[BusinessDomainEvent] = []
 
     @property
