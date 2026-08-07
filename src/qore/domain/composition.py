@@ -6,7 +6,7 @@ from typing import Protocol
 from qore.domain.message_bus import HandlerRegistry, MessageBus, MessageMiddleware
 from qore.domain.modules import DomainModule, ModuleDescriptor, ModuleName
 from qore.kernel.errors import DomainError
-from qore.kernel.result import Failure, Result, Success
+from qore.kernel.result import Failure, Result
 
 
 class DomainCompositionError(DomainError):
