@@ -11,6 +11,8 @@ from qore.core.engine import CoreEngine
 from qore.core.event_bus import EventBus
 from qore.core.lifecycle import ApplicationLifecycle, Clock
 from qore.core.runtime import RuntimeContext
+from qore.core.runtime_plan import RuntimeComponentSpec, RuntimePlan
+from qore.core.runtime_supervisor import RuntimeSupervisor
 from qore.core.service_registry import ServiceRegistry
 from qore.kernel.errors import KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
@@ -51,8 +53,9 @@ def bootstrap(
     """Construir el Core o preservar el bootstrap histórico de Genesis.
 
     Sin argumentos mantiene la API Genesis ya publicada. Con ``Configuration``
-    ensambla el Core mínimo. ``RuntimeContext`` y ``clock`` son opt-in y deben
-    suministrarse juntos para activar los contratos de runtime de PHASE-02.
+    ensambla una ``CoreApplication`` con ``RuntimePlan`` y ``RuntimeSupervisor``
+    oficiales. ``RuntimeContext`` y ``clock`` son opt-in y deben suministrarse
+    juntos para activar los eventos deterministas de runtime.
     """
     if configuration is None:
         if runtime_context is not None or clock is not None:
@@ -67,8 +70,21 @@ def bootstrap(
     service_registry = ServiceRegistry()
     event_bus = EventBus()
     engine = CoreEngine(configuration, service_registry, event_bus)
+    runtime_plan = RuntimePlan(
+        (
+            RuntimeComponentSpec(
+                component_name=engine.component_name,
+                component=engine,
+            ),
+        )
+    )
+    runtime_supervisor = RuntimeSupervisor(
+        runtime_plan,
+        runtime_context=runtime_context,
+    )
     lifecycle = ApplicationLifecycle(
         engine,
+        runtime_supervisor=runtime_supervisor,
         runtime_context=runtime_context,
         clock=clock,
     )
@@ -80,6 +96,8 @@ def bootstrap(
             event_bus=event_bus,
             engine=engine,
             lifecycle=lifecycle,
+            runtime_plan=runtime_plan,
+            runtime_supervisor=runtime_supervisor,
             runtime_context=runtime_context,
         )
     )
