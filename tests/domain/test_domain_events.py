@@ -73,6 +73,42 @@ class TestDomainEventValueContracts:
         with pytest.raises(TypeError):
             value.attributes["x"] = 1  # type: ignore[index]
 
+    def test_reserved_metadata_keys_are_rejected(self) -> None:
+        for reserved in ("category", "correlation_id", "causation_id"):
+            with pytest.raises(ValidationError):
+                DomainEventMetadata(
+                    category=DomainEventCategory("test"),
+                    correlation_id=CORRELATION_ID,
+                    attributes={reserved: "forged"},
+                )
+
+    def test_mutable_or_nondeterministic_metadata_values_are_rejected(self) -> None:
+        invalid_values: tuple[object, ...] = (
+            ["mutable"],
+            {"nested": "mapping"},
+            {"unordered"},
+            ("valid-prefix", ["nested-mutable"]),
+            float("nan"),
+            float("inf"),
+        )
+
+        for invalid in invalid_values:
+            with pytest.raises(ValidationError):
+                DomainEventMetadata(  # type: ignore[arg-type]
+                    category=DomainEventCategory("test"),
+                    correlation_id=CORRELATION_ID,
+                    attributes={"value": invalid},
+                )
+
+    def test_immutable_tuple_metadata_is_supported(self) -> None:
+        value = DomainEventMetadata(
+            category=DomainEventCategory("test"),
+            correlation_id=CORRELATION_ID,
+            attributes={"path": ("portfolio", 1, True, None)},
+        )
+
+        assert value.attributes["path"] == ("portfolio", 1, True, None)
+
     def test_empty_name_category_and_version_are_rejected(self) -> None:
         with pytest.raises(ValidationError):
             DomainEventCategory("   ")
