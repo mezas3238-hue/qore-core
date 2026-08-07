@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -52,6 +53,7 @@ _SOURCE_DECISION_ID = DecisionId(UUID("30000000-0000-0000-0000-000000000001"))
 _INTENT_ID = AllocationIntentId(UUID("30000000-0000-0000-0000-000000000002"))
 _COMMAND_ID = CommandId(UUID("30000000-0000-0000-0000-000000000003"))
 _CORRELATION_ID = CorrelationId(UUID("30000000-0000-0000-0000-000000000004"))
+_OTHER_CORRELATION_ID = CorrelationId(UUID("30000000-0000-0000-0000-000000000006"))
 _EVENT_ID = DomainEventId(UUID("30000000-0000-0000-0000-000000000005"))
 _TIMESTAMP = datetime(2026, 8, 7, 21, 0, tzinfo=UTC)
 
@@ -105,15 +107,18 @@ def _command() -> CreateAllocationIntentCommand:
 
 
 class TestPortfolioContracts:
-    def test_target_requires_positive_bps(self) -> None:
-        with pytest.raises(PortfolioValidationError, match="between 1 and 10000"):
+    def test_target_requires_positive_integer_bps(self) -> None:
+        with pytest.raises(PortfolioValidationError, match="integer between"):
             PortfolioTarget(name="core", weight_bps=0)
+        with pytest.raises(PortfolioValidationError, match="integer between"):
+            PortfolioTarget(name="core", weight_bps=cast(int, True))
 
     def test_intent_requires_exact_100_percent(self) -> None:
         with pytest.raises(PortfolioValidationError, match="sum to 10000"):
             AllocationIntent(
                 intent_id=_INTENT_ID,
                 source_decision_id=_SOURCE_DECISION_ID,
+                correlation_id=_CORRELATION_ID,
                 timestamp=_TIMESTAMP,
                 targets=(PortfolioTarget(name="core", weight_bps=9999),),
             )
@@ -123,6 +128,7 @@ class TestPortfolioContracts:
             AllocationIntent(
                 intent_id=_INTENT_ID,
                 source_decision_id=_SOURCE_DECISION_ID,
+                correlation_id=_CORRELATION_ID,
                 timestamp=_TIMESTAMP,
                 targets=(
                     PortfolioTarget(name="core", weight_bps=5000),
@@ -139,6 +145,7 @@ class TestPortfolioContracts:
         assert first.logical_values() == second.logical_values()
         assert first.targets == _targets()
         assert first.source_decision_id == _SOURCE_DECISION_ID
+        assert first.correlation_id == _CORRELATION_ID
 
     def test_command_rejects_pending_source(self) -> None:
         with pytest.raises(PortfolioValidationError, match="resolved source"):
@@ -192,7 +199,7 @@ class TestPortfolioContracts:
 
 
 class TestAllocationIntentCreatedEvent:
-    def test_event_keeps_intent_and_causation(self) -> None:
+    def test_event_keeps_intent_and_traceability(self) -> None:
         intent = _command().to_intent()
         event = AllocationIntentCreatedEvent(
             event_id=_EVENT_ID,
@@ -209,6 +216,20 @@ class TestAllocationIntentCreatedEvent:
         assert event.event_name == "portfolio.allocation-intent-created"
         assert event.intent is intent
         assert event.logical_values()[-1] == intent.logical_values()
+
+    def test_event_rejects_wrong_correlation(self) -> None:
+        with pytest.raises(PortfolioValidationError, match="correlation"):
+            AllocationIntentCreatedEvent(
+                event_id=_EVENT_ID,
+                timestamp=_TIMESTAMP,
+                event_version=DomainEventVersion("1"),
+                metadata=DomainEventMetadata(
+                    category=DomainEventCategory("portfolio"),
+                    correlation_id=_OTHER_CORRELATION_ID,
+                    causation_id=CausationId(_SOURCE_DECISION_ID.value),
+                ),
+                intent=_command().to_intent(),
+            )
 
     def test_event_rejects_wrong_causation(self) -> None:
         with pytest.raises(PortfolioValidationError, match="causation"):
@@ -266,6 +287,7 @@ class TestPortfolioHandlerAndModule:
         assert isinstance(dispatched, Success)
         assert dispatched.value.intent_id == _INTENT_ID
         assert dispatched.value.targets == _targets()
+        assert dispatched.value.correlation_id == _CORRELATION_ID
         assert boot.value.domain.module_catalog.get(ModuleName("portfolio")) is portfolio
 
     def test_portfolio_does_not_enter_runtime_plan(self) -> None:
