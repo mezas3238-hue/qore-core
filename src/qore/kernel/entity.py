@@ -19,12 +19,10 @@ Restricciones:
 """
 from __future__ import annotations
 
-from typing import Any, Generic, TypeVar
-
-ID = TypeVar("ID")
+from typing import Any
 
 
-class Entity(Generic[ID]):
+class Entity[ID]:
     """Clase base para entidades del dominio."""
 
     __slots__ = ("_id", "__id_locked")
