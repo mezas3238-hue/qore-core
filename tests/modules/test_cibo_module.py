@@ -71,6 +71,17 @@ def _source_decision() -> FunctionalDecision:
     )
 
 
+def _pending_source_decision() -> FunctionalDecision:
+    return FunctionalDecision(
+        decision_id=_SOURCE_DECISION_ID,
+        timestamp=_TIMESTAMP,
+        decision_type=DecisionType("cio.strategic-review"),
+        status=DecisionStatus.PENDING,
+        priority=DecisionPriority.HIGH,
+        metadata=DecisionMetadata(correlation_id=_CORRELATION_ID),
+    )
+
+
 def _reason() -> DecisionReason:
     return DecisionReason(
         code=DecisionReasonCode("cibo.business-accepted"),
@@ -126,6 +137,30 @@ class TestReviewFunctionalDecisionCommand:
         assert decision.status is DecisionStatus.RESOLVED
         assert decision.outcome is outcome
         assert decision.reasons == (_reason(),)
+
+    def test_command_requires_resolved_source_decision(self) -> None:
+        with pytest.raises(CiboValidationError, match="resolved source"):
+            ReviewFunctionalDecisionCommand(
+                command_id=_COMMAND_ID,
+                timestamp=_TIMESTAMP,
+                name=CommandName("cibo.review-functional-decision"),
+                metadata=CommandMetadata(correlation_id=_CORRELATION_ID),
+                decision_id=_CIBO_DECISION_ID,
+                source_decision=_pending_source_decision(),
+                priority=DecisionPriority.NORMAL,
+            )
+
+    def test_command_rejects_reusing_source_identity(self) -> None:
+        with pytest.raises(CiboValidationError, match="identity"):
+            ReviewFunctionalDecisionCommand(
+                command_id=_COMMAND_ID,
+                timestamp=_TIMESTAMP,
+                name=CommandName("cibo.review-functional-decision"),
+                metadata=CommandMetadata(correlation_id=_CORRELATION_ID),
+                decision_id=_SOURCE_DECISION_ID,
+                source_decision=_source_decision(),
+                priority=DecisionPriority.NORMAL,
+            )
 
     def test_command_rejects_mismatched_correlation(self) -> None:
         with pytest.raises(CiboValidationError, match="correlation"):
@@ -187,9 +222,27 @@ class TestCiboDecisionProducedEvent:
                 metadata=DomainEventMetadata(
                     category=DomainEventCategory("cibo"),
                     correlation_id=_CORRELATION_ID,
+                    causation_id=CausationId(other_source.value),
                 ),
                 decision=decision,
                 source_decision_id=other_source,
+            )
+
+    def test_event_requires_metadata_causation_to_match_source(self) -> None:
+        decision = _command(outcome=DecisionOutcome.APPROVED).to_decision()
+
+        with pytest.raises(CiboValidationError, match="event causation"):
+            CiboDecisionProducedEvent(
+                event_id=_EVENT_ID,
+                timestamp=_TIMESTAMP,
+                event_version=DomainEventVersion("1"),
+                metadata=DomainEventMetadata(
+                    category=DomainEventCategory("cibo"),
+                    correlation_id=_CORRELATION_ID,
+                    causation_id=None,
+                ),
+                decision=decision,
+                source_decision_id=_SOURCE_DECISION_ID,
             )
 
 
