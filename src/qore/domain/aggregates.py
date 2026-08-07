@@ -39,6 +39,7 @@ class Entity:
     """Entidad identificada por identidad estable, no por todos sus atributos."""
 
     __slots__ = ("_entity_id",)
+    _entity_id: EntityId
 
     def __init__(self, *, entity_id: EntityId) -> None:
         object.__setattr__(self, "_entity_id", entity_id)
