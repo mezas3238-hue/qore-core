@@ -16,6 +16,11 @@ from qore.kernel.result import Failure, Result, Success
 FIXED_TS = datetime(2026, 1, 1, tzinfo=UTC)
 
 
+def current_state(lifecycle: ApplicationLifecycle) -> LifecycleState:
+    """Read lifecycle state without retaining literal narrowing across transitions."""
+    return lifecycle.state
+
+
 class TestConfiguration:
     def test_valid_configuration(self) -> None:
         config = Configuration(application_name="test-app")
@@ -113,9 +118,9 @@ class TestLifecycle:
         lifecycle = ApplicationLifecycle(engine)
 
         assert isinstance(lifecycle.start(), Success)
-        assert lifecycle.state == LifecycleState.RUNNING
+        assert current_state(lifecycle) == LifecycleState.RUNNING
         assert isinstance(lifecycle.stop(), Failure)
-        assert lifecycle.state == LifecycleState.ERROR
+        assert current_state(lifecycle) == LifecycleState.ERROR
 
     def test_restart_from_error(self) -> None:
         class FaultyStartEngine(CoreEngine):
@@ -142,9 +147,9 @@ class TestLifecycle:
         lifecycle = ApplicationLifecycle(engine)
 
         assert isinstance(lifecycle.start(), Failure)
-        assert lifecycle.state == LifecycleState.ERROR
+        assert current_state(lifecycle) == LifecycleState.ERROR
         assert isinstance(lifecycle.restart(), Success)
-        assert lifecycle.state == LifecycleState.RUNNING
+        assert current_state(lifecycle) == LifecycleState.RUNNING
 
     def test_cannot_start_twice(self) -> None:
         lifecycle = ApplicationLifecycle(
@@ -168,9 +173,9 @@ class TestLifecycle:
             )
         )
         assert isinstance(lifecycle.start(), Success)
-        assert lifecycle.state == LifecycleState.RUNNING
+        assert current_state(lifecycle) == LifecycleState.RUNNING
         assert isinstance(lifecycle.stop(), Success)
-        assert lifecycle.state == LifecycleState.STOPPED
+        assert current_state(lifecycle) == LifecycleState.STOPPED
 
 
 class TestBootstrap:
