@@ -55,6 +55,10 @@ def bootstrap(
     suministrarse juntos para activar los contratos de runtime de PHASE-02.
     """
     if configuration is None:
+        if runtime_context is not None or clock is not None:
+            return Failure(
+                ValidationError("configuration is required when runtime arguments are provided")
+            )
         return CoreIdentity(name="QORE", version="0.1.0", mode="GENESIS")
 
     if (runtime_context is None) != (clock is None):
