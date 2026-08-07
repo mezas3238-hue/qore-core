@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.core.application import CoreApplication
 from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
 from qore.domain.commands import CommandId
@@ -23,7 +24,8 @@ from qore.governance.decision_flow import (
     CrossModuleDecisionFlowPlan,
     GovernanceValidationError,
 )
-from qore.kernel.result import Failure, Success
+from qore.kernel.errors import KernelError
+from qore.kernel.result import Failure, Result, Success
 from qore.modules.cibo.module import CiboModule
 from qore.modules.cio.module import CioModule
 from qore.modules.portfolio.contracts import AllocationIntentId, PortfolioTarget
@@ -83,7 +85,7 @@ def _plan(peak_weight_bps: int) -> CrossModuleDecisionFlowPlan:
     )
 
 
-def _boot_full():
+def _boot_full() -> Result[CoreApplication, KernelError]:
     return bootstrap(
         Configuration(application_name="qore-governance-flow-test"),
         domain_modules=(CioModule(), CiboModule(), PortfolioModule(), RiskModule()),
