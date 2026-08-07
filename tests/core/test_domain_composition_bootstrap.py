@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
-from qore.domain.composition import DomainComposition
+from qore.domain.composition import DomainComposition, DuplicateModuleError
 from qore.domain.message_bus import HandlerRegistry, MessageBus
 from qore.domain.modules import DomainModule, ModuleDescriptor, ModuleName, ModuleVersion
 from qore.kernel.result import Failure, Success
@@ -61,15 +61,13 @@ class TestDomainCompositionBootstrap:
         first: DomainModule = ExampleModule("duplicate")
         second: DomainModule = ExampleModule("duplicate")
 
-        try:
-            bootstrap(
-                Configuration(application_name="test-app"),
-                domain_modules=(first, second),
-            )
-        except Exception as exc:
-            assert exc.__class__.__name__ == "DuplicateModuleError"
-        else:
-            raise AssertionError("duplicate domain modules must be rejected")
+        result = bootstrap(
+            Configuration(application_name="test-app"),
+            domain_modules=(first, second),
+        )
+
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, DuplicateModuleError)
 
     def test_genesis_bootstrap_remains_unchanged(self) -> None:
         identity = bootstrap()
