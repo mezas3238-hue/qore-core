@@ -14,7 +14,7 @@ from qore.core.runtime import RuntimeContext
 from qore.core.runtime_plan import RuntimeComponentSpec, RuntimePlan
 from qore.core.runtime_supervisor import RuntimeSupervisor
 from qore.core.service_registry import ServiceRegistry
-from qore.domain.composition import compose_domain
+from qore.domain.composition import DomainCompositionError, compose_domain
 from qore.domain.modules import DomainModule
 from qore.kernel.errors import KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
@@ -99,7 +99,10 @@ def bootstrap(
         runtime_context=runtime_context,
         clock=clock,
     )
-    domain = compose_domain(modules=domain_modules)
+    try:
+        domain = compose_domain(modules=domain_modules)
+    except DomainCompositionError as exc:
+        return Failure(exc)
 
     return Success(
         CoreApplication(
