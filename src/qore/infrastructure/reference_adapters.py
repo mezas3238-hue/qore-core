@@ -101,43 +101,43 @@ class ReferenceMarketDataAdapter:
             raise ReferenceAdapterValidationError("reference OHLC data must be a tuple")
 
         quote_map: dict[str, QuoteSnapshot] = {}
-        for snapshot in quotes:
-            if not isinstance(snapshot, QuoteSnapshot):
+        for quote_snapshot in quotes:
+            if not isinstance(quote_snapshot, QuoteSnapshot):
                 raise ReferenceAdapterValidationError(
                     "reference quote entries must be QuoteSnapshot"
                 )
-            if snapshot.source != descriptor:
+            if quote_snapshot.source != descriptor:
                 raise ReferenceAdapterValidationError(
                     "reference quote source must match adapter descriptor"
                 )
-            key = snapshot.instrument.symbol
-            if key in quote_map:
+            quote_key = quote_snapshot.instrument.symbol
+            if quote_key in quote_map:
                 raise ReferenceAdapterValidationError(
                     "reference quotes must contain at most one snapshot per instrument"
                 )
-            quote_map[key] = snapshot
+            quote_map[quote_key] = quote_snapshot
 
         ohlc_map: dict[tuple[str, int, datetime, datetime], OhlcSnapshot] = {}
-        for snapshot in ohlc:
-            if not isinstance(snapshot, OhlcSnapshot):
+        for ohlc_snapshot in ohlc:
+            if not isinstance(ohlc_snapshot, OhlcSnapshot):
                 raise ReferenceAdapterValidationError(
                     "reference OHLC entries must be OhlcSnapshot"
                 )
-            if snapshot.source != descriptor:
+            if ohlc_snapshot.source != descriptor:
                 raise ReferenceAdapterValidationError(
                     "reference OHLC source must match adapter descriptor"
                 )
-            key = (
-                snapshot.instrument.symbol,
-                snapshot.timeframe.seconds,
-                snapshot.opened_at,
-                snapshot.closed_at,
+            ohlc_key = (
+                ohlc_snapshot.instrument.symbol,
+                ohlc_snapshot.timeframe.seconds,
+                ohlc_snapshot.opened_at,
+                ohlc_snapshot.closed_at,
             )
-            if key in ohlc_map:
+            if ohlc_key in ohlc_map:
                 raise ReferenceAdapterValidationError(
                     "reference OHLC data must not contain duplicate intervals"
                 )
-            ohlc_map[key] = snapshot
+            ohlc_map[ohlc_key] = ohlc_snapshot
 
         self._descriptor = descriptor
         self._quotes = quote_map
