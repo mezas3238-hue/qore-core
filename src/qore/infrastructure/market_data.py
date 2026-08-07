@@ -79,7 +79,11 @@ def _validate_price(value: float, *, field_name: str) -> None:
         )
 
 
-def _validate_market_data_source(source: ExternalSourceDescriptor, *, field_name: str) -> None:
+def _validate_market_data_source(
+    source: ExternalSourceDescriptor,
+    *,
+    field_name: str,
+) -> None:
     if not isinstance(source, ExternalSourceDescriptor):
         raise MarketDataValidationError(
             f"{field_name} source must be ExternalSourceDescriptor"
