@@ -21,7 +21,6 @@ from qore.infrastructure.market_data import (
     Instrument,
     MarketDataPort,
     MarketDataSnapshotId,
-    OhlcRequest,
     OhlcSnapshot,
     QuoteRequest,
     QuoteSnapshot,
