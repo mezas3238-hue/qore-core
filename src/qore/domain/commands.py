@@ -9,7 +9,7 @@ from typing import Protocol
 from uuid import UUID
 
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
-from qore.kernel.errors import DomainError, ValidationError
+from qore.kernel.errors import DomainError
 from qore.kernel.result import Result
 
 _RESERVED_COMMAND_METADATA_KEYS = frozenset(
@@ -17,18 +17,32 @@ _RESERVED_COMMAND_METADATA_KEYS = frozenset(
 )
 
 
+class CommandError(DomainError):
+    """Error uniforme producido al validar o manejar un comando."""
+
+    __slots__ = ()
+
+
+class CommandValidationError(CommandError):
+    """Error uniforme de validación de comandos."""
+
+    __slots__ = ()
+
+
 def _validate_metadata_value(value: object) -> None:
     if value is None or isinstance(value, (str, bool, int, UUID)):
         return
     if isinstance(value, float):
         if not isfinite(value):
-            raise ValidationError("command metadata floats must be finite")
+            raise CommandValidationError("command metadata floats must be finite")
         return
     if isinstance(value, tuple):
         for item in value:
             _validate_metadata_value(item)
         return
-    raise ValidationError("command metadata values must be immutable scalars or tuples")
+    raise CommandValidationError(
+        "command metadata values must be immutable scalars or tuples"
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +60,7 @@ class CommandName:
 
     def __post_init__(self) -> None:
         if not self.value.strip():
-            raise ValidationError("command name must not be empty")
+            raise CommandValidationError("command name must not be empty")
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +71,7 @@ class IdempotencyKey:
 
     def __post_init__(self) -> None:
         if not self.value.strip():
-            raise ValidationError("idempotency key must not be empty")
+            raise CommandValidationError("idempotency key must not be empty")
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,11 +87,11 @@ class CommandMetadata:
 
     def __post_init__(self) -> None:
         if any(not key.strip() for key in self.attributes):
-            raise ValidationError("command metadata keys must not be empty")
+            raise CommandValidationError("command metadata keys must not be empty")
         reserved = _RESERVED_COMMAND_METADATA_KEYS.intersection(self.attributes)
         if reserved:
             names = ", ".join(sorted(reserved))
-            raise ValidationError(f"reserved command metadata keys: {names}")
+            raise CommandValidationError(f"reserved command metadata keys: {names}")
         for value in self.attributes.values():
             _validate_metadata_value(value)
         ordered = {key: self.attributes[key] for key in sorted(self.attributes)}
@@ -110,18 +124,6 @@ class Command:
             self.name.value,
             *self.metadata.logical_values(),
         )
-
-
-class CommandError(DomainError):
-    """Error uniforme producido al validar o manejar un comando."""
-
-    __slots__ = ()
-
-
-class CommandValidationError(CommandError):
-    """Error uniforme de validación de comandos."""
-
-    __slots__ = ()
 
 
 type CommandResult[T] = Result[T, DomainError]
