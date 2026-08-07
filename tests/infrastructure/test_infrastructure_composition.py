@@ -41,9 +41,8 @@ from qore.infrastructure.ports import (
     ExternalSourceDescriptor,
     PortName,
     SourceId,
-)
-from qore.infrastructure.reference_adapters import ReferenceAdapterValidationError
-from qore.kernel.result import Failure, Success
+)\nfrom qore.infrastructure.reference_adapters import ReferenceAdapterValidationError
+from qore.kernel.result import Failure, Result, Success
 from qore.specialized_governance.composition import compose_specialized_governance
 
 _NOW = datetime(2026, 8, 8, 0, 15, tzinfo=UTC)
@@ -65,7 +64,6 @@ _CORRELATION = CorrelationId(UUID("f1000000-0000-0000-0000-000000000005"))
 _CAUSATION = CausationId(UUID("f1000000-0000-0000-0000-000000000006"))
 _KEY = PersistenceKey("infra.composition", "snapshot/reference")
 _VERSION_ZERO = PersistenceVersion(0)
-
 
 def _metadata() -> ExternalRequestMetadata:
     return ExternalRequestMetadata(
@@ -123,7 +121,10 @@ def _configuration() -> ReferenceInfrastructureConfiguration:
 
 
 def _composition() -> ReferenceInfrastructureComposition[dict[str, int]]:
-    composed = compose_reference_infrastructure(_core(), _configuration())
+    composed: Result[
+        ReferenceInfrastructureComposition[dict[str, int]],
+        ExternalPortError,
+    ] = compose_reference_infrastructure(_core(), _configuration())
     assert isinstance(composed, Success)
     return cast(ReferenceInfrastructureComposition[dict[str, int]], composed.value)
 
@@ -148,7 +149,10 @@ def test_reference_infrastructure_composes_ports_above_one_core_instance() -> No
     before_snapshot = core.runtime_snapshot()
     before_health = core.runtime_health()
 
-    composed = compose_reference_infrastructure(core, _configuration())
+    composed: Result[
+        ReferenceInfrastructureComposition[dict[str, int]],
+        ExternalPortError,
+    ] = compose_reference_infrastructure(core, _configuration())
 
     assert isinstance(composed, Success)
     application = cast(ReferenceInfrastructureComposition[dict[str, int]], composed.value)
@@ -256,7 +260,10 @@ def test_reference_infrastructure_propagates_adapter_configuration_failure() -> 
         quote_snapshots=(_quote(source=other_source),),
     )
 
-    result = compose_reference_infrastructure(_core(), configuration)
+    result: Result[
+        ReferenceInfrastructureComposition[dict[str, int]],
+        ExternalPortError,
+    ] = compose_reference_infrastructure(_core(), configuration)
 
     assert isinstance(result, Failure)
     assert isinstance(result.error, ReferenceAdapterValidationError)
@@ -266,11 +273,17 @@ def test_reference_infrastructure_rejects_runtime_bypasses_without_mutating_core
     core = _core()
     before_snapshot = core.runtime_snapshot()
 
-    invalid_core = compose_reference_infrastructure(
+    invalid_core: Result[
+        ReferenceInfrastructureComposition[dict[str, int]],
+        ExternalPortError,
+    ] = compose_reference_infrastructure(
         cast(CoreApplication, object()),
         _configuration(),
     )
-    invalid_configuration = compose_reference_infrastructure(
+    invalid_configuration: Result[
+        ReferenceInfrastructureComposition[dict[str, int]],
+        ExternalPortError,
+    ] = compose_reference_infrastructure(
         core,
         cast(ReferenceInfrastructureConfiguration, object()),
     )
