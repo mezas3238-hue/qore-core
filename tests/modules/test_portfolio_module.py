@@ -61,7 +61,7 @@ def _source_decision(
     status: DecisionStatus = DecisionStatus.RESOLVED,
     outcome: DecisionOutcome | None = DecisionOutcome.APPROVED,
 ) -> FunctionalDecision:
-    reasons = ()
+    reasons: tuple[DecisionReason, ...] = ()
     if status is DecisionStatus.RESOLVED:
         reasons = (
             DecisionReason(
