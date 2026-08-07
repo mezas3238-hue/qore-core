@@ -115,12 +115,19 @@ class RecordingMiddleware:
 
 
 class BlockingMiddleware:
+    def __init__(self, calls: list[str] | None = None) -> None:
+        self.calls = calls
+
     def before(self, message: Message) -> Result[None, DomainError]:
         _ = message
+        if self.calls is not None:
+            self.calls.append("before:block")
         return Failure(DomainError("blocked"))
 
     def after(self, message: Message, result: MessageResult) -> None:
         _ = message, result
+        if self.calls is not None:
+            self.calls.append("after:block")
 
 
 class FailingAfterMiddleware:
@@ -218,6 +225,19 @@ class TestMessageBus:
         assert isinstance(result, Failure)
         assert str(result.error) == "blocked"
         assert calls == []
+
+    def test_entered_middleware_is_finalized_when_later_before_blocks(self) -> None:
+        calls: list[str] = []
+        registry = HandlerRegistry()
+        registry.register_command(Command, ExampleCommandHandler(calls))
+        first: MessageMiddleware = RecordingMiddleware("first", calls)
+        blocker: MessageMiddleware = BlockingMiddleware(calls)
+        bus = MessageBus(registry=registry, middleware=(first, blocker))
+
+        result: CommandResult[str] = bus.dispatch_command(command())
+
+        assert isinstance(result, Failure)
+        assert calls == ["before:first", "before:block", "after:first"]
 
     def test_failing_after_middleware_is_normalized_after_success(self) -> None:
         registry = HandlerRegistry()
