@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from qore.domain.commands import Command, CommandResult
+from qore.domain.commands import Command, CommandHandler, CommandResult
 from qore.domain.composition import (
     ComposableDomainModule,
     DomainComposition,
@@ -122,8 +122,11 @@ class TestDomainCompositionRoot:
         module = HandlerContributingModule("handlers")
 
         composition = compose_domain(modules=(module,))
+        registered: CommandHandler[Command, str] | None = (
+            composition.handler_registry.command_handler(Command)
+        )
 
-        assert composition.handler_registry.command_handler(Command) is module.handler
+        assert registered is module.handler
 
     def test_registration_failure_aborts_composition(self) -> None:
         with pytest.raises(ModuleRegistrationError, match="registration failed"):
