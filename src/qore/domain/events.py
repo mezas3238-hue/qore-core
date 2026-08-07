@@ -5,14 +5,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from math import isfinite
 from types import MappingProxyType
-from typing import TypeAlias
 from uuid import UUID
 
 from qore.kernel.domain_event import DomainEvent
 from qore.kernel.errors import ValidationError
 
-DomainMetadataScalar: TypeAlias = str | int | float | bool | UUID | None
-DomainMetadataValue: TypeAlias = DomainMetadataScalar | tuple["DomainMetadataValue", ...]
+type DomainMetadataScalar = str | int | float | bool | UUID | None
+type DomainMetadataValue = DomainMetadataScalar | tuple[DomainMetadataValue, ...]
 _RESERVED_METADATA_KEYS = frozenset({"category", "correlation_id", "causation_id"})
 
 
