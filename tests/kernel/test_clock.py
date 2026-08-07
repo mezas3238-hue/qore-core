@@ -1,18 +1,18 @@
-import datetime
+from datetime import UTC, datetime
 
 from qore.kernel.clock import Clock
 
 
 def test_clock_returns_utc_datetime() -> None:
     now = Clock().now()
-    assert isinstance(now, datetime.datetime)
-    assert now.tzinfo == datetime.timezone.utc
+    assert isinstance(now, datetime)
+    assert now.tzinfo == UTC
 
 
 def test_clock_can_be_subclassed() -> None:
     class FrozenClock(Clock):
-        def now(self) -> datetime.datetime:
-            return datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+        def now(self) -> datetime:
+            return datetime(2026, 1, 1, tzinfo=UTC)
 
     clock = FrozenClock()
-    assert clock.now() == datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+    assert clock.now() == datetime(2026, 1, 1, tzinfo=UTC)
