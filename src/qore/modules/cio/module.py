@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from qore.domain.commands import CommandResult
 from qore.domain.message_bus import HandlerRegistry
@@ -25,7 +25,7 @@ class CreateCioDecisionHandler:
 class CioModule:
     """Foundation componible del Chief Investment Officer de QORE."""
 
-    _handler: CreateCioDecisionHandler = CreateCioDecisionHandler()
+    _handler: CreateCioDecisionHandler = field(default_factory=CreateCioDecisionHandler)
 
     @property
     def descriptor(self) -> ModuleDescriptor:
