@@ -15,10 +15,11 @@ from qore.domain.commands import (
     CommandMetadata,
     CommandName,
     CommandResult,
+    CommandValidationError,
     IdempotencyKey,
 )
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
-from qore.kernel.errors import DomainError, ValidationError
+from qore.kernel.errors import DomainError
 from qore.kernel.result import Failure, Success
 
 COMMAND_ID = CommandId(UUID("00000000-0000-0000-0000-000000000201"))
@@ -44,7 +45,6 @@ def command() -> Command:
 class TestCommandContracts:
     def test_command_is_explicit_immutable_and_deterministic(self) -> None:
         value = command()
-
         assert value.command_id == COMMAND_ID
         assert value.timestamp == TIMESTAMP
         assert value.name == CommandName("qore.portfolio.create")
@@ -52,18 +52,13 @@ class TestCommandContracts:
         assert value.metadata.causation_id == CAUSATION_ID
         assert value.metadata.idempotency_key == IdempotencyKey("portfolio:create:1")
         assert value.logical_values() == command().logical_values()
-
         with pytest.raises(FrozenInstanceError):
             value.name = CommandName("other")  # type: ignore[misc]
 
     def test_metadata_is_defensively_copied_sorted_and_read_only(self) -> None:
         attributes = {"b": 2, "a": 1}
-        metadata = CommandMetadata(
-            correlation_id=CORRELATION_ID,
-            attributes=attributes,
-        )
+        metadata = CommandMetadata(correlation_id=CORRELATION_ID, attributes=attributes)
         attributes["c"] = 3
-
         assert tuple(metadata.attributes) == ("a", "b")
         assert "c" not in metadata.attributes
         with pytest.raises(TypeError):
@@ -71,7 +66,7 @@ class TestCommandContracts:
 
     def test_reserved_metadata_keys_are_rejected(self) -> None:
         for reserved in ("correlation_id", "causation_id", "idempotency_key"):
-            with pytest.raises(ValidationError):
+            with pytest.raises(CommandValidationError):
                 CommandMetadata(
                     correlation_id=CORRELATION_ID,
                     attributes={reserved: "forged"},
@@ -88,15 +83,15 @@ class TestCommandContracts:
         )
         for invalid in invalid_values:
             unsafe = cast(Mapping[str, DomainMetadataValue], {"value": invalid})
-            with pytest.raises(ValidationError):
+            with pytest.raises(CommandValidationError):
                 CommandMetadata(correlation_id=CORRELATION_ID, attributes=unsafe)
 
-    def test_empty_name_idempotency_key_and_metadata_key_are_rejected(self) -> None:
-        with pytest.raises(ValidationError):
+    def test_empty_values_use_uniform_command_validation_error(self) -> None:
+        with pytest.raises(CommandValidationError):
             CommandName(" ")
-        with pytest.raises(ValidationError):
+        with pytest.raises(CommandValidationError):
             IdempotencyKey("")
-        with pytest.raises(ValidationError):
+        with pytest.raises(CommandValidationError):
             CommandMetadata(
                 correlation_id=CORRELATION_ID,
                 attributes={" ": "invalid"},
@@ -104,7 +99,6 @@ class TestCommandContracts:
 
     def test_causation_and_idempotency_are_optional(self) -> None:
         metadata = CommandMetadata(correlation_id=CORRELATION_ID)
-
         assert metadata.causation_id is None
         assert metadata.idempotency_key is None
 
@@ -131,7 +125,6 @@ class ExampleHandler:
 class TestCommandHandlerContracts:
     def test_handler_protocol_accepts_success_and_failure_results(self) -> None:
         handler: CommandHandler[Command, str] = ExampleHandler()
-
         success = handler.handle(command())
         failure = handler.handle(
             Command(
@@ -141,7 +134,6 @@ class TestCommandHandlerContracts:
                 metadata=CommandMetadata(correlation_id=CORRELATION_ID),
             )
         )
-
         assert isinstance(success, Success)
         assert success.value == "accepted"
         assert isinstance(failure, Failure)
