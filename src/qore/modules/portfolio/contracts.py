@@ -13,7 +13,12 @@ from qore.domain.events import (
     DomainEventMetadata,
     DomainEventVersion,
 )
-from qore.functional.decisions import DecisionId, DecisionOutcome, DecisionStatus, FunctionalDecision
+from qore.functional.decisions import (
+    DecisionId,
+    DecisionOutcome,
+    DecisionStatus,
+    FunctionalDecision,
+)
 from qore.kernel.errors import DomainError
 
 
