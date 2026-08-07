@@ -99,7 +99,7 @@ def _validate_persistence_source(
 
 @dataclass(frozen=True, slots=True)
 class StoredRecord[ValueT]:
-    """Typed persisted record with explicit source, time, key and version."""
+    """Typed value confirmed as stored by one explicit persistence source."""
 
     key: PersistenceKey
     version: PersistenceVersion
@@ -144,16 +144,24 @@ class LoadPersistenceRequest:
 
 @dataclass(frozen=True, slots=True)
 class SavePersistenceRequest[ValueT]:
-    """Typed create/update request with explicit optimistic version semantics."""
+    """Write intent with explicit key, value, time and optimistic version semantics."""
 
-    record: StoredRecord[ValueT]
+    key: PersistenceKey
+    version: PersistenceVersion
+    value: ValueT
+    stored_at: datetime
     expected_version: PersistenceVersion | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.record, StoredRecord):
+        if not isinstance(self.key, PersistenceKey):
             raise PersistenceValidationError(
-                "save request record must be StoredRecord"
+                "save request key must be PersistenceKey"
             )
+        if not isinstance(self.version, PersistenceVersion):
+            raise PersistenceValidationError(
+                "save request version must be PersistenceVersion"
+            )
+        _validate_timestamp(self.stored_at, field_name="save request stored_at")
         if self.expected_version is not None and not isinstance(
             self.expected_version, PersistenceVersion
         ):
@@ -161,14 +169,14 @@ class SavePersistenceRequest[ValueT]:
                 "save request expected_version must be PersistenceVersion or None"
             )
         if self.expected_version is None:
-            if self.record.version.value != 0:
+            if self.version.value != 0:
                 raise PersistenceValidationError(
-                    "create save request must use record version 0"
+                    "create save request must use version 0"
                 )
             return
-        if self.record.version != self.expected_version.next():
+        if self.version != self.expected_version.next():
             raise PersistenceValidationError(
-                "update record version must equal expected_version + 1"
+                "update version must equal expected_version + 1"
             )
 
 
@@ -189,6 +197,6 @@ class PersistencePort[ValueT](ExternalPort, Protocol):
         request: SavePersistenceRequest[ValueT],
         *,
         metadata: ExternalRequestMetadata,
-    ) -> Result[PersistenceVersion, ExternalPortError]:
-        """Persist exactly the explicit record version or return a typed failure."""
+    ) -> Result[StoredRecord[ValueT], ExternalPortError]:
+        """Persist the explicit write intent and return the confirmed stored record."""
         ...
