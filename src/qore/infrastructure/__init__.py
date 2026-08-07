@@ -1,5 +1,17 @@
 """Stable infrastructure boundary contracts for QORE."""
 
+from qore.infrastructure.market_data import (
+    Instrument,
+    MarketDataError,
+    MarketDataPort,
+    MarketDataSnapshotId,
+    MarketDataValidationError,
+    OhlcRequest,
+    OhlcSnapshot,
+    QuoteRequest,
+    QuoteSnapshot,
+    Timeframe,
+)
 from qore.infrastructure.ports import (
     AdapterId,
     ExternalHealth,
@@ -23,11 +35,21 @@ __all__ = [
     "ExternalPortError",
     "ExternalRequestMetadata",
     "ExternalSourceDescriptor",
+    "Instrument",
+    "MarketDataError",
+    "MarketDataPort",
+    "MarketDataSnapshotId",
+    "MarketDataValidationError",
+    "OhlcRequest",
+    "OhlcSnapshot",
     "PortAvailability",
     "PortName",
     "PortUnavailableError",
     "PortValidationError",
+    "QuoteRequest",
+    "QuoteSnapshot",
     "ReadExternalPort",
     "SourceId",
+    "Timeframe",
     "WriteExternalPort",
 ]
