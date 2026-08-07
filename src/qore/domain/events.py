@@ -87,6 +87,7 @@ class BusinessDomainEvent(DomainEvent):
     """Evento de negocio explícito compatible con el DomainEvent del Kernel."""
 
     __slots__ = ("_domain_metadata",)
+    _domain_metadata: DomainEventMetadata
 
     def __init__(
         self,
