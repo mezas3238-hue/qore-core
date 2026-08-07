@@ -158,6 +158,36 @@ def test_quote_snapshot_is_immutable_canonical_and_stable() -> None:
     assert first.snapshot_id is _QUOTE_ID
 
 
+def test_snapshots_reject_non_market_data_source_namespace() -> None:
+    wrong_source = ExternalSourceDescriptor(
+        adapter_id=AdapterId(UUID("b1000000-0000-0000-0000-000000000011")),
+        source_id=SourceId(UUID("b1000000-0000-0000-0000-000000000012")),
+        port_name=PortName("persistence.reference"),
+    )
+    with pytest.raises(MarketDataValidationError, match="market-data namespace"):
+        QuoteSnapshot(
+            snapshot_id=_QUOTE_ID,
+            instrument=_INSTRUMENT,
+            source=wrong_source,
+            observed_at=_QUOTE_AT,
+            bid=1.0,
+            ask=1.1,
+        )
+    with pytest.raises(MarketDataValidationError, match="market-data namespace"):
+        OhlcSnapshot(
+            snapshot_id=_OHLC_ID,
+            instrument=_INSTRUMENT,
+            source=wrong_source,
+            timeframe=_TIMEFRAME,
+            opened_at=_OPENED_AT,
+            closed_at=_CLOSED_AT,
+            open=1.0,
+            high=1.1,
+            low=0.9,
+            close=1.05,
+        )
+
+
 def test_quote_rejects_invalid_prices_time_and_runtime_types() -> None:
     with pytest.raises(MarketDataValidationError, match="bid must not exceed ask"):
         QuoteSnapshot(
