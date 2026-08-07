@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import typing
 from dataclasses import dataclass
 from datetime import datetime
 from math import isfinite
-from typing import Protocol
 
 from qore.infrastructure.market_data import (
     Instrument,
@@ -65,8 +65,8 @@ class ExternalOhlcPayload:
     close: ExternalDecimalValue
 
 
-class ExternalMarketDataPayloadPort(ExternalPort, Protocol):
-    """Read boundary that exposes provider-neutral payloads before normalization."""
+class ExternalMarketDataPayloadPort(ExternalPort, typing.Protocol):
+    """Read boundary exposing provider-neutral payloads before normalization."""
 
     def read_external_quote(
         self,
@@ -155,14 +155,12 @@ def _normalize_decimal(
     return Success(normalized)
 
 
-def _normalize_timeframe(
-    value: object,
-) -> Result[Timeframe, ExternalPortError]:
+def _normalize_timeframe(value: object) -> Result[Timeframe, ExternalPortError]:
     if type(value) is int:
         normalized = value
     elif isinstance(value, str):
         candidate = value.strip()
-        if not candidate or not candidate.isdecimal():
+        if not candidate or not candidate.isascii() or not candidate.isdecimal():
             return _validation_failure(
                 "external timeframe_seconds must be a positive whole number"
             )
@@ -189,9 +187,15 @@ def _validate_timestamp(
     return Success(value)
 
 
-def _validate_payload_result_error(error: object, *, operation: str) -> Result[ExternalPortError, ExternalPortError]:
+def _validate_payload_result_error(
+    error: object,
+    *,
+    operation: str,
+) -> Result[ExternalPortError, ExternalPortError]:
     if not isinstance(error, ExternalPortError):
-        return _validation_failure(f"external {operation} failure error must be ExternalPortError")
+        return _validation_failure(
+            f"external {operation} failure error must be ExternalPortError"
+        )
     return Success(error)
 
 
@@ -201,7 +205,10 @@ def _read_quote_payload(
     *,
     metadata: ExternalRequestMetadata,
 ) -> Result[ExternalQuotePayload, ExternalPortError]:
-    result: object = port.read_external_quote(request, metadata=metadata)
+    try:
+        result: object = port.read_external_quote(request, metadata=metadata)
+    except ExternalPortError as error:
+        return Failure(error)
     if isinstance(result, Failure):
         error_result = _validate_payload_result_error(result.error, operation="quote")
         if isinstance(error_result, Failure):
@@ -210,7 +217,9 @@ def _read_quote_payload(
     if not isinstance(result, Success):
         return _validation_failure("external quote port must return Result")
     if not isinstance(result.value, ExternalQuotePayload):
-        return _validation_failure("external quote port must return ExternalQuotePayload")
+        return _validation_failure(
+            "external quote port must return ExternalQuotePayload"
+        )
     return Success(result.value)
 
 
@@ -220,7 +229,10 @@ def _read_ohlc_payload(
     *,
     metadata: ExternalRequestMetadata,
 ) -> Result[ExternalOhlcPayload, ExternalPortError]:
-    result: object = port.read_external_ohlc(request, metadata=metadata)
+    try:
+        result: object = port.read_external_ohlc(request, metadata=metadata)
+    except ExternalPortError as error:
+        return Failure(error)
     if isinstance(result, Failure):
         error_result = _validate_payload_result_error(result.error, operation="OHLC")
         if isinstance(error_result, Failure):
@@ -245,6 +257,10 @@ class MarketDataIngestionFlow:
         )
         if isinstance(descriptor_result, Failure):
             raise descriptor_result.error
+        if not callable(getattr(port, "health", None)):
+            raise IngestionValidationError(
+                "external market-data payload port must expose health"
+            )
         if not callable(getattr(port, "read_external_quote", None)):
             raise IngestionValidationError(
                 "external market-data payload port must expose read_external_quote"
@@ -383,7 +399,10 @@ class MarketDataIngestionFlow:
         )
         if isinstance(closed_result, Failure):
             return closed_result
-        if opened_result.value != request.opened_at or closed_result.value != request.closed_at:
+        if (
+            opened_result.value != request.opened_at
+            or closed_result.value != request.closed_at
+        ):
             return _validation_failure(
                 "external OHLC interval must match the requested interval"
             )
