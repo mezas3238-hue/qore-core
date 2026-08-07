@@ -17,7 +17,7 @@ Restricciones:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class Clock:
@@ -25,4 +25,4 @@ class Clock:
 
     def now(self) -> datetime:
         """Obtener la fecha y hora actual en UTC."""
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
