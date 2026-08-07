@@ -27,6 +27,11 @@ def runtime_context() -> RuntimeContext:
     return RuntimeContext(execution_id=EXECUTION_ID, runtime_version="0.2.0")
 
 
+def current_state(lifecycle: ApplicationLifecycle) -> LifecycleState:
+    """Read state without retaining literal narrowing across transitions."""
+    return lifecycle.state
+
+
 class CapturingHandler:
     def __init__(self) -> None:
         self.events: list[DomainEvent] = []
@@ -112,9 +117,9 @@ class TestRuntimeLifecycleEvents:
         bus.subscribe(RuntimeStoppedEvent, stopped)
 
         assert isinstance(lifecycle.start(), Success)
-        assert lifecycle.state == LifecycleState.RUNNING
+        assert current_state(lifecycle) == LifecycleState.RUNNING
         assert isinstance(lifecycle.stop(), Success)
-        assert lifecycle.state == LifecycleState.STOPPED
+        assert current_state(lifecycle) == LifecycleState.STOPPED
 
         assert len(started.events) == 1
         assert len(stopped.events) == 1
@@ -146,7 +151,7 @@ class TestRuntimeLifecycleEvents:
 
         assert isinstance(result, Failure)
         assert str(result.error) == "engine start failed"
-        assert lifecycle.state == LifecycleState.ERROR
+        assert current_state(lifecycle) == LifecycleState.ERROR
         assert len(failed.events) == 1
         assert failed.events[0].timestamp == FIXED_TS
         assert failed.events[0].metadata["error_message"] == "engine start failed"
@@ -171,5 +176,5 @@ class TestRuntimeLifecycleEvents:
 
         assert isinstance(result, Failure)
         assert "cannot handle qore.runtime.started" in str(result.error)
-        assert lifecycle.state == LifecycleState.ERROR
+        assert current_state(lifecycle) == LifecycleState.ERROR
         assert len(failed.events) == 1
