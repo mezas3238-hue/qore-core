@@ -128,7 +128,7 @@ def _composition() -> ReferenceInfrastructureComposition[dict[str, int]]:
         ExternalPortError,
     ] = compose_reference_infrastructure(_core(), _configuration())
     assert isinstance(composed, Success)
-    return cast(ReferenceInfrastructureComposition[dict[str, int]], composed.value)
+    return composed.value
 
 
 def _save_request(
@@ -157,7 +157,7 @@ def test_reference_infrastructure_composes_ports_above_one_core_instance() -> No
     ] = compose_reference_infrastructure(core, _configuration())
 
     assert isinstance(composed, Success)
-    application = cast(ReferenceInfrastructureComposition[dict[str, int]], composed.value)
+    application = composed.value
     assert application.core is core
     assert application.adapters.market_data is application.ports.market_data
     assert application.adapters.persistence is application.ports.persistence
