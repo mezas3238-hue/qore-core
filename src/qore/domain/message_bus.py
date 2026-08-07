@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast, Protocol
+from typing import Protocol, cast
 
 from qore.domain.commands import Command, CommandHandler, CommandResult
 from qore.domain.events import BusinessDomainEvent
 from qore.kernel.errors import DomainError
 from qore.kernel.result import Failure, Result, Success
-
 
 type Message = Command | BusinessDomainEvent
 type MessageResult = Result[object | None, DomainError]
