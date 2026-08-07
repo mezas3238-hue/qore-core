@@ -58,7 +58,7 @@ class MessageMiddleware(Protocol):
         ...
 
     def after(self, message: Message, result: MessageResult) -> None:
-        """Observar el resultado después del dispatch."""
+        """Finalizar únicamente si before terminó con éxito."""
         ...
 
 
@@ -141,8 +141,9 @@ class MessageBus:
         self._middleware = middleware
 
     def dispatch_command[C: Command, R](self, command: C) -> CommandResult[R]:
-        before = self._run_before(command)
+        entered, before = self._run_before(command)
         if isinstance(before, Failure):
+            self._run_after(command, cast(MessageResult, before), entered)
             return Failure(before.error)
 
         handler: CommandHandler[C, R] | None = self._registry.command_handler(
@@ -158,7 +159,7 @@ class MessageBus:
             except Exception as exc:
                 result = Failure(HandlerExecutionError(str(exc)))
 
-        after = self._run_after(command, cast(MessageResult, result))
+        after = self._run_after(command, cast(MessageResult, result), entered)
         if isinstance(result, Success) and isinstance(after, Failure):
             return Failure(after.error)
         return result
@@ -167,8 +168,9 @@ class MessageBus:
         self,
         event: E,
     ) -> Result[None, DomainError]:
-        before = self._run_before(event)
+        entered, before = self._run_before(event)
         if isinstance(before, Failure):
+            self._run_after(event, cast(MessageResult, before), entered)
             return before
 
         result: Result[None, DomainError] = Success(None)
@@ -181,29 +183,35 @@ class MessageBus:
                 result = current
                 break
 
-        after = self._run_after(event, cast(MessageResult, result))
+        after = self._run_after(event, cast(MessageResult, result), entered)
         if isinstance(result, Success) and isinstance(after, Failure):
             return Failure(after.error)
         return result
 
-    def _run_before(self, message: Message) -> Result[None, DomainError]:
+    def _run_before(
+        self,
+        message: Message,
+    ) -> tuple[tuple[MessageMiddleware, ...], Result[None, DomainError]]:
+        entered: list[MessageMiddleware] = []
         for middleware in self._middleware:
             try:
                 result = middleware.before(message)
             except Exception as exc:
-                return Failure(HandlerExecutionError(str(exc)))
+                return tuple(entered), Failure(HandlerExecutionError(str(exc)))
             if isinstance(result, Failure):
-                return result
-        return Success(None)
+                return tuple(entered), result
+            entered.append(middleware)
+        return tuple(entered), Success(None)
 
     def _run_after(
         self,
         message: Message,
         result: MessageResult,
+        middleware: tuple[MessageMiddleware, ...],
     ) -> Result[None, DomainError]:
-        for middleware in reversed(self._middleware):
+        for item in reversed(middleware):
             try:
-                middleware.after(message, result)
+                item.after(message, result)
             except Exception as exc:
                 return Failure(HandlerExecutionError(str(exc)))
         return Success(None)
