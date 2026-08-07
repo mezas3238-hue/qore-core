@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -27,6 +28,7 @@ from qore.governance.decision_flow import (
 from qore.kernel.errors import KernelError
 from qore.kernel.result import Failure, Result, Success
 from qore.modules.cibo.module import CiboModule
+from qore.modules.cio.contracts import CioValidationError
 from qore.modules.cio.module import CioModule
 from qore.modules.portfolio.contracts import AllocationIntentId, PortfolioTarget
 from qore.modules.portfolio.module import PortfolioModule
@@ -191,6 +193,40 @@ def test_plan_rejects_duplicate_causal_object_identity() -> None:
             risk_decision_id=plan.risk_decision_id,
             risk_policy=plan.risk_policy,
         )
+
+
+def test_flow_normalizes_domain_error_during_stage_construction() -> None:
+    boot = _boot_full()
+    assert isinstance(boot, Success)
+    plan = _plan(7_000)
+    malformed = CrossModuleDecisionFlowPlan(
+        correlation_id=plan.correlation_id,
+        timestamp=plan.timestamp,
+        cio_command_id=plan.cio_command_id,
+        cio_decision_id=plan.cio_decision_id,
+        cio_decision_type=plan.cio_decision_type,
+        cio_priority=plan.cio_priority,
+        cio_reasons=(cast(DecisionReason, object()),),
+        cio_outcome=plan.cio_outcome,
+        cibo_command_id=plan.cibo_command_id,
+        cibo_decision_id=plan.cibo_decision_id,
+        cibo_priority=plan.cibo_priority,
+        cibo_reasons=plan.cibo_reasons,
+        cibo_outcome=plan.cibo_outcome,
+        portfolio_command_id=plan.portfolio_command_id,
+        allocation_intent_id=plan.allocation_intent_id,
+        portfolio_targets=plan.portfolio_targets,
+        risk_command_id=plan.risk_command_id,
+        risk_decision_id=plan.risk_decision_id,
+        risk_policy=plan.risk_policy,
+    )
+
+    result = CrossModuleDecisionFlow(
+        message_bus=boot.value.domain.message_bus
+    ).execute(malformed)
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CioValidationError)
 
 
 def test_flow_propagates_missing_stage_handler_failure() -> None:
