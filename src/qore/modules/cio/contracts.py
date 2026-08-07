@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from qore.domain.commands import Command, CommandMetadata
+from qore.domain.commands import Command
 from qore.domain.events import (
     BusinessDomainEvent,
     DomainEventId,
@@ -20,6 +20,19 @@ from qore.functional.decisions import (
     DecisionType,
     FunctionalDecision,
 )
+from qore.kernel.errors import DomainError
+
+
+class CioError(DomainError):
+    """Error base de los contratos funcionales del CIO."""
+
+    __slots__ = ()
+
+
+class CioValidationError(CioError):
+    """Violación explícita de una invariante del CIO."""
+
+    __slots__ = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,9 +49,13 @@ class CreateCioDecisionCommand(Command):
         if not isinstance(self.reasons, tuple) or any(
             not isinstance(reason, DecisionReason) for reason in self.reasons
         ):
-            raise TypeError("reasons must be an immutable tuple of DecisionReason values")
+            raise CioValidationError(
+                "reasons must be an immutable tuple of DecisionReason values"
+            )
         if self.requested_outcome is not None and not self.reasons:
-            raise ValueError("resolved CIO decision request requires at least one reason")
+            raise CioValidationError(
+                "resolved CIO decision request requires at least one reason"
+            )
 
     def to_decision(self) -> FunctionalDecision:
         """Project the command into the shared decision contract deterministically."""
@@ -78,6 +95,10 @@ class CioDecisionProducedEvent(BusinessDomainEvent):
         metadata: DomainEventMetadata,
         decision: FunctionalDecision,
     ) -> None:
+        if metadata.correlation_id != decision.metadata.correlation_id:
+            raise CioValidationError(
+                "CIO decision event correlation must match the represented decision"
+            )
         object.__setattr__(self, "_decision", decision)
         super().__init__(
             timestamp=timestamp,
@@ -93,14 +114,3 @@ class CioDecisionProducedEvent(BusinessDomainEvent):
 
     def logical_values(self) -> tuple[object, ...]:
         return (*super().logical_values(), self._decision.logical_values())
-
-
-def decision_command_metadata(
-    metadata: CommandMetadata,
-) -> DecisionMetadata:
-    """Adapt command metadata into shared decision metadata without side effects."""
-    return DecisionMetadata(
-        correlation_id=metadata.correlation_id,
-        causation_id=metadata.causation_id,
-        attributes=metadata.attributes,
-    )
