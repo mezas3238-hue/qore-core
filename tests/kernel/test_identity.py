@@ -27,4 +27,5 @@ def test_identity_equality_and_hash() -> None:
 
 
 def test_identity_not_equal_to_other_type() -> None:
-    assert Identity(id=1) != 1
+    identity = Identity(id=1)
+    assert identity.__eq__(object()) is NotImplemented
