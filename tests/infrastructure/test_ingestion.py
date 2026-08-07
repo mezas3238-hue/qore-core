@@ -100,7 +100,7 @@ def _ohlc_payload(
     )
 
 
-class _PayloadPortFailure(ExternalPortError):
+class _PayloadPortError(ExternalPortError):
     __slots__ = ()
 
 
@@ -223,7 +223,7 @@ def test_ingestion_normalizes_external_ohlc_into_the_canonical_contract() -> Non
 
 
 def test_ingestion_propagates_port_failure_without_rewrapping() -> None:
-    error = _PayloadPortFailure("external read failed")
+    error = _PayloadPortError("external read failed")
     flow = MarketDataIngestionFlow(_FakePayloadPort(failure=error))
 
     result = flow.ingest_quote(
