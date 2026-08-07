@@ -53,6 +53,14 @@ class ReviewFunctionalDecisionCommand(Command):
             raise CiboValidationError(
                 "reasons must be an immutable tuple of DecisionReason values"
             )
+        if self.source_decision.status is not DecisionStatus.RESOLVED:
+            raise CiboValidationError(
+                "CIBO can only review a resolved source decision"
+            )
+        if self.decision_id == self.source_decision.decision_id:
+            raise CiboValidationError(
+                "CIBO decision identity must differ from its source decision"
+            )
         if self.metadata.correlation_id != self.source_decision.metadata.correlation_id:
             raise CiboValidationError(
                 "CIBO command correlation must match the source decision"
@@ -102,13 +110,18 @@ class CiboDecisionProducedEvent(BusinessDomainEvent):
         decision: FunctionalDecision,
         source_decision_id: DecisionId,
     ) -> None:
+        expected_causation = CausationId(source_decision_id.value)
         if metadata.correlation_id != decision.metadata.correlation_id:
             raise CiboValidationError(
                 "CIBO decision event correlation must match the represented decision"
             )
-        if decision.metadata.causation_id != CausationId(source_decision_id.value):
+        if decision.metadata.causation_id != expected_causation:
             raise CiboValidationError(
                 "CIBO decision event source must match decision causation"
+            )
+        if metadata.causation_id != expected_causation:
+            raise CiboValidationError(
+                "CIBO decision event causation must match the source decision"
             )
         object.__setattr__(self, "_decision", decision)
         object.__setattr__(self, "_source_decision_id", source_decision_id)
