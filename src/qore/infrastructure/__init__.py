@@ -16,7 +16,8 @@ from qore.infrastructure.ingestion import (
     IngestionError,
     IngestionValidationError,
     MarketDataIngestionFlow,
-)\nfrom qore.infrastructure.market_data import (
+)
+from qore.infrastructure.market_data import (
     Instrument,
     MarketDataError,
     MarketDataPort,
