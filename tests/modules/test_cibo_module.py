@@ -97,6 +97,7 @@ def _command(*, outcome: DecisionOutcome | None) -> ReviewFunctionalDecisionComm
         name=CommandName("cibo.review-functional-decision"),
         metadata=CommandMetadata(
             correlation_id=_CORRELATION_ID,
+            causation_id=CausationId(_SOURCE_DECISION_ID.value),
             attributes={"channel": "internal"},
         ),
         decision_id=_CIBO_DECISION_ID,
@@ -180,7 +181,10 @@ class TestReviewFunctionalDecisionCommand:
                 command_id=_COMMAND_ID,
                 timestamp=_TIMESTAMP,
                 name=CommandName("cibo.review-functional-decision"),
-                metadata=CommandMetadata(correlation_id=_CORRELATION_ID),
+                metadata=CommandMetadata(
+                    correlation_id=_CORRELATION_ID,
+                    causation_id=CausationId(_SOURCE_DECISION_ID.value),
+                ),
                 decision_id=_CIBO_DECISION_ID,
                 source_decision=_source_decision(),
                 priority=DecisionPriority.NORMAL,

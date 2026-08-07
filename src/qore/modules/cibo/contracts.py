@@ -65,6 +65,11 @@ class ReviewFunctionalDecisionCommand(Command):
             raise CiboValidationError(
                 "CIBO command correlation must match the source decision"
             )
+        expected_causation = CausationId(self.source_decision.decision_id.value)
+        if self.metadata.causation_id != expected_causation:
+            raise CiboValidationError(
+                "CIBO command causation must match the source decision"
+            )
         if self.requested_outcome is not None and not self.reasons:
             raise CiboValidationError(
                 "resolved CIBO review requires at least one reason"

@@ -99,6 +99,10 @@ class CioDecisionProducedEvent(BusinessDomainEvent):
             raise CioValidationError(
                 "CIO decision event correlation must match the represented decision"
             )
+        if metadata.causation_id != decision.metadata.causation_id:
+            raise CioValidationError(
+                "CIO decision event causation must match the represented decision"
+            )
         object.__setattr__(self, "_decision", decision)
         super().__init__(
             timestamp=timestamp,

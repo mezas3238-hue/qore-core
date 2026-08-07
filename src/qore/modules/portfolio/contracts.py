@@ -109,6 +109,10 @@ class CreateAllocationIntentCommand(Command):
     targets: tuple[PortfolioTarget, ...]
 
     def __post_init__(self) -> None:
+        if self.intent_id.value == self.source_decision.decision_id.value:
+            raise PortfolioValidationError(
+                "allocation intent identity must differ from its source decision"
+            )
         if self.source_decision.status is not DecisionStatus.RESOLVED:
             raise PortfolioValidationError(
                 "portfolio allocation requires a resolved source decision"

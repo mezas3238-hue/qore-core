@@ -11,6 +11,7 @@ from qore.functional.decisions import (
     DecisionOutcome,
     DecisionPriority,
     DecisionReason,
+    DecisionStatus,
     DecisionType,
     FunctionalDecision,
 )
@@ -113,6 +114,14 @@ class CrossModuleDecisionFlowResult:
             raise GovernanceValidationError("allocation intent correlation mismatch")
         if self.risk_decision.metadata.correlation_id != expected:
             raise GovernanceValidationError("risk decision correlation mismatch")
+        if self.cio_decision.status is not DecisionStatus.RESOLVED or (
+            self.cio_decision.outcome is not DecisionOutcome.APPROVED
+        ):
+            raise GovernanceValidationError("CIO decision must be resolved and approved")
+        if self.cibo_decision.status is not DecisionStatus.RESOLVED or (
+            self.cibo_decision.outcome is not DecisionOutcome.APPROVED
+        ):
+            raise GovernanceValidationError("CIBO decision must be resolved and approved")
         if self.cibo_decision.metadata.causation_id != CausationId(
             self.cio_decision.decision_id.value
         ):
@@ -123,6 +132,17 @@ class CrossModuleDecisionFlowResult:
             self.allocation_intent.intent_id.value
         ):
             raise GovernanceValidationError("Risk causation mismatch")
+        allowed_risk_outcomes = {
+            DecisionOutcome.APPROVED,
+            DecisionOutcome.DEGRADED,
+            DecisionOutcome.BLOCKED,
+        }
+        if self.risk_decision.status is not DecisionStatus.RESOLVED or (
+            self.risk_decision.outcome not in allowed_risk_outcomes
+        ):
+            raise GovernanceValidationError(
+                "Risk decision must be resolved with a governance outcome"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -171,6 +191,16 @@ class CrossModuleDecisionFlow:
         if isinstance(cio_result, Failure):
             return Failure(cio_result.error)
         cio_decision = cio_result.value
+        cio_error = self._validate_decision_result(
+            stage="CIO",
+            decision=cio_decision,
+            expected_id=plan.cio_decision_id,
+            correlation_id=plan.correlation_id,
+            expected_causation=None,
+            allowed_outcomes=frozenset({DecisionOutcome.APPROVED}),
+        )
+        if cio_error is not None:
+            return Failure(cio_error)
 
         cibo_result: Result[FunctionalDecision, DomainError] = (
             self._message_bus.dispatch_command(
@@ -193,6 +223,16 @@ class CrossModuleDecisionFlow:
         if isinstance(cibo_result, Failure):
             return Failure(cibo_result.error)
         cibo_decision = cibo_result.value
+        cibo_error = self._validate_decision_result(
+            stage="CIBO",
+            decision=cibo_decision,
+            expected_id=plan.cibo_decision_id,
+            correlation_id=plan.correlation_id,
+            expected_causation=CausationId(cio_decision.decision_id.value),
+            allowed_outcomes=frozenset({DecisionOutcome.APPROVED}),
+        )
+        if cibo_error is not None:
+            return Failure(cibo_error)
 
         portfolio_result: Result[AllocationIntent, DomainError] = (
             self._message_bus.dispatch_command(
@@ -213,6 +253,12 @@ class CrossModuleDecisionFlow:
         if isinstance(portfolio_result, Failure):
             return Failure(portfolio_result.error)
         allocation_intent = portfolio_result.value
+        if allocation_intent.intent_id != plan.allocation_intent_id:
+            return Failure(GovernanceValidationError("Portfolio intent identity mismatch"))
+        if allocation_intent.correlation_id != plan.correlation_id:
+            return Failure(GovernanceValidationError("Portfolio correlation mismatch"))
+        if allocation_intent.source_decision_id != cibo_decision.decision_id:
+            return Failure(GovernanceValidationError("Portfolio causation mismatch"))
 
         risk_result: Result[FunctionalDecision, DomainError] = (
             self._message_bus.dispatch_command(
@@ -233,6 +279,23 @@ class CrossModuleDecisionFlow:
         )
         if isinstance(risk_result, Failure):
             return Failure(risk_result.error)
+        risk_decision = risk_result.value
+        risk_error = self._validate_decision_result(
+            stage="Risk",
+            decision=risk_decision,
+            expected_id=plan.risk_decision_id,
+            correlation_id=plan.correlation_id,
+            expected_causation=CausationId(allocation_intent.intent_id.value),
+            allowed_outcomes=frozenset(
+                {
+                    DecisionOutcome.APPROVED,
+                    DecisionOutcome.DEGRADED,
+                    DecisionOutcome.BLOCKED,
+                }
+            ),
+        )
+        if risk_error is not None:
+            return Failure(risk_error)
 
         return Success(
             CrossModuleDecisionFlowResult(
@@ -240,6 +303,28 @@ class CrossModuleDecisionFlow:
                 cio_decision=cio_decision,
                 cibo_decision=cibo_decision,
                 allocation_intent=allocation_intent,
-                risk_decision=risk_result.value,
+                risk_decision=risk_decision,
             )
         )
+
+    @staticmethod
+    def _validate_decision_result(
+        *,
+        stage: str,
+        decision: FunctionalDecision,
+        expected_id: DecisionId,
+        correlation_id: CorrelationId,
+        expected_causation: CausationId | None,
+        allowed_outcomes: frozenset[DecisionOutcome],
+    ) -> GovernanceValidationError | None:
+        if decision.decision_id != expected_id:
+            return GovernanceValidationError(f"{stage} decision identity mismatch")
+        if decision.metadata.correlation_id != correlation_id:
+            return GovernanceValidationError(f"{stage} decision correlation mismatch")
+        if decision.metadata.causation_id != expected_causation:
+            return GovernanceValidationError(f"{stage} decision causation mismatch")
+        if decision.status is not DecisionStatus.RESOLVED:
+            return GovernanceValidationError(f"{stage} decision must be resolved")
+        if decision.outcome not in allowed_outcomes:
+            return GovernanceValidationError(f"{stage} decision outcome is not allowed")
+        return None
