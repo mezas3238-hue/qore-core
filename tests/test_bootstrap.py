@@ -1,8 +1,6 @@
 """Executable evidence for the QORE Genesis bootstrap."""
 
-from dataclasses import FrozenInstanceError
-
-import pytest
+from dataclasses import replace
 
 import qore
 from qore.core.bootstrap import CoreIdentity, bootstrap
@@ -23,6 +21,8 @@ def test_bootstrap_returns_genesis_identity() -> None:
 
 def test_core_identity_is_immutable() -> None:
     identity = bootstrap()
+    altered = replace(identity, mode="ALTERED")
 
-    with pytest.raises(FrozenInstanceError):
-        setattr(identity, "mode", "ALTERED")
+    assert identity.mode == "GENESIS"
+    assert altered.mode == "ALTERED"
+    assert altered is not identity
