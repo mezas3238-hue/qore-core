@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pytest
 
-from qore.domain.events import CausationId, CorrelationId
+from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.infrastructure.ports import (
     AdapterId,
     ExternalHealth,
@@ -160,7 +160,7 @@ def test_descriptor_rejects_identity_reuse_and_runtime_type_bypass() -> None:
 
 
 def test_request_metadata_is_sorted_defensively_copied_and_immutable() -> None:
-    source: dict[str, object] = {"z": 3, "a": ("x", 1)}
+    source: dict[str, DomainMetadataValue] = {"z": 3, "a": ("x", 1)}
     metadata = ExternalRequestMetadata(
         correlation_id=_CORRELATION,
         causation_id=_CAUSATION,
@@ -183,7 +183,7 @@ def test_request_metadata_rejects_reserved_mutable_and_non_finite_values() -> No
     with pytest.raises(PortValidationError, match="immutable"):
         ExternalRequestMetadata(
             correlation_id=_CORRELATION,
-            attributes={"payload": cast(object, [1, 2])},
+            attributes={"payload": cast(DomainMetadataValue, [1, 2])},
         )
     with pytest.raises(PortValidationError, match="finite"):
         ExternalRequestMetadata(
@@ -231,7 +231,7 @@ def test_health_requires_explicit_timezone_and_coherent_availability_message() -
 
 
 def test_health_details_are_defensively_copied_and_logical_values_are_stable() -> None:
-    details: dict[str, object] = {"z": 2, "a": (1, "x")}
+    details: dict[str, DomainMetadataValue] = {"z": 2, "a": (1, "x")}
     first = ExternalHealth(
         descriptor=_descriptor(),
         availability=PortAvailability.AVAILABLE,
