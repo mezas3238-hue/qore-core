@@ -127,6 +127,19 @@ class TestFunctionalDecision:
         assert decision.outcome is None
         assert decision.reasons == ()
 
+    def test_reasons_must_be_an_immutable_tuple(self) -> None:
+        mutable_reasons = cast(tuple[DecisionReason, ...], [_reason()])
+        with pytest.raises(DecisionValidationError, match="immutable tuple"):
+            FunctionalDecision(
+                decision_id=_DECISION_ID,
+                timestamp=_TIMESTAMP,
+                decision_type=DecisionType("governance.review"),
+                status=DecisionStatus.PENDING,
+                priority=DecisionPriority.NORMAL,
+                metadata=_metadata(),
+                reasons=mutable_reasons,
+            )
+
     def test_pending_decision_rejects_outcome(self) -> None:
         with pytest.raises(DecisionValidationError, match="pending"):
             FunctionalDecision(
