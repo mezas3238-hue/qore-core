@@ -9,6 +9,7 @@ import qore.infrastructure.market_data as market_data
 import qore.infrastructure.ports as ports
 import qore.kernel.result as result_contract
 
+
 type ExternalDecimalValue = str | float
 type ExternalWholeNumberValue = str | int
 
