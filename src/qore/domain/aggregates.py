@@ -41,7 +41,12 @@ class Entity:
     __slots__ = ("_entity_id",)
 
     def __init__(self, *, entity_id: EntityId) -> None:
-        self._entity_id = entity_id
+        object.__setattr__(self, "_entity_id", entity_id)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "_entity_id" and hasattr(self, "_entity_id"):
+            raise AttributeError("entity identity is immutable")
+        object.__setattr__(self, name, value)
 
     @property
     def entity_id(self) -> EntityId:
