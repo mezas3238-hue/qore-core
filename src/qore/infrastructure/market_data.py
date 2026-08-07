@@ -79,6 +79,18 @@ def _validate_price(value: float, *, field_name: str) -> None:
         )
 
 
+def _validate_market_data_source(source: ExternalSourceDescriptor, *, field_name: str) -> None:
+    if not isinstance(source, ExternalSourceDescriptor):
+        raise MarketDataValidationError(
+            f"{field_name} source must be ExternalSourceDescriptor"
+        )
+    name = source.port_name.value
+    if name != "market-data" and not name.startswith("market-data."):
+        raise MarketDataValidationError(
+            f"{field_name} source port must use the market-data namespace"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class QuoteSnapshot:
     """Immutable canonical bid/ask snapshot from one explicit source."""
@@ -97,10 +109,7 @@ class QuoteSnapshot:
             )
         if not isinstance(self.instrument, Instrument):
             raise MarketDataValidationError("quote instrument must be Instrument")
-        if not isinstance(self.source, ExternalSourceDescriptor):
-            raise MarketDataValidationError(
-                "quote source must be ExternalSourceDescriptor"
-            )
+        _validate_market_data_source(self.source, field_name="quote")
         _validate_timestamp(self.observed_at, field_name="quote observed_at")
         _validate_price(self.bid, field_name="bid")
         _validate_price(self.ask, field_name="ask")
@@ -140,10 +149,7 @@ class OhlcSnapshot:
             )
         if not isinstance(self.instrument, Instrument):
             raise MarketDataValidationError("OHLC instrument must be Instrument")
-        if not isinstance(self.source, ExternalSourceDescriptor):
-            raise MarketDataValidationError(
-                "OHLC source must be ExternalSourceDescriptor"
-            )
+        _validate_market_data_source(self.source, field_name="OHLC")
         if not isinstance(self.timeframe, Timeframe):
             raise MarketDataValidationError("OHLC timeframe must be Timeframe")
         _validate_timestamp(self.opened_at, field_name="OHLC opened_at")
