@@ -39,6 +39,7 @@ _SOURCE = ExternalSourceDescriptor(
 _CORRELATION = CorrelationId(UUID("c1000000-0000-0000-0000-000000000003"))
 _CAUSATION = CausationId(UUID("c1000000-0000-0000-0000-000000000004"))
 _KEY = PersistenceKey("statistics", "snapshot/alpha")
+_VERSION_ZERO = PersistenceVersion(0)
 
 
 def _metadata() -> ExternalRequestMetadata:
@@ -50,7 +51,7 @@ def _metadata() -> ExternalRequestMetadata:
 
 def _record(
     *,
-    version: PersistenceVersion = PersistenceVersion(0),
+    version: PersistenceVersion = _VERSION_ZERO,
     value: str = "payload-v0",
 ) -> StoredRecord[str]:
     return StoredRecord(
@@ -64,7 +65,7 @@ def _record(
 
 def _save_request(
     *,
-    version: PersistenceVersion = PersistenceVersion(0),
+    version: PersistenceVersion = _VERSION_ZERO,
     value: str = "payload-v0",
     expected_version: PersistenceVersion | None = None,
 ) -> SavePersistenceRequest[str]:
@@ -247,7 +248,7 @@ def test_save_request_enforces_explicit_create_and_update_versions() -> None:
 
     with pytest.raises(PersistenceValidationError, match="version 0"):
         _save_request(version=PersistenceVersion(1))
-    with pytest.raises(PersistenceValidationError, match="expected_version \+ 1"):
+    with pytest.raises(PersistenceValidationError, match=r"expected_version \+ 1"):
         _save_request(
             version=PersistenceVersion(2),
             expected_version=PersistenceVersion(0),
