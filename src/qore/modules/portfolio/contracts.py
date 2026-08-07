@@ -9,6 +9,7 @@ from qore.domain.commands import Command
 from qore.domain.events import (
     BusinessDomainEvent,
     CausationId,
+    CorrelationId,
     DomainEventId,
     DomainEventMetadata,
     DomainEventVersion,
@@ -53,9 +54,9 @@ class PortfolioTarget:
             raise PortfolioValidationError(
                 "portfolio target name must use lowercase letters, digits, dots, or hyphens"
             )
-        if not 0 < self.weight_bps <= 10_000:
+        if type(self.weight_bps) is not int or not 0 < self.weight_bps <= 10_000:
             raise PortfolioValidationError(
-                "portfolio target weight must be between 1 and 10000 basis points"
+                "portfolio target weight must be an integer between 1 and 10000 basis points"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -68,6 +69,7 @@ class AllocationIntent:
 
     intent_id: AllocationIntentId
     source_decision_id: DecisionId
+    correlation_id: CorrelationId
     timestamp: datetime
     targets: tuple[PortfolioTarget, ...]
 
@@ -92,6 +94,7 @@ class AllocationIntent:
         return (
             str(self.intent_id.value),
             str(self.source_decision_id.value),
+            str(self.correlation_id.value),
             self.timestamp.isoformat(),
             tuple(target.logical_values() for target in self.targets),
         )
@@ -126,6 +129,7 @@ class CreateAllocationIntentCommand(Command):
         AllocationIntent(
             intent_id=self.intent_id,
             source_decision_id=self.source_decision.decision_id,
+            correlation_id=self.source_decision.metadata.correlation_id,
             timestamp=self.timestamp,
             targets=self.targets,
         )
@@ -135,6 +139,7 @@ class CreateAllocationIntentCommand(Command):
         return AllocationIntent(
             intent_id=self.intent_id,
             source_decision_id=self.source_decision.decision_id,
+            correlation_id=self.source_decision.metadata.correlation_id,
             timestamp=self.timestamp,
             targets=self.targets,
         )
@@ -156,6 +161,10 @@ class AllocationIntentCreatedEvent(BusinessDomainEvent):
         intent: AllocationIntent,
     ) -> None:
         expected_causation = CausationId(intent.source_decision_id.value)
+        if metadata.correlation_id != intent.correlation_id:
+            raise PortfolioValidationError(
+                "allocation event correlation must match the allocation intent"
+            )
         if metadata.causation_id != expected_causation:
             raise PortfolioValidationError(
                 "allocation event causation must match the source decision"
