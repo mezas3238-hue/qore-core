@@ -85,13 +85,13 @@ class ApplicationLifecycle:
             self._publish_failed(result.error)
             return result
 
+        self._state = LifecycleState.RUNNING
         event_result = self._publish_started()
         if isinstance(event_result, Failure):
             self._state = LifecycleState.ERROR
             self._publish_failed(event_result.error)
             return event_result
 
-        self._state = LifecycleState.RUNNING
         return result
 
     def stop(self) -> Result[None, KernelError]:
@@ -106,13 +106,13 @@ class ApplicationLifecycle:
             self._publish_failed(result.error)
             return result
 
+        self._state = LifecycleState.STOPPED
         event_result = self._publish_stopped()
         if isinstance(event_result, Failure):
             self._state = LifecycleState.ERROR
             self._publish_failed(event_result.error)
             return event_result
 
-        self._state = LifecycleState.STOPPED
         return result
 
     def restart(self) -> Result[None, KernelError]:
