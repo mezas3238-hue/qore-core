@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -16,6 +18,7 @@ from qore.domain.events import (
     DomainEventId,
     DomainEventMetadata,
     DomainEventVersion,
+    DomainMetadataValue,
 )
 from qore.kernel.domain_event import DomainEvent
 from qore.kernel.errors import ValidationError
@@ -93,11 +96,12 @@ class TestDomainEventValueContracts:
         )
 
         for invalid in invalid_values:
+            unsafe = cast(Mapping[str, DomainMetadataValue], {"value": invalid})
             with pytest.raises(ValidationError):
-                DomainEventMetadata(  # type: ignore[arg-type]
+                DomainEventMetadata(
                     category=DomainEventCategory("test"),
                     correlation_id=CORRELATION_ID,
-                    attributes={"value": invalid},
+                    attributes=unsafe,
                 )
 
     def test_immutable_tuple_metadata_is_supported(self) -> None:
