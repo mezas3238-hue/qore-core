@@ -38,7 +38,22 @@ from qore.modules.knowledge.module import (
     KnowledgeServiceModule,
 )
 from qore.modules.statistics.contracts import StatisticsSnapshot, StatisticsSnapshotId
-from qore.specialist.analysis import SpecialistConfidence
+from qore.modules.validation.contracts import (
+    ValidationAssessment,
+    ValidationAssessmentId,
+    ValidationPolicy,
+    ValidationVerdict,
+)
+from qore.specialist.analysis import (
+    SpecialistAnalysis,
+    SpecialistAnalysisId,
+    SpecialistAnalysisStatus,
+    SpecialistConfidence,
+    SpecialistKind,
+    SpecialistMetadata,
+    SpecialistReason,
+    SpecialistReasonCode,
+)
 
 _TIMESTAMP = datetime(2026, 8, 7, 23, 50, tzinfo=UTC)
 _CORRELATION = CorrelationId(UUID("95000000-0000-0000-0000-000000000001"))
@@ -48,15 +63,44 @@ _COMMAND_ID = CommandId(UUID("95000000-0000-0000-0000-000000000004"))
 _EVENT_ID = DomainEventId(UUID("95000000-0000-0000-0000-000000000005"))
 
 
+def _assessment(index: int, confidence: float, passed: bool) -> ValidationAssessment:
+    analysis = SpecialistAnalysis(
+        analysis_id=SpecialistAnalysisId(
+            UUID(f"95000000-0000-0000-0000-{10 + index:012d}")
+        ),
+        timestamp=_TIMESTAMP,
+        kind=SpecialistKind("virtual-trader.knowledge-source"),
+        status=SpecialistAnalysisStatus.COMPLETED,
+        metadata=SpecialistMetadata(correlation_id=_CORRELATION),
+        confidence=SpecialistConfidence(confidence),
+        reasons=(
+            SpecialistReason(
+                code=SpecialistReasonCode("virtual-trader.explicit"),
+                summary="Explicit knowledge evidence",
+            ),
+        ),
+    )
+    return ValidationAssessment(
+        assessment_id=ValidationAssessmentId(
+            UUID(f"95000000-0000-0000-0000-{20 + index:012d}")
+        ),
+        timestamp=_TIMESTAMP,
+        source_analysis=analysis,
+        correlation_id=_CORRELATION,
+        causation_id=CausationId(analysis.analysis_id.value),
+        policy=ValidationPolicy(SpecialistConfidence(0.5)),
+        verdict=ValidationVerdict.PASSED if passed else ValidationVerdict.FAILED,
+        observed_confidence=SpecialistConfidence(confidence),
+    )
+
+
 def _snapshot() -> StatisticsSnapshot:
+    assessments = (_assessment(1, 0.8, True), _assessment(2, 0.4, False))
     return StatisticsSnapshot(
         snapshot_id=_SNAPSHOT_ID,
         timestamp=_TIMESTAMP,
         correlation_id=_CORRELATION,
-        source_assessment_ids=(
-            UUID("95000000-0000-0000-0000-000000000011"),
-            UUID("95000000-0000-0000-0000-000000000012"),
-        ),
+        source_assessments=assessments,
         sample_size=2,
         passed_count=1,
         failed_count=1,
@@ -83,7 +127,6 @@ def _command() -> CaptureStatisticsKnowledgeCommand:
 def test_command_projects_statistics_exactly_into_knowledge() -> None:
     record = _command().to_record()
     snapshot = _snapshot()
-
     assert record.source_snapshot_id == snapshot.snapshot_id
     assert record.sample_size == snapshot.sample_size
     assert record.passed_count == snapshot.passed_count
@@ -102,9 +145,7 @@ def test_command_rejects_wrong_correlation_and_causation() -> None:
             timestamp=_TIMESTAMP,
             name=CommandName("knowledge.capture-statistics"),
             metadata=CommandMetadata(
-                correlation_id=CorrelationId(
-                    UUID("95000000-0000-0000-0000-000000000099")
-                ),
+                correlation_id=CorrelationId(UUID("95000000-0000-0000-0000-000000000099")),
                 causation_id=CausationId(snapshot.snapshot_id.value),
             ),
             record_id=_RECORD_ID,
@@ -117,9 +158,7 @@ def test_command_rejects_wrong_correlation_and_causation() -> None:
             name=CommandName("knowledge.capture-statistics"),
             metadata=CommandMetadata(
                 correlation_id=_CORRELATION,
-                causation_id=CausationId(
-                    UUID("95000000-0000-0000-0000-000000000098")
-                ),
+                causation_id=CausationId(UUID("95000000-0000-0000-0000-000000000098")),
             ),
             record_id=_RECORD_ID,
             source_snapshot=snapshot,
@@ -213,9 +252,7 @@ def test_event_rejects_divergent_trace() -> None:
             metadata=DomainEventMetadata(
                 category=DomainEventCategory("knowledge"),
                 correlation_id=_CORRELATION,
-                causation_id=CausationId(
-                    UUID("95000000-0000-0000-0000-000000000097")
-                ),
+                causation_id=CausationId(UUID("95000000-0000-0000-0000-000000000097")),
             ),
             record=record,
         )
@@ -240,7 +277,6 @@ def test_module_registration_bootstrap_and_runtime_isolation() -> None:
     assert isinstance(registration, Success)
     assert registered is module.knowledge_handler
     assert module.descriptor.name == ModuleName("knowledge")
-
     boot = bootstrap(
         Configuration(application_name="qore-knowledge-test"),
         domain_modules=(module,),
