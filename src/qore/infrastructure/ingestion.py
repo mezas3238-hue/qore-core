@@ -87,40 +87,35 @@ class ExternalMarketDataPayloadPort(ExternalPort, Protocol):
         ...
 
 
-def _validation_failure(message: str) -> Failure[IngestionValidationError]:
+def _validation_failure(message: str) -> Failure[ExternalPortError]:
     return Failure(IngestionValidationError(message))
 
 
 def _validate_metadata(
     metadata: ExternalRequestMetadata,
-) -> Result[None, IngestionValidationError]:
+) -> Result[None, ExternalPortError]:
     if not isinstance(metadata, ExternalRequestMetadata):
         return _validation_failure("ingestion metadata must be ExternalRequestMetadata")
     return Success(None)
 
 
-def _validate_source(
+def _validate_market_data_source(
     source: object,
     *,
-    expected: ExternalSourceDescriptor,
-) -> Result[ExternalSourceDescriptor, IngestionValidationError]:
+    expected: ExternalSourceDescriptor | None = None,
+    field_name: str,
+) -> Result[ExternalSourceDescriptor, ExternalPortError]:
     if not isinstance(source, ExternalSourceDescriptor):
-        return _validation_failure(
-            "external market-data payload source must be ExternalSourceDescriptor"
-        )
+        return _validation_failure(f"{field_name} must be ExternalSourceDescriptor")
     name = source.port_name.value
     if name != "market-data" and not name.startswith("market-data."):
-        return _validation_failure(
-            "external market-data payload source must use the market-data namespace"
-        )
-    if source != expected:
-        return _validation_failure(
-            "external market-data payload source must match port descriptor"
-        )
+        return _validation_failure(f"{field_name} must use the market-data namespace")
+    if expected is not None and source != expected:
+        return _validation_failure(f"{field_name} must match port descriptor")
     return Success(source)
 
 
-def _normalize_instrument(value: object) -> Result[Instrument, IngestionValidationError]:
+def _normalize_instrument(value: object) -> Result[Instrument, ExternalPortError]:
     if not isinstance(value, str):
         return _validation_failure("external instrument must be a string")
     normalized = value.strip().upper()
@@ -136,7 +131,7 @@ def _normalize_decimal(
     value: object,
     *,
     field_name: str,
-) -> Result[float, IngestionValidationError]:
+) -> Result[float, ExternalPortError]:
     if type(value) is float:
         normalized = value
     elif isinstance(value, str):
@@ -162,7 +157,7 @@ def _normalize_decimal(
 
 def _normalize_timeframe(
     value: object,
-) -> Result[Timeframe, IngestionValidationError]:
+) -> Result[Timeframe, ExternalPortError]:
     if type(value) is int:
         normalized = value
     elif isinstance(value, str):
@@ -186,23 +181,84 @@ def _validate_timestamp(
     value: object,
     *,
     field_name: str,
-) -> Result[datetime, IngestionValidationError]:
+) -> Result[datetime, ExternalPortError]:
     if not isinstance(value, datetime):
         return _validation_failure(f"external {field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
-        return _validation_failure(
-            f"external {field_name} must be timezone-aware"
-        )
+        return _validation_failure(f"external {field_name} must be timezone-aware")
     return Success(value)
+
+
+def _validate_payload_result_error(error: object, *, operation: str) -> Result[ExternalPortError, ExternalPortError]:
+    if not isinstance(error, ExternalPortError):
+        return _validation_failure(f"external {operation} failure error must be ExternalPortError")
+    return Success(error)
+
+
+def _read_quote_payload(
+    port: ExternalMarketDataPayloadPort,
+    request: QuoteRequest,
+    *,
+    metadata: ExternalRequestMetadata,
+) -> Result[ExternalQuotePayload, ExternalPortError]:
+    result: object = port.read_external_quote(request, metadata=metadata)
+    if isinstance(result, Failure):
+        error_result = _validate_payload_result_error(result.error, operation="quote")
+        if isinstance(error_result, Failure):
+            return error_result
+        return Failure(error_result.value)
+    if not isinstance(result, Success):
+        return _validation_failure("external quote port must return Result")
+    if not isinstance(result.value, ExternalQuotePayload):
+        return _validation_failure("external quote port must return ExternalQuotePayload")
+    return Success(result.value)
+
+
+def _read_ohlc_payload(
+    port: ExternalMarketDataPayloadPort,
+    request: OhlcRequest,
+    *,
+    metadata: ExternalRequestMetadata,
+) -> Result[ExternalOhlcPayload, ExternalPortError]:
+    result: object = port.read_external_ohlc(request, metadata=metadata)
+    if isinstance(result, Failure):
+        error_result = _validate_payload_result_error(result.error, operation="OHLC")
+        if isinstance(error_result, Failure):
+            return error_result
+        return Failure(error_result.value)
+    if not isinstance(result, Success):
+        return _validation_failure("external OHLC port must return Result")
+    if not isinstance(result.value, ExternalOhlcPayload):
+        return _validation_failure("external OHLC port must return ExternalOhlcPayload")
+    return Success(result.value)
 
 
 class MarketDataIngestionFlow:
     """Normalize external Market Data payloads into canonical immutable snapshots."""
 
-    __slots__ = ("_port",)
+    __slots__ = ("_descriptor", "_port")
 
     def __init__(self, port: ExternalMarketDataPayloadPort) -> None:
+        descriptor_result = _validate_market_data_source(
+            getattr(port, "descriptor", None),
+            field_name="external market-data payload port descriptor",
+        )
+        if isinstance(descriptor_result, Failure):
+            raise descriptor_result.error
+        if not callable(getattr(port, "read_external_quote", None)):
+            raise IngestionValidationError(
+                "external market-data payload port must expose read_external_quote"
+            )
+        if not callable(getattr(port, "read_external_ohlc", None)):
+            raise IngestionValidationError(
+                "external market-data payload port must expose read_external_ohlc"
+            )
         self._port = port
+        self._descriptor = descriptor_result.value
+
+    @property
+    def descriptor(self) -> ExternalSourceDescriptor:
+        return self._descriptor
 
     @property
     def port(self) -> ExternalMarketDataPayloadPort:
@@ -224,22 +280,17 @@ class MarketDataIngestionFlow:
             return _validation_failure(
                 "quote ingestion snapshot_id must be MarketDataSnapshotId"
             )
-        descriptor = getattr(self._port, "descriptor", None)
-        if not isinstance(descriptor, ExternalSourceDescriptor):
-            return _validation_failure(
-                "external market-data payload port must expose an explicit descriptor"
-            )
 
-        payload_result = self._port.read_external_quote(request, metadata=metadata)
+        payload_result = _read_quote_payload(self.port, request, metadata=metadata)
         if isinstance(payload_result, Failure):
             return payload_result
         payload = payload_result.value
-        if not isinstance(payload, ExternalQuotePayload):
-            return _validation_failure(
-                "external quote port must return ExternalQuotePayload"
-            )
 
-        source_result = _validate_source(payload.source, expected=descriptor)
+        source_result = _validate_market_data_source(
+            payload.source,
+            expected=self.descriptor,
+            field_name="external quote payload source",
+        )
         if isinstance(source_result, Failure):
             return source_result
         instrument_result = _normalize_instrument(payload.instrument)
@@ -293,22 +344,17 @@ class MarketDataIngestionFlow:
             return _validation_failure(
                 "OHLC ingestion snapshot_id must be MarketDataSnapshotId"
             )
-        descriptor = getattr(self._port, "descriptor", None)
-        if not isinstance(descriptor, ExternalSourceDescriptor):
-            return _validation_failure(
-                "external market-data payload port must expose an explicit descriptor"
-            )
 
-        payload_result = self._port.read_external_ohlc(request, metadata=metadata)
+        payload_result = _read_ohlc_payload(self.port, request, metadata=metadata)
         if isinstance(payload_result, Failure):
             return payload_result
         payload = payload_result.value
-        if not isinstance(payload, ExternalOhlcPayload):
-            return _validation_failure(
-                "external OHLC port must return ExternalOhlcPayload"
-            )
 
-        source_result = _validate_source(payload.source, expected=descriptor)
+        source_result = _validate_market_data_source(
+            payload.source,
+            expected=self.descriptor,
+            field_name="external OHLC payload source",
+        )
         if isinstance(source_result, Failure):
             return source_result
         instrument_result = _normalize_instrument(payload.instrument)
