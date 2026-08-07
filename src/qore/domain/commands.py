@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from math import isfinite
 from types import MappingProxyType
 from typing import Protocol
 from uuid import UUID
@@ -10,6 +11,24 @@ from uuid import UUID
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.kernel.errors import DomainError, ValidationError
 from qore.kernel.result import Result
+
+_RESERVED_COMMAND_METADATA_KEYS = frozenset(
+    {"correlation_id", "causation_id", "idempotency_key"}
+)
+
+
+def _validate_metadata_value(value: object) -> None:
+    if value is None or isinstance(value, (str, bool, int, UUID)):
+        return
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise ValidationError("command metadata floats must be finite")
+        return
+    if isinstance(value, tuple):
+        for item in value:
+            _validate_metadata_value(item)
+        return
+    raise ValidationError("command metadata values must be immutable scalars or tuples")
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +74,12 @@ class CommandMetadata:
     def __post_init__(self) -> None:
         if any(not key.strip() for key in self.attributes):
             raise ValidationError("command metadata keys must not be empty")
+        reserved = _RESERVED_COMMAND_METADATA_KEYS.intersection(self.attributes)
+        if reserved:
+            names = ", ".join(sorted(reserved))
+            raise ValidationError(f"reserved command metadata keys: {names}")
+        for value in self.attributes.values():
+            _validate_metadata_value(value)
         ordered = {key: self.attributes[key] for key in sorted(self.attributes)}
         object.__setattr__(self, "attributes", MappingProxyType(ordered))
 
