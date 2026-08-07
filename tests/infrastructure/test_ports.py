@@ -143,13 +143,16 @@ def test_identity_and_port_name_are_explicit_and_validated() -> None:
         PortName("Reference External")
 
 
-def test_descriptor_rejects_identity_reuse_and_runtime_type_bypass() -> None:
-    with pytest.raises(PortValidationError, match="identity must differ"):
-        ExternalSourceDescriptor(
-            adapter_id=_ADAPTER_ID,
-            source_id=SourceId(_ADAPTER_ID.value),
-            port_name=PortName("reference.external"),
-        )
+def test_descriptor_keeps_adapter_and_source_as_distinct_types() -> None:
+    shared_value = UUID("a1000000-0000-0000-0000-000000000010")
+    descriptor = ExternalSourceDescriptor(
+        adapter_id=AdapterId(shared_value),
+        source_id=SourceId(shared_value),
+        port_name=PortName("reference.external"),
+    )
+
+    assert isinstance(descriptor.adapter_id, AdapterId)
+    assert isinstance(descriptor.source_id, SourceId)
 
     with pytest.raises(PortValidationError, match="adapter_id"):
         ExternalSourceDescriptor(
