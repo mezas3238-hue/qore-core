@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -9,7 +9,7 @@ from qore.kernel.domain_event import DomainEvent
 
 
 def test_domain_event_creation_with_minimal_fields() -> None:
-    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
     event = DomainEvent(timestamp=timestamp, event_name="test.event")
     assert event.event_name == "test.event"
     assert event.timestamp == timestamp
@@ -20,7 +20,7 @@ def test_domain_event_creation_with_minimal_fields() -> None:
 
 def test_domain_event_creation_with_all_fields() -> None:
     event_id = uuid4()
-    timestamp = datetime(2026, 2, 2, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 2, 2, tzinfo=UTC)
     metadata = {"trace_id": "abc123", "priority": 1}
     event = DomainEvent(
         event_id=event_id,
@@ -39,7 +39,7 @@ def test_domain_event_creation_with_all_fields() -> None:
 def test_domain_event_metadata_is_immutable_and_defensive() -> None:
     metadata = {"key": "value"}
     event = DomainEvent(
-        timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 1, 1, tzinfo=UTC),
         event_name="x",
         metadata=metadata,
     )
@@ -52,7 +52,7 @@ def test_domain_event_metadata_is_immutable_and_defensive() -> None:
 
 def test_domain_event_immutability_by_replacement() -> None:
     event = DomainEvent(
-        timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 1, 1, tzinfo=UTC),
         event_name="test",
     )
     altered = replace(event, event_name="nuevo")
@@ -65,12 +65,12 @@ def test_domain_event_equality_and_hash_use_id_only() -> None:
     event_id = uuid4()
     first = DomainEvent(
         event_id=event_id,
-        timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 1, 1, tzinfo=UTC),
         event_name="a",
     )
     second = DomainEvent(
         event_id=event_id,
-        timestamp=datetime(2026, 2, 2, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 2, 2, tzinfo=UTC),
         event_name="b",
     )
     assert first == second
@@ -78,7 +78,7 @@ def test_domain_event_equality_and_hash_use_id_only() -> None:
 
 
 def test_domain_event_inequality() -> None:
-    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
     assert DomainEvent(timestamp=timestamp, event_name="a") != DomainEvent(
         timestamp=timestamp,
         event_name="a",
