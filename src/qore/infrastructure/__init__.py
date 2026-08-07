@@ -63,6 +63,9 @@ from qore.infrastructure.reference_adapters import (
     ReferenceMarketDataAdapter,
     ReferencePersistenceAdapter,
 )
+from qore.infrastructure.reference_payload_adapters import (
+    ReferenceExternalMarketDataPayloadAdapter,
+)
 
 __all__ = [
     "AdapterId",
@@ -105,6 +108,7 @@ __all__ = [
     "ReferenceAdapterError",
     "ReferenceAdapterValidationError",
     "ReferenceDataNotFoundError",
+    "ReferenceExternalMarketDataPayloadAdapter",
     "ReferenceInfrastructureAdapters",
     "ReferenceInfrastructureComposition",
     "ReferenceInfrastructureConfiguration",
