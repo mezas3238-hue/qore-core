@@ -29,7 +29,11 @@ from qore.functional.decisions import (
     FunctionalDecision,
 )
 from qore.kernel.result import Success
-from qore.modules.cio.contracts import CreateCioDecisionCommand, CioDecisionProducedEvent
+from qore.modules.cio.contracts import (
+    CioDecisionProducedEvent,
+    CioValidationError,
+    CreateCioDecisionCommand,
+)
 from qore.modules.cio.module import CioModule, CreateCioDecisionHandler
 
 _COMMAND_ID = CommandId(UUID("10000000-0000-0000-0000-000000000001"))
@@ -37,6 +41,9 @@ _DECISION_ID = DecisionId(UUID("10000000-0000-0000-0000-000000000002"))
 _CORRELATION_ID = CorrelationId(UUID("10000000-0000-0000-0000-000000000003"))
 _CAUSATION_ID = CausationId(UUID("10000000-0000-0000-0000-000000000004"))
 _EVENT_ID = DomainEventId(UUID("10000000-0000-0000-0000-000000000005"))
+_OTHER_CORRELATION_ID = CorrelationId(
+    UUID("10000000-0000-0000-0000-000000000006")
+)
 _TIMESTAMP = datetime(2026, 8, 7, 19, 0, tzinfo=UTC)
 
 
@@ -97,7 +104,7 @@ class TestCreateCioDecisionCommand:
         assert decision.reasons == (_reason(),)
 
     def test_resolved_request_requires_reason(self) -> None:
-        with pytest.raises(ValueError, match="requires at least one reason"):
+        with pytest.raises(CioValidationError, match="requires at least one reason"):
             CreateCioDecisionCommand(
                 command_id=_COMMAND_ID,
                 timestamp=_TIMESTAMP,
@@ -130,6 +137,21 @@ class TestCioDecisionProducedEvent:
         assert event.event_name == "cio.decision-produced"
         assert event.decision is decision
         assert event.logical_values()[-1] == decision.logical_values()
+
+    def test_event_rejects_correlation_different_from_decision(self) -> None:
+        decision = _command(outcome=DecisionOutcome.APPROVED).to_decision()
+
+        with pytest.raises(CioValidationError, match="correlation"):
+            CioDecisionProducedEvent(
+                event_id=_EVENT_ID,
+                timestamp=_TIMESTAMP,
+                event_version=DomainEventVersion("1"),
+                metadata=DomainEventMetadata(
+                    category=DomainEventCategory("cio"),
+                    correlation_id=_OTHER_CORRELATION_ID,
+                ),
+                decision=decision,
+            )
 
 
 class TestCioHandlerAndModule:
