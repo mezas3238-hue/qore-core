@@ -38,6 +38,14 @@ from qore.infrastructure.ports import (
     SourceId,
     WriteExternalPort,
 )
+from qore.infrastructure.reference_adapters import (
+    ReferenceAdapterCopyError,
+    ReferenceAdapterError,
+    ReferenceAdapterValidationError,
+    ReferenceDataNotFoundError,
+    ReferenceMarketDataAdapter,
+    ReferencePersistenceAdapter,
+)
 
 __all__ = [
     "AdapterId",
@@ -67,6 +75,12 @@ __all__ = [
     "QuoteRequest",
     "QuoteSnapshot",
     "ReadExternalPort",
+    "ReferenceAdapterCopyError",
+    "ReferenceAdapterError",
+    "ReferenceAdapterValidationError",
+    "ReferenceDataNotFoundError",
+    "ReferenceMarketDataAdapter",
+    "ReferencePersistenceAdapter",
     "SavePersistenceRequest",
     "SourceId",
     "StoredRecord",
