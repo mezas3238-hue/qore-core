@@ -209,9 +209,13 @@ class MessageBus:
         result: MessageResult,
         middleware: tuple[MessageMiddleware, ...],
     ) -> Result[None, DomainError]:
+        first_error: DomainError | None = None
         for item in reversed(middleware):
             try:
                 item.after(message, result)
             except Exception as exc:
-                return Failure(HandlerExecutionError(str(exc)))
+                if first_error is None:
+                    first_error = HandlerExecutionError(str(exc))
+        if first_error is not None:
+            return Failure(first_error)
         return Success(None)
