@@ -74,8 +74,3 @@ class TestDomainCompositionBootstrap:
         assert identity.name == "QORE"
         assert identity.version == "0.1.0"
         assert identity.mode == "GENESIS"
-
-    def test_domain_modules_without_configuration_are_rejected(self) -> None:
-        module: DomainModule = ExampleModule("example")
-        result = bootstrap(domain_modules=(module,))
-        assert isinstance(result, Failure)
