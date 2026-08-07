@@ -26,6 +26,14 @@ class ExampleModule:
         return self._descriptor
 
 
+class MutableDescriptorModule(ExampleModule):
+    def replace_descriptor(self, name: str) -> None:
+        self._descriptor = ModuleDescriptor(
+            name=ModuleName(name),
+            version=ModuleVersion("2.0"),
+        )
+
+
 class TestModuleCatalog:
     def test_preserves_composition_order_and_resolves_by_name(self) -> None:
         first: DomainModule = ExampleModule("first")
@@ -47,6 +55,17 @@ class TestModuleCatalog:
         catalog = ModuleCatalog(modules=(ExampleModule("example"),))
         with pytest.raises(FrozenInstanceError):
             catalog.modules = ()  # type: ignore[misc]
+
+    def test_descriptor_identity_is_snapshotted_at_composition_time(self) -> None:
+        module = MutableDescriptorModule("stable")
+        catalog = ModuleCatalog(modules=(module,))
+
+        module.replace_descriptor("changed")
+
+        assert catalog.descriptors[0].name == ModuleName("stable")
+        assert catalog.descriptors[0].version == ModuleVersion("1.0")
+        assert catalog.get(ModuleName("stable")) is module
+        assert catalog.get(ModuleName("changed")) is None
 
 
 class TestDomainCompositionRoot:
