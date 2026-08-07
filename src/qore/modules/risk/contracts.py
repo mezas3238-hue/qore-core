@@ -8,7 +8,6 @@ from qore.domain.commands import Command
 from qore.domain.events import (
     BusinessDomainEvent,
     CausationId,
-    CorrelationId,
     DomainEventId,
     DomainEventMetadata,
     DomainEventVersion,
