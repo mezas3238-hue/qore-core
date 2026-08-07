@@ -35,7 +35,9 @@ class ApplicationLifecycle:
 
         self._state = LifecycleState.STARTING
         result = self._engine.start()
-        self._state = LifecycleState.RUNNING if isinstance(result, Success) else LifecycleState.ERROR
+        self._state = (
+            LifecycleState.RUNNING if isinstance(result, Success) else LifecycleState.ERROR
+        )
         return result
 
     def stop(self) -> Result[None, KernelError]:
@@ -45,7 +47,9 @@ class ApplicationLifecycle:
 
         self._state = LifecycleState.STOPPING
         result = self._engine.stop()
-        self._state = LifecycleState.STOPPED if isinstance(result, Success) else LifecycleState.ERROR
+        self._state = (
+            LifecycleState.STOPPED if isinstance(result, Success) else LifecycleState.ERROR
+        )
         return result
 
     def restart(self) -> Result[None, KernelError]:
