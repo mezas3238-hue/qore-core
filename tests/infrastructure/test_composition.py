@@ -64,6 +64,7 @@ _PERSISTENCE_DESCRIPTOR = ExternalSourceDescriptor(
 _CORRELATION = CorrelationId(UUID("f1000000-0000-0000-0000-000000000005"))
 _CAUSATION = CausationId(UUID("f1000000-0000-0000-0000-000000000006"))
 _KEY = PersistenceKey("infra.composition", "snapshot/reference")
+_VERSION_ZERO = PersistenceVersion(0)
 
 
 def _metadata() -> ExternalRequestMetadata:
@@ -130,7 +131,7 @@ def _composition() -> ReferenceInfrastructureComposition[dict[str, int]]:
 def _save_request(
     value: dict[str, int],
     *,
-    version: PersistenceVersion = PersistenceVersion(0),
+    version: PersistenceVersion = _VERSION_ZERO,
     expected_version: PersistenceVersion | None = None,
 ) -> SavePersistenceRequest[dict[str, int]]:
     return SavePersistenceRequest(
@@ -296,15 +297,27 @@ def test_functional_and_specialized_governance_still_compose_without_infrastruct
     assert isinstance(specialized, Success)
     assert len(functional.value.core.runtime_plan.components) == 1
     assert len(specialized.value.core.runtime_plan.components) == 1
-    assert functional.value.core.runtime_plan.components[0].component is functional.value.core.engine
-    assert specialized.value.core.runtime_plan.components[0].component is specialized.value.core.engine
+    assert (
+        functional.value.core.runtime_plan.components[0].component
+        is functional.value.core.engine
+    )
+    assert (
+        specialized.value.core.runtime_plan.components[0].component
+        is specialized.value.core.engine
+    )
 
 
 def test_public_exports_include_reference_infrastructure_composition() -> None:
     import qore.infrastructure as infrastructure
 
-    assert infrastructure.ReferenceInfrastructureConfiguration is ReferenceInfrastructureConfiguration
-    assert infrastructure.compose_reference_infrastructure is compose_reference_infrastructure
+    assert (
+        infrastructure.ReferenceInfrastructureConfiguration
+        is ReferenceInfrastructureConfiguration
+    )
+    assert (
+        infrastructure.compose_reference_infrastructure
+        is compose_reference_infrastructure
+    )
     assert issubclass(
         infrastructure.InfrastructureCompositionValidationError,
         ExternalPortError,
