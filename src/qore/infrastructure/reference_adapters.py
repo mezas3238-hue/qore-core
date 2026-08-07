@@ -66,6 +66,18 @@ def _require_descriptor_namespace(
         )
 
 
+def _validate_metadata(
+    metadata: ExternalRequestMetadata,
+) -> Result[None, ExternalPortError]:
+    if not isinstance(metadata, ExternalRequestMetadata):
+        return Failure(
+            ReferenceAdapterValidationError(
+                "metadata must be ExternalRequestMetadata"
+            )
+        )
+    return Success(None)
+
+
 def _health(
     descriptor: ExternalSourceDescriptor,
     *,
@@ -153,7 +165,9 @@ class ReferenceMarketDataAdapter:
         checked_at: datetime,
         metadata: ExternalRequestMetadata,
     ) -> Result[ExternalHealth, ExternalPortError]:
-        del metadata
+        metadata_result = _validate_metadata(metadata)
+        if isinstance(metadata_result, Failure):
+            return metadata_result
         return _health(self.descriptor, checked_at=checked_at)
 
     def read_quote(
@@ -162,7 +176,9 @@ class ReferenceMarketDataAdapter:
         *,
         metadata: ExternalRequestMetadata,
     ) -> Result[QuoteSnapshot, ExternalPortError]:
-        del metadata
+        metadata_result = _validate_metadata(metadata)
+        if isinstance(metadata_result, Failure):
+            return metadata_result
         if not isinstance(request, QuoteRequest):
             return Failure(ReferenceAdapterValidationError("request must be QuoteRequest"))
         snapshot = self._quotes.get(request.instrument.symbol)
@@ -180,7 +196,9 @@ class ReferenceMarketDataAdapter:
         *,
         metadata: ExternalRequestMetadata,
     ) -> Result[OhlcSnapshot, ExternalPortError]:
-        del metadata
+        metadata_result = _validate_metadata(metadata)
+        if isinstance(metadata_result, Failure):
+            return metadata_result
         if not isinstance(request, OhlcRequest):
             return Failure(ReferenceAdapterValidationError("request must be OhlcRequest"))
         key = (
@@ -219,7 +237,9 @@ class ReferencePersistenceAdapter[ValueT]:
         checked_at: datetime,
         metadata: ExternalRequestMetadata,
     ) -> Result[ExternalHealth, ExternalPortError]:
-        del metadata
+        metadata_result = _validate_metadata(metadata)
+        if isinstance(metadata_result, Failure):
+            return metadata_result
         return _health(self.descriptor, checked_at=checked_at)
 
     def _clone_value(self, value: ValueT) -> Result[ValueT, ExternalPortError]:
@@ -256,7 +276,9 @@ class ReferencePersistenceAdapter[ValueT]:
         *,
         metadata: ExternalRequestMetadata,
     ) -> Result[StoredRecord[ValueT] | None, ExternalPortError]:
-        del metadata
+        metadata_result = _validate_metadata(metadata)
+        if isinstance(metadata_result, Failure):
+            return metadata_result
         if not isinstance(request, LoadPersistenceRequest):
             return Failure(
                 ReferenceAdapterValidationError(
@@ -274,7 +296,9 @@ class ReferencePersistenceAdapter[ValueT]:
         *,
         metadata: ExternalRequestMetadata,
     ) -> Result[StoredRecord[ValueT], ExternalPortError]:
-        del metadata
+        metadata_result = _validate_metadata(metadata)
+        if isinstance(metadata_result, Failure):
+            return metadata_result
         if not isinstance(request, SavePersistenceRequest):
             return Failure(
                 ReferenceAdapterValidationError(
