@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import cast, Protocol
 
 from qore.domain.commands import Command, CommandHandler, CommandResult
 from qore.domain.events import BusinessDomainEvent
