@@ -17,8 +17,9 @@ class Admin(Entity[str]):
 
 def test_entity_id_property_has_no_setter() -> None:
     user = User("u1", "Alice")
+    attr_name = "id"
     with pytest.raises(AttributeError):
-        setattr(user, "id", "u2")
+        setattr(user, attr_name, "u2")
 
 
 def test_entity_direct_identity_mutation_raises() -> None:
