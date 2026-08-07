@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from qore.core.application import CoreApplication
 from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
+from qore.core.lifecycle import Clock
+from qore.core.runtime import RuntimeContext
 from qore.governance.decision_flow import CrossModuleDecisionFlow
-from qore.kernel.errors import KernelError
+from qore.kernel.errors import KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
 from qore.modules.cibo.module import CiboModule
 from qore.modules.cio.module import CioModule
@@ -45,18 +47,33 @@ class FunctionalGovernanceApplication:
 
 def compose_functional_governance(
     configuration: Configuration,
+    *,
+    runtime_context: RuntimeContext | None = None,
+    clock: Clock | None = None,
 ) -> Result[FunctionalGovernanceApplication, KernelError]:
     """Componer CIO+CIBO+Portfolio+Risk sobre el bootstrap oficial del Core."""
+    if (runtime_context is None) != (clock is None):
+        return Failure(
+            ValidationError("runtime_context and clock must be provided together")
+        )
+
     modules = FunctionalModules.create()
-    boot = bootstrap(
-        configuration,
-        domain_modules=(
-            modules.cio,
-            modules.cibo,
-            modules.portfolio,
-            modules.risk,
-        ),
+    domain_modules = (
+        modules.cio,
+        modules.cibo,
+        modules.portfolio,
+        modules.risk,
     )
+    if runtime_context is None:
+        boot = bootstrap(configuration, domain_modules=domain_modules)
+    else:
+        assert clock is not None
+        boot = bootstrap(
+            configuration,
+            runtime_context=runtime_context,
+            clock=clock,
+            domain_modules=domain_modules,
+        )
     if isinstance(boot, Failure):
         return Failure(boot.error)
 
