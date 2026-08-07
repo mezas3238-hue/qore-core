@@ -9,7 +9,7 @@ from qore.core.application import CoreApplication
 from qore.core.configuration import Configuration
 from qore.core.engine import CoreEngine
 from qore.core.event_bus import EventBus
-from qore.core.lifecycle import Clock, ApplicationLifecycle
+from qore.core.lifecycle import ApplicationLifecycle, Clock
 from qore.core.runtime import RuntimeContext
 from qore.core.service_registry import ServiceRegistry
 from qore.kernel.errors import KernelError, ValidationError
