@@ -68,11 +68,11 @@ class ValidationPolicy:
 
 @dataclass(frozen=True, slots=True)
 class ValidationAssessment:
-    """Immutable validation result over one completed specialist analysis."""
+    """Immutable validation result retaining its complete source analysis."""
 
     assessment_id: ValidationAssessmentId
     timestamp: datetime
-    source_analysis_id: SpecialistAnalysisId
+    source_analysis: SpecialistAnalysis
     correlation_id: CorrelationId
     causation_id: CausationId
     policy: ValidationPolicy
@@ -86,21 +86,33 @@ class ValidationAssessment:
             )
         if not isinstance(self.timestamp, datetime):
             raise ValidationInvariantError("validation timestamp must be a datetime")
-        if not isinstance(self.source_analysis_id, SpecialistAnalysisId):
+        if not isinstance(self.source_analysis, SpecialistAnalysis):
             raise ValidationInvariantError(
-                "validation source_analysis_id must be SpecialistAnalysisId"
+                "validation source_analysis must be SpecialistAnalysis"
+            )
+        if self.source_analysis.status is not SpecialistAnalysisStatus.COMPLETED:
+            raise ValidationInvariantError(
+                "validation assessment requires a completed source analysis"
+            )
+        if self.source_analysis.confidence is None:
+            raise ValidationInvariantError(
+                "validation assessment requires source analysis confidence"
             )
         if not isinstance(self.correlation_id, CorrelationId):
             raise ValidationInvariantError(
                 "validation correlation_id must be CorrelationId"
             )
+        if self.correlation_id != self.source_analysis.metadata.correlation_id:
+            raise ValidationInvariantError(
+                "validation correlation must match source analysis"
+            )
         if not isinstance(self.causation_id, CausationId):
             raise ValidationInvariantError("validation causation_id must be CausationId")
-        if self.causation_id != CausationId(self.source_analysis_id.value):
+        if self.causation_id != CausationId(self.source_analysis.analysis_id.value):
             raise ValidationInvariantError(
-                "validation causation must match source_analysis_id"
+                "validation causation must match source analysis"
             )
-        if self.assessment_id.value == self.source_analysis_id.value:
+        if self.assessment_id.value == self.source_analysis.analysis_id.value:
             raise ValidationInvariantError(
                 "validation assessment identity must differ from source analysis"
             )
@@ -112,6 +124,10 @@ class ValidationAssessment:
             raise ValidationInvariantError(
                 "validation observed_confidence must be SpecialistConfidence"
             )
+        if self.observed_confidence != self.source_analysis.confidence:
+            raise ValidationInvariantError(
+                "validation observed_confidence must match source analysis confidence"
+            )
         expected = (
             ValidationVerdict.PASSED
             if self.observed_confidence.value >= self.policy.minimum_confidence.value
@@ -122,11 +138,16 @@ class ValidationAssessment:
                 "validation verdict must match the deterministic policy evaluation"
             )
 
+    @property
+    def source_analysis_id(self) -> SpecialistAnalysisId:
+        """Expose the source identity derived from the retained evidence."""
+        return self.source_analysis.analysis_id
+
     def logical_values(self) -> tuple[object, ...]:
         return (
             str(self.assessment_id.value),
             self.timestamp.isoformat(),
-            str(self.source_analysis_id.value),
+            self.source_analysis.logical_values(),
             str(self.correlation_id.value),
             str(self.causation_id.value),
             self.policy.minimum_confidence.value,
@@ -195,7 +216,7 @@ class ValidateSpecialistAnalysisCommand(Command):
         return ValidationAssessment(
             assessment_id=self.assessment_id,
             timestamp=self.timestamp,
-            source_analysis_id=self.source_analysis.analysis_id,
+            source_analysis=self.source_analysis,
             correlation_id=self.metadata.correlation_id,
             causation_id=causation,
             policy=self.policy,
