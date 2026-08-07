@@ -21,13 +21,10 @@ Restricciones:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
-class Identity(Generic[T]):
+class Identity[T]:
     """Identidad inmutable de una entidad o componente."""
 
     id: T
