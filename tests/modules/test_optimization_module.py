@@ -41,7 +41,22 @@ from qore.modules.optimization.module import (
     ProposeKnowledgeOptimizationHandler,
 )
 from qore.modules.statistics.contracts import StatisticsSnapshot, StatisticsSnapshotId
-from qore.specialist.analysis import SpecialistConfidence
+from qore.modules.validation.contracts import (
+    ValidationAssessment,
+    ValidationAssessmentId,
+    ValidationPolicy,
+    ValidationVerdict,
+)
+from qore.specialist.analysis import (
+    SpecialistAnalysis,
+    SpecialistAnalysisId,
+    SpecialistAnalysisStatus,
+    SpecialistConfidence,
+    SpecialistKind,
+    SpecialistMetadata,
+    SpecialistReason,
+    SpecialistReasonCode,
+)
 
 _TIMESTAMP = datetime(2026, 8, 8, 0, 10, tzinfo=UTC)
 _CORRELATION = CorrelationId(UUID("96000000-0000-0000-0000-000000000001"))
@@ -52,26 +67,59 @@ _COMMAND_ID = CommandId(UUID("96000000-0000-0000-0000-000000000005"))
 _EVENT_ID = DomainEventId(UUID("96000000-0000-0000-0000-000000000006"))
 
 
+def _assessment(index: int, passed: bool) -> ValidationAssessment:
+    confidence = 0.8 if passed else 0.6
+    source = SpecialistAnalysis(
+        analysis_id=SpecialistAnalysisId(
+            UUID(f"96000000-0000-0000-0000-{10 + index:012d}")
+        ),
+        timestamp=_TIMESTAMP,
+        kind=SpecialistKind("virtual-trader.optimization-source"),
+        status=SpecialistAnalysisStatus.COMPLETED,
+        metadata=SpecialistMetadata(correlation_id=_CORRELATION),
+        confidence=SpecialistConfidence(confidence),
+        reasons=(
+            SpecialistReason(
+                code=SpecialistReasonCode("virtual-trader.explicit"),
+                summary="Explicit optimization evidence",
+            ),
+        ),
+    )
+    return ValidationAssessment(
+        assessment_id=ValidationAssessmentId(
+            UUID(f"96000000-0000-0000-0000-{20 + index:012d}")
+        ),
+        timestamp=_TIMESTAMP,
+        source_analysis=source,
+        correlation_id=_CORRELATION,
+        causation_id=CausationId(source.analysis_id.value),
+        policy=ValidationPolicy(SpecialistConfidence(0.7)),
+        verdict=ValidationVerdict.PASSED if passed else ValidationVerdict.FAILED,
+        observed_confidence=SpecialistConfidence(confidence),
+    )
+
+
 def _snapshot(pass_rate: float = 0.5) -> StatisticsSnapshot:
     if pass_rate == 1.0:
+        assessments = (_assessment(1, True), _assessment(2, True))
         passed_count, failed_count = 2, 0
+        mean = SpecialistConfidence(0.8)
     elif pass_rate == 0.5:
+        assessments = (_assessment(1, True), _assessment(2, False))
         passed_count, failed_count = 1, 1
+        mean = SpecialistConfidence(0.7)
     else:
         raise AssertionError("test helper supports pass_rate 0.5 or 1.0")
     return StatisticsSnapshot(
         snapshot_id=_SNAPSHOT_ID,
         timestamp=_TIMESTAMP,
         correlation_id=_CORRELATION,
-        source_assessment_ids=(
-            UUID("96000000-0000-0000-0000-000000000011"),
-            UUID("96000000-0000-0000-0000-000000000012"),
-        ),
+        source_assessments=assessments,
         sample_size=2,
         passed_count=passed_count,
         failed_count=failed_count,
         pass_rate=pass_rate,
-        mean_observed_confidence=SpecialistConfidence(0.7),
+        mean_observed_confidence=mean,
     )
 
 
@@ -92,10 +140,7 @@ def _knowledge(pass_rate: float = 0.5) -> KnowledgeRecord:
 
 
 def _command(
-    *,
-    pass_rate: float = 0.5,
-    target_pass_rate: float = 0.75,
-    step_bps: int = 250,
+    *, pass_rate: float = 0.5, target_pass_rate: float = 0.75, step_bps: int = 250
 ) -> ProposeKnowledgeOptimizationCommand:
     knowledge = _knowledge(pass_rate)
     return ProposeKnowledgeOptimizationCommand(
@@ -114,7 +159,6 @@ def _command(
 
 def test_command_produces_adjust_when_target_is_not_met() -> None:
     proposal = _command().to_proposal()
-
     assert proposal.action is OptimizationAction.ADJUST
     assert proposal.suggested_delta_bps == 250
     assert proposal.source_knowledge_id == _RECORD_ID
@@ -125,7 +169,6 @@ def test_command_produces_adjust_when_target_is_not_met() -> None:
 def test_command_produces_keep_when_target_is_met_or_equal() -> None:
     above = _command(pass_rate=1.0, target_pass_rate=0.75).to_proposal()
     equal = _command(pass_rate=0.5, target_pass_rate=0.5).to_proposal()
-
     assert above.action is OptimizationAction.KEEP
     assert above.suggested_delta_bps == 0
     assert equal.action is OptimizationAction.KEEP
@@ -133,11 +176,9 @@ def test_command_produces_keep_when_target_is_met_or_equal() -> None:
 
 
 def test_policy_rejects_invalid_runtime_values() -> None:
-    invalid_targets = (float("nan"), float("inf"), -0.1, 1.1)
-    for target in invalid_targets:
+    for target in (float("nan"), float("inf"), -0.1, 1.1):
         with pytest.raises(OptimizationInvariantError, match="target_pass_rate"):
             OptimizationPolicy(target, 100)
-
     with pytest.raises(OptimizationInvariantError, match="target_pass_rate"):
         OptimizationPolicy(cast(float, True), 100)
     with pytest.raises(OptimizationInvariantError, match="adjustment_step_bps"):
@@ -156,16 +197,13 @@ def test_command_rejects_wrong_trace_and_identity_reuse() -> None:
             timestamp=_TIMESTAMP,
             name=CommandName("optimization.propose-from-knowledge"),
             metadata=CommandMetadata(
-                correlation_id=CorrelationId(
-                    UUID("96000000-0000-0000-0000-000000000099")
-                ),
+                correlation_id=CorrelationId(UUID("96000000-0000-0000-0000-000000000099")),
                 causation_id=CausationId(knowledge.record_id.value),
             ),
             proposal_id=_PROPOSAL_ID,
             source_knowledge=knowledge,
             policy=OptimizationPolicy(0.75, 250),
         )
-
     with pytest.raises(OptimizationInvariantError, match="causation"):
         ProposeKnowledgeOptimizationCommand(
             command_id=_COMMAND_ID,
@@ -173,15 +211,12 @@ def test_command_rejects_wrong_trace_and_identity_reuse() -> None:
             name=CommandName("optimization.propose-from-knowledge"),
             metadata=CommandMetadata(
                 correlation_id=_CORRELATION,
-                causation_id=CausationId(
-                    UUID("96000000-0000-0000-0000-000000000098")
-                ),
+                causation_id=CausationId(UUID("96000000-0000-0000-0000-000000000098")),
             ),
             proposal_id=_PROPOSAL_ID,
             source_knowledge=knowledge,
             policy=OptimizationPolicy(0.75, 250),
         )
-
     with pytest.raises(OptimizationInvariantError, match="identity must differ"):
         ProposeKnowledgeOptimizationCommand(
             command_id=_COMMAND_ID,
@@ -213,7 +248,6 @@ def test_command_rejects_runtime_type_bypass() -> None:
 def test_proposal_rejects_action_or_delta_inconsistent_with_evidence() -> None:
     knowledge = _knowledge()
     policy = OptimizationPolicy(0.75, 250)
-
     with pytest.raises(OptimizationInvariantError, match="action"):
         OptimizationProposal(
             proposal_id=_PROPOSAL_ID,
@@ -225,7 +259,6 @@ def test_proposal_rejects_action_or_delta_inconsistent_with_evidence() -> None:
             action=OptimizationAction.KEEP,
             suggested_delta_bps=0,
         )
-
     with pytest.raises(OptimizationInvariantError, match="suggested_delta_bps"):
         OptimizationProposal(
             proposal_id=_PROPOSAL_ID,
@@ -252,7 +285,6 @@ def test_event_preserves_proposal_trace() -> None:
         ),
         proposal=proposal,
     )
-
     assert event.event_name == "optimization.proposal-produced"
     assert event.proposal is proposal
 
@@ -267,9 +299,7 @@ def test_event_rejects_divergent_trace() -> None:
             metadata=DomainEventMetadata(
                 category=DomainEventCategory("optimization"),
                 correlation_id=_CORRELATION,
-                causation_id=CausationId(
-                    UUID("96000000-0000-0000-0000-000000000097")
-                ),
+                causation_id=CausationId(UUID("96000000-0000-0000-0000-000000000097")),
             ),
             proposal=proposal,
         )
@@ -281,7 +311,6 @@ def test_handler_is_pure_and_deterministic_and_does_not_mutate_source() -> None:
     before = command.source_knowledge.logical_values()
     first = handler.handle(command)
     second = handler.handle(command)
-
     assert isinstance(first, Success)
     assert isinstance(second, Success)
     assert first.value.logical_values() == second.value.logical_values()
@@ -295,13 +324,10 @@ def test_module_registration_bootstrap_and_runtime_isolation() -> None:
     registered: CommandHandler[
         ProposeKnowledgeOptimizationCommand,
         OptimizationProposal,
-    ] | None
-    registered = registry.command_handler(ProposeKnowledgeOptimizationCommand)
-
+    ] | None = registry.command_handler(ProposeKnowledgeOptimizationCommand)
     assert isinstance(registration, Success)
     assert registered is module.optimization_handler
     assert module.descriptor.name == ModuleName("optimization")
-
     boot = bootstrap(
         Configuration(application_name="qore-optimization-test"),
         domain_modules=(module,),
