@@ -140,6 +140,21 @@ class TestAssessAllocationRiskCommand:
         assert first.metadata.causation_id == CausationId(_INTENT_ID.value)
         assert first.metadata.attributes["policy_id"] == _POLICY_ID.value
 
+    def test_command_rejects_source_identity_reuse(self) -> None:
+        with pytest.raises(RiskValidationError, match="identity"):
+            AssessAllocationRiskCommand(
+                command_id=_COMMAND_ID,
+                timestamp=_TIMESTAMP,
+                name=CommandName("risk.assess-allocation"),
+                metadata=CommandMetadata(
+                    correlation_id=_CORRELATION_ID,
+                    causation_id=CausationId(_INTENT_ID.value),
+                ),
+                decision_id=DecisionId(_INTENT_ID.value),
+                allocation_intent=_intent(7_000),
+                policy=_policy(),
+            )
+
     def test_command_rejects_wrong_correlation(self) -> None:
         with pytest.raises(RiskValidationError, match="correlation"):
             AssessAllocationRiskCommand(
