@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from qore.domain.message_bus import HandlerRegistry, MessageBus, MessageMiddleware
 from qore.domain.modules import DomainModule, ModuleDescriptor, ModuleName
 from qore.kernel.errors import DomainError
+from qore.kernel.result import Failure, Result, Success
 
 
 class DomainCompositionError(DomainError):
@@ -17,6 +19,23 @@ class DuplicateModuleError(DomainCompositionError):
     """Dos módulos declararon el mismo nombre lógico."""
 
     __slots__ = ()
+
+
+class ModuleRegistrationError(DomainCompositionError):
+    """Un módulo no pudo registrar sus handlers durante la composición."""
+
+    __slots__ = ()
+
+
+class ComposableDomainModule(DomainModule, Protocol):
+    """Módulo que contribuye handlers dentro del composition root oficial."""
+
+    def register_handlers(
+        self,
+        registry: HandlerRegistry,
+    ) -> Result[None, DomainError]:
+        """Registrar contribuciones de mensajes sin infraestructura externa."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,12 +79,25 @@ class DomainComposition:
 
 def compose_domain(
     *,
-    modules: tuple[DomainModule, ...] = (),
+    modules: tuple[ComposableDomainModule, ...] = (),
     middleware: tuple[MessageMiddleware, ...] = (),
 ) -> DomainComposition:
     """Construir de forma determinista la topología interna del dominio."""
     module_catalog = ModuleCatalog(modules=modules)
     handler_registry = HandlerRegistry()
+
+    for module in modules:
+        try:
+            registration = module.register_handlers(handler_registry)
+        except Exception as exc:
+            raise ModuleRegistrationError(
+                f"{module.descriptor.name.value}: {exc}"
+            ) from exc
+        if isinstance(registration, Failure):
+            raise ModuleRegistrationError(
+                f"{module.descriptor.name.value}: {registration.error}"
+            )
+
     message_bus = MessageBus(registry=handler_registry, middleware=middleware)
     return DomainComposition(
         module_catalog=module_catalog,
