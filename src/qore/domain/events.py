@@ -3,12 +3,17 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from math import isfinite
 from types import MappingProxyType
-from typing import Any
+from typing import TypeAlias
 from uuid import UUID
 
 from qore.kernel.domain_event import DomainEvent
 from qore.kernel.errors import ValidationError
+
+DomainMetadataScalar: TypeAlias = str | int | float | bool | UUID | None
+DomainMetadataValue: TypeAlias = DomainMetadataScalar | tuple["DomainMetadataValue", ...]
+_RESERVED_METADATA_KEYS = frozenset({"category", "correlation_id", "causation_id"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +59,23 @@ class DomainEventCategory:
             raise ValidationError("domain event category must not be empty")
 
 
+def _validate_metadata_value(value: object) -> None:
+    """Aceptar únicamente valores profundamente inmutables y deterministas."""
+    if value is None or isinstance(value, (str, bool, int, UUID)):
+        return
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise ValidationError("domain event metadata floats must be finite")
+        return
+    if isinstance(value, tuple):
+        for item in value:
+            _validate_metadata_value(item)
+        return
+    raise ValidationError(
+        "domain event metadata values must be immutable scalars or tuples"
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class DomainEventMetadata:
     """Metadata inmutable de correlación, causalidad y atributos de dominio."""
@@ -61,7 +83,7 @@ class DomainEventMetadata:
     category: DomainEventCategory
     correlation_id: CorrelationId
     causation_id: CausationId | None = None
-    attributes: Mapping[str, Any] = field(
+    attributes: Mapping[str, DomainMetadataValue] = field(
         default_factory=lambda: MappingProxyType({}),
         compare=True,
         hash=False,
@@ -70,6 +92,12 @@ class DomainEventMetadata:
     def __post_init__(self) -> None:
         if any(not key.strip() for key in self.attributes):
             raise ValidationError("domain event metadata keys must not be empty")
+        reserved = _RESERVED_METADATA_KEYS.intersection(self.attributes)
+        if reserved:
+            names = ", ".join(sorted(reserved))
+            raise ValidationError(f"reserved domain event metadata keys: {names}")
+        for value in self.attributes.values():
+            _validate_metadata_value(value)
         ordered = {key: self.attributes[key] for key in sorted(self.attributes)}
         object.__setattr__(self, "attributes", MappingProxyType(ordered))
 
