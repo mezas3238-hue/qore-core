@@ -1,5 +1,14 @@
 """Stable infrastructure boundary contracts for QORE."""
 
+from qore.infrastructure.composition import (
+    InfrastructureCompositionError,
+    InfrastructureCompositionValidationError,
+    InfrastructurePorts,
+    ReferenceInfrastructureAdapters,
+    ReferenceInfrastructureComposition,
+    ReferenceInfrastructureConfiguration,
+    compose_reference_infrastructure,
+)
 from qore.infrastructure.ingestion import (
     ExternalMarketDataPayloadPort,
     ExternalOhlcPayload,
@@ -65,6 +74,9 @@ __all__ = [
     "ExternalQuotePayload",
     "ExternalRequestMetadata",
     "ExternalSourceDescriptor",
+    "InfrastructureCompositionError",
+    "InfrastructureCompositionValidationError",
+    "InfrastructurePorts",
     "IngestionError",
     "IngestionValidationError",
     "Instrument",
@@ -93,6 +105,9 @@ __all__ = [
     "ReferenceAdapterError",
     "ReferenceAdapterValidationError",
     "ReferenceDataNotFoundError",
+    "ReferenceInfrastructureAdapters",
+    "ReferenceInfrastructureComposition",
+    "ReferenceInfrastructureConfiguration",
     "ReferenceMarketDataAdapter",
     "ReferencePersistenceAdapter",
     "SavePersistenceRequest",
@@ -100,4 +115,5 @@ __all__ = [
     "StoredRecord",
     "Timeframe",
     "WriteExternalPort",
+    "compose_reference_infrastructure",
 ]
