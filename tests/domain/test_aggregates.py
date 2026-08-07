@@ -65,7 +65,7 @@ class TestEntityAndVersionContracts:
         entity = ExampleEntity(entity_id=AGGREGATE_ID)
         original_hash = hash(entity)
         with pytest.raises(AttributeError):
-            entity._entity_id = EntityId(  # type: ignore[misc]
+            entity._entity_id = EntityId(
                 UUID("00000000-0000-0000-0000-000000000399")
             )
         assert entity.entity_id == AGGREGATE_ID
