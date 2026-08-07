@@ -40,6 +40,15 @@ class CapturingHandler:
         self.events.append(event)
 
 
+class StateCapturingHandler:
+    def __init__(self, lifecycle: ApplicationLifecycle) -> None:
+        self._lifecycle = lifecycle
+        self.states: list[LifecycleState] = []
+
+    def handle(self, event: DomainEvent) -> None:
+        self.states.append(self._lifecycle.state)
+
+
 class TestRuntimeContext:
     def test_context_is_explicit_and_value_based(self) -> None:
         first = runtime_context()
@@ -101,6 +110,16 @@ class TestRuntimeBootstrap:
         assert result.value.runtime_context is None
         assert result.value.lifecycle.runtime_context is None
 
+    def test_runtime_arguments_without_configuration_are_rejected(self) -> None:
+        result = bootstrap(  # type: ignore[call-overload]
+            runtime_context=runtime_context(),
+            clock=fixed_clock,
+        )
+
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, ValidationError)
+        assert "configuration is required" in str(result.error)
+
 
 class TestRuntimeLifecycleEvents:
     def test_start_and_stop_emit_deterministic_runtime_events(self) -> None:
@@ -127,6 +146,25 @@ class TestRuntimeLifecycleEvents:
         assert stopped.events[0].timestamp == FIXED_TS
         assert started.events[0].metadata["execution_id"] == str(EXECUTION_ID)
         assert stopped.events[0].metadata["runtime_version"] == "0.2.0"
+
+    def test_event_handlers_observe_committed_lifecycle_states(self) -> None:
+        bus = EventBus()
+        engine = CoreEngine(Configuration(application_name="test-app"), ServiceRegistry(), bus)
+        lifecycle = ApplicationLifecycle(
+            engine,
+            runtime_context=runtime_context(),
+            clock=fixed_clock,
+        )
+        started = StateCapturingHandler(lifecycle)
+        stopped = StateCapturingHandler(lifecycle)
+        bus.subscribe(RuntimeStartedEvent, started)
+        bus.subscribe(RuntimeStoppedEvent, stopped)
+
+        assert isinstance(lifecycle.start(), Success)
+        assert isinstance(lifecycle.stop(), Success)
+
+        assert started.states == [LifecycleState.RUNNING]
+        assert stopped.states == [LifecycleState.STOPPED]
 
     def test_engine_failure_emits_runtime_failed_and_preserves_original_failure(self) -> None:
         class FailingEngine(CoreEngine):
