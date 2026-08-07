@@ -159,12 +159,28 @@ def test_record_rejects_inconsistent_derived_values() -> None:
         KnowledgeRecord(
             record_id=_RECORD_ID,
             timestamp=_TIMESTAMP,
-            source_snapshot_id=_SNAPSHOT_ID,
+            source_snapshot=_snapshot(),
             correlation_id=_CORRELATION,
             causation_id=CausationId(_SNAPSHOT_ID.value),
             sample_size=2,
             passed_count=1,
             failed_count=1,
+            pass_rate=1.0,
+            mean_observed_confidence=SpecialistConfidence(0.6),
+        )
+
+
+def test_record_rejects_metrics_diverging_from_source_snapshot() -> None:
+    with pytest.raises(KnowledgeInvariantError, match="exactly match"):
+        KnowledgeRecord(
+            record_id=_RECORD_ID,
+            timestamp=_TIMESTAMP,
+            source_snapshot=_snapshot(),
+            correlation_id=_CORRELATION,
+            causation_id=CausationId(_SNAPSHOT_ID.value),
+            sample_size=2,
+            passed_count=2,
+            failed_count=0,
             pass_rate=1.0,
             mean_observed_confidence=SpecialistConfidence(0.6),
         )
