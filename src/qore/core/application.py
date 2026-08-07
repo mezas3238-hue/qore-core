@@ -12,6 +12,7 @@ from qore.core.runtime_plan import RuntimePlan
 from qore.core.runtime_state import RuntimeSnapshot
 from qore.core.runtime_supervisor import RuntimeSupervisor
 from qore.core.service_registry import ServiceRegistry
+from qore.domain.composition import DomainComposition
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,7 @@ class CoreApplication:
     lifecycle: ApplicationLifecycle
     runtime_plan: RuntimePlan
     runtime_supervisor: RuntimeSupervisor
+    domain: DomainComposition
     runtime_context: RuntimeContext | None = None
 
     def runtime_snapshot(self) -> RuntimeSnapshot:
