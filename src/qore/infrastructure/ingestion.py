@@ -5,9 +5,9 @@ import datetime
 import math
 import typing
 
-import qore.infrastructure.market_data as market_data
-import qore.infrastructure.ports as ports
-import qore.kernel.result as result_contract
+from qore.kernel import result as result_contract
+
+from . import market_data, ports
 
 
 type ExternalDecimalValue = str | float
