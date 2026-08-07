@@ -34,9 +34,7 @@ def domain_event(sequence: int) -> BusinessDomainEvent:
     return BusinessDomainEvent(
         timestamp=TIMESTAMP,
         event_name=f"qore.test.event-{sequence}",
-        event_id=DomainEventId(
-            UUID(f"00000000-0000-0000-0000-{sequence:012d}")
-        ),
+        event_id=DomainEventId(UUID(f"00000000-0000-0000-0000-{sequence:012d}")),
         event_version=DomainEventVersion("1.0"),
         metadata=DomainEventMetadata(
             category=DomainEventCategory("test"),
@@ -59,10 +57,19 @@ class TestEntityAndVersionContracts:
         first = ExampleEntity(entity_id=AGGREGATE_ID)
         second = ExampleEntity(entity_id=AGGREGATE_ID)
         other_type = OtherEntity(entity_id=AGGREGATE_ID)
-
         assert first == second
         assert hash(first) == hash(second)
         assert first != other_type
+
+    def test_entity_identity_cannot_change_after_construction(self) -> None:
+        entity = ExampleEntity(entity_id=AGGREGATE_ID)
+        original_hash = hash(entity)
+        with pytest.raises(AttributeError):
+            entity._entity_id = EntityId(  # type: ignore[misc]
+                UUID("00000000-0000-0000-0000-000000000399")
+            )
+        assert entity.entity_id == AGGREGATE_ID
+        assert hash(entity) == original_hash
 
     def test_aggregate_version_is_non_negative_and_monotonic(self) -> None:
         assert AggregateVersion(0).next() == AggregateVersion(1)
@@ -75,10 +82,8 @@ class TestAggregateRootContracts:
         aggregate = AggregateRoot(aggregate_id=AGGREGATE_ID)
         first = domain_event(1)
         second = domain_event(2)
-
         aggregate.record_event(first)
         aggregate.record_event(second)
-
         assert aggregate.version == AggregateVersion(2)
         assert aggregate.pending_events == (first, second)
 
@@ -86,9 +91,7 @@ class TestAggregateRootContracts:
         aggregate = AggregateRoot(aggregate_id=AGGREGATE_ID)
         first = domain_event(1)
         aggregate.record_event(first)
-
         pulled = aggregate.pull_events()
-
         assert pulled == (first,)
         assert aggregate.pending_events == ()
         assert aggregate.version == AggregateVersion(1)
@@ -99,15 +102,12 @@ class TestAggregateRootContracts:
             version=AggregateVersion(7),
         )
         aggregate.record_event(domain_event(1))
-
         assert aggregate.version == AggregateVersion(8)
 
     def test_failed_invariant_does_not_mutate_aggregate(self) -> None:
         aggregate = AggregateRoot(aggregate_id=AGGREGATE_ID)
-
         with pytest.raises(AggregateInvariantError):
             aggregate.ensure(False, "invariant failed")
-
         assert aggregate.version == AggregateVersion(0)
         assert aggregate.pending_events == ()
         aggregate.ensure(True, "unused")
