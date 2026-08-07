@@ -1,5 +1,13 @@
 """Stable infrastructure boundary contracts for QORE."""
 
+from qore.infrastructure.ingestion import (
+    ExternalMarketDataPayloadPort,
+    ExternalOhlcPayload,
+    ExternalQuotePayload,
+    IngestionError,
+    IngestionValidationError,
+    MarketDataIngestionFlow,
+)
 from qore.infrastructure.market_data import (
     Instrument,
     MarketDataError,
@@ -50,13 +58,19 @@ from qore.infrastructure.reference_adapters import (
 __all__ = [
     "AdapterId",
     "ExternalHealth",
+    "ExternalMarketDataPayloadPort",
+    "ExternalOhlcPayload",
     "ExternalPort",
     "ExternalPortError",
+    "ExternalQuotePayload",
     "ExternalRequestMetadata",
     "ExternalSourceDescriptor",
+    "IngestionError",
+    "IngestionValidationError",
     "Instrument",
     "LoadPersistenceRequest",
     "MarketDataError",
+    "MarketDataIngestionFlow",
     "MarketDataPort",
     "MarketDataSnapshotId",
     "MarketDataValidationError",
