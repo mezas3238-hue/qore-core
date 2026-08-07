@@ -28,6 +28,7 @@ from qore.domain.message_bus import (
     HandlerRegistry,
     Message,
     MessageBus,
+    MessageBusValidationError,
     MessageMiddleware,
     MessageResult,
     RetryDecision,
@@ -122,6 +123,16 @@ class BlockingMiddleware:
         _ = message, result
 
 
+class FailingAfterMiddleware:
+    def before(self, message: Message) -> Result[None, DomainError]:
+        _ = message
+        return Success(None)
+
+    def after(self, message: Message, result: MessageResult) -> None:
+        _ = message, result
+        raise RuntimeError("after boom")
+
+
 class NoRetryPolicy:
     def decide(self, *, attempt: int, error: DomainError) -> RetryDecision:
         _ = attempt, error
@@ -143,8 +154,7 @@ class TestHandlerRegistry:
         second: DomainEventHandler[BusinessDomainEvent] = ExampleEventHandler("second", calls)
         registry.register_event(BusinessDomainEvent, first)
         registry.register_event(BusinessDomainEvent, second)
-        handlers = registry.event_handlers(BusinessDomainEvent)
-        assert handlers == (first, second)
+        assert registry.event_handlers(BusinessDomainEvent) == (first, second)
 
 
 class TestMessageBus:
@@ -153,9 +163,7 @@ class TestMessageBus:
         registry = HandlerRegistry()
         registry.register_command(Command, ExampleCommandHandler(calls))
         bus = MessageBus(registry=registry)
-
         result: CommandResult[str] = bus.dispatch_command(command())
-
         assert isinstance(result, Success)
         assert result.value == "done"
         assert calls == ["qore.test.execute"]
@@ -180,10 +188,7 @@ class TestMessageBus:
         registry.register_event(BusinessDomainEvent, ExampleEventHandler("first", calls))
         registry.register_event(BusinessDomainEvent, FailingEventHandler(calls))
         registry.register_event(BusinessDomainEvent, ExampleEventHandler("third", calls))
-        bus = MessageBus(registry=registry)
-
-        result = bus.publish_event(event())
-
+        result = MessageBus(registry=registry).publish_event(event())
         assert isinstance(result, Failure)
         assert calls == ["first", "fail"]
 
@@ -194,9 +199,7 @@ class TestMessageBus:
         first: MessageMiddleware = RecordingMiddleware("first", calls)
         second: MessageMiddleware = RecordingMiddleware("second", calls)
         bus = MessageBus(registry=registry, middleware=(first, second))
-
         result: CommandResult[str] = bus.dispatch_command(command())
-
         assert isinstance(result, Success)
         assert calls == [
             "before:first",
@@ -211,12 +214,18 @@ class TestMessageBus:
         registry = HandlerRegistry()
         registry.register_command(Command, ExampleCommandHandler(calls))
         bus = MessageBus(registry=registry, middleware=(BlockingMiddleware(),))
-
         result: CommandResult[str] = bus.dispatch_command(command())
-
         assert isinstance(result, Failure)
         assert str(result.error) == "blocked"
         assert calls == []
+
+    def test_failing_after_middleware_is_normalized_after_success(self) -> None:
+        registry = HandlerRegistry()
+        registry.register_command(Command, ExampleCommandHandler([]))
+        bus = MessageBus(registry=registry, middleware=(FailingAfterMiddleware(),))
+        result: CommandResult[str] = bus.dispatch_command(command())
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, HandlerExecutionError)
 
 
 class TestRetryContracts:
@@ -226,7 +235,7 @@ class TestRetryContracts:
         assert decision == RetryDecision(should_retry=False)
 
     def test_retry_decision_rejects_contradictory_state(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(MessageBusValidationError):
             RetryDecision(should_retry=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(MessageBusValidationError):
             RetryDecision(should_retry=False, next_attempt=2)
