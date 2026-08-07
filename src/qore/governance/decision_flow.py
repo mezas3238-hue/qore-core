@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from uuid import UUID
 
 from qore.domain.commands import CommandId, CommandMetadata, CommandName
 from qore.domain.events import CausationId, CorrelationId
