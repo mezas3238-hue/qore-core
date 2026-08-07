@@ -56,9 +56,7 @@ class ProduceVirtualTraderAnalysisCommand(Command):
                 "virtual trader source_decision must be a FunctionalDecision"
             )
         if not isinstance(self.kind, SpecialistKind):
-            raise TraderValidationError(
-                "virtual trader kind must be a SpecialistKind"
-            )
+            raise TraderValidationError("virtual trader kind must be a SpecialistKind")
         if not isinstance(self.confidence, SpecialistConfidence):
             raise TraderValidationError(
                 "virtual trader confidence must be SpecialistConfidence"
@@ -131,6 +129,18 @@ class TraderAnalysisProducedEvent(BusinessDomainEvent):
         if not isinstance(source_decision_id, DecisionId):
             raise TraderValidationError(
                 "virtual trader source_decision_id must be a DecisionId"
+            )
+        if analysis.status is not SpecialistAnalysisStatus.COMPLETED:
+            raise TraderValidationError(
+                "virtual trader event requires a completed analysis"
+            )
+        if not analysis.kind.value.startswith("virtual-trader."):
+            raise TraderValidationError(
+                "virtual trader event analysis kind must use virtual-trader.*"
+            )
+        if analysis.analysis_id.value == source_decision_id.value:
+            raise TraderValidationError(
+                "virtual trader event analysis identity must differ from source decision"
             )
         if metadata.correlation_id != analysis.metadata.correlation_id:
             raise TraderValidationError(
