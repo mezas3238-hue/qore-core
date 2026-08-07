@@ -42,14 +42,22 @@ class StatisticsSnapshotId:
             raise StatisticsInvariantError("statistics snapshot id must be a UUID")
 
 
+def _mean_confidence(assessments: tuple[ValidationAssessment, ...]) -> SpecialistConfidence:
+    confidence_total = sum(
+        (Decimal(str(item.observed_confidence.value)) for item in assessments),
+        Decimal(0),
+    )
+    return SpecialistConfidence(float(confidence_total / Decimal(len(assessments))))
+
+
 @dataclass(frozen=True, slots=True)
 class StatisticsSnapshot:
-    """Immutable descriptive summary over explicit validation assessments."""
+    """Immutable descriptive summary retaining all source assessments."""
 
     snapshot_id: StatisticsSnapshotId
     timestamp: datetime
     correlation_id: CorrelationId
-    source_assessment_ids: tuple[UUID, ...]
+    source_assessments: tuple[ValidationAssessment, ...]
     sample_size: int
     passed_count: int
     failed_count: int
@@ -63,38 +71,74 @@ class StatisticsSnapshot:
             raise StatisticsInvariantError("statistics timestamp must be datetime")
         if not isinstance(self.correlation_id, CorrelationId):
             raise StatisticsInvariantError("correlation_id must be CorrelationId")
-        if not isinstance(self.source_assessment_ids, tuple) or not self.source_assessment_ids:
-            raise StatisticsInvariantError("source_assessment_ids must be a non-empty tuple")
-        if any(not isinstance(value, UUID) for value in self.source_assessment_ids):
-            raise StatisticsInvariantError("source_assessment_ids must contain UUID values")
-        if len(set(self.source_assessment_ids)) != len(self.source_assessment_ids):
-            raise StatisticsInvariantError("source_assessment_ids must be unique")
+        if not isinstance(self.source_assessments, tuple) or not self.source_assessments:
+            raise StatisticsInvariantError("source_assessments must be a non-empty tuple")
+        if any(
+            not isinstance(value, ValidationAssessment)
+            for value in self.source_assessments
+        ):
+            raise StatisticsInvariantError(
+                "source_assessments must contain ValidationAssessment values"
+            )
+        source_ids = self.source_assessment_ids
+        if len(set(source_ids)) != len(source_ids):
+            raise StatisticsInvariantError("source assessments must be unique")
+        if self.snapshot_id.value in source_ids:
+            raise StatisticsInvariantError(
+                "statistics snapshot identity must differ from source assessments"
+            )
+        if any(
+            assessment.correlation_id != self.correlation_id
+            for assessment in self.source_assessments
+        ):
+            raise StatisticsInvariantError(
+                "statistics correlation must match all source assessments"
+            )
         if type(self.sample_size) is not int or self.sample_size <= 0:
             raise StatisticsInvariantError("sample_size must be a positive int")
         if type(self.passed_count) is not int or type(self.failed_count) is not int:
             raise StatisticsInvariantError("statistics counts must be ints")
         if self.passed_count < 0 or self.failed_count < 0:
             raise StatisticsInvariantError("statistics counts must not be negative")
-        if self.passed_count + self.failed_count != self.sample_size:
-            raise StatisticsInvariantError("statistics counts must equal sample_size")
-        if self.sample_size != len(self.source_assessment_ids):
-            raise StatisticsInvariantError("sample_size must match source_assessment_ids")
+        if self.sample_size != len(self.source_assessments):
+            raise StatisticsInvariantError("sample_size must match source assessments")
+        expected_passed = sum(
+            1
+            for item in self.source_assessments
+            if item.verdict is ValidationVerdict.PASSED
+        )
+        expected_failed = self.sample_size - expected_passed
+        if self.passed_count != expected_passed or self.failed_count != expected_failed:
+            raise StatisticsInvariantError(
+                "statistics counts must match source assessment verdicts"
+            )
         if type(self.pass_rate) is not float or not 0.0 <= self.pass_rate <= 1.0:
             raise StatisticsInvariantError("pass_rate must be a float between 0 and 1")
-        expected_rate = self.passed_count / self.sample_size
+        expected_rate = expected_passed / self.sample_size
         if self.pass_rate != expected_rate:
-            raise StatisticsInvariantError("pass_rate must match passed_count/sample_size")
+            raise StatisticsInvariantError(
+                "pass_rate must match source assessment verdicts"
+            )
         if not isinstance(self.mean_observed_confidence, SpecialistConfidence):
             raise StatisticsInvariantError(
                 "mean_observed_confidence must be SpecialistConfidence"
             )
+        if self.mean_observed_confidence != _mean_confidence(self.source_assessments):
+            raise StatisticsInvariantError(
+                "mean_observed_confidence must match source assessments"
+            )
+
+    @property
+    def source_assessment_ids(self) -> tuple[UUID, ...]:
+        """Expose source identities derived from retained evidence."""
+        return tuple(item.assessment_id.value for item in self.source_assessments)
 
     def logical_values(self) -> tuple[object, ...]:
         return (
             str(self.snapshot_id.value),
             self.timestamp.isoformat(),
             str(self.correlation_id.value),
-            tuple(str(value) for value in self.source_assessment_ids),
+            tuple(item.logical_values() for item in self.source_assessments),
             self.sample_size,
             self.passed_count,
             self.failed_count,
@@ -141,21 +185,16 @@ class SummarizeValidationAssessmentsCommand(Command):
             1 for item in self.assessments if item.verdict is ValidationVerdict.PASSED
         )
         failed_count = sample_size - passed_count
-        confidence_total = sum(
-            (Decimal(str(item.observed_confidence.value)) for item in self.assessments),
-            Decimal(0),
-        )
-        mean = confidence_total / Decimal(sample_size)
         return StatisticsSnapshot(
             snapshot_id=self.snapshot_id,
             timestamp=self.timestamp,
             correlation_id=self.metadata.correlation_id,
-            source_assessment_ids=tuple(item.assessment_id.value for item in self.assessments),
+            source_assessments=self.assessments,
             sample_size=sample_size,
             passed_count=passed_count,
             failed_count=failed_count,
             pass_rate=passed_count / sample_size,
-            mean_observed_confidence=SpecialistConfidence(float(mean)),
+            mean_observed_confidence=_mean_confidence(self.assessments),
         )
 
 
