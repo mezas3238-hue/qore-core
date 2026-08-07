@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from datetime import datetime
 from enum import Enum, auto
 
 from qore.core.engine import CoreEngine
-from qore.kernel.errors import DomainError, KernelError
+from qore.core.runtime import RuntimeContext
+from qore.core.runtime_events import RuntimeFailedEvent, RuntimeStartedEvent, RuntimeStoppedEvent
+from qore.kernel.errors import DomainError, KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
+
+Clock = Callable[[], datetime]
 
 
 class LifecycleState(Enum):
@@ -17,16 +23,53 @@ class LifecycleState(Enum):
 
 
 class ApplicationLifecycle:
-    """Máquina de estados mínima para controlar el Core."""
+    """Máquina de estados mínima para controlar el Core y su runtime opcional."""
 
-    def __init__(self, engine: CoreEngine) -> None:
+    def __init__(
+        self,
+        engine: CoreEngine,
+        *,
+        runtime_context: RuntimeContext | None = None,
+        clock: Clock | None = None,
+    ) -> None:
+        if (runtime_context is None) != (clock is None):
+            raise ValidationError("runtime_context and clock must be provided together")
         self._engine = engine
+        self._runtime_context = runtime_context
+        self._clock = clock
         self._state = LifecycleState.INITIALIZED
         engine.set_lifecycle(self)
 
     @property
     def state(self) -> LifecycleState:
         return self._state
+
+    @property
+    def runtime_context(self) -> RuntimeContext | None:
+        return self._runtime_context
+
+    def _publish_started(self) -> Result[None, KernelError]:
+        context = self._runtime_context
+        clock = self._clock
+        if context is None or clock is None:
+            return Success(None)
+        return self._engine.event_bus.publish(RuntimeStartedEvent(timestamp=clock(), context=context))
+
+    def _publish_stopped(self) -> Result[None, KernelError]:
+        context = self._runtime_context
+        clock = self._clock
+        if context is None or clock is None:
+            return Success(None)
+        return self._engine.event_bus.publish(RuntimeStoppedEvent(timestamp=clock(), context=context))
+
+    def _publish_failed(self, error: KernelError) -> None:
+        context = self._runtime_context
+        clock = self._clock
+        if context is None or clock is None:
+            return
+        self._engine.event_bus.publish(
+            RuntimeFailedEvent(timestamp=clock(), context=context, error=error)
+        )
 
     def start(self) -> Result[None, KernelError]:
         """Arrancar desde INITIALIZED o STOPPED."""
@@ -35,9 +78,18 @@ class ApplicationLifecycle:
 
         self._state = LifecycleState.STARTING
         result = self._engine.start()
-        self._state = (
-            LifecycleState.RUNNING if isinstance(result, Success) else LifecycleState.ERROR
-        )
+        if isinstance(result, Failure):
+            self._state = LifecycleState.ERROR
+            self._publish_failed(result.error)
+            return result
+
+        event_result = self._publish_started()
+        if isinstance(event_result, Failure):
+            self._state = LifecycleState.ERROR
+            self._publish_failed(event_result.error)
+            return event_result
+
+        self._state = LifecycleState.RUNNING
         return result
 
     def stop(self) -> Result[None, KernelError]:
@@ -47,9 +99,18 @@ class ApplicationLifecycle:
 
         self._state = LifecycleState.STOPPING
         result = self._engine.stop()
-        self._state = (
-            LifecycleState.STOPPED if isinstance(result, Success) else LifecycleState.ERROR
-        )
+        if isinstance(result, Failure):
+            self._state = LifecycleState.ERROR
+            self._publish_failed(result.error)
+            return result
+
+        event_result = self._publish_stopped()
+        if isinstance(event_result, Failure):
+            self._state = LifecycleState.ERROR
+            self._publish_failed(event_result.error)
+            return event_result
+
+        self._state = LifecycleState.STOPPED
         return result
 
     def restart(self) -> Result[None, KernelError]:
