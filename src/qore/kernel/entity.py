@@ -27,6 +27,9 @@ class Entity[ID]:
 
     __slots__ = ("_id", "__id_locked")
 
+    _id: ID
+    __id_locked: bool
+
     def __init__(self, entity_id: ID) -> None:
         object.__setattr__(self, "_id", entity_id)
         object.__setattr__(self, "_Entity__id_locked", True)
