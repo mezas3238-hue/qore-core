@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -15,7 +17,7 @@ from qore.domain.commands import (
     CommandResult,
     IdempotencyKey,
 )
-from qore.domain.events import CausationId, CorrelationId
+from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.kernel.errors import DomainError, ValidationError
 from qore.kernel.result import Failure, Success
 
@@ -66,6 +68,28 @@ class TestCommandContracts:
         assert "c" not in metadata.attributes
         with pytest.raises(TypeError):
             metadata.attributes["x"] = 1  # type: ignore[index]
+
+    def test_reserved_metadata_keys_are_rejected(self) -> None:
+        for reserved in ("correlation_id", "causation_id", "idempotency_key"):
+            with pytest.raises(ValidationError):
+                CommandMetadata(
+                    correlation_id=CORRELATION_ID,
+                    attributes={reserved: "forged"},
+                )
+
+    def test_mutable_or_nondeterministic_metadata_values_are_rejected(self) -> None:
+        invalid_values: tuple[object, ...] = (
+            ["mutable"],
+            {"nested": "mapping"},
+            {"unordered"},
+            ("valid-prefix", ["nested-mutable"]),
+            float("nan"),
+            float("inf"),
+        )
+        for invalid in invalid_values:
+            unsafe = cast(Mapping[str, DomainMetadataValue], {"value": invalid})
+            with pytest.raises(ValidationError):
+                CommandMetadata(correlation_id=CORRELATION_ID, attributes=unsafe)
 
     def test_empty_name_idempotency_key_and_metadata_key_are_rejected(self) -> None:
         with pytest.raises(ValidationError):
