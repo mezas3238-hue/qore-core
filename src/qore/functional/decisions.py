@@ -175,6 +175,12 @@ class FunctionalDecision:
     outcome: DecisionOutcome | None = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.reasons, tuple) or any(
+            not isinstance(reason, DecisionReason) for reason in self.reasons
+        ):
+            raise DecisionValidationError(
+                "decision reasons must be an immutable tuple of DecisionReason values"
+            )
         if self.status is DecisionStatus.PENDING and self.outcome is not None:
             raise DecisionValidationError("pending decision must not have an outcome")
         if self.status is DecisionStatus.RESOLVED and self.outcome is None:
