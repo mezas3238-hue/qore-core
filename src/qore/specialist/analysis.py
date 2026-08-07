@@ -51,6 +51,10 @@ class SpecialistAnalysisId:
 
     value: UUID
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.value, UUID):
+            raise SpecialistValidationError("specialist analysis id must be a UUID")
+
 
 @dataclass(frozen=True, slots=True)
 class SpecialistKind:
@@ -59,7 +63,9 @@ class SpecialistKind:
     value: str
 
     def __post_init__(self) -> None:
-        if fullmatch(r"[a-z][a-z0-9.-]*", self.value) is None:
+        if not isinstance(self.value, str) or fullmatch(
+            r"[a-z][a-z0-9.-]*", self.value
+        ) is None:
             raise SpecialistValidationError(
                 "specialist kind must use lowercase letters, digits, dots, or hyphens"
             )
@@ -102,9 +108,23 @@ class SpecialistMetadata:
     )
 
     def __post_init__(self) -> None:
-        if any(not key.strip() for key in self.attributes):
+        if not isinstance(self.correlation_id, CorrelationId):
             raise SpecialistValidationError(
-                "specialist metadata keys must not be empty"
+                "specialist metadata correlation_id must be a CorrelationId"
+            )
+        if self.causation_id is not None and not isinstance(
+            self.causation_id, CausationId
+        ):
+            raise SpecialistValidationError(
+                "specialist metadata causation_id must be a CausationId or None"
+            )
+        if not isinstance(self.attributes, Mapping):
+            raise SpecialistValidationError(
+                "specialist metadata attributes must be a mapping"
+            )
+        if any(not isinstance(key, str) or not key.strip() for key in self.attributes):
+            raise SpecialistValidationError(
+                "specialist metadata keys must be non-empty strings"
             )
         reserved = _RESERVED_SPECIALIST_METADATA_KEYS.intersection(self.attributes)
         if reserved:
@@ -132,7 +152,9 @@ class SpecialistReasonCode:
     value: str
 
     def __post_init__(self) -> None:
-        if fullmatch(r"[a-z][a-z0-9.-]*", self.value) is None:
+        if not isinstance(self.value, str) or fullmatch(
+            r"[a-z][a-z0-9.-]*", self.value
+        ) is None:
             raise SpecialistValidationError(
                 "specialist reason code must use lowercase letters, digits, dots, or hyphens"
             )
@@ -151,13 +173,21 @@ class SpecialistReason:
     )
 
     def __post_init__(self) -> None:
-        if not self.summary.strip():
+        if not isinstance(self.code, SpecialistReasonCode):
+            raise SpecialistValidationError(
+                "specialist reason code must be a SpecialistReasonCode"
+            )
+        if not isinstance(self.summary, str) or not self.summary.strip():
             raise SpecialistValidationError(
                 "specialist reason summary must not be empty"
             )
-        if any(not key.strip() for key in self.attributes):
+        if not isinstance(self.attributes, Mapping):
             raise SpecialistValidationError(
-                "specialist reason attribute keys must not be empty"
+                "specialist reason attributes must be a mapping"
+            )
+        if any(not isinstance(key, str) or not key.strip() for key in self.attributes):
+            raise SpecialistValidationError(
+                "specialist reason attribute keys must be non-empty strings"
             )
         for value in self.attributes.values():
             _validate_metadata_value(value)
@@ -181,6 +211,28 @@ class SpecialistAnalysis:
     reasons: tuple[SpecialistReason, ...] = ()
 
     def __post_init__(self) -> None:
+        if not isinstance(self.analysis_id, SpecialistAnalysisId):
+            raise SpecialistValidationError(
+                "specialist analysis_id must be a SpecialistAnalysisId"
+            )
+        if not isinstance(self.timestamp, datetime):
+            raise SpecialistValidationError("specialist timestamp must be a datetime")
+        if not isinstance(self.kind, SpecialistKind):
+            raise SpecialistValidationError("specialist kind must be a SpecialistKind")
+        if not isinstance(self.status, SpecialistAnalysisStatus):
+            raise SpecialistValidationError(
+                "specialist status must be a SpecialistAnalysisStatus"
+            )
+        if not isinstance(self.metadata, SpecialistMetadata):
+            raise SpecialistValidationError(
+                "specialist metadata must be SpecialistMetadata"
+            )
+        if self.confidence is not None and not isinstance(
+            self.confidence, SpecialistConfidence
+        ):
+            raise SpecialistValidationError(
+                "specialist confidence must be SpecialistConfidence or None"
+            )
         if not isinstance(self.reasons, tuple) or any(
             not isinstance(reason, SpecialistReason) for reason in self.reasons
         ):
