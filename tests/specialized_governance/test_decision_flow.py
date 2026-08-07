@@ -74,7 +74,12 @@ def _source_decision() -> FunctionalDecision:
     )
 
 
-def _plan(*, confidence: float, minimum: float, target_pass_rate: float) -> SpecializedServicesDecisionFlowPlan:
+def _plan(
+    *,
+    confidence: float,
+    minimum: float,
+    target_pass_rate: float,
+) -> SpecializedServicesDecisionFlowPlan:
     return SpecializedServicesDecisionFlowPlan(
         correlation_id=_CORRELATION,
         timestamp=_TIMESTAMP,
