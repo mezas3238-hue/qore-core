@@ -118,10 +118,6 @@ class ExternalSourceDescriptor:
             raise PortValidationError("descriptor source_id must be SourceId")
         if not isinstance(self.port_name, PortName):
             raise PortValidationError("descriptor port_name must be PortName")
-        if self.adapter_id.value == self.source_id.value:
-            raise PortValidationError(
-                "adapter identity must differ from external source identity"
-            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
