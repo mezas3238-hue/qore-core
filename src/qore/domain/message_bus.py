@@ -145,7 +145,9 @@ class MessageBus:
         if isinstance(before, Failure):
             return Failure(before.error)
 
-        handler = self._registry.command_handler[C, R](type(command))
+        handler: CommandHandler[C, R] | None = self._registry.command_handler(
+            type(command)
+        )
         if handler is None:
             result: CommandResult[R] = Failure(
                 CommandHandlerNotFoundError(type(command).__qualname__)
