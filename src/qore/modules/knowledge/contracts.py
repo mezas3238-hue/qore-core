@@ -47,7 +47,7 @@ class KnowledgeRecord:
 
     record_id: KnowledgeRecordId
     timestamp: datetime
-    source_snapshot_id: StatisticsSnapshotId
+    source_snapshot: StatisticsSnapshot
     correlation_id: CorrelationId
     causation_id: CausationId
     sample_size: int
@@ -61,19 +61,24 @@ class KnowledgeRecord:
             raise KnowledgeInvariantError("record_id must be KnowledgeRecordId")
         if not isinstance(self.timestamp, datetime):
             raise KnowledgeInvariantError("knowledge timestamp must be datetime")
-        if not isinstance(self.source_snapshot_id, StatisticsSnapshotId):
+        if not isinstance(self.source_snapshot, StatisticsSnapshot):
             raise KnowledgeInvariantError(
-                "source_snapshot_id must be StatisticsSnapshotId"
+                "source_snapshot must be StatisticsSnapshot"
             )
         if not isinstance(self.correlation_id, CorrelationId):
             raise KnowledgeInvariantError("correlation_id must be CorrelationId")
         if not isinstance(self.causation_id, CausationId):
             raise KnowledgeInvariantError("causation_id must be CausationId")
-        if self.causation_id != CausationId(self.source_snapshot_id.value):
+        snapshot = self.source_snapshot
+        if self.correlation_id != snapshot.correlation_id:
+            raise KnowledgeInvariantError(
+                "knowledge correlation must match source snapshot"
+            )
+        if self.causation_id != CausationId(snapshot.snapshot_id.value):
             raise KnowledgeInvariantError(
                 "knowledge causation must match source_snapshot_id"
             )
-        if self.record_id.value == self.source_snapshot_id.value:
+        if self.record_id.value == snapshot.snapshot_id.value:
             raise KnowledgeInvariantError(
                 "knowledge record identity must differ from source snapshot"
             )
@@ -95,12 +100,26 @@ class KnowledgeRecord:
             raise KnowledgeInvariantError(
                 "mean_observed_confidence must be SpecialistConfidence"
             )
+        if (
+            self.sample_size != snapshot.sample_size
+            or self.passed_count != snapshot.passed_count
+            or self.failed_count != snapshot.failed_count
+            or self.pass_rate != snapshot.pass_rate
+            or self.mean_observed_confidence != snapshot.mean_observed_confidence
+        ):
+            raise KnowledgeInvariantError(
+                "knowledge metrics must exactly match source snapshot"
+            )
+
+    @property
+    def source_snapshot_id(self) -> StatisticsSnapshotId:
+        return self.source_snapshot.snapshot_id
 
     def logical_values(self) -> tuple[object, ...]:
         return (
             str(self.record_id.value),
             self.timestamp.isoformat(),
-            str(self.source_snapshot_id.value),
+            self.source_snapshot.logical_values(),
             str(self.correlation_id.value),
             str(self.causation_id.value),
             self.sample_size,
@@ -149,7 +168,7 @@ class CaptureStatisticsKnowledgeCommand(Command):
         return KnowledgeRecord(
             record_id=self.record_id,
             timestamp=self.timestamp,
-            source_snapshot_id=snapshot.snapshot_id,
+            source_snapshot=snapshot,
             correlation_id=self.metadata.correlation_id,
             causation_id=causation,
             sample_size=snapshot.sample_size,
