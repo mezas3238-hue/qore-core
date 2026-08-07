@@ -53,14 +53,16 @@ class ApplicationLifecycle:
         clock = self._clock
         if context is None or clock is None:
             return Success(None)
-        return self._engine.event_bus.publish(RuntimeStartedEvent(timestamp=clock(), context=context))
+        event = RuntimeStartedEvent(timestamp=clock(), context=context)
+        return self._engine.event_bus.publish(event)
 
     def _publish_stopped(self) -> Result[None, KernelError]:
         context = self._runtime_context
         clock = self._clock
         if context is None or clock is None:
             return Success(None)
-        return self._engine.event_bus.publish(RuntimeStoppedEvent(timestamp=clock(), context=context))
+        event = RuntimeStoppedEvent(timestamp=clock(), context=context)
+        return self._engine.event_bus.publish(event)
 
     def _publish_failed(self, error: KernelError) -> None:
         context = self._runtime_context
