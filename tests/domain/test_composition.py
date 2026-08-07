@@ -4,14 +4,19 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from qore.domain.commands import Command, CommandHandler, CommandResult
 from qore.domain.composition import (
+    ComposableDomainModule,
     DomainComposition,
     DuplicateModuleError,
     ModuleCatalog,
+    ModuleRegistrationError,
     compose_domain,
 )
 from qore.domain.message_bus import HandlerRegistry, MessageBus
 from qore.domain.modules import DomainModule, ModuleDescriptor, ModuleName, ModuleVersion
+from qore.kernel.errors import DomainError
+from qore.kernel.result import Failure, Result, Success
 
 
 class ExampleModule:
@@ -25,6 +30,13 @@ class ExampleModule:
     def descriptor(self) -> ModuleDescriptor:
         return self._descriptor
 
+    def register_handlers(
+        self,
+        registry: HandlerRegistry,
+    ) -> Result[None, DomainError]:
+        _ = registry
+        return Success(None)
+
 
 class MutableDescriptorModule(ExampleModule):
     def replace_descriptor(self, name: str) -> None:
@@ -32,6 +44,34 @@ class MutableDescriptorModule(ExampleModule):
             name=ModuleName(name),
             version=ModuleVersion("2.0"),
         )
+
+
+class ExampleCommandHandler:
+    def handle(self, command: Command) -> CommandResult[str]:
+        _ = command
+        return Success("registered")
+
+
+class HandlerContributingModule(ExampleModule):
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self.handler = ExampleCommandHandler()
+
+    def register_handlers(
+        self,
+        registry: HandlerRegistry,
+    ) -> Result[None, DomainError]:
+        registry.register_command(Command, self.handler)
+        return Success(None)
+
+
+class FailingRegistrationModule(ExampleModule):
+    def register_handlers(
+        self,
+        registry: HandlerRegistry,
+    ) -> Result[None, DomainError]:
+        _ = registry
+        return Failure(DomainError("registration failed"))
 
 
 class TestModuleCatalog:
@@ -70,12 +110,27 @@ class TestModuleCatalog:
 
 class TestDomainCompositionRoot:
     def test_compose_domain_builds_single_registry_and_bus(self) -> None:
-        composition = compose_domain(modules=(ExampleModule("example"),))
+        module: ComposableDomainModule = ExampleModule("example")
+        composition = compose_domain(modules=(module,))
 
         assert isinstance(composition, DomainComposition)
         assert isinstance(composition.handler_registry, HandlerRegistry)
         assert isinstance(composition.message_bus, MessageBus)
         assert composition.module_catalog.descriptors[0].name == ModuleName("example")
+
+    def test_module_handlers_are_registered_during_composition(self) -> None:
+        module = HandlerContributingModule("handlers")
+
+        composition = compose_domain(modules=(module,))
+        registered: CommandHandler[Command, str] | None = (
+            composition.handler_registry.command_handler(Command)
+        )
+
+        assert registered is module.handler
+
+    def test_registration_failure_aborts_composition(self) -> None:
+        with pytest.raises(ModuleRegistrationError, match="registration failed"):
+            compose_domain(modules=(FailingRegistrationModule("failing"),))
 
     def test_composition_is_deterministic_for_same_module_topology(self) -> None:
         first = compose_domain(modules=(ExampleModule("first"), ExampleModule("second")))

@@ -14,8 +14,11 @@ from qore.core.runtime import RuntimeContext
 from qore.core.runtime_plan import RuntimeComponentSpec, RuntimePlan
 from qore.core.runtime_supervisor import RuntimeSupervisor
 from qore.core.service_registry import ServiceRegistry
-from qore.domain.composition import DomainCompositionError, compose_domain
-from qore.domain.modules import DomainModule
+from qore.domain.composition import (
+    ComposableDomainModule,
+    DomainCompositionError,
+    compose_domain,
+)
 from qore.kernel.errors import KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
 
@@ -37,7 +40,7 @@ def bootstrap() -> CoreIdentity: ...
 def bootstrap(
     configuration: Configuration,
     *,
-    domain_modules: tuple[DomainModule, ...] = (),
+    domain_modules: tuple[ComposableDomainModule, ...] = (),
 ) -> Result[CoreApplication, KernelError]: ...
 
 
@@ -47,7 +50,7 @@ def bootstrap(
     *,
     runtime_context: RuntimeContext,
     clock: Clock,
-    domain_modules: tuple[DomainModule, ...] = (),
+    domain_modules: tuple[ComposableDomainModule, ...] = (),
 ) -> Result[CoreApplication, KernelError]: ...
 
 
@@ -56,7 +59,7 @@ def bootstrap(
     *,
     runtime_context: RuntimeContext | None = None,
     clock: Clock | None = None,
-    domain_modules: tuple[DomainModule, ...] = (),
+    domain_modules: tuple[ComposableDomainModule, ...] = (),
 ) -> CoreIdentity | Result[CoreApplication, KernelError]:
     """Construir el Core o preservar el bootstrap histórico de Genesis.
 
