@@ -22,7 +22,6 @@ from qore.infrastructure.ports import (
 )
 from qore.kernel.result import Failure, Result, Success
 
-
 type ExternalDecimalValue = str | float
 type ExternalWholeNumberValue = str | int
 
@@ -399,10 +398,7 @@ class MarketDataIngestionFlow:
         )
         if isinstance(closed_result, Failure):
             return closed_result
-        if (
-            opened_result.value != request.opened_at
-            or closed_result.value != request.closed_at
-        ):
+        if opened_result.value != request.opened_at or closed_result.value != request.closed_at:
             return _validation_failure(
                 "external OHLC interval must match the requested interval"
             )
