@@ -7,7 +7,13 @@ import pytest
 
 from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
-from qore.domain.commands import CommandId, CommandMetadata, CommandName
+from qore.domain.commands import (
+    CommandHandler,
+    CommandId,
+    CommandMetadata,
+    CommandName,
+    CommandResult,
+)
 from qore.domain.events import (
     CausationId,
     CorrelationId,
@@ -171,10 +177,13 @@ class TestCioHandlerAndModule:
         registry = HandlerRegistry()
 
         registration = module.register_handlers(registry)
+        registered: CommandHandler[
+            CreateCioDecisionCommand, FunctionalDecision
+        ] | None = registry.command_handler(CreateCioDecisionCommand)
 
         assert isinstance(registration, Success)
         assert module.descriptor.name == ModuleName("cio")
-        assert registry.command_handler(CreateCioDecisionCommand) is module.decision_handler
+        assert registered is module.decision_handler
 
     def test_bootstrap_composes_cio_and_dispatches_through_official_bus(self) -> None:
         module = CioModule()
@@ -184,9 +193,11 @@ class TestCioHandlerAndModule:
         )
 
         assert isinstance(boot, Success)
-        dispatched = boot.value.domain.message_bus.dispatch_command[
-            CreateCioDecisionCommand, FunctionalDecision
-        ](_command(outcome=DecisionOutcome.APPROVED))
+        dispatched: CommandResult[FunctionalDecision] = (
+            boot.value.domain.message_bus.dispatch_command(
+                _command(outcome=DecisionOutcome.APPROVED)
+            )
+        )
 
         assert isinstance(dispatched, Success)
         assert dispatched.value.outcome is DecisionOutcome.APPROVED
