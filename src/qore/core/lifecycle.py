@@ -7,6 +7,7 @@ from enum import Enum, auto
 from qore.core.engine import CoreEngine
 from qore.core.runtime import RuntimeContext
 from qore.core.runtime_events import RuntimeFailedEvent, RuntimeStartedEvent, RuntimeStoppedEvent
+from qore.core.runtime_supervisor import RuntimeSupervisor
 from qore.kernel.errors import DomainError, KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
 
@@ -23,18 +24,20 @@ class LifecycleState(Enum):
 
 
 class ApplicationLifecycle:
-    """Máquina de estados mínima para controlar el Core y su runtime opcional."""
+    """Máquina de estados del Core con ejecución supervisada opcional."""
 
     def __init__(
         self,
         engine: CoreEngine,
         *,
+        runtime_supervisor: RuntimeSupervisor | None = None,
         runtime_context: RuntimeContext | None = None,
         clock: Clock | None = None,
     ) -> None:
         if (runtime_context is None) != (clock is None):
             raise ValidationError("runtime_context and clock must be provided together")
         self._engine = engine
+        self._runtime_supervisor = runtime_supervisor
         self._runtime_context = runtime_context
         self._clock = clock
         self._state = LifecycleState.INITIALIZED
@@ -47,6 +50,22 @@ class ApplicationLifecycle:
     @property
     def runtime_context(self) -> RuntimeContext | None:
         return self._runtime_context
+
+    @property
+    def runtime_supervisor(self) -> RuntimeSupervisor | None:
+        return self._runtime_supervisor
+
+    def _start_execution(self) -> Result[None, KernelError]:
+        supervisor = self._runtime_supervisor
+        if supervisor is not None:
+            return supervisor.start()
+        return self._engine.start()
+
+    def _stop_execution(self) -> Result[None, KernelError]:
+        supervisor = self._runtime_supervisor
+        if supervisor is not None:
+            return supervisor.stop()
+        return self._engine.stop()
 
     def _publish_started(self) -> Result[None, KernelError]:
         context = self._runtime_context
@@ -74,12 +93,12 @@ class ApplicationLifecycle:
         )
 
     def start(self) -> Result[None, KernelError]:
-        """Arrancar desde INITIALIZED o STOPPED."""
+        """Arrancar desde INITIALIZED o STOPPED por la ruta oficial de ejecución."""
         if self._state not in (LifecycleState.INITIALIZED, LifecycleState.STOPPED):
             return Failure(DomainError(f"Cannot start from state {self._state}"))
 
         self._state = LifecycleState.STARTING
-        result = self._engine.start()
+        result = self._start_execution()
         if isinstance(result, Failure):
             self._state = LifecycleState.ERROR
             self._publish_failed(result.error)
@@ -88,6 +107,7 @@ class ApplicationLifecycle:
         self._state = LifecycleState.RUNNING
         event_result = self._publish_started()
         if isinstance(event_result, Failure):
+            self._stop_execution()
             self._state = LifecycleState.ERROR
             self._publish_failed(event_result.error)
             return event_result
@@ -95,12 +115,12 @@ class ApplicationLifecycle:
         return result
 
     def stop(self) -> Result[None, KernelError]:
-        """Detener desde RUNNING y reflejar el resultado del motor."""
+        """Detener desde RUNNING por la misma ruta oficial de ejecución."""
         if self._state != LifecycleState.RUNNING:
             return Failure(DomainError(f"Cannot stop from state {self._state}"))
 
         self._state = LifecycleState.STOPPING
-        result = self._engine.stop()
+        result = self._stop_execution()
         if isinstance(result, Failure):
             self._state = LifecycleState.ERROR
             self._publish_failed(result.error)
