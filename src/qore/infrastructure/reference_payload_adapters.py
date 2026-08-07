@@ -77,6 +77,10 @@ class ReferenceExternalMarketDataPayloadAdapter:
                 raise ReferenceAdapterValidationError(
                     "reference external quote source must match adapter descriptor"
                 )
+            if not isinstance(quote_payload.instrument, str):
+                raise ReferenceAdapterValidationError(
+                    "reference external quote instrument must be a string"
+                )
             quote_key = quote_payload.instrument.strip().upper()
             if not quote_key:
                 raise ReferenceAdapterValidationError(
@@ -97,6 +101,16 @@ class ReferenceExternalMarketDataPayloadAdapter:
             if ohlc_payload.source != descriptor:
                 raise ReferenceAdapterValidationError(
                     "reference external OHLC source must match adapter descriptor"
+                )
+            if not isinstance(ohlc_payload.instrument, str):
+                raise ReferenceAdapterValidationError(
+                    "reference external OHLC instrument must be a string"
+                )
+            if not isinstance(ohlc_payload.opened_at, datetime) or not isinstance(
+                ohlc_payload.closed_at, datetime
+            ):
+                raise ReferenceAdapterValidationError(
+                    "reference external OHLC interval values must be datetime"
                 )
             instrument = ohlc_payload.instrument.strip().upper()
             if not instrument:
