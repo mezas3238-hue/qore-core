@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
-from typing import Generic, TypeVar
 
 from qore.infrastructure.market_data import (
     OhlcRequest,
@@ -25,8 +24,6 @@ from qore.infrastructure.ports import (
     PortAvailability,
 )
 from qore.kernel.result import Failure, Result, Success
-
-ValueT = TypeVar("ValueT")
 
 
 class ReferenceAdapterError(ExternalPortError):
@@ -202,7 +199,7 @@ class ReferenceMarketDataAdapter:
         return Success(snapshot)
 
 
-class ReferencePersistenceAdapter(Generic[ValueT]):
+class ReferencePersistenceAdapter[ValueT]:
     """Deterministic in-memory PersistencePort with defensive value copying."""
 
     __slots__ = ("_descriptor", "_records")
