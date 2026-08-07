@@ -19,6 +19,12 @@ class MessageBusError(DomainError):
     __slots__ = ()
 
 
+class MessageBusValidationError(MessageBusError):
+    """Configuración o decisión inválida del message bus."""
+
+    __slots__ = ()
+
+
 class DuplicateCommandHandlerError(MessageBusError):
     """Un comando intentó registrar más de un handler."""
 
@@ -66,9 +72,13 @@ class RetryDecision:
 
     def __post_init__(self) -> None:
         if self.should_retry and (self.next_attempt is None or self.next_attempt < 1):
-            raise ValueError("retry decision requires a positive next attempt")
+            raise MessageBusValidationError(
+                "retry decision requires a positive next attempt"
+            )
         if not self.should_retry and self.next_attempt is not None:
-            raise ValueError("non-retry decision cannot define next attempt")
+            raise MessageBusValidationError(
+                "non-retry decision cannot define next attempt"
+            )
 
 
 class RetryPolicy(Protocol):
@@ -147,7 +157,9 @@ class MessageBus:
             except Exception as exc:
                 result = Failure(HandlerExecutionError(str(exc)))
 
-        self._run_after(command, cast(MessageResult, result))
+        after = self._run_after(command, cast(MessageResult, result))
+        if isinstance(result, Success) and isinstance(after, Failure):
+            return Failure(after.error)
         return result
 
     def publish_event[E: BusinessDomainEvent](
@@ -168,7 +180,9 @@ class MessageBus:
                 result = current
                 break
 
-        self._run_after(event, cast(MessageResult, result))
+        after = self._run_after(event, cast(MessageResult, result))
+        if isinstance(result, Success) and isinstance(after, Failure):
+            return Failure(after.error)
         return result
 
     def _run_before(self, message: Message) -> Result[None, DomainError]:
@@ -181,6 +195,14 @@ class MessageBus:
                 return result
         return Success(None)
 
-    def _run_after(self, message: Message, result: MessageResult) -> None:
+    def _run_after(
+        self,
+        message: Message,
+        result: MessageResult,
+    ) -> Result[None, DomainError]:
         for middleware in reversed(self._middleware):
-            middleware.after(message, result)
+            try:
+                middleware.after(message, result)
+            except Exception as exc:
+                return Failure(HandlerExecutionError(str(exc)))
+        return Success(None)
