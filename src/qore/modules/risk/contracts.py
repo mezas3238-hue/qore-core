@@ -84,6 +84,10 @@ class AssessAllocationRiskCommand(Command):
     priority: DecisionPriority = DecisionPriority.HIGH
 
     def __post_init__(self) -> None:
+        if self.decision_id.value == self.allocation_intent.intent_id.value:
+            raise RiskValidationError(
+                "risk decision identity must differ from the source allocation intent"
+            )
         if self.metadata.correlation_id != self.allocation_intent.correlation_id:
             raise RiskValidationError(
                 "risk command correlation must match the allocation intent"
