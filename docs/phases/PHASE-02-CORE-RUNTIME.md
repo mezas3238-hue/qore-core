@@ -1,43 +1,32 @@
 # PHASE-02 — Core Runtime Contracts
 
+## Estado
+
+En cierre. RUNTIME-001, RUNTIME-002, RUNTIME-003 y RUNTIME-004 están integrados. RUNTIME-005 es el último entregable requerido por la revisión transversal para cerrar la fase sin dejar dos rutas paralelas de ejecución.
+
 ## Objetivo
 
-Convertir la fundación mínima de QORE en un runtime determinista, extensible y explícitamente gobernado por contratos, sin introducir todavía lógica de negocio ni dependencias de infraestructura.
+Convertir la fundación mínima de QORE en un runtime determinista, extensible y explícitamente gobernado por contratos, sin introducir lógica de negocio ni dependencias de infraestructura.
 
-Esta fase debe establecer cómo se identifica una ejecución, cómo se compone el Core, cómo se registran y resuelven componentes, cómo se representan los eventos internos de lifecycle, cómo se propagan los errores de forma uniforme mediante `Result`, cómo se consulta el estado interno del runtime sin exponer estado mutable y cómo se deriva de ese estado una señal interna de health/readiness sin infraestructura externa.
+PHASE-02 establece identidad de ejecución, composición de componentes, lifecycle ordenado, introspección inmutable, health/readiness derivados y una única ruta oficial de ejecución desde el composition root.
 
 ## Principios
 
 - Determinismo antes que conveniencia.
 - Contratos explícitos antes que acoplamiento implícito.
-- Inmutabilidad por defecto en objetos de contexto y configuración.
+- Inmutabilidad por defecto.
 - Sin estado global mutable.
 - Sin service locator arbitrario.
 - Sin efectos externos dentro del Core.
 - Errores controlados mediante tipos del Kernel y `Result`.
-- Estado observable mediante snapshots inmutables, no mediante acceso a internals mutables.
-- Health y readiness derivados del estado oficial del runtime, nunca mantenidos como una segunda fuente de verdad.
-- Compatibilidad preservada con PHASE-01.
+- `RuntimeSnapshot` como fuente de verdad observable del runtime.
+- Health/readiness como proyección pura del snapshot.
+- Una única ruta oficial de start/stop para una aplicación bootstrapeada.
+- Compatibilidad preservada con PHASE-01 y con `bootstrap()` Genesis.
 
 ## Fuera de alcance
 
-Esta fase no implementa:
-
-- trading ni lógica de estrategia;
-- Traders Virtuales;
-- CIBO;
-- Portfolio Manager;
-- Risk Engine;
-- Validation Lab;
-- Statistics, Knowledge u Optimization;
-- market data;
-- news APIs;
-- persistencia;
-- logging o auditoría externos;
-- métricas, tracing o telemetry externos;
-- adapters de broker, exchange o infraestructura;
-- asincronía distribuida;
-- QORE Mobile.
+Esta fase no implementa trading, Traders Virtuales, CIBO, Portfolio Manager, Risk Engine, Validation Lab, Statistics, Knowledge, Optimization, market data, news APIs, persistencia, logging/auditoría externos, métricas, tracing, telemetry, adapters de broker/exchange, asincronía distribuida ni QORE Mobile.
 
 ## Entregables
 
@@ -45,192 +34,115 @@ Esta fase no implementa:
 
 Estado: integrado.
 
-Introduce los contratos mínimos necesarios para representar y gobernar una ejecución del Core:
-
-- `RuntimeContext` inmutable;
-- identidad explícita de ejecución;
-- versionado mínimo del runtime;
-- `RuntimeComponent` como contrato estructural;
-- registro y resolución tipados;
-- eventos `runtime started`, `runtime stopped` y `runtime failed`;
-- reloj inyectado;
-- propagación de fallos mediante `Result`;
-- compatibilidad con PHASE-01.
+- `RuntimeContext` inmutable.
+- Identidad y versionado explícitos de ejecución.
+- `RuntimeComponent` estructural.
+- Registro/resolución tipados.
+- Eventos `runtime started`, `runtime stopped`, `runtime failed`.
+- Reloj inyectado.
+- Fallos propagados mediante `Result`.
 
 ### QORE-CORE-RUNTIME-002 — Component Graph & Ordered Lifecycle
 
 Estado: integrado.
 
-Convierte los componentes individuales del runtime en una composición explícita y determinista:
-
-- `RuntimeComponentSpec` inmutable con dependencias explícitas;
-- `RuntimePlan` declarativo e inmutable;
-- validación de nombres duplicados y dependencias inexistentes;
-- rechazo de ciclos antes de ejecutar componentes;
-- orden topológico estable y reproducible;
-- `RuntimeSupervisor` con arranque y parada deterministas;
-- parada en orden inverso al arranque efectivo;
-- rollback de componentes ya iniciados ante fallo de `start`;
-- preservación del error original durante rollback;
-- conservación explícita de componentes residuales que no pudieron detenerse;
-- sin paralelismo, threads, asyncio ni efectos externos.
+- `RuntimeComponentSpec` y `RuntimePlan` inmutables.
+- Validación de duplicados, dependencias inexistentes y ciclos.
+- Orden topológico estable.
+- `RuntimeSupervisor` con start/stop deterministas.
+- Stop inverso al orden efectivo de start.
+- Rollback ante fallo de start.
+- Conservación explícita de componentes residuales.
 
 ### QORE-CORE-RUNTIME-003 — Runtime State & Introspection Contracts
 
 Estado: integrado.
 
-Introduce introspección inmutable y determinista del runtime:
-
-- `RuntimeStatus` con `STOPPED`, `RUNNING` y `DEGRADED`;
-- `RuntimeComponentStatus` con `INACTIVE`, `ACTIVE` y `RESIDUAL`;
-- `RuntimeComponentSnapshot` y `RuntimeSnapshot` inmutables;
-- `RuntimeSupervisor.snapshot()` como operación de lectura pura;
-- orden declarativo estable para componentes;
-- orden efectivo de arranque para componentes activos;
-- representación explícita de componentes residuales;
-- invariantes que rechazan snapshots contradictorios;
-- preservación opcional de `RuntimeContext` sin generación implícita;
-- cobertura determinista de construcción, start, stop, rollback limpio, rollback incompleto y stop incompleto.
+- `RuntimeStatus`: `STOPPED`, `RUNNING`, `DEGRADED`.
+- `RuntimeComponentStatus`: `INACTIVE`, `ACTIVE`, `RESIDUAL`.
+- `RuntimeComponentSnapshot` y `RuntimeSnapshot` inmutables.
+- `RuntimeSupervisor.snapshot()` como lectura pura.
+- Invariantes que rechazan snapshots contradictorios.
+- Estado residual representado explícitamente y con orden estable.
 
 ### QORE-CORE-RUNTIME-004 — Runtime Health & Readiness Contracts
 
+Estado: integrado.
+
+- `RuntimeHealthStatus`: `HEALTHY`, `DEGRADED`, `UNHEALTHY`.
+- `RuntimeReadiness`: `READY`, `NOT_READY`.
+- Motivos estructurados de health/readiness.
+- `RuntimeHealthSnapshot` inmutable con invariantes propias.
+- `evaluate_runtime_health(snapshot)` como proyección pura y determinista.
+- `STOPPED -> UNHEALTHY + NOT_READY`.
+- `RUNNING -> HEALTHY + READY`.
+- `DEGRADED -> DEGRADED + NOT_READY`.
+- Residuales reportados como degradados y bloqueantes.
+
+### QORE-CORE-RUNTIME-005 — Runtime Composition & Application Integration
+
 Estado: definido, pendiente de implementación.
+
+#### Motivo
+
+La revisión transversal posterior a RUNTIME-004 detectó que los contratos del supervisor existen y funcionan, pero el composition root oficial todavía construye `CoreEngine` y `ApplicationLifecycle` sin integrar `RuntimePlan`/`RuntimeSupervisor`. Eso deja dos rutas paralelas de ejecución y evita que una `CoreApplication` bootstrapeada sea la fuente oficial de snapshot y health.
 
 #### Objetivo
 
-Introducir un contrato puro, inmutable y determinista que derive la condición operativa del runtime a partir de `RuntimeSnapshot`, sin mantener estado adicional y sin introducir health checks externos, red, logging, métricas ni infraestructura.
-
-Este entregable establece la frontera entre **estado del runtime** e **interpretación operativa del estado**. `RuntimeSnapshot` continúa siendo la fuente de verdad; health y readiness son únicamente una proyección derivada.
+Cerrar la composición de PHASE-02 haciendo que toda `CoreApplication` construida con `Configuration` posea un `RuntimePlan` y un `RuntimeSupervisor` oficiales, y que `ApplicationLifecycle` coordine start/stop a través de ese supervisor sin duplicar la ejecución de `CoreEngine`.
 
 #### Alcance
 
-- `RuntimeHealthStatus` como enum explícito con estados mínimos:
-  - `HEALTHY`;
-  - `DEGRADED`;
-  - `UNHEALTHY`.
-- `RuntimeReadiness` como enum explícito con estados mínimos:
-  - `READY`;
-  - `NOT_READY`.
-- `RuntimeHealthReason` o contrato equivalente, inmutable y estructurado, para explicar por qué un runtime no está listo o está degradado.
-- `RuntimeHealthSnapshot` inmutable con, como mínimo:
-  - health agregado;
-  - readiness agregado;
-  - motivos estructurados;
-  - nombres de componentes bloqueantes;
-  - nombres de componentes degradados;
-  - referencia o copia inmutable del estado base necesario para trazabilidad lógica, sin duplicar estado mutable.
-- función o servicio puro de derivación, por ejemplo `evaluate_runtime_health(snapshot)` o contrato equivalente.
-- La derivación no puede mutar `RuntimeSnapshot`, `RuntimeSupervisor` ni ningún componente.
-- No puede existir caché mutable ni estado interno persistente en el evaluador.
-- Dos evaluaciones del mismo `RuntimeSnapshot` deben producir valores equivalentes.
+- El composition root debe construir un `RuntimePlan` explícito cuyo componente mínimo sea `CoreEngine`.
+- El composition root debe construir un `RuntimeSupervisor` asociado al `RuntimeContext` opcional ya suministrado.
+- `CoreApplication` debe exponer `runtime_plan` y `runtime_supervisor` como referencias oficiales de composición.
+- `CoreApplication` debe ofrecer acceso de solo lectura al `RuntimeSnapshot` actual y a su `RuntimeHealthSnapshot` derivado, sin caché mutable.
+- `ApplicationLifecycle` debe aceptar un `RuntimeSupervisor` opcional.
+- Cuando exista supervisor, `ApplicationLifecycle.start()` debe delegar el arranque al supervisor y no llamar además a `CoreEngine.start()`.
+- Cuando exista supervisor, `ApplicationLifecycle.stop()` debe delegar la parada al supervisor y no llamar además a `CoreEngine.stop()`.
+- El uso directo histórico de `ApplicationLifecycle(engine)` sin supervisor debe conservar su comportamiento actual.
+- Si el arranque del supervisor falla, lifecycle debe entrar en `ERROR`, preservar el error original y el supervisor debe conservar cualquier residual según RUNTIME-002.
+- Si falla la publicación de `RuntimeStartedEvent` después de un arranque exitoso, lifecycle debe intentar rollback mediante la misma ruta oficial de ejecución y preservar como error principal el fallo de publicación.
+- `bootstrap()` sin argumentos debe seguir devolviendo exactamente `CoreIdentity` Genesis.
+- `bootstrap(Configuration)` debe producir una aplicación con runtime oficial aun cuando no exista `RuntimeContext`; en ese caso no se emiten eventos de runtime, pero sí existen supervisor/snapshot/health.
+- `bootstrap(Configuration, runtime_context=..., clock=...)` debe conservar eventos deterministas y usar el mismo supervisor oficial.
 
-#### Semántica mínima obligatoria
+#### Invariantes
 
-1. `RuntimeStatus.STOPPED`:
-   - health = `UNHEALTHY`;
-   - readiness = `NOT_READY`;
-   - ningún componente puede marcarse como degradado si no existe residual;
-   - debe existir un motivo estructurado que indique que el runtime está detenido.
-2. `RuntimeStatus.RUNNING` sin residuales:
-   - health = `HEALTHY`;
-   - readiness = `READY`;
-   - no existen componentes bloqueantes ni degradados.
-3. `RuntimeStatus.DEGRADED`:
-   - health = `DEGRADED`;
-   - readiness = `NOT_READY`;
-   - los componentes residuales deben aparecer como degradados y bloqueantes.
-4. Un `RuntimeSnapshot` válido nunca puede producir combinaciones contradictorias como `HEALTHY + NOT_READY` o `UNHEALTHY + READY` bajo las reglas de RUNTIME-004.
-5. `RuntimeHealthSnapshot` debe validar sus propias invariantes para impedir construcción manual contradictoria.
-6. La readiness representa capacidad del runtime para aceptar trabajo del Core, no conectividad de infraestructura externa.
+1. Una aplicación bootstrapeada no puede tener dos caminos independientes de start/stop para el mismo `CoreEngine`.
+2. `CoreEngine` debe aparecer una sola vez en el plan oficial y su nombre debe coincidir con `component_name`.
+3. Tras `bootstrap(Configuration)`, el snapshot inicial debe ser `STOPPED` y health `UNHEALTHY + NOT_READY`.
+4. Tras `app.lifecycle.start()`, el supervisor debe estar `RUNNING`, el snapshot debe ser `RUNNING` y health `HEALTHY + READY`.
+5. Tras `app.lifecycle.stop()`, el supervisor debe volver a `STOPPED` y health a `UNHEALTHY + NOT_READY`.
+6. Snapshot y health obtenidos desde `CoreApplication` deben ser nuevas proyecciones de solo lectura, sin mutar supervisor ni componentes.
+7. No se introducen conexiones externas, reloj global, UUID implícito, threads, asyncio ni dominio de trading.
+8. La compatibilidad de `bootstrap()` Genesis y de `ApplicationLifecycle(engine)` directo es obligatoria.
 
-#### Reglas e invariantes
+#### Pruebas obligatorias
 
-1. `RuntimeSnapshot` es la única fuente de verdad de entrada.
-2. Health/readiness no pueden mantener una segunda máquina de estados independiente.
-3. Toda salida debe ser inmutable.
-4. La evaluación debe ser pura y determinista.
-5. No se permiten timestamps implícitos, UUIDs nuevos ni uso de reloj global.
-6. No se permiten llamadas a `start()`, `stop()`, event handlers ni efectos colaterales durante la evaluación.
-7. Los nombres de componentes bloqueantes/degradados deben proceder exclusivamente de componentes declarados en el snapshot.
-8. El orden de componentes reportados debe ser estable y documentado.
-9. `READY` solo es válido cuando el runtime se encuentra en ejecución normal.
-10. `DEGRADED` siempre implica `NOT_READY` durante PHASE-02.
-11. `UNHEALTHY` siempre implica `NOT_READY` durante PHASE-02.
-12. La incorporación de health/readiness no puede modificar la semántica pública de `RuntimeSupervisor`, `ApplicationLifecycle` ni `bootstrap()`.
-
-#### Fuera de alcance específico de RUNTIME-004
-
-- heartbeat temporal;
-- latencia;
-- health checks de broker;
-- health checks de base de datos;
-- health checks de APIs o red;
-- disponibilidad de market data;
-- logging;
-- Prometheus;
-- OpenTelemetry;
-- tracing;
-- persistencia histórica;
-- alertas;
-- REST/HTTP endpoints;
-- dashboard;
-- Widget del CEO;
-- comandos remotos;
-- CIBO;
-- lógica de trading.
-
-Estos consumidores y fuentes externas de health podrán construirse en fases posteriores sobre este contrato interno.
-
-#### Criterios de aceptación específicos
-
-Además del Quality Gate global de PHASE-02:
-
-- un snapshot `STOPPED` debe derivar `UNHEALTHY + NOT_READY`;
-- un snapshot `RUNNING` válido debe derivar `HEALTHY + READY`;
-- un snapshot `DEGRADED` debe derivar `DEGRADED + NOT_READY`;
-- los residuales deben aparecer de forma determinista como componentes degradados y bloqueantes;
-- una evaluación repetida del mismo snapshot debe comparar por valor como equivalente;
-- la evaluación no debe producir efectos sobre supervisor, componentes o event bus;
-- `RuntimeHealthSnapshot` debe rechazar combinaciones contradictorias;
-- deben existir pruebas explícitas para plan vacío detenido y plan vacío en ejecución;
-- Ruff, Mypy strict y Pytest deben pasar completamente.
-
-#### Condición de cierre de PHASE-02
-
-PHASE-02 podrá declararse `completed` cuando RUNTIME-004 esté integrado y su Quality Gate haya pasado completamente, siempre que una revisión final confirme que no queda ninguna capacidad fundacional pendiente dentro del alcance definido para Core Runtime Contracts.
+- `bootstrap -> snapshot -> health` antes de start.
+- `bootstrap -> start -> snapshot -> health`.
+- `bootstrap -> start -> stop -> snapshot -> health`.
+- Verificación de que `CoreEngine.start/stop` se invoca exactamente una vez mediante la ruta supervisada.
+- Fallo de start del componente con lifecycle `ERROR` y error original preservado.
+- Fallo de `RuntimeStartedEvent` con rollback de la ejecución ya iniciada.
+- Aplicación sin `RuntimeContext` con supervisor funcional pero sin eventos de runtime.
+- Aplicación con `RuntimeContext` y clock con eventos deterministas.
+- Compatibilidad de `ApplicationLifecycle(engine)` directo.
+- Ruff, Mypy strict y Pytest completamente verdes.
 
 ## Restricciones arquitectónicas
 
-1. El Runtime no puede importar módulos de dominio de trading.
-2. El Runtime no puede crear conexiones externas.
-3. El Runtime no puede depender de reloj global ni generar timestamps implícitos no inyectados.
-4. El Runtime no puede usar singletons ni registros globales mutables.
-5. Los objetos de contexto, planes declarativos, snapshots y proyecciones de health deben ser inmutables.
-6. Todo fallo operacional representable debe retornar `Result` cuando el contrato existente de QORE lo requiera.
-7. La composición del Core debe permanecer explícita.
-8. Ningún cambio puede romper `bootstrap()` sin argumentos introducido en Genesis.
-9. La introspección debe ser una operación de lectura pura.
-10. Health/readiness deben ser proyecciones puras de `RuntimeSnapshot`.
-
-## Criterios de aceptación
-
-Todos son obligatorios y deben terminar con código de salida 0:
-
-```bash
-python --version
-pip install -e ".[dev]"
-python -c "import qore; print(qore.__name__)"
-pytest
-ruff check .
-mypy src tests
-```
-
-Además:
-
-- `mypy` debe ejecutarse con `strict = true`.
-- Las nuevas pruebas deben ser deterministas.
-- Debe demostrarse que no se introduce ninguna dependencia de infraestructura o dominio de trading.
-- El CI de GitHub Actions debe terminar completamente en verde antes de merge.
+1. El Runtime no importa dominio de trading.
+2. El Runtime no crea conexiones externas.
+3. El Runtime no depende de reloj global ni genera timestamps/UUID implícitos.
+4. No usa singletons ni registros globales mutables.
+5. Contextos, planes, snapshots y proyecciones de health permanecen inmutables.
+6. Todo fallo operacional representable usa `Result` cuando el contrato existente lo requiere.
+7. La composición del Core permanece explícita.
+8. `bootstrap()` Genesis no puede romperse.
+9. Introspección y health/readiness son operaciones puras.
+10. La aplicación bootstrapeada tiene una sola autoridad de ejecución: `ApplicationLifecycle` como máquina de estados delegando en `RuntimeSupervisor` como ejecutor del plan.
 
 ## Quality Gate
 
@@ -240,9 +152,13 @@ Cada PR de PHASE-02 solo puede mergearse cuando:
 - Mypy strict = PASS;
 - Pytest = PASS;
 - no existan hilos de revisión sin resolver;
-- no existan cambios fuera del alcance de esta fase;
-- el head revisado sea exactamente el head que se mergea.
+- no existan cambios fuera de alcance;
+- el head revisado sea exactamente el head mergeado.
+
+## Condición de cierre
+
+PHASE-02 se marcará `COMPLETED` únicamente después de integrar RUNTIME-005, ejecutar su Quality Gate y repetir una revisión transversal que confirme que `bootstrap`, lifecycle, supervisor, snapshot y health forman una única ruta coherente de ejecución.
 
 ## Resultado esperado
 
-Al cerrar esta fase, QORE debe poseer un runtime base capaz de representar una ejecución, componer componentes, gobernar su ciclo de vida, exponer su estado interno mediante contratos inmutables y derivar su condición operativa interna mediante health/readiness deterministas, listo para que fases posteriores incorporen observabilidad externa, servicios de dominio y superficies de control sin contaminar el Core con infraestructura ni lógica de trading.
+Al cerrar esta fase, QORE poseerá un runtime base capaz de representar una ejecución, componer componentes, gobernar su ciclo de vida por una única ruta oficial, exponer su estado interno mediante snapshots inmutables y derivar health/readiness deterministas, listo para fases posteriores sin contaminar el Core con infraestructura ni lógica de trading.
