@@ -200,12 +200,12 @@ def test_metadata_rejects_reserved_keys(reserved: str) -> None:
 
 
 def test_metadata_and_reason_reject_empty_keys() -> None:
-    with pytest.raises(SpecialistValidationError, match="keys must not be empty"):
+    with pytest.raises(SpecialistValidationError, match="non-empty strings"):
         SpecialistMetadata(
             correlation_id=_CORRELATION_ID,
             attributes={" ": "x"},
         )
-    with pytest.raises(SpecialistValidationError, match="keys must not be empty"):
+    with pytest.raises(SpecialistValidationError, match="non-empty strings"):
         SpecialistReason(
             code=SpecialistReasonCode("specialist.reason"),
             summary="Reason",
@@ -264,6 +264,70 @@ def test_analysis_rejects_non_reason_values_runtime_bypass() -> None:
             metadata=_metadata(),
             confidence=SpecialistConfidence(0.8),
             reasons=cast(tuple[SpecialistReason, ...], ("not-a-reason",)),
+        )
+
+
+def test_analysis_rejects_invalid_status_runtime_bypass() -> None:
+    with pytest.raises(SpecialistValidationError, match="status"):
+        SpecialistAnalysis(
+            analysis_id=_ANALYSIS_ID,
+            timestamp=_TIMESTAMP,
+            kind=SpecialistKind("validation.review"),
+            status=cast(SpecialistAnalysisStatus, "completed"),
+            metadata=_metadata(),
+            confidence=SpecialistConfidence(0.8),
+            reasons=(_reason(),),
+        )
+
+
+def test_analysis_rejects_invalid_kind_runtime_bypass() -> None:
+    with pytest.raises(SpecialistValidationError, match="kind"):
+        SpecialistAnalysis(
+            analysis_id=_ANALYSIS_ID,
+            timestamp=_TIMESTAMP,
+            kind=cast(SpecialistKind, "validation.review"),
+            status=SpecialistAnalysisStatus.COMPLETED,
+            metadata=_metadata(),
+            confidence=SpecialistConfidence(0.8),
+            reasons=(_reason(),),
+        )
+
+
+def test_analysis_rejects_invalid_metadata_runtime_bypass() -> None:
+    with pytest.raises(SpecialistValidationError, match="metadata"):
+        SpecialistAnalysis(
+            analysis_id=_ANALYSIS_ID,
+            timestamp=_TIMESTAMP,
+            kind=SpecialistKind("validation.review"),
+            status=SpecialistAnalysisStatus.COMPLETED,
+            metadata=cast(SpecialistMetadata, {}),
+            confidence=SpecialistConfidence(0.8),
+            reasons=(_reason(),),
+        )
+
+
+def test_analysis_rejects_invalid_confidence_runtime_bypass() -> None:
+    with pytest.raises(SpecialistValidationError, match="confidence"):
+        SpecialistAnalysis(
+            analysis_id=_ANALYSIS_ID,
+            timestamp=_TIMESTAMP,
+            kind=SpecialistKind("validation.review"),
+            status=SpecialistAnalysisStatus.COMPLETED,
+            metadata=_metadata(),
+            confidence=cast(SpecialistConfidence, 0.8),
+            reasons=(_reason(),),
+        )
+
+
+def test_metadata_rejects_invalid_trace_types_runtime_bypass() -> None:
+    with pytest.raises(SpecialistValidationError, match="correlation_id"):
+        SpecialistMetadata(
+            correlation_id=cast(CorrelationId, _CORRELATION_ID.value),
+        )
+    with pytest.raises(SpecialistValidationError, match="causation_id"):
+        SpecialistMetadata(
+            correlation_id=_CORRELATION_ID,
+            causation_id=cast(CausationId, _CAUSATION_ID.value),
         )
 
 
