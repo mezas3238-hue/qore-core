@@ -36,27 +36,54 @@ Esta fase no implementa:
 - asincronía distribuida;
 - QORE Mobile.
 
-## Entregable inicial
+## Entregables
 
 ### QORE-CORE-RUNTIME-001 — Runtime Context & Execution Contracts
 
-Debe introducir únicamente los contratos mínimos necesarios para representar y gobernar una ejecución del Core.
+Estado: integrado.
 
-### Alcance
+Introduce los contratos mínimos necesarios para representar y gobernar una ejecución del Core:
 
-- `RuntimeContext` inmutable.
-- Identidad explícita de ejecución.
-- Versionado mínimo del runtime.
-- Contrato explícito para componentes del Core.
-- Registro y resolución tipados de componentes.
-- Reglas de idempotencia por identidad donde corresponda.
-- Eventos internos del lifecycle:
-  - runtime started;
-  - runtime stopped;
-  - runtime failed.
-- Propagación determinista de fallos mediante `Result`.
-- Integración con `ApplicationLifecycle` sin romper su API actual.
-- Pruebas de invariantes, transiciones y compatibilidad con PHASE-01.
+- `RuntimeContext` inmutable;
+- identidad explícita de ejecución;
+- versionado mínimo del runtime;
+- `RuntimeComponent` como contrato estructural;
+- registro y resolución tipados;
+- eventos `runtime started`, `runtime stopped` y `runtime failed`;
+- reloj inyectado;
+- propagación de fallos mediante `Result`;
+- compatibilidad con PHASE-01.
+
+### QORE-CORE-RUNTIME-002 — Component Graph & Ordered Lifecycle
+
+Objetivo: convertir los componentes individuales del runtime en una composición explícita y determinista, sin introducir lógica de dominio.
+
+#### Alcance
+
+- `RuntimeComponentSpec` inmutable con nombre de componente y dependencias explícitas.
+- `RuntimePlan` inmutable que representa la composición declarada de una ejecución.
+- Validación de nombres duplicados.
+- Validación de dependencias inexistentes.
+- Rechazo de ciclos de dependencias.
+- Resolución determinista del orden de arranque mediante orden topológico estable.
+- Orden de parada exactamente inverso al orden de arranque efectivo.
+- `RuntimeSupervisor` para ejecutar `start` y `stop` sobre el plan.
+- Rollback determinista de componentes ya iniciados si un componente falla al arrancar.
+- Preservación del error original de arranque como resultado del fallo.
+- Sin paralelismo, threads, asyncio ni efectos externos.
+- Pruebas deterministas de orden, ciclos, dependencias, rollback e idempotencia operacional permitida por el contrato.
+
+#### Reglas
+
+1. Un componente solo puede depender de componentes presentes en el mismo `RuntimePlan`.
+2. Dos componentes no pueden compartir el mismo `component_name`.
+3. Un plan cíclico es inválido y debe fallar antes de ejecutar ningún componente.
+4. El orden entre componentes independientes debe ser estable y reproducible según su orden de declaración.
+5. Si `start()` falla en un componente, el supervisor debe detener en orden inverso únicamente los componentes que ya habían arrancado con éxito.
+6. Un fallo durante rollback no puede sustituir el error original que causó el fallo de arranque.
+7. `stop()` debe ejecutarse en orden inverso al último arranque exitoso.
+8. El supervisor no puede crear identidades, timestamps ni dependencias implícitas.
+9. `QORE-CORE-RUNTIME-002` no modifica la semántica pública de `bootstrap()` introducida por `RUNTIME-001`.
 
 ## Restricciones arquitectónicas
 
@@ -64,9 +91,9 @@ Debe introducir únicamente los contratos mínimos necesarios para representar y
 2. El Runtime no puede crear conexiones externas.
 3. El Runtime no puede depender de reloj global ni generar timestamps implícitos no inyectados.
 4. El Runtime no puede usar singletons ni registros globales mutables.
-5. Los objetos de contexto deben ser inmutables.
+5. Los objetos de contexto y planes declarativos deben ser inmutables.
 6. Todo fallo operacional representable debe retornar `Result` cuando el contrato existente de QORE lo requiera.
-7. La composición del Core debe permanecer explícita desde `bootstrap`.
+7. La composición del Core debe permanecer explícita.
 8. Ningún cambio puede romper `bootstrap()` sin argumentos introducido en Genesis.
 
 ## Criterios de aceptación
@@ -86,13 +113,12 @@ Además:
 
 - `mypy` debe ejecutarse con `strict = true`.
 - Las nuevas pruebas deben ser deterministas.
-- Debe existir cobertura explícita para los eventos de lifecycle y la propagación de errores.
 - Debe demostrarse que no se introduce ninguna dependencia de infraestructura o dominio de trading.
 - El CI de GitHub Actions debe terminar completamente en verde antes de merge.
 
 ## Quality Gate
 
-El PR de `QORE-CORE-RUNTIME-001` solo puede mergearse cuando:
+Cada PR de PHASE-02 solo puede mergearse cuando:
 
 - Ruff = PASS;
 - Mypy strict = PASS;
@@ -103,4 +129,4 @@ El PR de `QORE-CORE-RUNTIME-001` solo puede mergearse cuando:
 
 ## Resultado esperado
 
-Al cerrar esta fase, QORE debe poseer un runtime base capaz de representar una ejecución y su ciclo de vida de forma determinista, tipada y extensible, listo para que fases posteriores incorporen servicios de dominio sin contaminar el Core con infraestructura ni lógica de trading.
+Al cerrar esta fase, QORE debe poseer un runtime base capaz de representar una ejecución, componer componentes y gobernar su ciclo de vida de forma determinista, tipada y extensible, listo para que fases posteriores incorporen servicios de dominio sin contaminar el Core con infraestructura ni lógica de trading.
