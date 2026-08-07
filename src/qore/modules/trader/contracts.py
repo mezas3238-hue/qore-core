@@ -11,7 +11,7 @@ from qore.domain.events import (
     DomainEventMetadata,
     DomainEventVersion,
 )
-from qore.functional.decisions import DecisionStatus, FunctionalDecision
+from qore.functional.decisions import DecisionId, DecisionStatus, FunctionalDecision
 from qore.kernel.errors import DomainError
 from qore.specialist.analysis import (
     SpecialistAnalysis,
@@ -47,6 +47,22 @@ class ProduceVirtualTraderAnalysisCommand(Command):
     reasons: tuple[SpecialistReason, ...]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.analysis_id, SpecialistAnalysisId):
+            raise TraderValidationError(
+                "virtual trader analysis_id must be a SpecialistAnalysisId"
+            )
+        if not isinstance(self.source_decision, FunctionalDecision):
+            raise TraderValidationError(
+                "virtual trader source_decision must be a FunctionalDecision"
+            )
+        if not isinstance(self.kind, SpecialistKind):
+            raise TraderValidationError(
+                "virtual trader kind must be a SpecialistKind"
+            )
+        if not isinstance(self.confidence, SpecialistConfidence):
+            raise TraderValidationError(
+                "virtual trader confidence must be SpecialistConfidence"
+            )
         if self.source_decision.status is not DecisionStatus.RESOLVED:
             raise TraderValidationError(
                 "virtual trader analysis requires a resolved source decision"
@@ -96,7 +112,7 @@ class TraderAnalysisProducedEvent(BusinessDomainEvent):
 
     __slots__ = ("_analysis", "_source_decision_id")
     _analysis: SpecialistAnalysis
-    _source_decision_id: object
+    _source_decision_id: DecisionId
 
     def __init__(
         self,
@@ -106,8 +122,16 @@ class TraderAnalysisProducedEvent(BusinessDomainEvent):
         event_version: DomainEventVersion,
         metadata: DomainEventMetadata,
         analysis: SpecialistAnalysis,
-        source_decision_id: object,
+        source_decision_id: DecisionId,
     ) -> None:
+        if not isinstance(analysis, SpecialistAnalysis):
+            raise TraderValidationError(
+                "virtual trader event analysis must be SpecialistAnalysis"
+            )
+        if not isinstance(source_decision_id, DecisionId):
+            raise TraderValidationError(
+                "virtual trader source_decision_id must be a DecisionId"
+            )
         if metadata.correlation_id != analysis.metadata.correlation_id:
             raise TraderValidationError(
                 "virtual trader event correlation must match the represented analysis"
@@ -116,8 +140,6 @@ class TraderAnalysisProducedEvent(BusinessDomainEvent):
             raise TraderValidationError(
                 "virtual trader event causation must match the represented analysis"
             )
-        if not hasattr(source_decision_id, "value"):
-            raise TraderValidationError("source_decision_id must expose a value")
         expected_causation = CausationId(source_decision_id.value)
         if analysis.metadata.causation_id != expected_causation:
             raise TraderValidationError(
@@ -138,7 +160,7 @@ class TraderAnalysisProducedEvent(BusinessDomainEvent):
         return self._analysis
 
     @property
-    def source_decision_id(self) -> object:
+    def source_decision_id(self) -> DecisionId:
         return self._source_decision_id
 
     def logical_values(self) -> tuple[object, ...]:
