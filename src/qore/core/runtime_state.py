@@ -44,4 +44,4 @@ class RuntimeSnapshot:
     @property
     def clean_for_start(self) -> bool:
         """Indicar si no quedan componentes activos ni residuales."""
-        return self.status is RuntimeStatus.STOPPED
+        return not self.active_component_names and not self.residual_component_names
