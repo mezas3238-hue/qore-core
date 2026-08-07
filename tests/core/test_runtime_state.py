@@ -7,9 +7,14 @@ import pytest
 
 from qore.core.runtime import RuntimeContext
 from qore.core.runtime_plan import RuntimeComponentSpec, RuntimePlan
-from qore.core.runtime_state import RuntimeComponentStatus, RuntimeSnapshot, RuntimeStatus
+from qore.core.runtime_state import (
+    RuntimeComponentSnapshot,
+    RuntimeComponentStatus,
+    RuntimeSnapshot,
+    RuntimeStatus,
+)
 from qore.core.runtime_supervisor import RuntimeSupervisor
-from qore.kernel.errors import KernelError
+from qore.kernel.errors import KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
 
 
@@ -116,6 +121,17 @@ class TestRuntimeSnapshot:
         )
         assert snapshot.components[0].depends_on == ("kernel",)
 
+    def test_empty_running_plan_is_not_clean_for_start(self) -> None:
+        supervisor = RuntimeSupervisor(RuntimePlan())
+
+        assert isinstance(supervisor.start(), Success)
+        snapshot = supervisor.snapshot()
+
+        assert snapshot.status is RuntimeStatus.RUNNING
+        assert snapshot.active_component_names == ()
+        assert snapshot.residual_component_names == ()
+        assert snapshot.clean_for_start is False
+
     def test_successful_stop_returns_to_stopped(self) -> None:
         log: list[str] = []
         component = RecordingComponent("component", log)
@@ -151,32 +167,46 @@ class TestRuntimeSnapshot:
         assert first == second
         assert first is not second
 
-    def test_clean_for_start_is_derived_from_state_collections(self) -> None:
-        clean = RuntimeSnapshot(
-            context=None,
-            status=RuntimeStatus.RUNNING,
-            components=(),
-            active_component_names=(),
-            residual_component_names=(),
-        )
-        active = RuntimeSnapshot(
-            context=None,
-            status=RuntimeStatus.STOPPED,
-            components=(),
-            active_component_names=("component",),
-            residual_component_names=(),
-        )
-        residual = RuntimeSnapshot(
-            context=None,
-            status=RuntimeStatus.STOPPED,
-            components=(),
-            active_component_names=(),
-            residual_component_names=("component",),
+    def test_snapshot_rejects_contradictory_aggregate_state(self) -> None:
+        active_component = RuntimeComponentSnapshot(
+            component_name="component",
+            status=RuntimeComponentStatus.ACTIVE,
+            depends_on=(),
         )
 
-        assert clean.clean_for_start is True
-        assert active.clean_for_start is False
-        assert residual.clean_for_start is False
+        with pytest.raises(ValidationError):
+            RuntimeSnapshot(
+                context=None,
+                status=RuntimeStatus.STOPPED,
+                components=(active_component,),
+                active_component_names=("component",),
+                residual_component_names=(),
+            )
+
+        with pytest.raises(ValidationError):
+            RuntimeSnapshot(
+                context=None,
+                status=RuntimeStatus.DEGRADED,
+                components=(),
+                active_component_names=(),
+                residual_component_names=(),
+            )
+
+    def test_snapshot_rejects_component_status_mismatch(self) -> None:
+        inactive_component = RuntimeComponentSnapshot(
+            component_name="component",
+            status=RuntimeComponentStatus.INACTIVE,
+            depends_on=(),
+        )
+
+        with pytest.raises(ValidationError):
+            RuntimeSnapshot(
+                context=None,
+                status=RuntimeStatus.RUNNING,
+                components=(inactive_component,),
+                active_component_names=("component",),
+                residual_component_names=(),
+            )
 
     def test_snapshot_is_immutable_and_does_not_expose_internal_lists(self) -> None:
         log: list[str] = []
