@@ -68,48 +68,53 @@ class ReferenceExternalMarketDataPayloadAdapter:
             )
 
         quote_map: dict[str, ExternalQuotePayload] = {}
-        for payload in quotes:
-            if not isinstance(payload, ExternalQuotePayload):
+        for quote_payload in quotes:
+            if not isinstance(quote_payload, ExternalQuotePayload):
                 raise ReferenceAdapterValidationError(
                     "reference external quote entries must be ExternalQuotePayload"
                 )
-            if payload.source != descriptor:
+            if quote_payload.source != descriptor:
                 raise ReferenceAdapterValidationError(
                     "reference external quote source must match adapter descriptor"
                 )
-            key = payload.instrument.strip().upper()
-            if not key:
+            quote_key = quote_payload.instrument.strip().upper()
+            if not quote_key:
                 raise ReferenceAdapterValidationError(
                     "reference external quote instrument must not normalize to empty"
                 )
-            if key in quote_map:
+            if quote_key in quote_map:
                 raise ReferenceAdapterValidationError(
                     "reference external quotes must contain at most one payload per instrument"
                 )
-            quote_map[key] = payload
+            quote_map[quote_key] = quote_payload
 
         ohlc_map: dict[tuple[str, int, datetime, datetime], ExternalOhlcPayload] = {}
-        for payload in ohlc:
-            if not isinstance(payload, ExternalOhlcPayload):
+        for ohlc_payload in ohlc:
+            if not isinstance(ohlc_payload, ExternalOhlcPayload):
                 raise ReferenceAdapterValidationError(
                     "reference external OHLC entries must be ExternalOhlcPayload"
                 )
-            if payload.source != descriptor:
+            if ohlc_payload.source != descriptor:
                 raise ReferenceAdapterValidationError(
                     "reference external OHLC source must match adapter descriptor"
                 )
-            instrument = payload.instrument.strip().upper()
+            instrument = ohlc_payload.instrument.strip().upper()
             if not instrument:
                 raise ReferenceAdapterValidationError(
                     "reference external OHLC instrument must not normalize to empty"
                 )
-            timeframe = self._normalize_timeframe_key(payload.timeframe_seconds)
-            key = (instrument, timeframe, payload.opened_at, payload.closed_at)
-            if key in ohlc_map:
+            timeframe = self._normalize_timeframe_key(ohlc_payload.timeframe_seconds)
+            ohlc_key = (
+                instrument,
+                timeframe,
+                ohlc_payload.opened_at,
+                ohlc_payload.closed_at,
+            )
+            if ohlc_key in ohlc_map:
                 raise ReferenceAdapterValidationError(
                     "reference external OHLC payloads must not contain duplicate intervals"
                 )
-            ohlc_map[key] = payload
+            ohlc_map[ohlc_key] = ohlc_payload
 
         self._descriptor = descriptor
         self._quotes = quote_map
