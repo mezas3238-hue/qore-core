@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+from qore.core.runtime import RuntimeContext
 from qore.core.runtime_plan import RuntimeComponentSpec, RuntimePlan
+from qore.core.runtime_state import (
+    RuntimeComponentSnapshot,
+    RuntimeComponentStatus,
+    RuntimeSnapshot,
+    RuntimeStatus,
+)
 from qore.kernel.errors import DomainError, KernelError
 from qore.kernel.result import Failure, Result, Success
 
@@ -8,8 +15,14 @@ from qore.kernel.result import Failure, Result, Success
 class RuntimeSupervisor:
     """Orquestador determinista del ciclo de vida de componentes del runtime."""
 
-    def __init__(self, plan: RuntimePlan) -> None:
+    def __init__(
+        self,
+        plan: RuntimePlan,
+        *,
+        runtime_context: RuntimeContext | None = None,
+    ) -> None:
         self._plan = plan
+        self._runtime_context = runtime_context
         self._active: list[RuntimeComponentSpec] = []
         self._running = False
 
@@ -21,6 +34,45 @@ class RuntimeSupervisor:
     def active_component_names(self) -> tuple[str, ...]:
         """Nombres activos en el orden efectivo de arranque."""
         return tuple(spec.component_name for spec in self._active)
+
+    def snapshot(self) -> RuntimeSnapshot:
+        """Construir una vista de solo lectura del estado actual del runtime."""
+        active_names = self.active_component_names
+        active_set = set(active_names)
+
+        if self._running:
+            status = RuntimeStatus.RUNNING
+            residual_names: tuple[str, ...] = ()
+            active_status = RuntimeComponentStatus.ACTIVE
+        elif active_names:
+            status = RuntimeStatus.DEGRADED
+            residual_names = active_names
+            active_status = RuntimeComponentStatus.RESIDUAL
+        else:
+            status = RuntimeStatus.STOPPED
+            residual_names = ()
+            active_status = RuntimeComponentStatus.INACTIVE
+
+        components = tuple(
+            RuntimeComponentSnapshot(
+                component_name=spec.component_name,
+                status=(
+                    active_status
+                    if spec.component_name in active_set
+                    else RuntimeComponentStatus.INACTIVE
+                ),
+                depends_on=tuple(spec.depends_on),
+            )
+            for spec in self._plan.components
+        )
+
+        return RuntimeSnapshot(
+            context=self._runtime_context,
+            status=status,
+            components=components,
+            active_component_names=active_names if self._running else (),
+            residual_component_names=residual_names,
+        )
 
     def start(self) -> Result[None, KernelError]:
         """Arrancar el plan en orden determinista con rollback ante fallos."""
