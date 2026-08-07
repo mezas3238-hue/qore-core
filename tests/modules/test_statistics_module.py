@@ -8,7 +8,13 @@ import pytest
 
 from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
-from qore.domain.commands import CommandHandler, CommandId, CommandMetadata, CommandName, CommandResult
+from qore.domain.commands import (
+    CommandHandler,
+    CommandId,
+    CommandMetadata,
+    CommandName,
+    CommandResult,
+)
 from qore.domain.events import (
     CausationId,
     CorrelationId,
@@ -46,9 +52,17 @@ _SNAPSHOT_ID = StatisticsSnapshotId(UUID("94000000-0000-0000-0000-000000000003")
 _EVENT_ID = DomainEventId(UUID("94000000-0000-0000-0000-000000000004"))
 
 
-def _assessment(index: int, confidence: float, verdict: ValidationVerdict) -> ValidationAssessment:
-    source_id = SpecialistAnalysisId(UUID(f"94000000-0000-0000-0000-{100 + index:012d}"))
-    assessment_id = ValidationAssessmentId(UUID(f"94000000-0000-0000-0000-{200 + index:012d}"))
+def _assessment(
+    index: int,
+    confidence: float,
+    verdict: ValidationVerdict,
+) -> ValidationAssessment:
+    source_id = SpecialistAnalysisId(
+        UUID(f"94000000-0000-0000-0000-{100 + index:012d}")
+    )
+    assessment_id = ValidationAssessmentId(
+        UUID(f"94000000-0000-0000-0000-{200 + index:012d}")
+    )
     threshold = 0.5
     assert (confidence >= threshold) is (verdict is ValidationVerdict.PASSED)
     return ValidationAssessment(
@@ -128,7 +142,10 @@ def test_command_rejects_empty_or_mutable_assessment_collection() -> None:
             name=CommandName("statistics.summarize-validations"),
             metadata=CommandMetadata(correlation_id=_CORRELATION),
             snapshot_id=_SNAPSHOT_ID,
-            assessments=cast(tuple[ValidationAssessment, ...], [_assessment(1, 0.8, ValidationVerdict.PASSED)]),
+            assessments=cast(
+                tuple[ValidationAssessment, ...],
+                [_assessment(1, 0.8, ValidationVerdict.PASSED)],
+            ),
         )
 
 
@@ -154,7 +171,9 @@ def test_command_rejects_duplicate_sources_and_wrong_causation() -> None:
             name=CommandName("statistics.summarize-validations"),
             metadata=CommandMetadata(
                 correlation_id=_CORRELATION,
-                causation_id=CausationId(UUID("94000000-0000-0000-0000-000000000099")),
+                causation_id=CausationId(
+                    UUID("94000000-0000-0000-0000-000000000099")
+                ),
             ),
             snapshot_id=_SNAPSHOT_ID,
             assessments=(item,),
@@ -224,7 +243,10 @@ def test_module_registration_bootstrap_and_runtime_isolation() -> None:
     module = StatisticsServiceModule()
     registry = HandlerRegistry()
     registration = module.register_handlers(registry)
-    registered: CommandHandler[SummarizeValidationAssessmentsCommand, StatisticsSnapshot] | None = registry.command_handler(SummarizeValidationAssessmentsCommand)
+    registered: CommandHandler[
+        SummarizeValidationAssessmentsCommand,
+        StatisticsSnapshot,
+    ] | None = registry.command_handler(SummarizeValidationAssessmentsCommand)
     assert isinstance(registration, Success)
     assert registered is module.statistics_handler
     assert module.descriptor.name == ModuleName("statistics")
@@ -234,7 +256,9 @@ def test_module_registration_bootstrap_and_runtime_isolation() -> None:
         domain_modules=(module,),
     )
     assert isinstance(boot, Success)
-    dispatched: CommandResult[StatisticsSnapshot] = boot.value.domain.message_bus.dispatch_command(_command())
+    dispatched: CommandResult[StatisticsSnapshot] = (
+        boot.value.domain.message_bus.dispatch_command(_command())
+    )
     assert isinstance(dispatched, Success)
     assert dispatched.value.sample_size == 2
     assert boot.value.domain.module_catalog.get(ModuleName("statistics")) is module
@@ -243,4 +267,6 @@ def test_module_registration_bootstrap_and_runtime_isolation() -> None:
 
 
 def test_statistics_instances_do_not_share_handler_state() -> None:
-    assert StatisticsServiceModule().statistics_handler is not StatisticsServiceModule().statistics_handler
+    first = StatisticsServiceModule()
+    second = StatisticsServiceModule()
+    assert first.statistics_handler is not second.statistics_handler
