@@ -6,6 +6,7 @@ from qore.core.configuration import Configuration
 from qore.core.engine import CoreEngine
 from qore.core.event_bus import EventBus
 from qore.core.lifecycle import ApplicationLifecycle
+from qore.core.runtime import RuntimeContext
 from qore.core.service_registry import ServiceRegistry
 
 
@@ -18,3 +19,4 @@ class CoreApplication:
     event_bus: EventBus
     engine: CoreEngine
     lifecycle: ApplicationLifecycle
+    runtime_context: RuntimeContext | None = None
