@@ -14,10 +14,12 @@ from qore.governance.executive_control import (
     ExecutiveAuthorityVersion,
     ExecutiveControlAction,
     ExecutiveControlError,
+    ExecutiveControlTarget,
     ExecutiveIntentId,
     ExecutivePrincipalId,
     ExecutiveReadRequestId,
     ExecutiveReadScope,
+    validate_executive_control_target_binding,
 )
 from qore.kernel.result import Failure, Result, Success
 
@@ -107,6 +109,7 @@ class ExecutiveControlReceipt:
     status: ExecutiveControlReceiptStatus
     reason_code: str
     evidence_refs: tuple[ExecutiveEvidenceRef, ...]
+    target: ExecutiveControlTarget | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.receipt_id, ExecutiveReceiptId):
@@ -125,6 +128,12 @@ class ExecutiveControlReceipt:
             raise ExecutivePortValidationError(
                 "executive control receipt requires ExecutiveControlAction"
             )
+        try:
+            validate_executive_control_target_binding(self.action, self.target)
+        except ExecutiveControlError as error:
+            raise ExecutivePortValidationError(
+                "executive control receipt target does not match action"
+            ) from error
         if not isinstance(self.authority_version, ExecutiveAuthorityVersion):
             raise ExecutivePortValidationError(
                 "executive control receipt requires ExecutiveAuthorityVersion"
@@ -166,6 +175,7 @@ class ExecutiveControlReceipt:
             self.intent_id.logical_values(),
             self.principal_id.logical_values(),
             self.action.value,
+            None if self.target is None else self.target.logical_values(),
             self.authority_version.logical_values(),
             str(self.correlation_id.value),
             self.received_at.isoformat(),
@@ -298,6 +308,7 @@ def build_executive_control_receipt(
                 status=status,
                 reason_code=reason_code,
                 evidence_refs=evidence_refs,
+                target=authorized.intent.target,
             )
         )
     except ExecutivePortError as error:
