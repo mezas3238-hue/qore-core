@@ -6,6 +6,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.domain.events import DomainMetadataValue
 from qore.infrastructure.ports import ExternalPortError
 from qore.infrastructure.providers import (
     ProviderBoundaryError,
@@ -186,7 +187,7 @@ def test_provider_metadata_is_canonical_and_rejects_mutable_values() -> None:
             provider_id=_PROVIDER_ID,
             provider_name=ProviderName("reference-provider"),
             enablement=ProviderEnablement.READ_ONLY,
-            metadata={"value": cast(object, [])},
+            metadata={"value": cast(DomainMetadataValue, [])},
         )
     with pytest.raises(ProviderBoundaryValidationError, match="finite"):
         ProviderDescriptor(
