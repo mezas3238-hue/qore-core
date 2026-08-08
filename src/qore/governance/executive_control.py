@@ -130,6 +130,72 @@ class ExecutiveControlAction(StrEnum):
     ACKNOWLEDGE_INCIDENT = "acknowledge-incident"
 
 
+class ExecutiveControlTargetKind(StrEnum):
+    """Closed target kinds for scoped executive governance actions."""
+
+    MARKET = "market"
+    ACCOUNT = "account"
+    RESTRICTION = "restriction"
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutiveControlTarget:
+    """Opaque canonical identity of the subject of one scoped control action."""
+
+    kind: ExecutiveControlTargetKind
+    value: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.kind, ExecutiveControlTargetKind):
+            raise ExecutiveControlValidationError(
+                "executive control target requires ExecutiveControlTargetKind"
+            )
+        if not isinstance(self.value, str) or fullmatch(
+            r"[a-z0-9][a-z0-9._:/-]*", self.value
+        ) is None:
+            raise ExecutiveControlValidationError(
+                "executive control target must use canonical lowercase syntax"
+            )
+        _validate_safe_text(self.value, field_name="executive control target")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.kind.value, self.value)
+
+
+_TARGET_KIND_BY_ACTION: dict[ExecutiveControlAction, ExecutiveControlTargetKind] = {
+    ExecutiveControlAction.RESTRICT_MARKET: ExecutiveControlTargetKind.MARKET,
+    ExecutiveControlAction.RESTRICT_ACCOUNT: ExecutiveControlTargetKind.ACCOUNT,
+    ExecutiveControlAction.RESTORE_RESTRICTION: ExecutiveControlTargetKind.RESTRICTION,
+}
+
+
+def validate_executive_control_target_binding(
+    action: ExecutiveControlAction,
+    target: ExecutiveControlTarget | None,
+) -> None:
+    """Require exact target semantics for scoped actions and none for global actions."""
+
+    if not isinstance(action, ExecutiveControlAction):
+        raise ExecutiveControlValidationError(
+            "executive target binding requires ExecutiveControlAction"
+        )
+    expected_kind = _TARGET_KIND_BY_ACTION.get(action)
+    if expected_kind is None:
+        if target is not None:
+            raise ExecutiveControlValidationError(
+                "global executive control action must not include a target"
+            )
+        return
+    if not isinstance(target, ExecutiveControlTarget):
+        raise ExecutiveControlValidationError(
+            "scoped executive control action requires ExecutiveControlTarget"
+        )
+    if target.kind is not expected_kind:
+        raise ExecutiveControlValidationError(
+            "executive control target kind does not match action"
+        )
+
+
 class ExecutiveReadScope(StrEnum):
     """Read-model scopes exposed through governed executive query surfaces."""
 
@@ -244,6 +310,7 @@ class ExecutiveControlIntent:
     requested_at: datetime
     correlation_id: CorrelationId
     reason: str
+    target: ExecutiveControlTarget | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.intent_id, ExecutiveIntentId):
@@ -258,6 +325,7 @@ class ExecutiveControlIntent:
             raise ExecutiveControlValidationError(
                 "executive control intent requires ExecutiveControlAction"
             )
+        validate_executive_control_target_binding(self.action, self.target)
         _validate_aware_datetime(self.requested_at, field_name="requested_at")
         if not isinstance(self.correlation_id, CorrelationId):
             raise ExecutiveControlValidationError(
@@ -274,6 +342,7 @@ class ExecutiveControlIntent:
             self.intent_id.logical_values(),
             self.principal_id.logical_values(),
             self.action.value,
+            None if self.target is None else self.target.logical_values(),
             self.requested_at.isoformat(),
             str(self.correlation_id.value),
             self.reason,
