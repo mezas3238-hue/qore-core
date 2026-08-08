@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -151,7 +152,11 @@ def _submission(
     )
 
 
-def _response(payload: dict[str, object], *, status_code: int) -> ExternalTransportResponse:
+def _response(
+    payload: Mapping[str, object],
+    *,
+    status_code: int,
+) -> ExternalTransportResponse:
     return ExternalTransportResponse(
         status_code=status_code,
         received_at=_NOW + timedelta(seconds=6),
