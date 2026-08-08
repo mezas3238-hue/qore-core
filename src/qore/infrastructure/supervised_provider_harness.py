@@ -308,11 +308,6 @@ class SupervisedProviderHarnessBoundary[PersistenceValueT](Protocol):
         """Expose the external runtime plan without mutating the Core RuntimePlan."""
         ...
 
-    @property
-    def ports(self) -> SupervisedProviderHarnessPorts[PersistenceValueT]:
-        """Expose canonical ports permitted by supervised activation policy."""
-        ...
-
     def external_health_snapshot(
         self,
         *,
@@ -323,6 +318,11 @@ class SupervisedProviderHarnessBoundary[PersistenceValueT](Protocol):
         external_health.ExternalHealthAggregationError,
     ]:
         """Return aggregated external health without monitoring backend side effects."""
+        ...
+
+    @property
+    def ports(self) -> SupervisedProviderHarnessPorts[PersistenceValueT]:
+        """Expose canonical ports permitted by supervised activation policy."""
         ...
 
 
