@@ -76,7 +76,7 @@ Definió PHASE-13 como una fase exclusivamente de closure/conformance, sin ampli
 
 - PR: `#96`
 - final head: `e724b3780d2979ea46b569eea4952e4783d58018`
-- QORE CI: `#362` — Ruff PASS, Mypy PASS, Pytest PASS
+- QORE CI final: `#362` — Ruff PASS, Mypy PASS, Pytest PASS
 - merge: `a37a3568556716c664def41ab99b89984435165d`
 
 Añadió evidencia determinista sobre siete dimensiones obligatorias:
@@ -92,6 +92,14 @@ secret_safety
 ```
 
 Cada dimensión debe aparecer exactamente una vez. Evidencia incompleta o cualquier check FAIL fuerza el verdict global a FAIL. No existe auto-repair.
+
+#### CI intermedio registrado
+
+QORE CI `#360` pasó Ruff y Mypy, pero Pytest falló 5 tests porque el filtro de material sensible trataba el nombre canónico `secret_safety` como si fuese material secreto. Se corrigió el falso positivo sin rebajar la política de seguridad.
+
+QORE CI `#361` pasó Ruff y Mypy, pero Pytest dejó 1 fallo porque el test antiguo aún esperaba que la palabra genérica `secret` fuese rechazada. El test se alineó con un marcador realmente sensible (`client_secret`).
+
+QORE CI `#362` pasó el Quality Gate completo. No se usaron suppressions.
 
 ### QORE-PRODUCTION-READINESS-EVIDENCE-001 — COMPLETED
 
@@ -137,6 +145,8 @@ Añadió `ReleaseBaselineManifest` y `build_release_baseline(...)` con:
 
 PR `#99` fue cerrado intencionalmente sin merge después de detectar una implementación duplicada transitoria en su branch. La duplicación fue retirada y el diff neto terminó en cero archivos. Ningún código de PR #99 fue integrado en `main`.
 
+Un head intermedio de PR #99 pasó QORE CI `#368`, pero ese resultado no fue usado para merge porque el head se movió posteriormente. La evidencia CI de un SHA anterior no se reutilizó para autorizar otro SHA.
+
 El entregable continuó en una branch limpia desde el `main` exacto mediante PR #100.
 
 #### PR #100 — CANONICAL COMPLETION
@@ -145,6 +155,9 @@ El entregable continuó en una branch limpia desde el `main` exacto mediante PR 
 - final head: `37ca6149b0543dbb119fde00ada703170aa1aabf`
 - QORE CI: `#375` — Ruff PASS, Mypy PASS, Pytest PASS
 - merge: `028c7bab0cee6e8c77e6ccea5b09f4707ef1f877`
+- changed files exactamente:
+  - `src/qore/infrastructure/core_closure_validation.py`
+  - `tests/infrastructure/test_core_closure_validation.py`
 
 El closure validator:
 
@@ -166,6 +179,20 @@ El closure validator:
 Este documento constituye el último gate de la misión. `COMPLETED` se vuelve oficial únicamente cuando este PR pase QORE CI, sea mergeado con `expected_head_sha` y el `main` final sea verificado exactamente en el merge commit.
 
 ## Auditoría transversal final
+
+### Changed-file boundary
+
+La auditoría directa de los PRs finales confirmó:
+
+```text
+PR #95  → docs/phases únicamente
+PR #96  → src/qore/infrastructure + tests/infrastructure
+PR #97  → src/qore/infrastructure + tests/infrastructure
+PR #98  → src/qore/infrastructure + tests/infrastructure
+PR #100 → src/qore/infrastructure + tests/infrastructure
+```
+
+PHASE-13 no modificó `src/qore/core`, `src/qore/domain`, `src/qore/governance`, `src/qore/specialized_governance` ni los módulos funcionales/traders.
 
 ### Core isolation
 
@@ -247,6 +274,16 @@ Este cierre **no** implementa ni autoriza:
 - automatic corrective trading;
 - release publication automática;
 - deployment automático.
+
+## Functional production-closure baseline
+
+Todos los entregables funcionales de PHASE-13 están contenidos en:
+
+```text
+028c7bab0cee6e8c77e6ccea5b09f4707ef1f877
+```
+
+Este es el exact `main` verificado antes de crear el PR documental de cierre.
 
 ## Resultado de cierre
 
