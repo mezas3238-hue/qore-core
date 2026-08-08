@@ -25,6 +25,7 @@ from qore.kernel.result import Success
 
 _RAW_SECRET = "super-secret-value-123"
 _SECRET_ID = SecretRefId(UUID("f5000000-0000-0000-0000-000000000001"))
+_SECRET_REFERENCE = SecretExternalReference("vault/qore/reference/api-token")
 
 
 class _Resolver:
@@ -52,7 +53,7 @@ def _secret_ref() -> SecretRef:
     return SecretRef(
         ref_id=_SECRET_ID,
         name=AdapterSecretName("api-token"),
-        external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+        external_reference=_SECRET_REFERENCE,
         metadata={"purpose": "market-data", "regions": ("ny", "ldn")},
     )
 
@@ -66,7 +67,9 @@ def test_secret_ref_is_canonical_and_never_carries_secret_value() -> None:
         "vault/qore/reference/api-token",
         (("purpose", "market-data"), ("regions", ("ny", "ldn"))),
     )
-    assert str(ref) == "secret-ref:api-token:f5000000-0000-0000-0000-000000000001"
+    assert str(ref) == (
+        "secret-ref:api-token:f5000000-0000-0000-0000-000000000001"
+    )
     for surface in (repr(ref), str(ref), repr(ref.logical_values())):
         assert _RAW_SECRET not in surface
 
@@ -137,28 +140,28 @@ def test_secret_metadata_is_immutable_and_rejects_sensitive_keys() -> None:
         SecretRef(
             ref_id=_SECRET_ID,
             name=AdapterSecretName("api-token"),
-            external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+            external_reference=_SECRET_REFERENCE,
             metadata={"api_key": "inline"},
         )
     with pytest.raises(SecretBoundaryValidationError, match="reserved"):
         SecretRef(
             ref_id=_SECRET_ID,
             name=AdapterSecretName("api-token"),
-            external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+            external_reference=_SECRET_REFERENCE,
             metadata={"value": "inline"},
         )
     with pytest.raises(SecretBoundaryValidationError, match="finite"):
         SecretRef(
             ref_id=_SECRET_ID,
             name=AdapterSecretName("api-token"),
-            external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+            external_reference=_SECRET_REFERENCE,
             metadata={"latency": float("nan")},
         )
     with pytest.raises(SecretBoundaryValidationError, match="immutable"):
         SecretRef(
             ref_id=_SECRET_ID,
             name=AdapterSecretName("api-token"),
-            external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+            external_reference=_SECRET_REFERENCE,
             metadata={"payload": cast(DomainMetadataValue, object())},
         )
 
@@ -170,13 +173,13 @@ def test_secret_contracts_reject_runtime_type_bypasses() -> None:
         SecretRef(
             ref_id=cast(SecretRefId, object()),
             name=AdapterSecretName("api-token"),
-            external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+            external_reference=_SECRET_REFERENCE,
         )
     with pytest.raises(SecretBoundaryValidationError, match="name"):
         SecretRef(
             ref_id=_SECRET_ID,
             name=cast(AdapterSecretName, object()),
-            external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+            external_reference=_SECRET_REFERENCE,
         )
     with pytest.raises(SecretBoundaryValidationError, match="external_reference"):
         SecretRef(
@@ -188,7 +191,7 @@ def test_secret_contracts_reject_runtime_type_bypasses() -> None:
         SecretRef(
             ref_id=_SECRET_ID,
             name=AdapterSecretName("api-token"),
-            external_reference=SecretExternalReference("vault/qore/reference/api-token"),
+            external_reference=_SECRET_REFERENCE,
             metadata=cast(dict[str, DomainMetadataValue], object()),
         )
     with pytest.raises(SecretBoundaryValidationError, match="SecretRef"):
@@ -215,7 +218,9 @@ def test_public_exports_include_secret_boundary_contracts() -> None:
     assert infrastructure.SecretAccessDeniedError is SecretAccessDeniedError
     assert infrastructure.SecretBoundaryError is SecretBoundaryError
     assert issubclass(SecretBoundaryError, ExternalPortError)
-    assert infrastructure.SecretBoundaryValidationError is SecretBoundaryValidationError
+    assert (
+        infrastructure.SecretBoundaryValidationError is SecretBoundaryValidationError
+    )
     assert infrastructure.SecretExternalReference is SecretExternalReference
     assert infrastructure.SecretInvalidError is SecretInvalidError
     assert infrastructure.SecretNotFoundError is SecretNotFoundError
