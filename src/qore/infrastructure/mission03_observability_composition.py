@@ -16,7 +16,6 @@ from qore.infrastructure.market_data import QuoteSnapshot
 from qore.infrastructure.market_test_observability import (
     MarketTestObservabilityError,
     MarketTestObservabilityEvidence,
-    MarketTestObservabilityValidationError,
     MarketTestObservation,
     MarketTestObservationCategory,
     MarketTestObservationState,
