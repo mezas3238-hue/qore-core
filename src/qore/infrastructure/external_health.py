@@ -562,7 +562,10 @@ def _validate_snapshot_time(snapshot: ExternalProviderHealthSnapshot) -> None:
         raise ExternalHealthAggregationValidationError(
             "external provider health observed_at must be at or after lifecycle"
         )
-    if snapshot.observability is not None and snapshot.observability.observed_at > snapshot.observed_at:
+    if (
+        snapshot.observability is not None
+        and snapshot.observability.observed_at > snapshot.observed_at
+    ):
         raise ExternalHealthAggregationValidationError(
             "external provider health observed_at must be at or after observability"
         )
@@ -714,7 +717,10 @@ def _readiness_from_issues(
         return ExternalProviderReadiness.BLOCKED
     if lifecycle.state is adapter_lifecycle.AdapterLifecycleState.FAILED:
         return ExternalProviderReadiness.UNAVAILABLE
-    if observability is not None and observability.readiness is adapter_observability.AdapterReadiness.UNAVAILABLE:
+    if (
+        observability is not None
+        and observability.readiness is adapter_observability.AdapterReadiness.UNAVAILABLE
+    ):
         return ExternalProviderReadiness.UNAVAILABLE
     if resilience is not None and resilience.circuit_breaker is not None:
         if resilience.circuit_breaker.state is adapter_resilience.AdapterCircuitBreakerState.OPEN:
@@ -723,10 +729,16 @@ def _readiness_from_issues(
         return ExternalProviderReadiness.DEGRADED
     if lifecycle.state is adapter_lifecycle.AdapterLifecycleState.DEGRADED:
         return ExternalProviderReadiness.DEGRADED
-    if observability is not None and observability.readiness is adapter_observability.AdapterReadiness.DEGRADED:
+    if (
+        observability is not None
+        and observability.readiness is adapter_observability.AdapterReadiness.DEGRADED
+    ):
         return ExternalProviderReadiness.DEGRADED
     if resilience is not None and resilience.circuit_breaker is not None:
-        if resilience.circuit_breaker.state is adapter_resilience.AdapterCircuitBreakerState.HALF_OPEN:
+        if (
+            resilience.circuit_breaker.state
+            is adapter_resilience.AdapterCircuitBreakerState.HALF_OPEN
+        ):
             return ExternalProviderReadiness.DEGRADED
     if issues:
         return ExternalProviderReadiness.DEGRADED
