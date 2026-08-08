@@ -30,7 +30,11 @@ from qore.kernel.result import Failure, Success
 _BASE = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
 
 
-def _source(seed: int, *, port_name: str = "market-data.oanda-practice") -> ExternalSourceDescriptor:
+def _source(
+    seed: int,
+    *,
+    port_name: str = "market-data.oanda-practice",
+) -> ExternalSourceDescriptor:
     return ExternalSourceDescriptor(
         adapter_id=AdapterId(UUID(int=seed)),
         source_id=SourceId(UUID(int=seed + 1000)),
@@ -117,12 +121,6 @@ def _clean_ohlc() -> tuple[OhlcSnapshot, ...]:
         _ohlc(12, "GBP_USD", _BASE - timedelta(minutes=30)),
         _ohlc(13, "GBP_USD", _BASE - timedelta(minutes=15)),
     )
-
-
-def _codes(result: Success[object]) -> set[MarketDataCertificationFindingCode]:
-    report = cast(object, result.value)
-    findings = getattr(report, "findings")
-    return {item.code for item in findings}
 
 
 def test_clean_canonical_window_is_prepared_deterministically() -> None:
