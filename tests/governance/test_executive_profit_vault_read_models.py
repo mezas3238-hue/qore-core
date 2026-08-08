@@ -104,7 +104,11 @@ def _currency_summary(
         receivable=_money("600", currency),
         collected=_money("200", currency),
         outstanding=_money("400", currency),
-        evidence_refs=(ExecutiveEvidenceRef(f"evidence:vault/aggregate-{currency.value}"),),
+        evidence_refs=(
+            ExecutiveEvidenceRef(
+                f"evidence:vault/aggregate-{currency.value.lower()}"
+            ),
+        ),
     )
 
 
