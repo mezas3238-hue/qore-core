@@ -175,12 +175,6 @@ def reconcile_execution(
     reconciled_at: datetime,
 ) -> Result[ExecutionReconciliationSnapshot, ExecutionReconciliationError]:
     """Compare expected and observed execution state without side effects."""
-    if expected is None and observed is None:
-        return Failure(
-            ExecutionReconciliationValidationError(
-                "reconciliation requires expected or observed execution state"
-            )
-        )
     if expected is not None and not isinstance(expected, ExecutionReceipt):
         return Failure(
             ExecutionReconciliationValidationError(
@@ -194,15 +188,20 @@ def reconcile_execution(
             )
         )
 
-    if expected is not None and observed is None:
-        status = ExecutionReconciliationStatus.MISSING
-        issues = ("expected_execution_missing_observation",)
-    elif expected is None and observed is not None:
+    issues: tuple[str, ...]
+    if expected is None:
+        if observed is None:
+            return Failure(
+                ExecutionReconciliationValidationError(
+                    "reconciliation requires expected or observed execution state"
+                )
+            )
         status = ExecutionReconciliationStatus.UNEXPECTED
         issues = ("unexpected_execution_observation",)
+    elif observed is None:
+        status = ExecutionReconciliationStatus.MISSING
+        issues = ("expected_execution_missing_observation",)
     else:
-        assert expected is not None
-        assert observed is not None
         issue_list: list[str] = []
         if expected.receipt_id != observed.receipt_id:
             issue_list.append("receipt_id_mismatch")
