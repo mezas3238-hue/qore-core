@@ -85,7 +85,9 @@ def test_missing_dimension_is_rejected() -> None:
 
 
 def test_duplicate_dimension_is_rejected() -> None:
-    records = _complete_records() + (_record(ArchitectureConformanceCheck.CORE_ISOLATION),)
+    records = _complete_records() + (
+        _record(ArchitectureConformanceCheck.CORE_ISOLATION),
+    )
 
     result = aggregate_architecture_conformance(
         records,
@@ -138,5 +140,5 @@ def test_evidence_code_rejects_sensitive_material() -> None:
             check=ArchitectureConformanceCheck.SECRET_SAFETY,
             status=ArchitectureConformanceStatus.FAIL,
             observed_at=_NOW,
-            code="secret.exposed",
+            code="client_secret.exposed",
         )
