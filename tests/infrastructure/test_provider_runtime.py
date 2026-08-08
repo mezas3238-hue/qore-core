@@ -246,7 +246,7 @@ def test_external_runtime_metadata_is_canonical_and_safe() -> None:
 
 def test_external_runtime_rejects_runtime_type_bypasses() -> None:
     with pytest.raises(ProviderRuntimePlanValidationError):
-        ExternalRuntimeComponentId(cast(str, "UPPERCASE"))
+        ExternalRuntimeComponentId("UPPERCASE")
 
     with pytest.raises(ProviderRuntimePlanValidationError):
         ExternalProviderRuntimeComponent(
