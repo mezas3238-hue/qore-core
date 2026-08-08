@@ -200,11 +200,6 @@ class PersistenceBackendHarness[ValueT]:
         """Expose immutable adapter configuration."""
         return self.configuration.adapter_configuration
 
-    @property
-    def ports(self) -> reference_adapters.ReferencePersistenceAdapter[ValueT]:
-        """Expose canonical persistence through the approved port contract."""
-        return self.persistence
-
     def health(
         self,
         *,
@@ -257,6 +252,11 @@ class PersistenceBackendHarness[ValueT]:
         except adapter_resilience.AdapterResilienceError as error:
             return result_contract.Failure(error)
         return result_contract.Success(snapshot)
+
+    @property
+    def ports(self) -> reference_adapters.ReferencePersistenceAdapter[ValueT]:
+        """Expose canonical persistence through the approved port contract."""
+        return self.persistence
 
 
 def compose_persistence_backend_harness[ValueT](
