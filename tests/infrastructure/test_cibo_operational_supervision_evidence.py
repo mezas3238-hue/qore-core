@@ -24,6 +24,7 @@ from qore.infrastructure.market_data import (
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
     MarketTestAccountIdentity,
+    MarketTestEnvironmentAuthorization,
     MarketTestEnvironmentPolicy,
     authorize_market_test_account,
 )
@@ -61,7 +62,7 @@ _METADATA = ExternalRequestMetadata(
 )
 
 
-def _environment_authorization():
+def _environment_authorization() -> MarketTestEnvironmentAuthorization:
     result = authorize_market_test_account(
         _ACCOUNT,
         policy=MarketTestEnvironmentPolicy(policy_id="mission03.cibo.demo"),
