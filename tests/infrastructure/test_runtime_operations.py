@@ -8,25 +8,27 @@ from qore.infrastructure.runtime_operations import (
     RuntimeOperationActor,
     RuntimeOperationalState,
     RuntimeOperationReason,
+    RuntimeOperationsError,
+    RuntimeOperationsSnapshot,
     RuntimeOperationsTransitionError,
     RuntimeOperationsValidationError,
     RuntimeOperationTransitionRequest,
     apply_runtime_operation_transition,
     declare_runtime_operations,
 )
-from qore.kernel.result import Failure, Success
+from qore.kernel.result import Failure, Result, Success
 
 _NOW = datetime(2026, 8, 8, 6, 0, tzinfo=UTC)
 _ACTOR = RuntimeOperationActor("operations.supervisor")
 
 
 def _transition(
-    snapshot,
+    snapshot: RuntimeOperationsSnapshot,
     *,
     state: RuntimeOperationalState,
     reason: RuntimeOperationReason,
     offset: int,
-):
+) -> Result[RuntimeOperationsSnapshot, RuntimeOperationsError]:
     return apply_runtime_operation_transition(
         snapshot,
         RuntimeOperationTransitionRequest(
@@ -160,7 +162,7 @@ def test_sequence_rejects_bool() -> None:
     declared = declare_runtime_operations(declared_at=_NOW, actor=_ACTOR)
     assert isinstance(declared, Success)
     with pytest.raises(RuntimeOperationsValidationError):
-        type(declared.value)(
+        RuntimeOperationsSnapshot(
             state=declared.value.state,
             sequence=True,
             transitioned_at=_NOW,
