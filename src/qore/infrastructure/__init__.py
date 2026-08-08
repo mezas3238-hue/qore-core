@@ -1,5 +1,18 @@
 """Stable infrastructure boundary contracts for QORE."""
 
+from qore.infrastructure.activation_policy import (
+    ProviderActivationDecision,
+    ProviderActivationDecisionReason,
+    ProviderActivationDecisionSnapshot,
+    ProviderActivationEvaluation,
+    ProviderActivationMode,
+    ProviderActivationPolicy,
+    ProviderActivationPolicyBoundary,
+    ProviderActivationPolicyError,
+    ProviderActivationPolicyValidationError,
+    ProviderActivationSecretReferences,
+    evaluate_provider_activation_policy,
+)
 from qore.infrastructure.adapter_configuration import (
     AdapterConfigurationError,
     AdapterConfigurationMode,
@@ -262,6 +275,16 @@ __all__ = [
     "PortName",
     "PortUnavailableError",
     "PortValidationError",
+    "ProviderActivationDecision",
+    "ProviderActivationDecisionReason",
+    "ProviderActivationDecisionSnapshot",
+    "ProviderActivationEvaluation",
+    "ProviderActivationMode",
+    "ProviderActivationPolicy",
+    "ProviderActivationPolicyBoundary",
+    "ProviderActivationPolicyError",
+    "ProviderActivationPolicyValidationError",
+    "ProviderActivationSecretReferences",
     "ProviderBoundaryError",
     "ProviderBoundaryValidationError",
     "ProviderCapability",
@@ -318,4 +341,5 @@ __all__ = [
     "compose_reference_infrastructure",
     "compose_reference_infrastructure_end_to_end",
     "declare_adapter_lifecycle",
+    "evaluate_provider_activation_policy",
 ]
