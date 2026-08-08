@@ -38,7 +38,11 @@ from qore.infrastructure.secret_resolution import (
     SecretAuthenticatedTransportBoundary,
     SecretMaterialResolution,
 )
-from qore.infrastructure.secrets import SecretBoundaryError, SecretRef
+from qore.infrastructure.secrets import (
+    SecretBoundaryError,
+    SecretBoundaryValidationError,
+    SecretRef,
+)
 from qore.infrastructure.transport import (
     ExternalTransportMethod,
     ExternalTransportRequest,
@@ -172,12 +176,17 @@ def _best_bucket_price(
                     f"OANDA {field_name} entries must be objects"
                 )
             )
-        price = _positive_decimal_string(item.get("price"), field_name=f"{field_name}.price")
+        price = _positive_decimal_string(
+            item.get("price"),
+            field_name=f"{field_name}.price",
+        )
         if isinstance(price, Failure):
             return price
         parsed.append(price.value)
-    selected = max(parsed, key=lambda item: item[0]) if highest else min(
-        parsed, key=lambda item: item[0]
+    selected = (
+        max(parsed, key=lambda item: item[0])
+        if highest
+        else min(parsed, key=lambda item: item[0])
     )
     return Success(selected[1])
 
@@ -434,7 +443,8 @@ class OandaPracticeMarketDataDecoder:
             ("c", "close"),
         ):
             parsed = _positive_decimal_string(
-                mid.get(wire_name), field_name=f"mid.{wire_name}"
+                mid.get(wire_name),
+                field_name=f"mid.{wire_name}",
             )
             if isinstance(parsed, Failure):
                 return parsed
@@ -475,35 +485,41 @@ class ActivatedOandaPracticeCredentialResolver:
     ) -> Result[SecretMaterialResolution, SecretBoundaryError]:
         if ref != self.activation.ref:
             return Failure(
-                OandaPracticeMarketFeedValidationError(
+                SecretBoundaryValidationError(
                     "OANDA market feed may resolve only the activated Practice credential"
                 )
             )
         if not isinstance(metadata, ExternalRequestMetadata):
             return Failure(
-                OandaPracticeMarketFeedValidationError(
+                SecretBoundaryValidationError(
                     "OANDA market feed credential resolution requires explicit metadata"
                 )
             )
-        if not isinstance(resolved_at, datetime) or resolved_at.tzinfo is None or resolved_at.utcoffset() is None:
+        if (
+            not isinstance(resolved_at, datetime)
+            or resolved_at.tzinfo is None
+            or resolved_at.utcoffset() is None
+        ):
             return Failure(
-                OandaPracticeMarketFeedValidationError(
+                SecretBoundaryValidationError(
                     "OANDA market feed resolved_at must be timezone-aware"
                 )
             )
         if resolved_at < self.activation.activated_at:
             return Failure(
-                OandaPracticeMarketFeedValidationError(
+                SecretBoundaryValidationError(
                     "OANDA market feed resolution must not predate credential activation"
                 )
             )
-        return Success(
-            SecretMaterialResolution(
+        try:
+            resolution = SecretMaterialResolution(
                 ref=ref,
                 material=self.activation.material,
                 resolved_at=resolved_at,
             )
-        )
+        except SecretBoundaryError as error:
+            return Failure(error)
+        return Success(resolution)
 
 
 def compose_oanda_practice_read_only_provider(
@@ -532,7 +548,10 @@ def compose_oanda_practice_read_only_provider(
                 "OANDA credential configuration must match provider configuration"
             )
         )
-    if not isinstance(activation, ProviderActivationDecisionSnapshot) or not activation.can_activate:
+    if (
+        not isinstance(activation, ProviderActivationDecisionSnapshot)
+        or not activation.can_activate
+    ):
         return Failure(
             OandaPracticeMarketFeedValidationError(
                 "OANDA market feed requires an allowed provider activation decision"
