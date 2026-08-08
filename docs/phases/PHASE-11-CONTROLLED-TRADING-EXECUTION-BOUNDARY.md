@@ -2,9 +2,9 @@
 
 ## Estado
 
-**ACTIVE**
+**COMPLETED**
 
-PHASE-11 comienza después del cierre formal de PHASE-10 — Production Infrastructure & Operational Readiness.
+PHASE-11 comenzó después del cierre formal de PHASE-10 — Production Infrastructure & Operational Readiness. Este estado se vuelve oficial únicamente cuando el PR de cierre pasa el Quality Gate y se integra mediante merge protegido.
 
 Base inicial verificada:
 
@@ -12,121 +12,157 @@ Base inicial verificada:
 main @ deb76cf16d24036bb6202008138640d027a2fd76
 ```
 
-## Objetivo
-
-Introducir por primera vez semántica de ejecución de trading dentro de una frontera explícita, fail-closed, provider-neutral y verificable, sin conectar QORE a un broker real ni habilitar operaciones con dinero real.
+Base pre-cierre verificada:
 
 ```text
-Governed intent
-    │
-    ▼
+main @ c437d9f19d6ab430e88844ce4fb60892a55cf079
+```
+
+## Objetivo alcanzado
+
+PHASE-11 introdujo semántica de ejecución de trading dentro de una frontera explícita, fail-closed, provider-neutral y verificable. La única ejecución concreta permanece en un sandbox determinista; no existe broker real, MT5 live, account IO ni routing con dinero real.
+
+```text
 OrderIntent
     │
     ▼
-PreTradeSafetyGate
-    │
-    ├── authorization
-    ├── kill switch
-    ├── quantity / price invariants
-    └── idempotency
+PreTradeAuthorization + ExecutionSafetySwitch
     │
     ▼
-ExecutionBoundary
+AuthorizedOrderIntent
     │
-    └── deterministic sandbox adapter
+    ▼
+ExecutionSubmission
+    │
+    ▼
+SandboxExecutionBoundary
     │
     ▼
 ExecutionReceipt
     │
     ▼
-Reconciliation
+ExecutionObservation → Reconciliation
 ```
 
-## Cambio deliberado de frontera respecto de PHASE-10
+## Cambio de frontera confirmado
 
-PHASE-10 prohibía cualquier order execution. PHASE-11 permite **representar y ejecutar de forma controlada dentro de un adapter sandbox/determinista** intents de trading, únicamente bajo estas condiciones:
+PHASE-10 prohibía cualquier order execution. PHASE-11 permitió únicamente ejecución controlada dentro de un adapter sandbox bajo estas condiciones:
 
-- ninguna ejecución puede ocurrir sin autorización pre-trade explícita;
-- un kill switch fail-closed puede bloquear toda ejecución;
-- cada intent y submit requieren identidad/idempotency explícitas;
-- quantity/prices usan aritmética decimal y validación estricta;
-- execution boundary es provider-neutral;
-- la implementación de referencia es sandbox/in-memory y no toca broker, exchange o cuenta real;
-- receipts y reconciliation son inmutables y trazables;
-- Core/Domain/Governance no importan adapters concretos;
-- no se almacena secret material en intents, receipts o audit observable;
-- no hay retry/sleep implícito;
-- real-money connectivity sigue fuera de alcance.
+- ninguna ejecución ocurre sin autorización pre-trade explícita;
+- el execution switch es fail-closed;
+- intent y submit usan identity/idempotency explícitas;
+- quantity y price usan `Decimal` con validación estricta;
+- solo `AuthorizedOrderIntent` puede llegar al execution boundary;
+- submit vuelve a validar vigencia temporal de autorización;
+- execution boundary permanece provider-neutral;
+- la implementación concreta es instance-local y no toca broker, exchange o cuenta;
+- reconciliation no realiza corrective trading;
+- Core permanece fuera del object graph externo y sin mutación;
+- real-money connectivity continúa fuera de alcance.
 
-## Principios preservados
+## Entregables y evidencia
 
-- `dataclass(frozen=True, slots=True)` para intents, decisions, receipts y snapshots.
-- `Protocol` para side-effect boundaries.
-- `Result / Success / Failure` y errores tipados.
-- timestamps timezone-aware explícitos.
-- no `datetime.now()` ni `uuid4()` implícitos.
-- no global mutable state.
-- Decimal para quantity/price.
-- bool-vs-int estricto.
-- stable deterministic ordering / logical values.
-- fail-closed ante identity mismatch, authorization ausente o kill switch bloqueado.
+### QORE-PHASE11-DOCS-001 — COMPLETED
 
-## Fuera de alcance
+- PR: `#82`
+- head: `93d180df693688ae675ffca14c3c203d878b9c85`
+- QORE CI: `#331` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `a5846a722faa801046e6302939d179f5502efd1f`
+
+### QORE-ORDER-INTENT-001 — COMPLETED
+
+- PR: `#83`
+- final head: `4da1189e310cefdba6d09a5c0e9639785dd8279b`
+- QORE CI: `#333` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `4843591601caccc973f8ad668f953075730454de`
+
+Añadió intents canónicos inmutables con ids explícitos, MARKET/LIMIT y quantity/price `Decimal`. Crear un intent no autoriza ni ejecuta nada.
+
+### QORE-PRETRADE-SAFETY-001 — COMPLETED
+
+- PR: `#84`
+- final head: `70a9af55ffa077bbabcef279ff6fa58656f34d54`
+- QORE CI: `#335` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `9b0fdafc479a3df1c0bc4343424e4221a1a0986e`
+
+Añadió autorización pre-trade, policy identity, expiry y kill switch. `AuthorizedOrderIntent` vuelve a validar directamente los cross-invariants para impedir bypass por construcción directa.
+
+### QORE-EXECUTION-BOUNDARY-001 — COMPLETED
+
+- PR: `#85`
+- final head: `7a45f9f41aa7a549b795800fcccc12e5fe75e9ba`
+- QORE CI: `#337` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `ca4897d3a87599dd08305df5e63f85e530d2a69c`
+
+Añadió Protocol provider-neutral, submit/status/cancel y `SandboxExecutionBoundary`. Submit es idempotente y no realiza network/broker/account IO.
+
+### QORE-EXECUTION-RECONCILIATION-001 — COMPLETED
+
+- PR: `#86`
+- final head: `3831339fae8c0790e04a4f25f77b1d902492ee58`
+- QORE CI final: `#340` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `84acea1306109e965e156d4856f29eaab1e393ec`
+
+QORE CI `#339` pasó Ruff y detectó un problema de narrowing en Mypy. Se corrigió mediante ramas explícitas y typing estable, eliminando también `assert` de producción; no se usaron suppressions ni cambió la semántica. Reconciliation produce MATCHED/DIVERGED/MISSING/UNEXPECTED y nunca corrige ni reenvía órdenes.
+
+### QORE-CONTROLLED-EXECUTION-E2E-001 — COMPLETED
+
+- PR: `#87`
+- final head: `5835e2e575c9fc46763114ff14242a5124ff6813`
+- QORE CI: `#342` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `c437d9f19d6ab430e88844ce4fb60892a55cf079`
+
+Compuso authorization → sandbox submit → observation → reconciliation sobre un `CoreApplication` preservado. Los tests demuestran que pre-trade block o execution switch BLOCKED devuelven failure antes del sandbox y dejan cero receipts.
+
+### QORE-PHASE11-CLOSURE-001 — CLOSURE GATE
+
+Este documento es el cierre formal. `COMPLETED` se vuelve oficial únicamente cuando su propio PR pase CI y sea mergeado de forma protegida.
+
+## Auditoría transversal
+
+### Execution safety
+
+- `OrderIntent` no es ejecutable por sí mismo.
+- Solo `AuthorizedOrderIntent` alcanza `ExecutionSubmission`.
+- Authorization identity coincide con el intent.
+- Authorization no puede predatar el intent, expirar ni estar BLOCKED.
+- Execution switch debe estar ENABLED.
+- Submit no puede ocurrir después del expiry.
+- Kill switch/pre-trade block impiden alcanzar el sandbox.
+
+### Idempotencia
+
+- intent contiene idempotency identity explícita;
+- replay exacto de sandbox submit devuelve el mismo receipt;
+- reutilización de idempotency key con intención distinta produce typed conflict;
+- receipt identity es explícita y no generada globalmente.
+
+### Reconciliation
+
+- MATCHED no requiere acción;
+- DIVERGED/MISSING/UNEXPECTED requieren acción externa/manual;
+- no existe resubmit/correct/position mutation automático.
+
+### Core isolation
+
+La composición E2E captura y verifica EventBus, RuntimePlan, RuntimeSnapshot y RuntimeHealth sin mutarlos. Los cambios funcionales permanecen en infraestructura/tests y no introducen dependencia inversa desde Core/Domain/Governance a adapters concretos.
+
+### Real-money boundary
+
+PHASE-11 no implementó:
 
 - broker real;
 - MT5 live;
-- real-money order routing;
 - account credentials productivas;
-- withdrawals/deposits;
-- portfolio autonomous execution;
+- real-money routing;
+- funding/withdrawals;
+- autonomous portfolio execution;
 - CIBO enviando órdenes reales;
-- public trading API;
-- QORE Mobile / CEO Widget;
-- strategy generation o recomendaciones de compra/venta.
-
-## Entregables
-
-### QORE-PHASE11-DOCS-001 — Define PHASE-11 Scope
-
-Define el cambio de frontera, secuencia, safety invariants, Quality Gate y cierre.
-
-### QORE-ORDER-INTENT-001 — Canonical Order Intent Contracts
-
-Contratos inmutables para instrument, side, order type, Decimal quantity/price, intent identity, idempotency y trace metadata.
-
-### QORE-PRETRADE-SAFETY-001 — Pre-Trade Authorization & Kill Switch
-
-Decision contract para APPROVED/BLOCKED, policy identity, approval expiry explícita y global execution switch fail-closed. Produce un `AuthorizedOrderIntent` únicamente cuando todos los gates pasan.
-
-### QORE-EXECUTION-BOUNDARY-001 — Provider-Neutral Execution Boundary
-
-Protocol de submit/cancel-status-query controlado y reference sandbox adapter determinista. Submit es idempotente y nunca realiza IO de broker real.
-
-### QORE-EXECUTION-RECONCILIATION-001 — Execution Reconciliation Contracts
-
-Compara expected execution receipts con provider/sandbox observations, produce MATCHED/DIVERGED/MISSING/UNEXPECTED y nunca corrige posiciones automáticamente.
-
-### QORE-CONTROLLED-EXECUTION-E2E-001 — Controlled Execution E2E
-
-Compone intent → authorization → sandbox execution → receipt → reconciliation por encima de un `CoreApplication` preservado. Kill switch bloqueado debe impedir submit.
-
-### QORE-PHASE11-CLOSURE-001 — Phase 11 Closure Review
-
-Auditoría transversal de execution safety, idempotencia, reconciliation, Core isolation, secret safety, CI y ausencia de real-money connectivity.
-
-## Secuencia obligatoria
-
-```text
-QORE-PHASE11-DOCS-001
-→ QORE-ORDER-INTENT-001
-→ QORE-PRETRADE-SAFETY-001
-→ QORE-EXECUTION-BOUNDARY-001
-→ QORE-EXECUTION-RECONCILIATION-001
-→ QORE-CONTROLLED-EXECUTION-E2E-001
-→ QORE-PHASE11-CLOSURE-001
-```
+- public trading API.
 
 ## Quality Gate
+
+Todos los heads finales pasaron:
 
 ```bash
 ruff check .
@@ -134,24 +170,24 @@ mypy src tests
 pytest --cov=src/qore --cov-report=term-missing
 ```
 
-Además:
+No se rebajaron checks ni se usaron lint/type suppressions para cerrar la fase.
 
-- no lint/type suppressions;
-- no network/broker dependency in tests;
-- no secret material observable;
-- submit must be idempotent;
-- blocked/expired authorization never reaches execution adapter;
-- kill switch CLOSED/BLOCKED prevents execution;
-- reconciliation has no automatic corrective side effects;
-- Core remains unchanged.
+## Resultado de cierre
 
-## Condición de cierre
-
-PHASE-11 queda `COMPLETED` únicamente cuando todos los entregables sean integrados con CI verde y el cierre demuestre una frontera de ejecución sandbox controlada, trazable e idempotente, sin conectividad real-money.
+QORE dispone de una frontera de ejecución **sandbox, controlada, idempotente, reconciliable y fail-closed**. El sistema puede demostrar semántica completa de ejecución sin tocar un broker ni una cuenta real.
 
 ## Forward roadmap
 
+La siguiente fase oficial a definir después de este cierre es:
+
 ```text
 PHASE-12 — End-to-End Trading Runtime & Safety Validation
+```
+
+PHASE-12 validará orquestación, failure containment y safety evidence sobre la frontera sandbox existente. No autoriza implícitamente real-money connectivity.
+
+Luego:
+
+```text
 PHASE-13 — QORE Core Production Closure
 ```
