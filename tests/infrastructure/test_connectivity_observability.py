@@ -15,8 +15,8 @@ from qore.infrastructure.connectivity import (
 )
 from qore.infrastructure.connectivity_observability import (
     ConnectivityFailureCategory,
-    ConnectivityObservation,
     ConnectivityObservabilityValidationError,
+    ConnectivityObservation,
     observe_live_connectivity,
 )
 from qore.infrastructure.ports import AdapterId, ExternalSourceDescriptor, PortName, SourceId
