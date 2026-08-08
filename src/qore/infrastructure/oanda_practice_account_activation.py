@@ -193,15 +193,15 @@ class OandaPracticeAccountSummarySnapshot:
             raise OandaPracticeAccountActivationValidationError(
                 "account summary currency must use ISO-like uppercase syntax"
             )
-        for value, field_name in (
+        for timestamp_value, field_name in (
             (self.created_at, "created_at"),
             (self.observed_at, "observed_at"),
         ):
-            if not isinstance(value, datetime):
+            if not isinstance(timestamp_value, datetime):
                 raise OandaPracticeAccountActivationValidationError(
                     f"account summary {field_name} must be a datetime"
                 )
-            if value.tzinfo is None or value.utcoffset() is None:
+            if timestamp_value.tzinfo is None or timestamp_value.utcoffset() is None:
                 raise OandaPracticeAccountActivationValidationError(
                     f"account summary {field_name} must be timezone-aware"
                 )
@@ -213,12 +213,12 @@ class OandaPracticeAccountSummarySnapshot:
             raise OandaPracticeAccountActivationValidationError(
                 "account summary hedging_enabled must be bool"
             )
-        for value, field_name in (
+        for count_value, field_name in (
             (self.pending_order_count, "pending_order_count"),
             (self.open_trade_count, "open_trade_count"),
             (self.open_position_count, "open_position_count"),
         ):
-            if type(value) is not int or value < 0:
+            if type(count_value) is not int or count_value < 0:
                 raise OandaPracticeAccountActivationValidationError(
                     f"account summary {field_name} must be a non-negative int"
                 )
