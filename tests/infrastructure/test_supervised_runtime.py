@@ -8,7 +8,7 @@ import qore.infrastructure as infrastructure
 from qore.core.application import CoreApplication
 from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
-from qore.domain.events import CorrelationId
+from qore.domain.events import CausationId, CorrelationId
 from qore.governance.composition import compose_functional_governance
 from qore.infrastructure.activation_policy import (
     ProviderActivationDecision,
@@ -44,11 +44,7 @@ from qore.infrastructure.external_health import (
     ExternalProviderReadiness,
 )
 from qore.infrastructure.ingestion import ExternalQuotePayload
-from qore.infrastructure.market_data import (
-    Instrument,
-    MarketDataSnapshotId,
-    QuoteRequest,
-)
+from qore.infrastructure.market_data import Instrument, MarketDataSnapshotId, QuoteRequest
 from qore.infrastructure.market_data_provider_harness import (
     MarketDataProviderHarnessState,
     MarketDataProviderQuoteIngestion,
@@ -108,6 +104,7 @@ _PERSISTENCE_ADAPTER_ID = AdapterId(UUID("d1000000-0000-0000-0000-000000000005")
 _PERSISTENCE_SOURCE_ID = SourceId(UUID("d1000000-0000-0000-0000-000000000006"))
 _CORRELATION_ID = CorrelationId(UUID("d1000000-0000-0000-0000-000000000007"))
 _QUOTE_ID = MarketDataSnapshotId(UUID("d1000000-0000-0000-0000-000000000008"))
+_CAUSATION_ID = CausationId(UUID("d1000000-0000-0000-0000-000000000009"))
 _ACTOR = AdapterLifecycleActor("runtime-supervisor")
 
 
@@ -118,7 +115,10 @@ def _core(name: str = "qore-supervised-runtime-e2e") -> CoreApplication:
 
 
 def _metadata() -> ExternalRequestMetadata:
-    return ExternalRequestMetadata(correlation_id=_CORRELATION_ID)
+    return ExternalRequestMetadata(
+        correlation_id=_CORRELATION_ID,
+        causation_id=_CAUSATION_ID,
+    )
 
 
 def _provider(*, alternate: bool = False) -> ProviderDescriptor:
