@@ -130,8 +130,11 @@ def test_current_state_projection_uses_projection_types_not_internal_objects() -
     source = _snapshot()
     projected = project_executive_governance_current_state(source)
 
-    assert projected is not source
-    assert projected.active_market_restrictions[0] is not source.market_restrictions[0]
+    assert isinstance(projected, ExecutiveGovernanceCurrentStateSummary)
+    assert isinstance(
+        projected.active_market_restrictions[0].target_kind,
+        ExecutiveGovernanceRestrictionTargetKind,
+    )
     assert not hasattr(projected, "read_current_state")
     assert not hasattr(projected, "receipt_history")
     assert not hasattr(projected, "replay_receipts")
