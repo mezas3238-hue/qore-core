@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -193,5 +194,7 @@ def test_governance_read_model_rejects_state_observed_after_projection() -> None
 
 
 def test_projection_rejects_noncanonical_snapshot_input() -> None:
+    invalid_snapshot = cast(ExecutiveGovernanceStateSnapshot, object())
+
     with pytest.raises(ExecutiveReadModelValidationError):
-        project_executive_governance_current_state(object())  # type: ignore[arg-type]
+        project_executive_governance_current_state(invalid_snapshot)
