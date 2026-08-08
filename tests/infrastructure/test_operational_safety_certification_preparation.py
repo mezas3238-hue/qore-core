@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 
 from qore.infrastructure.operational_safety_certification_preparation import (
+    OperationalSafetyCertificationPreparationError,
     OperationalSafetyCertificationPreparationEvidence,
     OperationalSafetyCertificationPreparationValidationError,
     OperationalSafetyEvidenceRef,
@@ -17,7 +18,7 @@ from qore.infrastructure.operational_safety_certification_preparation import (
     OperationalSafetyPreparationStatus,
     build_operational_safety_certification_preparation_evidence,
 )
-from qore.kernel.result import Failure, Success
+from qore.kernel.result import Failure, Result, Success
 
 _NOW = datetime(2026, 8, 8, 23, 45, tzinfo=UTC)
 _PREPARATION_ID = OperationalSafetyPreparationId(
@@ -79,7 +80,10 @@ def _records(
 
 def _build(
     records: tuple[OperationalSafetyPreparationRecord, ...],
-):
+) -> Result[
+    OperationalSafetyCertificationPreparationEvidence,
+    OperationalSafetyCertificationPreparationError,
+]:
     return build_operational_safety_certification_preparation_evidence(
         _PREPARATION_ID,
         records,
