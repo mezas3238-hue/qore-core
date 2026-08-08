@@ -29,9 +29,9 @@ from qore.infrastructure.connectivity import ProviderEndpoint
 from qore.infrastructure.https_transport import (
     ConcreteBearerHttpsExternalTransport,
     HttpsConnectionBoundary,
-    HttpsConnectionFactoryBoundary,
     HttpsResponseBoundary,
 )
+from qore.infrastructure.live_market_data import ControlledLiveMarketDataFlow
 from qore.infrastructure.market_data import (
     Instrument,
     MarketDataSnapshotId,
@@ -352,7 +352,9 @@ def _ohlc_payload(
     ).encode("utf-8")
 
 
-def _build_flow(payloads: tuple[bytes, ...]) -> tuple[object, ScriptedFactory]:
+def _build_flow(
+    payloads: tuple[bytes, ...],
+) -> tuple[ControlledLiveMarketDataFlow, ScriptedFactory]:
     factory = ScriptedFactory(payloads)
     transport = ConcreteBearerHttpsExternalTransport(
         connection_factory=factory,
@@ -420,8 +422,7 @@ def _read_clean_window() -> tuple[
             close="1.2710",
         ),
     )
-    flow_object, factory = _build_flow(payloads)
-    flow = flow_object
+    flow, factory = _build_flow(payloads)
     quotes: list[QuoteSnapshot] = []
     for seed, symbol in ((1, "EUR_USD"), (2, "GBP_USD")):
         result = flow.read_quote(
@@ -524,22 +525,21 @@ def test_dryrun_surfaces_provider_origin_stale_quote_after_canonical_ingestion()
             close="1.2710",
         ),
     )
-    flow_object, factory = _build_flow(payloads)
-    flow = flow_object
-    quote_results = (
-        flow.read_quote(
-            QuoteRequest(Instrument("EUR_USD")),
-            snapshot_id=_snapshot_id(30),
-            metadata=_metadata(),
-        ),
-        flow.read_quote(
-            QuoteRequest(Instrument("GBP_USD")),
-            snapshot_id=_snapshot_id(31),
-            metadata=_metadata(),
-        ),
+    flow, factory = _build_flow(payloads)
+    eur_quote = flow.read_quote(
+        QuoteRequest(Instrument("EUR_USD")),
+        snapshot_id=_snapshot_id(30),
+        metadata=_metadata(),
     )
-    assert all(isinstance(item, Success) for item in quote_results)
-    quotes = tuple(item.value for item in quote_results if isinstance(item, Success))
+    gbp_quote = flow.read_quote(
+        QuoteRequest(Instrument("GBP_USD")),
+        snapshot_id=_snapshot_id(31),
+        metadata=_metadata(),
+    )
+    assert isinstance(eur_quote, Success)
+    assert isinstance(gbp_quote, Success)
+    quotes = (eur_quote.value, gbp_quote.value)
+
     ohlc: list[OhlcSnapshot] = []
     seed = 40
     for symbol in ("EUR_USD", "GBP_USD"):
@@ -581,8 +581,7 @@ def test_dryrun_surfaces_provider_origin_stale_quote_after_canonical_ingestion()
 
 
 def test_malformed_oanda_wire_fails_before_certification_window_exists() -> None:
-    flow_object, factory = _build_flow((b'{"prices":"not-an-array"}',))
-    flow = flow_object
+    flow, factory = _build_flow((b'{"prices":"not-an-array"}',))
 
     result = flow.read_quote(
         QuoteRequest(Instrument("EUR_USD")),
