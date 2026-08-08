@@ -143,6 +143,7 @@ class ExecutiveReadScope(StrEnum):
     VALIDATION_LAB = "validation-lab"
     TRADE_FORENSICS = "trade-forensics"
     AUDIT = "audit"
+    GOVERNANCE = "governance"
     CEO_ACCOUNTS = "ceo-accounts"
     CORPORATE_PROFIT_VAULT = "corporate-profit-vault"
 
