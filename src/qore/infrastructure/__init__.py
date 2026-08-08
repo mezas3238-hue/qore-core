@@ -60,6 +60,17 @@ from qore.infrastructure.ports import (
     SourceId,
     WriteExternalPort,
 )
+from qore.infrastructure.providers import (
+    ProviderBoundaryError,
+    ProviderBoundaryValidationError,
+    ProviderCapability,
+    ProviderCapabilitySet,
+    ProviderDescriptor,
+    ProviderEnablement,
+    ProviderGovernanceBoundary,
+    ProviderId,
+    ProviderName,
+)
 from qore.infrastructure.reference_adapters import (
     ReferenceAdapterCopyError,
     ReferenceAdapterError,
@@ -106,6 +117,15 @@ __all__ = [
     "PortName",
     "PortUnavailableError",
     "PortValidationError",
+    "ProviderBoundaryError",
+    "ProviderBoundaryValidationError",
+    "ProviderCapability",
+    "ProviderCapabilitySet",
+    "ProviderDescriptor",
+    "ProviderEnablement",
+    "ProviderGovernanceBoundary",
+    "ProviderId",
+    "ProviderName",
     "QuoteRequest",
     "QuoteSnapshot",
     "ReadExternalPort",
