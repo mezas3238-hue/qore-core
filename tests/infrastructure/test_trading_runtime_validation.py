@@ -28,7 +28,7 @@ from qore.infrastructure.order_intent import (
     OrderSide,
     OrderType,
 )
-from qore.infrastructure.ports import ExternalRequestMetadata
+from qore.infrastructure.ports import ExternalPortError, ExternalRequestMetadata
 from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
     ExecutionSwitchState,
@@ -39,10 +39,11 @@ from qore.infrastructure.pretrade_safety import (
 )
 from qore.infrastructure.trading_runtime_validation import (
     TradingRuntimeObservationMode,
+    TradingRuntimeValidationResult,
     compose_trading_runtime_validation_harness,
 )
 from qore.infrastructure.trading_safety_evidence import TradingSafetyVerdict
-from qore.kernel.result import Success
+from qore.kernel.result import Result, Success
 
 _NOW = datetime(2026, 8, 8, 10, 0, tzinfo=UTC)
 _INTENT_ID = OrderIntentId(UUID("b3000000-0000-0000-0000-000000000001"))
@@ -108,7 +109,7 @@ def _validate(
     decision: PreTradeDecision = PreTradeDecision.APPROVED,
     switch_state: ExecutionSwitchState = ExecutionSwitchState.ENABLED,
     mode: TradingRuntimeObservationMode = TradingRuntimeObservationMode.MATCHED,
-):
+) -> Result[TradingRuntimeValidationResult, ExternalPortError]:
     harness = compose_trading_runtime_validation_harness(_core(), sandbox)
     assert isinstance(harness, Success)
     orchestration_id = ExecutionOrchestrationId(
