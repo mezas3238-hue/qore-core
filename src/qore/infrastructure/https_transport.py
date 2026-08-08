@@ -8,6 +8,7 @@ from typing import Protocol
 from urllib.parse import urlencode
 
 from qore.infrastructure.ports import ExternalRequestMetadata
+from qore.infrastructure.secret_resolution import SecretMaterial
 from qore.infrastructure.transport import (
     ExternalTransportBoundary,
     ExternalTransportError,
@@ -27,6 +28,7 @@ _ALLOWED_RESPONSE_HEADERS = frozenset(
         "date",
         "etag",
         "last-modified",
+        "requestid",
         "retry-after",
         "x-ratelimit-limit",
         "x-ratelimit-remaining",
@@ -147,6 +149,97 @@ def _safe_response_headers(
     return {name: selected[name] for name in sorted(selected)}
 
 
+def _validate_request_and_metadata(
+    request: ExternalTransportRequest,
+    metadata: ExternalRequestMetadata,
+) -> Result[None, ExternalTransportError]:
+    if not isinstance(request, ExternalTransportRequest):
+        return Failure(
+            ExternalTransportValidationError(
+                "concrete HTTPS transport requires ExternalTransportRequest"
+            )
+        )
+    if not isinstance(metadata, ExternalRequestMetadata):
+        return Failure(
+            ExternalTransportValidationError(
+                "concrete HTTPS transport requires explicit metadata"
+            )
+        )
+    return Success(None)
+
+
+def _execute_https(
+    request: ExternalTransportRequest,
+    *,
+    metadata: ExternalRequestMetadata,
+    headers: Mapping[str, str],
+    connection_factory: HttpsConnectionFactoryBoundary,
+    clock: TransportClockBoundary,
+) -> Result[ExternalTransportResponse, ExternalTransportError]:
+    validation = _validate_request_and_metadata(request, metadata)
+    if isinstance(validation, Failure):
+        return validation
+
+    connection: HttpsConnectionBoundary | None = None
+    try:
+        connection = connection_factory.create(
+            host=request.endpoint.host,
+            port=request.endpoint.port,
+            timeout_seconds=request.timeout.milliseconds / 1000,
+        )
+        connection.request(
+            method=request.method.value,
+            path=_request_path(request),
+            headers=headers,
+        )
+        response = connection.getresponse()
+        payload = response.read()
+        received_at = clock.now()
+        transport_response = ExternalTransportResponse(
+            status_code=response.status,
+            received_at=received_at,
+            payload=payload,
+            headers=_safe_response_headers(response.getheaders()),
+        )
+    except TimeoutError:
+        return Failure(ExternalTransportTimeoutError("HTTPS transport timed out"))
+    except HTTPException:
+        return Failure(ExternalTransportProtocolError("HTTPS protocol failure"))
+    except OSError:
+        return Failure(
+            ExternalTransportUnavailableError("HTTPS transport unavailable")
+        )
+    except ExternalTransportError as error:
+        return Failure(error)
+    finally:
+        if connection is not None:
+            connection.close()
+    return Success(transport_response)
+
+
+def _bearer_header(secret: SecretMaterial) -> Result[str, ExternalTransportError]:
+    if not isinstance(secret, SecretMaterial):
+        return Failure(
+            ExternalTransportValidationError(
+                "authenticated HTTPS transport requires SecretMaterial"
+            )
+        )
+    raw = secret.reveal_bytes()
+    if any(byte < 33 or byte > 126 for byte in raw):
+        return Failure(
+            ExternalTransportValidationError(
+                "bearer credential must be visible ASCII without whitespace"
+            )
+        )
+    try:
+        token = raw.decode("ascii")
+    except UnicodeDecodeError:
+        return Failure(
+            ExternalTransportValidationError("bearer credential must be ASCII")
+        )
+    return Success(f"Bearer {token}")
+
+
 @dataclass(frozen=True, slots=True)
 class ConcreteHttpsExternalTransport(ExternalTransportBoundary):
     """Concrete HTTPS implementation of the existing read-only transport boundary."""
@@ -160,56 +253,44 @@ class ConcreteHttpsExternalTransport(ExternalTransportBoundary):
         *,
         metadata: ExternalRequestMetadata,
     ) -> Result[ExternalTransportResponse, ExternalTransportError]:
-        if not isinstance(request, ExternalTransportRequest):
-            return Failure(
-                ExternalTransportValidationError(
-                    "concrete HTTPS transport requires ExternalTransportRequest"
-                )
-            )
-        if not isinstance(metadata, ExternalRequestMetadata):
-            return Failure(
-                ExternalTransportValidationError(
-                    "concrete HTTPS transport requires explicit metadata"
-                )
-            )
-
-        connection = self.connection_factory.create(
-            host=request.endpoint.host,
-            port=request.endpoint.port,
-            timeout_seconds=request.timeout.milliseconds / 1000,
+        return _execute_https(
+            request,
+            metadata=metadata,
+            headers=request.headers,
+            connection_factory=self.connection_factory,
+            clock=self.clock,
         )
-        try:
-            connection.request(
-                method=request.method.value,
-                path=_request_path(request),
-                headers=request.headers,
-            )
-            response = connection.getresponse()
-            payload = response.read()
-            received_at = self.clock.now()
-            transport_response = ExternalTransportResponse(
-                status_code=response.status,
-                received_at=received_at,
-                payload=payload,
-                headers=_safe_response_headers(response.getheaders()),
-            )
-        except TimeoutError:
-            return Failure(
-                ExternalTransportTimeoutError("HTTPS transport timed out")
-            )
-        except HTTPException:
-            return Failure(
-                ExternalTransportProtocolError("HTTPS protocol failure")
-            )
-        except OSError:
-            return Failure(
-                ExternalTransportUnavailableError("HTTPS transport unavailable")
-            )
-        except ExternalTransportError as error:
-            return Failure(error)
-        finally:
-            connection.close()
-        return Success(transport_response)
+
+
+@dataclass(frozen=True, slots=True)
+class ConcreteBearerHttpsExternalTransport:
+    """HTTPS transport that receives bearer secret material out of band."""
+
+    connection_factory: HttpsConnectionFactoryBoundary
+    clock: TransportClockBoundary
+
+    def execute_authenticated(
+        self,
+        request: ExternalTransportRequest,
+        *,
+        secret: SecretMaterial,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[ExternalTransportResponse, ExternalTransportError]:
+        validation = _validate_request_and_metadata(request, metadata)
+        if isinstance(validation, Failure):
+            return validation
+        bearer = _bearer_header(secret)
+        if isinstance(bearer, Failure):
+            return bearer
+        headers = dict(request.headers)
+        headers["authorization"] = bearer.value
+        return _execute_https(
+            request,
+            metadata=metadata,
+            headers=headers,
+            connection_factory=self.connection_factory,
+            clock=self.clock,
+        )
 
 
 def build_stdlib_https_transport(
@@ -218,6 +299,17 @@ def build_stdlib_https_transport(
 ) -> ConcreteHttpsExternalTransport:
     """Build the network-capable transport while keeping the clock explicit."""
     return ConcreteHttpsExternalTransport(
+        connection_factory=StdlibHttpsConnectionFactory(),
+        clock=clock,
+    )
+
+
+def build_stdlib_bearer_https_transport(
+    *,
+    clock: TransportClockBoundary,
+) -> ConcreteBearerHttpsExternalTransport:
+    """Build a bearer-authenticated HTTPS transport with explicit clock."""
+    return ConcreteBearerHttpsExternalTransport(
         connection_factory=StdlibHttpsConnectionFactory(),
         clock=clock,
     )
