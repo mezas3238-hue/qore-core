@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from qore.core.application import CoreApplication
+from qore.infrastructure.adapter_observability import AdapterObservabilitySnapshot
 from qore.infrastructure.adapter_resilience import AdapterResilienceSnapshot
 from qore.infrastructure.connectivity import (
     ProviderConnectionState,
@@ -121,11 +122,16 @@ class SupervisedLiveRuntimeComposition:
         """Expose canonical live market data only when connectivity is READY."""
         if self.configuration.connectivity.state is not ProviderConnectionState.READY:
             return None
-        if not self.configuration.market_data.payload_adapter.provider.configuration.activation.can_activate:
+        activation = (
+            self.configuration.market_data.payload_adapter.provider.configuration.activation
+        )
+        if not activation.can_activate:
             return None
         return self.configuration.market_data
 
-    def observability(self):  # noqa: ANN201
+    def observability(
+        self,
+    ) -> Result[AdapterObservabilitySnapshot, ExternalPortError]:
         """Build sanitized connectivity observability without a backend side effect."""
         provider = self.configuration.connectivity.intent.provider
         return observe_live_connectivity(
