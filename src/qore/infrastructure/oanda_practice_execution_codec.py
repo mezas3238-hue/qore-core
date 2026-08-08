@@ -54,7 +54,11 @@ def _account_fingerprint(account_ref: str) -> str:
     return f"sha256:{digest[:24]}"
 
 
-def _aware_timestamp(value: object, *, field_name: str) -> Result[datetime, ExecutionBoundaryError]:
+def _aware_timestamp(
+    value: object,
+    *,
+    field_name: str,
+) -> Result[datetime, ExecutionBoundaryError]:
     if not isinstance(value, str) or not value:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
@@ -78,7 +82,11 @@ def _aware_timestamp(value: object, *, field_name: str) -> Result[datetime, Exec
     return Success(parsed)
 
 
-def _numeric_ref(value: object, *, field_name: str) -> Result[str, ExecutionBoundaryError]:
+def _numeric_ref(
+    value: object,
+    *,
+    field_name: str,
+) -> Result[str, ExecutionBoundaryError]:
     if not isinstance(value, str) or fullmatch(r"[0-9]+", value) is None:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
@@ -92,7 +100,6 @@ def _decimal_number(
     value: object,
     *,
     field_name: str,
-    allow_zero: bool = False,
 ) -> Result[Decimal, ExecutionBoundaryError]:
     if not isinstance(value, str) or not value:
         return Failure(
@@ -108,7 +115,7 @@ def _decimal_number(
                 f"OANDA {field_name} must be a decimal string"
             )
         )
-    if not parsed.is_finite() or (parsed == 0 and not allow_zero):
+    if not parsed.is_finite() or parsed == 0:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
                 f"OANDA {field_name} must be finite and non-zero"
@@ -126,34 +133,60 @@ def _json_object(payload: bytes) -> Result[dict[str, object], ExecutionBoundaryE
                 "OANDA execution response must be a UTF-8 JSON object"
             )
         )
-    if not isinstance(decoded, dict) or any(not isinstance(key, str) for key in decoded):
+    if not isinstance(decoded, dict):
         return Failure(
             OandaPracticeExecutionCodecValidationError(
-                "OANDA execution response root must be a string-keyed object"
+                "OANDA execution response root must be an object"
+            )
+        )
+    if any(not isinstance(key, str) for key in decoded):
+        return Failure(
+            OandaPracticeExecutionCodecValidationError(
+                "OANDA execution response root must use string keys"
             )
         )
     return Success(cast(dict[str, object], decoded))
 
 
-def _transaction_object(
+def _optional_object(
     root: dict[str, object],
     field_name: str,
 ) -> Result[dict[str, object] | None, ExecutionBoundaryError]:
     value = root.get(field_name)
     if value is None:
         return Success(None)
-    if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+    if not isinstance(value, dict):
         return Failure(
             OandaPracticeExecutionCodecValidationError(
                 f"OANDA {field_name} must be an object when present"
             )
         )
+    if any(not isinstance(key, str) for key in value):
+        return Failure(
+            OandaPracticeExecutionCodecValidationError(
+                f"OANDA {field_name} must use string keys"
+            )
+        )
     return Success(cast(dict[str, object], value))
 
 
-def _related_transaction_refs(
-    value: object,
-) -> Result[tuple[str, ...], ExecutionBoundaryError]:
+def _required_object(
+    root: dict[str, object],
+    field_name: str,
+) -> Result[dict[str, object], ExecutionBoundaryError]:
+    result = _optional_object(root, field_name)
+    if isinstance(result, Failure):
+        return result
+    if result.value is None:
+        return Failure(
+            OandaPracticeExecutionCodecValidationError(
+                f"OANDA response requires {field_name}"
+            )
+        )
+    return Success(result.value)
+
+
+def _related_refs(value: object) -> Result[tuple[str, ...], ExecutionBoundaryError]:
     if not isinstance(value, list) or not value:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
@@ -175,6 +208,10 @@ def _related_transaction_refs(
     return Success(tuple(refs))
 
 
+def _canonical_decimal(value: Decimal) -> str:
+    return format(value, "f")
+
+
 def _signed_units(submission: ExecutionSubmission) -> Decimal:
     quantity = submission.authorized_intent.intent.quantity.value
     if submission.authorized_intent.intent.side is OrderSide.BUY:
@@ -182,8 +219,25 @@ def _signed_units(submission: ExecutionSubmission) -> Decimal:
     return -quantity
 
 
-def _canonical_decimal(value: Decimal) -> str:
-    return format(value, "f")
+def _expected_wire_order(
+    *,
+    instrument: str,
+    signed_units: str,
+    order_type: OrderType,
+    limit_price: str | None,
+) -> dict[str, object]:
+    order: dict[str, object] = {
+        "instrument": instrument,
+        "positionFill": "DEFAULT",
+        "type": "MARKET" if order_type is OrderType.MARKET else "LIMIT",
+        "units": signed_units,
+    }
+    if order_type is OrderType.MARKET:
+        order["timeInForce"] = "FOK"
+    else:
+        order["timeInForce"] = "GTC"
+        order["price"] = limit_price
+    return order
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,10 +280,6 @@ class OandaPracticeOrderCreatePlan:
             raise OandaPracticeExecutionCodecValidationError(
                 "execution plan requires ExternalTransportTimeout"
             )
-        if not isinstance(self.body_json, str) or not self.body_json:
-            raise OandaPracticeExecutionCodecValidationError(
-                "execution plan requires deterministic JSON body"
-            )
         if not isinstance(self.instrument, str) or not self.instrument:
             raise OandaPracticeExecutionCodecValidationError(
                 "execution plan requires instrument"
@@ -257,6 +307,24 @@ class OandaPracticeOrderCreatePlan:
                 raise OandaPracticeExecutionCodecValidationError(
                     "limit execution plan price must be positive and finite"
                 )
+        expected_body = {
+            "order": _expected_wire_order(
+                instrument=self.instrument,
+                signed_units=self.signed_units,
+                order_type=self.order_type,
+                limit_price=self.limit_price,
+            )
+        }
+        try:
+            decoded_body: object = json.loads(self.body_json)
+        except (TypeError, json.JSONDecodeError) as error:
+            raise OandaPracticeExecutionCodecValidationError(
+                "execution plan body must be valid deterministic JSON"
+            ) from error
+        if decoded_body != expected_body:
+            raise OandaPracticeExecutionCodecValidationError(
+                "execution plan body must contain only the canonical OANDA order"
+            )
 
     @property
     def account_fingerprint(self) -> str:
@@ -294,7 +362,7 @@ def build_oanda_practice_order_create_plan(
     configuration: OandaPracticeRuntimeConfiguration,
     submission: ExecutionSubmission,
 ) -> Result[OandaPracticeOrderCreatePlan, ExecutionBoundaryError]:
-    """Map one already-authorized canonical submission to secret-free Practice JSON."""
+    """Map an already-authorized canonical submission to secret-free Practice JSON."""
 
     if not isinstance(configuration, OandaPracticeRuntimeConfiguration):
         return Failure(
@@ -321,17 +389,9 @@ def build_oanda_practice_order_create_plan(
                 "execution instrument is not allowlisted by Practice configuration"
             )
         )
-    signed_units = _signed_units(submission)
-    order: dict[str, object] = {
-        "instrument": intent.instrument.value,
-        "positionFill": "DEFAULT",
-        "type": "MARKET" if intent.order_type is OrderType.MARKET else "LIMIT",
-        "units": _canonical_decimal(signed_units),
-    }
+    signed_units = _canonical_decimal(_signed_units(submission))
     limit_price: str | None = None
-    if intent.order_type is OrderType.MARKET:
-        order["timeInForce"] = "FOK"
-    else:
+    if intent.order_type is OrderType.LIMIT:
         if intent.limit_price is None:
             return Failure(
                 OandaPracticeExecutionCodecValidationError(
@@ -339,8 +399,12 @@ def build_oanda_practice_order_create_plan(
                 )
             )
         limit_price = _canonical_decimal(intent.limit_price.value)
-        order["price"] = limit_price
-        order["timeInForce"] = "GTC"
+    order = _expected_wire_order(
+        instrument=intent.instrument.value,
+        signed_units=signed_units,
+        order_type=intent.order_type,
+        limit_price=limit_price,
+    )
     body_json = json.dumps(
         {"order": order},
         sort_keys=True,
@@ -355,7 +419,7 @@ def build_oanda_practice_order_create_plan(
             timeout=configuration.rest_timeout,
             body_json=body_json,
             instrument=intent.instrument.value,
-            signed_units=_canonical_decimal(signed_units),
+            signed_units=signed_units,
             order_type=intent.order_type,
             limit_price=limit_price,
         )
@@ -372,7 +436,7 @@ class OandaPracticeExecutionDisposition(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class OandaPracticeExecutionOutcome:
-    """Sanitized provider lifecycle evidence for one accepted order-create response."""
+    """Sanitized provider lifecycle evidence for one order-create response."""
 
     account: MarketTestAccountIdentity
     provider_execution_ref: str
@@ -396,12 +460,13 @@ class OandaPracticeExecutionOutcome:
             raise OandaPracticeExecutionCodecValidationError(
                 "execution outcome environment must be demo"
             )
-        for value, field_name in (
+        refs_to_validate = (
             (self.provider_execution_ref, "provider_execution_ref"),
             (self.last_transaction_ref, "last_transaction_ref"),
             (self.terminal_transaction_ref, "terminal_transaction_ref"),
-        ):
-            parsed = _numeric_ref(value, field_name=field_name)
+        )
+        for ref_value, field_name in refs_to_validate:
+            parsed = _numeric_ref(ref_value, field_name=field_name)
             if isinstance(parsed, Failure):
                 raise OandaPracticeExecutionCodecValidationError(
                     f"execution outcome {field_name} must be numeric"
@@ -410,10 +475,11 @@ class OandaPracticeExecutionOutcome:
             raise OandaPracticeExecutionCodecValidationError(
                 "execution outcome requires explicit disposition"
             )
-        for timestamp_value, field_name in (
+        timestamps = (
             (self.created_at, "created_at"),
             (self.recorded_at, "recorded_at"),
-        ):
+        )
+        for timestamp_value, field_name in timestamps:
             if not isinstance(timestamp_value, datetime):
                 raise OandaPracticeExecutionCodecValidationError(
                     f"execution outcome {field_name} must be datetime"
@@ -426,12 +492,15 @@ class OandaPracticeExecutionOutcome:
             raise OandaPracticeExecutionCodecValidationError(
                 "execution outcome recorded_at must not predate creation"
             )
-        if not isinstance(self.related_transaction_refs, tuple) or not self.related_transaction_refs:
+        if (
+            not isinstance(self.related_transaction_refs, tuple)
+            or not self.related_transaction_refs
+        ):
             raise OandaPracticeExecutionCodecValidationError(
                 "execution outcome requires related transaction refs"
             )
-        for ref in self.related_transaction_refs:
-            parsed = _numeric_ref(ref, field_name="related transaction ref")
+        for ref_value in self.related_transaction_refs:
+            parsed = _numeric_ref(ref_value, field_name="related transaction ref")
             if isinstance(parsed, Failure):
                 raise OandaPracticeExecutionCodecValidationError(
                     "execution outcome related transaction refs must be numeric"
@@ -490,13 +559,16 @@ def _validate_create_transaction(
     configuration: OandaPracticeRuntimeConfiguration,
     plan: OandaPracticeOrderCreatePlan,
 ) -> Result[tuple[str, datetime], ExecutionBoundaryError]:
-    transaction_ref = _numeric_ref(transaction.get("id"), field_name="orderCreateTransaction.id")
+    transaction_ref = _numeric_ref(
+        transaction.get("id"),
+        field_name="orderCreateTransaction.id",
+    )
     if isinstance(transaction_ref, Failure):
         return transaction_ref
     if transaction.get("accountID") != configuration.account.account_ref:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
-                "OANDA create transaction account must match configured Practice account"
+                "OANDA create transaction account must match Practice configuration"
             )
         )
     if transaction.get("instrument") != plan.instrument:
@@ -505,17 +577,21 @@ def _validate_create_transaction(
                 "OANDA create transaction instrument must match execution plan"
             )
         )
-    units = _decimal_number(transaction.get("units"), field_name="orderCreateTransaction.units")
+    units = _decimal_number(
+        transaction.get("units"),
+        field_name="orderCreateTransaction.units",
+    )
     if isinstance(units, Failure):
         return units
-    expected_units = Decimal(plan.signed_units)
-    if units.value != expected_units:
+    if units.value != Decimal(plan.signed_units):
         return Failure(
             OandaPracticeExecutionCodecValidationError(
                 "OANDA create transaction units must match execution plan"
             )
         )
-    expected_type = "MARKET_ORDER" if plan.order_type is OrderType.MARKET else "LIMIT_ORDER"
+    expected_type = (
+        "MARKET_ORDER" if plan.order_type is OrderType.MARKET else "LIMIT_ORDER"
+    )
     if transaction.get("type") != expected_type:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
@@ -536,7 +612,10 @@ def _validate_create_transaction(
             )
         )
     if plan.order_type is OrderType.LIMIT:
-        price = _decimal_number(transaction.get("price"), field_name="orderCreateTransaction.price")
+        price = _decimal_number(
+            transaction.get("price"),
+            field_name="orderCreateTransaction.price",
+        )
         if isinstance(price, Failure):
             return price
         if plan.limit_price is None or price.value != Decimal(plan.limit_price):
@@ -545,10 +624,46 @@ def _validate_create_transaction(
                     "OANDA create transaction price must match limit plan"
                 )
             )
-    created_at = _aware_timestamp(transaction.get("time"), field_name="orderCreateTransaction.time")
+    created_at = _aware_timestamp(
+        transaction.get("time"),
+        field_name="orderCreateTransaction.time",
+    )
     if isinstance(created_at, Failure):
         return created_at
     return Success((transaction_ref.value, created_at.value))
+
+
+def _validate_terminal_identity(
+    transaction: dict[str, object],
+    *,
+    configuration: OandaPracticeRuntimeConfiguration,
+    provider_execution_ref: str,
+) -> Result[tuple[str, datetime], ExecutionBoundaryError]:
+    transaction_ref = _numeric_ref(
+        transaction.get("id"),
+        field_name="terminal transaction id",
+    )
+    if isinstance(transaction_ref, Failure):
+        return transaction_ref
+    if transaction.get("accountID") != configuration.account.account_ref:
+        return Failure(
+            OandaPracticeExecutionCodecValidationError(
+                "OANDA terminal transaction account must match Practice configuration"
+            )
+        )
+    if transaction.get("orderID") != provider_execution_ref:
+        return Failure(
+            OandaPracticeExecutionCodecValidationError(
+                "OANDA terminal transaction orderID must match created execution"
+            )
+        )
+    timestamp = _aware_timestamp(
+        transaction.get("time"),
+        field_name="terminal transaction time",
+    )
+    if isinstance(timestamp, Failure):
+        return timestamp
+    return Success((transaction_ref.value, timestamp.value))
 
 
 def decode_oanda_practice_order_create_response(
@@ -557,12 +672,12 @@ def decode_oanda_practice_order_create_response(
     plan: OandaPracticeOrderCreatePlan,
     response: ExternalTransportResponse,
 ) -> Result[OandaPracticeExecutionOutcome, ExecutionBoundaryError]:
-    """Decode one deterministic OANDA order-create response without performing IO."""
+    """Decode one OANDA order-create response without performing provider IO."""
 
     if not isinstance(configuration, OandaPracticeRuntimeConfiguration):
         return Failure(
             OandaPracticeExecutionCodecValidationError(
-                "execution response decoding requires OandaPracticeRuntimeConfiguration"
+                "execution response decoding requires Practice configuration"
             )
         )
     if not isinstance(submission, ExecutionSubmission):
@@ -577,10 +692,13 @@ def decode_oanda_practice_order_create_response(
                 "execution response decoding requires OandaPracticeOrderCreatePlan"
             )
         )
-    if plan.account != configuration.account:
+    expected_plan = build_oanda_practice_order_create_plan(configuration, submission)
+    if isinstance(expected_plan, Failure):
+        return expected_plan
+    if expected_plan.value != plan:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
-                "execution response plan account must match configuration"
+                "execution response plan must match the canonical submission exactly"
             )
         )
     if not isinstance(response, ExternalTransportResponse):
@@ -599,22 +717,18 @@ def decode_oanda_practice_order_create_response(
     if isinstance(root_result, Failure):
         return root_result
     root = root_result.value
-    related_result = _related_transaction_refs(root.get("relatedTransactionIDs"))
+    related_result = _related_refs(root.get("relatedTransactionIDs"))
     if isinstance(related_result, Failure):
         return related_result
-    related = related_result.value
-    last_result = _numeric_ref(root.get("lastTransactionID"), field_name="lastTransactionID")
+    last_result = _numeric_ref(
+        root.get("lastTransactionID"),
+        field_name="lastTransactionID",
+    )
     if isinstance(last_result, Failure):
         return last_result
-    create_result = _transaction_object(root, "orderCreateTransaction")
+    create_result = _required_object(root, "orderCreateTransaction")
     if isinstance(create_result, Failure):
         return create_result
-    if create_result.value is None:
-        return Failure(
-            OandaPracticeExecutionCodecValidationError(
-                "OANDA accepted order response requires orderCreateTransaction"
-            )
-        )
     validated_create = _validate_create_transaction(
         create_result.value,
         configuration=configuration,
@@ -623,87 +737,81 @@ def decode_oanda_practice_order_create_response(
     if isinstance(validated_create, Failure):
         return validated_create
     provider_ref, created_at = validated_create.value
-    if provider_ref not in related:
+    related_refs = related_result.value
+    if provider_ref not in related_refs:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
                 "OANDA create transaction must be listed in related transactions"
             )
         )
-    fill_result = _transaction_object(root, "orderFillTransaction")
+    fill_result = _optional_object(root, "orderFillTransaction")
     if isinstance(fill_result, Failure):
         return fill_result
-    cancel_result = _transaction_object(root, "orderCancelTransaction")
+    cancel_result = _optional_object(root, "orderCancelTransaction")
     if isinstance(cancel_result, Failure):
         return cancel_result
-    if fill_result.value is not None and cancel_result.value is not None:
+    fill = fill_result.value
+    cancel = cancel_result.value
+    if fill is not None and cancel is not None:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
-                "OANDA order response cannot be both filled and immediately cancelled"
+                "OANDA order response cannot be both filled and cancelled"
             )
         )
 
     disposition = OandaPracticeExecutionDisposition.PENDING
     terminal_ref = provider_ref
     recorded_at = created_at
-    terminal = fill_result.value or cancel_result.value
+    terminal = fill if fill is not None else cancel
     if terminal is not None:
-        terminal_ref_result = _numeric_ref(terminal.get("id"), field_name="terminal transaction id")
-        if isinstance(terminal_ref_result, Failure):
-            return terminal_ref_result
-        if terminal.get("accountID") != configuration.account.account_ref:
-            return Failure(
-                OandaPracticeExecutionCodecValidationError(
-                    "OANDA terminal transaction account must match configuration"
-                )
-            )
-        if terminal.get("orderID") != provider_ref:
-            return Failure(
-                OandaPracticeExecutionCodecValidationError(
-                    "OANDA terminal transaction orderID must match created execution"
-                )
-            )
-        terminal_time = _aware_timestamp(terminal.get("time"), field_name="terminal transaction time")
-        if isinstance(terminal_time, Failure):
-            return terminal_time
-        if terminal_time.value < created_at:
+        terminal_identity = _validate_terminal_identity(
+            terminal,
+            configuration=configuration,
+            provider_execution_ref=provider_ref,
+        )
+        if isinstance(terminal_identity, Failure):
+            return terminal_identity
+        terminal_ref, recorded_at = terminal_identity.value
+        if recorded_at < created_at:
             return Failure(
                 OandaPracticeExecutionCodecValidationError(
                     "OANDA terminal transaction must not predate order creation"
                 )
             )
-        terminal_ref = terminal_ref_result.value
-        recorded_at = terminal_time.value
-        if terminal_ref not in related:
+        if terminal_ref not in related_refs:
             return Failure(
                 OandaPracticeExecutionCodecValidationError(
                     "OANDA terminal transaction must be listed in related transactions"
                 )
             )
-        if fill_result.value is not None:
-            if terminal.get("type") != "ORDER_FILL":
+        if fill is not None:
+            if fill.get("type") != "ORDER_FILL":
                 return Failure(
                     OandaPracticeExecutionCodecValidationError(
                         "OANDA fill transaction type must be ORDER_FILL"
                     )
                 )
-            if terminal.get("instrument") != plan.instrument:
+            if fill.get("instrument") != plan.instrument:
                 return Failure(
                     OandaPracticeExecutionCodecValidationError(
-                        "OANDA fill transaction instrument must match execution plan"
+                        "OANDA fill instrument must match execution plan"
                     )
                 )
-            fill_units = _decimal_number(terminal.get("units"), field_name="orderFillTransaction.units")
+            fill_units = _decimal_number(
+                fill.get("units"),
+                field_name="orderFillTransaction.units",
+            )
             if isinstance(fill_units, Failure):
                 return fill_units
             if fill_units.value != Decimal(plan.signed_units):
                 return Failure(
                     OandaPracticeExecutionCodecValidationError(
-                        "OANDA fill transaction units must match execution plan"
+                        "OANDA fill units must match execution plan"
                     )
                 )
             disposition = OandaPracticeExecutionDisposition.FILLED
         else:
-            if terminal.get("type") != "ORDER_CANCEL":
+            if cancel is None or cancel.get("type") != "ORDER_CANCEL":
                 return Failure(
                     OandaPracticeExecutionCodecValidationError(
                         "OANDA cancel transaction type must be ORDER_CANCEL"
@@ -730,7 +838,7 @@ def decode_oanda_practice_order_create_response(
             disposition=disposition,
             created_at=created_at,
             recorded_at=recorded_at,
-            related_transaction_refs=related,
+            related_transaction_refs=related_refs,
             last_transaction_ref=last_result.value,
             terminal_transaction_ref=terminal_ref,
         )
@@ -742,7 +850,7 @@ def decode_oanda_practice_order_create_response(
 def build_oanda_practice_submit_gateway_receipt(
     outcome: OandaPracticeExecutionOutcome,
 ) -> Result[TestExecutionGatewayReceipt, ExecutionBoundaryError]:
-    """Project a provider outcome into the existing submit acknowledgement boundary."""
+    """Project provider lifecycle evidence into the canonical submit acknowledgement."""
 
     if not isinstance(outcome, OandaPracticeExecutionOutcome):
         return Failure(
@@ -753,7 +861,7 @@ def build_oanda_practice_submit_gateway_receipt(
     if outcome.disposition is OandaPracticeExecutionDisposition.CANCELLED:
         return Failure(
             OandaPracticeExecutionNotAcceptedError(
-                "OANDA order was immediately cancelled and is not an accepted execution"
+                "OANDA order was immediately cancelled and is not accepted"
             )
         )
     try:
@@ -773,7 +881,7 @@ def decode_oanda_practice_order_cancel_response(
     provider_execution_ref: str,
     response: ExternalTransportResponse,
 ) -> Result[TestExecutionGatewayReceipt, ExecutionBoundaryError]:
-    """Decode one explicit provider cancellation response without performing IO."""
+    """Decode one explicit OANDA cancellation response without provider IO."""
 
     if not isinstance(configuration, OandaPracticeRuntimeConfiguration):
         return Failure(
@@ -803,35 +911,35 @@ def decode_oanda_practice_order_cancel_response(
     if isinstance(root_result, Failure):
         return root_result
     root = root_result.value
-    related_result = _related_transaction_refs(root.get("relatedTransactionIDs"))
+    related_result = _related_refs(root.get("relatedTransactionIDs"))
     if isinstance(related_result, Failure):
         return related_result
-    last_result = _numeric_ref(root.get("lastTransactionID"), field_name="lastTransactionID")
+    last_result = _numeric_ref(
+        root.get("lastTransactionID"),
+        field_name="lastTransactionID",
+    )
     if isinstance(last_result, Failure):
         return last_result
-    transaction_result = _transaction_object(root, "orderCancelTransaction")
+    transaction_result = _required_object(root, "orderCancelTransaction")
     if isinstance(transaction_result, Failure):
         return transaction_result
     transaction = transaction_result.value
-    if transaction is None:
-        return Failure(
-            OandaPracticeExecutionCodecValidationError(
-                "OANDA cancel response requires orderCancelTransaction"
-            )
-        )
-    cancel_ref_result = _numeric_ref(transaction.get("id"), field_name="orderCancelTransaction.id")
+    cancel_ref_result = _numeric_ref(
+        transaction.get("id"),
+        field_name="orderCancelTransaction.id",
+    )
     if isinstance(cancel_ref_result, Failure):
         return cancel_ref_result
     if transaction.get("accountID") != configuration.account.account_ref:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
-                "OANDA cancel transaction account must match configuration"
+                "OANDA cancel transaction account must match Practice configuration"
             )
         )
     if transaction.get("orderID") != provider_execution_ref:
         return Failure(
             OandaPracticeExecutionCodecValidationError(
-                "OANDA cancel transaction orderID must match provider execution ref"
+                "OANDA cancel orderID must match provider execution ref"
             )
         )
     if transaction.get("type") != "ORDER_CANCEL":
@@ -846,7 +954,10 @@ def decode_oanda_practice_order_cancel_response(
                 "OANDA cancel transaction reason must be CLIENT_REQUEST"
             )
         )
-    cancel_time = _aware_timestamp(transaction.get("time"), field_name="orderCancelTransaction.time")
+    cancel_time = _aware_timestamp(
+        transaction.get("time"),
+        field_name="orderCancelTransaction.time",
+    )
     if isinstance(cancel_time, Failure):
         return cancel_time
     if cancel_ref_result.value not in related_result.value:
