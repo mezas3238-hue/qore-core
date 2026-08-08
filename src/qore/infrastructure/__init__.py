@@ -92,6 +92,19 @@ from qore.infrastructure.reference_adapters import (
 from qore.infrastructure.reference_payload_adapters import (
     ReferenceExternalMarketDataPayloadAdapter,
 )
+from qore.infrastructure.secrets import (
+    SecretAccessDeniedError,
+    SecretBoundaryError,
+    SecretBoundaryValidationError,
+    SecretExternalReference,
+    SecretInvalidError,
+    SecretNotFoundError,
+    SecretRef,
+    SecretRefId,
+    SecretResolutionReceipt,
+    SecretResolutionRequest,
+    SecretResolverBoundary,
+)
 
 __all__ = [
     "AdapterConfigurationError",
@@ -162,6 +175,17 @@ __all__ = [
     "ReferencePersistenceAdapter",
     "ReferenceQuoteIngestionRequest",
     "SavePersistenceRequest",
+    "SecretAccessDeniedError",
+    "SecretBoundaryError",
+    "SecretBoundaryValidationError",
+    "SecretExternalReference",
+    "SecretInvalidError",
+    "SecretNotFoundError",
+    "SecretRef",
+    "SecretRefId",
+    "SecretResolutionReceipt",
+    "SecretResolutionRequest",
+    "SecretResolverBoundary",
     "SourceId",
     "StoredRecord",
     "Timeframe",
