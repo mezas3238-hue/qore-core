@@ -222,6 +222,14 @@ from qore.infrastructure.supervised_provider_harness import (
     SupervisedProviderSecretReferences,
     compose_supervised_provider_harness,
 )
+from qore.infrastructure.supervised_runtime import (
+    SupervisedRuntimeEndToEndBoundary,
+    SupervisedRuntimeEndToEndComposition,
+    SupervisedRuntimeEndToEndConfiguration,
+    SupervisedRuntimeEndToEndError,
+    SupervisedRuntimeEndToEndValidationError,
+    compose_supervised_runtime_end_to_end,
+)
 
 __all__ = [
     "AdapterCircuitBreakerSnapshot",
@@ -393,6 +401,11 @@ __all__ = [
     "SupervisedProviderHarnessPorts",
     "SupervisedProviderHarnessValidationError",
     "SupervisedProviderSecretReferences",
+    "SupervisedRuntimeEndToEndBoundary",
+    "SupervisedRuntimeEndToEndComposition",
+    "SupervisedRuntimeEndToEndConfiguration",
+    "SupervisedRuntimeEndToEndError",
+    "SupervisedRuntimeEndToEndValidationError",
     "Timeframe",
     "WriteExternalPort",
     "aggregate_external_provider_health",
@@ -404,6 +417,7 @@ __all__ = [
     "compose_reference_infrastructure",
     "compose_reference_infrastructure_end_to_end",
     "compose_supervised_provider_harness",
+    "compose_supervised_runtime_end_to_end",
     "declare_adapter_lifecycle",
     "evaluate_provider_activation_policy",
 ]
