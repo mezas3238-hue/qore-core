@@ -212,6 +212,16 @@ from qore.infrastructure.secrets import (
     SecretResolutionRequest,
     SecretResolverBoundary,
 )
+from qore.infrastructure.supervised_provider_harness import (
+    SupervisedProviderHarness,
+    SupervisedProviderHarnessBoundary,
+    SupervisedProviderHarnessConfiguration,
+    SupervisedProviderHarnessError,
+    SupervisedProviderHarnessPorts,
+    SupervisedProviderHarnessValidationError,
+    SupervisedProviderSecretReferences,
+    compose_supervised_provider_harness,
+)
 
 __all__ = [
     "AdapterCircuitBreakerSnapshot",
@@ -376,6 +386,13 @@ __all__ = [
     "SecretResolverBoundary",
     "SourceId",
     "StoredRecord",
+    "SupervisedProviderHarness",
+    "SupervisedProviderHarnessBoundary",
+    "SupervisedProviderHarnessConfiguration",
+    "SupervisedProviderHarnessError",
+    "SupervisedProviderHarnessPorts",
+    "SupervisedProviderHarnessValidationError",
+    "SupervisedProviderSecretReferences",
     "Timeframe",
     "WriteExternalPort",
     "aggregate_external_provider_health",
@@ -386,6 +403,7 @@ __all__ = [
     "compose_read_only_market_data_provider_harness",
     "compose_reference_infrastructure",
     "compose_reference_infrastructure_end_to_end",
+    "compose_supervised_provider_harness",
     "declare_adapter_lifecycle",
     "evaluate_provider_activation_policy",
 ]
