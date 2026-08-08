@@ -462,7 +462,7 @@ def test_supervised_provider_harness_starts_and_exposes_allowed_ports() -> None:
 
     quote = harness.ports.market_data.read_quote(_quote_request(), metadata=_metadata())
     missing = harness.ports.persistence.load(
-        LoadPersistenceRequest(PersistenceKey("supervised.missing")),
+        LoadPersistenceRequest(PersistenceKey("supervised", "missing")),
         metadata=_metadata(),
     )
     health = harness.external_health_snapshot(observed_at=_NOW, metadata=_metadata())
