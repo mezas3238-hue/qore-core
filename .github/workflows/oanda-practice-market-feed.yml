@@ -57,7 +57,21 @@ jobs:
           python -m qore.infrastructure.oanda_practice_operational_probe \
             --evidence-file artifacts/oanda-practice-market-feed-evidence.json
 
-      - name: Upload sanitized operational evidence
+      - name: Record explicit evidence audit time
+        shell: bash
+        run: |
+          printf 'QORE_EVIDENCE_AUDITED_AT=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')" >> "$GITHUB_ENV"
+
+      - name: Audit sanitized operational evidence
+        run: |
+          python -m qore.infrastructure.oanda_practice_evidence_audit_cli \
+            --evidence-file artifacts/oanda-practice-market-feed-evidence.json \
+            --expected-run-key "$QORE_PROBE_RUN_KEY" \
+            --expected-instrument "$QORE_OANDA_PRACTICE_INSTRUMENT" \
+            --audited-at "$QORE_EVIDENCE_AUDITED_AT" \
+            --maximum-observation-age-seconds 300
+
+      - name: Upload audited sanitized operational evidence
         uses: actions/upload-artifact@v4
         with:
           name: qore-oanda-practice-market-feed-evidence-${{ github.run_id }}
