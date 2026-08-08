@@ -33,7 +33,9 @@ from qore.governance.executive_read_models import (
 _NOW = datetime(2026, 8, 8, 23, 15, tzinfo=UTC)
 
 
-def _metadata(scope: ExecutiveReadScope = ExecutiveReadScope.GOVERNANCE) -> ExecutiveProjectionMetadata:
+def _metadata(
+    scope: ExecutiveReadScope = ExecutiveReadScope.GOVERNANCE,
+) -> ExecutiveProjectionMetadata:
     return ExecutiveProjectionMetadata(
         projection_id=ExecutiveProjectionId(
             UUID("31000000-0000-0000-0000-000000000001")
