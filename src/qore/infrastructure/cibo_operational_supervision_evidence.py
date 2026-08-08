@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from re import fullmatch
-from typing import cast
 
 from qore.infrastructure.cibo_supervised_runtime import (
     CiboSupervisionAuthorization,
@@ -373,7 +372,7 @@ class ObservedSupervisedCiboDecisionBoundary:
                 metadata=metadata,
                 outcome=outcome,
                 reason=reason,
-                intent=cast(OrderIntent | None, intent),
+                intent=intent,
             )
         except CiboOperationalSupervisionEvidenceError as error:
             return Failure(error)
