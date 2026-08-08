@@ -9,7 +9,10 @@ from decimal import Decimal, InvalidOperation
 from re import fullmatch
 from typing import cast
 
-from qore.infrastructure.market_test_environment import MarketTestAccountIdentity
+from qore.infrastructure.market_test_environment import (
+    MarketRuntimeEnvironment,
+    MarketTestAccountIdentity,
+)
 from qore.infrastructure.oanda_practice_configuration import (
     OandaPracticeCapability,
     OandaPracticeRuntimeConfiguration,
@@ -90,7 +93,7 @@ def _transaction_ref(value: object, *, field_name: str) -> Result[str, ExternalP
 
 
 def _nonnegative_count(value: object, *, field_name: str) -> Result[int, ExternalPortError]:
-    if type(value) is not int or value < 0:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
         return Failure(
             OandaPracticeAccountActivationValidationError(
                 f"OANDA {field_name} must be a non-negative int"
@@ -130,7 +133,7 @@ def _account_fingerprint(account_ref: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class OandaPracticeAccountSummaryRequestFactory:
-    """Build the exact read-only account-summary request for the configured Practice account."""
+    """Build the exact read-only account-summary request for one Practice account."""
 
     configuration: OandaPracticeRuntimeConfiguration
 
@@ -160,7 +163,7 @@ class OandaPracticeAccountSummaryRequestFactory:
 
 @dataclass(frozen=True, slots=True)
 class OandaPracticeAccountSummarySnapshot:
-    """Sanitized account identity/state decoded from one OANDA Practice summary response."""
+    """Sanitized account identity/state decoded from one Practice summary response."""
 
     account: MarketTestAccountIdentity
     currency: str
@@ -182,7 +185,7 @@ class OandaPracticeAccountSummarySnapshot:
             raise OandaPracticeAccountActivationValidationError(
                 "account summary provider must be oanda-v20"
             )
-        if self.account.environment.value != "demo":
+        if self.account.environment is not MarketRuntimeEnvironment.DEMO:
             raise OandaPracticeAccountActivationValidationError(
                 "account summary environment must be demo"
             )
@@ -328,7 +331,7 @@ class OandaPracticeAccountSummaryDecoder:
         if isinstance(created_at, Failure):
             return created_at
         hedging_enabled = account.get("hedgingEnabled")
-        if type(hedging_enabled) is not bool:
+        if not isinstance(hedging_enabled, bool):
             return Failure(
                 OandaPracticeAccountActivationValidationError(
                     "OANDA hedgingEnabled must be bool"
@@ -338,17 +341,20 @@ class OandaPracticeAccountSummaryDecoder:
             account.get("pendingOrderCount"),
             field_name="pendingOrderCount",
         )
+        if isinstance(pending_order_count, Failure):
+            return pending_order_count
         open_trade_count = _nonnegative_count(
             account.get("openTradeCount"),
             field_name="openTradeCount",
         )
+        if isinstance(open_trade_count, Failure):
+            return open_trade_count
         open_position_count = _nonnegative_count(
             account.get("openPositionCount"),
             field_name="openPositionCount",
         )
-        for result in (pending_order_count, open_trade_count, open_position_count):
-            if isinstance(result, Failure):
-                return result
+        if isinstance(open_position_count, Failure):
+            return open_position_count
         margin_rate = _positive_decimal(account.get("marginRate"), field_name="marginRate")
         if isinstance(margin_rate, Failure):
             return margin_rate
