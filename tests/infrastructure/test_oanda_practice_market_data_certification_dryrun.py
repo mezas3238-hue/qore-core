@@ -322,7 +322,7 @@ def _quote_payload(symbol: str, observed_at: datetime, bid: str, ask: str) -> by
         "}],"
         f'time":"{timestamp}"'
         "}"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _ohlc_payload(
@@ -349,7 +349,7 @@ def _ohlc_payload(
         f'"l":"{low}",'
         f'"c":"{close}"'
         "}}]}"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _build_flow(
