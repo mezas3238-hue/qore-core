@@ -72,8 +72,8 @@ class MarketTestEnvironmentPolicy:
 
     policy_id: str
     allowed_environments: tuple[MarketRuntimeEnvironment, ...] = (
-        MarketRuntimeEnvironment.TEST,
         MarketRuntimeEnvironment.DEMO,
+        MarketRuntimeEnvironment.TEST,
     )
 
     def __post_init__(self) -> None:
