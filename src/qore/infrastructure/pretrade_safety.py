@@ -187,6 +187,34 @@ class AuthorizedOrderIntent:
                 "authorized order intent requires ExecutionSafetySwitchSnapshot"
             )
         _validate_datetime(self.authorized_at, field_name="authorized_at")
+        if self.authorization.intent_id != self.intent.intent_id:
+            raise PreTradeSafetyValidationError(
+                "authorized order intent identity must match authorization"
+            )
+        if self.authorization.evaluated_at < self.intent.created_at:
+            raise PreTradeSafetyValidationError(
+                "authorized order authorization must not predate the intent"
+            )
+        if self.authorization.decision is not PreTradeDecision.APPROVED:
+            raise PreTradeSafetyValidationError(
+                "authorized order requires an approved pre-trade decision"
+            )
+        if self.authorized_at < self.authorization.evaluated_at:
+            raise PreTradeSafetyValidationError(
+                "authorized_at must not predate authorization evaluation"
+            )
+        if self.authorized_at > self.authorization.expires_at:
+            raise PreTradeSafetyValidationError(
+                "authorized order authorization must not be expired"
+            )
+        if self.switch.observed_at > self.authorized_at:
+            raise PreTradeSafetyValidationError(
+                "execution switch snapshot must not postdate authorized_at"
+            )
+        if not self.switch.allows_execution:
+            raise PreTradeSafetyValidationError(
+                "authorized order requires enabled execution switch"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -238,6 +266,12 @@ def authorize_order_intent(
     if authorization.decision is not PreTradeDecision.APPROVED:
         return Failure(
             PreTradeSafetyBlockedError("pre-trade authorization is blocked")
+        )
+    if authorized_at < authorization.evaluated_at:
+        return Failure(
+            PreTradeSafetyBlockedError(
+                "authorization instant predates pre-trade evaluation"
+            )
         )
     if authorized_at > authorization.expires_at:
         return Failure(
