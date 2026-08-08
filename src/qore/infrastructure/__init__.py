@@ -73,6 +73,17 @@ from qore.infrastructure.market_data import (
     QuoteSnapshot,
     Timeframe,
 )
+from qore.infrastructure.market_data_provider_harness import (
+    MarketDataProviderHarnessError,
+    MarketDataProviderHarnessState,
+    MarketDataProviderHarnessValidationError,
+    MarketDataProviderOhlcIngestion,
+    MarketDataProviderQuoteIngestion,
+    ReadOnlyMarketDataProviderHarness,
+    ReadOnlyMarketDataProviderHarnessConfiguration,
+    ReadOnlyMarketDataProviderPayloadHarness,
+    compose_read_only_market_data_provider_harness,
+)
 from qore.infrastructure.persistence import (
     LoadPersistenceRequest,
     PersistenceConflictError,
@@ -188,6 +199,11 @@ __all__ = [
     "MarketDataError",
     "MarketDataIngestionFlow",
     "MarketDataPort",
+    "MarketDataProviderHarnessError",
+    "MarketDataProviderHarnessState",
+    "MarketDataProviderHarnessValidationError",
+    "MarketDataProviderOhlcIngestion",
+    "MarketDataProviderQuoteIngestion",
     "MarketDataSnapshotId",
     "MarketDataValidationError",
     "OhlcRequest",
@@ -214,6 +230,9 @@ __all__ = [
     "QuoteRequest",
     "QuoteSnapshot",
     "ReadExternalPort",
+    "ReadOnlyMarketDataProviderHarness",
+    "ReadOnlyMarketDataProviderHarnessConfiguration",
+    "ReadOnlyMarketDataProviderPayloadHarness",
     "ReferenceAdapterCopyError",
     "ReferenceAdapterError",
     "ReferenceAdapterValidationError",
@@ -244,6 +263,7 @@ __all__ = [
     "StoredRecord",
     "Timeframe",
     "WriteExternalPort",
+    "compose_read_only_market_data_provider_harness",
     "compose_reference_infrastructure",
     "compose_reference_infrastructure_end_to_end",
 ]
