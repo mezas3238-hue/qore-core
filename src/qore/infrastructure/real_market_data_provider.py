@@ -4,6 +4,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import cast
 
 from qore.infrastructure.connectivity import ProviderEndpoint
 from qore.infrastructure.ingestion import ExternalOhlcPayload, ExternalQuotePayload
@@ -56,7 +57,7 @@ def _json_object(payload: bytes) -> Result[Mapping[str, object], ExternalPortErr
                 "market-data response keys must be strings"
             )
         )
-    return Success(decoded)
+    return Success(cast(dict[str, object], decoded))
 
 
 def _string_field(data: Mapping[str, object], field_name: str) -> Result[str, ExternalPortError]:
@@ -234,16 +235,17 @@ class ConcreteJsonMarketDataDecoder:
             return data_result
         data = data_result.value
         instrument = _string_field(data, "instrument")
+        if isinstance(instrument, Failure):
+            return instrument
         observed_at = _timestamp_field(data, "observed_at")
+        if isinstance(observed_at, Failure):
+            return observed_at
         bid = _decimal_field(data, "bid")
+        if isinstance(bid, Failure):
+            return bid
         ask = _decimal_field(data, "ask")
-        for result in (instrument, observed_at, bid, ask):
-            if isinstance(result, Failure):
-                return Failure(result.error)
-        assert isinstance(instrument, Success)
-        assert isinstance(observed_at, Success)
-        assert isinstance(bid, Success)
-        assert isinstance(ask, Success)
+        if isinstance(ask, Failure):
+            return ask
         return Success(
             ExternalQuotePayload(
                 source=source,
@@ -284,33 +286,29 @@ class ConcreteJsonMarketDataDecoder:
             return data_result
         data = data_result.value
         instrument = _string_field(data, "instrument")
+        if isinstance(instrument, Failure):
+            return instrument
         timeframe = _whole_number_field(data, "timeframe_seconds")
+        if isinstance(timeframe, Failure):
+            return timeframe
         opened_at = _timestamp_field(data, "opened_at")
+        if isinstance(opened_at, Failure):
+            return opened_at
         closed_at = _timestamp_field(data, "closed_at")
+        if isinstance(closed_at, Failure):
+            return closed_at
         open_value = _decimal_field(data, "open")
+        if isinstance(open_value, Failure):
+            return open_value
         high = _decimal_field(data, "high")
+        if isinstance(high, Failure):
+            return high
         low = _decimal_field(data, "low")
+        if isinstance(low, Failure):
+            return low
         close = _decimal_field(data, "close")
-        for result in (
-            instrument,
-            timeframe,
-            opened_at,
-            closed_at,
-            open_value,
-            high,
-            low,
-            close,
-        ):
-            if isinstance(result, Failure):
-                return Failure(result.error)
-        assert isinstance(instrument, Success)
-        assert isinstance(timeframe, Success)
-        assert isinstance(opened_at, Success)
-        assert isinstance(closed_at, Success)
-        assert isinstance(open_value, Success)
-        assert isinstance(high, Success)
-        assert isinstance(low, Success)
-        assert isinstance(close, Success)
+        if isinstance(close, Failure):
+            return close
         return Success(
             ExternalOhlcPayload(
                 source=source,
