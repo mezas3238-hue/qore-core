@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 from uuid import UUID
+
+import pytest
 
 from qore.infrastructure.oanda_practice_evidence_audit_cli import (
     audit_oanda_practice_evidence_file,
@@ -91,7 +94,7 @@ def test_file_audit_rejects_missing_file_and_invalid_age_type(tmp_path: Path) ->
         expected_run_key=_RUN_KEY,
         expected_instrument=_INSTRUMENT,
         audited_at=_AUDITED_AT,
-        maximum_observation_age_seconds=True,
+        maximum_observation_age_seconds=cast(int, True),
     )
     non_positive = audit_oanda_practice_evidence_file(
         tmp_path / "missing.json",
@@ -111,7 +114,7 @@ def test_file_audit_rejects_missing_file_and_invalid_age_type(tmp_path: Path) ->
 
 def test_cli_accepts_artifact_and_prints_only_sanitized_summary(
     tmp_path: Path,
-    capsys: object,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     path = _write(tmp_path / "evidence.json")
 
@@ -131,7 +134,7 @@ def test_cli_accepts_artifact_and_prints_only_sanitized_summary(
     )
 
     assert exit_code == 0
-    captured = capsys.readouterr()  # type: ignore[attr-defined]
+    captured = capsys.readouterr()
     assert "evidence audit accepted" in captured.out
     assert _RUN_KEY in captured.out
     assert _INSTRUMENT in captured.out
@@ -139,7 +142,10 @@ def test_cli_accepts_artifact_and_prints_only_sanitized_summary(
     assert "authorization" not in captured.out
 
 
-def test_cli_fails_closed_for_naive_audit_time(tmp_path: Path, capsys: object) -> None:
+def test_cli_fails_closed_for_naive_audit_time(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     path = _write(tmp_path / "evidence.json")
 
     exit_code = main(
@@ -158,5 +164,5 @@ def test_cli_fails_closed_for_naive_audit_time(tmp_path: Path, capsys: object) -
     )
 
     assert exit_code == 1
-    captured = capsys.readouterr()  # type: ignore[attr-defined]
+    captured = capsys.readouterr()
     assert "timezone-aware" in captured.out
