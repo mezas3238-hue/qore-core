@@ -11,15 +11,15 @@ from qore.governance.executive_operational_read_models import (
     ExecutiveMarketAuthorizationState,
     ExecutiveMarketAvailability,
     ExecutiveMarketInstrument,
-    ExecutiveMarketSummary,
     ExecutiveMarketsReadModel,
+    ExecutiveMarketSummary,
     ExecutiveStrategyVersionRef,
     ExecutiveTraderAuthorizationState,
     ExecutiveTraderConfidence,
     ExecutiveTraderId,
+    ExecutiveTradersReadModel,
     ExecutiveTraderState,
     ExecutiveTraderSummary,
-    ExecutiveTradersReadModel,
 )
 from qore.governance.executive_ports import ExecutiveEvidenceRef
 from qore.governance.executive_read_models import (
