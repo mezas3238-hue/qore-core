@@ -9,8 +9,6 @@ from uuid import UUID
 from qore.governance.executive_governance_state import (
     ExecutiveActiveRestriction,
     ExecutiveGovernanceStateSnapshot,
-    ExecutiveNewTradingState,
-    ExecutiveSystemRunState,
 )
 from qore.governance.executive_ports import ExecutiveEvidenceRef
 from qore.governance.executive_read_models import ExecutiveReadModelValidationError
