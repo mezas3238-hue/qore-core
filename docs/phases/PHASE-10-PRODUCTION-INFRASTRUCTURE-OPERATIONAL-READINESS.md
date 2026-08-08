@@ -2,9 +2,9 @@
 
 ## Estado
 
-**ACTIVE**
+**COMPLETED**
 
-PHASE-10 comienza después del cierre formal de PHASE-09 — Controlled External Provider Connectivity.
+PHASE-10 comenzó después del cierre formal de PHASE-09 — Controlled External Provider Connectivity y queda formalmente cerrada únicamente cuando este documento de cierre pase CI y sea integrado mediante merge protegido.
 
 Base inicial verificada:
 
@@ -12,9 +12,15 @@ Base inicial verificada:
 main @ 6b7e3c73aac964358e4dfbacaa505481c706c673
 ```
 
-## Objetivo
+Base pre-cierre verificada:
 
-Preparar la infraestructura de QORE para operación productiva controlada mediante configuración explícita, persistencia operativa idempotente, lifecycle operativo, auditabilidad sanitizada y una composición end-to-end verificable por encima del Core, sin habilitar todavía ejecución de trading.
+```text
+main @ b0269af59847e739a9443a9bccffcf83c545f658
+```
+
+## Objetivo alcanzado
+
+PHASE-10 preparó la infraestructura de QORE para operación productiva controlada mediante configuración explícita, persistencia operativa idempotente, lifecycle operativo, auditabilidad sanitizada y una composición end-to-end verificable por encima del Core, sin habilitar ejecución de trading.
 
 ```text
 CoreApplication
@@ -27,125 +33,148 @@ Production Operational Runtime
         ├── operational persistence
         ├── startup/readiness/shutdown policy
         ├── sanitized audit records
-        ├── supervised read-only provider runtime
+        ├── optional supervised read-only live runtime
         │
         ▼
 operationally ready infrastructure
 ```
 
-## Cambio deliberado de frontera respecto de PHASE-09
+## Cambio de frontera confirmado
 
-PHASE-10 permite modelar **operational writes** estrictamente para persistencia de estado/auditoría de infraestructura. Esta autorización no incluye órdenes, posiciones, balances, fondos ni instrucciones de trading.
+PHASE-10 permite **operational writes** únicamente para persistencia de estado/auditoría de infraestructura. Esta autorización no incluye órdenes, posiciones, balances, fondos ni instrucciones de trading.
 
-Condiciones:
-
-- todo IO productivo queda detrás de boundaries inyectables;
-- las pruebas siguen sin depender de servicios externos;
+- todo backend productivo continúa detrás de boundaries inyectables;
+- las pruebas no dependen de servicios externos;
 - configuración productiva no contiene material secreto;
-- secret material continúa bajo las boundaries de PHASE-09;
-- los writes operativos requieren idempotency identity explícita;
-- startup/shutdown/recovery son state transitions declarativas y no crean threads, loops o sleeps implícitos;
+- secret material continúa gobernado por PHASE-09;
+- writes operativos requieren idempotency identity explícita;
+- lifecycle es declarativo y no crea threads, loops o sleeps;
 - audit records son sanitizados e inmutables;
-- ninguna composición muta automáticamente el `RuntimePlan` del Core;
+- ninguna composición muta el `RuntimePlan` del Core;
 - ningún contrato de PHASE-10 permite order execution.
 
-## Principios preservados
+## Entregables y evidencia
 
-- `dataclass(frozen=True, slots=True)` para snapshots/configuración.
-- `Protocol` para side-effect boundaries.
-- `Result / Success / Failure` para fallos esperados.
-- errores tipados.
-- timestamps timezone-aware y explícitos.
-- no `datetime.now()` ni `uuid4()` implícitos.
-- no global mutable state.
-- metadata estable, ordenada y sanitizada.
-- bool-vs-int estricto.
-- Core/Domain/Governance no dependen de implementaciones concretas de infraestructura.
+### QORE-PHASE10-DOCS-001 — COMPLETED
 
-## Fuera de alcance
+- PR: `#75`
+- head: `39d9735a8907b28d0a65655f687c0fa1947c7b30`
+- QORE CI: `#316` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `899b190139d3a0531c4cb07fa96a760cc85b2751`
 
-- order intent;
-- buy/sell;
-- broker execution;
-- order routing;
-- position mutation;
-- portfolio execution;
-- real-money operations;
-- MT5 live trading;
-- CIBO executing trades;
-- QORE Mobile / CEO Widget;
-- public REST/WebSocket/gRPC API;
-- vendor-specific SQL/Redis/cloud deployment;
-- storing secret values in configuration or audit records.
+Definió alcance, boundary change, secuencia, Quality Gate y criterio de cierre.
 
-## Entregables
+### QORE-PRODUCTION-CONFIG-001 — COMPLETED
 
-### QORE-PHASE10-DOCS-001 — Define PHASE-10 Scope
+- PR: `#76`
+- head: `943ce16edbb1b1c22de0f2d4f739500d93a3ff78`
+- QORE CI: `#318` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `1e13f01cba1bcb94b253004e757f2ca282383a3e`
 
-Define el alcance, el cambio de frontera, entregables, quality gate y criterio de cierre.
+Añadió snapshots de configuración no sensible, environment/region/runtime mode explícitos y source boundary inyectable. No existe acceso oculto a `os.environ` ni secret material en el snapshot.
 
-### QORE-PRODUCTION-CONFIG-001 — Production Configuration Contracts
+### QORE-OPERATIONAL-PERSISTENCE-001 — COMPLETED
 
-Snapshot de configuración operativa no sensible, environment/region/runtime mode explícitos y source boundary inyectable. Prohíbe secret-like keys/values observables.
+- PR: `#77`
+- head: `14615335d7e340da9c6c6985d5a18ef32d6bedb3`
+- QORE CI: `#320` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `c9274f5575661222e04dcf29e03f3b8b97abe7d5`
 
-### QORE-OPERATIONAL-PERSISTENCE-001 — Idempotent Operational Persistence
+Añadió writes operativos versionados e idempotentes, typed conflicts y reference store instance-local. Los namespaces `order`, `position`, `trade`, `broker` y `execution` son rechazados.
 
-Contratos de write/read operativos con idempotency key, version/receipt y reference store determinista para pruebas. No almacena órdenes ni posiciones.
+### QORE-RUNTIME-OPERATIONS-001 — COMPLETED
 
-### QORE-RUNTIME-OPERATIONS-001 — Runtime Operations Lifecycle
+- PR: `#78`
+- head: `b15ac9fb7a26cfef5171a1363d6312bf5a11b8a9`
+- QORE CI: `#322` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `cf4882093bb9119642cfcd415400048a8dc9f0cf`
 
-State machine explícita para STARTING/READY/DEGRADED/STOPPING/STOPPED/FAILED con transitions válidas y reasons sanitizados. Sin scheduler, threads o sleep.
+Añadió state machine pura para STOPPED/STARTING/READY/DEGRADED/STOPPING/FAILED, reasons explícitos, secuencia/timestamps declarados y recovery controlado sin ejecutar side effects.
 
-### QORE-OPERATIONS-AUDIT-001 — Sanitized Operations Audit Boundary
+### QORE-OPERATIONS-AUDIT-001 — COMPLETED
 
-Audit records inmutables con action/category/outcome, correlation/causation y sink protocol. Los records rechazan secret-like fields y payloads sensibles.
+- PR: `#79`
+- final head: `e03b574cad36ae768db7f8d76820810654996aed`
+- QORE CI final: `#325` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `6814020912924ab4ab3854b2ab4ace7435d1c666`
 
-### QORE-PRODUCTION-RUNTIME-E2E-001 — Production Operational Runtime Composition
+QORE CI `#324` detectó únicamente un `E501` de longitud en una firma de test. Se corrigió en un nuevo head sin modificar semántica ni rebajar checks. El audit boundary final es append-only, sanitizado e idempotente por record id y rechaza acciones de trading en PHASE-10.
 
-Composición sobre un `CoreApplication` preservado que vincula configuration + operational persistence + operations lifecycle + audit + supervised read-only live runtime. Readiness fail-closed y sin trading execution.
+### QORE-PRODUCTION-RUNTIME-E2E-001 — COMPLETED
 
-### QORE-PHASE10-CLOSURE-001 — Phase 10 Closure Review
+- PR: `#80`
+- head: `4e4df1a9cbf13baac38adf7074b3efd4eddbe01f`
+- QORE CI: `#327` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `b0269af59847e739a9443a9bccffcf83c545f658`
 
-Auditoría transversal de boundaries, idempotencia, secret safety, Core isolation, determinismo, CI y ausencia de execution trading.
+Compuso configuration + operational lifecycle + persistence + audit por encima de `CoreApplication`, con integración tipada opcional/requerible del `SupervisedLiveRuntimeComposition` de PHASE-09. Readiness es fail-closed y se verifica que EventBus, RuntimePlan, RuntimeSnapshot y RuntimeHealth del Core permanezcan intactos.
 
-## Secuencia obligatoria
+### QORE-PHASE10-CLOSURE-001 — CLOSURE GATE
 
-```text
-QORE-PHASE10-DOCS-001
-→ QORE-PRODUCTION-CONFIG-001
-→ QORE-OPERATIONAL-PERSISTENCE-001
-→ QORE-RUNTIME-OPERATIONS-001
-→ QORE-OPERATIONS-AUDIT-001
-→ QORE-PRODUCTION-RUNTIME-E2E-001
-→ QORE-PHASE10-CLOSURE-001
-```
+Este documento es el cierre formal. `COMPLETED` se vuelve oficial únicamente cuando el PR de cierre pase el Quality Gate y sea mergeado de forma protegida.
 
-## Quality Gate
+## Auditoría transversal
 
-```bash
-ruff check .
-mypy src tests
-pytest --cov=src/qore --cov-report=term-missing
-```
+### Core isolation
 
-Además:
+Los cambios funcionales de PHASE-10 quedaron en `src/qore/infrastructure` y `tests/infrastructure`; la documentación quedó en `docs/phases`. No fue necesario modificar Core, Domain, Functional Governance o Specialized Governance.
 
-- no lint/type suppressions para cerrar entregables;
-- tests sin red, SQL, Redis o cloud reales;
-- no secret material en configuration/audit/errors/logical values;
-- operational writes deben ser idempotentes por contrato;
-- lifecycle no ejecuta side effects por sí mismo;
-- Core permanece sin mutación por composición externa;
-- no trading execution.
+La composición E2E final captura y verifica invariancia de EventBus, RuntimePlan, RuntimeSnapshot y RuntimeHealth.
 
-## Condición de cierre
+### Operational persistence
 
-PHASE-10 queda `COMPLETED` únicamente cuando todos los entregables hayan sido integrados por PRs con CI verde y el cierre confirme que la infraestructura puede ser compuesta y supervisada operacionalmente sin romper el aislamiento del Core ni introducir capabilities de trading.
+- idempotency key explícita;
+- optimistic version explícita;
+- replay exacto devuelve el mismo receipt;
+- reutilización de key con intención diferente produce typed conflict;
+- no global mutable state;
+- reference store sin external IO;
+- namespaces de trading bloqueados.
+
+### Operational lifecycle
+
+- state transitions cerradas y validadas;
+- timestamps y sequence explícitos;
+- no threads, scheduler, sleep o process management;
+- recovery requiere transición explícita.
+
+### Audit safety
+
+- categories limitadas a configuration/persistence/runtime/connectivity/security;
+- actions de trading bloqueadas en esta fase;
+- secret-like keys/values rechazadas;
+- correlation/causation preservadas;
+- append replay idempotente.
+
+### Determinismo y Quality Gate
+
+- no `datetime.now()` ni `uuid4()` implícitos;
+- bool-vs-int estricto donde aplica;
+- tests sin red, SQL, Redis o cloud real;
+- todos los heads finales pasaron Ruff, Mypy strict y Pytest/coverage;
+- el único fallo intermedio de PHASE-10 fue el `E501` documentado en PR #79 y fue corregido sin suppressions.
+
+## Fuera de alcance confirmado
+
+PHASE-10 no implementó order intent, buy/sell, broker execution, order routing, position mutation, portfolio execution, real-money operations, MT5 trading live, CIBO executing trades, QORE Mobile, CEO Widget ni APIs públicas.
+
+## Resultado de cierre
+
+QORE cuenta ahora con una capa operacional productiva **contract-ready**: configuración no sensible, writes operativos idempotentes, lifecycle explícito, auditabilidad sanitizada y composición E2E fail-closed por encima de un Core intacto. Los backends concretos de persistencia/cloud siguen siendo implementaciones inyectables y no son condición de las pruebas.
 
 ## Forward roadmap
 
+La siguiente fase oficial a definir después de este cierre es:
+
 ```text
 PHASE-11 — Controlled Trading Execution Boundary
+```
+
+PHASE-11 será la primera fase que podrá autorizar semántica de ejecución de trading, únicamente mediante un cambio de frontera explícito, fail-closed y provider-neutral. Real-money broker connectivity no queda autorizado implícitamente.
+
+Luego:
+
+```text
 PHASE-12 — End-to-End Trading Runtime & Safety Validation
 PHASE-13 — QORE Core Production Closure
 ```
