@@ -27,12 +27,24 @@ from qore.governance.executive_ports import (
     ExecutiveEvidenceRef,
     ExecutivePortError,
     ExecutivePortValidationError,
+    ExecutiveReadDelivery,
     ExecutiveReadQueryPort,
     ExecutiveReadReceipt,
     ExecutiveReadReceiptStatus,
     ExecutiveReceiptId,
     build_executive_control_receipt,
+    build_executive_read_delivery,
     build_executive_read_receipt,
+)
+from qore.governance.executive_read_models import (
+    ExecutiveAttentionLevel,
+    ExecutiveProjectionId,
+    ExecutiveProjectionMetadata,
+    ExecutiveProjectionVersion,
+    ExecutiveReadinessState,
+    ExecutiveSourceFreshness,
+    ExecutiveSystemHealthReadModel,
+    ExecutiveSystemHealthState,
 )
 from qore.kernel.result import Failure, Result, Success
 
@@ -84,6 +96,27 @@ def _authorized_read() -> AuthorizedExecutiveReadRequest:
         ),
         grant=_grant(),
         authorized_at=_NOW + timedelta(seconds=2),
+    )
+
+
+def _system_health_projection() -> ExecutiveSystemHealthReadModel:
+    return ExecutiveSystemHealthReadModel(
+        metadata=ExecutiveProjectionMetadata(
+            projection_id=ExecutiveProjectionId(
+                UUID("28000000-0000-0000-0000-000000000017")
+            ),
+            projection_version=ExecutiveProjectionVersion("system-health.v1"),
+            scope=ExecutiveReadScope.SYSTEM_HEALTH,
+            source_observed_at=_NOW,
+            projected_at=_NOW + timedelta(seconds=2),
+            freshness=ExecutiveSourceFreshness.FRESH,
+            evidence_refs=(ExecutiveEvidenceRef("audit:read/projection-001"),),
+        ),
+        health=ExecutiveSystemHealthState.HEALTHY,
+        readiness=ExecutiveReadinessState.READY,
+        attention=ExecutiveAttentionLevel.INFORMATION,
+        reason_codes=("system.healthy",),
+        components=(),
     )
 
 
@@ -277,8 +310,8 @@ class _ReadPort:
     def read(
         self,
         request: AuthorizedExecutiveReadRequest,
-    ) -> Result[ExecutiveReadReceipt, ExecutivePortError]:
-        return build_executive_read_receipt(
+    ) -> Result[ExecutiveReadDelivery, ExecutivePortError]:
+        receipt_result = build_executive_read_receipt(
             request,
             receipt_id=ExecutiveReceiptId(
                 UUID("28000000-0000-0000-0000-000000000015")
@@ -287,6 +320,13 @@ class _ReadPort:
             completed_at=_NOW + timedelta(seconds=4),
             status=ExecutiveReadReceiptStatus.SERVED,
             reason_code="read.served",
+        )
+        if isinstance(receipt_result, Failure):
+            return Failure(receipt_result.error)
+        return build_executive_read_delivery(
+            request,
+            projection=_system_health_projection(),
+            receipt=receipt_result.value,
         )
 
 
