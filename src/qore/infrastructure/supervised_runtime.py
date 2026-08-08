@@ -10,13 +10,13 @@ import qore.infrastructure.adapter_observability as adapter_observability
 import qore.infrastructure.external_health as external_health
 import qore.infrastructure.market_data_provider_harness as market_data_provider_harness
 import qore.infrastructure.persistence_backend_harness as persistence_backend_harness
-import qore.infrastructure.ports as ports
+import qore.infrastructure.ports as ports_contract
 import qore.infrastructure.provider_runtime as provider_runtime
 import qore.infrastructure.supervised_provider_harness as supervised_provider_harness
 import qore.kernel.result as result_contract
 
 
-class SupervisedRuntimeEndToEndError(ports.ExternalPortError):
+class SupervisedRuntimeEndToEndError(ports_contract.ExternalPortError):
     """Base error for supervised external runtime end-to-end composition."""
 
     __slots__ = ()
@@ -45,7 +45,7 @@ class SupervisedRuntimeEndToEndConfiguration[PersistenceValueT]:
 
     runtime_plan: provider_runtime.ExternalProviderRuntimePlan
     observed_at: datetime
-    metadata: ports.ExternalRequestMetadata
+    metadata: ports_contract.ExternalRequestMetadata
     lifecycles: tuple[adapter_lifecycle.AdapterLifecycleSnapshot, ...]
     market_data_configuration: (
         market_data_provider_harness.ReadOnlyMarketDataProviderHarnessConfiguration
@@ -69,7 +69,7 @@ class SupervisedRuntimeEndToEndConfiguration[PersistenceValueT]:
                 "supervised runtime runtime_plan must be ExternalProviderRuntimePlan"
             )
         _validate_explicit_datetime(self.observed_at, field_name="observed_at")
-        if not isinstance(self.metadata, ports.ExternalRequestMetadata):
+        if not isinstance(self.metadata, ports_contract.ExternalRequestMetadata):
             raise SupervisedRuntimeEndToEndValidationError(
                 "supervised runtime metadata must be ExternalRequestMetadata"
             )
@@ -214,7 +214,7 @@ class SupervisedRuntimeEndToEndComposition[PersistenceValueT]:
         self,
         *,
         observed_at: datetime,
-        metadata: ports.ExternalRequestMetadata,
+        metadata: ports_contract.ExternalRequestMetadata,
     ) -> result_contract.Result[
         external_health.ExternalProviderHealthAggregateSnapshot,
         external_health.ExternalHealthAggregationError,
@@ -250,7 +250,7 @@ class SupervisedRuntimeEndToEndBoundary[PersistenceValueT](Protocol):
         self,
         *,
         observed_at: datetime,
-        metadata: ports.ExternalRequestMetadata,
+        metadata: ports_contract.ExternalRequestMetadata,
     ) -> result_contract.Result[
         external_health.ExternalProviderHealthAggregateSnapshot,
         external_health.ExternalHealthAggregationError,
@@ -261,7 +261,7 @@ class SupervisedRuntimeEndToEndBoundary[PersistenceValueT](Protocol):
 
 def _validation_failure(
     message: str,
-) -> result_contract.Failure[ports.ExternalPortError]:
+) -> result_contract.Failure[ports_contract.ExternalPortError]:
     return result_contract.Failure(SupervisedRuntimeEndToEndValidationError(message))
 
 
@@ -287,7 +287,7 @@ def compose_supervised_runtime_end_to_end[PersistenceValueT](
     configuration: SupervisedRuntimeEndToEndConfiguration[PersistenceValueT],
 ) -> result_contract.Result[
     SupervisedRuntimeEndToEndComposition[PersistenceValueT],
-    ports.ExternalPortError,
+    ports_contract.ExternalPortError,
 ]:
     """Compose supervised provider runtime above the Core with no live side effects."""
     if not isinstance(core, core_application.CoreApplication):
@@ -304,7 +304,7 @@ def compose_supervised_runtime_end_to_end[PersistenceValueT](
 
     try:
         harness_configuration = _provider_harness_configuration(configuration)
-    except ports.ExternalPortError as error:
+    except ports_contract.ExternalPortError as error:
         return result_contract.Failure(error)
 
     harness_result = supervised_provider_harness.compose_supervised_provider_harness(
@@ -328,6 +328,6 @@ def compose_supervised_runtime_end_to_end[PersistenceValueT](
             configuration=configuration,
             provider_harness=harness_result.value,
         )
-    except ports.ExternalPortError as error:
+    except ports_contract.ExternalPortError as error:
         return result_contract.Failure(error)
     return result_contract.Success(composition)
