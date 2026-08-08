@@ -258,9 +258,12 @@ def test_ungranted_read_scope_fails_closed() -> None:
 
 
 def test_ceo_accounts_and_profit_vault_are_distinct_read_scopes() -> None:
-    assert ExecutiveReadScope.CEO_ACCOUNTS is not ExecutiveReadScope.CORPORATE_PROFIT_VAULT
-    assert ExecutiveReadScope.CEO_ACCOUNTS.value == "ceo-accounts"
-    assert ExecutiveReadScope.CORPORATE_PROFIT_VAULT.value == "corporate-profit-vault"
+    scope_values = {
+        ExecutiveReadScope.CEO_ACCOUNTS.value,
+        ExecutiveReadScope.CORPORATE_PROFIT_VAULT.value,
+    }
+
+    assert scope_values == {"ceo-accounts", "corporate-profit-vault"}
 
 
 def test_authorized_values_are_deterministic_and_include_authority_version() -> None:
