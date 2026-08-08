@@ -320,7 +320,7 @@ def _quote_payload(symbol: str, observed_at: datetime, bid: str, ask: str) -> by
         f'"bids":[{{"price":"{bid}","liquidity":1000}}],'
         f'"asks":[{{"price":"{ask}","liquidity":1000}}]'
         "}],"
-        f'time":"{timestamp}"'
+        f'"time":"{timestamp}"'
         "}"
     ).encode()
 
