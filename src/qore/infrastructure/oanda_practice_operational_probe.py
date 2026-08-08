@@ -124,7 +124,11 @@ class OandaPracticeOperationalProbeInputs:
     started_at: datetime
 
     def __post_init__(self) -> None:
-        if not isinstance(self.run_key, str) or fullmatch(r"[0-9]+-[0-9]+", self.run_key) is None:
+        valid_run_key = (
+            isinstance(self.run_key, str)
+            and fullmatch(r"[0-9]+-[0-9]+", self.run_key) is not None
+        )
+        if not valid_run_key:
             raise OandaPracticeOperationalProbeValidationError(
                 "run_key must use '<run-id>-<attempt>' numeric syntax"
             )
@@ -238,7 +242,9 @@ class FixedOperationalProbeClock:
         return self.value
 
 
-def _configuration(inputs: OandaPracticeOperationalProbeInputs) -> OandaPracticeRuntimeConfiguration:
+def _configuration(
+    inputs: OandaPracticeOperationalProbeInputs,
+) -> OandaPracticeRuntimeConfiguration:
     return OandaPracticeRuntimeConfiguration(
         provider_key="oanda-v20",
         environment=MarketRuntimeEnvironment.DEMO,
@@ -339,7 +345,7 @@ def _activation(
     if isinstance(declared, Failure):
         return Failure(declared.error)
     lifecycle = declared.value
-    for offset, state, reason in (
+    transitions = (
         (
             3,
             AdapterLifecycleState.CONFIGURED,
@@ -350,7 +356,8 @@ def _activation(
             AdapterLifecycleState.INITIALIZED,
             AdapterLifecycleTransitionReason.INITIALIZE_REQUESTED,
         ),
-    ):
+    )
+    for offset, state, reason in transitions:
         transition = apply_adapter_lifecycle_transition(
             lifecycle,
             AdapterLifecycleTransitionRequest(
@@ -434,10 +441,10 @@ def run_oanda_practice_quote_probe(
         secret_ref=secret_ref,
     )
     if isinstance(activation, Failure):
-        return activation
+        return Failure(activation.error)
     credential = _credential(configuration, inputs, secret_ref=secret_ref)
     if isinstance(credential, Failure):
-        return credential
+        return Failure(credential.error)
     provider = compose_oanda_practice_read_only_provider(
         configuration=configuration,
         credential=credential.value,
@@ -550,7 +557,7 @@ def main(argv: list[str] | None = None) -> int:
             f"observed_at={result.value.observed_at.isoformat()}"
         )
         return 0
-    except (OandaPracticeOperationalProbeError, ExternalPortError) as error:
+    except ExternalPortError as error:
         print(f"QORE OANDA Practice probe blocked: {type(error).__name__}: {error}")
         return 1
 
