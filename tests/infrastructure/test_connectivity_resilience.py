@@ -10,9 +10,9 @@ from qore.infrastructure.adapter_resilience import (
     AdapterCircuitBreakerState,
     AdapterResiliencePolicy,
     AdapterResilienceSnapshot,
+    AdapterRetryableFailure,
     AdapterRetryDelay,
     AdapterRetryPolicy,
-    AdapterRetryableFailure,
     AdapterTimeoutPolicy,
 )
 from qore.infrastructure.connectivity_observability import ConnectivityFailureCategory
