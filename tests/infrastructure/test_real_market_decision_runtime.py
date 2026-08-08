@@ -59,6 +59,7 @@ from qore.infrastructure.pretrade_safety import (
 )
 from qore.infrastructure.real_market_decision_runtime import (
     RealMarketDecisionContext,
+    RealMarketDecisionOutcome,
     RealMarketDecisionRuntimeValidationError,
     RealMarketDecisionStatus,
     compose_real_market_decision_runtime,
@@ -231,7 +232,10 @@ def _execution(gateway: _Gateway) -> SafetyGuardedTestExecutionBoundary:
     )
 
 
-def _run(decision: _Decision, gateway: _Gateway):
+def _run(
+    decision: _Decision,
+    gateway: _Gateway,
+) -> Result[RealMarketDecisionOutcome, ExternalPortError]:
     composed = compose_real_market_decision_runtime(
         core=_core(),
         market_data=_MarketData(),
