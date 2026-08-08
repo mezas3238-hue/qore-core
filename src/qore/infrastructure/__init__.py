@@ -95,6 +95,14 @@ from qore.infrastructure.persistence import (
     SavePersistenceRequest,
     StoredRecord,
 )
+from qore.infrastructure.persistence_backend_harness import (
+    PersistenceBackendHarness,
+    PersistenceBackendHarnessConfiguration,
+    PersistenceBackendHarnessError,
+    PersistenceBackendHarnessState,
+    PersistenceBackendHarnessValidationError,
+    compose_persistence_backend_harness,
+)
 from qore.infrastructure.ports import (
     AdapterId,
     ExternalHealth,
@@ -208,6 +216,11 @@ __all__ = [
     "MarketDataValidationError",
     "OhlcRequest",
     "OhlcSnapshot",
+    "PersistenceBackendHarness",
+    "PersistenceBackendHarnessConfiguration",
+    "PersistenceBackendHarnessError",
+    "PersistenceBackendHarnessState",
+    "PersistenceBackendHarnessValidationError",
     "PersistenceConflictError",
     "PersistenceError",
     "PersistenceKey",
@@ -263,6 +276,7 @@ __all__ = [
     "StoredRecord",
     "Timeframe",
     "WriteExternalPort",
+    "compose_persistence_backend_harness",
     "compose_read_only_market_data_provider_harness",
     "compose_reference_infrastructure",
     "compose_reference_infrastructure_end_to_end",
