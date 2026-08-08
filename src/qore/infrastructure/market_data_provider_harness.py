@@ -128,10 +128,7 @@ class ReadOnlyMarketDataProviderHarnessConfiguration:
             raise MarketDataProviderHarnessValidationError(
                 "provider harness adapter configuration must be enabled"
             )
-        if (
-            self.adapter_configuration.provider
-            != self.resilience_policy.provider
-        ):
+        if self.adapter_configuration.provider != self.resilience_policy.provider:
             raise MarketDataProviderHarnessValidationError(
                 "provider harness resilience provider must match adapter configuration"
             )
@@ -442,7 +439,7 @@ class ReadOnlyMarketDataProviderHarness:
         return self.configuration.adapter_configuration
 
     @property
-    def ports(self) -> market_data.MarketDataPort:
+    def ports(self) -> reference_adapters.ReferenceMarketDataAdapter:
         """Expose canonical market data through the approved port contract."""
         return self.market_data
 
