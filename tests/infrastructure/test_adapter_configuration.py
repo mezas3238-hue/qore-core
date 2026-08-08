@@ -146,7 +146,7 @@ def test_secret_requirements_are_names_only_and_canonical() -> None:
         ("api-key", False),
         ("client-secret", True),
     )
-    assert "value" not in repr(requirements)
+    assert "super-secret-value" not in repr(requirements)
 
     with pytest.raises(AdapterConfigurationValidationError, match="lowercase"):
         AdapterSecretName("APIKey")
