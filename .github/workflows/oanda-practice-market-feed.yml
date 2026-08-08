@@ -1,0 +1,66 @@
+name: QORE OANDA Practice Market Feed Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      instrument:
+        description: Approved OANDA Practice instrument to probe
+        required: true
+        default: EUR_USD
+        type: choice
+        options:
+          - EUR_USD
+          - GBP_USD
+
+permissions:
+  contents: read
+
+jobs:
+  practice-market-feed-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QORE_OANDA_PRACTICE_ACCOUNT_ID: ${{ secrets.QORE_OANDA_PRACTICE_ACCOUNT_ID }}
+      QORE_OANDA_PRACTICE_TOKEN: ${{ secrets.QORE_OANDA_PRACTICE_TOKEN }}
+      QORE_OANDA_PRACTICE_INSTRUMENT: ${{ inputs.instrument }}
+      QORE_PROBE_RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install QORE
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Verify Practice-only secret bindings
+        shell: bash
+        run: |
+          if [ -z "$QORE_OANDA_PRACTICE_ACCOUNT_ID" ]; then
+            echo "::error::QORE_OANDA_PRACTICE_ACCOUNT_ID is not configured"
+            exit 1
+          fi
+          if [ -z "$QORE_OANDA_PRACTICE_TOKEN" ]; then
+            echo "::error::QORE_OANDA_PRACTICE_TOKEN is not configured"
+            exit 1
+          fi
+          printf 'QORE_PROBE_STARTED_AT=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')" >> "$GITHUB_ENV"
+
+      - name: Execute one real read-only Practice quote
+        run: |
+          python -m qore.infrastructure.oanda_practice_operational_probe \
+            --evidence-file artifacts/oanda-practice-market-feed-evidence.json
+
+      - name: Upload sanitized operational evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-oanda-practice-market-feed-evidence-${{ github.run_id }}
+          path: artifacts/oanda-practice-market-feed-evidence.json
+          if-no-files-found: error
+          retention-days: 14
