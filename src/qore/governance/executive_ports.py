@@ -94,6 +94,33 @@ class ExecutiveReadReceiptStatus(StrEnum):
     FAILED = "failed"
 
 
+class ExecutiveReadProjectionMetadata(Protocol):
+    """Minimal metadata shape required from every delivered executive projection."""
+
+    @property
+    def scope(self) -> ExecutiveReadScope:
+        """Exact authorized read scope represented by the projection."""
+        ...
+
+    @property
+    def projected_at(self) -> datetime:
+        """Explicit timezone-aware projection timestamp."""
+        ...
+
+
+class ExecutiveReadProjection(Protocol):
+    """Structural boundary shared by all stable executive read-model projections."""
+
+    @property
+    def metadata(self) -> ExecutiveReadProjectionMetadata:
+        """Return projection metadata needed for fail-closed delivery binding."""
+        ...
+
+    def logical_values(self) -> tuple[object, ...]:
+        """Return deterministic logical values for audit composition."""
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class ExecutiveControlReceipt:
     """Audit-safe receipt for one authorized executive governance intent."""
@@ -270,6 +297,90 @@ class ExecutiveReadReceipt:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ExecutiveReadDelivery:
+    """One authorized executive projection bound to its exact audit receipt."""
+
+    authorized_request: AuthorizedExecutiveReadRequest
+    projection: ExecutiveReadProjection
+    receipt: ExecutiveReadReceipt
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.authorized_request, AuthorizedExecutiveReadRequest):
+            raise ExecutivePortValidationError(
+                "executive read delivery requires AuthorizedExecutiveReadRequest"
+            )
+        if not isinstance(self.receipt, ExecutiveReadReceipt):
+            raise ExecutivePortValidationError(
+                "executive read delivery requires ExecutiveReadReceipt"
+            )
+        metadata = getattr(self.projection, "metadata", None)
+        scope = getattr(metadata, "scope", None)
+        projected_at = getattr(metadata, "projected_at", None)
+        logical_values = getattr(self.projection, "logical_values", None)
+        if not isinstance(scope, ExecutiveReadScope):
+            raise ExecutivePortValidationError(
+                "executive read delivery projection requires explicit read scope"
+            )
+        if not isinstance(projected_at, datetime):
+            raise ExecutivePortValidationError(
+                "executive read delivery projection requires projected_at datetime"
+            )
+        _validate_aware_datetime(
+            projected_at,
+            field_name="executive projection projected_at",
+        )
+        if not callable(logical_values):
+            raise ExecutivePortValidationError(
+                "executive read delivery projection requires logical_values"
+            )
+        request = self.authorized_request.request
+        grant = self.authorized_request.grant
+        if self.receipt.status is not ExecutiveReadReceiptStatus.SERVED:
+            raise ExecutivePortValidationError(
+                "executive read delivery requires a served receipt"
+            )
+        if self.receipt.request_id != request.request_id:
+            raise ExecutivePortValidationError(
+                "executive read delivery receipt request id must match authorization"
+            )
+        if self.receipt.principal_id != request.principal_id:
+            raise ExecutivePortValidationError(
+                "executive read delivery receipt principal must match authorization"
+            )
+        if self.receipt.scope is not request.scope:
+            raise ExecutivePortValidationError(
+                "executive read delivery receipt scope must match authorization"
+            )
+        if self.receipt.authority_version != grant.authority_version:
+            raise ExecutivePortValidationError(
+                "executive read delivery authority version must match authorization"
+            )
+        if self.receipt.correlation_id != request.correlation_id:
+            raise ExecutivePortValidationError(
+                "executive read delivery correlation must match authorization"
+            )
+        if self.receipt.received_at < self.authorized_request.authorized_at:
+            raise ExecutivePortValidationError(
+                "executive read delivery receipt cannot predate authorization"
+            )
+        if scope is not request.scope:
+            raise ExecutivePortValidationError(
+                "executive read delivery projection scope must match authorization"
+            )
+        if projected_at > self.receipt.completed_at:
+            raise ExecutivePortValidationError(
+                "executive projection cannot postdate read receipt completion"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.authorized_request.logical_values(),
+            self.projection.logical_values(),
+            self.receipt.logical_values(),
+        )
+
+
 def build_executive_control_receipt(
     authorized: AuthorizedExecutiveControlIntent,
     *,
@@ -359,6 +470,26 @@ def build_executive_read_receipt(
         return Failure(error)
 
 
+def build_executive_read_delivery(
+    authorized: AuthorizedExecutiveReadRequest,
+    *,
+    projection: ExecutiveReadProjection,
+    receipt: ExecutiveReadReceipt,
+) -> Result[ExecutiveReadDelivery, ExecutivePortError]:
+    """Bind one served projection to the exact authorization and read receipt."""
+
+    try:
+        return Success(
+            ExecutiveReadDelivery(
+                authorized_request=authorized,
+                projection=projection,
+                receipt=receipt,
+            )
+        )
+    except ExecutivePortError as error:
+        return Failure(error)
+
+
 class ExecutiveControlCommandPort(Protocol):
     """Transport-neutral downstream port for already-authorized governance intents."""
 
@@ -371,11 +502,11 @@ class ExecutiveControlCommandPort(Protocol):
 
 
 class ExecutiveReadQueryPort(Protocol):
-    """Transport-neutral downstream port for already-authorized read requests."""
+    """Transport-neutral port returning one authorized projection delivery."""
 
     def read(
         self,
         request: AuthorizedExecutiveReadRequest,
-    ) -> Result[ExecutiveReadReceipt, ExecutivePortError]:
-        """Serve an executive read request and return explicit audit receipt."""
+    ) -> Result[ExecutiveReadDelivery, ExecutivePortError]:
+        """Serve an authorized executive read and bind projection to audit receipt."""
         ...
