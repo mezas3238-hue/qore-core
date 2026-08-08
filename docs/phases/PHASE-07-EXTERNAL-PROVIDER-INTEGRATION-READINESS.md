@@ -2,14 +2,20 @@
 
 ## Estado
 
-**ACTIVE**
+**COMPLETED**
 
-PHASE-07 comienza después del cierre formal de PHASE-06 — Infrastructure Ports & Adapter Foundations.
+PHASE-07 comenzó después del cierre formal de PHASE-06 — Infrastructure Ports & Adapter Foundations.
 
 Base inicial de trabajo:
 
 ```text
 main @ 9e07375624eec74f84dcec3a04453af99bcf1b82
+```
+
+Head final auditado antes del cierre documental:
+
+```text
+main @ 7b20e070e45017ab4975e5d2effd47019dc82ebe
 ```
 
 ## Objetivo
@@ -28,7 +34,7 @@ provider configuration
 
 El objetivo no es operar cuentas reales, enviar órdenes ni conectar credenciales productivas. El objetivo es dejar preparada la frontera para que futuros adapters live puedan integrarse de forma gobernada, testeable, observable y reversible.
 
-## Principios
+## Principios preservados
 
 - El repositorio sigue siendo la fuente única de verdad.
 - El Core permanece libre de adapters concretos.
@@ -36,16 +42,16 @@ El objetivo no es operar cuentas reales, enviar órdenes ni conectar credenciale
 - Toda integración externa cruza por ports aprobados.
 - Toda entrada externa de Market Data se normaliza antes de consumo canónico.
 - Toda identidad, timestamp, correlation, causation y snapshot ID sigue siendo explícito.
-- Ningún adapter puede generar UUID o timestamps implícitos sin contrato explícito.
-- Ningún adapter puede mutar RuntimePlan.
+- Ningún adapter genera UUID o timestamps implícitos sin contrato explícito.
+- Ningún adapter muta RuntimePlan.
 - La configuración de proveedores es explícita, validable y no contiene secretos en claro.
 - Los secretos se representan únicamente como referencias o handles seguros, nunca como valores productivos dentro del Core.
-- Las integraciones nuevas deben tener harness determinista y dobles de prueba antes de cualquier implementación real.
-- Toda degradación externa debe expresarse como `Failure` tipado o health degradado, nunca como excepción lateral no gobernada.
+- Las integraciones nuevas tienen harness determinista y dobles de prueba antes de cualquier implementación real.
+- Toda degradación externa se expresa como `Failure` tipado o health degradado, nunca como excepción lateral no gobernada.
 
-## Fuera de alcance
+## Fuera de alcance preservado
 
-PHASE-07 no implementa:
+PHASE-07 no implementó:
 
 - ejecución real de órdenes;
 - order routing de broker/exchange;
@@ -63,19 +69,22 @@ PHASE-07 no implementa:
 
 ## Frontera de arquitectura
 
-PHASE-07 introduce readiness externa por encima de PHASE-06, no dentro del Core.
+PHASE-07 introdujo readiness externa por encima de PHASE-06, no dentro del Core.
 
-Permitido:
+Permitido e integrado:
 
 ```text
-qore.infrastructure.provider_*
-qore.infrastructure.*_configuration
-qore.infrastructure.*_observability
-qore.infrastructure.*_resilience
-qore.infrastructure.*_harness
+qore.infrastructure.providers
+qore.infrastructure.adapter_configuration
+qore.infrastructure.secrets
+qore.infrastructure.adapter_observability
+qore.infrastructure.adapter_resilience
+qore.infrastructure.market_data_provider_harness
+qore.infrastructure.persistence_backend_harness
+qore.infrastructure.provider_readiness
 ```
 
-No permitido:
+No permitido y auditado como preservado:
 
 ```text
 qore.core -> provider adapters
@@ -85,129 +94,207 @@ qore.specialized_governance -> concrete adapters
 RuntimePlan -> automatic infrastructure registration
 ```
 
-La composición debe seguir siendo explícita y opt-in.
+La composición sigue siendo explícita y opt-in.
 
-## Entregables
+## Entregables completados
+
+### QORE-PHASE07-DOCS-001 — Define PHASE-07 Scope
+
+Estado: **COMPLETED**
+
+Evidencia:
+
+```text
+PR: #47
+Merge commit: efe9cc72056c6aa3c64b480b84a4d5950b3c577b
+Quality Gate: QORE CI #240 PASS
+```
+
+Resultado:
+
+- definición oficial de PHASE-07;
+- alcance, fronteras, entregables y criterios de cierre;
+- PHASE-07 marcada como `ACTIVE`.
 
 ### QORE-PROVIDER-BOUNDARY-001 — Provider Adapter Governance Contracts
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Definir contratos de gobernanza para providers externos sin introducir providers concretos todavía.
+Evidencia:
 
-Alcance mínimo:
+```text
+PR: #48
+Merge commit: 43fee2d0897809aa6fbbd89d3d593a9ad297bdbc
+Quality Gate: QORE CI #243 PASS
+```
 
-- `ProviderId` o equivalente canónico;
-- descriptor de proveedor independiente de adapter/source;
-- estado de habilitación explícito;
-- contrato de capacidades provider-neutral;
-- errores tipados de frontera provider;
-- validaciones runtime para bypasses;
+Resultado:
+
+- `ProviderId`;
+- `ProviderName`;
+- `ProviderEnablement`;
+- `ProviderCapability`;
+- `ProviderCapabilitySet`;
+- `ProviderDescriptor`;
+- `ProviderGovernanceBoundary`;
+- errores tipados de provider boundary;
+- validaciones runtime;
 - cero red, cero credenciales y cero IO concreto.
 
 ### QORE-ADAPTER-CONFIG-001 — External Adapter Configuration Contracts
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Definir configuración validable para adapters externos sin acoplarla al Core ni a secretos productivos.
+Evidencia:
 
-Alcance mínimo:
+```text
+PR: #49
+Merge commit: 5c8a09b7e545021d0ea86f3bef7b5a0584f4d72e
+Quality Gate: QORE CI #246 PASS
+```
+
+Resultado:
 
 - configuración inmutable por adapter;
-- separación entre configuración pública y secretos;
-- flags explícitos de modo `disabled`, `simulation`, `read_only` o equivalentes;
+- configuración pública separada de requisitos de secretos;
+- modo cerrado `disabled`, `simulation`, `read_only`;
 - validación de provider/source/port namespaces;
-- no usar variables de entorno directamente desde contratos;
-- no cargar archivos de configuración productivos desde el Core.
+- sin lectura de variables de entorno;
+- sin carga de archivos productivos desde el Core.
 
 ### QORE-SECRETS-BOUNDARY-001 — Secret Reference Boundary
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Crear una frontera de referencias a secretos sin almacenar ni exponer valores sensibles.
+Evidencia:
 
-Alcance mínimo:
+```text
+PR: #50
+Merge commit: 24255923b445d7c7f5cf2ae51af38a8dc50d3ed3
+Quality Gate: QORE CI #248 PASS
+```
 
-- `SecretRef` o equivalente canónico;
-- política de no revelar valores;
-- validaciones contra strings vacíos o valores inline sospechosos;
-- contratos para resolución futura sin implementación productiva obligatoria;
+Resultado:
+
+- `SecretRef` y referencias externas canónicas;
+- recibos de resolución sin valores sensibles;
+- protocolo estructural de resolución futura;
 - errores tipados para secreto ausente, denegado o inválido;
-- pruebas de no filtrado en `repr`, `str`, logical values o errores.
+- pruebas de no filtrado en `repr`, `str`, logical values y errores;
+- sin resolución productiva de secretos.
 
 ### QORE-ADAPTER-OBSERVABILITY-001 — Adapter Observability Contracts
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Definir contratos de observabilidad para adapters externos sin introducir un backend de monitoreo productivo.
+Evidencia:
 
-Alcance mínimo:
+```text
+PR: #51
+Merge commit: ddd6797f83e48a2a142bf981960f5b720edd96b8
+Quality Gate: QORE CI #250 PASS
+```
 
-- snapshot de estado observable de adapter;
-- health extendido o métricas provider-neutral;
-- latencia recibida de caller o medición explícita inyectada, no reloj global implícito;
-- últimos errores tipados sin payload sensible;
-- readiness/degraded/unavailable claramente expresado;
-- pruebas de determinismo y privacidad.
+Resultado:
+
+- readiness cerrado;
+- latencia explícita;
+- métricas provider-neutral;
+- último error observado sanitizado;
+- snapshot de observabilidad inmutable;
+- protocolo estructural de observabilidad;
+- sin backend productivo de monitoreo;
+- sin reloj global implícito.
 
 ### QORE-ADAPTER-RESILIENCE-001 — Retry, Timeout & Rate Limit Policy Contracts
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Definir políticas declarativas de resiliencia sin ejecutar red real.
+Evidencia:
 
-Alcance mínimo:
+```text
+PR: #52
+Merge commit: 909bef235d88df00d32a237064f46580f2a1103e
+Quality Gate: QORE CI #254 PASS
+```
 
-- contratos de timeout explícito;
+Resultado:
+
+- políticas declarativas de timeout;
 - retry policy inmutable;
-- rate limit policy provider-neutral;
-- circuit-breaker state como contrato observable, si aplica;
+- retry delay explícito;
+- failures retryables tipados;
+- rate limit provider-neutral;
+- circuit-breaker observable;
 - errores tipados por timeout, throttling y unavailable;
-- cero sleep real en pruebas;
+- cero sleep real;
 - cero backoff basado en reloj global.
 
 ### QORE-MARKETDATA-PROVIDER-HARNESS-001 — Read-Only Market Data Provider Harness
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Preparar un harness de Market Data externo de solo lectura que demuestre cómo un provider futuro alimentará el flujo de ingestión sin saltarse contratos canónicos.
+Evidencia:
 
-Alcance mínimo:
+```text
+PR: #53
+Merge commit: 77f5809a5a8f80a132bf26c26727ce1445961a4e
+Quality Gate: QORE CI #258 PASS
+```
 
-- adapter/harness determinista de payloads provider-like;
+Resultado:
+
+- harness determinista read-only de Market Data externo;
 - configuración explícita de provider;
-- sin conexión live obligatoria;
-- sin credenciales productivas;
+- payloads provider-like deterministas;
 - normalización mediante `MarketDataIngestionFlow`;
 - consumo final por `MarketDataPort` canónico;
-- tests de payload válido, payload inválido, unavailable, throttled y source mismatch.
+- tests de payload válido, payload inválido, unavailable, throttled y source mismatch;
+- sin conexión live obligatoria;
+- sin credenciales productivas.
 
 ### QORE-PERSISTENCE-BACKEND-HARNESS-001 — Persistence Backend Readiness Harness
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Preparar un harness de persistencia externa sin convertir persistencia en source of truth mutable del Domain.
+Evidencia:
 
-Alcance mínimo:
+```text
+PR: #54
+Merge commit: 19fe69caacc433fac440bbbd14597aa59d98ddf7
+Quality Gate: QORE CI #262 PASS
+```
+
+Resultado:
 
 - configuración explícita de backend;
-- adapter/harness determinista;
-- semántica de version/conflict preservada;
+- harness determinista sobre `ReferencePersistenceAdapter`;
+- semántica version/conflict preservada;
 - ausencia como `Success(None)`;
-- conflictos como `Failure(PersistenceConflictError)` o subtipo aprobado;
-- no SQL/Redis/filesystem productivo obligatorio;
-- defensive copy o serialización determinista controlada;
-- tests de aislamiento entre instancias.
+- conflictos como `Failure(PersistenceConflictError)`;
+- defensive copy preservado;
+- aislamiento entre instancias probado;
+- sin SQL/Redis/filesystem productivo;
+- sin red;
+- sin credenciales productivas.
 
 ### QORE-PROVIDER-E2E-READINESS-001 — Provider Readiness End-to-End Composition
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Demostrar un recorrido end-to-end de readiness:
+Evidencia:
+
+```text
+PR: #55
+Merge commit: 7b20e070e45017ab4975e5d2effd47019dc82ebe
+Quality Gate: QORE CI #265 PASS
+```
+
+Resultado:
 
 ```text
 provider config
-→ provider harness
+→ provider harnesses
 → external payload
 → ingestion
 → canonical snapshots
@@ -215,75 +302,64 @@ provider config
 → application-level consumption
 ```
 
-Alcance mínimo:
+Confirmado:
 
 - composición explícita por encima del Core;
-- un solo Core y MessageBus preservado;
-- RuntimeSnapshot, RuntimeHealth y RuntimePlan intactos;
+- un solo `CoreApplication` preservado;
+- `EventBus` preservado;
+- `RuntimeSnapshot`, `RuntimeHealth` y `RuntimePlan` intactos;
 - Functional Governance y Specialized Governance siguen funcionando sin provider config;
-- Failure propagation end-to-end;
+- propagación de `Failure` end-to-end;
 - sin trading execution.
 
 ### QORE-PHASE07-CLOSURE-001 — Phase 07 Closure Review
 
-Estado: definido, pendiente de implementación.
+Estado: **COMPLETED**
 
-Cerrar PHASE-07 únicamente después de revisión transversal.
+Resultado de revisión transversal:
 
-Auditar:
+- no se detectaron imports inversos hacia providers desde Core, Domain, Runtime, Functional Governance o Specialized Governance;
+- no se detectaron secretos expuestos ni valores productivos dentro de contratos;
+- no se introdujo red obligatoria en tests;
+- no se introdujo filesystem/SQL/Redis productivo obligatorio;
+- no se introdujo ejecución de trading;
+- no se mutó `RuntimePlan`;
+- no se introdujo generación implícita de UUID/timestamps en adapters o harnesses;
+- PHASE-04, PHASE-05 y PHASE-06 siguen compatibles;
+- el último head funcional integrado antes del cierre documental tiene Quality Gate verde.
 
-- no imports inversos hacia providers;
-- no secretos expuestos;
-- no red obligatoria en tests;
-- no filesystem/SQL/Redis productivo obligatorio;
-- no ejecución de trading;
-- no mutación de RuntimePlan;
-- no generación implícita de UUID/timestamps;
-- compatibilidad completa de PHASE-04/05/06;
-- Quality Gate verde en el head final.
+## Quality Gate transversal
 
-## Criterios de aceptación globales
+PHASE-07 acumuló gates verdes en cada PR:
 
-Todos los PR de PHASE-07 deben terminar con código de salida 0 para:
-
-```bash
-python --version
-pip install -e ".[dev]"
-python -c "import qore; print(qore.__name__)"
-pytest
-ruff check .
-mypy src tests
+```text
+QORE CI #240 PASS — PHASE-07 definition
+QORE CI #243 PASS — Provider boundary
+QORE CI #246 PASS — Adapter configuration
+QORE CI #248 PASS — Secrets boundary
+QORE CI #250 PASS — Adapter observability
+QORE CI #254 PASS — Adapter resilience
+QORE CI #258 PASS — Market Data provider harness
+QORE CI #262 PASS — Persistence backend harness
+QORE CI #265 PASS — Provider E2E readiness
 ```
 
-Además:
+Este cierre documental también debe pasar:
 
-- Mypy permanece en `strict = true`.
-- Las pruebas son deterministas.
-- Todo contrato público tiene pruebas de validación runtime.
-- Toda frontera prueba errores tipados y propagación de `Failure`.
-- Toda configuración prueba valores válidos e inválidos.
-- Toda referencia a secreto prueba no exposición.
-- Todo harness externo prueba ausencia de IO productivo obligatorio.
-- Los cambios de composición vuelven a probar Runtime, Functional Governance y Specialized Governance.
-
-## Quality Gate
-
-Cada PR solo puede mergearse cuando:
-
-- Ruff = PASS;
-- Mypy strict = PASS;
-- Pytest = PASS;
-- no existan hilos de revisión sin resolver;
-- no existan cambios fuera de alcance;
-- el head revisado sea exactamente el head mergeado;
-- la revisión semántica confirme que no se introdujo ejecución de trading;
-- la revisión semántica confirme que no se introdujo dependencia inversa hacia providers;
-- la revisión semántica confirme que no se filtraron secretos.
+```text
+Ruff = PASS
+Mypy strict = PASS
+Pytest = PASS
+```
 
 ## Condición de cierre
 
-PHASE-07 se marcará `COMPLETED` únicamente cuando todos sus entregables estén integrados y una revisión transversal confirme que QORE está preparado para integrar providers externos bajo contratos gobernados, sin romper la independencia del Core ni habilitar ejecución real de trading.
+La condición de cierre queda satisfecha: todos los entregables de PHASE-07 están integrados y la revisión transversal confirma que QORE está preparado para integrar providers externos bajo contratos gobernados, sin romper la independencia del Core ni habilitar ejecución real de trading.
 
-## Resultado esperado
+## Resultado final
 
-Al cerrar PHASE-07, QORE debe disponer de una frontera robusta para providers externos: configuración explícita, referencias seguras a secretos, observabilidad, resiliencia declarativa y harnesses deterministas que permitan validar adapters futuros antes de conectividad live o ejecución real.
+```text
+PHASE-07 = COMPLETED
+```
+
+QORE dispone ahora de una frontera robusta para providers externos: configuración explícita, referencias seguras a secretos, observabilidad, resiliencia declarativa y harnesses deterministas que permiten validar adapters futuros antes de conectividad live o ejecución real.
