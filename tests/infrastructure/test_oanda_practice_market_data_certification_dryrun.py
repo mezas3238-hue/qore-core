@@ -211,7 +211,7 @@ def _activation() -> ProviderActivationDecisionSnapshot:
         )
         assert isinstance(transition, Success)
         lifecycle = transition.value
-    result = evaluate_provider_activation_policy(
+    activation_result = evaluate_provider_activation_policy(
         ProviderActivationEvaluation(
             policy=ProviderActivationPolicy(
                 provider=provider,
@@ -226,21 +226,21 @@ def _activation() -> ProviderActivationDecisionSnapshot:
             metadata=_metadata(),
         )
     )
-    assert isinstance(result, Success)
-    assert result.value.can_activate is True
-    return result.value
+    assert isinstance(activation_result, Success)
+    assert activation_result.value.can_activate is True
+    return activation_result.value
 
 
 def _credential() -> OandaPracticeCredentialActivation:
-    result = activate_oanda_practice_credentials(
+    credential_result = activate_oanda_practice_credentials(
         _configuration(),
         _secret_ref(),
         resolver=MappingSecretMaterialResolver({_SECRET_REFERENCE: _SECRET_BYTES}),
         metadata=_metadata(),
         activated_at=_BASE - timedelta(seconds=6),
     )
-    assert isinstance(result, Success)
-    return result.value
+    assert isinstance(credential_result, Success)
+    return credential_result.value
 
 
 class FakeClock:
@@ -360,20 +360,20 @@ def _build_flow(
         connection_factory=factory,
         clock=FakeClock(),
     )
-    provider = compose_oanda_practice_read_only_provider(
+    provider_result = compose_oanda_practice_read_only_provider(
         configuration=_configuration(),
         credential=_credential(),
         activation=_activation(),
         authenticated_transport=transport,
     )
-    assert isinstance(provider, Success)
-    flow = build_oanda_practice_market_data_flow(
-        provider=provider.value,
+    assert isinstance(provider_result, Success)
+    flow_result = build_oanda_practice_market_data_flow(
+        provider=provider_result.value,
         configuration=_configuration(),
         resolved_at=_BASE - timedelta(seconds=5),
     )
-    assert isinstance(flow, Success)
-    return flow.value, factory
+    assert isinstance(flow_result, Success)
+    return flow_result.value, factory
 
 
 def _read_clean_window() -> tuple[
@@ -425,19 +425,19 @@ def _read_clean_window() -> tuple[
     flow, factory = _build_flow(payloads)
     quotes: list[QuoteSnapshot] = []
     for seed, symbol in ((1, "EUR_USD"), (2, "GBP_USD")):
-        result = flow.read_quote(
+        quote_result = flow.read_quote(
             QuoteRequest(Instrument(symbol)),
             snapshot_id=_snapshot_id(seed),
             metadata=_metadata(),
         )
-        assert isinstance(result, Success)
-        quotes.append(result.value)
+        assert isinstance(quote_result, Success)
+        quotes.append(quote_result.value)
 
     ohlc: list[OhlcSnapshot] = []
     seed = 10
     for symbol in ("EUR_USD", "GBP_USD"):
         for opened_at in (first_bar, second_bar):
-            result = flow.read_ohlc(
+            ohlc_result = flow.read_ohlc(
                 OhlcRequest(
                     instrument=Instrument(symbol),
                     timeframe=Timeframe(900),
@@ -447,8 +447,8 @@ def _read_clean_window() -> tuple[
                 snapshot_id=_snapshot_id(seed),
                 metadata=_metadata(),
             )
-            assert isinstance(result, Success)
-            ohlc.append(result.value)
+            assert isinstance(ohlc_result, Success)
+            ohlc.append(ohlc_result.value)
             seed += 1
     return tuple(quotes), tuple(ohlc), flow.descriptor, factory
 
@@ -463,18 +463,18 @@ def test_oanda_practice_full_dryrun_reaches_prepared_canonical_window() -> None:
         maximum_ohlc_gap_intervals=0,
     )
 
-    result = evaluate_market_data_certification_preparation(
+    certification_result = evaluate_market_data_certification_preparation(
         quotes,
         ohlc,
         policy=policy,
         evaluated_at=_BASE,
     )
 
-    assert isinstance(result, Success)
-    assert result.value.is_prepared is True
-    assert result.value.findings == ()
-    assert result.value.quote_count == 2
-    assert result.value.ohlc_count == 4
+    assert isinstance(certification_result, Success)
+    assert certification_result.value.is_prepared is True
+    assert certification_result.value.findings == ()
+    assert certification_result.value.quote_count == 2
+    assert certification_result.value.ohlc_count == 4
     assert factory.remaining_payloads == 0
     assert len(factory.created) == 6
     assert all(host == "api-fxpractice.oanda.com" for host, _, _ in factory.created)
@@ -482,7 +482,7 @@ def test_oanda_practice_full_dryrun_reaches_prepared_canonical_window() -> None:
         dict(headers)["authorization"].startswith("Bearer ")
         for _, _, headers in factory.calls
     )
-    assert _SECRET_BYTES.decode() not in repr(result.value)
+    assert _SECRET_BYTES.decode() not in repr(certification_result.value)
 
 
 def test_dryrun_surfaces_provider_origin_stale_quote_after_canonical_ingestion() -> None:
@@ -544,7 +544,7 @@ def test_dryrun_surfaces_provider_origin_stale_quote_after_canonical_ingestion()
     seed = 40
     for symbol in ("EUR_USD", "GBP_USD"):
         for opened_at in (first_bar, second_bar):
-            result = flow.read_ohlc(
+            ohlc_result = flow.read_ohlc(
                 OhlcRequest(
                     instrument=Instrument(symbol),
                     timeframe=Timeframe(900),
@@ -554,8 +554,8 @@ def test_dryrun_surfaces_provider_origin_stale_quote_after_canonical_ingestion()
                 snapshot_id=_snapshot_id(seed),
                 metadata=_metadata(),
             )
-            assert isinstance(result, Success)
-            ohlc.append(result.value)
+            assert isinstance(ohlc_result, Success)
+            ohlc.append(ohlc_result.value)
             seed += 1
     policy = MarketDataCertificationPreparationPolicy(
         expected_source=flow.descriptor,
@@ -564,32 +564,32 @@ def test_dryrun_surfaces_provider_origin_stale_quote_after_canonical_ingestion()
         max_quote_age=timedelta(seconds=5),
     )
 
-    result = evaluate_market_data_certification_preparation(
+    certification_result = evaluate_market_data_certification_preparation(
         quotes,
         tuple(ohlc),
         policy=policy,
         evaluated_at=_BASE,
     )
 
-    assert isinstance(result, Success)
-    assert result.value.is_prepared is False
-    assert tuple(item.code for item in result.value.findings) == (
+    assert isinstance(certification_result, Success)
+    assert certification_result.value.is_prepared is False
+    assert tuple(item.code for item in certification_result.value.findings) == (
         MarketDataCertificationFindingCode.QUOTE_STALE,
     )
-    assert result.value.findings[0].instrument == "EUR_USD"
+    assert certification_result.value.findings[0].instrument == "EUR_USD"
     assert factory.remaining_payloads == 0
 
 
 def test_malformed_oanda_wire_fails_before_certification_window_exists() -> None:
     flow, factory = _build_flow((b'{"prices":"not-an-array"}',))
 
-    result = flow.read_quote(
+    quote_result = flow.read_quote(
         QuoteRequest(Instrument("EUR_USD")),
         snapshot_id=_snapshot_id(70),
         metadata=_metadata(),
     )
 
-    assert isinstance(result, Failure)
+    assert isinstance(quote_result, Failure)
     assert factory.remaining_payloads == 0
-    assert "prices must be an array" in str(result.error)
-    assert _SECRET_BYTES.decode() not in str(result.error)
+    assert "prices must be an array" in str(quote_result.error)
+    assert _SECRET_BYTES.decode() not in str(quote_result.error)
