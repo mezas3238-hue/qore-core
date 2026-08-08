@@ -322,6 +322,10 @@ class ExecutiveReadDelivery:
             raise ExecutivePortValidationError(
                 "executive read delivery projection requires explicit read scope"
             )
+        if not isinstance(projected_at, datetime):
+            raise ExecutivePortValidationError(
+                "executive read delivery projection requires projected_at datetime"
+            )
         _validate_aware_datetime(
             projected_at,
             field_name="executive projection projected_at",
