@@ -16,7 +16,6 @@ from qore.infrastructure.activation_policy import (
 from qore.infrastructure.adapter_configuration import (
     AdapterConfigurationMode,
     AdapterSecretName,
-    AdapterSecretRequirement,
     AdapterSecretRequirements,
     ExternalAdapterConfiguration,
 )
