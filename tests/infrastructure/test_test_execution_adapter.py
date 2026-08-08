@@ -6,6 +6,7 @@ from uuid import UUID
 
 from qore.domain.events import CorrelationId
 from qore.infrastructure.execution_boundary import (
+    ExecutionBoundaryError,
     ExecutionCancellation,
     ExecutionReceiptId,
     ExecutionRequestId,
@@ -15,6 +16,7 @@ from qore.infrastructure.execution_boundary import (
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
     MarketTestAccountIdentity,
+    MarketTestEnvironmentAuthorization,
     MarketTestEnvironmentPolicy,
     authorize_market_test_account,
 )
@@ -100,7 +102,9 @@ def _submission() -> ExecutionSubmission:
     )
 
 
-def _environment_authorization(environment: MarketRuntimeEnvironment):
+def _environment_authorization(
+    environment: MarketRuntimeEnvironment,
+) -> MarketTestEnvironmentAuthorization:
     result = authorize_market_test_account(
         MarketTestAccountIdentity(
             provider_key="reference-provider",
@@ -125,7 +129,7 @@ class _Gateway:
         *,
         account: MarketTestAccountIdentity,
         submission: ExecutionSubmission,
-    ) -> Result[TestExecutionGatewayReceipt, TestExecutionAdapterError]:
+    ) -> Result[TestExecutionGatewayReceipt, ExecutionBoundaryError]:
         self.submit_calls.append(account)
         if self.fail_submit:
             return Failure(TestExecutionAdapterError("test gateway unavailable"))
@@ -143,7 +147,7 @@ class _Gateway:
         account: MarketTestAccountIdentity,
         provider_execution_ref: str,
         cancelled_at: datetime,
-    ) -> Result[TestExecutionGatewayReceipt, TestExecutionAdapterError]:
+    ) -> Result[TestExecutionGatewayReceipt, ExecutionBoundaryError]:
         self.cancel_calls.append((account, provider_execution_ref))
         return Success(
             TestExecutionGatewayReceipt(
