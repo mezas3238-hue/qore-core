@@ -5,6 +5,7 @@ from uuid import UUID
 
 from qore.domain.events import CausationId, CorrelationId
 from qore.infrastructure.activation_policy import (
+    ProviderActivationDecisionSnapshot,
     ProviderActivationEvaluation,
     ProviderActivationMode,
     ProviderActivationPolicy,
@@ -89,7 +90,7 @@ _METADATA = ExternalRequestMetadata(
 )
 
 
-def _activation():
+def _activation() -> ProviderActivationDecisionSnapshot:
     declared = declare_adapter_lifecycle(
         descriptor=_SOURCE,
         provider=_PROVIDER,
@@ -100,8 +101,16 @@ def _activation():
     assert isinstance(declared, Success)
     snapshot = declared.value
     for offset, state, reason in (
-        (1, AdapterLifecycleState.CONFIGURED, AdapterLifecycleTransitionReason.CONFIGURATION_ACCEPTED),
-        (2, AdapterLifecycleState.INITIALIZED, AdapterLifecycleTransitionReason.INITIALIZE_REQUESTED),
+        (
+            1,
+            AdapterLifecycleState.CONFIGURED,
+            AdapterLifecycleTransitionReason.CONFIGURATION_ACCEPTED,
+        ),
+        (
+            2,
+            AdapterLifecycleState.INITIALIZED,
+            AdapterLifecycleTransitionReason.INITIALIZE_REQUESTED,
+        ),
     ):
         transitioned = apply_adapter_lifecycle_transition(
             snapshot,
@@ -280,7 +289,7 @@ def test_live_ohlc_flows_through_existing_canonical_ingestion() -> None:
     assert result.value.close == 1.1005
 
 
-def test_live_payload_adapter_health_is_available_only_for_allowed_activation() -> None:
+def test_live_payload_adapter_health_is_available_for_allowed_activation() -> None:
     result = _flow().payload_adapter.health(checked_at=_NOW, metadata=_METADATA)
 
     assert isinstance(result, Success)
