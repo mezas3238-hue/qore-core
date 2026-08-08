@@ -6,6 +6,9 @@ from re import fullmatch
 from uuid import UUID
 
 from qore.governance.executive_control import ExecutiveReadScope
+from qore.governance.executive_governance_current_state_read_models import (
+    ExecutiveGovernanceCurrentStateSummary,
+)
 from qore.governance.executive_ports import ExecutiveEvidenceRef
 from qore.governance.executive_read_models import (
     ExecutiveAttentionLevel,
@@ -375,12 +378,13 @@ class ExecutiveGovernanceControlReceiptSummary:
 
 @dataclass(frozen=True, slots=True)
 class ExecutiveGovernanceReadModel:
-    """Stable GOVERNANCE projection from canonical authority and receipt evidence."""
+    """Stable GOVERNANCE projection from canonical Governance evidence and state."""
 
     metadata: ExecutiveProjectionMetadata
     attention: ExecutiveAttentionLevel
     authorities: tuple[ExecutiveGovernanceAuthoritySummary, ...]
     control_receipts: tuple[ExecutiveGovernanceControlReceiptSummary, ...]
+    current_state: ExecutiveGovernanceCurrentStateSummary | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.metadata, ExecutiveProjectionMetadata):
@@ -395,6 +399,15 @@ class ExecutiveGovernanceReadModel:
             raise ExecutiveReadModelValidationError(
                 "governance projection requires ExecutiveAttentionLevel"
             )
+        if self.current_state is not None:
+            if not isinstance(self.current_state, ExecutiveGovernanceCurrentStateSummary):
+                raise ExecutiveReadModelValidationError(
+                    "governance current_state requires ExecutiveGovernanceCurrentStateSummary"
+                )
+            if self.current_state.observed_at > self.metadata.projected_at:
+                raise ExecutiveReadModelValidationError(
+                    "governance current state cannot postdate projection"
+                )
         if not isinstance(self.authorities, tuple) or any(
             not isinstance(item, ExecutiveGovernanceAuthoritySummary)
             for item in self.authorities
@@ -441,4 +454,5 @@ class ExecutiveGovernanceReadModel:
             self.attention.value,
             tuple(item.logical_values() for item in self.authorities),
             tuple(item.logical_values() for item in self.control_receipts),
+            None if self.current_state is None else self.current_state.logical_values(),
         )
