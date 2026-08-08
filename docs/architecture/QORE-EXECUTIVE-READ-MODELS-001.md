@@ -54,7 +54,7 @@ SYSTEM_HEALTH
 CIBO_STATE
 ```
 
-### Follow-up operational projections
+### Follow-up operational projections already authorized by the current read-scope enum
 
 ```text
 MARKETS
@@ -62,8 +62,26 @@ TRADERS
 VALIDATION_LAB
 TRADE_FORENSICS
 AUDIT
-GOVERNANCE
 ```
+
+### Governance read surface requires a separate scope gate
+
+The CEO Command Center architecture includes a Governance product surface, but the verified
+`ExecutiveReadScope` allowlist on this delivery's base does **not** contain a `GOVERNANCE` scope.
+
+Repository truth therefore requires fail-closed behavior:
+
+```text
+no ExecutiveReadScope.GOVERNANCE
+        ↓
+no governance read-model authorization
+        ↓
+NO GOVERNANCE READ MODEL YET
+```
+
+A future governance read model may be introduced only after a separate controlled change explicitly
+extends the canonical `ExecutiveReadScope` allowlist and its authorization tests. This delivery does
+not silently expand executive read authority.
 
 ### Follow-up proprietary-capital projections
 
@@ -310,8 +328,8 @@ No suppression or weakening of Ruff, Mypy, Pytest, or coverage is authorized.
 
 ## Next controlled deliverable
 
-After this contract foundation is merged, the next narrow delivery should define the operational
-executive projections for:
+After this contract foundation is merged, the next narrow delivery should define operational
+executive projections only for scopes already present in the canonical allowlist:
 
 ```text
 MARKETS
@@ -319,7 +337,8 @@ TRADERS
 VALIDATION_LAB
 TRADE_FORENSICS
 AUDIT
-GOVERNANCE
 ```
 
-while retaining the same projection provenance and canonical authorized read boundary.
+The Governance product surface remains gated on a separate explicit `ExecutiveReadScope` extension.
+All follow-up read models must retain the same projection provenance and canonical authorized read
+boundary.
