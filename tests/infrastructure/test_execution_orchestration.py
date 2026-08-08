@@ -8,8 +8,10 @@ import pytest
 from qore.infrastructure.execution_boundary import ExecutionReceiptId
 from qore.infrastructure.execution_orchestration import (
     ExecutionOrchestrationId,
+    GovernedExecutionOrchestrationError,
     GovernedExecutionOrchestrationValidationError,
     GovernedExecutionReason,
+    GovernedExecutionSnapshot,
     GovernedExecutionState,
     GovernedExecutionTransitionError,
     GovernedExecutionTransitionRequest,
@@ -19,7 +21,7 @@ from qore.infrastructure.execution_orchestration import (
 from qore.infrastructure.execution_reconciliation import ExecutionReconciliationStatus
 from qore.infrastructure.order_intent import OrderIntentId
 from qore.infrastructure.pretrade_safety import PreTradeAuthorizationId
-from qore.kernel.result import Failure, Success
+from qore.kernel.result import Failure, Result, Success
 
 _NOW = datetime(2026, 8, 8, 9, 30, tzinfo=UTC)
 _ORCHESTRATION_ID = ExecutionOrchestrationId(
@@ -35,7 +37,10 @@ _OTHER_AUTHORIZATION_ID = PreTradeAuthorizationId(
 _RECEIPT_ID = ExecutionReceiptId(UUID("b1000000-0000-0000-0000-000000000005"))
 
 
-def _declare():
+def _declare() -> Result[
+    GovernedExecutionSnapshot,
+    GovernedExecutionOrchestrationError,
+]:
     return declare_governed_execution(
         _ORCHESTRATION_ID,
         _INTENT_ID,
@@ -198,13 +203,14 @@ def test_divergence_is_contained_not_reconciled() -> None:
     assert isinstance(contained, Success)
     assert contained.value.state is GovernedExecutionState.CONTAINED
     assert contained.value.terminal is True
-    assert contained.value.reconciliation_status is ExecutionReconciliationStatus.DIVERGED
+    assert (
+        contained.value.reconciliation_status
+        is ExecutionReconciliationStatus.DIVERGED
+    )
 
 
 def test_reconciled_state_rejects_non_matched_evidence() -> None:
     with pytest.raises(GovernedExecutionOrchestrationValidationError):
-        from qore.infrastructure.execution_orchestration import GovernedExecutionSnapshot
-
         GovernedExecutionSnapshot(
             orchestration_id=_ORCHESTRATION_ID,
             intent_id=_INTENT_ID,
