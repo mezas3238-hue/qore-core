@@ -1,5 +1,15 @@
 """Stable infrastructure boundary contracts for QORE."""
 
+from qore.infrastructure.adapter_configuration import (
+    AdapterConfigurationError,
+    AdapterConfigurationMode,
+    AdapterConfigurationValidationError,
+    AdapterPublicSettings,
+    AdapterSecretName,
+    AdapterSecretRequirement,
+    AdapterSecretRequirements,
+    ExternalAdapterConfiguration,
+)
 from qore.infrastructure.composition import (
     InfrastructureCompositionError,
     InfrastructureCompositionValidationError,
@@ -84,7 +94,15 @@ from qore.infrastructure.reference_payload_adapters import (
 )
 
 __all__ = [
+    "AdapterConfigurationError",
+    "AdapterConfigurationMode",
+    "AdapterConfigurationValidationError",
     "AdapterId",
+    "AdapterPublicSettings",
+    "AdapterSecretName",
+    "AdapterSecretRequirement",
+    "AdapterSecretRequirements",
+    "ExternalAdapterConfiguration",
     "ExternalHealth",
     "ExternalMarketDataPayloadPort",
     "ExternalOhlcPayload",
