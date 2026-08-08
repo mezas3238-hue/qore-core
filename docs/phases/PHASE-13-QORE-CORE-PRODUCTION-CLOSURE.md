@@ -2,9 +2,9 @@
 
 ## Estado
 
-**ACTIVE**
+**COMPLETED**
 
-PHASE-13 comienza después del cierre formal de PHASE-12 — End-to-End Trading Runtime & Safety Validation.
+PHASE-13 comenzó después del cierre formal de PHASE-12 — End-to-End Trading Runtime & Safety Validation. Este estado se vuelve oficial únicamente cuando este PR de cierre pase el Quality Gate, sea integrado mediante merge protegido y `main` quede verificado exactamente en el merge commit resultante.
 
 Base inicial verificada:
 
@@ -12,11 +12,17 @@ Base inicial verificada:
 main @ 129de98399afa8a19673dc113df8bc17fcf3be81
 ```
 
-## Objetivo
+Base pre-cierre verificada:
 
-Cerrar formalmente la misión de construcción del QORE Core mediante una auditoría reproducible de conformidad arquitectónica, evidencia de readiness y un release baseline ligado a un commit exacto.
+```text
+main @ 028c7bab0cee6e8c77e6ccea5b09f4707ef1f877
+```
 
-PHASE-13 no añade nuevas capacidades de trading ni infraestructura externa. Su función es demostrar que el repositorio existente cumple las fronteras, invariantes y Quality Gates acumulados desde PHASE-01 hasta PHASE-12.
+## Objetivo alcanzado
+
+PHASE-13 cerró la misión actual de construcción y validación del QORE Core mediante evidencia reproducible de conformidad arquitectónica, readiness transversal, un release baseline inmutable ligado a un commit real y una validación E2E de cierre sobre un `CoreApplication` preservado.
+
+PHASE-13 no amplió capacidades de trading ni infraestructura externa.
 
 ```text
 PHASE-01 .. PHASE-12
@@ -31,77 +37,179 @@ Production Readiness Evidence
 Release Baseline Manifest
         │
         ▼
-QORE Core Closure Review
+Core Closure Validation
+        │
+        ▼
+Final QORE Core Closure Review
 ```
 
-## Frontera
+## Release baseline validado
 
-PHASE-13 es una fase de **closure/conformance**, no una fase de expansión funcional.
-
-No autoriza ni implementa:
-
-- broker real;
-- MT5 live;
-- real-money order routing;
-- account credentials productivas;
-- autonomous portfolio execution;
-- CIBO enviando órdenes reales;
-- public trading API;
-- QORE Mobile / CEO Widget;
-- nuevas estrategias o señales de trading;
-- background scheduler oculto;
-- network IO adicional.
-
-## Principios preservados
-
-- repository `main` es la fuente única de verdad;
-- cada evidencia debe estar vinculada a paths/commits reales;
-- no se inventan CI, PRs, SHAs o resultados;
-- no se muta `CoreApplication` para producir evidencia;
-- no se introducen bypasses de adapters/governance/execution safety;
-- no se rebajan Ruff, Mypy strict o Pytest;
-- no se usan suppressions para fabricar conformance;
-- release baseline debe ser determinista e inmutable;
-- cualquier invariant violation produce FAIL.
-
-## Entregables
-
-### QORE-PHASE13-DOCS-001 — Define PHASE-13 Scope
-
-Define alcance, frontera, entregables, Quality Gate y condición de cierre.
-
-### QORE-ARCH-CONFORMANCE-001 — Architecture Conformance Evidence
-
-Contratos y evaluación determinista de invariantes estructurales del Core: layer boundaries, no reverse dependency hacia adapters concretos, deterministic primitives y Core isolation. La evidencia se expresa como checks PASS/FAIL, no como auto-repair.
-
-### QORE-PRODUCTION-READINESS-EVIDENCE-001 — Production Readiness Evidence
-
-Agrega evidencia de readiness transversal sobre Core/runtime/governance/infrastructure/sandbox safety. Requiere checks completos y falla si falta una dimensión obligatoria.
-
-### QORE-RELEASE-BASELINE-001 — Release Baseline Manifest
-
-Manifest inmutable de cierre que registra repository identity, exact base commit, phase range cerrada, Quality Gate identity y evidence verdicts. No crea tags/releases externos ni publica artefactos por sí solo.
-
-### QORE-CORE-CLOSURE-E2E-001 — Core Closure Validation
-
-Compone conformance + readiness + release baseline y demuestra que un baseline PASS solo existe con toda la evidencia PASS y con el exact `CoreApplication` preservado.
-
-### QORE-PHASE13-CLOSURE-001 — Final QORE Core Closure Review
-
-Auditoría final de PHASE-01..PHASE-13, CI, boundaries y release baseline. Marca la misión de construcción del QORE Core como cerrada cuando el closure PR pase CI y se integre de forma protegida.
-
-## Secuencia obligatoria
+El Core Closure E2E construye y valida un baseline sobre la siguiente identidad real del repositorio:
 
 ```text
-QORE-PHASE13-DOCS-001
-→ QORE-ARCH-CONFORMANCE-001
-→ QORE-PRODUCTION-READINESS-EVIDENCE-001
-→ QORE-RELEASE-BASELINE-001
-→ QORE-CORE-CLOSURE-E2E-001
-→ QORE-PHASE13-CLOSURE-001
+repository = mezas3238-hue/qore-core
+commit_sha = 22e467f8b96ae7d7e4a5aaee1c87baf9a307f61a
+phase_start = 1
+phase_end = 12
+quality_gate = qore-ci
+architecture_verdict = PASS
+readiness_verdict = PASS
 ```
 
-## Quality Gate
+`22e467f8b96ae7d7e4a5aaee1c87baf9a307f61a` fue el `main` verificado inmediatamente después de integrar `QORE-RELEASE-BASELINE-001` y antes de `QORE-CORE-CLOSURE-E2E-001`.
+
+El manifest no crea tags, releases, despliegues ni publicación externa. Registra evidencia inmutable y falla si repository identity, commit identity, conformance o readiness no cumplen sus invariantes.
+
+## Entregables y evidencia
+
+### QORE-PHASE13-DOCS-001 — COMPLETED
+
+- PR: `#95`
+- final head: `25b1062cd0fedf50a10e06404388f1a0c3aa9ef7`
+- QORE CI: `#358` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `789f8e061d2eae44255cb5cff18f7fccc22668d9`
+
+Definió PHASE-13 como una fase exclusivamente de closure/conformance, sin ampliación de ejecución, broker, account IO o trading real-money.
+
+### QORE-ARCH-CONFORMANCE-001 — COMPLETED
+
+- PR: `#96`
+- final head: `e724b3780d2979ea46b569eea4952e4783d58018`
+- QORE CI: `#362` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `a37a3568556716c664def41ab99b89984435165d`
+
+Añadió evidencia determinista sobre siete dimensiones obligatorias:
+
+```text
+core_isolation
+dependency_direction
+immutable_contracts
+deterministic_time_identity
+typed_failures
+execution_boundary
+secret_safety
+```
+
+Cada dimensión debe aparecer exactamente una vez. Evidencia incompleta o cualquier check FAIL fuerza el verdict global a FAIL. No existe auto-repair.
+
+### QORE-PRODUCTION-READINESS-EVIDENCE-001 — COMPLETED
+
+- PR: `#97`
+- final head: `107d77b16c301309abc6239e4472f6e8db3e19ea`
+- QORE CI: `#364` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `753b99589ef6369f009cb52ea39615ea4035fb11`
+
+Añadió evidencia transversal sobre seis dimensiones obligatorias:
+
+```text
+core_runtime
+governance
+provider_boundary
+operations
+sandbox_execution
+safety_validation
+```
+
+Cada dimensión es obligatoria exactamente una vez y cualquier FAIL fuerza readiness FAIL. No se ejecuta deployment, broker IO ni trading.
+
+### QORE-RELEASE-BASELINE-001 — COMPLETED
+
+- PR: `#98`
+- final head: `7d94789b0cb02a5391e9da176ff27eb212c3c64b`
+- QORE CI: `#366` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `22e467f8b96ae7d7e4a5aaee1c87baf9a307f61a`
+
+Añadió `ReleaseBaselineManifest` y `build_release_baseline(...)` con:
+
+- repository `owner/name` explícito;
+- commit SHA lowercase exacto de 40 caracteres;
+- rango PHASE-01..PHASE-12 cerrado antes del cierre de PHASE-13;
+- Quality Gate identity explícita;
+- architecture verdict PASS obligatorio;
+- readiness verdict PASS obligatorio;
+- temporalidad explícita;
+- ninguna publicación/tag/deployment automática.
+
+### QORE-CORE-CLOSURE-E2E-001 — COMPLETED
+
+#### PR #99 — SUPERSEDED WITHOUT MERGE
+
+PR `#99` fue cerrado intencionalmente sin merge después de detectar una implementación duplicada transitoria en su branch. La duplicación fue retirada y el diff neto terminó en cero archivos. Ningún código de PR #99 fue integrado en `main`.
+
+El entregable continuó en una branch limpia desde el `main` exacto mediante PR #100.
+
+#### PR #100 — CANONICAL COMPLETION
+
+- PR: `#100`
+- final head: `37ca6149b0543dbb119fde00ada703170aa1aabf`
+- QORE CI: `#375` — Ruff PASS, Mypy PASS, Pytest PASS
+- merge: `028c7bab0cee6e8c77e6ccea5b09f4707ef1f877`
+
+El closure validator:
+
+- requiere architecture conformance PASS;
+- requiere production readiness PASS;
+- construye un release baseline únicamente con evidencia PASS;
+- registra repository/commit identity explícitas;
+- rechaza SHA inválido;
+- impide que validation predating ocurra respecto del baseline;
+- preserva EventBus identity;
+- preserva RuntimePlan;
+- preserva RuntimeSnapshot;
+- preserva RuntimeHealth;
+- no expone `connect_broker`, `publish_release` ni `deploy`;
+- no introduce live broker, account IO, real-money routing o automatic remediation.
+
+### QORE-PHASE13-CLOSURE-001 — CLOSURE GATE
+
+Este documento constituye el último gate de la misión. `COMPLETED` se vuelve oficial únicamente cuando este PR pase QORE CI, sea mergeado con `expected_head_sha` y el `main` final sea verificado exactamente en el merge commit.
+
+## Auditoría transversal final
+
+### Core isolation
+
+La validación acumulada mantiene el Core aislado de infraestructura concreta. Los E2E relevantes capturan y verifican sin mutación:
+
+- `CoreApplication.event_bus` identity;
+- `RuntimePlan`;
+- `RuntimeSnapshot`;
+- `RuntimeHealth`.
+
+No se introdujo una dependencia inversa desde Core/Domain/Governance hacia adapters concretos para cerrar la misión.
+
+### Determinismo
+
+Se preservan:
+
+- timestamps timezone-aware suministrados explícitamente;
+- identities explícitas;
+- ausencia de `datetime.now()` y `uuid4()` implícitos en estos boundaries;
+- ordering determinista;
+- contratos inmutables con `dataclass(frozen=True, slots=True)`;
+- `Result / Success / Failure` y errores tipados;
+- ausencia de global mutable state como mecanismo de cierre.
+
+### Provider / secret safety
+
+La arquitectura mantiene provider boundaries externos al Core. Secret material no forma parte de evidence codes, manifests, health observable o release baseline. El cierre no añade secret-store global ni credenciales productivas.
+
+### Execution safety
+
+La única ejecución concreta introducida por la misión sigue siendo el `SandboxExecutionBoundary` determinista de PHASE-11.
+
+PHASE-12 demostró:
+
+- pre-trade/kill-switch bloqueado → cero nuevos receipts;
+- replay exacto → mismo receipt, sin ejecución duplicada;
+- reconciliation DIVERGED/MISSING → containment/manual action;
+- no corrective trading automático.
+
+PHASE-13 no añade ninguna nueva ruta de execution.
+
+### Quality Gate
+
+Los heads finales de los entregables PHASE-13 pasaron:
 
 ```bash
 ruff check .
@@ -109,27 +217,60 @@ mypy src tests
 pytest --cov=src/qore --cov-report=term-missing
 ```
 
-Además:
+Evidencia:
 
-- no lint/type suppressions;
-- conformance FAIL ante evidencia incompleta;
-- readiness FAIL ante cualquier check obligatorio FAIL;
-- release baseline requiere exact commit identity explícita;
-- closure validation no muta Core RuntimePlan/RuntimeSnapshot/RuntimeHealth/EventBus;
-- no broker/network/account dependency in tests;
-- no real-money connectivity;
-- no automatic remediation.
+```text
+PR #95  → QORE CI #358 → PASS
+PR #96  → QORE CI #362 → PASS
+PR #97  → QORE CI #364 → PASS
+PR #98  → QORE CI #366 → PASS
+PR #100 → QORE CI #375 → PASS
+```
 
-## Condición de cierre
+No se rebajaron checks ni se usaron lint/type suppressions para declarar conformance o readiness.
 
-PHASE-13 queda `COMPLETED` únicamente cuando todos sus entregables se integren con CI verde, el closure E2E produzca PASS con evidencia completa y el cierre final registre un release baseline verificable sobre un commit real de `main`.
+## Frontera que permanece cerrada
 
-Ese cierre significa:
+Este cierre **no** implementa ni autoriza:
 
-> La misión actual de construcción y validación del **QORE Core** queda formalmente cerrada.
+- broker real;
+- MT5 live;
+- real-money order routing;
+- account credentials productivas;
+- withdrawals/deposits;
+- autonomous portfolio execution;
+- CIBO enviando órdenes reales;
+- public trading API;
+- QORE Mobile;
+- CEO Widget;
+- nuevas estrategias o señales de trading;
+- automatic corrective trading;
+- release publication automática;
+- deployment automático.
+
+## Resultado de cierre
+
+Con el merge protegido de este documento, la misión actual de construcción y validación del **QORE Core — PHASE-01 a PHASE-13** queda formalmente cerrada.
+
+El repositorio dispondrá de:
+
+- arquitectura gobernada y aislada;
+- provider/runtime boundaries supervisados;
+- operations/readiness contracts;
+- execution sandbox fail-closed e idempotente;
+- reconciliation y containment deterministas;
+- safety evidence completa;
+- architecture conformance evidence;
+- production readiness evidence;
+- release baseline ligado a un commit real;
+- Core Closure E2E validado.
+
+Eso significa:
+
+> La misión actual de construcción y validación del QORE Core está cerrada con evidencia reproducible.
 
 No significa:
 
-> QORE está autorizado para operar dinero real o conectado a un broker productivo.
+> QORE está autorizado para operar dinero real, conectado a un broker productivo o listo para ejecutar CIBO live.
 
-Cualquier etapa futura de broker-live, CIBO operational execution, Mobile/CEO Widget o trading productivo deberá abrir una misión/fase posterior explícita con su propia frontera de seguridad.
+Cualquier misión futura de broker-live, CIBO operational execution, QORE Mobile, CEO Widget o producto de trading deberá abrir una nueva frontera explícita con sus propios entregables y Quality Gates.
