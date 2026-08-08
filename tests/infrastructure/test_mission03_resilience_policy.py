@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -207,8 +208,9 @@ def test_pack_is_demo_only_and_lookup_is_typed() -> None:
             operations=result.value.operations,
         )
 
+    invalid_operation = cast(Mission03ResilienceOperation, "order-create")
     with pytest.raises(Mission03ResiliencePolicyValidationError):
-        result.value.policy_for("order-create")
+        result.value.policy_for(invalid_operation)
 
 
 def test_no_runtime_clock_or_sleep_is_embedded_in_policy_values() -> None:
