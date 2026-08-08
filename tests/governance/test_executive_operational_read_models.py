@@ -200,9 +200,9 @@ def test_trader_projection_exposes_version_and_evidence_not_strategy_logic() -> 
     assert not hasattr(trader, "account")
 
 
-def test_trader_confidence_is_strict_finite_float() -> None:
+def test_trader_confidence_is_finite_and_bounded() -> None:
     with pytest.raises(ExecutiveReadModelValidationError):
-        ExecutiveTraderConfidence(True)  # type: ignore[arg-type]
+        ExecutiveTraderConfidence(float("inf"))
 
     with pytest.raises(ExecutiveReadModelValidationError):
         ExecutiveTraderConfidence(1.1)
