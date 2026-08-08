@@ -4,12 +4,14 @@ from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.architecture_conformance import (
     ArchitectureConformanceCheck,
+    ArchitectureConformanceEvidence,
     ArchitectureConformanceRecord,
     ArchitectureConformanceStatus,
     aggregate_architecture_conformance,
 )
 from qore.infrastructure.production_readiness_evidence import (
     ProductionReadinessCheck,
+    ProductionReadinessEvidence,
     ProductionReadinessRecord,
     ProductionReadinessStatus,
     aggregate_production_readiness,
@@ -24,7 +26,7 @@ _NOW = datetime(2026, 8, 8, 10, 40, tzinfo=UTC)
 _COMMIT_SHA = "753b99589ef6369f009cb52ea39615ea4035fb11"
 
 
-def _architecture(*, fail: bool = False):
+def _architecture(*, fail: bool = False) -> ArchitectureConformanceEvidence:
     records = tuple(
         ArchitectureConformanceRecord(
             check=check,
@@ -50,7 +52,7 @@ def _architecture(*, fail: bool = False):
     return result.value
 
 
-def _readiness(*, fail: bool = False):
+def _readiness(*, fail: bool = False) -> ProductionReadinessEvidence:
     records = tuple(
         ProductionReadinessRecord(
             check=check,
