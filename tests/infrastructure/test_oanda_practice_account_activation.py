@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -221,5 +222,6 @@ def test_snapshot_rejects_observation_that_predates_account_creation() -> None:
 
 
 def test_request_factory_rejects_invalid_configuration_type() -> None:
+    invalid = cast(OandaPracticeRuntimeConfiguration, object())
     with pytest.raises(OandaPracticeAccountActivationValidationError):
-        OandaPracticeAccountSummaryRequestFactory(configuration=object())  # type: ignore[arg-type]
+        OandaPracticeAccountSummaryRequestFactory(configuration=invalid)
