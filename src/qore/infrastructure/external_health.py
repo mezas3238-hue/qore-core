@@ -790,6 +790,16 @@ def aggregate_external_provider_health(
             raise ExternalHealthAggregationValidationError(
                 "external health aggregation inputs must be a tuple"
             )
+        if not inputs:
+            raise ExternalHealthAggregationValidationError(
+                "external health aggregation requires at least one input"
+            )
+        for health_input in inputs:
+            if not isinstance(health_input, ExternalProviderHealthInput):
+                raise ExternalHealthAggregationValidationError(
+                    "external health aggregation input entries must be "
+                    "ExternalProviderHealthInput"
+                )
         _validate_explicit_datetime(observed_at, field_name="observed_at")
         if not isinstance(metadata, ports.ExternalRequestMetadata):
             raise ExternalHealthAggregationValidationError(
