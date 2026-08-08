@@ -29,7 +29,10 @@ _METADATA = ExternalRequestMetadata(
 )
 
 
-def _record(*, outcome: OperationsAuditOutcome = OperationsAuditOutcome.SUCCEEDED) -> OperationsAuditRecord:
+def _record(
+    *,
+    outcome: OperationsAuditOutcome = OperationsAuditOutcome.SUCCEEDED,
+) -> OperationsAuditRecord:
     return OperationsAuditRecord(
         record_id=_RECORD_ID,
         category=OperationsAuditCategory.RUNTIME,
