@@ -19,9 +19,9 @@ from qore.infrastructure.adapter_resilience import (
     AdapterRateLimitPolicy,
     AdapterResiliencePolicy,
     AdapterResilienceUnavailableError,
+    AdapterRetryableFailure,
     AdapterRetryDelay,
     AdapterRetryPolicy,
-    AdapterRetryableFailure,
     AdapterThrottledError,
     AdapterTimeoutPolicy,
 )
