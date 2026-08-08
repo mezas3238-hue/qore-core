@@ -197,6 +197,11 @@ def test_reference_infrastructure_rejects_invalid_boundaries() -> None:
         source_id=SourceId(UUID("f1000000-0000-0000-0000-000000000021")),
         port_name=PortName("persistence.reference-composition"),
     )
+    other_market_descriptor = ExternalSourceDescriptor(
+        adapter_id=AdapterId(UUID("f1000000-0000-0000-0000-000000000022")),
+        source_id=SourceId(UUID("f1000000-0000-0000-0000-000000000023")),
+        port_name=PortName("market-data.other"),
+    )
 
     with pytest.raises(
         InfrastructureCompositionValidationError,
@@ -216,7 +221,7 @@ def test_reference_infrastructure_rejects_invalid_boundaries() -> None:
                     UUID("f1000000-0000-0000-0000-000000000030")
                 ),
                 instrument=_INSTRUMENT,
-                source=wrong_market_descriptor,
+                source=other_market_descriptor,
                 observed_at=_NOW,
                 bid=1.16,
                 ask=1.1602,
