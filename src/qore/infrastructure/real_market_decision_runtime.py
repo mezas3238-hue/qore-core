@@ -16,7 +16,6 @@ from qore.infrastructure.execution_boundary import (
     ExecutionRequestId,
 )
 from qore.infrastructure.market_data import (
-    MarketDataPort,
     MarketDataSnapshotId,
     QuoteRequest,
     QuoteSnapshot,
@@ -75,6 +74,18 @@ class RealMarketDecisionContext:
 
     def logical_values(self) -> tuple[object, ...]:
         return (self.quote.logical_values(), self.decided_at.isoformat())
+
+
+class SnapshotMarketDataBoundary(Protocol):
+    """Canonical snapshot-producing market-data surface used by MISSION-02."""
+
+    def read_quote(
+        self,
+        request: QuoteRequest,
+        *,
+        snapshot_id: MarketDataSnapshotId,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[QuoteSnapshot, ExternalPortError]: ...
 
 
 class RealMarketDecisionBoundary(Protocol):
@@ -143,7 +154,7 @@ class RealMarketDecisionRuntime:
     """Read canonical market data, request a decision, then use governed TEST execution."""
 
     core: CoreApplication
-    market_data: MarketDataPort
+    market_data: SnapshotMarketDataBoundary
     decision: RealMarketDecisionBoundary
     execution: ControlledExecutionRuntime
 
@@ -228,7 +239,7 @@ class RealMarketDecisionRuntime:
 def compose_real_market_decision_runtime(
     *,
     core: CoreApplication,
-    market_data: MarketDataPort,
+    market_data: SnapshotMarketDataBoundary,
     decision: RealMarketDecisionBoundary,
     execution: SafetyGuardedTestExecutionBoundary,
 ) -> Result[RealMarketDecisionRuntime, ExternalPortError]:
