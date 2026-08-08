@@ -238,6 +238,24 @@ def _runtime_plan(
     return result.value
 
 
+def _policy_disabled_runtime_plan() -> ExternalProviderRuntimePlan:
+    component = ExternalProviderRuntimeComponent(
+        component_id=ExternalRuntimeComponentId("market-data"),
+        component_kind=ExternalRuntimeComponentKind.MARKET_DATA_HARNESS,
+        provider=_provider(),
+        source=_market_source(),
+        activation_policy=ProviderActivationPolicy(
+            provider=_provider(),
+            source=_market_source(),
+            mode=ProviderActivationMode.DISABLED,
+            required_capabilities=(ProviderCapability.MARKET_DATA_READ,),
+        ),
+    )
+    result = build_external_provider_runtime_plan(components=(component,))
+    assert isinstance(result, Success)
+    return result.value
+
+
 def _quote_request() -> QuoteRequest:
     return QuoteRequest(Instrument("EURUSD"))
 
@@ -515,13 +533,11 @@ def test_supervised_provider_harness_degraded_health_does_not_expose_ports() -> 
     assert not harness.ports.exposes_any
 
 
-def test_supervised_provider_harness_blocks_missing_secret_reference() -> None:
-    required = AdapterSecretRequirements((AdapterSecretRequirement(_API_KEY),))
+def test_supervised_provider_harness_blocks_disabled_policy() -> None:
     result = compose_supervised_provider_harness(
         _configuration(
-            market=_market_configuration(secret_requirements=required),
             include_persistence=False,
-            runtime_plan=_runtime_plan(include_persistence=False),
+            runtime_plan=_policy_disabled_runtime_plan(),
             lifecycles=(_lifecycle(_market_source()),),
         )
     )
@@ -532,7 +548,7 @@ def test_supervised_provider_harness_blocks_missing_secret_reference() -> None:
 
     assert decision is not None
     assert decision.decision is ProviderActivationDecision.BLOCKED
-    assert ProviderActivationDecisionReason.MISSING_SECRET_REFERENCE in decision.reasons
+    assert ProviderActivationDecisionReason.POLICY_DISABLED in decision.reasons
     assert harness.health.readiness is ExternalProviderReadiness.BLOCKED
     assert not harness.ports.exposes_any
 
