@@ -12,7 +12,11 @@ from qore.infrastructure.connectivity import (
     ProviderConnectivityMode,
     ReadOnlyProviderConnectivityIntent,
 )
-from qore.infrastructure.ports import ExternalPortError, ExternalRequestMetadata
+from qore.infrastructure.ports import (
+    ExternalPortError,
+    ExternalRequestMetadata,
+    ExternalSourceDescriptor,
+)
 from qore.infrastructure.secret_resolution import (
     SecretAuthenticatedTransportBoundary,
     SecretMaterialResolverBoundary,
@@ -137,7 +141,7 @@ class ReadOnlyExternalProviderAdapter:
         return self.configuration.connectivity
 
     @property
-    def source(self):  # type: ignore[no-untyped-def]
+    def source(self) -> ExternalSourceDescriptor:
         """Expose the supervised external source without duplicating identity."""
         return self.configuration.activation.policy.source
 
