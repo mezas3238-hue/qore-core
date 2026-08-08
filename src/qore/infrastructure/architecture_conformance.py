@@ -13,7 +13,6 @@ _SENSITIVE_PARTS = (
     "bearer ",
     "client_secret",
     "password",
-    "secret",
     "token",
 )
 
