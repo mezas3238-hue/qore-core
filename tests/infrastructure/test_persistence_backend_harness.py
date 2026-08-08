@@ -279,7 +279,7 @@ def test_persistence_backend_harness_defensively_copies_and_isolates_instances()
     )
     assert isinstance(first_load, Success)
     assert first_load.value is not None
-    mutable_payload = cast(Payload, first_load.value.value)
+    mutable_payload = first_load.value.value
     mutable_payload["items"].append("mutated")
 
     first_load_again = first_result.value.ports.load(
