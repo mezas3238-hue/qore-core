@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -76,7 +77,7 @@ def test_limit_intent_rejects_missing_price() -> None:
 
 def test_quantity_and_price_reject_float_non_finite_and_non_positive() -> None:
     with pytest.raises(OrderIntentValidationError):
-        OrderQuantity(1.0)  # type: ignore[arg-type]
+        OrderQuantity(cast(Decimal, 1.0))
     for value in (Decimal("0"), Decimal("-1"), Decimal("NaN")):
         with pytest.raises(OrderIntentValidationError):
             OrderQuantity(value)
