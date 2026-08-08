@@ -7,6 +7,7 @@ import pytest
 
 from qore.domain.events import CausationId, CorrelationId
 from qore.infrastructure.activation_policy import (
+    ProviderActivationDecisionSnapshot,
     ProviderActivationEvaluation,
     ProviderActivationMode,
     ProviderActivationPolicy,
@@ -36,7 +37,6 @@ from qore.infrastructure.connectivity import (
 )
 from qore.infrastructure.ports import (
     AdapterId,
-    ExternalPortError,
     ExternalRequestMetadata,
     ExternalSourceDescriptor,
     PortName,
@@ -136,8 +136,16 @@ def _lifecycle(*, ready: bool = True) -> AdapterLifecycleSnapshot:
     if not ready:
         return snapshot
     for offset, state, reason in (
-        (1, AdapterLifecycleState.CONFIGURED, AdapterLifecycleTransitionReason.CONFIGURATION_ACCEPTED),
-        (2, AdapterLifecycleState.INITIALIZED, AdapterLifecycleTransitionReason.INITIALIZE_REQUESTED),
+        (
+            1,
+            AdapterLifecycleState.CONFIGURED,
+            AdapterLifecycleTransitionReason.CONFIGURATION_ACCEPTED,
+        ),
+        (
+            2,
+            AdapterLifecycleState.INITIALIZED,
+            AdapterLifecycleTransitionReason.INITIALIZE_REQUESTED,
+        ),
     ):
         result = apply_adapter_lifecycle_transition(
             snapshot,
@@ -154,7 +162,11 @@ def _lifecycle(*, ready: bool = True) -> AdapterLifecycleSnapshot:
     return snapshot
 
 
-def _activation(*, ready: bool = True, secret: SecretRef | None = None):
+def _activation(
+    *,
+    ready: bool = True,
+    secret: SecretRef | None = None,
+) -> ProviderActivationDecisionSnapshot:
     requirements = (
         AdapterSecretRequirements((AdapterSecretRequirement(secret.name),))
         if secret is not None
