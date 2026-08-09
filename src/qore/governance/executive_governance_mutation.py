@@ -332,21 +332,21 @@ class ExecutiveGovernanceMutationReceipt:
             raise ExecutiveGovernanceMutationValidationError(
                 "mutation receipt requires ExecutiveReceiptId"
             )
-        for field_name, value in (
+        for field_name, snapshot_id in (
             ("expected_snapshot_id", self.expected_snapshot_id),
             ("requested_snapshot_id", self.requested_snapshot_id),
             ("observed_snapshot_id", self.observed_snapshot_id),
         ):
-            if not isinstance(value, ExecutiveGovernanceStateSnapshotId):
+            if not isinstance(snapshot_id, ExecutiveGovernanceStateSnapshotId):
                 raise ExecutiveGovernanceMutationValidationError(
                     f"{field_name} must be ExecutiveGovernanceStateSnapshotId"
                 )
-        for field_name, value in (
+        for field_name, state_version in (
             ("expected_state_version", self.expected_state_version),
             ("requested_state_version", self.requested_state_version),
             ("observed_state_version", self.observed_state_version),
         ):
-            if not isinstance(value, ExecutiveGovernanceStateVersion):
+            if not isinstance(state_version, ExecutiveGovernanceStateVersion):
                 raise ExecutiveGovernanceMutationValidationError(
                     f"{field_name} must be ExecutiveGovernanceStateVersion"
                 )
