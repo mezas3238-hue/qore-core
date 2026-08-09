@@ -4,8 +4,8 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-import qore.infrastructure.futures_cross_provider_certification as cross
 import qore.infrastructure.futures_adapter_contracts as futures
+import qore.infrastructure.futures_cross_provider_certification as cross
 import qore.kernel.result as result
 from qore.infrastructure.hosting_latency_safety import HostingLatencyDuration
 from qore.infrastructure.market_data import (
@@ -105,6 +105,12 @@ def _three_provider_evidence(
         cross.FuturesMarketDataCertificationStatus.CERTIFIED_DELAYED
     ),
 ) -> tuple[cross.FuturesProviderCertificationEvidence, ...]:
+    tastytrade_latency_ms = (
+        900_000
+        if tastytrade_status
+        is cross.FuturesMarketDataCertificationStatus.CERTIFIED_DELAYED
+        else 20
+    )
     return (
         _evidence(
             cross.TRADESTATION_PROVIDER,
@@ -124,7 +130,7 @@ def _three_provider_evidence(
             suffix=300,
             market_data_status=tastytrade_status,
             close=5000.75,
-            latency_ms=900_000,
+            latency_ms=tastytrade_latency_ms,
         ),
     )
 
