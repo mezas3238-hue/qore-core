@@ -4,8 +4,8 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure import client_accounts
-from qore.kernel import result
+import qore.infrastructure.client_accounts as client_accounts
+import qore.kernel.result as result
 
 
 _CLIENT_A = client_accounts.ClientId(UUID("31000000-0000-0000-0000-000000000001"))
