@@ -6,6 +6,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from qore.infrastructure import market_data
+from qore.infrastructure.ports import ExternalSourceDescriptor
 from qore.kernel.errors import InfrastructureError
 
 
@@ -155,7 +156,7 @@ class ReplayMarketDataObservation:
         return self.payload.instrument
 
     @property
-    def source(self):  # type: ignore[no-untyped-def]
+    def source(self) -> ExternalSourceDescriptor:
         return self.payload.source
 
     @property
