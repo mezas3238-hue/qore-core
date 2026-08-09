@@ -349,7 +349,7 @@ def _derive_returns(
     observations: tuple[ResearchEquityValuationObservation, ...],
 ) -> tuple[ResearchPeriodicReturnPoint, ...]:
     points: list[ResearchPeriodicReturnPoint] = []
-    for opening, closing in zip(observations, observations[1:], strict=True):
+    for opening, closing in zip(observations, observations[1:]):
         with localcontext(_DECIMAL128):
             return_rate = closing.equity.amount / opening.equity.amount - Decimal(1)
         points.append(
