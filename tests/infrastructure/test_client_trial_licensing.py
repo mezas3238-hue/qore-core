@@ -111,6 +111,7 @@ def test_trial_start_and_expiry_are_immutable_and_cannot_be_reset() -> None:
 
     assert isinstance(restarted, result.Failure)
     assert str(restarted.error) == "trial has already been started"
+    assert started.trial_started_at is not None
     assert started.trial_expires_at == started.trial_started_at + timedelta(days=14)
 
 
