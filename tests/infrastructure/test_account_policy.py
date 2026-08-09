@@ -40,7 +40,9 @@ def _rule(
     code: str,
     *,
     scope: account_policy.PolicyRuleScope = account_policy.PolicyRuleScope.TRADING,
-    disposition: account_policy.PolicyRuleDisposition = account_policy.PolicyRuleDisposition.PROHIBIT,
+    disposition: account_policy.PolicyRuleDisposition = (
+        account_policy.PolicyRuleDisposition.PROHIBIT
+    ),
 ) -> account_policy.AccountPolicyRule:
     return account_policy.AccountPolicyRule(
         code=code,
