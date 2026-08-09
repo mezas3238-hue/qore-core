@@ -263,7 +263,11 @@ def _build_section_views(
     for section in _SECTION_ORDER:
         scope = _SCOPE_BY_SECTION.get(section)
         if scope is None:
-            reason = "section.aggregate" if section is ExecutiveCommandCenterSection.HOME else "scope.unsupported"
+            reason = (
+                "section.aggregate"
+                if section is ExecutiveCommandCenterSection.HOME
+                else "scope.unsupported"
+            )
             section_views.append(
                 ExecutiveCommandCenterSectionView(
                     section=section,
