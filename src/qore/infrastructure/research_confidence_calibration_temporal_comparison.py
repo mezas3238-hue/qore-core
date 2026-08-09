@@ -110,6 +110,10 @@ def _derive_comparison(
         raise ResearchCalibrationTemporalComparisonValidationError(
             "temporal comparison requires the same frozen evaluation fold"
         )
+    if baseline.policy != comparison.policy:
+        raise ResearchCalibrationTemporalComparisonValidationError(
+            "temporal comparison requires the same OOS calibration diagnostic policy"
+        )
 
     baseline_observations = baseline_set.observations
     comparison_observations = comparison_set.observations
@@ -255,9 +259,10 @@ def compute_research_calibration_temporal_comparison_fingerprint(
 class ResearchCalibrationTemporalComparisonEvidence:
     """Research-only comparison of two ordered OOS windows for one fitted mapping.
 
-    The evidence proves that two validation windows use the same mapping/fold,
-    contain disjoint analysis identities, are ordered without simulated-time
-    overlap, and reports deterministic changes in selected calibration diagnostics.
+    The evidence proves that two validation windows use the same mapping/fold and
+    OOS diagnostic policy, contain disjoint analysis identities, are ordered without
+    simulated-time overlap, and reports deterministic changes in selected
+    calibration diagnostics.
 
     It does not detect calibration drift, establish statistical significance,
     estimate a drift onset, prove stationarity, quantify uncertainty of the changes,
