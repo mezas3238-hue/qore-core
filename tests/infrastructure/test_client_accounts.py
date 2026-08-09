@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
 from uuid import UUID
 
 import pytest
@@ -104,8 +103,11 @@ def test_client_and_account_identities_are_opaque_typed_and_immutable() -> None:
     with pytest.raises(ClientAccountValidationError):
         invalid_account.__post_init__()
 
-    with pytest.raises(FrozenInstanceError):
-        setattr(_CLIENT_A, "value", UUID("31000000-0000-0000-0000-000000000099"))
+    with pytest.raises(AttributeError):
+        _CLIENT_A.__setattr__(
+            "value",
+            UUID("31000000-0000-0000-0000-000000000099"),
+        )
 
 
 def test_binding_contains_only_opaque_account_scoped_references() -> None:
