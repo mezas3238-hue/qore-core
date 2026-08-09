@@ -30,15 +30,13 @@ _ZERO = Decimal(0)
 _ONE = Decimal(1)
 
 
-class ResearchCalibrationOosValidationError(InfrastructureError):
+class ResearchCalibrationOosError(InfrastructureError):
     """Base error for research-only OOS calibration validation evidence."""
 
     __slots__ = ()
 
 
-class ResearchCalibrationOosValidationValidationError(
-    ResearchCalibrationOosValidationError
-):
+class ResearchCalibrationOosValidationError(ResearchCalibrationOosError):
     """Violation of an OOS calibration validation invariant."""
 
     __slots__ = ()
@@ -46,22 +44,20 @@ class ResearchCalibrationOosValidationValidationError(
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
     if not isinstance(value, datetime):
-        raise ResearchCalibrationOosValidationValidationError(
-            f"{field_name} must be datetime"
-        )
+        raise ResearchCalibrationOosValidationError(f"{field_name} must be datetime")
     if value.tzinfo is None or value.utcoffset() is None:
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             f"{field_name} must be timezone-aware"
         )
 
 
 def _validate_probability(value: Decimal, *, field_name: str) -> None:
     if not isinstance(value, Decimal) or not value.is_finite():
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             f"{field_name} must be a finite Decimal"
         )
     if not _ZERO <= value <= _ONE:
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             f"{field_name} must remain inside [0, 1]"
         )
 
@@ -77,7 +73,7 @@ class ResearchCalibrationOosValidationId:
 
     def __post_init__(self) -> None:
         if not isinstance(self.value, UUID):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "calibration OOS validation id must be UUID"
             )
 
@@ -93,7 +89,7 @@ class ResearchCalibrationOosValidationPolicy:
 
     def __post_init__(self) -> None:
         if type(self.bin_count) is not int or not 2 <= self.bin_count <= 100:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "calibration OOS bin_count must be an integer between 2 and 100"
             )
 
@@ -121,18 +117,18 @@ class ResearchCalibrationOosValidationObservation:
 
     def __post_init__(self) -> None:
         if not isinstance(self.source, ResearchConfidenceOutcomeObservation):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration source must be ResearchConfidenceOutcomeObservation"
             )
         if not isinstance(self.run, ResearchRunEvidence):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration observation run must be ResearchRunEvidence"
             )
         _validate_timestamp(self.score_observed_at, field_name="score_observed_at")
         _validate_timestamp(self.outcome_observed_at, field_name="outcome_observed_at")
         _validate_timestamp(self.recorded_at, field_name="recorded_at")
         if self.outcome_observed_at < self.score_observed_at:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration outcome cannot precede its score observation"
             )
 
@@ -150,19 +146,19 @@ def _canonical_observations(
     observations: tuple[ResearchCalibrationOosValidationObservation, ...],
 ) -> tuple[ResearchCalibrationOosValidationObservation, ...]:
     if not isinstance(observations, tuple) or len(observations) < 2:
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             "OOS calibration validation requires at least two immutable observations"
         )
     if any(
         not isinstance(item, ResearchCalibrationOosValidationObservation)
         for item in observations
     ):
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             "OOS calibration observations must use the validation observation contract"
         )
     ids = tuple(item.source.analysis.analysis_id for item in observations)
     if len(set(ids)) != len(ids):
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             "OOS calibration analysis ids must be unique"
         )
     return tuple(
@@ -193,20 +189,20 @@ class ResearchCalibrationOosValidationSet:
 
     def __post_init__(self) -> None:
         if not isinstance(self.mapping_fit, ResearchConfidenceCalibrationMappingFit):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration set requires ResearchConfidenceCalibrationMappingFit"
             )
         if type(self.fold_number) is not int or self.fold_number <= 0:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration fold_number must be a positive integer"
             )
         if self.fold_number != self.mapping_fit.training_set.fold_number:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration must validate the fitted mapping on the same frozen fold"
             )
         ordered = _canonical_observations(self.observations)
         if self.observations != ordered:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration observations must use canonical simulated-time/id order"
             )
         plan = self.mapping_fit.training_set.evaluation_freeze.plan
@@ -215,7 +211,7 @@ class ResearchCalibrationOosValidationSet:
             None,
         )
         if fold is None:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration fold must exist in the frozen temporal plan"
             )
         training_ids = {
@@ -226,18 +222,18 @@ class ResearchCalibrationOosValidationSet:
             item.source.analysis.analysis_id for item in self.observations
         }
         if training_ids.intersection(validation_ids):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "fit and OOS calibration validation analysis ids must be disjoint"
             )
         if any(item.source.target != self.mapping_fit.target for item in self.observations):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration target must match the fitted mapping target"
             )
         if any(
             item.source.analysis.kind != self.mapping_fit.specialist_kind
             for item in self.observations
         ):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration specialist kind must match the fitted mapping"
             )
         if any(
@@ -245,21 +241,21 @@ class ResearchCalibrationOosValidationSet:
             or item.run.input_fingerprint != plan.run.input_fingerprint
             for item in self.observations
         ):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "every OOS calibration observation must bind the frozen research run"
             )
         window = fold.out_of_sample
         for item in self.observations:
             if not window.opened_at <= item.score_observed_at < window.closed_at:
-                raise ResearchCalibrationOosValidationValidationError(
+                raise ResearchCalibrationOosValidationError(
                     "every OOS calibration score must fall inside the OOS window"
                 )
             if not window.opened_at <= item.outcome_observed_at < window.closed_at:
-                raise ResearchCalibrationOosValidationValidationError(
+                raise ResearchCalibrationOosValidationError(
                     "every OOS calibration outcome must fall inside the OOS window"
                 )
             if item.recorded_at < self.mapping_fit.fitted_at:
-                raise ResearchCalibrationOosValidationValidationError(
+                raise ResearchCalibrationOosValidationError(
                     "OOS calibration evidence record cannot predate mapping fit"
                 )
 
@@ -308,11 +304,11 @@ class ResearchCalibrationOosValidationBin:
 
     def __post_init__(self) -> None:
         if type(self.index) is not int or self.index < 0:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration bin index must be a non-negative integer"
             )
         if type(self.sample_size) is not int or self.sample_size <= 0:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration bin sample_size must be a positive integer"
             )
         for field_name, value in (
@@ -324,13 +320,13 @@ class ResearchCalibrationOosValidationBin:
         ):
             _validate_probability(value, field_name=f"OOS calibration bin {field_name}")
         if not self.lower_bound < self.upper_bound:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration bin lower_bound must precede upper_bound"
             )
         if self.absolute_gap != abs(
             self.mean_estimated_probability - self.empirical_event_rate
         ):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration bin absolute_gap must match probability/event-rate gap"
             )
 
@@ -346,22 +342,25 @@ class ResearchCalibrationOosValidationBin:
         )
 
 
-def _derive_metrics(
-    validation_set: ResearchCalibrationOosValidationSet,
-    policy: ResearchCalibrationOosValidationPolicy,
-) -> tuple[
+type _Metrics = tuple[
     Decimal,
     Decimal,
     Decimal,
     tuple[ResearchCalibrationOosValidationBin, ...],
     Decimal,
-]:
+]
+
+
+def _derive_metrics(
+    validation_set: ResearchCalibrationOosValidationSet,
+    policy: ResearchCalibrationOosValidationPolicy,
+) -> _Metrics:
     if not isinstance(validation_set, ResearchCalibrationOosValidationSet):
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             "OOS calibration metrics require ResearchCalibrationOosValidationSet"
         )
     if not isinstance(policy, ResearchCalibrationOosValidationPolicy):
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             "OOS calibration metrics require ResearchCalibrationOosValidationPolicy"
         )
     estimates = tuple(
@@ -434,7 +433,7 @@ class ResearchCalibrationOosValidationFingerprint:
 
     def __post_init__(self) -> None:
         if not isinstance(self.value, str) or fullmatch(r"[0-9a-f]{64}", self.value) is None:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration validation fingerprint must be 64 lowercase hex characters"
             )
 
@@ -446,19 +445,13 @@ def compute_research_calibration_oos_validation_fingerprint(
     *,
     validation_set: ResearchCalibrationOosValidationSet,
     policy: ResearchCalibrationOosValidationPolicy,
-    metrics: tuple[
-        Decimal,
-        Decimal,
-        Decimal,
-        tuple[ResearchCalibrationOosValidationBin, ...],
-        Decimal,
-    ],
+    metrics: _Metrics,
 ) -> ResearchCalibrationOosValidationFingerprint:
     """Hash exact mapping, OOS evidence and diagnostics excluding admin id/time."""
 
     expected = _derive_metrics(validation_set, policy)
     if metrics != expected:
-        raise ResearchCalibrationOosValidationValidationError(
+        raise ResearchCalibrationOosValidationError(
             "OOS calibration fingerprint metrics must match deterministic derivation"
         )
     canonical = {
@@ -511,15 +504,15 @@ class ResearchCalibrationOosValidationEvidence:
 
     def __post_init__(self) -> None:
         if not isinstance(self.validation_id, ResearchCalibrationOosValidationId):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "validation_id must be ResearchCalibrationOosValidationId"
             )
         if not isinstance(self.validation_set, ResearchCalibrationOosValidationSet):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "validation_set must be ResearchCalibrationOosValidationSet"
             )
         if not isinstance(self.policy, ResearchCalibrationOosValidationPolicy):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "policy must be ResearchCalibrationOosValidationPolicy"
             )
         metrics = _derive_metrics(self.validation_set, self.policy)
@@ -531,21 +524,21 @@ class ResearchCalibrationOosValidationEvidence:
             self.expected_calibration_error,
         )
         if self.sample_size != len(self.validation_set.observations) or actual != metrics:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration metrics must match exact validation evidence"
             )
         _validate_timestamp(self.validated_at, field_name="validated_at")
         if self.validated_at < max(
             item.recorded_at for item in self.validation_set.observations
         ):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration validation cannot predate source evidence records"
             )
         if not isinstance(
             self.fingerprint,
             ResearchCalibrationOosValidationFingerprint,
         ):
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "fingerprint must be ResearchCalibrationOosValidationFingerprint"
             )
         expected_fingerprint = compute_research_calibration_oos_validation_fingerprint(
@@ -554,7 +547,7 @@ class ResearchCalibrationOosValidationEvidence:
             metrics=metrics,
         )
         if self.fingerprint != expected_fingerprint:
-            raise ResearchCalibrationOosValidationValidationError(
+            raise ResearchCalibrationOosValidationError(
                 "OOS calibration fingerprint must match exact evidence and metrics"
             )
 
@@ -596,10 +589,7 @@ def build_research_calibration_oos_validation_evidence(
     validation_set: ResearchCalibrationOosValidationSet,
     policy: ResearchCalibrationOosValidationPolicy,
     validated_at: datetime,
-) -> Result[
-    ResearchCalibrationOosValidationEvidence,
-    ResearchCalibrationOosValidationError,
-]:
+) -> Result[ResearchCalibrationOosValidationEvidence, ResearchCalibrationOosError]:
     """Build OOS mapping diagnostics without certifying calibrated probability."""
 
     try:
@@ -624,5 +614,5 @@ def build_research_calibration_oos_validation_evidence(
                 fingerprint=fingerprint,
             )
         )
-    except ResearchCalibrationOosValidationError as error:
+    except ResearchCalibrationOosError as error:
         return Failure(error)
