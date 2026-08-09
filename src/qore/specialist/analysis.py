@@ -11,6 +11,7 @@ from uuid import UUID
 
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import is_timezone_aware_datetime
 
 _RESERVED_SPECIALIST_METADATA_KEYS = frozenset({"correlation_id", "causation_id"})
 
@@ -215,8 +216,10 @@ class SpecialistAnalysis:
             raise SpecialistValidationError(
                 "specialist analysis_id must be a SpecialistAnalysisId"
             )
-        if not isinstance(self.timestamp, datetime):
-            raise SpecialistValidationError("specialist timestamp must be a datetime")
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise SpecialistValidationError(
+                "specialist timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.kind, SpecialistKind):
             raise SpecialistValidationError("specialist kind must be a SpecialistKind")
         if not isinstance(self.status, SpecialistAnalysisStatus):
