@@ -8,6 +8,7 @@ import pytest
 
 from qore.domain.events import CorrelationId
 from qore.governance.cibo_executive_dialogue import (
+    CiboExecutiveAnswer,
     CiboExecutiveDialogueTurnId,
     CiboExecutiveJudgmentState,
     CiboExecutivePromptRef,
@@ -16,6 +17,7 @@ from qore.governance.cibo_executive_dialogue import (
 )
 from qore.governance.cibo_widget import (
     CiboWidgetMode,
+    CiboWidgetState,
     CiboWidgetStateId,
     CiboWidgetValidationError,
     build_cibo_widget_state,
@@ -28,6 +30,7 @@ from qore.governance.executive_notifications import (
     ExecutiveNotificationId,
     ExecutiveNotificationOrigin,
     ExecutiveNotificationPolicy,
+    ExecutiveNotificationPresentation,
     ExecutiveNotificationRule,
     evaluate_executive_notification,
 )
@@ -41,7 +44,7 @@ _SURFACE_ID = ExecutiveClientSurfaceId(
 )
 
 
-def _answer():
+def _answer() -> CiboExecutiveAnswer:
     question = CiboExecutiveQuestion(
         turn_id=CiboExecutiveDialogueTurnId(UUID(int=2)),
         principal_id=ExecutivePrincipalId("ceo.primary"),
@@ -63,7 +66,7 @@ def _answer():
     return result.value
 
 
-def _critical_notification():
+def _critical_notification() -> ExecutiveNotificationPresentation:
     policy = ExecutiveNotificationPolicy(
         rules=(
             ExecutiveNotificationRule(
@@ -205,8 +208,6 @@ def test_critical_interruption_requires_critical_policy_result() -> None:
 
 def test_widget_cannot_observe_answer_or_notification_before_they_exist() -> None:
     with pytest.raises(CiboWidgetValidationError):
-        from qore.governance.cibo_widget import CiboWidgetState
-
         CiboWidgetState(
             state_id=CiboWidgetStateId(UUID(int=11)),
             surface_id=_SURFACE_ID,
