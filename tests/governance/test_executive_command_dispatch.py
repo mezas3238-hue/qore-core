@@ -7,8 +7,8 @@ from uuid import UUID
 from qore.domain.events import CorrelationId
 from qore.governance.executive_command_dispatch import (
     ExecutiveCommandDispatchBlockedError,
-    ExecutiveCommandDispatchReason,
     ExecutiveCommandDispatcher,
+    ExecutiveCommandDispatchReason,
 )
 from qore.governance.executive_control import (
     AuthorizedExecutiveControlIntent,
