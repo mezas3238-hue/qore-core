@@ -232,7 +232,7 @@ def _reference_client(platform: ExecutiveClientPlatform) -> _ReferenceClient:
     )
     assert isinstance(view_result, Success)
     if platform is ExecutiveClientPlatform.DESKTOP:
-        result = build_executive_desktop_reference_client(
+        desktop_result = build_executive_desktop_reference_client(
             reference_id=ExecutiveDesktopReferenceId(_platform_uuid(platform, 5)),
             surface=surface,
             session_binding=binding,
@@ -241,8 +241,10 @@ def _reference_client(platform: ExecutiveClientPlatform) -> _ReferenceClient:
             protocol=ExecutiveClientGatewayProtocol.IN_PROCESS,
             composed_at=_NOW + timedelta(minutes=3),
         )
-    elif platform is ExecutiveClientPlatform.IOS:
-        result = build_executive_ios_reference_client(
+        assert isinstance(desktop_result, Success)
+        return desktop_result.value
+    if platform is ExecutiveClientPlatform.IOS:
+        ios_result = build_executive_ios_reference_client(
             reference_id=ExecutiveIosReferenceId(_platform_uuid(platform, 5)),
             surface=surface,
             session_binding=binding,
@@ -251,18 +253,19 @@ def _reference_client(platform: ExecutiveClientPlatform) -> _ReferenceClient:
             protocol=ExecutiveClientGatewayProtocol.IN_PROCESS,
             composed_at=_NOW + timedelta(minutes=3),
         )
-    else:
-        result = build_executive_android_reference_client(
-            reference_id=ExecutiveAndroidReferenceId(_platform_uuid(platform, 5)),
-            surface=surface,
-            session_binding=binding,
-            command_center=view_result.value,
-            environment=ExecutiveClientGatewayEnvironment.TEST,
-            protocol=ExecutiveClientGatewayProtocol.IN_PROCESS,
-            composed_at=_NOW + timedelta(minutes=3),
-        )
-    assert isinstance(result, Success)
-    return result.value
+        assert isinstance(ios_result, Success)
+        return ios_result.value
+    android_result = build_executive_android_reference_client(
+        reference_id=ExecutiveAndroidReferenceId(_platform_uuid(platform, 5)),
+        surface=surface,
+        session_binding=binding,
+        command_center=view_result.value,
+        environment=ExecutiveClientGatewayEnvironment.TEST,
+        protocol=ExecutiveClientGatewayProtocol.IN_PROCESS,
+        composed_at=_NOW + timedelta(minutes=3),
+    )
+    assert isinstance(android_result, Success)
+    return android_result.value
 
 
 def _grant() -> ExecutiveAuthorityGrant:
