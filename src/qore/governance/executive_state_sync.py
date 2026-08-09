@@ -308,7 +308,11 @@ def evaluate_executive_client_state_snapshot(
             if evaluated_at <= snapshot.fresh_until
             else ExecutiveClientStateStatus.STALE
         )
-        reason_code = "snapshot.current" if status is ExecutiveClientStateStatus.CURRENT else "snapshot.stale"
+        reason_code = (
+            "snapshot.current"
+            if status is ExecutiveClientStateStatus.CURRENT
+            else "snapshot.stale"
+        )
         return Success(
             ExecutiveClientStateView(
                 status=status,
