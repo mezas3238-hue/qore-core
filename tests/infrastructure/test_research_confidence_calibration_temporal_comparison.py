@@ -19,6 +19,7 @@ from qore.infrastructure.research_confidence_calibration_oos_validation import (
     ResearchCalibrationOosValidationEvidence,
     ResearchCalibrationOosValidationFingerprint,
     ResearchCalibrationOosValidationObservation,
+    ResearchCalibrationOosValidationPolicy,
     ResearchCalibrationOosValidationSet,
 )
 from qore.infrastructure.research_confidence_calibration_temporal_comparison import (
@@ -72,6 +73,7 @@ def _validation(
     event_rate: str,
     ece: str,
     fingerprint: str,
+    bin_count: int = 4,
 ) -> ResearchCalibrationOosValidationEvidence:
     validation_set = object.__new__(ResearchCalibrationOosValidationSet)
     object.__setattr__(validation_set, "mapping_fit", mapping)
@@ -79,6 +81,11 @@ def _validation(
     object.__setattr__(validation_set, "observations", observations)
     validation = object.__new__(ResearchCalibrationOosValidationEvidence)
     object.__setattr__(validation, "validation_set", validation_set)
+    object.__setattr__(
+        validation,
+        "policy",
+        ResearchCalibrationOosValidationPolicy(bin_count=bin_count),
+    )
     object.__setattr__(
         validation,
         "mean_estimated_probability",
@@ -180,6 +187,25 @@ def test_temporal_comparison_requires_same_mapping_identity_and_fingerprint() ->
         )
         assert isinstance(built, Failure)
         assert "mapping" in str(built.error)
+
+
+def test_temporal_comparison_requires_same_oos_diagnostic_policy() -> None:
+    mapping = _mapping()
+    comparison = _comparison(mapping)
+    object.__setattr__(
+        comparison,
+        "policy",
+        ResearchCalibrationOosValidationPolicy(bin_count=5),
+    )
+
+    built = build_research_calibration_temporal_comparison_evidence(
+        comparison_id=ResearchCalibrationTemporalComparisonId(UUID(int=9151)),
+        baseline=_baseline(mapping),
+        comparison=comparison,
+    )
+
+    assert isinstance(built, Failure)
+    assert "diagnostic policy" in str(built.error)
 
 
 def test_temporal_comparison_rejects_reused_analysis_identity() -> None:
