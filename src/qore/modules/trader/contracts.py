@@ -47,6 +47,7 @@ class ProduceVirtualTraderAnalysisCommand(Command):
     reasons: tuple[SpecialistReason, ...]
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if not isinstance(self.analysis_id, SpecialistAnalysisId):
             raise TraderValidationError(
                 "virtual trader analysis_id must be a SpecialistAnalysisId"
