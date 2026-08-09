@@ -131,9 +131,10 @@ def test_snapshot_is_immutable() -> None:
         licensing.CommercialPaymentStanding.CURRENT,
         open_positions=0,
     )
+    attribute_name = "open_positions"
 
     with pytest.raises(FrozenInstanceError):
-        setattr(snapshot, "open_positions", 1)
+        setattr(snapshot, attribute_name, 1)
 
 
 def test_commercial_suspension_has_no_billing_widget_or_trading_authority() -> None:
