@@ -250,14 +250,11 @@ def test_digest_changes_when_market_value_availability_or_processing_version_cha
         normalization=HistoricalDatasetNormalizationVersion("canonical-ingestion-v2"),
     )
 
-    for item in (
-        baseline,
-        changed_price,
-        changed_availability,
-        changed_schema,
-        changed_normalization,
-    ):
-        assert isinstance(item, Success)
+    assert isinstance(baseline, Success)
+    assert isinstance(changed_price, Success)
+    assert isinstance(changed_availability, Success)
+    assert isinstance(changed_schema, Success)
+    assert isinstance(changed_normalization, Success)
     digests = {
         baseline.value.manifest.evidence_digest,
         changed_price.value.manifest.evidence_digest,
