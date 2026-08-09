@@ -226,6 +226,7 @@ def test_demo_translation_preserves_authorized_intent_and_automation_flag() -> N
     )
 
     assert isinstance(translated, result.Success)
+    assert translated.value.request_id == request.request_id
     assert translated.value.symbol == tradovate.TradovateSymbol("ESZ6")
     assert translated.value.action is tradovate.TradovateOrderAction.BUY
     assert translated.value.order_type is tradovate.TradovateOrderType.MARKET
