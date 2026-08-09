@@ -14,6 +14,7 @@ from qore.domain.events import (
     DomainEventVersion,
 )
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import is_timezone_aware_datetime
 from qore.modules.statistics.contracts import StatisticsSnapshot, StatisticsSnapshotId
 from qore.specialist.analysis import SpecialistConfidence
 
@@ -59,8 +60,10 @@ class KnowledgeRecord:
     def __post_init__(self) -> None:
         if not isinstance(self.record_id, KnowledgeRecordId):
             raise KnowledgeInvariantError("record_id must be KnowledgeRecordId")
-        if not isinstance(self.timestamp, datetime):
-            raise KnowledgeInvariantError("knowledge timestamp must be datetime")
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise KnowledgeInvariantError(
+                "knowledge timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.source_snapshot, StatisticsSnapshot):
             raise KnowledgeInvariantError(
                 "source_snapshot must be StatisticsSnapshot"
@@ -138,6 +141,7 @@ class CaptureStatisticsKnowledgeCommand(Command):
     source_snapshot: StatisticsSnapshot
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if not isinstance(self.record_id, KnowledgeRecordId):
             raise KnowledgeInvariantError("record_id must be KnowledgeRecordId")
         if not isinstance(self.source_snapshot, StatisticsSnapshot):
