@@ -37,6 +37,12 @@ def _test(suffix: int, p_value: str) -> ResearchPeriodicBootstrapTestEvidence:
         "test_id",
         ResearchPeriodicBootstrapTestId(_uuid(suffix)),
     )
+    object.__setattr__(evidence, "series", None)
+    object.__setattr__(evidence, "policy", None)
+    object.__setattr__(evidence, "sample_size", 3)
+    object.__setattr__(evidence, "observed_mean", Decimal("0"))
+    object.__setattr__(evidence, "null_resampled_means", ())
+    object.__setattr__(evidence, "extreme_count", 0)
     object.__setattr__(evidence, "bootstrap_p_value", Decimal(p_value))
     return evidence
 
