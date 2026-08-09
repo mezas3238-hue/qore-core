@@ -38,9 +38,23 @@ def _money(value: str) -> MoneyAmount:
 
 def _run(*, with_cost_model: bool = True, hours: int = 2) -> ResearchRunEvidence:
     run = object.__new__(ResearchRunEvidence)
+    object.__setattr__(run, "run_id", "research-run-test")
+    object.__setattr__(run, "created_at", _PROCESS - timedelta(minutes=2))
+    object.__setattr__(run, "datasets", ())
+    object.__setattr__(run, "replay_policy_version", "point-in-time-v1")
     object.__setattr__(run, "simulated_start", _SIMULATED)
     object.__setattr__(run, "simulated_end", _SIMULATED + timedelta(hours=hours))
-    object.__setattr__(run, "transaction_cost_model_id", object() if with_cost_model else None)
+    object.__setattr__(run, "strategy_configuration_id", "strategy-test")
+    object.__setattr__(run, "software_revision", "a9b9e786")
+    object.__setattr__(run, "execution_model_id", None)
+    object.__setattr__(
+        run,
+        "transaction_cost_model_id",
+        "cost-model-test" if with_cost_model else None,
+    )
+    object.__setattr__(run, "randomness_mode", "deterministic")
+    object.__setattr__(run, "random_seed", None)
+    object.__setattr__(run, "input_fingerprint", "fixture-fingerprint")
     return run
 
 
