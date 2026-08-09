@@ -7,6 +7,7 @@ import pytest
 
 from qore.domain.events import CorrelationId
 from qore.governance.executive_authority_state import (
+    ExecutiveAuthorityStateError,
     ExecutiveAuthorityStateEvidenceRef,
     ExecutiveAuthorityStateRequest,
     ExecutiveAuthorityStateRequestId,
@@ -202,7 +203,7 @@ class _FakeAuthorityStateSource:
     def read_current(
         self,
         request: ExecutiveAuthorityStateRequest,
-    ) -> Result[ExecutiveAuthorityStateSnapshot, object]:
+    ) -> Result[ExecutiveAuthorityStateSnapshot, ExecutiveAuthorityStateError]:
         self.requests.append(request)
         return Success(self.snapshot)
 
