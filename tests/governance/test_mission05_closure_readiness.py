@@ -26,7 +26,10 @@ from qore.governance.executive_authentication import (
     ExecutiveAuthenticationMethodCode,
     ExecutiveIdentityBoundaryRef,
 )
-from qore.governance.executive_client_gateway import ExecutiveClientGatewayEnvironment
+from qore.governance.executive_client_gateway import (
+    ExecutiveClientGatewayEnvironment,
+    ExecutiveClientGatewayProtocol,
+)
 from qore.governance.executive_client_session import (
     ExecutiveClientDeviceRef,
     ExecutiveClientSession,
@@ -189,46 +192,40 @@ def _reference_client(platform: ExecutiveClientPlatform) -> _ReferenceClient:
     )
     assert isinstance(view_result, Success)
     if platform is ExecutiveClientPlatform.DESKTOP:
-        result = build_executive_desktop_reference_client(
+        desktop_result = build_executive_desktop_reference_client(
             reference_id=ExecutiveDesktopReferenceId(_platform_uuid(platform, 5)),
             surface=binding.surface,
             session_binding=binding,
             command_center=view_result.value,
             environment=ExecutiveClientGatewayEnvironment.TEST,
-            protocol=_desktop_protocol(),
+            protocol=ExecutiveClientGatewayProtocol.IN_PROCESS,
             composed_at=_NOW + timedelta(minutes=3),
         )
-        assert isinstance(result, Success)
-        return result.value
+        assert isinstance(desktop_result, Success)
+        return desktop_result.value
     if platform is ExecutiveClientPlatform.IOS:
-        result = build_executive_ios_reference_client(
+        ios_result = build_executive_ios_reference_client(
             reference_id=ExecutiveIosReferenceId(_platform_uuid(platform, 5)),
             surface=binding.surface,
             session_binding=binding,
             command_center=view_result.value,
             environment=ExecutiveClientGatewayEnvironment.TEST,
-            protocol=_desktop_protocol(),
+            protocol=ExecutiveClientGatewayProtocol.IN_PROCESS,
             composed_at=_NOW + timedelta(minutes=3),
         )
-        assert isinstance(result, Success)
-        return result.value
-    result = build_executive_android_reference_client(
+        assert isinstance(ios_result, Success)
+        return ios_result.value
+    android_result = build_executive_android_reference_client(
         reference_id=ExecutiveAndroidReferenceId(_platform_uuid(platform, 5)),
         surface=binding.surface,
         session_binding=binding,
         command_center=view_result.value,
         environment=ExecutiveClientGatewayEnvironment.TEST,
-        protocol=_desktop_protocol(),
+        protocol=ExecutiveClientGatewayProtocol.IN_PROCESS,
         composed_at=_NOW + timedelta(minutes=3),
     )
-    assert isinstance(result, Success)
-    return result.value
-
-
-def _desktop_protocol():  # type is inferred from the canonical enum value below
-    from qore.governance.executive_client_gateway import ExecutiveClientGatewayProtocol
-
-    return ExecutiveClientGatewayProtocol.IN_PROCESS
+    assert isinstance(android_result, Success)
+    return android_result.value
 
 
 def _notification_policy() -> ExecutiveNotificationPolicy:
@@ -294,7 +291,7 @@ def _authorized_control() -> AuthorizedExecutiveControlIntent:
     )
 
 
-def test_reference_clients_are_external_share_authority_semantics_and_have_no_production_gateway() -> None:
+def test_reference_clients_share_authority_and_no_production_gateway() -> None:
     clients = tuple(
         _reference_client(platform)
         for platform in (
@@ -323,7 +320,7 @@ def test_reference_clients_are_external_share_authority_semantics_and_have_no_pr
         assert not hasattr(client, "bypass_risk")
 
 
-def test_notification_dialogue_and_widget_are_evidence_backed_but_non_authoritative() -> None:
+def test_notification_dialogue_widget_are_evidence_backed_non_authoritative() -> None:
     notification = ExecutiveNotification(
         notification_id=ExecutiveNotificationId(UUID(int=4101)),
         origin=ExecutiveNotificationOrigin.RISK,
@@ -369,7 +366,13 @@ def test_notification_dialogue_and_widget_are_evidence_backed_but_non_authoritat
     assert isinstance(widget_result, Success)
 
     assert answer_result.value.evidence_refs
-    for value in (notification, notification_result.value, answer_result.value, widget_result.value):
+    presentation_values = (
+        notification,
+        notification_result.value,
+        answer_result.value,
+        widget_result.value,
+    )
+    for value in presentation_values:
         assert not hasattr(value, "dispatch")
         assert not hasattr(value, "execute")
         assert not hasattr(value, "submit_order")
@@ -378,7 +381,7 @@ def test_notification_dialogue_and_widget_are_evidence_backed_but_non_authoritat
         assert not hasattr(value, "bypass_risk")
 
 
-def test_no_change_receipt_is_explicit_no_action_and_never_redispatchable() -> None:
+def test_no_change_receipt_is_no_action_and_never_redispatchable() -> None:
     authorized = _authorized_control()
     receipt_result = build_executive_control_receipt(
         authorized,
@@ -403,7 +406,7 @@ def test_no_change_receipt_is_explicit_no_action_and_never_redispatchable() -> N
     assert ux_result.value.automatic_redispatch_allowed is False
 
 
-def test_subscription_contract_remains_presentation_only_and_freshness_vocabulary_is_closed() -> None:
+def test_subscription_is_presentation_only_and_freshness_vocabulary_is_closed() -> None:
     subscription = ExecutiveClientSubscription(
         subscription_id=ExecutiveClientSubscriptionId(UUID(int=4301)),
         surface_id=ExecutiveClientSurfaceId(UUID(int=4302)),
