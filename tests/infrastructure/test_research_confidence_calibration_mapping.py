@@ -280,7 +280,11 @@ def test_training_set_rejects_score_or_outcome_outside_in_sample_window() -> Non
     valid = _training_set()
     window = valid.training_window
 
-    bad_score = replace(valid.observations[0], score_observed_at=window.closed_at)
+    bad_score = replace(
+        valid.observations[0],
+        score_observed_at=window.closed_at,
+        outcome_observed_at=window.closed_at,
+    )
     with pytest.raises(ResearchCalibrationMappingValidationError):
         replace(valid, observations=(bad_score, *valid.observations[1:]))
 
