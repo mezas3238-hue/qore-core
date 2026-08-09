@@ -66,6 +66,7 @@ def _case(
 ) -> paper.FuturesPaperE2ECaseResult:
     request_id = futures.FuturesExecutionRequestId(_uuid(suffix))
     at = _BASE + timedelta(seconds=suffix)
+    observations: tuple[futures.FuturesExecutionObservation, ...]
     if scenario is paper.FuturesPaperE2EScenario.PARTIAL_FILL_THEN_FILL:
         observations = (
             _observation(
