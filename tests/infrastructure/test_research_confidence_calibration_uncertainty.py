@@ -16,11 +16,11 @@ from qore.infrastructure.research_confidence_calibration_mapping import (
     ResearchConfidenceCalibrationMappingFit,
 )
 from qore.infrastructure.research_confidence_calibration_oos_validation import (
+    ResearchCalibrationOosValidationEvidence,
     ResearchCalibrationOosValidationFingerprint,
     ResearchCalibrationOosValidationObservation,
     ResearchCalibrationOosValidationPolicy,
     ResearchCalibrationOosValidationSet,
-    ResearchCalibrationOosValidationEvidence,
 )
 from qore.infrastructure.research_confidence_calibration_uncertainty import (
     ResearchCalibrationIntervalMethod,
@@ -180,7 +180,12 @@ def test_uncertainty_evidence_is_deterministic_and_research_only() -> None:
     assert evidence.resampled_brier_scores == second.value.resampled_brier_scores
     assert evidence.resampled_ece == second.value.resampled_ece
     assert evidence.fingerprint == second.value.fingerprint
-    assert Decimal(0) <= evidence.brier_interval.lower <= evidence.brier_interval.upper <= Decimal(1)
+    assert (
+        Decimal(0)
+        <= evidence.brier_interval.lower
+        <= evidence.brier_interval.upper
+        <= Decimal(1)
+    )
     assert Decimal(0) <= evidence.ece_interval.lower <= evidence.ece_interval.upper <= Decimal(1)
     assert evidence.brier_interval.confidence_level == Decimal("0.80")
     assert evidence.ece_interval.method is ResearchCalibrationIntervalMethod.PERCENTILE_NEAREST_RANK
