@@ -336,7 +336,10 @@ class DecisionCryptographicVerification:
         if (
             not isinstance(self.protected_payload_digest, str)
             or len(self.protected_payload_digest) != 64
-            or any(character not in "0123456789abcdef" for character in self.protected_payload_digest)
+            or any(
+                character not in "0123456789abcdef"
+                for character in self.protected_payload_digest
+            )
         ):
             raise ClientDecisionSecurityValidationError(
                 "protected_payload_digest must be a lowercase SHA-256 hex digest"
