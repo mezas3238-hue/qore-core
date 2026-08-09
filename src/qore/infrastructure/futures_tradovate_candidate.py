@@ -14,6 +14,7 @@ from qore.infrastructure.futures_adapter_contracts import (
     FuturesContractMapping,
     FuturesExecutionEnvironment,
     FuturesExecutionRequest,
+    FuturesExecutionRequestId,
     FuturesOrderSide,
     FuturesOrderType,
     FuturesProviderName,
@@ -303,7 +304,7 @@ class TradovateTimeInForce(StrEnum):
 class TradovateDemoOrderIntent:
     """Deterministic DEMO translation; this object performs no API call."""
 
-    request_id: object
+    request_id: FuturesExecutionRequestId
     account_ref: TradovateDemoAccountReference
     symbol: TradovateSymbol
     action: TradovateOrderAction
@@ -317,6 +318,10 @@ class TradovateDemoOrderIntent:
     requested_at: datetime
 
     def __post_init__(self) -> None:
+        if not isinstance(self.request_id, FuturesExecutionRequestId):
+            raise TradovateCandidateValidationError(
+                "request_id must be FuturesExecutionRequestId"
+            )
         if not isinstance(self.account_ref, TradovateDemoAccountReference):
             raise TradovateCandidateValidationError(
                 "account_ref must be TradovateDemoAccountReference"
@@ -366,7 +371,7 @@ class TradovateDemoOrderIntent:
 
     def logical_values(self) -> tuple[object, ...]:
         return (
-            self.request_id,
+            self.request_id.logical_values(),
             self.account_ref.logical_values(),
             self.symbol.logical_values(),
             self.action.value,
@@ -561,7 +566,7 @@ def translate_tradovate_demo_order(
     )
     try:
         intent = TradovateDemoOrderIntent(
-            request_id=request.request_id.logical_values(),
+            request_id=request.request_id,
             account_ref=account_ref,
             symbol=TradovateSymbol(request.mapping.provider_contract_id.value),
             action=action,
