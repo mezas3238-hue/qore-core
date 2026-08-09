@@ -10,7 +10,6 @@ from qore.infrastructure.research_periodic_hac_risk import (
     ResearchPeriodicHacRiskSnapshot,
     ResearchPeriodicHacRiskStatus,
 )
-
 from qore.infrastructure.research_periodic_hac_sharpe import (
     ResearchPeriodicHacSharpeMetricId,
     ResearchPeriodicHacSharpePolicy,
