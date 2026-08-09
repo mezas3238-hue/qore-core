@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from qore.functional.decisions import DecisionId
@@ -206,6 +207,27 @@ class ClientPerformanceCorrectionRecord:
         )
 
 
+def _validate_profit_record_common(
+    record_id: ClientPerformanceRecordId,
+    account_id: TradingAccountId,
+    amount: MoneyAmount,
+    event_at: datetime,
+) -> None:
+    if not isinstance(record_id, ClientPerformanceRecordId):
+        raise ClientPerformanceLedgerValidationError(
+            "profit record_id must be ClientPerformanceRecordId"
+        )
+    if not isinstance(account_id, TradingAccountId):
+        raise ClientPerformanceLedgerValidationError(
+            "profit account_id must be TradingAccountId"
+        )
+    if not isinstance(amount, MoneyAmount) or amount.amount <= 0:
+        raise ClientPerformanceLedgerValidationError(
+            "profit amount must be a positive MoneyAmount"
+        )
+    _validate_timestamp(event_at, field_name="profit event timestamp")
+
+
 @dataclass(frozen=True, slots=True)
 class ClientEntitledProfitRecord:
     """Profit contractually attributable to the client, not proof of payment."""
@@ -326,27 +348,6 @@ class EligibleClientPaidProfitRecord:
         )
 
 
-def _validate_profit_record_common(
-    record_id: ClientPerformanceRecordId,
-    account_id: TradingAccountId,
-    amount: MoneyAmount,
-    event_at: datetime,
-) -> None:
-    if not isinstance(record_id, ClientPerformanceRecordId):
-        raise ClientPerformanceLedgerValidationError(
-            "profit record_id must be ClientPerformanceRecordId"
-        )
-    if not isinstance(account_id, TradingAccountId):
-        raise ClientPerformanceLedgerValidationError(
-            "profit account_id must be TradingAccountId"
-        )
-    if not isinstance(amount, MoneyAmount) or amount.amount <= 0:
-        raise ClientPerformanceLedgerValidationError(
-            "profit amount must be a positive MoneyAmount"
-        )
-    _validate_timestamp(event_at, field_name="profit event timestamp")
-
-
 @dataclass(frozen=True, slots=True)
 class ClientPerformanceLedger:
     """Immutable account-scoped append-only performance ledger."""
@@ -368,43 +369,48 @@ class ClientPerformanceLedger:
             raise ClientPerformanceLedgerValidationError(
                 "ledger currency must be CurrencyCode"
             )
-        all_records: tuple[object, ...] = (
-            *self.realized,
-            *self.corrections,
-            *self.entitled,
-            *self.paid,
-            *self.eligible_paid,
-        )
-        ids: set[ClientPerformanceRecordId] = set()
-        for record in all_records:
-            record_id = getattr(record, "record_id", None)
-            account_id = getattr(record, "account_id", None)
-            amount = getattr(record, "amount", None)
-            if record_id in ids:
-                raise ClientPerformanceLedgerValidationError(
-                    "ledger record ids must be globally unique"
-                )
-            if not isinstance(record_id, ClientPerformanceRecordId):
-                raise ClientPerformanceLedgerValidationError(
-                    "ledger contains unsupported record"
-                )
-            ids.add(record_id)
-            if account_id != self.account_id:
-                raise ClientPerformanceLedgerValidationError(
-                    "ledger records must remain account-scoped"
-                )
-            money = (
-                record.realized_pnl
-                if isinstance(record, ClientRealizedPerformanceRecord)
-                else record.adjustment
-                if isinstance(record, ClientPerformanceCorrectionRecord)
-                else amount
-            )
-            if not isinstance(money, MoneyAmount) or money.currency != self.currency:
-                raise ClientPerformanceLedgerValidationError(
-                    "ledger records must use ledger currency"
-                )
+        self._validate_records()
         self._validate_lineage()
+
+    def _validate_records(self) -> None:
+        ids: set[ClientPerformanceRecordId] = set()
+        for record in self.realized:
+            self._validate_record_identity(record.record_id, record.account_id, ids)
+            self._validate_currency(record.realized_pnl)
+        for record in self.corrections:
+            self._validate_record_identity(record.record_id, record.account_id, ids)
+            self._validate_currency(record.adjustment)
+        for record in self.entitled:
+            self._validate_record_identity(record.record_id, record.account_id, ids)
+            self._validate_currency(record.amount)
+        for record in self.paid:
+            self._validate_record_identity(record.record_id, record.account_id, ids)
+            self._validate_currency(record.amount)
+        for record in self.eligible_paid:
+            self._validate_record_identity(record.record_id, record.account_id, ids)
+            self._validate_currency(record.amount)
+
+    def _validate_record_identity(
+        self,
+        record_id: ClientPerformanceRecordId,
+        account_id: TradingAccountId,
+        ids: set[ClientPerformanceRecordId],
+    ) -> None:
+        if record_id in ids:
+            raise ClientPerformanceLedgerValidationError(
+                "ledger record ids must be globally unique"
+            )
+        ids.add(record_id)
+        if account_id != self.account_id:
+            raise ClientPerformanceLedgerValidationError(
+                "ledger records must remain account-scoped"
+            )
+
+    def _validate_currency(self, amount: MoneyAmount) -> None:
+        if amount.currency != self.currency:
+            raise ClientPerformanceLedgerValidationError(
+                "ledger records must use ledger currency"
+            )
 
     def _validate_lineage(self) -> None:
         realized_by_id = {record.record_id: record for record in self.realized}
@@ -420,43 +426,49 @@ class ClientPerformanceLedger:
                 raise ClientPerformanceLedgerValidationError(
                     "correction must not predate corrected realized record"
                 )
-        for paid in self.paid:
-            entitlement = entitled_by_id.get(paid.entitlement_record_id)
+        for paid_record in self.paid:
+            entitlement = entitled_by_id.get(paid_record.entitlement_record_id)
             if entitlement is None:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit must reference an existing entitlement"
                 )
-            if paid.paid_at < entitlement.evaluated_at:
+            if paid_record.paid_at < entitlement.evaluated_at:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit must not predate entitlement"
                 )
-            if paid.amount.currency != entitlement.amount.currency:
+            if paid_record.amount.currency != entitlement.amount.currency:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit currency must match entitlement"
                 )
-            if paid.amount.amount > entitlement.amount.amount:
+            if paid_record.amount.amount > entitlement.amount.amount:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit cannot exceed client entitlement"
                 )
         for eligible in self.eligible_paid:
-            paid = paid_by_id.get(eligible.paid_profit_record_id)
-            if paid is None:
+            paid_record = paid_by_id.get(eligible.paid_profit_record_id)
+            if paid_record is None:
                 raise ClientPerformanceLedgerValidationError(
                     "eligible paid profit must reference an existing paid record"
                 )
-            if eligible.evaluated_at < paid.paid_at:
+            if eligible.evaluated_at < paid_record.paid_at:
                 raise ClientPerformanceLedgerValidationError(
                     "eligible paid profit must not predate verified payout"
                 )
-            if eligible.amount.amount > paid.amount.amount:
+            if eligible.amount.amount > paid_record.amount.amount:
                 raise ClientPerformanceLedgerValidationError(
                     "eligible paid profit cannot exceed verified client payout"
                 )
 
     @property
     def net_realized_pnl(self) -> MoneyAmount:
-        amount = sum((record.realized_pnl.amount for record in self.realized), start=0)
-        amount += sum((record.adjustment.amount for record in self.corrections), start=0)
+        amount = sum(
+            (record.realized_pnl.amount for record in self.realized),
+            start=Decimal(0),
+        )
+        amount += sum(
+            (record.adjustment.amount for record in self.corrections),
+            start=Decimal(0),
+        )
         return MoneyAmount(currency=self.currency, amount=amount)
 
     def logical_values(self) -> tuple[object, ...]:
@@ -540,46 +552,47 @@ def append_performance_correction(
     ledger: ClientPerformanceLedger,
     correction: ClientPerformanceCorrectionRecord,
 ) -> Result[ClientPerformanceLedger, ClientPerformanceLedgerError]:
-    return _append_typed(ledger, correction, "corrections")
+    if not isinstance(ledger, ClientPerformanceLedger):
+        return Failure(ClientPerformanceLedgerValidationError("ledger is required"))
+    try:
+        return Success(
+            replace(ledger, corrections=(*ledger.corrections, correction))
+        )
+    except ClientPerformanceLedgerError as error:
+        return Failure(error)
 
 
 def append_entitled_profit(
     ledger: ClientPerformanceLedger,
     record: ClientEntitledProfitRecord,
 ) -> Result[ClientPerformanceLedger, ClientPerformanceLedgerError]:
-    return _append_typed(ledger, record, "entitled")
+    if not isinstance(ledger, ClientPerformanceLedger):
+        return Failure(ClientPerformanceLedgerValidationError("ledger is required"))
+    try:
+        return Success(replace(ledger, entitled=(*ledger.entitled, record)))
+    except ClientPerformanceLedgerError as error:
+        return Failure(error)
 
 
 def append_paid_profit(
     ledger: ClientPerformanceLedger,
     record: ClientPaidProfitRecord,
 ) -> Result[ClientPerformanceLedger, ClientPerformanceLedgerError]:
-    return _append_typed(ledger, record, "paid")
+    if not isinstance(ledger, ClientPerformanceLedger):
+        return Failure(ClientPerformanceLedgerValidationError("ledger is required"))
+    try:
+        return Success(replace(ledger, paid=(*ledger.paid, record)))
+    except ClientPerformanceLedgerError as error:
+        return Failure(error)
 
 
 def append_eligible_paid_profit(
     ledger: ClientPerformanceLedger,
     record: EligibleClientPaidProfitRecord,
 ) -> Result[ClientPerformanceLedger, ClientPerformanceLedgerError]:
-    return _append_typed(ledger, record, "eligible_paid")
-
-
-def _append_typed(
-    ledger: ClientPerformanceLedger,
-    record: object,
-    field_name: str,
-) -> Result[ClientPerformanceLedger, ClientPerformanceLedgerError]:
     if not isinstance(ledger, ClientPerformanceLedger):
         return Failure(ClientPerformanceLedgerValidationError("ledger is required"))
     try:
-        current = getattr(ledger, field_name)
-        candidate = replace(ledger, **{field_name: (*current, record)})
-        return Success(candidate)
-    except (ClientPerformanceLedgerError, TypeError) as error:
-        if isinstance(error, ClientPerformanceLedgerError):
-            return Failure(error)
-        return Failure(
-            ClientPerformanceLedgerValidationError(
-                f"unsupported performance record for {field_name}"
-            )
-        )
+        return Success(replace(ledger, eligible_paid=(*ledger.eligible_paid, record)))
+    except ClientPerformanceLedgerError as error:
+        return Failure(error)
