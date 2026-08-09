@@ -179,7 +179,9 @@ class _FakeAuthoritySource:
         return Success(self.snapshot)
 
 
-def _blocked_reason(result: object) -> tuple[ExecutiveRequestGuardStage, ExecutiveRequestGuardReason]:
+def _blocked_reason(
+    result: object,
+) -> tuple[ExecutiveRequestGuardStage, ExecutiveRequestGuardReason]:
     assert isinstance(result, Failure)
     assert isinstance(result.error, ExecutiveRequestGuardBlockedError)
     return result.error.stage, result.error.reason
@@ -259,8 +261,14 @@ def test_principal_and_correlation_mismatch_block_before_authority_source() -> N
         evaluated_at=_NOW + timedelta(minutes=3),
     )
 
-    assert _blocked_reason(principal_result)[1] is ExecutiveRequestGuardReason.PRINCIPAL_MISMATCH
-    assert _blocked_reason(correlation_result)[1] is ExecutiveRequestGuardReason.CORRELATION_MISMATCH
+    assert (
+        _blocked_reason(principal_result)[1]
+        is ExecutiveRequestGuardReason.PRINCIPAL_MISMATCH
+    )
+    assert (
+        _blocked_reason(correlation_result)[1]
+        is ExecutiveRequestGuardReason.CORRELATION_MISMATCH
+    )
     assert source.requests == []
 
 
