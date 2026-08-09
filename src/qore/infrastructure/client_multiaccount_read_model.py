@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
@@ -360,9 +361,18 @@ def _summaries_for(
     summaries: list[ClientCurrencySummary] = []
     for currency in currencies:
         selected = tuple(account for account in accounts if account.currency == currency)
-        balance = sum((account.balance.amount for account in selected), start=0)
-        today = sum((account.generated_today.amount for account in selected), start=0)
-        week = sum((account.generated_week.amount for account in selected), start=0)
+        balance = sum(
+            (account.balance.amount for account in selected),
+            start=Decimal(0),
+        )
+        today = sum(
+            (account.generated_today.amount for account in selected),
+            start=Decimal(0),
+        )
+        week = sum(
+            (account.generated_week.amount for account in selected),
+            start=Decimal(0),
+        )
         summaries.append(
             ClientCurrencySummary(
                 currency=currency,
