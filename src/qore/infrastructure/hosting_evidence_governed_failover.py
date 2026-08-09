@@ -9,11 +9,8 @@ from qore.infrastructure.client_accounts import (
     ExecutionRuntimeReference,
     TradingAccountId,
 )
-from qore.infrastructure.execution_reconciliation import (
-    ExecutionReconciliationSnapshot,
-)
+from qore.infrastructure.execution_reconciliation import ExecutionReconciliationSnapshot
 from qore.infrastructure.hosting_execution_lease import (
-    HostingExecutionLeaseError,
     HostingExecutionLeaseId,
     HostingExecutionLeaseSnapshot,
     HostingFencingGeneration,
@@ -29,24 +26,22 @@ from qore.infrastructure.hosting_failover_reconciliation import (
     HostingFailoverReconciliationError,
     evaluate_hosting_failover_readiness,
 )
-from qore.infrastructure.hosting_health_heartbeat import (
-    HostingRuntimeHealthAssessment,
-)
+from qore.infrastructure.hosting_health_heartbeat import HostingRuntimeHealthAssessment
 from qore.infrastructure.hosting_io_certification import (
     HostingIOCertificateStatus,
     HostingIOPeriodicReliabilityReport,
+    HostingIOReportId,
 )
 from qore.infrastructure.hosting_reliability_incident import (
     HostingReliabilityIncidentFinalState,
     HostingReliabilityIncidentReport,
+    HostingReliabilityIncidentReportId,
 )
 from qore.infrastructure.hosting_reliability_lab import (
     HostingReliabilityEvidenceReference,
     HostingReliabilityInfrastructureAction,
 )
-from qore.infrastructure.hosting_runtime_registry import (
-    HostingRuntimeRegistrySnapshot,
-)
+from qore.infrastructure.hosting_runtime_registry import HostingRuntimeRegistrySnapshot
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
@@ -140,8 +135,8 @@ class HostingEvidenceGovernedFailoverAssessment:
     account_id: TradingAccountId
     previous_runtime_ref: ExecutionRuntimeReference
     candidate_runtime_ref: ExecutionRuntimeReference
-    incident_report_id: object
-    candidate_io_report_id: object
+    incident_report_id: HostingReliabilityIncidentReportId
+    candidate_io_report_id: HostingIOReportId
     readiness: HostingEvidenceGovernedFailoverReadiness
     reason: HostingEvidenceGovernedFailoverReason
     mission08_assessment: HostingFailoverAssessment | None
@@ -173,6 +168,17 @@ class HostingEvidenceGovernedFailoverAssessment:
             raise HostingEvidenceGovernedFailoverValidationError(
                 "candidate runtime must differ from previous runtime"
             )
+        if not isinstance(
+            self.incident_report_id,
+            HostingReliabilityIncidentReportId,
+        ):
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "incident_report_id must be HostingReliabilityIncidentReportId"
+            )
+        if not isinstance(self.candidate_io_report_id, HostingIOReportId):
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "candidate_io_report_id must be HostingIOReportId"
+            )
         if not isinstance(self.readiness, HostingEvidenceGovernedFailoverReadiness):
             raise HostingEvidenceGovernedFailoverValidationError(
                 "readiness must be HostingEvidenceGovernedFailoverReadiness"
@@ -180,6 +186,13 @@ class HostingEvidenceGovernedFailoverAssessment:
         if not isinstance(self.reason, HostingEvidenceGovernedFailoverReason):
             raise HostingEvidenceGovernedFailoverValidationError(
                 "reason must be HostingEvidenceGovernedFailoverReason"
+            )
+        if self.mission08_assessment is not None and not isinstance(
+            self.mission08_assessment,
+            HostingFailoverAssessment,
+        ):
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "mission08_assessment must be HostingFailoverAssessment or None"
             )
         _validate_timestamp(self.evaluated_at, field_name="failover evaluated_at")
         if not isinstance(self.evidence_ref, HostingReliabilityEvidenceReference):
@@ -226,8 +239,8 @@ class HostingEvidenceGovernedFailoverAssessment:
             self.account_id.logical_values(),
             self.previous_runtime_ref.logical_values(),
             self.candidate_runtime_ref.logical_values(),
-            str(self.incident_report_id),
-            str(self.candidate_io_report_id),
+            self.incident_report_id.logical_values(),
+            self.candidate_io_report_id.logical_values(),
             self.readiness.value,
             self.reason.value,
             (
@@ -243,7 +256,7 @@ class HostingEvidenceGovernedFailoverAssessment:
 
 @dataclass(frozen=True, slots=True)
 class HostingAvailabilityFailoverCertificate:
-    """Post-handoff evidence that the candidate owns exact N+1 authority and safe I/O."""
+    """Post-handoff evidence that candidate owns exact N+1 authority and safe I/O."""
 
     certificate_id: HostingAvailabilityFailoverCertificateId
     status: HostingAvailabilityFailoverCertificateStatus
@@ -272,12 +285,30 @@ class HostingAvailabilityFailoverCertificate:
             raise HostingEvidenceGovernedFailoverValidationError(
                 "certificate assessment must be evidence-governed assessment"
             )
+        if self.assessment.readiness is not (
+            HostingEvidenceGovernedFailoverReadiness.READY_FOR_CANONICAL_LEASE_ACQUISITION
+        ):
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "availability/failover certificate requires READY assessment"
+            )
         if not isinstance(
             self.candidate_io_report,
             HostingIOPeriodicReliabilityReport,
         ):
             raise HostingEvidenceGovernedFailoverValidationError(
                 "candidate_io_report must be HostingIOPeriodicReliabilityReport"
+            )
+        if self.candidate_io_report.report_id != self.assessment.candidate_io_report_id:
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "certificate must bind exact candidate I/O report identity"
+            )
+        if (
+            self.candidate_io_report.account_id != self.assessment.account_id
+            or self.candidate_io_report.runtime_ref
+            != self.assessment.candidate_runtime_ref
+        ):
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "certificate candidate I/O scope must match failover assessment"
             )
         if not isinstance(self.lease_snapshot, HostingExecutionLeaseSnapshot):
             raise HostingEvidenceGovernedFailoverValidationError(
@@ -288,9 +319,36 @@ class HostingAvailabilityFailoverCertificate:
             raise HostingEvidenceGovernedFailoverValidationError(
                 "failover certification cannot predate readiness assessment"
             )
+        if self.certified_at > self.lease_snapshot.captured_at:
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "lease snapshot must cover failover certification time"
+            )
         if not isinstance(self.evidence_ref, HostingReliabilityEvidenceReference):
             raise HostingEvidenceGovernedFailoverValidationError(
                 "certificate evidence_ref must be HostingReliabilityEvidenceReference"
+            )
+        current = self.lease_snapshot.current_authority(
+            self.assessment.account_id,
+            evaluated_at=self.certified_at,
+        )
+        authority_matches = False
+        if isinstance(current, Success) and self.assessment.next_generation is not None:
+            authority_matches = (
+                current.value.runtime_ref == self.assessment.candidate_runtime_ref
+                and current.value.generation == self.assessment.next_generation
+            )
+        io_matches = (
+            self.candidate_io_report.overall_status
+            is HostingIOCertificateStatus.CERTIFIED
+        )
+        expected_status = (
+            HostingAvailabilityFailoverCertificateStatus.CERTIFIED
+            if authority_matches and io_matches
+            else HostingAvailabilityFailoverCertificateStatus.NOT_CERTIFIED
+        )
+        if self.status is not expected_status:
+            raise HostingEvidenceGovernedFailoverValidationError(
+                "certificate status must reflect exact N+1 authority and candidate I/O"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -465,9 +523,7 @@ def evaluate_evidence_governed_failover(
             evaluated_at=evaluated_at,
         )
     except HostingFailoverReconciliationError as error:
-        return Failure(
-            HostingEvidenceGovernedFailoverValidationError(str(error))
-        )
+        return Failure(HostingEvidenceGovernedFailoverValidationError(str(error)))
     if mission08.readiness is not HostingFailoverReadiness.READY_FOR_LEASE_ACQUISITION:
         return Success(
             _blocked(
@@ -558,8 +614,9 @@ def acquire_evidence_governed_failover_lease(
         evidence_ref=evidence_ref,
     )
     if isinstance(acquired, Failure):
-        error: HostingExecutionLeaseError = acquired.error
-        return Failure(HostingEvidenceGovernedFailoverExecutionError(str(error)))
+        return Failure(
+            HostingEvidenceGovernedFailoverExecutionError(str(acquired.error))
+        )
     return Success(acquired.value)
 
 
@@ -574,6 +631,24 @@ def certify_availability_failover_handoff(
 ) -> Result[HostingAvailabilityFailoverCertificate, HostingEvidenceGovernedFailoverError]:
     """Certify exact candidate N+1 authority plus certified Hosting I/O after handoff."""
 
+    if not isinstance(assessment, HostingEvidenceGovernedFailoverAssessment):
+        return Failure(
+            HostingEvidenceGovernedFailoverValidationError(
+                "assessment must be HostingEvidenceGovernedFailoverAssessment"
+            )
+        )
+    if not isinstance(candidate_io_report, HostingIOPeriodicReliabilityReport):
+        return Failure(
+            HostingEvidenceGovernedFailoverValidationError(
+                "candidate_io_report must be HostingIOPeriodicReliabilityReport"
+            )
+        )
+    if not isinstance(leases, HostingExecutionLeaseSnapshot):
+        return Failure(
+            HostingEvidenceGovernedFailoverValidationError(
+                "leases must be HostingExecutionLeaseSnapshot"
+            )
+        )
     try:
         _validate_timestamp(certified_at, field_name="failover certified_at")
     except HostingEvidenceGovernedFailoverValidationError as error:
@@ -589,7 +664,8 @@ def certify_availability_failover_handoff(
             and current.value.generation == assessment.next_generation
         )
     io_matches = (
-        candidate_io_report.account_id == assessment.account_id
+        candidate_io_report.report_id == assessment.candidate_io_report_id
+        and candidate_io_report.account_id == assessment.account_id
         and candidate_io_report.runtime_ref == assessment.candidate_runtime_ref
         and candidate_io_report.overall_status is HostingIOCertificateStatus.CERTIFIED
     )
