@@ -18,7 +18,12 @@ def _uuid(suffix: int) -> UUID:
     return UUID(f"47000000-0000-0000-0000-{suffix:012d}")
 
 
-def _unit(*, unit_suffix: int, account_suffix: int, runtime_suffix: int) -> unit.HostingExecutionUnit:
+def _unit(
+    *,
+    unit_suffix: int,
+    account_suffix: int,
+    runtime_suffix: int,
+) -> unit.HostingExecutionUnit:
     return unit.HostingExecutionUnit(
         unit_id=unit.HostingExecutionUnitId(_uuid(unit_suffix)),
         client_id=accounts.ClientId(_uuid(1)),
