@@ -39,6 +39,9 @@ def _point(value: str) -> ResearchPeriodicReturnPoint:
 
 def _series(*values: str) -> ResearchPeriodicEquityReturnSeries:
     series = object.__new__(ResearchPeriodicEquityReturnSeries)
+    object.__setattr__(series, "binding", None)
+    object.__setattr__(series, "policy", None)
+    object.__setattr__(series, "observations", ())
     object.__setattr__(series, "returns", tuple(_point(value) for value in values))
     return series
 
