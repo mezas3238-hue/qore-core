@@ -35,8 +35,9 @@ measures time or sleeps.
 automatic_retry_allowed = False
 ```
 
-`ExecutiveControlPlaneResiliencePolicy` is a deterministic policy pack with no duplicate operations.
-It is configuration data only.
+`ExecutiveControlPlaneResiliencePolicy` is a deterministic, fail-closed policy pack. It must contain
+**exactly one timeout policy for every closed control-plane operation**; partial packs and duplicate
+operations are rejected. It is configuration data only and never starts timers or retries.
 
 ## Failure kinds
 
@@ -122,6 +123,7 @@ operations because duplicate governance actions carry different safety consequen
 
 - immutable `dataclass(frozen=True, slots=True)` values;
 - strict positive integer timeout values (`bool` rejected);
+- exactly one timeout policy for every closed operation;
 - explicit recovery UUID supplied by caller;
 - explicit timezone-aware failure/planning timestamps;
 - closed operation/failure/recovery enums;
@@ -157,7 +159,7 @@ A recovery plan is a requirement for the caller; it is not an action executor.
 Contract tests prove:
 
 - strict timeout validation;
-- deterministic policy packs;
+- complete deterministic policy packs;
 - no automatic retry on any operation policy;
 - operation-specific verification/re-read requirements;
 - timeout/unavailable/ambiguous outcomes are all contained;
