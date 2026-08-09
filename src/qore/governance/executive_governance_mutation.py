@@ -20,7 +20,7 @@ from qore.governance.executive_governance_state import (
 )
 from qore.governance.executive_ports import ExecutiveReceiptId
 from qore.kernel.errors import DomainError
-from qore.kernel.result import Result
+from qore.kernel.result import Failure, Result, Success
 
 
 class ExecutiveGovernanceMutationError(DomainError):
@@ -41,24 +41,15 @@ class ExecutiveGovernanceMutationUnavailableError(ExecutiveGovernanceMutationErr
     __slots__ = ()
 
 
+@dataclass(frozen=True, slots=True)
 class ExecutiveGovernanceMutationId:
-    __slots__ = ("value",)
+    value: UUID
 
-    def __init__(self, value: UUID) -> None:
-        if not isinstance(value, UUID):
+    def __post_init__(self) -> None:
+        if not isinstance(self.value, UUID):
             raise ExecutiveGovernanceMutationValidationError(
                 "governance mutation id must be UUID"
             )
-        self.value = value
-
-    def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, ExecutiveGovernanceMutationId)
-            and self.value == other.value
-        )
-
-    def __hash__(self) -> int:
-        return hash(self.value)
 
     def logical_values(self) -> tuple[str, ...]:
         return (str(self.value),)
@@ -373,14 +364,13 @@ class ExecutiveGovernanceMutationReceipt:
                 raise ExecutiveGovernanceMutationValidationError(
                     "applied mutation must observe requested state version"
                 )
-        else:
-            if (
-                self.observed_snapshot_id == self.expected_snapshot_id
-                and self.observed_state_version == self.expected_state_version
-            ):
-                raise ExecutiveGovernanceMutationValidationError(
-                    "conflict receipt requires observed state to differ from expectation"
-                )
+        elif (
+            self.observed_snapshot_id == self.expected_snapshot_id
+            and self.observed_state_version == self.expected_state_version
+        ):
+            raise ExecutiveGovernanceMutationValidationError(
+                "conflict receipt requires observed state to differ from expectation"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -395,6 +385,44 @@ class ExecutiveGovernanceMutationReceipt:
             self.completed_at.isoformat(),
             self.status.value,
         )
+
+
+def build_executive_governance_mutation_receipt(
+    request: ExecutiveGovernanceMutationRequest,
+    *,
+    observed_snapshot_id: ExecutiveGovernanceStateSnapshotId,
+    observed_state_version: ExecutiveGovernanceStateVersion,
+    completed_at: datetime,
+    status: ExecutiveGovernanceMutationStatus,
+) -> Result[ExecutiveGovernanceMutationReceipt, ExecutiveGovernanceMutationError]:
+    if not isinstance(request, ExecutiveGovernanceMutationRequest):
+        return Failure(
+            ExecutiveGovernanceMutationValidationError(
+                "mutation receipt builder requires ExecutiveGovernanceMutationRequest"
+            )
+        )
+    try:
+        _validate_timestamp(completed_at, field_name="completed_at")
+        if completed_at < request.requested_at:
+            raise ExecutiveGovernanceMutationValidationError(
+                "mutation receipt cannot predate mutation request"
+            )
+        return Success(
+            ExecutiveGovernanceMutationReceipt(
+                mutation_id=request.mutation_id,
+                source_receipt_id=request.source_receipt_id,
+                expected_snapshot_id=request.expected_state.snapshot_id,
+                expected_state_version=request.expected_state.state_version,
+                requested_snapshot_id=request.next_state.snapshot_id,
+                requested_state_version=request.next_state.state_version,
+                observed_snapshot_id=observed_snapshot_id,
+                observed_state_version=observed_state_version,
+                completed_at=completed_at,
+                status=status,
+            )
+        )
+    except ExecutiveGovernanceMutationError as error:
+        return Failure(error)
 
 
 class ExecutiveGovernanceMutationPort(Protocol):
