@@ -374,21 +374,41 @@ class ClientPerformanceLedger:
 
     def _validate_records(self) -> None:
         ids: set[ClientPerformanceRecordId] = set()
-        for record in self.realized:
-            self._validate_record_identity(record.record_id, record.account_id, ids)
-            self._validate_currency(record.realized_pnl)
-        for record in self.corrections:
-            self._validate_record_identity(record.record_id, record.account_id, ids)
-            self._validate_currency(record.adjustment)
-        for record in self.entitled:
-            self._validate_record_identity(record.record_id, record.account_id, ids)
-            self._validate_currency(record.amount)
-        for record in self.paid:
-            self._validate_record_identity(record.record_id, record.account_id, ids)
-            self._validate_currency(record.amount)
-        for record in self.eligible_paid:
-            self._validate_record_identity(record.record_id, record.account_id, ids)
-            self._validate_currency(record.amount)
+        for realized_record in self.realized:
+            self._validate_record_identity(
+                realized_record.record_id,
+                realized_record.account_id,
+                ids,
+            )
+            self._validate_currency(realized_record.realized_pnl)
+        for correction_record in self.corrections:
+            self._validate_record_identity(
+                correction_record.record_id,
+                correction_record.account_id,
+                ids,
+            )
+            self._validate_currency(correction_record.adjustment)
+        for entitled_record in self.entitled:
+            self._validate_record_identity(
+                entitled_record.record_id,
+                entitled_record.account_id,
+                ids,
+            )
+            self._validate_currency(entitled_record.amount)
+        for paid_record in self.paid:
+            self._validate_record_identity(
+                paid_record.record_id,
+                paid_record.account_id,
+                ids,
+            )
+            self._validate_currency(paid_record.amount)
+        for eligible_record in self.eligible_paid:
+            self._validate_record_identity(
+                eligible_record.record_id,
+                eligible_record.account_id,
+                ids,
+            )
+            self._validate_currency(eligible_record.amount)
 
     def _validate_record_identity(
         self,
@@ -426,35 +446,35 @@ class ClientPerformanceLedger:
                 raise ClientPerformanceLedgerValidationError(
                     "correction must not predate corrected realized record"
                 )
-        for paid_record in self.paid:
-            entitlement = entitled_by_id.get(paid_record.entitlement_record_id)
+        for paid_profit in self.paid:
+            entitlement = entitled_by_id.get(paid_profit.entitlement_record_id)
             if entitlement is None:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit must reference an existing entitlement"
                 )
-            if paid_record.paid_at < entitlement.evaluated_at:
+            if paid_profit.paid_at < entitlement.evaluated_at:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit must not predate entitlement"
                 )
-            if paid_record.amount.currency != entitlement.amount.currency:
+            if paid_profit.amount.currency != entitlement.amount.currency:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit currency must match entitlement"
                 )
-            if paid_record.amount.amount > entitlement.amount.amount:
+            if paid_profit.amount.amount > entitlement.amount.amount:
                 raise ClientPerformanceLedgerValidationError(
                     "paid profit cannot exceed client entitlement"
                 )
         for eligible in self.eligible_paid:
-            paid_record = paid_by_id.get(eligible.paid_profit_record_id)
-            if paid_record is None:
+            source_paid_profit = paid_by_id.get(eligible.paid_profit_record_id)
+            if source_paid_profit is None:
                 raise ClientPerformanceLedgerValidationError(
                     "eligible paid profit must reference an existing paid record"
                 )
-            if eligible.evaluated_at < paid_record.paid_at:
+            if eligible.evaluated_at < source_paid_profit.paid_at:
                 raise ClientPerformanceLedgerValidationError(
                     "eligible paid profit must not predate verified payout"
                 )
-            if eligible.amount.amount > paid_record.amount.amount:
+            if eligible.amount.amount > source_paid_profit.amount.amount:
                 raise ClientPerformanceLedgerValidationError(
                     "eligible paid profit cannot exceed verified client payout"
                 )
@@ -555,9 +575,7 @@ def append_performance_correction(
     if not isinstance(ledger, ClientPerformanceLedger):
         return Failure(ClientPerformanceLedgerValidationError("ledger is required"))
     try:
-        return Success(
-            replace(ledger, corrections=(*ledger.corrections, correction))
-        )
+        return Success(replace(ledger, corrections=(*ledger.corrections, correction)))
     except ClientPerformanceLedgerError as error:
         return Failure(error)
 
