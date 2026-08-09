@@ -15,6 +15,7 @@ from qore.domain.events import (
     DomainEventVersion,
 )
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import is_timezone_aware_datetime
 from qore.specialist.analysis import (
     SpecialistAnalysis,
     SpecialistAnalysisId,
@@ -84,8 +85,10 @@ class ValidationAssessment:
             raise ValidationInvariantError(
                 "validation assessment_id must be ValidationAssessmentId"
             )
-        if not isinstance(self.timestamp, datetime):
-            raise ValidationInvariantError("validation timestamp must be a datetime")
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise ValidationInvariantError(
+                "validation timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.source_analysis, SpecialistAnalysis):
             raise ValidationInvariantError(
                 "validation source_analysis must be SpecialistAnalysis"
@@ -165,6 +168,7 @@ class ValidateSpecialistAnalysisCommand(Command):
     policy: ValidationPolicy
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if not isinstance(self.assessment_id, ValidationAssessmentId):
             raise ValidationInvariantError(
                 "validation assessment_id must be ValidationAssessmentId"

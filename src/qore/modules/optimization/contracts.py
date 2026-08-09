@@ -16,6 +16,7 @@ from qore.domain.events import (
     DomainEventVersion,
 )
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import is_timezone_aware_datetime
 from qore.modules.knowledge.contracts import KnowledgeRecord, KnowledgeRecordId
 
 
@@ -85,8 +86,10 @@ class OptimizationProposal:
     def __post_init__(self) -> None:
         if not isinstance(self.proposal_id, OptimizationProposalId):
             raise OptimizationInvariantError("proposal_id must be OptimizationProposalId")
-        if not isinstance(self.timestamp, datetime):
-            raise OptimizationInvariantError("optimization timestamp must be datetime")
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise OptimizationInvariantError(
+                "optimization timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.source_knowledge, KnowledgeRecord):
             raise OptimizationInvariantError("source_knowledge must be KnowledgeRecord")
         if not isinstance(self.correlation_id, CorrelationId):
@@ -158,6 +161,7 @@ class ProposeKnowledgeOptimizationCommand(Command):
     policy: OptimizationPolicy
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if not isinstance(self.proposal_id, OptimizationProposalId):
             raise OptimizationInvariantError("proposal_id must be OptimizationProposalId")
         if not isinstance(self.source_knowledge, KnowledgeRecord):

@@ -21,6 +21,7 @@ from qore.functional.decisions import (
     FunctionalDecision,
 )
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import is_timezone_aware_datetime
 
 
 class PortfolioError(DomainError):
@@ -74,6 +75,10 @@ class AllocationIntent:
     targets: tuple[PortfolioTarget, ...]
 
     def __post_init__(self) -> None:
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise PortfolioValidationError(
+                "allocation intent timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.targets, tuple) or not self.targets:
             raise PortfolioValidationError(
                 "allocation intent targets must be a non-empty immutable tuple"
@@ -109,6 +114,7 @@ class CreateAllocationIntentCommand(Command):
     targets: tuple[PortfolioTarget, ...]
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if self.intent_id.value == self.source_decision.decision_id.value:
             raise PortfolioValidationError(
                 "allocation intent identity must differ from its source decision"

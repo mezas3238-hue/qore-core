@@ -47,6 +47,7 @@ class ReviewFunctionalDecisionCommand(Command):
     requested_outcome: DecisionOutcome | None = None
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if not isinstance(self.reasons, tuple) or any(
             not isinstance(reason, DecisionReason) for reason in self.reasons
         ):

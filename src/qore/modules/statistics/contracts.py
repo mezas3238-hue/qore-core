@@ -15,6 +15,7 @@ from qore.domain.events import (
     DomainEventVersion,
 )
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import is_timezone_aware_datetime
 from qore.modules.validation.contracts import ValidationAssessment, ValidationVerdict
 from qore.specialist.analysis import SpecialistConfidence
 
@@ -67,8 +68,10 @@ class StatisticsSnapshot:
     def __post_init__(self) -> None:
         if not isinstance(self.snapshot_id, StatisticsSnapshotId):
             raise StatisticsInvariantError("snapshot_id must be StatisticsSnapshotId")
-        if not isinstance(self.timestamp, datetime):
-            raise StatisticsInvariantError("statistics timestamp must be datetime")
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise StatisticsInvariantError(
+                "statistics timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.correlation_id, CorrelationId):
             raise StatisticsInvariantError("correlation_id must be CorrelationId")
         if not isinstance(self.source_assessments, tuple) or not self.source_assessments:
@@ -155,6 +158,7 @@ class SummarizeValidationAssessmentsCommand(Command):
     assessments: tuple[ValidationAssessment, ...]
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if not isinstance(self.snapshot_id, StatisticsSnapshotId):
             raise StatisticsInvariantError("snapshot_id must be StatisticsSnapshotId")
         if not isinstance(self.assessments, tuple) or not self.assessments:

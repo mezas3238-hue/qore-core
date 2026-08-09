@@ -11,6 +11,7 @@ from uuid import UUID
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.kernel.errors import DomainError
 from qore.kernel.result import Result
+from qore.kernel.temporal import is_timezone_aware_datetime
 
 _RESERVED_COMMAND_METADATA_KEYS = frozenset(
     {"correlation_id", "causation_id", "idempotency_key"}
@@ -115,6 +116,12 @@ class Command:
     timestamp: datetime
     name: CommandName
     metadata: CommandMetadata
+
+    def __post_init__(self) -> None:
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise CommandValidationError(
+                "command timestamp must be a timezone-aware datetime"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         """Representación determinista por valores del comando."""
