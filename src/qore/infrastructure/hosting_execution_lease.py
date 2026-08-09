@@ -434,7 +434,10 @@ def revoke_hosting_execution_lease(
         revoked_at=revoked_at,
         evidence_ref=evidence_ref,
     )
-    leases = tuple(replacement if lease.lease_id == lease_id else lease for lease in snapshot.leases)
+    leases = tuple(
+        replacement if lease.lease_id == lease_id else lease
+        for lease in snapshot.leases
+    )
     try:
         return Success(
             HostingExecutionLeaseSnapshot(

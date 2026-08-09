@@ -6,6 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
+import qore.infrastructure.client_accounts as accounts
 import qore.infrastructure.client_decision_security as security
 import qore.infrastructure.client_execution_agent as agent
 import qore.infrastructure.client_multiaccount_read_model as read_model
@@ -85,8 +86,8 @@ def test_mission07_security_and_execution_authority_remain_fail_closed() -> None
         {"instrument", "side", "quantity", "stop_loss", "take_profit", "lot_size"}
     )
 
-    assert not hasattr(security.ClientDecisionReplayPort, "release")
-    assert not hasattr(security.ClientDecisionReplayPort, "retry")
+    assert not hasattr(security.ClientDecisionReplayClaimPort, "release")
+    assert not hasattr(security.ClientDecisionReplayClaimPort, "retry")
     assert not hasattr(agent.ClientExecutionPlan, "submit_order")
     assert not hasattr(agent.ClientExecutionPlan, "broker")
     assert not hasattr(lifecycle.ClientPositionLifecycle, "submit_order")
@@ -104,7 +105,7 @@ def test_mission07_client_performance_and_corporate_vault_remain_separate() -> N
 
     eligible = performance.EligibleClientPaidProfitRecord(
         record_id=performance.ClientPerformanceRecordId(_uuid(10)),
-        account_id=agent.TradingAccountId(_uuid(11)),
+        account_id=accounts.TradingAccountId(_uuid(11)),
         paid_profit_record_id=performance.ClientPerformanceRecordId(_uuid(12)),
         amount=_amount("8000"),
         payout_policy_ref=performance.ClientPayoutPolicyReference(_uuid(13)),
@@ -196,8 +197,8 @@ def test_mission07_due_is_not_paid_and_billing_has_no_trade_authority() -> None:
     )
     invoice = billing.CommercialInvoice.from_plan(
         invoice_id=billing.CommercialInvoiceId(_uuid(42)),
-        client_id=agent.ClientId(_uuid(43)),
-        account_id=agent.TradingAccountId(_uuid(44)),
+        client_id=accounts.ClientId(_uuid(43)),
+        account_id=accounts.TradingAccountId(_uuid(44)),
         plan=ea_plan,
         period_started_at=_NOW,
         period_ended_at=_NOW + timedelta(days=30),
@@ -218,8 +219,8 @@ def test_mission07_due_is_not_paid_and_billing_has_no_trade_authority() -> None:
 def test_mission07_trial_payment_failure_blocks_entries_without_forced_close() -> None:
     started_at = _NOW - timedelta(days=1)
     snapshot = licensing.ClientAgentLicenseSnapshot(
-        account_id=agent.TradingAccountId(_uuid(50)),
-        entitlement_ref=agent.ProductEntitlementReference(_uuid(51)),
+        account_id=accounts.TradingAccountId(_uuid(50)),
+        entitlement_ref=accounts.ProductEntitlementReference(_uuid(51)),
         trial_state=licensing.ClientTrialState.ACTIVE,
         license_state=licensing.ClientLicenseState.TRIAL_ACTIVE,
         trial_started_at=started_at,
