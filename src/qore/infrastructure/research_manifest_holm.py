@@ -92,7 +92,7 @@ def build_research_manifest_holm_evidence(
         tests=family.tests,
     )
     if isinstance(built, Failure):
-        return built
+        return Failure(built.error)
     try:
         return Success(
             ResearchManifestHolmEvidence(
