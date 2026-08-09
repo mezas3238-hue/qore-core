@@ -10,6 +10,9 @@ from qore.infrastructure.research_multiplicity import (
     ResearchHolmPolicy,
     build_research_holm_familywise_evidence,
 )
+from qore.infrastructure.research_periodic_bootstrap_test import (
+    ResearchPeriodicBootstrapTestEvidence,
+)
 from qore.infrastructure.research_preoutcome_hypothesis import (
     ResearchPreOutcomeBootstrapEvidence,
     ResearchPreOutcomeBootstrapHypothesisSpec,
@@ -123,7 +126,10 @@ def _canonical_results(
         raise ResearchPreOutcomeFamilyValidationError(
             "pre-outcome family evidence requires at least two immutable results"
         )
-    if any(not isinstance(result, ResearchPreOutcomeBootstrapEvidence) for result in results):
+    if any(
+        not isinstance(result, ResearchPreOutcomeBootstrapEvidence)
+        for result in results
+    ):
         raise ResearchPreOutcomeFamilyValidationError(
             "pre-outcome family results must be ResearchPreOutcomeBootstrapEvidence"
         )
@@ -175,7 +181,7 @@ class ResearchPreOutcomeHypothesisFamilyEvidence:
         return len(self.results)
 
     @property
-    def tests(self) -> tuple[object, ...]:
+    def tests(self) -> tuple[ResearchPeriodicBootstrapTestEvidence, ...]:
         return tuple(result.test for result in self.results)
 
     def logical_values(self) -> tuple[object, ...]:
@@ -201,8 +207,7 @@ class ResearchPreOutcomeFamilyHolmEvidence:
             raise ResearchPreOutcomeFamilyValidationError(
                 "Holm binding requires ResearchHolmFamilywiseEvidence"
             )
-        expected_tests = tuple(result.test for result in self.family.results)
-        if self.holm.tests != expected_tests:
+        if self.holm.tests != self.family.tests:
             raise ResearchPreOutcomeFamilyValidationError(
                 "Holm tests must exactly match the pre-outcome frozen family results"
             )
@@ -272,11 +277,10 @@ def build_research_preoutcome_family_holm_evidence(
                 "family must be ResearchPreOutcomeHypothesisFamilyEvidence"
             )
         )
-    tests = tuple(result.test for result in family.results)
     built = build_research_holm_familywise_evidence(
         family_id=holm_family_id,
         policy=policy,
-        tests=tests,
+        tests=family.tests,
     )
     if isinstance(built, Failure):
         return Failure(built.error)
