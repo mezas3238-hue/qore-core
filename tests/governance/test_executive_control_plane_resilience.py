@@ -44,7 +44,7 @@ def test_timeout_is_strict_positive_integer_and_never_executes_time() -> None:
     assert timeout.logical_values() == (1500,)
     for invalid in (0, -1, True):
         with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
-            ExecutiveControlPlaneTimeout(cast(int, invalid))
+            ExecutiveControlPlaneTimeout(invalid)
 
     with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
         ExecutiveControlPlaneTimeout(cast(int, 1.5))
