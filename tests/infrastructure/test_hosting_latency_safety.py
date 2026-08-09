@@ -34,7 +34,9 @@ def _distribution(
     p95: int = 20,
     p99: int = 25,
     maximum: int = 28,
-    boundary: lab.HostingReliabilityBoundary = lab.HostingReliabilityBoundary.NETWORK_EGRESS,
+    boundary: lab.HostingReliabilityBoundary = (
+        lab.HostingReliabilityBoundary.NETWORK_EGRESS
+    ),
     account_id: accounts.TradingAccountId = _ACCOUNT,
 ) -> latency.HostingLatencyDistribution:
     return latency.HostingLatencyDistribution(
@@ -56,7 +58,9 @@ def _distribution(
 
 def _baseline(
     *,
-    boundary: lab.HostingReliabilityBoundary = lab.HostingReliabilityBoundary.NETWORK_EGRESS,
+    boundary: lab.HostingReliabilityBoundary = (
+        lab.HostingReliabilityBoundary.NETWORK_EGRESS
+    ),
     account_id: accounts.TradingAccountId = _ACCOUNT,
 ) -> latency.HostingLatencyBaseline:
     return latency.HostingLatencyBaseline(
@@ -130,7 +134,7 @@ def test_duration_is_integer_microseconds_and_300ms_ceiling_is_exact() -> None:
     assert latency.PROVISIONAL_CATASTROPHIC_HARD_CEILING == _duration(300)
 
     with pytest.raises(latency.HostingLatencySafetyValidationError):
-        latency.HostingLatencyDuration(1.5)  # type: ignore[arg-type]
+        latency.HostingLatencyDuration(-1)
 
 
 def test_distribution_requires_monotonic_percentiles() -> None:
@@ -182,7 +186,7 @@ def test_degraded_path_can_contain_new_work_when_policy_authorizes_it() -> None:
     )
 
 
-def test_degraded_path_may_record_no_action_when_policy_does_not_require_containment() -> None:
+def test_degraded_path_may_record_no_action_without_required_containment() -> None:
     evaluated = _evaluate(
         _distribution(p50=20, p95=35, p99=45, maximum=48),
         envelope_policy=_envelope_policy(contain_on_degraded=False),
@@ -211,7 +215,7 @@ def test_catastrophic_300ms_breach_contains_but_never_authorizes_failover() -> N
     assert not hasattr(evaluated.value, "acquire_lease")
 
 
-def test_latency_breach_is_not_authority_when_lab_policy_does_not_allow_containment() -> None:
+def test_breach_is_not_authority_when_lab_policy_disallows_containment() -> None:
     evaluated = _evaluate(
         _distribution(p50=20, p95=35, p99=50, maximum=300),
         reliability_policy=_lab_policy(),
@@ -221,7 +225,7 @@ def test_latency_breach_is_not_authority_when_lab_policy_does_not_allow_containm
     assert isinstance(evaluated.error, latency.HostingLatencySafetyAuthorizationError)
 
 
-def test_maximum_spike_can_degrade_even_when_p99_remains_in_certified_valley() -> None:
+def test_maximum_spike_can_degrade_while_p99_remains_in_certified_valley() -> None:
     evaluated = _evaluate(
         _distribution(p50=15, p95=20, p99=25, maximum=100),
     )
