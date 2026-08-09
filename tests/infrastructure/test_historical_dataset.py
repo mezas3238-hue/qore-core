@@ -10,6 +10,7 @@ import pytest
 from qore.infrastructure.historical_dataset import (
     HistoricalCoverageGap,
     HistoricalDatasetDigest,
+    HistoricalDatasetError,
     HistoricalDatasetId,
     HistoricalDatasetNormalizationVersion,
     HistoricalDatasetRevisionId,
@@ -40,7 +41,7 @@ from qore.infrastructure.replay_availability import (
     ReplayMarketDataObservation,
     ReplayObservationId,
 )
-from qore.kernel.result import Failure, Success
+from qore.kernel.result import Failure, Result, Success
 
 _BASE = datetime(2026, 8, 9, 12, 0, tzinfo=UTC)
 _TIMEFRAME = Timeframe(300)
@@ -123,7 +124,7 @@ def _build(
     scope: HistoricalOhlcDatasetScope | None = None,
     schema: HistoricalDatasetSchemaVersion = _SCHEMA,
     normalization: HistoricalDatasetNormalizationVersion = _NORMALIZATION,
-):
+) -> Result[HistoricalOhlcReplayDataset, HistoricalDatasetError]:
     return build_historical_ohlc_replay_dataset(
         dataset_id=HistoricalDatasetId(_uuid(dataset_suffix)),
         revision_id=HistoricalDatasetRevisionId(_uuid(revision_suffix)),
@@ -224,6 +225,7 @@ def test_digest_normalizes_equivalent_timezone_instants_without_mutating_contrac
     )
 
     assert utc_digest == local_digest
+    assert isinstance(local_observation.payload, OhlcSnapshot)
     assert local_observation.payload.opened_at.isoformat().endswith("+05:30")
 
 
