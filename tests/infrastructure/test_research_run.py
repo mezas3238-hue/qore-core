@@ -9,6 +9,7 @@ import pytest
 
 from qore.infrastructure.historical_dataset import (
     HistoricalDatasetId,
+    HistoricalDatasetManifest,
     HistoricalDatasetNormalizationVersion,
     HistoricalDatasetRevisionId,
     HistoricalDatasetSchemaVersion,
@@ -39,6 +40,7 @@ from qore.infrastructure.research_run import (
     ResearchExecutionModelId,
     ResearchRandomnessMode,
     ResearchReplayPolicyVersion,
+    ResearchRunError,
     ResearchRunEvidence,
     ResearchRunId,
     ResearchRunInputFingerprint,
@@ -48,7 +50,7 @@ from qore.infrastructure.research_run import (
     ResearchTransactionCostModelId,
     build_research_run_evidence,
 )
-from qore.kernel.result import Failure, Success
+from qore.kernel.result import Failure, Result, Success
 
 _BASE = datetime(2026, 8, 9, 12, 0, tzinfo=UTC)
 _SOURCE = ExternalSourceDescriptor(
@@ -156,7 +158,7 @@ def _build(
     cost_model: ResearchTransactionCostModelId | None = None,
     randomness_mode: ResearchRandomnessMode = ResearchRandomnessMode.DETERMINISTIC,
     random_seed: int | None = None,
-):
+) -> Result[ResearchRunEvidence, ResearchRunError]:
     resolved = datasets if datasets is not None else _datasets()
     return build_research_run_evidence(
         run_id=ResearchRunId(_uuid(run_suffix)),
@@ -176,9 +178,7 @@ def _build(
 
 def test_builder_canonicalizes_dataset_order_and_binds_exact_manifests() -> None:
     first, second = _datasets()
-
     built = _build(datasets=(second, first))
-
     assert isinstance(built, Success)
     run = built.value
     assert run.datasets == (first.manifest, second.manifest)
@@ -189,7 +189,7 @@ def test_builder_canonicalizes_dataset_order_and_binds_exact_manifests() -> None
     assert run.software_revision == _SOFTWARE
 
 
-def test_same_research_inputs_share_fingerprint_despite_run_identity_created_at_and_dataset_order() -> None:
+def test_same_research_inputs_share_fingerprint() -> None:
     first, second = _datasets()
     left = _build(
         run_suffix=40,
@@ -201,7 +201,6 @@ def test_same_research_inputs_share_fingerprint_despite_run_identity_created_at_
         created_at=_BASE + timedelta(days=3),
         datasets=(first, second),
     )
-
     assert isinstance(left, Success)
     assert isinstance(right, Success)
     assert left.value.run_id != right.value.run_id
@@ -209,11 +208,10 @@ def test_same_research_inputs_share_fingerprint_despite_run_identity_created_at_
     assert left.value.input_fingerprint == right.value.input_fingerprint
 
 
-def test_dataset_revision_policy_strategy_software_models_and_seed_change_fingerprint() -> None:
+def test_material_input_changes_change_fingerprint() -> None:
     first, second = _datasets()
     baseline = _build(datasets=(first, second))
     assert isinstance(baseline, Success)
-
     revised_first = replace(
         first.manifest,
         revision_id=HistoricalDatasetRevisionId(_uuid(50)),
@@ -241,9 +239,13 @@ def test_dataset_revision_policy_strategy_software_models_and_seed_change_finger
         randomness_mode=ResearchRandomnessMode.SEEDED,
         random_seed=7,
     )
-
-    for item in (revised, policy, strategy, software, execution, costs, seeded):
-        assert isinstance(item, Success)
+    assert isinstance(revised, Success)
+    assert isinstance(policy, Success)
+    assert isinstance(strategy, Success)
+    assert isinstance(software, Success)
+    assert isinstance(execution, Success)
+    assert isinstance(costs, Success)
+    assert isinstance(seeded, Success)
     fingerprints = {
         baseline.value.input_fingerprint,
         revised.value.input_fingerprint,
@@ -263,7 +265,6 @@ def test_optional_execution_and_cost_references_are_explicit_not_implied() -> No
         execution_model=ResearchExecutionModelId(_uuid(60)),
         cost_model=ResearchTransactionCostModelId(_uuid(61)),
     )
-
     assert isinstance(unbound, Success)
     assert isinstance(bound, Success)
     assert unbound.value.binds_execution_model is False
@@ -279,7 +280,6 @@ def test_run_rejects_duplicate_dataset_identity_even_when_revision_differs() -> 
         dataset_id=first.manifest.dataset_id,
         revision_id=HistoricalDatasetRevisionId(_uuid(70)),
     )
-
     built = build_research_run_evidence(
         run_id=ResearchRunId(_uuid(71)),
         created_at=_BASE + timedelta(days=2),
@@ -294,7 +294,6 @@ def test_run_rejects_duplicate_dataset_identity_even_when_revision_differs() -> 
         randomness_mode=ResearchRandomnessMode.DETERMINISTIC,
         random_seed=None,
     )
-
     assert isinstance(built, Failure)
     assert isinstance(built.error, ResearchRunValidationError)
     assert "each dataset_id exactly once" in str(built.error)
@@ -302,13 +301,12 @@ def test_run_rejects_duplicate_dataset_identity_even_when_revision_differs() -> 
 
 def test_every_dataset_window_must_cover_the_simulated_run_window() -> None:
     built = _build(simulated_end=_BASE + timedelta(minutes=16))
-
     assert isinstance(built, Failure)
     assert isinstance(built.error, ResearchRunValidationError)
     assert "must cover" in str(built.error)
 
 
-def test_temporal_contract_rejects_naive_or_non_positive_run_windows_without_typeerror() -> None:
+def test_temporal_contract_fails_closed_before_datetime_comparison() -> None:
     first, second = _datasets()
     naive = build_research_run_evidence(
         run_id=ResearchRunId(_uuid(80)),
@@ -328,7 +326,6 @@ def test_temporal_contract_rejects_naive_or_non_positive_run_windows_without_typ
         simulated_start=_BASE + timedelta(minutes=5),
         simulated_end=_BASE,
     )
-
     assert isinstance(naive, Failure)
     assert isinstance(naive.error, ResearchRunValidationError)
     assert "timezone-aware" in str(naive.error)
@@ -339,7 +336,6 @@ def test_temporal_contract_rejects_naive_or_non_positive_run_windows_without_typ
 
 def test_created_at_must_be_timezone_aware() -> None:
     built = _build(created_at=datetime(2026, 8, 11, 12, 0))
-
     assert isinstance(built, Failure)
     assert isinstance(built.error, ResearchRunValidationError)
     assert "timezone-aware" in str(built.error)
@@ -360,7 +356,6 @@ def test_randomness_mode_distinguishes_deterministic_from_seeded_runs() -> None:
         randomness_mode=ResearchRandomnessMode.SEEDED,
         random_seed=0,
     )
-
     for item in (
         deterministic_with_seed,
         seeded_without_seed,
@@ -373,7 +368,7 @@ def test_randomness_mode_distinguishes_deterministic_from_seeded_runs() -> None:
     assert seeded_zero.value.random_seed == 0
 
 
-def test_equivalent_timezone_instants_share_fingerprint_without_changing_stored_offsets() -> None:
+def test_equivalent_timezone_instants_share_fingerprint() -> None:
     offset = timezone(timedelta(hours=5, minutes=30))
     local_start = _BASE.astimezone(offset)
     local_end = (_BASE + timedelta(minutes=5)).astimezone(offset)
@@ -382,19 +377,17 @@ def test_equivalent_timezone_instants_share_fingerprint_without_changing_stored_
         simulated_start=local_start,
         simulated_end=local_end,
     )
-
     assert isinstance(utc_run, Success)
     assert isinstance(local_run, Success)
     assert utc_run.value.input_fingerprint == local_run.value.input_fingerprint
     assert local_run.value.simulated_start.isoformat().endswith("+05:30")
 
 
-def test_direct_evidence_rejects_tampered_fingerprint_or_noncanonical_dataset_order() -> None:
+def test_direct_evidence_rejects_tampering_and_noncanonical_order() -> None:
     first, second = _datasets()
     built = _build(datasets=(first, second))
     assert isinstance(built, Success)
     run = built.value
-
     with pytest.raises(ResearchRunValidationError, match="fingerprint"):
         replace(
             run,
@@ -409,7 +402,10 @@ def test_runtime_type_bypasses_and_invalid_tokens_fail_closed() -> None:
     wrong_datasets = build_research_run_evidence(
         run_id=ResearchRunId(_uuid(90)),
         created_at=_BASE + timedelta(days=2),
-        datasets=cast(tuple, [first.manifest, second.manifest]),
+        datasets=cast(
+            tuple[HistoricalDatasetManifest, ...],
+            [first.manifest, second.manifest],
+        ),
         replay_policy_version=_POLICY,
         simulated_start=_BASE,
         simulated_end=_BASE + timedelta(minutes=5),
@@ -422,14 +418,13 @@ def test_runtime_type_bypasses_and_invalid_tokens_fail_closed() -> None:
     )
     assert isinstance(wrong_datasets, Failure)
     assert isinstance(wrong_datasets.error, ResearchRunValidationError)
-
     with pytest.raises(ResearchRunValidationError, match="canonical token"):
         ResearchReplayPolicyVersion(" point in time ")
     with pytest.raises(ResearchRunValidationError, match="canonical token"):
         ResearchSoftwareRevision("revision with spaces")
 
 
-def test_research_run_contract_exposes_no_replay_execution_statistics_or_trading_authority() -> None:
+def test_research_run_has_no_execution_or_statistics_authority() -> None:
     prohibited = {
         "advance_to",
         "buy",
