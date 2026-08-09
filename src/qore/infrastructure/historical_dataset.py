@@ -248,14 +248,15 @@ class HistoricalDatasetManifest:
             )
 
     def logical_values(self) -> tuple[object, ...]:
+        parent = (
+            self.parent_revision_id.logical_values()
+            if self.parent_revision_id is not None
+            else None
+        )
         return (
             self.dataset_id.logical_values(),
             self.revision_id.logical_values(),
-            (
-                self.parent_revision_id.logical_values()
-                if self.parent_revision_id is not None
-                else None
-            ),
+            parent,
             self.revision_reason,
             self.scope.logical_values(),
             self.assembled_at.isoformat(),
@@ -270,6 +271,15 @@ class HistoricalDatasetManifest:
         )
 
 
+def _ohlc_payload(observation: ReplayMarketDataObservation) -> OhlcSnapshot:
+    payload = observation.payload
+    if not isinstance(payload, OhlcSnapshot):
+        raise HistoricalDatasetValidationError(
+            "historical OHLC dataset requires OhlcSnapshot replay payloads"
+        )
+    return payload
+
+
 def _validate_observations(
     scope: HistoricalOhlcDatasetScope,
     observations: tuple[ReplayMarketDataObservation, ...],
@@ -279,6 +289,10 @@ def _validate_observations(
     datetime,
     tuple[HistoricalCoverageGap, ...],
 ]:
+    if not isinstance(scope, HistoricalOhlcDatasetScope):
+        raise HistoricalDatasetValidationError(
+            "historical dataset scope must be HistoricalOhlcDatasetScope"
+        )
     if not isinstance(observations, tuple) or not observations or any(
         not isinstance(item, ReplayMarketDataObservation) for item in observations
     ):
@@ -298,11 +312,7 @@ def _validate_observations(
 
     requested = scope.window
     for observation in observations:
-        if not isinstance(observation.payload, OhlcSnapshot):
-            raise HistoricalDatasetValidationError(
-                "historical OHLC dataset requires OhlcSnapshot replay payloads"
-            )
-        payload = observation.payload
+        payload = _ohlc_payload(observation)
         if payload.source != scope.source:
             raise HistoricalDatasetValidationError(
                 "historical dataset observation source must match scope source"
@@ -328,21 +338,21 @@ def _validate_observations(
         sorted(
             observations,
             key=lambda item: (
-                item.payload.opened_at,
-                item.payload.closed_at,
+                _ohlc_payload(item).opened_at,
+                _ohlc_payload(item).closed_at,
                 str(item.snapshot_id.value),
             ),
         )
     )
 
     gaps: list[HistoricalCoverageGap] = []
-    first = chronological[0].payload
+    first = _ohlc_payload(chronological[0])
     if first.opened_at > requested.opened_at:
         gaps.append(HistoricalCoverageGap(requested.opened_at, first.opened_at))
 
     previous = first
     for observation in chronological[1:]:
-        current = observation.payload
+        current = _ohlc_payload(observation)
         if current.opened_at < previous.closed_at:
             raise HistoricalDatasetValidationError(
                 "historical dataset observations must not overlap"
@@ -356,18 +366,14 @@ def _validate_observations(
 
     return (
         replay_ordered,
-        chronological[0].payload.opened_at,
-        chronological[-1].payload.closed_at,
+        first.opened_at,
+        previous.closed_at,
         tuple(gaps),
     )
 
 
 def _canonical_observation(observation: ReplayMarketDataObservation) -> dict[str, object]:
-    payload = observation.payload
-    if not isinstance(payload, OhlcSnapshot):
-        raise HistoricalDatasetValidationError(
-            "canonical historical dataset digest requires OhlcSnapshot payload"
-        )
+    payload = _ohlc_payload(observation)
     source = payload.source
     return {
         "observation_id": str(observation.observation_id.value),
@@ -401,10 +407,6 @@ def compute_historical_dataset_evidence_digest(
 ) -> HistoricalDatasetDigest:
     """Hash canonical semantic/evidence content, excluding administrative identity."""
 
-    if not isinstance(scope, HistoricalOhlcDatasetScope):
-        raise HistoricalDatasetValidationError(
-            "digest scope must be HistoricalOhlcDatasetScope"
-        )
     if not isinstance(schema_version, HistoricalDatasetSchemaVersion):
         raise HistoricalDatasetValidationError(
             "digest schema_version must be HistoricalDatasetSchemaVersion"
@@ -446,14 +448,14 @@ def compute_historical_dataset_evidence_digest(
         ],
         "observations": [_canonical_observation(item) for item in ordered],
     }
-    payload = json.dumps(
+    encoded = json.dumps(
         canonical,
         ensure_ascii=True,
         sort_keys=True,
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
-    return HistoricalDatasetDigest(sha256(payload).hexdigest())
+    return HistoricalDatasetDigest(sha256(encoded).hexdigest())
 
 
 @dataclass(frozen=True, slots=True)
@@ -491,16 +493,16 @@ class HistoricalOhlcReplayDataset:
             raise HistoricalDatasetValidationError(
                 "manifest gaps must match retained observation coverage"
             )
+        if self.manifest.digest_algorithm is not HistoricalDatasetDigestAlgorithm.SHA256:
+            raise HistoricalDatasetValidationError(
+                "historical dataset supports only SHA256 evidence digest"
+            )
         expected_digest = compute_historical_dataset_evidence_digest(
             self.manifest.scope,
             self.observations,
             schema_version=self.manifest.schema_version,
             normalization_version=self.manifest.normalization_version,
         )
-        if self.manifest.digest_algorithm is not HistoricalDatasetDigestAlgorithm.SHA256:
-            raise HistoricalDatasetValidationError(
-                "historical dataset supports only SHA256 evidence digest"
-            )
         if self.manifest.evidence_digest != expected_digest:
             raise HistoricalDatasetValidationError(
                 "manifest evidence digest must match canonical dataset evidence"
