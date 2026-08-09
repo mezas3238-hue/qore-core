@@ -246,7 +246,10 @@ def _derive_metrics(
     event_rate = _mean(outcomes)
     with localcontext(_DECIMAL128):
         brier_score = _mean(
-            tuple((score - outcome) ** 2 for score, outcome in zip(scores, outcomes, strict=True))
+            tuple(
+                (score - outcome) ** 2
+                for score, outcome in zip(scores, outcomes, strict=True)
+            )
         )
         width = Decimal(1) / Decimal(policy.bin_count)
 
@@ -285,8 +288,13 @@ def _derive_metrics(
         )
     with localcontext(_DECIMAL128):
         ece = sum(
-            Decimal(item.sample_size) / Decimal(len(ordered)) * item.absolute_gap
-            for item in bins
+            (
+                Decimal(item.sample_size)
+                / Decimal(len(ordered))
+                * item.absolute_gap
+                for item in bins
+            ),
+            Decimal(0),
         )
     return mean_confidence, event_rate, brier_score, tuple(bins), ece
 
