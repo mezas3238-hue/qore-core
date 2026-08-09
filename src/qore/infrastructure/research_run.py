@@ -8,9 +8,7 @@ from hashlib import sha256
 from re import fullmatch
 from uuid import UUID
 
-from qore.infrastructure.historical_dataset import (
-    HistoricalDatasetManifest,
-)
+from qore.infrastructure.historical_dataset import HistoricalDatasetManifest
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
@@ -169,6 +167,12 @@ def _validate_datasets(
     simulated_start: datetime,
     simulated_end: datetime,
 ) -> tuple[HistoricalDatasetManifest, ...]:
+    _validate_timestamp(simulated_start, field_name="research simulated_start")
+    _validate_timestamp(simulated_end, field_name="research simulated_end")
+    if simulated_end <= simulated_start:
+        raise ResearchRunValidationError(
+            "research simulated_end must be after simulated_start"
+        )
     if not isinstance(datasets, tuple) or not datasets or any(
         not isinstance(item, HistoricalDatasetManifest) for item in datasets
     ):
@@ -238,12 +242,6 @@ def compute_research_run_input_fingerprint(
 ) -> ResearchRunInputFingerprint:
     """Hash canonical run inputs while excluding administrative run identity/time."""
 
-    _validate_timestamp(simulated_start, field_name="research simulated_start")
-    _validate_timestamp(simulated_end, field_name="research simulated_end")
-    if simulated_end <= simulated_start:
-        raise ResearchRunValidationError(
-            "research simulated_end must be after simulated_start"
-        )
     if not isinstance(replay_policy_version, ResearchReplayPolicyVersion):
         raise ResearchRunValidationError(
             "replay_policy_version must be ResearchReplayPolicyVersion"
@@ -367,6 +365,16 @@ class ResearchRunEvidence:
         return self.transaction_cost_model_id is not None
 
     def logical_values(self) -> tuple[object, ...]:
+        execution_model = (
+            self.execution_model_id.logical_values()
+            if self.execution_model_id is not None
+            else None
+        )
+        transaction_cost_model = (
+            self.transaction_cost_model_id.logical_values()
+            if self.transaction_cost_model_id is not None
+            else None
+        )
         return (
             self.run_id.logical_values(),
             self.created_at.isoformat(),
@@ -376,16 +384,8 @@ class ResearchRunEvidence:
             self.simulated_end.isoformat(),
             self.strategy_configuration_id.logical_values(),
             self.software_revision.logical_values(),
-            (
-                self.execution_model_id.logical_values()
-                if self.execution_model_id is not None
-                else None
-            ),
-            (
-                self.transaction_cost_model_id.logical_values()
-                if self.transaction_cost_model_id is not None
-                else None
-            ),
+            execution_model,
+            transaction_cost_model,
             self.randomness_mode.value,
             self.random_seed,
             self.input_fingerprint.logical_values(),
