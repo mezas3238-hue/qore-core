@@ -9,11 +9,6 @@ import pytest
 from qore.infrastructure.research_confidence_calibration import (
     ResearchConfidenceOutcomeObservation,
 )
-from qore.infrastructure.research_confidence_calibration_oos_validation import (
-    ResearchCalibrationOosValidationEvidence,
-    ResearchCalibrationOosValidationObservation,
-    ResearchCalibrationOosValidationSet,
-)
 from qore.infrastructure.research_confidence_calibration_coverage_precision import (
     ResearchCalibrationCoveragePrecisionAssessmentId,
     ResearchCalibrationCoveragePrecisionFailure,
@@ -22,9 +17,14 @@ from qore.infrastructure.research_confidence_calibration_coverage_precision impo
     ResearchCalibrationCoveragePrecisionValidationError,
     assess_research_calibration_coverage_precision,
 )
+from qore.infrastructure.research_confidence_calibration_oos_validation import (
+    ResearchCalibrationOosValidationEvidence,
+    ResearchCalibrationOosValidationObservation,
+    ResearchCalibrationOosValidationSet,
+)
 from qore.infrastructure.research_confidence_calibration_uncertainty import (
-    ResearchCalibrationPercentileInterval,
     ResearchCalibrationIntervalMethod,
+    ResearchCalibrationPercentileInterval,
     ResearchCalibrationUncertaintyEvidence,
     ResearchCalibrationUncertaintyFingerprint,
 )
@@ -43,7 +43,11 @@ def _observation(*, occurred: bool) -> ResearchCalibrationOosValidationObservati
     return observation
 
 
-def _validation(*, event_count: int, non_event_count: int) -> ResearchCalibrationOosValidationEvidence:
+def _validation(
+    *,
+    event_count: int,
+    non_event_count: int,
+) -> ResearchCalibrationOosValidationEvidence:
     validation_set = object.__new__(ResearchCalibrationOosValidationSet)
     object.__setattr__(
         validation_set,
