@@ -722,6 +722,7 @@ def test_one_core_decision_is_evaluated_independently_for_multiple_accounts() ->
         verdict=client_agent.ClientExecutionVerdict.RISK_BLOCKED,
         reason=client_agent.ClientExecutionReason.DAILY_LOSS_REACHED,
     )
+    assert isinstance(second, result.Success)
     assert first.value.account_id != second.value.account_id
 
 
