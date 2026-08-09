@@ -81,6 +81,7 @@ def test_periodic_sortino_supports_nonzero_minimum_acceptable_return() -> None:
     assert metric.status is ResearchPeriodicSortinoStatus.DEFINED
     assert metric.mean_excess_return == Decimal("0")
     assert metric.downside_observation_count == 1
+    assert metric.downside_deviation is not None
     assert metric.downside_deviation > 0
     assert metric.sortino_ratio == 0
 
