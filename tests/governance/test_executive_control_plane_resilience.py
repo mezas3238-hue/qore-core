@@ -13,6 +13,7 @@ from qore.governance.executive_control_plane_resilience import (
     ExecutiveControlPlaneOperation,
     ExecutiveControlPlaneOperationPolicy,
     ExecutiveControlPlaneRecoveryId,
+    ExecutiveControlPlaneRecoveryPlan,
     ExecutiveControlPlaneRecoveryRequirement,
     ExecutiveControlPlaneResiliencePolicy,
     ExecutiveControlPlaneResilienceValidationError,
@@ -25,6 +26,18 @@ _NOW = datetime(2026, 8, 9, 9, 0, tzinfo=UTC)
 _CORRELATION = CorrelationId(UUID("51000000-0000-0000-0000-000000000001"))
 
 
+def _complete_policy() -> ExecutiveControlPlaneResiliencePolicy:
+    return ExecutiveControlPlaneResiliencePolicy(
+        tuple(
+            ExecutiveControlPlaneOperationPolicy(
+                operation,
+                ExecutiveControlPlaneTimeout(index * 500),
+            )
+            for index, operation in enumerate(ExecutiveControlPlaneOperation, start=1)
+        )
+    )
+
+
 def test_timeout_is_strict_positive_integer_and_never_executes_time() -> None:
     timeout = ExecutiveControlPlaneTimeout(1500)
 
@@ -33,35 +46,41 @@ def test_timeout_is_strict_positive_integer_and_never_executes_time() -> None:
         with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
             ExecutiveControlPlaneTimeout(cast(int, invalid))
 
+    with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
+        ExecutiveControlPlaneTimeout(cast(int, 1.5))
 
-def test_policy_pack_is_deterministic_and_has_no_automatic_retry() -> None:
-    command = ExecutiveControlPlaneOperationPolicy(
-        ExecutiveControlPlaneOperation.COMMAND_DISPATCH,
-        ExecutiveControlPlaneTimeout(1000),
+
+def test_policy_pack_is_complete_deterministic_and_has_no_automatic_retry() -> None:
+    policy = _complete_policy()
+
+    assert tuple(item.operation.value for item in policy.operations) == tuple(
+        sorted(operation.value for operation in ExecutiveControlPlaneOperation)
     )
+    for operation in ExecutiveControlPlaneOperation:
+        matching = next(item for item in policy.operations if item.operation is operation)
+        assert policy.timeout_for(operation) == matching.timeout
+        assert not matching.automatic_retry_allowed
+    assert policy.logical_values() == policy.logical_values()
+
+
+def test_policy_rejects_partial_and_duplicate_operations() -> None:
     authority = ExecutiveControlPlaneOperationPolicy(
         ExecutiveControlPlaneOperation.AUTHORITY_READ,
         ExecutiveControlPlaneTimeout(500),
     )
-    policy = ExecutiveControlPlaneResiliencePolicy((command, authority))
-
-    assert policy.operations[0].operation is ExecutiveControlPlaneOperation.AUTHORITY_READ
-    assert policy.timeout_for(ExecutiveControlPlaneOperation.COMMAND_DISPATCH) == (
-        ExecutiveControlPlaneTimeout(1000)
-    )
-    assert policy.timeout_for(ExecutiveControlPlaneOperation.AUDIT_APPEND) is None
-    assert all(not item.automatic_retry_allowed for item in policy.operations)
-    assert policy.logical_values() == policy.logical_values()
-
-
-def test_policy_rejects_duplicate_operations() -> None:
-    policy = ExecutiveControlPlaneOperationPolicy(
-        ExecutiveControlPlaneOperation.REPLAY_CLAIM,
-        ExecutiveControlPlaneTimeout(750),
-    )
-
     with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
-        ExecutiveControlPlaneResiliencePolicy((policy, policy))
+        ExecutiveControlPlaneResiliencePolicy((authority,))
+
+    complete = _complete_policy()
+    with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
+        ExecutiveControlPlaneResiliencePolicy(complete.operations + (authority,))
+
+
+def test_policy_lookup_rejects_untyped_operation() -> None:
+    with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
+        _complete_policy().timeout_for(
+            cast(ExecutiveControlPlaneOperation, "command-dispatch")
+        )
 
 
 @pytest.mark.parametrize(
@@ -142,6 +161,8 @@ def test_all_failure_kinds_fail_closed_to_same_operation_specific_recovery(
         result.value.requirement
         is ExecutiveControlPlaneRecoveryRequirement.REREAD_GOVERNANCE_STATE
     )
+    assert not result.value.automatic_retry_allowed
+    assert not result.value.automatic_redispatch_allowed
 
 
 def test_command_ambiguity_never_becomes_automatic_redispatch() -> None:
@@ -160,6 +181,19 @@ def test_command_ambiguity_never_becomes_automatic_redispatch() -> None:
         is ExecutiveControlPlaneRecoveryRequirement.VERIFY_CONTROL_RECEIPT
     )
     assert not result.value.automatic_redispatch_allowed
+
+
+def test_recovery_plan_rejects_wrong_requirement() -> None:
+    with pytest.raises(ExecutiveControlPlaneResilienceValidationError):
+        ExecutiveControlPlaneRecoveryPlan(
+            recovery_id=ExecutiveControlPlaneRecoveryId(UUID(int=26)),
+            operation=ExecutiveControlPlaneOperation.GOVERNANCE_MUTATION,
+            failure_kind=ExecutiveControlPlaneFailureKind.AMBIGUOUS_OUTCOME,
+            requirement=ExecutiveControlPlaneRecoveryRequirement.ISSUE_NEW_READ_REQUEST,
+            correlation_id=_CORRELATION,
+            failed_at=_NOW,
+            planned_at=_NOW,
+        )
 
 
 def test_recovery_plan_requires_explicit_identity_and_aware_chronology() -> None:
@@ -188,7 +222,29 @@ def test_recovery_plan_requires_explicit_identity_and_aware_chronology() -> None
     assert isinstance(backwards, Failure)
 
 
-def test_recovery_plan_is_immutable_and_deterministic() -> None:
+def test_recovery_planner_rejects_untyped_inputs() -> None:
+    bad_operation = plan_executive_control_plane_recovery(
+        cast(ExecutiveControlPlaneOperation, "command-dispatch"),
+        ExecutiveControlPlaneFailureKind.TIMEOUT,
+        recovery_id=ExecutiveControlPlaneRecoveryId(UUID(int=27)),
+        correlation_id=_CORRELATION,
+        failed_at=_NOW,
+        planned_at=_NOW,
+    )
+    bad_failure = plan_executive_control_plane_recovery(
+        ExecutiveControlPlaneOperation.COMMAND_DISPATCH,
+        cast(ExecutiveControlPlaneFailureKind, "timeout"),
+        recovery_id=ExecutiveControlPlaneRecoveryId(UUID(int=28)),
+        correlation_id=_CORRELATION,
+        failed_at=_NOW,
+        planned_at=_NOW,
+    )
+
+    assert isinstance(bad_operation, Failure)
+    assert isinstance(bad_failure, Failure)
+
+
+def test_recovery_plan_is_immutable_deterministic_and_secret_free() -> None:
     result = plan_executive_control_plane_recovery(
         ExecutiveControlPlaneOperation.REPLAY_CLAIM,
         ExecutiveControlPlaneFailureKind.AMBIGUOUS_OUTCOME,
@@ -201,5 +257,13 @@ def test_recovery_plan_is_immutable_and_deterministic() -> None:
     plan = result.value
 
     assert plan.logical_values() == plan.logical_values()
+    rendered = repr(plan.logical_values()).lower()
+    for forbidden in ("password", "bearer ", "client_secret", "token"):
+        assert forbidden not in rendered
+
     with pytest.raises(FrozenInstanceError):
         plan.__setattr__("failure_kind", ExecutiveControlPlaneFailureKind.TIMEOUT)
+
+    assert not hasattr(plan, "retry_count")
+    assert not hasattr(plan, "sleep")
+    assert not hasattr(plan, "error_text")
