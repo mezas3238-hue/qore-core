@@ -26,7 +26,10 @@ def _uuid(suffix: int) -> UUID:
     return UUID(f"50000000-0000-0000-0000-{suffix:012d}")
 
 
-def _unit(runtime_ref: accounts.ExecutionRuntimeReference, suffix: int) -> unit.HostingExecutionUnit:
+def _unit(
+    runtime_ref: accounts.ExecutionRuntimeReference,
+    suffix: int,
+) -> unit.HostingExecutionUnit:
     return unit.HostingExecutionUnit(
         unit_id=unit.HostingExecutionUnitId(_uuid(suffix)),
         client_id=accounts.ClientId(_uuid(2)),
@@ -135,9 +138,15 @@ def _account_reconciliation(
 
 
 def _execution_reconciliation(
-    status: execution.ExecutionReconciliationStatus = execution.ExecutionReconciliationStatus.MATCHED,
+    status: execution.ExecutionReconciliationStatus = (
+        execution.ExecutionReconciliationStatus.MATCHED
+    ),
 ) -> execution.ExecutionReconciliationSnapshot:
-    issues = () if status is execution.ExecutionReconciliationStatus.MATCHED else ("ambiguous",)
+    issues = (
+        ()
+        if status is execution.ExecutionReconciliationStatus.MATCHED
+        else ("ambiguous",)
+    )
     return execution.ExecutionReconciliationSnapshot(
         status=status,
         reconciled_at=_NOW - timedelta(seconds=1),
@@ -171,7 +180,9 @@ def _evaluate(
 def test_reconciled_revoked_writer_is_ready_for_next_fenced_lease() -> None:
     assessed = _evaluate()
 
-    assert assessed.readiness is failover.HostingFailoverReadiness.READY_FOR_LEASE_ACQUISITION
+    assert assessed.readiness is (
+        failover.HostingFailoverReadiness.READY_FOR_LEASE_ACQUISITION
+    )
     assert assessed.reason is failover.HostingFailoverReason.RECONCILED_AND_FENCED
     assert assessed.next_generation == lease.HostingFencingGeneration(2)
     assert not hasattr(assessed, "activate_backup")
@@ -182,7 +193,9 @@ def test_previous_authority_must_be_revoked_or_expired_before_transfer() -> None
     assessed = _evaluate(leases=_lease_snapshot(revoked=False))
 
     assert assessed.readiness is failover.HostingFailoverReadiness.BLOCKED
-    assert assessed.reason is failover.HostingFailoverReason.PREVIOUS_AUTHORITY_STILL_ACTIVE
+    assert assessed.reason is (
+        failover.HostingFailoverReason.PREVIOUS_AUTHORITY_STILL_ACTIVE
+    )
     assert assessed.next_generation is None
 
 
