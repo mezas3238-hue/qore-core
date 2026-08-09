@@ -147,8 +147,7 @@ def test_assertion_is_immutable_and_carries_no_authentication_secret_field() -> 
     assertion = _assertion()
 
     with pytest.raises(FrozenInstanceError):
-        setattr(
-            assertion,
+        assertion.__setattr__(
             "expires_at",
             assertion.expires_at + timedelta(minutes=1),
         )
