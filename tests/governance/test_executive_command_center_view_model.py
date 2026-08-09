@@ -13,8 +13,8 @@ from qore.governance.executive_client_surface import ExecutiveClientSurfaceId
 from qore.governance.executive_command_center_view_model import (
     ExecutiveCommandCenterSection,
     ExecutiveCommandCenterSectionState,
-    ExecutiveCommandCenterViewModelValidationError,
     ExecutiveCommandCenterViewModelId,
+    ExecutiveCommandCenterViewModelValidationError,
     build_executive_command_center_view_model,
 )
 from qore.governance.executive_control import ExecutiveReadScope
@@ -33,11 +33,16 @@ def _state(
     *,
     status: ExecutiveClientStateStatus = ExecutiveClientStateStatus.UNAVAILABLE,
 ) -> ExecutiveClientStateView:
+    reason_code = (
+        "state.unavailable"
+        if status is ExecutiveClientStateStatus.UNAVAILABLE
+        else "state.unknown"
+    )
     return ExecutiveClientStateView(
         status=status,
         scope=scope,
         observed_at=_NOW,
-        reason_code="state.unavailable" if status is ExecutiveClientStateStatus.UNAVAILABLE else "state.unknown",
+        reason_code=reason_code,
     )
 
 
@@ -73,10 +78,22 @@ def test_view_model_uses_canonical_navigation_and_existing_read_scopes() -> None
         ExecutiveCommandCenterSection.CORPORATE_PROFIT_VAULT,
     )
     section_by_name = {item.section: item for item in model.sections}
-    assert section_by_name[ExecutiveCommandCenterSection.SYSTEM].read_scope is ExecutiveReadScope.SYSTEM_HEALTH
-    assert section_by_name[ExecutiveCommandCenterSection.CIBO].read_scope is ExecutiveReadScope.CIBO_STATE
-    assert section_by_name[ExecutiveCommandCenterSection.RISK].read_scope is ExecutiveReadScope.RISK
-    assert section_by_name[ExecutiveCommandCenterSection.NEWS].state is ExecutiveCommandCenterSectionState.UNSUPPORTED
+    assert (
+        section_by_name[ExecutiveCommandCenterSection.SYSTEM].read_scope
+        is ExecutiveReadScope.SYSTEM_HEALTH
+    )
+    assert (
+        section_by_name[ExecutiveCommandCenterSection.CIBO].read_scope
+        is ExecutiveReadScope.CIBO_STATE
+    )
+    assert (
+        section_by_name[ExecutiveCommandCenterSection.RISK].read_scope
+        is ExecutiveReadScope.RISK
+    )
+    assert (
+        section_by_name[ExecutiveCommandCenterSection.NEWS].state
+        is ExecutiveCommandCenterSectionState.UNSUPPORTED
+    )
     assert section_by_name[ExecutiveCommandCenterSection.NEWS].read_scope is None
     assert model.logical_values() == model.logical_values()
 
