@@ -11,6 +11,7 @@ from uuid import UUID
 
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import is_timezone_aware_datetime
 
 _RESERVED_DECISION_METADATA_KEYS = frozenset({"correlation_id", "causation_id"})
 
@@ -175,6 +176,10 @@ class FunctionalDecision:
     outcome: DecisionOutcome | None = None
 
     def __post_init__(self) -> None:
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise DecisionValidationError(
+                "decision timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.reasons, tuple) or any(
             not isinstance(reason, DecisionReason) for reason in self.reasons
         ):
