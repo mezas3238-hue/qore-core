@@ -437,7 +437,7 @@ def _maximum_adjacent_jitter(
         return HostingLatencyDuration(0)
     differences = tuple(
         abs(current.duration.microseconds - previous.duration.microseconds)
-        for previous, current in zip(ordered, ordered[1:], strict=True)
+        for previous, current in zip(ordered[:-1], ordered[1:], strict=True)
     )
     return HostingLatencyDuration(max(differences))
 
@@ -517,7 +517,7 @@ def certify_hosting_io_path(
         evidence_ref=distribution_evidence_ref,
     )
     if isinstance(built, Failure):
-        return built
+        return Failure(built.error)
     assessed = evaluate_hosting_latency_envelope(
         built.value,
         baseline,
