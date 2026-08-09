@@ -20,6 +20,8 @@ from qore.infrastructure.research_periodic_hac_sharpe import (
 )
 from qore.kernel.result import Success
 
+# Exact-head CI refresh against the current main baseline.
+
 
 def _uuid(suffix: int) -> UUID:
     return UUID(f"86000000-0000-0000-0000-{suffix:012d}")
