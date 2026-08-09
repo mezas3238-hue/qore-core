@@ -1,6 +1,14 @@
 # MISSION-04 — QORE Control Plane & Executive Governance
 
-Status: **ACTIVE FOR OFFLINE / PROVIDER-INDEPENDENT ENGINEERING — EXTERNAL CONTROL-PLANE ACTIVATION CLOSED**
+Status: **COMPLETED — PROVIDER-INDEPENDENT CONTROL PLANE CLOSED; EXTERNAL / MOBILE / PRODUCTION ACTIVATION CLOSED**
+
+Closure baseline verified before Delivery 14:
+
+```text
+main @ 64d13110859b33386176f3648f70356516278920
+```
+
+MISSION-03 issue `#146 — MISSION-03 Gate #5 — OANDA Practice operational evidence blocker` remains **OPEN / BLOCKED**. MISSION-04 closure does not change that state.
 
 ## Purpose
 
@@ -334,7 +342,9 @@ Offline E2E evidence does not activate a network service or Mobile app.
 
 ## Mission closure criteria
 
-MISSION-04 may be marked complete only when all fourteen deliveries are merged with unchanged QORE CI and the repository demonstrates a complete provider-independent Control Plane composition.
+MISSION-04 is considered `COMPLETED` within its provider-independent/offline scope because all fourteen deliveries are represented in the final closure branch and the unchanged QORE CI must pass before that branch can merge.
+
+The closure readiness suite supplements the Delivery 13 happy-path composition with the remaining deterministic scenarios required above: unauthenticated/expired/revoked blocking, exact scoped target preservation, duplicate/conflicting replay behavior, `NO_ACTION`, ambiguous-outcome containment and Core runtime-identity preservation.
 
 MISSION-04 closure does **not** authorize:
 
@@ -349,15 +359,48 @@ MISSION-04 closure does **not** authorize:
 
 Those require their own later operational/deployment gates.
 
+Production remains **CLOSED**.
+
+## Closure evidence
+
+Repository-integrated sequence before the final closure merge:
+
+```text
+QORE-MISSION04-DOCS-001                         PR #156  b4d29f71b14e0268d63958f66057b62b439bee04
+QORE-EXECUTIVE-AUTHENTICATED-PRINCIPAL-001      PR #157  6aa9b4378f22a12094e9d6a13f48d4c814a1a547
+QORE-EXECUTIVE-AUTHORITY-STATE-001              PR #158  c0ab22de7f16dc4db08f26d7d01402496ebf0b65
+QORE-EXECUTIVE-REQUEST-GUARD-001                PR #159  bd1f669f6f8b634c33f6ea6ee28f2547847980f0
+QORE-EXECUTIVE-COMMAND-DISPATCH-001             PR #160  c9d127d5910d215b2cdb51b08846ad8e3cd0b520
+QORE-EXECUTIVE-QUERY-DISPATCH-001               PR #161  d10cdd6d4794cb7ba3a0afc59ff4cf6ff95a487f
+QORE-EXECUTIVE-GOVERNANCE-MUTATION-001          PR #162  d680852d63548757a86b8667cdba57ae3f2c077f
+QORE-EXECUTIVE-AUDIT-EVIDENCE-001               PR #163  d635570947851f35ec42ec197b15aae44e420a98
+QORE-EXECUTIVE-REPLAY-IDEMPOTENCY-001           PR #164  9157484c64611a3f7b222c7f27f25030c9357765
+QORE-EXECUTIVE-TRANSPORT-ENVELOPE-001           PR #165  b29440a5040f6fdec3ff5a78c6c20b8745df5b6c
+QORE-EXECUTIVE-CONTROL-PLANE-OBSERVABILITY-001  PR #166  1c827144c4f6154871e1453712c23bedacdf8c8f
+QORE-EXECUTIVE-CONTROL-PLANE-RESILIENCE-001     PR #167  9b846bf45ea7f2a2678c188e0e3fe16e115c3e78
+QORE-MISSION04-E2E-OFFLINE-COMPOSITION-001      PR #168  64d13110859b33386176f3648f70356516278920
+QORE-MISSION04-CLOSURE-001                      Delivery 14 / final closure branch
+```
+
+The detailed closure audit is documented in `docs/architecture/QORE-MISSION04-CLOSURE-001.md`.
+
+## MISSION-03 remains separate
+
+Issue #146 is still open and Gate #5 remains operationally blocked pending a real authenticated OANDA v20 Practice read-only quote run with sanitized audited evidence.
+
+MISSION-04 CI/fixtures do not close MISSION-03 Gates #5-#14 and do not substitute for OANDA Practice credentials or provider evidence.
+
 ## Relationship to MISSION-05
 
-MISSION-05 — QORE Mobile & CEO Command Center may consume MISSION-04 transport-neutral contracts after MISSION-04 provides a stable, auditable boundary.
+MISSION-05 — QORE Mobile & CEO Command Center may consume MISSION-04 transport-neutral contracts after this closure provides a stable, auditable boundary.
 
 Mobile/Desktop remain presentation clients. They do not become governance sources-of-truth.
 
+MISSION-04 closure does not automatically open, implement or deploy MISSION-05.
+
 ## Quality Gate
 
-Every functional MISSION-04 delivery must pass unchanged:
+Every functional MISSION-04 delivery, including closure, must pass unchanged:
 
 ```bash
 ruff check .
@@ -367,12 +410,8 @@ pytest --cov=src/qore --cov-report=term-missing
 
 CI failures are corrected on the same branch without suppressions or weakened checks.
 
-## Immediate next delivery
+## Post-closure boundary
 
-After `QORE-MISSION04-DOCS-001` merges, continue with:
+After Delivery 14 merges, MISSION-04 is closed in its provider-independent/offline architectural scope.
 
-```text
-QORE-EXECUTIVE-AUTHENTICATED-PRINCIPAL-001
-```
-
-This next delivery is fully provider-independent and requires no OANDA Practice account or token.
+No next mission is activated implicitly. Any MISSION-05 work begins only under its own explicitly verified repository scope and must preserve all security and governance boundaries established here.
