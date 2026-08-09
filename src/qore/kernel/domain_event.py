@@ -27,6 +27,9 @@ from types import MappingProxyType
 from typing import Any
 from uuid import UUID, uuid4
 
+from qore.kernel.errors import ValidationError
+from qore.kernel.temporal import is_timezone_aware_datetime
+
 
 @dataclass(frozen=True, slots=True)
 class DomainEvent:
@@ -41,7 +44,11 @@ class DomainEvent:
     )
 
     def __post_init__(self) -> None:
-        """Aislar metadata de mutaciones externas."""
+        """Validar tiempo y aislar metadata de mutaciones externas."""
+        if not is_timezone_aware_datetime(self.timestamp):
+            raise ValidationError(
+                "domain event timestamp must be a timezone-aware datetime"
+            )
         if not isinstance(self.metadata, MappingProxyType):
             object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
 
