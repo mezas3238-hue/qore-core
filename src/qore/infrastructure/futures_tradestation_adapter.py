@@ -632,12 +632,12 @@ def normalize_tradestation_execution_event(
             observed_at=payload.observed_at,
             evidence_ref=payload.evidence_ref,
         )
-    except FuturesAdapterValidationError as error:
-        return Failure(TradeStationFuturesValidationError(str(error)))
+    except FuturesAdapterValidationError as construction_error:
+        return Failure(TradeStationFuturesValidationError(str(construction_error)))
     validated = validate_futures_execution_observation(request, observation)
     if isinstance(validated, Failure):
-        error: FuturesAdapterContractError = validated.error
-        return Failure(TradeStationFuturesValidationError(str(error)))
+        validation_error: FuturesAdapterContractError = validated.error
+        return Failure(TradeStationFuturesValidationError(str(validation_error)))
     return Success(validated.value)
 
 
