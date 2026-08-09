@@ -122,12 +122,16 @@ class ExecutiveControlPlaneResiliencePolicy:
             )
         if not self.operations:
             raise ExecutiveControlPlaneResilienceValidationError(
-                "resilience policy must contain at least one operation"
+                "resilience policy must contain operation policies"
             )
         operation_kinds = tuple(item.operation for item in self.operations)
         if len(set(operation_kinds)) != len(operation_kinds):
             raise ExecutiveControlPlaneResilienceValidationError(
                 "resilience policy must not contain duplicate operations"
+            )
+        if set(operation_kinds) != set(ExecutiveControlPlaneOperation):
+            raise ExecutiveControlPlaneResilienceValidationError(
+                "resilience policy must define every control-plane operation exactly once"
             )
         object.__setattr__(
             self,
@@ -138,7 +142,7 @@ class ExecutiveControlPlaneResiliencePolicy:
     def timeout_for(
         self,
         operation: ExecutiveControlPlaneOperation,
-    ) -> ExecutiveControlPlaneTimeout | None:
+    ) -> ExecutiveControlPlaneTimeout:
         if not isinstance(operation, ExecutiveControlPlaneOperation):
             raise ExecutiveControlPlaneResilienceValidationError(
                 "timeout lookup requires ExecutiveControlPlaneOperation"
@@ -146,7 +150,9 @@ class ExecutiveControlPlaneResiliencePolicy:
         for policy in self.operations:
             if policy.operation is operation:
                 return policy.timeout
-        return None
+        raise ExecutiveControlPlaneResilienceValidationError(
+            "resilience policy is missing required operation"
+        )
 
     def logical_values(self) -> tuple[object, ...]:
         return tuple(item.logical_values() for item in self.operations)
