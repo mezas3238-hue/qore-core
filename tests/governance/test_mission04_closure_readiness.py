@@ -59,8 +59,8 @@ from qore.governance.executive_ports import (
     build_executive_control_receipt,
 )
 from qore.governance.executive_replay_idempotency import (
-    ExecutiveReplayBlockReason,
     ExecutiveReplayBlockedError,
+    ExecutiveReplayBlockReason,
     ExecutiveReplayClaimPort,
     ExecutiveReplayClaimReceipt,
     ExecutiveReplayClaimRequest,
@@ -82,6 +82,7 @@ from qore.kernel.result import Failure, Result, Success
 _NOW = datetime(2026, 8, 9, 11, 0, tzinfo=UTC)
 _PRINCIPAL = ExecutivePrincipalId("ceo.primary")
 _CORRELATION = CorrelationId(UUID("53000000-0000-0000-0000-000000000001"))
+_DEFAULT_INTENT_ID = UUID("53000000-0000-0000-0000-000000000005")
 
 
 def _core() -> CoreApplication:
@@ -166,7 +167,7 @@ def _authority_snapshot(
 def _intent(
     action: ExecutiveControlAction = ExecutiveControlAction.PAUSE_SYSTEM,
     *,
-    intent_id: UUID = UUID("53000000-0000-0000-0000-000000000005"),
+    intent_id: UUID = _DEFAULT_INTENT_ID,
     target: ExecutiveControlTarget | None = None,
 ) -> ExecutiveControlIntent:
     return ExecutiveControlIntent(
@@ -260,7 +261,7 @@ class _StatefulReplayStore(ExecutiveReplayClaimPort):
 def _authorized(
     action: ExecutiveControlAction,
     *,
-    intent_id: UUID = UUID("53000000-0000-0000-0000-000000000005"),
+    intent_id: UUID = _DEFAULT_INTENT_ID,
     grant: ExecutiveAuthorityGrant | None = None,
 ) -> AuthorizedExecutiveControlIntent:
     selected_grant = grant or _grant(action)
