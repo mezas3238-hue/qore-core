@@ -133,7 +133,7 @@ def test_snapshot_is_immutable() -> None:
     )
 
     with pytest.raises(FrozenInstanceError):
-        snapshot.open_positions = 1
+        setattr(snapshot, "open_positions", 1)
 
 
 def test_commercial_suspension_has_no_billing_widget_or_trading_authority() -> None:
