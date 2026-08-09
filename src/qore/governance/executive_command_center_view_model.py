@@ -252,12 +252,12 @@ def _build_section_views(
             "command center state views must be tuple of ExecutiveClientStateView"
         )
     by_scope: dict[ExecutiveReadScope, ExecutiveClientStateView] = {}
-    for state_view in state_views:
-        if state_view.scope in by_scope:
+    for supplied_state_view in state_views:
+        if supplied_state_view.scope in by_scope:
             raise ExecutiveCommandCenterViewModelValidationError(
                 "command center state views must not duplicate executive read scopes"
             )
-        by_scope[state_view.scope] = state_view
+        by_scope[supplied_state_view.scope] = supplied_state_view
 
     section_views: list[ExecutiveCommandCenterSectionView] = []
     for section in _SECTION_ORDER:
@@ -276,8 +276,8 @@ def _build_section_views(
                 )
             )
             continue
-        state_view = by_scope.get(scope)
-        if state_view is None:
+        matching_state_view = by_scope.get(scope)
+        if matching_state_view is None:
             section_views.append(
                 ExecutiveCommandCenterSectionView(
                     section=section,
@@ -293,7 +293,7 @@ def _build_section_views(
                 state=ExecutiveCommandCenterSectionState.AVAILABLE,
                 reason_code="state.present",
                 read_scope=scope,
-                client_state=state_view,
+                client_state=matching_state_view,
             )
         )
     return tuple(section_views)
