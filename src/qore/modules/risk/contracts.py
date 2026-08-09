@@ -84,6 +84,7 @@ class AssessAllocationRiskCommand(Command):
     priority: DecisionPriority = DecisionPriority.HIGH
 
     def __post_init__(self) -> None:
+        Command.__post_init__(self)
         if self.decision_id.value == self.allocation_intent.intent_id.value:
             raise RiskValidationError(
                 "risk decision identity must differ from the source allocation intent"
