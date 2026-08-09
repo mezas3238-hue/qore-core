@@ -157,7 +157,10 @@ def _training_snapshot() -> ResearchConfidenceCalibrationSnapshot:
     return built.value
 
 
-def _mapping_fit(*, run: ResearchRunEvidence | None = None) -> ResearchConfidenceCalibrationMappingFit:
+def _mapping_fit(
+    *,
+    run: ResearchRunEvidence | None = None,
+) -> ResearchConfidenceCalibrationMappingFit:
     selected_run = run or _run()
     freeze = _freeze(selected_run)
     snapshot = _training_snapshot()
