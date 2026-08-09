@@ -159,7 +159,9 @@ def _validation(
     return validation
 
 
-def _baseline(mapping: ResearchConfidenceCalibrationMappingFit) -> ResearchCalibrationOosValidationEvidence:
+def _baseline(
+    mapping: ResearchConfidenceCalibrationMappingFit,
+) -> ResearchCalibrationOosValidationEvidence:
     return _validation(
         mapping=mapping,
         observations=(
@@ -195,7 +197,9 @@ def _baseline(mapping: ResearchConfidenceCalibrationMappingFit) -> ResearchCalib
     )
 
 
-def _comparison(mapping: ResearchConfidenceCalibrationMappingFit) -> ResearchCalibrationOosValidationEvidence:
+def _comparison(
+    mapping: ResearchConfidenceCalibrationMappingFit,
+) -> ResearchCalibrationOosValidationEvidence:
     return _validation(
         mapping=mapping,
         observations=(
