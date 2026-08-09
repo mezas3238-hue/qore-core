@@ -8,11 +8,11 @@ import pytest
 import qore.infrastructure.market_data as market_data
 import qore.infrastructure.market_data_integrity as integrity
 import qore.infrastructure.ports as ports
+import qore.kernel.result as result
 from qore.infrastructure.hosting_latency_safety import HostingLatencyDuration
 from qore.infrastructure.hosting_reliability_lab import (
     HostingReliabilityEvidenceReference,
 )
-import qore.kernel.result as result
 
 _T0 = datetime(2026, 8, 10, 6, 0, tzinfo=UTC)
 _INSTRUMENT = market_data.Instrument("ESZ6")
