@@ -12,6 +12,16 @@ from qore.governance.executive_ports import ExecutiveEvidenceRef
 from qore.kernel.errors import DomainError
 from qore.kernel.result import Failure, Result, Success
 
+_SENSITIVE_REF_PARTS = (
+    "authorization:",
+    "bearer",
+    "client_secret",
+    "password",
+    "private_key",
+    "secret",
+    "token",
+)
+
 
 class CiboExecutiveDialogueError(DomainError):
     """Base error for evidence-backed CIBO executive dialogue contracts."""
@@ -50,6 +60,22 @@ def _validate_code(value: str, *, field_name: str) -> str:
     return value
 
 
+def _validate_prompt_ref(value: str) -> str:
+    if not isinstance(value, str) or fullmatch(
+        r"[a-z][a-z0-9._:/-]*",
+        value,
+    ) is None:
+        raise CiboExecutiveDialogueValidationError(
+            "CIBO executive prompt ref must use canonical opaque-ref syntax"
+        )
+    normalized = value.lower()
+    if any(part in normalized for part in _SENSITIVE_REF_PARTS):
+        raise CiboExecutiveDialogueValidationError(
+            "CIBO executive prompt ref must not contain sensitive material"
+        )
+    return value
+
+
 def _validate_codes(values: tuple[str, ...], *, field_name: str) -> tuple[str, ...]:
     if not isinstance(values, tuple) or not values:
         raise CiboExecutiveDialogueValidationError(
@@ -84,11 +110,7 @@ class CiboExecutivePromptRef:
     value: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "value",
-            _validate_code(self.value, field_name="CIBO executive prompt ref"),
-        )
+        object.__setattr__(self, "value", _validate_prompt_ref(self.value))
 
     def logical_values(self) -> tuple[str, ...]:
         return (self.value,)
