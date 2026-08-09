@@ -190,7 +190,10 @@ def test_aligned_running_runtime_requires_no_deployment_action() -> None:
 
 
 def test_orchestration_uses_canonical_account_and_runtime_types() -> None:
-    decision_fields = {field.name: field.type for field in fields(orchestrator.HostingOrchestrationDecision)}
+    decision_fields = {
+        field.name: field.type
+        for field in fields(orchestrator.HostingOrchestrationDecision)
+    }
 
     assert decision_fields["account_id"] == "TradingAccountId"
     assert decision_fields["runtime_ref"] == "ExecutionRuntimeReference"
@@ -254,7 +257,9 @@ def test_orchestrator_exposes_no_authority_transfer_or_provider_io() -> None:
         "revoke_lease",
         "submit_order",
     }
-    decision_fields = {field.name for field in fields(orchestrator.HostingOrchestrationDecision)}
+    decision_fields = {
+        field.name for field in fields(orchestrator.HostingOrchestrationDecision)
+    }
 
     assert decision_fields.isdisjoint(prohibited)
     assert prohibited.isdisjoint(set(dir(orchestrator.HostingOrchestrationDecision)))
