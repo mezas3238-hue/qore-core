@@ -5,6 +5,8 @@ from datetime import datetime
 from uuid import UUID
 
 from qore.infrastructure.research_economic_evidence import (
+    ResearchGrossEconomicResult,
+    ResearchNetEconomicResult,
     ResearchReturnBasis,
     ResearchReturnObservation,
 )
@@ -84,6 +86,15 @@ class ResearchOosFoldPerformance:
         return (self.fold.logical_values(), self.statistics.logical_values())
 
 
+def _gross_result(
+    observation: ResearchReturnObservation,
+) -> ResearchGrossEconomicResult:
+    source = observation.source_result
+    if isinstance(source, ResearchNetEconomicResult):
+        return source.gross_result
+    return source
+
+
 def _validate_observations(
     plan: ResearchTemporalEvaluationPlan,
     observations: tuple[ResearchReturnObservation, ...],
@@ -116,6 +127,18 @@ def _validate_observations(
     if len(set(result_ids)) != len(result_ids):
         raise ResearchOosPerformanceValidationError(
             "OOS source economic result ids must be unique"
+        )
+    fill_ids = tuple(
+        fill.fill_id
+        for item in observations
+        for fill in (
+            *_gross_result(item).entry_fills,
+            *_gross_result(item).exit_fills,
+        )
+    )
+    if len(set(fill_ids)) != len(fill_ids):
+        raise ResearchOosPerformanceValidationError(
+            "OOS performance observations must not reuse economic fill evidence"
         )
     return basis
 
