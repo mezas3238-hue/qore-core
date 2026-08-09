@@ -14,6 +14,7 @@ from qore.domain.commands import (
     CommandValidationError,
 )
 from qore.domain.events import (
+    BusinessDomainEvent,
     CausationId,
     CorrelationId,
     DomainEventCategory,
@@ -76,15 +77,12 @@ from qore.modules.validation.contracts import (
     ValidationAssessmentId,
     ValidationInvariantError,
     ValidationPolicy,
-    ValidationVerdict,
 )
 from qore.specialist.analysis import (
     SpecialistAnalysis,
     SpecialistAnalysisId,
-    SpecialistAnalysisStatus,
     SpecialistConfidence,
     SpecialistKind,
-    SpecialistMetadata,
     SpecialistReason,
     SpecialistReasonCode,
     SpecialistValidationError,
@@ -280,15 +278,20 @@ def _direct_artifacts() -> tuple[
 
 
 def test_base_command_rejects_naive_and_accepts_non_utc_aware_timestamp() -> None:
-    kwargs = {
-        "command_id": CommandId(_uuid(100)),
-        "name": CommandName("qore.temporal-test"),
-        "metadata": _command_metadata(),
-    }
     with pytest.raises(CommandValidationError, match="timezone-aware"):
-        Command(timestamp=_NAIVE_TIMESTAMP, **kwargs)
+        Command(
+            command_id=CommandId(_uuid(100)),
+            timestamp=_NAIVE_TIMESTAMP,
+            name=CommandName("qore.temporal-test"),
+            metadata=_command_metadata(),
+        )
 
-    value = Command(timestamp=_NON_UTC_TIMESTAMP, **kwargs)
+    value = Command(
+        command_id=CommandId(_uuid(100)),
+        timestamp=_NON_UTC_TIMESTAMP,
+        name=CommandName("qore.temporal-test"),
+        metadata=_command_metadata(),
+    )
     assert value.timestamp == _NON_UTC_TIMESTAMP
     assert value.timestamp.utcoffset() == timedelta(hours=5, minutes=30)
 
@@ -305,13 +308,10 @@ def test_domain_event_rejects_naive_and_accepts_non_utc_aware_timestamp() -> Non
 
 
 def test_business_event_path_inherits_timezone_awareness_enforcement() -> None:
-    decision = _direct_artifacts()[0]
     metadata = DomainEventMetadata(
         category=DomainEventCategory("temporal"),
         correlation_id=_CORRELATION_ID,
     )
-
-    from qore.domain.events import BusinessDomainEvent
 
     with pytest.raises(ValidationError, match="timezone-aware"):
         BusinessDomainEvent(
@@ -322,7 +322,14 @@ def test_business_event_path_inherits_timezone_awareness_enforcement() -> None:
             metadata=metadata,
         )
 
-    assert decision.timestamp.tzinfo is not None
+    value = BusinessDomainEvent(
+        timestamp=_NON_UTC_TIMESTAMP,
+        event_name="qore.temporal-test",
+        event_id=DomainEventId(_uuid(102)),
+        event_version=DomainEventVersion("1"),
+        metadata=metadata,
+    )
+    assert value.timestamp == _NON_UTC_TIMESTAMP
 
 
 def test_all_functional_commands_reject_naive_timestamps() -> None:
@@ -383,21 +390,34 @@ def test_direct_optimization_proposal_rejects_naive_timestamp() -> None:
 def test_direct_artifacts_accept_non_utc_aware_offsets() -> None:
     decision, analysis, assessment, snapshot, intent, record, proposal = _direct_artifacts()
 
-    assert replace(decision, timestamp=_NON_UTC_TIMESTAMP).timestamp == _NON_UTC_TIMESTAMP
-    assert replace(analysis, timestamp=_NON_UTC_TIMESTAMP).timestamp == _NON_UTC_TIMESTAMP
-    assert replace(assessment, timestamp=_NON_UTC_TIMESTAMP).timestamp == _NON_UTC_TIMESTAMP
-    assert replace(snapshot, timestamp=_NON_UTC_TIMESTAMP).timestamp == _NON_UTC_TIMESTAMP
-    assert replace(intent, timestamp=_NON_UTC_TIMESTAMP).timestamp == _NON_UTC_TIMESTAMP
-    assert replace(record, timestamp=_NON_UTC_TIMESTAMP).timestamp == _NON_UTC_TIMESTAMP
+    adjusted_decision = replace(decision, timestamp=_NON_UTC_TIMESTAMP)
+    adjusted_analysis = replace(analysis, timestamp=_NON_UTC_TIMESTAMP)
+    adjusted_assessment = replace(assessment, timestamp=_NON_UTC_TIMESTAMP)
+    adjusted_snapshot = replace(snapshot, timestamp=_NON_UTC_TIMESTAMP)
+    adjusted_intent = replace(intent, timestamp=_NON_UTC_TIMESTAMP)
+    adjusted_record = replace(record, timestamp=_NON_UTC_TIMESTAMP)
     adjusted_proposal = replace(proposal, timestamp=_NON_UTC_TIMESTAMP)
+
+    assert adjusted_decision.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted_analysis.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted_assessment.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted_snapshot.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted_intent.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted_record.timestamp == _NON_UTC_TIMESTAMP
     assert adjusted_proposal.timestamp == _NON_UTC_TIMESTAMP
-    assert adjusted_proposal.action in {OptimizationAction.KEEP, OptimizationAction.ADJUST}
+    assert adjusted_proposal.action in {
+        OptimizationAction.KEEP,
+        OptimizationAction.ADJUST,
+    }
 
 
 def test_logical_values_preserve_explicit_offset() -> None:
     decision = replace(_direct_artifacts()[0], timestamp=_NON_UTC_TIMESTAMP)
-    assert decision.logical_values()[1] == _NON_UTC_TIMESTAMP.isoformat()
-    assert decision.logical_values()[1].endswith("+05:30")
+    serialized_timestamp = decision.logical_values()[1]
+
+    assert serialized_timestamp == _NON_UTC_TIMESTAMP.isoformat()
+    assert isinstance(serialized_timestamp, str)
+    assert serialized_timestamp.endswith("+05:30")
 
 
 def test_functional_decision_constructor_remains_resolved_and_explicit() -> None:
