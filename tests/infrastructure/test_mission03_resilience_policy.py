@@ -7,9 +7,9 @@ import pytest
 
 from qore.infrastructure.adapter_resilience import (
     AdapterRateLimitPolicy,
+    AdapterRetryableFailure,
     AdapterRetryDelay,
     AdapterRetryPolicy,
-    AdapterRetryableFailure,
     AdapterTimeoutPolicy,
 )
 from qore.infrastructure.connectivity import ProviderEndpoint
