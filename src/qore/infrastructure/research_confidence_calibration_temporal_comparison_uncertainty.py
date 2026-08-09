@@ -207,7 +207,11 @@ def _ece(*, pairs: tuple[_Pair, ...], bin_count: int) -> Decimal:
         return total
 
 
-def _window_metrics(*, pairs: tuple[_Pair, ...], bin_count: int) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+def _window_metrics(
+    *,
+    pairs: tuple[_Pair, ...],
+    bin_count: int,
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     mean_estimate = _mean(tuple(item[0] for item in pairs))
     event_rate = _mean(tuple(item[1] for item in pairs))
     absolute_mean_gap = abs(mean_estimate - event_rate)
