@@ -172,7 +172,7 @@ def test_replay_availability_rejects_naive_timestamps() -> None:
         ReplayMarketDataObservation(
             observation_id=ReplayObservationId(_uuid(36)),
             payload=bar,
-            availability_evidence_at=cast(datetime, naive),
+            availability_evidence_at=naive,
             available_at=bar.closed_at,
             availability_basis=ReplayAvailabilityBasis.OBSERVED_RECEIPT,
             availability_evidence_ref=_evidence_ref(26),
@@ -183,7 +183,7 @@ def test_replay_availability_rejects_naive_timestamps() -> None:
             observation_id=ReplayObservationId(_uuid(37)),
             payload=bar,
             availability_evidence_at=bar.closed_at,
-            available_at=cast(datetime, naive),
+            available_at=naive,
             availability_basis=ReplayAvailabilityBasis.STRUCTURAL_BOUNDARY,
             availability_evidence_ref=_evidence_ref(27),
         )
