@@ -36,6 +36,7 @@ from qore.kernel.result import Failure, Result, Success
 _NOW = datetime(2026, 8, 9, 3, 0, tzinfo=UTC)
 _PRINCIPAL = ExecutivePrincipalId("ceo.primary")
 _CORRELATION = CorrelationId(UUID("45000000-0000-0000-0000-000000000001"))
+_REQUEST_UUID = UUID("45000000-0000-0000-0000-000000000002")
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +60,7 @@ class _Projection:
 
 def _authorized(
     *,
-    request_id: UUID = UUID("45000000-0000-0000-0000-000000000002"),
+    request_id: UUID = _REQUEST_UUID,
 ) -> AuthorizedExecutiveReadRequest:
     grant = ExecutiveAuthorityGrant(
         grant_id=ExecutiveGrantId(UUID("45000000-0000-0000-0000-000000000003")),
