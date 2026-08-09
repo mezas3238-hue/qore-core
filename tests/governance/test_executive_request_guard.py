@@ -301,6 +301,8 @@ def test_non_active_or_unavailable_authority_fails_closed_without_authorization(
         ExecutiveRequestGuardStage.AUTHORITY,
         ExecutiveRequestGuardReason.AUTHORITY_SOURCE_FAILED,
     )
+    assert isinstance(unavailable, Failure)
+    assert isinstance(unavailable.error, ExecutiveRequestGuardBlockedError)
     assert "password" not in str(unavailable.error).lower()
 
 
