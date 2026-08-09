@@ -36,6 +36,7 @@ from qore.infrastructure.proprietary_accounts import DrawdownBps, MoneyAmount
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
+
 class ClientExecutionAgentError(InfrastructureError):
     """Base error for platform-neutral Client Execution Agent contracts."""
 
