@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 
@@ -110,7 +111,7 @@ def test_completed_flag_is_strict_bool() -> None:
     with pytest.raises(Mission03ClosurePreparationValidationError):
         Mission03OperationalGateClosureRecord(
             gate=Mission03E2EGate.LIVE_MARKET_FEED,
-            completed=1,
+            completed=cast(bool, 1),
             evidence_refs=(Mission03OperationalGateEvidenceRef("artifact:gate5/success"),),
         )
 

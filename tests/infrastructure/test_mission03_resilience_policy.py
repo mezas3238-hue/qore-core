@@ -7,9 +7,9 @@ import pytest
 
 from qore.infrastructure.adapter_resilience import (
     AdapterRateLimitPolicy,
+    AdapterRetryableFailure,
     AdapterRetryDelay,
     AdapterRetryPolicy,
-    AdapterRetryableFailure,
     AdapterTimeoutPolicy,
 )
 from qore.infrastructure.connectivity import ProviderEndpoint
@@ -26,12 +26,13 @@ from qore.infrastructure.mission03_resilience_policy import (
 )
 from qore.infrastructure.oanda_practice_configuration import (
     OandaPracticeCapability,
+    OandaPracticeConfigurationValidationError,
     OandaPracticeOperationalLimits,
     OandaPracticeRuntimeConfiguration,
     oanda_practice_secret_requirements,
 )
 from qore.infrastructure.transport import ExternalTransportTimeout
-from qore.kernel.result import Failure, Success
+from qore.kernel.result import Success
 
 _NOW = datetime(2026, 8, 9, 1, 0, tzinfo=UTC)
 
@@ -183,18 +184,14 @@ def test_pack_rejects_retry_even_for_reads_during_current_preparation() -> None:
         )
 
 
-def test_pack_requires_account_pricing_and_orders_capabilities() -> None:
-    result = build_mission03_resilience_policy_pack(
+def test_configuration_rejects_missing_required_capabilities_before_pack_build() -> None:
+    with pytest.raises(OandaPracticeConfigurationValidationError):
         _configuration(
             capabilities=(
                 OandaPracticeCapability.ACCOUNT,
                 OandaPracticeCapability.PRICING,
             )
         )
-    )
-
-    assert isinstance(result, Failure)
-    assert isinstance(result.error, Mission03ResiliencePolicyValidationError)
 
 
 def test_pack_is_demo_only_and_lookup_is_typed() -> None:

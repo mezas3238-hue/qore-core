@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 
@@ -166,14 +167,14 @@ def test_operational_gate_completion_requires_credentials_and_strict_sequence() 
 def test_provisioning_flags_are_strict_bool() -> None:
     with pytest.raises(Mission03OperationalE2EPreparationValidationError):
         Mission03ExternalPrerequisiteState(
-            practice_account_provisioned=1,
+            practice_account_provisioned=cast(bool, 1),
             practice_token_provisioned=False,
         )
 
     with pytest.raises(Mission03OperationalE2EPreparationValidationError):
         Mission03ExternalPrerequisiteState(
             practice_account_provisioned=False,
-            practice_token_provisioned=1,
+            practice_token_provisioned=cast(bool, 1),
         )
 
 
