@@ -65,6 +65,7 @@ from qore.infrastructure.research_economic_evidence import (
     ResearchEconomicEvidenceReference,
     ResearchEconomicResultId,
     ResearchExecutionIntentEvidenceId,
+    ResearchFillEvidence,
     ResearchFillId,
     ResearchGrossEconomicResult,
     ResearchReturnObservation,
@@ -224,7 +225,7 @@ def _fill(
     suffix: int,
     price: str,
     filled_at: datetime,
-):
+) -> ResearchFillEvidence:
     intent = _intent(side, suffix)
     intent_evidence = build_research_execution_intent_evidence(
         evidence_id=ResearchExecutionIntentEvidenceId(_uuid(700 + suffix)),
@@ -283,7 +284,7 @@ def _gross(
 def _cost(suffix: int) -> ResearchCashCostEvidence:
     return ResearchCashCostEvidence(
         category=ResearchCashCostCategory.FEE,
-        status=ResearchCashCostStatus.KNOWN,
+        status=ResearchCashCostStatus.INCLUDED,
         amount=_money("10"),
         observed_at=_BASE + timedelta(minutes=3),
         evidence_ref=ResearchEconomicEvidenceReference(_uuid(1200 + suffix)),
