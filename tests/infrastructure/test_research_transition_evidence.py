@@ -25,7 +25,10 @@ from qore.infrastructure.research_evaluator_identity import (
     ResearchDecisionEvaluatorIdentity,
     ResearchDecisionEvaluatorSchemaVersion,
 )
-from qore.infrastructure.research_lineage_errors import ResearchLineageValidationError
+from qore.infrastructure.research_lineage_errors import (
+    ResearchLineageCanonicalValueError,
+    ResearchLineageValidationError,
+)
 from qore.infrastructure.research_run import ResearchSoftwareRevision
 from qore.infrastructure.research_strategy_state import ResearchStrategyState
 from qore.infrastructure.research_transition_evidence import ResearchStateTransitionEvidence
@@ -127,7 +130,7 @@ def test_transition_enforces_state_sequence_and_runtime_types() -> None:
 
 
 def test_transition_rejects_naive_simulated_time() -> None:
-    with pytest.raises(ResearchLineageValidationError):
+    with pytest.raises(ResearchLineageCanonicalValueError):
         ResearchStateTransitionEvidence(
             evaluation_sequence_number=0,
             evaluator_identity=_IDENTITY,
