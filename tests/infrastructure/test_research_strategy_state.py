@@ -18,7 +18,6 @@ from qore.infrastructure.research_lineage_errors import (
 from qore.infrastructure.research_run import ResearchSoftwareRevision
 from qore.infrastructure.research_strategy_state import ResearchStrategyState
 
-
 _IDENTITY = ResearchDecisionEvaluatorIdentity(
     family=ResearchDecisionEvaluatorFamily("test.reference"),
     schema_version=ResearchDecisionEvaluatorSchemaVersion("v1"),
