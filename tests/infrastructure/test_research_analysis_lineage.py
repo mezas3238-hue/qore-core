@@ -95,7 +95,6 @@ from qore.specialist.analysis import (
     SpecialistReasonCode,
 )
 
-
 _BASE = datetime(2026, 1, 1, tzinfo=UTC)
 _REVISION = ResearchSoftwareRevision("revision-1")
 
@@ -289,7 +288,10 @@ def _reason(code: str = "research.analysis") -> SpecialistReason:
     )
 
 
-def _evidence(trace: ResearchExecutionTrace, reason: str = "research.analysis") -> ResearchAnalysisInputEvidence:
+def _evidence(
+    trace: ResearchExecutionTrace,
+    reason: str = "research.analysis",
+) -> ResearchAnalysisInputEvidence:
     return ResearchAnalysisInputEvidence(
         evaluator_identity=_specialist_identity(),
         source_decision=trace.transitions[0].decisions[0],
