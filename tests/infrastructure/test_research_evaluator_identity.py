@@ -49,7 +49,10 @@ def test_specialist_identity_uses_distinct_contract_types() -> None:
     assert identity.logical_values()["family"] == "qore.research.specialist"
     with pytest.raises(ResearchLineageValidationError):
         ResearchSpecialistEvaluatorIdentity(
-            family=cast(ResearchSpecialistEvaluatorFamily, ResearchDecisionEvaluatorFamily("qore.x")),
+            family=cast(
+                ResearchSpecialistEvaluatorFamily,
+                ResearchDecisionEvaluatorFamily("qore.x"),
+            ),
             schema_version=ResearchSpecialistEvaluatorSchemaVersion("v1"),
             software_revision=ResearchSoftwareRevision("revision-1"),
         )
