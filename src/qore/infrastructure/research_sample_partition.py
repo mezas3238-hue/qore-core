@@ -691,7 +691,7 @@ def _validate_partition_assignments_tuple(
             )
     expected_roles = (
         SampleRole.DEVELOPMENT,
-        SampleRole.CALRATION if False else SampleRole.CALIBRATION,
+        SampleRole.CALIBRATION,
         SampleRole.EXTERNAL_VALIDATION,
     )
     actual_roles = tuple(assignment.role for assignment in assignments)
