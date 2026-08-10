@@ -16,7 +16,10 @@ from qore.infrastructure.research_lineage_errors import (
     ResearchLineageValidationError,
 )
 from qore.infrastructure.research_run import ResearchSoftwareRevision
-from qore.infrastructure.research_strategy_state import ResearchStrategyState
+from qore.infrastructure.research_strategy_state import (
+    ResearchStrategyState,
+    ResearchStrategyStateContentProtocol,
+)
 
 _IDENTITY = ResearchDecisionEvaluatorIdentity(
     family=ResearchDecisionEvaluatorFamily("test.reference"),
@@ -82,21 +85,27 @@ def test_state_content_contract_fails_closed() -> None:
             evaluator_identity=_IDENTITY,
             evaluation_sequence_number=0,
             state_schema_version="v1",
-            exact_content=cast(object, None),
+            exact_content=cast(ResearchStrategyStateContentProtocol, None),
         )
     with pytest.raises(ResearchLineageValidationError):
         ResearchStrategyState(
             evaluator_identity=_IDENTITY,
             evaluation_sequence_number=0,
             state_schema_version="v1",
-            exact_content=cast(object, _BadReturn()),
+            exact_content=cast(
+                ResearchStrategyStateContentProtocol,
+                _BadReturn(),
+            ),
         )
     with pytest.raises(ResearchLineageValidationError):
         ResearchStrategyState(
             evaluator_identity=_IDENTITY,
             evaluation_sequence_number=0,
             state_schema_version="v1",
-            exact_content=cast(object, _BadKeys()),
+            exact_content=cast(
+                ResearchStrategyStateContentProtocol,
+                _BadKeys(),
+            ),
         )
 
 
