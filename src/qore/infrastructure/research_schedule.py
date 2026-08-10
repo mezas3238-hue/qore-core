@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from qore.infrastructure.research_lineage_errors import ResearchLineageValidationError
 
-
 _SUPPORTED_SCHEDULES = frozenset({"schedule-a.event-available-at.v1"})
 _SUPPORTED_START_POLICIES = frozenset({"w1.no-warmup.v1"})
 
