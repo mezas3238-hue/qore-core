@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from qore.infrastructure.research_lineage_errors import ResearchLineageFingerprintError
@@ -13,8 +15,7 @@ from qore.infrastructure.research_lineage_fingerprints import (
     ResearchTraderCommandFingerprint,
 )
 
-
-_FINGERPRINT_TYPES = (
+_FINGERPRINT_TYPES: tuple[type[Any], ...] = (
     ResearchExecutionSessionFingerprint,
     ResearchStrategyStateFingerprint,
     ResearchStateTransitionFingerprint,
@@ -26,10 +27,10 @@ _FINGERPRINT_TYPES = (
 
 
 @pytest.mark.parametrize("fingerprint_type", _FINGERPRINT_TYPES)
-def test_fingerprint_accepts_lowercase_sha256(fingerprint_type: type[object]) -> None:
+def test_fingerprint_accepts_lowercase_sha256(fingerprint_type: type[Any]) -> None:
     value = fingerprint_type("a" * 64)
-    assert getattr(value, "value") == "a" * 64
-    assert getattr(value, "logical_values")() == {
+    assert value.value == "a" * 64
+    assert value.logical_values() == {
         "algorithm": "sha256",
         "value": "a" * 64,
     }
@@ -37,7 +38,7 @@ def test_fingerprint_accepts_lowercase_sha256(fingerprint_type: type[object]) ->
 
 @pytest.mark.parametrize("fingerprint_type", _FINGERPRINT_TYPES)
 def test_fingerprint_rejects_uppercase_or_wrong_length(
-    fingerprint_type: type[object],
+    fingerprint_type: type[Any],
 ) -> None:
     with pytest.raises(ResearchLineageFingerprintError):
         fingerprint_type("A" * 64)
