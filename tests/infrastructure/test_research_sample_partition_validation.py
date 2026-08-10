@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, tzinfo
 from typing import cast
 from uuid import UUID
@@ -244,36 +245,14 @@ def test_datetime_validation_rejects_tzinfo_without_offset() -> None:
 
 def test_market_time_record_rejects_wrong_types_and_durations() -> None:
     valid = _market_overlap()
-    kwargs = {
-        "obs_ref_a": valid.obs_ref_a,
-        "obs_ref_b": valid.obs_ref_b,
-        "source_a": valid.source_a,
-        "source_b": valid.source_b,
-        "instrument": valid.instrument,
-        "timeframe": valid.timeframe,
-        "interval_a_opened": valid.interval_a_opened,
-        "interval_a_closed": valid.interval_a_closed,
-        "interval_b_opened": valid.interval_b_opened,
-        "interval_b_closed": valid.interval_b_closed,
-        "exact_stream_overlap": valid.exact_stream_overlap,
-        "market_coordinate_overlap": valid.market_coordinate_overlap,
-    }
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.MarketTimeOverlapEvidence(
-            **{**kwargs, "instrument": cast(Instrument, "EURUSD")}
-        )
+        replace(valid, instrument=cast(Instrument, "EURUSD"))
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.MarketTimeOverlapEvidence(
-            **{**kwargs, "timeframe": cast(Timeframe, 60)}
-        )
+        replace(valid, timeframe=cast(Timeframe, 60))
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.MarketTimeOverlapEvidence(
-            **{**kwargs, "interval_a_closed": valid.interval_a_opened}
-        )
+        replace(valid, interval_a_closed=valid.interval_a_opened)
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.MarketTimeOverlapEvidence(
-            **{**kwargs, "market_coordinate_overlap": cast(bool, 1)}
-        )
+        replace(valid, market_coordinate_overlap=cast(bool, 1))
 
 
 def test_role_pair_rejects_wrong_direction_and_child_orientation() -> None:
