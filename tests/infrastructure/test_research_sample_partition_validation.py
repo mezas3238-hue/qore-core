@@ -20,7 +20,12 @@ from qore.infrastructure.market_data import (
     MarketDataSnapshotId,
     Timeframe,
 )
-from qore.infrastructure.ports import AdapterId, ExternalSourceDescriptor, PortName, SourceId
+from qore.infrastructure.ports import (
+    AdapterId,
+    ExternalSourceDescriptor,
+    PortName,
+    SourceId,
+)
 from qore.infrastructure.replay_availability import ReplayObservationId
 from qore.infrastructure.research_run import ResearchRunId
 
@@ -171,7 +176,9 @@ def test_fingerprint_and_reference_types_fail_closed() -> None:
             role=partition.SampleRole.DEVELOPMENT,
             canonical_run_index=cast(int, True),
             run_id=ResearchRunId(_uuid(1)),
-            qualified_run_fingerprint=IntegrityQualifiedResearchRunFingerprint("0" * 64),
+            qualified_run_fingerprint=IntegrityQualifiedResearchRunFingerprint(
+                "0" * 64
+            ),
         )
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
         partition.QualifiedDatasetRef(
@@ -252,9 +259,13 @@ def test_market_time_record_rejects_wrong_types_and_durations() -> None:
         "market_coordinate_overlap": valid.market_coordinate_overlap,
     }
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.MarketTimeOverlapEvidence(**{**kwargs, "instrument": cast(Instrument, "EURUSD")})
+        partition.MarketTimeOverlapEvidence(
+            **{**kwargs, "instrument": cast(Instrument, "EURUSD")}
+        )
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.MarketTimeOverlapEvidence(**{**kwargs, "timeframe": cast(Timeframe, 60)})
+        partition.MarketTimeOverlapEvidence(
+            **{**kwargs, "timeframe": cast(Timeframe, 60)}
+        )
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
         partition.MarketTimeOverlapEvidence(
             **{**kwargs, "interval_a_closed": valid.interval_a_opened}
@@ -300,7 +311,10 @@ def test_role_pair_rejects_wrong_collection_types() -> None:
         partition.RolePairOverlapEvidence(
             role_a=partition.SampleRole.DEVELOPMENT,
             role_b=partition.SampleRole.CALIBRATION,
-            run_overlaps=cast(tuple[partition.RunOverlapEvidence, ...], (object(),)),
+            run_overlaps=cast(
+                tuple[partition.RunOverlapEvidence, ...],
+                (object(),),
+            ),
             dataset_overlaps=(),
             observation_overlaps=(),
             market_time_overlaps=(),
@@ -349,7 +363,10 @@ def test_each_role_pair_child_collection_accepts_canonical_valid_record() -> Non
 
 
 def test_overlap_report_rejects_shape_and_order_errors() -> None:
-    dev_cal = _empty_pair(partition.SampleRole.DEVELOPMENT, partition.SampleRole.CALIBRATION)
+    dev_cal = _empty_pair(
+        partition.SampleRole.DEVELOPMENT,
+        partition.SampleRole.CALIBRATION,
+    )
     dev_ext = _empty_pair(
         partition.SampleRole.DEVELOPMENT,
         partition.SampleRole.EXTERNAL_VALIDATION,
@@ -359,9 +376,16 @@ def test_overlap_report_rejects_shape_and_order_errors() -> None:
         partition.SampleRole.EXTERNAL_VALIDATION,
     )
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.OverlapReport(pairwise=cast(tuple[partition.RolePairOverlapEvidence, ...], []))
+        partition.OverlapReport(
+            pairwise=cast(tuple[partition.RolePairOverlapEvidence, ...], [])
+        )
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
-        partition.OverlapReport(pairwise=cast(tuple[partition.RolePairOverlapEvidence, ...], (dev_cal, object(), cal_ext)))
+        partition.OverlapReport(
+            pairwise=cast(
+                tuple[partition.RolePairOverlapEvidence, ...],
+                (dev_cal, object(), cal_ext),
+            )
+        )
     with pytest.raises(partition.ResearchSamplePartitionValidationError):
         partition.OverlapReport(pairwise=(dev_ext, dev_cal, cal_ext))
 
