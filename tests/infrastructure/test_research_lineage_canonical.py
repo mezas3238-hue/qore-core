@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from types import MappingProxyType
 from uuid import UUID
@@ -67,7 +67,7 @@ def test_metadata_canonicalization_preserves_scalar_type_identity() -> None:
 
 def test_state_tagged_preserves_uuid_datetime_bool_int_and_tuple_identity() -> None:
     identity = UUID("12345678-1234-5678-1234-567812345678")
-    instant = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    instant = datetime(2026, 1, 1, tzinfo=UTC)
     assert _state_tagged(identity) != _state_tagged(str(identity))
     assert _state_tagged(instant) != _state_tagged(_utc_iso(instant))
     assert _state_tagged(True) != _state_tagged(1)
@@ -103,7 +103,7 @@ def _strategy_manifest(value: Decimal) -> ResearchStrategyConfigurationManifest:
         schema_version=schema,
         parameters=parameters,
         content_digest=ResearchStrategyConfigurationDigest(digest.value),
-        frozen_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        frozen_at=datetime(2026, 1, 1, tzinfo=UTC),
         evidence_ref=ResearchStrategyFreezeEvidenceReference(
             UUID("55000000-0000-0000-0000-000000000002")
         ),
