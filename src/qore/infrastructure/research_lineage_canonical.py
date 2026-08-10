@@ -39,7 +39,6 @@ from qore.specialist.analysis import (
     SpecialistReason,
 )
 
-
 _STATE_CONTENT_SCHEMA = "qore.research-state-content-tagged.v1"
 
 
