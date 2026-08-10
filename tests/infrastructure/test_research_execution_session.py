@@ -59,7 +59,6 @@ from qore.infrastructure.research_strategy_freeze import (
 )
 from qore.kernel.result import Success
 
-
 _BASE = datetime(2026, 1, 1, tzinfo=UTC)
 _SOURCE = ExternalSourceDescriptor(
     adapter_id=AdapterId(UUID("57000000-0000-0000-0000-000000000001")),
