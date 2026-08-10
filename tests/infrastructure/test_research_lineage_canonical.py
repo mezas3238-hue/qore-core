@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from types import MappingProxyType
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -73,7 +75,8 @@ def test_state_tagged_preserves_uuid_datetime_bool_int_and_tuple_identity() -> N
     assert _state_tagged(True) != _state_tagged(1)
     nested = _state_tagged((1, True, "x", identity))
     assert nested["type"] == "tuple"
-    assert [item["type"] for item in nested["items"]] == [
+    items = cast(list[dict[str, object]], nested["items"])
+    assert [item["type"] for item in items] == [
         "int",
         "bool",
         "str",
@@ -82,11 +85,13 @@ def test_state_tagged_preserves_uuid_datetime_bool_int_and_tuple_identity() -> N
 
 
 def test_state_content_requires_mapping_with_string_keys() -> None:
+    bad_keys = cast(Mapping[str, object], {1: "bad"})
     with pytest.raises(ResearchLineageCanonicalValueError):
-        _canonical_state_content({1: "bad"})
+        _canonical_state_content(bad_keys)
     projected = _canonical_state_content({"x": 1})
     assert projected["schema"] == "qore.research-state-content-tagged.v1"
-    assert projected["content"]["x"] == {"type": "int", "value": "1"}
+    content = cast(dict[str, object], projected["content"])
+    assert content["x"] == {"type": "int", "value": "1"}
 
 
 def _strategy_manifest(value: Decimal) -> ResearchStrategyConfigurationManifest:
@@ -120,6 +125,15 @@ def test_strategy_projector_reuses_existing_decimal_canonical_value() -> None:
     negative_zero = canonical_strategy_configuration_manifest(
         _strategy_manifest(Decimal("-0.0"))
     )
-    assert one["parameters"][0]["value"] == "1"
-    assert one_hundredths["parameters"][0]["value"] == "1"
-    assert negative_zero["parameters"][0]["value"] == "0"
+    one_parameters = cast(list[dict[str, object]], one["parameters"])
+    hundredths_parameters = cast(
+        list[dict[str, object]],
+        one_hundredths["parameters"],
+    )
+    negative_zero_parameters = cast(
+        list[dict[str, object]],
+        negative_zero["parameters"],
+    )
+    assert one_parameters[0]["value"] == "1"
+    assert hundredths_parameters[0]["value"] == "1"
+    assert negative_zero_parameters[0]["value"] == "0"
