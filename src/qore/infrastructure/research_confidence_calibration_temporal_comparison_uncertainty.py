@@ -7,6 +7,9 @@ from hashlib import sha256
 from re import fullmatch
 from uuid import UUID
 
+from qore.infrastructure.research_confidence_calibration_oos_validation import (
+    ResearchCalibrationOosValidationEvidence,
+)
 from qore.infrastructure.research_confidence_calibration_temporal_comparison import (
     ResearchCalibrationTemporalComparisonEvidence,
 )
@@ -173,7 +176,9 @@ def _mean(values: tuple[Decimal, ...]) -> Decimal:
         return sum(values, _ZERO) / Decimal(len(values))
 
 
-def _pairs_from_validation(validation: object) -> tuple[_Pair, ...]:
+def _pairs_from_validation(
+    validation: ResearchCalibrationOosValidationEvidence,
+) -> tuple[_Pair, ...]:
     validation_set = validation.validation_set
     fit = validation_set.mapping_fit
     pairs = tuple(
@@ -620,7 +625,17 @@ def build_research_calibration_temporal_comparison_uncertainty_evidence(
 
     try:
         derived = _derive(comparison, policy)
-        intervals = tuple(_interval(values, policy) for values in derived[1:])
+        intervals: tuple[
+            ResearchCalibrationTemporalComparisonInterval,
+            ResearchCalibrationTemporalComparisonInterval,
+            ResearchCalibrationTemporalComparisonInterval,
+            ResearchCalibrationTemporalComparisonInterval,
+        ] = (
+            _interval(derived[1], policy),
+            _interval(derived[2], policy),
+            _interval(derived[3], policy),
+            _interval(derived[4], policy),
+        )
         fingerprint = (
             compute_research_calibration_temporal_comparison_uncertainty_fingerprint(
                 comparison=comparison,
