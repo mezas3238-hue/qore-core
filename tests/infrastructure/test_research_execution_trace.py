@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -299,14 +300,35 @@ def test_reproduction_rejects_evaluator_identity_mismatch() -> None:
 
 def test_reproduction_malformed_output_and_decision_elements_fail_typed() -> None:
     class _Malformed(_Evaluator):
-        def evaluate(self, **_: object) -> object:
-            return "bad"
+        def evaluate(
+            self,
+            *,
+            strategy_binding: ResearchRunStrategyBinding,
+            prior_state: ResearchStrategyState,
+            newly_visible_inputs: tuple[QualifiedReplayObservation, ...],
+            simulated_now: datetime,
+        ) -> tuple[ResearchStrategyState, tuple[FunctionalDecision, ...]]:
+            return cast(
+                tuple[ResearchStrategyState, tuple[FunctionalDecision, ...]],
+                "bad",
+            )
 
     class _BadDecision(_Evaluator):
-        def evaluate(self, **_: object) -> object:
-            return _state(1, 1), (object(),)
+        def evaluate(
+            self,
+            *,
+            strategy_binding: ResearchRunStrategyBinding,
+            prior_state: ResearchStrategyState,
+            newly_visible_inputs: tuple[QualifiedReplayObservation, ...],
+            simulated_now: datetime,
+        ) -> tuple[ResearchStrategyState, tuple[FunctionalDecision, ...]]:
+            malformed = (_state(1, 1), (object(),))
+            return cast(
+                tuple[ResearchStrategyState, tuple[FunctionalDecision, ...]],
+                malformed,
+            )
 
     with pytest.raises(ResearchLineageValidationError):
-        verify_trace_reproducibility(_trace(), _Malformed())  # type: ignore[arg-type]
+        verify_trace_reproducibility(_trace(), _Malformed())
     with pytest.raises(ResearchLineageValidationError):
-        verify_trace_reproducibility(_trace(), _BadDecision())  # type: ignore[arg-type]
+        verify_trace_reproducibility(_trace(), _BadDecision())
