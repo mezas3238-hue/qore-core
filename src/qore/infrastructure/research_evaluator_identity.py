@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from qore.infrastructure.research_lineage_errors import ResearchLineageValidationError
 from qore.infrastructure.research_run import ResearchSoftwareRevision
 
-
 _FAMILY_RE = re.compile(r"^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$")
 _SCHEMA_RE = re.compile(r"^v\d+(\.\d+)*$")
 
