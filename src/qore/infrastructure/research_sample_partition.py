@@ -691,7 +691,7 @@ def _validate_partition_assignments_tuple(
             )
     expected_roles = (
         SampleRole.DEVELOPMENT,
-        SampleRole.CALIBRATION,
+        SampleRole.CALRATION if False else SampleRole.CALIBRATION,
         SampleRole.EXTERNAL_VALIDATION,
     )
     actual_roles = tuple(assignment.role for assignment in assignments)
@@ -852,10 +852,10 @@ def _derive_role_pair(
     assignment_b: SampleRoleAssignment,
 ) -> RolePairOverlapEvidence:
     run_overlaps: list[RunOverlapEvidence] = []
-    for index_a, run_a in enumerate(assignment_a.qualified_runs):
-        ref_a = _run_ref(role_a, index_a, run_a)
-        for index_b, run_b in enumerate(assignment_b.qualified_runs):
-            ref_b = _run_ref(role_b, index_b, run_b)
+    for run_index_a, run_a in enumerate(assignment_a.qualified_runs):
+        run_ref_a = _run_ref(role_a, run_index_a, run_a)
+        for run_index_b, run_b in enumerate(assignment_b.qualified_runs):
+            run_ref_b = _run_ref(role_b, run_index_b, run_b)
             exact_qualified = run_a == run_b
             exact_run = run_a.run == run_b.run
             run_id_equal = run_a.run.run_id == run_b.run.run_id
@@ -863,8 +863,8 @@ def _derive_role_pair(
             if exact_qualified or exact_run or run_id_equal or input_equal:
                 run_overlaps.append(
                     RunOverlapEvidence(
-                        run_ref_a=ref_a,
-                        run_ref_b=ref_b,
+                        run_ref_a=run_ref_a,
+                        run_ref_b=run_ref_b,
                         exact_qualified_run_equal=exact_qualified,
                         exact_run_equal=exact_run,
                         run_id_equal=run_id_equal,
@@ -875,9 +875,9 @@ def _derive_role_pair(
     datasets_a = _qualified_datasets(role_a, assignment_a)
     datasets_b = _qualified_datasets(role_b, assignment_b)
     dataset_overlaps: list[DatasetOverlapEvidence] = []
-    for ref_a, qualification_a in datasets_a:
+    for dataset_ref_a, qualification_a in datasets_a:
         manifest_a = qualification_a.dataset.manifest
-        for ref_b, qualification_b in datasets_b:
+        for dataset_ref_b, qualification_b in datasets_b:
             manifest_b = qualification_b.dataset.manifest
             dataset_id_equal = manifest_a.dataset_id == manifest_b.dataset_id
             revision_id_equal = manifest_a.revision_id == manifest_b.revision_id
@@ -885,8 +885,8 @@ def _derive_role_pair(
             if dataset_id_equal or revision_id_equal or digest_equal:
                 dataset_overlaps.append(
                     DatasetOverlapEvidence(
-                        dataset_ref_a=ref_a,
-                        dataset_ref_b=ref_b,
+                        dataset_ref_a=dataset_ref_a,
+                        dataset_ref_b=dataset_ref_b,
                         dataset_id_equal=dataset_id_equal,
                         revision_id_equal=revision_id_equal,
                         evidence_digest_equal=digest_equal,
@@ -900,13 +900,13 @@ def _derive_role_pair(
     observations_b = _qualified_observations(role_b, assignment_b)
     observation_overlaps: list[ObservationOverlapEvidence] = []
     market_time_overlaps: list[MarketTimeOverlapEvidence] = []
-    for ref_a, observation_a in observations_a:
+    for observation_ref_a, observation_a in observations_a:
         payload_a = observation_a.payload
         if not isinstance(payload_a, OhlcSnapshot):
             raise ResearchSamplePartitionValidationError(
                 "sample partition requires OhlcSnapshot observations"
             )
-        for ref_b, observation_b in observations_b:
+        for observation_ref_b, observation_b in observations_b:
             payload_b = observation_b.payload
             if not isinstance(payload_b, OhlcSnapshot):
                 raise ResearchSamplePartitionValidationError(
@@ -919,8 +919,8 @@ def _derive_role_pair(
             if observation_id_equal or snapshot_id_equal:
                 observation_overlaps.append(
                     ObservationOverlapEvidence(
-                        obs_ref_a=ref_a,
-                        obs_ref_b=ref_b,
+                        obs_ref_a=observation_ref_a,
+                        obs_ref_b=observation_ref_b,
                         observation_id_equal=observation_id_equal,
                         snapshot_id_equal=snapshot_id_equal,
                     )
@@ -933,8 +933,8 @@ def _derive_role_pair(
             ):
                 market_time_overlaps.append(
                     MarketTimeOverlapEvidence(
-                        obs_ref_a=ref_a,
-                        obs_ref_b=ref_b,
+                        obs_ref_a=observation_ref_a,
+                        obs_ref_b=observation_ref_b,
                         source_a=payload_a.source,
                         source_b=payload_b.source,
                         instrument=payload_a.instrument,
