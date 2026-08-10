@@ -7,9 +7,11 @@ from uuid import UUID
 import pytest
 
 from qore.infrastructure.research_confidence_calibration_temporal_change_policy import (
+    ResearchCalibrationTemporalChangeAssessment,
     ResearchCalibrationTemporalChangeAssessmentId,
     ResearchCalibrationTemporalChangeFailure,
     ResearchCalibrationTemporalChangePolicy,
+    ResearchCalibrationTemporalChangePolicyError,
     ResearchCalibrationTemporalChangePolicyValidationError,
     ResearchCalibrationTemporalChangeStatus,
     assess_research_calibration_temporal_change,
@@ -22,7 +24,7 @@ from qore.infrastructure.research_confidence_calibration_temporal_comparison_unc
 from qore.infrastructure.research_confidence_calibration_uncertainty import (
     ResearchCalibrationIntervalMethod,
 )
-from qore.kernel.result import Success
+from qore.kernel.result import Result, Success
 
 
 def _interval(*, lower: str, upper: str) -> ResearchCalibrationTemporalComparisonInterval:
@@ -97,7 +99,13 @@ def _exact_policy() -> ResearchCalibrationTemporalChangePolicy:
     )
 
 
-def _assess(*, suffix: int = 1):
+def _assess(
+    *,
+    suffix: int = 1,
+) -> Result[
+    ResearchCalibrationTemporalChangeAssessment,
+    ResearchCalibrationTemporalChangePolicyError,
+]:
     return assess_research_calibration_temporal_change(
         assessment_id=ResearchCalibrationTemporalChangeAssessmentId(UUID(int=suffix)),
         uncertainty=_uncertainty(),
