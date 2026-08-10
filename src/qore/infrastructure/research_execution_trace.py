@@ -26,10 +26,10 @@ from qore.infrastructure.research_lineage_fingerprints import (
     ResearchExecutionTraceFingerprint,
 )
 from qore.infrastructure.research_schedule import (
-    ResearchScheduleSemantics,
-    ResearchStartPolicy,
     SCHEDULE_A_V1,
     W1_NO_WARMUP_V1,
+    ResearchScheduleSemantics,
+    ResearchStartPolicy,
 )
 from qore.infrastructure.research_strategy_state import ResearchStrategyState
 from qore.infrastructure.research_transition_evidence import (
