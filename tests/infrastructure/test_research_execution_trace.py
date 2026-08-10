@@ -62,9 +62,9 @@ from qore.infrastructure.research_run import (
     build_research_run_evidence,
 )
 from qore.infrastructure.research_schedule import (
-    ResearchStartPolicy,
     SCHEDULE_A_V1,
     W1_NO_WARMUP_V1,
+    ResearchStartPolicy,
 )
 from qore.infrastructure.research_strategy_freeze import (
     ResearchRunStrategyBinding,
@@ -77,7 +77,6 @@ from qore.infrastructure.research_strategy_freeze import (
 from qore.infrastructure.research_strategy_state import ResearchStrategyState
 from qore.infrastructure.research_transition_evidence import ResearchStateTransitionEvidence
 from qore.kernel.result import Success
-
 
 _BASE = datetime(2026, 1, 1, tzinfo=UTC)
 _REVISION = ResearchSoftwareRevision("revision-1")
