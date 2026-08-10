@@ -22,8 +22,8 @@ from qore.infrastructure.research_lineage_errors import (
     ResearchLineageValidationError,
 )
 from qore.infrastructure.research_lineage_fingerprints import (
-    ResearchAnalysisLineageFingerprint,
     ResearchAnalysisInputEvidenceFingerprint,
+    ResearchAnalysisLineageFingerprint,
     ResearchExecutionTraceFingerprint,
     ResearchTraderCommandFingerprint,
 )
@@ -32,7 +32,6 @@ from qore.infrastructure.research_specialist_boundary import (
 )
 from qore.modules.trader.contracts import ProduceVirtualTraderAnalysisCommand
 from qore.specialist.analysis import SpecialistAnalysis, SpecialistAnalysisId
-
 
 _CMD_ID_DOMAIN = b"qore.research-trader-command-id.v1"
 _ANALYSIS_ID_DOMAIN = b"qore.research-specialist-analysis-id.v1"
