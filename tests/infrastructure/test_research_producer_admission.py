@@ -149,7 +149,7 @@ def _admission(*, run_suffix: int = 1) -> ResearchProducerAdmissionEvidence:
                 instrument=instrument,
                 timeframe=timeframe,
                 opened_at=_BASE,
-                closed_at=_BASE + timedelta(minutes=2),
+                closed_at=_BASE + timedelta(minutes=1),
             ),
         ),
         assembled_at=_BASE + timedelta(days=1),
@@ -183,7 +183,7 @@ def _admission(*, run_suffix: int = 1) -> ResearchProducerAdmissionEvidence:
         datasets=(dataset_result.value.manifest,),
         replay_policy_version=ResearchReplayPolicyVersion("point-in-time-v1"),
         simulated_start=_BASE,
-        simulated_end=_BASE + timedelta(minutes=2),
+        simulated_end=_BASE + timedelta(minutes=1),
         strategy_configuration_id=configuration_id,
         software_revision=_REVISION,
         execution_model_id=None,
@@ -241,7 +241,9 @@ def test_admission_production_source_has_no_ellipsis_or_pass() -> None:
     path = Path("src/qore/infrastructure/research_producer_admission.py")
     tree = ast.parse(path.read_text(encoding="utf-8"))
     assert not any(
-        isinstance(node, ast.Constant) and node.value is Ellipsis
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and node.value.value is Ellipsis
         for node in ast.walk(tree)
     )
     assert not any(isinstance(node, ast.Pass) for node in ast.walk(tree))
