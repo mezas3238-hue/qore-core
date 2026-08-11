@@ -135,7 +135,7 @@ def _uuid(suffix: int) -> UUID:
 
 
 def _decision_identity(
-    family: str = "test.phase1b-decision",
+    family: str = "test.phase1b.decision",
 ) -> ResearchDecisionEvaluatorIdentity:
     return ResearchDecisionEvaluatorIdentity(
         family=ResearchDecisionEvaluatorFamily(family),
@@ -145,7 +145,7 @@ def _decision_identity(
 
 
 def _specialist_identity(
-    family: str = "test.phase1b-specialist",
+    family: str = "test.phase1b.specialist",
 ) -> ResearchSpecialistEvaluatorIdentity:
     return ResearchSpecialistEvaluatorIdentity(
         family=ResearchSpecialistEvaluatorFamily(family),
@@ -379,7 +379,7 @@ class _FinalDriftSpecialist(_SpecialistEvaluator):
     def identity(self) -> ResearchSpecialistEvaluatorIdentity:
         self.identity_reads += 1
         if self.identity_reads >= 6:
-            return _specialist_identity("test.phase1b-specialist-drifted")
+            return _specialist_identity("test.phase1b.specialist.drifted")
         return _specialist_identity()
 
 
@@ -446,12 +446,12 @@ def test_wrong_evaluator_identities_raise_typed_errors() -> None:
     class _WrongDecision(_DecisionEvaluator):
         @property
         def identity(self) -> ResearchDecisionEvaluatorIdentity:
-            return _decision_identity("test.phase1b-other")
+            return _decision_identity("test.phase1b.other")
 
     class _WrongSpecialist(_SpecialistEvaluator):
         @property
         def identity(self) -> ResearchSpecialistEvaluatorIdentity:
-            return _specialist_identity("test.phase1b-other-specialist")
+            return _specialist_identity("test.phase1b.other.specialist")
 
     with pytest.raises(ResearchEvaluatorIdentityMismatchError):
         ResearchProducerLineageVerifier.verify(
@@ -563,11 +563,13 @@ def test_fingerprint_tampering_fails_before_reproduction() -> None:
         )
 
 
-def test_composition_source_has_no_ellipsis_pass_or_unapproved_public_properties() -> None:
+def test_composition_source_has_no_implementation_stub_or_unapproved_public_properties() -> None:
     path = Path("src/qore/infrastructure/research_execution_composition.py")
     tree = ast.parse(path.read_text(encoding="utf-8"))
     assert not any(
-        isinstance(node, ast.Constant) and node.value is Ellipsis
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and node.value.value is Ellipsis
         for node in ast.walk(tree)
     )
     assert not any(isinstance(node, ast.Pass) for node in ast.walk(tree))
