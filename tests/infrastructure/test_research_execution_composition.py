@@ -334,6 +334,21 @@ class _DecisionEvaluator:
         )
 
 
+class _NoDecisionEvaluator(_DecisionEvaluator):
+    def evaluate(
+        self,
+        *,
+        strategy_binding: ResearchRunStrategyBinding,
+        prior_state: ResearchStrategyState,
+        newly_visible_inputs: tuple[QualifiedReplayObservation, ...],
+        simulated_now: datetime,
+    ) -> tuple[ResearchStrategyState, tuple[FunctionalDecision, ...]]:
+        assert strategy_binding.run.software_revision == _DECISION_REVISION
+        assert prior_state == _state(0, 0)
+        assert newly_visible_inputs
+        return _state(1, 1), ()
+
+
 class _DifferentDecisionEvaluator(_DecisionEvaluator):
     def evaluate(
         self,
@@ -370,6 +385,30 @@ class _SpecialistEvaluator:
         return _specification(self.code)
 
 
+class _CountingIdentitySpecialist(_SpecialistEvaluator):
+    def __init__(self) -> None:
+        super().__init__()
+        self.identity_reads = 0
+
+    @property
+    def identity(self) -> ResearchSpecialistEvaluatorIdentity:
+        self.identity_reads += 1
+        return _specialist_identity()
+
+
+class _FirstMismatchThenMatchSpecialist(_SpecialistEvaluator):
+    def evaluate(
+        self,
+        *,
+        source_decision: FunctionalDecision,
+    ) -> ResearchAnalysisSpecification:
+        assert source_decision.status is DecisionStatus.RESOLVED
+        self.evaluate_calls += 1
+        if self.evaluate_calls == 1:
+            return _specification("research.changed")
+        return _specification()
+
+
 class _FinalDriftSpecialist(_SpecialistEvaluator):
     def __init__(self) -> None:
         super().__init__(code="research.changed")
@@ -396,6 +435,14 @@ def _outcome() -> tuple[
         specialist_evaluator=specialist_evaluator,
     ).produce()
     return outcome, decision_evaluator, specialist_evaluator
+
+
+def _zero_record_outcome() -> ResearchProducerLineageOutcome:
+    return ResearchExecutionComposition(
+        admission_evidence=_admission(),
+        decision_evaluator=_NoDecisionEvaluator(),
+        specialist_evaluator=_SpecialistEvaluator(),
+    ).produce()
 
 
 def test_composition_produces_complete_trace_and_one_record_per_resolved_decision() -> None:
@@ -437,6 +484,22 @@ def test_public_verifier_runs_specialist_side_after_decision_false() -> None:
         _DifferentDecisionEvaluator(),
         specialist,
     )
+    assert specialist.evaluate_calls == 2
+
+
+def test_zero_record_specialist_verifier_resolves_start_and_final_identity() -> None:
+    outcome = _zero_record_outcome()
+    specialist = _CountingIdentitySpecialist()
+    assert outcome.lineage_records == ()
+    assert _verify_specialist_side(outcome, specialist)
+    assert specialist.evaluate_calls == 0
+    assert specialist.identity_reads == 2
+
+
+def test_specialist_first_mismatch_does_not_skip_later_valid_record() -> None:
+    outcome, _, _ = _outcome()
+    specialist = _FirstMismatchThenMatchSpecialist()
+    assert not _verify_specialist_side(outcome, specialist)
     assert specialist.evaluate_calls == 2
 
 
