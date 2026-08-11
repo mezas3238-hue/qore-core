@@ -66,6 +66,7 @@ from qore.infrastructure.research_evaluator_identity import (
 )
 from qore.infrastructure.research_execution_composition import (
     ResearchExecutionComposition,
+    ResearchProducerLineageOutcome,
     ResearchProducerLineageOutcomeFingerprint,
     ResearchProducerLineageVerifier,
     _compute_outcome_fingerprint,
@@ -73,10 +74,7 @@ from qore.infrastructure.research_execution_composition import (
     _validate_outcome_graph,
     _verify_specialist_side,
 )
-from qore.infrastructure.research_execution_session import (
-    QualifiedReplayObservation,
-    ResearchExecutionSession,
-)
+from qore.infrastructure.research_execution_session import QualifiedReplayObservation
 from qore.infrastructure.research_lineage_errors import (
     ResearchEvaluatorIdentityMismatchError,
     ResearchLineageFingerprintError,
@@ -391,7 +389,11 @@ class _FinalDriftSpecialist(_SpecialistEvaluator):
         return _specialist_identity()
 
 
-def _outcome() -> tuple[object, _DecisionEvaluator, _SpecialistEvaluator]:
+def _outcome() -> tuple[
+    ResearchProducerLineageOutcome,
+    _DecisionEvaluator,
+    _SpecialistEvaluator,
+]:
     decision_evaluator = _DecisionEvaluator()
     specialist_evaluator = _SpecialistEvaluator()
     outcome = ResearchExecutionComposition(
@@ -403,8 +405,7 @@ def _outcome() -> tuple[object, _DecisionEvaluator, _SpecialistEvaluator]:
 
 
 def test_composition_produces_complete_trace_and_one_record_per_resolved_decision() -> None:
-    outcome_raw, decision_evaluator, specialist_evaluator = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, decision_evaluator, specialist_evaluator = _outcome()
     assert len(outcome.trace.transitions) == 1
     assert outcome.trace.transitions[0].evaluation_sequence_number == 0
     assert len(outcome.lineage_records) == 2
@@ -417,22 +418,14 @@ def test_composition_produces_complete_trace_and_one_record_per_resolved_decisio
 
 
 def test_model_b_retains_independent_specialist_revision() -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
-    assert (
-        outcome.decision_evaluator_identity.software_revision
-        == _DECISION_REVISION
-    )
-    assert (
-        outcome.specialist_evaluator_identity.software_revision
-        == _SPECIALIST_REVISION
-    )
+    outcome, _, _ = _outcome()
+    assert outcome.decision_evaluator_identity.software_revision == _DECISION_REVISION
+    assert outcome.specialist_evaluator_identity.software_revision == _SPECIALIST_REVISION
     assert _SPECIALIST_REVISION != _DECISION_REVISION
 
 
 def test_outcome_fingerprint_uses_single_module_helper() -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, _, _ = _outcome()
     assert outcome.outcome_fingerprint == _compute_outcome_fingerprint(
         outcome.admission_evidence.admission_fingerprint,
         outcome.decision_evaluator_identity,
@@ -443,8 +436,7 @@ def test_outcome_fingerprint_uses_single_module_helper() -> None:
 
 
 def test_public_verifier_runs_specialist_side_after_decision_false() -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, _, _ = _outcome()
     specialist = _SpecialistEvaluator()
     assert not ResearchProducerLineageVerifier.verify(
         outcome,
@@ -455,8 +447,7 @@ def test_public_verifier_runs_specialist_side_after_decision_false() -> None:
 
 
 def test_wrong_evaluator_identities_raise_typed_errors() -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, _, _ = _outcome()
 
     class _WrongDecision(_DecisionEvaluator):
         @property
@@ -495,16 +486,14 @@ def test_outcome_graph_rejects_bool_lineage_indices(
     field_name: str,
     value: bool,
 ) -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, _, _ = _outcome()
     object.__setattr__(outcome.lineage_records[0], field_name, value)
     with pytest.raises(ResearchLineageValidationError):
         _validate_outcome_graph(outcome)
 
 
 def test_retained_record_revalidation_detects_lineage_fingerprint_tamper() -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, _, _ = _outcome()
     record = outcome.lineage_records[0]
     object.__setattr__(
         record,
@@ -527,8 +516,7 @@ def test_later_malformed_record_raises_after_earlier_computational_false(
     field_name: str,
     replacement: object,
 ) -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, _, _ = _outcome()
     second = outcome.lineage_records[1]
     if field_name == "analysis":
         object.__setattr__(second, field_name, cast(SpecialistAnalysis, replacement))
@@ -548,15 +536,13 @@ def test_later_malformed_record_raises_after_earlier_computational_false(
 
 
 def test_computational_mismatch_plus_final_identity_drift_raises_identity_error() -> None:
-    outcome_raw, _, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, _, _ = _outcome()
     with pytest.raises(ResearchSpecialistEvaluatorIdentityMismatchError):
         _verify_specialist_side(outcome, _FinalDriftSpecialist())
 
 
 def test_fingerprint_tampering_fails_before_reproduction() -> None:
-    outcome_raw, decision_evaluator, _ = _outcome()
-    outcome = cast("ResearchProducerLineageOutcome", outcome_raw)
+    outcome, decision_evaluator, _ = _outcome()
     object.__setattr__(
         outcome,
         "outcome_fingerprint",
@@ -569,8 +555,7 @@ def test_fingerprint_tampering_fails_before_reproduction() -> None:
             _SpecialistEvaluator(),
         )
 
-    fresh_raw, decision_evaluator, _ = _outcome()
-    fresh = cast("ResearchProducerLineageOutcome", fresh_raw)
+    fresh, decision_evaluator, _ = _outcome()
     object.__setattr__(
         fresh.admission_evidence,
         "admission_fingerprint",
