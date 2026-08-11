@@ -96,7 +96,7 @@ from qore.infrastructure.research_run import (
     ResearchStrategyConfigurationId,
     build_research_run_evidence,
 )
-from qore.infrastructure.research_schedule import ResearchStartPolicy, W1_NO_WARMUP_V1
+from qore.infrastructure.research_schedule import W1_NO_WARMUP_V1, ResearchStartPolicy
 from qore.infrastructure.research_specialist_boundary import ResearchAnalysisSpecification
 from qore.infrastructure.research_strategy_freeze import (
     ResearchRunStrategyBinding,
