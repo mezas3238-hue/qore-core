@@ -286,15 +286,9 @@ def _binding_and_dataset() -> tuple[ResearchRunStrategyBinding, HistoricalOhlcRe
 
 def _admission() -> ResearchProducerAdmissionEvidence:
     binding, dataset = _binding_and_dataset()
-    qualification = cast(
-        DatasetIntegrityQualification,
-        object.__new__(DatasetIntegrityQualification),
-    )
+    qualification = object.__new__(DatasetIntegrityQualification)
     object.__setattr__(qualification, "dataset", dataset)
-    qualified_run = cast(
-        IntegrityQualifiedResearchRun,
-        object.__new__(IntegrityQualifiedResearchRun),
-    )
+    qualified_run = object.__new__(IntegrityQualifiedResearchRun)
     object.__setattr__(qualified_run, "run", binding.run)
     object.__setattr__(qualified_run, "qualifications", (qualification,))
     object.__setattr__(
