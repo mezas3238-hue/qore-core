@@ -162,6 +162,7 @@ def main() -> None:
     trendbars_response.ctidTraderAccountId = _ACCOUNT_ID
     trendbars_response.period = ProtoOATrendbarPeriod.Value("M5")
     trendbars_response.symbolId = _SYMBOL_ID
+    trendbars_response.timestamp = 1_786_539_900_000
     trendbar = trendbars_response.trendbar.add()
     trendbar.volume = 1
     trendbar.low = 110_000
