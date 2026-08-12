@@ -43,6 +43,7 @@ jobs:
               ProtoOASymbolsListRes,
           )
           from ctrader_open_api.messages.OpenApiModelMessages_pb2 import (
+              ProtoOASymbol,
               ProtoOATrendbar,
               ProtoOATrendbarPeriod,
           )
@@ -185,6 +186,15 @@ jobs:
           assert "fake-client-secret" not in credential_repr
           assert "fake-access-token" not in credential_repr
           assert "<redacted>" in credential_repr
+
+          digits_explicit = module["_full_symbol_digits_explicit"]
+          missing_digits = ProtoOASymbol()
+          missing_digits.symbolId = 1
+          assert digits_explicit(missing_digits) is False
+          present_digits = ProtoOASymbol()
+          present_digits.symbolId = 1
+          present_digits.digits = 5
+          assert digits_explicit(present_digits) is True
 
           wire_failure = module["_wire_failure"]("synthetic-failure")
           assert "synthetic-failure" in wire_failure
