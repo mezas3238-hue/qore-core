@@ -39,10 +39,17 @@ class _FakeDeferred:
 
 
 class _FakeClient:
-    def __init__(self, host: str, port: int, protocol: object) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        protocol: object,
+        **options: Any,
+    ) -> None:
         self.host = host
         self.port = port
         self.protocol = protocol
+        self.options = options
         self.sent: list[object] = []
         self.stopped = False
 
@@ -100,6 +107,10 @@ def main() -> None:
     assert isinstance(client, _FakeClient)
     assert client.host == "demo.ctraderapi.com"
     assert client.port == 5035
+    assert tuple(client.options) == ("retryPolicy",)
+    retry_policy = client.options["retryPolicy"]
+    assert callable(retry_policy)
+    assert retry_policy(1) == 31.0
 
     runner.connected(client)
     app_auth = _last_sent(client, ProtoOAApplicationAuthReq)
