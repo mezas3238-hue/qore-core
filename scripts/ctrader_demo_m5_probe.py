@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.metadata
 import json
 import os
 import sys
@@ -36,17 +37,17 @@ from qore.infrastructure.ctrader_demo_operational_probe import (
     CTraderGrantedAccount,
     CTraderLightSymbolObservation,
     CTraderTrendbarsResponseObservation,
-    closed_m5_interval,
     normalize_ctrader_symbol_name,
-    unix_milliseconds,
 )
 from qore.infrastructure.ctrader_demo_sdk_compat import (
+    ctrader_historical_m5_query_window,
     run_ctrader_demo_sdk_compat_probe,
 )
 from qore.infrastructure.ports import ExternalPortError
 from qore.kernel.result import Failure
 
 _RUNTIME_TIMEOUT_SECONDS = 30
+_SDK_PACKAGE_VERSION = importlib.metadata.version("ctrader-open-api")
 _TRENDBAR_REQUIRED_FIELDS = (
     "low",
     "deltaOpen",
@@ -83,17 +84,16 @@ def _required_environment(name: str) -> str:
 
 def _load_inputs() -> tuple[CTraderDemoOperationalProbeInputs, RuntimeCredentials]:
     client_id = _required_environment("QORE_CTRADER_CLIENT_ID")
+
     client_secret = _required_environment("QORE_CTRADER_CLIENT_SECRET")
+    os.environ.pop("QORE_CTRADER_CLIENT_SECRET", None)
+
     access_token = _required_environment("QORE_CTRADER_ACCESS_TOKEN")
+    os.environ.pop("QORE_CTRADER_ACCESS_TOKEN", None)
+
     instrument = _required_environment("QORE_CTRADER_INSTRUMENT")
     run_key = _required_environment("QORE_PROBE_RUN_KEY")
     started_raw = _required_environment("QORE_PROBE_STARTED_AT")
-
-    for secret_name in (
-        "QORE_CTRADER_CLIENT_SECRET",
-        "QORE_CTRADER_ACCESS_TOKEN",
-    ):
-        os.environ.pop(secret_name, None)
 
     try:
         started_at = datetime.fromisoformat(started_raw)
@@ -305,13 +305,15 @@ class CTraderDemoSdkProbeRunner:
             symbol_id=int(symbol.symbolId),
             digits=int(symbol.digits),
         )
-        opened_at, closed_at = closed_m5_interval(self.inputs.started_at)
+        from_timestamp, to_timestamp = ctrader_historical_m5_query_window(
+            self.inputs.started_at
+        )
         request = ProtoOAGetTrendbarsReq()
         request.ctidTraderAccountId = self.account_id
         request.symbolId = self.symbol_id
         request.period = ProtoOATrendbarPeriod.Value("M5")
-        request.fromTimestamp = unix_milliseconds(opened_at)
-        request.toTimestamp = unix_milliseconds(closed_at)
+        request.fromTimestamp = from_timestamp
+        request.toTimestamp = to_timestamp
         request.count = 1
         self._send(request)
 
@@ -377,6 +379,8 @@ class CTraderDemoSdkProbeRunner:
         result = run_ctrader_demo_sdk_compat_probe(
             self.inputs,
             observation,
+            sdk_package_version=_SDK_PACKAGE_VERSION,
+            provider_has_more_supported=has_more_supported,
             provider_has_more_explicit=has_more_explicit,
             provider_has_more=provider_has_more,
         )
