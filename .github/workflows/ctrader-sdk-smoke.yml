@@ -201,3 +201,5 @@ jobs:
           assert "fake-client-secret" not in wire_failure
           assert "fake-access-token" not in wire_failure
           PY
+      - name: Verify SDK runtime state mapping
+        run: python scripts/ctrader_demo_m5_probe_runtime_smoke.py
