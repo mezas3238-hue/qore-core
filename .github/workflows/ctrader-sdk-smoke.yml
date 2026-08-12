@@ -47,6 +47,12 @@ jobs:
               ProtoOATrendbarPeriod,
           )
 
+          def require_fields(descriptor, *field_names):
+              actual = descriptor.fields_by_name
+              missing = tuple(name for name in field_names if name not in actual)
+              assert not missing, (missing, sorted(actual))
+              return actual
+
           assert importlib.metadata.version("ctrader-open-api") == "0.9.2"
           assert importlib.metadata.version("service-identity") == "24.2.0"
           assert EndPoints.PROTOBUF_DEMO_HOST == "demo.ctraderapi.com"
@@ -70,27 +76,87 @@ jobs:
           ):
               message_type()
 
-          account_list_fields = (
-              ProtoOAGetAccountListByAccessTokenRes.DESCRIPTOR.fields_by_name
+          require_fields(
+              ProtoOAApplicationAuthReq.DESCRIPTOR,
+              "clientId",
+              "clientSecret",
           )
-          for field_name in ("permissionScope", "ctidTraderAccount"):
-              assert field_name in account_list_fields, (
+          require_fields(
+              ProtoOAGetAccountListByAccessTokenReq.DESCRIPTOR,
+              "accessToken",
+          )
+          account_list_fields = require_fields(
+              ProtoOAGetAccountListByAccessTokenRes.DESCRIPTOR,
+              "permissionScope",
+              "ctidTraderAccount",
+          )
+          account_fields = account_list_fields["ctidTraderAccount"].message_type.fields_by_name
+          for field_name in ("ctidTraderAccountId", "isLive"):
+              assert field_name in account_fields, (field_name, sorted(account_fields))
+
+          require_fields(
+              ProtoOAAccountAuthReq.DESCRIPTOR,
+              "ctidTraderAccountId",
+              "accessToken",
+          )
+          require_fields(
+              ProtoOAAccountAuthRes.DESCRIPTOR,
+              "ctidTraderAccountId",
+          )
+
+          require_fields(
+              ProtoOASymbolsListReq.DESCRIPTOR,
+              "ctidTraderAccountId",
+              "includeArchivedSymbols",
+          )
+          symbols_list_fields = require_fields(
+              ProtoOASymbolsListRes.DESCRIPTOR,
+              "ctidTraderAccountId",
+              "symbol",
+          )
+          light_symbol_fields = symbols_list_fields["symbol"].message_type.fields_by_name
+          for field_name in ("symbolId", "symbolName", "enabled"):
+              assert field_name in light_symbol_fields, (
                   field_name,
-                  sorted(account_list_fields),
+                  sorted(light_symbol_fields),
               )
 
-          trendbar_response_fields = ProtoOAGetTrendbarsRes.DESCRIPTOR.fields_by_name
-          for field_name in (
+          require_fields(
+              ProtoOASymbolByIdReq.DESCRIPTOR,
+              "ctidTraderAccountId",
+              "symbolId",
+          )
+          symbol_by_id_fields = require_fields(
+              ProtoOASymbolByIdRes.DESCRIPTOR,
+              "ctidTraderAccountId",
+              "symbol",
+          )
+          full_symbol_fields = symbol_by_id_fields["symbol"].message_type.fields_by_name
+          for field_name in ("symbolId", "digits"):
+              assert field_name in full_symbol_fields, (
+                  field_name,
+                  sorted(full_symbol_fields),
+              )
+
+          require_fields(
+              ProtoOAGetTrendbarsReq.DESCRIPTOR,
+              "ctidTraderAccountId",
+              "period",
+              "symbolId",
+              "fromTimestamp",
+              "toTimestamp",
+              "count",
+          )
+          trendbar_response_fields = require_fields(
+              ProtoOAGetTrendbarsRes.DESCRIPTOR,
               "ctidTraderAccountId",
               "period",
               "trendbar",
               "symbolId",
-              "hasMore",
-          ):
-              assert field_name in trendbar_response_fields, (
-                  field_name,
-                  sorted(trendbar_response_fields),
-              )
+          )
+          assert "hasMore" not in trendbar_response_fields, sorted(
+              trendbar_response_fields
+          )
 
           trendbar_fields = ProtoOATrendbar.DESCRIPTOR.fields_by_name
           for field_name in (
@@ -119,4 +185,9 @@ jobs:
           assert "fake-client-secret" not in credential_repr
           assert "fake-access-token" not in credential_repr
           assert "<redacted>" in credential_repr
+
+          wire_failure = module["_wire_failure"]("synthetic-failure")
+          assert "synthetic-failure" in wire_failure
+          assert "fake-client-secret" not in wire_failure
+          assert "fake-access-token" not in wire_failure
           PY
