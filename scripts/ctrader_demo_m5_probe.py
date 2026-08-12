@@ -339,9 +339,7 @@ class CTraderDemoSdkProbeRunner:
         response_fields = response.DESCRIPTOR.fields_by_name
         has_more_supported = "hasMore" in response_fields
         has_more_explicit = has_more_supported and response.HasField("hasMore")
-        provider_has_more = (
-            bool(getattr(response, "hasMore")) if has_more_explicit else None
-        )
+        provider_has_more = bool(response.hasMore) if has_more_explicit else None
         bridge_has_more = provider_has_more if provider_has_more is not None else False
 
         try:
