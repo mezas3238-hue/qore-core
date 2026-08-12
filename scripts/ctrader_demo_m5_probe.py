@@ -38,8 +38,10 @@ from qore.infrastructure.ctrader_demo_operational_probe import (
     CTraderTrendbarsResponseObservation,
     closed_m5_interval,
     normalize_ctrader_symbol_name,
-    run_ctrader_demo_closed_m5_probe,
     unix_milliseconds,
+)
+from qore.infrastructure.ctrader_demo_sdk_compat import (
+    run_ctrader_demo_sdk_compat_probe,
 )
 from qore.infrastructure.ports import ExternalPortError
 from qore.kernel.result import Failure
@@ -333,6 +335,15 @@ class CTraderDemoSdkProbeRunner:
         if not fields_explicit and len(response.trendbar) > 0:
             self._fail("trendbar-required-field-missing")
             return
+
+        response_fields = response.DESCRIPTOR.fields_by_name
+        has_more_supported = "hasMore" in response_fields
+        has_more_explicit = has_more_supported and response.HasField("hasMore")
+        provider_has_more = (
+            bool(getattr(response, "hasMore")) if has_more_explicit else None
+        )
+        bridge_has_more = provider_has_more if provider_has_more is not None else False
+
         try:
             trendbars = tuple(
                 CTraderTrendbar(
@@ -362,10 +373,15 @@ class CTraderDemoSdkProbeRunner:
                 period_code=int(response.period),
                 trendbars=trendbars,
                 trendbar_fields_explicit=fields_explicit,
-                has_more=bool(response.hasMore),
+                has_more=bridge_has_more,
             ),
         )
-        result = run_ctrader_demo_closed_m5_probe(self.inputs, observation)
+        result = run_ctrader_demo_sdk_compat_probe(
+            self.inputs,
+            observation,
+            provider_has_more_explicit=has_more_explicit,
+            provider_has_more=provider_has_more,
+        )
         if isinstance(result, Failure):
             self._fail(type(result.error).__name__)
             return
