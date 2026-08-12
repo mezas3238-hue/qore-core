@@ -148,6 +148,7 @@ class CTraderDemoSdkProbeRunner:
         self.symbol_id: int | None = None
         self.full_symbol: CTraderFullSymbolObservation | None = None
         self.finished = False
+        self.exit_code = 0
 
     def _finish(self) -> None:
         if self.finished:
@@ -162,11 +163,16 @@ class CTraderDemoSdkProbeRunner:
     def _fail(self, code: str) -> None:
         if self.finished:
             return
+        self.exit_code = 1
         print(_wire_failure(code))
         self._finish()
 
     def _send(self, request: Any) -> None:
-        deferred = self.client.send(request)
+        try:
+            deferred = self.client.send(request)
+        except Exception:
+            self._fail("provider-send-failure")
+            return
         deferred.addErrback(lambda _: self._fail("provider-send-failure"))
 
     def connected(self, client: Client) -> None:
@@ -369,31 +375,34 @@ class CTraderDemoSdkProbeRunner:
     def on_message_received(self, client: Client, message: Any) -> None:
         if client is not self.client or self.finished:
             return
-        payload_type = message.payloadType
-        if payload_type == ProtoHeartbeatEvent().payloadType:
-            return
-        if payload_type == ProtoOAErrorRes().payloadType:
-            self._fail("provider-error-response")
-            return
-        if payload_type == ProtoOAApplicationAuthRes().payloadType:
-            self._handle_application_auth()
-            return
-        if payload_type == ProtoOAGetAccountListByAccessTokenRes().payloadType:
-            self._handle_account_list(message)
-            return
-        if payload_type == ProtoOAAccountAuthRes().payloadType:
-            self._handle_account_auth(message)
-            return
-        if payload_type == ProtoOASymbolsListRes().payloadType:
-            self._handle_symbol_list(message)
-            return
-        if payload_type == ProtoOASymbolByIdRes().payloadType:
-            self._handle_full_symbol(message)
-            return
-        if payload_type == ProtoOAGetTrendbarsRes().payloadType:
-            self._handle_trendbars(message)
+        try:
+            payload_type = message.payloadType
+            if payload_type == ProtoHeartbeatEvent().payloadType:
+                return
+            if payload_type == ProtoOAErrorRes().payloadType:
+                self._fail("provider-error-response")
+                return
+            if payload_type == ProtoOAApplicationAuthRes().payloadType:
+                self._handle_application_auth()
+                return
+            if payload_type == ProtoOAGetAccountListByAccessTokenRes().payloadType:
+                self._handle_account_list(message)
+                return
+            if payload_type == ProtoOAAccountAuthRes().payloadType:
+                self._handle_account_auth(message)
+                return
+            if payload_type == ProtoOASymbolsListRes().payloadType:
+                self._handle_symbol_list(message)
+                return
+            if payload_type == ProtoOASymbolByIdRes().payloadType:
+                self._handle_full_symbol(message)
+                return
+            if payload_type == ProtoOAGetTrendbarsRes().payloadType:
+                self._handle_trendbars(message)
+        except Exception:
+            self._fail("provider-message-processing-failure")
 
-    def run(self) -> None:
+    def run(self) -> int:
         self.client.setConnectedCallback(self.connected)
         self.client.setDisconnectedCallback(self.disconnected)
         self.client.setMessageReceivedCallback(self.on_message_received)
@@ -403,6 +412,7 @@ class CTraderDemoSdkProbeRunner:
             lambda: self._fail("runtime-timeout"),
         )
         reactor.run()
+        return self.exit_code
 
 
 def main() -> int:
@@ -412,11 +422,10 @@ def main() -> int:
             inputs=inputs,
             credentials=credentials,
         )
-        runner.run()
+        return runner.run()
     except Exception:
         print(_wire_failure("runtime-initialization-failure"))
         return 1
-    return 0
 
 
 if __name__ == "__main__":
