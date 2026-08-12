@@ -32,9 +32,42 @@ def ctrader_historical_m5_query_window(started_at: datetime) -> tuple[int, int]:
     return from_timestamp, to_timestamp
 
 
+def _validate_sdk_surface(
+    *,
+    sdk_package_version: object,
+    provider_has_more_supported: object,
+    provider_has_more_explicit: object,
+    provider_has_more: object,
+) -> None:
+    if sdk_package_version != _SUPPORTED_SDK_VERSION:
+        raise CTraderDemoOperationalProbeValidationError(
+            "cTrader SDK runtime version is not certified by this delivery"
+        )
+    if type(provider_has_more_supported) is not bool:
+        raise CTraderDemoOperationalProbeValidationError(
+            "cTrader SDK has_more_supported must be a strict bool"
+        )
+    if provider_has_more_supported:
+        raise CTraderDemoOperationalProbeValidationError(
+            "certified cTrader SDK 0.9.2 must not claim hasMore support"
+        )
+    if type(provider_has_more_explicit) is not bool:
+        raise CTraderDemoOperationalProbeValidationError(
+            "cTrader SDK has_more_explicit must be a strict bool"
+        )
+    if provider_has_more_explicit:
+        raise CTraderDemoOperationalProbeValidationError(
+            "unsupported cTrader SDK hasMore cannot be explicit"
+        )
+    if provider_has_more is not None:
+        raise CTraderDemoOperationalProbeValidationError(
+            "absent cTrader SDK hasMore must retain None provenance"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class CTraderDemoSdkOperationalEvidence:
-    """Preserve optional SDK wire-field provenance around canonical probe evidence."""
+    """Preserve SDK 0.9.2 wire-field provenance around canonical probe evidence."""
 
     canonical: CTraderDemoOperationalEvidence
     sdk_package_version: str
@@ -47,31 +80,12 @@ class CTraderDemoSdkOperationalEvidence:
             raise CTraderDemoOperationalProbeValidationError(
                 "cTrader SDK evidence canonical value must be operational evidence"
             )
-        if self.sdk_package_version != _SUPPORTED_SDK_VERSION:
-            raise CTraderDemoOperationalProbeValidationError(
-                "cTrader SDK evidence version must match the certified runtime version"
-            )
-        if type(self.provider_has_more_supported) is not bool:
-            raise CTraderDemoOperationalProbeValidationError(
-                "cTrader SDK evidence has_more_supported must be a strict bool"
-            )
-        if type(self.provider_has_more_explicit) is not bool:
-            raise CTraderDemoOperationalProbeValidationError(
-                "cTrader SDK evidence has_more_explicit must be a strict bool"
-            )
-        if not self.provider_has_more_supported and self.provider_has_more_explicit:
-            raise CTraderDemoOperationalProbeValidationError(
-                "unsupported cTrader SDK hasMore cannot be explicit"
-            )
-        if self.provider_has_more_explicit:
-            if type(self.provider_has_more) is not bool:
-                raise CTraderDemoOperationalProbeValidationError(
-                    "explicit cTrader SDK hasMore must carry a strict bool"
-                )
-        elif self.provider_has_more is not None:
-            raise CTraderDemoOperationalProbeValidationError(
-                "absent cTrader SDK hasMore must retain None provenance"
-            )
+        _validate_sdk_surface(
+            sdk_package_version=self.sdk_package_version,
+            provider_has_more_supported=self.provider_has_more_supported,
+            provider_has_more_explicit=self.provider_has_more_explicit,
+            provider_has_more=self.provider_has_more,
+        )
 
     def public_payload(self) -> dict[str, object]:
         payload = self.canonical.public_payload()
@@ -95,57 +109,22 @@ def run_ctrader_demo_sdk_compat_probe(
     provider_has_more_explicit: bool,
     provider_has_more: bool | None,
 ) -> Result[CTraderDemoSdkOperationalEvidence, ExternalPortError]:
-    """Run the canonical probe while preserving SDK optional-field provenance."""
-    if sdk_package_version != _SUPPORTED_SDK_VERSION:
+    """Run the canonical probe while preserving certified SDK 0.9.2 provenance."""
+    try:
+        _validate_sdk_surface(
+            sdk_package_version=sdk_package_version,
+            provider_has_more_supported=provider_has_more_supported,
+            provider_has_more_explicit=provider_has_more_explicit,
+            provider_has_more=provider_has_more,
+        )
+    except ExternalPortError as error:
+        return Failure(error)
+    if observation.trendbars_response.has_more:
         return Failure(
             CTraderDemoOperationalProbeValidationError(
-                "cTrader SDK runtime version is not certified by this delivery"
+                "absent cTrader SDK hasMore may only bridge to false"
             )
         )
-    if type(provider_has_more_supported) is not bool:
-        return Failure(
-            CTraderDemoOperationalProbeValidationError(
-                "cTrader SDK has_more_supported must be a strict bool"
-            )
-        )
-    if type(provider_has_more_explicit) is not bool:
-        return Failure(
-            CTraderDemoOperationalProbeValidationError(
-                "cTrader SDK has_more_explicit must be a strict bool"
-            )
-        )
-    if not provider_has_more_supported and provider_has_more_explicit:
-        return Failure(
-            CTraderDemoOperationalProbeValidationError(
-                "unsupported cTrader SDK hasMore cannot be explicit"
-            )
-        )
-    if provider_has_more_explicit:
-        if type(provider_has_more) is not bool:
-            return Failure(
-                CTraderDemoOperationalProbeValidationError(
-                    "explicit cTrader SDK hasMore must be a strict bool"
-                )
-            )
-        if observation.trendbars_response.has_more is not provider_has_more:
-            return Failure(
-                CTraderDemoOperationalProbeValidationError(
-                    "cTrader SDK hasMore bridge value must match explicit wire value"
-                )
-            )
-    else:
-        if provider_has_more is not None:
-            return Failure(
-                CTraderDemoOperationalProbeValidationError(
-                    "absent cTrader SDK hasMore must retain None provenance"
-                )
-            )
-        if observation.trendbars_response.has_more:
-            return Failure(
-                CTraderDemoOperationalProbeValidationError(
-                    "absent cTrader SDK hasMore may only bridge to false"
-                )
-            )
 
     result = run_ctrader_demo_closed_m5_probe(inputs, observation)
     if isinstance(result, Failure):
