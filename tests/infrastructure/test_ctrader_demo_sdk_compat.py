@@ -14,12 +14,14 @@ from qore.infrastructure.ctrader_demo_operational_probe import (
     CTraderTrendbarsResponseObservation,
 )
 from qore.infrastructure.ctrader_demo_sdk_compat import (
+    ctrader_historical_m5_query_window,
     run_ctrader_demo_sdk_compat_probe,
 )
 from qore.kernel.result import Failure, Success
 
 _ACCOUNT_ID = 7_654_321
 _SYMBOL_ID = 1_234
+_SDK_VERSION = "0.9.2"
 
 
 def _inputs() -> CTraderDemoOperationalProbeInputs:
@@ -75,85 +77,89 @@ def _observation(*, bridge_has_more: bool = False) -> CTraderDemoOperationalObse
     )
 
 
-def test_sdk_092_absent_has_more_is_preserved_as_absent_evidence() -> None:
-    result = run_ctrader_demo_sdk_compat_probe(
+def _run(
+    *,
+    observation: CTraderDemoOperationalObservation | None = None,
+    sdk_package_version: str = _SDK_VERSION,
+    provider_has_more_supported: bool = False,
+    provider_has_more_explicit: bool = False,
+    provider_has_more: bool | None = None,
+):
+    return run_ctrader_demo_sdk_compat_probe(
         _inputs(),
-        _observation(),
-        provider_has_more_explicit=False,
-        provider_has_more=None,
+        _observation() if observation is None else observation,
+        sdk_package_version=sdk_package_version,
+        provider_has_more_supported=provider_has_more_supported,
+        provider_has_more_explicit=provider_has_more_explicit,
+        provider_has_more=provider_has_more,
     )
+
+
+def test_sdk_092_absent_has_more_is_preserved_as_absent_evidence() -> None:
+    result = _run()
 
     assert isinstance(result, Success)
     evidence = result.value
+    assert evidence.sdk_package_version == _SDK_VERSION
+    assert evidence.provider_has_more_supported is False
     assert evidence.provider_has_more_explicit is False
     assert evidence.provider_has_more is None
     payload = evidence.public_payload()
+    assert payload["sdk_package_version"] == _SDK_VERSION
+    assert payload["provider_has_more_supported"] is False
     assert payload["provider_has_more_explicit"] is False
     assert payload["provider_has_more"] is None
     assert payload["schema"] == "qore.ctrader-demo.sdk-closed-m5-evidence.v1"
 
 
-def test_future_sdk_explicit_false_has_more_is_preserved() -> None:
-    result = run_ctrader_demo_sdk_compat_probe(
-        _inputs(),
-        _observation(),
-        provider_has_more_explicit=True,
-        provider_has_more=False,
-    )
-
-    assert isinstance(result, Success)
-    assert result.value.provider_has_more_explicit is True
-    assert result.value.provider_has_more is False
-
-
-def test_future_sdk_explicit_true_has_more_fails_closed() -> None:
-    result = run_ctrader_demo_sdk_compat_probe(
-        _inputs(),
-        _observation(bridge_has_more=True),
-        provider_has_more_explicit=True,
-        provider_has_more=True,
-    )
+def test_uncertified_sdk_version_fails_closed() -> None:
+    result = _run(sdk_package_version="0.9.3")
 
     assert isinstance(result, Failure)
+    assert isinstance(result.error, CTraderDemoOperationalProbeValidationError)
+
+
+def test_sdk_092_cannot_claim_has_more_support() -> None:
+    result = _run(provider_has_more_supported=True)
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CTraderDemoOperationalProbeValidationError)
+
+
+def test_sdk_092_cannot_claim_explicit_has_more() -> None:
+    result = _run(provider_has_more_explicit=True, provider_has_more=False)
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CTraderDemoOperationalProbeValidationError)
+
+
+def test_sdk_092_absent_has_more_must_retain_none() -> None:
+    result = _run(provider_has_more=False)
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CTraderDemoOperationalProbeValidationError)
 
 
 def test_absent_has_more_cannot_bridge_to_true() -> None:
-    result = run_ctrader_demo_sdk_compat_probe(
-        _inputs(),
-        _observation(bridge_has_more=True),
-        provider_has_more_explicit=False,
-        provider_has_more=None,
-    )
+    result = _run(observation=_observation(bridge_has_more=True))
 
     assert isinstance(result, Failure)
     assert isinstance(result.error, CTraderDemoOperationalProbeValidationError)
 
 
-def test_has_more_explicitness_and_value_must_match() -> None:
-    result = run_ctrader_demo_sdk_compat_probe(
-        _inputs(),
-        _observation(),
-        provider_has_more_explicit=True,
-        provider_has_more=True,
+def test_historical_query_window_excludes_next_bar_open_by_one_millisecond() -> None:
+    from_timestamp, to_timestamp = ctrader_historical_m5_query_window(
+        datetime(2026, 8, 12, 13, 7, 42, tzinfo=UTC)
     )
 
-    assert isinstance(result, Failure)
-    assert isinstance(result.error, CTraderDemoOperationalProbeValidationError)
+    assert from_timestamp == 1_786_539_600_000
+    assert to_timestamp == 1_786_539_899_999
+    assert to_timestamp - from_timestamp + 1 == 300_000
 
 
 def test_sdk_compat_evidence_is_deterministic() -> None:
-    first = run_ctrader_demo_sdk_compat_probe(
-        _inputs(),
-        _observation(),
-        provider_has_more_explicit=False,
-        provider_has_more=None,
-    )
-    second = run_ctrader_demo_sdk_compat_probe(
-        _inputs(),
-        _observation(),
-        provider_has_more_explicit=False,
-        provider_has_more=None,
-    )
+    first = _run()
+    second = _run()
 
     assert isinstance(first, Success)
     assert isinstance(second, Success)
