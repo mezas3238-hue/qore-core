@@ -134,6 +134,13 @@ def _full_symbol_digits_explicit(symbol: Any) -> bool:
         return False
 
 
+def _retry_delay_beyond_probe_timeout(failed_attempts: int) -> float:
+    """Keep ClientService from reconnecting during this one-shot probe."""
+    if type(failed_attempts) is not int or failed_attempts < 1:
+        raise ValueError("cTrader retry attempt count must be a positive int")
+    return float(_RUNTIME_TIMEOUT_SECONDS + 1)
+
+
 class CTraderDemoSdkProbeRunner:
     """Own the outer SDK/Twisted lifecycle for one explicitly invoked Demo probe."""
 
@@ -149,6 +156,7 @@ class CTraderDemoSdkProbeRunner:
             EndPoints.PROTOBUF_DEMO_HOST,
             EndPoints.PROTOBUF_PORT,
             TcpProtocol,
+            retryPolicy=_retry_delay_beyond_probe_timeout,
         )
         self.account_id: int | None = None
         self.granted_accounts: tuple[CTraderGrantedAccount, ...] = ()
