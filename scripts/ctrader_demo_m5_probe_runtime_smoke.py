@@ -69,11 +69,11 @@ def main() -> None:
         "scripts/ctrader_demo_m5_probe.py",
         run_name="ctrader_probe_runtime_smoke",
     )
-    module["Client"] = _FakeClient
 
     inputs_type = module["CTraderDemoOperationalProbeInputs"]
     credentials_type = module["RuntimeCredentials"]
     runner_type = module["CTraderDemoSdkProbeRunner"]
+    runner_type.__init__.__globals__["Client"] = _FakeClient
 
     inputs = inputs_type(
         run_key="290-99",
