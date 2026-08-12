@@ -14,10 +14,12 @@ from qore.infrastructure.ctrader_demo_operational_probe import (
     CTraderTrendbarsResponseObservation,
 )
 from qore.infrastructure.ctrader_demo_sdk_compat import (
+    CTraderDemoSdkOperationalEvidence,
     ctrader_historical_m5_query_window,
     run_ctrader_demo_sdk_compat_probe,
 )
-from qore.kernel.result import Failure, Success
+from qore.infrastructure.ports import ExternalPortError
+from qore.kernel.result import Failure, Result, Success
 
 _ACCOUNT_ID = 7_654_321
 _SYMBOL_ID = 1_234
@@ -84,7 +86,7 @@ def _run(
     provider_has_more_supported: bool = False,
     provider_has_more_explicit: bool = False,
     provider_has_more: bool | None = None,
-):
+) -> Result[CTraderDemoSdkOperationalEvidence, ExternalPortError]:
     return run_ctrader_demo_sdk_compat_probe(
         _inputs(),
         _observation() if observation is None else observation,
