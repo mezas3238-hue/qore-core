@@ -126,6 +126,14 @@ def _wire_failure(code: str) -> str:
     )
 
 
+def _full_symbol_digits_explicit(symbol: Any) -> bool:
+    """Return whether the provider message explicitly carries required digits."""
+    try:
+        return bool(symbol.HasField("digits"))
+    except (AttributeError, ValueError):
+        return False
+
+
 class CTraderDemoSdkProbeRunner:
     """Own the outer SDK/Twisted lifecycle for one explicitly invoked Demo probe."""
 
@@ -299,6 +307,9 @@ class CTraderDemoSdkProbeRunner:
         symbol = response.symbol[0]
         if int(symbol.symbolId) != self.symbol_id:
             self._fail("full-symbol-id-mismatch")
+            return
+        if not _full_symbol_digits_explicit(symbol):
+            self._fail("full-symbol-digits-missing")
             return
 
         self.full_symbol = CTraderFullSymbolObservation(
