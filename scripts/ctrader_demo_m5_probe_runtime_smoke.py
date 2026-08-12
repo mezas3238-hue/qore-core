@@ -28,9 +28,14 @@ _SYMBOL_ID = 1_234
 
 
 class _FakeDeferred:
-    def addErrback(self, callback: Any) -> _FakeDeferred:
+    def _add_errback(self, callback: Any) -> _FakeDeferred:
         del callback
         return self
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "addErrback":
+            return self._add_errback
+        raise AttributeError(name)
 
 
 class _FakeClient:
@@ -45,8 +50,13 @@ class _FakeClient:
         self.sent.append(request)
         return _FakeDeferred()
 
-    def stopService(self) -> None:
+    def _stop_service(self) -> None:
         self.stopped = True
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "stopService":
+            return self._stop_service
+        raise AttributeError(name)
 
 
 def _envelope(payload: Any) -> ProtoMessage:
