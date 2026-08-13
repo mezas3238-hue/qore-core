@@ -85,12 +85,14 @@ The cTrader adapter retains account-level margin evidence separately from symbol
 
 For the verified cTrader Open API model used by this slice:
 
-- account `leverageInCents` is retained and normalized by exact division by 100;
-- dynamic tier volume bounds remain in provider-native USD cents;
-- dynamic tier leverage integers are retained as the provider encoding and normalized from hundredths by exact division by 100;
+- account `leverageInCents` is retained and normalized by exact division by 100 because that field explicitly carries cent-based encoding;
+- dynamic leverage tier `volume` is retained in the provider-documented USD unit;
+- dynamic leverage tier `leverage` is retained as the provider-documented applied leverage value without inventing a hundredths conversion;
 - tiers retain per-side semantics;
 - the last dynamic tier is retained as applying above its stated bound;
-- `leverageId`, total-margin calculation type and native encoding names remain in sanitized native fields.
+- account-margin evidence, dynamic-leverage evidence, `leverageId`, total-margin calculation type, volume unit and native encoding names remain in sanitized native fields.
+
+`DOCUMENTED SCALE MAY BE NORMALIZED; UNDOCUMENTED SCALE MUST BE RETAINED, NOT INVENTED.`
 
 This does not authorize risk sizing. End-to-end margin semantics must be separately verified before risk sizing can rely on them.
 
@@ -100,11 +102,13 @@ The cTrader adapter models the official account-scoped discovery sequence explic
 
 1. read the account symbol list;
 2. retain each provider symbol ID and exact symbol name;
-3. request full symbol/reference data by those returned IDs;
-4. require exact membership agreement between list and full reference data;
-5. join related category/asset-class evidence by explicit provider IDs when supplied;
-6. resolve dynamic leverage only for leverage IDs actually referenced by returned symbols;
-7. normalize only after account/source binding is verified.
+3. retain a typed evidence reference for symbol-list account membership;
+4. request full symbol/reference data by those returned IDs;
+5. require exact membership agreement between list and full reference data;
+6. join related category/asset-class evidence by explicit provider IDs when supplied;
+7. resolve dynamic leverage only for leverage IDs actually referenced by returned symbols;
+8. retain account-margin and native-period capability evidence explicitly;
+9. normalize only after account/source binding is verified.
 
 No static `EURUSD`, `GBPUSD`, or similar list is provider discovery truth.
 
@@ -120,7 +124,7 @@ The existence of a provider enum is not runtime capability evidence.
 
 `ENUM EXISTS != RUNTIME CAPABILITY`
 
-`CTraderProviderCatalogClientBoundary.verified_native_periods` is a separate injected evidence boundary representing periods verified for the concrete provider/account runtime. Only those periods are placed into each catalog entry as native capability.
+`CTraderProviderCatalogClientBoundary.native_period_capability` is an explicit injected `CTraderNativePeriodCapability` carrying the verified periods, observation timestamp and evidence reference for the concrete provider/account runtime. Only those periods are placed into each catalog entry as native capability, and the capability evidence reference is retained in provider-native fields.
 
 `CTraderNativeMarketDataFlow` checks catalog capability **before** calling the provider client. Unsupported periods fail closed with no provider read.
 
