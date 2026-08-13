@@ -131,8 +131,15 @@ def test_identity_kind_listing_and_deterministic_projection() -> None:
         valid_until=None,
         evidence_ref=_evidence(101),
     )
-    second = replace(first, listing_id=ListingIdentityId(_uuid(102)), venue=MarketVenueCode("bats"))
-    graph = UniversalInstrumentIdentityGraph(economic_identities=(benchmark, equity), listings=(second, first))
+    second = replace(
+        first,
+        listing_id=ListingIdentityId(_uuid(102)),
+        venue=MarketVenueCode("bats"),
+    )
+    graph = UniversalInstrumentIdentityGraph(
+        economic_identities=(benchmark, equity),
+        listings=(second, first),
+    )
     assert first.economic_identity_id == second.economic_identity_id
     assert CanonicalIdentityRef(first.listing_id).logical_values()[0] == "listing"
     assert graph.economic_identities[0].identity_id == equity.identity_id
@@ -158,7 +165,10 @@ def test_external_identifiers_keep_semantic_scope_and_public_values() -> None:
     )
     assert provider.logical_values() != standard.logical_values()
     assert venue.venue == MarketVenueCode("xcme")
-    with pytest.raises(UniversalInstrumentIdentityValidationError, match="requires explicit source"):
+    with pytest.raises(
+        UniversalInstrumentIdentityValidationError,
+        match="requires explicit source",
+    ):
         replace(provider, source=None)
     with pytest.raises(UniversalInstrumentIdentityValidationError, match="requires explicit venue"):
         replace(venue, venue=None)
@@ -182,7 +192,13 @@ def test_relationships_cover_underlying_currency_series_and_ordered_components()
     spread = _identity(27, family="multi-leg", construction=IdentityConstructionKind.COMPOSITE)
     second_future = _identity(28, family="future")
 
-    def relation(value: int, source: EconomicIdentity, target: EconomicIdentity, code: str, ordinal: int | None = None) -> IdentityRelationship:
+    def relation(
+        value: int,
+        source: EconomicIdentity,
+        target: EconomicIdentity,
+        code: str,
+        ordinal: int | None = None,
+    ) -> IdentityRelationship:
         return IdentityRelationship(
             relationship_id=IdentityRelationshipId(_uuid(200 + value)),
             source_identity_id=source.identity_id,
@@ -252,7 +268,10 @@ def test_lifecycle_does_not_force_expiry() -> None:
         economic_identities=(equity, future, bond, perpetual),
         lifecycle_events=events,
     )
-    assert not any(item.subject == CanonicalIdentityRef(perpetual.identity_id) for item in graph.lifecycle_events)
+    assert not any(
+        item.subject == CanonicalIdentityRef(perpetual.identity_id)
+        for item in graph.lifecycle_events
+    )
 
 
 def test_mapping_history_preserves_versioned_historical_interpretation() -> None:
@@ -279,7 +298,10 @@ def test_mapping_history_preserves_versioned_historical_interpretation() -> None
         effective_from=_T2,
     )
     history = IdentityMappingHistory((first, second))
-    graph = UniversalInstrumentIdentityGraph(economic_identities=(new, old), mapping_histories=(history,))
+    graph = UniversalInstrumentIdentityGraph(
+        economic_identities=(new, old),
+        mapping_histories=(history,),
+    )
     assert history.latest_revision == second
     assert first.target != second.target
     assert graph.mapping_histories[0].logical_values() == history.logical_values()
@@ -353,7 +375,10 @@ def test_graph_rejects_parallel_mapping_and_dangling_reference() -> None:
             recorded_at=_T0,
         ),)
     )
-    with pytest.raises(UniversalInstrumentIdentityValidationError, match="only one retained mapping history"):
+    with pytest.raises(
+        UniversalInstrumentIdentityValidationError,
+        match="only one retained mapping history",
+    ):
         UniversalInstrumentIdentityGraph(
             economic_identities=(first, second),
             mapping_histories=(history_one, history_two),
