@@ -82,7 +82,7 @@ PLATFORM SUPPORT != PRODUCTION AUTHORITY
       FIX / terminals / APIs     lease / fencing /      CEO / support /
       crypto / OTC / feeds       failover / evidence    commercial access
                │                       │                       │
-               └───────────────────────┼───────────────────────┘
+               └──────────────────────┼───────────────────────┘
                                        │
                           UNIVERSAL CONFORMANCE
                                        │
@@ -94,6 +94,8 @@ PLATFORM SUPPORT != PRODUCTION AUTHORITY
 Core owns canonical authority, identities, shared semantics, invariants and governance. Core may contain deterministic runtime/orchestration foundations where justified, but it must not become a mandatory remote synchronous choke point for routine departmental hot paths.
 
 ## Architecture levels
+
+Architecture level numbers describe scope hierarchy and conceptual layering only. They do **not** define construction sequence. The authoritative construction sequence is defined exclusively by Mandatory Construction Programs A-H and the per-slice gate.
 
 ### Level 0 — Constitution
 
@@ -169,6 +171,13 @@ Tracking: #302.
 22. Compliance, Regulatory Evidence & Audit Reporting
 23. Notifications & Client/Operational Communication
 24. Certification & Integration Gate
+
+Boundary ownership stubs are frozen here only where ambiguity would otherwise affect foundation work; full department charters remain Program E scope:
+
+- **Dept 4 vs Dept 5:** Dept 4 owns canonical economic instrument/market/reference identity and reference facts. Dept 5 owns dynamic market observations, normalized market-data evidence and market-data delivery provenance. Level 0 evidence/provenance doctrine remains cross-cutting and is not duplicated by either department.
+- **Dept 8 vs Dept 11:** Dept 8 owns account, cash, collateral and aggregate portfolio state/projections. Dept 11 owns canonical operational position records, settlement obligations, post-trade lifecycle and external reconciliation. Derived aggregate portfolio views do not become competing position authority.
+- **Dept 12 vs Dept 13:** Dept 12 owns research/replay/quant artifacts and evidence without productive trading authority. Dept 13 owns governed decision/specialist producer implementations operating under Core authority. `FunctionalDecision` and strategic decision governance remain Core constitutional contracts and do not become independent departmental authority.
+- **Dept 1 vs Dept 24:** Dept 1 owns governance policy and constitutional contracts. Dept 24 is the certification/integration process capability, with supporting tooling permitted; it is not a trading runtime authority or a parallel governance sovereign.
 
 Departments may scale, deploy and store state independently, but do not gain independent strategic authority.
 
@@ -311,6 +320,8 @@ PAYMENT STATE != BUY/SELL AUTHORITY
 ```
 
 Commercial suspension may gate future service access according to certified service policy; it cannot create strategy or invent automatic liquidation.
+
+For an execution- or hosting-capable product, the fail-safe default on commercial suspension is **no new trading authority**. An already-authorized open position must not be intentionally abandoned: only protection/lifecycle actions already authorized by the certified position/service policy may continue, subject to reconciliation and applicable single-writer authority, until the policy-defined safe suspension state is reached. Suspension of a presentation-only product does not alter trading authority or positions.
 
 ## Canonical End-to-End Flows
 
@@ -472,6 +483,8 @@ CHARTER
 ### Program G — Research / Intelligence
 
 Close replay -> decision producer -> specialist producer -> analysis lineage and all reproducibility/calibration/OOS gates before quantitative promotion claims.
+
+Program G explicitly includes closure of any still-open verified structural gaps in research execution composition (retained replay/observations -> computed decision production) and specialist-analysis production (`FunctionalDecision` -> computed `SpecialistAnalysis`) before any quantitative promotion claim.
 
 ### Program H — Final System Certification
 
