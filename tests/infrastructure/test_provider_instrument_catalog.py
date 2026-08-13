@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pytest
 
-import qore.infrastructure.provider_instrument_catalog as catalog_module
 from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.market_observation import MarketTimeframe, MarketTimeframeCode
 from qore.infrastructure.ports import (
@@ -16,6 +15,7 @@ from qore.infrastructure.ports import (
     PortName,
     SourceId,
 )
+import qore.infrastructure.provider_instrument_catalog as catalog_module
 from qore.infrastructure.provider_instrument_catalog import (
     ProviderCatalogScope,
     ProviderInstrumentCatalog,
