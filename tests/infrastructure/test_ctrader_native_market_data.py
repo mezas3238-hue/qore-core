@@ -6,9 +6,9 @@ from uuid import UUID
 
 import pytest
 
+import qore.infrastructure.ctrader_native_market_data as native_module
 from qore.domain.events import CorrelationId
 from qore.infrastructure.ctrader_demo_market_data import CTraderTrendbar
-import qore.infrastructure.ctrader_native_market_data as native_module
 from qore.infrastructure.ctrader_native_market_data import (
     CTraderNativeMarketDataFlow,
     CTraderNativeMarketDataUnsupportedError,
