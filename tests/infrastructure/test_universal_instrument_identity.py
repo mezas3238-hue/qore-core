@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import UUID
 
@@ -41,6 +41,7 @@ _T0 = datetime(2026, 1, 1, tzinfo=UTC)
 _T1 = datetime(2026, 3, 1, tzinfo=UTC)
 _T2 = datetime(2026, 6, 1, tzinfo=UTC)
 _T3 = datetime(2026, 9, 1, tzinfo=UTC)
+_PLUS_TWO = timezone(timedelta(hours=2))
 
 
 def _uuid(value: int) -> UUID:
@@ -425,6 +426,84 @@ def test_strict_time_interval_type_guards_and_deterministic_order() -> None:
     graph_one = UniversalInstrumentIdentityGraph(economic_identities=(other, identity))
     graph_two = UniversalInstrumentIdentityGraph(economic_identities=(identity, other))
     assert graph_one.logical_values() == graph_two.logical_values()
+
+
+def test_listing_logical_values_canonicalize_timezone_equivalent_instants() -> None:
+    identity = _identity(81)
+    listing = ListingIdentity(
+        listing_id=ListingIdentityId(_uuid(801)),
+        economic_identity_id=identity.identity_id,
+        venue=MarketVenueCode("xnas"),
+        display_symbol="AAPL",
+        valid_from=_T0,
+        valid_until=_T1,
+        evidence_ref=_evidence(801),
+    )
+    offset_listing = replace(
+        listing,
+        valid_from=_T0.astimezone(_PLUS_TWO),
+        valid_until=_T1.astimezone(_PLUS_TWO),
+    )
+    assert listing.logical_values() == offset_listing.logical_values()
+
+
+def test_relationship_logical_values_canonicalize_timezone_equivalent_instants() -> None:
+    source = _identity(82)
+    target = _identity(83)
+    relationship = IdentityRelationship(
+        relationship_id=IdentityRelationshipId(_uuid(802)),
+        source_identity_id=source.identity_id,
+        target_identity_id=target.identity_id,
+        relationship=IdentityRelationshipCode("underlying"),
+        effective_from=_T0,
+        effective_until=_T1,
+        evidence_ref=_evidence(802),
+    )
+    offset_relationship = replace(
+        relationship,
+        effective_from=_T0.astimezone(_PLUS_TWO),
+        effective_until=_T1.astimezone(_PLUS_TWO),
+    )
+    assert relationship.logical_values() == offset_relationship.logical_values()
+
+
+def test_lifecycle_logical_values_canonicalize_timezone_equivalent_instants() -> None:
+    identity = _identity(84)
+    event = IdentityLifecycleEvent(
+        event_id=IdentityLifecycleEventId(_uuid(803)),
+        subject=CanonicalIdentityRef(identity.identity_id),
+        event_type=LifecycleEventCode("listing.start"),
+        effective_at=_T1,
+        recorded_at=_T0,
+        evidence_ref=_evidence(803),
+    )
+    offset_event = replace(
+        event,
+        effective_at=_T1.astimezone(_PLUS_TWO),
+        recorded_at=_T0.astimezone(_PLUS_TWO),
+    )
+    assert event.logical_values() == offset_event.logical_values()
+
+
+def test_mapping_logical_values_canonicalize_timezone_equivalent_instants() -> None:
+    identity = _identity(85)
+    mapping = _revision(
+        mapping_id=IdentityMappingId(_uuid(804)),
+        revision=1,
+        parent=None,
+        external=_external("MSFT"),
+        target=CanonicalIdentityRef(identity.identity_id),
+        effective_from=_T0,
+        effective_until=_T1,
+        recorded_at=_T2,
+    )
+    offset_mapping = replace(
+        mapping,
+        effective_from=_T0.astimezone(_PLUS_TWO),
+        effective_until=_T1.astimezone(_PLUS_TWO),
+        recorded_at=_T2.astimezone(_PLUS_TWO),
+    )
+    assert mapping.logical_values() == offset_mapping.logical_values()
 
 
 def test_runtime_type_guards_reject_invalid_public_shapes() -> None:

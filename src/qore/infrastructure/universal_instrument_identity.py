@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from re import fullmatch
 from uuid import UUID
@@ -359,8 +359,10 @@ class ListingIdentity:
             self.economic_identity_id.logical_values(),
             self.venue.logical_values(),
             self.display_symbol,
-            self.valid_from.isoformat(),
-            self.valid_until.isoformat() if self.valid_until is not None else None,
+            self.valid_from.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.valid_until.astimezone(UTC).isoformat(timespec="microseconds")
+            if self.valid_until is not None
+            else None,
             self.evidence_ref.logical_values(),
         )
 
@@ -502,8 +504,8 @@ class IdentityRelationship:
             self.source_identity_id.logical_values(),
             self.target_identity_id.logical_values(),
             self.relationship.logical_values(),
-            self.effective_from.isoformat(),
-            self.effective_until.isoformat()
+            self.effective_from.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.effective_until.astimezone(UTC).isoformat(timespec="microseconds")
             if self.effective_until is not None
             else None,
             self.evidence_ref.logical_values(),
@@ -547,8 +549,8 @@ class IdentityLifecycleEvent:
             self.event_id.logical_values(),
             self.subject.logical_values(),
             self.event_type.logical_values(),
-            self.effective_at.isoformat(),
-            self.recorded_at.isoformat(),
+            self.effective_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.recorded_at.astimezone(UTC).isoformat(timespec="microseconds"),
             self.evidence_ref.logical_values(),
         )
 
@@ -626,11 +628,11 @@ class ExternalIdentityMappingRevision:
             else None,
             self.external_identity.logical_values(),
             self.target.logical_values(),
-            self.effective_from.isoformat(),
-            self.effective_until.isoformat()
+            self.effective_from.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.effective_until.astimezone(UTC).isoformat(timespec="microseconds")
             if self.effective_until is not None
             else None,
-            self.recorded_at.isoformat(),
+            self.recorded_at.astimezone(UTC).isoformat(timespec="microseconds"),
             self.evidence_ref.logical_values(),
         )
 
