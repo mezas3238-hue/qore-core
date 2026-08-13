@@ -166,7 +166,12 @@ def test_mixed_payload_algebra_retains_all_three_market_evidence_types() -> None
     received = _BASE + timedelta(seconds=1)
     events = (
         _event(_quote(observation_id=100), event_id=10, sequence=0, received_at=received),
-        _event(_ohlc(), event_id=11, sequence=1, received_at=received + timedelta(milliseconds=2)),
+        _event(
+            _ohlc(),
+            event_id=11,
+            sequence=1,
+            received_at=received + timedelta(milliseconds=2),
+        ),
         _event(
             _specification(),
             event_id=12,
@@ -280,10 +285,26 @@ def test_arrival_provenance_cannot_contradict_retained_chronology(
     contradiction: str,
 ) -> None:
     base = _BASE + timedelta(seconds=1)
-    first_received = base + timedelta(milliseconds=5) if contradiction == "receipt" else base
-    second_received = base if contradiction == "receipt" else base + timedelta(milliseconds=1)
-    first_ingress = base + timedelta(milliseconds=6) if contradiction == "receipt" else base + timedelta(milliseconds=5)
-    second_ingress = base + timedelta(milliseconds=7) if contradiction == "receipt" else base + timedelta(milliseconds=2)
+    first_received = (
+        base + timedelta(milliseconds=5)
+        if contradiction == "receipt"
+        else base
+    )
+    second_received = (
+        base
+        if contradiction == "receipt"
+        else base + timedelta(milliseconds=1)
+    )
+    first_ingress = (
+        base + timedelta(milliseconds=6)
+        if contradiction == "receipt"
+        else base + timedelta(milliseconds=5)
+    )
+    second_ingress = (
+        base + timedelta(milliseconds=7)
+        if contradiction == "receipt"
+        else base + timedelta(milliseconds=2)
+    )
     first = _event(
         _quote(observation_id=190),
         event_id=50,
