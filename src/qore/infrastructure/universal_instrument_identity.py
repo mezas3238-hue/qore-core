@@ -9,6 +9,15 @@ from uuid import UUID
 from qore.infrastructure.ports import ExternalSourceDescriptor
 from qore.kernel.errors import InfrastructureError
 
+_SENSITIVE_TEXT_MARKERS = (
+    "authorization:",
+    "bearer ",
+    "client_secret=",
+    "password=",
+    "secret=",
+    "token=",
+)
+
 
 class UniversalInstrumentIdentityError(InfrastructureError):
     """Base error for universal instrument identity/lifecycle contracts."""
@@ -57,6 +66,14 @@ def _validate_text(value: str, *, field_name: str, max_length: int) -> None:
     ):
         raise UniversalInstrumentIdentityValidationError(
             f"{field_name} must be non-empty trimmed text without control characters"
+        )
+
+
+def _validate_public_identifier_text(value: str) -> None:
+    normalized = value.lower()
+    if any(marker in normalized for marker in _SENSITIVE_TEXT_MARKERS):
+        raise UniversalInstrumentIdentityValidationError(
+            "external identifier value must not contain credential-like material"
         )
 
 
@@ -199,6 +216,7 @@ class ExternalIdentifierValue:
             field_name="external identifier value",
             max_length=256,
         )
+        _validate_public_identifier_text(self.value)
 
     def logical_values(self) -> tuple[str, ...]:
         return (self.value,)
@@ -634,6 +652,7 @@ class IdentityMappingHistory:
         first = self.revisions[0]
         expected_mapping_id = first.mapping_id
         expected_external_identity = first.external_identity
+        previous_recorded_at: datetime | None = None
         for index, revision in enumerate(self.revisions, start=1):
             if revision.mapping_id != expected_mapping_id:
                 raise UniversalInstrumentIdentityValidationError(
@@ -659,6 +678,14 @@ class IdentityMappingHistory:
                 raise UniversalInstrumentIdentityValidationError(
                     "mapping history parent_revision must reference prior revision"
                 )
+            if (
+                previous_recorded_at is not None
+                and revision.recorded_at <= previous_recorded_at
+            ):
+                raise UniversalInstrumentIdentityValidationError(
+                    "mapping history revisions must have increasing recorded_at"
+                )
+            previous_recorded_at = revision.recorded_at
 
     @property
     def latest_revision(self) -> ExternalIdentityMappingRevision:
