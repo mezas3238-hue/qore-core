@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+import qore.infrastructure.provider_instrument_catalog as catalog_module
 from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.market_observation import MarketTimeframe, MarketTimeframeCode
 from qore.infrastructure.ports import (
@@ -15,7 +16,6 @@ from qore.infrastructure.ports import (
     PortName,
     SourceId,
 )
-import qore.infrastructure.provider_instrument_catalog as catalog_module
 from qore.infrastructure.provider_instrument_catalog import (
     ProviderCatalogScope,
     ProviderInstrumentCatalog,
@@ -28,7 +28,6 @@ from qore.infrastructure.provider_instrument_catalog import (
     ProviderTradingSession,
     ProviderVolumeTerms,
 )
-
 
 _SOURCE = ExternalSourceDescriptor(
     adapter_id=AdapterId(UUID("f1000000-0000-0000-0000-000000000001")),
