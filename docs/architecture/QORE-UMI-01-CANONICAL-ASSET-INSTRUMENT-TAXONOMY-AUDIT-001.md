@@ -602,6 +602,8 @@ UMI-01 does not design the final class graph, but the audit proves UMI-02 must d
 
 A stable QORE identity for the economic instrument/reference object independent of provider symbol text.
 
+UMI-02 must explicitly distinguish directly tradable instrument identities from reference-object identities — including benchmark rates, indices and physical/reference objects — that may be referenced by instruments or derivatives without themselves being directly tradable.
+
 ## 5.2 Listing / venue identity
 
 One economic instrument may have one or more venue/listing representations.
@@ -645,6 +647,17 @@ Cash/physical/deliverable/non-deliverable or family-specific settlement semantic
 ## 5.10 Provenance
 
 Identity mappings and externally sourced terms require evidence/provenance; a provider symbol mapping without provenance cannot silently become canonical identity.
+
+## 5.11 Versioned identity mapping and historical reproducibility
+
+Mappings between legacy identity material — including symbol text and external/provider identifiers where applicable — and canonical economic/reference identities must be versioned, explicitly effective-dated, evidence-bearing and historically retained. Historical datasets and replay evidence must be able to identify the mapping revision and evidence that governed identity interpretation when the evidence was created.
+
+```text
+CURRENT MAPPING != HISTORICAL IDENTITY INTERPRETATION
+MAPPING DIGEST != RETAINED VERSIONED MAPPING EVIDENCE
+```
+
+UMI-02 must treat mapping lineage as a first-class reproducibility contract, not a later retrofit.
 
 ---
 
@@ -852,6 +865,7 @@ Minimum design questions UMI-02 must answer:
 10. How does canonicalization preserve deterministic `logical_values()` and secret hygiene?
 11. What compatibility boundary lets PR #298 map cTrader native instruments into the new model?
 12. What minimal adversarial conformance tests prove the model can represent a bond, listed equity, dated future, option, FX pair, benchmark/index and multi-leg/reference relationship without semantic distortion?
+13. How are legacy/external-to-canonical identity mappings versioned, effective-dated, evidence-bearing and historically retained so research/replay can certify the identity interpretation that applied when evidence was created?
 
 UMI-02 must not implement every family-specific economic term. It must provide the identity/lifecycle/reference foundation on which UMI-03..09 can add family semantics without redesigning identity.
 
