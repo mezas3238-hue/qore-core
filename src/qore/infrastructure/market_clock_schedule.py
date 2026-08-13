@@ -49,9 +49,9 @@ def _zone(timezone_name: str) -> ZoneInfo:
         )
     try:
         return ZoneInfo(timezone_name)
-    except ZoneInfoNotFoundError as exc:
+    except (ZoneInfoNotFoundError, ValueError) as exc:
         raise MarketClockScheduleValidationError(
-            f"unknown IANA timezone: {timezone_name!r}"
+            f"invalid or unknown IANA timezone: {timezone_name!r}"
         ) from exc
 
 
