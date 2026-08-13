@@ -434,13 +434,13 @@ class CTraderNativePeriodCapability:
 class CTraderDynamicLeverageTier:
     """ProtoOADynamicLeverageTier values retained in documented Open API units."""
 
-    volume_usd: int
+    volume_usd_cents: int
     leverage: int
 
     def __post_init__(self) -> None:
         _positive_int(
-            self.volume_usd,
-            field_name="cTrader dynamic leverage volume_usd",
+            self.volume_usd_cents,
+            field_name="cTrader dynamic leverage volume_usd_cents",
         )
         _positive_int(
             self.leverage,
@@ -448,7 +448,7 @@ class CTraderDynamicLeverageTier:
         )
 
     def logical_values(self) -> tuple[int, int]:
-        return (self.volume_usd, self.leverage)
+        return (self.volume_usd_cents, self.leverage)
 
 
 @dataclass(frozen=True, slots=True)
@@ -472,12 +472,12 @@ class CTraderDynamicLeverage:
             raise CTraderProviderCatalogValidationError(
                 "cTrader dynamic leverage must retain at least one tier"
             )
-        volumes = tuple(item.volume_usd for item in self.tiers)
+        volumes = tuple(item.volume_usd_cents for item in self.tiers)
         if len(set(volumes)) != len(volumes):
             raise CTraderProviderCatalogValidationError(
                 "cTrader dynamic leverage tier volumes must be unique"
             )
-        canonical = tuple(sorted(self.tiers, key=lambda item: item.volume_usd))
+        canonical = tuple(sorted(self.tiers, key=lambda item: item.volume_usd_cents))
         if canonical != self.tiers:
             object.__setattr__(self, "tiers", canonical)
         if not isinstance(self.evidence_ref, ProviderInstrumentEvidenceReference):
@@ -682,9 +682,9 @@ def _margin_terms(
         last_index = len(dynamic.tiers) - 1
         tiers = tuple(
             ProviderMarginTier(
-                upper_bound=Decimal(item.volume_usd),
+                upper_bound=Decimal(item.volume_usd_cents),
                 leverage=Decimal(item.leverage),
-                bound_unit="usd",
+                bound_unit="usd_cents",
                 per_side=True,
                 applies_above=index == last_index,
             )
@@ -712,7 +712,7 @@ def _margin_terms(
             (
                 ("dynamic_leverage_evidence_ref", dynamic.evidence_ref.value),
                 ("dynamic_leverage_encoding", "open_api_applied_leverage"),
-                ("dynamic_leverage_volume_unit", "usd"),
+                ("dynamic_leverage_volume_unit", "usd_cents"),
             )
         )
     try:
