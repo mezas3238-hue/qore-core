@@ -14,6 +14,7 @@ from qore.infrastructure.ctrader_provider_catalog import (
     CTraderDynamicLeverage,
     CTraderDynamicLeverageTier,
     CTraderLightSymbol,
+    CTraderNativePeriodCapability,
     CTraderProviderCatalogValidationError,
     CTraderProviderInstrumentCatalogAdapter,
     CTraderSymbolReferenceData,
@@ -58,7 +59,13 @@ _SYMBOLS_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
 _REFERENCES_AT = datetime(2026, 8, 13, 10, 1, tzinfo=UTC)
 _PROFILE_AT = datetime(2026, 8, 13, 10, 2, tzinfo=UTC)
 _DYNAMIC_AT = datetime(2026, 8, 13, 10, 3, tzinfo=UTC)
+_CAPABILITY_AT = datetime(2026, 8, 13, 10, 4, tzinfo=UTC)
 _ALL_PERIODS = tuple(CTraderNativeTrendbarPeriod)
+_SYMBOLS_EVIDENCE = ProviderInstrumentEvidenceReference("ctrader-symbol-list-evidence")
+_PROFILE_EVIDENCE = ProviderInstrumentEvidenceReference("ctrader-account-margin-evidence")
+_CAPABILITY_EVIDENCE = ProviderInstrumentEvidenceReference(
+    "ctrader-native-period-capability-evidence"
+)
 
 
 class _Mapper(CTraderCanonicalInstrumentMapper):
@@ -97,7 +104,11 @@ class _CatalogClient:
         self._dynamic = dynamic
         self._scope = scope
         self._descriptor = descriptor
-        self._verified_native_periods = verified_native_periods
+        self._native_period_capability = CTraderNativePeriodCapability(
+            periods=verified_native_periods,
+            observed_at=_CAPABILITY_AT,
+            evidence_ref=_CAPABILITY_EVIDENCE,
+        )
         self.reference_requests: list[tuple[int, ...]] = []
         self.dynamic_requests: list[int] = []
 
@@ -110,10 +121,8 @@ class _CatalogClient:
         return self._scope
 
     @property
-    def verified_native_periods(
-        self,
-    ) -> tuple[CTraderNativeTrendbarPeriod, ...]:
-        return self._verified_native_periods
+    def native_period_capability(self) -> CTraderNativePeriodCapability:
+        return self._native_period_capability
 
     def list_symbols(
         self,
@@ -224,6 +233,7 @@ def _profile(*, account_id: int = 12345) -> CTraderAccountMarginProfile:
         total_margin_calculation_type=CTraderTotalMarginCalculationType.NET,
         max_leverage=50_000,
         observed_at=_PROFILE_AT,
+        evidence_ref=_PROFILE_EVIDENCE,
     )
 
 
@@ -235,12 +245,12 @@ def _dynamic(
         leverage_id=leverage_id,
         tiers=(
             CTraderDynamicLeverageTier(
-                volume_usd_cents=500_000_000,
-                leverage_hundredths=10_000,
+                volume_usd=500_000_000,
+                leverage=100,
             ),
             CTraderDynamicLeverageTier(
-                volume_usd_cents=100_000_000,
-                leverage_hundredths=50_000,
+                volume_usd=100_000_000,
+                leverage=500,
             ),
         ),
         evidence_ref=ProviderInstrumentEvidenceReference(
@@ -260,6 +270,7 @@ def _client(
         account_id=symbols_account_id,
         symbols=_light_symbols(),
         observed_at=_SYMBOLS_AT,
+        evidence_ref=_SYMBOLS_EVIDENCE,
     )
     reference_values = references or (
         _reference(1001, leverage_id=77),
@@ -309,7 +320,7 @@ def test_official_symbol_list_drives_exact_reference_and_dynamic_requests() -> N
     catalog = result.value
     assert catalog.scope == _SCOPE
     assert catalog.source == _DESCRIPTOR
-    assert catalog.observed_at == _DYNAMIC_AT
+    assert catalog.observed_at == _CAPABILITY_AT
     assert tuple(entry.provider_symbol_id for entry in catalog.entries) == (
         "1001",
         "1002",
@@ -326,6 +337,14 @@ def test_provider_symbol_text_is_retained_separately_from_explicit_mapping() -> 
     assert eurusd.instrument.symbol == "EURUSD"
     assert eurusd.asset_class == "FX"
     assert ("ctrader_category_name", "FX Majors") in eurusd.provider_native_fields
+    assert (
+        "ctrader_symbols_list_evidence_ref",
+        _SYMBOLS_EVIDENCE.value,
+    ) in eurusd.provider_native_fields
+    assert (
+        "ctrader_native_period_capability_evidence_ref",
+        _CAPABILITY_EVIDENCE.value,
+    ) in eurusd.provider_native_fields
 
 
 def test_ctrader_digits_do_not_invent_minimum_tick_increment() -> None:
@@ -370,12 +389,24 @@ def test_margin_model_retains_account_and_dynamic_native_semantics() -> None:
         Decimal("500"),
         Decimal("100"),
     )
-    assert all(tier.bound_unit == "usd_cents" for tier in terms.tiers)
+    assert all(tier.bound_unit == "usd" for tier in terms.tiers)
     assert all(tier.per_side is True for tier in terms.tiers)
     assert terms.tiers[0].applies_above is False
     assert terms.tiers[-1].applies_above is True
     assert ("leverage_in_cents", "5000") in terms.native_fields
-    assert ("dynamic_leverage_encoding", "hundredths") in terms.native_fields
+    assert (
+        "account_margin_evidence_ref",
+        _PROFILE_EVIDENCE.value,
+    ) in terms.native_fields
+    assert (
+        "dynamic_leverage_evidence_ref",
+        "ctrader-dynamic-77-evidence",
+    ) in terms.native_fields
+    assert (
+        "dynamic_leverage_encoding",
+        "open_api_applied_leverage",
+    ) in terms.native_fields
+    assert ("dynamic_leverage_volume_unit", "usd") in terms.native_fields
     assert ("dynamic_leverage_id", "77") in terms.native_fields
 
 
