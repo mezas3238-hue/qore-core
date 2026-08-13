@@ -220,7 +220,10 @@ def test_dataset_retains_mixed_payloads_duplicates_and_conflicts() -> None:
         duplicate_second,
         conflict,
     )
-    assert duplicate_first.payload.logical_values() == duplicate_second.payload.logical_values()
+    assert (
+        duplicate_first.payload.logical_values()
+        == duplicate_second.payload.logical_values()
+    )
     assert conflict.canonical_boundary == duplicate_first.canonical_boundary
     assert conflict.payload.logical_values() != duplicate_first.payload.logical_values()
 
@@ -228,9 +231,7 @@ def test_dataset_retains_mixed_payloads_duplicates_and_conflicts() -> None:
 def test_digest_is_order_independent_and_excludes_admin_identity() -> None:
     first = _event(_quote(suffix=20), suffix=20, sequence=1, received_offset_ms=0)
     second = _event(_ohlc(suffix=21), suffix=21, sequence=2, received_offset_ms=2)
-    left = _build(
-        (second, first), dataset_suffix=30, revision_suffix=31
-    )
+    left = _build((second, first), dataset_suffix=30, revision_suffix=31)
     right = _build(
         (first, second),
         dataset_suffix=32,
@@ -351,11 +352,12 @@ def test_dataset_constructor_requires_canonical_arrival_order_and_digest() -> No
 
     with pytest.raises(HistoricalMarketEventDatasetValidationError):
         replace(built.value, observations=(second, first))
+    changed_first = replace(
+        first,
+        available_at=first.available_at + timedelta(seconds=1),
+    )
     with pytest.raises(HistoricalMarketEventDatasetValidationError):
-        replace(
-            built.value,
-            observations=(replace(first, available_at=first.available_at + timedelta(seconds=1)), second),
-        )
+        replace(built.value, observations=(changed_first, second))
 
 
 def test_manifest_cannot_be_assembled_before_declared_capture_window_closes() -> None:
