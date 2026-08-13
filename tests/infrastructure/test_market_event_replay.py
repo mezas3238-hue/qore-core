@@ -45,6 +45,8 @@ from qore.infrastructure.ports import (
     SourceId,
 )
 
+_BASE = datetime(2026, 8, 12, 12, 0, tzinfo=UTC)
+
 
 def _uuid(value: int) -> UUID:
     return UUID(int=value)
@@ -63,16 +65,13 @@ def _price(value: str) -> MarketPrice:
 
 
 def _field(value: str) -> MarketOhlcField:
-    return MarketOhlcField(
-        validity=MarketOhlcFieldValidity.VALID,
-        price=_price(value),
-    )
+    return MarketOhlcField(MarketOhlcFieldValidity.VALID, _price(value))
 
 
 def _quote(
     *,
-    observation_id: int = 100,
-    observed_at: datetime | None = None,
+    observation_id: int,
+    observed_at: datetime = _BASE,
     bid: str = "1.10000",
     ask: str = "1.10010",
 ) -> QualifiedQuoteTickObservation:
@@ -80,16 +79,15 @@ def _quote(
         observation_id=MarketObservationId(_uuid(observation_id)),
         instrument=Instrument("EURUSD"),
         source=_source(),
-        observed_at=observed_at
-        or datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
+        observed_at=observed_at,
         bid=_price(bid),
         ask=_price(ask),
-        evidence_ref=MarketObservationEvidenceReference(_uuid(observation_id + 1)),
+        evidence_ref=MarketObservationEvidenceReference(_uuid(observation_id + 1000)),
     )
 
 
 def _ohlc() -> QualifiedOhlcBarObservation:
-    opened_at = datetime(2026, 8, 12, 11, 55, tzinfo=UTC)
+    opened_at = _BASE - timedelta(minutes=5)
     return QualifiedOhlcBarObservation(
         observation_id=MarketObservationId(_uuid(200)),
         instrument=Instrument("EURUSD"),
@@ -98,12 +96,12 @@ def _ohlc() -> QualifiedOhlcBarObservation:
         price_side=MarketPriceSide.BID,
         origin=MarketBarOrigin.NATIVE,
         opened_at=opened_at,
-        closed_at=opened_at + timedelta(minutes=5),
+        closed_at=_BASE,
         open=_field("1.10000"),
         high=_field("1.10100"),
         low=_field("1.09900"),
         close=_field("1.10050"),
-        evidence_ref=MarketObservationEvidenceReference(_uuid(201)),
+        evidence_ref=MarketObservationEvidenceReference(_uuid(1200)),
     )
 
 
@@ -116,8 +114,8 @@ def _specification() -> InstrumentMarketSpecification:
         provider_symbol_id="1",
         price_precision=5,
         minimum_price_increment=_price("0.00001"),
-        effective_at=datetime(2026, 8, 12, 11, 0, tzinfo=UTC),
-        evidence_ref=MarketObservationEvidenceReference(_uuid(301)),
+        effective_at=_BASE - timedelta(hours=1),
+        evidence_ref=MarketObservationEvidenceReference(_uuid(1300)),
     )
 
 
@@ -127,35 +125,25 @@ def _event(
     | InstrumentMarketSpecification,
     *,
     event_id: int,
+    sequence: int,
+    received_at: datetime,
     session_id: int = 500,
     session_ordinal: int = 0,
-    sequence: int = 0,
-    received_at: datetime | None = None,
+    lineage_id: int = 400,
     core_ingress_at: datetime | None = None,
     availability_evidence_at: datetime | None = None,
     available_at: datetime | None = None,
     basis: MarketEventAvailabilityBasis = MarketEventAvailabilityBasis.CORE_INGRESS,
-    lineage_id: int = 400,
 ) -> RetainedMarketEventObservation:
-    resolved_received_at = received_at or datetime(
-        2026,
-        8,
-        12,
-        12,
-        0,
-        1,
-        tzinfo=UTC,
-    )
-    resolved_core_ingress_at = core_ingress_at or (
-        resolved_received_at + timedelta(milliseconds=1)
-    )
-    resolved_evidence_at = availability_evidence_at
-    if resolved_evidence_at is None:
-        if basis is MarketEventAvailabilityBasis.OBSERVED_RECEIPT:
-            resolved_evidence_at = resolved_received_at
-        else:
-            resolved_evidence_at = resolved_core_ingress_at
-    resolved_available_at = available_at or resolved_core_ingress_at
+    ingress = core_ingress_at or received_at + timedelta(milliseconds=1)
+    evidence = availability_evidence_at
+    if evidence is None:
+        evidence = (
+            received_at
+            if basis is MarketEventAvailabilityBasis.OBSERVED_RECEIPT
+            else ingress
+        )
+    visibility = available_at or ingress
     return RetainedMarketEventObservation(
         event_id=MarketEventObservationId(_uuid(event_id)),
         payload=payload,
@@ -163,391 +151,288 @@ def _event(
         capture_session_id=MarketCaptureSessionId(_uuid(session_id)),
         capture_session_ordinal=MarketCaptureSessionOrdinal(session_ordinal),
         ingress_sequence=MarketIngressSequence(sequence),
-        boundary_received_at=resolved_received_at,
-        core_ingress_at=resolved_core_ingress_at,
-        availability_evidence_at=resolved_evidence_at,
-        available_at=resolved_available_at,
+        boundary_received_at=received_at,
+        core_ingress_at=ingress,
+        availability_evidence_at=evidence,
+        available_at=visibility,
         availability_basis=basis,
         availability_evidence_ref=MarketEventAvailabilityEvidenceReference(
-            _uuid(event_id + 1000)
+            _uuid(event_id + 2000)
         ),
     )
 
 
-def test_mixed_payload_algebra_retains_quote_ohlc_and_specification() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
+def test_mixed_payload_algebra_retains_all_three_market_evidence_types() -> None:
+    received = _BASE + timedelta(seconds=1)
     events = (
-        _event(_quote(), event_id=10, sequence=0, received_at=base),
-        _event(
-            _ohlc(),
-            event_id=11,
-            sequence=1,
-            received_at=base + timedelta(milliseconds=2),
-        ),
+        _event(_quote(observation_id=100), event_id=10, sequence=0, received_at=received),
+        _event(_ohlc(), event_id=11, sequence=1, received_at=received + timedelta(milliseconds=2)),
         _event(
             _specification(),
             event_id=12,
             sequence=2,
-            received_at=base + timedelta(milliseconds=4),
+            received_at=received + timedelta(milliseconds=4),
         ),
     )
 
-    ordered = order_market_event_observations(events)
-
-    assert tuple(item.payload_kind for item in ordered) == (
+    assert tuple(item.payload_kind for item in order_market_event_observations(events)) == (
         "quote",
         "ohlc",
         "instrument_specification",
     )
 
 
-def test_equal_available_at_conflicts_order_by_ingress_provenance() -> None:
-    observed_at = datetime(2026, 8, 12, 12, 0, tzinfo=UTC)
-    received_at = observed_at + timedelta(seconds=1)
-    available_at = observed_at + timedelta(seconds=2)
+def test_equal_available_at_conflicts_use_arrival_provenance_not_uuid() -> None:
+    received = _BASE + timedelta(seconds=1)
+    visible_at = _BASE + timedelta(seconds=2)
     first = _event(
-        _quote(observation_id=110, observed_at=observed_at, bid="1.1000", ask="1.1001"),
-        event_id=900,
-        sequence=1,
-        received_at=received_at,
-        core_ingress_at=received_at + timedelta(milliseconds=1),
-        available_at=available_at,
-    )
-    second = _event(
-        _quote(observation_id=120, observed_at=observed_at, bid="1.1002", ask="1.1003"),
-        event_id=100,
-        sequence=2,
-        received_at=received_at + timedelta(milliseconds=2),
-        core_ingress_at=received_at + timedelta(milliseconds=3),
-        available_at=available_at,
-    )
-
-    visible = visible_market_event_observations(
-        (second, first),
-        simulated_now=available_at,
-    )
-
-    assert visible == (first, second)
-
-
-def test_reversed_uuid_cannot_change_first_arrival_order() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    first = _event(
-        _quote(observation_id=130),
+        _quote(observation_id=110, bid="1.1000", ask="1.1001"),
         event_id=999,
         sequence=1,
-        received_at=base,
+        received_at=received,
+        available_at=visible_at,
+    )
+    second = _event(
+        _quote(observation_id=120, bid="1.1002", ask="1.1003"),
+        event_id=1,
+        sequence=2,
+        received_at=received + timedelta(milliseconds=2),
+        available_at=visible_at,
+    )
+
+    assert visible_market_event_observations(
+        (second, first), simulated_now=visible_at
+    ) == (first, second)
+
+
+def test_cross_session_order_uses_session_ordinal_not_session_uuid() -> None:
+    received = _BASE + timedelta(seconds=1)
+    first = _event(
+        _quote(observation_id=130),
+        event_id=20,
+        sequence=9,
+        session_id=999,
+        session_ordinal=4,
+        received_at=received,
     )
     second = _event(
         _quote(observation_id=140),
-        event_id=1,
-        sequence=2,
-        received_at=base + timedelta(milliseconds=2),
+        event_id=21,
+        sequence=0,
+        session_id=1,
+        session_ordinal=5,
+        received_at=received + timedelta(milliseconds=2),
     )
 
     assert order_market_event_observations((second, first)) == (first, second)
 
 
-def test_cross_session_order_uses_session_ordinal_not_uuid() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    first_session = _event(
-        _quote(observation_id=150),
-        event_id=20,
-        session_id=999,
-        session_ordinal=4,
-        sequence=9,
-        received_at=base,
-    )
-    second_session = _event(
-        _quote(observation_id=160),
-        event_id=21,
-        session_id=1,
-        session_ordinal=5,
-        sequence=0,
-        received_at=base + timedelta(milliseconds=2),
-    )
-
-    assert order_market_event_observations((second_session, first_session)) == (
-        first_session,
-        second_session,
-    )
-
-
 def test_duplicate_arrival_provenance_fails_closed() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
+    received = _BASE + timedelta(seconds=1)
     first = _event(
-        _quote(observation_id=170),
-        event_id=30,
-        sequence=7,
-        received_at=base,
+        _quote(observation_id=150), event_id=30, sequence=7, received_at=received
     )
     duplicate = _event(
-        _quote(observation_id=180),
-        event_id=31,
-        sequence=7,
-        received_at=base,
+        _quote(observation_id=160), event_id=31, sequence=7, received_at=received
     )
 
     with pytest.raises(MarketEventReplayValidationError):
         order_market_event_observations((first, duplicate))
 
 
-def test_session_ordinal_cannot_identify_two_sessions() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
+@pytest.mark.parametrize(
+    ("first_session", "first_ordinal", "second_session", "second_ordinal"),
+    [
+        (10, 3, 11, 3),
+        (12, 3, 12, 4),
+    ],
+)
+def test_capture_session_and_ordinal_mapping_is_bijective(
+    first_session: int,
+    first_ordinal: int,
+    second_session: int,
+    second_ordinal: int,
+) -> None:
+    received = _BASE + timedelta(seconds=1)
+    first = _event(
+        _quote(observation_id=170),
+        event_id=40,
+        sequence=0,
+        session_id=first_session,
+        session_ordinal=first_ordinal,
+        received_at=received,
+    )
+    second = _event(
+        _quote(observation_id=180),
+        event_id=41,
+        sequence=1,
+        session_id=second_session,
+        session_ordinal=second_ordinal,
+        received_at=received + timedelta(milliseconds=2),
+    )
+
+    with pytest.raises(MarketEventReplayValidationError):
+        order_market_event_observations((first, second))
+
+
+@pytest.mark.parametrize("contradiction", ["receipt", "core_ingress"])
+def test_arrival_provenance_cannot_contradict_retained_chronology(
+    contradiction: str,
+) -> None:
+    base = _BASE + timedelta(seconds=1)
+    first_received = base + timedelta(milliseconds=5) if contradiction == "receipt" else base
+    second_received = base if contradiction == "receipt" else base + timedelta(milliseconds=1)
+    first_ingress = base + timedelta(milliseconds=6) if contradiction == "receipt" else base + timedelta(milliseconds=5)
+    second_ingress = base + timedelta(milliseconds=7) if contradiction == "receipt" else base + timedelta(milliseconds=2)
     first = _event(
         _quote(observation_id=190),
-        event_id=40,
-        session_id=10,
-        session_ordinal=3,
-        sequence=0,
-        received_at=base,
+        event_id=50,
+        sequence=1,
+        received_at=first_received,
+        core_ingress_at=first_ingress,
     )
     second = _event(
         _quote(observation_id=191),
-        event_id=41,
-        session_id=11,
-        session_ordinal=3,
-        sequence=1,
-        received_at=base + timedelta(milliseconds=2),
-    )
-
-    with pytest.raises(MarketEventReplayValidationError):
-        order_market_event_observations((first, second))
-
-
-def test_one_session_cannot_change_ordinal() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    first = _event(
-        _quote(observation_id=192),
-        event_id=42,
-        session_id=12,
-        session_ordinal=3,
-        sequence=0,
-        received_at=base,
-    )
-    second = _event(
-        _quote(observation_id=193),
-        event_id=43,
-        session_id=12,
-        session_ordinal=4,
-        sequence=1,
-        received_at=base + timedelta(milliseconds=2),
-    )
-
-    with pytest.raises(MarketEventReplayValidationError):
-        order_market_event_observations((first, second))
-
-
-def test_arrival_provenance_cannot_contradict_receipt_chronology() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    first_by_sequence = _event(
-        _quote(observation_id=194),
-        event_id=50,
-        sequence=1,
-        received_at=base + timedelta(milliseconds=5),
-        core_ingress_at=base + timedelta(milliseconds=6),
-    )
-    second_by_sequence = _event(
-        _quote(observation_id=195),
         event_id=51,
         sequence=2,
-        received_at=base,
-        core_ingress_at=base + timedelta(milliseconds=1),
+        received_at=second_received,
+        core_ingress_at=second_ingress,
     )
 
     with pytest.raises(MarketEventReplayValidationError):
-        order_market_event_observations(
-            (second_by_sequence, first_by_sequence)
-        )
+        order_market_event_observations((first, second))
 
 
-def test_arrival_provenance_cannot_contradict_core_ingress_chronology() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    first_by_sequence = _event(
-        _quote(observation_id=196),
-        event_id=52,
-        sequence=1,
-        received_at=base,
-        core_ingress_at=base + timedelta(milliseconds=5),
-    )
-    second_by_sequence = _event(
-        _quote(observation_id=197),
-        event_id=53,
-        sequence=2,
-        received_at=base + timedelta(milliseconds=1),
-        core_ingress_at=base + timedelta(milliseconds=2),
-    )
-
-    with pytest.raises(MarketEventReplayValidationError):
-        order_market_event_observations(
-            (first_by_sequence, second_by_sequence)
-        )
-
-
-def test_visibility_is_hidden_before_and_inclusive_at_available_at() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    available_at = base + timedelta(seconds=1)
-    event = _event(
-        _quote(observation_id=198),
+def test_visibility_is_inclusive_and_visible_set_keeps_arrival_order() -> None:
+    base = _BASE + timedelta(seconds=1)
+    first = _event(
+        _quote(observation_id=200),
         event_id=60,
-        received_at=base,
-        available_at=available_at,
-    )
-
-    assert visible_market_event_observations(
-        (event,),
-        simulated_now=available_at - timedelta(microseconds=1),
-    ) == ()
-    assert visible_market_event_observations(
-        (event,),
-        simulated_now=available_at,
-    ) == (event,)
-
-
-def test_visible_events_retain_arrival_order_not_available_order() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    first_arrival = _event(
-        _quote(observation_id=199),
-        event_id=70,
         sequence=1,
         received_at=base,
         available_at=base + timedelta(seconds=5),
     )
-    second_arrival = _event(
+    second = _event(
         _quote(observation_id=210),
-        event_id=71,
+        event_id=61,
         sequence=2,
         received_at=base + timedelta(milliseconds=2),
         available_at=base + timedelta(seconds=3),
     )
 
     assert visible_market_event_observations(
-        (second_arrival, first_arrival),
-        simulated_now=base + timedelta(seconds=6),
-    ) == (first_arrival, second_arrival)
+        (second, first), simulated_now=base + timedelta(seconds=3)
+    ) == (second,)
+    assert visible_market_event_observations(
+        (second, first), simulated_now=base + timedelta(seconds=5)
+    ) == (first, second)
 
 
-def test_availability_instants_are_distinct_sorted_and_offset_equivalent() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    ny_offset = timezone(timedelta(hours=-4))
-    same_instant_offset = datetime(2026, 8, 12, 8, 0, 3, tzinfo=ny_offset)
+def test_availability_instants_are_distinct_sorted_by_time_not_arrival() -> None:
+    base = _BASE + timedelta(seconds=1)
+    offset = timezone(timedelta(hours=-4))
     first = _event(
         _quote(observation_id=220),
-        event_id=80,
+        event_id=70,
         sequence=1,
         received_at=base,
-        available_at=base + timedelta(seconds=2),
+        available_at=base + timedelta(seconds=3),
     )
     second = _event(
         _quote(observation_id=230),
-        event_id=81,
+        event_id=71,
         sequence=2,
         received_at=base + timedelta(milliseconds=2),
-        available_at=same_instant_offset,
+        available_at=(base + timedelta(seconds=2)).astimezone(offset),
     )
     third = _event(
         _quote(observation_id=240),
-        event_id=82,
+        event_id=72,
         sequence=3,
         received_at=base + timedelta(milliseconds=4),
         available_at=base + timedelta(seconds=2),
     )
 
-    assert derive_market_event_availability_instants((third, second, first)) == (
+    assert derive_market_event_availability_instants((third, first, second)) == (
         base + timedelta(seconds=2),
-        base + timedelta(seconds=2, milliseconds=1000),
+        base + timedelta(seconds=3),
     )
 
 
-def test_event_logical_values_canonicalize_offset_equivalent_times() -> None:
-    utc_received = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    offset = timezone(timedelta(hours=-4))
-    offset_received = datetime(2026, 8, 12, 8, 0, 1, tzinfo=offset)
+def test_logical_values_canonicalize_offset_equivalent_instants() -> None:
+    utc_received = _BASE + timedelta(seconds=1)
+    offset_received = utc_received.astimezone(timezone(timedelta(hours=-4)))
     payload = _quote(observation_id=250)
     utc_event = _event(
-        payload,
-        event_id=90,
-        received_at=utc_received,
+        payload, event_id=80, sequence=1, received_at=utc_received
     )
     offset_event = _event(
-        payload,
-        event_id=90,
-        received_at=offset_received,
+        payload, event_id=80, sequence=1, received_at=offset_received
     )
 
     assert utc_event == offset_event
     assert utc_event.logical_values() == offset_event.logical_values()
 
 
-def test_event_rejects_receipt_before_payload_boundary() -> None:
+def test_event_temporal_guards_fail_closed() -> None:
     payload = _quote(observation_id=260)
+    received = _BASE + timedelta(seconds=1)
 
     with pytest.raises(MarketEventReplayValidationError):
         _event(
             payload,
-            event_id=100,
+            event_id=90,
+            sequence=1,
             received_at=payload.observed_at - timedelta(microseconds=1),
+        )
+    with pytest.raises(MarketEventReplayValidationError):
+        _event(
+            payload,
+            event_id=91,
+            sequence=1,
+            received_at=received,
+            core_ingress_at=received - timedelta(microseconds=1),
+        )
+    with pytest.raises(MarketEventReplayValidationError):
+        _event(
+            payload,
+            event_id=92,
+            sequence=1,
+            received_at=received,
+            core_ingress_at=received + timedelta(milliseconds=1),
+            available_at=received,
         )
 
 
-def test_event_rejects_core_ingress_before_receipt() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-
+def test_availability_basis_binds_evidence_timestamp() -> None:
+    received = _BASE + timedelta(seconds=1)
     with pytest.raises(MarketEventReplayValidationError):
         _event(
             _quote(observation_id=270),
-            event_id=101,
-            received_at=base,
-            core_ingress_at=base - timedelta(microseconds=1),
-        )
-
-
-def test_event_rejects_replay_visibility_before_core_ingress() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    core_ingress = base + timedelta(milliseconds=1)
-
-    with pytest.raises(MarketEventReplayValidationError):
-        _event(
-            _quote(observation_id=280),
-            event_id=102,
-            received_at=base,
-            core_ingress_at=core_ingress,
-            available_at=base,
-        )
-
-
-def test_observed_receipt_basis_must_bind_receipt_timestamp() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-
-    with pytest.raises(MarketEventReplayValidationError):
-        _event(
-            _quote(observation_id=290),
-            event_id=103,
-            received_at=base,
-            availability_evidence_at=base + timedelta(microseconds=1),
+            event_id=100,
+            sequence=1,
+            received_at=received,
             basis=MarketEventAvailabilityBasis.OBSERVED_RECEIPT,
+            availability_evidence_at=received + timedelta(microseconds=1),
         )
 
-
-def test_provider_evidence_may_delay_availability_beyond_core_ingress() -> None:
-    base = datetime(2026, 8, 12, 12, 0, 1, tzinfo=UTC)
-    evidence_at = base + timedelta(seconds=2)
-    event = _event(
-        _quote(observation_id=300),
-        event_id=104,
-        received_at=base,
-        core_ingress_at=base + timedelta(milliseconds=1),
-        availability_evidence_at=evidence_at,
-        available_at=evidence_at,
+    ingress = received + timedelta(milliseconds=1)
+    provider_evidence_at = received + timedelta(seconds=2)
+    retained = _event(
+        _quote(observation_id=280),
+        event_id=101,
+        sequence=1,
+        received_at=received,
+        core_ingress_at=ingress,
         basis=MarketEventAvailabilityBasis.PROVIDER_EVIDENCE,
+        availability_evidence_at=provider_evidence_at,
+        available_at=provider_evidence_at,
     )
-
-    assert event.available_at == evidence_at
+    assert retained.available_at == provider_evidence_at
 
 
 def test_module_has_no_hidden_clock_identity_or_runtime_side_effects() -> None:
     source = inspect.getsource(replay_module)
-
     for forbidden in (
         "datetime.now(",
         "datetime.utcnow(",
