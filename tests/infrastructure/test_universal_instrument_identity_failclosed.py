@@ -81,7 +81,11 @@ def _external(symbol: str = "AAPL") -> ExternalIdentifier:
     )
 
 
-def _relation(value: int, source: EconomicIdentity, target: EconomicIdentity) -> IdentityRelationship:
+def _relation(
+    value: int,
+    source: EconomicIdentity,
+    target: EconomicIdentity,
+) -> IdentityRelationship:
     return IdentityRelationship(
         IdentityRelationshipId(_u(2_000 + value)),
         source.identity_id,
