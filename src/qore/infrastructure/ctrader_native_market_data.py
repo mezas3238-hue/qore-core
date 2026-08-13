@@ -240,6 +240,21 @@ class CTraderNativeTrendbarReadResult:
             raise CTraderNativeMarketDataValidationError(
                 "cTrader result trendbars must be immutable CTraderTrendbar tuple"
             )
+        open_minutes = tuple(
+            item.utc_timestamp_in_minutes for item in self.trendbars
+        )
+        if len(set(open_minutes)) != len(open_minutes):
+            raise CTraderNativeMarketDataValidationError(
+                "cTrader result trendbar open timestamps must be unique"
+            )
+        canonical_trendbars = tuple(
+            sorted(
+                self.trendbars,
+                key=lambda item: item.utc_timestamp_in_minutes,
+            )
+        )
+        if canonical_trendbars != self.trendbars:
+            object.__setattr__(self, "trendbars", canonical_trendbars)
         if type(self.has_more) is not bool:
             raise CTraderNativeMarketDataValidationError(
                 "cTrader result has_more must be strict bool"
