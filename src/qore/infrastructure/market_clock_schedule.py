@@ -115,12 +115,14 @@ class WallClockTransition:
             local.hour,
             local.minute,
             local.second,
+            local.microsecond,
         )
         actual = (
             self.local_date,
             self.boundary.hour,
             self.boundary.minute,
             self.boundary.second,
+            0,
         )
         if expected != actual:
             raise MarketClockScheduleValidationError(
