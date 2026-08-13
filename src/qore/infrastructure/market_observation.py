@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
@@ -30,6 +30,11 @@ def _validate_timestamp(value: datetime, *, field_name: str) -> None:
         raise MarketObservationValidationError(
             f"{field_name} must be timezone-aware"
         )
+
+
+def _canonical_timestamp(value: datetime, *, field_name: str) -> str:
+    _validate_timestamp(value, field_name=field_name)
+    return value.astimezone(UTC).isoformat(timespec="microseconds")
 
 
 def _validate_market_data_source(
@@ -168,26 +173,36 @@ class MarketOhlcField:
 
 
 class MarketTimeframeCode(StrEnum):
+    """Current canonical catalog covering every cTrader native trendbar period."""
+
     M1 = "M1"
+    M2 = "M2"
     M3 = "M3"
+    M4 = "M4"
     M5 = "M5"
+    M10 = "M10"
     M15 = "M15"
     M30 = "M30"
     H1 = "H1"
     H4 = "H4"
-    D = "D"
-    W = "W"
-    M = "M"
+    H12 = "H12"
+    D1 = "D1"
+    W1 = "W1"
+    MN1 = "MN1"
 
 
 _FIXED_TIMEFRAME_SECONDS: dict[MarketTimeframeCode, int] = {
     MarketTimeframeCode.M1: 60,
+    MarketTimeframeCode.M2: 120,
     MarketTimeframeCode.M3: 180,
+    MarketTimeframeCode.M4: 240,
     MarketTimeframeCode.M5: 300,
+    MarketTimeframeCode.M10: 600,
     MarketTimeframeCode.M15: 900,
     MarketTimeframeCode.M30: 1800,
     MarketTimeframeCode.H1: 3600,
     MarketTimeframeCode.H4: 14400,
+    MarketTimeframeCode.H12: 43200,
 }
 
 
@@ -334,8 +349,8 @@ class QualifiedOhlcBarObservation:
             self.timeframe.logical_values(),
             self.price_side.value,
             self.origin.value,
-            self.opened_at.isoformat(),
-            self.closed_at.isoformat(),
+            _canonical_timestamp(self.opened_at, field_name="OHLC opened_at"),
+            _canonical_timestamp(self.closed_at, field_name="OHLC closed_at"),
             self.open.logical_values(),
             self.high.logical_values(),
             self.low.logical_values(),
@@ -400,7 +415,7 @@ class QualifiedQuoteTickObservation:
             self.observation_id.logical_values(),
             self.instrument.symbol,
             self.source.logical_values(),
-            self.observed_at.isoformat(),
+            _canonical_timestamp(self.observed_at, field_name="quote observed_at"),
             self.bid.logical_values(),
             self.ask.logical_values(),
             self.canonical_spread,
@@ -487,6 +502,9 @@ class InstrumentMarketSpecification:
             self.provider_symbol_id,
             self.price_precision,
             self.minimum_price_increment.logical_values(),
-            self.effective_at.isoformat(),
+            _canonical_timestamp(
+                self.effective_at,
+                field_name="specification effective_at",
+            ),
             self.evidence_ref.logical_values(),
         )
