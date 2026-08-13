@@ -233,30 +233,126 @@ class DepartmentRegistry:
 
 
 CANONICAL_DEPARTMENTS: tuple[DepartmentSpec, ...] = (
-    DepartmentSpec(DepartmentId.CORE_GOVERNANCE, "core-governance", "Core Governance & Constitutional Contracts"),
-    DepartmentSpec(DepartmentId.IDENTITY_SECURITY, "identity-security", "Identity, Security & Cryptographic Trust"),
-    DepartmentSpec(DepartmentId.PLATFORM_CONNECTIVITY, "platform-connectivity", "Platform Connectivity & Provider Capability"),
-    DepartmentSpec(DepartmentId.MARKETS_INSTRUMENTS, "markets-instruments", "Markets, Instruments & Reference Data"),
-    DepartmentSpec(DepartmentId.MARKET_DATA, "market-data", "Market Data & Market Evidence"),
-    DepartmentSpec(DepartmentId.TIME_LIFECYCLE, "time-lifecycle", "Time, Calendars, Sessions & Instrument Lifecycle"),
-    DepartmentSpec(DepartmentId.VALUATION_ANALYTICS, "valuation-analytics", "Valuation, Pricing, Yield & Analytics"),
-    DepartmentSpec(DepartmentId.ACCOUNT_PORTFOLIO, "account-portfolio", "Account, Cash, Collateral & Portfolio"),
-    DepartmentSpec(DepartmentId.RISK, "risk", "Risk, Margin, Exposure & Limits"),
-    DepartmentSpec(DepartmentId.ORDER_EXECUTION, "order-execution", "Order, Execution & Routing"),
-    DepartmentSpec(DepartmentId.POST_TRADE, "post-trade", "Position, Settlement, Post-Trade & Reconciliation"),
-    DepartmentSpec(DepartmentId.RESEARCH_QUANT, "research-quant", "Research, Replay & Quant"),
-    DepartmentSpec(DepartmentId.DECISION_INTELLIGENCE, "decision-intelligence", "Decision Intelligence — CIO / CIBO / Specialized Traders"),
-    DepartmentSpec(DepartmentId.LINEAGE_VALIDATION, "lineage-validation", "Data Lineage, Knowledge, Statistics & Validation"),
-    DepartmentSpec(DepartmentId.OBSERVABILITY_RELIABILITY, "observability-reliability", "Observability, Reliability & Incident Operations"),
-    DepartmentSpec(DepartmentId.DISTRIBUTED_RUNTIME_CLOUD, "distributed-runtime-cloud", "Distributed Runtime, Hosting, VPS & Cloud Operations"),
-    DepartmentSpec(DepartmentId.SIGNAL_DISTRIBUTION, "signal-distribution", "Signal Production, Security & Distribution"),
-    DepartmentSpec(DepartmentId.CLIENT_EXECUTION, "client-execution", "Client Execution Ecosystem — EA / Agent"),
-    DepartmentSpec(DepartmentId.CLIENT_READ_MODELS, "client-read-models", "Client Read Models & Widget Presentation"),
-    DepartmentSpec(DepartmentId.EXECUTIVE_CONTROL, "executive-control", "Executive / CEO Control Surfaces"),
-    DepartmentSpec(DepartmentId.COMMERCIAL_ENTITLEMENTS, "commercial-entitlements", "Commercial Products, Billing, Payments & Entitlements"),
-    DepartmentSpec(DepartmentId.COMPLIANCE_AUDIT, "compliance-audit", "Compliance, Regulatory Evidence & Audit Reporting"),
-    DepartmentSpec(DepartmentId.NOTIFICATIONS, "notifications", "Notifications & Client/Operational Communication"),
-    DepartmentSpec(DepartmentId.CERTIFICATION_GATE, "certification-gate", "Certification & Integration Gate"),
+    DepartmentSpec(
+        DepartmentId.CORE_GOVERNANCE,
+        "core-governance",
+        "Core Governance & Constitutional Contracts",
+    ),
+    DepartmentSpec(
+        DepartmentId.IDENTITY_SECURITY,
+        "identity-security",
+        "Identity, Security & Cryptographic Trust",
+    ),
+    DepartmentSpec(
+        DepartmentId.PLATFORM_CONNECTIVITY,
+        "platform-connectivity",
+        "Platform Connectivity & Provider Capability",
+    ),
+    DepartmentSpec(
+        DepartmentId.MARKETS_INSTRUMENTS,
+        "markets-instruments",
+        "Markets, Instruments & Reference Data",
+    ),
+    DepartmentSpec(
+        DepartmentId.MARKET_DATA,
+        "market-data",
+        "Market Data & Market Evidence",
+    ),
+    DepartmentSpec(
+        DepartmentId.TIME_LIFECYCLE,
+        "time-lifecycle",
+        "Time, Calendars, Sessions & Instrument Lifecycle",
+    ),
+    DepartmentSpec(
+        DepartmentId.VALUATION_ANALYTICS,
+        "valuation-analytics",
+        "Valuation, Pricing, Yield & Analytics",
+    ),
+    DepartmentSpec(
+        DepartmentId.ACCOUNT_PORTFOLIO,
+        "account-portfolio",
+        "Account, Cash, Collateral & Portfolio",
+    ),
+    DepartmentSpec(
+        DepartmentId.RISK,
+        "risk",
+        "Risk, Margin, Exposure & Limits",
+    ),
+    DepartmentSpec(
+        DepartmentId.ORDER_EXECUTION,
+        "order-execution",
+        "Order, Execution & Routing",
+    ),
+    DepartmentSpec(
+        DepartmentId.POST_TRADE,
+        "post-trade",
+        "Position, Settlement, Post-Trade & Reconciliation",
+    ),
+    DepartmentSpec(
+        DepartmentId.RESEARCH_QUANT,
+        "research-quant",
+        "Research, Replay & Quant",
+    ),
+    DepartmentSpec(
+        DepartmentId.DECISION_INTELLIGENCE,
+        "decision-intelligence",
+        "Decision Intelligence — CIO / CIBO / Specialized Traders",
+    ),
+    DepartmentSpec(
+        DepartmentId.LINEAGE_VALIDATION,
+        "lineage-validation",
+        "Data Lineage, Knowledge, Statistics & Validation",
+    ),
+    DepartmentSpec(
+        DepartmentId.OBSERVABILITY_RELIABILITY,
+        "observability-reliability",
+        "Observability, Reliability & Incident Operations",
+    ),
+    DepartmentSpec(
+        DepartmentId.DISTRIBUTED_RUNTIME_CLOUD,
+        "distributed-runtime-cloud",
+        "Distributed Runtime, Hosting, VPS & Cloud Operations",
+    ),
+    DepartmentSpec(
+        DepartmentId.SIGNAL_DISTRIBUTION,
+        "signal-distribution",
+        "Signal Production, Security & Distribution",
+    ),
+    DepartmentSpec(
+        DepartmentId.CLIENT_EXECUTION,
+        "client-execution",
+        "Client Execution Ecosystem — EA / Agent",
+    ),
+    DepartmentSpec(
+        DepartmentId.CLIENT_READ_MODELS,
+        "client-read-models",
+        "Client Read Models & Widget Presentation",
+    ),
+    DepartmentSpec(
+        DepartmentId.EXECUTIVE_CONTROL,
+        "executive-control",
+        "Executive / CEO Control Surfaces",
+    ),
+    DepartmentSpec(
+        DepartmentId.COMMERCIAL_ENTITLEMENTS,
+        "commercial-entitlements",
+        "Commercial Products, Billing, Payments & Entitlements",
+    ),
+    DepartmentSpec(
+        DepartmentId.COMPLIANCE_AUDIT,
+        "compliance-audit",
+        "Compliance, Regulatory Evidence & Audit Reporting",
+    ),
+    DepartmentSpec(
+        DepartmentId.NOTIFICATIONS,
+        "notifications",
+        "Notifications & Client/Operational Communication",
+    ),
+    DepartmentSpec(
+        DepartmentId.CERTIFICATION_GATE,
+        "certification-gate",
+        "Certification & Integration Gate",
+    ),
 )
 
 
