@@ -95,9 +95,7 @@ class UniversalInstrumentIdentityGraph:
                     "identity graph listing must reference a retained economic identity"
                 )
 
-        relationship_ids = tuple(
-            item.relationship_id for item in self.relationships
-        )
+        relationship_ids = tuple(item.relationship_id for item in self.relationships)
         if len(set(relationship_ids)) != len(relationship_ids):
             raise UniversalInstrumentIdentityValidationError(
                 "identity graph relationship ids must be unique"
@@ -155,7 +153,6 @@ class UniversalInstrumentIdentityGraph:
                 "identity graph external identity may have only one retained mapping history"
             )
         for history in self.mapping_histories:
-            previous_recorded_at = None
             for revision in history.revisions:
                 if not _identity_ref_exists(
                     revision.target,
@@ -165,14 +162,6 @@ class UniversalInstrumentIdentityGraph:
                     raise UniversalInstrumentIdentityValidationError(
                         "identity graph mapping target must reference a retained identity"
                     )
-                if (
-                    previous_recorded_at is not None
-                    and revision.recorded_at <= previous_recorded_at
-                ):
-                    raise UniversalInstrumentIdentityValidationError(
-                        "identity graph mapping revisions must have increasing recorded_at"
-                    )
-                previous_recorded_at = revision.recorded_at
 
         object.__setattr__(
             self,
