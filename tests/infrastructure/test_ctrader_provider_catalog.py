@@ -4,6 +4,7 @@ import inspect
 from datetime import UTC, datetime
 from uuid import UUID
 
+import qore.infrastructure.ctrader_provider_catalog as catalog_module
 from qore.domain.events import CorrelationId
 from qore.infrastructure.ctrader_native_market_data import CTraderNativeTrendbarPeriod
 from qore.infrastructure.ctrader_provider_catalog import (
@@ -21,7 +22,6 @@ from qore.infrastructure.ctrader_provider_catalog import (
     CTraderTradingInterval,
     CTraderTradingMode,
 )
-import qore.infrastructure.ctrader_provider_catalog as catalog_module
 from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.market_observation import MarketTimeframeCode
 from qore.infrastructure.ports import (
