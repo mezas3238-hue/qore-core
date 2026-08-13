@@ -204,8 +204,8 @@ class ScheduleBInstant:
             raise MarketClockScheduleValidationError(
                 "Schedule B wall transitions must be unique"
             )
-        for item in self.wall_clock_transitions:
-            if item.simulated_now != self.simulated_now:
+        for transition in self.wall_clock_transitions:
+            if transition.simulated_now != self.simulated_now:
                 raise MarketClockScheduleValidationError(
                     "Schedule B wall transition must equal simulated_now"
                 )
