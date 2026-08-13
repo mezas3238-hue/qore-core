@@ -425,6 +425,7 @@ class ProviderInstrumentCatalogEntry:
     margin_terms: ProviderMarginTerms | None
     effective_at: datetime
     evidence_ref: ProviderInstrumentEvidenceReference
+    provider_native_fields: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.instrument, Instrument):
@@ -502,6 +503,38 @@ class ProviderInstrumentCatalogEntry:
             raise ProviderInstrumentCatalogValidationError(
                 "evidence_ref must be ProviderInstrumentEvidenceReference"
             )
+        if not isinstance(self.provider_native_fields, tuple) or any(
+            not isinstance(item, tuple)
+            or len(item) != 2
+            or not isinstance(item[0], str)
+            or not isinstance(item[1], str)
+            for item in self.provider_native_fields
+        ):
+            raise ProviderInstrumentCatalogValidationError(
+                "provider_native_fields must be immutable string pairs"
+            )
+        canonical_native_fields: list[tuple[str, str]] = []
+        native_keys: set[str] = set()
+        for key, value in self.provider_native_fields:
+            _require_trimmed(key, field_name="provider native field key")
+            _require_trimmed(value, field_name="provider native field value")
+            if _contains_secret_marker(key):
+                raise ProviderInstrumentCatalogValidationError(
+                    "provider native field key must not be secret-like"
+                )
+            if key in native_keys:
+                raise ProviderInstrumentCatalogValidationError(
+                    "provider native field keys must be unique"
+                )
+            native_keys.add(key)
+            canonical_native_fields.append((key, value))
+        canonical_native_tuple = tuple(sorted(canonical_native_fields))
+        if canonical_native_tuple != self.provider_native_fields:
+            object.__setattr__(
+                self,
+                "provider_native_fields",
+                canonical_native_tuple,
+            )
 
     @property
     def is_tradable(self) -> bool:
@@ -534,6 +567,7 @@ class ProviderInstrumentCatalogEntry:
             ),
             self.effective_at.astimezone(UTC).isoformat(timespec="microseconds"),
             self.evidence_ref.logical_values(),
+            self.provider_native_fields,
         )
 
 
