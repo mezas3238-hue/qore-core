@@ -261,12 +261,12 @@ class CTraderSymbolReferenceData:
                 self.measurement_units,
                 field_name="cTrader measurement_units",
             )
-        for field_name, value in (
+        for field_name, text_value in (
             ("category_name", self.category_name),
             ("asset_class_name", self.asset_class_name),
         ):
-            if value is not None:
-                _trimmed(value, field_name=f"cTrader {field_name}")
+            if text_value is not None:
+                _trimmed(text_value, field_name=f"cTrader {field_name}")
         if (self.category_name is None) != (self.category_id is None):
             raise CTraderProviderCatalogValidationError(
                 "cTrader category id/name evidence must be present together"
@@ -825,6 +825,10 @@ class CTraderProviderInstrumentCatalogAdapter:
                 "cTrader catalog scope must identify one provider account"
             ) from account_result.error
         periods = getattr(self.client, "verified_native_periods", None)
+        if not isinstance(periods, tuple):
+            raise CTraderProviderCatalogValidationError(
+                "cTrader verified native periods must be immutable tuple"
+            )
         canonical = canonical_ctrader_periods(periods)
         if canonical != periods:
             raise CTraderProviderCatalogValidationError(
