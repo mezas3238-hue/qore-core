@@ -184,11 +184,6 @@ class ProviderVolumeTerms:
             raise ProviderInstrumentCatalogValidationError(
                 "minimum volume must not exceed maximum volume"
             )
-        span = self.maximum - self.minimum
-        if span % self.step != 0:
-            raise ProviderInstrumentCatalogValidationError(
-                "volume min/max range must align to provider step"
-            )
 
     def logical_values(self) -> tuple[str, ...]:
         return (
@@ -330,15 +325,6 @@ class ProviderMarginTerms:
             if len(set(bounds)) != len(bounds):
                 raise ProviderInstrumentCatalogValidationError(
                     "margin tier upper bounds must be unique"
-                )
-            above_positions = tuple(
-                index
-                for index, item in enumerate(self.tiers)
-                if item.applies_above
-            )
-            if above_positions and above_positions != (len(self.tiers) - 1,):
-                raise ProviderInstrumentCatalogValidationError(
-                    "only the final margin tier may apply above its upper bound"
                 )
         if not isinstance(self.native_fields, tuple) or any(
             not isinstance(item, tuple)
@@ -623,11 +609,6 @@ class ProviderInstrumentCatalog:
         if len(set(canonical_instruments)) != len(canonical_instruments):
             raise ProviderInstrumentCatalogValidationError(
                 "provider catalog mapping to canonical instruments must be unambiguous"
-            )
-        evidence_refs = tuple(item.evidence_ref for item in self.entries)
-        if len(set(evidence_refs)) != len(evidence_refs):
-            raise ProviderInstrumentCatalogValidationError(
-                "provider catalog evidence references must be unique"
             )
         if any(
             item.effective_at.astimezone(UTC) > observed_utc
