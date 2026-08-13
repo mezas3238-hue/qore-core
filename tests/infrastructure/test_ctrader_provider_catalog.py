@@ -4,9 +4,9 @@ import inspect
 from datetime import UTC, datetime
 from uuid import UUID
 
+import qore.infrastructure.ctrader_provider_catalog as catalog_module
 from qore.domain.events import CorrelationId
 from qore.infrastructure.ctrader_native_market_data import CTraderNativeTrendbarPeriod
-import qore.infrastructure.ctrader_provider_catalog as catalog_module
 from qore.infrastructure.ctrader_provider_catalog import (
     CTraderAccountMarginProfile,
     CTraderCanonicalInstrumentMapper,
@@ -39,7 +39,6 @@ from qore.infrastructure.provider_instrument_catalog import (
     ProviderInstrumentTradingStatus,
 )
 from qore.kernel.result import Failure, Result, Success
-
 
 _DESCRIPTOR = ExternalSourceDescriptor(
     adapter_id=AdapterId(UUID("f2000000-0000-0000-0000-000000000001")),
