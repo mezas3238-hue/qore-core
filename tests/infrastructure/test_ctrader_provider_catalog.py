@@ -4,9 +4,9 @@ import inspect
 from datetime import UTC, datetime
 from uuid import UUID
 
-import qore.infrastructure.ctrader_provider_catalog as catalog_module
 from qore.domain.events import CorrelationId
 from qore.infrastructure.ctrader_native_market_data import CTraderNativeTrendbarPeriod
+import qore.infrastructure.ctrader_provider_catalog as catalog_module
 from qore.infrastructure.ctrader_provider_catalog import (
     CTraderAccountMarginProfile,
     CTraderCanonicalInstrumentMapper,
@@ -34,6 +34,7 @@ from qore.infrastructure.ports import (
 )
 from qore.infrastructure.provider_instrument_catalog import (
     ProviderCatalogScope,
+    ProviderInstrumentCatalog,
     ProviderInstrumentEvidenceReference,
     ProviderInstrumentTradingStatus,
 )
@@ -286,7 +287,10 @@ def _mapper() -> _Mapper:
     )
 
 
-def _read(client: _CatalogClient, mapper: CTraderCanonicalInstrumentMapper | None = None):
+def _read(
+    client: _CatalogClient,
+    mapper: CTraderCanonicalInstrumentMapper | None = None,
+) -> Result[ProviderInstrumentCatalog, ExternalPortError]:
     adapter = CTraderProviderInstrumentCatalogAdapter(
         client=client,
         symbol_mapper=_mapper() if mapper is None else mapper,
