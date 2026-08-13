@@ -245,11 +245,11 @@ def _dynamic(
         leverage_id=leverage_id,
         tiers=(
             CTraderDynamicLeverageTier(
-                volume_usd=500_000_000,
+                volume_usd_cents=500_000_000,
                 leverage=100,
             ),
             CTraderDynamicLeverageTier(
-                volume_usd=100_000_000,
+                volume_usd_cents=100_000_000,
                 leverage=500,
             ),
         ),
@@ -389,7 +389,7 @@ def test_margin_model_retains_account_and_dynamic_native_semantics() -> None:
         Decimal("500"),
         Decimal("100"),
     )
-    assert all(tier.bound_unit == "usd" for tier in terms.tiers)
+    assert all(tier.bound_unit == "usd_cents" for tier in terms.tiers)
     assert all(tier.per_side is True for tier in terms.tiers)
     assert terms.tiers[0].applies_above is False
     assert terms.tiers[-1].applies_above is True
@@ -406,7 +406,7 @@ def test_margin_model_retains_account_and_dynamic_native_semantics() -> None:
         "dynamic_leverage_encoding",
         "open_api_applied_leverage",
     ) in terms.native_fields
-    assert ("dynamic_leverage_volume_unit", "usd") in terms.native_fields
+    assert ("dynamic_leverage_volume_unit", "usd_cents") in terms.native_fields
     assert ("dynamic_leverage_id", "77") in terms.native_fields
 
 
