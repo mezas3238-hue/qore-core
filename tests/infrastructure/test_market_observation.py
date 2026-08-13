@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -66,8 +66,13 @@ def _m5_bar(
     high_field: MarketOhlcField | None = None,
     low_field: MarketOhlcField | None = None,
     close_field: MarketOhlcField | None = None,
+    opened_at: datetime | None = None,
 ) -> QualifiedOhlcBarObservation:
-    opened_at = datetime(2026, 8, 12, 12, 0, tzinfo=UTC)
+    resolved_opened_at = (
+        opened_at
+        if opened_at is not None
+        else datetime(2026, 8, 12, 12, 0, tzinfo=UTC)
+    )
     return QualifiedOhlcBarObservation(
         observation_id=MarketObservationId(_uuid(10)),
         instrument=Instrument("EURUSD"),
@@ -75,13 +80,25 @@ def _m5_bar(
         timeframe=MarketTimeframe(MarketTimeframeCode.M5),
         price_side=price_side,
         origin=origin,
-        opened_at=opened_at,
-        closed_at=opened_at + timedelta(minutes=5),
+        opened_at=resolved_opened_at,
+        closed_at=resolved_opened_at + timedelta(minutes=5),
         open=open_field or _field(MarketOhlcFieldValidity.VALID, "1.10000"),
         high=high_field or _field(MarketOhlcFieldValidity.VALID, "1.10100"),
         low=low_field or _field(MarketOhlcFieldValidity.VALID, "1.09900"),
         close=close_field or _field(MarketOhlcFieldValidity.VALID, "1.10050"),
         evidence_ref=MarketObservationEvidenceReference(_uuid(11)),
+    )
+
+
+def _quote(*, observed_at: datetime, bid: str, ask: str) -> QualifiedQuoteTickObservation:
+    return QualifiedQuoteTickObservation(
+        observation_id=MarketObservationId(_uuid(20)),
+        instrument=Instrument("EURUSD"),
+        source=_source(),
+        observed_at=observed_at,
+        bid=_price(bid),
+        ask=_price(ask),
+        evidence_ref=MarketObservationEvidenceReference(_uuid(21)),
     )
 
 
@@ -105,18 +122,22 @@ def test_market_price_requires_exact_positive_decimal() -> None:
     ("code", "seconds"),
     [
         (MarketTimeframeCode.M1, 60),
+        (MarketTimeframeCode.M2, 120),
         (MarketTimeframeCode.M3, 180),
+        (MarketTimeframeCode.M4, 240),
         (MarketTimeframeCode.M5, 300),
+        (MarketTimeframeCode.M10, 600),
         (MarketTimeframeCode.M15, 900),
         (MarketTimeframeCode.M30, 1800),
         (MarketTimeframeCode.H1, 3600),
         (MarketTimeframeCode.H4, 14400),
-        (MarketTimeframeCode.D, None),
-        (MarketTimeframeCode.W, None),
-        (MarketTimeframeCode.M, None),
+        (MarketTimeframeCode.H12, 43200),
+        (MarketTimeframeCode.D1, None),
+        (MarketTimeframeCode.W1, None),
+        (MarketTimeframeCode.MN1, None),
     ],
 )
-def test_market_timeframe_does_not_fake_calendar_duration(
+def test_market_timeframe_catalog_covers_current_ctrader_native_periods(
     code: MarketTimeframeCode,
     seconds: int | None,
 ) -> None:
@@ -124,6 +145,25 @@ def test_market_timeframe_does_not_fake_calendar_duration(
 
     assert timeframe.fixed_seconds == seconds
     assert timeframe.logical_values() == (code.value, seconds)
+
+
+def test_market_timeframe_catalog_is_exact_current_ctrader_period_set() -> None:
+    assert tuple(item.value for item in MarketTimeframeCode) == (
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M10",
+        "M15",
+        "M30",
+        "H1",
+        "H4",
+        "H12",
+        "D1",
+        "W1",
+        "MN1",
+    )
 
 
 def test_ohlc_field_supports_field_level_validity() -> None:
@@ -172,6 +212,20 @@ def test_bar_rejects_inconsistent_valid_range() -> None:
         )
 
 
+def test_bar_rejects_valid_open_outside_valid_range() -> None:
+    with pytest.raises(MarketObservationValidationError):
+        _m5_bar(
+            open_field=_field(MarketOhlcFieldValidity.VALID, "1.102"),
+        )
+
+
+def test_bar_rejects_valid_close_outside_valid_range() -> None:
+    with pytest.raises(MarketObservationValidationError):
+        _m5_bar(
+            close_field=_field(MarketOhlcFieldValidity.VALID, "1.098"),
+        )
+
+
 def test_fixed_bar_interval_must_match_timeframe() -> None:
     opened_at = datetime(2026, 8, 12, 12, 0, tzinfo=UTC)
 
@@ -199,7 +253,7 @@ def test_calendar_bar_retains_explicit_boundaries() -> None:
         observation_id=MarketObservationId(_uuid(10)),
         instrument=Instrument("EURUSD"),
         source=_source(),
-        timeframe=MarketTimeframe(MarketTimeframeCode.M),
+        timeframe=MarketTimeframe(MarketTimeframeCode.MN1),
         price_side=MarketPriceSide.BID,
         origin=MarketBarOrigin.NATIVE,
         opened_at=opened_at,
@@ -216,14 +270,10 @@ def test_calendar_bar_retains_explicit_boundaries() -> None:
 
 
 def test_quote_retains_exact_bid_ask_and_spread() -> None:
-    quote = QualifiedQuoteTickObservation(
-        observation_id=MarketObservationId(_uuid(20)),
-        instrument=Instrument("EURUSD"),
-        source=_source(),
+    quote = _quote(
         observed_at=datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
-        bid=_price("1.10001"),
-        ask=_price("1.10016"),
-        evidence_ref=MarketObservationEvidenceReference(_uuid(21)),
+        bid="1.10001",
+        ask="1.10016",
     )
 
     assert quote.spread == Decimal("0.00015")
@@ -235,16 +285,23 @@ def test_quote_retains_exact_bid_ask_and_spread() -> None:
     )
 
 
+def test_quote_accepts_zero_spread_without_fabricating_positive_spread() -> None:
+    quote = _quote(
+        observed_at=datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
+        bid="1.10001",
+        ask="1.10001",
+    )
+
+    assert quote.spread == Decimal("0")
+    assert quote.canonical_spread == "0"
+
+
 def test_quote_rejects_crossed_market() -> None:
     with pytest.raises(MarketObservationValidationError):
-        QualifiedQuoteTickObservation(
-            observation_id=MarketObservationId(_uuid(20)),
-            instrument=Instrument("EURUSD"),
-            source=_source(),
+        _quote(
             observed_at=datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
-            bid=_price("1.1002"),
-            ask=_price("1.1001"),
-            evidence_ref=MarketObservationEvidenceReference(_uuid(21)),
+            bid="1.1002",
+            ask="1.1001",
         )
 
 
@@ -266,6 +323,19 @@ def test_market_observation_source_must_use_market_data_namespace() -> None:
             low=_field(MarketOhlcFieldValidity.VALID, "1.099"),
             close=_field(MarketOhlcFieldValidity.VALID, "1.1005"),
             evidence_ref=MarketObservationEvidenceReference(_uuid(11)),
+        )
+
+
+def test_quote_source_must_use_market_data_namespace() -> None:
+    with pytest.raises(MarketObservationValidationError):
+        QualifiedQuoteTickObservation(
+            observation_id=MarketObservationId(_uuid(20)),
+            instrument=Instrument("EURUSD"),
+            source=_source("execution.test"),
+            observed_at=datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
+            bid=_price("1.1000"),
+            ask=_price("1.1001"),
+            evidence_ref=MarketObservationEvidenceReference(_uuid(21)),
         )
 
 
@@ -305,6 +375,35 @@ def test_instrument_market_specification_rejects_unrepresentable_increment() -> 
             effective_at=datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
             evidence_ref=MarketObservationEvidenceReference(_uuid(31)),
         )
+
+
+def test_logical_values_canonicalize_equal_instants_to_utc() -> None:
+    ny_offset = timezone(timedelta(hours=-4))
+    bar_utc = _m5_bar(
+        opened_at=datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
+    )
+    bar_offset = _m5_bar(
+        opened_at=datetime(2026, 8, 12, 8, 0, tzinfo=ny_offset),
+    )
+
+    assert bar_utc == bar_offset
+    assert bar_utc.logical_values() == bar_offset.logical_values()
+    assert bar_utc.logical_values()[6] == "2026-08-12T12:00:00.000000+00:00"
+
+    quote_utc = _quote(
+        observed_at=datetime(2026, 8, 12, 12, 0, tzinfo=UTC),
+        bid="1.1000",
+        ask="1.1001",
+    )
+    quote_offset = _quote(
+        observed_at=datetime(2026, 8, 12, 8, 0, tzinfo=ny_offset),
+        bid="1.1000",
+        ask="1.1001",
+    )
+
+    assert quote_utc == quote_offset
+    assert quote_utc.logical_values() == quote_offset.logical_values()
+    assert quote_utc.logical_values()[3] == "2026-08-12T12:00:00.000000+00:00"
 
 
 def test_observation_logical_values_are_deterministic() -> None:
