@@ -439,7 +439,9 @@ def visible_market_event_observations(
 def derive_market_event_availability_instants(
     observations: tuple[RetainedMarketEventObservation, ...],
 ) -> tuple[datetime, ...]:
-    """Return sorted distinct replay data-availability instants for Schedule B."""
+    """Return sorted distinct UTC replay data-availability instants."""
 
     ordered = order_market_event_observations(observations)
-    return tuple(sorted({item.available_at for item in ordered}))
+    return tuple(
+        sorted({item.available_at.astimezone(UTC) for item in ordered})
+    )
