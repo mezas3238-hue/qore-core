@@ -333,6 +333,22 @@ class QualifiedOhlcBarObservation:
             raise MarketObservationValidationError(
                 "valid OHLC close must be within valid low/high"
             )
+        if high is not None and open_price is not None and open_price > high:
+            raise MarketObservationValidationError(
+                "valid OHLC open must not exceed valid high"
+            )
+        if high is not None and close_price is not None and close_price > high:
+            raise MarketObservationValidationError(
+                "valid OHLC close must not exceed valid high"
+            )
+        if low is not None and open_price is not None and open_price < low:
+            raise MarketObservationValidationError(
+                "valid OHLC open must not be below valid low"
+            )
+        if low is not None and close_price is not None and close_price < low:
+            raise MarketObservationValidationError(
+                "valid OHLC close must not be below valid low"
+            )
 
     @property
     def is_native_bid(self) -> bool:
