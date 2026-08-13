@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
 import qore.infrastructure.ctrader_provider_catalog as catalog_module
@@ -344,9 +345,9 @@ def test_volume_and_trading_status_preserve_provider_evidence() -> None:
     eurusd = result.value.entry_for_instrument(Instrument("EURUSD"))
     gbpusd = result.value.entry_for_instrument(Instrument("GBPUSD"))
     assert eurusd.volume_terms is not None
-    assert eurusd.volume_terms.minimum == 100
-    assert eurusd.volume_terms.maximum == 1_000_000
-    assert eurusd.volume_terms.step == 100
+    assert eurusd.volume_terms.minimum == Decimal("100")
+    assert eurusd.volume_terms.maximum == Decimal("1000000")
+    assert eurusd.volume_terms.step == Decimal("100")
     assert eurusd.volume_terms.unit == "ctrader_volume_cents"
     assert eurusd.trading_status is ProviderInstrumentTradingStatus.TRADABLE
     assert gbpusd.trading_status is ProviderInstrumentTradingStatus.UNAVAILABLE
@@ -360,12 +361,15 @@ def test_margin_model_retains_account_and_dynamic_native_semantics() -> None:
     eurusd = result.value.entry_for_instrument(Instrument("EURUSD"))
     terms = eurusd.margin_terms
     assert terms is not None
-    assert terms.account_leverage == 50
+    assert terms.account_leverage == Decimal("50")
     assert tuple(tier.upper_bound for tier in terms.tiers) == (
-        100_000_000,
-        500_000_000,
+        Decimal("100000000"),
+        Decimal("500000000"),
     )
-    assert tuple(tier.leverage for tier in terms.tiers) == (500, 100)
+    assert tuple(tier.leverage for tier in terms.tiers) == (
+        Decimal("500"),
+        Decimal("100"),
+    )
     assert all(tier.bound_unit == "usd_cents" for tier in terms.tiers)
     assert all(tier.per_side is True for tier in terms.tiers)
     assert terms.tiers[0].applies_above is False
