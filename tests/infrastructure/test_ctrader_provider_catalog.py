@@ -57,6 +57,7 @@ _SYMBOLS_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
 _REFERENCES_AT = datetime(2026, 8, 13, 10, 1, tzinfo=UTC)
 _PROFILE_AT = datetime(2026, 8, 13, 10, 2, tzinfo=UTC)
 _DYNAMIC_AT = datetime(2026, 8, 13, 10, 3, tzinfo=UTC)
+_ALL_PERIODS = tuple(CTraderNativeTrendbarPeriod)
 
 
 class _Mapper(CTraderCanonicalInstrumentMapper):
@@ -87,9 +88,7 @@ class _CatalogClient:
         dynamic: dict[int, CTraderDynamicLeverage],
         scope: ProviderCatalogScope = _SCOPE,
         descriptor: ExternalSourceDescriptor = _DESCRIPTOR,
-        verified_native_periods: tuple[CTraderNativeTrendbarPeriod, ...] = tuple(
-            CTraderNativeTrendbarPeriod
-        ),
+        verified_native_periods: tuple[CTraderNativeTrendbarPeriod, ...] = _ALL_PERIODS,
     ) -> None:
         self._symbols = symbols
         self._references = references
