@@ -148,10 +148,6 @@ class HistoricalMarketEventDatasetManifest:
                 "manifest scope must be HistoricalMarketEventDatasetScope"
             )
         _validate_timestamp(self.assembled_at, field_name="manifest assembled_at")
-        if self.assembled_at < self.scope.closed_at:
-            raise HistoricalMarketEventDatasetValidationError(
-                "manifest cannot be assembled before capture window closes"
-            )
         if not isinstance(self.schema_version, HistoricalDatasetSchemaVersion):
             raise HistoricalMarketEventDatasetValidationError(
                 "manifest schema_version must be HistoricalDatasetSchemaVersion"
