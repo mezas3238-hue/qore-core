@@ -270,6 +270,13 @@ def test_invalid_timezone_boundary_and_window_fail_closed() -> None:
             boundaries=(WallClockBoundary(9),),
         )
     with pytest.raises(MarketClockScheduleValidationError):
+        derive_wall_clock_transitions(
+            simulated_start=datetime(2026, 8, 12, 0, 0, tzinfo=UTC),
+            simulated_end=datetime(2026, 8, 13, 0, 0, tzinfo=UTC),
+            timezone_name="../America/New_York",
+            boundaries=(WallClockBoundary(9),),
+        )
+    with pytest.raises(MarketClockScheduleValidationError):
         WallClockBoundary(24)
     with pytest.raises(MarketClockScheduleValidationError):
         derive_wall_clock_transitions(
