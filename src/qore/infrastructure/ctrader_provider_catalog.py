@@ -51,21 +51,13 @@ def _positive_int(value: int, *, field_name: str) -> None:
         )
 
 
-def _optional_positive_int(
-    value: int | None,
-    *,
-    field_name: str,
-) -> None:
+def _optional_positive_int(value: int | None, *, field_name: str) -> None:
     if value is not None:
         _positive_int(value, field_name=field_name)
 
 
 def _trimmed(value: str, *, field_name: str) -> None:
-    if (
-        not isinstance(value, str)
-        or not value
-        or value != value.strip()
-    ):
+    if not isinstance(value, str) or not value or value != value.strip():
         raise CTraderProviderCatalogValidationError(
             f"{field_name} must be a non-empty trimmed string"
         )
@@ -73,9 +65,7 @@ def _trimmed(value: str, *, field_name: str) -> None:
 
 def _timestamp(value: datetime, *, field_name: str) -> datetime:
     if not isinstance(value, datetime):
-        raise CTraderProviderCatalogValidationError(
-            f"{field_name} must be datetime"
-        )
+        raise CTraderProviderCatalogValidationError(f"{field_name} must be datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CTraderProviderCatalogValidationError(
             f"{field_name} must be timezone-aware"
@@ -118,18 +108,9 @@ class CTraderLightSymbol:
             raise CTraderProviderCatalogValidationError(
                 "cTrader symbol enabled must be strict bool"
             )
-        _optional_positive_int(
-            self.base_asset_id,
-            field_name="cTrader base_asset_id",
-        )
-        _optional_positive_int(
-            self.quote_asset_id,
-            field_name="cTrader quote_asset_id",
-        )
-        _optional_positive_int(
-            self.category_id,
-            field_name="cTrader category_id",
-        )
+        _optional_positive_int(self.base_asset_id, field_name="cTrader base_asset_id")
+        _optional_positive_int(self.quote_asset_id, field_name="cTrader quote_asset_id")
+        _optional_positive_int(self.category_id, field_name="cTrader category_id")
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -199,10 +180,7 @@ class CTraderSymbolReferenceData:
     evidence_ref: ProviderInstrumentEvidenceReference
 
     def __post_init__(self) -> None:
-        _positive_int(
-            self.symbol_id,
-            field_name="cTrader reference symbol_id",
-        )
+        _positive_int(self.symbol_id, field_name="cTrader reference symbol_id")
         if type(self.digits) is not int or self.digits < 0:
             raise CTraderProviderCatalogValidationError(
                 "cTrader digits must be a non-negative int"
@@ -225,10 +203,7 @@ class CTraderSymbolReferenceData:
             ("category_id", self.category_id),
             ("asset_class_id", self.asset_class_id),
         ):
-            _optional_positive_int(
-                value,
-                field_name=f"cTrader {field_name}",
-            )
+            _optional_positive_int(value, field_name=f"cTrader {field_name}")
         if (
             self.min_volume is not None
             and self.max_volume is not None
@@ -238,8 +213,7 @@ class CTraderSymbolReferenceData:
                 "cTrader min_volume must not exceed max_volume"
             )
         if not isinstance(self.schedule, tuple) or any(
-            not isinstance(item, CTraderTradingInterval)
-            for item in self.schedule
+            not isinstance(item, CTraderTradingInterval) for item in self.schedule
         ):
             raise CTraderProviderCatalogValidationError(
                 "cTrader schedule must be immutable CTraderTradingInterval tuple"
@@ -252,15 +226,9 @@ class CTraderSymbolReferenceData:
                 "cTrader schedule requires schedule_timezone"
             )
         if self.schedule_timezone is not None:
-            _trimmed(
-                self.schedule_timezone,
-                field_name="cTrader schedule_timezone",
-            )
+            _trimmed(self.schedule_timezone, field_name="cTrader schedule_timezone")
         if self.measurement_units is not None:
-            _trimmed(
-                self.measurement_units,
-                field_name="cTrader measurement_units",
-            )
+            _trimmed(self.measurement_units, field_name="cTrader measurement_units")
         for field_name, text_value in (
             ("category_name", self.category_name),
             ("asset_class_name", self.asset_class_name),
@@ -279,10 +247,7 @@ class CTraderSymbolReferenceData:
             raise CTraderProviderCatalogValidationError(
                 "cTrader category evidence requires linked asset class"
             )
-        if not isinstance(
-            self.evidence_ref,
-            ProviderInstrumentEvidenceReference,
-        ):
+        if not isinstance(self.evidence_ref, ProviderInstrumentEvidenceReference):
             raise CTraderProviderCatalogValidationError(
                 "cTrader reference evidence_ref is invalid"
             )
@@ -315,12 +280,12 @@ class CTraderSymbolsListResult:
     account_id: int
     symbols: tuple[CTraderLightSymbol, ...]
     observed_at: datetime
+    evidence_ref: ProviderInstrumentEvidenceReference
 
     def __post_init__(self) -> None:
         _positive_int(self.account_id, field_name="cTrader account_id")
         if not isinstance(self.symbols, tuple) or any(
-            not isinstance(item, CTraderLightSymbol)
-            for item in self.symbols
+            not isinstance(item, CTraderLightSymbol) for item in self.symbols
         ):
             raise CTraderProviderCatalogValidationError(
                 "cTrader symbols list must be immutable CTraderLightSymbol tuple"
@@ -336,23 +301,22 @@ class CTraderSymbolsListResult:
                 "cTrader symbols list names must be unique"
             )
         canonical = tuple(
-            sorted(
-                self.symbols,
-                key=lambda item: (item.symbol_id, item.symbol_name),
-            )
+            sorted(self.symbols, key=lambda item: (item.symbol_id, item.symbol_name))
         )
         if canonical != self.symbols:
             object.__setattr__(self, "symbols", canonical)
-        _timestamp(
-            self.observed_at,
-            field_name="cTrader symbols observed_at",
-        )
+        _timestamp(self.observed_at, field_name="cTrader symbols observed_at")
+        if not isinstance(self.evidence_ref, ProviderInstrumentEvidenceReference):
+            raise CTraderProviderCatalogValidationError(
+                "cTrader symbols-list evidence_ref is invalid"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
             self.account_id,
             tuple(item.logical_values() for item in self.symbols),
             self.observed_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.evidence_ref.logical_values(),
         )
 
 
@@ -365,8 +329,7 @@ class CTraderSymbolReferenceDataResult:
     def __post_init__(self) -> None:
         _positive_int(self.account_id, field_name="cTrader account_id")
         if not isinstance(self.symbols, tuple) or any(
-            not isinstance(item, CTraderSymbolReferenceData)
-            for item in self.symbols
+            not isinstance(item, CTraderSymbolReferenceData) for item in self.symbols
         ):
             raise CTraderProviderCatalogValidationError(
                 "cTrader reference data must be immutable CTraderSymbolReferenceData tuple"
@@ -376,15 +339,10 @@ class CTraderSymbolReferenceDataResult:
             raise CTraderProviderCatalogValidationError(
                 "cTrader reference symbol ids must be unique"
             )
-        canonical = tuple(
-            sorted(self.symbols, key=lambda item: item.symbol_id)
-        )
+        canonical = tuple(sorted(self.symbols, key=lambda item: item.symbol_id))
         if canonical != self.symbols:
             object.__setattr__(self, "symbols", canonical)
-        _timestamp(
-            self.observed_at,
-            field_name="cTrader reference observed_at",
-        )
+        _timestamp(self.observed_at, field_name="cTrader reference observed_at")
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -403,6 +361,7 @@ class CTraderAccountMarginProfile:
     total_margin_calculation_type: CTraderTotalMarginCalculationType | None
     max_leverage: int | None
     observed_at: datetime
+    evidence_ref: ProviderInstrumentEvidenceReference
 
     def __post_init__(self) -> None:
         _positive_int(self.account_id, field_name="cTrader account_id")
@@ -420,14 +379,12 @@ class CTraderAccountMarginProfile:
             raise CTraderProviderCatalogValidationError(
                 "cTrader total margin calculation type is invalid"
             )
-        _optional_positive_int(
-            self.max_leverage,
-            field_name="cTrader max_leverage",
-        )
-        _timestamp(
-            self.observed_at,
-            field_name="cTrader account margin observed_at",
-        )
+        _optional_positive_int(self.max_leverage, field_name="cTrader max_leverage")
+        _timestamp(self.observed_at, field_name="cTrader account margin observed_at")
+        if not isinstance(self.evidence_ref, ProviderInstrumentEvidenceReference):
+            raise CTraderProviderCatalogValidationError(
+                "cTrader account-margin evidence_ref is invalid"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -440,28 +397,58 @@ class CTraderAccountMarginProfile:
             ),
             self.max_leverage,
             self.observed_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.evidence_ref.logical_values(),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CTraderNativePeriodCapability:
+    """Explicit evidence for native trendbar periods verified for one runtime."""
+
+    periods: tuple[CTraderNativeTrendbarPeriod, ...]
+    observed_at: datetime
+    evidence_ref: ProviderInstrumentEvidenceReference
+
+    def __post_init__(self) -> None:
+        canonical = canonical_ctrader_periods(self.periods)
+        if canonical != self.periods:
+            object.__setattr__(self, "periods", canonical)
+        _timestamp(
+            self.observed_at,
+            field_name="cTrader native-period capability observed_at",
+        )
+        if not isinstance(self.evidence_ref, ProviderInstrumentEvidenceReference):
+            raise CTraderProviderCatalogValidationError(
+                "cTrader native-period capability evidence_ref is invalid"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            tuple(item.value for item in self.periods),
+            self.observed_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.evidence_ref.logical_values(),
         )
 
 
 @dataclass(frozen=True, slots=True)
 class CTraderDynamicLeverageTier:
-    """ProtoOADynamicLeverageTier native values before exact ratio normalization."""
+    """ProtoOADynamicLeverageTier values retained in documented Open API units."""
 
-    volume_usd_cents: int
-    leverage_hundredths: int
+    volume_usd: int
+    leverage: int
 
     def __post_init__(self) -> None:
         _positive_int(
-            self.volume_usd_cents,
-            field_name="cTrader dynamic leverage volume_usd_cents",
+            self.volume_usd,
+            field_name="cTrader dynamic leverage volume_usd",
         )
         _positive_int(
-            self.leverage_hundredths,
-            field_name="cTrader dynamic leverage_hundredths",
+            self.leverage,
+            field_name="cTrader dynamic leverage",
         )
 
     def logical_values(self) -> tuple[int, int]:
-        return (self.volume_usd_cents, self.leverage_hundredths)
+        return (self.volume_usd, self.leverage)
 
 
 @dataclass(frozen=True, slots=True)
@@ -474,13 +461,9 @@ class CTraderDynamicLeverage:
     observed_at: datetime
 
     def __post_init__(self) -> None:
-        _positive_int(
-            self.leverage_id,
-            field_name="cTrader dynamic leverage_id",
-        )
+        _positive_int(self.leverage_id, field_name="cTrader dynamic leverage_id")
         if not isinstance(self.tiers, tuple) or any(
-            not isinstance(item, CTraderDynamicLeverageTier)
-            for item in self.tiers
+            not isinstance(item, CTraderDynamicLeverageTier) for item in self.tiers
         ):
             raise CTraderProviderCatalogValidationError(
                 "cTrader dynamic leverage tiers must be immutable tier tuple"
@@ -489,23 +472,15 @@ class CTraderDynamicLeverage:
             raise CTraderProviderCatalogValidationError(
                 "cTrader dynamic leverage must retain at least one tier"
             )
-        volumes = tuple(item.volume_usd_cents for item in self.tiers)
+        volumes = tuple(item.volume_usd for item in self.tiers)
         if len(set(volumes)) != len(volumes):
             raise CTraderProviderCatalogValidationError(
                 "cTrader dynamic leverage tier volumes must be unique"
             )
-        canonical = tuple(
-            sorted(
-                self.tiers,
-                key=lambda item: item.volume_usd_cents,
-            )
-        )
+        canonical = tuple(sorted(self.tiers, key=lambda item: item.volume_usd))
         if canonical != self.tiers:
             object.__setattr__(self, "tiers", canonical)
-        if not isinstance(
-            self.evidence_ref,
-            ProviderInstrumentEvidenceReference,
-        ):
+        if not isinstance(self.evidence_ref, ProviderInstrumentEvidenceReference):
             raise CTraderProviderCatalogValidationError(
                 "cTrader dynamic leverage evidence_ref is invalid"
             )
@@ -566,9 +541,7 @@ class CTraderProviderCatalogClientBoundary(Protocol):
     def scope(self) -> ProviderCatalogScope: ...
 
     @property
-    def verified_native_periods(
-        self,
-    ) -> tuple[CTraderNativeTrendbarPeriod, ...]: ...
+    def native_period_capability(self) -> CTraderNativePeriodCapability: ...
 
     def list_symbols(
         self,
@@ -597,9 +570,7 @@ class CTraderProviderCatalogClientBoundary(Protocol):
     ) -> Result[CTraderDynamicLeverage, ExternalPortError]: ...
 
 
-def _scope_account_id(
-    scope: ProviderCatalogScope,
-) -> Result[int, ExternalPortError]:
+def _scope_account_id(scope: ProviderCatalogScope) -> Result[int, ExternalPortError]:
     if scope.provider_name.lower() != "ctrader":
         return Failure(
             CTraderProviderCatalogValidationError(
@@ -636,9 +607,7 @@ def _trading_status(
     return ProviderInstrumentTradingStatus.UNAVAILABLE
 
 
-def _volume_terms(
-    reference: CTraderSymbolReferenceData,
-) -> ProviderVolumeTerms | None:
+def _volume_terms(reference: CTraderSymbolReferenceData) -> ProviderVolumeTerms | None:
     if (
         reference.min_volume is None
         or reference.max_volume is None
@@ -708,25 +677,25 @@ def _margin_terms(
         else None
     )
     tiers: tuple[ProviderMarginTier, ...] = ()
-    native_reference: str | None = None
+    native_reference = profile.evidence_ref.value
     if dynamic is not None:
         last_index = len(dynamic.tiers) - 1
         tiers = tuple(
             ProviderMarginTier(
-                upper_bound=Decimal(item.volume_usd_cents),
-                leverage=Decimal(item.leverage_hundredths) / Decimal(100),
-                bound_unit="usd_cents",
+                upper_bound=Decimal(item.volume_usd),
+                leverage=Decimal(item.leverage),
+                bound_unit="usd",
                 per_side=True,
                 applies_above=index == last_index,
             )
             for index, item in enumerate(dynamic.tiers)
         )
         native_reference = dynamic.evidence_ref.value
-    native_fields: list[tuple[str, str]] = []
+    native_fields: list[tuple[str, str]] = [
+        ("account_margin_evidence_ref", profile.evidence_ref.value),
+    ]
     if profile.leverage_in_cents is not None:
-        native_fields.append(
-            ("leverage_in_cents", str(profile.leverage_in_cents))
-        )
+        native_fields.append(("leverage_in_cents", str(profile.leverage_in_cents)))
     if profile.total_margin_calculation_type is not None:
         native_fields.append(
             (
@@ -737,12 +706,14 @@ def _margin_terms(
     if profile.max_leverage is not None:
         native_fields.append(("max_leverage", str(profile.max_leverage)))
     if reference.leverage_id is not None:
-        native_fields.append(
-            ("dynamic_leverage_id", str(reference.leverage_id))
-        )
+        native_fields.append(("dynamic_leverage_id", str(reference.leverage_id)))
     if dynamic is not None:
-        native_fields.append(
-            ("dynamic_leverage_encoding", "hundredths")
+        native_fields.extend(
+            (
+                ("dynamic_leverage_evidence_ref", dynamic.evidence_ref.value),
+                ("dynamic_leverage_encoding", "open_api_applied_leverage"),
+                ("dynamic_leverage_volume_unit", "usd"),
+            )
         )
     try:
         return ProviderMarginTerms(
@@ -761,11 +732,16 @@ def _margin_terms(
 def _provider_native_fields(
     light: CTraderLightSymbol,
     reference: CTraderSymbolReferenceData,
+    *,
+    symbols_evidence_ref: ProviderInstrumentEvidenceReference,
+    capability_evidence_ref: ProviderInstrumentEvidenceReference,
 ) -> tuple[tuple[str, str], ...]:
     fields: list[tuple[str, str]] = [
         ("ctrader_enabled", str(light.enabled)),
+        ("ctrader_native_period_capability_evidence_ref", capability_evidence_ref.value),
         ("ctrader_pip_position", str(reference.pip_position)),
         ("ctrader_symbol_id", str(light.symbol_id)),
+        ("ctrader_symbols_list_evidence_ref", symbols_evidence_ref.value),
         ("ctrader_trading_mode", reference.trading_mode.value),
     ]
     for key, value in (
@@ -783,17 +759,11 @@ def _provider_native_fields(
     if reference.category_name is not None:
         fields.append(("ctrader_category_name", reference.category_name))
     if reference.asset_class_name is not None:
-        fields.append(
-            ("ctrader_asset_class_name", reference.asset_class_name)
-        )
+        fields.append(("ctrader_asset_class_name", reference.asset_class_name))
     if reference.measurement_units is not None:
-        fields.append(
-            ("ctrader_measurement_units", reference.measurement_units)
-        )
+        fields.append(("ctrader_measurement_units", reference.measurement_units))
     if reference.schedule_timezone is not None:
-        fields.append(
-            ("ctrader_schedule_timezone", reference.schedule_timezone)
-        )
+        fields.append(("ctrader_schedule_timezone", reference.schedule_timezone))
     return tuple(sorted(fields))
 
 
@@ -824,15 +794,10 @@ class CTraderProviderInstrumentCatalogAdapter:
             raise CTraderProviderCatalogValidationError(
                 "cTrader catalog scope must identify one provider account"
             ) from account_result.error
-        periods = getattr(self.client, "verified_native_periods", None)
-        if not isinstance(periods, tuple):
+        capability = getattr(self.client, "native_period_capability", None)
+        if not isinstance(capability, CTraderNativePeriodCapability):
             raise CTraderProviderCatalogValidationError(
-                "cTrader verified native periods must be immutable tuple"
-            )
-        canonical = canonical_ctrader_periods(periods)
-        if canonical != periods:
-            raise CTraderProviderCatalogValidationError(
-                "cTrader verified native periods must use canonical provider order"
+                "cTrader client must retain native-period capability evidence"
             )
         if not callable(getattr(self.symbol_mapper, "map_symbol", None)):
             raise CTraderProviderCatalogValidationError(
@@ -859,6 +824,7 @@ class CTraderProviderInstrumentCatalogAdapter:
         metadata: ExternalRequestMetadata,
     ) -> Result[ProviderInstrumentCatalog, ExternalPortError]:
         scope = self.client.scope
+        capability = self.client.native_period_capability
         account_result = _scope_account_id(scope)
         if isinstance(account_result, Failure):
             return Failure(account_result.error)
@@ -893,9 +859,7 @@ class CTraderProviderInstrumentCatalogAdapter:
                 symbol_ids,
                 metadata=metadata,
             )
-            profile_raw = self.client.read_account_margin_profile(
-                metadata=metadata,
-            )
+            profile_raw = self.client.read_account_margin_profile(metadata=metadata)
         except ExternalPortError as error:
             return Failure(error)
         if isinstance(references_raw, Failure):
@@ -936,9 +900,7 @@ class CTraderProviderInstrumentCatalogAdapter:
                     "cTrader reference data must exactly cover listed symbol ids"
                 )
             )
-        reference_by_id = {
-            item.symbol_id: item for item in references.symbols
-        }
+        reference_by_id = {item.symbol_id: item for item in references.symbols}
         for light in symbols.symbols:
             reference = reference_by_id[light.symbol_id]
             for field_name, list_value, reference_value in (
@@ -999,7 +961,7 @@ class CTraderProviderInstrumentCatalogAdapter:
 
         native_timeframes = tuple(
             market_timeframe_for_ctrader_period(period)
-            for period in self.client.verified_native_periods
+            for period in capability.periods
         )
         entries: list[ProviderInstrumentCatalogEntry] = []
         for light in symbols.symbols:
@@ -1007,10 +969,7 @@ class CTraderProviderInstrumentCatalogAdapter:
             mapping = self.symbol_mapper.map_symbol(light)
             if isinstance(mapping, Failure):
                 return Failure(mapping.error)
-            if not isinstance(mapping, Success) or not isinstance(
-                mapping.value,
-                Instrument,
-            ):
+            if not isinstance(mapping, Success) or not isinstance(mapping.value, Instrument):
                 return Failure(
                     CTraderProviderCatalogValidationError(
                         "cTrader symbol mapper must return Result[Instrument]"
@@ -1029,16 +988,14 @@ class CTraderProviderInstrumentCatalogAdapter:
                         trading_status=_trading_status(light, reference),
                         trading_sessions=_sessions(reference),
                         native_timeframes=native_timeframes,
-                        margin_terms=_margin_terms(
-                            profile,
-                            reference,
-                            dynamic_by_id,
-                        ),
+                        margin_terms=_margin_terms(profile, reference, dynamic_by_id),
                         effective_at=references.observed_at,
                         evidence_ref=reference.evidence_ref,
                         provider_native_fields=_provider_native_fields(
                             light,
                             reference,
+                            symbols_evidence_ref=symbols.evidence_ref,
+                            capability_evidence_ref=capability.evidence_ref,
                         ),
                     )
                 )
@@ -1055,12 +1012,10 @@ class CTraderProviderInstrumentCatalogAdapter:
             symbols.observed_at,
             references.observed_at,
             profile.observed_at,
+            capability.observed_at,
             *dynamic_observed,
         ]
-        observed_at = max(
-            item.astimezone(UTC)
-            for item in observed_candidates
-        )
+        observed_at = max(item.astimezone(UTC) for item in observed_candidates)
         try:
             catalog = ProviderInstrumentCatalog(
                 scope=scope,
