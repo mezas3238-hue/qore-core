@@ -338,9 +338,9 @@ class ProviderMarginTerms:
             )
         canonical_fields: list[tuple[str, str]] = []
         seen_keys: set[str] = set()
-        for key, value in self.native_fields:
+        for key, native_value in self.native_fields:
             _require_trimmed(key, field_name="margin native field key")
-            _require_trimmed(value, field_name="margin native field value")
+            _require_trimmed(native_value, field_name="margin native field value")
             if _contains_secret_marker(key):
                 raise ProviderInstrumentCatalogValidationError(
                     "margin native field key must not be secret-like"
@@ -350,7 +350,7 @@ class ProviderMarginTerms:
                     "margin native field keys must be unique"
                 )
             seen_keys.add(key)
-            canonical_fields.append((key, value))
+            canonical_fields.append((key, native_value))
         canonical_tuple = tuple(sorted(canonical_fields))
         if canonical_tuple != self.native_fields:
             object.__setattr__(self, "native_fields", canonical_tuple)
