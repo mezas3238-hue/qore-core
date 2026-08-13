@@ -360,9 +360,17 @@ def test_dataset_constructor_requires_canonical_arrival_order_and_digest() -> No
         replace(built.value, observations=(changed_first, second))
 
 
-def test_manifest_cannot_be_assembled_before_declared_capture_window_closes() -> None:
+def test_assembly_may_precede_scope_close_but_not_last_retained_ingress() -> None:
     event = _event(_quote(suffix=90), suffix=90, sequence=1, received_offset_ms=0)
 
-    assert isinstance(
-        _build((event,), assembled_at=_BASE + timedelta(minutes=4)), Failure
+    before_scope_close = _build(
+        (event,),
+        assembled_at=_BASE + timedelta(seconds=2),
     )
+    before_ingress = _build(
+        (event,),
+        assembled_at=event.core_ingress_at - timedelta(microseconds=1),
+    )
+
+    assert isinstance(before_scope_close, Success)
+    assert isinstance(before_ingress, Failure)
