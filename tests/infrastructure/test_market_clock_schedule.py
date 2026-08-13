@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -12,6 +12,7 @@ from qore.infrastructure.market_clock_schedule import (
     MarketClockScheduleValidationError,
     ScheduleBTrigger,
     WallClockBoundary,
+    WallClockTransition,
     derive_schedule_b_instants,
     derive_wall_clock_transitions,
 )
@@ -146,6 +147,25 @@ def test_half_open_window_includes_start_and_excludes_end() -> None:
     assert tuple(item.simulated_now for item in transitions) == (
         datetime(2026, 8, 12, 13, 0, tzinfo=UTC),
     )
+
+
+def test_wall_clock_transition_rejects_fractional_second_instant() -> None:
+    with pytest.raises(MarketClockScheduleValidationError):
+        WallClockTransition(
+            simulated_now=datetime(
+                2026,
+                8,
+                12,
+                13,
+                0,
+                0,
+                500_000,
+                tzinfo=UTC,
+            ),
+            timezone_name="America/New_York",
+            local_date=date(2026, 8, 12),
+            boundary=WallClockBoundary(9),
+        )
 
 
 def test_clock_only_instants_exist_without_market_events() -> None:
@@ -296,10 +316,14 @@ def test_schedule_module_has_no_trading_policy_or_hidden_runtime_side_effects() 
         "sleep(",
         "threading",
         "asyncio",
+        "scheduler",
+        "retry",
         "requests.",
         "httpx",
         "aiohttp",
         "socket",
+        "ctrader",
+        "oanda",
         "market_close",
         "force_close",
         "liquidat",
