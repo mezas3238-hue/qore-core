@@ -179,6 +179,20 @@ def test_calendar_timeframes_remain_identity_without_fake_fixed_seconds() -> Non
         assert ctrader_period_for_timeframe(timeframe).value == code.value
 
 
+def test_native_result_canonicalizes_order_and_rejects_duplicate_open_times() -> None:
+    first = _trendbar(opened_at_minutes=_BAR_OPEN_MINUTES)
+    second = _trendbar(opened_at_minutes=_BAR_OPEN_MINUTES + 5)
+
+    left = _result(trendbars=(second, first))
+    right = _result(trendbars=(first, second))
+
+    assert left.trendbars == (first, second)
+    assert left.logical_values() == right.logical_values()
+
+    with pytest.raises(CTraderNativeMarketDataValidationError):
+        _result(trendbars=(first, first))
+
+
 def test_unverified_timeframe_fails_before_provider_read() -> None:
     client = _NativeClient(Success(_result(period=CTraderNativeTrendbarPeriod.M15)))
     flow = CTraderNativeMarketDataFlow(
