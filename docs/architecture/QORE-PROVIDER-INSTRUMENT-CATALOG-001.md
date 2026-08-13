@@ -86,7 +86,7 @@ The cTrader adapter retains account-level margin evidence separately from symbol
 For the verified cTrader Open API model used by this slice:
 
 - account `leverageInCents` is retained and normalized by exact division by 100 because that field explicitly carries cent-based encoding;
-- dynamic leverage tier `volume` is retained in the provider-documented USD unit;
+- dynamic leverage tier `volume` is retained as the provider-documented maximum USD volume **in cents**, per side;
 - dynamic leverage tier `leverage` is retained as the provider-documented applied leverage value without inventing a hundredths conversion;
 - tiers retain per-side semantics;
 - the last dynamic tier is retained as applying above its stated bound;
