@@ -56,6 +56,18 @@ def _settlement() -> fie.SettlementConvention:
     )
 
 
+def _schedule_convention(
+    stub: str = "none",
+    roll: str = "end-of-month",
+) -> dcs.DerivativeScheduleConvention:
+    return dcs.DerivativeScheduleConvention(
+        stub=dcs.DerivativeScheduleStubCode(stub),
+        roll=dcs.DerivativeScheduleRollCode(roll),
+        calendar_ref=fie.BusinessCalendarRef("nyc"),
+        business_day_convention=fie.BusinessDayConventionCode("modified-following"),
+    )
+
+
 def _rate_convention() -> rts.RateCurveConvention:
     return rts.RateCurveConvention(
         day_count=_day_count(),
@@ -136,11 +148,16 @@ def _benchmark(
     )
 
 
-def _price_strike(value: str = "100") -> dcs.DerivativeStrike:
+def _price_strike(
+    value: str = "100",
+    *,
+    quote_basis: str = "currency-per-unit",
+) -> dcs.DerivativeStrike:
     return dcs.DerivativeStrike(
         Decimal(value),
         dcs.DerivativeStrikeBasis.PRICE,
         quote_identity_id=_identity(300),
+        price_quote_basis=dcs.DerivativePriceQuoteBasisCode(quote_basis),
     )
 
 
@@ -166,6 +183,7 @@ def _fixed_leg(
     ordinal: int,
     direction: dcs.DerivativeLegDirection,
     schedule: dcs.DerivativeNotionalSchedule | None = None,
+    schedule_convention: dcs.DerivativeScheduleConvention | None = None,
 ) -> dcs.FixedRateSwapLeg:
     return dcs.FixedRateSwapLeg(
         leg_id=_leg_id(value),
@@ -175,6 +193,7 @@ def _fixed_leg(
         rate=dcs.DerivativeContractRate(Decimal("0.03")),
         day_count=_day_count(),
         payment_tenor=_tenor(6),
+        schedule_convention=schedule_convention or _schedule_convention(),
         settlement_convention=_settlement(),
         evidence_ref=_evidence(value),
     )
@@ -187,6 +206,7 @@ def _floating_leg(
     direction: dcs.DerivativeLegDirection,
     schedule: dcs.DerivativeNotionalSchedule | None = None,
     fixing_convention: dcs.DerivativeFloatingRateConvention | None = None,
+    schedule_convention: dcs.DerivativeScheduleConvention | None = None,
 ) -> dcs.FloatingRateSwapLeg:
     return dcs.FloatingRateSwapLeg(
         leg_id=_leg_id(value),
@@ -199,6 +219,7 @@ def _floating_leg(
         payment_tenor=_tenor(3),
         reset_tenor=_tenor(3),
         fixing_convention=fixing_convention or _floating_convention(),
+        schedule_convention=schedule_convention or _schedule_convention(),
         settlement_convention=_settlement(),
         evidence_ref=_evidence(value),
     )
@@ -418,15 +439,36 @@ def test_floating_rate_convention_rejects_type_laundering() -> None:
         replace(base, observation_shift=cast(Any, 1))
 
 
-def test_floating_swap_leg_requires_explicit_fixing_convention() -> None:
+def test_schedule_convention_retains_stub_roll_and_d06_references() -> None:
+    short_first = _schedule_convention("short-first", "end-of-month")
+    short_last = _schedule_convention("short-last", "end-of-month")
+    imm_roll = _schedule_convention("short-first", "imm")
+
+    assert short_first.logical_values() != short_last.logical_values()
+    assert short_first.logical_values() != imm_roll.logical_values()
+    assert not hasattr(short_first, "generate")
+    assert not hasattr(short_first, "resolve")
+
+    with pytest.raises(dcs.DerivativeContractValidationError, match="stub"):
+        replace(short_first, stub=cast(Any, "short-first"))
+    with pytest.raises(dcs.DerivativeContractValidationError, match="roll"):
+        replace(short_first, roll=cast(Any, "end-of-month"))
+    with pytest.raises(dcs.DerivativeContractValidationError, match="calendar_ref"):
+        replace(short_first, calendar_ref=cast(Any, "nyc"))
+
+
+def test_floating_swap_leg_requires_explicit_fixing_and_schedule_conventions() -> None:
     leg = _floating_leg(
         1,
         ordinal=1,
         direction=dcs.DerivativeLegDirection.RECEIVE,
     )
     assert isinstance(leg.fixing_convention, dcs.DerivativeFloatingRateConvention)
+    assert isinstance(leg.schedule_convention, dcs.DerivativeScheduleConvention)
     with pytest.raises(dcs.DerivativeContractValidationError, match="fixing_convention"):
         replace(leg, fixing_convention=cast(Any, "term-rate"))
+    with pytest.raises(dcs.DerivativeContractValidationError, match="schedule_convention"):
+        replace(leg, schedule_convention=cast(Any, "short-first"))
 
 
 def test_strike_basis_preserves_price_rate_yield_spread_and_level_semantics() -> None:
@@ -449,6 +491,24 @@ def test_strike_basis_preserves_price_rate_yield_spread_and_level_semantics() ->
     assert level.logical_values()[0:2] == ("5000", "level")
 
 
+def test_price_strike_requires_quote_basis_and_prevents_basis_collapse() -> None:
+    currency_per_unit = _price_strike("100", quote_basis="currency-per-unit")
+    percent_of_par = _price_strike("100", quote_basis="percent-of-par")
+    assert currency_per_unit.logical_values() != percent_of_par.logical_values()
+
+    with pytest.raises(dcs.DerivativeContractValidationError, match="price strike"):
+        dcs.DerivativeStrike(
+            Decimal("100"),
+            dcs.DerivativeStrikeBasis.PRICE,
+            quote_identity_id=_identity(300),
+        )
+    with pytest.raises(dcs.DerivativeContractValidationError, match="price_quote_basis"):
+        replace(
+            currency_per_unit,
+            price_quote_basis=cast(Any, "currency-per-unit"),
+        )
+
+
 def test_strike_does_not_impose_false_global_positivity() -> None:
     assert _rate_strike("-0.01").logical_values()[0] == "-0.01"
     level = dcs.DerivativeStrike(Decimal("-20"), dcs.DerivativeStrikeBasis.LEVEL)
@@ -462,7 +522,8 @@ def test_price_rate_and_yield_strikes_require_matching_semantic_material() -> No
         dcs.DerivativeStrike(
             Decimal("0.05"),
             dcs.DerivativeStrikeBasis.RATE,
-            convention=_yield_convention(),
+            price_quote_basis=dcs.DerivativePriceQuoteBasisCode("currency-per-unit"),
+            convention=_rate_convention(),
         )
     with pytest.raises(dcs.DerivativeContractValidationError, match="yield strike"):
         dcs.DerivativeStrike(
@@ -499,7 +560,7 @@ def test_bermudan_exercise_requires_explicit_unique_dates_and_is_sorted() -> Non
     second = date(2026, 6, 1)
     terms = dcs.OptionExerciseTerms(
         dcs.OptionExerciseStyle.BERMUDAN,
-        (second, first),
+        bermudan_dates=(second, first),
     )
     assert terms.bermudan_dates == (first, second)
 
@@ -508,14 +569,38 @@ def test_bermudan_exercise_requires_explicit_unique_dates_and_is_sorted() -> Non
     with pytest.raises(dcs.DerivativeContractValidationError, match="unique"):
         dcs.OptionExerciseTerms(
             dcs.OptionExerciseStyle.BERMUDAN,
-            (first, first),
+            bermudan_dates=(first, first),
         )
 
 
-def test_non_bermudan_exercise_rejects_explicit_date_list() -> None:
-    for style in (dcs.OptionExerciseStyle.EUROPEAN, dcs.OptionExerciseStyle.AMERICAN):
-        with pytest.raises(dcs.DerivativeContractValidationError, match="only Bermudan"):
-            dcs.OptionExerciseTerms(style, (date(2026, 3, 1),))
+def test_european_and_american_exercise_reject_bermudan_date_list() -> None:
+    with pytest.raises(dcs.DerivativeContractValidationError, match="European"):
+        dcs.OptionExerciseTerms(
+            dcs.OptionExerciseStyle.EUROPEAN,
+            bermudan_dates=(date(2026, 3, 1),),
+        )
+    with pytest.raises(dcs.DerivativeContractValidationError, match="only Bermudan"):
+        dcs.OptionExerciseTerms(
+            dcs.OptionExerciseStyle.AMERICAN,
+            american_start_date=date(2026, 1, 2),
+            bermudan_dates=(date(2026, 3, 1),),
+        )
+
+
+def test_american_exercise_requires_start_and_parent_bounds_it_to_expiry() -> None:
+    with pytest.raises(dcs.DerivativeContractValidationError, match="explicit start"):
+        dcs.OptionExerciseTerms(dcs.OptionExerciseStyle.AMERICAN)
+
+    base = _option()
+    assert base.exercise.american_start_date == date(2026, 1, 15)
+    with pytest.raises(dcs.DerivativeContractValidationError, match="after option expiry"):
+        replace(
+            base,
+            exercise=dcs.OptionExerciseTerms(
+                dcs.OptionExerciseStyle.AMERICAN,
+                american_start_date=date(2027, 1, 16),
+            ),
+        )
 
 
 def test_futures_contract_retains_month_expiry_multiplier_settlement_and_tick_value() -> None:
@@ -599,7 +684,10 @@ def _option() -> dcs.OptionContractTerms:
         right=dcs.OptionRight.CALL,
         strike=_price_strike("150"),
         expiry_date=date(2027, 1, 15),
-        exercise=dcs.OptionExerciseTerms(dcs.OptionExerciseStyle.AMERICAN),
+        exercise=dcs.OptionExerciseTerms(
+            dcs.OptionExerciseStyle.AMERICAN,
+            american_start_date=date(2026, 1, 15),
+        ),
         settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL,
         evidence_ref=_evidence(10),
         multiplier=dcs.DerivativeContractMultiplier(Decimal("100"), _identity(21)),
@@ -635,7 +723,7 @@ def test_option_rejects_bermudan_date_after_expiry_and_raw_right() -> None:
             base,
             exercise=dcs.OptionExerciseTerms(
                 dcs.OptionExerciseStyle.BERMUDAN,
-                (date(2027, 1, 16),),
+                bermudan_dates=(date(2027, 1, 16),),
             ),
         )
     with pytest.raises(dcs.DerivativeContractValidationError, match="option right"):
@@ -746,6 +834,25 @@ def test_ois_and_term_float_legs_do_not_collapse_to_same_logical_material() -> N
     assert term.logical_values() != ois.logical_values()
 
 
+def test_swap_stub_and_roll_semantics_do_not_collapse_precheck_umi05_06() -> None:
+    short_first = _fixed_leg(
+        1,
+        ordinal=1,
+        direction=dcs.DerivativeLegDirection.PAY,
+        schedule_convention=_schedule_convention("short-first", "end-of-month"),
+    )
+    short_last = replace(
+        short_first,
+        schedule_convention=_schedule_convention("short-last", "end-of-month"),
+    )
+    imm_roll = replace(
+        short_first,
+        schedule_convention=_schedule_convention("short-first", "imm"),
+    )
+    assert short_first.logical_values() != short_last.logical_values()
+    assert short_first.logical_values() != imm_roll.logical_values()
+
+
 def test_reference_return_exchange_and_protection_legs_are_explicit_types() -> None:
     reference_return = dcs.ReferenceReturnSwapLeg(
         leg_id=_leg_id(3),
@@ -754,6 +861,7 @@ def test_reference_return_exchange_and_protection_legs_are_explicit_types() -> N
         notional_schedule=_schedule(),
         reference=_benchmark(500),
         payment_tenor=_tenor(3),
+        schedule_convention=_schedule_convention(),
         settlement_convention=_settlement(),
         evidence_ref=_evidence(30),
     )
