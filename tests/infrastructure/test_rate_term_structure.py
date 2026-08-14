@@ -8,8 +8,10 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure import fixed_income_economics as fie
-from qore.infrastructure import rate_term_structure as rts
+from qore.infrastructure import (
+    fixed_income_economics as fie,
+    rate_term_structure as rts,
+)
 from qore.infrastructure.ports import (
     AdapterId,
     ExternalSourceDescriptor,
@@ -36,6 +38,27 @@ def _tenor(
     unit: fie.FinancialTenorUnit = fie.FinancialTenorUnit.YEAR,
 ) -> fie.FinancialTenor:
     return fie.FinancialTenor(value=value, unit=unit)
+
+
+def _day_count() -> fie.DayCountConventionCode:
+    return fie.DayCountConventionCode("actual-365-fixed")
+
+
+def _rate_convention() -> rts.RateCurveConvention:
+    return rts.RateCurveConvention(
+        day_count=_day_count(),
+        compounding=fie.CompoundingConventionCode("periodic"),
+        compounding_tenor=_tenor(6, fie.FinancialTenorUnit.MONTH),
+    )
+
+
+def _yield_convention() -> fie.YieldConvention:
+    return fie.YieldConvention(
+        yield_code=fie.FixedIncomeYieldCode("yield-to-maturity"),
+        day_count=_day_count(),
+        compounding=fie.CompoundingConventionCode("periodic"),
+        compounding_tenor=_tenor(6, fie.FinancialTenorUnit.MONTH),
+    )
 
 
 def _evidence(value: int) -> rts.RateTermStructureEvidenceRef:
@@ -81,11 +104,27 @@ def _node(
 ) -> rts.RateTermStructureNode:
     return rts.RateTermStructureNode(
         node_id=rts.RateTermStructureNodeId(_uuid(30_000 + value)),
-        ordinal=rts.RateTermStructureNodeOrdinal(ordinal or value),
+        ordinal=rts.RateTermStructureNodeOrdinal(
+            value if ordinal is None else ordinal
+        ),
         coordinate=coordinate or _tenor(value),
         value=node_value or rts.ZeroRate(Decimal(f"0.0{value}")),
         evidence_ref=_evidence(100 + value),
     )
+
+
+def _default_convention(
+    measure: rts.RateTermStructureMeasure,
+) -> rts.RateTermStructureConvention | None:
+    if measure in (
+        rts.RateTermStructureMeasure.ZERO_RATE,
+        rts.RateTermStructureMeasure.PAR_RATE,
+        rts.RateTermStructureMeasure.FORWARD_RATE,
+    ):
+        return _rate_convention()
+    if measure is rts.RateTermStructureMeasure.YIELD:
+        return _yield_convention()
+    return None
 
 
 def _snapshot(
@@ -102,6 +141,7 @@ def _snapshot(
         currency_identity_id=_identity(2),
         curve_kind=rts.RateTermStructureKindCode("government"),
         measure=measure,
+        convention=_default_convention(measure),
         as_of=as_of,
         recorded_at=recorded_at,
         provenance=provenance or _observed_provenance(),
@@ -135,28 +175,32 @@ def test_rate_yield_spread_and_discount_factor_remain_semantically_distinct() ->
         rts.DiscountFactor,
     )
 
-    tagged = tuple(
-        rts.RateTermStructureNode(
-            node_id=rts.RateTermStructureNodeId(_uuid(50_000 + index)),
-            ordinal=rts.RateTermStructureNodeOrdinal(index),
-            coordinate=(
-                rts.ForwardRatePeriod(None, _tenor(3, fie.FinancialTenorUnit.MONTH))
-                if isinstance(value, rts.ForwardRate)
-                else _tenor(index)
-            ),
-            value=value,
-            evidence_ref=_evidence(500 + index),
-        ).logical_values()[3][0]
-        for index, value in enumerate(values, start=1)
-    )
-    assert tagged == (
-        "zero-rate",
-        "par-rate",
-        "forward-rate",
-        "yield",
-        "spread",
-        "discount-factor",
-    )
+    logical_values: list[object] = []
+    for index, value in enumerate(values, start=1):
+        coordinate: rts.RateTermStructureNodeCoordinate = _tenor(index)
+        if isinstance(value, rts.ForwardRate):
+            coordinate = rts.ForwardRatePeriod(
+                None,
+                _tenor(3, fie.FinancialTenorUnit.MONTH),
+            )
+        logical_values.append(
+            rts.RateTermStructureNode(
+                node_id=rts.RateTermStructureNodeId(_uuid(50_000 + index)),
+                ordinal=rts.RateTermStructureNodeOrdinal(index),
+                coordinate=coordinate,
+                value=value,
+                evidence_ref=_evidence(500 + index),
+            ).logical_values()[3]
+        )
+
+    assert logical_values == [
+        ("zero-rate", ("0.05",)),
+        ("par-rate", ("0.05",)),
+        ("forward-rate", ("0.05",)),
+        ("yield", ("0.05",)),
+        ("spread", ("0.05",)),
+        ("discount-factor", ("0.05",)),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -186,6 +230,84 @@ def test_rate_values_allow_negative_and_canonicalize_signed_zero() -> None:
     assert rts.ZeroRate(Decimal("-0.01")).logical_values() == ("-0.01",)
     assert rts.ParRate(Decimal("-0")).logical_values() == ("0",)
     assert rts.ForwardRate(Decimal("0E-1000")).logical_values() == ("0",)
+
+
+def test_rate_curve_convention_retains_day_count_and_compounding() -> None:
+    convention = _rate_convention()
+    assert convention.logical_values() == (
+        "rate-convention",
+        ("actual-365-fixed",),
+        ("periodic",),
+        (6, "month"),
+    )
+
+    with pytest.raises(rts.RateTermStructureValidationError, match="day_count"):
+        replace(convention, day_count=cast(Any, "actual-365-fixed"))
+    with pytest.raises(rts.RateTermStructureValidationError, match="compounding"):
+        replace(convention, compounding=cast(Any, "periodic"))
+    with pytest.raises(
+        rts.RateTermStructureValidationError,
+        match="compounding_tenor",
+    ):
+        replace(convention, compounding_tenor=cast(Any, "6m"))
+
+
+def test_periodic_rate_convention_requires_explicit_frequency_tenor() -> None:
+    with pytest.raises(
+        rts.RateTermStructureValidationError,
+        match="periodic rate compounding requires compounding_tenor",
+    ):
+        rts.RateCurveConvention(
+            day_count=_day_count(),
+            compounding=fie.CompoundingConventionCode("periodic"),
+            compounding_tenor=None,
+        )
+
+
+def test_rate_measure_requires_rate_convention_and_rejects_yield_convention() -> None:
+    snapshot = _snapshot()
+    with pytest.raises(rts.RateTermStructureValidationError, match="match measure"):
+        replace(snapshot, convention=None)
+    with pytest.raises(rts.RateTermStructureValidationError, match="match measure"):
+        replace(snapshot, convention=_yield_convention())
+
+
+def test_yield_measure_requires_certified_yield_convention() -> None:
+    snapshot = _snapshot(
+        measure=rts.RateTermStructureMeasure.YIELD,
+        nodes=(
+            _node(1, node_value=fie.FixedIncomeYield(Decimal("0.04"))),
+        ),
+    )
+    assert isinstance(snapshot.convention, fie.YieldConvention)
+    assert snapshot.logical_values()[5][0] == "yield-convention"
+
+    with pytest.raises(rts.RateTermStructureValidationError, match="match measure"):
+        replace(snapshot, convention=None)
+    with pytest.raises(rts.RateTermStructureValidationError, match="match measure"):
+        replace(snapshot, convention=_rate_convention())
+
+
+def test_spread_and_discount_factor_reject_rate_or_yield_convention() -> None:
+    spread = _snapshot(
+        measure=rts.RateTermStructureMeasure.SPREAD,
+        nodes=(
+            _node(1, node_value=fie.FixedIncomeSpread(Decimal("0.001"))),
+        ),
+    )
+    discount = _snapshot(
+        measure=rts.RateTermStructureMeasure.DISCOUNT_FACTOR,
+        nodes=(
+            _node(1, node_value=rts.DiscountFactor(Decimal("0.98"))),
+        ),
+    )
+    assert spread.convention is None
+    assert discount.convention is None
+
+    with pytest.raises(rts.RateTermStructureValidationError, match="match measure"):
+        replace(spread, convention=_rate_convention())
+    with pytest.raises(rts.RateTermStructureValidationError, match="match measure"):
+        replace(discount, convention=_yield_convention())
 
 
 def test_forward_period_is_structural_and_has_no_fixed_seconds_contract() -> None:
@@ -271,15 +393,15 @@ def test_provenance_kind_and_methodology_reject_raw_strings() -> None:
 
 def test_snapshot_canonicalizes_equal_instants_to_identical_logical_material() -> None:
     offset = timezone(timedelta(hours=-4))
-    offset_as_of = _AS_OF.astimezone(offset)
-    offset_recorded = _RECORDED.astimezone(offset)
-
-    left = _snapshot(as_of=_AS_OF, recorded_at=_RECORDED)
-    right = _snapshot(as_of=offset_as_of, recorded_at=offset_recorded)
+    left = _snapshot()
+    right = _snapshot(
+        as_of=_AS_OF.astimezone(offset),
+        recorded_at=_RECORDED.astimezone(offset),
+    )
 
     assert left.logical_values() == right.logical_values()
-    assert left.logical_values()[5] == "2026-08-14T12:00:00.000000+00:00"
-    assert left.logical_values()[6] == "2026-08-14T12:01:00.000000+00:00"
+    assert left.logical_values()[6] == "2026-08-14T12:00:00.000000+00:00"
+    assert left.logical_values()[7] == "2026-08-14T12:01:00.000000+00:00"
 
 
 def test_snapshot_rejects_naive_timestamps_and_reverse_recording_chronology() -> None:
