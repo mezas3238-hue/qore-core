@@ -5,7 +5,6 @@ from enum import StrEnum
 from re import fullmatch
 
 from qore.domain.departments import (
-    DepartmentDependency,
     DepartmentId,
     DepartmentInteractionMode,
     DepartmentRegistry,
@@ -75,7 +74,7 @@ class DepartmentContractSpec:
     """Constitutional route for one command, query, event, or evidence contract.
 
     ``consumer -> provider`` follows the certified FND-05 authority-dependency
-    direction.  For EVENT and EVIDENCE this is not a physical transport direction:
+    direction. For EVENT and EVIDENCE this is not a physical transport direction:
     a provider may publish material toward its consumers while remaining the owner
     of the authoritative fact/evidence consumed by them.
 
@@ -131,7 +130,7 @@ class DepartmentContractRegistry:
     """Immutable contract registry bound to one certified department graph.
 
     Registration proves only that a logical contract route is compatible with the
-    supplied FND-05 dependency graph.  It does not authorize an invocation, mutate
+    supplied FND-05 dependency graph. It does not authorize an invocation, mutate
     source-domain state, select a transport, or prove message delivery.
     """
 
