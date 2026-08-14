@@ -17,7 +17,8 @@ It is additive to:
 
 - UMI-02 universal economic/reference identity;
 - FND-04 semantic separation and temporal law;
-- UMI-03 `FinancialTenor`, `FixedIncomeYield`, and `FixedIncomeSpread`;
+- UMI-03 `FinancialTenor`, `FixedIncomeYield`, `FixedIncomeSpread`, day-count,
+  compounding and yield-convention semantics;
 - existing external source/provenance infrastructure.
 
 It does not implement a bootstrap engine, interpolation, valuation, pricing,
@@ -46,6 +47,8 @@ RATE != YIELD != SPREAD
 ZERO RATE != PAR RATE != FORWARD RATE
 DISCOUNT FACTOR != RATE
 YIELD != PRICE
+RATE MAGNITUDE WITHOUT QUOTE CONVENTION != REPRODUCIBLE RATE
+YIELD MAGNITUDE WITHOUT YIELD CONVENTION != REPRODUCIBLE YIELD
 RATE TENOR != MARKET TIMEFRAME
 FINANCIAL TENOR != FIXED SECONDS
 FORWARD PERIOD != FIXED-SECONDS INTERVAL
@@ -82,7 +85,7 @@ instrument/reference identity.
 A curve or benchmark may be represented by an existing UMI-02 reference-object
 identity. UMI-04 does not create a new sovereign economic `CurveId`.
 
-UMI-04 does introduce local artifact identities:
+UMI-04 introduces local artifact identities:
 
 - `RateTermStructureSnapshotId`;
 - `RateTermStructureNodeId`.
@@ -98,21 +101,24 @@ An `EconomicIdentityId` value alone does not prove that the referenced identity
 has UMI-02 `REFERENCE_OBJECT` kind. Graph/domain composition must validate
 identity kind/relationship evidence where that distinction is material.
 
-## 2.2 UMI-03 tenor/yield/spread are reused
+## 2.2 UMI-03 semantic contracts are reused
 
 UMI-03 certified:
 
 - `FinancialTenor`;
 - `FixedIncomeYield`;
-- `FixedIncomeSpread`.
+- `FixedIncomeSpread`;
+- `DayCountConventionCode`;
+- `CompoundingConventionCode`;
+- `YieldConvention`.
 
-UMI-04 composes these values rather than creating duplicate horizon/yield/spread
-authorities.
+UMI-04 composes these values rather than creating duplicate horizon, yield,
+spread, day-count or compounding authorities.
 
 `FinancialTenor` deliberately has no fixed-seconds API.
 
-UMI-04 therefore does not sort nodes by converting month/year horizons to seconds.
-Canonical node order is explicit through a typed ordinal.
+UMI-04 therefore does not sort nodes by converting month/year horizons to
+seconds. Canonical node order is explicit through a typed ordinal.
 
 ## 2.3 Market evidence is precedent, not curve authority
 
@@ -144,6 +150,7 @@ that simultaneously retained:
 - currency economic identity;
 - curve semantic kind;
 - typed measure;
+- economically material rate/yield quote convention;
 - multiple typed nodes;
 - deterministic node order independent of caller declaration order;
 - structural forward periods;
@@ -163,9 +170,44 @@ observation contracts.
 
 ---
 
-# 3. Contract architecture
+# 3. Pre-review falsification correction
 
-## 3.1 Economic identity attachment
+The first UMI-04 implementation draft represented `ZeroRate`, `ParRate` and
+`ForwardRate` magnitudes but did not bind day-count and compounding semantics to
+the rate snapshot.
+
+That draft was rejected before independent review because:
+
+```text
+5% CONTINUOUS
+!=
+5% PERIODIC SEMIANNUAL
+```
+
+and the numerical magnitude alone does not make either rate reproducible.
+
+The current candidate therefore introduces `RateCurveConvention` and makes the
+snapshot convention measure-dependent:
+
+```text
+ZERO_RATE / PAR_RATE / FORWARD_RATE
+-> RateCurveConvention REQUIRED
+
+YIELD
+-> existing UMI-03 YieldConvention REQUIRED
+
+SPREAD / DISCOUNT_FACTOR
+-> rate/yield convention MUST NOT be attached
+```
+
+This correction is part of the candidate and must be independently re-falsified.
+The earlier head and its failed CI are historical only after the branch advances.
+
+---
+
+# 4. Contract architecture
+
+## 4.1 Economic identity attachment
 
 `RateTermStructureSnapshot` carries:
 
@@ -181,7 +223,7 @@ structure.
 No provider symbol, venue string, adapter name or raw market code replaces either
 identity.
 
-## 3.2 Artifact identities and evidence references
+## 4.2 Artifact identities and evidence references
 
 UMI-04 introduces UUID-backed:
 
@@ -199,9 +241,9 @@ EVIDENCE CONTENT RETAINED BY THIS OBJECT
 
 Credentials, tokens and arbitrary strings cannot enter these UUID fields.
 
-## 3.3 Typed curve measures
+## 4.3 Typed curve measures
 
-The current certified measure set is:
+The current bounded measure set is:
 
 - `ZERO_RATE`;
 - `PAR_RATE`;
@@ -239,7 +281,52 @@ SEMANTIC INTERCHANGEABILITY
 Logical node material carries an explicit semantic tag even when numeric values
 are equal.
 
-## 3.4 Structural coordinates
+## 4.4 Rate quotation convention
+
+`RateCurveConvention` retains:
+
+- `DayCountConventionCode`;
+- `CompoundingConventionCode`;
+- optional structural compounding tenor.
+
+One fail-closed rule is explicit:
+
+```text
+compounding == periodic
+-> compounding_tenor REQUIRED
+```
+
+The contract does not calculate year fractions, accrued values, discount factors
+or rates. It only prevents a rate magnitude from losing the conventions required
+to interpret it.
+
+Zero, par and forward rate term structures require `RateCurveConvention`.
+
+## 4.5 Yield convention reuse
+
+A `YIELD` term structure reuses UMI-03 `YieldConvention`, which retains:
+
+- yield semantic code;
+- day-count convention;
+- compounding convention;
+- required periodic compounding tenor where applicable;
+- optional typed benchmark/reference attachment.
+
+UMI-04 therefore does not invent a second yield convention authority.
+
+## 4.6 Spread and discount-factor convention boundary
+
+`SPREAD` and `DISCOUNT_FACTOR` snapshots do not accept a rate/yield convention.
+
+A spread's economic classification remains explicit through the curve identity,
+curve-kind code and retained methodology/provenance. A later specialized spread
+contract may add further certified semantics when evidence requires them; UMI-04
+does not silently reinterpret spread as a rate.
+
+A discount factor is a distinct positive dimensionless scalar and is not given a
+rate compounding convention merely because a rate may later be derived from it.
+
+## 4.7 Structural coordinates
 
 Ordinary zero/par/yield/spread/discount-factor nodes use `FinancialTenor`.
 
@@ -257,7 +344,7 @@ UMI-04 does not attempt to compare 3M, 90D and 1Y by converting them to seconds.
 This avoids inventing a universal calendar arithmetic rule before D06/calendar
 composition exists.
 
-## 3.5 Explicit node ordinal
+## 4.8 Explicit node ordinal
 
 Every node carries `RateTermStructureNodeOrdinal`.
 
@@ -277,21 +364,25 @@ YEAR == FIXED SECONDS
 
 Node coordinates must also be unique within one snapshot.
 
-## 3.6 Measure / coordinate / value compatibility
+Exact syntactic coordinates such as `12M` and `1Y` are not silently treated as
+equivalent because doing so would require calendar/roll semantics that this
+contract does not own.
+
+## 4.9 Measure / coordinate / value / convention compatibility
 
 The snapshot fails closed unless:
 
-- `ZERO_RATE` -> `FinancialTenor` + `ZeroRate`;
-- `PAR_RATE` -> `FinancialTenor` + `ParRate`;
-- `FORWARD_RATE` -> `ForwardRatePeriod` + `ForwardRate`;
-- `YIELD` -> `FinancialTenor` + `FixedIncomeYield`;
-- `SPREAD` -> `FinancialTenor` + `FixedIncomeSpread`;
-- `DISCOUNT_FACTOR` -> `FinancialTenor` + `DiscountFactor`.
+- `ZERO_RATE` -> `FinancialTenor` + `ZeroRate` + `RateCurveConvention`;
+- `PAR_RATE` -> `FinancialTenor` + `ParRate` + `RateCurveConvention`;
+- `FORWARD_RATE` -> `ForwardRatePeriod` + `ForwardRate` + `RateCurveConvention`;
+- `YIELD` -> `FinancialTenor` + `FixedIncomeYield` + `YieldConvention`;
+- `SPREAD` -> `FinancialTenor` + `FixedIncomeSpread` + no rate/yield convention;
+- `DISCOUNT_FACTOR` -> `FinancialTenor` + `DiscountFactor` + no rate/yield convention.
 
 A valid typed value cannot be laundered into the wrong curve measure merely
 because its Decimal magnitude matches.
 
-## 3.7 Curve kind
+## 4.10 Curve kind
 
 `RateTermStructureKindCode` is an extensible semantic classification.
 
@@ -301,6 +392,7 @@ Examples can include:
 - swap;
 - ois;
 - benchmark;
+- credit-spread;
 - other future certified curve roles.
 
 The code is classification, not identity.
@@ -309,7 +401,7 @@ The code is classification, not identity.
 CURVE KIND CODE != CURVE IDENTITY
 ```
 
-## 3.8 Provenance
+## 4.11 Provenance
 
 `RateTermStructureProvenance` carries:
 
@@ -351,7 +443,7 @@ INPUT FINGERPRINT
 RETAINED INPUT DATA
 ```
 
-## 3.9 Timestamp semantics
+## 4.12 Timestamp semantics
 
 A snapshot carries:
 
@@ -374,7 +466,7 @@ logical material.
 This is a local UMI-04 compliance improvement and does not close the inherited
 repository-wide `GAP-FND04-TIME-01`.
 
-## 3.10 Snapshot determinism
+## 4.13 Snapshot determinism
 
 `RateTermStructureSnapshot` requires:
 
@@ -384,14 +476,14 @@ repository-wide `GAP-FND04-TIME-01`.
 - unique coordinates;
 - unique ordinals;
 - contiguous ordinals from 1;
-- exact measure/node compatibility;
+- exact measure/node/convention compatibility;
 - deterministic ordinal ordering.
 
 Caller declaration order therefore cannot alter `logical_values()`.
 
 ---
 
-# 4. Authority ownership
+# 5. Authority ownership
 
 ## UMI-02
 
@@ -401,8 +493,8 @@ UMI-04 only attaches those identities.
 
 ## UMI-03
 
-Owns the already-certified reusable `FinancialTenor`, yield and spread scalar
-semantics used by the curve contract.
+Owns the already-certified reusable financial tenor, yield, spread, day-count,
+compounding and yield-convention semantics used by the curve contract.
 
 UMI-04 does not redefine fixed-income bond terms.
 
@@ -427,13 +519,13 @@ Owns the future universal valuation-observation boundary across price/yield/rate
 spread/NAV/mark/IV/cash-flow observations.
 
 UMI-04 is narrower: it establishes a multi-node rate/curve term-structure
-semantic artifact with explicit provenance.
+semantic artifact with explicit provenance and rate/yield conventions.
 
 UMI-04 must not be used as a substitute for UMI-10's broader observation model.
 
 ---
 
-# 5. Explicit non-goals
+# 6. Explicit non-goals
 
 This candidate does not implement or certify:
 
@@ -442,6 +534,7 @@ This candidate does not implement or certify:
 - extrapolation;
 - curve fitting;
 - spline/polynomial methods;
+- year-fraction calculation;
 - discounting;
 - present value;
 - bond pricing;
@@ -463,12 +556,12 @@ This candidate does not implement or certify:
 - production readiness;
 - real capital.
 
-No specific government/swap/OIS curve is operationally supported merely because
-the semantic type can represent it.
+No specific government/swap/OIS/credit curve is operationally supported merely
+because the semantic type can represent it.
 
 ---
 
-# 6. Adversarial test obligations
+# 7. Adversarial test obligations
 
 `tests/infrastructure/test_rate_term_structure.py` must prove at minimum:
 
@@ -477,37 +570,44 @@ the semantic type can represent it.
 2. non-finite Decimal values fail closed;
 3. discount factor must be positive but may exceed one;
 4. signed/exponent zero canonicalizes deterministically;
-5. forward periods remain structural and expose no fixed-seconds contract;
-6. node ordinal rejects bool/zero/negative values;
-7. kind/methodology codes fail closed;
-8. input fingerprint requires exact lowercase SHA-256 hex;
-9. OBSERVED provenance requires external source;
-10. OBSERVED provenance rejects computed input fingerprint;
-11. COMPUTED provenance requires input fingerprint;
-12. provenance fields reject raw-string laundering;
-13. equal instants under different offsets produce identical logical material;
-14. naive timestamps fail closed;
-15. recorded time cannot predate as-of time;
-16. curve and currency identity must differ;
-17. raw measure/kind laundering fails closed;
-18. nodes require non-empty immutable tuple;
-19. duplicate node IDs fail;
-20. duplicate ordinals fail;
-21. duplicate coordinates fail;
-22. ordinals must be contiguous from one;
-23. every measure accepts only its exact coordinate/value contract;
-24. UMI-03 yield/spread types are reused rather than duplicated;
-25. forward curves require `ForwardRatePeriod`;
-26. input caller order does not change canonical node order;
-27. UUID/digest evidence fields reject credential-like arbitrary strings;
-28. snapshot exposes no curve-engine or valuation methods;
-29. logical material is deterministic and secret-free.
+5. `RateCurveConvention` retains day-count and compounding semantics;
+6. periodic rate compounding requires explicit frequency tenor;
+7. rate measures require `RateCurveConvention`;
+8. rate measures reject `YieldConvention`;
+9. yield measure requires certified UMI-03 `YieldConvention`;
+10. yield measure rejects `RateCurveConvention`;
+11. spread/discount-factor measures reject rate/yield convention laundering;
+12. forward periods remain structural and expose no fixed-seconds contract;
+13. node ordinal rejects bool/zero/negative values;
+14. kind/methodology codes fail closed;
+15. input fingerprint requires exact lowercase SHA-256 hex;
+16. OBSERVED provenance requires external source;
+17. OBSERVED provenance rejects computed input fingerprint;
+18. COMPUTED provenance requires input fingerprint;
+19. provenance fields reject raw-string laundering;
+20. equal instants under different offsets produce identical logical material;
+21. naive timestamps fail closed;
+22. recorded time cannot predate as-of time;
+23. curve and currency identity must differ;
+24. raw measure/kind laundering fails closed;
+25. nodes require non-empty immutable tuple;
+26. duplicate node IDs fail;
+27. duplicate ordinals fail;
+28. duplicate coordinates fail;
+29. ordinals must be contiguous from one;
+30. every measure accepts only its exact coordinate/value/convention contract;
+31. UMI-03 yield/spread types are reused rather than duplicated;
+32. forward curves require `ForwardRatePeriod`;
+33. input caller order does not change canonical node order;
+34. UUID/digest evidence fields reject credential-like arbitrary strings;
+35. snapshot exposes no curve-engine or valuation methods;
+36. logical material is deterministic and secret-free.
 
 ---
 
-# 7. Compatibility and blast radius
+# 8. Compatibility and blast radius
 
-Intended PR delta:
+Intended PR delta remains exactly:
 
 - `src/qore/infrastructure/rate_term_structure.py`;
 - `tests/infrastructure/test_rate_term_structure.py`;
@@ -521,7 +621,7 @@ Dependency direction:
 ```text
 UMI-02 EconomicIdentityId
 +
-UMI-03 FinancialTenor / FixedIncomeYield / FixedIncomeSpread
+UMI-03 FinancialTenor / rate-yield convention / yield / spread
 +
 ExternalSourceDescriptor provenance
 ->
@@ -538,7 +638,7 @@ UMI-04 -> valuation engine
 
 ---
 
-# 8. Certification discipline
+# 9. Certification discipline
 
 This candidate is materially designed and implemented through the Integration
 Gate workflow and cannot self-certify.
