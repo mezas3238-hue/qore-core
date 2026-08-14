@@ -194,6 +194,36 @@ class DerivativeFloatingRateCalculationCode:
 
 
 @dataclass(frozen=True, slots=True)
+class DerivativeProtectionSettlementMethodCode:
+    """Protection settlement method code; it implements no settlement engine."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="protection settlement method code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivativeRecoveryRate:
+    """Fixed contractual recovery fraction for protection settlement."""
+
+    value: Decimal
+
+    def __post_init__(self) -> None:
+        _validate_decimal(self.value, field_name="derivative recovery rate")
+        if self.value < 0 or self.value > 1:
+            raise DerivativeContractValidationError(
+                "derivative recovery rate must be between 0 and 1 inclusive"
+            )
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (_canonical_decimal(self.value),)
+
+
+@dataclass(frozen=True, slots=True)
 class DerivativeNotional:
     """Positive contractual notional with explicit economic unit/reference identity."""
 
@@ -1065,9 +1095,11 @@ class ProtectionSwapLeg:
     reference: DerivativeBenchmarkReference
     contingency: DerivativeContingencyCode
     settlement_style: DerivativeSettlementStyle
+    settlement_method: DerivativeProtectionSettlementMethodCode
     settlement_identity_id: EconomicIdentityId
     settlement_convention: SettlementConvention
     evidence_ref: DerivativeEvidenceRef
+    fixed_recovery_rate: DerivativeRecoveryRate | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.leg_id, DerivativeLegId):
@@ -1091,6 +1123,14 @@ class ProtectionSwapLeg:
             raise DerivativeContractValidationError(
                 "protection leg settlement_style must be DerivativeSettlementStyle"
             )
+        if not isinstance(
+            self.settlement_method,
+            DerivativeProtectionSettlementMethodCode,
+        ):
+            raise DerivativeContractValidationError(
+                "protection leg settlement_method must be "
+                "DerivativeProtectionSettlementMethodCode"
+            )
         _validate_identity(
             self.settlement_identity_id,
             field_name="protection settlement identity",
@@ -1098,6 +1138,40 @@ class ProtectionSwapLeg:
         if not isinstance(self.settlement_convention, SettlementConvention):
             raise DerivativeContractValidationError(
                 "protection leg settlement_convention must be SettlementConvention"
+            )
+        if self.fixed_recovery_rate is not None and not isinstance(
+            self.fixed_recovery_rate,
+            DerivativeRecoveryRate,
+        ):
+            raise DerivativeContractValidationError(
+                "protection fixed_recovery_rate must be DerivativeRecoveryRate or None"
+            )
+        if self.settlement_method.value == "fixed-recovery":
+            if self.settlement_style is not DerivativeSettlementStyle.CASH:
+                raise DerivativeContractValidationError(
+                    "fixed-recovery protection settlement must be CASH"
+                )
+            if self.fixed_recovery_rate is None:
+                raise DerivativeContractValidationError(
+                    "fixed-recovery protection settlement requires recovery rate"
+                )
+        elif self.fixed_recovery_rate is not None:
+            raise DerivativeContractValidationError(
+                "only fixed-recovery protection settlement may carry recovery rate"
+            )
+        if (
+            self.settlement_method.value == "physical-delivery"
+            and self.settlement_style is not DerivativeSettlementStyle.PHYSICAL
+        ):
+            raise DerivativeContractValidationError(
+                "physical-delivery protection settlement must be PHYSICAL"
+            )
+        if (
+            self.settlement_method.value == "auction"
+            and self.settlement_style is not DerivativeSettlementStyle.CASH
+        ):
+            raise DerivativeContractValidationError(
+                "auction protection settlement must be CASH"
             )
         _validate_leg_evidence(self.evidence_ref)
 
@@ -1111,8 +1185,12 @@ class ProtectionSwapLeg:
             self.reference.logical_values(),
             self.contingency.logical_values(),
             self.settlement_style.value,
+            self.settlement_method.logical_values(),
             self.settlement_identity_id.logical_values(),
             self.settlement_convention.logical_values(),
+            self.fixed_recovery_rate.logical_values()
+            if self.fixed_recovery_rate is not None
+            else None,
             self.evidence_ref.logical_values(),
         )
 
