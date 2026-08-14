@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
@@ -369,7 +369,7 @@ def test_cash_dividend_date_fields_reject_datetime_laundering() -> None:
                 amount=Decimal("1"),
                 currency_identity_id=_economic_id(40),
             ),
-            declared_date=cast(date, datetime(2026, 1, 1, tzinfo=timezone.utc)),
+            declared_date=cast(date, datetime(2026, 1, 1, tzinfo=UTC)),
             ex_date=date(2026, 1, 2),
             record_date=date(2026, 1, 3),
             payable_date=date(2026, 1, 4),
@@ -514,11 +514,13 @@ def test_terms_and_actions_are_frozen() -> None:
         effective_date=date(2026, 4, 1),
         evidence_ref=_evidence(),
     )
+    terms_field = "security_kind"
+    split_field = "effective_date"
 
     with pytest.raises(FrozenInstanceError):
-        setattr(terms, "security_kind", EquitySecurityKind.PREFERRED)
+        setattr(terms, terms_field, EquitySecurityKind.PREFERRED)
     with pytest.raises(FrozenInstanceError):
-        setattr(split, "effective_date", date(2026, 5, 1))
+        setattr(split, split_field, date(2026, 5, 1))
 
 
 def test_no_candidate_type_exposes_provider_valuation_execution_or_mutation_engine() -> None:
