@@ -8,6 +8,7 @@ from re import fullmatch
 from uuid import UUID
 
 from qore.infrastructure.fixed_income_economics import (
+    BusinessCalendarRef,
     DayCountConventionCode,
     FinancialTenor,
     FixedIncomeSpread,
@@ -71,6 +72,13 @@ def _validate_decimal(
         )
     if positive and value <= 0:
         raise DerivativeContractValidationError(f"{field_name} must be positive")
+
+
+def _validate_non_negative_int(value: int, *, field_name: str) -> None:
+    if type(value) is not int or value < 0:
+        raise DerivativeContractValidationError(
+            f"{field_name} must be a non-negative int"
+        )
 
 
 def _canonical_decimal(value: Decimal) -> str:
@@ -167,6 +175,19 @@ class DerivativeContingencyCode:
 
     def __post_init__(self) -> None:
         _validate_code(self.value, field_name="derivative contingency code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivativeFloatingRateCalculationCode:
+    """Contractual fixing/calculation method code; no fixing engine is implemented."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="floating-rate calculation code")
 
     def logical_values(self) -> tuple[str, ...]:
         return (self.value,)
@@ -330,6 +351,48 @@ class DerivativeBenchmarkReference:
             self.reference_identity_id.logical_values(),
             self.role.logical_values(),
             self.tenor.logical_values() if self.tenor is not None else None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DerivativeFloatingRateConvention:
+    """Retained fixing/calculation semantics without resolving calendars or fixings."""
+
+    calculation: DerivativeFloatingRateCalculationCode
+    fixing_calendar_ref: BusinessCalendarRef
+    fixing_lag_business_days: int = 0
+    lockout_business_days: int = 0
+    observation_shift: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.calculation, DerivativeFloatingRateCalculationCode):
+            raise DerivativeContractValidationError(
+                "floating-rate calculation must be DerivativeFloatingRateCalculationCode"
+            )
+        if not isinstance(self.fixing_calendar_ref, BusinessCalendarRef):
+            raise DerivativeContractValidationError(
+                "floating-rate fixing_calendar_ref must be BusinessCalendarRef"
+            )
+        _validate_non_negative_int(
+            self.fixing_lag_business_days,
+            field_name="floating-rate fixing_lag_business_days",
+        )
+        _validate_non_negative_int(
+            self.lockout_business_days,
+            field_name="floating-rate lockout_business_days",
+        )
+        if type(self.observation_shift) is not bool:
+            raise DerivativeContractValidationError(
+                "floating-rate observation_shift must be bool"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.calculation.logical_values(),
+            self.fixing_calendar_ref.logical_values(),
+            self.fixing_lag_business_days,
+            self.lockout_business_days,
+            self.observation_shift,
         )
 
 
@@ -854,6 +917,7 @@ class FloatingRateSwapLeg:
     day_count: DayCountConventionCode
     payment_tenor: FinancialTenor
     reset_tenor: FinancialTenor
+    fixing_convention: DerivativeFloatingRateConvention
     settlement_convention: SettlementConvention
     evidence_ref: DerivativeEvidenceRef
 
@@ -884,6 +948,11 @@ class FloatingRateSwapLeg:
             raise DerivativeContractValidationError(
                 "floating-rate leg reset_tenor must be FinancialTenor"
             )
+        if not isinstance(self.fixing_convention, DerivativeFloatingRateConvention):
+            raise DerivativeContractValidationError(
+                "floating-rate leg fixing_convention must be "
+                "DerivativeFloatingRateConvention"
+            )
         _validate_leg_evidence(self.evidence_ref)
 
     def logical_values(self) -> tuple[object, ...]:
@@ -898,6 +967,7 @@ class FloatingRateSwapLeg:
             self.day_count.logical_values(),
             self.payment_tenor.logical_values(),
             self.reset_tenor.logical_values(),
+            self.fixing_convention.logical_values(),
             self.settlement_convention.logical_values(),
             self.evidence_ref.logical_values(),
         )
@@ -994,6 +1064,8 @@ class ProtectionSwapLeg:
     notional_schedule: DerivativeNotionalSchedule
     reference: DerivativeBenchmarkReference
     contingency: DerivativeContingencyCode
+    settlement_style: DerivativeSettlementStyle
+    settlement_identity_id: EconomicIdentityId
     settlement_convention: SettlementConvention
     evidence_ref: DerivativeEvidenceRef
 
@@ -1015,6 +1087,14 @@ class ProtectionSwapLeg:
             raise DerivativeContractValidationError(
                 "protection leg contingency must be DerivativeContingencyCode"
             )
+        if not isinstance(self.settlement_style, DerivativeSettlementStyle):
+            raise DerivativeContractValidationError(
+                "protection leg settlement_style must be DerivativeSettlementStyle"
+            )
+        _validate_identity(
+            self.settlement_identity_id,
+            field_name="protection settlement identity",
+        )
         if not isinstance(self.settlement_convention, SettlementConvention):
             raise DerivativeContractValidationError(
                 "protection leg settlement_convention must be SettlementConvention"
@@ -1030,6 +1110,8 @@ class ProtectionSwapLeg:
             self.notional_schedule.logical_values(),
             self.reference.logical_values(),
             self.contingency.logical_values(),
+            self.settlement_style.value,
+            self.settlement_identity_id.logical_values(),
             self.settlement_convention.logical_values(),
             self.evidence_ref.logical_values(),
         )
