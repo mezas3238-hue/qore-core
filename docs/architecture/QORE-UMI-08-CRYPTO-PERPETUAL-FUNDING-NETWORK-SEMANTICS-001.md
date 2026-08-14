@@ -147,7 +147,8 @@ Neither is `EconomicIdentityId`. Neither generates UUIDs implicitly.
 
 `CryptoPerpetualPricingTerms` binds those roles to an existing UMI-02
 `IdentityRelationshipId`, retains no source/target/effective fields and contains no observed
-price value.
+price value. Retaining the relationship ID proves local referential binding only; governed
+composition with the UMI-02 graph must verify the relationship endpoints and effective scope.
 
 All three roles are required so a generic "price" cannot collapse them.
 Duplicates fail. Caller order is canonicalized.
@@ -184,7 +185,9 @@ evidence ref and optional existing `ExternalIdentifier`.
 If the identifier is present, its kind must be `NETWORK_NATIVE`.
 
 The UMI-08 type deliberately owns no source/target endpoints, effective interval or graph
-mutation.
+mutation. Retaining a relationship ID or NETWORK_NATIVE identifier does not prove endpoint
+kind, current effectiveness or operational network support; governed UMI-02 composition owns
+those checks.
 
 It implements no wallet, custody, signing, RPC or transaction submission.
 

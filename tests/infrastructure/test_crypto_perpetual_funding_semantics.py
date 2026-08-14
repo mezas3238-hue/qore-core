@@ -373,7 +373,7 @@ def test_inverse_style_role_coincidence_remains_representable() -> None:
     assert terms.funding.payment_identity_id == shared
 
 
-def test_perpetual_reuses_umi05_multiplier_and_tick_primitives_without_unit_reinterpretation() -> None:
+def test_perpetual_reuses_umi05_multiplier_and_tick_primitives() -> None:
     terms = _perpetual()
     assert isinstance(terms.multiplier, DerivativeContractMultiplier)
     assert isinstance(terms.tick_value, DerivativeTickValue)
@@ -406,8 +406,9 @@ def test_perpetual_contracts_are_immutable_and_logical_values_repeat() -> None:
     second = terms.logical_values()
 
     assert first == second
+    attribute = "collateral_identity_id"
     with pytest.raises(FrozenInstanceError):
-        setattr(terms, "collateral_identity_id", _economic_id(99))
+        setattr(terms, attribute, _economic_id(99))
 
 
 def test_candidate_exposes_no_wallet_custody_chain_execution_or_risk_engine() -> None:
