@@ -393,11 +393,13 @@ def test_delivery_window_does_not_invent_expiry_or_notice_chronology() -> None:
 def test_terms_are_frozen() -> None:
     reference = _commodity_reference()
     terms = _commodity_futures(reference=reference)
+    reference_field = "family"
+    terms_field = "physical_delivery"
 
     with pytest.raises(FrozenInstanceError):
-        setattr(reference, "family", CommodityFamilyCode("metals"))
+        setattr(reference, reference_field, CommodityFamilyCode("metals"))
     with pytest.raises(FrozenInstanceError):
-        setattr(terms, "physical_delivery", None)
+        setattr(terms, terms_field, None)
 
 
 def test_no_candidate_type_exposes_lifecycle_logistics_settlement_or_execution_engine() -> None:
