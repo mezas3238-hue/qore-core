@@ -18,21 +18,24 @@ from qore.domain.departments import (
 
 D = DepartmentId
 S = DepartmentInteractionMode.SYNCHRONOUS
+A = DepartmentInteractionMode.ASYNCHRONOUS
 
 
 def _spec(
     *,
     version: str,
     kind: DepartmentContractKind = DepartmentContractKind.COMMAND,
+    consumer: DepartmentId = D.CLIENT_EXECUTION,
     provider: DepartmentId = D.ORDER_EXECUTION,
+    mode: DepartmentInteractionMode = S,
 ) -> DepartmentContractSpec:
     return DepartmentContractSpec(
         contract_id=DepartmentContractId("client-execution.order-apply"),
         version=DepartmentContractVersion(version),
         kind=kind,
-        consumer=D.CLIENT_EXECUTION,
+        consumer=consumer,
         provider=provider,
-        mode=S,
+        mode=mode,
     )
 
 
@@ -46,17 +49,47 @@ def test_versions_of_same_contract_preserve_authority_profile() -> None:
 
 
 @pytest.mark.parametrize(
-    ("kind", "provider"),
+    ("kind", "consumer", "provider", "mode"),
     (
-        (DepartmentContractKind.QUERY, D.ORDER_EXECUTION),
-        (DepartmentContractKind.COMMAND, D.RISK),
+        (
+            DepartmentContractKind.QUERY,
+            D.CLIENT_EXECUTION,
+            D.ORDER_EXECUTION,
+            S,
+        ),
+        (
+            DepartmentContractKind.COMMAND,
+            D.POST_TRADE,
+            D.ORDER_EXECUTION,
+            S,
+        ),
+        (
+            DepartmentContractKind.COMMAND,
+            D.CLIENT_EXECUTION,
+            D.RISK,
+            S,
+        ),
+        (
+            DepartmentContractKind.COMMAND,
+            D.CLIENT_EXECUTION,
+            D.ORDER_EXECUTION,
+            A,
+        ),
     ),
 )
 def test_version_cannot_change_contract_authority_profile(
     kind: DepartmentContractKind,
+    consumer: DepartmentId,
     provider: DepartmentId,
+    mode: DepartmentInteractionMode,
 ) -> None:
-    changed = _spec(version="2.0", kind=kind, provider=provider)
+    changed = _spec(
+        version="2.0",
+        kind=kind,
+        consumer=consumer,
+        provider=provider,
+        mode=mode,
+    )
 
     with pytest.raises(
         DepartmentContractValidationError,
