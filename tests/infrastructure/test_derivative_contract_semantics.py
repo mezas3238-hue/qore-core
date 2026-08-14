@@ -569,6 +569,8 @@ def test_physical_futures_can_retain_notice_and_independent_last_trade_order() -
         first_notice_date=date(2027, 5, 20),
         last_trade_date=date(2027, 5, 18),
     )
+    assert terms.first_notice_date is not None
+    assert terms.last_trade_date is not None
     assert terms.first_notice_date > terms.last_trade_date
 
 
