@@ -13,26 +13,20 @@ Predecessor: UMI-06 / Issue #326 / PR #327 — CLOSED
 This artifact defines the minimum provider-neutral immutable commodity reference and
 physical-delivery contractual semantics that remain missing after UMI-02 and UMI-05.
 
-The candidate deliberately **composes** the already-certified UMI-05
-`FuturesContractTerms`. It does not create a second futures contract model.
+The candidate deliberately composes the already-certified UMI-05
+`FuturesContractTerms`; it does not create a second futures contract model.
 
-It does **not** implement exchange/provider support, delivery notice ingestion,
-calendar resolution, logistics, warehouse inventory, title transfer, physical
-settlement, position/cash mutation, pricing, basis/storage/carry calculation,
-risk, execution, productive Cloud or real-capital authority.
+It does not implement provider support, delivery-event observation, calendar
+resolution, logistics, warehouse inventory, title transfer, physical settlement,
+position/cash mutation, valuation, risk, execution, productive Cloud or real capital.
 
 ```text
 COMMODITY CONTRACT QUALIFICATION
-!=
-GENERIC FUTURES CONTRACT SEMANTICS
-!=
-RECORDED LIFECYCLE EVENT
-!=
-DELIVERY / LOGISTICS ENGINE
-!=
-PHYSICAL SETTLEMENT MUTATION
-!=
-PROVIDER SUPPORT
+!= GENERIC FUTURES CONTRACT SEMANTICS
+!= RECORDED LIFECYCLE EVENT
+!= DELIVERY / LOGISTICS ENGINE
+!= PHYSICAL SETTLEMENT MUTATION
+!= PROVIDER SUPPORT
 ```
 
 ---
@@ -42,9 +36,9 @@ PROVIDER SUPPORT
 ```text
 ECONOMIC / REFERENCE IDENTITY -> UMI-02
 LOCAL COMMODITY TERMS ID != ECONOMIC IDENTITY
-COMMODITY FAMILY CODE != ECONOMIC IDENTITY
-PROVIDER SYMBOL != COMMODITY IDENTITY
-VENUE PRODUCT CODE != COMMODITY IDENTITY
+COMMODITY CLASS CODE != UMI-02 IdentityFamilyCode AUTHORITY
+COMMODITY CLASS CODE != ECONOMIC IDENTITY
+PROVIDER SYMBOL / VENUE PRODUCT CODE != COMMODITY IDENTITY
 
 CONTRACT MONTH -> UMI-05
 CONTRACT EXPIRY -> UMI-05
@@ -58,7 +52,7 @@ RECORDED LIFECYCLE FACT -> UMI-02 IdentityLifecycleEvent
 CONTRACTUAL DELIVERY WINDOW != RECORDED LIFECYCLE FACT
 
 COMMODITY REFERENCE IDENTITY != MEASUREMENT-UNIT IDENTITY
-COMMODITY FAMILY != GRADE
+COMMODITY CLASS != GRADE
 GRADE != DELIVERY LOCATION
 DELIVERY LOCATION != MARKET VENUE
 DELIVERY METHOD CODE != SETTLEMENT ENGINE
@@ -71,8 +65,7 @@ CASH FUTURES -> NO PHYSICAL DELIVERY TERMS
 PHYSICAL DELIVERY TERMS != DELIVERY SELECTION ENGINE
 PHYSICAL DELIVERY TERMS != WAREHOUSE INVENTORY
 PHYSICAL DELIVERY TERMS != TITLE TRANSFER
-PHYSICAL DELIVERY TERMS != POSITION MUTATION
-PHYSICAL DELIVERY TERMS != CASH MUTATION
+PHYSICAL DELIVERY TERMS != POSITION / CASH MUTATION
 
 CALLER ALTERNATIVE ORDER != ECONOMIC SEMANTIC
 EVIDENCE REF != EVIDENCE CONTENT
@@ -80,7 +73,7 @@ NO DATA PROVENANCE -> NO QUANTITATIVE CLAIM
 NO VERIFIED SEMANTICS -> NO SUPPORT CLAIM
 ```
 
-Repository-wide carry-forwards remain binding:
+Carry-forwards remain binding:
 
 - `GAP-FND04-TIME-01` — OPEN / HIGH;
 - `GAP-FND07-RES-01` — OPEN / HIGH;
@@ -89,56 +82,75 @@ Repository-wide carry-forwards remain binding:
 - `GAP-ANALYSIS-PRODUCER` — OPEN / HIGH;
 - `GAP-LIN-001` — OPEN / HIGH.
 
-UMI-07 does not close, promote or reclassify any of them.
-
 ---
 
 # 2. Exact-baseline audit
 
-## 2.1 UMI-02 already owns generic identity and lifecycle
+## 2.1 UMI-02 already owns identity and lifecycle
 
 Direct inspection of
-`src/qore/infrastructure/universal_instrument_identity.py` at the certified
-starting baseline confirms UMI-02 owns:
+`src/qore/infrastructure/universal_instrument_identity.py` at the certified baseline
+confirms UMI-02 owns:
 
-- `EconomicIdentityId`;
-- `EconomicIdentity`;
+- `EconomicIdentityId` / `EconomicIdentity`;
+- `IdentityFamilyCode` as generic identity-family classification;
 - `IdentityRelationship`;
 - `IdentityLifecycleEvent`;
 - `LifecycleEventCode`;
-- evidence-bearing effective/recorded times.
+- evidence-bearing `effective_at` and `recorded_at` lifecycle facts.
 
-`EconomicIdentity` distinguishes tradable instruments from reference objects.
-Reference objects explicitly include physical/reference concepts that instruments
-may reference without those objects themselves becoming orderable instruments.
+UMI-02 explicitly permits reference-object identities for physical/reference
+concepts and explicitly cites first notice, last trade and expiry as examples of
+future-family lifecycle events.
 
-`IdentityLifecycleEvent` retains:
+UMI-07 therefore MUST NOT create:
 
-- explicit event ID;
-- canonical subject;
-- extensible event code;
-- `effective_at`;
-- `recorded_at`;
-- evidence reference.
-
-UMI-02 explicitly cites future-family examples such as first notice, last trade
-and expiry.
-
-Therefore UMI-07 MUST NOT create:
-
-- a second economic commodity identity;
-- a second listing identity;
-- a second identity relationship graph;
-- a second lifecycle-event history;
-- one global commodity lifecycle enum.
+- another economic commodity identity;
+- another listing identity;
+- another generic identity-family authority;
+- another relationship graph;
+- another lifecycle-event history.
 
 ```text
-COMMODITY TERMS ATTACH TO UMI-02 IDENTITY
-!=
-COMMODITY TERMS BECOME IDENTITY AUTHORITY
+UMI-07 TERMS ATTACH TO UMI-02 IDENTITY
+!= UMI-07 BECOMES IDENTITY AUTHORITY
 ```
 
-## 2.2 UMI-05 already owns generic futures economics
+## 2.2 PRE-CHK-UMI07-00 — identity-family authority duplication
+
+An internal pre-falsification candidate originally used a type named
+`CommodityFamilyCode`.
+
+That name was too close to UMI-02 `IdentityFamilyCode` and could suggest a second
+family authority capable of disagreeing with the canonical identity graph.
+
+The candidate was corrected before exact-head freeze:
+
+```text
+CommodityClassCode
+```
+
+`CommodityClassCode` is a bounded family-economic qualifier such as `energy`,
+`metals`, `agriculture`, `livestock` or `softs`.
+
+It is NOT:
+
+- `IdentityFamilyCode`;
+- proof of an identity's UMI-02 family;
+- economic identity;
+- provider or venue classification authority.
+
+Governed composition remains responsible for checking the referenced UMI-02
+identity graph when identity kind/family proof is material.
+
+```text
+COMMODITY CLASSIFICATION MATERIAL
+!= CANONICAL IDENTITY-FAMILY AUTHORITY
+```
+
+Independent review must attack this boundary explicitly.
+
+## 2.3 UMI-05 already owns generic futures economics
 
 Direct inspection of
 `src/qore/infrastructure/derivative_contract_semantics.py` confirms UMI-05 owns:
@@ -151,56 +163,47 @@ Direct inspection of
 
 `FuturesContractTerms` already retains:
 
-- derivative terms ID;
-- instrument economic identity;
-- reference identity;
-- settlement identity;
+- instrument/reference/settlement identities;
 - contract month;
 - expiry date;
 - multiplier;
-- settlement style;
+- CASH/PHYSICAL settlement style;
 - evidence;
 - optional tick value;
 - optional first-notice date;
 - optional last-trade date.
 
-It already validates:
+It already validates the generic futures chronology and obvious identity rules.
 
-- instrument identity differs from reference identity;
-- instrument identity differs from settlement identity;
-- first notice cannot be after expiry;
-- CASH futures cannot carry first-notice date;
-- last-trade date cannot be after expiry;
-- no false universal first-notice-vs-last-trade ordering.
-
-UMI-07 therefore MUST NOT add parallel fields for any of those semantics.
+UMI-07 therefore MUST NOT add parallel fields for those semantics.
 
 ```text
 UMI-07 COMMODITY FUTURES TERMS
--> COMPOSE UMI-05 FuturesContractTerms
+-> EMBED UMI-05 FuturesContractTerms
 -> DO NOT COPY FUTURES FIELDS
 ```
 
-## 2.3 UMI-05 deliberately leaves commodity delivery completion open
+## 2.4 UMI-05 leaves physical commodity delivery specification open
 
-The certified UMI-05 architecture explicitly makes no claim that commodity
-delivery lifecycle certification exists.
+UMI-05's `PHYSICAL` settlement style says the contract settles physically.
+It does not retain every eligible:
 
-UMI-05's `PHYSICAL` settlement style establishes only the contractual style. It
-does not specify every eligible deliverable grade/location/window/method and it
-does not perform settlement.
+- deliverable grade/specification;
+- delivery location;
+- physical delivery method;
+- contractual delivery window.
+
+Nor does it execute settlement.
 
 ```text
 PHYSICAL SETTLEMENT STYLE
-!=
-PHYSICAL DELIVERY SPECIFICATION
-!=
-PHYSICAL SETTLEMENT EXECUTION
+!= PHYSICAL DELIVERY SPECIFICATION
+!= PHYSICAL SETTLEMENT EXECUTION
 ```
 
-That gap is the bounded UMI-07 responsibility.
+This is the bounded UMI-07 gap.
 
-## 2.4 FND-04 forbids numeric/unit flattening
+## 2.5 FND-04 prevents quantity/unit flattening
 
 FND-04 freezes:
 
@@ -212,69 +215,53 @@ PRICE × QUANTITY != UNIVERSAL ECONOMIC VALUE
 NUMERIC REPRESENTATION != ECONOMIC SEMANTIC
 ```
 
-It also establishes that account-scoped `CurrencyCode` is not a universal
-commodity-unit identity.
-
-UMI-07 therefore does not create a generic Decimal `CommodityQuantity` merely to
-repeat the quantity implied by a futures multiplier.
+UMI-07 therefore does not introduce another Decimal quantity that duplicates the
+UMI-05 contract multiplier.
 
 Instead:
 
-- UMI-05 multiplier retains the exact per-contract magnitude;
-- its `unit_identity_id` identifies the measurement unit/reference;
-- UMI-07 `CommodityReferenceTerms` explicitly binds the same measurement-unit
-  identity;
-- composition requires those identities to match.
+- UMI-05 multiplier already retains the per-contract magnitude and unit identity;
+- UMI-07 commodity reference retains its measurement-unit identity;
+- composition requires those unit identities to match.
 
-```text
-CONTRACT MULTIPLIER VALUE + UNIT IDENTITY
-IS REUSED
-NOT REDECLARED
-```
+No unit-conversion engine is added.
 
-## 2.5 Existing settlement/calendar primitives remain bounded
+## 2.6 Existing settlement/calendar types are not commodity delivery authority
 
-UMI-03 defines reusable structural calendar conventions such as
-`BusinessCalendarRef` and `SettlementConvention`.
+UMI-03 types such as `BusinessCalendarRef` and `SettlementConvention` remain bounded
+structural fixed-income/calendar semantics. They do not identify a commodity grade,
+delivery point, warehouse/pipeline mechanism or allowed delivery combination.
 
-Those values do not identify a commodity delivery point, quality grade, warehouse,
-pipeline, load-out method or delivery alternative.
+D06 remains calendar/date-resolution authority.
 
-UMI-07 therefore does not silently reinterpret a fixed-income settlement type as
-a physical commodity delivery specification.
+## 2.7 Verified structural gap
 
-D06 retains calendar/date-resolution authority.
+At baseline `b44529c8e3caf5badf6ff49da2f0246f3f985219`, direct inspection
+establishes:
 
-## 2.6 Verified structural gap
-
-At certified baseline `b44529c8e3caf5badf6ff49da2f0246f3f985219`, direct
-inspection establishes all of the following simultaneously:
-
-1. generic identity/lifecycle already exists in UMI-02;
-2. generic futures economics already exists in UMI-05;
-3. physical settlement style alone does not retain deliverable
-   grade/location/method/window alternatives;
-4. no inspected canonical boundary composes those missing commodity-delivery
-   semantics over the existing UMI-05 futures terms;
-5. no inspected boundary may safely be promoted into that authority without
-   semantic reinterpretation.
+1. UMI-02 already owns generic identity/lifecycle;
+2. UMI-05 already owns generic futures economics;
+3. PHYSICAL style alone does not preserve grade/location/method/window alternatives;
+4. no inspected canonical contract composes those commodity delivery semantics over
+   UMI-05 futures terms;
+5. no bounded existing type may be promoted to that role without reinterpretation.
 
 Classification:
 
 `VERIFIED STRUCTURAL GAP — MINIMUM ADDITIVE UMI-07 CONTRACT DELTA REQUIRED`
 
-Repository search was used only as locator evidence. The architecture conclusion
-is grounded in the directly inspected canonical authorities above.
+Search absence is locator evidence only. The decision is grounded in directly
+inspected canonical boundaries.
 
 ---
 
-# 3. Contract inventory
+# 3. Candidate contract inventory
 
-UMI-07 adds only these local semantic contracts:
+The candidate adds only:
 
 - `CommodityTermsId`;
 - `CommodityEvidenceRef`;
-- `CommodityFamilyCode`;
+- `CommodityClassCode`;
 - `CommodityGradeCode`;
 - `CommodityDeliveryMethodCode`;
 - `CommodityDeliveryWindow`;
@@ -283,53 +270,41 @@ UMI-07 adds only these local semantic contracts:
 - `CommodityPhysicalDeliveryTerms`;
 - `CommodityFuturesContractTerms`.
 
-No new economic identity, listing, lifecycle event, futures month, expiry,
-multiplier, tick-value or settlement-style type is introduced.
+No new economic identity, identity-family type, listing, relationship, lifecycle
+event, futures month, expiry, multiplier, tick-value or settlement-style type is
+introduced.
 
 ---
 
 # 4. Local IDs and evidence
 
-## 4.1 CommodityTermsId
+`CommodityTermsId` is a UUID-backed local semantic artifact ID only.
 
-`CommodityTermsId` is a UUID-backed identity for one immutable UMI-07 semantic
-artifact.
+`CommodityEvidenceRef` is an opaque UUID reference to retained evidence only.
 
-It is not:
-
-- `EconomicIdentityId`;
-- a provider product code;
-- a venue-native contract code;
-- a lifecycle-event ID.
+```text
+LOCAL UUID != ECONOMIC IDENTITY
+EVIDENCE REF != EVIDENCE CONTENT
+HASH / UUID != RETAINED SOURCE EVIDENCE
+```
 
 No implicit UUID generation exists.
 
-## 4.2 CommodityEvidenceRef
-
-`CommodityEvidenceRef` is an opaque UUID reference to retained evidence.
-
-```text
-EVIDENCE REF != EVIDENCE CONTENT
-UUID != PROVENANCE BY ITSELF
-```
-
-The evidence system outside this contract must retain the actual source material.
-
 ---
 
-# 5. Commodity reference terms
+# 5. Commodity reference semantics
 
 `CommodityReferenceTerms` retains:
 
-- local terms ID;
-- canonical UMI-02 commodity/reference identity;
-- extensible commodity-family code;
-- canonical UMI-02 measurement-unit/reference identity;
-- evidence ref.
+- `terms_id`;
+- `reference_identity_id: EconomicIdentityId`;
+- `commodity_class: CommodityClassCode`;
+- `measurement_unit_identity_id: EconomicIdentityId`;
+- `evidence_ref`.
 
 The commodity reference and measurement-unit identities must differ.
 
-Example family codes may include concepts such as:
+`CommodityClassCode` may preserve bounded semantic classes such as:
 
 - `energy`;
 - `metals`;
@@ -337,241 +312,185 @@ Example family codes may include concepts such as:
 - `livestock`;
 - `softs`.
 
-These examples do not create a closed universal enum. The family code is an
-extensible semantic qualifier, not economic identity.
+It remains extensible rather than a closed world enum.
 
-The UMI-02 graph remains responsible for proving the referenced identities have
-the intended governed kinds/families where that proof is required.
+It does not prove the UMI-02 identity kind or family.
 
 ```text
-FAMILY CODE != IDENTITY KIND PROOF
-REFERENCE ID != PROVIDER SYMBOL
+COMMODITY CLASS CODE != IdentityFamilyCode
+COMMODITY CLASS CODE != ECONOMIC IDENTITY
 ```
 
 ---
 
-# 6. Delivery grade, location and method
+# 6. Grade, delivery location and delivery method
 
-## 6.1 CommodityGradeCode
+## 6.1 Grade
 
-A physical delivery contract may require a defined grade/specification.
-
-`CommodityGradeCode` retains a canonical provider-neutral contractual code.
+`CommodityGradeCode` retains a contractual grade/specification code.
 
 It does not:
 
-- inspect laboratory quality;
-- certify compliance with an exchange rulebook;
+- inspect physical quality;
+- certify exchange compliance;
 - calculate quality differentials;
-- create a commodity identity.
+- create identity authority.
 
-## 6.2 Delivery location
+## 6.2 Location
 
-A delivery alternative binds `location_identity_id: EconomicIdentityId`.
+`CommodityDeliveryAlternative.location_identity_id` uses an existing UMI-02
+`EconomicIdentityId` reference.
 
-This intentionally avoids:
+This avoids turning a provider warehouse string or venue code into canonical
+location authority.
 
-- provider-specific warehouse strings as canonical authority;
-- venue codes masquerading as physical delivery-point identity;
-- an ad hoc second location-ID graph.
+The UMI-02 graph must prove the referenced identity is an appropriate reference
+object when that proof is material.
 
-The referenced UMI-02 identity is an attachment. Governed composition remains
-responsible for proving that the identity is an appropriate reference object.
-
-A locally composed commodity futures contract rejects a delivery location that is
-identical to:
+Within the local composition, a delivery-location identity cannot equal:
 
 - the futures contract identity;
 - the commodity reference identity;
 - the measurement-unit identity.
 
-These obvious self/cross-role collisions are locally decidable and therefore
-fail closed.
+Those are locally decidable cross-role collisions and fail closed.
 
-## 6.3 CommodityDeliveryMethodCode
+## 6.3 Delivery method
 
-The method code may retain contract semantics such as a warehouse-receipt,
-pipeline-transfer or other defined physical mechanism.
+`CommodityDeliveryMethodCode` retains a contractual mechanism such as
+`warehouse-receipt` or `pipeline-transfer`.
 
-It grants no authority to:
-
-- select a warehouse;
-- book freight;
-- move inventory;
-- transfer title;
-- settle the contract.
+It is not a logistics or settlement engine.
 
 ```text
-METHOD CODE != METHOD EXECUTION
+DELIVERY METHOD CODE != METHOD EXECUTION
 ```
 
 ---
 
 # 7. Delivery window
 
-`CommodityDeliveryWindow` retains exact `date` values:
+`CommodityDeliveryWindow` retains exact date-only:
 
 - `start_date`;
 - `end_date`.
 
 Rules:
 
-- both values must be exact `date`, not `datetime`;
+- exact `date`; `datetime` is rejected;
 - `end_date >= start_date`;
-- same-day delivery windows are valid.
+- same-day window is valid.
 
-UMI-07 deliberately does **not** impose a universal ordering between the delivery
+UMI-07 intentionally does NOT impose one universal order between the delivery
 window and:
 
 - first notice;
 - last trade;
 - expiry;
-- a recorded UMI-02 lifecycle event.
+- an observed UMI-02 lifecycle event.
 
-Different exchange/product rulebooks can define those relationships differently.
-A false universal chronology would be worse than retaining the exact contractual
-roles.
+Exchange/product rulebooks vary. Retaining exact roles is safer than inventing a
+false chronology.
 
 ```text
 DELIVERY WINDOW ROLE RETENTION
-!=
-UNIVERSAL EXCHANGE CHRONOLOGY
+!= UNIVERSAL EXCHANGE CHRONOLOGY
 ```
-
-D06 may later resolve business-day/calendar rules where required.
 
 ---
 
-# 8. Physical delivery alternatives
+# 8. Delivery alternatives
 
-A physically deliverable commodity contract may permit more than one eligible
-combination of:
+A physical contract can allow multiple specific combinations of grade, location,
+method and window.
 
-- grade;
-- delivery location;
-- delivery method;
-- delivery window.
+UMI-07 retains each valid combination as one
+`CommodityDeliveryAlternative` rather than independent sets whose cartesian product
+would invent combinations not actually allowed.
 
-Flattening those into four independent unordered sets would incorrectly imply all
-cross-products are valid.
+`CommodityPhysicalDeliveryTerms` requires:
 
-UMI-07 therefore retains one explicit `CommodityDeliveryAlternative` per eligible
-combination.
+- an actual immutable tuple;
+- at least one alternative;
+- only `CommodityDeliveryAlternative` members;
+- no exact duplicates;
+- deterministic canonical sorting by complete logical material.
 
-`CommodityPhysicalDeliveryTerms` retains a non-empty immutable tuple of those
-alternatives.
-
-Rules:
-
-- input must be an actual tuple;
-- tuple must be non-empty;
-- every member must be `CommodityDeliveryAlternative`;
-- exact duplicate alternatives are rejected;
-- caller order is non-semantic;
-- alternatives are canonicalized by deterministic logical material.
+Caller tuple order is not economic semantic.
 
 ```text
 GRADE A @ LOCATION X
 +
 GRADE B @ LOCATION Y
-!=
-{GRADE A, GRADE B} × {LOCATION X, LOCATION Y}
+!= {A,B} × {X,Y}
 ```
 
-This retains allowed combinations without implementing a delivery-selection
-engine.
+No delivery-selection engine exists.
 
 ---
 
-# 9. Commodity futures composition
+# 9. Composition over UMI-05 futures
 
-`CommodityFuturesContractTerms` composes:
+`CommodityFuturesContractTerms` retains:
 
 - local UMI-07 terms ID;
-- exact UMI-05 `FuturesContractTerms`;
+- exact embedded UMI-05 `FuturesContractTerms`;
 - UMI-07 `CommodityReferenceTerms`;
 - UMI-07 evidence ref;
 - optional `CommodityPhysicalDeliveryTerms`.
 
-The UMI-05 futures object is retained intact in logical material.
+The complete UMI-05 futures logical values are retained inside the UMI-07 logical
+material. UMI-07 does not selectively copy generic futures fields.
 
-UMI-07 does not copy or reserialize isolated futures fields under a new model.
-
-## 9.1 Reference identity binding
-
-The UMI-05 futures `reference_identity_id` must equal the UMI-07 commodity
-`reference_identity_id`.
-
-Otherwise the composition would permit commodity semantics for one reference to
-be attached to a futures contract referencing another.
+## 9.1 Reference binding
 
 ```text
-FUTURES REFERENCE ID
-=
-COMMODITY REFERENCE ID
+futures.reference_identity_id
+== commodity_reference.reference_identity_id
 ```
 
-This is reference consistency, not UMI-02 kind proof.
+A mismatch fails closed.
+
+This proves local referential consistency only. It does not prove UMI-02 kind/family
+without governed graph composition.
 
 ## 9.2 Measurement-unit binding
 
-The UMI-05 futures multiplier already retains:
-
-- positive exact multiplier value;
-- multiplier `unit_identity_id`.
-
-UMI-07 commodity reference terms retain an explicit measurement-unit identity.
-
-These identities must match.
-
 ```text
-FUTURES MULTIPLIER UNIT
-=
-COMMODITY MEASUREMENT UNIT
+futures.multiplier.unit_identity_id
+== commodity_reference.measurement_unit_identity_id
 ```
 
-This prevents a contract expressed in one unit from being silently qualified as
-a commodity reference measured in another unit.
+A mismatch fails closed.
 
-No unit conversion engine exists.
+This prevents a futures multiplier denominated in one physical/reference unit from
+being silently qualified as commodity terms measured in another unit.
 
-If future evidence requires explicit unit conversion, that conversion must be a
-separate provenance-bearing valuation/reference boundary rather than an implicit
-UMI-07 default.
+No conversion is attempted.
 
-## 9.3 CASH versus PHYSICAL
+## 9.3 CASH / PHYSICAL coherence
 
-The closed rule is:
+Closed rules:
 
 ```text
-UMI-05 settlement_style == PHYSICAL
--> UMI-07 physical_delivery REQUIRED
+PHYSICAL -> physical_delivery REQUIRED
+CASH -> physical_delivery MUST BE None
 ```
 
-and:
-
-```text
-UMI-05 settlement_style == CASH
--> UMI-07 physical_delivery MUST BE None
-```
-
-A cash-settled commodity futures contract may still carry commodity reference
-semantics. It simply cannot pretend to have physical delivery alternatives.
-
-This preserves:
+A cash-settled commodity contract can still retain commodity reference semantics.
+It simply carries no physical delivery alternatives.
 
 ```text
 COMMODITY REFERENCE != PHYSICAL DELIVERY
-CASH-SETTLED COMMODITY CONTRACT IS STILL A COMMODITY CONTRACT
 ```
 
 ---
 
-# 10. Lifecycle boundary
+# 10. Lifecycle authority boundary
 
-UMI-07 adds no lifecycle event class.
+UMI-07 adds no lifecycle event/history type.
 
-The following are deliberately separate:
+The following remain distinct:
 
 ```text
 UMI-05 expiry_date
@@ -581,17 +500,13 @@ UMI-07 CommodityDeliveryWindow
 UMI-02 IdentityLifecycleEvent
 ```
 
-The first four are immutable contractual terms.
+UMI-05 and UMI-07 dates are contractual terms.
 
-`IdentityLifecycleEvent` is retained evidence that an event was recorded/effective.
-
-Governed composition may later require consistency between contract terms and
-observed lifecycle evidence, but UMI-07 does not manufacture that evidence.
+UMI-02 lifecycle events are evidence that an event was effective/recorded.
 
 ```text
 CONTRACT SAYS DATE X
-!=
-EVENT X WAS OBSERVED / RECORDED
+!= EVENT X WAS OBSERVED / RECORDED
 ```
 
 ---
@@ -600,13 +515,12 @@ EVENT X WAS OBSERVED / RECORDED
 
 | Material | Authority |
 |---|---|
-| Economic/reference identity | UMI-02 / D04 |
-| Generic identity relationships | UMI-02 / D04 |
-| Evidence-bearing lifecycle events | UMI-02 / D04 |
-| Futures month/expiry/multiplier/tick/settlement style/notice/trade | UMI-05 |
-| Commodity family/reference qualification | UMI-07 |
+| Economic/reference identity + generic family | UMI-02 / D04 |
+| Generic identity relationships + lifecycle events | UMI-02 / D04 |
+| Futures month/expiry/multiplier/tick/style/notice/trade | UMI-05 |
+| Commodity class/reference qualification | UMI-07 |
 | Grade/location/method/window alternatives | UMI-07 |
-| Provider/observed commodity and delivery evidence | D05 |
+| Provider/observed commodity/delivery evidence | D05 |
 | Calendar/business-day resolution | D06 |
 | Price/basis/storage/carry/valuation | D07 / UMI-10 |
 | Account/collateral/risk/margin/capacity | D08 / D09 |
@@ -618,171 +532,167 @@ No UMI-07 type grants another department's operational authority.
 
 ---
 
-# 12. Required semantic non-collisions
+# 12. Determinism and fail-closed discipline
 
-```text
-COMMODITY TERMS ID != ECONOMIC IDENTITY
-COMMODITY FAMILY != GRADE
-COMMODITY REFERENCE != MEASUREMENT UNIT
-COMMODITY REFERENCE != DELIVERY LOCATION
-FUTURES CONTRACT IDENTITY != DELIVERY LOCATION
-GRADE != LOCATION
-LOCATION != VENUE
-DELIVERY METHOD != SETTLEMENT ENGINE
-DELIVERY WINDOW != LIFECYCLE EVENT
-DELIVERY ALTERNATIVE != CROSS-PRODUCT OF INDEPENDENT SETS
-MULTIPLIER UNIT != EXECUTION QUANTITY
-CASH COMMODITY FUTURE != PHYSICAL COMMODITY FUTURE
-PHYSICAL DELIVERY TERMS != D11 MUTATION
-EVIDENCE REF != EVIDENCE CONTENT
-```
-
----
-
-# 13. Determinism and fail-closed rules
-
-All UMI-07 candidate dataclasses use:
+All candidate dataclasses use:
 
 `@dataclass(frozen=True, slots=True)`
 
-Validation includes:
+The candidate requires:
 
 - explicit caller-supplied UUID-backed local IDs;
-- strict UMI-02 `EconomicIdentityId` references;
+- UMI-02 `EconomicIdentityId` references;
 - typed code wrappers;
 - canonical lowercase code syntax;
-- exact `date`; `datetime` rejected;
-- immutable non-empty alternative tuple;
-- duplicate alternative rejection;
-- deterministic caller-order-independent alternative sorting;
-- reference identity consistency with UMI-05 futures;
-- measurement-unit identity consistency with UMI-05 multiplier;
+- exact `date`, never `datetime`;
+- immutable non-empty alternative tuples;
+- duplicate-alternative rejection;
+- caller-order-independent canonical alternative sorting;
+- UMI-05 reference consistency;
+- UMI-05 multiplier-unit consistency;
 - CASH/PHYSICAL coherence;
-- obvious location identity role collisions rejected;
-- deterministic `logical_values()`;
-- no implicit `datetime.now()`;
-- no implicit `date.today()`;
-- no implicit `uuid4()`;
-- no randomness;
-- no global mutable state;
-- no retry/sleep/thread/scheduler.
+- deterministic `logical_values()`.
+
+Candidate source contains no implicit:
+
+- `datetime.now()`;
+- `date.today()`;
+- `uuid4()`;
+- randomness;
+- retry/sleep/thread/scheduler;
+- global mutable state.
 
 ---
 
-# 14. Adversarial test obligations
+# 13. Internal pre-falsification matrix
 
-Exact-head tests must attack at least:
+## PRE-CHK-UMI07-00 — identity-family authority duplication
 
-1. local terms/evidence IDs are not economic identity;
-2. raw text cannot enter UUID wrappers;
-3. raw UUID cannot enter `EconomicIdentityId` fields;
-4. family, grade and delivery method remain distinct typed semantics;
-5. raw strings cannot bypass typed-code fields;
-6. noncanonical/credential-like code material fails;
-7. delivery-window start/end roles are retained;
-8. reverse delivery-window chronology fails;
-9. `datetime` cannot launder into start date;
-10. `datetime` cannot launder into end date;
-11. grade/location/method/window all survive logical values;
-12. raw UUID cannot masquerade as delivery location identity;
-13. physical-delivery alternatives require non-empty immutable tuple;
-14. exact duplicate alternatives fail;
-15. caller alternative order does not change logical material;
-16. UMI-05 futures object is reused intact;
-17. UMI-05 reference identity mismatch fails;
-18. UMI-05 multiplier-unit mismatch fails;
-19. PHYSICAL without delivery terms fails;
-20. CASH with physical-delivery terms fails;
-21. CASH commodity futures without physical delivery remains representable;
-22. delivery location cannot equal contract/commodity/unit identity;
-23. no false delivery-window-vs-expiry/notice chronology is invented;
-24. terms are frozen;
-25. no lifecycle/calendar/logistics/settlement/execution/risk/provider engine exists;
-26. logical values are repeatable and secret-free.
+Historical candidate:
+`CommodityFamilyCode`.
 
-Coverage percentage does not substitute for those semantic attacks.
+Correction:
+`CommodityClassCode`, explicitly non-sovereign versus UMI-02 `IdentityFamilyCode`.
 
----
-
-# 15. Internal falsification targets
-
-Before exact-head freeze, Integration Gate must specifically try to construct:
+Required independent attack:
+prove whether UMI-07 can make identity-family claims or only retain bounded commodity
+class material.
 
 ## PRE-CHK-UMI07-01 — generic futures duplication
 
-Counterexample sought:
-UMI-07 introduces its own contract month, expiry, multiplier, tick value,
-first-notice, last-trade or settlement-style field and can drift from UMI-05.
+Attack:
+find parallel UMI-07 contract month, expiry, multiplier, tick value, first notice,
+last trade or settlement style.
 
-Required outcome:
-NOT CONSTRUCTED. The candidate must embed `FuturesContractTerms` instead.
+Expected:
+NOT FOUND. Candidate embeds `FuturesContractTerms`.
 
-## PRE-CHK-UMI07-02 — cash/physical semantic collapse
+## PRE-CHK-UMI07-02 — CASH / PHYSICAL collapse
 
-Counterexample sought:
-A CASH futures contract carries physical delivery alternatives, or a PHYSICAL
-contract omits them.
+Attack:
+- PHYSICAL without delivery terms;
+- CASH with delivery terms.
 
-Required outcome:
-Both invalid states fail closed.
+Expected:
+both fail.
 
-## PRE-CHK-UMI07-03 — unit/reference mismatch
+## PRE-CHK-UMI07-03 — reference/unit mismatch
 
-Counterexample sought:
-Commodity semantics for reference A or unit U can be attached to futures
-referencing B or multiplier unit V.
+Attack:
+attach commodity reference A to futures reference B, or measurement unit U to
+multiplier unit V.
 
-Required outcome:
-Both mismatches fail closed.
+Expected:
+both fail.
 
-## PRE-CHK-UMI07-04 — delivery-alternative cross-product loss
+## PRE-CHK-UMI07-04 — alternative combination/order loss
 
-Counterexample sought:
-Multiple grade/location combinations collapse into unordered independent sets or
-caller tuple order changes logical material.
+Attack:
+- duplicate alternatives;
+- mutable list instead of tuple;
+- reverse caller order;
+- grade/location combination collapse.
 
-Required outcome:
-Each eligible combination remains one explicit alternative and tuple order is
-canonicalized.
+Expected:
+duplicates/mutable list fail; caller order canonicalizes; each combination remains
+explicit.
 
 ## PRE-CHK-UMI07-05 — lifecycle authority duplication
 
-Counterexample sought:
-UMI-07 contractual delivery dates are represented as observed lifecycle events or
-a second lifecycle history appears.
+Attack:
+find UMI-07 lifecycle event/history, recorded/effective event producer or a claim
+that delivery-window dates prove observed lifecycle events.
 
-Required outcome:
-No UMI-07 lifecycle event/history type exists.
+Expected:
+NOT FOUND.
+
+---
+
+# 14. Required test obligations
+
+Exact-head tests must demonstrate at minimum:
+
+1. local IDs/evidence refs are not economic identity;
+2. UUID wrappers reject raw text;
+3. raw UUID cannot enter UMI-02 identity fields;
+4. commodity class, grade and delivery method are distinct typed semantics;
+5. typed fields reject raw-string laundering;
+6. noncanonical/credential-like code material fails;
+7. delivery-window date roles are retained;
+8. reverse window chronology fails;
+9. datetime laundering fails for both window dates;
+10. grade/location/method/window all survive logical values;
+11. raw UUID cannot masquerade as delivery-location identity;
+12. delivery alternatives require non-empty immutable tuple;
+13. duplicates fail;
+14. caller ordering does not alter logical values;
+15. exact UMI-05 futures object is reused;
+16. reference mismatch fails;
+17. multiplier-unit mismatch fails;
+18. PHYSICAL missing delivery terms fails;
+19. CASH carrying delivery terms fails;
+20. CASH commodity futures remain representable without physical delivery;
+21. obvious location-role identity collisions fail;
+22. no false delivery-window-vs-expiry/notice chronology is imposed;
+23. terms are frozen;
+24. no lifecycle/calendar/logistics/settlement/execution/risk/provider engine exists;
+25. logical values are repeatable and secret-free.
+
+Coverage percentage is not a substitute for these semantic attacks.
+
+---
+
+# 15. Semantic non-collision matrix
+
+```text
+CommodityClassCode != IdentityFamilyCode
+CommodityClassCode != CommodityGradeCode
+CommodityGradeCode != delivery location identity
+commodity reference identity != measurement-unit identity
+commodity reference identity != futures instrument identity by inherited UMI-05 rules
+commodity reference != delivery location
+measurement unit != delivery location
+contract multiplier != order/position quantity
+PHYSICAL != CASH
+physical delivery specification != settlement mutation
+delivery window != lifecycle event
+evidence ref != evidence content
+```
 
 ---
 
 # 16. Blast radius
 
-The intended candidate is additive and limited to:
+Expected exact candidate delta is additive and limited to:
 
-- one new infrastructure semantic module;
-- one adversarial test module;
-- this architecture artifact.
+- `src/qore/infrastructure/commodity_contract_delivery_semantics.py`;
+- `tests/infrastructure/test_commodity_contract_delivery_semantics.py`;
+- this architecture document.
 
-It must not modify:
+No certified UMI-02/03/04/05/06, provider, runtime, persistence, execution, risk,
+account, position, settlement or client/CEO file may change.
 
-- UMI-02;
-- UMI-03;
-- UMI-04;
-- UMI-05;
-- UMI-06;
-- provider adapters;
-- market-data ingestion;
-- execution;
-- risk;
-- accounts;
-- positions;
-- settlement;
-- runtime/persistence;
-- client/CEO surfaces.
-
-Any unexpected modification outside the three additive artifacts requires a new
-blast-radius analysis.
+Any unexpected additional diff requires a new blast-radius decision.
 
 ---
 
@@ -791,33 +701,24 @@ blast-radius analysis.
 UMI-07 does NOT implement or certify:
 
 - full physical commodity ontology;
-- exchange/provider product catalogs;
-- provider commodity adapters;
-- provider contract support;
-- venue-native product-code authority;
+- exchange/provider product catalogs or adapters;
+- provider/venue product-code authority;
 - delivery notice ingestion;
 - warehouse receipt ingestion;
 - warehouse/inventory state;
-- logistics/transport/freight;
+- logistics, transport or freight;
 - title transfer;
 - delivery election/selection;
-- calendar or business-day date generation;
-- storage costs;
-- carry;
+- calendar/business-day date generation;
+- storage costs or carry;
 - convenience yield;
-- cash-and-carry basis;
-- location/quality differential valuation;
-- commodity spot pricing;
-- commodity forward pricing;
-- commodity option pricing;
+- commodity basis calculation;
+- quality/location differential valuation;
+- spot/forward/option pricing;
 - valuation observations;
-- margin/risk/capital reservation;
+- margin/risk/capacity reservation;
 - order/execution;
-- position mutation;
-- inventory mutation;
-- cash mutation;
-- settlement mutation;
-- automatic reconciliation trading;
+- position/inventory/cash/settlement mutation;
 - structured commodity payoff products;
 - productive Cloud;
 - production readiness;
@@ -827,7 +728,7 @@ UMI-07 does NOT implement or certify:
 
 # 18. Carry-forwards
 
-UMI-07 leaves unchanged:
+A favorable UMI-07 review does NOT close or alter:
 
 - `GAP-FND04-TIME-01` — OPEN / HIGH;
 - `GAP-FND07-RES-01` — OPEN / HIGH;
@@ -836,22 +737,20 @@ UMI-07 leaves unchanged:
 - `GAP-ANALYSIS-PRODUCER` — OPEN / HIGH;
 - `GAP-LIN-001` — OPEN / HIGH.
 
-No favorable UMI-07 review may be interpreted as closure of those obligations.
-
 ---
 
 # 19. Certification gate
 
-UMI-07 can be integrated only through:
+UMI-07 may be integrated only through:
 
 ```text
 CERTIFIED BASELINE
--> EXACT IMPLEMENTATION
--> ADVERSARIAL TESTS
+-> IMPLEMENTATION
+-> INTERNAL FALSIFICATION
+-> FULL QUALITY GATE
 -> DIFF AUDIT
--> EXACT-HEAD CI
 -> EXACT-HEAD FREEZE
--> FULL INDEPENDENT CLAUDE REVIEW
+-> FULL CLAUDE INDEPENDENT REVIEW
 -> INTEGRATION GATE
 -> EXPECTED-HEAD PROTECTED MERGE
 -> ACTUAL MERGE VERIFICATION
@@ -859,22 +758,21 @@ CERTIFIED BASELINE
 -> BASELINE FREEZE
 ```
 
-Any candidate SHA mutation after freeze invalidates the previous review binding.
+Any candidate SHA mutation after freeze invalidates the prior independent review.
 
 `CI GREEN != ENGINEERING APPROVAL`
 
 `READY FOR INTEGRATION GATE != MERGED`
 
-`MERGED != CERTIFIED UNTIL POST-MERGE BASELINE VERIFICATION`
+`MERGED != CERTIFIED UNTIL POST-MERGE VERIFICATION`
 
 ---
 
 # 20. Final non-claims
 
-This candidate, even if independently certified, establishes only a bounded
+Even if independently certified, UMI-07 establishes only a bounded
 provider-neutral commodity reference + contract-delivery semantic layer composed
 over UMI-02 and UMI-05.
 
-It does not establish provider support, operational physical delivery,
-settlement, commodity valuation, logistics, production readiness or real-capital
-authority.
+It does not establish provider support, operational physical delivery, settlement,
+commodity valuation, logistics, production readiness or real-capital authority.
