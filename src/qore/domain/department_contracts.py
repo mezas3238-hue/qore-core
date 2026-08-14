@@ -212,12 +212,6 @@ class DepartmentContractRegistry:
             (dependency.consumer, dependency.provider, dependency.mode)
             for dependency in self.department_registry.dependencies
         }
-        if not all(
-            route in dependency_routes for route in CANONICAL_DEPARTMENT_COMMAND_ROUTES
-        ):
-            raise DepartmentContractValidationError(
-                "canonical command route must exist in department dependency graph"
-            )
         for contract in self.contracts:
             route = (contract.consumer, contract.provider, contract.mode)
             if route not in dependency_routes:
