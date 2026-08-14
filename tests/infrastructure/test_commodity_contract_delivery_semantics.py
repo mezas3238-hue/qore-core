@@ -201,8 +201,9 @@ def test_class_grade_and_delivery_method_are_distinct_typed_semantics() -> None:
     assert commodity_class.logical_values() == ("energy",)
     assert grade.logical_values() == ("wti-spec",)
     assert method.logical_values() == ("pipeline-transfer",)
-    assert type(commodity_class) is not type(grade)
-    assert type(grade) is not type(method)
+    assert isinstance(commodity_class, CommodityClassCode)
+    assert isinstance(grade, CommodityGradeCode)
+    assert isinstance(method, CommodityDeliveryMethodCode)
 
 
 def test_typed_code_fields_reject_raw_string_laundering() -> None:
