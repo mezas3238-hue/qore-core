@@ -43,3 +43,14 @@ def test_every_explicit_command_capable_route_accepts_command_descriptor(
     )
 
     assert registry.contract(contract.contract_id, contract.version) == contract
+
+
+def test_registry_logical_values_bind_command_admission_policy() -> None:
+    registry = DepartmentContractRegistry(
+        department_registry=CANONICAL_DEPARTMENT_REGISTRY,
+    )
+
+    assert registry.logical_values()[1] == (
+        ("D18", "D10", "synchronous"),
+        ("D20", "D01", "synchronous"),
+    )
