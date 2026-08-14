@@ -281,8 +281,14 @@ def test_contract_rate_rejects_non_finite_values(value: Decimal) -> None:
 
 def test_notional_schedule_is_immutable_sorted_unique_and_unit_stable() -> None:
     unit = _identity(40)
-    earlier = dcs.DerivativeNotionalStep(date(2026, 1, 2), _notional("100", unit=unit))
-    later = dcs.DerivativeNotionalStep(date(2027, 1, 2), _notional("80", unit=unit))
+    earlier = dcs.DerivativeNotionalStep(
+        date(2026, 1, 2),
+        _notional("100", unit=unit),
+    )
+    later = dcs.DerivativeNotionalStep(
+        date(2027, 1, 2),
+        _notional("80", unit=unit),
+    )
 
     schedule = dcs.DerivativeNotionalSchedule((later, earlier))
     assert schedule.steps == (earlier, later)
@@ -290,10 +296,21 @@ def test_notional_schedule_is_immutable_sorted_unique_and_unit_stable() -> None:
     with pytest.raises(dcs.DerivativeContractValidationError, match="non-empty tuple"):
         dcs.DerivativeNotionalSchedule(cast(Any, [earlier]))
     with pytest.raises(dcs.DerivativeContractValidationError, match="unique"):
-        dcs.DerivativeNotionalSchedule((earlier, replace(later, effective_date=earlier.effective_date)))
+        dcs.DerivativeNotionalSchedule(
+            (
+                earlier,
+                replace(later, effective_date=earlier.effective_date),
+            )
+        )
     with pytest.raises(dcs.DerivativeContractValidationError, match="one notional unit"):
         dcs.DerivativeNotionalSchedule(
-            (earlier, replace(later, notional=_notional("80", unit=_identity(41))))
+            (
+                earlier,
+                replace(
+                    later,
+                    notional=_notional("80", unit=_identity(41)),
+                ),
+            )
         )
 
 
@@ -461,7 +478,7 @@ def test_cash_futures_reject_first_notice_and_dates_after_expiry() -> None:
         replace(base, last_trade_date=date(2027, 4, 1))
 
 
-def test_physical_futures_may_retain_first_notice_without_forcing_ordering_to_last_trade() -> None:
+def test_physical_futures_may_retain_first_notice_without_forcing_ordering() -> None:
     terms = dcs.FuturesContractTerms(
         terms_id=_terms_id(3),
         instrument_identity_id=_identity(7),
@@ -580,13 +597,13 @@ def test_option_rejects_raw_right_and_self_underlying() -> None:
         replace(terms, underlying_identity_id=terms.instrument_identity_id)
 
 
-def test_cash_settled_forward_requires_typed_fixing_before_or_at_maturity() -> None:
+def _cash_forward() -> dcs.ForwardContractTerms:
     fixing = dcs.DerivativeFixingTerms(
         reference=_benchmark(400),
         fixing_date=date(2027, 6, 29),
         evidence_ref=_evidence(20),
     )
-    terms = dcs.ForwardContractTerms(
+    return dcs.ForwardContractTerms(
         terms_id=_terms_id(20),
         instrument_identity_id=_identity(40),
         reference_identity_id=_identity(41),
@@ -599,33 +616,23 @@ def test_cash_settled_forward_requires_typed_fixing_before_or_at_maturity() -> N
         fixing=fixing,
         settlement_convention=_settlement(),
     )
-    assert terms.fixing == fixing
+
+
+def test_cash_settled_forward_requires_typed_fixing_before_or_at_maturity() -> None:
+    terms = _cash_forward()
+    assert terms.fixing is not None
 
     with pytest.raises(dcs.DerivativeContractValidationError, match="fixing_date"):
-        replace(terms, fixing=replace(fixing, fixing_date=date(2027, 7, 1)))
+        assert terms.fixing is not None
+        replace(
+            terms,
+            fixing=replace(terms.fixing, fixing_date=date(2027, 7, 1)),
+        )
 
 
-def test_cash_forward_without_fixing_and_physical_forward_with_fixing_fail_closed() -> None:
-    cash = dcs.ForwardContractTerms(
-        terms_id=_terms_id(22),
-        instrument_identity_id=_identity(43),
-        reference_identity_id=_identity(44),
-        settlement_identity_id=_identity(45),
-        notional=_notional(unit=_identity(44)),
-        agreed_strike=_price_strike("50"),
-        maturity_date=date(2027, 12, 1),
-        settlement_style=dcs.DerivativeSettlementStyle.CASH,
-        evidence_ref=_evidence(22),
-        fixing=dcs.DerivativeFixingTerms(
-            _benchmark(401),
-            date(2027, 11, 30),
-            _evidence(23),
-        ),
-    )
+def test_cash_forward_without_fixing_fails_closed() -> None:
     with pytest.raises(dcs.DerivativeContractValidationError, match="requires explicit fixing"):
-        replace(cash, fixing=None)
-    with pytest.raises(dcs.DerivativeContractValidationError, match="physical forward"):
-        replace(cash, settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL)
+        replace(_cash_forward(), fixing=None)
 
 
 def test_physical_forward_without_fixing_is_valid_and_does_not_settle_itself() -> None:
@@ -643,6 +650,30 @@ def test_physical_forward_without_fixing_is_valid_and_does_not_settle_itself() -
     )
     assert terms.fixing is None
     assert not hasattr(terms, "settle")
+
+
+def test_physical_forward_may_retain_valid_fixing_precheck_umi05_01() -> None:
+    fixing = dcs.DerivativeFixingTerms(
+        reference=_benchmark(405),
+        fixing_date=date(2027, 12, 30),
+        evidence_ref=_evidence(25),
+    )
+    terms = dcs.ForwardContractTerms(
+        terms_id=_terms_id(25),
+        instrument_identity_id=_identity(48),
+        reference_identity_id=_identity(49),
+        settlement_identity_id=_identity(49),
+        notional=_notional(unit=_identity(49)),
+        agreed_strike=_price_strike("80"),
+        maturity_date=date(2028, 1, 1),
+        settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL,
+        evidence_ref=_evidence(26),
+        fixing=fixing,
+    )
+    assert terms.fixing == fixing
+
+    with pytest.raises(dcs.DerivativeContractValidationError, match="fixing_date"):
+        replace(terms, fixing=replace(fixing, fixing_date=date(2028, 1, 2)))
 
 
 def test_swap_fixed_and_floating_legs_retain_separate_semantics() -> None:
@@ -730,7 +761,7 @@ def test_swap_order_is_deterministic_and_requires_contiguous_unique_ordinals() -
         _swap((first, replace(second, leg_id=first.leg_id)))
 
 
-def test_swap_notional_schedule_must_cover_effective_start_and_stop_before_termination() -> None:
+def test_swap_notional_schedule_must_cover_effective_start_and_end_before_termination() -> None:
     wrong_start = _schedule(first_date=date(2026, 1, 3))
     with pytest.raises(dcs.DerivativeContractValidationError, match="start at effective_date"):
         _swap(
@@ -803,22 +834,31 @@ def test_swap_leg_type_laundering_fails_closed() -> None:
         replace(swap, legs=cast(Any, (swap.legs[0], "floating")))
 
 
-def test_composition_references_existing_derivative_identities_with_explicit_ratio() -> None:
-    first = dcs.DerivativeCompositionLeg(
-        leg_id=_leg_id(101),
-        ordinal=dcs.DerivativeLegOrdinal(1),
-        component_identity_id=_identity(601),
-        side=dcs.DerivativeCompositionSide.LONG,
-        ratio=Decimal("1.0"),
-        evidence_ref=_evidence(101),
+def _composition_leg(
+    value: int,
+    ordinal: int,
+    component: int,
+    side: dcs.DerivativeCompositionSide,
+    ratio: str = "1",
+) -> dcs.DerivativeCompositionLeg:
+    return dcs.DerivativeCompositionLeg(
+        leg_id=_leg_id(value),
+        ordinal=dcs.DerivativeLegOrdinal(ordinal),
+        component_identity_id=_identity(component),
+        side=side,
+        ratio=Decimal(ratio),
+        evidence_ref=_evidence(value),
     )
-    second = dcs.DerivativeCompositionLeg(
-        leg_id=_leg_id(102),
-        ordinal=dcs.DerivativeLegOrdinal(2),
-        component_identity_id=_identity(602),
-        side=dcs.DerivativeCompositionSide.SHORT,
-        ratio=Decimal("2.00"),
-        evidence_ref=_evidence(102),
+
+
+def test_composition_references_existing_derivative_identities_with_explicit_ratio() -> None:
+    first = _composition_leg(101, 1, 601, dcs.DerivativeCompositionSide.LONG)
+    second = _composition_leg(
+        102,
+        2,
+        602,
+        dcs.DerivativeCompositionSide.SHORT,
+        "2.00",
     )
     terms = dcs.DerivativeCompositionTerms(
         terms_id=_terms_id(100),
@@ -833,22 +873,8 @@ def test_composition_references_existing_derivative_identities_with_explicit_rat
 
 
 def test_composition_rejects_self_duplicate_component_and_invalid_ratio() -> None:
-    first = dcs.DerivativeCompositionLeg(
-        leg_id=_leg_id(111),
-        ordinal=dcs.DerivativeLegOrdinal(1),
-        component_identity_id=_identity(611),
-        side=dcs.DerivativeCompositionSide.LONG,
-        ratio=Decimal("1"),
-        evidence_ref=_evidence(111),
-    )
-    second = dcs.DerivativeCompositionLeg(
-        leg_id=_leg_id(112),
-        ordinal=dcs.DerivativeLegOrdinal(2),
-        component_identity_id=_identity(612),
-        side=dcs.DerivativeCompositionSide.SHORT,
-        ratio=Decimal("1"),
-        evidence_ref=_evidence(112),
-    )
+    first = _composition_leg(111, 1, 611, dcs.DerivativeCompositionSide.LONG)
+    second = _composition_leg(112, 2, 612, dcs.DerivativeCompositionSide.SHORT)
     base = dcs.DerivativeCompositionTerms(
         terms_id=_terms_id(110),
         instrument_identity_id=_identity(610),
@@ -859,31 +885,29 @@ def test_composition_rejects_self_duplicate_component_and_invalid_ratio() -> Non
     with pytest.raises(dcs.DerivativeContractValidationError, match="must not reference itself"):
         replace(
             base,
-            legs=(replace(first, component_identity_id=base.instrument_identity_id), second),
+            legs=(
+                replace(first, component_identity_id=base.instrument_identity_id),
+                second,
+            ),
         )
     with pytest.raises(dcs.DerivativeContractValidationError, match="component identities"):
-        replace(base, legs=(first, replace(second, component_identity_id=first.component_identity_id)))
+        replace(
+            base,
+            legs=(
+                first,
+                replace(
+                    second,
+                    component_identity_id=first.component_identity_id,
+                ),
+            ),
+        )
     with pytest.raises(dcs.DerivativeContractValidationError, match="positive"):
         replace(first, ratio=Decimal("0"))
 
 
 def test_composition_requires_two_immutable_typed_legs_and_contiguous_ordinals() -> None:
-    first = dcs.DerivativeCompositionLeg(
-        _leg_id(121),
-        dcs.DerivativeLegOrdinal(1),
-        _identity(621),
-        dcs.DerivativeCompositionSide.LONG,
-        Decimal("1"),
-        _evidence(121),
-    )
-    second = dcs.DerivativeCompositionLeg(
-        _leg_id(122),
-        dcs.DerivativeLegOrdinal(2),
-        _identity(622),
-        dcs.DerivativeCompositionSide.SHORT,
-        Decimal("1"),
-        _evidence(122),
-    )
+    first = _composition_leg(121, 1, 621, dcs.DerivativeCompositionSide.LONG)
+    second = _composition_leg(122, 2, 622, dcs.DerivativeCompositionSide.SHORT)
     base = dcs.DerivativeCompositionTerms(
         _terms_id(120),
         _identity(620),
@@ -903,14 +927,7 @@ def test_leg_ordinal_and_composition_side_reject_bool_or_raw_string_laundering()
     with pytest.raises(dcs.DerivativeContractValidationError, match="positive int"):
         dcs.DerivativeLegOrdinal(cast(int, True))
 
-    leg = dcs.DerivativeCompositionLeg(
-        _leg_id(130),
-        dcs.DerivativeLegOrdinal(1),
-        _identity(630),
-        dcs.DerivativeCompositionSide.LONG,
-        Decimal("1"),
-        _evidence(130),
-    )
+    leg = _composition_leg(130, 1, 630, dcs.DerivativeCompositionSide.LONG)
     with pytest.raises(dcs.DerivativeContractValidationError, match="composition side"):
         replace(leg, side=cast(Any, "long"))
 
