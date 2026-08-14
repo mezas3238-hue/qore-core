@@ -345,7 +345,7 @@ def test_cash_dividend_retains_exact_amount_and_does_not_invent_date_ordering() 
     )
 
     assert terms.amount.logical_values()[0] == "1.25"
-    assert terms.logical_values()[6:10] == (
+    assert terms.logical_values()[5:9] == (
         "2026-01-01",
         "2026-03-01",
         "2026-01-15",
