@@ -21,16 +21,19 @@ The candidate covers bounded contractual semantics for:
 - swaps through explicit typed legs;
 - narrow derivative multi-leg composition referencing existing UMI-02 identities.
 
-It does **not** implement valuation, pricing, payoff calculation, cash-flow
-materialization, observed fixings, auction processing, credit-event detection,
-Greeks, implied volatility, volatility surfaces, curve construction, provider
-adapters, execution, position mutation, settlement mutation, margin, risk
-reservation, productive Cloud, or real-capital authority.
+It does **not** implement valuation, pricing, payoff calculation, cash-flow or
+payment-schedule materialization, observed fixings, auction processing,
+credit-event detection, option-exercise execution, Greeks, implied volatility,
+volatility surfaces, curve construction, provider adapters, execution, position
+mutation, settlement mutation, margin, risk reservation, productive Cloud, or
+real-capital authority.
 
 ```text
 DERIVATIVE CONTRACT TERMS
 !=
 DERIVATIVE PRICING ENGINE
+!=
+DERIVATIVE SCHEDULE ENGINE
 !=
 DERIVATIVE SETTLEMENT ENGINE
 !=
@@ -60,11 +63,15 @@ FACE / PAR != DERIVATIVE NOTIONAL BY IMPLICATION
 TICK SIZE != TICK VALUE
 PRICE × QUANTITY != UNIVERSAL ECONOMIC VALUE
 OPTION RIGHT != EXERCISE STYLE
+AMERICAN EXERCISE STYLE != AMERICAN EXERCISE WINDOW
 STRIKE != GENERIC DECIMAL
 PRICE STRIKE != RATE STRIKE != YIELD STRIKE != SPREAD STRIKE != LEVEL STRIKE
+PRICE STRIKE QUOTE IDENTITY != PRICE STRIKE QUOTE BASIS
 CONTRACTUAL FIXED RATE != CURVE ZERO/PAR/FORWARD RATE
 TERM FIXING != COMPOUNDED OVERNIGHT FIXING
 FIXING-CONVENTION CODE != FIXING ENGINE
+PAYMENT TENOR != PAYMENT SCHEDULE SEMANTICS
+STUB / ROLL RULE != CALENDAR / SCHEDULE ENGINE
 CASH SETTLEMENT != PHYSICAL SETTLEMENT
 PROTECTION AUCTION != FIXED-RECOVERY != PHYSICAL DELIVERY
 PROTECTION SETTLEMENT METHOD != SETTLEMENT ENGINE
@@ -133,15 +140,16 @@ material.
 
 ### Contractual date versus lifecycle event
 
-A futures or option expiry date in immutable terms is a contractual specification.
+A futures expiry, option expiry or American exercise-start date in immutable terms
+is a contractual specification.
 
 A UMI-02 `IdentityLifecycleEvent` is evidence that a lifecycle event was recorded
 for an identity.
 
 ```text
-CONTRACTUAL EXPIRY DATE
+CONTRACTUAL DATE
 !=
-OBSERVED / RECORDED EXPIRY LIFECYCLE EVENT
+OBSERVED / RECORDED LIFECYCLE EVENT
 ```
 
 Where both are present, governed composition may require consistency. UMI-05 does
@@ -183,13 +191,17 @@ CONTRACT COUNT != FACE VALUE != BASE UNITS != TOKEN UNITS
 MULTIPLIER != QUANTITY
 TICK SIZE != TICK VALUE
 PRICE × QUANTITY != UNIVERSAL ECONOMIC VALUE
+PRICE REQUIRES SEMANTIC KIND / QUOTE OR DENOMINATION CONTEXT WHERE MATERIAL
 ```
 
-It also established that later family contracts must explicitly model notional,
-contract unit/multiplier and tick-value economic relationships where material.
+FND-04 also identifies for interest-rate swaps contractual `tenor/schedules` as
+material family semantics and assigns UMI-05 the obligation to distinguish
+contract count, notional, multiplier, underlying/reference, leg structure and
+price/rate semantics.
 
 UMI-05 therefore does not reuse execution `OrderQuantity`, infer notional from
-price/quantity, or promote UMI-03 `FaceAmount` to derivative notional.
+price/quantity, promote UMI-03 `FaceAmount` to derivative notional, or treat a
+quote-asset identity as sufficient proof of PRICE strike quote basis.
 
 ## 2.4 UMI-03 reuse boundary
 
@@ -198,6 +210,7 @@ UMI-05 reuses UMI-03 only where semantics are identical:
 - `FinancialTenor`;
 - `DayCountConventionCode`;
 - `BusinessCalendarRef` as a D06-owned calendar reference;
+- `BusinessDayConventionCode` as structural date-adjustment semantics;
 - `SettlementConvention` as structural settlement/calendar semantics;
 - `FixedIncomeSpread` as a bounded spread magnitude;
 - `YieldConvention` for an explicitly YIELD-based strike.
@@ -206,7 +219,12 @@ It does not silently promote:
 
 - `FaceAmount` to derivative notional;
 - `CouponRate` to a universal derivative fixed rate;
-- `FixedIncomeBenchmarkReference` to a universal derivative benchmark authority.
+- `FixedIncomeBenchmarkReference` to a universal derivative benchmark authority;
+- `FixedIncomePriceBasisCode` to a universal derivative PRICE-strike basis.
+
+The last item is intentionally separate: UMI-03's price-basis code is explicitly
+fixed-income scoped. UMI-05 adds a derivative-scoped quote-basis code rather than
+turning a bounded prior-stage type into universal authority.
 
 ## 2.5 UMI-04 reuse boundary
 
@@ -336,22 +354,50 @@ because valid rate and market-level domains may be zero or negative.
 
 ## 4.1 PRICE
 
-Requires an explicit quote/reference `EconomicIdentityId` and no rate/yield
-convention.
+Requires:
+
+- explicit quote/reference `EconomicIdentityId`;
+- explicit `DerivativePriceQuoteBasisCode`;
+- no rate/yield convention.
+
+Examples of different quote-basis semantics include `currency-per-unit` and
+`percent-of-par`. The code retains a contractual quote-basis semantic only; it
+does not implement price conversion or valuation.
+
+```text
+QUOTE CURRENCY / REFERENCE IDENTITY
+!=
+QUOTE BASIS
+```
+
+### PRE-CHK-UMI05-05 — PRICE quote-basis collapse
+
+A prior candidate retained PRICE magnitude and quote identity but not quote basis.
+That allowed two economically distinct PRICE strikes with the same numeric value
+and quote identity — for example currency-per-unit versus percent-of-par — to
+collapse to identical logical material.
+
+FND-04 explicitly requires price semantic/quote context where material, while
+UMI-03 already proves quote basis cannot be inferred from magnitude.
+
+Current correction requires a typed `DerivativePriceQuoteBasisCode` for every
+PRICE strike and includes it in deterministic logical values.
+
+Independent review must attempt to reproduce the collision under the exact head.
 
 ## 4.2 RATE
 
-Requires UMI-04 `RateCurveConvention` and no quote identity.
+Requires UMI-04 `RateCurveConvention` and rejects PRICE quote identity/basis.
 
 ## 4.3 YIELD
 
-Requires UMI-03 `YieldConvention` and no quote identity.
+Requires UMI-03 `YieldConvention` and rejects PRICE quote identity/basis.
 
 ## 4.4 SPREAD / LEVEL
 
-Carry neither rate/yield convention nor quote identity in this minimum contract.
-Their parent underlying/reference identity plus explicit strike basis retains the
-semantic referent.
+Carry neither rate/yield convention nor PRICE quote identity/basis in this minimum
+contract. Their parent underlying/reference identity plus explicit strike basis
+retains the semantic referent.
 
 If future evidence proves a specialized spread-strike convention is required, it
 must be added explicitly rather than laundering spread through a rate convention.
@@ -419,7 +465,7 @@ At least one of multiplier/notional is required.
 This allows listed sizing, OTC notional sizing or explicitly retained contracts
 where both are meaningful. It never infers order quantity or position.
 
-## 6.1 Exercise style
+## 6.1 Exercise style and exercise window
 
 Closed minimum styles:
 
@@ -427,11 +473,33 @@ Closed minimum styles:
 - AMERICAN;
 - BERMUDAN.
 
-Bermudan terms require a non-empty, unique, immutable exercise-date tuple,
-canonicalized chronologically. Every Bermudan exercise date must be on or before
-expiry.
+Rules:
 
-No business-calendar exercise-date generator exists.
+- EUROPEAN carries no American/Bermudan date material in this minimum contract;
+- AMERICAN requires an explicit contractual `american_start_date` and the parent
+  option requires that date to be on or before expiry;
+- BERMUDAN requires a non-empty, unique immutable exercise-date tuple,
+  canonicalized chronologically, with every exercise date on or before expiry.
+
+The American start date is a contractual term, not proof of a UMI-02 listing/start
+lifecycle event. Governed composition may later require both facts to agree.
+
+No business-calendar exercise-date generator or exercise-decision engine exists.
+
+### PRE-CHK-UMI05-07 — American exercise-window collapse
+
+A prior candidate retained only `AMERICAN` plus option expiry. Two contracts with
+the same expiry but different contractual exercise commencement dates therefore
+collapsed to the same logical material.
+
+UMI-02 deliberately assigns right/exercise economics to UMI-05 and does not provide
+one universal expiry/start field that UMI-05 may silently assume.
+
+Current correction requires explicit `american_start_date`, validates it as exact
+`date`, bounds it by parent expiry, and includes it in deterministic logical values.
+
+Independent review must attempt to collapse two otherwise-equal American options
+with different exercise starts.
 
 ## 6.2 Non-claims
 
@@ -497,7 +565,48 @@ A swap is not represented as one generic nullable-field object.
 UMI-05 defines explicit typed leg families. All legs retain local leg identity,
 positive ordinal, PAY/RECEIVE direction and evidence.
 
-## 8.1 FixedRateSwapLeg
+## 8.1 DerivativeScheduleConvention
+
+Periodic swap legs require both a tenor and structural schedule semantics.
+
+`DerivativeScheduleConvention` retains:
+
+- typed stub-rule code;
+- typed roll-rule code;
+- D06-owned `BusinessCalendarRef`;
+- `BusinessDayConventionCode`.
+
+This permits contracts such as `short-first` versus `short-last`, or an
+end-of-month versus IMM-style roll rule, to remain distinct without generating
+payment dates.
+
+The codes do not implement schedule algorithms. D06 retains calendar resolution
+and any future certified schedule engine.
+
+```text
+PAYMENT TENOR != PAYMENT SCHEDULE
+STUB / ROLL CODE != SCHEDULE ENGINE
+CALENDAR REF != CALENDAR AUTHORITY
+```
+
+### PRE-CHK-UMI05-06 — swap stub/roll schedule collapse
+
+A prior candidate retained effective/termination dates, payment/reset tenors and
+settlement convention but no stub/roll schedule semantics.
+
+FND-04 explicitly requires `tenor/schedules` for interest-rate swaps. Two otherwise
+equal swaps could therefore retain different `short-first` versus `short-last`
+stub rules or different roll rules while producing identical logical material.
+
+Current correction requires `DerivativeScheduleConvention` on fixed-rate,
+floating-rate and reference-return periodic legs and includes it in logical values.
+Exchange legs already retain exact payment date; protection legs represent
+contingent settlement and do not become periodic premium legs by implication.
+
+Independent review must attempt the same-term/same-tenor/different-stub and
+different-roll collisions.
+
+## 8.2 FixedRateSwapLeg
 
 Retains:
 
@@ -505,11 +614,12 @@ Retains:
 - `DerivativeContractRate`;
 - day count;
 - payment tenor;
+- schedule convention;
 - settlement convention.
 
 No curve node is substituted for contractual fixed rate.
 
-## 8.2 FloatingRateSwapLeg
+## 8.3 FloatingRateSwapLeg
 
 Retains:
 
@@ -519,7 +629,8 @@ Retains:
 - day count;
 - payment tenor;
 - reset tenor;
-- **explicit `DerivativeFloatingRateConvention`**;
+- explicit `DerivativeFloatingRateConvention`;
+- schedule convention;
 - settlement convention.
 
 ### DerivativeFloatingRateConvention
@@ -571,13 +682,14 @@ COMPOUNDED IN ARREARS
 
 under otherwise equal leg material.
 
-## 8.3 ReferenceReturnSwapLeg
+## 8.4 ReferenceReturnSwapLeg
 
 Retains:
 
 - notional schedule;
 - typed reference identity and role;
 - payment tenor;
+- schedule convention;
 - settlement convention.
 
 The reference role code is responsible for distinguishing the contractual return
@@ -585,14 +697,14 @@ referent, for example total-return versus another certified reference-return rol
 
 The leg does not calculate return performance.
 
-## 8.4 ExchangeSwapLeg
+## 8.5 ExchangeSwapLeg
 
 Retains explicit amount/notional unit, payment date and PAY/RECEIVE direction.
 
 This supports principal exchanges and FX-swap near/far exchanges without generating
 payment instructions.
 
-## 8.5 ProtectionSwapLeg
+## 8.6 ProtectionSwapLeg
 
 Retains:
 
@@ -687,7 +799,7 @@ structures may require more.
 Ordinal is retained sequence semantics, not financial-time ordering and not payoff
 calculation order.
 
-No cash-flow generation or discounting occurs.
+No cash-flow generation, schedule generation or discounting occurs.
 
 ---
 
@@ -744,6 +856,7 @@ STRUCTURED PRODUCT ENGINE
 | Contractual derivative terms/dates | UMI-05 | immutable specification |
 | Financial tenor/day count | UMI-03 | reused |
 | Calendar identity/resolution | D06 | reference retained; resolution deferred |
+| Schedule stub/roll semantics | UMI-05 contract / D06 resolution | retained; no date generation |
 | Rate-curve convention | UMI-04 | reused only for RATE strike |
 | Curve construction | D07 / later engine | not implemented |
 | Derivative contract economics | UMI-05 | current scope |
@@ -771,6 +884,8 @@ It does not prove:
 - observed fixing exists;
 - market price exists;
 - contract is currently live/tradable;
+- price quote-basis code has a conversion engine;
+- schedule stub/roll code has a D06 resolver;
 - floating calculation code has an implemented certified algorithm;
 - protection settlement method has an implemented auction/settlement engine;
 - complete ISDA or exchange legal terms are captured;
@@ -798,6 +913,7 @@ UMI-05 uses `date` for contractual date roles:
 - expiry;
 - first notice;
 - last trade;
+- American exercise start;
 - Bermudan exercise;
 - maturity;
 - fixing;
@@ -810,7 +926,8 @@ Exact `type(value) is date` validation rejects `datetime` laundering.
 The stage adds no timezone-bearing datetime logical contract and makes no claim to
 close repository-wide `GAP-FND04-TIME-01`.
 
-D06 retains calendar/session/date-resolution authority.
+D06 retains calendar/session/date-resolution authority. `DerivativeScheduleConvention`
+retains only structural rule codes and D06 references; it does not calculate dates.
 
 ---
 
@@ -850,50 +967,60 @@ The exact-head test suite and independent reviewer must attack at minimum:
 6. notional schedule is immutable, sorted, unique-date and unit-stable;
 7. benchmark reference requires typed identity/role;
 8. PRICE/RATE/YIELD/SPREAD/LEVEL strike semantics remain distinct;
-9. RATE strike requires `RateCurveConvention`;
-10. YIELD strike requires `YieldConvention`;
-11. spread/level reject rate/yield/quote laundering;
-12. legitimate non-positive strike/rate domains remain possible;
-13. Bermudan requires explicit unique dates and deterministic order;
-14. non-Bermudan exercise rejects Bermudan date tuples;
-15. date roles reject datetime subclass laundering;
-16. futures retain month/expiry/multiplier/settlement/tick value;
-17. CASH futures reject first-notice date;
-18. notice/last-trade dates cannot exceed expiry;
-19. no invented universal notice-vs-last-trade ordering;
-20. raw UUID cannot replace `EconomicIdentityId`;
-21. option right/strike/exercise/settlement remain explicit;
-22. listed multiplier and OTC notional sizing paths both work;
-23. option with neither multiplier nor notional fails;
-24. Bermudan date after expiry fails;
-25. CASH forward requires fixing;
-26. any fixing after maturity fails;
-27. PHYSICAL forward may omit fixing;
-28. PRE-CHK-UMI05-01: PHYSICAL forward may also retain a valid fixing;
-29. floating fixing convention retains calculation/calendar/lag/lockout/shift;
-30. floating fixing convention rejects raw/bool/int laundering;
-31. floating leg requires typed fixing convention;
-32. PRE-CHK-UMI05-02: term-rate vs compounded-in-arrears do not collapse;
-33. fixed/floating/reference-return/exchange/protection legs remain distinct;
-34. PRE-CHK-UMI05-03: CASH vs PHYSICAL protection do not collapse;
-35. PRE-CHK-UMI05-04: auction vs fixed-recovery CASH protection do not collapse;
-36. fixed-recovery requires CASH plus explicit `[0,1]` recovery rate;
-37. auction and physical-delivery style coherence fails closed;
-38. non-fixed-recovery method rejects recovery-rate laundering;
-39. swap requires at least two typed legs;
-40. swap requires PAY + RECEIVE;
-41. swap leg IDs/ordinals unique;
-42. swap ordinals contiguous and caller-order independent;
-43. swap notional schedule starts at effective date;
-44. later notional changes precede termination;
-45. exchange date lies within swap term;
-46. termination > effective;
-47. composition references existing economic identities;
-48. composition rejects self-reference and duplicate components;
-49. composition ratio strictly positive;
-50. composition tuple immutable with deterministic ordinals;
-51. no pricing/Greeks/IV/margin/execution/settlement/curve-engine methods;
-52. logical values deterministic and secret-free.
+9. PRE-CHK-UMI05-05: PRICE strike requires typed quote basis;
+10. same PRICE value/quote identity under different quote bases stays distinct;
+11. RATE strike requires `RateCurveConvention` and rejects PRICE material;
+12. YIELD strike requires `YieldConvention` and rejects PRICE material;
+13. spread/level reject rate/yield/PRICE laundering;
+14. legitimate non-positive strike/rate domains remain possible;
+15. Bermudan requires explicit unique dates and deterministic order;
+16. European rejects American/Bermudan date material;
+17. PRE-CHK-UMI05-07: American requires explicit exercise start;
+18. American exercise start after expiry fails;
+19. different American starts produce different logical material;
+20. date roles reject datetime subclass laundering;
+21. futures retain month/expiry/multiplier/settlement/tick value;
+22. CASH futures reject first-notice date;
+23. notice/last-trade dates cannot exceed expiry;
+24. no invented universal notice-vs-last-trade ordering;
+25. raw UUID cannot replace `EconomicIdentityId`;
+26. option right/strike/exercise/settlement remain explicit;
+27. listed multiplier and OTC notional sizing paths both work;
+28. option with neither multiplier nor notional fails;
+29. Bermudan date after expiry fails;
+30. CASH forward requires fixing;
+31. any fixing after maturity fails;
+32. PHYSICAL forward may omit fixing;
+33. PRE-CHK-UMI05-01: PHYSICAL forward may also retain a valid fixing;
+34. floating fixing convention retains calculation/calendar/lag/lockout/shift;
+35. floating fixing convention rejects raw/bool/int laundering;
+36. floating leg requires typed fixing convention;
+37. PRE-CHK-UMI05-02: term-rate vs compounded-in-arrears do not collapse;
+38. schedule convention retains typed stub/roll/calendar/BDC;
+39. schedule convention rejects raw-type laundering;
+40. fixed/floating/reference-return periodic legs require schedule convention;
+41. PRE-CHK-UMI05-06: short-first vs short-last do not collapse;
+42. PRE-CHK-UMI05-06: different roll rules do not collapse;
+43. fixed/floating/reference-return/exchange/protection legs remain distinct;
+44. PRE-CHK-UMI05-03: CASH vs PHYSICAL protection do not collapse;
+45. PRE-CHK-UMI05-04: auction vs fixed-recovery CASH protection do not collapse;
+46. fixed-recovery requires CASH plus explicit `[0,1]` recovery rate;
+47. auction and physical-delivery style coherence fails closed;
+48. non-fixed-recovery method rejects recovery-rate laundering;
+49. swap requires at least two typed legs;
+50. swap requires PAY + RECEIVE;
+51. swap leg IDs/ordinals unique;
+52. swap ordinals contiguous and caller-order independent;
+53. swap notional schedule starts at effective date;
+54. later notional changes precede termination;
+55. exchange date lies within swap term;
+56. termination > effective;
+57. composition references existing economic identities;
+58. composition rejects self-reference and duplicate components;
+59. composition ratio strictly positive;
+60. composition tuple immutable with deterministic ordinals;
+61. no pricing/Greeks/IV/margin/execution/settlement/curve/schedule-engine methods;
+62. logical values deterministic and secret-free.
 
 Passing tests do not self-certify architecture.
 
@@ -927,7 +1054,10 @@ The independent review must explicitly re-falsify:
 - `PRE-CHK-UMI05-01` physical-forward fixing overrestriction;
 - `PRE-CHK-UMI05-02` floating term/OIS calculation collapse;
 - `PRE-CHK-UMI05-03` protection CASH/PHYSICAL collapse;
-- `PRE-CHK-UMI05-04` protection auction/fixed-recovery collapse.
+- `PRE-CHK-UMI05-04` protection auction/fixed-recovery collapse;
+- `PRE-CHK-UMI05-05` PRICE quote-basis collapse;
+- `PRE-CHK-UMI05-06` swap stub/roll schedule collapse;
+- `PRE-CHK-UMI05-07` American exercise-window collapse.
 
 ---
 
@@ -941,6 +1071,7 @@ A favorable UMI-05 result does NOT mean:
 - derivative pricing or payoff generation exists;
 - Greeks, IV or volatility surfaces exist;
 - option exercise engine exists;
+- payment schedule/calendar generation exists;
 - fixing observation or floating-rate calculation engine exists;
 - swap cash-flow generation exists;
 - curve bootstrapping/interpolation exists;
