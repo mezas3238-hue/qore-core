@@ -34,6 +34,22 @@ class DepartmentContractKind(StrEnum):
     EVIDENCE = "evidence"
 
 
+CANONICAL_DEPARTMENT_COMMAND_ROUTES: tuple[
+    tuple[DepartmentId, DepartmentId, DepartmentInteractionMode], ...
+] = (
+    (
+        DepartmentId.CLIENT_EXECUTION,
+        DepartmentId.ORDER_EXECUTION,
+        DepartmentInteractionMode.SYNCHRONOUS,
+    ),
+    (
+        DepartmentId.EXECUTIVE_CONTROL,
+        DepartmentId.CORE_GOVERNANCE,
+        DepartmentInteractionMode.SYNCHRONOUS,
+    ),
+)
+
+
 @dataclass(frozen=True, slots=True)
 class DepartmentContractId:
     """Stable transport-neutral identity of one logical department contract."""
@@ -131,8 +147,9 @@ class DepartmentContractRegistry:
     """Immutable contracts bound to the canonical FND-05 department graph.
 
     Registration proves only that a logical contract route is compatible with the
-    canonical dependency graph. It does not authorize an invocation, mutate
-    source-domain state, select a transport, or prove message delivery.
+    canonical dependency graph and, for COMMAND, that its route is explicitly
+    command-capable. It does not authorize an invocation, mutate source-domain
+    state, select a transport, or prove message delivery.
     """
 
     department_registry: DepartmentRegistry
@@ -195,11 +212,24 @@ class DepartmentContractRegistry:
             (dependency.consumer, dependency.provider, dependency.mode)
             for dependency in self.department_registry.dependencies
         }
+        if not all(
+            route in dependency_routes for route in CANONICAL_DEPARTMENT_COMMAND_ROUTES
+        ):
+            raise DepartmentContractValidationError(
+                "canonical command route must exist in department dependency graph"
+            )
         for contract in self.contracts:
             route = (contract.consumer, contract.provider, contract.mode)
             if route not in dependency_routes:
                 raise DepartmentContractValidationError(
                     "department contract route must exist in department dependency graph"
+                )
+            if (
+                contract.kind is DepartmentContractKind.COMMAND
+                and route not in CANONICAL_DEPARTMENT_COMMAND_ROUTES
+            ):
+                raise DepartmentContractValidationError(
+                    "command contract route must be explicitly command-capable"
                 )
 
     def contract(
