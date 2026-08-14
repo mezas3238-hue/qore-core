@@ -80,13 +80,13 @@ class CommodityEvidenceRef:
 
 
 @dataclass(frozen=True, slots=True)
-class CommodityFamilyCode:
-    """Extensible commodity family code; classification is never identity."""
+class CommodityClassCode:
+    """Bounded commodity economic class; never UMI-02 identity-family authority."""
 
     value: str
 
     def __post_init__(self) -> None:
-        _validate_code(self.value, field_name="commodity family code")
+        _validate_code(self.value, field_name="commodity class code")
 
     def logical_values(self) -> tuple[str, ...]:
         return (self.value,)
@@ -143,7 +143,7 @@ class CommodityReferenceTerms:
 
     terms_id: CommodityTermsId
     reference_identity_id: EconomicIdentityId
-    family: CommodityFamilyCode
+    commodity_class: CommodityClassCode
     measurement_unit_identity_id: EconomicIdentityId
     evidence_ref: CommodityEvidenceRef
 
@@ -156,9 +156,9 @@ class CommodityReferenceTerms:
             self.reference_identity_id,
             field_name="commodity reference identity",
         )
-        if not isinstance(self.family, CommodityFamilyCode):
+        if not isinstance(self.commodity_class, CommodityClassCode):
             raise CommodityContractValidationError(
-                "commodity reference family must be CommodityFamilyCode"
+                "commodity reference commodity_class must be CommodityClassCode"
             )
         _validate_identity(
             self.measurement_unit_identity_id,
@@ -178,7 +178,7 @@ class CommodityReferenceTerms:
             "commodity-reference",
             self.terms_id.logical_values(),
             self.reference_identity_id.logical_values(),
-            self.family.logical_values(),
+            self.commodity_class.logical_values(),
             self.measurement_unit_identity_id.logical_values(),
             self.evidence_ref.logical_values(),
         )
