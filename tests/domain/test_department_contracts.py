@@ -157,15 +157,15 @@ def test_absent_route_and_wrong_mode_fail_closed() -> None:
 
 
 def test_command_capable_routes_are_explicit_and_canonical() -> None:
-    assert CANONICAL_DEPARTMENT_COMMAND_ROUTES == (
-        (D.CLIENT_EXECUTION, D.ORDER_EXECUTION, S),
-        (D.EXECUTIVE_CONTROL, D.CORE_GOVERNANCE, S),
+    assert tuple(
+        route.logical_values() for route in CANONICAL_DEPARTMENT_COMMAND_ROUTES
+    ) == (
+        ("D18", "D10", "synchronous"),
+        ("D20", "D01", "synchronous"),
     )
-    canonical_routes = {
-        (dependency.consumer, dependency.provider, dependency.mode)
-        for dependency in CANONICAL_DEPARTMENT_DEPENDENCIES
-    }
-    assert set(CANONICAL_DEPARTMENT_COMMAND_ROUTES) <= canonical_routes
+    assert set(CANONICAL_DEPARTMENT_COMMAND_ROUTES) <= set(
+        CANONICAL_DEPARTMENT_DEPENDENCIES
+    )
 
 
 @pytest.mark.parametrize(
