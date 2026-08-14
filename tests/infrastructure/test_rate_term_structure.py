@@ -8,8 +8,8 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure import fixed_income_economics as fie
-from qore.infrastructure import rate_term_structure as rts
+import qore.infrastructure.fixed_income_economics as fie
+import qore.infrastructure.rate_term_structure as rts
 from qore.infrastructure.ports import (
     AdapterId,
     ExternalSourceDescriptor,
