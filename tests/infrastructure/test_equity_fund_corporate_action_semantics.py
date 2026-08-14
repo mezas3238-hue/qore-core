@@ -38,11 +38,18 @@ from qore.infrastructure.equity_fund_corporate_action_semantics import (
     SplitTerms,
     StockDividendTerms,
 )
-from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
+from qore.infrastructure.universal_instrument_identity import (
+    EconomicIdentityId,
+    IdentityRelationshipId,
+)
 
 
 def _economic_id(seed: int) -> EconomicIdentityId:
     return EconomicIdentityId(UUID(int=seed))
+
+
+def _relationship_id(seed: int = 80) -> IdentityRelationshipId:
+    return IdentityRelationshipId(UUID(int=seed))
 
 
 def _terms_id(seed: int = 100) -> EquityFundTermsId:
@@ -253,51 +260,56 @@ def test_fund_nav_basis_rejects_same_currency_and_unit_identity() -> None:
         )
 
 
-def test_fund_vehicle_kind_is_typed_and_no_debt_economics_are_inferred() -> None:
-    etn = FundVehicleTerms(
+def test_fund_vehicle_kind_does_not_flatten_etn_or_structured_products() -> None:
+    reit = FundVehicleTerms(
         terms_id=_terms_id(),
         instrument_identity_id=_economic_id(30),
-        vehicle_kind=FundVehicleKind.ETN,
+        vehicle_kind=FundVehicleKind.REIT,
         evidence_ref=_evidence(),
     )
 
-    assert etn.logical_values()[3] == "etn"
-    assert not hasattr(etn, "coupon")
-    assert not hasattr(etn, "maturity")
-    assert not hasattr(etn, "price")
+    assert reit.logical_values()[3] == "reit"
+    with pytest.raises(ValueError):
+        FundVehicleKind("etn")
+    with pytest.raises(ValueError):
+        FundVehicleKind("index-linked-product")
 
 
-def test_fund_benchmark_relationship_retains_return_basis() -> None:
+def test_fund_benchmark_relationship_binds_umi02_relationship_and_return_basis() -> None:
+    relationship_id = _relationship_id()
     price_return = FundBenchmarkRelationshipTerms(
         terms_id=_terms_id(110),
-        fund_identity_id=_economic_id(31),
-        benchmark_identity_id=_economic_id(32),
+        relationship_id=relationship_id,
         role=FundBenchmarkRoleCode("tracking-index"),
         return_basis=BenchmarkReturnBasisCode("price-return"),
         evidence_ref=_evidence(310),
     )
     total_return = FundBenchmarkRelationshipTerms(
         terms_id=_terms_id(111),
-        fund_identity_id=_economic_id(31),
-        benchmark_identity_id=_economic_id(32),
+        relationship_id=relationship_id,
         role=FundBenchmarkRoleCode("tracking-index"),
         return_basis=BenchmarkReturnBasisCode("gross-total-return"),
         evidence_ref=_evidence(311),
     )
 
-    assert price_return.logical_values()[5] == ("price-return",)
-    assert total_return.logical_values()[5] == ("gross-total-return",)
+    assert price_return.logical_values()[2] == relationship_id.logical_values()
+    assert price_return.logical_values()[4] == ("price-return",)
+    assert total_return.logical_values()[4] == ("gross-total-return",)
     assert price_return.logical_values() != total_return.logical_values()
+    assert not hasattr(price_return, "fund_identity_id")
+    assert not hasattr(price_return, "benchmark_identity_id")
     assert not hasattr(price_return, "level")
     assert not hasattr(price_return, "calculate")
 
 
-def test_fund_benchmark_relationship_rejects_self_reference() -> None:
-    with pytest.raises(EquityFundCorporateActionValidationError, match="must differ"):
+def test_fund_benchmark_relationship_rejects_raw_relationship_id() -> None:
+    with pytest.raises(
+        EquityFundCorporateActionValidationError,
+        match="IdentityRelationshipId",
+    ):
         FundBenchmarkRelationshipTerms(
             terms_id=_terms_id(),
-            fund_identity_id=_economic_id(31),
-            benchmark_identity_id=_economic_id(31),
+            relationship_id=cast(Any, UUID(int=80)),
             role=FundBenchmarkRoleCode("primary-benchmark"),
             return_basis=BenchmarkReturnBasisCode("price-return"),
             evidence_ref=_evidence(),
@@ -561,8 +573,7 @@ def test_no_candidate_type_exposes_provider_valuation_execution_or_mutation_engi
 def test_logical_values_are_repeatable_and_secret_free() -> None:
     terms = FundBenchmarkRelationshipTerms(
         terms_id=_terms_id(),
-        fund_identity_id=_economic_id(31),
-        benchmark_identity_id=_economic_id(32),
+        relationship_id=_relationship_id(),
         role=FundBenchmarkRoleCode("tracking-index"),
         return_basis=BenchmarkReturnBasisCode("net-total-return"),
         evidence_ref=_evidence(),
