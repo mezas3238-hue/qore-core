@@ -44,6 +44,9 @@ SETTLEMENT CONVENTION != SETTLEMENT EXECUTION
 BENCHMARK REFERENCE != CURVE CONSTRUCTION AUTHORITY
 CASH-FLOW IDENTITY != PAYMENT EXECUTION
 CONTRACTUAL CASH FLOW != OBSERVED CASH MOVEMENT
+PERIODIC YIELD COMPOUNDING -> EXPLICIT COMPOUNDING TENOR
+ZERO-COUPON TERMS -> NO COUPON CASH FLOWS
+COUPON CASH-FLOW DAY COUNT == COUPON TERMS DAY COUNT
 PROFILE EXISTS != PROVIDER SUPPORT
 NO DATA PROVENANCE -> NO QUANTITATIVE CLAIM
 NO VERIFIED SEMANTICS -> NO SUPPORT CLAIM
@@ -63,11 +66,10 @@ instrument/reference identity.
 
 ---
 
-# 2. Live repository evidence before implementation
+# 2. Starting evidence and authority boundary
 
 The UMI-03 work order was derived from live Issue #301 after Program A closed.
-
-Issue #301 defines UMI-03 as the fixed-income / bonds family stage covering:
+Issue #301 assigns UMI-03 fixed-income / bond semantics for:
 
 - cash flows;
 - coupons;
@@ -78,144 +80,137 @@ Issue #301 defines UMI-03 as the fixed-income / bonds family stage covering:
 - yield;
 - curve / benchmark references.
 
-The following existing contracts were directly inspected on starting baseline
-`ccf3755e42c51ee7a9d9d61ea3dd9cc756906bf1`.
-
-## 2.1 UMI-02 identity foundation
-
-`src/qore/infrastructure/universal_instrument_identity.py`
-
-provides:
+UMI-02 already provides:
 
 - `EconomicIdentityId`;
 - tradable-instrument vs reference-object identity;
 - effective-dated `IdentityRelationship`;
-- denomination / settlement currency reference topology;
+- denomination / settlement currency topology;
 - benchmark/reference topology;
-- lifecycle events including bond maturity when applicable;
-- canonical UTC logical timestamp serialization.
+- lifecycle events including bond maturity where applicable;
+- canonical timestamp semantics for its own timestamp-bearing logical material.
 
 UMI-03 therefore does not create `BondId`, provider symbol identity, currency
-identity, benchmark identity or listing identity.
+identity, benchmark identity, issuer identity, listing identity, or a second
+mapping authority.
 
-## 2.2 FND-04 semantic freeze
+FND-04/R1 already freezes these semantic boundaries:
 
-`QORE-FND-04-UNIVERSAL-ECONOMIC-PRIMITIVES-AUDIT-001.md` and R1 establish:
-
-- `OrderQuantity` is execution-scoped and cannot mean universal face amount;
-- `MoneyAmount` is bounded money semantics and is not universal price/value identity;
-- clean and dirty price are materially distinct;
-- rate, yield and spread are distinct semantic classes;
-- tenor is not a market timeframe or fixed seconds;
-- business/contract dates are explicit roles;
-- provider-native terms remain evidence, not Core economic authority.
-
-FND-04 also explicitly used bonds as the adversarial case requiring face/par,
-clean/dirty price, accrued/coupon semantics, yield, day-count, maturity and
-currency separation.
+- execution quantity is not face/par principal;
+- money amount is not market/fixed-income price;
+- clean price is not dirty price;
+- rate is not yield and neither is spread;
+- financial tenor is not fixed seconds or a market timeframe;
+- business/contract dates retain explicit roles;
+- provider-native facts remain evidence, not Core economic authority.
 
 ---
 
 # 3. Scope freeze
 
-UMI-03 implements the minimum contracts needed to retain fixed-income meaning
-without building neighboring stages.
-
-## 3.1 Canonical attachment
+## 3.1 Canonical identity attachment
 
 Every fixed-income terms/profile contract binds an existing UMI-02
 `EconomicIdentityId`.
 
-Denomination currency, benchmark and curve/reference targets are also expressed
-as UMI-02 economic identity references.
+Denomination currency and benchmark/reference targets are also represented by
+UMI-02 economic identities.
 
-The fixed-income layer does not claim those referenced identities are valid
-reference-object kinds by ID shape alone. Graph/domain composition remains
-responsible for validating the referenced identity kind and relationship evidence.
+An ID alone does not prove the referenced identity kind. Graph/domain composition
+must validate retained identity kind/relationship evidence where that distinction
+is material.
+
+```text
+ECONOMIC ID SHAPE != REFERENCE-OBJECT PROOF
+REFERENCE ATTACHMENT != REFERENCE AUTHORITY
+```
 
 ## 3.2 Face/par principal
 
-`FaceAmount` is a positive exact `Decimal` magnitude.
+`FaceAmount` is a positive finite exact `Decimal` magnitude. Its denomination is
+bound separately by `FixedIncomeInstrumentTerms.denomination_currency_identity_id`.
 
-Its denomination is not encoded in the magnitude. The parent
-`FixedIncomeInstrumentTerms` separately binds
-`denomination_currency_identity_id`.
+This prevents `FaceAmount(1000)` from silently becoming:
 
-This prevents:
+- 1000 shares;
+- 1000 contracts;
+- 1000 provider lots;
+- an unqualified money balance;
+- a portfolio weight.
 
-```text
-FaceAmount(1000)
-```
-
-from silently meaning 1000 shares, 1000 contracts, 1000 provider lots or an
-unqualified money balance.
+No generic `price × quantity` bond-value rule is introduced.
 
 ## 3.3 Coupon semantics
 
-Three bounded coupon forms are represented:
+The family foundation distinguishes:
 
 - `FixedCouponTerms`;
 - `FloatingCouponTerms`;
 - `ZeroCouponTerms`.
 
-Fixed coupon retains:
+Fixed coupon retains a typed `CouponRate`, day-count convention and payment tenor.
+Floating coupon retains a benchmark/reference attachment, typed spread, day-count,
+payment tenor and reset tenor. Zero coupon is a separate semantic object rather
+than `CouponRate(0)`.
 
-- typed `CouponRate`;
-- day-count convention;
-- payment tenor.
+A zero-coupon instrument requires maturity in this candidate. Fixed/floating
+coupon debt may remain perpetual; no universal expiry is invented.
 
-Floating coupon retains:
+The composed `FixedIncomeEconomicProfile` additionally enforces:
 
-- benchmark/reference identity;
-- typed `FixedIncomeSpread`;
-- day-count;
-- payment tenor;
-- reset tenor.
+```text
+ZERO-COUPON TERMS -> NO COUPON CASH FLOWS
+```
 
-Zero coupon remains a distinct semantic object rather than `CouponRate(0)`.
+A contractual schedule that contradicts the declared coupon family is therefore
+rejected rather than retained as internally inconsistent evidence.
 
-A zero-coupon instrument requires an explicit maturity date in this candidate.
-Fixed/floating coupon terms do not force a maturity date, preserving the ability
-to represent perpetual coupon-bearing debt without inventing a universal expiry.
+For coupon-bearing profiles, each coupon cash-flow accrual period must use the
+same day-count convention declared by the coupon terms:
+
+```text
+COUPON CASH-FLOW ACCRUAL DAY COUNT
+==
+FIXED/FLOATING COUPON TERMS DAY COUNT
+```
+
+This does not calculate accrual. It prevents one canonical profile from carrying
+two contradictory conventions for the same coupon economics.
 
 ## 3.4 Rate / yield / spread separation
 
-The candidate introduces distinct value objects:
+Distinct value objects retain distinct semantics:
 
 - `CouponRate`;
 - `FixedIncomeYield`;
 - `FixedIncomeSpread`.
 
-All hold finite exact `Decimal` magnitudes encoded as decimal fractions.
-No maximum is silently imposed.
+They use finite exact Decimal fractions and deterministic decimal serialization.
+Equal numeric magnitudes do not make the runtime types interchangeable.
 
-Equal numeric values remain distinct Python/runtime semantic types.
+Negative rate/yield/spread magnitudes are not globally prohibited because the
+sign domain is economically distinct from price/face/cash positivity and can be
+valid for some rate/yield markets.
 
-Their `logical_values()` canonicalize numerically equal Decimal encodings, so
-`Decimal("0.0500")` and `Decimal("0.05")` do not produce different logical
-material solely due to Decimal exponent representation.
+`FixedIncomeYield` is a typed magnitude only. It is not, by itself, a market
+observation or valuation result. A later quantitative observation/calculation
+must add source, methodology, time and retained evidence under the appropriate
+valuation/market-data authority.
 
 ## 3.5 Financial tenor
 
-`FinancialTenor(value, unit)` supports structural:
+`FinancialTenor(value, unit)` supports structural day/week/month/year horizons.
+It intentionally exposes no fixed-second conversion and no market-bar identity.
 
-- day;
-- week;
-- month;
-- year.
-
-It intentionally defines no conversion to seconds and has no market-bar code.
-
-This is sufficient for bounded coupon/reset/compounding horizon semantics.
-UMI-04 may reuse or extend the structural principle for curve-node semantics
-without treating UMI-03 as curve authority.
+This is sufficient for coupon payment/reset frequency and yield compounding
+frequency while leaving curve-node/term-structure authority to UMI-04.
 
 ## 3.6 Accrual and day-count
 
 `AccrualPeriod` retains:
 
-- accrual start date;
-- accrual end date;
+- start date;
+- end date;
 - payment date;
 - day-count convention.
 
@@ -226,11 +221,8 @@ end_date > start_date
 payment_date >= end_date
 ```
 
-`DayCountConventionCode` is an extensible validated semantic code rather than a
-premature closed list advertised as the entire fixed-income universe.
-
-This candidate does not calculate year fractions. It preserves the exact
-convention required for a later certified calculator to do so reproducibly.
+`DayCountConventionCode` is extensible validated semantic material. UMI-03 does
+not calculate year fractions, accrued interest or coupon amount.
 
 ## 3.7 Settlement convention
 
@@ -240,61 +232,63 @@ convention required for a later certified calculator to do so reproducibly.
 - `BusinessCalendarRef`;
 - `BusinessDayConventionCode`.
 
-`BusinessCalendarRef` is explicitly a reference to D06-governed calendar
-semantics. It does not contain holidays, sessions, timezone tables or calendar
-mutation authority.
+`BusinessCalendarRef` is only a typed reference to D06-governed semantics. It has
+no holiday table, session schedule, timezone table, resolver or calendar mutation
+authority.
 
-The contract therefore expresses T+n/business-day semantics without pretending
-that an integer lag itself resolves a settlement date.
+```text
+SETTLEMENT LAG + CALENDAR REF + CONVENTION
+!=
+RESOLVED SETTLEMENT DATE
+```
 
 ## 3.8 Clean / dirty price
 
 `FixedIncomePrice` retains:
 
-- exact Decimal value;
+- exact finite Decimal value;
 - `FixedIncomePriceKind.CLEAN` or `.DIRTY`;
 - explicit `FixedIncomePriceBasisCode`.
 
 Clean and dirty price remain distinct even when numeric values are equal.
 
-The candidate deliberately does not compute:
+UMI-03 deliberately does not compute:
 
 ```text
 dirty = clean + accrued interest
 ```
 
-because a universal computation requires certified quote basis, accrual economics,
-date/calendar semantics and potentially family/source methodology. UMI-03 freezes
-the semantic distinction rather than inserting an unsafe generic formula.
+because that computation requires certified accrual economics, date/calendar
+semantics, quote basis and possibly source/methodology evidence.
 
-## 3.9 Yield semantic
+## 3.9 Yield convention
 
-`FixedIncomeYield` is a typed magnitude.
-
-`YieldConvention` retains enough surrounding meaning for later use:
+`YieldConvention` retains:
 
 - extensible yield semantic code;
-- day-count;
+- day-count convention;
 - compounding convention;
-- optional compounding tenor;
+- optional structural compounding tenor in the general extensible model;
 - optional benchmark/reference attachment.
 
-This establishes yield semantics without implementing valuation, market
-observation provenance, YTM root solving, YTW selection, curve construction or
-pricing.
+One fail-closed rule is explicit now:
 
-A later quantitative observation/calculation must add its own source,
-methodology, time and retained evidence under UMI-10/D07/D14.
+```text
+compounding == periodic
+-> compounding_tenor MUST be present
+```
+
+A periodic yield without frequency is not reproducible economic meaning and is
+rejected. Other extensible compounding codes are not prematurely forced into a
+closed universal taxonomy; later codes may add their own bounded invariants when
+introduced.
+
+No YTM/YTW solving, discounting, curve construction or pricing occurs here.
 
 ## 3.10 Benchmark / curve references
 
-`FixedIncomeBenchmarkReference` retains:
-
-- exact `EconomicIdentityId`;
-- explicit role;
-- optional structural tenor.
-
-It is deliberately only an attachment/reference object.
+`FixedIncomeBenchmarkReference` retains exact `EconomicIdentityId`, an explicit
+role and optional structural tenor.
 
 ```text
 REFERENCE TO CURVE / BENCHMARK
@@ -304,9 +298,11 @@ CURVE CONSTRUCTION
 CURVE NODE AUTHORITY
 !=
 BOOTSTRAPPING
+!=
+INTERPOLATION
 ```
 
-Those remain UMI-04.
+All term-structure construction remains UMI-04.
 
 ## 3.11 Contractual cash flows
 
@@ -314,25 +310,25 @@ Those remain UMI-04.
 
 - stable cash-flow ID;
 - exact instrument identity;
-- explicit semantic kind;
+- coupon/principal/redemption kind;
 - receivable/payable direction;
 - positive exact amount;
 - exact currency identity;
 - payment date;
 - retained evidence reference;
-- accrual period when and only when it is a coupon flow.
+- accrual period when and only when the flow is a coupon.
 
 `FixedIncomeCashFlowSchedule` requires:
 
-- a non-empty immutable tuple;
-- exact instrument binding;
+- non-empty immutable tuple input;
+- exact schedule/instrument binding;
 - unique cash-flow IDs;
 - deterministic canonical ordering by payment date then cash-flow ID.
 
 The schedule is contractual economic evidence. It is not a payment instruction,
-ledger movement, settlement receipt or D11 mutation authority.
+ledger movement, provider receipt, position mutation or D11 authority.
 
-## 3.12 Instrument terms and profile
+## 3.12 Instrument terms and economic profile
 
 `FixedIncomeInstrumentTerms` composes:
 
@@ -342,143 +338,157 @@ ledger movement, settlement receipt or D11 mutation authority.
 - face amount;
 - issue date;
 - optional maturity date;
-- one certified coupon semantic;
+- one coupon semantic family;
 - settlement convention;
 - yield convention;
 - retained evidence reference;
 - optional redemption amount.
 
-`FixedIncomeEconomicProfile` composes the terms with an optional retained
-cash-flow schedule and verifies exact instrument binding.
+`FixedIncomeEconomicProfile` composes terms with an optional retained cash-flow
+schedule and verifies:
 
-The schedule is optional because:
+- exact instrument binding;
+- no cash flow predates issue date;
+- zero-coupon terms carry no coupon flow;
+- coupon cash-flow day-count matches the declared coupon terms.
 
-- terms may exist before all retained cash flows are materialized;
-- perpetual instruments cannot be forced into a finite universal cash-flow list.
+The schedule remains optional because terms can exist before complete schedule
+materialization and perpetual instruments cannot be forced into one finite
+universal schedule.
 
 ---
 
-# 4. Explicit non-goals
+# 4. Runtime/type and determinism law
+
+All new value/contracts are `@dataclass(frozen=True, slots=True)` or `StrEnum`.
+Runtime boundaries validate concrete semantic types rather than trusting type
+annotations alone.
+
+Strict integer guards use `type(value) is int` where bool/int ambiguity matters.
+Date roles use `type(value) is date`, preventing `datetime` from entering silently
+through Python subclassing.
+
+Decimal inputs must be actual finite `Decimal` objects. Face amount and cash-flow
+amount must be strictly positive. Decimal logical material canonicalizes equivalent
+exponent encodings.
+
+Cash-flow collections are canonicalized independently of caller input order.
+Opaque evidence references and UMI-03 local IDs are UUID-backed; credentials or
+secret payloads are not accepted as evidence content.
+
+This stage adds `date` roles, not timezone-bearing `datetime` logical material.
+Therefore it creates no new TIME-01 offset-canonicalization site.
+
+---
+
+# 5. Explicit non-goals
 
 This candidate does not implement or certify:
 
-- yield-curve construction;
-- curve-node identity/catalog;
-- bootstrapping;
-- interpolation;
-- discount factors;
+- yield-curve construction or curve-node authority;
+- bootstrapping, interpolation or discount-factor surfaces;
 - forward-rate surfaces;
-- pricing engines;
-- present-value calculation;
+- pricing engines or present-value calculation;
 - accrued-interest calculation;
-- YTM/YTW numerical solving;
+- YTM/YTW numerical solving/selection;
 - option/call/put/convertible payoff economics;
-- issuer/legal-entity identity;
+- generic derivative legs/payoffs (UMI-05);
+- issuer/legal-entity authority;
 - credit ratings/default modeling;
 - tax treatment;
-- provider-native bond catalogs;
+- provider-native fixed-income catalogs;
 - execution quantity conversion;
-- positions or settlement mutation;
+- positions, settlement mutation or payment execution;
 - risk capacity reservation;
 - productive Cloud;
 - real capital;
-- every fixed-income product subtype.
-
-These boundaries are intentional.
+- operational support for every fixed-income subtype.
 
 ---
 
-# 5. Open inherited gaps
+# 6. Open inherited boundaries
 
 ## GAP-FND04-TIME-01
 
-Remains OPEN / HIGH.
-
-This candidate adds no timestamp-bearing deterministic contract; its contract
-dates are `date` semantic roles and therefore do not create a new offset
-canonicalization path.
-
-No broad temporal-determinism claim is made.
+**OPEN / HIGH.** UMI-03 does not close the pre-existing repository-wide temporal
+canonicalization obligation. No broad temporal-determinism claim is made.
 
 ## GAP-FND07-RES-01
 
-Remains OPEN / HIGH.
-
-UMI-03 economic semantics do not implement D08/D09/D10 capacity reservation and
-do not authorize productive concurrent risk-increasing execution.
+**OPEN / HIGH.** UMI-03 economic semantics do not implement concurrent
+risk-increasing capacity reservation and do not authorize productive concurrent
+execution claims.
 
 ## PR #298
 
-Remains HOLD.
-
-No provider-native catalog is promoted by this stage.
+**HOLD.** No provider-native catalog is promoted by UMI-03.
 
 ---
 
-# 6. Adversarial test obligations
+# 7. Adversarial test obligations
 
-`tests/infrastructure/test_fixed_income_economics.py` proves at minimum:
+`tests/infrastructure/test_fixed_income_economics.py` must prove at minimum:
 
-1. profile binds canonical UMI-02 identity and deterministic cash-flow schedule;
-2. rate/yield/spread remain distinct at equal magnitude;
-3. Decimal logical values are canonical across equivalent exponent encodings;
-4. clean and dirty price remain distinct at equal magnitude;
-5. non-finite values fail closed;
-6. face/cash amounts reject non-positive values;
-7. tenor rejects bool/int laundering and exposes no fixed-seconds contract;
-8. convention codes are validated;
-9. settlement lag rejects bool and negative values;
-10. accrual chronology and runtime date types fail closed;
-11. coupon families are explicit and cannot be replaced by raw identity/value material;
-12. floating coupon requires a typed benchmark reference;
-13. benchmark/yield references provide no curve engine;
-14. coupon cash flows require exact accrual binding;
-15. non-coupon cash flows reject accrual material;
-16. schedules reject duplicate IDs, foreign instruments and mutable/list containers;
-17. schedule logical order is independent of input order;
-18. terms reject identity collision, invalid maturity chronology and untyped IDs;
-19. profile rejects foreign schedules and pre-issue cash flows;
-20. perpetual fixed-coupon terms are not forced to have maturity;
-21. evidence/ID boundaries accept UUIDs only;
-22. logical material remains free of credential-like payload strings.
+1. canonical UMI-02 instrument/denomination attachment;
+2. rate/yield/spread semantic separation at equal magnitude;
+3. Decimal canonicalization and non-finite rejection;
+4. clean/dirty price distinction;
+5. face/cash amount positivity;
+6. financial tenor has no fixed-seconds contract;
+7. bool/int laundering is rejected where integers are required;
+8. code/runtime type boundaries fail closed;
+9. accrual chronology fails closed;
+10. settlement convention remains reference-only, not calendar authority;
+11. fixed/floating/zero coupon forms remain distinct;
+12. floating coupon requires typed benchmark attachment;
+13. benchmark reference exposes no curve engine;
+14. periodic yield compounding without tenor is rejected;
+15. coupon cash flows require accrual binding;
+16. non-coupon flows reject accrual material;
+17. schedule IDs are unique and exact instrument binding is enforced;
+18. mutable/list schedule input is rejected;
+19. schedule logical ordering is caller-order independent;
+20. terms maturity/identity/redemption invariants fail closed;
+21. foreign schedule and pre-issue flow are rejected by profile composition;
+22. zero-coupon profile rejects coupon cash flows;
+23. coupon accrual day-count mismatch is rejected;
+24. perpetual coupon-bearing debt is not forced to maturity;
+25. evidence/ID boundaries are UUID-only;
+26. deterministic logical material remains free of credential-like payloads.
 
 ---
 
-# 7. Compatibility and blast radius
+# 8. Compatibility and blast-radius law
 
-Intended production delta:
+The intended PR delta remains exactly:
 
 - one new infrastructure contract module;
 - one new focused test module;
 - this architecture artifact.
 
-No existing source contract is modified.
-No legacy order/market-data type is reinterpreted.
-No provider adapter changes.
-No runtime/trading behavior changes.
-No database/storage change.
-No migration.
+No existing source contract is reinterpreted. No provider adapter, runtime,
+execution path, database, storage backend or migration is changed.
 
-Compatibility strategy is additive:
+Compatibility is additive:
 
 ```text
 UMI-02 EconomicIdentityId
--> UMI-03 fixed-income terms/profile
--> later UMI-04/U07/U10 consumers
+-> UMI-03 fixed-income economics
+-> later UMI-04 / department / valuation consumers
 ```
 
 not:
 
 ```text
-replace every existing price/quantity/rate class
+replace every existing price / quantity / rate class
 ```
 
 ---
 
-# 8. Certification discipline
+# 9. Certification discipline
 
-This candidate is authored under the Integration Gate workflow and therefore
-cannot self-certify.
+This candidate was materially designed/implemented through the Integration Gate
+workflow and therefore cannot self-certify.
 
 Required sequence:
 
@@ -499,7 +509,7 @@ IMPLEMENT
 -> CLOSE UMI-03
 ```
 
-Until that sequence is complete:
+Until that sequence completes:
 
 ```text
 IMPLEMENTED CANDIDATE != CERTIFIED UMI-03
