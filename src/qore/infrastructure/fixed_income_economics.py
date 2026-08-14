@@ -435,7 +435,7 @@ class ZeroCouponTerms:
         return ("zero", self.day_count.logical_values())
 
 
-FixedIncomeCouponTerms = FixedCouponTerms | FloatingCouponTerms | ZeroCouponTerms
+type FixedIncomeCouponTerms = FixedCouponTerms | FloatingCouponTerms | ZeroCouponTerms
 
 
 @dataclass(frozen=True, slots=True)
