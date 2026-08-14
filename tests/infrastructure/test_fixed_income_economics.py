@@ -8,8 +8,7 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure import fixed_income_economics as fie
-from qore.infrastructure import universal_instrument_identity as uii
+from qore.infrastructure import fixed_income_economics as fie, universal_instrument_identity as uii
 
 
 _ISSUE = date(2026, 1, 1)
