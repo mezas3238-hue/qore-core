@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from qore.domain.department_contracts import (
+    CANONICAL_DEPARTMENT_COMMAND_ROUTES,
     DepartmentContractId,
     DepartmentContractKind,
     DepartmentContractRegistry,
@@ -153,6 +154,48 @@ def test_absent_route_and_wrong_mode_fail_closed() -> None:
                 department_registry=CANONICAL_DEPARTMENT_REGISTRY,
                 contracts=(item,),
             )
+
+
+def test_command_capable_routes_are_explicit_and_canonical() -> None:
+    assert CANONICAL_DEPARTMENT_COMMAND_ROUTES == (
+        (D.CLIENT_EXECUTION, D.ORDER_EXECUTION, S),
+        (D.EXECUTIVE_CONTROL, D.CORE_GOVERNANCE, S),
+    )
+    canonical_routes = {
+        (dependency.consumer, dependency.provider, dependency.mode)
+        for dependency in CANONICAL_DEPARTMENT_DEPENDENCIES
+    }
+    assert set(CANONICAL_DEPARTMENT_COMMAND_ROUTES) <= canonical_routes
+
+
+@pytest.mark.parametrize(
+    ("consumer", "provider", "mode"),
+    (
+        (D.CLIENT_READ_MODELS, D.POST_TRADE, A),
+        (D.CERTIFICATION_GATE, D.LINEAGE_VALIDATION, A),
+    ),
+)
+def test_valid_dependency_route_cannot_be_laundered_into_command_authority(
+    consumer: DepartmentId,
+    provider: DepartmentId,
+    mode: DepartmentInteractionMode,
+) -> None:
+    attempted = _contract(
+        "forbidden.command-on-valid-route",
+        DepartmentContractKind.COMMAND,
+        consumer,
+        provider,
+        mode,
+    )
+
+    with pytest.raises(
+        DepartmentContractValidationError,
+        match="must be explicitly command-capable",
+    ):
+        DepartmentContractRegistry(
+            department_registry=CANONICAL_DEPARTMENT_REGISTRY,
+            contracts=(attempted,),
+        )
 
 
 @pytest.mark.parametrize(
