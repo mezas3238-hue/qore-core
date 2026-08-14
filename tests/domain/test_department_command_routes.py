@@ -16,6 +16,8 @@ from qore.domain.department_contracts import (
 from qore.domain.departments import (
     CANONICAL_DEPARTMENT_REGISTRY,
     DepartmentDependency,
+    DepartmentId,
+    DepartmentInteractionMode,
 )
 
 
@@ -91,4 +93,37 @@ def test_command_policy_container_member_and_alternate_fail_closed() -> None:
         DepartmentContractRegistry(
             department_registry=CANONICAL_DEPARTMENT_REGISTRY,
             command_routes=(CANONICAL_DEPARTMENT_COMMAND_ROUTES[0],),
+        )
+
+
+def test_duplicate_command_policy_entries_fail_closed() -> None:
+    duplicate_policy = CANONICAL_DEPARTMENT_COMMAND_ROUTES + (
+        CANONICAL_DEPARTMENT_COMMAND_ROUTES[0],
+    )
+
+    with pytest.raises(
+        DepartmentContractValidationError,
+        match="must match canonical command routes",
+    ):
+        DepartmentContractRegistry(
+            department_registry=CANONICAL_DEPARTMENT_REGISTRY,
+            command_routes=duplicate_policy,
+        )
+
+
+def test_superset_command_policy_fails_closed() -> None:
+    extra_route = DepartmentDependency(
+        consumer=DepartmentId.CLIENT_READ_MODELS,
+        provider=DepartmentId.POST_TRADE,
+        mode=DepartmentInteractionMode.ASYNCHRONOUS,
+    )
+    superset_policy = CANONICAL_DEPARTMENT_COMMAND_ROUTES + (extra_route,)
+
+    with pytest.raises(
+        DepartmentContractValidationError,
+        match="must match canonical command routes",
+    ):
+        DepartmentContractRegistry(
+            department_registry=CANONICAL_DEPARTMENT_REGISTRY,
+            command_routes=superset_policy,
         )
