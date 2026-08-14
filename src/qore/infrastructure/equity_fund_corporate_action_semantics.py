@@ -11,7 +11,10 @@ from qore.infrastructure.derivative_contract_semantics import (
     DerivativeStrike,
     DerivativeStrikeBasis,
 )
-from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
+from qore.infrastructure.universal_instrument_identity import (
+    EconomicIdentityId,
+    IdentityRelationshipId,
+)
 from qore.kernel.errors import InfrastructureError
 
 
@@ -197,8 +200,6 @@ class FundVehicleKind(StrEnum):
     MONEY_MARKET_FUND = "money-market-fund"
     LISTED_TRUST = "listed-trust"
     REIT = "reit"
-    ETN = "etn"
-    INDEX_LINKED_PRODUCT = "index-linked-product"
 
 
 @dataclass(frozen=True, slots=True)
@@ -464,27 +465,22 @@ class FundVehicleTerms:
 
 @dataclass(frozen=True, slots=True)
 class FundBenchmarkRelationshipTerms:
+    """UMI-06 semantic enrichment of one existing UMI-02 identity relationship."""
+
     terms_id: EquityFundTermsId
-    fund_identity_id: EconomicIdentityId
-    benchmark_identity_id: EconomicIdentityId
+    relationship_id: IdentityRelationshipId
     role: FundBenchmarkRoleCode
     return_basis: BenchmarkReturnBasisCode
     evidence_ref: EquityFundEvidenceRef
 
     def __post_init__(self) -> None:
-        _validate_terms_header(
-            self.terms_id,
-            self.fund_identity_id,
-            self.evidence_ref,
-            field_prefix="fund benchmark relationship",
-        )
-        _validate_identity(
-            self.benchmark_identity_id,
-            field_name="fund benchmark identity",
-        )
-        if self.fund_identity_id == self.benchmark_identity_id:
+        if not isinstance(self.terms_id, EquityFundTermsId):
             raise EquityFundCorporateActionValidationError(
-                "fund and benchmark identities must differ"
+                "fund benchmark terms_id must be EquityFundTermsId"
+            )
+        if not isinstance(self.relationship_id, IdentityRelationshipId):
+            raise EquityFundCorporateActionValidationError(
+                "fund benchmark relationship_id must be IdentityRelationshipId"
             )
         if not isinstance(self.role, FundBenchmarkRoleCode):
             raise EquityFundCorporateActionValidationError(
@@ -494,13 +490,16 @@ class FundBenchmarkRelationshipTerms:
             raise EquityFundCorporateActionValidationError(
                 "fund benchmark return_basis must be BenchmarkReturnBasisCode"
             )
+        if not isinstance(self.evidence_ref, EquityFundEvidenceRef):
+            raise EquityFundCorporateActionValidationError(
+                "fund benchmark evidence_ref must be EquityFundEvidenceRef"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
             "fund-benchmark-relationship",
             self.terms_id.logical_values(),
-            self.fund_identity_id.logical_values(),
-            self.benchmark_identity_id.logical_values(),
+            self.relationship_id.logical_values(),
             self.role.logical_values(),
             self.return_basis.logical_values(),
             self.evidence_ref.logical_values(),
