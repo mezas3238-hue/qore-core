@@ -18,7 +18,6 @@ from qore.infrastructure.ports import (
 )
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
 
-
 _AS_OF = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
 _RECORDED = datetime(2026, 8, 14, 12, 1, tzinfo=UTC)
 
