@@ -167,6 +167,30 @@ class DepartmentContractRegistry:
                 "department contract id/version pairs must be unique"
             )
 
+        profiles: dict[
+            DepartmentContractId,
+            tuple[
+                DepartmentContractKind,
+                DepartmentId,
+                DepartmentId,
+                DepartmentInteractionMode,
+            ],
+        ] = {}
+        for contract in self.contracts:
+            profile = (
+                contract.kind,
+                contract.consumer,
+                contract.provider,
+                contract.mode,
+            )
+            existing = profiles.get(contract.contract_id)
+            if existing is None:
+                profiles[contract.contract_id] = profile
+            elif existing != profile:
+                raise DepartmentContractValidationError(
+                    "department contract id versions must preserve authority profile"
+                )
+
         dependency_routes = {
             (dependency.consumer, dependency.provider, dependency.mode)
             for dependency in self.department_registry.dependencies
