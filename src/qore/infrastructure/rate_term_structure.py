@@ -8,9 +8,12 @@ from re import fullmatch
 from uuid import UUID
 
 from qore.infrastructure.fixed_income_economics import (
+    CompoundingConventionCode,
+    DayCountConventionCode,
     FinancialTenor,
     FixedIncomeSpread,
     FixedIncomeYield,
+    YieldConvention,
 )
 from qore.infrastructure.ports import ExternalSourceDescriptor
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
@@ -143,7 +146,7 @@ class RateTermStructureInputFingerprint:
 
 @dataclass(frozen=True, slots=True)
 class RateTermStructureKindCode:
-    """Extensible economic role such as government, swap, or ois curve."""
+    """Extensible economic role such as government, swap, or OIS curve."""
 
     value: str
 
@@ -230,6 +233,45 @@ class DiscountFactor:
 
 
 @dataclass(frozen=True, slots=True)
+class RateCurveConvention:
+    """Rate quotation convention; stores semantics and performs no calculation."""
+
+    day_count: DayCountConventionCode
+    compounding: CompoundingConventionCode
+    compounding_tenor: FinancialTenor | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.day_count, DayCountConventionCode):
+            raise RateTermStructureValidationError(
+                "rate curve day_count must be DayCountConventionCode"
+            )
+        if not isinstance(self.compounding, CompoundingConventionCode):
+            raise RateTermStructureValidationError(
+                "rate curve compounding must be CompoundingConventionCode"
+            )
+        if self.compounding_tenor is not None and not isinstance(
+            self.compounding_tenor, FinancialTenor
+        ):
+            raise RateTermStructureValidationError(
+                "rate curve compounding_tenor must be FinancialTenor or None"
+            )
+        if self.compounding.value == "periodic" and self.compounding_tenor is None:
+            raise RateTermStructureValidationError(
+                "periodic rate compounding requires compounding_tenor"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            "rate-convention",
+            self.day_count.logical_values(),
+            self.compounding.logical_values(),
+            self.compounding_tenor.logical_values()
+            if self.compounding_tenor is not None
+            else None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class RateTermStructureNodeOrdinal:
     value: int
 
@@ -272,6 +314,7 @@ class ForwardRatePeriod:
         )
 
 
+type RateTermStructureConvention = RateCurveConvention | YieldConvention
 type RateTermStructureNodeCoordinate = FinancialTenor | ForwardRatePeriod
 type RateTermStructureNodeValue = (
     ZeroRate
@@ -466,6 +509,31 @@ def _node_matches_measure(
     )
 
 
+def _convention_matches_measure(
+    measure: RateTermStructureMeasure,
+    convention: RateTermStructureConvention | None,
+) -> bool:
+    if measure in (
+        RateTermStructureMeasure.ZERO_RATE,
+        RateTermStructureMeasure.PAR_RATE,
+        RateTermStructureMeasure.FORWARD_RATE,
+    ):
+        return isinstance(convention, RateCurveConvention)
+    if measure is RateTermStructureMeasure.YIELD:
+        return isinstance(convention, YieldConvention)
+    return convention is None
+
+
+def _convention_logical_values(
+    convention: RateTermStructureConvention | None,
+) -> tuple[object, ...] | None:
+    if convention is None:
+        return None
+    if isinstance(convention, RateCurveConvention):
+        return convention.logical_values()
+    return ("yield-convention", convention.logical_values())
+
+
 @dataclass(frozen=True, slots=True)
 class RateTermStructureSnapshot:
     """Immutable retained curve snapshot without interpolation or valuation engine."""
@@ -475,6 +543,7 @@ class RateTermStructureSnapshot:
     currency_identity_id: EconomicIdentityId
     curve_kind: RateTermStructureKindCode
     measure: RateTermStructureMeasure
+    convention: RateTermStructureConvention | None
     as_of: datetime
     recorded_at: datetime
     provenance: RateTermStructureProvenance
@@ -504,6 +573,10 @@ class RateTermStructureSnapshot:
         if not isinstance(self.measure, RateTermStructureMeasure):
             raise RateTermStructureValidationError(
                 "rate term-structure measure must be RateTermStructureMeasure"
+            )
+        if not _convention_matches_measure(self.measure, self.convention):
+            raise RateTermStructureValidationError(
+                "rate term-structure convention must match measure"
             )
         _validate_timestamp(self.as_of, field_name="rate term-structure as_of")
         _validate_timestamp(
@@ -566,6 +639,7 @@ class RateTermStructureSnapshot:
             self.currency_identity_id.logical_values(),
             self.curve_kind.logical_values(),
             self.measure.value,
+            _convention_logical_values(self.convention),
             _canonical_timestamp(
                 self.as_of,
                 field_name="rate term-structure as_of",
