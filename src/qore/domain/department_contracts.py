@@ -6,6 +6,7 @@ from re import fullmatch
 
 from qore.domain.departments import (
     CANONICAL_DEPARTMENT_REGISTRY,
+    DepartmentDependency,
     DepartmentId,
     DepartmentInteractionMode,
     DepartmentRegistry,
@@ -34,20 +35,24 @@ class DepartmentContractKind(StrEnum):
     EVIDENCE = "evidence"
 
 
-CANONICAL_DEPARTMENT_COMMAND_ROUTES: tuple[
-    tuple[DepartmentId, DepartmentId, DepartmentInteractionMode], ...
-] = (
-    (
-        DepartmentId.CLIENT_EXECUTION,
-        DepartmentId.ORDER_EXECUTION,
-        DepartmentInteractionMode.SYNCHRONOUS,
+CANONICAL_DEPARTMENT_COMMAND_ROUTES: tuple[DepartmentDependency, ...] = (
+    DepartmentDependency(
+        consumer=DepartmentId.CLIENT_EXECUTION,
+        provider=DepartmentId.ORDER_EXECUTION,
+        mode=DepartmentInteractionMode.SYNCHRONOUS,
     ),
-    (
-        DepartmentId.EXECUTIVE_CONTROL,
-        DepartmentId.CORE_GOVERNANCE,
-        DepartmentInteractionMode.SYNCHRONOUS,
+    DepartmentDependency(
+        consumer=DepartmentId.EXECUTIVE_CONTROL,
+        provider=DepartmentId.CORE_GOVERNANCE,
+        mode=DepartmentInteractionMode.SYNCHRONOUS,
     ),
 )
+
+
+def _command_route_values(
+    routes: tuple[DepartmentDependency, ...],
+) -> tuple[tuple[str, ...], ...]:
+    return tuple(sorted(route.logical_values() for route in routes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,7 +149,7 @@ class DepartmentContractSpec:
 
 @dataclass(frozen=True, slots=True)
 class DepartmentContractRegistry:
-    """Immutable contracts bound to the canonical FND-05 department graph.
+    """Immutable contracts bound to canonical graph and COMMAND policy material.
 
     Registration proves only that a logical contract route is compatible with the
     canonical dependency graph and, for COMMAND, that its route is explicitly
@@ -154,6 +159,7 @@ class DepartmentContractRegistry:
 
     department_registry: DepartmentRegistry
     contracts: tuple[DepartmentContractSpec, ...] = ()
+    command_routes: tuple[DepartmentDependency, ...] = CANONICAL_DEPARTMENT_COMMAND_ROUTES
 
     def __post_init__(self) -> None:
         if not isinstance(self.department_registry, DepartmentRegistry):
@@ -166,6 +172,20 @@ class DepartmentContractRegistry:
         ):
             raise DepartmentContractValidationError(
                 "department_registry must match canonical department registry"
+            )
+        if not isinstance(self.command_routes, tuple):
+            raise DepartmentContractValidationError("command_routes must be tuple")
+        if not all(
+            isinstance(route, DepartmentDependency) for route in self.command_routes
+        ):
+            raise DepartmentContractValidationError(
+                "command_routes must contain DepartmentDependency values"
+            )
+        if _command_route_values(self.command_routes) != _command_route_values(
+            CANONICAL_DEPARTMENT_COMMAND_ROUTES
+        ):
+            raise DepartmentContractValidationError(
+                "command_routes must match canonical command routes"
             )
         if not isinstance(self.contracts, tuple):
             raise DepartmentContractValidationError("contracts must be tuple")
@@ -212,6 +232,9 @@ class DepartmentContractRegistry:
             (dependency.consumer, dependency.provider, dependency.mode)
             for dependency in self.department_registry.dependencies
         }
+        command_route_keys = {
+            (route.consumer, route.provider, route.mode) for route in self.command_routes
+        }
         for contract in self.contracts:
             route = (contract.consumer, contract.provider, contract.mode)
             if route not in dependency_routes:
@@ -220,7 +243,7 @@ class DepartmentContractRegistry:
                 )
             if (
                 contract.kind is DepartmentContractKind.COMMAND
-                and route not in CANONICAL_DEPARTMENT_COMMAND_ROUTES
+                and route not in command_route_keys
             ):
                 raise DepartmentContractValidationError(
                     "command contract route must be explicitly command-capable"
@@ -291,17 +314,7 @@ class DepartmentContractRegistry:
         )
 
     def logical_values(self) -> tuple[object, ...]:
-        """Canonical contract, graph, and COMMAND-admission policy material."""
-        command_route_values = tuple(
-            sorted(
-                (
-                    consumer.value,
-                    provider.value,
-                    mode.value,
-                )
-                for consumer, provider, mode in CANONICAL_DEPARTMENT_COMMAND_ROUTES
-            )
-        )
+        """Canonical contract, graph, and captured COMMAND-policy material."""
         contract_values = tuple(
             contract.logical_values()
             for contract in sorted(
@@ -318,6 +331,6 @@ class DepartmentContractRegistry:
         )
         return (
             self.department_registry.logical_values(),
-            command_route_values,
+            _command_route_values(self.command_routes),
             contract_values,
         )
