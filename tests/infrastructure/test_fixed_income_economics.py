@@ -10,6 +10,7 @@ import pytest
 
 from qore.infrastructure import fixed_income_economics as fie
 from qore.infrastructure import universal_instrument_identity as uii
+
 _ISSUE = date(2026, 1, 1)
 _MID = date(2026, 7, 1)
 _MATURITY = date(2031, 1, 1)
