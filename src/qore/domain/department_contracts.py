@@ -5,6 +5,7 @@ from enum import StrEnum
 from re import fullmatch
 
 from qore.domain.departments import (
+    CANONICAL_DEPARTMENT_REGISTRY,
     DepartmentId,
     DepartmentInteractionMode,
     DepartmentRegistry,
@@ -127,10 +128,10 @@ class DepartmentContractSpec:
 
 @dataclass(frozen=True, slots=True)
 class DepartmentContractRegistry:
-    """Immutable contract registry bound to one certified department graph.
+    """Immutable contracts bound to the canonical FND-05 department graph.
 
     Registration proves only that a logical contract route is compatible with the
-    supplied FND-05 dependency graph. It does not authorize an invocation, mutate
+    canonical dependency graph. It does not authorize an invocation, mutate
     source-domain state, select a transport, or prove message delivery.
     """
 
@@ -141,6 +142,13 @@ class DepartmentContractRegistry:
         if not isinstance(self.department_registry, DepartmentRegistry):
             raise DepartmentContractValidationError(
                 "department_registry must be DepartmentRegistry"
+            )
+        if (
+            self.department_registry.logical_values()
+            != CANONICAL_DEPARTMENT_REGISTRY.logical_values()
+        ):
+            raise DepartmentContractValidationError(
+                "department_registry must match canonical department registry"
             )
         if not isinstance(self.contracts, tuple):
             raise DepartmentContractValidationError("contracts must be tuple")
@@ -212,14 +220,6 @@ class DepartmentContractRegistry:
             raise DepartmentContractValidationError(
                 "mode must be DepartmentInteractionMode or None"
             )
-        if consumer not in {
-            spec.department_id for spec in self.department_registry.departments
-        }:
-            raise DepartmentContractValidationError("unknown consumer department")
-        if provider is not None and provider not in {
-            spec.department_id for spec in self.department_registry.departments
-        }:
-            raise DepartmentContractValidationError("unknown provider department")
 
         selected = tuple(
             contract
