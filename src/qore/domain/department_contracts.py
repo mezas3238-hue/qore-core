@@ -291,7 +291,17 @@ class DepartmentContractRegistry:
         )
 
     def logical_values(self) -> tuple[object, ...]:
-        """Canonical contract material bound to exact department-graph material."""
+        """Canonical contract, graph, and COMMAND-admission policy material."""
+        command_route_values = tuple(
+            sorted(
+                (
+                    consumer.value,
+                    provider.value,
+                    mode.value,
+                )
+                for consumer, provider, mode in CANONICAL_DEPARTMENT_COMMAND_ROUTES
+            )
+        )
         contract_values = tuple(
             contract.logical_values()
             for contract in sorted(
@@ -306,4 +316,8 @@ class DepartmentContractRegistry:
                 ),
             )
         )
-        return (self.department_registry.logical_values(), contract_values)
+        return (
+            self.department_registry.logical_values(),
+            command_route_values,
+            contract_values,
+        )
