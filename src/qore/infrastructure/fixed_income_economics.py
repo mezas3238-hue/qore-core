@@ -526,6 +526,10 @@ class YieldConvention:
             raise FixedIncomeEconomicsValidationError(
                 "yield convention compounding_tenor must be FinancialTenor or None"
             )
+        if self.compounding.value == "periodic" and self.compounding_tenor is None:
+            raise FixedIncomeEconomicsValidationError(
+                "periodic yield compounding requires compounding_tenor"
+            )
         if self.reference is not None and not isinstance(
             self.reference, FixedIncomeBenchmarkReference
         ):
@@ -771,6 +775,12 @@ class FixedIncomeInstrumentTerms:
         )
 
 
+def _coupon_day_count(
+    coupon: FixedIncomeCouponTerms,
+) -> DayCountConventionCode:
+    return coupon.day_count
+
+
 @dataclass(frozen=True, slots=True)
 class FixedIncomeEconomicProfile:
     """Immutable composition of terms and optional retained contractual cash flows."""
@@ -801,6 +811,22 @@ class FixedIncomeEconomicProfile:
                     raise FixedIncomeEconomicsValidationError(
                         "fixed-income cash flow must not predate issue_date"
                     )
+                if cash_flow.kind is FixedIncomeCashFlowKind.COUPON:
+                    if isinstance(self.terms.coupon, ZeroCouponTerms):
+                        raise FixedIncomeEconomicsValidationError(
+                            "zero-coupon terms must not carry coupon cash flows"
+                        )
+                    if cash_flow.accrual_period is None:
+                        raise FixedIncomeEconomicsValidationError(
+                            "coupon cash flow requires accrual_period"
+                        )
+                    if (
+                        cash_flow.accrual_period.day_count
+                        != _coupon_day_count(self.terms.coupon)
+                    ):
+                        raise FixedIncomeEconomicsValidationError(
+                            "coupon cash-flow day_count must match coupon terms"
+                        )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
