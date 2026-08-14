@@ -210,7 +210,9 @@ def _protection_leg(
     ordinal: int,
     direction: dcs.DerivativeLegDirection,
     style: dcs.DerivativeSettlementStyle = dcs.DerivativeSettlementStyle.CASH,
+    method: str = "auction",
     settlement_identity: EconomicIdentityId | None = None,
+    recovery: dcs.DerivativeRecoveryRate | None = None,
 ) -> dcs.ProtectionSwapLeg:
     return dcs.ProtectionSwapLeg(
         leg_id=_leg_id(value),
@@ -220,9 +222,11 @@ def _protection_leg(
         reference=_benchmark(501, role="credit-reference"),
         contingency=dcs.DerivativeContingencyCode("credit-event"),
         settlement_style=style,
+        settlement_method=dcs.DerivativeProtectionSettlementMethodCode(method),
         settlement_identity_id=settlement_identity or _identity(502),
         settlement_convention=_settlement(),
         evidence_ref=_evidence(value),
+        fixed_recovery_rate=recovery,
     )
 
 
@@ -396,13 +400,7 @@ def test_floating_rate_convention_retains_calculation_and_fixing_semantics() -> 
         observation_shift=True,
     )
 
-    assert term.logical_values() == (
-        ("term-rate",),
-        ("nyc",),
-        2,
-        0,
-        False,
-    )
+    assert term.logical_values() == (("term-rate",), ("nyc",), 2, 0, False)
     assert compounded.logical_values() != term.logical_values()
 
 
@@ -782,12 +780,16 @@ def test_protection_leg_retains_cash_vs_physical_settlement_semantics() -> None:
         ordinal=1,
         direction=dcs.DerivativeLegDirection.RECEIVE,
         style=dcs.DerivativeSettlementStyle.CASH,
+        method="auction",
         settlement_identity=_identity(700),
     )
-    physical = replace(
-        cash,
-        settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL,
-        settlement_identity_id=_identity(701),
+    physical = _protection_leg(
+        11,
+        ordinal=1,
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+        style=dcs.DerivativeSettlementStyle.PHYSICAL,
+        method="physical-delivery",
+        settlement_identity=_identity(701),
     )
     assert cash.logical_values() != physical.logical_values()
 
@@ -795,6 +797,78 @@ def test_protection_leg_retains_cash_vs_physical_settlement_semantics() -> None:
         replace(cash, settlement_style=cast(Any, "cash"))
     with pytest.raises(dcs.DerivativeContractValidationError, match="EconomicIdentityId"):
         replace(cash, settlement_identity_id=cast(Any, _uuid(700)))
+
+
+def test_protection_auction_and_fixed_recovery_do_not_collapse_precheck_umi05_04() -> None:
+    auction = _protection_leg(
+        20,
+        ordinal=1,
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+        style=dcs.DerivativeSettlementStyle.CASH,
+        method="auction",
+        settlement_identity=_identity(710),
+    )
+    fixed = _protection_leg(
+        21,
+        ordinal=1,
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+        style=dcs.DerivativeSettlementStyle.CASH,
+        method="fixed-recovery",
+        settlement_identity=_identity(710),
+        recovery=dcs.DerivativeRecoveryRate(Decimal("0.40")),
+    )
+    assert auction.logical_values() != fixed.logical_values()
+    assert fixed.fixed_recovery_rate is not None
+    assert fixed.fixed_recovery_rate.logical_values() == ("0.4",)
+
+
+def test_fixed_recovery_requires_cash_style_and_explicit_bounded_rate() -> None:
+    with pytest.raises(dcs.DerivativeContractValidationError, match="requires recovery rate"):
+        _protection_leg(
+            30,
+            ordinal=1,
+            direction=dcs.DerivativeLegDirection.RECEIVE,
+            method="fixed-recovery",
+        )
+    with pytest.raises(dcs.DerivativeContractValidationError, match="must be CASH"):
+        _protection_leg(
+            31,
+            ordinal=1,
+            direction=dcs.DerivativeLegDirection.RECEIVE,
+            style=dcs.DerivativeSettlementStyle.PHYSICAL,
+            method="fixed-recovery",
+            recovery=dcs.DerivativeRecoveryRate(Decimal("0.4")),
+        )
+    for value in (Decimal("-0.01"), Decimal("1.01"), Decimal("NaN")):
+        with pytest.raises(dcs.DerivativeContractValidationError):
+            dcs.DerivativeRecoveryRate(value)
+
+
+def test_non_fixed_recovery_rejects_recovery_rate_and_method_style_mismatch() -> None:
+    auction = _protection_leg(
+        40,
+        ordinal=1,
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+    )
+    with pytest.raises(dcs.DerivativeContractValidationError, match="only fixed-recovery"):
+        replace(
+            auction,
+            fixed_recovery_rate=dcs.DerivativeRecoveryRate(Decimal("0.4")),
+        )
+    with pytest.raises(dcs.DerivativeContractValidationError, match="auction.*CASH"):
+        replace(auction, settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL)
+
+    physical = _protection_leg(
+        41,
+        ordinal=1,
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+        style=dcs.DerivativeSettlementStyle.PHYSICAL,
+        method="physical-delivery",
+    )
+    with pytest.raises(dcs.DerivativeContractValidationError, match="physical-delivery.*PHYSICAL"):
+        replace(physical, settlement_style=dcs.DerivativeSettlementStyle.CASH)
+    with pytest.raises(dcs.DerivativeContractValidationError, match="settlement_method"):
+        replace(auction, settlement_method=cast(Any, "auction"))
 
 
 def test_swap_requires_two_typed_legs_pay_and_receive() -> None:
@@ -971,11 +1045,7 @@ def test_composition_side_rejects_raw_string_laundering() -> None:
 
 
 def test_terms_expose_no_pricing_risk_execution_or_settlement_engines() -> None:
-    objects: tuple[object, ...] = (
-        _swap(),
-        _option(),
-        _cash_forward(),
-    )
+    objects: tuple[object, ...] = (_swap(), _option(), _cash_forward())
     forbidden = (
         "price",
         "present_value",
