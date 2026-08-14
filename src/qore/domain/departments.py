@@ -64,6 +64,12 @@ class DepartmentSpec:
     canonical_name: str
 
     def __post_init__(self) -> None:
+        if not isinstance(self.department_id, DepartmentId):
+            raise DepartmentValidationError("department_id must be DepartmentId")
+        if not isinstance(self.slug, str):
+            raise DepartmentValidationError("department slug must be str")
+        if not isinstance(self.canonical_name, str):
+            raise DepartmentValidationError("canonical department name must be str")
         if fullmatch(r"[a-z][a-z0-9-]*", self.slug) is None:
             raise DepartmentValidationError(
                 "department slug must use lowercase letters, digits, or hyphens"
@@ -88,6 +94,14 @@ class DepartmentDependency:
     mode: DepartmentInteractionMode
 
     def __post_init__(self) -> None:
+        if not isinstance(self.consumer, DepartmentId):
+            raise DepartmentValidationError("dependency consumer must be DepartmentId")
+        if not isinstance(self.provider, DepartmentId):
+            raise DepartmentValidationError("dependency provider must be DepartmentId")
+        if not isinstance(self.mode, DepartmentInteractionMode):
+            raise DepartmentValidationError(
+                "dependency mode must be DepartmentInteractionMode"
+            )
         if self.consumer is self.provider:
             raise DepartmentValidationError("department cannot depend on itself")
 
@@ -103,6 +117,20 @@ class DepartmentRegistry:
     dependencies: tuple[DepartmentDependency, ...] = ()
 
     def __post_init__(self) -> None:
+        if not isinstance(self.departments, tuple):
+            raise DepartmentValidationError("departments must be tuple")
+        if not isinstance(self.dependencies, tuple):
+            raise DepartmentValidationError("dependencies must be tuple")
+        if not all(isinstance(spec, DepartmentSpec) for spec in self.departments):
+            raise DepartmentValidationError("departments must contain DepartmentSpec values")
+        if not all(
+            isinstance(dependency, DepartmentDependency)
+            for dependency in self.dependencies
+        ):
+            raise DepartmentValidationError(
+                "dependencies must contain DepartmentDependency values"
+            )
+
         ids = tuple(spec.department_id for spec in self.departments)
         if len(set(ids)) != len(ids):
             raise DepartmentValidationError("department ids must be unique")
@@ -175,6 +203,8 @@ class DepartmentRegistry:
 
     def spec(self, department_id: DepartmentId) -> DepartmentSpec:
         """Return one canonical descriptor or fail closed if it is unknown."""
+        if not isinstance(department_id, DepartmentId):
+            raise DepartmentValidationError("department_id must be DepartmentId")
         for spec in self.departments:
             if spec.department_id is department_id:
                 return spec
@@ -189,6 +219,12 @@ class DepartmentRegistry:
         mode: DepartmentInteractionMode | None = None,
     ) -> tuple[DepartmentDependency, ...]:
         """Return deterministic dependencies consumed by one department."""
+        if not isinstance(department_id, DepartmentId):
+            raise DepartmentValidationError("department_id must be DepartmentId")
+        if mode is not None and not isinstance(mode, DepartmentInteractionMode):
+            raise DepartmentValidationError(
+                "mode must be DepartmentInteractionMode or None"
+            )
         if department_id not in {spec.department_id for spec in self.departments}:
             raise DepartmentValidationError(
                 f"unknown canonical department: {department_id.value}"
