@@ -8,8 +8,6 @@ from re import fullmatch
 from uuid import UUID
 
 from qore.infrastructure.fixed_income_economics import (
-    BusinessCalendarRef,
-    BusinessDayConventionCode,
     DayCountConventionCode,
     FinancialTenor,
     FixedIncomeSpread,
@@ -614,9 +612,7 @@ class OptionContractTerms:
                 "option instrument and settlement identity must differ"
             )
         if not isinstance(self.right, OptionRight):
-            raise DerivativeContractValidationError(
-                "option right must be OptionRight"
-            )
+            raise DerivativeContractValidationError("option right must be OptionRight")
         if not isinstance(self.strike, DerivativeStrike):
             raise DerivativeContractValidationError(
                 "option strike must be DerivativeStrike"
@@ -766,18 +762,13 @@ class ForwardContractTerms:
             raise DerivativeContractValidationError(
                 "forward settlement_convention must be SettlementConvention or None"
             )
-        if self.settlement_style is DerivativeSettlementStyle.CASH:
-            if self.fixing is None:
-                raise DerivativeContractValidationError(
-                    "cash-settled forward requires explicit fixing terms"
-                )
-            if self.fixing.fixing_date > self.maturity_date:
-                raise DerivativeContractValidationError(
-                    "forward fixing_date must not be after maturity_date"
-                )
-        elif self.fixing is not None:
+        if self.settlement_style is DerivativeSettlementStyle.CASH and self.fixing is None:
             raise DerivativeContractValidationError(
-                "physical forward must not carry cash-settlement fixing terms"
+                "cash-settled forward requires explicit fixing terms"
+            )
+        if self.fixing is not None and self.fixing.fixing_date > self.maturity_date:
+            raise DerivativeContractValidationError(
+                "forward fixing_date must not be after maturity_date"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -1324,11 +1315,3 @@ class DerivativeCompositionTerms:
             tuple(leg.logical_values() for leg in self.legs),
             self.evidence_ref.logical_values(),
         )
-
-
-# Imported structural calendar references remain intentionally visible to mypy and
-# architecture tooling without turning this module into D06 calendar authority.
-_SETTLEMENT_REFERENCE_TYPES = (
-    BusinessCalendarRef,
-    BusinessDayConventionCode,
-)
