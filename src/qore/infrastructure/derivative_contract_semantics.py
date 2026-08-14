@@ -9,6 +9,7 @@ from uuid import UUID
 
 from qore.infrastructure.fixed_income_economics import (
     BusinessCalendarRef,
+    BusinessDayConventionCode,
     DayCountConventionCode,
     FinancialTenor,
     FixedIncomeSpread,
@@ -201,6 +202,45 @@ class DerivativeProtectionSettlementMethodCode:
 
     def __post_init__(self) -> None:
         _validate_code(self.value, field_name="protection settlement method code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivativePriceQuoteBasisCode:
+    """Contractual PRICE-strike quote basis; never inferred from magnitude."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="derivative price quote basis code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivativeScheduleStubCode:
+    """Structural stub rule code; it grants no calendar/schedule engine authority."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="derivative schedule stub code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivativeScheduleRollCode:
+    """Structural roll rule code; it grants no calendar/schedule engine authority."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="derivative schedule roll code")
 
     def logical_values(self) -> tuple[str, ...]:
         return (self.value,)
@@ -426,6 +466,43 @@ class DerivativeFloatingRateConvention:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class DerivativeScheduleConvention:
+    """Retained payment/reset schedule semantics without generating dates."""
+
+    stub: DerivativeScheduleStubCode
+    roll: DerivativeScheduleRollCode
+    calendar_ref: BusinessCalendarRef
+    business_day_convention: BusinessDayConventionCode
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.stub, DerivativeScheduleStubCode):
+            raise DerivativeContractValidationError(
+                "derivative schedule stub must be DerivativeScheduleStubCode"
+            )
+        if not isinstance(self.roll, DerivativeScheduleRollCode):
+            raise DerivativeContractValidationError(
+                "derivative schedule roll must be DerivativeScheduleRollCode"
+            )
+        if not isinstance(self.calendar_ref, BusinessCalendarRef):
+            raise DerivativeContractValidationError(
+                "derivative schedule calendar_ref must be BusinessCalendarRef"
+            )
+        if not isinstance(self.business_day_convention, BusinessDayConventionCode):
+            raise DerivativeContractValidationError(
+                "derivative schedule business_day_convention must be "
+                "BusinessDayConventionCode"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.stub.logical_values(),
+            self.roll.logical_values(),
+            self.calendar_ref.logical_values(),
+            self.business_day_convention.logical_values(),
+        )
+
+
 class DerivativeSettlementStyle(StrEnum):
     CASH = "cash"
     PHYSICAL = "physical"
@@ -449,6 +526,7 @@ class DerivativeStrike:
     value: Decimal
     basis: DerivativeStrikeBasis
     quote_identity_id: EconomicIdentityId | None = None
+    price_quote_basis: DerivativePriceQuoteBasisCode | None = None
     convention: DerivativeStrikeConvention | None = None
 
     def __post_init__(self) -> None:
@@ -462,6 +540,14 @@ class DerivativeStrike:
                 self.quote_identity_id,
                 field_name="derivative strike quote identity",
             )
+        if self.price_quote_basis is not None and not isinstance(
+            self.price_quote_basis,
+            DerivativePriceQuoteBasisCode,
+        ):
+            raise DerivativeContractValidationError(
+                "derivative strike price_quote_basis must be "
+                "DerivativePriceQuoteBasisCode or None"
+            )
         if self.convention is not None and not isinstance(
             self.convention,
             (RateCurveConvention, YieldConvention),
@@ -472,27 +558,40 @@ class DerivativeStrike:
             )
 
         if self.basis is DerivativeStrikeBasis.PRICE:
-            if self.quote_identity_id is None or self.convention is not None:
+            if (
+                self.quote_identity_id is None
+                or self.price_quote_basis is None
+                or self.convention is not None
+            ):
                 raise DerivativeContractValidationError(
-                    "price strike requires quote identity and no rate/yield convention"
+                    "price strike requires quote identity, price quote basis, "
+                    "and no rate/yield convention"
                 )
         elif self.basis is DerivativeStrikeBasis.RATE:
-            if self.quote_identity_id is not None or not isinstance(
-                self.convention, RateCurveConvention
+            if (
+                self.quote_identity_id is not None
+                or self.price_quote_basis is not None
+                or not isinstance(self.convention, RateCurveConvention)
             ):
                 raise DerivativeContractValidationError(
-                    "rate strike requires RateCurveConvention and no quote identity"
+                    "rate strike requires RateCurveConvention and no price/quote material"
                 )
         elif self.basis is DerivativeStrikeBasis.YIELD:
-            if self.quote_identity_id is not None or not isinstance(
-                self.convention, YieldConvention
+            if (
+                self.quote_identity_id is not None
+                or self.price_quote_basis is not None
+                or not isinstance(self.convention, YieldConvention)
             ):
                 raise DerivativeContractValidationError(
-                    "yield strike requires YieldConvention and no quote identity"
+                    "yield strike requires YieldConvention and no price/quote material"
                 )
-        elif self.quote_identity_id is not None or self.convention is not None:
+        elif (
+            self.quote_identity_id is not None
+            or self.price_quote_basis is not None
+            or self.convention is not None
+        ):
             raise DerivativeContractValidationError(
-                "spread/level strike must not carry quote identity or rate/yield convention"
+                "spread/level strike must not carry price, quote, or rate/yield convention"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -507,6 +606,9 @@ class DerivativeStrike:
             self.basis.value,
             self.quote_identity_id.logical_values()
             if self.quote_identity_id is not None
+            else None,
+            self.price_quote_basis.logical_values()
+            if self.price_quote_basis is not None
             else None,
             convention_values,
         )
@@ -526,6 +628,7 @@ class OptionExerciseStyle(StrEnum):
 @dataclass(frozen=True, slots=True)
 class OptionExerciseTerms:
     style: OptionExerciseStyle
+    american_start_date: date | None = None
     bermudan_dates: tuple[date, ...] = ()
 
     def __post_init__(self) -> None:
@@ -533,13 +636,32 @@ class OptionExerciseTerms:
             raise DerivativeContractValidationError(
                 "option exercise style must be OptionExerciseStyle"
             )
+        if self.american_start_date is not None:
+            _validate_date(
+                self.american_start_date,
+                field_name="American exercise start date",
+            )
         if type(self.bermudan_dates) is not tuple:
             raise DerivativeContractValidationError(
                 "bermudan_dates must be an immutable tuple"
             )
         for exercise_date in self.bermudan_dates:
             _validate_date(exercise_date, field_name="bermudan exercise date")
-        if self.style is OptionExerciseStyle.BERMUDAN:
+
+        if self.style is OptionExerciseStyle.AMERICAN:
+            if self.american_start_date is None:
+                raise DerivativeContractValidationError(
+                    "American exercise requires explicit start date"
+                )
+            if self.bermudan_dates:
+                raise DerivativeContractValidationError(
+                    "only Bermudan exercise may carry explicit exercise dates"
+                )
+        elif self.style is OptionExerciseStyle.BERMUDAN:
+            if self.american_start_date is not None:
+                raise DerivativeContractValidationError(
+                    "only American exercise may carry american_start_date"
+                )
             if not self.bermudan_dates:
                 raise DerivativeContractValidationError(
                     "Bermudan exercise requires explicit exercise dates"
@@ -549,14 +671,17 @@ class OptionExerciseTerms:
                     "Bermudan exercise dates must be unique"
                 )
             object.__setattr__(self, "bermudan_dates", tuple(sorted(self.bermudan_dates)))
-        elif self.bermudan_dates:
+        elif self.american_start_date is not None or self.bermudan_dates:
             raise DerivativeContractValidationError(
-                "only Bermudan exercise may carry explicit exercise dates"
+                "European exercise must not carry American/Bermudan date material"
             )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
             self.style.value,
+            self.american_start_date.isoformat()
+            if self.american_start_date is not None
+            else None,
             tuple(value.isoformat() for value in self.bermudan_dates),
         )
 
@@ -714,6 +839,13 @@ class OptionContractTerms:
         if not isinstance(self.exercise, OptionExerciseTerms):
             raise DerivativeContractValidationError(
                 "option exercise must be OptionExerciseTerms"
+            )
+        if (
+            self.exercise.american_start_date is not None
+            and self.exercise.american_start_date > self.expiry_date
+        ):
+            raise DerivativeContractValidationError(
+                "American exercise start date must not be after option expiry_date"
             )
         if any(value > self.expiry_date for value in self.exercise.bermudan_dates):
             raise DerivativeContractValidationError(
@@ -897,6 +1029,7 @@ class FixedRateSwapLeg:
     rate: DerivativeContractRate
     day_count: DayCountConventionCode
     payment_tenor: FinancialTenor
+    schedule_convention: DerivativeScheduleConvention
     settlement_convention: SettlementConvention
     evidence_ref: DerivativeEvidenceRef
 
@@ -917,6 +1050,7 @@ class FixedRateSwapLeg:
         _validate_payment_semantics(
             self.day_count,
             self.payment_tenor,
+            self.schedule_convention,
             self.settlement_convention,
         )
         _validate_leg_evidence(self.evidence_ref)
@@ -932,6 +1066,7 @@ class FixedRateSwapLeg:
             self.day_count.logical_values(),
             self.payment_tenor.logical_values(),
             self.settlement_convention.logical_values(),
+            self.schedule_convention.logical_values(),
             self.evidence_ref.logical_values(),
         )
 
@@ -948,6 +1083,7 @@ class FloatingRateSwapLeg:
     payment_tenor: FinancialTenor
     reset_tenor: FinancialTenor
     fixing_convention: DerivativeFloatingRateConvention
+    schedule_convention: DerivativeScheduleConvention
     settlement_convention: SettlementConvention
     evidence_ref: DerivativeEvidenceRef
 
@@ -972,6 +1108,7 @@ class FloatingRateSwapLeg:
         _validate_payment_semantics(
             self.day_count,
             self.payment_tenor,
+            self.schedule_convention,
             self.settlement_convention,
         )
         if not isinstance(self.reset_tenor, FinancialTenor):
@@ -999,6 +1136,7 @@ class FloatingRateSwapLeg:
             self.reset_tenor.logical_values(),
             self.fixing_convention.logical_values(),
             self.settlement_convention.logical_values(),
+            self.schedule_convention.logical_values(),
             self.evidence_ref.logical_values(),
         )
 
@@ -1011,6 +1149,7 @@ class ReferenceReturnSwapLeg:
     notional_schedule: DerivativeNotionalSchedule
     reference: DerivativeBenchmarkReference
     payment_tenor: FinancialTenor
+    schedule_convention: DerivativeScheduleConvention
     settlement_convention: SettlementConvention
     evidence_ref: DerivativeEvidenceRef
 
@@ -1032,6 +1171,11 @@ class ReferenceReturnSwapLeg:
             raise DerivativeContractValidationError(
                 "reference-return leg payment_tenor must be FinancialTenor"
             )
+        if not isinstance(self.schedule_convention, DerivativeScheduleConvention):
+            raise DerivativeContractValidationError(
+                "reference-return leg schedule_convention must be "
+                "DerivativeScheduleConvention"
+            )
         if not isinstance(self.settlement_convention, SettlementConvention):
             raise DerivativeContractValidationError(
                 "reference-return leg settlement_convention must be SettlementConvention"
@@ -1048,6 +1192,7 @@ class ReferenceReturnSwapLeg:
             self.reference.logical_values(),
             self.payment_tenor.logical_values(),
             self.settlement_convention.logical_values(),
+            self.schedule_convention.logical_values(),
             self.evidence_ref.logical_values(),
         )
 
@@ -1221,6 +1366,7 @@ def _validate_leg_ordinal_direction(
 def _validate_payment_semantics(
     day_count: DayCountConventionCode,
     payment_tenor: FinancialTenor,
+    schedule_convention: DerivativeScheduleConvention,
     settlement_convention: SettlementConvention,
 ) -> None:
     if not isinstance(day_count, DayCountConventionCode):
@@ -1230,6 +1376,10 @@ def _validate_payment_semantics(
     if not isinstance(payment_tenor, FinancialTenor):
         raise DerivativeContractValidationError(
             "swap leg payment_tenor must be FinancialTenor"
+        )
+    if not isinstance(schedule_convention, DerivativeScheduleConvention):
+        raise DerivativeContractValidationError(
+            "swap leg schedule_convention must be DerivativeScheduleConvention"
         )
     if not isinstance(settlement_convention, SettlementConvention):
         raise DerivativeContractValidationError(
