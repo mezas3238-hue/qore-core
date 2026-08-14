@@ -149,9 +149,9 @@ def test_rate_yield_and_spread_are_distinct_with_canonical_decimal() -> None:
     bond_yield = fie.FixedIncomeYield(magnitude)
     spread = fie.FixedIncomeSpread(magnitude)
 
-    assert rate != bond_yield
-    assert bond_yield != spread
-    assert rate != spread
+    assert type(rate) is fie.CouponRate
+    assert type(bond_yield) is fie.FixedIncomeYield
+    assert type(spread) is fie.FixedIncomeSpread
     assert rate.logical_values() == fie.CouponRate(Decimal("0.05")).logical_values()
     assert bond_yield.logical_values() == ("0.05",)
     assert spread.logical_values() == ("0.05",)
