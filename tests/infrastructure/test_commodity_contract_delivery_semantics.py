@@ -9,12 +9,12 @@ from uuid import UUID
 import pytest
 
 from qore.infrastructure.commodity_contract_delivery_semantics import (
+    CommodityClassCode,
     CommodityContractValidationError,
     CommodityDeliveryAlternative,
     CommodityDeliveryMethodCode,
     CommodityDeliveryWindow,
     CommodityEvidenceRef,
-    CommodityFamilyCode,
     CommodityFuturesContractTerms,
     CommodityGradeCode,
     CommodityPhysicalDeliveryTerms,
@@ -56,12 +56,12 @@ def _commodity_reference(
     *,
     reference_seed: int = 10,
     unit_seed: int = 11,
-    family: str = "energy",
+    commodity_class: str = "energy",
 ) -> CommodityReferenceTerms:
     return CommodityReferenceTerms(
         terms_id=_terms_id(101),
         reference_identity_id=_economic_id(reference_seed),
-        family=CommodityFamilyCode(family),
+        commodity_class=CommodityClassCode(commodity_class),
         measurement_unit_identity_id=_economic_id(unit_seed),
         evidence_ref=_evidence(201),
     )
@@ -164,8 +164,8 @@ def test_local_uuid_wrappers_reject_raw_text(
         factory(cast(Any, bad_value))
 
 
-def test_commodity_reference_retains_family_identity_and_measurement_unit() -> None:
-    terms = _commodity_reference(family="energy")
+def test_commodity_reference_retains_class_identity_and_measurement_unit() -> None:
+    terms = _commodity_reference(commodity_class="energy")
 
     assert terms.logical_values()[0] == "commodity-reference"
     assert terms.logical_values()[2] == _economic_id(10).logical_values()
@@ -178,7 +178,7 @@ def test_commodity_reference_rejects_raw_identity_and_self_unit() -> None:
         CommodityReferenceTerms(
             terms_id=_terms_id(),
             reference_identity_id=cast(Any, UUID(int=10)),
-            family=CommodityFamilyCode("energy"),
+            commodity_class=CommodityClassCode("energy"),
             measurement_unit_identity_id=_economic_id(11),
             evidence_ref=_evidence(),
         )
@@ -187,21 +187,21 @@ def test_commodity_reference_rejects_raw_identity_and_self_unit() -> None:
         CommodityReferenceTerms(
             terms_id=_terms_id(),
             reference_identity_id=_economic_id(10),
-            family=CommodityFamilyCode("energy"),
+            commodity_class=CommodityClassCode("energy"),
             measurement_unit_identity_id=_economic_id(10),
             evidence_ref=_evidence(),
         )
 
 
-def test_family_grade_and_delivery_method_are_distinct_typed_semantics() -> None:
-    family = CommodityFamilyCode("energy")
+def test_class_grade_and_delivery_method_are_distinct_typed_semantics() -> None:
+    commodity_class = CommodityClassCode("energy")
     grade = CommodityGradeCode("wti-spec")
     method = CommodityDeliveryMethodCode("pipeline-transfer")
 
-    assert family.logical_values() == ("energy",)
+    assert commodity_class.logical_values() == ("energy",)
     assert grade.logical_values() == ("wti-spec",)
     assert method.logical_values() == ("pipeline-transfer",)
-    assert type(family) is not type(grade)
+    assert type(commodity_class) is not type(grade)
     assert type(grade) is not type(method)
 
 
@@ -210,7 +210,7 @@ def test_typed_code_fields_reject_raw_string_laundering() -> None:
         CommodityReferenceTerms(
             terms_id=_terms_id(),
             reference_identity_id=_economic_id(10),
-            family=cast(Any, "energy"),
+            commodity_class=cast(Any, "energy"),
             measurement_unit_identity_id=_economic_id(11),
             evidence_ref=_evidence(),
         )
@@ -393,11 +393,11 @@ def test_delivery_window_does_not_invent_expiry_or_notice_chronology() -> None:
 def test_terms_are_frozen() -> None:
     reference = _commodity_reference()
     terms = _commodity_futures(reference=reference)
-    reference_field = "family"
+    reference_field = "commodity_class"
     terms_field = "physical_delivery"
 
     with pytest.raises(FrozenInstanceError):
-        setattr(reference, reference_field, CommodityFamilyCode("metals"))
+        setattr(reference, reference_field, CommodityClassCode("metals"))
     with pytest.raises(FrozenInstanceError):
         setattr(terms, terms_field, None)
 
