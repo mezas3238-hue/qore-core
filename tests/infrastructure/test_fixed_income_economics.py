@@ -11,6 +11,7 @@ import pytest
 from qore.infrastructure import fixed_income_economics as fie
 from qore.infrastructure import universal_instrument_identity as uii
 
+
 _ISSUE = date(2026, 1, 1)
 _MID = date(2026, 7, 1)
 _MATURITY = date(2031, 1, 1)
@@ -92,12 +93,13 @@ def _accrual(
     start: date = _ISSUE,
     end: date = _MID,
     payment: date = _MID,
+    day_count: fie.DayCountConventionCode | None = None,
 ) -> fie.AccrualPeriod:
     return fie.AccrualPeriod(
         start_date=start,
         end_date=end,
         payment_date=payment,
-        day_count=_day_count(),
+        day_count=day_count or _day_count(),
     )
 
 
@@ -107,6 +109,7 @@ def _cash_flow(
     instrument: uii.EconomicIdentityId | None = None,
     kind: fie.FixedIncomeCashFlowKind = fie.FixedIncomeCashFlowKind.COUPON,
     payment: date = _MID,
+    accrual: fie.AccrualPeriod | None = None,
 ) -> fie.FixedIncomeCashFlow:
     is_coupon = kind is fie.FixedIncomeCashFlowKind.COUPON
     return fie.FixedIncomeCashFlow(
@@ -114,11 +117,13 @@ def _cash_flow(
         instrument_identity_id=instrument or _identity(1),
         kind=kind,
         direction=fie.FixedIncomeCashFlowDirection.RECEIVABLE,
-        amount=fie.FixedIncomeCashAmount(Decimal("25") if is_coupon else Decimal("1000")),
+        amount=fie.FixedIncomeCashAmount(
+            Decimal("25") if is_coupon else Decimal("1000")
+        ),
         currency_identity_id=_identity(2),
         payment_date=payment,
         evidence_ref=_evidence(200 + value),
-        accrual_period=_accrual(payment=payment) if is_coupon else None,
+        accrual_period=(accrual or _accrual(payment=payment)) if is_coupon else None,
     )
 
 
@@ -184,6 +189,10 @@ def test_numeric_contracts_reject_non_finite_decimals(value: Decimal) -> None:
     with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="finite Decimal"):
         fie.FixedIncomeSpread(value)
     with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="finite Decimal"):
+        fie.FaceAmount(value)
+    with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="finite Decimal"):
+        fie.FixedIncomeCashAmount(value)
+    with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="finite Decimal"):
         fie.FixedIncomePrice(
             value=value,
             kind=fie.FixedIncomePriceKind.CLEAN,
@@ -218,10 +227,7 @@ def test_day_count_settlement_and_codes_fail_closed() -> None:
     assert fie.DayCountConventionCode("30e-360").logical_values() == ("30e-360",)
     assert _settlement().logical_values()[0] == 2
 
-    with pytest.raises(
-        fie.FixedIncomeEconomicsValidationError,
-        match="canonical lowercase",
-    ):
+    with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="canonical lowercase"):
         fie.DayCountConventionCode("ACT/365")
     with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="non-negative int"):
         fie.SettlementConvention(
@@ -270,10 +276,7 @@ def test_coupon_families_are_explicit_and_floating_requires_reference() -> None:
     assert floating.logical_values()[0] == "floating"
     assert zero.logical_values()[0] == "zero"
 
-    with pytest.raises(
-        fie.FixedIncomeEconomicsValidationError,
-        match="FixedIncomeBenchmarkReference",
-    ):
+    with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="benchmark"):
         replace(floating, benchmark=cast(Any, _identity(20)))
     with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="maturity_date"):
         _terms(coupon=zero, maturity=None)
@@ -297,6 +300,19 @@ def test_benchmark_and_yield_reference_grant_no_curve_engine() -> None:
     assert convention.logical_values()[-1] == reference.logical_values()
     assert not hasattr(reference, "curve_points")
     assert not hasattr(reference, "discount_factors")
+
+
+def test_periodic_yield_compounding_requires_frequency_tenor() -> None:
+    with pytest.raises(
+        fie.FixedIncomeEconomicsValidationError,
+        match="periodic yield compounding requires compounding_tenor",
+    ):
+        fie.YieldConvention(
+            yield_code=fie.FixedIncomeYieldCode("yield-to-maturity"),
+            day_count=_day_count(),
+            compounding=fie.CompoundingConventionCode("periodic"),
+            compounding_tenor=None,
+        )
 
 
 def test_cash_flow_coupon_accrual_binding_and_non_coupon_separation() -> None:
@@ -384,23 +400,61 @@ def test_profile_rejects_foreign_schedule_and_pre_issue_cash_flow() -> None:
         fie.FixedIncomeEconomicProfile(terms, early_schedule)
 
 
-def test_perpetual_fixed_coupon_terms_are_not_forced_to_have_maturity() -> None:
-    perpetual = _terms(maturity=None)
-    assert perpetual.maturity_date is None
-    assert perpetual.redemption_amount is None
-    assert isinstance(perpetual.coupon, fie.FixedCouponTerms)
+def test_zero_coupon_profile_rejects_coupon_cash_flow() -> None:
+    terms = _terms(coupon=fie.ZeroCouponTerms(day_count=_day_count()))
+    schedule = fie.FixedIncomeCashFlowSchedule(_identity(1), (_cash_flow(1),))
+
+    with pytest.raises(
+        fie.FixedIncomeEconomicsValidationError,
+        match="zero-coupon terms must not carry coupon cash flows",
+    ):
+        fie.FixedIncomeEconomicProfile(terms, schedule)
 
 
-def test_evidence_and_id_boundaries_require_uuid() -> None:
+def test_profile_rejects_coupon_accrual_day_count_mismatch() -> None:
+    mismatched = _accrual(
+        day_count=fie.DayCountConventionCode("actual-360"),
+    )
+    flow = _cash_flow(1, accrual=mismatched)
+    schedule = fie.FixedIncomeCashFlowSchedule(_identity(1), (flow,))
+
+    with pytest.raises(
+        fie.FixedIncomeEconomicsValidationError,
+        match="day_count must match coupon terms",
+    ):
+        fie.FixedIncomeEconomicProfile(_terms(), schedule)
+
+
+def test_perpetual_coupon_debt_is_not_forced_to_have_maturity() -> None:
+    fixed = _terms(maturity=None)
+    floating_coupon = fie.FloatingCouponTerms(
+        benchmark=fie.FixedIncomeBenchmarkReference(
+            reference_identity_id=_identity(20),
+            role=fie.FixedIncomeReferenceRoleCode("coupon-benchmark"),
+        ),
+        spread=fie.FixedIncomeSpread(Decimal("0.001")),
+        day_count=fie.DayCountConventionCode("actual-360"),
+        payment_tenor=_tenor(),
+        reset_tenor=fie.FinancialTenor(3, fie.FinancialTenorUnit.MONTH),
+    )
+    floating = _terms(coupon=floating_coupon, maturity=None)
+
+    assert fixed.maturity_date is None
+    assert fixed.redemption_amount is None
+    assert floating.maturity_date is None
+    assert isinstance(floating.coupon, fie.FloatingCouponTerms)
+
+
+def test_secret_like_material_cannot_enter_id_evidence_contracts() -> None:
     with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="UUID"):
         fie.FixedIncomeEvidenceRef(cast(Any, "token=secret"))
     with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="UUID"):
-        fie.FixedIncomeTermsId(cast(Any, "terms"))
+        fie.FixedIncomeTermsId(cast(Any, "password=secret"))
     with pytest.raises(fie.FixedIncomeEconomicsValidationError, match="UUID"):
-        fie.FixedIncomeCashFlowId(cast(Any, 1))
+        fie.FixedIncomeCashFlowId(cast(Any, "secret=value"))
 
 
-def test_profile_logical_values_are_deterministic_and_secret_free() -> None:
+def test_logical_values_are_deterministic_and_secret_free() -> None:
     terms = _terms()
     first = _cash_flow(1)
     second = _cash_flow(
@@ -416,6 +470,7 @@ def test_profile_logical_values_are_deterministic_and_secret_free() -> None:
         terms,
         fie.FixedIncomeCashFlowSchedule(_identity(1), (second, first)),
     )
+
     assert left.logical_values() == right.logical_values()
     material = repr(left.logical_values()).lower()
     assert "token=" not in material
