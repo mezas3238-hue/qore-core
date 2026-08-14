@@ -8,10 +8,8 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure import (
-    fixed_income_economics as fie,
-    rate_term_structure as rts,
-)
+from qore.infrastructure import fixed_income_economics as fie
+from qore.infrastructure import rate_term_structure as rts
 from qore.infrastructure.ports import (
     AdapterId,
     ExternalSourceDescriptor,
@@ -280,7 +278,10 @@ def test_yield_measure_requires_certified_yield_convention() -> None:
         ),
     )
     assert isinstance(snapshot.convention, fie.YieldConvention)
-    assert snapshot.logical_values()[5][0] == "yield-convention"
+    assert snapshot.logical_values()[5] == (
+        "yield-convention",
+        _yield_convention().logical_values(),
+    )
 
     with pytest.raises(rts.RateTermStructureValidationError, match="match measure"):
         replace(snapshot, convention=None)
