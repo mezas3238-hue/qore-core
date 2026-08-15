@@ -200,8 +200,9 @@ def test_duplicate_evidence_reference_and_duplicate_content_are_rejected() -> No
     ):
         _snapshot(evidence=(duplicate_ref_a, duplicate_ref_b))
 
-    duplicate_content_a = _evidence("qore-a")
-    duplicate_content_b = _evidence("qore-b")
+    shared_locator = "github://mezas3238-hue/qore-core/shared-evidence"
+    duplicate_content_a = _evidence("qore-a", locator=shared_locator)
+    duplicate_content_b = _evidence("qore-b", locator=shared_locator)
     entry = _entry(evidence_values=("qore-a", "qore-b"))
     with pytest.raises(
         registry.InstrumentUniverseRegistryValidationError,
@@ -544,3 +545,184 @@ def test_registry_values_are_immutable() -> None:
         entry.family = IdentityFamilyCode("options")  # type: ignore[misc]
     with pytest.raises(FrozenInstanceError):
         snapshot.revision = 2  # type: ignore[misc]
+
+
+def test_evidence_record_rejects_wrong_reference_and_source_category_types() -> None:
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="evidence_ref must be InstrumentUniverseEvidenceRef",
+    ):
+        registry.InstrumentUniverseEvidenceRecord(
+            evidence_ref=cast(registry.InstrumentUniverseEvidenceRef, "qore-umi05"),
+            source_category=registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY,
+            source_name="QORE repository",
+            locator="github://mezas3238-hue/qore-core/qore-umi05",
+            verified_on=SNAPSHOT_DATE,
+        )
+
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="source_category must be",
+    ):
+        registry.InstrumentUniverseEvidenceRecord(
+            evidence_ref=registry.InstrumentUniverseEvidenceRef("qore-umi05"),
+            source_category=cast(
+                registry.InstrumentUniverseEvidenceSourceCategory,
+                "qore-repository",
+            ),
+            source_name="QORE repository",
+            locator="github://mezas3238-hue/qore-core/qore-umi05",
+            verified_on=SNAPSHOT_DATE,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "coverage_status", "owner_status", "owner_refs", "unresolved", "evidence_refs", "reason"),
+    [
+        (
+            "coverage_status",
+            cast(registry.InstrumentUniverseCoverageStatus, "covered"),
+            registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
+            (registry.InstrumentUniverseOwnerRef("umi-05.derivatives"),),
+            (),
+            (registry.InstrumentUniverseEvidenceRef("qore-umi05"),),
+            registry.InstrumentUniverseReason("Wrong coverage type must fail."),
+        ),
+        (
+            "owner_status",
+            registry.InstrumentUniverseCoverageStatus.COVERED,
+            cast(registry.InstrumentUniverseOwnerStatus, "certified-contract"),
+            (registry.InstrumentUniverseOwnerRef("umi-05.derivatives"),),
+            (),
+            (registry.InstrumentUniverseEvidenceRef("qore-umi05"),),
+            registry.InstrumentUniverseReason("Wrong owner type must fail."),
+        ),
+        (
+            "owner_refs",
+            registry.InstrumentUniverseCoverageStatus.COVERED,
+            registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
+            cast(
+                tuple[registry.InstrumentUniverseOwnerRef, ...],
+                ("umi-05.derivatives",),
+            ),
+            (),
+            (registry.InstrumentUniverseEvidenceRef("qore-umi05"),),
+            registry.InstrumentUniverseReason("Wrong owner refs must fail."),
+        ),
+        (
+            "unresolved_semantics",
+            registry.InstrumentUniverseCoverageStatus.COVERED,
+            registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
+            (registry.InstrumentUniverseOwnerRef("umi-05.derivatives"),),
+            cast(tuple[registry.InstrumentUniverseSemanticRef, ...], ("gap",)),
+            (registry.InstrumentUniverseEvidenceRef("qore-umi05"),),
+            registry.InstrumentUniverseReason("Wrong semantic refs must fail."),
+        ),
+        (
+            "evidence_refs",
+            registry.InstrumentUniverseCoverageStatus.COVERED,
+            registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
+            (registry.InstrumentUniverseOwnerRef("umi-05.derivatives"),),
+            (),
+            (),
+            registry.InstrumentUniverseReason("Missing evidence refs must fail."),
+        ),
+        (
+            "reason",
+            registry.InstrumentUniverseCoverageStatus.COVERED,
+            registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
+            (registry.InstrumentUniverseOwnerRef("umi-05.derivatives"),),
+            (),
+            (registry.InstrumentUniverseEvidenceRef("qore-umi05"),),
+            cast(registry.InstrumentUniverseReason, "reason"),
+        ),
+    ],
+)
+def test_entry_rejects_wrong_contract_field_types(
+    field_name: str,
+    coverage_status: registry.InstrumentUniverseCoverageStatus,
+    owner_status: registry.InstrumentUniverseOwnerStatus,
+    owner_refs: tuple[registry.InstrumentUniverseOwnerRef, ...],
+    unresolved: tuple[registry.InstrumentUniverseSemanticRef, ...],
+    evidence_refs: tuple[registry.InstrumentUniverseEvidenceRef, ...],
+    reason: registry.InstrumentUniverseReason,
+) -> None:
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match=field_name,
+    ):
+        registry.InstrumentUniverseEntry(
+            family=IdentityFamilyCode("futures"),
+            coverage_status=coverage_status,
+            owner_status=owner_status,
+            owner_refs=owner_refs,
+            unresolved_semantics=unresolved,
+            evidence_refs=evidence_refs,
+            reason=reason,
+        )
+
+
+@pytest.mark.parametrize(
+    "coverage",
+    [
+        registry.InstrumentUniverseCoverageStatus.UNRESOLVED,
+        registry.InstrumentUniverseCoverageStatus.DEFERRED,
+    ],
+)
+def test_unresolved_or_deferred_family_cannot_omit_unresolved_semantics(
+    coverage: registry.InstrumentUniverseCoverageStatus,
+) -> None:
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="unresolved/deferred family must retain unresolved semantics",
+    ):
+        _entry(
+            "new-family",
+            coverage=coverage,
+            owner_status=registry.InstrumentUniverseOwnerStatus.NO_CERTIFIED_OWNER,
+            owner_values=(),
+            unresolved_values=(),
+            evidence_values=("external-evidence",),
+        )
+
+
+def test_excluded_family_cannot_retain_unresolved_semantics() -> None:
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="excluded family must not retain unresolved semantics",
+    ):
+        _entry(
+            "excluded-family",
+            coverage=registry.InstrumentUniverseCoverageStatus.EXCLUDED,
+            owner_status=registry.InstrumentUniverseOwnerStatus.NOT_APPLICABLE,
+            owner_values=(),
+            unresolved_values=("leftover-gap",),
+            evidence_values=("external-evidence",),
+        )
+
+
+def test_snapshot_rejects_empty_or_wrong_entry_and_evidence_collections() -> None:
+    valid_entry = _entry()
+    valid_evidence = _evidence("qore-umi05")
+
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="entries must be a non-empty immutable entry tuple",
+    ):
+        registry.InstrumentUniverseRegistrySnapshot(
+            as_of=SNAPSHOT_DATE,
+            revision=1,
+            entries=(),
+            evidence=(valid_evidence,),
+        )
+
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="evidence must be a non-empty immutable evidence-record tuple",
+    ):
+        registry.InstrumentUniverseRegistrySnapshot(
+            as_of=SNAPSHOT_DATE,
+            revision=1,
+            entries=(valid_entry,),
+            evidence=(),
+        )
