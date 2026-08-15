@@ -469,7 +469,7 @@ def test_determinism_immutability_and_no_operational_api() -> None:
 
     for value in (term(), first, cd(fixed_cd())):
         with pytest.raises(FrozenInstanceError):
-            setattr(value, "evidence_ref", ev(99))
+            cast(Any, value).evidence_ref = ev(99)
         assert not hasattr(value, "__dict__")
         for forbidden in ("execute", "settle", "fetch", "refresh", "provider"):
             assert not hasattr(value, forbidden)
