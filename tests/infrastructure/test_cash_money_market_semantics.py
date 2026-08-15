@@ -481,7 +481,7 @@ def test_determinism_immutability_and_no_operational_api() -> None:
 
 def test_dcd_defensive_runtime_type_guards() -> None:
     base = dcd()
-    for field_name, bad_value in (
+    for field_name, bad_dcd_value in (
         ("base_currency_identity_id", UUID(int=1)),
         ("alternate_currency_identity_id", UUID(int=2)),
         ("fx_fixing_identity_id", UUID(int=3)),
@@ -494,7 +494,7 @@ def test_dcd_defensive_runtime_type_guards() -> None:
         ("evidence_ref", UUID(int=6)),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(base, **{field_name: bad_value})
+            replace_any(base, **{field_name: bad_dcd_value})
 
     with pytest.raises(cmm.CashMoneyMarketValidationError):
         replace_any(
@@ -518,7 +518,7 @@ def test_dcd_defensive_runtime_type_guards() -> None:
 
 def test_term_deposit_defensive_runtime_type_guards() -> None:
     base = term()
-    for field_name, bad_value in (
+    for field_name, bad_term_value in (
         ("terms_id", UUID(int=1)),
         ("instrument_identity_id", UUID(int=2)),
         ("deposit_obligor_identity_id", UUID(int=3)),
@@ -532,7 +532,7 @@ def test_term_deposit_defensive_runtime_type_guards() -> None:
         ("dual_currency_feature", object()),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(base, **{field_name: bad_value})
+            replace_any(base, **{field_name: bad_term_value})
 
     with pytest.raises(cmm.CashMoneyMarketValidationError):
         replace_any(base, deposit_obligor_identity_id=base.instrument_identity_id)
@@ -545,16 +545,16 @@ def test_cp_variant_defensive_runtime_type_guards() -> None:
         cmm.CommercialPaperDiscountedPricing(cast(Any, Decimal("990")))
 
     fixed = fixed_cp()
-    for field_name, bad_value in (
+    for field_name, bad_fixed_value in (
         ("contractual_rate", Decimal("0.01")),
         ("day_count", "actual-360"),
         ("payment_dates", (date(2026, 4, 1),)),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(fixed, **{field_name: bad_value})
+            replace_any(fixed, **{field_name: bad_fixed_value})
 
     floating = floating_cp()
-    for field_name, bad_value in (
+    for field_name, bad_floating_value in (
         ("reference_identity_id", UUID(int=1)),
         ("reset_dates", (date(2026, 2, 1),)),
         ("payment_dates", (date(2026, 4, 1),)),
@@ -563,12 +563,12 @@ def test_cp_variant_defensive_runtime_type_guards() -> None:
         ("multiplier", Decimal("1")),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(floating, **{field_name: bad_value})
+            replace_any(floating, **{field_name: bad_floating_value})
 
 
 def test_commercial_paper_outer_defensive_runtime_guards() -> None:
     base = cp(cmm.CommercialPaperAtParPricing(), fixed_cp())
-    for field_name, bad_value in (
+    for field_name, bad_cp_value in (
         ("terms_id", UUID(int=1)),
         ("instrument_identity_id", UUID(int=2)),
         ("issuer_obligor_identity_id", UUID(int=3)),
@@ -581,7 +581,7 @@ def test_commercial_paper_outer_defensive_runtime_guards() -> None:
         ("evidence_ref", UUID(int=5)),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(base, **{field_name: bad_value})
+            replace_any(base, **{field_name: bad_cp_value})
 
     with pytest.raises(cmm.CashMoneyMarketValidationError):
         replace_any(base, issuer_obligor_identity_id=base.instrument_identity_id)
@@ -591,12 +591,12 @@ def test_commercial_paper_outer_defensive_runtime_guards() -> None:
 
 def test_cd_variant_defensive_runtime_type_guards() -> None:
     fixed = fixed_cd()
-    for field_name, bad_value in (
+    for field_name, bad_fixed_cd_value in (
         ("contractual_rate", Decimal("0.01")),
         ("day_count", "actual-360"),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(fixed, **{field_name: bad_value})
+            replace_any(fixed, **{field_name: bad_fixed_cd_value})
 
     reference = cmm.CertificateOfDepositReferenceLinkedRateTerms(
         eid(24),
@@ -604,24 +604,24 @@ def test_cd_variant_defensive_runtime_type_guards() -> None:
         cdreset(),
         dc(),
     )
-    for field_name, bad_value in (
+    for field_name, bad_reference_cd_value in (
         ("reference_identity_id", UUID(int=1)),
         ("spread", Decimal("0")),
         ("reset_schedule", (date(2026, 3, 1),)),
         ("day_count", "actual-360"),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(reference, **{field_name: bad_value})
+            replace_any(reference, **{field_name: bad_reference_cd_value})
 
     step = cmm.CertificateOfDepositPresetRateStep(
         date(2026, 2, 1), cmm.CashMoneyMarketContractualRate(Decimal("0.01"))
     )
-    for field_name, bad_value in (
+    for field_name, bad_step_value in (
         ("effective_date", datetime(2026, 2, 1)),
         ("contractual_rate", Decimal("0.01")),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(step, **{field_name: bad_value})
+            replace_any(step, **{field_name: bad_step_value})
 
     for bad_steps in (cast(Any, [step]), (), cast(Any, (date(2026, 2, 1),))):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
@@ -629,17 +629,17 @@ def test_cd_variant_defensive_runtime_type_guards() -> None:
 
     schedule = cmm.CertificateOfDepositPresetStepSchedule((step,))
     preset = cmm.CertificateOfDepositPresetStepsRateTerms(schedule, dc())
-    for field_name, bad_value in (
+    for field_name, bad_preset_value in (
         ("steps", (step,)),
         ("day_count", "actual-360"),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(preset, **{field_name: bad_value})
+            replace_any(preset, **{field_name: bad_preset_value})
 
 
 def test_certificate_of_deposit_outer_defensive_runtime_guards() -> None:
     base = cd(fixed_cd())
-    for field_name, bad_value in (
+    for field_name, bad_cd_value in (
         ("terms_id", UUID(int=1)),
         ("instrument_identity_id", UUID(int=2)),
         ("issuing_institution_identity_id", UUID(int=3)),
@@ -652,7 +652,7 @@ def test_certificate_of_deposit_outer_defensive_runtime_guards() -> None:
         ("evidence_ref", UUID(int=5)),
     ):
         with pytest.raises(cmm.CashMoneyMarketValidationError):
-            replace_any(base, **{field_name: bad_value})
+            replace_any(base, **{field_name: bad_cd_value})
 
     with pytest.raises(cmm.CashMoneyMarketValidationError):
         replace_any(base, issuing_institution_identity_id=base.instrument_identity_id)
