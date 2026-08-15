@@ -73,13 +73,14 @@ def _profile(
         MarketInteractionMechanism.CENTRAL_LIMIT_ORDER_BOOK,
     ),
 ) -> MarketTopologyProfile:
+    subject_value = (
+        subject
+        if subject is not None
+        else EconomicVenueMarketTopologyScope(_economic(), _venue())
+    )
     return MarketTopologyProfile(
         profile_id=MarketTopologyProfileId(UUID(int=value)),
-        subject=(
-            subject
-            if subject is not None
-            else EconomicVenueMarketTopologyScope(_economic(), _venue())
-        ),  # type: ignore[arg-type]
+        subject=cast(Any, subject_value),
         mechanisms=mechanisms,
         effective_interval=_interval(),
         evidence_ref=MarketTopologyEvidenceRef(UUID(int=value + 1000)),
