@@ -26,16 +26,29 @@ _SENSITIVE_TEXT_MARKERS = (
     "api-key",
     "api_key",
     "apikey",
+    "access-token",
+    "access_token",
     "bearer ",
+    "client-secret",
+    "client_secret",
+    "credential=",
+    "jwt=",
     "password=",
+    "password:",
+    "private-key",
+    "private_key",
     "secret=",
+    "secret:",
     "token=",
+    "token:",
 )
 
 
 def _validate_date(value: date, *, field_name: str) -> None:
     if type(value) is not date:
-        raise InstrumentUniverseRegistryValidationError(f"{field_name} must be exact date")
+        raise InstrumentUniverseRegistryValidationError(
+            f"{field_name} must be exact date"
+        )
 
 
 def _validate_positive_int(value: int, *, field_name: str) -> None:
@@ -56,6 +69,15 @@ def _validate_code(value: str, *, field_name: str) -> None:
         )
 
 
+def _contains_url_userinfo(value: str) -> bool:
+    scheme_index = value.find("://")
+    if scheme_index < 0:
+        return False
+    authority = value[scheme_index + 3 :].split("/", 1)[0]
+    authority = authority.split("?", 1)[0].split("#", 1)[0]
+    return "@" in authority
+
+
 def _validate_text(
     value: str,
     *,
@@ -67,12 +89,15 @@ def _validate_text(
         or not value
         or value != value.strip()
         or len(value) > max_length
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
     ):
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must be non-empty normalized text <= {max_length} chars"
         )
     lowered = value.lower()
-    if any(marker in lowered for marker in _SENSITIVE_TEXT_MARKERS):
+    if any(marker in lowered for marker in _SENSITIVE_TEXT_MARKERS) or (
+        _contains_url_userinfo(lowered)
+    ):
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must not contain credential-like material"
         )
@@ -148,7 +173,7 @@ class InstrumentUniverseCoverageStatus(StrEnum):
 
 
 class InstrumentUniverseOwnerStatus(StrEnum):
-    """Qualification of the retained QORE semantic owner at the registry snapshot."""
+    """Retained owner declaration; status alone is never authority proof."""
 
     CERTIFIED_CONTRACT = "certified-contract"
     PARTIAL_CONTRACT = "partial-contract"
@@ -208,7 +233,7 @@ class InstrumentUniverseEvidenceRecord:
 
 @dataclass(frozen=True, slots=True)
 class InstrumentUniverseEntry:
-    """One D04 family row; it grants no provider, execution, risk, or valuation authority."""
+    """One D04 family declaration; it grants no provider/operational authority."""
 
     family: IdentityFamilyCode
     coverage_status: InstrumentUniverseCoverageStatus
@@ -244,14 +269,16 @@ class InstrumentUniverseEntry:
             for item in self.unresolved_semantics
         ):
             raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe unresolved_semantics must be an immutable semantic-ref tuple"
+                "instrument-universe unresolved_semantics must be an immutable "
+                "semantic-ref tuple"
             )
         if type(self.evidence_refs) is not tuple or not self.evidence_refs or any(
             not isinstance(item, InstrumentUniverseEvidenceRef)
             for item in self.evidence_refs
         ):
             raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe evidence_refs must be a non-empty immutable evidence-ref tuple"
+                "instrument-universe evidence_refs must be a non-empty immutable "
+                "evidence-ref tuple"
             )
         if not isinstance(self.reason, InstrumentUniverseReason):
             raise InstrumentUniverseRegistryValidationError(
@@ -285,7 +312,10 @@ class InstrumentUniverseEntry:
             )
 
         if self.coverage_status is InstrumentUniverseCoverageStatus.COVERED:
-            if self.owner_status is not InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT:
+            if (
+                self.owner_status
+                is not InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT
+            ):
                 raise InstrumentUniverseRegistryValidationError(
                     "covered family requires certified-contract owner status"
                 )
@@ -360,7 +390,7 @@ class InstrumentUniverseEntry:
 
 @dataclass(frozen=True, slots=True)
 class InstrumentUniverseRegistrySnapshot:
-    """Immutable date-qualified family inventory; complete only for its explicit as-of date."""
+    """Immutable date-qualified family inventory; never self-certifying authority."""
 
     as_of: date
     revision: int
@@ -384,7 +414,8 @@ class InstrumentUniverseRegistrySnapshot:
             for item in self.evidence
         ):
             raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe evidence must be a non-empty immutable evidence-record tuple"
+                "instrument-universe evidence must be a non-empty immutable "
+                "evidence-record tuple"
             )
 
         families = tuple(entry.family for entry in self.entries)
@@ -410,10 +441,7 @@ class InstrumentUniverseRegistrySnapshot:
                 "instrument-universe evidence cannot be verified after snapshot as_of"
             )
 
-        evidence_by_ref = {
-            record.evidence_ref: record
-            for record in self.evidence
-        }
+        evidence_by_ref = {record.evidence_ref: record for record in self.evidence}
         retained_refs = frozenset(evidence_by_ref)
         used_refs: set[InstrumentUniverseEvidenceRef] = set()
         for entry in self.entries:
@@ -436,12 +464,14 @@ class InstrumentUniverseRegistrySnapshot:
                     not in categories
                 ):
                     raise InstrumentUniverseRegistryValidationError(
-                        "covered/partial family requires retained QORE repository evidence"
+                        "covered/partial family requires retained QORE repository "
+                        "evidence"
                     )
 
         if used_refs != retained_refs:
             raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe evidence records must all be referenced by an entry"
+                "instrument-universe evidence records must all be referenced by "
+                "an entry"
             )
 
         object.__setattr__(

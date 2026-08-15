@@ -2,18 +2,18 @@
 
 ## Status
 
-**PROGRAM D / UMI-13 — IMPLEMENTATION CANDIDATE; INDEPENDENT CERTIFICATION REQUIRED**
+**PROGRAM D / UMI-13 — CORRECTION CANDIDATE; INDEPENDENT CERTIFICATION REQUIRED**
 
 Tracking: Issue #361  
 Master roadmap: Issue #303  
 Universal Markets / Instruments: Issue #301  
 Certified starting baseline: `e429c8731f1fca4bb0aa7c1eaa8b8865cb0375f0`  
 Registry candidate snapshot date: **2026-08-15**  
-Structural-gap checkpoint: #361 comment `5302898505`
+Pre-correction frozen head: `3ebabc14e81aeaf8141df0e88e54d475b2927b34`
 
-This artifact is a date-qualified D04 instrument-family evidence/inventory snapshot.
-It is deliberately separate from provider/platform catalogs, execution universes,
-asset-taxonomy authority, valuation methodology, risk authority and settlement.
+This artifact is the canonical date-qualified UMI-13 evidence/inventory document for
+D04 instrument-family coverage. It is not a provider catalog, execution universe,
+asset-taxonomy owner, valuation methodology, risk authority or settlement authority.
 
 ```text
 COMPLETE AS OF VERIFIED SNAPSHOT DATE
@@ -35,95 +35,104 @@ IdentityFamilyCode
 != ECONOMIC IDENTITY
 ```
 
-The candidate is not certified until the exact-head independent-review and
-Integration Gate sequence completes. No row in this document is a production or
-real-capital claim.
+The Python registry contract validates immutable declaration shape. It does not
+connect to GitHub, standards bodies, exchanges or providers and therefore does not
+self-certify the truth of caller-supplied owner/evidence declarations. The canonical
+owner/certification claim is established only by the reviewed repository evidence
+recorded in this artifact and the later independent-review/Integration-Gate process.
 
 ---
 
 # 1. Exact-baseline evidence ledger
 
-The live repository was reverified before implementation:
+The certified baseline used for UMI-13 is:
 
 - `main = e429c8731f1fca4bb0aa7c1eaa8b8865cb0375f0`;
 - tree `049a3c0c466fd862765a24b1d2f97dd8a1311ee8`;
 - parent1 `d157f4e42b8f60699264661e89702743cbb8be12`;
 - parent2 `6c648815c2d70c42fb34ce69a0cf271afa189c66`;
-- GitHub signature `verified=true`, `reason=valid`;
-- #361 remained open and required baseline audit before implementation.
+- GitHub signature `verified=true`, `reason=valid`.
 
-Search was used only to locate candidates. Functional absence was not inferred from
-file-name search failure.
-
----
-
-# 2. Existing artifact inventory and authority classification
-
-| Artifact | Classification | UMI-13 role |
-|---|---|---|
-| UMI-01 taxonomy audit | DOCUMENTATION / INVENTORY ONLY | discovery and collision evidence; not registry implementation |
-| `universal_instrument_identity.py` | CANONICAL REUSABLE REGISTRY FOUNDATION | reuse `IdentityFamilyCode`; identity/listing/lifecycle authority remains UMI-02 |
-| `universal_instrument_identity_graph.py` | CANONICAL REUSABLE REGISTRY FOUNDATION | immutable identity graph and deterministic ordering pattern; not family coverage registry |
-| UMI-03 fixed-income economics | FAMILY SEMANTIC OWNER | owner evidence only for its bounded contract scope |
-| UMI-04 rate term structure | FAMILY SEMANTIC OWNER + PROVENANCE PATTERN | owner evidence; explicit `as_of`/provenance methodology analog |
-| UMI-05 derivative contract semantics | FAMILY SEMANTIC OWNER | futures/options/forwards/swaps/protection/multi-leg bounded terms |
-| UMI-06 equity/fund/corporate action | FAMILY SEMANTIC OWNER | equity, DR, pooled vehicles, bounded benchmark/NAV/corporate-action semantics |
-| UMI-07 commodity delivery | FAMILY SEMANTIC OWNER | commodity reference and physical-delivery qualification over UMI-05 futures |
-| UMI-08 crypto/perpetual/funding/network | FAMILY SEMANTIC OWNER | bounded crypto/perpetual/funding/network semantics |
-| UMI-09 structured/hybrid/synthetic | FAMILY SEMANTIC OWNER | higher-order composition/payoff qualification |
-| UMI-10 valuation observation | FAMILY-NEUTRAL VALUATION OBSERVATION OWNER | observation semantics only; not valuation methodology |
-| UMI-11 market topology | MARKET TOPOLOGY OWNER | venue/interaction topology, effective intervals, deterministic patterns |
-| UMI-12 conformance harness | CONFORMANCE EVIDENCE | cross-asset contract conformance; not support registry |
-| hosting/runtime/service registries | DUPLICATE / UNSAFE AUTHORITY FOR UMI-13 | must not be reused as D04 instrument universe |
-| Issue #300 platform registry | PROVIDER / PLATFORM CATALOG ONLY | methodology analog for date-qualified discovery; no D04 authority |
-
-Direct inspection established that no existing canonical structure combines all
-UMI-13 requirements:
-
-- explicit family snapshot date;
-- family semantic coverage state;
-- QORE owner/certification qualification;
-- unresolved/deferred/excluded semantics;
-- official evidence-source category;
-- deterministic family inventory material.
+The baseline audit inspected UMI-01 through UMI-12, UMI-02 identity/lifecycle and
+identity graph, family-local semantic owners, topology/effective-date patterns,
+provider/platform registries as non-authoritative analogs, and evidence/provenance
+patterns.
 
 Decision:
 
 `VERIFIED STRUCTURAL GAP — MINIMUM ADDITIVE UMI-13 REGISTRY VALIDATION CONTRACT REQUIRED`
 
-The implementation therefore reuses UMI-02 `IdentityFamilyCode` instead of adding
-another taxonomy owner.
+The implementation reuses UMI-02 `IdentityFamilyCode`; it does not create a second
+economic identity or global taxonomy owner.
 
 ---
 
-# 3. Date-qualification decision
+# 2. Existing authority map
 
-The canonical snapshot clock is an explicit exact `date` supplied by the caller.
+| Artifact | Classification | UMI-13 role |
+|---|---|---|
+| UMI-01 taxonomy audit | DOCUMENTATION / INVENTORY ONLY | discovery and collision evidence |
+| `universal_instrument_identity.py` | CANONICAL REUSABLE FOUNDATION | family classification plus economic/listing/lifecycle identity authority |
+| `universal_instrument_identity_graph.py` | CANONICAL REUSABLE FOUNDATION | identity graph/order pattern; not coverage registry |
+| UMI-03 fixed-income economics | FAMILY SEMANTIC OWNER | bounded fixed-income owner evidence |
+| UMI-04 rate term structure | FAMILY SEMANTIC OWNER | rates/curve owner evidence and as-of pattern |
+| UMI-05 derivative contract semantics | FAMILY SEMANTIC OWNER | bounded futures/options/forward/swap semantics |
+| UMI-06 equity/fund/corporate action | FAMILY SEMANTIC OWNER | equity/fund bounded semantics |
+| UMI-07 commodity delivery | FAMILY SEMANTIC OWNER | commodity reference/delivery specialization |
+| UMI-08 crypto/perpetual/funding/network | FAMILY SEMANTIC OWNER | crypto/perpetual/funding structural semantics |
+| UMI-09 structured/hybrid/synthetic | FAMILY SEMANTIC OWNER | composition/payoff qualification |
+| UMI-10 valuation observation | D07 OBSERVATION OWNER | typed observation only; not valuation methodology |
+| UMI-11 market topology | D04 TOPOLOGY OWNER | static topology/effective intervals |
+| UMI-12 conformance harness | CONFORMANCE EVIDENCE | cross-asset falsification evidence |
+| provider/platform catalog structures | D03 / PLATFORM ONLY | methodology analog; no D04 authority |
+
+---
+
+# 3. Date qualification and evidence model
+
+The snapshot clock is an explicit exact `date` supplied by the caller.
 
 Rules:
 
 - no wall clock;
-- no `datetime.now()`;
 - no hidden currentness inference;
 - `datetime` is rejected where exact `date` is required;
-- evidence verification date cannot postdate registry `as_of`;
+- evidence `verified_on` cannot postdate snapshot `as_of`;
 - one family may occur at most once in one snapshot;
-- a later snapshot is a new explicit fact, not mutation of historical truth.
+- later snapshots are new explicit facts, not mutation of historical truth;
+- revision is explicit and positive;
+- canonical ordering and `logical_values()` are deterministic.
+
+The runtime evidence record intentionally remains reference metadata, not retained
+third-party content. The canonical UMI-13 external ledger below therefore records
+**retrieval/snapshot qualification explicitly**.
+
+Qualification vocabulary used in this document:
+
+- `REFERENCE_ONLY_MUTABLE`: live official page; content was not retained by UMI-13;
+- `VERSIONED_REFERENCE`: official/versioned standard identifier is available, but UMI-13 does not retain the source bytes;
+- `ARCHIVAL_REFERENCE`: official archival/filing locator is expected to remain historically addressable;
+- `QORE_EXACT_REPOSITORY`: exact QORE commit/blob evidence.
 
 ```text
-2026-08-15 SNAPSHOT
-!= TIMELESS COMPLETENESS
+URL + VERIFIED_ON
+!= RETAINED SOURCE CONTENT
+
+HASH
+!= RETAINED SOURCE EVIDENCE
+
+REFERENCE_ONLY_MUTABLE
+!= HISTORICAL REPRODUCIBILITY PROOF
 ```
 
-The implementation retains a positive explicit revision plus deterministic logical
-material. It intentionally does not hash evidence into a substitute for retained
-source evidence.
+UMI-13 therefore makes no claim that external web content can be reconstructed
+byte-for-byte from this artifact alone.
 
 ---
 
-# 4. Status and owner model
+# 4. Coverage and owner-status semantics
 
-Coverage status is restricted to:
+Coverage states:
 
 - `COVERED`;
 - `PARTIAL`;
@@ -131,132 +140,142 @@ Coverage status is restricted to:
 - `EXCLUDED`;
 - `DEFERRED`.
 
-Owner qualification is separate:
+Owner qualification declarations:
 
 - `CERTIFIED_CONTRACT`;
 - `PARTIAL_CONTRACT`;
 - `NO_CERTIFIED_OWNER`;
 - `NOT_APPLICABLE`.
 
-`SUPPORTED` is intentionally absent.
+Important boundary:
 
-A `COVERED` row requires certified QORE contract evidence and no unresolved
-semantics. A `PARTIAL` row requires a retained QORE owner plus explicit unresolved
-semantics. `UNRESOLVED` and `DEFERRED` require `NO_CERTIFIED_OWNER`. `EXCLUDED`
-requires `NOT_APPLICABLE` and governed reason/evidence.
+```text
+owner_status field
+= RETAINED SNAPSHOT DECLARATION
+!= RUNTIME CERTIFICATION ENGINE
+!= PROVIDER CAPABILITY
+!= EXECUTION AUTHORITY
+```
 
-External/provider evidence alone cannot establish `COVERED` or `PARTIAL`.
-At least one referenced `QORE_REPOSITORY` evidence record is required for those
-states.
+`COVERED` is permitted only when the bounded D04 semantic scope represented by the
+row has no known unresolved semantic material at this snapshot. A broad family must
+be `PARTIAL` when material subfamily semantics remain unresolved, even if a generic
+owner contract exists.
 
----
+The runtime contract requires retained QORE-repository evidence for `COVERED` and
+`PARTIAL`. The UMI-13 canonical document separately carries the official external
+evidence ledger required by Issue #361. This is deliberate **Model B** separation:
 
-# 5. Official evidence ledger — verified for discovery on 2026-08-15
+generic validator + reviewed canonical evidence/inventory artifact.
 
-These sources prove market/product existence or standards coverage only. They are
-not QORE support claims.
-
-| Ref | Category | Official source | Evidence relevance |
-|---|---|---|---|
-| EXT-FPML-01 | STANDARDS_INDUSTRY_BODY | https://www.fpml.org/about/product-summary/ | IRD caps/floors/FRA/swaps/swaptions; FX spot/forward/NDF/swaps/options/deposits; CDS/index/basket/loan/mortgage; variance/correlation; commodity derivatives |
-| EXT-FPML-02 | STANDARDS_INDUSTRY_BODY | https://www.fpml.org/about/faqs/ | FpML additionally describes loans and deposits; derivative families and underlying assets |
-| EXT-BIS-01 | CENTRAL_BANK_OFFICIAL_REFERENCE | https://www.bis.org/statistics/triennialrep/guidelines_cbanks.htm | FX plus interest-rate, equity, commodity, credit and other OTC derivative categories |
-| EXT-TREASURY-01 | REGULATORY_OFFICIAL | https://www.treasurydirect.gov/marketable-securities/ | bills, notes, bonds, TIPS, FRNs and STRIPS distinctions |
-| EXT-FSB-01 | REGULATORY_OFFICIAL | https://www.fsb.org/2018/03/securities-financing-transactions-reporting-guidelines/ | repo, securities lending and margin lending as SFT data categories |
-| EXT-CFTC-EVENT-01 | REGULATORY_OFFICIAL | https://www.cftc.gov/IndustryOversight/IndustryFilings/TradingOrganizationProducts?Category=Event | current event/binary DCM product evidence |
-| EXT-FCA-CFD-01 | REGULATORY_OFFICIAL | https://www.fca.org.uk/firms/contract-for-differences | CFDs, spread betting and rolling spot FX as a distinct regulated product sector |
-| EXT-CBOE-VOL-01 | EXCHANGE_CLEARING_VENUE | https://www.cboe.com/tradable-products/vix | VIX benchmark is distinct from VIX options/futures; volatility products are not the benchmark itself |
-| EXT-SEC-ABS-01 | REGULATORY_OFFICIAL | https://www.sec.gov/newsroom/press-releases/2014-177 | ABS securitization pools/tranches and asset-level distinctions |
-| EXT-CME-01 | EXCHANGE_CLEARING_VENUE | https://www.cmegroup.com/markets.html | futures/options/OTC/cash across agriculture, energy, equity index, FX, rates, metals and other major market groups |
-| EXT-COINBASE-01 | PROVIDER_PLATFORM_OFFICIAL | https://www.coinbase.com/international-exchange | spot and perpetual product existence; provider evidence only |
-
-QORE repository owner evidence is retained separately from the external ledger.
-External-source coverage cannot promote a row into QORE semantic certification.
+The generic constructor is not an online GitHub/standards authenticity resolver.
 
 ---
 
-# 6. Candidate family coverage matrix — snapshot 2026-08-15
+# 5. Official evidence ledger — snapshot qualification 2026-08-15
 
-`COVERED` below means only the bounded D04 semantic-contract dimension represented
-by the certified QORE owner(s). It never means provider/execution/production
-support.
+These references prove market/product/standard existence only. They do not prove
+QORE provider or execution support.
 
-| Family code | Coverage | QORE owner qualification | Principal retained owners | Unresolved semantic refs / qualifications |
+| Ref | Category | Official authority/source | Locator | Verified on | Qualification | Version/effective qualification | Relevance |
+|---|---|---|---|---|---|---|---|
+| EXT-FPML-01 | STANDARDS_INDUSTRY_BODY | FpML / ISDA product summary | https://www.fpml.org/about/product-summary/ | 2026-08-15 | REFERENCE_ONLY_MUTABLE | current product-summary page | IRD, FX, credit, equity, commodity and other derivative families |
+| EXT-FPML-02 | STANDARDS_INDUSTRY_BODY | FpML FAQ | https://www.fpml.org/about/faqs/ | 2026-08-15 | REFERENCE_ONLY_MUTABLE | current FAQ | loans, deposits and product/underlying distinctions |
+| EXT-BIS-01 | CENTRAL_BANK_OFFICIAL_REFERENCE | BIS Triennial guidance | https://www.bis.org/statistics/triennialrep/guidelines_cbanks.htm | 2026-08-15 | REFERENCE_ONLY_MUTABLE | survey/guidance series | FX and OTC derivative categories |
+| EXT-TREASURY-01 | REGULATORY_OFFICIAL | U.S. TreasuryDirect marketable securities | https://www.treasurydirect.gov/marketable-securities/ | 2026-08-15 | REFERENCE_ONLY_MUTABLE | current official page | bills, notes, bonds, TIPS, FRNs, STRIPS |
+| EXT-FSB-01 | REGULATORY_OFFICIAL | FSB SFT reporting guidelines | https://www.fsb.org/2018/03/securities-financing-transactions-reporting-guidelines/ | 2026-08-15 | VERSIONED_REFERENCE | 2018 guideline publication | repo, securities lending and margin lending distinctions |
+| EXT-CFTC-EVENT-01 | REGULATORY_OFFICIAL | CFTC DCM event-product filings | https://www.cftc.gov/IndustryOversight/IndustryFilings/TradingOrganizationProducts?Category=Event | 2026-08-15 | REFERENCE_ONLY_MUTABLE | live filing index | event/binary listed products |
+| EXT-FCA-CFD-01 | REGULATORY_OFFICIAL | FCA CFD sector page | https://www.fca.org.uk/firms/contract-for-differences | 2026-08-15 | REFERENCE_ONLY_MUTABLE | current official page | CFDs, spread betting, rolling spot FX |
+| EXT-CBOE-VOL-01 | EXCHANGE_CLEARING_VENUE | Cboe VIX products | https://www.cboe.com/tradable-products/vix | 2026-08-15 | REFERENCE_ONLY_MUTABLE | current official page | VIX index vs futures/options distinction |
+| EXT-SEC-ABS-01 | REGULATORY_OFFICIAL | SEC ABS release | https://www.sec.gov/newsroom/press-releases/2014-177 | 2026-08-15 | ARCHIVAL_REFERENCE | SEC release 2014-177 | ABS asset/pool/tranche distinctions |
+| EXT-CME-01 | EXCHANGE_CLEARING_VENUE | CME markets | https://www.cmegroup.com/markets.html | 2026-08-15 | REFERENCE_ONLY_MUTABLE | live market catalog | futures/options/OTC/cash product discovery |
+| EXT-COINBASE-01 | PROVIDER_PLATFORM_OFFICIAL | Coinbase International Exchange | https://www.coinbase.com/international-exchange | 2026-08-15 | REFERENCE_ONLY_MUTABLE | provider catalog only | digital/perpetual existence only |
+| EXT-CME-TREASURY-01 | EXCHANGE_CLEARING_VENUE | CME Treasury futures conversion-factor material | https://www.cmegroup.com/articles/2024/calculating-us-treasury-futures-conversion-factors.html | 2026-08-15 | REFERENCE_ONLY_MUTABLE | 2024 article/rulebook references | deliverable grades, conversion factors, CTD specialization |
+| EXT-IIFM-SUKUK-01 | STANDARDS_INDUSTRY_BODY | IIFM Sukuk standards | https://www.iifm.net/public/standards/published-standards/sukuk-standards | 2026-08-15 | VERSIONED_REFERENCE | IIFM standards 17-26 and related published standards | Shari'ah-compliant Sukuk structural semantics |
+| EXT-ICC-SCF-01 | STANDARDS_INDUSTRY_BODY | ICC Standard Definitions for Techniques of Supply Chain Finance | https://iccwbo.org/news-publications/policies-reports/standard-definitions-techniques-supply-chain-finance/ | 2026-08-15 | VERSIONED_REFERENCE | publication 2017-01-09 | receivables purchase, factoring, forfaiting, payables and advance-based SCF |
+| EXT-SEC-ILS-01 | REGULATORY_OFFICIAL | SEC EDGAR filing describing catastrophe/event-linked bonds | https://www.sec.gov/Archives/edgar/data/1587982/000139834425004768/fp0092388-4_497k.htm | 2026-08-15 | ARCHIVAL_REFERENCE | archived SEC filing | catastrophe/insurance-linked trigger semantics |
+
+QORE owner evidence remains separate and exact-repository-qualified. External source
+coverage never promotes a family into QORE semantic certification by itself.
+
+---
+
+# 6. Candidate family coverage matrix — corrected snapshot 2026-08-15
+
+| Family code | Coverage | QORE owner declaration | Principal retained owners | Unresolved semantics / qualifications |
 |---|---|---|---|---|
-| `cash-money-market` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-03, UMI-04 | term/dual-currency deposits; commercial paper/CD; boundary to repo/SFT |
-| `fixed-income-credit` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05 | ABS/MBS pool/tranche/prepayment; loan/facility economics; full securitized-credit taxonomy |
-| `rates-term-structures` | PARTIAL | CERTIFIED_CONTRACT | UMI-04, UMI-05 | caps/floors/FRA/swaption specialization; benchmark construction remains separate |
-| `equities` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | warrants/convertible cross-family qualification; borrow/shortability remains outside static terms |
-| `funds-pooled-vehicles` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | UIT coverage; ETN is explicitly not a fund by classification |
-| `indices-benchmarks` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-06, UMI-10 | benchmark/index construction methodology and constituent governance not owned here |
-| `fx` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-05 | dedicated FX spot pair semantics; digital/barrier/average-rate options; rolling financing |
-| `futures` | COVERED | CERTIFIED_CONTRACT | UMI-02, UMI-05, UMI-07 | bounded generic futures terms only; event-resolution semantics classified separately |
-| `options` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | digital/barrier/Asian/exotic payoff semantics remain incomplete |
-| `forwards-swaps-otc` | PARTIAL | CERTIFIED_CONTRACT | UMI-05 | cap/floor/FRA/swaption product qualification; complete ISDA legal programmability not claimed |
-| `commodities` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-07 | power/electricity, freight, weather, emissions and specialized OTC commodity semantics |
-| `crypto-digital-assets` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-05, UMI-08 | staking/yield-bearing products; tokenized-security cross-domain qualification |
-| `structured-hybrid-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05, UMI-09 | product-specific structured-note and securitized payoff/legal variants |
-| `volatility-variance-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-10 | variance/correlation swap/future product semantics beyond generic derivative structure |
-| `securities-financing` | UNRESOLVED | NO_CERTIFIED_OWNER | none | repo/reverse-repo, securities lending/borrowing, margin lending |
-| `cross-asset-compositions` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | composition semantics exist; execution/routing of strategy legs is intentionally outside registry |
-| `event-contracts` | UNRESOLVED | NO_CERTIFIED_OWNER | none | event definition, source-of-resolution, contingency/outcome and dispute semantics |
-| `contracts-for-difference` | UNRESOLVED | NO_CERTIFIED_OWNER | none | CFD rolling financing, close-out/reference-price and spread-betting qualification |
-| `loans-credit-facilities` | UNRESOLVED | NO_CERTIFIED_OWNER | none | principal/facility/drawdown/amortization/covenant and syndicated-loan semantics |
+| `cash-money-market` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-03, UMI-04 | deposits; commercial paper/CD; repo/SFT boundary |
+| `fixed-income-credit` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05 | ABS/MBS pool/tranche/prepayment; loans/facilities; Sukuk; catastrophe/insurance-linked trigger structures |
+| `rates-term-structures` | PARTIAL | CERTIFIED_CONTRACT | UMI-04, UMI-05 | caps/floors/FRA/swaption specialization; benchmark construction separate |
+| `equities` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | warrants/convertible cross-family qualification; borrow/shortability outside static terms |
+| `funds-pooled-vehicles` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | UIT coverage; ETN explicitly not a fund by implication |
+| `indices-benchmarks` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-06, UMI-10 | methodology/constituent governance not owned here |
+| `fx` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-05 | dedicated spot-pair semantics; exotic FX options; rolling financing |
+| `futures` | **PARTIAL** | CERTIFIED_CONTRACT | UMI-02, UMI-05, UMI-07 | deliverable-basket/conversion-factor specialization; product-specific final-settlement algorithms; specialized delivery qualification |
+| `options` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | digital/barrier/Asian/exotic payoff semantics |
+| `forwards-swaps-otc` | PARTIAL | CERTIFIED_CONTRACT | UMI-05 | caps/floors/FRA/swaptions; full legal-programmability not claimed |
+| `commodities` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-07 | power, freight, weather, emissions and specialized OTC semantics |
+| `crypto-digital-assets` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-05, UMI-08 | staking/yield-bearing products; tokenized-security qualification |
+| `structured-hybrid-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05, UMI-09 | structured-note variants; Sukuk/hybrid qualification; insurance-linked trigger structures |
+| `volatility-variance-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-10 | variance/correlation product semantics beyond observation/generic structure |
+| `securities-financing` | UNRESOLVED | NO_CERTIFIED_OWNER | none | repo/reverse repo; securities lending/borrowing; margin lending |
+| `cross-asset-compositions` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | composition exists; leg execution/routing remains outside registry |
+| `event-contracts` | UNRESOLVED | NO_CERTIFIED_OWNER | none | event definition, resolution source, contingency/outcome/dispute semantics |
+| `contracts-for-difference` | UNRESOLVED | NO_CERTIFIED_OWNER | none | rolling financing, close-out/reference-price, spread-betting qualification |
+| `loans-credit-facilities` | UNRESOLVED | NO_CERTIFIED_OWNER | none | facility/drawdown/amortization/covenants/syndication plus trade-receivables finance semantics |
 
-The final three rows are additions produced by the discovery challenge rather than
-by blindly stopping at the original 16-family baseline.
+Correction:
+
+```text
+futures: COVERED -> PARTIAL
+```
+
+Reason: generic `FuturesContractTerms` proves important bounded contractual
+semantics, but official exchange evidence demonstrates material specialized futures
+semantics such as Treasury deliverable baskets/conversion factors and product-specific
+final-settlement rules. These cannot be erased merely because a generic futures
+contract type exists.
+
+Explicit non-conflations:
+
+```text
+CRYPTO PERPETUAL FUNDING != GENERIC DATED FUTURES GAP
+EVENT RESOLUTION AUTHORITY != GENERIC FUTURES AUTHORITY
+```
+
+Those remain under the crypto/perpetual and event-contract boundaries respectively.
 
 ---
 
 # 7. Explicit unresolved-semantics ledger
 
-| Ref | Family | Unresolved material | Why it remains open |
+| Ref | Family | Unresolved material | Why open |
 |---|---|---|---|
-| UMI13-UNR-001 | cash-money-market | term and dual-currency deposits | FpML proves material product semantics; no inspected dedicated QORE owner |
-| UMI13-UNR-002 | cash-money-market | commercial paper / certificates of deposit | discovery baseline requires explicit accounting; fixed-income owner cannot be promoted without proof |
-| UMI13-UNR-003 | fixed-income-credit | ABS/MBS pools, tranches and prepayment | SEC evidence shows securitization economics not reducible to an ordinary bond row |
-| UMI13-UNR-004 | loans-credit-facilities | loans/facilities | FpML explicitly covers loans; no inspected QORE family owner |
+| UMI13-UNR-001 | cash-money-market | term/dual-currency deposits | external product semantics exceed inspected dedicated owner scope |
+| UMI13-UNR-002 | cash-money-market | commercial paper / certificates of deposit | fixed-income existence does not prove complete money-market semantics |
+| UMI13-UNR-003 | fixed-income-credit | ABS/MBS pool, tranche and prepayment | pool/tranche economics are not ordinary-bond semantics |
+| UMI13-UNR-004 | loans-credit-facilities | loans/facilities | no inspected dedicated certified family owner |
 | UMI13-UNR-005 | indices-benchmarks | methodology / constituent governance | index level/reference identity != construction methodology |
-| UMI13-UNR-006 | fx | dedicated spot-pair and exotic FX option semantics | generic derivative terms do not prove all FX-specific economics |
-| UMI13-UNR-007 | options | barrier/digital/Asian/exotic payoff qualification | option existence != payoff-complete semantics |
-| UMI13-UNR-008 | rates-term-structures / OTC | caps/floors/FRA/swaptions | external standard coverage exceeds explicit family-specific QORE owner proof |
-| UMI13-UNR-009 | commodities | power/freight/weather/emissions | commodity class != specialized market/product semantics |
-| UMI13-UNR-010 | crypto-digital-assets | staking/yield-bearing/tokenized products | funding observation != generic staking economics; tokenized security crosses domains |
-| UMI13-UNR-011 | structured-hybrid-products | structured note / securitized payoff variants | composition framework != every product payoff/legal contract |
-| UMI13-UNR-012 | volatility-variance-products | variance/correlation contracts | volatility observation != tradeable variance/correlation instrument semantics |
-| UMI13-UNR-013 | securities-financing | repo/securities lending/margin lending | FSB recognizes distinct SFT forms; no dedicated certified owner found |
-| UMI13-UNR-014 | event-contracts | event resolution / outcome authority | binary option shape alone does not define authoritative event resolution |
-| UMI13-UNR-015 | contracts-for-difference | rolling financing / close-out / spread-betting distinction | provider/platform occurrence cannot create D04 semantics |
-| UMI13-UNR-016 | funds-pooled-vehicles | unit investment trusts | pooled-vehicle inventory must not assume UMI-06 enum exhaustiveness |
-
-Unresolved rows must survive deterministic logical material until a later certified
-owner explicitly resolves them. Partial coverage cannot erase them.
-
----
-
-# 8. Exclusion / deferred ledger
-
-No material financial family discovered in the recorded sweep is silently omitted.
-The following concepts are excluded from *instrument-family identity* rather than
-from future QORE scope:
-
-| Concept | Registry treatment | Reason |
-|---|---|---|
-| provider-native symbol | EXCLUDED AS CANONICAL FAMILY/IDENTITY | provider symbol is external mapping evidence, not economic identity |
-| provider/platform catalog row | EXCLUDED AS D04 FAMILY AUTHORITY | belongs to D03 / #300 platform/provider inventory |
-| execution/routing strategy | EXCLUDED AS INSTRUMENT SUPPORT PROOF | D10 authority; composition terms do not grant execution |
-| valuation methodology | EXCLUDED AS REGISTRY OWNER | D07 / #350 remains separate |
-| risk/margin capacity | EXCLUDED AS REGISTRY OWNER | D09 and reservation gaps remain separate |
-| settlement capability | EXCLUDED AS REGISTRY OWNER | D11 remains separate |
-
-No discovered material family is marked `EXCLUDED` merely because QORE does not yet
-implement it; such families are retained as `UNRESOLVED` or `DEFERRED`.
+| UMI13-UNR-006 | fx | dedicated spot-pair and exotic FX option semantics | generic derivatives do not prove all FX economics |
+| UMI13-UNR-007 | options | barrier/digital/Asian/exotic payoffs | generic option existence != payoff completeness |
+| UMI13-UNR-008 | rates/OTC | caps/floors/FRA/swaptions | product-specific semantics remain broader than generic owner proof |
+| UMI13-UNR-009 | commodities | power/freight/weather/emissions | specialized market semantics remain open |
+| UMI13-UNR-010 | crypto-digital-assets | staking/yield-bearing/tokenized products | funding observation != staking; tokenized security crosses domains |
+| UMI13-UNR-011 | structured-hybrid-products | product-specific note/securitized payoff variants | composition framework != every legal/payoff contract |
+| UMI13-UNR-012 | volatility-variance-products | variance/correlation contracts | observation != complete tradeable instrument semantics |
+| UMI13-UNR-013 | securities-financing | repo/securities lending/margin lending | distinct SFT forms; no dedicated owner |
+| UMI13-UNR-014 | event-contracts | event-resolution / outcome authority | binary payoff shape != authoritative resolution |
+| UMI13-UNR-015 | contracts-for-difference | financing/close-out/spread-betting | occurrence at provider != D04 semantics |
+| UMI13-UNR-016 | funds-pooled-vehicles | unit investment trusts | pooled-vehicle inventory cannot assume enum exhaustiveness |
+| UMI13-UNR-017 | futures | deliverable basket / conversion-factor specialization | Treasury and other deliverable futures need product-specific qualification |
+| UMI13-UNR-018 | futures | final-settlement algorithm specialization | settlement style alone does not encode every final-settlement algorithm |
+| UMI13-UNR-019 | fixed-income / structured | Sukuk / Shari'ah-compliant structural semantics | IIFM standards demonstrate structures not reducible to ordinary interest-bearing debt |
+| UMI13-UNR-020 | fixed-income / structured | catastrophe / insurance-linked trigger semantics | principal/interest can be contingent on defined trigger events |
+| UMI13-UNR-021 | loans-credit-facilities | trade receivables / supply-chain finance | receivables purchase, factoring, forfaiting and advance-based techniques are materially distinct |
 
 ---
 
-# 9. Semantic collision ledger
-
-The registry must preserve at least these distinctions:
+# 8. Semantic collision ledger
 
 ```text
 RATE != YIELD
@@ -270,69 +289,78 @@ BENCHMARK != SECURITY
 REFERENCE ASSET != ECONOMIC IDENTITY OF DERIVATIVE
 VENUE LISTING != CANONICAL ECONOMIC IDENTITY
 PROVIDER SYMBOL != ECONOMIC IDENTITY
+IdentityFamilyCode != ECONOMIC IDENTITY
 VIX INDEX != VIX FUTURE != VIX OPTION != VARIANCE FUTURE
 ETF != ETN
 BOND != ABS/MBS POOL/TRANCHE ECONOMICS
-BINARY OPTION PAYOFF SHAPE != EVENT-RESOLUTION AUTHORITY
-CFD PRODUCT != ROLLING SPOT FX BY IMPLICATION
+POOL != TRANCHE
+LOAN FACILITY != DRAWN LOAN
+BINARY OPTION PAYOFF != EVENT-RESOLUTION AUTHORITY
+CFD != ROLLING SPOT FX BY IMPLICATION
 REPO != SECURITIES LENDING != MARGIN LENDING
+SUKUK != ORDINARY INTEREST-BEARING BOND BY IMPLICATION
+CATASTROPHE BOND != ORDINARY BOND BY IMPLICATION
+RECEIVABLES PURCHASE != LOAN BY IMPLICATION
 ```
 
----
-
-# 10. Implementation boundary
-
-`src/qore/infrastructure/instrument_universe_registry.py` is a pure immutable
-validation contract only.
-
-It provides:
-
-- explicit evidence refs and evidence-source category;
-- explicit owner refs;
-- explicit unresolved semantic refs;
-- explicit reason;
-- separate coverage and owner status;
-- exact-date snapshot + positive revision;
-- one-family-per-snapshot uniqueness;
-- no dangling/orphan/duplicate evidence;
-- evidence date <= snapshot date;
-- QORE repository evidence requirement for `COVERED/PARTIAL`;
-- deterministic sorting and `logical_values()`;
-- exact family lookup.
-
-It provides no:
-
-- provider adapter;
-- platform capability;
-- network call;
-- DB/storage implementation;
-- mutable global registry;
-- scheduler/thread/retry loop;
-- order/execution/routing behavior;
-- valuation model/methodology;
-- risk/margin/reservation behavior;
-- settlement mutation;
-- currentness resolver;
-- real-capital authority.
+UMI-02 `IdentityFamilyCode` is intentionally extensible classification syntax. A
+provider-like token satisfying that syntax does not thereby become economic identity,
+provider support or a canonical family. Canonical family legitimacy comes from the
+reviewed date-qualified inventory, not lexical pattern recognition.
 
 ---
 
-# 11. Adversarial obligations
+# 9. Independent DeepSeek R2 intake and Integration-Gate disposition
 
-Tests must falsify at least:
+DeepSeek Expert and DeepSeek Coder outputs were treated as claims, not authority.
+Live repository verification and issue-scope analysis produced this disposition:
 
-1. non-date / `datetime` snapshot qualification;
-2. duplicate family rows;
-3. conflicting coverage/owner states;
-4. missing owner evidence for QORE coverage;
-5. missing/dangling/orphan/duplicate evidence;
-6. evidence verified after snapshot;
-7. nondeterministic caller ordering;
-8. unresolved semantics disappearing from `PARTIAL`;
-9. provider/official evidence being promoted to QORE coverage;
-10. provider symbol being accepted as `IdentityFamilyCode`;
-11. registry objects gaining provider/execution/risk/valuation/settlement fields;
-12. wall clock, UUID generation, network/database/thread/sleep behavior entering the module.
+| Finding | Disposition | Action |
+|---|---|---|
+| `futures=COVERED` overstates broad family coverage | ACCEPTED | changed to PARTIAL; added explicit futures unresolved refs |
+| external evidence lacks per-source retrieval/snapshot qualification | ACCEPTED | ledger now qualifies every external source |
+| additional Sukuk semantics | ACCEPTED AS SUBFAMILY GAP | retained under existing fixed-income/structured families |
+| catastrophe/insurance-linked trigger semantics | ACCEPTED AS SUBFAMILY GAP | retained under existing fixed-income/structured families |
+| trade-receivables/supply-chain finance | ACCEPTED AS SUBFAMILY GAP | retained under loans/credit-facilities |
+| secret detector has realistic bypasses | ACCEPTED | production text validation hardened; adversarial tests added |
+| generic constructor can syntactically declare fake owner/evidence | PARTIAL / SEMANTIC BOUNDARY | owner status explicitly documented as declaration, never runtime proof; no network resolver added |
+| machine-readable populated JSON/YAML registry required | REJECTED | #361 permits contract + reviewed evidence/inventory artifact; no new data format required |
+| runtime must require external evidence category on every snapshot entry | REJECTED AS REQUIRED CODE CHANGE | #361 Model B is explicit: generic validator + canonical official evidence ledger |
+| `IdentityFamilyCode` must reject provider-looking strings lexically | REJECTED | UMI-02 defines it as extensible classification, never identity; canonical inventory governance is semantic, not regex taxonomy |
+| snapshot digest/ID required | REJECTED | no consumer/reference authority requires it; avoids absorbing UMI-02 precedence/currentness gap |
+| UNRESOLVED and DEFERRED require separate structural fields | REJECTED | distinct status + governed reason is sufficient for this slice |
+| expand negative-space blacklist indefinitely | REJECTED | architecture/field boundary is authoritative; blacklist remains defense-in-depth |
+
+---
+
+# 10. Security correction
+
+UMI-13 evidence/reason text is retained in immutable values and may appear in
+`repr()` and `logical_values()`. The contract therefore rejects credential-like
+material, including realistic forms missed by the first candidate:
+
+- access-token/access_token;
+- client-secret/client_secret;
+- private-key/private_key;
+- JWT/credential assignment;
+- password/token/secret colon forms;
+- URL authority containing user-info credentials;
+- control characters;
+- existing authorization/bearer/api-key/password/secret/token forms.
+
+This remains deterministic validation only. No secret scanner service, network call,
+regex credential extraction pipeline or sanitizer side effect is introduced.
+
+---
+
+# 11. Exclusion / deferred boundary
+
+Provider-native symbols, provider catalogs, routing/execution strategy, valuation
+methodology, risk/margin capacity and settlement capability are excluded as UMI-13
+**authority**, not excluded from QORE as a whole.
+
+Material financial families are not marked `EXCLUDED` merely because QORE lacks an
+owner. They remain `UNRESOLVED` or `DEFERRED` with explicit evidence/reason.
 
 ---
 
@@ -365,27 +393,22 @@ UMI-13 PASS != REAL-CAPITAL AUTHORITY
 
 ---
 
-# 13. Candidate certification boundary
+# 13. Correction gate
 
-Before integration, the exact candidate must still pass:
+Any correction changes the exact head and invalidates the earlier independent-review
+package.
 
-```text
-ruff check .
-mypy src tests
-pytest --cov=src/qore --cov-report=term-missing
-```
-
-Then:
+Required sequence:
 
 ```text
-DIFF AUDIT
--> DRAFT PR
--> EXACT-HEAD CI
--> FREEZE
--> INDEPENDENT CLAUDE REVIEW
+CORRECTION COMMIT
+-> NEW EXACT-HEAD QORE CI
+-> DIFF AUDIT
+-> HEAD FREEZE
+-> NEW COMPLETE INDEPENDENT CLAUDE REVIEW PACKAGE
 -> INTEGRATION GATE
 -> EXPECTED-HEAD MERGE
--> POST-MERGE CERTIFICATION
+-> POST-MERGE TREE/PARENTS/SIGNATURE/MAIN 0/0 CERTIFICATION
 ```
 
-This document is implementation evidence, not self-certification.
+No merge is authorized by this document or by CI green alone.
