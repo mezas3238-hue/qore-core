@@ -131,7 +131,10 @@ def _discrete_dates() -> StructuredObservationTerms:
     )
 
 
-def _capital_feature(target: EconomicIdentityId, feature_id: int = 201) -> StructuredCapitalProtectionFeature:
+def _capital_feature(
+    target: EconomicIdentityId,
+    feature_id: int = 201,
+) -> StructuredCapitalProtectionFeature:
     return StructuredCapitalProtectionFeature(
         feature_id=_feature_id(feature_id),
         protected_identity_id=target,
