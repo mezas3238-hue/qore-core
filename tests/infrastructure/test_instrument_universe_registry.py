@@ -577,7 +577,7 @@ def test_evidence_record_rejects_wrong_reference_and_source_category_types() -> 
 
 
 @pytest.mark.parametrize(
-    ("field_name", "coverage_status", "owner_status", "owner_refs", "unresolved", "evidence_refs", "reason"),
+    "field_name,coverage_status,owner_status,owner_refs,unresolved,evidence_refs,reason",
     [
         (
             "coverage_status",
