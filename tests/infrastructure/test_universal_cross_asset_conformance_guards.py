@@ -8,6 +8,7 @@ from types import ModuleType
 
 _OWNER_MODULE_NAMES = (
     "qore.infrastructure.universal_instrument_identity",
+    "qore.infrastructure.universal_instrument_identity_graph",
     "qore.infrastructure.fixed_income_economics",
     "qore.infrastructure.rate_term_structure",
     "qore.infrastructure.derivative_contract_semantics",
