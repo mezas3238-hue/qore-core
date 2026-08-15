@@ -6,7 +6,6 @@ import inspect
 from pathlib import Path
 from types import ModuleType
 
-
 _OWNER_MODULE_NAMES = (
     "qore.infrastructure.universal_instrument_identity",
     "qore.infrastructure.fixed_income_economics",
