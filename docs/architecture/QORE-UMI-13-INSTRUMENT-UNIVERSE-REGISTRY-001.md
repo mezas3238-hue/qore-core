@@ -9,7 +9,8 @@ Master roadmap: Issue #303
 Universal Markets / Instruments: Issue #301  
 Certified starting baseline: `e429c8731f1fca4bb0aa7c1eaa8b8865cb0375f0`  
 Registry candidate snapshot date: **2026-08-15**  
-Pre-correction frozen head: `3ebabc14e81aeaf8141df0e88e54d475b2927b34`
+Pre-final-correction frozen head: `7fbf70ade552cccb900f6a25849a497aa39fc374`  
+Earlier adversarial-correction head: `3ebabc14e81aeaf8141df0e88e54d475b2927b34` (historical only)
 
 This artifact is the canonical date-qualified UMI-13 evidence/inventory document for
 D04 instrument-family coverage. It is not a provider catalog, execution universe,
@@ -192,8 +193,14 @@ QORE provider or execution support.
 | EXT-COINBASE-01 | PROVIDER_PLATFORM_OFFICIAL | Coinbase International Exchange | https://www.coinbase.com/international-exchange | 2026-08-15 | REFERENCE_ONLY_MUTABLE | provider catalog only | digital/perpetual existence only |
 | EXT-CME-TREASURY-01 | EXCHANGE_CLEARING_VENUE | CME Treasury futures conversion-factor material | https://www.cmegroup.com/articles/2024/calculating-us-treasury-futures-conversion-factors.html | 2026-08-15 | REFERENCE_ONLY_MUTABLE | 2024 article/rulebook references | deliverable grades, conversion factors, CTD specialization |
 | EXT-IIFM-SUKUK-01 | STANDARDS_INDUSTRY_BODY | IIFM Sukuk standards | https://www.iifm.net/public/standards/published-standards/sukuk-standards | 2026-08-15 | VERSIONED_REFERENCE | IIFM standards 17-26 and related published standards | Shari'ah-compliant Sukuk structural semantics |
+| EXT-IIFM-ISLAMIC-LIQUIDITY-01 | STANDARDS_INDUSTRY_BODY | IIFM Published Standards / liquidity-management standards | https://www.iifm.net/public/index.php/standards/published-standards | 2026-08-15 | VERSIONED_REFERENCE | current published-standards catalog; individual standards versioned | Murabahah, Wakalah/agency liquidity and collateralized Murabahah financing/liquidity structures |
+| EXT-IIFM-ISLAMIC-HEDGING-01 | STANDARDS_INDUSTRY_BODY | IIFM / ISDA-IIFM hedging standards | https://www.iifm.net/public/standards/published-standards/hedging-standards | 2026-08-15 | VERSIONED_REFERENCE | published hedging standards including current versions | Shari'ah-compliant profit-rate hedging, cross-currency hedging and Islamic FX-forward structures |
+| EXT-IIFM-SYNDICATED-2026-01 | STANDARDS_INDUSTRY_BODY | IIFM syndicated-financing launch | https://www.iifm.net/press-media/news-and-updates/a-historic-milestone-iifm-launches-historic-suite-of-15-standardized-agreements-for-global-syndicated-financing/122 | 2026-08-15 | ARCHIVAL_REFERENCE | IIFM launch dated 2026-06-15 | standardized Ijarah/Murabahah syndicated-financing suite |
 | EXT-ICC-SCF-01 | STANDARDS_INDUSTRY_BODY | ICC Standard Definitions for Techniques of Supply Chain Finance | https://iccwbo.org/news-publications/policies-reports/standard-definitions-techniques-supply-chain-finance/ | 2026-08-15 | VERSIONED_REFERENCE | publication 2017-01-09 | receivables purchase, factoring, forfaiting, payables and advance-based SCF |
 | EXT-SEC-ILS-01 | REGULATORY_OFFICIAL | SEC EDGAR filing describing catastrophe/event-linked bonds | https://www.sec.gov/Archives/edgar/data/1587982/000139834425004768/fp0092388-4_497k.htm | 2026-08-15 | ARCHIVAL_REFERENCE | archived SEC filing | catastrophe/insurance-linked trigger semantics |
+| EXT-NAIC-ILS-01 | REGULATORY_OFFICIAL | NAIC insurance-linked securities topic | https://content.naic.org/insurance-topics/insurance-linked-securities | 2026-08-15 | REFERENCE_ONLY_MUTABLE | current official topic page | non-cat ILS including mortality, longevity and medical-claim-cost risk |
+| EXT-SEC-ILS-TRIGGERS-01 | REGULATORY_OFFICIAL | SEC EDGAR ILS trigger disclosure | https://www.sec.gov/Archives/edgar/data/1587982/000139834421016679/fp0068048_485apos.htm | 2026-08-15 | ARCHIVAL_REFERENCE | archived SEC filing | indemnity, parametric, industry-loss, modeled-loss and hybrid trigger taxonomy |
+| EXT-SEC-ILS-DERIVATIVE-01 | REGULATORY_OFFICIAL | SEC EDGAR event-linked derivative disclosure | https://www.sec.gov/Archives/edgar/data/1450011/000119312526061473/d70415d485bpos.htm | 2026-08-15 | ARCHIVAL_REFERENCE | archived SEC filing | event-linked derivative instruments, including swaps, related to longevity/mortality risk |
 
 QORE owner evidence remains separate and exact-repository-qualified. External source
 coverage never promotes a family into QORE semantic certification by itself.
@@ -204,25 +211,25 @@ coverage never promotes a family into QORE semantic certification by itself.
 
 | Family code | Coverage | QORE owner declaration | Principal retained owners | Unresolved semantics / qualifications |
 |---|---|---|---|---|
-| `cash-money-market` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-03, UMI-04 | deposits; commercial paper/CD; repo/SFT boundary |
-| `fixed-income-credit` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05 | ABS/MBS pool/tranche/prepayment; loans/facilities; Sukuk; catastrophe/insurance-linked trigger structures |
-| `rates-term-structures` | PARTIAL | CERTIFIED_CONTRACT | UMI-04, UMI-05 | caps/floors/FRA/swaption specialization; benchmark construction separate |
+| `cash-money-market` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-03, UMI-04 | deposits; commercial paper/CD; repo/SFT boundary; Shari'ah-compliant liquidity/financing structures |
+| `fixed-income-credit` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05 | ABS/MBS pool/tranche/prepayment; loans/facilities; Sukuk; Shari'ah-compliant financing/credit qualification; insurance-linked risk-transfer/trigger structures |
+| `rates-term-structures` | PARTIAL | CERTIFIED_CONTRACT | UMI-04, UMI-05 | caps/floors/FRA/swaption specialization; benchmark construction separate; Shari'ah-compliant profit-rate hedging qualification |
 | `equities` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | warrants/convertible cross-family qualification; borrow/shortability outside static terms |
 | `funds-pooled-vehicles` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | UIT coverage; ETN explicitly not a fund by implication |
 | `indices-benchmarks` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-06, UMI-10 | methodology/constituent governance not owned here |
 | `fx` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-05 | dedicated spot-pair semantics; exotic FX options; rolling financing |
 | `futures` | **PARTIAL** | CERTIFIED_CONTRACT | UMI-02, UMI-05, UMI-07 | deliverable-basket/conversion-factor specialization; product-specific final-settlement algorithms; specialized delivery qualification |
 | `options` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | digital/barrier/Asian/exotic payoff semantics |
-| `forwards-swaps-otc` | PARTIAL | CERTIFIED_CONTRACT | UMI-05 | caps/floors/FRA/swaptions; full legal-programmability not claimed |
+| `forwards-swaps-otc` | PARTIAL | CERTIFIED_CONTRACT | UMI-05 | caps/floors/FRA/swaptions; Shari'ah-compliant profit-rate/cross-currency/FX-forward hedging; insurance-linked derivative/swap semantics; full legal-programmability not claimed |
 | `commodities` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-07 | power, freight, weather, emissions and specialized OTC semantics |
 | `crypto-digital-assets` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-05, UMI-08 | staking/yield-bearing products; tokenized-security qualification |
-| `structured-hybrid-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05, UMI-09 | structured-note variants; Sukuk/hybrid qualification; insurance-linked trigger structures |
+| `structured-hybrid-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05, UMI-09 | structured-note variants; Sukuk/hybrid qualification; Shari'ah-compliant structured financing; insurance-linked risk-transfer/trigger structures |
 | `volatility-variance-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-10 | variance/correlation product semantics beyond observation/generic structure |
 | `securities-financing` | UNRESOLVED | NO_CERTIFIED_OWNER | none | repo/reverse repo; securities lending/borrowing; margin lending |
 | `cross-asset-compositions` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | composition exists; leg execution/routing remains outside registry |
 | `event-contracts` | UNRESOLVED | NO_CERTIFIED_OWNER | none | event definition, resolution source, contingency/outcome/dispute semantics |
 | `contracts-for-difference` | UNRESOLVED | NO_CERTIFIED_OWNER | none | rolling financing, close-out/reference-price, spread-betting qualification |
-| `loans-credit-facilities` | UNRESOLVED | NO_CERTIFIED_OWNER | none | facility/drawdown/amortization/covenants/syndication plus trade-receivables finance semantics |
+| `loans-credit-facilities` | UNRESOLVED | NO_CERTIFIED_OWNER | none | facility/drawdown/amortization/covenants/syndication; trade-receivables finance; Shari'ah-compliant syndicated Murabahah/Ijarah financing |
 
 Correction:
 
@@ -269,9 +276,10 @@ Those remain under the crypto/perpetual and event-contract boundaries respective
 | UMI13-UNR-016 | funds-pooled-vehicles | unit investment trusts | pooled-vehicle inventory cannot assume enum exhaustiveness |
 | UMI13-UNR-017 | futures | deliverable basket / conversion-factor specialization | Treasury and other deliverable futures need product-specific qualification |
 | UMI13-UNR-018 | futures | final-settlement algorithm specialization | settlement style alone does not encode every final-settlement algorithm |
-| UMI13-UNR-019 | fixed-income / structured | Sukuk / Shari'ah-compliant structural semantics | IIFM standards demonstrate structures not reducible to ordinary interest-bearing debt |
-| UMI13-UNR-020 | fixed-income / structured | catastrophe / insurance-linked trigger semantics | principal/interest can be contingent on defined trigger events |
+| UMI13-UNR-019 | fixed-income / structured | Sukuk / Shari'ah-compliant structural semantics | IIFM standards demonstrate certificate structures not reducible to ordinary conventional debt |
+| UMI13-UNR-020 | fixed-income / structured / forwards-swaps-otc | insurance-linked risk-transfer / trigger semantics | catastrophe, mortality, longevity, medical-claim, trigger and derivative forms are not reducible to ordinary bond or event-contract semantics |
 | UMI13-UNR-021 | loans-credit-facilities | trade receivables / supply-chain finance | receivables purchase, factoring, forfaiting and advance-based techniques are materially distinct |
+| UMI13-UNR-022 | cash / fixed-income / rates / OTC / loans / structured | cross-family Shari'ah-compliant financing / liquidity / hedging structures | Murabahah, Ijarah, Wakalah/agency liquidity, collateralized structures and Shari'ah-compliant hedging/financing forms require explicit cross-family qualification rather than generic bond/swap/loan/spot-FX implication |
 
 ---
 
@@ -298,7 +306,19 @@ LOAN FACILITY != DRAWN LOAN
 BINARY OPTION PAYOFF != EVENT-RESOLUTION AUTHORITY
 CFD != ROLLING SPOT FX BY IMPLICATION
 REPO != SECURITIES LENDING != MARGIN LENDING
-SUKUK != ORDINARY INTEREST-BEARING BOND BY IMPLICATION
+SUKUK != ORDINARY CONVENTIONAL BOND BY IMPLICATION
+SUKUK != ALL ISLAMIC FINANCE
+SHARI'AH-COMPLIANT FINANCING STRUCTURE != NEW TOP-LEVEL ASSET FAMILY
+SHARI'AH-COMPLIANT PROFIT-RATE HEDGING != GENERIC RATE VALUE
+ISLAMIC FX FORWARD != SPOT FX
+SHARI'AH STRUCTURAL QUALIFICATION != PROVIDER SUPPORT
+CAT BOND != ALL ILS
+ILS NOTE != ORDINARY BOND
+ILS SECURITY != ILS DERIVATIVE
+INSURANCE TRIGGER != EVENT-CONTRACT RESOLUTION AUTHORITY
+EVENT-LINKED SWAP != EVENT-CONTRACT RESOLUTION AUTHORITY
+INSURANCE-LINKED PRODUCT EXISTENCE != QORE OPERATIONAL SUPPORT
+OFFICIAL SOURCE EXISTS != QORE IMPLEMENTATION EXISTS
 CATASTROPHE BOND != ORDINARY BOND BY IMPLICATION
 RECEIVABLES PURCHASE != LOAN BY IMPLICATION
 ```
@@ -310,17 +330,20 @@ reviewed date-qualified inventory, not lexical pattern recognition.
 
 ---
 
-# 9. Independent DeepSeek R2 intake and Integration-Gate disposition
+# 9. Independent DeepSeek intake and Integration-Gate disposition
 
 DeepSeek Expert and DeepSeek Coder outputs were treated as claims, not authority.
-Live repository verification and issue-scope analysis produced this disposition:
+Live repository verification, primary-source verification and issue-scope analysis
+produced this disposition:
 
 | Finding | Disposition | Action |
 |---|---|---|
 | `futures=COVERED` overstates broad family coverage | ACCEPTED | changed to PARTIAL; added explicit futures unresolved refs |
 | external evidence lacks per-source retrieval/snapshot qualification | ACCEPTED | ledger now qualifies every external source |
-| additional Sukuk semantics | ACCEPTED AS SUBFAMILY GAP | retained under existing fixed-income/structured families |
-| catastrophe/insurance-linked trigger semantics | ACCEPTED AS SUBFAMILY GAP | retained under existing fixed-income/structured families |
+| additional Sukuk semantics | ACCEPTED AS SUBFAMILY GAP | retained under existing fixed-income/structured families as UMI13-UNR-019 |
+| broader cross-family Shari'ah-compliant financing/liquidity/hedging structures | ACCEPTED AS INVENTORY COMPLETENESS CORRECTION | retained UNR-019 specificity; added UMI13-UNR-022 and bounded cross-family mappings; no new top-level family |
+| catastrophe/insurance-linked trigger semantics | ACCEPTED AS SUBFAMILY GAP | originally retained under fixed-income/structured families |
+| broader insurance-linked risk-transfer/trigger and derivative semantics | ACCEPTED AS INVENTORY PRECISION CORRECTION | broadened UMI13-UNR-020; added fixed-income/structured/OTC qualification; no new top-level family |
 | trade-receivables/supply-chain finance | ACCEPTED AS SUBFAMILY GAP | retained under loans/credit-facilities |
 | secret detector has realistic bypasses | ACCEPTED | production text validation hardened; adversarial tests added |
 | generic constructor can syntactically declare fake owner/evidence | PARTIAL / SEMANTIC BOUNDARY | owner status explicitly documented as declaration, never runtime proof; no network resolver added |
