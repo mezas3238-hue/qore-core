@@ -48,7 +48,6 @@ from qore.infrastructure.universal_instrument_identity import (
 )
 from qore.kernel.errors import InfrastructureError
 
-
 _CODE_RE = re.compile(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
 _FAMILY_RE = re.compile(r"^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*$")
 _SCHEMA_RE = re.compile(r"^v\d+(?:\.\d+)*$")
@@ -59,7 +58,7 @@ _MAX_COMPUTED_INPUTS = 64
 
 
 class UniversalValuationObservationError(InfrastructureError):
-    """Base error for provider-neutral universal valuation observation semantics."""
+    """Base error for provider-neutral universal valuation observations."""
 
     __slots__ = ()
 
@@ -221,12 +220,11 @@ class ValuationAsOfInstant:
     def __post_init__(self) -> None:
         _validate_timestamp(self.value, field_name="valuation as-of instant")
 
-    @property
-    def canonical(self) -> str:
-        return _canonical_timestamp(self.value, field_name="valuation as-of instant")
-
     def logical_values(self) -> tuple[str, str]:
-        return ("instant", self.canonical)
+        return (
+            "instant",
+            _canonical_timestamp(self.value, field_name="valuation as-of instant"),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,12 +255,10 @@ class ValuationAsOfInterval:
         return (
             "interval",
             _canonical_timestamp(
-                self.opened_at,
-                field_name="valuation interval opened_at",
+                self.opened_at, field_name="valuation interval opened_at"
             ),
             _canonical_timestamp(
-                self.closed_at,
-                field_name="valuation interval closed_at",
+                self.closed_at, field_name="valuation interval closed_at"
             ),
         )
 
@@ -279,7 +275,7 @@ class D05OhlcPriceField(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class D05MarketPriceMeasure:
-    """One exact D05 price selected from retained source evidence."""
+    """One exact D05 market price selected from retained D05 evidence."""
 
     price: MarketPrice
     side: MarketPriceSide
@@ -295,11 +291,10 @@ class D05MarketPriceMeasure:
                 "D05 market price measure side must be MarketPriceSide"
             )
         if self.ohlc_field is not None and not isinstance(
-            self.ohlc_field,
-            D05OhlcPriceField,
+            self.ohlc_field, D05OhlcPriceField
         ):
             raise UniversalValuationObservationValidationError(
-                "D05 market price measure ohlc_field must be D05OhlcPriceField or None"
+                "D05 market price ohlc_field must be D05OhlcPriceField or None"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -392,7 +387,7 @@ class StandaloneRateMeasure:
             )
         if not isinstance(self.coordinate, (FinancialTenor, ForwardRatePeriod)):
             raise UniversalValuationObservationValidationError(
-                "standalone rate coordinate must be FinancialTenor or ForwardRatePeriod"
+                "standalone rate coordinate has unsupported type"
             )
         if isinstance(self.value, ForwardRate):
             if not isinstance(self.coordinate, ForwardRatePeriod):
@@ -412,7 +407,9 @@ class StandaloneRateMeasure:
         else:
             kind = "forward-rate"
         coordinate_kind = (
-            "tenor" if isinstance(self.coordinate, FinancialTenor) else "forward-period"
+            "tenor"
+            if isinstance(self.coordinate, FinancialTenor)
+            else "forward-period"
         )
         return (
             kind,
@@ -435,12 +432,14 @@ class DiscountFactorMeasure:
             )
         if not isinstance(self.coordinate, (FinancialTenor, ForwardRatePeriod)):
             raise UniversalValuationObservationValidationError(
-                "discount-factor coordinate must be FinancialTenor or ForwardRatePeriod"
+                "discount-factor coordinate has unsupported type"
             )
 
     def logical_values(self) -> tuple[object, ...]:
         coordinate_kind = (
-            "tenor" if isinstance(self.coordinate, FinancialTenor) else "forward-period"
+            "tenor"
+            if isinstance(self.coordinate, FinancialTenor)
+            else "forward-period"
         )
         return (
             "discount-factor",
@@ -452,7 +451,7 @@ class DiscountFactorMeasure:
 
 @dataclass(frozen=True, slots=True)
 class FundNavValue:
-    """Finite NAV magnitude; UMI-06 FundNavBasis carries its structural basis."""
+    """Finite NAV magnitude; UMI-06 FundNavBasis owns the structural basis."""
 
     value: Decimal
 
@@ -484,7 +483,7 @@ class FundNavMeasure:
 
 @dataclass(frozen=True, slots=True)
 class ImpliedVolatility:
-    """Implied-volatility magnitude as a decimal fraction; semantic != price."""
+    """Implied-volatility decimal fraction; semantic != price."""
 
     value: Decimal
 
@@ -634,15 +633,15 @@ class CryptoPerpetualPriceMeasure:
     def __post_init__(self) -> None:
         if not isinstance(self.value, CryptoPerpetualPriceValue):
             raise UniversalValuationObservationValidationError(
-                "crypto perpetual price measure must contain CryptoPerpetualPriceValue"
+                "crypto perpetual price measure has wrong value type"
             )
         if not isinstance(self.role, CryptoPerpetualPriceRole):
             raise UniversalValuationObservationValidationError(
-                "crypto perpetual price role must be CryptoPerpetualPriceRole"
+                "crypto perpetual price role has wrong type"
             )
         if not isinstance(self.pricing_terms, CryptoPerpetualPricingTerms):
             raise UniversalValuationObservationValidationError(
-                "crypto perpetual pricing_terms must be CryptoPerpetualPricingTerms"
+                "crypto perpetual pricing_terms has wrong type"
             )
         if self.role not in self.pricing_terms.roles:
             raise UniversalValuationObservationValidationError(
@@ -660,7 +659,7 @@ class CryptoPerpetualPriceMeasure:
 
 @dataclass(frozen=True, slots=True)
 class FixedIncomeCashFlowValueMeasure:
-    """Value of one retained contractual cash flow; never cash/settlement mutation."""
+    """Value of one contractual cash flow; never cash/settlement mutation."""
 
     cash_flow: FixedIncomeCashFlow
     value: QuotedValuationValue
@@ -676,7 +675,7 @@ class FixedIncomeCashFlowValueMeasure:
             )
         if self.value.quote_identity_id != self.cash_flow.currency_identity_id:
             raise UniversalValuationObservationValidationError(
-                "cash-flow value quote identity must equal contractual cash-flow currency"
+                "cash-flow value quote identity must equal contractual currency"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -700,7 +699,6 @@ type ValuationMeasure = (
     | CryptoPerpetualPriceMeasure
     | FixedIncomeCashFlowValueMeasure
 )
-
 
 _VALUATION_MEASURE_TYPES = (
     D05MarketPriceMeasure,
@@ -732,11 +730,11 @@ class ValuationIdentityBinding:
     def __post_init__(self) -> None:
         if not isinstance(self.mapping, ExternalIdentityMappingRevision):
             raise UniversalValuationObservationValidationError(
-                "valuation identity binding mapping must be ExternalIdentityMappingRevision"
+                "valuation identity binding mapping has wrong type"
             )
         if not isinstance(self.economic_identity_id, EconomicIdentityId):
             raise UniversalValuationObservationValidationError(
-                "valuation identity binding economic_identity_id must be EconomicIdentityId"
+                "valuation identity binding economic_identity_id has wrong type"
             )
         target = self.mapping.target.value
         if isinstance(target, EconomicIdentityId):
@@ -746,12 +744,12 @@ class ValuationIdentityBinding:
                 )
             if self.listing is not None:
                 raise UniversalValuationObservationValidationError(
-                    "economic mapping target must not carry unrelated listing binding"
+                    "economic mapping target must not carry listing binding"
                 )
         elif isinstance(target, ListingIdentityId):
             if not isinstance(self.listing, ListingIdentity):
                 raise UniversalValuationObservationValidationError(
-                    "listing mapping target requires exact ListingIdentity binding"
+                    "listing mapping target requires exact ListingIdentity"
                 )
             if self.listing.listing_id != target:
                 raise UniversalValuationObservationValidationError(
@@ -759,9 +757,9 @@ class ValuationIdentityBinding:
                 )
             if self.listing.economic_identity_id != self.economic_identity_id:
                 raise UniversalValuationObservationValidationError(
-                    "listing binding economic identity must equal final economic identity"
+                    "listing binding economic identity must equal final identity"
                 )
-        else:  # pragma: no cover - UMI-02 CanonicalIdentityRef invariant
+        else:  # pragma: no cover - CanonicalIdentityRef owns this invariant
             raise UniversalValuationObservationValidationError(
                 "unsupported canonical identity target"
             )
@@ -782,15 +780,50 @@ def _validate_legacy_market_binding(
     external = binding.mapping.external_identity
     if external.kind is not ExternalIdentifierKind.LEGACY_QORE:
         raise UniversalValuationObservationValidationError(
-            "D05 identity binding requires LEGACY_QORE external identifier"
+            "D05 binding requires LEGACY_QORE external identifier"
         )
     if external.namespace.value != "market-data.instrument":
         raise UniversalValuationObservationValidationError(
-            "D05 identity binding requires market-data.instrument namespace"
+            "D05 binding requires market-data.instrument namespace"
         )
     if external.value.value != symbol:
         raise UniversalValuationObservationValidationError(
-            "D05 identity binding external value must equal exact Instrument.symbol"
+            "D05 binding external value must equal exact Instrument.symbol"
+        )
+
+
+def _validate_mapping_covers_instant(
+    *,
+    binding: ValuationIdentityBinding,
+    instant: datetime,
+    field_name: str,
+) -> None:
+    mapping = binding.mapping
+    if instant < mapping.effective_from:
+        raise UniversalValuationObservationValidationError(
+            f"{field_name} predates selected identity mapping effective window"
+        )
+    if mapping.effective_until is not None and instant >= mapping.effective_until:
+        raise UniversalValuationObservationValidationError(
+            f"{field_name} is outside selected identity mapping effective window"
+        )
+
+
+def _validate_mapping_covers_interval(
+    *,
+    binding: ValuationIdentityBinding,
+    opened_at: datetime,
+    closed_at: datetime,
+    field_name: str,
+) -> None:
+    mapping = binding.mapping
+    if opened_at < mapping.effective_from:
+        raise UniversalValuationObservationValidationError(
+            f"{field_name} starts before selected identity mapping effective window"
+        )
+    if mapping.effective_until is not None and closed_at > mapping.effective_until:
+        raise UniversalValuationObservationValidationError(
+            f"{field_name} ends after selected identity mapping effective window"
         )
 
 
@@ -807,7 +840,7 @@ class D05QuoteValuationSource:
             )
         if self.side not in (MarketPriceSide.BID, MarketPriceSide.ASK):
             raise UniversalValuationObservationValidationError(
-                "D05 quote source selector must be BID or ASK"
+                "D05 quote selector must be BID or ASK"
             )
         if not isinstance(self.identity_binding, ValuationIdentityBinding):
             raise UniversalValuationObservationValidationError(
@@ -816,6 +849,11 @@ class D05QuoteValuationSource:
         _validate_legacy_market_binding(
             symbol=self.observation.instrument.symbol,
             binding=self.identity_binding,
+        )
+        _validate_mapping_covers_instant(
+            binding=self.identity_binding,
+            instant=self.observation.observed_at,
+            field_name="D05 quote observation",
         )
 
     @property
@@ -871,7 +909,7 @@ class D05OhlcValuationSource:
             )
         if not isinstance(self.field, D05OhlcPriceField):
             raise UniversalValuationObservationValidationError(
-                "D05 OHLC source field must be D05OhlcPriceField"
+                "D05 OHLC field must be D05OhlcPriceField"
             )
         if not isinstance(self.identity_binding, ValuationIdentityBinding):
             raise UniversalValuationObservationValidationError(
@@ -881,13 +919,19 @@ class D05OhlcValuationSource:
             symbol=self.observation.instrument.symbol,
             binding=self.identity_binding,
         )
+        _validate_mapping_covers_interval(
+            binding=self.identity_binding,
+            opened_at=self.observation.opened_at,
+            closed_at=self.observation.closed_at,
+            field_name="D05 OHLC observation",
+        )
         selected = _selected_ohlc_field(self.observation, self.field)
         if (
             selected.validity is not MarketOhlcFieldValidity.VALID
             or selected.price is None
         ):
             raise UniversalValuationObservationValidationError(
-                "D05 OHLC valuation source requires a VALID selected field with price"
+                "D05 OHLC source requires VALID selected field with price"
             )
 
     @property
@@ -938,11 +982,11 @@ class PublishedValuationSource:
     def __post_init__(self) -> None:
         if not isinstance(self.source_observation_id, ValuationSourceObservationId):
             raise UniversalValuationObservationValidationError(
-                "published valuation source_observation_id has wrong type"
+                "published source_observation_id has wrong type"
             )
         if not isinstance(self.source, ExternalSourceDescriptor):
             raise UniversalValuationObservationValidationError(
-                "published valuation source must be ExternalSourceDescriptor"
+                "published valuation source has wrong type"
             )
         if not isinstance(self.identity_binding, ValuationIdentityBinding):
             raise UniversalValuationObservationValidationError(
@@ -957,21 +1001,35 @@ class PublishedValuationSource:
             )
         if not isinstance(self.measure, _VALUATION_MEASURE_TYPES):
             raise UniversalValuationObservationValidationError(
-                "published valuation measure must use a certified UMI-10 measure type"
+                "published valuation measure has unsupported type"
             )
         if isinstance(self.measure, D05MarketPriceMeasure):
             raise UniversalValuationObservationValidationError(
-                "published valuation source must not masquerade as exact D05 market evidence"
+                "published source must not masquerade as exact D05 market evidence"
             )
         if not isinstance(self.evidence_ref, ValuationSourceEvidenceRef):
             raise UniversalValuationObservationValidationError(
-                "published valuation evidence_ref must be ValuationSourceEvidenceRef"
+                "published valuation evidence_ref has wrong type"
             )
         external_source = self.identity_binding.mapping.external_identity.source
         if external_source is not None and external_source != self.source:
             raise UniversalValuationObservationValidationError(
-                "provider-scoped identity mapping source must equal valuation source"
+                "provider-scoped mapping source must equal valuation source"
             )
+        if isinstance(self.as_of, ValuationAsOfInstant):
+            _validate_mapping_covers_instant(
+                binding=self.identity_binding,
+                instant=self.as_of.value,
+                field_name="published valuation instant",
+            )
+        elif isinstance(self.as_of, ValuationAsOfInterval):
+            _validate_mapping_covers_interval(
+                binding=self.identity_binding,
+                opened_at=self.as_of.opened_at,
+                closed_at=self.as_of.closed_at,
+                field_name="published valuation interval",
+            )
+        # Date-only facts intentionally do not invent midnight for mapping comparison.
 
     @property
     def economic_identity_id(self) -> EconomicIdentityId:
@@ -993,7 +1051,6 @@ type ObservedValuationSource = (
     D05QuoteValuationSource | D05OhlcValuationSource | PublishedValuationSource
 )
 
-
 _OBSERVED_SOURCE_TYPES = (
     D05QuoteValuationSource,
     D05OhlcValuationSource,
@@ -1001,23 +1058,9 @@ _OBSERVED_SOURCE_TYPES = (
 )
 
 
-def _source_economic_identity_id(
-    source: ObservedValuationSource,
-) -> EconomicIdentityId:
-    return source.economic_identity_id
-
-
-def _source_as_of(source: ObservedValuationSource) -> ValuationAsOf:
-    return source.as_of
-
-
-def _source_measure(source: ObservedValuationSource) -> ValuationMeasure:
-    return source.measure
-
-
 @dataclass(frozen=True, slots=True)
 class ObservedValuationObservation:
-    """Immutable observed D07 record; observation does not imply source truth."""
+    """Observed D07 record; existence does not prove external source truth."""
 
     observation_id: ValuationObservationId
     source: ObservedValuationSource
@@ -1027,29 +1070,29 @@ class ObservedValuationObservation:
     def __post_init__(self) -> None:
         if not isinstance(self.observation_id, ValuationObservationId):
             raise UniversalValuationObservationValidationError(
-                "observed valuation observation_id must be ValuationObservationId"
+                "observed valuation observation_id has wrong type"
             )
         if not isinstance(self.source, _OBSERVED_SOURCE_TYPES):
             raise UniversalValuationObservationValidationError(
-                "observed valuation source must use a certified source type"
+                "observed valuation source has unsupported type"
             )
         _validate_timestamp(self.recorded_at, field_name="observed valuation recorded_at")
         if not isinstance(self.evidence_ref, ValuationEvidenceRef):
             raise UniversalValuationObservationValidationError(
-                "observed valuation evidence_ref must be ValuationEvidenceRef"
+                "observed valuation evidence_ref has wrong type"
             )
 
     @property
     def economic_identity_id(self) -> EconomicIdentityId:
-        return _source_economic_identity_id(self.source)
+        return self.source.economic_identity_id
 
     @property
     def as_of(self) -> ValuationAsOf:
-        return _source_as_of(self.source)
+        return self.source.as_of
 
     @property
     def measure(self) -> ValuationMeasure:
-        return _source_measure(self.source)
+        return self.source.measure
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -1099,7 +1142,7 @@ class ValuationSoftwareRevision:
 
 @dataclass(frozen=True, slots=True)
 class ValuationMethodologyIdentity:
-    """Versioned D07 methodology identity; not an algorithm implementation."""
+    """Versioned D07 methodology identity; never method implementation."""
 
     family: ValuationMethodologyFamily
     schema_version: ValuationMethodologySchemaVersion
@@ -1140,7 +1183,7 @@ class ValuationInputRoleCode:
 
 @dataclass(frozen=True, slots=True)
 class ValuationComputedInput:
-    """One exact leaf input. Nested ValuationObservation inputs are not accepted."""
+    """One exact leaf input; nested valuation observations are not accepted."""
 
     role: ValuationInputRoleCode
     source: ObservedValuationSource
@@ -1173,18 +1216,12 @@ class ValuationInputFingerprint:
         return (self.value,)
 
 
-def _computed_inputs_material(
-    inputs: tuple[ValuationComputedInput, ...],
-) -> str:
-    logical = tuple(item.logical_values() for item in inputs)
-    return json.dumps(logical, separators=(",", ":"), ensure_ascii=True)
-
-
 def _derive_input_fingerprint(
     inputs: tuple[ValuationComputedInput, ...],
 ) -> ValuationInputFingerprint:
-    material = _computed_inputs_material(inputs).encode("utf-8")
-    return ValuationInputFingerprint(sha256(material).hexdigest())
+    logical = tuple(item.logical_values() for item in inputs)
+    material = json.dumps(logical, separators=(",", ":"), ensure_ascii=True)
+    return ValuationInputFingerprint(sha256(material.encode("utf-8")).hexdigest())
 
 
 @dataclass(frozen=True, slots=True)
@@ -1212,7 +1249,7 @@ class ComputedValuationProvenance:
         for item in self.inputs:
             if not isinstance(item, ValuationComputedInput):
                 raise UniversalValuationObservationValidationError(
-                    "computed valuation inputs must contain ValuationComputedInput"
+                    "computed valuation inputs have unsupported item type"
                 )
         roles = tuple(item.role.value for item in self.inputs)
         if len(set(roles)) != len(roles):
@@ -1221,7 +1258,7 @@ class ComputedValuationProvenance:
             )
         if not isinstance(self.evidence_ref, ValuationEvidenceRef):
             raise UniversalValuationObservationValidationError(
-                "computed valuation evidence_ref must be ValuationEvidenceRef"
+                "computed valuation evidence_ref has wrong type"
             )
         ordered = tuple(
             sorted(
@@ -1254,7 +1291,7 @@ class ComputedValuationProvenance:
 
 @dataclass(frozen=True, slots=True)
 class ComputedValuationObservation:
-    """Claimed QORE-computed output carrier; producer/method execution is #350."""
+    """QORE-computed output carrier; producer/method execution remains #350."""
 
     observation_id: ValuationObservationId
     economic_identity_id: EconomicIdentityId
@@ -1267,11 +1304,11 @@ class ComputedValuationObservation:
     def __post_init__(self) -> None:
         if not isinstance(self.observation_id, ValuationObservationId):
             raise UniversalValuationObservationValidationError(
-                "computed valuation observation_id must be ValuationObservationId"
+                "computed valuation observation_id has wrong type"
             )
         if not isinstance(self.economic_identity_id, EconomicIdentityId):
             raise UniversalValuationObservationValidationError(
-                "computed valuation economic_identity_id must be EconomicIdentityId"
+                "computed valuation economic_identity_id has wrong type"
             )
         if not isinstance(
             self.as_of,
@@ -1282,11 +1319,11 @@ class ComputedValuationObservation:
             )
         if not isinstance(self.measure, _VALUATION_MEASURE_TYPES):
             raise UniversalValuationObservationValidationError(
-                "computed valuation measure must use a certified UMI-10 measure type"
+                "computed valuation measure has unsupported type"
             )
         if isinstance(self.measure, D05MarketPriceMeasure):
             raise UniversalValuationObservationValidationError(
-                "computed valuation must not masquerade as exact D05 observed price measure"
+                "computed valuation must not masquerade as exact D05 observed price"
             )
         if not isinstance(self.provenance, ComputedValuationProvenance):
             raise UniversalValuationObservationValidationError(
@@ -1295,7 +1332,7 @@ class ComputedValuationObservation:
         _validate_timestamp(self.recorded_at, field_name="computed valuation recorded_at")
         if not isinstance(self.evidence_ref, ValuationEvidenceRef):
             raise UniversalValuationObservationValidationError(
-                "computed valuation evidence_ref must be ValuationEvidenceRef"
+                "computed valuation evidence_ref has wrong type"
             )
 
     def logical_values(self) -> tuple[object, ...]:
