@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import fields
 from inspect import getsource
+from typing import get_type_hints
 
 import qore.infrastructure.instrument_universe_registry as registry
 from qore.infrastructure.universal_instrument_identity import IdentityFamilyCode
 
 
 def test_registry_reuses_umi02_family_authority_instead_of_defining_taxonomy() -> None:
-    assert registry.IdentityFamilyCode is IdentityFamilyCode
+    assert get_type_hints(registry.InstrumentUniverseEntry)["family"] is IdentityFamilyCode
     source = getsource(registry)
     assert "class IdentityFamilyCode" not in source
     assert "class AssetClass" not in source
