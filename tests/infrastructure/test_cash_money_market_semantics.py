@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, cast
@@ -54,6 +54,10 @@ def cdreset(*values: date) -> cmm.CertificateOfDepositResetDateSchedule:
     return cmm.CertificateOfDepositResetDateSchedule(
         tuple(values or (date(2026, 3, 1), date(2026, 6, 1)))
     )
+
+
+def replace_any(value: Any, **changes: Any) -> Any:
+    return replace(value, **changes)
 
 
 def dcd(
@@ -473,3 +477,184 @@ def test_determinism_immutability_and_no_operational_api() -> None:
         assert not hasattr(value, "__dict__")
         for forbidden in ("execute", "settle", "fetch", "refresh", "provider"):
             assert not hasattr(value, forbidden)
+
+
+def test_dcd_defensive_runtime_type_guards() -> None:
+    base = dcd()
+    for field_name, bad_value in (
+        ("base_currency_identity_id", UUID(int=1)),
+        ("alternate_currency_identity_id", UUID(int=2)),
+        ("fx_fixing_identity_id", UUID(int=3)),
+        ("true_payout_identity_id", UUID(int=4)),
+        ("false_payout_identity_id", UUID(int=5)),
+        ("fixing_date", datetime(2026, 6, 15)),
+        ("strike", object()),
+        ("orientation", "alternate-per-principal"),
+        ("comparator", "greater-than"),
+        ("evidence_ref", UUID(int=6)),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(base, **{field_name: bad_value})
+
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(
+            base,
+            strike=DerivativeStrike(Decimal("1"), DerivativeStrikeBasis.LEVEL),
+        )
+
+    forged = object.__new__(DerivativeStrike)
+    object.__setattr__(forged, "value", Decimal("1"))
+    object.__setattr__(forged, "basis", DerivativeStrikeBasis.PRICE)
+    object.__setattr__(forged, "quote_identity_id", base.alternate_currency_identity_id)
+    object.__setattr__(
+        forged,
+        "price_quote_basis",
+        DerivativePriceQuoteBasisCode("currency-per-unit"),
+    )
+    object.__setattr__(forged, "convention", object())
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(base, strike=forged)
+
+
+def test_term_deposit_defensive_runtime_type_guards() -> None:
+    base = term()
+    for field_name, bad_value in (
+        ("terms_id", UUID(int=1)),
+        ("instrument_identity_id", UUID(int=2)),
+        ("deposit_obligor_identity_id", UUID(int=3)),
+        ("denomination_currency_identity_id", UUID(int=4)),
+        ("principal", Decimal("1")),
+        ("start_date", datetime(2026, 1, 1)),
+        ("maturity_date", datetime(2026, 12, 31)),
+        ("contractual_rate", Decimal("0.01")),
+        ("day_count", "actual-360"),
+        ("evidence_ref", UUID(int=5)),
+        ("dual_currency_feature", object()),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(base, **{field_name: bad_value})
+
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(base, deposit_obligor_identity_id=base.instrument_identity_id)
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(base, maturity_date=base.start_date)
+
+
+def test_cp_variant_defensive_runtime_type_guards() -> None:
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        cmm.CommercialPaperDiscountedPricing(cast(Any, Decimal("990")))
+
+    fixed = fixed_cp()
+    for field_name, bad_value in (
+        ("contractual_rate", Decimal("0.01")),
+        ("day_count", "actual-360"),
+        ("payment_dates", (date(2026, 4, 1),)),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(fixed, **{field_name: bad_value})
+
+    floating = floating_cp()
+    for field_name, bad_value in (
+        ("reference_identity_id", UUID(int=1)),
+        ("reset_dates", (date(2026, 2, 1),)),
+        ("payment_dates", (date(2026, 4, 1),)),
+        ("day_count", "actual-360"),
+        ("spread", Decimal("0")),
+        ("multiplier", Decimal("1")),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(floating, **{field_name: bad_value})
+
+
+def test_commercial_paper_outer_defensive_runtime_guards() -> None:
+    base = cp(cmm.CommercialPaperAtParPricing(), fixed_cp())
+    for field_name, bad_value in (
+        ("terms_id", UUID(int=1)),
+        ("instrument_identity_id", UUID(int=2)),
+        ("issuer_obligor_identity_id", UUID(int=3)),
+        ("denomination_currency_identity_id", UUID(int=4)),
+        ("face_redemption_amount", Decimal("1000")),
+        ("issue_date", datetime(2026, 1, 1)),
+        ("maturity_date", datetime(2026, 12, 31)),
+        ("pricing", object()),
+        ("interest", object()),
+        ("evidence_ref", UUID(int=5)),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(base, **{field_name: bad_value})
+
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(base, issuer_obligor_identity_id=base.instrument_identity_id)
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(base, maturity_date=base.issue_date)
+
+
+def test_cd_variant_defensive_runtime_type_guards() -> None:
+    fixed = fixed_cd()
+    for field_name, bad_value in (
+        ("contractual_rate", Decimal("0.01")),
+        ("day_count", "actual-360"),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(fixed, **{field_name: bad_value})
+
+    reference = cmm.CertificateOfDepositReferenceLinkedRateTerms(
+        eid(24),
+        cmm.CashMoneyMarketFloatingSpread(Decimal("0")),
+        cdreset(),
+        dc(),
+    )
+    for field_name, bad_value in (
+        ("reference_identity_id", UUID(int=1)),
+        ("spread", Decimal("0")),
+        ("reset_schedule", (date(2026, 3, 1),)),
+        ("day_count", "actual-360"),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(reference, **{field_name: bad_value})
+
+    step = cmm.CertificateOfDepositPresetRateStep(
+        date(2026, 2, 1), cmm.CashMoneyMarketContractualRate(Decimal("0.01"))
+    )
+    for field_name, bad_value in (
+        ("effective_date", datetime(2026, 2, 1)),
+        ("contractual_rate", Decimal("0.01")),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(step, **{field_name: bad_value})
+
+    for bad_steps in (cast(Any, [step]), (), cast(Any, (date(2026, 2, 1),))):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            cmm.CertificateOfDepositPresetStepSchedule(bad_steps)
+
+    schedule = cmm.CertificateOfDepositPresetStepSchedule((step,))
+    preset = cmm.CertificateOfDepositPresetStepsRateTerms(schedule, dc())
+    for field_name, bad_value in (
+        ("steps", (step,)),
+        ("day_count", "actual-360"),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(preset, **{field_name: bad_value})
+
+
+def test_certificate_of_deposit_outer_defensive_runtime_guards() -> None:
+    base = cd(fixed_cd())
+    for field_name, bad_value in (
+        ("terms_id", UUID(int=1)),
+        ("instrument_identity_id", UUID(int=2)),
+        ("issuing_institution_identity_id", UUID(int=3)),
+        ("denomination_currency_identity_id", UUID(int=4)),
+        ("deposit_principal", Decimal("1")),
+        ("issue_start_date", datetime(2026, 1, 1)),
+        ("maturity_date", datetime(2026, 12, 31)),
+        ("negotiability", "negotiable"),
+        ("return_terms", object()),
+        ("evidence_ref", UUID(int=5)),
+    ):
+        with pytest.raises(cmm.CashMoneyMarketValidationError):
+            replace_any(base, **{field_name: bad_value})
+
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(base, issuing_institution_identity_id=base.instrument_identity_id)
+    with pytest.raises(cmm.CashMoneyMarketValidationError):
+        replace_any(base, maturity_date=base.issue_start_date)
