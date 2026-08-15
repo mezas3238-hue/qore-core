@@ -302,7 +302,7 @@ class StructuredObservationTerms:
 
 @dataclass(frozen=True, slots=True)
 class StructuredComponentBinding:
-    """One direct UMI-02 graph edge qualified for structured-product use."""
+    """One direct UMI-02 relationship qualified for structured-product use."""
 
     root_identity_id: EconomicIdentityId
     relationship: IdentityRelationship
@@ -710,43 +710,14 @@ class StructuredHybridSyntheticTerms:
             raise StructuredHybridSyntheticValidationError(
                 "structured component relationship ids must be unique"
             )
-        ordinals = tuple(
-            component.relationship.ordinal for component in self.components
+        ordered_components = tuple(
+            sorted(
+                self.components,
+                key=lambda component: str(
+                    component.relationship.relationship_id.value
+                ),
+            )
         )
-        has_any_ordinal = any(value is not None for value in ordinals)
-        has_all_ordinals = all(value is not None for value in ordinals)
-        if has_any_ordinal != has_all_ordinals:
-            raise StructuredHybridSyntheticValidationError(
-                "structured component relationships must all carry ordinals or all omit them"
-            )
-        if has_all_ordinals:
-            numeric_ordinals = tuple(
-                value for value in ordinals if value is not None
-            )
-            if len(set(numeric_ordinals)) != len(numeric_ordinals):
-                raise StructuredHybridSyntheticValidationError(
-                    "structured component relationship ordinals must be unique"
-                )
-            expected = tuple(range(1, len(numeric_ordinals) + 1))
-            if tuple(sorted(numeric_ordinals)) != expected:
-                raise StructuredHybridSyntheticValidationError(
-                    "structured component relationship ordinals must be contiguous from 1"
-                )
-            ordered_components = tuple(
-                sorted(
-                    self.components,
-                    key=lambda component: component.relationship.ordinal or 0,
-                )
-            )
-        else:
-            ordered_components = tuple(
-                sorted(
-                    self.components,
-                    key=lambda component: str(
-                        component.relationship.relationship_id.value
-                    ),
-                )
-            )
         object.__setattr__(self, "components", ordered_components)
 
         if type(self.features) is not tuple or not self.features:

@@ -68,17 +68,18 @@ def _relationship(
     target: EconomicIdentityId,
     *,
     relationship_id: int,
-    ordinal: int | None,
+    ordinal: int | None = None,
     code: str = "structured-component",
+    effective_from: datetime | None = None,
 ) -> IdentityRelationship:
     return IdentityRelationship(
         relationship_id=IdentityRelationshipId(UUID(int=relationship_id)),
         source_identity_id=root,
         target_identity_id=target,
         relationship=IdentityRelationshipCode(code),
-        effective_from=datetime(2026, 1, 1, tzinfo=UTC),
+        effective_from=effective_from or datetime(2026, 1, 1, tzinfo=UTC),
         effective_until=None,
-        evidence_ref=IdentityEvidenceRef(UUID(int=relationship_id + 1000)),
+        evidence_ref=IdentityEvidenceRef(UUID(int=relationship_id + 10_000)),
         ordinal=ordinal,
     )
 
@@ -88,8 +89,10 @@ def _component(
     target: EconomicIdentityId,
     *,
     relationship_id: int,
-    ordinal: int | None,
-    role: str,
+    ordinal: int | None = None,
+    code: str = "structured-component",
+    role: str = "reference-component",
+    effective_from: datetime | None = None,
 ) -> StructuredComponentBinding:
     return StructuredComponentBinding(
         root_identity_id=root,
@@ -98,9 +101,11 @@ def _component(
             target,
             relationship_id=relationship_id,
             ordinal=ordinal,
+            code=code,
+            effective_from=effective_from,
         ),
         role=StructuredComponentRoleCode(role),
-        evidence_ref=_evidence(relationship_id + 2000),
+        evidence_ref=_evidence(relationship_id + 20_000),
     )
 
 
@@ -126,6 +131,15 @@ def _discrete_dates() -> StructuredObservationTerms:
     )
 
 
+def _capital_feature(target: EconomicIdentityId, feature_id: int = 201) -> StructuredCapitalProtectionFeature:
+    return StructuredCapitalProtectionFeature(
+        feature_id=_feature_id(feature_id),
+        protected_identity_id=target,
+        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
+        evidence_ref=_evidence(feature_id),
+    )
+
+
 def _full_terms() -> StructuredHybridSyntheticTerms:
     root = _economic_id(1)
     principal = _economic_id(2)
@@ -133,58 +147,53 @@ def _full_terms() -> StructuredHybridSyntheticTerms:
     reference = _economic_id(4)
     participation = _economic_id(5)
     redemption = _economic_id(6)
-
     components = (
         _component(
             root,
             principal,
             relationship_id=101,
-            ordinal=1,
+            ordinal=11,
             role="principal-component",
         ),
         _component(
             root,
             conversion,
             relationship_id=102,
-            ordinal=2,
+            ordinal=None,
             role="conversion-component",
         ),
         _component(
             root,
             reference,
             relationship_id=103,
-            ordinal=3,
+            ordinal=7,
+            code="market-reference",
             role="reference-component",
         ),
         _component(
             root,
             participation,
             relationship_id=104,
-            ordinal=4,
+            ordinal=None,
             role="participation-component",
         ),
         _component(
             root,
             redemption,
             relationship_id=105,
-            ordinal=5,
+            ordinal=2,
+            code="redemption-reference",
             role="redemption-component",
         ),
     )
-    observation = _discrete_dates()
     features = (
-        StructuredCapitalProtectionFeature(
-            feature_id=_feature_id(201),
-            protected_identity_id=principal,
-            protected_principal_ratio=StructuredPositiveRatio(Decimal("1.00")),
-            evidence_ref=_evidence(201),
-        ),
+        _capital_feature(principal),
         StructuredConversionFeature(
             feature_id=_feature_id(202),
             target_identity_id=conversion,
             units_per_source_unit=StructuredPositiveRatio(Decimal("0.25")),
             conversion_level=_level(
-                conversion,
+                _economic_id(30),
                 "125",
                 kind=StructuredContractLevelKind.PRICE,
                 unit="currency-per-unit",
@@ -206,7 +215,7 @@ def _full_terms() -> StructuredHybridSyntheticTerms:
             feature_id=_feature_id(204),
             reference_identity_id=reference,
             trigger_level=_level(reference, "100"),
-            observation=observation,
+            observation=_discrete_dates(),
             redemption_ratio=StructuredPositiveRatio(Decimal("1.05")),
             evidence_ref=_evidence(204),
         ),
@@ -228,20 +237,16 @@ def _full_terms() -> StructuredHybridSyntheticTerms:
     return StructuredHybridSyntheticTerms(
         terms_id=StructuredTermsId(UUID(int=10)),
         instrument_identity_id=root,
-        components=components,
-        features=features,
+        components=tuple(reversed(components)),
+        features=tuple(reversed(features)),
         evidence_ref=_evidence(999),
     )
 
 
-def test_local_ids_are_not_economic_identity() -> None:
-    terms_id = StructuredTermsId(UUID(int=1))
-    feature_id = StructuredFeatureId(UUID(int=2))
-    evidence = StructuredEvidenceRef(UUID(int=3))
-
-    assert not isinstance(terms_id, EconomicIdentityId)
-    assert not isinstance(feature_id, EconomicIdentityId)
-    assert not isinstance(evidence, EconomicIdentityId)
+def test_local_ids_are_distinct_from_economic_identity() -> None:
+    assert not isinstance(StructuredTermsId(UUID(int=1)), EconomicIdentityId)
+    assert not isinstance(StructuredFeatureId(UUID(int=2)), EconomicIdentityId)
+    assert not isinstance(StructuredEvidenceRef(UUID(int=3)), EconomicIdentityId)
 
 
 @pytest.mark.parametrize(
@@ -252,124 +257,107 @@ def test_local_ids_are_not_economic_identity() -> None:
         lambda: StructuredEvidenceRef(cast(Any, "bad")),
     ],
 )
-def test_local_ids_fail_closed_on_wrong_uuid_type(factory: Any) -> None:
+def test_local_ids_reject_wrong_uuid_runtime_type(factory: Any) -> None:
     with pytest.raises(StructuredHybridSyntheticValidationError):
         factory()
 
 
 @pytest.mark.parametrize(
+    "code_type",
+    [
+        StructuredComponentRoleCode,
+        StructuredBarrierKindCode,
+        StructuredObservationScheduleCode,
+        StructuredLevelUnitCode,
+    ],
+)
+@pytest.mark.parametrize(
     "value",
     ["UPPER", "has space", "a/b", "token=abc", "", "a" * 65],
 )
-def test_canonical_codes_reject_noncanonical_or_secret_like_text(value: str) -> None:
+def test_public_codes_fail_closed_on_noncanonical_material(
+    code_type: type[Any],
+    value: str,
+) -> None:
     with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredComponentRoleCode(value)
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredBarrierKindCode(value)
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredObservationScheduleCode(value)
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredLevelUnitCode(value)
+        code_type(value)
 
 
-def test_component_retain_exact_umi02_relationship_material() -> None:
-    root = _economic_id(1)
-    target = _economic_id(2)
-    relationship = _relationship(root, target, relationship_id=101, ordinal=1)
-    component = StructuredComponentBinding(
-        root_identity_id=root,
-        relationship=relationship,
-        role=StructuredComponentRoleCode("underlying"),
-        evidence_ref=_evidence(1),
-    )
-
-    assert component.relationship is relationship
-    assert component.relationship_id == relationship.relationship_id
-    assert component.component_identity_id == target
-    assert relationship.logical_values() in component.logical_values()
-
-
-def test_component_rejects_reversed_direct_edge() -> None:
-    root = _economic_id(1)
-    target = _economic_id(2)
-    reversed_relationship = _relationship(
-        target,
-        root,
-        relationship_id=101,
-        ordinal=1,
-    )
-
-    with pytest.raises(
-        StructuredHybridSyntheticValidationError,
-        match="source must equal root",
-    ):
-        StructuredComponentBinding(
-            root_identity_id=root,
-            relationship=reversed_relationship,
-            role=StructuredComponentRoleCode("underlying"),
-            evidence_ref=_evidence(1),
-        )
-
-
-def test_component_rejects_opaque_relationship_id_instead_of_relationship() -> None:
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredComponentBinding(
-            root_identity_id=_economic_id(1),
-            relationship=cast(Any, IdentityRelationshipId(UUID(int=1))),
-            role=StructuredComponentRoleCode("underlying"),
-            evidence_ref=_evidence(1),
-        )
-
-
-def test_contract_level_is_not_option_strike_and_has_explicit_unit() -> None:
+def test_structured_level_preserves_kind_reference_unit_and_zero_negative_values() -> None:
     reference = _economic_id(2)
-    level = _level(
+    negative = _level(
         reference,
-        "-0.01",
+        "-0.0100",
         kind=StructuredContractLevelKind.RATE,
         unit="decimal-rate",
     )
+    zero = _level(
+        reference,
+        "0.000",
+        kind=StructuredContractLevelKind.SPREAD,
+        unit="decimal-spread",
+    )
 
-    assert level.logical_values() == (
-        "-0.01",
+    assert negative.logical_values()[0] == "-0.01"
+    assert zero.logical_values()[0] == "0"
+    assert negative.logical_values()[1:] == (
         "rate",
         reference.logical_values(),
         ("decimal-rate",),
     )
-    assert not hasattr(level, "price_quote_basis")
-    assert not hasattr(level, "convention")
+    assert not hasattr(negative, "price_quote_basis")
+    assert not hasattr(negative, "convention")
 
 
-def test_contract_level_rejects_nonfinite_decimal_and_wrong_types() -> None:
+@pytest.mark.parametrize("bad", [Decimal("NaN"), Decimal("Infinity")])
+def test_structured_level_rejects_nonfinite_values(bad: Decimal) -> None:
     with pytest.raises(StructuredHybridSyntheticValidationError):
-        _level(_economic_id(2), "NaN")
+        _level(_economic_id(2), str(bad))
+
+
+def test_structured_level_rejects_wrong_runtime_types() -> None:
+    reference = _economic_id(2)
     with pytest.raises(StructuredHybridSyntheticValidationError):
         StructuredContractLevel(
             value=cast(Any, 100.0),
             kind=StructuredContractLevelKind.LEVEL,
-            reference_identity_id=_economic_id(2),
+            reference_identity_id=reference,
             unit=StructuredLevelUnitCode("index-points"),
         )
     with pytest.raises(StructuredHybridSyntheticValidationError):
         StructuredContractLevel(
             value=Decimal("100"),
             kind=cast(Any, "level"),
-            reference_identity_id=_economic_id(2),
+            reference_identity_id=reference,
             unit=StructuredLevelUnitCode("index-points"),
+        )
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredContractLevel(
+            value=Decimal("100"),
+            kind=StructuredContractLevelKind.LEVEL,
+            reference_identity_id=cast(Any, UUID(int=2)),
+            unit=StructuredLevelUnitCode("index-points"),
+        )
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredContractLevel(
+            value=Decimal("100"),
+            kind=StructuredContractLevelKind.LEVEL,
+            reference_identity_id=reference,
+            unit=cast(Any, "index-points"),
         )
 
 
-def test_positive_ratio_is_canonical_and_not_capped_at_one() -> None:
-    ratio = StructuredPositiveRatio(Decimal("1.1000"))
-    assert ratio.logical_values() == ("1.1",)
-
+def test_positive_ratio_canonicalizes_and_is_not_artificially_capped() -> None:
+    assert StructuredPositiveRatio(Decimal("2.5000")).logical_values() == ("2.5",)
     for invalid in (Decimal("0"), Decimal("-1"), Decimal("NaN")):
         with pytest.raises(StructuredHybridSyntheticValidationError):
             StructuredPositiveRatio(invalid)
 
 
-def test_continuous_observation_rejects_date_or_schedule_material() -> None:
-    StructuredObservationTerms(mode=StructuredObservationMode.CONTINUOUS)
+def test_continuous_observation_carries_no_discrete_material() -> None:
+    assert StructuredObservationTerms(
+        mode=StructuredObservationMode.CONTINUOUS
+    ).logical_values() == ("continuous", (), None)
 
     with pytest.raises(StructuredHybridSyntheticValidationError):
         StructuredObservationTerms(
@@ -379,30 +367,26 @@ def test_continuous_observation_rejects_date_or_schedule_material() -> None:
     with pytest.raises(StructuredHybridSyntheticValidationError):
         StructuredObservationTerms(
             mode=StructuredObservationMode.CONTINUOUS,
-            schedule_code=StructuredObservationScheduleCode("venue-schedule"),
+            schedule_code=StructuredObservationScheduleCode("issuer-schedule"),
         )
 
 
-def test_discrete_observation_requires_exactly_one_mode() -> None:
+def test_discrete_observation_requires_exactly_one_typed_mode() -> None:
     with pytest.raises(StructuredHybridSyntheticValidationError):
         StructuredObservationTerms(mode=StructuredObservationMode.DISCRETE)
-
     with pytest.raises(StructuredHybridSyntheticValidationError):
         StructuredObservationTerms(
             mode=StructuredObservationMode.DISCRETE,
             explicit_dates=(date(2026, 1, 1),),
-            schedule_code=StructuredObservationScheduleCode("venue-schedule"),
+            schedule_code=StructuredObservationScheduleCode("issuer-schedule"),
         )
-
-    by_schedule = StructuredObservationTerms(
-        mode=StructuredObservationMode.DISCRETE,
-        schedule_code=StructuredObservationScheduleCode("venue-schedule"),
-    )
-    assert by_schedule.logical_values() == (
-        "discrete",
-        (),
-        ("venue-schedule",),
-    )
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredObservationTerms(mode=cast(Any, "discrete"))
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredObservationTerms(
+            mode=StructuredObservationMode.DISCRETE,
+            schedule_code=cast(Any, "issuer-schedule"),
+        )
 
 
 def test_discrete_observation_dates_are_exact_unique_and_canonical() -> None:
@@ -426,36 +410,76 @@ def test_discrete_observation_dates_are_exact_unique_and_canonical() -> None:
         )
 
 
-def test_barrier_and_autocall_level_reference_must_match_feature_reference() -> None:
-    reference = _economic_id(2)
-    other = _economic_id(3)
+def test_component_retains_exact_relationship_and_rejects_reversed_edge() -> None:
+    root = _economic_id(1)
+    target = _economic_id(2)
+    relationship = _relationship(root, target, relationship_id=101, ordinal=17)
+    component = StructuredComponentBinding(
+        root_identity_id=root,
+        relationship=relationship,
+        role=StructuredComponentRoleCode("underlying"),
+        evidence_ref=_evidence(1),
+    )
+    assert component.relationship is relationship
+    assert component.relationship_id == relationship.relationship_id
+    assert component.component_identity_id == target
+    assert relationship.logical_values() in component.logical_values()
 
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredBarrierFeature(
-            feature_id=_feature_id(1),
-            reference_identity_id=reference,
-            barrier_kind=StructuredBarrierKindCode("knock-out"),
-            direction=StructuredBarrierDirection.AT_OR_ABOVE,
-            level=_level(other),
-            observation=StructuredObservationTerms(
-                mode=StructuredObservationMode.CONTINUOUS
-            ),
-            evidence_ref=_evidence(1),
-        )
-
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredAutocallFeature(
-            feature_id=_feature_id(2),
-            reference_identity_id=reference,
-            trigger_level=_level(other),
-            observation=_discrete_dates(),
-            redemption_ratio=StructuredPositiveRatio(Decimal("1")),
+    reversed_relationship = _relationship(
+        target,
+        root,
+        relationship_id=102,
+        ordinal=None,
+    )
+    with pytest.raises(StructuredHybridSyntheticValidationError, match="source"):
+        StructuredComponentBinding(
+            root_identity_id=root,
+            relationship=reversed_relationship,
+            role=StructuredComponentRoleCode("underlying"),
             evidence_ref=_evidence(2),
         )
 
 
-def test_feature_records_are_declarative_and_have_no_engine_methods() -> None:
+def test_component_rejects_opaque_relationship_id_and_wrong_wrappers() -> None:
+    root = _economic_id(1)
+    target = _economic_id(2)
+    relationship = _relationship(root, target, relationship_id=101)
+
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredComponentBinding(
+            root_identity_id=root,
+            relationship=cast(Any, relationship.relationship_id),
+            role=StructuredComponentRoleCode("underlying"),
+            evidence_ref=_evidence(1),
+        )
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredComponentBinding(
+            root_identity_id=root,
+            relationship=relationship,
+            role=cast(Any, "underlying"),
+            evidence_ref=_evidence(1),
+        )
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredComponentBinding(
+            root_identity_id=root,
+            relationship=relationship,
+            role=StructuredComponentRoleCode("underlying"),
+            evidence_ref=cast(Any, UUID(int=1)),
+        )
+
+
+def test_feature_records_preserve_higher_order_semantics_without_engines() -> None:
     terms = _full_terms()
+    feature_names = {feature.logical_values()[0] for feature in terms.features}
+    assert feature_names == {
+        "capital-protection",
+        "conversion",
+        "barrier",
+        "autocall",
+        "participation",
+        "redemption",
+    }
+
     forbidden = (
         "observe",
         "evaluate",
@@ -474,10 +498,35 @@ def test_feature_records_are_declarative_and_have_no_engine_methods() -> None:
         "rpc",
         "sign",
     )
-
     for feature in terms.features:
         for method in forbidden:
             assert not hasattr(feature, method)
+
+
+def test_barrier_and_autocall_level_reference_must_match_primary_reference() -> None:
+    reference = _economic_id(2)
+    other = _economic_id(3)
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredBarrierFeature(
+            feature_id=_feature_id(1),
+            reference_identity_id=reference,
+            barrier_kind=StructuredBarrierKindCode("knock-out"),
+            direction=StructuredBarrierDirection.AT_OR_ABOVE,
+            level=_level(other),
+            observation=StructuredObservationTerms(
+                mode=StructuredObservationMode.CONTINUOUS
+            ),
+            evidence_ref=_evidence(1),
+        )
+    with pytest.raises(StructuredHybridSyntheticValidationError):
+        StructuredAutocallFeature(
+            feature_id=_feature_id(2),
+            reference_identity_id=reference,
+            trigger_level=_level(other),
+            observation=_discrete_dates(),
+            redemption_ratio=StructuredPositiveRatio(Decimal("1")),
+            evidence_ref=_evidence(2),
+        )
 
 
 def test_redemption_date_rejects_datetime_laundering() -> None:
@@ -491,85 +540,113 @@ def test_redemption_date_rejects_datetime_laundering() -> None:
         )
 
 
-def test_top_level_requires_nonempty_immutable_components_and_features() -> None:
+def test_top_level_requires_nonempty_immutable_component_and_feature_tuples() -> None:
     root = _economic_id(1)
-    component = _component(
-        root,
-        _economic_id(2),
-        relationship_id=101,
-        ordinal=1,
-        role="principal",
+    target = _economic_id(2)
+    component = _component(root, target, relationship_id=101)
+    feature = _capital_feature(target)
+
+    cases: tuple[tuple[Any, Any], ...] = (
+        ((), (feature,)),
+        ((component,), ()),
+        ([component], (feature,)),
+        ((component,), [feature]),
     )
-    feature = StructuredCapitalProtectionFeature(
-        feature_id=_feature_id(1),
-        protected_identity_id=_economic_id(2),
-        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
-        evidence_ref=_evidence(1),
-    )
-
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredHybridSyntheticTerms(
-            terms_id=StructuredTermsId(UUID(int=1)),
-            instrument_identity_id=root,
-            components=(),
-            features=(feature,),
-            evidence_ref=_evidence(9),
-        )
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredHybridSyntheticTerms(
-            terms_id=StructuredTermsId(UUID(int=1)),
-            instrument_identity_id=root,
-            components=(component,),
-            features=(),
-            evidence_ref=_evidence(9),
-        )
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredHybridSyntheticTerms(
-            terms_id=StructuredTermsId(UUID(int=1)),
-            instrument_identity_id=root,
-            components=cast(Any, [component]),
-            features=(feature,),
-            evidence_ref=_evidence(9),
-        )
-    with pytest.raises(StructuredHybridSyntheticValidationError):
-        StructuredHybridSyntheticTerms(
-            terms_id=StructuredTermsId(UUID(int=1)),
-            instrument_identity_id=root,
-            components=(component,),
-            features=cast(Any, [feature]),
-            evidence_ref=_evidence(9),
-        )
+    for components, features in cases:
+        with pytest.raises(StructuredHybridSyntheticValidationError):
+            StructuredHybridSyntheticTerms(
+                terms_id=StructuredTermsId(UUID(int=1)),
+                instrument_identity_id=root,
+                components=cast(Any, components),
+                features=cast(Any, features),
+                evidence_ref=_evidence(9),
+            )
 
 
-def test_top_level_rejects_component_root_mismatch() -> None:
+def test_top_level_rejects_root_mismatch_and_duplicate_relationship_id() -> None:
     root = _economic_id(1)
     other_root = _economic_id(7)
     target = _economic_id(2)
-    component = _component(
-        other_root,
-        target,
-        relationship_id=101,
-        ordinal=1,
-        role="principal",
-    )
-    feature = StructuredCapitalProtectionFeature(
-        feature_id=_feature_id(1),
-        protected_identity_id=target,
-        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
-        evidence_ref=_evidence(1),
-    )
-
+    feature = _capital_feature(target)
+    wrong_root = _component(other_root, target, relationship_id=101)
     with pytest.raises(StructuredHybridSyntheticValidationError, match="component root"):
         StructuredHybridSyntheticTerms(
             terms_id=StructuredTermsId(UUID(int=1)),
             instrument_identity_id=root,
-            components=(component,),
+            components=(wrong_root,),
+            features=(feature,),
+            evidence_ref=_evidence(9),
+        )
+
+    first = _component(root, target, relationship_id=102)
+    duplicate = StructuredComponentBinding(
+        root_identity_id=root,
+        relationship=IdentityRelationship(
+            relationship_id=first.relationship.relationship_id,
+            source_identity_id=root,
+            target_identity_id=_economic_id(3),
+            relationship=IdentityRelationshipCode("other-component"),
+            effective_from=datetime(2027, 1, 1, tzinfo=UTC),
+            effective_until=None,
+            evidence_ref=IdentityEvidenceRef(UUID(int=5000)),
+            ordinal=88,
+        ),
+        role=StructuredComponentRoleCode("other"),
+        evidence_ref=_evidence(8),
+    )
+    with pytest.raises(StructuredHybridSyntheticValidationError, match="ids must be unique"):
+        StructuredHybridSyntheticTerms(
+            terms_id=StructuredTermsId(UUID(int=1)),
+            instrument_identity_id=root,
+            components=(first, duplicate),
             features=(feature,),
             evidence_ref=_evidence(9),
         )
 
 
-def test_top_level_rejects_duplicate_relationship_id() -> None:
+def test_umi09_does_not_claim_umi02_ordinal_authority() -> None:
+    root = _economic_id(1)
+    first_target = _economic_id(2)
+    second_target = _economic_id(3)
+    third_target = _economic_id(4)
+    first = _component(
+        root,
+        first_target,
+        relationship_id=101,
+        ordinal=50,
+        code="component.a",
+    )
+    second = _component(
+        root,
+        second_target,
+        relationship_id=102,
+        ordinal=None,
+        code="component.b",
+    )
+    third = _component(
+        root,
+        third_target,
+        relationship_id=103,
+        ordinal=2,
+        code="component.c",
+    )
+    terms = StructuredHybridSyntheticTerms(
+        terms_id=StructuredTermsId(UUID(int=1)),
+        instrument_identity_id=root,
+        components=(third, second, first),
+        features=(_capital_feature(first_target),),
+        evidence_ref=_evidence(9),
+    )
+
+    assert terms.components == (first, second, third)
+    assert tuple(component.relationship.ordinal for component in terms.components) == (
+        50,
+        None,
+        2,
+    )
+
+
+def test_duplicate_ordinals_in_distinct_umi02_scopes_are_not_reinterpreted() -> None:
     root = _economic_id(1)
     first_target = _economic_id(2)
     second_target = _economic_id(3)
@@ -578,41 +655,44 @@ def test_top_level_rejects_duplicate_relationship_id() -> None:
         first_target,
         relationship_id=101,
         ordinal=1,
-        role="principal",
+        code="component.a",
     )
-    second = StructuredComponentBinding(
-        root_identity_id=root,
-        relationship=IdentityRelationship(
-            relationship_id=first.relationship.relationship_id,
-            source_identity_id=root,
-            target_identity_id=second_target,
-            relationship=IdentityRelationshipCode("structured-component"),
-            effective_from=datetime(2026, 1, 1, tzinfo=UTC),
-            effective_until=None,
-            evidence_ref=IdentityEvidenceRef(UUID(int=5000)),
-            ordinal=2,
-        ),
-        role=StructuredComponentRoleCode("reference"),
-        evidence_ref=_evidence(2),
+    second = _component(
+        root,
+        second_target,
+        relationship_id=102,
+        ordinal=1,
+        code="component.b",
     )
-    feature = StructuredCapitalProtectionFeature(
-        feature_id=_feature_id(1),
-        protected_identity_id=first_target,
-        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
-        evidence_ref=_evidence(1),
+    terms = StructuredHybridSyntheticTerms(
+        terms_id=StructuredTermsId(UUID(int=1)),
+        instrument_identity_id=root,
+        components=(second, first),
+        features=(_capital_feature(first_target),),
+        evidence_ref=_evidence(9),
     )
 
-    with pytest.raises(StructuredHybridSyntheticValidationError, match="ids must be unique"):
-        StructuredHybridSyntheticTerms(
-            terms_id=StructuredTermsId(UUID(int=1)),
-            instrument_identity_id=root,
-            components=(first, second),
-            features=(feature,),
-            evidence_ref=_evidence(9),
-        )
+    assert terms.components == (first, second)
+    assert first.relationship.ordinal == second.relationship.ordinal == 1
 
 
-def test_same_target_role_distinct_relationship_revisions_are_not_silently_deduped() -> None:
+def test_component_order_is_relationship_id_canonical_not_caller_or_ordinal_order() -> None:
+    root = _economic_id(1)
+    first_target = _economic_id(2)
+    second_target = _economic_id(3)
+    first = _component(root, first_target, relationship_id=101, ordinal=99)
+    second = _component(root, second_target, relationship_id=102, ordinal=1)
+    terms = StructuredHybridSyntheticTerms(
+        terms_id=StructuredTermsId(UUID(int=1)),
+        instrument_identity_id=root,
+        components=(second, first),
+        features=(_capital_feature(first_target),),
+        evidence_ref=_evidence(9),
+    )
+    assert terms.components == (first, second)
+
+
+def test_distinct_relationship_revisions_are_retained_not_silently_deduped() -> None:
     root = _economic_id(1)
     target = _economic_id(2)
     first = _component(
@@ -620,194 +700,40 @@ def test_same_target_role_distinct_relationship_revisions_are_not_silently_dedup
         target,
         relationship_id=101,
         ordinal=1,
-        role="principal",
+        effective_from=datetime(2026, 1, 1, tzinfo=UTC),
     )
-    second = StructuredComponentBinding(
-        root_identity_id=root,
-        relationship=IdentityRelationship(
-            relationship_id=IdentityRelationshipId(UUID(int=102)),
-            source_identity_id=root,
-            target_identity_id=target,
-            relationship=IdentityRelationshipCode("structured-component"),
-            effective_from=datetime(2027, 1, 1, tzinfo=UTC),
-            effective_until=None,
-            evidence_ref=IdentityEvidenceRef(UUID(int=5102)),
-            ordinal=2,
-        ),
-        role=StructuredComponentRoleCode("principal"),
-        evidence_ref=_evidence(2),
-    )
-    feature = StructuredCapitalProtectionFeature(
-        feature_id=_feature_id(1),
-        protected_identity_id=target,
-        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
-        evidence_ref=_evidence(1),
-    )
-
-    terms = StructuredHybridSyntheticTerms(
-        terms_id=StructuredTermsId(UUID(int=1)),
-        instrument_identity_id=root,
-        components=(second, first),
-        features=(feature,),
-        evidence_ref=_evidence(9),
-    )
-
-    assert len(terms.components) == 2
-    assert tuple(item.relationship.ordinal for item in terms.components) == (1, 2)
-
-
-def test_component_ordinals_must_be_all_or_none_and_contiguous() -> None:
-    root = _economic_id(1)
-    target_one = _economic_id(2)
-    target_two = _economic_id(3)
-    feature = StructuredCapitalProtectionFeature(
-        feature_id=_feature_id(1),
-        protected_identity_id=target_one,
-        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
-        evidence_ref=_evidence(1),
-    )
-
-    mixed = (
-        _component(
-            root,
-            target_one,
-            relationship_id=101,
-            ordinal=1,
-            role="principal",
-        ),
-        _component(
-            root,
-            target_two,
-            relationship_id=102,
-            ordinal=None,
-            role="reference",
-        ),
-    )
-    with pytest.raises(StructuredHybridSyntheticValidationError, match="all carry ordinals"):
-        StructuredHybridSyntheticTerms(
-            terms_id=StructuredTermsId(UUID(int=1)),
-            instrument_identity_id=root,
-            components=mixed,
-            features=(feature,),
-            evidence_ref=_evidence(9),
-        )
-
-    noncontiguous = (
-        _component(
-            root,
-            target_one,
-            relationship_id=101,
-            ordinal=1,
-            role="principal",
-        ),
-        _component(
-            root,
-            target_two,
-            relationship_id=102,
-            ordinal=3,
-            role="reference",
-        ),
-    )
-    with pytest.raises(StructuredHybridSyntheticValidationError, match="contiguous"):
-        StructuredHybridSyntheticTerms(
-            terms_id=StructuredTermsId(UUID(int=1)),
-            instrument_identity_id=root,
-            components=noncontiguous,
-            features=(feature,),
-            evidence_ref=_evidence(9),
-        )
-
-
-def test_component_order_canonicalizes_by_ordinal_when_present() -> None:
-    root = _economic_id(1)
-    target_one = _economic_id(2)
-    target_two = _economic_id(3)
-    first = _component(
+    second = _component(
         root,
-        target_one,
-        relationship_id=101,
+        target,
+        relationship_id=102,
         ordinal=1,
-        role="principal",
+        effective_from=datetime(2027, 1, 1, tzinfo=UTC),
     )
-    second = _component(
-        root,
-        target_two,
-        relationship_id=102,
-        ordinal=2,
-        role="reference",
-    )
-    feature = StructuredCapitalProtectionFeature(
-        feature_id=_feature_id(1),
-        protected_identity_id=target_one,
-        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
-        evidence_ref=_evidence(1),
-    )
-
     terms = StructuredHybridSyntheticTerms(
         terms_id=StructuredTermsId(UUID(int=1)),
         instrument_identity_id=root,
         components=(second, first),
-        features=(feature,),
+        features=(_capital_feature(target),),
         evidence_ref=_evidence(9),
     )
-
-    assert terms.components == (first, second)
-
-
-def test_component_order_canonicalizes_by_relationship_id_without_ordinals() -> None:
-    root = _economic_id(1)
-    target_one = _economic_id(2)
-    target_two = _economic_id(3)
-    first = _component(
-        root,
-        target_one,
-        relationship_id=101,
-        ordinal=None,
-        role="principal",
-    )
-    second = _component(
-        root,
-        target_two,
-        relationship_id=102,
-        ordinal=None,
-        role="reference",
-    )
-    feature = StructuredCapitalProtectionFeature(
-        feature_id=_feature_id(1),
-        protected_identity_id=target_one,
-        protected_principal_ratio=StructuredPositiveRatio(Decimal("1")),
-        evidence_ref=_evidence(1),
+    assert len(terms.components) == 2
+    assert tuple(component.relationship_id for component in terms.components) == (
+        first.relationship_id,
+        second.relationship_id,
     )
 
-    terms = StructuredHybridSyntheticTerms(
-        terms_id=StructuredTermsId(UUID(int=1)),
-        instrument_identity_id=root,
-        components=(second, first),
-        features=(feature,),
-        evidence_ref=_evidence(9),
-    )
 
-    assert terms.components == (first, second)
-
-
-def test_every_feature_reference_must_be_a_direct_component_target() -> None:
+def test_primary_feature_identity_must_be_direct_component_target() -> None:
     root = _economic_id(1)
     component_target = _economic_id(2)
     unbound_target = _economic_id(3)
-    component = _component(
-        root,
-        component_target,
-        relationship_id=101,
-        ordinal=1,
-        role="principal",
-    )
+    component = _component(root, component_target, relationship_id=101)
     feature = StructuredConversionFeature(
         feature_id=_feature_id(1),
         target_identity_id=unbound_target,
         units_per_source_unit=StructuredPositiveRatio(Decimal("1")),
         evidence_ref=_evidence(1),
     )
-
     with pytest.raises(StructuredHybridSyntheticValidationError, match="direct component"):
         StructuredHybridSyntheticTerms(
             terms_id=StructuredTermsId(UUID(int=1)),
@@ -819,8 +745,6 @@ def test_every_feature_reference_must_be_a_direct_component_target() -> None:
 
 
 def _derivative_composition(root: EconomicIdentityId) -> DerivativeCompositionTerms:
-    first = _economic_id(10)
-    second = _economic_id(11)
     return DerivativeCompositionTerms(
         terms_id=DerivativeTermsId(UUID(int=1)),
         instrument_identity_id=root,
@@ -828,7 +752,7 @@ def _derivative_composition(root: EconomicIdentityId) -> DerivativeCompositionTe
             DerivativeCompositionLeg(
                 leg_id=DerivativeLegId(UUID(int=11)),
                 ordinal=DerivativeLegOrdinal(1),
-                component_identity_id=first,
+                component_identity_id=_economic_id(10),
                 side=DerivativeCompositionSide.LONG,
                 ratio=Decimal("1"),
                 evidence_ref=DerivativeEvidenceRef(UUID(int=21)),
@@ -836,7 +760,7 @@ def _derivative_composition(root: EconomicIdentityId) -> DerivativeCompositionTe
             DerivativeCompositionLeg(
                 leg_id=DerivativeLegId(UUID(int=12)),
                 ordinal=DerivativeLegOrdinal(2),
-                component_identity_id=second,
+                component_identity_id=_economic_id(11),
                 side=DerivativeCompositionSide.SHORT,
                 ratio=Decimal("1"),
                 evidence_ref=DerivativeEvidenceRef(UUID(int=22)),
@@ -849,14 +773,7 @@ def _derivative_composition(root: EconomicIdentityId) -> DerivativeCompositionTe
 def test_umi05_derivative_composition_cannot_be_laundered_as_umi09_feature() -> None:
     root = _economic_id(1)
     target = _economic_id(2)
-    component = _component(
-        root,
-        target,
-        relationship_id=101,
-        ordinal=1,
-        role="reference",
-    )
-
+    component = _component(root, target, relationship_id=101)
     with pytest.raises(StructuredHybridSyntheticValidationError, match="feature types"):
         StructuredHybridSyntheticTerms(
             terms_id=StructuredTermsId(UUID(int=1)),
@@ -870,13 +787,7 @@ def test_umi05_derivative_composition_cannot_be_laundered_as_umi09_feature() -> 
 def test_duplicate_feature_ids_fail_closed() -> None:
     root = _economic_id(1)
     target = _economic_id(2)
-    component = _component(
-        root,
-        target,
-        relationship_id=101,
-        ordinal=1,
-        role="principal",
-    )
+    component = _component(root, target, relationship_id=101)
     feature_id = _feature_id(1)
     first = StructuredCapitalProtectionFeature(
         feature_id=feature_id,
@@ -891,7 +802,6 @@ def test_duplicate_feature_ids_fail_closed() -> None:
         participation_ratio=StructuredPositiveRatio(Decimal("1")),
         evidence_ref=_evidence(2),
     )
-
     with pytest.raises(StructuredHybridSyntheticValidationError, match="feature ids"):
         StructuredHybridSyntheticTerms(
             terms_id=StructuredTermsId(UUID(int=1)),
@@ -902,7 +812,7 @@ def test_duplicate_feature_ids_fail_closed() -> None:
         )
 
 
-def test_component_and_feature_caller_order_do_not_change_logical_values() -> None:
+def test_caller_order_and_decimal_format_do_not_change_deterministic_material() -> None:
     first = _full_terms()
     second = StructuredHybridSyntheticTerms(
         terms_id=first.terms_id,
@@ -911,34 +821,19 @@ def test_component_and_feature_caller_order_do_not_change_logical_values() -> No
         features=tuple(reversed(first.features)),
         evidence_ref=first.evidence_ref,
     )
-
-    assert first.components == second.components
-    assert first.features == second.features
     assert first.logical_values() == second.logical_values()
+    assert StructuredPositiveRatio(Decimal("1.00")).logical_values() == (
+        StructuredPositiveRatio(Decimal("1")).logical_values()
+    )
 
 
-def test_logical_values_canonicalize_equal_decimals() -> None:
-    reference = _economic_id(2)
-    first = StructuredPositiveRatio(Decimal("1.00"))
-    second = StructuredPositiveRatio(Decimal("1"))
-    first_level = _level(reference, "100.000")
-    second_level = _level(reference, "100")
-
-    assert first.logical_values() == second.logical_values()
-    assert first_level.logical_values() == second_level.logical_values()
-
-
-def test_full_terms_are_frozen_and_deterministic() -> None:
+def test_full_terms_are_frozen_deterministic_and_have_no_runtime_authority() -> None:
     terms = _full_terms()
     assert terms.logical_values() == terms.logical_values()
-
     attribute = "evidence_ref"
     with pytest.raises(FrozenInstanceError):
         setattr(terms, attribute, _evidence(1000))
 
-
-def test_full_terms_do_not_expose_observation_valuation_or_execution_authority() -> None:
-    terms = _full_terms()
     forbidden = (
         "current_price",
         "mark_price",
@@ -960,32 +855,11 @@ def test_full_terms_do_not_expose_observation_valuation_or_execution_authority()
         "custody",
         "rpc",
         "sign",
+        "current_revision",
+        "lifecycle_event",
+        "triggered",
+        "exercised",
+        "settled",
     )
-
     for name in forbidden:
         assert not hasattr(terms, name)
-
-
-def test_full_terms_preserve_all_feature_families_without_flattening() -> None:
-    terms = _full_terms()
-    feature_names = tuple(feature.logical_values()[0] for feature in terms.features)
-
-    assert feature_names == (
-        "capital-protection",
-        "conversion",
-        "barrier",
-        "autocall",
-        "participation",
-        "redemption",
-    )
-
-
-def test_structured_semantics_have_no_fake_current_revision_or_lifecycle_claim() -> None:
-    terms = _full_terms()
-
-    assert not hasattr(terms, "current_revision")
-    assert not hasattr(terms, "as_of_relationship")
-    assert not hasattr(terms, "lifecycle_event")
-    assert not hasattr(terms, "triggered")
-    assert not hasattr(terms, "exercised")
-    assert not hasattr(terms, "settled")
