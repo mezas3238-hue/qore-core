@@ -7,6 +7,11 @@ import pytest
 import qore.infrastructure.instrument_universe_registry as registry
 
 
+class _DeceptiveLowerStr(str):
+    def lower(self) -> str:
+        return "safe"
+
+
 @pytest.mark.parametrize(
     "unsafe_locator",
     [
@@ -69,6 +74,61 @@ def test_evidence_text_rejects_control_characters() -> None:
             locator="https://official.example/evidence",
             verified_on=date(2026, 8, 15),
         )
+
+
+def test_reason_rejects_str_subclass_that_launders_lower() -> None:
+    with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
+        registry.InstrumentUniverseReason(_DeceptiveLowerStr("token=do-not-retain"))
+
+
+def test_evidence_locator_rejects_str_subclass_that_launders_lower() -> None:
+    with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
+        registry.InstrumentUniverseEvidenceRecord(
+            evidence_ref=registry.InstrumentUniverseEvidenceRef("unsafe-evidence"),
+            source_category=(
+                registry.InstrumentUniverseEvidenceSourceCategory.REGULATORY_OFFICIAL
+            ),
+            source_name="Official source",
+            locator=_DeceptiveLowerStr(
+                "https://user:password@official.example/evidence"
+            ),
+            verified_on=date(2026, 8, 15),
+        )
+
+
+def test_evidence_source_name_rejects_str_subclass() -> None:
+    with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
+        registry.InstrumentUniverseEvidenceRecord(
+            evidence_ref=registry.InstrumentUniverseEvidenceRef("unsafe-evidence"),
+            source_category=(
+                registry.InstrumentUniverseEvidenceSourceCategory.REGULATORY_OFFICIAL
+            ),
+            source_name=_DeceptiveLowerStr("Official source"),
+            locator="https://official.example/evidence",
+            verified_on=date(2026, 8, 15),
+        )
+
+
+def test_canonical_ref_rejects_str_subclass() -> None:
+    with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
+        registry.InstrumentUniverseEvidenceRef(_DeceptiveLowerStr("unsafe-evidence"))
+
+
+def test_plain_str_boundaries_remain_valid() -> None:
+    reason = registry.InstrumentUniverseReason("Inventory qualification remains open")
+    evidence = registry.InstrumentUniverseEvidenceRecord(
+        evidence_ref=registry.InstrumentUniverseEvidenceRef("plain-evidence"),
+        source_category=(
+            registry.InstrumentUniverseEvidenceSourceCategory.REGULATORY_OFFICIAL
+        ),
+        source_name="Official source",
+        locator="https://official.example/evidence",
+        verified_on=date(2026, 8, 15),
+    )
+
+    assert type(reason.value) is str
+    assert type(evidence.source_name) is str
+    assert type(evidence.locator) is str
 
 
 def test_owner_status_is_explicitly_non_self_certifying() -> None:

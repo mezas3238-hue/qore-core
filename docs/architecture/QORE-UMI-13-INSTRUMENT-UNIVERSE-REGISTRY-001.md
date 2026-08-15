@@ -9,6 +9,7 @@ Master roadmap: Issue #303
 Universal Markets / Instruments: Issue #301  
 Certified starting baseline: `e429c8731f1fca4bb0aa7c1eaa8b8865cb0375f0`  
 Registry candidate snapshot date: **2026-08-15**  
+Integration-Gate rejected head: `866ec2a941258af2344889baf03edd286545cb80` (historical after this correction)  
 Pre-final-correction frozen head: `7fbf70ade552cccb900f6a25849a497aa39fc374`  
 Earlier adversarial-correction head: `3ebabc14e81aeaf8141df0e88e54d475b2927b34` (historical only)
 
@@ -115,6 +116,9 @@ Qualification vocabulary used in this document:
 - `ARCHIVAL_REFERENCE`: official archival/filing locator is expected to remain historically addressable;
 - `QORE_EXACT_REPOSITORY`: exact QORE commit/blob evidence.
 
+This qualification vocabulary is document-level evidence governance. It is not an
+`InstrumentUniverseEvidenceSourceCategory` runtime enum and does not require one.
+
 ```text
 URL + VERIFIED_ON
 != RETAINED SOURCE CONTENT
@@ -214,7 +218,7 @@ coverage never promotes a family into QORE semantic certification by itself.
 | `cash-money-market` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-03, UMI-04 | deposits; commercial paper/CD; repo/SFT boundary; Shari'ah-compliant liquidity/financing structures |
 | `fixed-income-credit` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05 | ABS/MBS pool/tranche/prepayment; loans/facilities; Sukuk; Shari'ah-compliant financing/credit qualification; insurance-linked risk-transfer/trigger structures |
 | `rates-term-structures` | PARTIAL | CERTIFIED_CONTRACT | UMI-04, UMI-05 | caps/floors/FRA/swaption specialization; benchmark construction separate; Shari'ah-compliant profit-rate hedging qualification |
-| `equities` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | warrants/convertible cross-family qualification; borrow/shortability outside static terms |
+| `equities` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | UMI13-UNR-023 warrant/convertible cross-family structural-payoff qualification; borrow/shortability remains outside static D04 terms and does not justify PARTIAL status |
 | `funds-pooled-vehicles` | PARTIAL | CERTIFIED_CONTRACT | UMI-06 | UIT coverage; ETN explicitly not a fund by implication |
 | `indices-benchmarks` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-06, UMI-10 | methodology/constituent governance not owned here |
 | `fx` | PARTIAL | CERTIFIED_CONTRACT | UMI-02, UMI-05 | dedicated spot-pair semantics; exotic FX options; rolling financing |
@@ -226,7 +230,7 @@ coverage never promotes a family into QORE semantic certification by itself.
 | `structured-hybrid-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-03, UMI-05, UMI-09 | structured-note variants; Sukuk/hybrid qualification; Shari'ah-compliant structured financing; insurance-linked risk-transfer/trigger structures |
 | `volatility-variance-products` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-10 | variance/correlation product semantics beyond observation/generic structure |
 | `securities-financing` | UNRESOLVED | NO_CERTIFIED_OWNER | none | repo/reverse repo; securities lending/borrowing; margin lending |
-| `cross-asset-compositions` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | composition exists; leg execution/routing remains outside registry |
+| `cross-asset-compositions` | PARTIAL | CERTIFIED_CONTRACT | UMI-05, UMI-09 | UMI13-UNR-024 basket/spread/multi-leg product-specific composition semantics beyond bounded UMI-05/UMI-09 ownership |
 | `event-contracts` | UNRESOLVED | NO_CERTIFIED_OWNER | none | event definition, resolution source, contingency/outcome/dispute semantics |
 | `contracts-for-difference` | UNRESOLVED | NO_CERTIFIED_OWNER | none | rolling financing, close-out/reference-price, spread-betting qualification |
 | `loans-credit-facilities` | UNRESOLVED | NO_CERTIFIED_OWNER | none | facility/drawdown/amortization/covenants/syndication; trade-receivables finance; Shari'ah-compliant syndicated Murabahah/Ijarah financing |
@@ -248,9 +252,12 @@ Explicit non-conflations:
 ```text
 CRYPTO PERPETUAL FUNDING != GENERIC DATED FUTURES GAP
 EVENT RESOLUTION AUTHORITY != GENERIC FUTURES AUTHORITY
+BORROW / SHORTABILITY STATE != EQUITY D04 SEMANTIC COMPLETENESS GAP
+EXECUTION / ROUTING != CROSS-ASSET D04 SEMANTIC COMPLETENESS GAP
 ```
 
-Those remain under the crypto/perpetual and event-contract boundaries respectively.
+Those operational/current-state authorities remain outside the UMI-13 semantic
+coverage decision.
 
 ---
 
@@ -280,6 +287,8 @@ Those remain under the crypto/perpetual and event-contract boundaries respective
 | UMI13-UNR-020 | fixed-income / structured / forwards-swaps-otc | insurance-linked risk-transfer / trigger semantics | catastrophe, mortality, longevity, medical-claim, trigger and derivative forms are not reducible to ordinary bond or event-contract semantics |
 | UMI13-UNR-021 | loans-credit-facilities | trade receivables / supply-chain finance | receivables purchase, factoring, forfaiting and advance-based techniques are materially distinct |
 | UMI13-UNR-022 | cash / fixed-income / rates / OTC / loans / structured | cross-family Shari'ah-compliant financing / liquidity / hedging structures | Murabahah, Ijarah, Wakalah/agency liquidity, collateralized structures and Shari'ah-compliant hedging/financing forms require explicit cross-family qualification rather than generic bond/swap/loan/spot-FX implication |
+| UMI13-UNR-023 | equities | warrant / convertible cross-family structural-payoff qualification | UMI-06 static equity terms explicitly leave warrant/structured payoff economics downstream; existing bounded UMI-05/UMI-09 semantics do not by themselves certify every equity-linked warrant/convertible structure |
+| UMI13-UNR-024 | cross-asset-compositions | basket / spread / multi-leg product-specific composition semantics | bounded UMI-05 LONG/SHORT/ratio composition plus UMI-09 set-like higher-order composition do not certify every product-specific composition semantic, including explicit semantic leg order where material |
 
 ---
 
@@ -321,6 +330,8 @@ INSURANCE-LINKED PRODUCT EXISTENCE != QORE OPERATIONAL SUPPORT
 OFFICIAL SOURCE EXISTS != QORE IMPLEMENTATION EXISTS
 CATASTROPHE BOND != ORDINARY BOND BY IMPLICATION
 RECEIVABLES PURCHASE != LOAN BY IMPLICATION
+EQUITY STATIC TERMS != EVERY WARRANT / CONVERTIBLE CROSS-FAMILY PAYOFF
+BOUNDED COMPOSITION != EVERY PRODUCT-SPECIFIC CROSS-ASSET COMPOSITION SEMANTIC
 ```
 
 UMI-02 `IdentityFamilyCode` is intentionally extensible classification syntax. A
@@ -345,7 +356,9 @@ produced this disposition:
 | catastrophe/insurance-linked trigger semantics | ACCEPTED AS SUBFAMILY GAP | originally retained under fixed-income/structured families |
 | broader insurance-linked risk-transfer/trigger and derivative semantics | ACCEPTED AS INVENTORY PRECISION CORRECTION | broadened UMI13-UNR-020; added fixed-income/structured/OTC qualification; no new top-level family |
 | trade-receivables/supply-chain finance | ACCEPTED AS SUBFAMILY GAP | retained under loans/credit-facilities |
-| secret detector has realistic bypasses | ACCEPTED | production text validation hardened; adversarial tests added |
+| secret detector has realistic bypasses, including polymorphic `str` subclass laundering | ACCEPTED | exact plain-`str` validation required for canonical code/text boundaries; adversarial public-constructor tests added |
+| equities PARTIAL lacked an explicit unresolved-semantic ledger ref | ACCEPTED | added UMI13-UNR-023 for warrant/convertible cross-family structural-payoff qualification; borrow/shortability removed as semantic justification |
+| cross-asset-compositions PARTIAL used execution/routing as its semantic justification | ACCEPTED | added UMI13-UNR-024 for product-specific basket/spread/multi-leg composition semantics beyond bounded UMI-05/09 ownership |
 | generic constructor can syntactically declare fake owner/evidence | PARTIAL / SEMANTIC BOUNDARY | owner status explicitly documented as declaration, never runtime proof; no network resolver added |
 | machine-readable populated JSON/YAML registry required | REJECTED | #361 permits contract + reviewed evidence/inventory artifact; no new data format required |
 | runtime must require external evidence category on every snapshot entry | REJECTED AS REQUIRED CODE CHANGE | #361 Model B is explicit: generic validator + canonical official evidence ledger |
@@ -359,8 +372,13 @@ produced this disposition:
 # 10. Security correction
 
 UMI-13 evidence/reason text is retained in immutable values and may appear in
-`repr()` and `logical_values()`. The contract therefore rejects credential-like
-material, including realistic forms missed by the first candidate:
+`repr()` and `logical_values()`. Canonical string/text boundaries therefore require
+an exact plain `str`, not an arbitrary polymorphic `str` subclass. This prevents a
+subclass from overriding operations such as `lower()`/`strip()` or custom equality/
+hash behavior while its original unsafe material is retained.
+
+The contract also rejects credential-like material, including realistic forms missed
+by the first candidate:
 
 - access-token/access_token;
 - client-secret/client_secret;

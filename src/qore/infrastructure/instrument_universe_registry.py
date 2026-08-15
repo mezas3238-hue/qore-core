@@ -60,7 +60,7 @@ def _validate_positive_int(value: int, *, field_name: str) -> None:
 
 def _validate_code(value: str, *, field_name: str) -> None:
     if (
-        not isinstance(value, str)
+        type(value) is not str
         or len(value) > 96
         or fullmatch(r"[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*", value) is None
     ):
@@ -85,7 +85,7 @@ def _validate_text(
     max_length: int,
 ) -> None:
     if (
-        not isinstance(value, str)
+        type(value) is not str
         or not value
         or value != value.strip()
         or len(value) > max_length
