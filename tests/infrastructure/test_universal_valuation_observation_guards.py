@@ -84,11 +84,14 @@ def _economic_id(value: int = 10) -> EconomicIdentityId:
     return EconomicIdentityId(_uuid(value))
 
 
-def _source(seed: int = 1) -> ExternalSourceDescriptor:
+def _source(
+    seed: int = 1,
+    port: str = "valuation.external",
+) -> ExternalSourceDescriptor:
     return ExternalSourceDescriptor(
         adapter_id=AdapterId(_uuid(1000 + seed)),
         source_id=SourceId(_uuid(2000 + seed)),
-        port_name=PortName("valuation.external"),
+        port_name=PortName(port),
     )
 
 
@@ -136,7 +139,7 @@ def _quote(observed_at: datetime | None = None) -> QualifiedQuoteTickObservation
     return QualifiedQuoteTickObservation(
         observation_id=MarketObservationId(_uuid(4001)),
         instrument=Instrument("EURUSD"),
-        source=_source(2),
+        source=_source(2, "market-data.test"),
         observed_at=observed_at or datetime(2026, 1, 2, 12, tzinfo=UTC),
         bid=MarketPrice(Decimal("1.10")),
         ask=MarketPrice(Decimal("1.11")),
