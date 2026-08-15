@@ -514,12 +514,17 @@ def test_derivative_notional_multiplier_and_contract_identity_do_not_collapse() 
     futures = _futures()
 
     first_leg = swap.legs[0]
-    assert isinstance(first_leg, derivative.FixedRateSwapLeg | derivative.FloatingRateSwapLeg)
+    assert isinstance(
+        first_leg,
+        derivative.FixedRateSwapLeg | derivative.FloatingRateSwapLeg,
+    )
     assert isinstance(first_leg.notional_schedule, derivative.DerivativeNotionalSchedule)
     assert isinstance(futures.multiplier, derivative.DerivativeContractMultiplier)
     assert type(first_leg.notional_schedule.steps[0].notional) is derivative.DerivativeNotional
     assert type(futures.multiplier) is derivative.DerivativeContractMultiplier
-    assert swap.instrument_identity_id != first_leg.notional_schedule.steps[0].notional.unit_identity_id
+    assert swap.instrument_identity_id != (
+        first_leg.notional_schedule.steps[0].notional.unit_identity_id
+    )
 
 
 def test_commodity_reuses_futures_terms_without_becoming_settlement_engine() -> None:
@@ -543,7 +548,10 @@ def test_perpetual_reuses_derivative_primitives_without_dated_futures_lifecycle(
 
     assert isinstance(perpetual.multiplier, derivative.DerivativeContractMultiplier)
     assert isinstance(perpetual.tick_value, derivative.DerivativeTickValue)
-    assert perpetual.pricing.roles == tuple(sorted(crypto.CryptoPerpetualPriceRole, key=lambda item: item.value))
+    expected_roles = tuple(
+        sorted(crypto.CryptoPerpetualPriceRole, key=lambda item: item.value)
+    )
+    assert perpetual.pricing.roles == expected_roles
     for forbidden in (
         "contract_month",
         "expiry_date",
