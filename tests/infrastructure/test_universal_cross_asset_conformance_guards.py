@@ -5,16 +5,18 @@ import inspect
 from pathlib import Path
 from types import ModuleType
 
-import qore.infrastructure.commodity_contract_delivery_semantics as commodity
-import qore.infrastructure.crypto_perpetual_funding_semantics as crypto
-import qore.infrastructure.derivative_contract_semantics as derivative
-import qore.infrastructure.equity_fund_corporate_action_semantics as equity
-import qore.infrastructure.fixed_income_economics as fixed_income
-import qore.infrastructure.rate_term_structure as rates
-import qore.infrastructure.structured_hybrid_synthetic_semantics as structured
-import qore.infrastructure.universal_instrument_identity as identity
-import qore.infrastructure.universal_market_topology as topology
-import qore.infrastructure.universal_valuation_observation as valuation
+from qore.infrastructure import (
+    commodity_contract_delivery_semantics as commodity,
+    crypto_perpetual_funding_semantics as crypto,
+    derivative_contract_semantics as derivative,
+    equity_fund_corporate_action_semantics as equity,
+    fixed_income_economics as fixed_income,
+    rate_term_structure as rates,
+    structured_hybrid_synthetic_semantics as structured,
+    universal_instrument_identity as identity,
+    universal_market_topology as topology,
+    universal_valuation_observation as valuation,
+)
 
 
 _OWNER_MODULES: tuple[ModuleType, ...] = (
