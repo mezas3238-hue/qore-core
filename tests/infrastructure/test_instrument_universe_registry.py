@@ -5,9 +5,9 @@ from datetime import UTC, date, datetime
 from typing import cast
 
 import pytest
+
 import qore.infrastructure.instrument_universe_registry as registry
 from qore.infrastructure.universal_instrument_identity import IdentityFamilyCode
-
 
 SNAPSHOT_DATE = date(2026, 8, 15)
 
