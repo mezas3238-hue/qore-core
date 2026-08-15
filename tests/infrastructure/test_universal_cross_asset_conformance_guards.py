@@ -6,48 +6,30 @@ from pathlib import Path
 from types import ModuleType
 
 from qore.infrastructure import (
-    commodity_contract_delivery_semantics as commodity,
-)
-from qore.infrastructure import (
-    crypto_perpetual_funding_semantics as crypto,
-)
-from qore.infrastructure import (
-    derivative_contract_semantics as derivative,
-)
-from qore.infrastructure import (
-    equity_fund_corporate_action_semantics as equity,
-)
-from qore.infrastructure import (
-    fixed_income_economics as fixed_income,
-)
-from qore.infrastructure import (
-    rate_term_structure as rates,
-)
-from qore.infrastructure import (
-    structured_hybrid_synthetic_semantics as structured,
-)
-from qore.infrastructure import (
-    universal_instrument_identity as identity,
-)
-from qore.infrastructure import (
-    universal_market_topology as topology,
-)
-from qore.infrastructure import (
-    universal_valuation_observation as valuation,
+    commodity_contract_delivery_semantics,
+    crypto_perpetual_funding_semantics,
+    derivative_contract_semantics,
+    equity_fund_corporate_action_semantics,
+    fixed_income_economics,
+    rate_term_structure,
+    structured_hybrid_synthetic_semantics,
+    universal_instrument_identity,
+    universal_market_topology,
+    universal_valuation_observation,
 )
 
 
 _OWNER_MODULES: tuple[ModuleType, ...] = (
-    identity,
-    fixed_income,
-    rates,
-    derivative,
-    equity,
-    commodity,
-    crypto,
-    structured,
-    valuation,
-    topology,
+    universal_instrument_identity,
+    fixed_income_economics,
+    rate_term_structure,
+    derivative_contract_semantics,
+    equity_fund_corporate_action_semantics,
+    commodity_contract_delivery_semantics,
+    crypto_perpetual_funding_semantics,
+    structured_hybrid_synthetic_semantics,
+    universal_valuation_observation,
+    universal_market_topology,
 )
 
 _VENDOR_OR_RUNTIME_IMPORT_FRAGMENTS = (
