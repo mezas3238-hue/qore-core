@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Callable, cast
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -342,7 +343,10 @@ def test_d05_quote_source_rejects_wrong_observation_and_binding_types() -> None:
             MarketPriceSide.BID,
             _binding(),
         )
-    with pytest.raises(UniversalValuationObservationValidationError, match="ValuationIdentityBinding"):
+    with pytest.raises(
+        UniversalValuationObservationValidationError,
+        match="ValuationIdentityBinding",
+    ):
         D05QuoteValuationSource(
             _quote(),
             MarketPriceSide.BID,
