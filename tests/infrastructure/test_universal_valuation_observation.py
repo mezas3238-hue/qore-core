@@ -509,7 +509,12 @@ def test_fixed_income_price_yield_and_spread_are_distinct_and_allow_negative_rat
     assert price.logical_values()[0] == "fixed-income-price"
     assert yield_measure.logical_values()[0] == "fixed-income-yield"
     assert spread.logical_values()[0] == "fixed-income-spread"
-    assert len({price.logical_values()[0], yield_measure.logical_values()[0], spread.logical_values()[0]}) == 3
+    kinds = {
+        price.logical_values()[0],
+        yield_measure.logical_values()[0],
+        spread.logical_values()[0],
+    }
+    assert len(kinds) == 3
 
 
 def test_standalone_rate_preserves_coordinate_without_fabricating_curve_node() -> None:
