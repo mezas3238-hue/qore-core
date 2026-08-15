@@ -1,35 +1,27 @@
 from __future__ import annotations
 
 import ast
+import importlib
 import inspect
 from pathlib import Path
 from types import ModuleType
 
-from qore.infrastructure import (
-    commodity_contract_delivery_semantics,
-    crypto_perpetual_funding_semantics,
-    derivative_contract_semantics,
-    equity_fund_corporate_action_semantics,
-    fixed_income_economics,
-    rate_term_structure,
-    structured_hybrid_synthetic_semantics,
-    universal_instrument_identity,
-    universal_market_topology,
-    universal_valuation_observation,
+
+_OWNER_MODULE_NAMES = (
+    "qore.infrastructure.universal_instrument_identity",
+    "qore.infrastructure.fixed_income_economics",
+    "qore.infrastructure.rate_term_structure",
+    "qore.infrastructure.derivative_contract_semantics",
+    "qore.infrastructure.equity_fund_corporate_action_semantics",
+    "qore.infrastructure.commodity_contract_delivery_semantics",
+    "qore.infrastructure.crypto_perpetual_funding_semantics",
+    "qore.infrastructure.structured_hybrid_synthetic_semantics",
+    "qore.infrastructure.universal_valuation_observation",
+    "qore.infrastructure.universal_market_topology",
 )
 
-
-_OWNER_MODULES: tuple[ModuleType, ...] = (
-    universal_instrument_identity,
-    fixed_income_economics,
-    rate_term_structure,
-    derivative_contract_semantics,
-    equity_fund_corporate_action_semantics,
-    commodity_contract_delivery_semantics,
-    crypto_perpetual_funding_semantics,
-    structured_hybrid_synthetic_semantics,
-    universal_valuation_observation,
-    universal_market_topology,
+_OWNER_MODULES: tuple[ModuleType, ...] = tuple(
+    importlib.import_module(module_name) for module_name in _OWNER_MODULE_NAMES
 )
 
 _VENDOR_OR_RUNTIME_IMPORT_FRAGMENTS = (
