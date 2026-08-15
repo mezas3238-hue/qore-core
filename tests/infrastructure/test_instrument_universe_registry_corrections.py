@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 import qore.infrastructure.instrument_universe_registry as registry
+from qore.infrastructure.universal_instrument_identity import IdentityFamilyCode
 
 
 class _DeceptiveLowerStr(str):
@@ -69,11 +70,11 @@ def _valid_evidence() -> tuple[
 
 def _valid_entry(
     *,
-    family: registry.IdentityFamilyCode | None = None,
+    family: IdentityFamilyCode | None = None,
 ) -> registry.InstrumentUniverseEntry:
     evidence_ref, _ = _valid_evidence()
     return registry.InstrumentUniverseEntry(
-        family=family or registry.IdentityFamilyCode("equities"),
+        family=family or IdentityFamilyCode("equities"),
         coverage_status=registry.InstrumentUniverseCoverageStatus.COVERED,
         owner_status=registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
         owner_refs=(registry.InstrumentUniverseOwnerRef("umi-06"),),
@@ -189,7 +190,7 @@ def test_entry_rejects_reason_subclass_that_skips_validation() -> None:
     evidence_ref, _ = _valid_evidence()
     with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
         registry.InstrumentUniverseEntry(
-            family=registry.IdentityFamilyCode("equities"),
+            family=IdentityFamilyCode("equities"),
             coverage_status=registry.InstrumentUniverseCoverageStatus.COVERED,
             owner_status=registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
             owner_refs=(registry.InstrumentUniverseOwnerRef("umi-06"),),
@@ -214,7 +215,7 @@ def test_entry_rejects_owner_and_semantic_ref_subclasses() -> None:
     evidence_ref, _ = _valid_evidence()
     with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
         registry.InstrumentUniverseEntry(
-            family=registry.IdentityFamilyCode("equities"),
+            family=IdentityFamilyCode("equities"),
             coverage_status=registry.InstrumentUniverseCoverageStatus.COVERED,
             owner_status=registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
             owner_refs=(_BypassOwnerRef("umi-06"),),
@@ -224,7 +225,7 @@ def test_entry_rejects_owner_and_semantic_ref_subclasses() -> None:
         )
     with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
         registry.InstrumentUniverseEntry(
-            family=registry.IdentityFamilyCode("equities"),
+            family=IdentityFamilyCode("equities"),
             coverage_status=registry.InstrumentUniverseCoverageStatus.PARTIAL,
             owner_status=registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
             owner_refs=(registry.InstrumentUniverseOwnerRef("umi-06"),),
@@ -238,7 +239,7 @@ def test_entry_rejects_custom_hash_evidence_ref_subclass_before_uniqueness() -> 
     ref = _BypassHashEvidenceRef("qore-evidence")
     with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
         registry.InstrumentUniverseEntry(
-            family=registry.IdentityFamilyCode("equities"),
+            family=IdentityFamilyCode("equities"),
             coverage_status=registry.InstrumentUniverseCoverageStatus.COVERED,
             owner_status=registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
             owner_refs=(registry.InstrumentUniverseOwnerRef("umi-06"),),
@@ -251,7 +252,7 @@ def test_entry_rejects_custom_hash_evidence_ref_subclass_before_uniqueness() -> 
 def test_snapshot_rejects_entry_subclass_that_skips_invariants() -> None:
     evidence_ref, evidence = _valid_evidence()
     bypass_entry = _BypassEntry(
-        family=registry.IdentityFamilyCode("equities"),
+        family=IdentityFamilyCode("equities"),
         coverage_status=registry.InstrumentUniverseCoverageStatus.COVERED,
         owner_status=registry.InstrumentUniverseOwnerStatus.NO_CERTIFIED_OWNER,
         owner_refs=(),
@@ -288,7 +289,7 @@ def test_snapshot_rejects_evidence_record_subclass() -> None:
 
 
 def test_entry_and_lookup_reject_identity_family_with_str_subclass_value() -> None:
-    unsafe_family = registry.IdentityFamilyCode(_DeceptiveLowerStr("equities"))
+    unsafe_family = IdentityFamilyCode(_DeceptiveLowerStr("equities"))
     with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
         _valid_entry(family=unsafe_family)
 
@@ -330,7 +331,7 @@ def test_mock_spec_enums_cannot_launder_isinstance_boundaries() -> None:
     )
     with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
         registry.InstrumentUniverseEntry(
-            family=registry.IdentityFamilyCode("equities"),
+            family=IdentityFamilyCode("equities"),
             coverage_status=fake_coverage,
             owner_status=registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
             owner_refs=(registry.InstrumentUniverseOwnerRef("umi-06"),),
@@ -340,7 +341,7 @@ def test_mock_spec_enums_cannot_launder_isinstance_boundaries() -> None:
         )
     with pytest.raises(registry.InstrumentUniverseRegistryValidationError):
         registry.InstrumentUniverseEntry(
-            family=registry.IdentityFamilyCode("equities"),
+            family=IdentityFamilyCode("equities"),
             coverage_status=registry.InstrumentUniverseCoverageStatus.COVERED,
             owner_status=fake_owner,
             owner_refs=(),
@@ -363,7 +364,7 @@ def test_plain_str_and_exact_nested_boundaries_remain_valid() -> None:
     assert type(entry.reason.value) is str
     assert type(evidence.source_name) is str
     assert type(evidence.locator) is str
-    assert snapshot.entry_for_family(registry.IdentityFamilyCode("equities")) == entry
+    assert snapshot.entry_for_family(IdentityFamilyCode("equities")) == entry
     assert entry.evidence_refs == (evidence_ref,)
 
 
