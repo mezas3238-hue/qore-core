@@ -658,3 +658,16 @@ def test_certificate_of_deposit_outer_defensive_runtime_guards() -> None:
         replace_any(base, issuing_institution_identity_id=base.instrument_identity_id)
     with pytest.raises(cmm.CashMoneyMarketValidationError):
         replace_any(base, maturity_date=base.issue_start_date)
+
+
+def test_remaining_public_logical_values_are_explicitly_exercised() -> None:
+    principal = cmm.CashMoneyMarketDepositPrincipal(Decimal("100000.00"))
+    assert principal.logical_values() == ("100000",)
+
+    term_values = term().logical_values()
+    assert term_values[0] == "term-deposit"
+    assert term_values[4] == ("100000",)
+
+    cd_values = cd(fixed_cd()).logical_values()
+    assert cd_values[0] == "certificate-of-deposit"
+    assert cd_values[5] == ("50000",)
