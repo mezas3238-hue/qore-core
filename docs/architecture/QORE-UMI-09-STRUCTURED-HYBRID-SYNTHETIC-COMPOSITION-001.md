@@ -10,663 +10,418 @@ Universal Markets / Instruments: #301
 Certified starting baseline: `78142031c1a857d9d5f1c54d5d6b7873d1b0de23`  
 Predecessor UMI-08 / #330 / PR #331: CERTIFIED/CLOSED.
 
-## 1. Constitutional boundary
+## 1. Stage purpose
+
+Roadmap #301 requires:
+
+`UMI-09 — Structured / hybrid / synthetic composition — Explicit component/payoff relationships without flattening.`
+
+UMI-09 closes only the missing higher-order **contractual qualification** layer. It does not
+become a pricing engine, event detector, settlement engine, provider adapter or second
+identity graph.
+
+## 2. Constitutional boundary
 
 ```text
 ECONOMIC IDENTITY / COMPONENT GRAPH -> UMI-02 / D04
 SYNTHETIC / COMPOSITE IDENTITY CLASS -> UMI-02 / D04
 IDENTITY RELATIONSHIP ENDPOINTS / EFFECTIVE MATERIAL -> UMI-02 / D04
 
-GENERIC DERIVATIVE MULTI-LEG COMPOSITION -> UMI-05
+FIXED-INCOME ECONOMICS -> UMI-03
+GENERIC DERIVATIVE CONTRACTS / LONG-SHORT-RATIO COMPOSITION -> UMI-05
 CORPORATE-ACTION RIGHTS DISTRIBUTION -> UMI-06
-CRYPTO / PERPETUAL CONTRACTUAL QUALIFICATION -> UMI-08
+CRYPTO / PERPETUAL QUALIFICATION -> UMI-08
 
-STRUCTURED / HYBRID / SYNTHETIC HIGHER-ORDER PAYOFF QUALIFICATION -> UMI-09
+HIGHER-ORDER STRUCTURED / HYBRID / SYNTHETIC CONTRACT QUALIFICATION -> UMI-09
 
-CURRENT PRICE / RATE / YIELD / NAV / IV / MARK OBSERVATION -> UMI-10 / D07
-PAYOFF VALUATION / PRICING / TRIGGER EVALUATION -> D07
 CALENDAR / SCHEDULE RESOLUTION -> D06
-EXERCISE / CONVERSION / CASH / POSITION / SETTLEMENT MUTATION -> D11
+CURRENT VALUE OBSERVATION / PAYOFF VALUATION / TRIGGER EVALUATION -> UMI-10 / D07
+ACCOUNT / COLLATERAL / CURRENT RISK -> D08 / D09
 ORDER / EXECUTION AUTHORITY -> D10 / D18
+EXERCISE / CONVERSION / CASH / POSITION / SETTLEMENT MUTATION -> D11
+```
 
-RELATIONSHIP ID != CURRENT EFFECTIVE RELATIONSHIP
-RELATIONSHIP OBJECT != CROSS-REVISION RESOLVER
+Hard distinctions:
+
+```text
+RELATIONSHIP ID != VERIFIED ENDPOINTS / EFFECTIVE MATERIAL
+RELATIONSHIP OBJECT != CROSS-REVISION CURRENTNESS RESOLVER
 CONTRACTUAL TRIGGER != OBSERVED TRIGGER EVENT
 AUTOCALL TERMS != AUTOCALL EXECUTED
 CONVERSION TERMS != CONVERSION EXECUTED
 CAPITAL PROTECTION TERM != ISSUER CREDIT / PAYMENT FINALITY
 PARTICIPATION RATIO != CURRENT LEVERAGE / RISK
 CONTRACTUAL LEVEL != OBSERVED VALUE
-STRUCTURED LEVEL != OPTION STRIKE
+STRUCTURED CONTRACT LEVEL != OPTION STRIKE
 EVIDENCE REF != ECONOMIC TRUTH
 ```
 
-UMI-09 is a declarative semantic layer only. It contains no provider adapter, market-data
-read, valuation engine, event detector, execution path, settlement mutation, wallet/custody,
-wall clock, implicit identity generation or executable payoff DSL.
+## 3. Exact-baseline audit
 
-## 2. Exact-baseline audit
+### 3.1 UMI-02 owns identity and relationships
 
-### 2.1 UMI-02 remains the only economic identity and relationship graph authority
-
-At the certified baseline, UMI-02 already owns:
+UMI-02 already owns:
 
 - `EconomicIdentityId`;
-- `IdentityConstructionKind.SYNTHETIC`;
-- `IdentityConstructionKind.COMPOSITE`;
-- `IdentityRelationship`;
-- exact source/target identities;
+- `IdentityConstructionKind.SYNTHETIC` / `COMPOSITE`;
+- immutable `IdentityRelationship`;
+- exact source and target identities;
 - effective-from/effective-until material;
-- relationship evidence and optional ordinal.
+- evidence and optional ordinal.
 
-UMI-09 therefore does not create a second economic identity, a second component graph or
-shadow copies of relationship endpoints/effective intervals.
+UMI-09 therefore retains the exact UMI-02 relationship object for direct component edges. It
+creates no second economic identity and no shadow relationship graph.
 
-A structured component retains the exact immutable UMI-02 `IdentityRelationship` object.
+### 3.2 UMI-05 composition remains narrower
 
-```text
-STRUCTURED COMPONENT
-= UMI-02 RELATIONSHIP
-+ UMI-09 LOCAL PAYOFF ROLE QUALIFICATION
-+ UMI-09 EVIDENCE REF
-```
-
-The UMI-09 local role does not replace or mutate the UMI-02 relationship code.
-
-### 2.2 UMI-05 already owns narrow derivative composition
-
-UMI-05 already provides `DerivativeCompositionLeg` and `DerivativeCompositionTerms` with
-LONG/SHORT/ratio semantics.
-
-Its certified architecture explicitly states that this composition is intentionally narrower
-than UMI-09 and reserves higher-order structured/hybrid/synthetic products, capital
+UMI-05 already provides `DerivativeCompositionLeg` / `DerivativeCompositionTerms` for
+LONG/SHORT/ratio derivative composition. Its certified architecture explicitly states this is
+narrower than UMI-09 and reserves higher-order structured/hybrid/synthetic products, capital
 protection, embedded non-derivative components and custom payoff transformation to UMI-09.
 
-Therefore:
-
 ```text
-DERIVATIVE LONG/SHORT/RATIO COMPOSITION
-!=
-STRUCTURED PRODUCT PAYOFF QUALIFICATION
+DERIVATIVE COMPONENT COMPOSITION != STRUCTURED PRODUCT PAYOFF QUALIFICATION
 ```
 
-UMI-09 does not import, wrap or relabel `DerivativeCompositionTerms` as a structured feature.
+### 3.3 UMI-06 corporate-action rights remain separate
 
-### 2.3 UMI-06 rights are corporate-action authority
+`RightsDistributionTerms` represents a corporate action distributing a right identity. An
+embedded conversion/exchange right of a convertible or structured product is a different
+contractual semantic and is not represented by relabeling a UMI-06 corporate action.
 
-UMI-06 `RightsDistributionTerms` describes a corporate action distributing a separate right
-identity to holders of a source instrument.
+### 3.4 UMI-08 does not close this gap
 
-That is not the same semantic as an embedded conversion/exchange right inside a convertible
-or structured product.
+UMI-08 is crypto/perpetual/funding/network contractual qualification only. It introduces no
+capital-protection, conversion, barrier, autocall or structured participation authority.
 
-```text
-CORPORATE-ACTION RIGHT
-!=
-EMBEDDED STRUCTURED CONVERSION RIGHT
-```
+### 3.5 Gap classification
 
-UMI-09 does not reuse `RightsDistributionTerms` for embedded conversion.
-
-### 2.4 UMI-08 does not close structured-product semantics
-
-UMI-08 adds bounded crypto/perpetual/funding/network contractual qualification only.
-It adds no structured payoff, barrier, autocall, conversion or capital-protection authority.
-
-### 2.5 Gap conclusion
-
-Roadmap #301 requires:
-
-`UMI-09 — Structured / hybrid / synthetic composition — Explicit component/payoff
-relationships without flattening.`
-
-The current certified baseline contains the identity graph and narrow derivative composition,
-but no canonical higher-order structured feature layer closing capital protection,
-conversion, barrier/autocall and participation/redemption distinctions without a payoff
-engine.
-
-Classification:
+Direct post-UMI08 baseline audit therefore establishes:
 
 `VERIFIED STRUCTURAL GAP — MINIMUM ADDITIVE UMI-09 CONTRACT DELTA REQUIRED`
 
-## 3. Candidate inventory
+## 4. Candidate contract families
 
-The candidate adds only:
+Candidate source adds only local structured terms/feature/evidence IDs, canonical role/code
+values, dedicated structured contractual levels, contractual observation cadence, direct
+component binding, six typed higher-order features and one top-level terms aggregate.
 
-- `StructuredTermsId`;
-- `StructuredFeatureId`;
-- `StructuredEvidenceRef`;
-- `StructuredComponentRoleCode`;
-- `StructuredBarrierKindCode`;
-- `StructuredObservationScheduleCode`;
-- `StructuredLevelUnitCode`;
-- `StructuredContractLevelKind`;
-- `StructuredBarrierDirection`;
-- `StructuredObservationMode`;
-- `StructuredParticipationDirection`;
-- `StructuredPositiveRatio`;
-- `StructuredContractLevel`;
-- `StructuredObservationTerms`;
-- `StructuredComponentBinding`;
-- `StructuredCapitalProtectionFeature`;
-- `StructuredConversionFeature`;
-- `StructuredBarrierFeature`;
-- `StructuredAutocallFeature`;
-- `StructuredParticipationFeature`;
-- `StructuredRedemptionFeature`;
-- `StructuredHybridSyntheticTerms`.
+No provider, account, market observation, valuation, execution or settlement authority is
+introduced.
 
-No provider, account, execution, market observation, valuation or settlement type is added.
+## 5. Local IDs
 
-## 4. Local identities and evidence
+`StructuredTermsId`, `StructuredFeatureId` and `StructuredEvidenceRef` are exact UUID-backed
+local identities/references.
 
-`StructuredTermsId` identifies one immutable UMI-09 terms artifact.
+They are not `EconomicIdentityId` and never generate identity implicitly.
 
-`StructuredFeatureId` identifies one immutable higher-order structured feature.
-
-`StructuredEvidenceRef` is an opaque reference to retained evidence.
-
-None is an `EconomicIdentityId`. None generates UUIDs implicitly.
-
-The candidate uses exact `UUID` objects supplied by the caller and fails closed on other
-runtime types.
-
-## 5. Direct component binding
+## 6. Direct component graph binding
 
 `StructuredComponentBinding` retains:
 
 - root `EconomicIdentityId`;
 - exact UMI-02 `IdentityRelationship`;
-- local `StructuredComponentRoleCode`;
-- `StructuredEvidenceRef`.
+- UMI-09 local component/payoff role code;
+- UMI-09 evidence ref.
 
-The relationship source must equal the root identity.
+The relationship source must equal the structured root identity. The component identity is the
+relationship target.
 
-The component economic identity is the relationship target.
+UMI-09 does not copy source/target/effective fields; those stay in UMI-02 material.
 
-The candidate does not copy:
+### 6.1 Component ordering
 
-- source identity;
-- target identity;
-- effective-from;
-- effective-until;
-- relationship ordinal.
+If any retained relationship carries `ordinal`, all component relationships must carry one.
+Ordinals must be unique and contiguous from 1; order canonicalizes by ordinal.
 
-Those values remain inside the exact UMI-02 relationship object.
+If all ordinals are absent, order canonicalizes by stable relationship ID.
 
-### 5.1 Relationship ordering
+Mixed ordinal/no-ordinal inputs fail closed.
 
-If any component relationship uses `ordinal`, all must use it.
+### 6.2 Relationship revisions and currentness
 
-When ordinals are present:
+Distinct relationship IDs are retained even if target identity and local role coincide. This
+avoids silent destruction of effective-dated revision evidence.
 
-- they must be unique;
-- they must be contiguous from 1;
-- component order is canonicalized by ordinal.
+UMI-09 does not decide which relationship revision is current/as-of. The inherited UMI-02
+cross-revision effective-interval resolver obligation remains open.
 
-When all ordinals are absent:
+## 7. Primary payoff identities versus level reference context
 
-- component order is canonicalized by stable relationship ID.
+This distinction is mandatory and was explicitly re-falsified before exact-head freeze.
 
-Mixed ordinal/no-ordinal material fails closed because its intended semantic ordering is
-ambiguous.
+Each UMI-09 feature has a **primary payoff identity**:
 
-### 5.2 Relationship revisions
+- capital protection -> `protected_identity_id`;
+- conversion -> `target_identity_id`;
+- barrier -> `reference_identity_id`;
+- autocall -> `reference_identity_id`;
+- participation -> `reference_identity_id`;
+- redemption -> `redemption_identity_id`.
 
-Distinct relationship IDs are never silently deduplicated merely because target identity and
-local structured role match.
+Every primary payoff identity must be present as a direct component target.
 
-That preserves evidence for separate effective-dated relationship revisions.
-
-UMI-09 does **not** choose which revision is current or valid as-of an instant.
-
-The inherited UMI-02 cross-revision resolver obligation remains open.
+A nested `StructuredContractLevel.reference_identity_id` is a contractual
+reference/quotation context. It is not automatically a payoff component. Requiring every
+level reference to become a direct component would create artificial UMI-02 graph edges.
 
 ```text
-RETAINED EFFECTIVE-DATED RELATIONSHIPS
-!=
-CURRENT RELATIONSHIP RESOLVED
+PRIMARY PAYOFF IDENTITY -> DIRECT COMPONENT TARGET
+LEVEL REFERENCE / QUOTATION CONTEXT != AUTOMATIC COMPONENT
 ```
 
-## 6. Structured contractual levels
+Barrier and autocall levels are structurally about their primary reference, so their level
+reference must equal that feature reference.
 
-`StructuredContractLevel` is a dedicated UMI-09 carrier with:
+Conversion is different: a conversion level may legitimately retain a distinct contractual
+reference/quotation identity. UMI-09 therefore requires the conversion target itself to be a
+direct component but does not invent a second component edge solely because the conversion
+level has a distinct reference context.
 
-- finite exact `Decimal`;
-- explicit `StructuredContractLevelKind`;
+This distinction is provider-neutral and prevents both detached payoff identities and false
+graph inflation.
+
+## 8. Structured contractual level
+
+`StructuredContractLevel` contains:
+
+- finite exact Decimal;
+- explicit kind: PRICE / RATE / YIELD / SPREAD / LEVEL;
 - exact reference `EconomicIdentityId`;
-- explicit `StructuredLevelUnitCode`.
+- explicit unit/quotation code.
 
-Kinds are:
-
-- PRICE;
-- RATE;
-- YIELD;
-- SPREAD;
-- LEVEL.
-
-No blanket positivity rule is applied because legitimate rates/spreads/levels may be zero or
+No universal positivity rule applies because rates/spreads/levels may validly be zero or
 negative.
 
-The unit/quotation code prevents magnitude-only interpretation.
-
-This type is intentionally **not** `DerivativeStrike`.
+The type is deliberately distinct from UMI-05 `DerivativeStrike`:
 
 ```text
-SAME DECIMAL CARRIER SHAPE
-!=
-SAME BUSINESS SEMANTIC
+REUSE NUMERIC SHAPE != REUSE BUSINESS MEANING
 ```
 
-A structured barrier or conversion level must not become an option strike merely for reuse.
+It contains no observed/current value authority.
 
-The level is contractual specification only; it is not a current market observation.
+## 9. Observation cadence
 
-## 7. Observation cadence
-
-Barrier/autocall terms may need contractual observation cadence without D06 leakage.
-
-`StructuredObservationTerms` distinguishes:
-
-- `CONTINUOUS`;
-- `DISCRETE`.
+`StructuredObservationTerms` distinguishes CONTINUOUS from DISCRETE contractual observation.
 
 CONTINUOUS carries no explicit dates and no schedule code.
 
-DISCRETE requires exactly one mode:
+DISCRETE requires exactly one of:
 
-- non-empty exact `date` tuple; or
-- `StructuredObservationScheduleCode`.
+- non-empty immutable exact-date tuple; or
+- typed schedule code.
 
-Explicit dates are unique and canonicalized chronologically.
+Dates are unique and canonicalized chronologically; `datetime` laundering into date-only
+roles fails closed.
 
-`datetime` is rejected for date-only roles.
+The schedule code grants no D06 scheduler/calendar authority.
 
-A schedule code grants no calendar/scheduler authority.
+## 10. Higher-order feature families
 
-```text
-OBSERVATION SCHEDULE CODE != SCHEDULE RESOLVED
-CONTRACTUAL OBSERVATION DATE != OBSERVED EVENT
-```
+### 10.1 Capital protection
 
-## 8. Capital protection
+Retains protected primary component identity, positive exact principal ratio and evidence.
+Does not prove issuer/guarantor solvency, current value, payment or finality. Ratio is not
+artificially capped at one.
 
-`StructuredCapitalProtectionFeature` retains:
+### 10.2 Conversion / exchange
 
-- feature ID;
-- protected component identity;
-- positive exact protected-principal ratio;
-- evidence.
+Retains target primary component identity, positive units-per-source-unit ratio, optional typed
+structured contractual level and evidence. Performs no conversion/exercise/transfer.
 
-No artificial upper bound of 1 is imposed.
+### 10.3 Barrier
 
-A contractual ratio above 1 remains representable if supported by actual product terms.
+Retains primary reference component, barrier-kind code, above/below direction, typed level,
+contractual observation cadence and evidence. The level reference must match the barrier
+reference. No event detector exists.
 
-Presence of this feature does not prove:
+### 10.4 Autocall
 
-- issuer solvency;
-- guarantor solvency;
-- current value;
-- payment;
-- settlement finality.
+Retains primary reference component, typed trigger level, observation cadence, positive
+redemption ratio and evidence. Trigger level reference must match primary reference. No
+autocall evaluation or lifecycle event is produced.
 
-```text
-CAPITAL PROTECTION TERM != GUARANTEED ECONOMIC OUTCOME
-```
+### 10.5 Participation / inverse transformation
 
-## 9. Conversion / exchange
+Retains primary reference component, POSITIVE/INVERSE contractual direction, positive exact
+participation ratio and evidence. This is not current leverage, margin, exposure or risk.
 
-`StructuredConversionFeature` retains:
+### 10.6 Redemption
 
-- target component identity;
-- positive exact units-per-source-unit ratio;
-- optional dedicated structured contractual level;
-- evidence.
+Retains primary redemption component, positive exact redemption ratio, optional exact
+contractual date and evidence. It performs no cash/position settlement mutation.
 
-It performs no conversion, exercise, asset transfer or corporate action.
-
-The target identity must be present as a direct component target of the top-level structured
-terms.
-
-## 10. Barrier
-
-`StructuredBarrierFeature` retains:
-
-- reference component identity;
-- extensible barrier-kind code;
-- direction (`AT_OR_ABOVE` / `AT_OR_BELOW`);
-- typed contractual level;
-- contractual observation cadence;
-- evidence.
-
-The level reference identity must exactly match the barrier reference identity.
-
-It detects no crossing, touch, knock-in or knock-out event.
-
-## 11. Autocall
-
-`StructuredAutocallFeature` retains:
-
-- reference component identity;
-- typed trigger level;
-- contractual observation cadence;
-- positive exact redemption ratio;
-- evidence.
-
-The trigger level reference must match the autocall reference identity.
-
-The object does not evaluate market observations and does not create a lifecycle event,
-redemption, cash transfer or position mutation.
-
-## 12. Participation / inverse transformation
-
-`StructuredParticipationFeature` retains:
-
-- reference component identity;
-- `POSITIVE` or `INVERSE` contractual direction;
-- positive exact participation ratio;
-- evidence.
-
-This allows leveraged/inverse payoff qualification without making a current leverage, margin,
-exposure or risk claim.
-
-```text
-CONTRACTUAL PARTICIPATION != CURRENT RISK STATE
-```
-
-## 13. Redemption
-
-`StructuredRedemptionFeature` retains:
-
-- redemption component identity;
-- positive exact redemption ratio;
-- optional exact contractual `date`;
-- evidence.
-
-The date is a contract term, not proof that redemption occurred.
-
-The feature mutates no cash or positions.
-
-## 14. Top-level terms
+## 11. Top-level terms
 
 `StructuredHybridSyntheticTerms` requires:
 
 - local terms ID;
 - root economic identity;
 - non-empty immutable component tuple;
-- non-empty immutable UMI-09 feature tuple;
+- non-empty immutable certified UMI-09 feature tuple;
 - evidence.
 
-Every component root must equal the top-level instrument identity.
+Rules:
 
-Duplicate UMI-02 relationship IDs fail closed.
+- every component root equals the top-level instrument identity;
+- relationship IDs are unique;
+- component ordering is canonical under section 6.1;
+- feature IDs are unique;
+- feature order canonicalizes by feature ID;
+- every **primary payoff identity** from section 7 is a direct component target;
+- nested logical material is deterministic.
 
-Duplicate feature IDs fail closed.
+## 12. UMI-05 laundering prevention
 
-Components and features are canonicalized independently of caller tuple order.
+A UMI-05 `DerivativeCompositionTerms` object is not a certified UMI-09 feature and fails the
+top-level feature-type guard.
 
-Every economic identity referenced by a UMI-09 feature must appear as a direct component
-target.
+A LONG/SHORT/ratio basket therefore does not become a structured product merely because a
+wrapper calls it one.
 
-This rule mechanically binds higher-order payoff qualification to the explicit UMI-02 graph
-rather than allowing detached arbitrary identifiers.
+## 13. No executable payoff DSL
 
-## 15. UMI-05 laundering prevention
+Forbidden from candidate source:
 
-A pure UMI-05 `DerivativeCompositionTerms` object is not a valid UMI-09 feature.
+- arbitrary formula strings;
+- Python expressions;
+- callbacks/callables;
+- AST payloads;
+- `eval` / `exec`;
+- scripts;
+- generic mutable parameter dictionaries;
+- hidden computation engines.
 
-UMI-09 requires at least one certified UMI-09 higher-order feature.
+Typed declarative contract material is the only scope.
 
-Therefore a LONG/SHORT/ratio basket does not acquire structured-product status by wrapping.
+## 14. Determinism / fail-closed law
 
-```text
-UMI-05 COMPOSITION EXISTS
-!=
-UMI-09 STRUCTURED FEATURE EXISTS
-```
+All candidate dataclasses are frozen + slots.
 
-## 16. No executable payoff DSL
+Candidate requires explicit identities, immutable tuples, strict date-only roles, finite
+Decimals, canonical Decimal serialization, typed enums/codes, deterministic component and
+feature order, complete nested logical material, and no hidden clock/random/retry/thread/
+scheduler state.
 
-The candidate contains no:
+No `datetime.now()`, `date.today()`, `uuid4()` or global mutable registry is introduced.
 
-- expression string;
-- Python code;
-- callback;
-- callable;
-- AST;
-- `eval`;
-- `exec`;
-- generic mutable parameter dictionary;
-- script;
-- formula interpreter.
+## 15. Mandatory PRE-CHK matrix
 
-The model is typed declarative contractual material only.
+`PRE-CHK-UMI09-00 — SECOND IDENTITY GRAPH`  
+Exact UMI-02 relationship retained; no shadow graph.
 
-```text
-PAYOFF SEMANTICS != EXECUTABLE PAYOFF PROGRAM
-```
+`PRE-CHK-UMI09-01 — UMI05 DUPLICATION`  
+Pure derivative composition is not UMI-09.
 
-## 17. Determinism and safety
+`PRE-CHK-UMI09-02 — CORPORATE ACTION / EMBEDDED RIGHT COLLAPSE`  
+UMI-06 rights are not embedded conversion authority.
 
-All candidate dataclasses use `frozen=True, slots=True`.
+`PRE-CHK-UMI09-03 — TRIGGER SPEC / OBSERVED EVENT COLLAPSE`  
+Barrier/autocall terms contain no observed event state.
 
-Required invariants include:
+`PRE-CHK-UMI09-04 — PAYOFF TERMS / VALUATION ENGINE`  
+No pricing/calculation/evaluation engine.
 
-- explicit local UUIDs;
-- exact typed economic identities;
-- exact UMI-02 relationship objects;
-- immutable tuples;
-- strict date-only roles;
-- finite Decimals;
-- positive ratios only where the ratio semantic requires positivity;
-- canonical Decimal representation;
-- canonical component ordering;
-- canonical feature ordering;
-- deterministic nested `logical_values()`;
-- no `datetime.now()`;
-- no `date.today()`;
-- no `uuid4()`;
-- no random;
-- no mutable global state;
-- no hidden retry/sleep/thread/scheduler;
-- no secret-bearing generic text.
+`PRE-CHK-UMI09-05 — CAPITAL PROTECTION / GUARANTEED VALUE CLAIM`  
+Contractual protection does not prove economic outcome.
 
-## 18. Mandatory PRE-CHK matrix
+`PRE-CHK-UMI09-06 — CONVERSION TERMS / CONVERSION EXECUTION`  
+No exercise/convert/transfer authority.
 
-### PRE-CHK-UMI09-00 — SECOND IDENTITY GRAPH
+`PRE-CHK-UMI09-07 — LEVERAGED-INVERSE / CURRENT RISK CLAIM`  
+Participation is contractual only.
 
-Attack copied component endpoints/effective dates or a UMI-09 graph.
+`PRE-CHK-UMI09-08 — BASKET / UNIVERSAL VALUATION`  
+Component composition does not calculate value.
 
-PASS requires exact UMI-02 `IdentityRelationship` retention.
+`PRE-CHK-UMI09-09 — OPAQUE RELATIONSHIP ID`  
+Where endpoints/effective material matter, exact relationship object is required.
 
-### PRE-CHK-UMI09-01 — UMI-05 DUPLICATION
+`PRE-CHK-UMI09-10 — REVERSED DIRECT EDGE`  
+Component relationship source must equal root.
 
-Attack wrapping `DerivativeCompositionTerms` as UMI-09.
+`PRE-CHK-UMI09-11 — EFFECTIVE-DATED OBJECT / CURRENT REVISION CLAIM`  
+No as-of/current resolver claim.
 
-PASS requires rejection unless actual UMI-09 typed higher-order features exist.
+`PRE-CHK-UMI09-12 — LINEAR COMPOSITION LAUNDERING`  
+UMI-05 composition cannot satisfy UMI-09 feature type.
 
-### PRE-CHK-UMI09-02 — CORPORATE ACTION / EMBEDDED RIGHT COLLAPSE
+`PRE-CHK-UMI09-13 — EXECUTABLE PAYOFF PAYLOAD`  
+No executable DSL.
 
-Attack reuse of UMI-06 rights distribution as conversion authority.
+`PRE-CHK-UMI09-14 — CONTRACT LEVEL / OPTION STRIKE COLLAPSE`  
+Dedicated structured level type retained.
 
-PASS requires separate conversion semantics.
+`PRE-CHK-UMI09-15 — LOCAL ROLE / UMI-02 RELATIONSHIP ROLE COLLAPSE`  
+Local payoff role never overwrites UMI-02 relationship meaning.
 
-### PRE-CHK-UMI09-03 — TRIGGER SPEC / OBSERVED EVENT COLLAPSE
+`PRE-CHK-UMI09-16 — CAPITAL PROTECTION / CREDIT FINALITY`  
+No creditworthiness/finality state.
 
-Attack barrier/autocall objects for event state or detector methods.
+`PRE-CHK-UMI09-17 — AUTOCALL / LIFECYCLE EVENT`  
+Autocall specification is not recorded lifecycle state.
 
-PASS requires contractual specification only.
+`PRE-CHK-UMI09-18 — CONVERTIBLE / RIGHTS DISTRIBUTION`  
+Embedded conversion is not UMI-06 rights distribution.
 
-### PRE-CHK-UMI09-04 — PAYOFF TERMS / VALUATION ENGINE
+`PRE-CHK-UMI09-19 — SYNTHETIC IDENTITY / SYNTHETIC PAYOFF`  
+UMI-02 SYNTHETIC classification alone does not define payoff semantics.
 
-Attack calculate/price/evaluate methods or current quantitative observations.
+`PRE-CHK-UMI09-20 — EVIDENCE REF / ECONOMIC TRUTH`  
+Evidence reference is not self-attestation.
 
-PASS requires none.
+## 16. Additional graph-context attack
 
-### PRE-CHK-UMI09-05 — CAPITAL PROTECTION / GUARANTEED VALUE CLAIM
+`PRE-CHK-UMI09-21 — LEVEL REFERENCE / PAYOFF COMPONENT COLLAPSE`
 
-Attack contractual protection as issuer/guarantor solvency or payment proof.
+Attack both directions:
 
-PASS requires no credit/finality field.
+1. a primary payoff identity missing from direct components must fail closed;
+2. a distinct conversion-level reference/quotation identity must **not** require an artificial
+   component edge merely because it is level context.
 
-### PRE-CHK-UMI09-06 — CONVERSION TERMS / CONVERSION EXECUTION
+This PRE-CHK was added during internal falsification before exact-head freeze.
 
-Attack convert/exercise/transfer methods.
+## 17. Test obligations
 
-PASS requires none.
+Adversarial tests cover local-ID typing, code hygiene, exact UMI-02 relationship retention,
+reversed edges, opaque relationship-ID laundering, structured level typing/unit semantics,
+negative rate-style levels, non-finite values, ratio validation, observation mode/date
+validation, barrier/autocall reference binding, graph/root/duplicate/ordinal rules,
+relationship-revision retention, UMI-05 composition laundering, feature-ID uniqueness,
+caller-order determinism, Decimal canonicalization, frozen state, negative-space authority and
+PRE-CHK-UMI09-21 reference-context semantics.
 
-### PRE-CHK-UMI09-07 — LEVERAGED-INVERSE / CURRENT RISK CLAIM
-
-Attack participation ratio as margin/leverage/exposure state.
-
-PASS requires contract ratio only.
-
-### PRE-CHK-UMI09-08 — BASKET / UNIVERSAL VALUATION
-
-Attack component set as automatically valued basket.
-
-PASS requires no valuation.
-
-### PRE-CHK-UMI09-09 — OPAQUE RELATIONSHIP ID
-
-Attack relationship ID alone where endpoint/effective proof is required.
-
-PASS requires exact `IdentityRelationship`.
-
-### PRE-CHK-UMI09-10 — REVERSED DIRECT EDGE
-
-Attack component relationship whose source is not the root.
-
-PASS requires fail closed.
-
-### PRE-CHK-UMI09-11 — EFFECTIVE-DATED OBJECT / CURRENT REVISION CLAIM
-
-Attack presence of relationship revisions as proof of currentness.
-
-PASS requires no resolver/current flag.
-
-### PRE-CHK-UMI09-12 — LINEAR COMPOSITION LAUNDERING
-
-Attack pure LONG/SHORT/ratio derivative composition.
-
-PASS requires rejection as UMI-09 feature.
-
-### PRE-CHK-UMI09-13 — EXECUTABLE PAYOFF PAYLOAD
-
-Attack scripts/formulas/callbacks/AST/generic mutable dict.
-
-PASS requires none.
-
-### PRE-CHK-UMI09-14 — CONTRACT LEVEL / OPTION STRIKE COLLAPSE
-
-Attack reuse of option strike business semantics.
-
-PASS requires dedicated structured contractual level.
-
-### PRE-CHK-UMI09-15 — LOCAL ROLE / UMI-02 RELATIONSHIP ROLE COLLAPSE
-
-Attack local structured role as replacement for canonical relationship meaning.
-
-PASS requires both exact relationship object and separate local role.
-
-### PRE-CHK-UMI09-16 — CAPITAL PROTECTION / CREDIT FINALITY
-
-Attack a protection feature for payment-capacity/finality claims.
-
-PASS requires none.
-
-### PRE-CHK-UMI09-17 — AUTOCALL / LIFECYCLE EVENT
-
-Attack autocall terms for recorded lifecycle status.
-
-PASS requires no lifecycle event.
-
-### PRE-CHK-UMI09-18 — CONVERTIBLE / RIGHTS DISTRIBUTION
-
-Attack UMI-06 distributed rights for embedded conversion.
-
-PASS requires separate UMI-09 conversion feature.
-
-### PRE-CHK-UMI09-19 — SYNTHETIC IDENTITY / SYNTHETIC PAYOFF
-
-Attack UMI-02 `construction=SYNTHETIC` as complete payoff semantics.
-
-PASS requires explicit UMI-09 components/features.
-
-### PRE-CHK-UMI09-20 — EVIDENCE REF / ECONOMIC TRUTH
-
-Attack evidence-ref presence as proof external terms are correct.
-
-PASS requires only opaque reference semantics and no self-attestation.
-
-## 19. Authority map
+## 18. Authority map
 
 | Material | Authority |
 |---|---|
-| Economic identity / synthetic/composite classification | UMI-02 / D04 |
+| Economic identity / SYNTHETIC / COMPOSITE | UMI-02 / D04 |
 | Relationship endpoints/effective material | UMI-02 / D04 |
-| Relationship cross-revision resolution | UMI-02 future governed resolver |
-| Fixed-income economics | UMI-03 |
-| Generic derivatives + narrow derivative composition | UMI-05 |
+| Cross-revision currentness | UMI-02 future governed resolver |
+| Fixed-income base economics | UMI-03 |
+| Generic derivatives / narrow derivative composition | UMI-05 |
 | Corporate-action rights | UMI-06 |
-| Crypto/perpetual semantics | UMI-08 |
-| Structured higher-order contractual qualification | UMI-09 |
+| Crypto/perpetual contract semantics | UMI-08 |
+| Higher-order structured contractual qualification | UMI-09 |
 | Calendar/schedule resolution | D06 |
-| Observed values / valuation / trigger evaluation | UMI-10 / D07 |
+| Observed values / payoff valuation / trigger evaluation | UMI-10 / D07 |
 | Account/collateral/risk | D08 / D09 |
 | Execution | D10 / D18 |
 | Exercise/conversion/settlement mutation | D11 |
 
-## 20. Required adversarial tests
+## 19. Non-claims
 
-At minimum attack:
+A favorable UMI-09 certification does not establish a specific product, issuer or guarantor;
+provider/platform support; valuation/fair value; barrier hit; autocall event; conversion or
+exercise; cash/position settlement; current leverage/risk; Production readiness; or real
+capital authorization.
 
-- local IDs masquerading as economic identity;
-- wrong UUID wrapper types;
-- malformed/credential-like canonical codes;
-- reversed component edge;
-- opaque relationship ID in place of exact relationship;
-- mixed/duplicate/noncontiguous ordinals;
-- caller-order dependence;
-- duplicate relationship IDs;
-- separate same-target/role relationship revisions being silently deduplicated;
-- non-finite contractual levels;
-- false positivity on rate-style levels;
-- missing unit/quotation semantics;
-- continuous observation with illegal date/schedule material;
-- discrete observation with neither/both modes;
-- duplicate dates;
-- datetime laundering into date-only roles;
-- barrier/autocall reference mismatch;
-- detached feature identity not present in component graph;
-- pure UMI-05 derivative composition laundering;
-- duplicate feature IDs;
-- executable/valuation/execution/settlement methods;
-- mutation of frozen terms;
-- nondeterministic nested logical values.
+## 20. Carry-forwards
 
-## 21. Non-claims
-
-This stage does not certify:
-
-- any specific structured product;
-- any issuer;
-- any guarantor;
-- any exchange/provider/platform;
-- valuation;
-- fair value;
-- barrier hit;
-- autocall event;
-- exercise/conversion;
-- cash/position settlement;
-- current leverage/risk;
-- provider support;
-- production readiness;
-- real-capital authorization.
-
-## 22. Carry-forwards
-
-Remain unchanged:
+Remain open/HOLD:
 
 - `GAP-FND04-TIME-01` / #333 — OPEN / HIGH;
 - `GAP-FND07-RES-01` / #332 — OPEN / HIGH;
@@ -676,12 +431,12 @@ Remain unchanged:
 - `GAP-LIN-001` — OPEN / HIGH;
 - UMI-02 cross-revision effective-interval resolver obligation — OPEN.
 
-## 23. Gate discipline
+## 21. Gate discipline
 
-`CERTIFIED BASELINE -> AUDIT -> MINIMUM ARCHITECTURE -> IMPLEMENTATION ->
-ADVERSARIAL TESTS -> DIFF AUDIT -> DRAFT PR -> EXACT-HEAD CI -> FREEZE ->
-INDEPENDENT CLAUDE REVIEW -> INTEGRATION GATE -> EXPECTED-HEAD MERGE ->
-POST-MERGE VERIFICATION -> BASELINE FREEZE -> UMI-09 CLOSED`
+`CERTIFIED BASELINE -> AUDIT -> MINIMUM ARCHITECTURE -> IMPLEMENTATION -> ADVERSARIAL TESTS
+-> DIFF AUDIT -> DRAFT PR -> EXACT-HEAD CI -> FREEZE -> INDEPENDENT CLAUDE REVIEW ->
+INTEGRATION GATE -> EXPECTED-HEAD MERGE -> POST-MERGE VERIFICATION -> BASELINE FREEZE ->
+UMI-09 CLOSED`
 
 `CI GREEN != ENGINEERING APPROVAL`
 
