@@ -192,14 +192,11 @@ class InstrumentUniverseEvidenceRecord:
     verified_on: date
 
     def __post_init__(self) -> None:
-        if not isinstance(self.evidence_ref, InstrumentUniverseEvidenceRef):
+        if type(self.evidence_ref) is not InstrumentUniverseEvidenceRef:
             raise InstrumentUniverseRegistryValidationError(
                 "evidence record evidence_ref must be InstrumentUniverseEvidenceRef"
             )
-        if not isinstance(
-            self.source_category,
-            InstrumentUniverseEvidenceSourceCategory,
-        ):
+        if type(self.source_category) is not InstrumentUniverseEvidenceSourceCategory:
             raise InstrumentUniverseRegistryValidationError(
                 "evidence record source_category must be "
                 "InstrumentUniverseEvidenceSourceCategory"
@@ -244,28 +241,28 @@ class InstrumentUniverseEntry:
     reason: InstrumentUniverseReason
 
     def __post_init__(self) -> None:
-        if not isinstance(self.family, IdentityFamilyCode):
+        if type(self.family) is not IdentityFamilyCode or type(self.family.value) is not str:
             raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe family must be UMI-02 IdentityFamilyCode"
+                "instrument-universe family must be UMI-02 IdentityFamilyCode "
+                "with exact str value"
             )
-        if not isinstance(self.coverage_status, InstrumentUniverseCoverageStatus):
+        if type(self.coverage_status) is not InstrumentUniverseCoverageStatus:
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe coverage_status must be "
                 "InstrumentUniverseCoverageStatus"
             )
-        if not isinstance(self.owner_status, InstrumentUniverseOwnerStatus):
+        if type(self.owner_status) is not InstrumentUniverseOwnerStatus:
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe owner_status must be InstrumentUniverseOwnerStatus"
             )
         if type(self.owner_refs) is not tuple or any(
-            not isinstance(item, InstrumentUniverseOwnerRef)
-            for item in self.owner_refs
+            type(item) is not InstrumentUniverseOwnerRef for item in self.owner_refs
         ):
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe owner_refs must be an immutable owner-ref tuple"
             )
         if type(self.unresolved_semantics) is not tuple or any(
-            not isinstance(item, InstrumentUniverseSemanticRef)
+            type(item) is not InstrumentUniverseSemanticRef
             for item in self.unresolved_semantics
         ):
             raise InstrumentUniverseRegistryValidationError(
@@ -273,14 +270,13 @@ class InstrumentUniverseEntry:
                 "semantic-ref tuple"
             )
         if type(self.evidence_refs) is not tuple or not self.evidence_refs or any(
-            not isinstance(item, InstrumentUniverseEvidenceRef)
-            for item in self.evidence_refs
+            type(item) is not InstrumentUniverseEvidenceRef for item in self.evidence_refs
         ):
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe evidence_refs must be a non-empty immutable "
                 "evidence-ref tuple"
             )
-        if not isinstance(self.reason, InstrumentUniverseReason):
+        if type(self.reason) is not InstrumentUniverseReason:
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe reason must be InstrumentUniverseReason"
             )
@@ -404,14 +400,13 @@ class InstrumentUniverseRegistrySnapshot:
             field_name="instrument-universe snapshot revision",
         )
         if type(self.entries) is not tuple or not self.entries or any(
-            not isinstance(item, InstrumentUniverseEntry) for item in self.entries
+            type(item) is not InstrumentUniverseEntry for item in self.entries
         ):
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe entries must be a non-empty immutable entry tuple"
             )
         if type(self.evidence) is not tuple or not self.evidence or any(
-            not isinstance(item, InstrumentUniverseEvidenceRecord)
-            for item in self.evidence
+            type(item) is not InstrumentUniverseEvidenceRecord for item in self.evidence
         ):
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe evidence must be a non-empty immutable "
@@ -489,9 +484,9 @@ class InstrumentUniverseRegistrySnapshot:
         self,
         family: IdentityFamilyCode,
     ) -> InstrumentUniverseEntry:
-        if not isinstance(family, IdentityFamilyCode):
+        if type(family) is not IdentityFamilyCode or type(family.value) is not str:
             raise InstrumentUniverseRegistryValidationError(
-                "family lookup requires UMI-02 IdentityFamilyCode"
+                "family lookup requires UMI-02 IdentityFamilyCode with exact str value"
             )
         matches = tuple(entry for entry in self.entries if entry.family == family)
         if len(matches) != 1:

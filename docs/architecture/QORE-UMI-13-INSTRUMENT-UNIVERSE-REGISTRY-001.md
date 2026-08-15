@@ -9,7 +9,8 @@ Master roadmap: Issue #303
 Universal Markets / Instruments: Issue #301  
 Certified starting baseline: `e429c8731f1fca4bb0aa7c1eaa8b8865cb0375f0`  
 Registry candidate snapshot date: **2026-08-15**  
-Integration-Gate rejected head: `866ec2a941258af2344889baf03edd286545cb80` (historical after this correction)  
+Integration-Gate rejected head: `5665bb280a194c149fd3a0b514b9f54cb2e2f2fc` (historical after this correction)  
+Earlier rejected head: `866ec2a941258af2344889baf03edd286545cb80` (historical only)  
 Pre-final-correction frozen head: `7fbf70ade552cccb900f6a25849a497aa39fc374`  
 Earlier adversarial-correction head: `3ebabc14e81aeaf8141df0e88e54d475b2927b34` (historical only)
 
@@ -357,6 +358,8 @@ produced this disposition:
 | broader insurance-linked risk-transfer/trigger and derivative semantics | ACCEPTED AS INVENTORY PRECISION CORRECTION | broadened UMI13-UNR-020; added fixed-income/structured/OTC qualification; no new top-level family |
 | trade-receivables/supply-chain finance | ACCEPTED AS SUBFAMILY GAP | retained under loans/credit-facilities |
 | secret detector has realistic bypasses, including polymorphic `str` subclass laundering | ACCEPTED | exact plain-`str` validation required for canonical code/text boundaries; adversarial public-constructor tests added |
+| nested canonical value-object subclass laundering | ACCEPTED | aggregate boundaries now require exact retained runtime types; UMI-13 locally verifies exact `IdentityFamilyCode` plus exact plain `family.value` |
+| mock/spec objects can spoof `isinstance` for enum contracts | ACCEPTED | evidence-source, coverage-status and owner-status gates now require exact enum runtime types |
 | equities PARTIAL lacked an explicit unresolved-semantic ledger ref | ACCEPTED | added UMI13-UNR-023 for warrant/convertible cross-family structural-payoff qualification; borrow/shortability removed as semantic justification |
 | cross-asset-compositions PARTIAL used execution/routing as its semantic justification | ACCEPTED | added UMI13-UNR-024 for product-specific basket/spread/multi-leg composition semantics beyond bounded UMI-05/09 ownership |
 | generic constructor can syntactically declare fake owner/evidence | PARTIAL / SEMANTIC BOUNDARY | owner status explicitly documented as declaration, never runtime proof; no network resolver added |
@@ -376,6 +379,13 @@ UMI-13 evidence/reason text is retained in immutable values and may appear in
 an exact plain `str`, not an arbitrary polymorphic `str` subclass. This prevents a
 subclass from overriding operations such as `lower()`/`strip()` or custom equality/
 hash behavior while its original unsafe material is retained.
+
+Canonical UMI-13 aggregate boundaries also require exact retained value-object and
+enum runtime types where subclass or spec-based polymorphism could bypass validation,
+equality/hash semantics or deterministic logical material. Imported UMI-02
+`IdentityFamilyCode` is accepted by UMI-13 only as the exact class with an exact
+plain-`str` internal value. This is a local UMI-13 boundary check; it does not modify
+or broaden UMI-02 authority.
 
 The contract also rejects credential-like material, including realistic forms missed
 by the first candidate:
