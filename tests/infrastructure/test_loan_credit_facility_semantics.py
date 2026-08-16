@@ -747,3 +747,27 @@ def test_optional_loan_maturity_still_rejects_non_date_values() -> None:
             loan_one(),
             maturity_date="2030-01-01",  # type: ignore[arg-type]
         )
+
+
+def test_duplicate_syndication_ids_across_facilities_fail_closed() -> None:
+    deal = valid_deal()
+    second_facility = replace(
+        deal.facilities[0],
+        facility_id=s.LoanFacilityId(uid(8001)),
+        facility_identity_id=economic(8002),
+        evidence_ref=evidence(8003),
+    )
+    duplicate_id_other_facility = replace(
+        deal.syndication_terms[0],
+        facility_id=second_facility.facility_id,
+        evidence_ref=evidence(8004),
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            deal,
+            facilities=(deal.facilities[0], second_facility),
+            syndication_terms=(
+                deal.syndication_terms[0],
+                duplicate_id_other_facility,
+            ),
+        )
