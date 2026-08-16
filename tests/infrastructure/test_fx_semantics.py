@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import FrozenInstanceError, fields, replace
 from datetime import date, datetime
 from decimal import Decimal
-import inspect
 from typing import cast
 from uuid import UUID
 
