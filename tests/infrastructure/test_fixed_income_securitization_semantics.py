@@ -943,3 +943,187 @@ def test_source_has_no_forbidden_productive_imports_or_engines() -> None:
     assert "def execute" not in source
     assert "def forecast" not in source
     assert "def present_value" not in source
+
+
+def test_impac_specimen_retains_exact_periods_bases_and_increments() -> None:
+    assert impac_schedule().logical_values() == (
+        (
+            "ramped-segment",
+            ("2007-12",),
+            ("2008-11",),
+            ("constant", "0.005"),
+            (("1", "12"), "0.005"),
+        ),
+        (
+            "ramped-segment",
+            ("2008-12",),
+            ("2009-11",),
+            ("constant", "0.01"),
+            (("1", "12"), "0.005"),
+        ),
+        (
+            "ramped-segment",
+            ("2009-12",),
+            ("2010-11",),
+            ("constant", "0.015"),
+            (("1", "12"), "0.005"),
+        ),
+        (
+            "ramped-segment",
+            ("2010-12",),
+            ("2011-11",),
+            ("constant", "0.02"),
+            (("1", "12"), "0.0025"),
+        ),
+        (
+            "constant-segment",
+            ("2011-12",),
+            None,
+            ("constant", "0.0225"),
+        ),
+    )
+
+
+def test_required_duplicate_guards_are_explicit() -> None:
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        s.ExplicitConstituentMembership((economic(1), economic(1)))
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        s.CombinedPoolMembership(
+            economic(9),
+            (economic(1), economic(1)),
+        )
+
+    a = s.ContractualConditionId(uid(6001))
+    b = s.ContractualConditionId(uid(6002))
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        s.CompositeCondition(
+            a,
+            s.CompositeConditionOperator.ALL_OF,
+            (b, b),
+            evidence(6003),
+        )
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        s.CompositeCondition(
+            a,
+            s.CompositeConditionOperator.ALL_OF,
+            (a, b),
+            evidence(6004),
+        )
+
+    terms = prepayment_terms()
+    duplicate_ordinal = replace(terms.phases[1], ordinal=1)
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        s.CollateralPrepaymentTerms(
+            (terms.phases[0], duplicate_ordinal)
+        )
+
+
+def test_required_contract_nonconflations_are_explicit() -> None:
+    ym = s.ContractualMeasurementYearMonth
+    constant = s.ConstantThresholdRhs(Decimal("0.5"))
+    metric_id = s.MetricDefinitionId(uid(6101))
+    multiple = s.MultipleOfMetricThresholdRhs(
+        Decimal("2"),
+        metric_id,
+    )
+    assert constant.logical_values() != multiple.logical_values()
+
+    static = s.StaticThresholdContract(constant)
+    scheduled = s.ScheduledThresholdContract(
+        s.ThresholdSchedule(
+            (s.ConstantThresholdSegment(ym(2020, 1), None, constant),)
+        )
+    )
+    assert static.logical_values() != scheduled.logical_values()
+
+    a = s.SecuritizationTrancheId(uid(6102))
+    b = s.SecuritizationTrancheId(uid(6103))
+    pro_rata = s.ParallelProRataPrincipalAllocation(
+        (b, a),
+        s.ProRataPrincipalAllocationBasis.OUTSTANDING_PRINCIPAL_BALANCE,
+    )
+    contractual = s.ParallelContractualSharesPrincipalAllocation(
+        s.ContractualShares(
+            (
+                s.ContractualShare(a, Decimal("0.5")),
+                s.ContractualShare(b, Decimal("0.5")),
+            )
+        )
+    )
+    assert pro_rata.logical_values() != contractual.logical_values()
+
+    deal_id = s.SecuritizationDealId(uid(6104))
+    allocation = s.AllocationRegime(
+        s.AllocationRegimeId(uid(6105)),
+        s.SequentialPrincipalAllocation((a, b)),
+    )
+    scheduled_set = s.ScheduledPrincipalAllocationRegimeSet(
+        deal_id,
+        allocation,
+        (),
+    )
+    unscheduled_set = s.UnscheduledPrincipalAllocationRegimeSet(
+        deal_id,
+        allocation,
+        (),
+    )
+    assert scheduled_set.logical_values() != unscheduled_set.logical_values()
+
+    boundaries = (
+        s.OriginationBoundary().logical_values(),
+        s.ExactDateBoundary(date(2030, 1, 1)).logical_values(),
+        s.AfterPaymentCountFromOriginationBoundary(12).logical_values(),
+        s.PaymentCountBeforeMaturityBoundary(12).logical_values(),
+    )
+    assert len(set(boundaries)) == 4
+
+    prohibited = s.ProhibitedVoluntaryPrepayment()
+    permitted = s.PermittedVoluntaryPrepayment(s.NoCharge())
+    assert prohibited.logical_values() != permitted.logical_values()
+
+    fixed = s.FixedPercentagePremium(
+        s.PrepaymentFixedPremiumRate(Decimal("0.01")),
+        s.FixedPercentagePremiumBasis.PREPAID_PRINCIPAL_AMOUNT,
+    )
+    yield_maintenance = s.YieldMaintenanceCharge(formula_a())
+    greater = s.GreaterOfCharge(fixed, yield_maintenance)
+    charges = {
+        fixed.logical_values(),
+        yield_maintenance.logical_values(),
+        greater.logical_values(),
+    }
+    assert len(charges) == 3
+
+
+def test_conditioned_regimes_reject_orphan_conditions() -> None:
+    deal = valid_deal()
+    orphan = s.ContractualConditionId(uid(6201))
+
+    bad_priority = replace(
+        deal.priority_regime_set,
+        conditioned=(
+            replace(
+                deal.priority_regime_set.conditioned[0],
+                condition_id=orphan,
+            ),
+        ),
+    )
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        replace(deal, priority_regime_set=bad_priority)
+
+    bad_scheduled = replace(
+        deal.scheduled_allocation_regime_set,
+        conditioned=(
+            replace(
+                deal.scheduled_allocation_regime_set.conditioned[0],
+                condition_id=orphan,
+            ),
+        ),
+    )
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        replace(deal, scheduled_allocation_regime_set=bad_scheduled)
+
+
+def test_measurement_year_month_rejects_bool_month() -> None:
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        s.ContractualMeasurementYearMonth(2020, True)
