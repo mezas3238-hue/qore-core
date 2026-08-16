@@ -418,7 +418,7 @@ def test_term_repo_preserves_near_far_security_rate_and_margin() -> None:
     logical = repo.logical_values()
     assert logical[0] == "repo"
     assert logical[6] == _cash().logical_values()
-    assert len(logical[7]) == 2
+    assert len(repo.transferred_securities) == 2
     assert logical[10] == RepoFarLegTerms(
         date(2026, 2, 2),
         _cash("1002500"),
