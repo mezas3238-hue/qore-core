@@ -36,7 +36,8 @@ It retains the structural economics needed to distinguish:
 - spot FX from an outright forward;
 - deliverable forward from NDF;
 - one FX swap from two unrelated exchange legs;
-- a generic option from an option explicitly bound to FX put/call currency amounts.
+- a generic option from an option explicitly bound to FX put/call currency amounts and an
+  FX-consistent strike quotation.
 
 It does not implement market observations, valuation, execution, accounts, risk, provider
 capability or settlement mutation.
@@ -82,13 +83,18 @@ FX QUOTED PAIR
 
 ### 3.2 UMI-05
 
-UMI-05 already owns generic derivative primitives, including `OptionContractTerms`.
+UMI-05 already owns generic derivative primitives, including `OptionContractTerms` and
+`DerivativeStrike`.
 
 That owner is reused where its semantics are exact. It is not copied into this module.
 
 The exact UMI-05 generic forward/swap structures do not themselves retain a canonical two-currency
 FX pair, two FX currency flows, deliverable/NDF qualification or a typed near/far FX-swap reversal
 relationship. `OptionContractTerms` also does not retain FX put/call currency amounts.
+
+UMI-05 `DerivativeStrike` does retain a `PRICE` strike's quote/reference identity and a
+`DerivativePriceQuoteBasisCode`. Those dimensions are reused and mechanically bound to this
+owner's canonical FX pair rather than duplicated.
 
 Therefore this correction is additive and compositional rather than a replacement of UMI-05.
 
@@ -108,8 +114,8 @@ The currencies must differ and the pair identity must not be laundered into eith
 
 `FxQuoteBasis` explicitly distinguishes:
 
-- `currency1-per-currency2`;
-- `currency2-per-currency1`.
+- `currency1-per-currency2` — amount of currency 1 for one unit of currency 2;
+- `currency2-per-currency1` — amount of currency 2 for one unit of currency 1.
 
 ```text
 QUOTE BASIS
@@ -119,6 +125,16 @@ RATE MAGNITUDE
 
 Opposite quote bases therefore remain distinct deterministic logical material even when all other
 identities and magnitudes are equal.
+
+The pair's evidence reference is provenance material. It is not itself the economic pair
+relationship. Pair-relationship comparison uses pair identity, both ordered currency identities and
+quote basis; independent evidence references may legitimately differ across enclosing artifacts.
+
+```text
+SAME FX PAIR RELATIONSHIP
+!=
+SAME EVIDENCE REFERENCE
+```
 
 ---
 
@@ -196,7 +212,8 @@ Those would require separate event/time authority.
 - agreed exchange rate bound to that pair and quote basis;
 - evidence.
 
-The FX instrument identity must differ from the pair identity.
+The FX instrument identity must differ from the pair identity under this bounded owner. This is an
+implementation qualification, not a claim about provider symbols or trade identifiers.
 
 ```text
 SPOT FX
@@ -254,11 +271,15 @@ No forward-points, discounting or settlement-amount calculation exists.
 
 - explicit `near_leg` and `far_leg`;
 - distinct leg IDs;
-- the same canonical quoted pair on both legs;
+- the same canonical **quoted-pair relationship** on both legs;
+- the same pair identity, ordered currencies and quote basis;
 - the same two pair currencies on both legs;
 - exact reversal of `PAY`/`RECEIVE` roles per currency;
 - `far` currency-1 value date strictly after `near` currency-1 value date;
 - `far` currency-2 value date strictly after `near` currency-2 value date.
+
+Leg and aggregate pair evidence references may differ. Provenance-reference equality is not used as
+a substitute for economic-pair equality.
 
 No equal-notional rule is invented. Unequal near/far amounts remain representable.
 
@@ -297,6 +318,24 @@ It adds the missing FX-specific static material:
 The generic option underlying identity must equal the `FxQuotedCurrencyPair.pair_identity_id`.
 This provides a mechanical cross-owner binding instead of relying on caller convention.
 
+The generic option strike is also mechanically bound to the same FX quotation:
+
+- strike basis must be UMI-05 `PRICE`;
+- for `currency1-per-currency2`, UMI-05 `quote_identity_id` must be currency 1;
+- for `currency2-per-currency1`, UMI-05 `quote_identity_id` must be currency 2;
+- UMI-05 `DerivativePriceQuoteBasisCode.value` must equal the canonical `FxQuoteBasis.value`.
+
+This retains UMI-05 authority for strike magnitude and price-quote semantics while preventing an FX
+option from binding a pair to a strike denominated or quoted under an unrelated relationship.
+
+```text
+FX OPTION UNDERLYING MATCH
+!=
+FX OPTION STRIKE MATCH
+```
+
+Both are independently validated.
+
 Put and call currencies must differ and must cover exactly the two quoted-pair currencies.
 Reversing put/call currency roles changes deterministic logical material.
 
@@ -307,6 +346,8 @@ FX PUT / CALL CURRENCY AMOUNTS
 ```
 
 No attempt is made to infer FX put/call direction solely from UMI-05 `OptionRight`.
+No amount-to-strike arithmetic consistency rule is invented; this static owner performs no rounding
+or valuation calculation.
 
 ---
 
@@ -374,6 +415,7 @@ Those concerns remain with their proper product/account/valuation/provider autho
 | contractual value dates | D04 static semantics |
 | agreed spot/forward/swap-leg rate | D04 static semantics |
 | NDF fixing definition/reference | D04 static semantics |
+| FX-option pair/strike quotation binding | D04 static semantics |
 | current observed FX rate/fixing | D05 |
 | business-calendar resolution | D06 |
 | forward points / PV / valuation / PnL | D07 |
@@ -440,8 +482,12 @@ The bounded test suite directly discriminates:
 - duplicate swap-leg ID rejection;
 - independent far-date guards for each currency;
 - swap pair mismatch;
+- same economic swap pair with different evidence references remains representable;
 - valid FX-option binding using a real UMI-05 option object;
 - generic option underlying/pair mismatch rejection;
+- non-PRICE FX-option strike rejection;
+- FX-option strike quote-identity mismatch rejection;
+- FX-option strike quote-basis mismatch rejection;
 - same/third put-call currency rejection;
 - put/call role reversal distinction;
 - static premium shape;

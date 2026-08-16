@@ -6,7 +6,10 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
-from qore.infrastructure.derivative_contract_semantics import OptionContractTerms
+from qore.infrastructure.derivative_contract_semantics import (
+    DerivativeStrikeBasis,
+    OptionContractTerms,
+)
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
 from qore.kernel.errors import InfrastructureError
 
@@ -176,6 +179,24 @@ class FxQuotedCurrencyPair:
         )
 
 
+def _same_quoted_pair_relationship(
+    left: FxQuotedCurrencyPair,
+    right: FxQuotedCurrencyPair,
+) -> bool:
+    return (
+        left.pair_identity_id == right.pair_identity_id
+        and left.currency1_identity_id == right.currency1_identity_id
+        and left.currency2_identity_id == right.currency2_identity_id
+        and left.quote_basis is right.quote_basis
+    )
+
+
+def _fx_quote_identity(quoted_pair: FxQuotedCurrencyPair) -> EconomicIdentityId:
+    if quoted_pair.quote_basis is FxQuoteBasis.CURRENCY1_PER_CURRENCY2:
+        return quoted_pair.currency1_identity_id
+    return quoted_pair.currency2_identity_id
+
+
 @dataclass(frozen=True, slots=True)
 class FxExchangeRate:
     value: Decimal
@@ -278,6 +299,26 @@ def _validate_currency_amount_pair(
     if actual != expected:
         raise FxValidationError(
             "FX option put/call amounts must cover exactly the quoted-pair currencies"
+        )
+
+
+def _validate_option_strike_binding(
+    quoted_pair: FxQuotedCurrencyPair,
+    option_terms: OptionContractTerms,
+) -> None:
+    strike = option_terms.strike
+    if strike.basis is not DerivativeStrikeBasis.PRICE:
+        raise FxValidationError("FX option strike basis must be PRICE")
+    if strike.quote_identity_id != _fx_quote_identity(quoted_pair):
+        raise FxValidationError(
+            "FX option strike quote identity must match the quoted-pair quote currency"
+        )
+    if (
+        strike.price_quote_basis is None
+        or strike.price_quote_basis.value != quoted_pair.quote_basis.value
+    ):
+        raise FxValidationError(
+            "FX option strike quote basis must match the quoted-pair quote basis"
         )
 
 
@@ -525,9 +566,9 @@ class FxSwapTerms:
             raise FxValidationError("FX swap evidence_ref must be FxEvidenceRef")
         if self.near_leg.leg_id == self.far_leg.leg_id:
             raise FxValidationError("FX swap near/far leg ids must differ")
-        if self.near_leg.quoted_pair != self.quoted_pair:
+        if not _same_quoted_pair_relationship(self.near_leg.quoted_pair, self.quoted_pair):
             raise FxValidationError("FX swap near-leg pair must match swap pair")
-        if self.far_leg.quoted_pair != self.quoted_pair:
+        if not _same_quoted_pair_relationship(self.far_leg.quoted_pair, self.quoted_pair):
             raise FxValidationError("FX swap far-leg pair must match swap pair")
 
         near_by_currency = {
@@ -619,6 +660,7 @@ class FxOptionBinding:
             raise FxValidationError(
                 "FX option underlying identity must equal quoted-pair identity"
             )
+        _validate_option_strike_binding(self.quoted_pair, self.option_terms)
         _validate_currency_amount_pair(
             self.quoted_pair,
             self.put_currency_amount,

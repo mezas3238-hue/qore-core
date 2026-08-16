@@ -137,10 +137,8 @@ def _option_terms(pair: FxQuotedCurrencyPair) -> OptionContractTerms:
         strike=DerivativeStrike(
             value=Decimal("1.1"),
             basis=DerivativeStrikeBasis.PRICE,
-            quote_identity_id=pair.currency2_identity_id,
-            price_quote_basis=DerivativePriceQuoteBasisCode(
-                "currency2-per-currency1"
-            ),
+            quote_identity_id=pair.currency1_identity_id,
+            price_quote_basis=DerivativePriceQuoteBasisCode(pair.quote_basis.value),
         ),
         expiry_date=date(2026, 9, 18),
         exercise=OptionExerciseTerms(OptionExerciseStyle.EUROPEAN),
@@ -537,6 +535,19 @@ def test_fx_swap_rejects_pair_mismatch() -> None:
         replace(swap, far_leg=replace(swap.far_leg, quoted_pair=other_pair))
 
 
+def test_fx_swap_same_pair_allows_distinct_evidence_refs() -> None:
+    swap = _valid_swap()
+    same_pair_new_evidence = replace(
+        swap.near_leg.quoted_pair,
+        evidence_ref=_ev(901),
+    )
+    updated = replace(
+        swap,
+        near_leg=replace(swap.near_leg, quoted_pair=same_pair_new_evidence),
+    )
+    assert updated.near_leg.quoted_pair.evidence_ref != updated.quoted_pair.evidence_ref
+
+
 def _valid_option_binding() -> FxOptionBinding:
     pair = _pair()
     return FxOptionBinding(
@@ -565,6 +576,38 @@ def test_fx_option_rejects_underlying_pair_mismatch() -> None:
     invalid_option = replace(binding.option_terms, underlying_identity_id=_eid(999))
     with pytest.raises(FxValidationError):
         replace(binding, option_terms=invalid_option)
+
+
+def test_fx_option_rejects_non_price_strike() -> None:
+    binding = _valid_option_binding()
+    invalid_strike = DerivativeStrike(
+        value=binding.option_terms.strike.value,
+        basis=DerivativeStrikeBasis.LEVEL,
+    )
+    with pytest.raises(FxValidationError):
+        replace(binding, option_terms=replace(binding.option_terms, strike=invalid_strike))
+
+
+def test_fx_option_rejects_strike_quote_identity_mismatch() -> None:
+    binding = _valid_option_binding()
+    invalid_strike = replace(
+        binding.option_terms.strike,
+        quote_identity_id=binding.quoted_pair.currency2_identity_id,
+    )
+    with pytest.raises(FxValidationError):
+        replace(binding, option_terms=replace(binding.option_terms, strike=invalid_strike))
+
+
+def test_fx_option_rejects_strike_quote_basis_mismatch() -> None:
+    binding = _valid_option_binding()
+    invalid_strike = replace(
+        binding.option_terms.strike,
+        price_quote_basis=DerivativePriceQuoteBasisCode(
+            FxQuoteBasis.CURRENCY2_PER_CURRENCY1.value
+        ),
+    )
+    with pytest.raises(FxValidationError):
+        replace(binding, option_terms=replace(binding.option_terms, strike=invalid_strike))
 
 
 def test_fx_option_same_currency_rejected() -> None:
