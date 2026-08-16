@@ -543,3 +543,146 @@ def test_deal_logical_material_retains_all_bounded_components() -> None:
     syndication_values = values[5]
     assert isinstance(syndication_values, tuple)
     assert len(syndication_values) == 1
+
+
+def test_party_slots_reject_economic_identity_at_runtime() -> None:
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            facility(),
+            borrower_party_refs=(economic(20),),  # type: ignore[arg-type]
+        )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            loan_one(),
+            borrower_party_ref=economic(20),  # type: ignore[arg-type]
+        )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            syndication(),
+            agent_party_ref=economic(40),  # type: ignore[arg-type]
+        )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.OriginalLoanLenderShare(
+            economic(41),  # type: ignore[arg-type]
+            s.LoanParticipationShare(Decimal("1")),
+        )
+
+
+def test_parent_deal_bindings_fail_closed() -> None:
+    deal = valid_deal()
+    foreign_deal = s.LoanDealId(uid(999))
+
+    bad_facility = replace(deal.facilities[0], deal_id=foreign_deal)
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(deal, facilities=(bad_facility,))
+
+    bad_covenant = replace(deal.covenants[0], deal_id=foreign_deal)
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(deal, covenants=(bad_covenant, *deal.covenants[1:]))
+
+    bad_syndication = replace(
+        deal.syndication_terms[0],
+        deal_id=foreign_deal,
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(deal, syndication_terms=(bad_syndication,))
+
+
+def test_duplicate_syndication_definition_per_facility_fails_closed() -> None:
+    deal = valid_deal()
+    duplicate_scope = replace(
+        deal.syndication_terms[0],
+        syndication_id=s.LoanSyndicationId(uid(7001)),
+        evidence_ref=evidence(7002),
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            deal,
+            syndication_terms=(deal.syndication_terms[0], duplicate_scope),
+        )
+
+
+def test_amortization_rejects_duplicate_ordinals_and_backward_dates() -> None:
+    first = s.LoanPrincipalRepayment(
+        1,
+        date(2028, 1, 1),
+        s.LoanPrincipalAmount(Decimal("1")),
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.LoanAmortizationSchedule(
+            (
+                first,
+                replace(first, principal_amount=s.LoanPrincipalAmount(Decimal("2"))),
+            )
+        )
+
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.LoanAmortizationSchedule(
+            (
+                s.LoanPrincipalRepayment(
+                    1,
+                    date(2029, 1, 1),
+                    s.LoanPrincipalAmount(Decimal("1")),
+                ),
+                s.LoanPrincipalRepayment(
+                    2,
+                    date(2028, 1, 1),
+                    s.LoanPrincipalAmount(Decimal("1")),
+                ),
+            )
+        )
+
+
+def test_commitment_and_participation_bounds_fail_closed() -> None:
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.LoanCommitmentAmount(Decimal("-0.01"))
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.LoanParticipationShare(Decimal("0"))
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.LoanParticipationShare(Decimal("1.0001"))
+
+
+def test_facility_and_loan_local_chronology_fail_closed() -> None:
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            facility(),
+            maturity_date=date(2026, 1, 1),
+        )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            loan_one(),
+            maturity_date=date(2026, 2, 1),
+        )
+
+
+def test_commitment_change_cannot_predate_facility_start() -> None:
+    bad = s.LoanCommitmentSchedule(
+        (
+            s.LoanCommitmentChange(
+                date(2025, 12, 31),
+                s.LoanCommitmentAmount(Decimal("1")),
+            ),
+        )
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(facility(), commitment_schedule=bad)
+
+
+def test_canonicalizes_borrowers_currencies_and_covenants() -> None:
+    item = facility()
+    assert item.borrower_party_refs == (party(20), party(21))
+    assert item.allowed_draw_currency_identity_ids == (
+        economic(30),
+        economic(31),
+    )
+
+    deal = valid_deal()
+    assert [item.covenant_id for item in deal.covenants] == [
+        s.LoanCovenantId(uid(5)),
+        s.LoanCovenantId(uid(6)),
+    ]
+
+
+def test_empty_commitment_schedule_is_rejected_when_present() -> None:
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.LoanCommitmentSchedule(())
