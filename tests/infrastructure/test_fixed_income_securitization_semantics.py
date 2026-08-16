@@ -421,7 +421,7 @@ def test_exact_fraction_gcd_and_no_float() -> None:
     )
     assert s.ExactFraction(3, 36).logical_values() == ("1", "12")
     with pytest.raises(s.FixedIncomeSecuritizationValidationError):
-        s.ExactFraction(True, 12)  # type: ignore[arg-type]
+        s.ExactFraction(True, 12)
 
 
 @pytest.mark.parametrize("value", ["cm.bs", "cm-b.s", "a1"])
@@ -448,92 +448,77 @@ def test_premium_rate_has_no_additional_sign_restriction() -> None:
         s.PrepaymentFixedPremiumRate(Decimal("NaN"))
 
 
-MetricFactory = Callable[[], s.PerformanceMetricDefinition]
+BadMetricFactory = Callable[[], object]
 
 
 @pytest.mark.parametrize(
-    "factory,field_name,wrong",
+    "bad_factory",
     [
-        (
-            metric,
-            "numerator_role",
-            s.MetricRoleCode.CUTOFF_DATE_POOL_BALANCE,
+        lambda: replace(
+            metric(),
+            numerator_role=s.MetricRoleCode.CUTOFF_DATE_POOL_BALANCE,
         ),
-        (
-            metric,
-            "denominator_role",
-            s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF,
+        lambda: replace(
+            metric(),
+            denominator_role=s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF,
         ),
-        (
-            metric,
-            "measurement_window_role",
-            s.MetricRoleCode.NONE_AGGREGATION,
+        lambda: replace(
+            metric(),
+            measurement_window_role=s.MetricRoleCode.NONE_AGGREGATION,
         ),
-        (
-            metric,
-            "aggregation_role",
-            s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF,
+        lambda: replace(
+            metric(),
+            aggregation_role=s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF,
         ),
-        (
-            delinquency,
-            "numerator_population_role",
-            s.MetricRoleCode.PERIOD_POOL_BALANCE,
+        lambda: replace(
+            delinquency(),
+            numerator_population_role=s.MetricRoleCode.PERIOD_POOL_BALANCE,
         ),
-        (
-            delinquency,
-            "qualification_role",
-            s.MetricRoleCode.ROLLING_THREE_MONTHS,
+        lambda: replace(
+            delinquency(),
+            qualification_role=s.MetricRoleCode.ROLLING_THREE_MONTHS,
         ),
-        (
-            delinquency,
-            "denominator_role",
-            s.MetricRoleCode.CUTOFF_DATE_POOL_BALANCE,
+        lambda: replace(
+            delinquency(),
+            denominator_role=s.MetricRoleCode.CUTOFF_DATE_POOL_BALANCE,
         ),
-        (
-            delinquency,
-            "measurement_window_role",
-            s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF,
+        lambda: replace(
+            delinquency(),
+            measurement_window_role=s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF,
         ),
-        (
-            delinquency,
-            "aggregation_role",
-            s.MetricRoleCode.NONE_AGGREGATION,
+        lambda: replace(
+            delinquency(),
+            aggregation_role=s.MetricRoleCode.NONE_AGGREGATION,
         ),
-        (
-            enhancement,
-            "gross_balance_role",
-            s.MetricRoleCode.PERIOD_POOL_BALANCE,
+        lambda: replace(
+            enhancement(),
+            gross_balance_role=s.MetricRoleCode.PERIOD_POOL_BALANCE,
         ),
-        (
-            enhancement,
-            "subtracted_balance_role",
-            s.MetricRoleCode.CUTOFF_DATE_POOL_BALANCE,
+        lambda: replace(
+            enhancement(),
+            subtracted_balance_role=s.MetricRoleCode.CUTOFF_DATE_POOL_BALANCE,
         ),
-        (
-            enhancement,
-            "subtracted_balance_temporal_role",
-            s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF,
+        lambda: replace(
+            enhancement(),
+            subtracted_balance_temporal_role=(
+                s.MetricRoleCode.CUMULATIVE_FROM_CUTOFF
+            ),
         ),
-        (
-            enhancement,
-            "denominator_role",
-            s.MetricRoleCode.PERIOD_POOL_BALANCE,
+        lambda: replace(
+            enhancement(),
+            denominator_role=s.MetricRoleCode.PERIOD_POOL_BALANCE,
         ),
-        (
-            enhancement,
-            "formula_operation_role",
-            s.MetricRoleCode.NONE_AGGREGATION,
+        lambda: replace(
+            enhancement(),
+            formula_operation_role=s.MetricRoleCode.NONE_AGGREGATION,
         ),
     ],
 )
 def test_every_wrong_fixed_metric_role_is_rejected(
-    factory: MetricFactory,
-    field_name: str,
-    wrong: s.MetricRoleCode,
+    bad_factory: BadMetricFactory,
 ) -> None:
-    definition = factory()
     with pytest.raises(s.FixedIncomeSecuritizationValidationError):
-        replace(definition, **{field_name: wrong})
+        bad_factory()
 
 
 def test_valid_metric_logical_values_retain_formula_roles() -> None:
@@ -786,9 +771,9 @@ def test_defeasance_notice_reference_is_not_evidence_reference() -> None:
         s.DefeasanceQualificationOrNoticeRef,
     )
     assert isinstance(terms.evidence_ref, FixedIncomeEvidenceRef)
-    assert type(terms.qualification_or_notice_ref) is not type(
+    assert type(terms.qualification_or_notice_ref).__name__ != type(
         terms.evidence_ref
-    )
+    ).__name__
 
 
 def test_condition_set_rejects_orphan_metric_and_composite_cycle() -> None:
@@ -927,14 +912,9 @@ def test_strict_uuid_int_date_and_decimal_validation() -> None:
     with pytest.raises(s.FixedIncomeSecuritizationValidationError):
         s.SecuritizationDealId("x")  # type: ignore[arg-type]
     with pytest.raises(s.FixedIncomeSecuritizationValidationError):
-        s.ContractualMeasurementYearMonth(
-            True,  # type: ignore[arg-type]
-            1,
-        )
+        s.ContractualMeasurementYearMonth(True, 1)
     with pytest.raises(s.FixedIncomeSecuritizationValidationError):
-        s.AfterPaymentCountFromOriginationBoundary(
-            True  # type: ignore[arg-type]
-        )
+        s.AfterPaymentCountFromOriginationBoundary(True)
     with pytest.raises(s.FixedIncomeSecuritizationValidationError):
         s.ExactDateBoundary(
             "2030-01-01"  # type: ignore[arg-type]

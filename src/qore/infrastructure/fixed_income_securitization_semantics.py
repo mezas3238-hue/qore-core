@@ -952,14 +952,9 @@ class ContractualConditionSet:
             "composite_conditions",
             composites,
         )
-        condition_ids = [
-            item.condition_id
-            for item in (
-                *events,
-                *tests,
-                *composites,
-            )
-        ]
+        condition_ids = [item.condition_id for item in events]
+        condition_ids.extend(item.condition_id for item in tests)
+        condition_ids.extend(item.condition_id for item in composites)
         metric_ids = [_metric_id(item) for item in metrics]
         if (
             len(set(condition_ids)) != len(condition_ids)
@@ -2320,15 +2315,21 @@ def _priority_ids(
     value: PriorityRegimeSet,
 ) -> set[SecuritizationTrancheId]:
     result: set[SecuritizationTrancheId] = set()
-    for regime in (
-        value.base,
-        *value.conditioned,
-    ):
-        for ranking in (
+    base_rankings = (
+        value.base.interest_ranking,
+        value.base.principal_ranking,
+        value.base.loss_ranking,
+    )
+    for ranking in base_rankings:
+        for group in ranking.groups:
+            result.update(group.tranche_ids)
+    for regime in value.conditioned:
+        conditioned_rankings = (
             regime.interest_ranking,
             regime.principal_ranking,
             regime.loss_ranking,
-        ):
+        )
+        for ranking in conditioned_rankings:
             for group in ranking.groups:
                 result.update(group.tranche_ids)
     return result
@@ -2421,12 +2422,14 @@ class SecuritizationDeal:
             _fail("deal pool/tranche ids must be unique")
         if any(
             item.deal_id != self.deal_id
-            for item in (
-                *pools,
-                *tranches,
-            )
+            for item in pools
         ):
-            _fail("all pools/tranches must bind parent deal")
+            _fail("all pools must bind parent deal")
+        if any(
+            item.deal_id != self.deal_id
+            for item in tranches
+        ):
+            _fail("all tranches must bind parent deal")
         pool_id_set = set(pool_ids)
         if any(
             item.pool_id not in pool_id_set
@@ -2499,12 +2502,16 @@ class SecuritizationDeal:
             _fail("unscheduled allocation references foreign tranche")
         known_conditions = {
             item.condition_id
-            for item in (
-                *self.condition_set.event_conditions,
-                *self.condition_set.performance_test_conditions,
-                *self.condition_set.composite_conditions,
-            )
+            for item in self.condition_set.event_conditions
         }
+        known_conditions.update(
+            item.condition_id
+            for item in self.condition_set.performance_test_conditions
+        )
+        known_conditions.update(
+            item.condition_id
+            for item in self.condition_set.composite_conditions
+        )
         if any(
             item.condition_id not in known_conditions
             for item in self.priority_regime_set.conditioned
@@ -2512,19 +2519,20 @@ class SecuritizationDeal:
             _fail(
                 "conditioned priority regime references orphan condition"
             )
-        regime_sets = (
-            self.scheduled_allocation_regime_set,
-            self.unscheduled_allocation_regime_set,
-        )
-        for regime_set in regime_sets:
-            if any(
-                item.condition_id not in known_conditions
-                for item in regime_set.conditioned
-            ):
-                _fail(
-                    "conditioned allocation regime references "
-                    "orphan condition"
-                )
+        if any(
+            item.condition_id not in known_conditions
+            for item in self.scheduled_allocation_regime_set.conditioned
+        ):
+            _fail(
+                "conditioned scheduled allocation references orphan condition"
+            )
+        if any(
+            item.condition_id not in known_conditions
+            for item in self.unscheduled_allocation_regime_set.conditioned
+        ):
+            _fail(
+                "conditioned unscheduled allocation references orphan condition"
+            )
         _evidence(self.evidence_ref, "deal evidence")
 
     def logical_values(self) -> tuple[object, ...]:
