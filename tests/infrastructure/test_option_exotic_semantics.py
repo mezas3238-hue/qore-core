@@ -672,7 +672,7 @@ def test_strict_date_rejects_datetime_for_asian_observation() -> None:
 def test_exotic_values_are_frozen_and_slotted() -> None:
     value = DigitalPayoutAmount(Decimal("1"), _identity(1))
     with pytest.raises(FrozenInstanceError):
-        setattr(value, "value", Decimal("2"))
+        value.__setattr__("value", Decimal("2"))
     assert not hasattr(value, "__dict__")
 
 
