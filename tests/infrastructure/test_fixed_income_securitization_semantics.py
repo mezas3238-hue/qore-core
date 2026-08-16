@@ -899,6 +899,23 @@ def test_deal_rejects_foreign_priority_tranche() -> None:
         replace(deal, priority_regime_set=bad_priority)
 
 
+def test_deal_rejects_tranche_with_foreign_pool_id() -> None:
+    deal = valid_deal()
+    foreign_pool = s.SecuritizationPoolId(uid(999))
+    bad_tranche = replace(
+        deal.tranches[0],
+        pool_id=foreign_pool,
+    )
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        replace(
+            deal,
+            tranches=(
+                bad_tranche,
+                *deal.tranches[1:],
+            ),
+        )
+
+
 def test_public_semantic_dataclasses_are_frozen_and_slotted() -> None:
     sample = s.SecuritizationCollateralTypeCode("cm.bs")
     assert is_dataclass(sample)
@@ -1122,6 +1139,24 @@ def test_conditioned_regimes_reject_orphan_conditions() -> None:
     )
     with pytest.raises(s.FixedIncomeSecuritizationValidationError):
         replace(deal, scheduled_allocation_regime_set=bad_scheduled)
+
+    unscheduled_base = deal.unscheduled_allocation_regime_set.base
+    bad_unscheduled = replace(
+        deal.unscheduled_allocation_regime_set,
+        conditioned=(
+            s.ConditionedAllocationRegime(
+                s.AllocationRegimeId(uid(6202)),
+                orphan,
+                1,
+                unscheduled_base.allocation_contract,
+            ),
+        ),
+    )
+    with pytest.raises(s.FixedIncomeSecuritizationValidationError):
+        replace(
+            deal,
+            unscheduled_allocation_regime_set=bad_unscheduled,
+        )
 
 
 def test_measurement_year_month_rejects_bool_month() -> None:
