@@ -78,6 +78,12 @@ def _pair() -> FxQuotedCurrencyPair:
     )
 
 
+def _quote_identity(pair: FxQuotedCurrencyPair) -> EconomicIdentityId:
+    if pair.quote_basis is FxQuoteBasis.CURRENCY1_PER_CURRENCY2:
+        return pair.currency1_identity_id
+    return pair.currency2_identity_id
+
+
 def _rate(pair: FxQuotedCurrencyPair, value: str = "1.1") -> FxExchangeRate:
     return FxExchangeRate(
         value=Decimal(value),
@@ -137,8 +143,8 @@ def _option_terms(pair: FxQuotedCurrencyPair) -> OptionContractTerms:
         strike=DerivativeStrike(
             value=Decimal("1.1"),
             basis=DerivativeStrikeBasis.PRICE,
-            quote_identity_id=pair.currency1_identity_id,
-            price_quote_basis=DerivativePriceQuoteBasisCode(pair.quote_basis.value),
+            quote_identity_id=_quote_identity(pair),
+            price_quote_basis=DerivativePriceQuoteBasisCode("currency-per-unit"),
         ),
         expiry_date=date(2026, 9, 18),
         exercise=OptionExerciseTerms(OptionExerciseStyle.EUROPEAN),
@@ -148,6 +154,20 @@ def _option_terms(pair: FxQuotedCurrencyPair) -> OptionContractTerms:
             Decimal("100"),
             pair.currency1_identity_id,
         ),
+    )
+
+
+def _fixing(
+    pair: FxQuotedCurrencyPair,
+    *,
+    fixing_date: date = date(2026, 8, 19),
+) -> FxFixingTerms:
+    return FxFixingTerms(
+        fixing_date=fixing_date,
+        pair_identity_id=pair.pair_identity_id,
+        quote_basis=pair.quote_basis,
+        fixing_reference_identity_id=_eid(5),
+        evidence_ref=_ev(3),
     )
 
 
@@ -386,21 +406,20 @@ def test_spot_rejects_rate_quote_basis_mismatch() -> None:
         )
 
 
-def test_spot_rejects_instrument_pair_identity_collision() -> None:
+def test_spot_may_use_pair_identity_as_instrument_attachment() -> None:
     spot = _spot()
-    with pytest.raises(FxValidationError):
-        replace(
-            spot,
-            instrument_identity_id=spot.quoted_pair.pair_identity_id,
-        )
+    same_identity = replace(
+        spot,
+        instrument_identity_id=spot.quoted_pair.pair_identity_id,
+    )
+    assert same_identity.instrument_identity_id == same_identity.quoted_pair.pair_identity_id
 
 
 def _valid_ndf() -> FxForwardTerms:
     pair = _pair()
-    fixing = FxFixingTerms(date(2026, 8, 19), _eid(5), _ev(3))
     settlement = FxNonDeliverableSettlementTerms(
         settlement_currency_identity_id=pair.currency2_identity_id,
-        fixing=fixing,
+        fixing=_fixing(pair),
         settlement_date=date(2026, 8, 20),
         evidence_ref=_ev(4),
     )
@@ -456,18 +475,45 @@ def test_ndf_requires_settlement_terms() -> None:
 
 
 def test_ndf_rejects_fixing_after_settlement_date() -> None:
+    pair = _pair()
     with pytest.raises(FxValidationError):
         FxNonDeliverableSettlementTerms(
-            settlement_currency_identity_id=_eid(2),
-            fixing=FxFixingTerms(date(2026, 8, 21), _eid(5), _ev(3)),
+            settlement_currency_identity_id=pair.currency2_identity_id,
+            fixing=_fixing(pair, fixing_date=date(2026, 8, 21)),
             settlement_date=date(2026, 8, 20),
             evidence_ref=_ev(4),
         )
 
 
+def test_ndf_rejects_fixing_pair_mismatch() -> None:
+    ndf = _valid_ndf()
+    assert ndf.non_deliverable_settlement is not None
+    bad_fixing = replace(
+        ndf.non_deliverable_settlement.fixing,
+        pair_identity_id=_eid(999),
+    )
+    bad_settlement = replace(ndf.non_deliverable_settlement, fixing=bad_fixing)
+    with pytest.raises(FxValidationError):
+        replace(ndf, non_deliverable_settlement=bad_settlement)
+
+
+def test_ndf_rejects_fixing_quote_basis_mismatch() -> None:
+    ndf = _valid_ndf()
+    assert ndf.non_deliverable_settlement is not None
+    bad_fixing = replace(
+        ndf.non_deliverable_settlement.fixing,
+        quote_basis=FxQuoteBasis.CURRENCY2_PER_CURRENCY1,
+    )
+    bad_settlement = replace(ndf.non_deliverable_settlement, fixing=bad_fixing)
+    with pytest.raises(FxValidationError):
+        replace(ndf, non_deliverable_settlement=bad_settlement)
+
+
 def test_fixing_terms_have_no_current_observed_value_slot() -> None:
     assert {field.name for field in fields(FxFixingTerms)} == {
         "fixing_date",
+        "pair_identity_id",
+        "quote_basis",
         "fixing_reference_identity_id",
         "evidence_ref",
     }
@@ -548,18 +594,18 @@ def test_fx_swap_same_pair_allows_distinct_evidence_refs() -> None:
     assert updated.near_leg.quoted_pair.evidence_ref != updated.quoted_pair.evidence_ref
 
 
-def _valid_option_binding() -> FxOptionBinding:
-    pair = _pair()
+def _valid_option_binding(pair: FxQuotedCurrencyPair | None = None) -> FxOptionBinding:
+    effective_pair = pair if pair is not None else _pair()
     return FxOptionBinding(
-        option_terms=_option_terms(pair),
-        quoted_pair=pair,
+        option_terms=_option_terms(effective_pair),
+        quoted_pair=effective_pair,
         put_currency_amount=FxCurrencyAmount(
             Decimal("100"),
-            pair.currency1_identity_id,
+            effective_pair.currency1_identity_id,
         ),
         call_currency_amount=FxCurrencyAmount(
             Decimal("110"),
-            pair.currency2_identity_id,
+            effective_pair.currency2_identity_id,
         ),
         evidence_ref=_ev(8),
     )
@@ -569,6 +615,15 @@ def test_valid_fx_option_binding_uses_real_generic_option() -> None:
     binding = _valid_option_binding()
     assert binding.logical_values()[0] == "fx-option-binding"
     assert binding.option_terms.logical_values()[0] == "option"
+
+
+def test_fx_option_reverse_quote_basis_uses_currency2_quote_identity() -> None:
+    pair = replace(_pair(), quote_basis=FxQuoteBasis.CURRENCY2_PER_CURRENCY1)
+    binding = _valid_option_binding(pair)
+    assert binding.option_terms.strike.quote_identity_id == pair.currency2_identity_id
+    assert binding.option_terms.strike.price_quote_basis == DerivativePriceQuoteBasisCode(
+        "currency-per-unit"
+    )
 
 
 def test_fx_option_rejects_underlying_pair_mismatch() -> None:
@@ -598,13 +653,21 @@ def test_fx_option_rejects_strike_quote_identity_mismatch() -> None:
         replace(binding, option_terms=replace(binding.option_terms, strike=invalid_strike))
 
 
-def test_fx_option_rejects_strike_quote_basis_mismatch() -> None:
+def test_fx_option_rejects_non_currency_per_unit_generic_quote_basis() -> None:
     binding = _valid_option_binding()
     invalid_strike = replace(
         binding.option_terms.strike,
-        price_quote_basis=DerivativePriceQuoteBasisCode(
-            FxQuoteBasis.CURRENCY2_PER_CURRENCY1.value
-        ),
+        price_quote_basis=DerivativePriceQuoteBasisCode("percent-of-par"),
+    )
+    with pytest.raises(FxValidationError):
+        replace(binding, option_terms=replace(binding.option_terms, strike=invalid_strike))
+
+
+def test_fx_option_rejects_fx_direction_code_as_generic_price_quote_basis() -> None:
+    binding = _valid_option_binding()
+    invalid_strike = replace(
+        binding.option_terms.strike,
+        price_quote_basis=DerivativePriceQuoteBasisCode(binding.quoted_pair.quote_basis.value),
     )
     with pytest.raises(FxValidationError):
         replace(binding, option_terms=replace(binding.option_terms, strike=invalid_strike))
