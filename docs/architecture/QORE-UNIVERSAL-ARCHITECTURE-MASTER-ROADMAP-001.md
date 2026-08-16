@@ -2,13 +2,24 @@
 
 ## Status
 
-**CEO-FROZEN ROADMAP CANDIDATE — INDEPENDENT ARCHITECTURE CERTIFICATION REQUIRED**
+**CEO-FROZEN CANONICAL MASTER ROADMAP — AMENDMENT #365 INTEGRATED**
 
 Tracking: #303
 Certification gate: #305
-Baseline: `fad2ab34a286a297241d779f38b4d9fd87580ce4`
+Current integrated baseline: `141a904516464945d56fc70dc2a95ab61cfeb533`
 
-This document is the versioned repository artifact for the QORE master architecture. It freezes the construction direction from foundation to production roof while preserving the rule that the artifact itself still requires independent review and Integration Gate certification.
+This document is the versioned repository artifact for the QORE master architecture. It freezes the construction direction from foundation to production roof while preserving the rule that every implementation slice still requires its own evidence, independent review, Integration Gate and post-merge verification.
+
+Integrated roadmap amendment authority:
+
+- `docs/architecture/QORE-MASTER-ROADMAP-CIBO-CLOUD-PROVIDER-AMENDMENT-001.md`
+- `docs/architecture/QORE-MASTER-ROADMAP-CIBO-CLOUD-PROVIDER-AMENDMENT-001-CORRECTION-R1.md`
+- tracking #365;
+- integrated by PR #369;
+- protected merge `141a904516464945d56fc70dc2a95ab61cfeb533`;
+- post-merge QORE CI #1118 SUCCESS.
+
+Where the integrated amendment/correction is more specific than this root index, the amendment correction controls. This index does not duplicate the detailed normative content of those artifacts.
 
 ## Supreme principles
 
@@ -95,7 +106,7 @@ Core owns canonical authority, identities, shared semantics, invariants and gove
 
 ## Architecture levels
 
-Architecture level numbers describe scope hierarchy and conceptual layering only. They do **not** define construction sequence. The authoritative construction sequence is defined exclusively by Mandatory Construction Programs A-H and the per-slice gate.
+Architecture level numbers describe scope hierarchy and conceptual layering only. They do **not** define construction sequence. The authoritative construction sequence is defined exclusively by Mandatory Construction Programs A–J plus the Provider Certification Program (PCP), with Program H remaining the final system-certification program, and by the per-slice gate.
 
 ### Level 0 — Constitution
 
@@ -273,6 +284,8 @@ UNREACHABLE != SAFE TO START BACKUP
 ```
 
 Existing foundations: `QORE-MANAGED-HOSTING-ARCH-001`, MISSION-08.
+
+Productive QORE-owned Cloud construction is governed separately by Program I / #366 and the integrated amendment; MISSION-08 contract fitness alone is not Productive Cloud certification.
 
 ### Service D — Client Widget Android / iOS
 
@@ -486,7 +499,53 @@ Close replay -> decision producer -> specialist producer -> analysis lineage and
 
 Program G explicitly includes closure of any still-open verified structural gaps in research execution composition (retained replay/observations -> computed decision production) and specialist-analysis production (`FunctionalDecision` -> computed `SpecialistAnalysis`) before any quantitative promotion claim.
 
+### Program I — Productive QORE-Owned Cloud Fabric
+
+Tracking: #366. Normative detail: integrated roadmap amendment #365 / PR #369.
+
+Program I constructs and independently certifies the Productive QORE-owned Cloud Fabric across I-01..I-19: architecture freeze, compute/host lifecycle, runtime isolation, network, storage/replication, secrets/keys substrate, artifact/image supply chain, scheduler/capacity/placement, deployment control plane, runtime registry + lease/fencing, account execution units, observability, disaster recovery, security/tenant isolation, reliability/failover, latency, scale, operational demo and final Integration Gate.
+
+```text
+MISSION-08 CONTRACT FITNESS != PRODUCTIVE QORE CLOUD
+NO CONFIRMED EXCLUSIVE ACCOUNT-SCOPED FENCE / LEASE -> NO NEW EXECUTION AUTHORITY
+CLOUD LEADERSHIP != CORE DECISION
+```
+
+No multi-node/account execution runtime may become operationally active before certified I-10 lease/fencing composition and single-writer falsification.
+
+### Program J — CIBO Executive Intelligence & Trader Development
+
+Tracking: #367. Normative detail: integrated roadmap amendment #365 / PR #369.
+
+Program J constructs and independently certifies CIBO as the CEO personal intelligence assistant, global market intelligence officer, opportunity discovery engine, risk-adjusted revenue advisor, Trader Development Director and executive explainability interface across J-01..J-28.
+
+```text
+CIBO RECOMMENDATION != CORE DECISION
+CIBO CONVERSATION != EXECUTION AUTHORITY
+CIBO TRAINING != PRODUCTION SELF-MODIFICATION
+CIBO OPPORTUNITY != GUARANTEED PROFIT
+CIBO REQUEST TO SPECIALIST != SPECIALIST FACT != SPECIALIST METHODOLOGY != SPECIALIST AUTHORITY
+```
+
+Material CIBO quantitative claims require certified producer/owner, methodology/model version, data/evidence provenance, as-of/freshness and reproducibility where required. Learning/coaching candidate state cannot directly mutate active Productive Trader configuration; promotion requires separate independent authorized approval.
+
+### Provider Certification Program — PCP
+
+Tracking: #368. Normative detail: integrated roadmap amendment #365 / PR #369.
+
+PCP replaces provider-specific project-wide gating such as the withdrawn OANDA Practice prerequisite. Providers/capabilities are certified only from bounded, independently auditable evidence or formally excluded where no usable certification path exists.
+
+```text
+QORE CONTRACT TEST != EXTERNAL PROVIDER OPERATIONAL EVIDENCE
+PROVIDER EXCLUSION != MARKET-FAMILY EXCLUSION
+ONE PROVIDER UNAVAILABLE != QORE ROADMAP BLOCKED
+```
+
+Synthetic/replay/simulated QORE evidence may test QORE contracts but cannot by itself establish external provider operational support.
+
 ### Program H — Final System Certification
+
+Program H executes only after its required foundations, including Programs D/E/G/I/J and applicable PCP evidence, are sufficiently certified for the target system scope.
 
 Cross-department + cross-platform + cross-asset + cross-service E2E, security, failure/degraded-mode, split-brain, reproducibility, governance and operational readiness.
 
@@ -537,7 +596,15 @@ No chat statement, provider limitation, SDK convenience or implementation shortc
 
 ## Current Gate Impact
 
-PR #298 remains useful cTrader work but cannot be promoted as the final universal instrument-catalog foundation while #302 and #301 UMI-01/UMI-02 remain unresolved.
+Roadmap amendment #365 / PR #369 is integrated and post-merge certified at `141a904516464945d56fc70dc2a95ab61cfeb533`.
+
+Issue #146 OANDA Practice blocker is superseded/not-planned; it is not a successful provider-certification claim. Provider-neutral operational certification is tracked by #368.
+
+Programs #366 (QORE Cloud) and #367 (CIBO Executive Intelligence & Trader Development) are active roadmap programs; active does not mean implemented or certified.
+
+Program D / UMI-14 remains isolated and continues under its own correction/certification sequence.
+
+PR #298 remains useful cTrader work but cannot be promoted as the final universal instrument-catalog foundation without its own current architecture reconciliation and certification.
 
 Existing MISSION-07/MISSION-08 client/hosting foundations are retained as evidence where compatible. They are not discarded and are not automatically universal certification.
 
