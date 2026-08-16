@@ -7,6 +7,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from qore.infrastructure.derivative_contract_semantics import (
+    DerivativePriceQuoteBasisCode,
     DerivativeStrikeBasis,
     OptionContractTerms,
 )
@@ -108,6 +109,13 @@ class FxFlowDirection(StrEnum):
 class FxForwardDeliveryKind(StrEnum):
     DELIVERABLE = "deliverable"
     NON_DELIVERABLE = "non-deliverable"
+
+
+# UMI-05 PRICE quotation semantics remain a separate authority from FX quote direction.
+# The explicit bridge says an FX option strike is a currency-denominated price per unit
+# of the underlying FX pair; FxQuoteBasis separately states which pair currency is the
+# price/quote currency.
+_FX_OPTION_PRICE_QUOTE_BASIS = DerivativePriceQuoteBasisCode("currency-per-unit")
 
 
 @dataclass(frozen=True, slots=True)
@@ -311,25 +319,27 @@ def _validate_option_strike_binding(
         raise FxValidationError("FX option strike basis must be PRICE")
     if strike.quote_identity_id != _fx_quote_identity(quoted_pair):
         raise FxValidationError(
-            "FX option strike quote identity must match the quoted-pair quote currency"
+            "FX option strike quote identity must match the FX quotation direction"
         )
-    if (
-        strike.price_quote_basis is None
-        or strike.price_quote_basis.value != quoted_pair.quote_basis.value
-    ):
+    if strike.price_quote_basis != _FX_OPTION_PRICE_QUOTE_BASIS:
         raise FxValidationError(
-            "FX option strike quote basis must match the quoted-pair quote basis"
+            "FX option PRICE strike must use the generic currency-per-unit quote basis"
         )
 
 
 @dataclass(frozen=True, slots=True)
 class FxFixingTerms:
     fixing_date: date
+    pair_identity_id: EconomicIdentityId
+    quote_basis: FxQuoteBasis
     fixing_reference_identity_id: EconomicIdentityId
     evidence_ref: FxEvidenceRef
 
     def __post_init__(self) -> None:
         _validate_date(self.fixing_date, field_name="FX fixing date")
+        _validate_identity(self.pair_identity_id, field_name="FX fixing pair identity")
+        if not isinstance(self.quote_basis, FxQuoteBasis):
+            raise FxValidationError("FX fixing quote basis must be FxQuoteBasis")
         _validate_identity(
             self.fixing_reference_identity_id,
             field_name="FX fixing reference identity",
@@ -341,6 +351,8 @@ class FxFixingTerms:
         return (
             "fx-fixing-terms",
             self.fixing_date.isoformat(),
+            self.pair_identity_id.logical_values(),
+            self.quote_basis.value,
             self.fixing_reference_identity_id.logical_values(),
             self.evidence_ref.logical_values(),
         )
@@ -398,8 +410,6 @@ class FxSpotTerms:
         )
         if not isinstance(self.quoted_pair, FxQuotedCurrencyPair):
             raise FxValidationError("FX spot quoted_pair must be FxQuotedCurrencyPair")
-        if self.instrument_identity_id == self.quoted_pair.pair_identity_id:
-            raise FxValidationError("FX spot instrument identity must differ from pair identity")
         if not isinstance(self.value_dates, FxValueDates):
             raise FxValidationError("FX spot value_dates must be FxValueDates")
         _validate_exchange_rate_binding(
@@ -475,6 +485,12 @@ class FxForwardTerms:
             raise FxValidationError(
                 "non-deliverable FX forward requires NDF settlement terms"
             )
+        else:
+            fixing = self.non_deliverable_settlement.fixing
+            if fixing.pair_identity_id != self.quoted_pair.pair_identity_id:
+                raise FxValidationError("NDF fixing pair identity must match quoted pair")
+            if fixing.quote_basis is not self.quoted_pair.quote_basis:
+                raise FxValidationError("NDF fixing quote basis must match quoted pair")
 
         object.__setattr__(self, "flows", _validated_flows(self.quoted_pair, self.flows))
 
