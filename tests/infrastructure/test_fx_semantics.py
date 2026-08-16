@@ -197,10 +197,12 @@ def _valid_swap() -> FxSwapTerms:
 
 def test_local_ids_are_frozen_and_slotted() -> None:
     terms_id = _terms_id(1)
+    value_attribute = "value"
+    extra_attribute = "extra"
     with pytest.raises(FrozenInstanceError):
-        setattr(terms_id, "value", _uid(2))
+        setattr(terms_id, value_attribute, _uid(2))
     with pytest.raises((AttributeError, TypeError)):
-        setattr(terms_id, "extra", "forbidden")
+        setattr(terms_id, extra_attribute, "forbidden")
 
 
 def test_pair_same_currency_rejected() -> None:
