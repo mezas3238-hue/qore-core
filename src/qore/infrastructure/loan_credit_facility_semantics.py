@@ -456,7 +456,7 @@ class LoanContractTerms:
     denomination_currency_identity_id: EconomicIdentityId
     original_principal: LoanPrincipalAmount
     start_date: date
-    maturity_date: date
+    maturity_date: date | None
     interest_terms: LoanInterestTerms
     amortization_schedule: LoanAmortizationSchedule
     evidence_ref: LoanEvidenceRef
@@ -476,9 +476,10 @@ class LoanContractTerms:
         )
         _exact(self.original_principal, LoanPrincipalAmount, "original_principal")
         _date(self.start_date, "loan start_date")
-        _date(self.maturity_date, "loan maturity_date")
-        if self.maturity_date <= self.start_date:
-            _fail("loan maturity_date must be after start_date")
+        if self.maturity_date is not None:
+            _date(self.maturity_date, "loan maturity_date")
+            if self.maturity_date <= self.start_date:
+                _fail("loan maturity_date must be after start_date")
         if type(self.interest_terms) not in (
             FixedLoanInterestTerms,
             FloatingLoanInterestTerms,
@@ -490,8 +491,13 @@ class LoanContractTerms:
             "amortization_schedule",
         )
         for repayment in self.amortization_schedule.repayments:
-            if not self.start_date < repayment.due_date <= self.maturity_date:
-                _fail("loan repayment date must be after start and on/before maturity")
+            if repayment.due_date <= self.start_date:
+                _fail("loan repayment date must be after loan start")
+            if (
+                self.maturity_date is not None
+                and repayment.due_date > self.maturity_date
+            ):
+                _fail("loan repayment date must not follow loan maturity")
         _exact(self.evidence_ref, LoanEvidenceRef, "loan evidence_ref")
 
     def logical_values(self) -> tuple[object, ...]:
@@ -503,7 +509,7 @@ class LoanContractTerms:
             self.denomination_currency_identity_id.logical_values(),
             self.original_principal.logical_values(),
             self.start_date.isoformat(),
-            self.maturity_date.isoformat(),
+            self.maturity_date.isoformat() if self.maturity_date is not None else None,
             self.interest_terms.logical_values(),
             self.amortization_schedule.logical_values(),
             self.evidence_ref.logical_values(),
@@ -719,9 +725,15 @@ class LoanCreditFacilityDeal:
                 _fail("loan contract must not start before its facility")
             if (
                 facility.maturity_date is not None
+                and contract.maturity_date is not None
                 and contract.maturity_date > facility.maturity_date
             ):
                 _fail("loan contract must not mature after its facility")
+            if facility.maturity_date is not None and any(
+                repayment.due_date > facility.maturity_date
+                for repayment in contract.amortization_schedule.repayments
+            ):
+                _fail("loan repayment must not follow facility maturity")
 
     def _validate_covenants(
         self,

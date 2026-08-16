@@ -686,3 +686,64 @@ def test_canonicalizes_borrowers_currencies_and_covenants() -> None:
 def test_empty_commitment_schedule_is_rejected_when_present() -> None:
     with pytest.raises(s.LoanCreditFacilityValidationError):
         s.LoanCommitmentSchedule(())
+
+
+def test_loan_contract_maturity_may_be_absent() -> None:
+    open_ended = replace(loan_one(), maturity_date=None)
+    assert open_ended.maturity_date is None
+    assert open_ended.logical_values()[7] is None
+
+    deal = valid_deal()
+    composed = replace(
+        deal,
+        loan_contracts=(open_ended, *deal.loan_contracts[1:]),
+    )
+    assert composed.loan_contracts[0].maturity_date is None
+
+
+def test_open_ended_loan_repayment_still_respects_facility_maturity() -> None:
+    deal = valid_deal()
+    late_schedule = s.LoanAmortizationSchedule(
+        (
+            s.LoanPrincipalRepayment(
+                1,
+                date(2031, 1, 1),
+                s.LoanPrincipalAmount(Decimal("1")),
+            ),
+        )
+    )
+    open_ended = replace(
+        deal.loan_contracts[0],
+        maturity_date=None,
+        amortization_schedule=late_schedule,
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            deal,
+            loan_contracts=(open_ended, *deal.loan_contracts[1:]),
+        )
+
+
+def test_open_ended_facility_and_loan_are_representable() -> None:
+    deal = valid_deal()
+    open_facility = replace(
+        deal.facilities[0],
+        maturity_date=None,
+        commitment_schedule=None,
+    )
+    open_loan = replace(deal.loan_contracts[0], maturity_date=None)
+    open_deal = replace(
+        deal,
+        facilities=(open_facility,),
+        loan_contracts=(open_loan, *deal.loan_contracts[1:]),
+    )
+    assert open_deal.facilities[0].maturity_date is None
+    assert open_deal.loan_contracts[0].maturity_date is None
+
+
+def test_optional_loan_maturity_still_rejects_non_date_values() -> None:
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            loan_one(),
+            maturity_date="2030-01-01",  # type: ignore[arg-type]
+        )

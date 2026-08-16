@@ -48,6 +48,12 @@ summary/commitment structures separately retain commitment limits and commitment
 schedules. Loan contract structures separately retain loan principal and interest
 period semantics.
 
+FpML LoanContract schema material also makes `maturityDate` optional (`minOccurs=0`).
+That is direct counterevidence against requiring every representable Loan Contract to
+carry an explicit maturity date. QORE therefore retains Loan maturity only when it is
+present in the contractual source material; absence is representable rather than
+silently synthesized.
+
 Primary references used for semantic qualification:
 
 - FpML product/loan architecture:
@@ -58,6 +64,8 @@ Primary references used for semantic qualification:
   https://www.fpml.org/spec/fpml-5-11-1-wd-1/html/confirmation/schemaDocumentation/schemas/fpml-loan-5-11_xsd/groups/FacilityCommitment.model.html
 - FpML 5.13 loan schema overview:
   https://www.fpml.org/spec/fpml-5-13-2-wd-2/html/confirmation/schemaDocumentation/schemas/fpml-loan-5-13_xsd/schema-overview.html
+- FpML LoanContract component documentation, where `maturityDate` is optional:
+  https://www.fpml.org/spec/fpml-5-13-2-wd-2/html/confirmation/schemaDocumentation/schemas/fpml-loan-5-13_xsd/complexTypes/LoanContract.html
 
 These sources prove market/standard semantics only. They do not prove QORE provider,
 operational, valuation, risk, accounting, settlement or execution support.
@@ -132,7 +140,7 @@ A Deal may contain an undrawn Facility and therefore does not require a Loan Con
 - commitment currency identity;
 - one or more allowed draw currency identities;
 - extensible `LoanFacilityTypeCode`;
-- start / optional maturity dates;
+- start date and optional maturity date;
 - positive original commitment;
 - optional `LoanCommitmentSchedule`;
 - evidence reference.
@@ -153,18 +161,22 @@ must be positive.
 - borrower contractual party reference;
 - draw/loan denomination identity;
 - positive original contractual principal;
-- start and maturity dates;
+- explicit start date;
+- optional explicit maturity date;
 - fixed or floating contractual interest terms;
 - contractual amortization schedule;
 - evidence reference.
 
-Top-level Deal validation fails closed unless:
+No maturity date is synthesized when the contractual source omits it. If an explicit
+Loan maturity is retained, it must be after Loan start. Top-level Deal validation
+fails closed unless:
 
 - the referenced Facility exists inside the Deal;
 - the Loan borrower party reference is permitted by that Facility;
 - the Loan denomination is one of the Facility's allowed draw currencies;
 - Loan start is not before Facility start;
-- Loan maturity is not after Facility maturity when Facility maturity is specified.
+- when both Loan and Facility maturities are explicit, Loan maturity does not follow Facility maturity;
+- when Facility maturity is explicit, no retained Loan principal repayment follows that Facility maturity even if Loan maturity itself is absent.
 
 No current outstanding principal is retained or derived.
 
@@ -235,8 +247,13 @@ SPREAD != RATE != YIELD
 - positive `LoanPrincipalAmount`.
 
 `LoanAmortizationSchedule` canonicalizes by ordinal and rejects duplicate ordinals or
-backward-moving due dates. The enclosing Loan Contract requires every retained
-repayment date to fall after Loan start and on/before Loan maturity.
+backward-moving due dates. Every retained repayment must be after Loan start. When an
+explicit Loan maturity exists, every retained repayment must also be on/before that
+Loan maturity. Independently, when the enclosing Facility has an explicit maturity,
+top-level Deal validation rejects any retained repayment after Facility maturity.
+
+This preserves fail-closed chronology without inventing a Loan maturity solely to
+bound repayments.
 
 The schedule deliberately does not require scheduled principal amounts to sum to the
 original principal. That would falsely exclude structures with capitalization,
@@ -322,7 +339,9 @@ The aggregate rejects:
 - Loan Contract -> foreign Facility references;
 - Loan borrower not permitted by Facility;
 - Loan draw currency not permitted by Facility;
-- Loan date range outside Facility range;
+- Loan start before Facility start;
+- explicit Loan maturity after explicit Facility maturity;
+- retained Loan repayment after explicit Facility maturity, including when Loan maturity is absent;
 - duplicate covenant IDs;
 - covenant Deal-ID mismatch;
 - Facility-scoped covenant -> foreign Facility;
@@ -400,7 +419,8 @@ This module contains no:
 
 - UUID identities are caller supplied;
 - no `uuid4()`;
-- dates are explicit `date` values;
+- dates are explicit `date` values when present;
+- absent maturity remains explicit `None`, never inferred from wall clock or another field;
 - Decimal values must be finite;
 - booleans cannot launder into integer ordinals;
 - canonical code fields require exact plain `str` and lowercase code syntax;
@@ -418,22 +438,23 @@ Before promotion the exact candidate must demonstrate:
 
 1. Deal != Facility != Loan Contract in both typed IDs and economic identities;
 2. undrawn Facility representability;
-3. foreign Facility rejection for Loan Contracts;
-4. contractual party-reference and draw-currency Facility binding;
-5. Facility/Loan chronology guards;
-6. commitment schedule canonicalization and zero terminal commitment acceptance;
-7. fixed != floating interest and rate != spread;
-8. amortization schedule chronology/ordinal guards;
-9. covenant reference/scoping without evaluation authority;
-10. facility-scoped original syndication shares and deterministic ordering;
-11. duplicate-ID fail-closed behavior;
-12. frozen/slotted deterministic values;
-13. no provider/runtime/valuation/risk/settlement authority;
-14. full QORE Ruff/Mypy/Pytest+coverage green on exact head;
-15. independent exact-head adversarial review;
-16. Integration Gate adjudication;
-17. protected expected-head merge;
-18. post-merge baseline/tree/CI verification.
+3. Loan Contract with absent maturity representability without synthesized dates;
+4. foreign Facility rejection for Loan Contracts;
+5. contractual party-reference and draw-currency Facility binding;
+6. explicit Facility/Loan chronology guards plus Facility-bounded repayments for open-ended Loans;
+7. commitment schedule canonicalization and zero terminal commitment acceptance;
+8. fixed != floating interest and rate != spread;
+9. amortization schedule chronology/ordinal guards;
+10. covenant reference/scoping without evaluation authority;
+11. facility-scoped original syndication shares and deterministic ordering;
+12. duplicate-ID fail-closed behavior;
+13. frozen/slotted deterministic values;
+14. no provider/runtime/valuation/risk/settlement authority;
+15. full QORE Ruff/Mypy/Pytest+coverage green on exact head;
+16. independent exact-head adversarial review;
+17. Integration Gate adjudication;
+18. protected expected-head merge;
+19. post-merge baseline/tree/CI verification.
 
 ---
 
