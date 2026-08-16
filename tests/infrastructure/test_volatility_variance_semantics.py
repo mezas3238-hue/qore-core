@@ -329,7 +329,7 @@ def test_variance_swap_allows_absent_vega_notional() -> None:
 def test_variance_and_volatility_same_decimal_do_not_collapse() -> None:
     variance = VarianceStrike(Decimal("0.20"))
     volatility = VolatilityStrike(Decimal("0.20"))
-    assert type(variance) is not type(volatility)
+    assert variance.__class__.__name__ != volatility.__class__.__name__
     assert variance.logical_values() == volatility.logical_values()
 
 
@@ -390,7 +390,10 @@ def test_settlement_must_not_precede_observation_end(factory: Any) -> None:
             )
 
 
-@pytest.mark.parametrize("kind", ["terms", "instrument", "observation", "settlement", "evidence"])
+@pytest.mark.parametrize(
+    "kind",
+    ["terms", "instrument", "observation", "settlement", "evidence"],
+)
 def test_variance_common_wrappers_fail_closed(kind: str) -> None:
     base = _variance()
     values: dict[str, Any] = {
