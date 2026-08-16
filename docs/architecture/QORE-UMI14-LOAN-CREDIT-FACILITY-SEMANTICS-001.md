@@ -79,20 +79,30 @@ or UMI-13 production contracts.
 
 Reused certified semantics where the economic meaning is already owned:
 
-- UMI-02 `EconomicIdentityId` for canonical identity attachment;
+- UMI-02 `EconomicIdentityId` only for instruments/reference objects and currency/reference attachments;
 - UMI-03 `DayCountConventionCode`;
 - UMI-03 `FinancialTenor`;
 - UMI-03 `FixedIncomeBenchmarkReference` as benchmark/reference attachment only;
 - UMI-03 `FixedIncomeSpread` as spread magnitude distinct from rate/yield.
 
-Important non-conflation:
+Important non-conflations:
 
 ```text
 LOAN CONTRACTUAL RATE != BOND COUPON RATE
+LEGAL/CONTRACTUAL PARTY REFERENCE != ECONOMIC INSTRUMENT IDENTITY
 ```
 
-The owner therefore defines `LoanInterestRate` instead of laundering a loan rate
-through `CouponRate`.
+UMI-02 defines `EconomicIdentityId` for an economic instrument or reference object.
+It is therefore not valid authority for borrower, lender or agent parties. QORE has
+no inspected universal legal-entity identity owner in this correction baseline.
+
+Lane 3 defines `LoanPartyReferenceId` as an opaque caller-supplied contractual party
+reference. It grants no universal legal-entity identity, KYC, LEI, counterparty-risk,
+authorization or account authority. This is intentionally narrower than inventing a
+global party identity contract.
+
+The owner also defines `LoanInterestRate` instead of laundering a loan rate through
+`CouponRate`.
 
 ---
 
@@ -107,7 +117,7 @@ through `CouponRate`.
 - one or more `LoanFacilityTerms`;
 - zero or more `LoanContractTerms`;
 - zero or more bounded `LoanCovenantTerms`;
-- optional `LoanSyndicationTerms`;
+- zero or more facility-scoped `LoanSyndicationTerms`;
 - an opaque `LoanEvidenceRef`.
 
 A Deal may contain an undrawn Facility and therefore does not require a Loan Contract.
@@ -118,7 +128,7 @@ A Deal may contain an undrawn Facility and therefore does not require a Loan Con
 
 - `LoanFacilityId` and exact Deal binding;
 - facility economic identity;
-- one or more permitted borrower identities;
+- one or more permitted `LoanPartyReferenceId` borrower references;
 - commitment currency identity;
 - one or more allowed draw currency identities;
 - extensible `LoanFacilityTypeCode`;
@@ -140,7 +150,7 @@ must be positive.
 - `LoanContractId`;
 - Facility binding;
 - loan economic identity;
-- borrower identity;
+- borrower contractual party reference;
 - draw/loan denomination identity;
 - positive original contractual principal;
 - start and maturity dates;
@@ -151,7 +161,7 @@ must be positive.
 Top-level Deal validation fails closed unless:
 
 - the referenced Facility exists inside the Deal;
-- the Loan borrower is permitted by that Facility;
+- the Loan borrower party reference is permitted by that Facility;
 - the Loan denomination is one of the Facility's allowed draw currencies;
 - Loan start is not before Facility start;
 - Loan maturity is not after Facility maturity when Facility maturity is specified.
@@ -271,19 +281,26 @@ Facility-scoped covenants must resolve to a Facility inside the Deal.
 
 ## 9. Syndication boundary
 
-`LoanSyndicationTerms` retains bounded **original contractual** syndication material:
+`LoanSyndicationTerms` retains bounded **original contractual** syndication material
+for one Facility:
 
 - syndication identity;
 - Deal binding;
-- agent identity;
-- unique original lender identities;
+- Facility binding;
+- agent contractual party reference;
+- unique original lender contractual party references;
 - exact original `LoanParticipationShare` values summing to one;
 - evidence reference.
 
-Caller order of lender shares is non-semantic and canonicalizes by lender identity.
+A bilateral/non-syndicated Deal may retain no syndication terms. For a syndicated
+Deal, lender allocations are Facility-scoped because commitments can differ between
+Facilities. At most one complete original syndication definition is retained per
+Facility. Caller order of lender shares is non-semantic and canonicalizes by lender
+party reference.
 
-This is not current lender-position state and does not model secondary loan trading,
-assignments, participations, settlement, lender books or transfer consent.
+This is not current lender-position state and does not model loan-contract lender
+positions, secondary loan trading, assignments, participations, settlement, lender
+books or transfer consent.
 
 ```text
 ORIGINAL SYNDICATION SHARES != CURRENT LENDER POSITION
@@ -297,7 +314,11 @@ The aggregate rejects:
 
 - duplicate Facility IDs;
 - Facility Deal-ID mismatch;
+- duplicate Facility economic identities;
+- Deal/Facility economic-identity conflation;
 - duplicate Loan Contract IDs;
+- duplicate Loan economic identities;
+- Deal/Loan or Facility/Loan economic-identity conflation;
 - Loan Contract -> foreign Facility references;
 - Loan borrower not permitted by Facility;
 - Loan draw currency not permitted by Facility;
@@ -305,7 +326,9 @@ The aggregate rejects:
 - duplicate covenant IDs;
 - covenant Deal-ID mismatch;
 - Facility-scoped covenant -> foreign Facility;
+- duplicate syndication IDs or duplicate original syndication definitions for one Facility;
 - syndication Deal-ID mismatch;
+- syndication Facility reference outside the Deal;
 - duplicate original syndication lenders;
 - original lender shares not summing exactly to one.
 
@@ -382,7 +405,7 @@ This module contains no:
 - booleans cannot launder into integer ordinals;
 - canonical code fields require exact plain `str` and lowercase code syntax;
 - nested local values require exact runtime classes at aggregate boundaries;
-- identity collections are unique and canonicalized deterministically;
+- economic-object identities and contractual party-reference collections are unique and canonicalized deterministically;
 - schedules are immutable and canonicalized by explicit economic keys;
 - evidence is opaque UUID reference material only;
 - no credentials/secrets are retained as text.
@@ -393,16 +416,16 @@ This module contains no:
 
 Before promotion the exact candidate must demonstrate:
 
-1. Deal != Facility != Loan Contract;
+1. Deal != Facility != Loan Contract in both typed IDs and economic identities;
 2. undrawn Facility representability;
 3. foreign Facility rejection for Loan Contracts;
-4. borrower and draw-currency Facility binding;
+4. contractual party-reference and draw-currency Facility binding;
 5. Facility/Loan chronology guards;
 6. commitment schedule canonicalization and zero terminal commitment acceptance;
 7. fixed != floating interest and rate != spread;
 8. amortization schedule chronology/ordinal guards;
 9. covenant reference/scoping without evaluation authority;
-10. exact original syndication shares and deterministic ordering;
+10. facility-scoped original syndication shares and deterministic ordering;
 11. duplicate-ID fail-closed behavior;
 12. frozen/slotted deterministic values;
 13. no provider/runtime/valuation/risk/settlement authority;
@@ -422,6 +445,7 @@ This candidate does not establish:
 - `UMI13-UNR-021` closure;
 - `UMI13-UNR-022` closure;
 - provider support;
+- universal legal-entity/party identity authority;
 - current loan/facility state;
 - lender-position support;
 - credit approval;

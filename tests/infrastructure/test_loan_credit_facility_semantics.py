@@ -28,6 +28,10 @@ def economic(value: int) -> EconomicIdentityId:
     return EconomicIdentityId(uid(value))
 
 
+def party(value: int) -> s.LoanPartyReferenceId:
+    return s.LoanPartyReferenceId(uid(value))
+
+
 def evidence(value: int = 900) -> s.LoanEvidenceRef:
     return s.LoanEvidenceRef(uid(value))
 
@@ -79,7 +83,7 @@ def facility() -> s.LoanFacilityTerms:
         s.LoanFacilityId(uid(2)),
         s.LoanDealId(uid(1)),
         economic(10),
-        (economic(21), economic(20)),
+        (party(21), party(20)),
         economic(30),
         (economic(31), economic(30)),
         s.LoanFacilityTypeCode("revolving-credit"),
@@ -113,7 +117,7 @@ def loan_one() -> s.LoanContractTerms:
         s.LoanContractId(uid(3)),
         s.LoanFacilityId(uid(2)),
         economic(11),
-        economic(20),
+        party(20),
         economic(30),
         s.LoanPrincipalAmount(Decimal("100000")),
         date(2026, 2, 1),
@@ -129,7 +133,7 @@ def loan_two() -> s.LoanContractTerms:
         s.LoanContractId(uid(4)),
         s.LoanFacilityId(uid(2)),
         economic(12),
-        economic(21),
+        party(21),
         economic(31),
         s.LoanPrincipalAmount(Decimal("200000")),
         date(2026, 3, 1),
@@ -167,14 +171,15 @@ def syndication() -> s.LoanSyndicationTerms:
     return s.LoanSyndicationTerms(
         s.LoanSyndicationId(uid(7)),
         s.LoanDealId(uid(1)),
-        economic(40),
+        s.LoanFacilityId(uid(2)),
+        party(40),
         (
             s.OriginalLoanLenderShare(
-                economic(42),
+                party(42),
                 s.LoanParticipationShare(Decimal("0.4")),
             ),
             s.OriginalLoanLenderShare(
-                economic(41),
+                party(41),
                 s.LoanParticipationShare(Decimal("0.6")),
             ),
         ),
@@ -194,7 +199,7 @@ def valid_deal(*, reverse_contracts: bool = False) -> s.LoanCreditFacilityDeal:
         (facility(),),
         contracts,
         covenants(),
-        syndication(),
+        (syndication(),),
         evidence(1001),
     )
 
@@ -225,6 +230,54 @@ def test_deal_facility_and_loan_contract_are_distinct_semantics() -> None:
     )
 
 
+def test_party_reference_is_not_economic_identity() -> None:
+    borrower = party(20)
+    assert not isinstance(borrower, EconomicIdentityId)
+    assert borrower.logical_values() == (str(uid(20)),)
+
+
+def test_deal_facility_and_loan_economic_identities_cannot_conflate() -> None:
+    deal = valid_deal()
+    facility_identity = deal.facilities[0].facility_identity_id
+    loan_identity = deal.loan_contracts[0].loan_identity_id
+
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(deal, deal_identity_id=facility_identity)
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(deal, deal_identity_id=loan_identity)
+
+    bad_loan = replace(
+        deal.loan_contracts[0],
+        loan_identity_id=facility_identity,
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(deal, loan_contracts=(bad_loan, *deal.loan_contracts[1:]))
+
+    duplicate_loan_identity = replace(
+        deal.loan_contracts[1],
+        loan_identity_id=loan_identity,
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            deal,
+            loan_contracts=(
+                deal.loan_contracts[0],
+                duplicate_loan_identity,
+            ),
+        )
+
+    duplicate_facility_identity = replace(
+        deal.facilities[0],
+        facility_id=s.LoanFacilityId(uid(888)),
+        evidence_ref=evidence(888),
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(
+            deal,
+            facilities=(deal.facilities[0], duplicate_facility_identity),
+        )
+
+
 def test_undrawn_facility_is_valid() -> None:
     deal = valid_deal()
     undrawn = replace(deal, loan_contracts=())
@@ -243,7 +296,7 @@ def test_foreign_facility_reference_fails_closed() -> None:
 
 def test_unpermitted_borrower_fails_closed() -> None:
     deal = valid_deal()
-    bad = replace(deal.loan_contracts[0], borrower_identity_id=economic(999))
+    bad = replace(deal.loan_contracts[0], borrower_party_ref=party(999))
     with pytest.raises(s.LoanCreditFacilityValidationError):
         replace(deal, loan_contracts=(bad, *deal.loan_contracts[1:]))
 
@@ -314,10 +367,9 @@ def test_duplicate_commitment_dates_fail_closed() -> None:
 
 
 def test_original_commitment_positive_but_schedule_can_reduce_to_zero() -> None:
-    assert facility().commitment_schedule is not None
-    assert facility().commitment_schedule.changes[-1].commitment.logical_values() == (
-        "0",
-    )
+    schedule = facility().commitment_schedule
+    assert schedule is not None
+    assert schedule.changes[-1].commitment.logical_values() == ("0",)
     with pytest.raises(s.LoanCreditFacilityValidationError):
         replace(
             facility(),
@@ -345,20 +397,36 @@ def test_negative_contractual_rate_is_representable_without_float() -> None:
 def test_syndication_shares_are_canonical_and_sum_exactly_one() -> None:
     terms = syndication()
     assert [
-        item.lender_identity_id for item in terms.original_lender_shares
-    ] == [economic(41), economic(42)]
+        item.lender_party_ref for item in terms.original_lender_shares
+    ] == [party(41), party(42)]
     bad = (
         s.OriginalLoanLenderShare(
-            economic(41),
+            party(41),
             s.LoanParticipationShare(Decimal("0.7")),
         ),
         s.OriginalLoanLenderShare(
-            economic(42),
+            party(42),
             s.LoanParticipationShare(Decimal("0.4")),
         ),
     )
     with pytest.raises(s.LoanCreditFacilityValidationError):
         replace(terms, original_lender_shares=bad)
+
+
+def test_bilateral_deal_can_omit_syndication_terms() -> None:
+    deal = valid_deal()
+    bilateral = replace(deal, syndication_terms=())
+    assert bilateral.syndication_terms == ()
+
+
+def test_syndication_facility_reference_must_resolve() -> None:
+    deal = valid_deal()
+    bad = replace(
+        deal.syndication_terms[0],
+        facility_id=s.LoanFacilityId(uid(999)),
+    )
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        replace(deal, syndication_terms=(bad,))
 
 
 def test_duplicate_syndication_lenders_fail_closed() -> None:
@@ -403,6 +471,8 @@ def test_duplicate_ids_fail_closed() -> None:
 def test_strict_int_date_decimal_uuid_and_code_validation() -> None:
     with pytest.raises(s.LoanCreditFacilityValidationError):
         s.LoanDealId("x")  # type: ignore[arg-type]
+    with pytest.raises(s.LoanCreditFacilityValidationError):
+        s.LoanPartyReferenceId("x")  # type: ignore[arg-type]
     with pytest.raises(s.LoanCreditFacilityValidationError):
         s.LoanPrincipalRepayment(
             True,
@@ -455,13 +525,21 @@ def test_static_terms_do_not_expose_current_balance_or_lender_position() -> None
     deal = valid_deal()
     assert not hasattr(deal, "current_balance")
     assert not hasattr(deal.loan_contracts[0], "outstanding_balance")
-    assert not hasattr(deal.syndication_terms, "current_lender_position")
+    assert not hasattr(deal.syndication_terms[0], "current_lender_position")
 
 
 def test_deal_logical_material_retains_all_bounded_components() -> None:
     values = valid_deal().logical_values()
+    facilities = values[2]
+    contracts = values[3]
+    covenant_values = values[4]
     assert values[0] == (str(uid(1)),)
-    assert len(values[2]) == 1
-    assert len(values[3]) == 2
-    assert len(values[4]) == 2
-    assert values[5] is not None
+    assert isinstance(facilities, tuple)
+    assert isinstance(contracts, tuple)
+    assert isinstance(covenant_values, tuple)
+    assert len(facilities) == 1
+    assert len(contracts) == 2
+    assert len(covenant_values) == 2
+    syndication_values = values[5]
+    assert isinstance(syndication_values, tuple)
+    assert len(syndication_values) == 1
