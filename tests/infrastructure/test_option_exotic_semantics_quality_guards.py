@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -23,11 +23,15 @@ from qore.infrastructure.derivative_contract_semantics import (
     OptionRight,
 )
 from qore.infrastructure.option_exotic_semantics import (
+    AsianAveragingLiteralDate,
+    AsianAveragingLiteralDateTime,
     AsianAveragingMethodCode,
     AsianAveragingObservation,
+    AsianAveragingObservationKind,
     AsianAveragingPeriod,
     AsianAveragingRole,
     AsianAveragingScheduleCode,
+    AsianAveragingScheduleObservation,
     AsianOptionTerms,
     BarrierOptionTerms,
     DigitalOptionPayout,
@@ -145,11 +149,39 @@ def _digital_terms() -> DigitalOptionTerms:
     )
 
 
-def _period(*days: int) -> AsianAveragingPeriod:
+def _literal_date(value: int) -> AsianAveragingLiteralDate:
+    return AsianAveragingLiteralDate(date(2026, 10, value))
+
+
+def _literal_datetime(
+    value: int,
+    hour: int,
+    tz: timezone = timezone.utc,
+) -> AsianAveragingLiteralDateTime:
+    return AsianAveragingLiteralDateTime(
+        datetime(2026, 10, value, hour, 0, tzinfo=tz)
+    )
+
+
+def _schedule_observation(
+    code: str,
+    number: int,
+) -> AsianAveragingScheduleObservation:
+    return AsianAveragingScheduleObservation(
+        schedule_code=AsianAveragingScheduleCode(code),
+        observation_number=number,
+    )
+
+
+def _period(
+    *days: int,
+    kind: AsianAveragingObservationKind = AsianAveragingObservationKind.UNWEIGHTED,
+) -> AsianAveragingPeriod:
     return AsianAveragingPeriod(
         explicit_observations=tuple(
-            AsianAveragingObservation(date(2026, 10, day)) for day in days
-        )
+            AsianAveragingObservation(_literal_date(day)) for day in days
+        ),
+        observation_kind=kind,
     )
 
 
@@ -294,7 +326,7 @@ def test_digital_terms_reject_invalid_payout_and_evidence_types_directly() -> No
         replace(valid, evidence_ref=cast(DerivativeEvidenceRef, object()))
 
 
-def test_asian_period_rejects_container_item_and_schedule_types_directly() -> None:
+def test_asian_period_rejects_container_item_schedule_and_kind_types_directly() -> None:
     valid = _period(1)
     with pytest.raises(OptionExoticValidationError, match="immutable tuple"):
         replace(
@@ -312,7 +344,26 @@ def test_asian_period_rejects_container_item_and_schedule_types_directly() -> No
     with pytest.raises(OptionExoticValidationError, match="schedule code has invalid type"):
         replace(
             valid,
-            schedule_code=cast(AsianAveragingScheduleCode, object()),
+            schedule_codes=(
+                cast(AsianAveragingScheduleCode, object()),
+            ),
+        )
+    with pytest.raises(OptionExoticValidationError, match="observation kind has invalid type"):
+        replace(
+            valid,
+            observation_kind=cast(AsianAveragingObservationKind, "unweighted"),
+        )
+
+
+def test_asian_period_rejects_schedule_codes_list_container_directly() -> None:
+    valid = _period(1)
+    with pytest.raises(OptionExoticValidationError, match="immutable tuple"):
+        replace(
+            valid,
+            schedule_codes=cast(
+                tuple[AsianAveragingScheduleCode, ...],
+                [AsianAveragingScheduleCode("monthly")],
+            ),
         )
 
 
@@ -382,6 +433,8 @@ def test_asian_terms_reject_averaging_component_type_guards_directly() -> None:
         replace(valid, averaging_period_out=cast(AsianAveragingPeriod, object()))
     with pytest.raises(OptionExoticValidationError, match="fixed strike"):
         replace(valid, fixed_strike=cast(DerivativeStrike, object()))
+    with pytest.raises(OptionExoticValidationError, match="strike factor must be finite Decimal"):
+        replace(valid, strike_factor=cast(Decimal, "1"))
     with pytest.raises(OptionExoticValidationError, match="multiplier has invalid type"):
         replace(valid, multiplier=cast(DerivativeContractMultiplier, object()))
     with pytest.raises(OptionExoticValidationError, match="notional has invalid type"):
@@ -396,3 +449,16 @@ def test_asian_in_and_out_reject_opposite_periods_directly() -> None:
     asian_out = _asian_out()
     with pytest.raises(OptionExoticValidationError, match="only out period"):
         replace(asian_out, averaging_period_in=_period(1))
+
+
+def test_asian_literal_date_and_datetime_are_strict_locators() -> None:
+    with pytest.raises(OptionExoticValidationError, match="must be date"):
+        AsianAveragingLiteralDate(cast(date, datetime(2026, 10, 1)))
+    with pytest.raises(OptionExoticValidationError, match="aware datetime"):
+        AsianAveragingLiteralDateTime(datetime(2026, 10, 1, 10, 0))
+
+
+def test_asian_schedule_observation_number_rejects_bool_and_wrong_types() -> None:
+    for value in (0, -1, 1.0, True):
+        with pytest.raises(OptionExoticValidationError):
+            _schedule_observation("monthly", cast(int, value))
