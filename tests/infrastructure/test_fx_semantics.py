@@ -742,3 +742,33 @@ def test_module_has_no_runtime_side_effect_authority() -> None:
     )
     for marker in forbidden:
         assert marker not in source
+
+
+def test_forward_rejects_instrument_identity_equal_to_pair_identity() -> None:
+    forward = _valid_ndf()
+    with pytest.raises(FxValidationError):
+        replace(
+            forward,
+            instrument_identity_id=forward.quoted_pair.pair_identity_id,
+        )
+
+
+def test_fx_swap_rejects_instrument_identity_equal_to_pair_identity() -> None:
+    swap = _valid_swap()
+    with pytest.raises(FxValidationError):
+        replace(
+            swap,
+            instrument_identity_id=swap.quoted_pair.pair_identity_id,
+        )
+
+
+def test_fx_swap_rejects_near_leg_pair_mismatch() -> None:
+    swap = _valid_swap()
+    other_pair = replace(swap.quoted_pair, pair_identity_id=_eid(300))
+    mismatched_near_leg = replace(
+        swap.near_leg,
+        quoted_pair=other_pair,
+        agreed_exchange_rate=_rate(other_pair),
+    )
+    with pytest.raises(FxValidationError):
+        replace(swap, near_leg=mismatched_near_leg)
