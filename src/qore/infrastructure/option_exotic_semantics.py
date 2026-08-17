@@ -428,7 +428,9 @@ class AsianAveragingPeriod:
             raise OptionExoticValidationError("asian period requires observations and/or schedules")
 
         if self.explicit_observations and self.observation_kind is None:
-            raise OptionExoticValidationError("explicit asian observations require observation kind")
+            raise OptionExoticValidationError(
+                "explicit asian observations require observation kind"
+            )
         if not self.explicit_observations and self.observation_kind is not None:
             raise OptionExoticValidationError("observation kind requires explicit observations")
         if self.observation_kind is not None and not isinstance(
@@ -582,10 +584,14 @@ class AsianOptionTerms:
                 locator = observation.locator
                 if type(locator) is AsianAveragingLiteralDate:
                     if locator.value > self.expiry_date:
-                        raise OptionExoticValidationError("asian observation must not follow expiry")
+                        raise OptionExoticValidationError(
+                            "asian observation must not follow expiry"
+                        )
                 elif type(locator) is AsianAveragingLiteralDateTime:
                     if locator.value.date() > self.expiry_date:
-                        raise OptionExoticValidationError("asian observation must not follow expiry")
+                        raise OptionExoticValidationError(
+                            "asian observation must not follow expiry"
+                        )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
