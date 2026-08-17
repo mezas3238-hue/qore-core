@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from re import fullmatch
@@ -23,6 +23,7 @@ from qore.infrastructure.structured_hybrid_synthetic_semantics import (
 )
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
 from qore.kernel.errors import InfrastructureError
+from qore.kernel.temporal import is_timezone_aware_datetime
 
 
 class OptionExoticSemanticsError(InfrastructureError):
@@ -46,6 +47,16 @@ def _date(value: date, name: str) -> None:
 def _positive(value: Decimal, name: str) -> None:
     if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
         raise OptionExoticValidationError(f"{name} must be a positive finite Decimal")
+
+
+def _nonnegative(value: Decimal, name: str) -> None:
+    if type(value) is not Decimal or not value.is_finite() or value < 0:
+        raise OptionExoticValidationError(f"{name} must be a non-negative finite Decimal")
+
+
+def _aware_datetime(value: datetime, name: str) -> None:
+    if type(value) is not datetime or not is_timezone_aware_datetime(value):
+        raise OptionExoticValidationError(f"{name} must be an aware datetime")
 
 
 def _code(value: str, name: str) -> None:
@@ -88,6 +99,11 @@ class AsianAveragingRole(StrEnum):
     BOTH = "both"
 
 
+class AsianAveragingObservationKind(StrEnum):
+    UNWEIGHTED = "unweighted"
+    WEIGHTED = "weighted"
+
+
 @dataclass(frozen=True, slots=True)
 class AsianAveragingMethodCode:
     value: str
@@ -108,6 +124,49 @@ class AsianAveragingScheduleCode:
 
     def logical_values(self) -> tuple[str, ...]:
         return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class AsianAveragingLiteralDate:
+    value: date
+
+    def __post_init__(self) -> None:
+        _date(self.value, "asian observation literal date")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return ("literal-date", self.value.isoformat())
+
+
+@dataclass(frozen=True, slots=True)
+class AsianAveragingLiteralDateTime:
+    value: datetime
+
+    def __post_init__(self) -> None:
+        _aware_datetime(self.value, "asian observation literal datetime")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return ("literal-datetime", self.value.isoformat())
+
+
+@dataclass(frozen=True, slots=True)
+class AsianAveragingScheduleObservation:
+    schedule_code: AsianAveragingScheduleCode
+    observation_number: int
+
+    def __post_init__(self) -> None:
+        if type(self.schedule_code) is not AsianAveragingScheduleCode:
+            raise OptionExoticValidationError("schedule observation code has invalid type")
+        if type(self.observation_number) is not int or self.observation_number <= 0:
+            raise OptionExoticValidationError(
+                "schedule observation number must be a positive int"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            "schedule-observation",
+            self.schedule_code.logical_values(),
+            str(self.observation_number),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,19 +345,58 @@ class DigitalOptionTerms:
         )
 
 
+def _asian_locator_kind(locator: object) -> int:
+    if type(locator) is AsianAveragingLiteralDate:
+        return 0
+    if type(locator) is AsianAveragingLiteralDateTime:
+        return 1
+    if type(locator) is AsianAveragingScheduleObservation:
+        return 2
+    raise OptionExoticValidationError("invalid asian observation locator type")
+
+
+def _asian_locator_key(locator: object) -> tuple[object, ...]:
+    if type(locator) is AsianAveragingLiteralDate:
+        return (0, locator.value.toordinal())
+    if type(locator) is AsianAveragingLiteralDateTime:
+        return (
+            1,
+            locator.value,
+            locator.value.isoformat(),
+        )
+    if type(locator) is AsianAveragingScheduleObservation:
+        return (2, locator.schedule_code.value, locator.observation_number)
+    raise OptionExoticValidationError("invalid asian observation locator type")
+
+
+def _asian_observation_sort_key(
+    observation: AsianAveragingObservation,
+) -> tuple[object, ...]:
+    return _asian_locator_key(observation.locator)
+
+
 @dataclass(frozen=True, slots=True)
 class AsianAveragingObservation:
-    observation_date: date
+    locator: (
+        AsianAveragingLiteralDate
+        | AsianAveragingLiteralDateTime
+        | AsianAveragingScheduleObservation
+    )
     weight: Decimal | None = None
 
     def __post_init__(self) -> None:
-        _date(self.observation_date, "asian observation date")
+        if type(self.locator) not in (
+            AsianAveragingLiteralDate,
+            AsianAveragingLiteralDateTime,
+            AsianAveragingScheduleObservation,
+        ):
+            raise OptionExoticValidationError("asian observation locator has invalid type")
         if self.weight is not None:
-            _positive(self.weight, "asian observation weight")
+            _nonnegative(self.weight, "asian observation weight")
 
     def logical_values(self) -> tuple[object, ...]:
         return (
-            self.observation_date.isoformat(),
+            self.locator.logical_values(),
             _decimal(self.weight) if self.weight is not None else None,
         )
 
@@ -306,35 +404,86 @@ class AsianAveragingObservation:
 @dataclass(frozen=True, slots=True)
 class AsianAveragingPeriod:
     explicit_observations: tuple[AsianAveragingObservation, ...] = ()
-    schedule_code: AsianAveragingScheduleCode | None = None
+    schedule_codes: tuple[AsianAveragingScheduleCode, ...] = ()
+    observation_kind: AsianAveragingObservationKind | None = None
 
     def __post_init__(self) -> None:
         if type(self.explicit_observations) is not tuple:
             raise OptionExoticValidationError("asian observations must be immutable tuple")
         if any(
-            not isinstance(item, AsianAveragingObservation)
+            type(item) is not AsianAveragingObservation
             for item in self.explicit_observations
         ):
             raise OptionExoticValidationError("asian observation has invalid type")
-        if self.schedule_code is not None and not isinstance(
-            self.schedule_code, AsianAveragingScheduleCode
+
+        if type(self.schedule_codes) is not tuple:
+            raise OptionExoticValidationError("asian schedule codes must be immutable tuple")
+        if any(
+            type(item) is not AsianAveragingScheduleCode
+            for item in self.schedule_codes
         ):
             raise OptionExoticValidationError("asian schedule code has invalid type")
-        if not self.explicit_observations and self.schedule_code is None:
-            raise OptionExoticValidationError("asian period requires observations and/or schedule")
-        dates = tuple(item.observation_date for item in self.explicit_observations)
-        if len(set(dates)) != len(dates):
-            raise OptionExoticValidationError("asian observation dates must be unique")
+
+        if not self.explicit_observations and not self.schedule_codes:
+            raise OptionExoticValidationError("asian period requires observations and/or schedules")
+
+        if self.explicit_observations and self.observation_kind is None:
+            raise OptionExoticValidationError("explicit asian observations require observation kind")
+        if not self.explicit_observations and self.observation_kind is not None:
+            raise OptionExoticValidationError("observation kind requires explicit observations")
+        if self.observation_kind is not None and not isinstance(
+            self.observation_kind, AsianAveragingObservationKind
+        ):
+            raise OptionExoticValidationError("asian observation kind has invalid type")
+
+        if len(set(code.value for code in self.schedule_codes)) != len(self.schedule_codes):
+            raise OptionExoticValidationError("asian schedule codes must be unique")
+        object.__setattr__(
+            self,
+            "schedule_codes",
+            tuple(sorted(self.schedule_codes, key=lambda code: code.value)),
+        )
+
+        if self.observation_kind is AsianAveragingObservationKind.UNWEIGHTED:
+            for observation in self.explicit_observations:
+                if type(observation.locator) is AsianAveragingScheduleObservation:
+                    raise OptionExoticValidationError(
+                        "unweighted observations cannot use schedule locator"
+                    )
+                if observation.weight is not None:
+                    raise OptionExoticValidationError(
+                        "unweighted observations cannot carry explicit weight"
+                    )
+
+        for observation in self.explicit_observations:
+            locator = observation.locator
+            if type(locator) is AsianAveragingScheduleObservation:
+                if locator.schedule_code not in self.schedule_codes:
+                    raise OptionExoticValidationError(
+                        "schedule observation code must appear in period schedules"
+                    )
+
+        if len(
+            {_asian_locator_key(item.locator) for item in self.explicit_observations}
+        ) != len(self.explicit_observations):
+            raise OptionExoticValidationError("asian observation locators must be unique")
+
         object.__setattr__(
             self,
             "explicit_observations",
-            tuple(sorted(self.explicit_observations, key=lambda item: item.observation_date)),
+            tuple(
+                sorted(
+                    self.explicit_observations,
+                    key=_asian_observation_sort_key,
+                )
+            ),
         )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
             tuple(item.logical_values() for item in self.explicit_observations),
-            self.schedule_code.logical_values() if self.schedule_code is not None else None,
+            tuple(code.logical_values() for code in self.schedule_codes),
+            self.observation_kind.value if self.observation_kind is not None else None,
         )
 
 
@@ -354,6 +503,7 @@ class AsianOptionTerms:
     averaging_period_in: AsianAveragingPeriod | None = None
     averaging_period_out: AsianAveragingPeriod | None = None
     fixed_strike: DerivativeStrike | None = None
+    strike_factor: Decimal | None = None
     multiplier: DerivativeContractMultiplier | None = None
     notional: DerivativeNotional | None = None
 
@@ -397,6 +547,9 @@ class AsianOptionTerms:
             raise OptionExoticValidationError("asian averaging-out period has invalid type")
         if self.fixed_strike is not None and not isinstance(self.fixed_strike, DerivativeStrike):
             raise OptionExoticValidationError("asian fixed strike has invalid type")
+        if self.strike_factor is not None:
+            if type(self.strike_factor) is not Decimal or not self.strike_factor.is_finite():
+                raise OptionExoticValidationError("asian strike factor must be finite Decimal")
         if self.multiplier is not None and not isinstance(
             self.multiplier, DerivativeContractMultiplier
         ):
@@ -405,6 +558,7 @@ class AsianOptionTerms:
             raise OptionExoticValidationError("asian notional has invalid type")
         if self.multiplier is None and self.notional is None:
             raise OptionExoticValidationError("asian option requires multiplier and/or notional")
+
         if self.averaging_role is AsianAveragingRole.IN:
             if self.averaging_period_in is None or self.averaging_period_out is not None:
                 raise OptionExoticValidationError("averaging-in requires only in period")
@@ -420,11 +574,18 @@ class AsianOptionTerms:
                 raise OptionExoticValidationError("averaging-both requires both periods")
             if self.fixed_strike is not None:
                 raise OptionExoticValidationError("averaging-both must not carry fixed strike")
+
         for period in (self.averaging_period_in, self.averaging_period_out):
-            if period is not None and any(
-                item.observation_date > self.expiry_date for item in period.explicit_observations
-            ):
-                raise OptionExoticValidationError("asian observation must not follow expiry")
+            if period is None:
+                continue
+            for observation in period.explicit_observations:
+                locator = observation.locator
+                if type(locator) is AsianAveragingLiteralDate:
+                    if locator.value > self.expiry_date:
+                        raise OptionExoticValidationError("asian observation must not follow expiry")
+                elif type(locator) is AsianAveragingLiteralDateTime:
+                    if locator.value.date() > self.expiry_date:
+                        raise OptionExoticValidationError("asian observation must not follow expiry")
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -447,6 +608,7 @@ class AsianOptionTerms:
             if self.averaging_period_out is not None
             else None,
             self.fixed_strike.logical_values() if self.fixed_strike is not None else None,
+            _decimal(self.strike_factor) if self.strike_factor is not None else None,
             self.multiplier.logical_values() if self.multiplier is not None else None,
             self.notional.logical_values() if self.notional is not None else None,
         )
