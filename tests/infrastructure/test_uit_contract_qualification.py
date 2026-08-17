@@ -218,6 +218,52 @@ class DeceptiveString(str):
     pass
 
 
+class DeceptiveUUID(UUID):
+    pass
+
+
+def test_root_identity_id_uuid_subclass_rejected() -> None:
+    deceptive_uuid = DeceptiveUUID(
+        "00000000-0000-0000-0000-000000000001"
+    )
+    identity_id = EconomicIdentityId(deceptive_uuid)
+
+    bad = EconomicIdentity(
+        identity_id=identity_id,
+        kind=EconomicIdentityKind.TRADABLE_INSTRUMENT,
+        family=IdentityFamilyCode("funds-pooled-vehicles"),
+        construction=IdentityConstructionKind.NATIVE,
+        evidence_ref=_identity_evidence(1),
+    )
+
+    with pytest.raises(UnitInvestmentTrustQualificationValidationError):
+        _qualification(
+            fund_identity=bad,
+            components=(_component(10, 10),),
+        )
+
+
+def test_root_identity_evidence_uuid_subclass_rejected() -> None:
+    deceptive_uuid = DeceptiveUUID(
+        "00000000-0000-0000-0000-000000000002"
+    )
+    deceptive_evidence = IdentityEvidenceRef(deceptive_uuid)
+
+    bad = EconomicIdentity(
+        identity_id=_economic_identity_id(1),
+        kind=EconomicIdentityKind.TRADABLE_INSTRUMENT,
+        family=IdentityFamilyCode("funds-pooled-vehicles"),
+        construction=IdentityConstructionKind.NATIVE,
+        evidence_ref=deceptive_evidence,
+    )
+
+    with pytest.raises(UnitInvestmentTrustQualificationValidationError):
+        _qualification(
+            fund_identity=bad,
+            components=(_component(10, 10),),
+        )
+
+
 def test_root_economic_identity_subclass_rejected() -> None:
     bad = DeceptiveEconomicIdentity(
         identity_id=_economic_identity_id(1),
