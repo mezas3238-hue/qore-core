@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -185,7 +185,7 @@ def _datetime_locator(
     day: int,
     hour: int,
     *,
-    tz: timezone = timezone.utc,
+    tz: timezone = UTC,
 ) -> AsianAveragingLiteralDateTime:
     return AsianAveragingLiteralDateTime(
         datetime(2026, 10, day, hour, 0, tzinfo=tz)
@@ -759,7 +759,7 @@ def test_asian_post_expiry_literal_date_and_datetime_rejected() -> None:
         )
 
     bad_dt = AsianAveragingLiteralDateTime(
-        datetime(2026, 12, 19, 10, 0, tzinfo=timezone.utc)
+        datetime(2026, 12, 19, 10, 0, tzinfo=UTC)
     )
     with pytest.raises(OptionExoticValidationError, match="must not follow expiry"):
         _asian(
@@ -771,7 +771,7 @@ def test_asian_post_expiry_literal_date_and_datetime_rejected() -> None:
 def test_asian_expiry_calendar_day_datetime_accepted() -> None:
     expiry = date(2026, 12, 18)
     locator = AsianAveragingLiteralDateTime(
-        datetime(2026, 12, 18, 10, 0, tzinfo=timezone.utc)
+        datetime(2026, 12, 18, 10, 0, tzinfo=UTC)
     )
     terms = _asian(
         AsianAveragingRole.IN,
@@ -904,7 +904,7 @@ def test_asian_weighted_literal_and_schedule_locators_accepted() -> None:
 
 def test_asian_datetime_chronological_canonical_order_across_offsets() -> None:
     minus_three = timezone(timedelta(hours=-3))
-    utc = timezone.utc
+    utc = UTC
 
     a = AsianAveragingLiteralDateTime(
         datetime(2026, 10, 1, 9, 0, tzinfo=minus_three)
@@ -942,7 +942,7 @@ def test_asian_period_schedule_codes_logical_sensitivity() -> None:
 
 
 def test_asian_datetime_offset_logical_sensitivity() -> None:
-    utc = timezone.utc
+    utc = UTC
     plus_two = timezone(timedelta(hours=2))
     a = AsianAveragingLiteralDateTime(
         datetime(2026, 10, 1, 10, 0, tzinfo=utc)
