@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Never
 from uuid import UUID
 
 from qore.infrastructure.derivative_contract_semantics import (
@@ -44,7 +45,7 @@ class CfdQualificationValidationError(CfdQualificationSemanticsError):
     __slots__ = ()
 
 
-def _fail(message: str) -> None:
+def _fail(message: str) -> Never:
     raise CfdQualificationValidationError(message)
 
 
