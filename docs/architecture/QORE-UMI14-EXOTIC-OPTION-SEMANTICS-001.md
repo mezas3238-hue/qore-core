@@ -2,10 +2,10 @@
 
 Status: **PROGRAM D / UMI-14 LANE-5 CORRECTION CANDIDATE — INDEPENDENT CERTIFICATION REQUIRED**
 
-Tracker: `#380`  
-Target: `UMI13-UNR-007`  
-Family: `options`  
-Starting baseline: `39e1598e91c912f473f9628c3aab30fe7b9cc034`
+Tracker: `#380`
+Target: `UMI13-UNR-007`
+Family: `options`
+Current baseline: `b30f0847f4962fd12a8506fea61f797e402a8a9c`
 
 ## 1. Purpose
 
@@ -136,17 +136,56 @@ No current entitlement, account credit or settlement mutation is represented.
 
 The role is deterministic logical material and may not be inferred from the presence of a generic strike.
 
+`AsianOptionTerms` also retains optional `strike_factor`. It is a finite Decimal with no positivity restriction. `None`, `0`, positive and negative finite values are distinct contractual material. It does not replace `fixed_strike` or change role-presence rules.
+
 ## 12. Averaging-period representation
 
 `AsianAveragingPeriod` supports:
 
 - explicit observations only;
-- governed schedule code only;
-- governed schedule plus explicit additional observations.
+- governed schedule identities only;
+- governed schedules plus explicit observations.
 
-Explicit observations are immutable, unique by date and canonicalized chronologically.
+A period must have at least one representation.
 
-`AsianAveragingObservation` retains an exact date and optional positive finite weight. Weights are retained as supplied and are not normalized or required to sum to one.
+Explicit observations are immutable and unique by complete locator identity.
+
+`AsianAveragingObservation` retains a locator and optional non-negative weight.
+
+### Literal date locator
+
+`AsianAveragingLiteralDate` retains an exact calendar date.
+
+### Literal datetime locator
+
+`AsianAveragingLiteralDateTime` retains an exact timezone-aware `datetime`. It enables multiple observations on the same calendar date without fabricating midnight. Timezone-aware timestamps are retained exactly and never silently normalized.
+
+### Schedule observation locator
+
+`AsianAveragingScheduleObservation` retains a governed schedule code and positive integer observation number. It identifies an observation by schedule identity plus observation number. It does not generate or resolve schedule dates.
+
+### Multiple schedules
+
+`AsianAveragingPeriod.schedule_codes` is an immutable tuple of governed schedule identities. Schedule codes must be unique. Caller schedule order is non-semantic.
+
+A schedule-observation locator inside a period must reference one of that period's schedule identities.
+
+### Unweighted vs weighted
+
+`AsianAveragingObservationKind` explicitly distinguishes `UNWEIGHTED` from `WEIGHTED` explicit observation lists.
+
+`UNWEIGHTED`:
+- literal date/dateTime locators allowed;
+- schedule-number locator forbidden;
+- every weight must be `None`.
+
+`WEIGHTED`:
+- literal date/dateTime and schedule-number locators allowed;
+- weight may be `None`, `0`, or positive finite Decimal.
+
+The discriminator is mandatory whenever explicit observations are present, and absent when explicit observations are empty.
+
+Weights are retained as supplied and are not normalized or required to sum to one.
 
 `AsianAveragingMethodCode` is an extensible canonical lower-case code. This avoids falsely claiming that a short enum exhausts contractual averaging methodologies while still preserving method identity.
 
@@ -167,6 +206,8 @@ Role laws are fail-closed:
 - `BOTH`: requires both periods; `fixed_strike` must be absent.
 
 A fabricated strike would convert missing contractual material into false data and is therefore forbidden.
+
+`strike_factor` does not alter these role rules.
 
 ## 15. D04 vs D05 / D07 / D10 / D11 / D03
 
@@ -207,19 +248,20 @@ This candidate does not implement:
 - shout options;
 - rainbow/basket/best-of/worst-of options;
 - quanto FX ownership;
-- generic multi-trigger boolean DSL.
+- generic multi-trigger boolean DSL;
+- market disruption mechanics.
 
-Those require separate bounded evidence if needed for final UMI-14 closure.
+FpML market-disruption material exists, but it is outside this bounded UNR-007 correction and requires a separately governed contractual/event-qualification owner.
 
 ## 18. Determinism and security
 
-All new values are frozen/slotted dataclasses. Decimal contractual magnitudes are finite and canonically serialized. Codes use bounded canonical syntax. Dates are exact `date` values. Identities and evidence references are caller supplied.
+All new values are frozen/slotted dataclasses. Decimal contractual magnitudes are finite and canonically serialized. Codes use bounded canonical syntax. Dates are exact `date` values. DateTimes are exact timezone-aware `datetime` values. Identities and evidence references are caller supplied.
 
 There is no implicit UUID generation, wall clock, randomness, network, provider SDK, database, filesystem runtime, thread, scheduler, sleep, secret material, valuation engine, observation engine or execution method.
 
 ## 19. Test-oracle matrix
 
-The dedicated test module directly falsifies:
+The dedicated test modules directly falsify:
 
 - barrier-reference mismatch;
 - duplicate barrier feature IDs;
@@ -240,10 +282,18 @@ The dedicated test module directly falsifies:
 - post-expiry observation rejection;
 - opaque schedule retention without schedule resolution;
 - Asian schedule-only, explicit-only and combined representations;
-- duplicate observation dates;
+- duplicate observation locators;
 - canonical observation order;
-- positive finite optional weights;
+- non-negative optional weights including zero;
 - no weight normalization;
+- strike-factor finite typing and logical sensitivity;
+- literal date and timezone-aware datetime locators;
+- multiple same-day datetime observations;
+- schedule observation number typing and binding;
+- multiple schedule identities and canonical schedule ordering;
+- unweighted vs weighted logical distinction;
+- unweighted weight/schedule-locator rejection;
+- weighted literal/schedule locator acceptance;
 - averaging-IN without fake strike;
 - averaging-OUT requiring fixed strike;
 - averaging-BOTH requiring both periods and no fixed strike;
@@ -251,7 +301,7 @@ The dedicated test module directly falsifies:
 - post-expiry averaging observations;
 - extensible canonical averaging-method code;
 - multiplier/notional sizing requirement;
-- strict date typing;
+- strict date/dateTime typing;
 - frozen/slotted values;
 - no operational methods.
 
@@ -277,13 +327,11 @@ The dedicated test module directly falsifies:
 
 `LANE-5 CERTIFICATION != UMI-14 PASS`
 
-## 21. Integration-order warning
+## 21. Integration-order status
 
-This candidate begins from the current pre-Lane-3 baseline. Merge order remains:
+This candidate is currently synchronized to base `b30f0847f4962fd12a8506fea61f797e402a8a9c`.
 
-`LANE 3 / PR #376 -> LANE 4 / PR #382 -> LANE 5 / #380`
-
-Any CI before upstream synchronization is preparatory only. Final Lane-5 certification requires synchronization to then-current main, a new SHA, new exact-head CI, diff audit, independent review, Integration Gate, expected-head merge and post-merge verification.
+It is preparatory only. Certification requires a new exact head, exact-head CI, diff audit, independent review, Integration Gate adjudication, protected merge and post-merge verification.
 
 ## 22. Mandatory UMI-12 final follow-up
 
