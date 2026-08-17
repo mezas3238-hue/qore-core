@@ -8,6 +8,7 @@ from uuid import UUID
 
 import pytest
 
+import qore.infrastructure.option_exotic_semantics as option_exotic_semantics
 from qore.infrastructure.derivative_contract_semantics import (
     DerivativeContractMultiplier,
     DerivativeEvidenceRef,
@@ -462,3 +463,31 @@ def test_asian_schedule_observation_number_rejects_bool_and_wrong_types() -> Non
     for value in (0, -1, 1.0, True):
         with pytest.raises(OptionExoticValidationError):
             _schedule_observation("monthly", cast(int, value))
+
+
+def test_asian_schedule_observation_rejects_invalid_schedule_code_type_directly() -> None:
+    with pytest.raises(OptionExoticValidationError, match="code has invalid type"):
+        AsianAveragingScheduleObservation(
+            schedule_code=cast(AsianAveragingScheduleCode, object()),
+            observation_number=1,
+        )
+
+
+def test_asian_observation_rejects_invalid_locator_type_directly() -> None:
+    with pytest.raises(OptionExoticValidationError, match="locator has invalid type"):
+        AsianAveragingObservation(cast(AsianAveragingLiteralDate, object()))
+
+
+def test_asian_locator_kind_discriminates_and_fails_closed() -> None:
+    assert option_exotic_semantics._asian_locator_kind(_literal_date(1)) == 0
+    assert option_exotic_semantics._asian_locator_kind(_literal_datetime(1, 10)) == 1
+    assert option_exotic_semantics._asian_locator_kind(
+        _schedule_observation("monthly", 1)
+    ) == 2
+    with pytest.raises(OptionExoticValidationError, match="invalid asian observation locator"):
+        option_exotic_semantics._asian_locator_kind(object())
+
+
+def test_asian_locator_key_fails_closed_for_invalid_locator() -> None:
+    with pytest.raises(OptionExoticValidationError, match="invalid asian observation locator"):
+        option_exotic_semantics._asian_locator_key(object())
