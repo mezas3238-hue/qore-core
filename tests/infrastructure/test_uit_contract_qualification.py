@@ -16,6 +16,13 @@ from qore.infrastructure.equity_fund_corporate_action_semantics import (
 from qore.infrastructure.structured_hybrid_synthetic_semantics import (
     StructuredComponentBinding,
 )
+from qore.infrastructure.uit_contract_qualification import (
+    UnitInvestmentTrustEvidenceRef,
+    UnitInvestmentTrustQualification,
+    UnitInvestmentTrustQualificationId,
+    UnitInvestmentTrustQualificationValidationError,
+    UnitInvestmentTrustSpecifiedSecurity,
+)
 from qore.infrastructure.universal_instrument_identity import (
     EconomicIdentity,
     EconomicIdentityId,
@@ -24,13 +31,6 @@ from qore.infrastructure.universal_instrument_identity import (
     IdentityEvidenceRef,
     IdentityFamilyCode,
     IdentityLifecycleEvent,
-)
-from qore.infrastructure.uit_contract_qualification import (
-    UnitInvestmentTrustEvidenceRef,
-    UnitInvestmentTrustQualification,
-    UnitInvestmentTrustQualificationId,
-    UnitInvestmentTrustQualificationValidationError,
-    UnitInvestmentTrustSpecifiedSecurity,
 )
 
 
@@ -268,9 +268,7 @@ def test_root_family_value_string_subclass_rejected() -> None:
     bad = EconomicIdentity(
         identity_id=_economic_identity_id(1),
         kind=EconomicIdentityKind.TRADABLE_INSTRUMENT,
-        family=IdentityFamilyCode(
-            cast(str, DeceptiveString("funds-pooled-vehicles"))
-        ),
+        family=IdentityFamilyCode(DeceptiveString("funds-pooled-vehicles")),
         construction=IdentityConstructionKind.NATIVE,
         evidence_ref=_identity_evidence(1),
     )
@@ -756,13 +754,15 @@ def test_qualification_is_frozen_and_slotted() -> None:
         fund_identity=_fund_identity(1),
         components=(_component(10, 10),),
     )
+    attribute = "evidence_ref"
     with pytest.raises(FrozenInstanceError):
-        setattr(q, "evidence_ref", _uit_evidence(99))
+        setattr(q, attribute, _uit_evidence(99))
     assert not hasattr(q, "__dict__")
 
 
 def test_component_is_frozen_and_slotted() -> None:
     c = _component(10, 10)
+    attribute = "evidence_ref"
     with pytest.raises(FrozenInstanceError):
-        setattr(c, "evidence_ref", _uit_evidence(99))
+        setattr(c, attribute, _uit_evidence(99))
     assert not hasattr(c, "__dict__")
