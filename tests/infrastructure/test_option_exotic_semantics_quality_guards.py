@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -156,7 +156,7 @@ def _literal_date(value: int) -> AsianAveragingLiteralDate:
 def _literal_datetime(
     value: int,
     hour: int,
-    tz: timezone = timezone.utc,
+    tz: timezone = UTC,
 ) -> AsianAveragingLiteralDateTime:
     return AsianAveragingLiteralDateTime(
         datetime(2026, 10, value, hour, 0, tzinfo=tz)
