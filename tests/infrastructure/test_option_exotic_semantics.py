@@ -704,12 +704,16 @@ def test_asian_strike_factor_logical_sensitivity() -> None:
 
 
 def test_asian_literal_date_and_aware_datetime_accepted() -> None:
-    date_obs = _observation(_date_locator(1))
-    dt_obs = _observation(
-        _datetime_locator(1, 10),
-    )
-    assert date_obs.logical_values()[0][0] == "literal-date"
-    assert dt_obs.logical_values()[0][0] == "literal-datetime"
+    date_locator = _date_locator(1)
+    datetime_locator = _datetime_locator(1, 10)
+
+    date_obs = _observation(date_locator)
+    dt_obs = _observation(datetime_locator)
+
+    assert date_locator.logical_values()[0] == "literal-date"
+    assert datetime_locator.logical_values()[0] == "literal-datetime"
+    assert date_obs.locator is date_locator
+    assert dt_obs.locator is datetime_locator
 
 
 def test_asian_literal_naive_datetime_rejected() -> None:
