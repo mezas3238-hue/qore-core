@@ -771,3 +771,170 @@ def test_static_terms_have_no_operational_methods() -> None:
     }
     for contract_type in (FraTerms, RateCapFloorTerms, SwaptionTerms):
         assert prohibited.isdisjoint(contract_type.__dict__)
+
+
+def test_rate_strike_type_guards_are_direct() -> None:
+    with pytest.raises(RatesOtcValidationError, match="step rate"):
+        RateStrikeStep(
+            date(2027, 7, 1),
+            cast(DerivativeContractRate, object()),
+        )
+    with pytest.raises(RatesOtcValidationError, match="initial_rate"):
+        RateStrikeSchedule(cast(DerivativeContractRate, object()))
+    with pytest.raises(RatesOtcValidationError, match="steps must be tuple"):
+        RateStrikeSchedule(
+            DerivativeContractRate(Decimal("0.05")),
+            cast(tuple[RateStrikeStep, ...], []),
+        )
+    with pytest.raises(RatesOtcValidationError, match="contain RateStrikeStep"):
+        RateStrikeSchedule(
+            DerivativeContractRate(Decimal("0.05")),
+            (cast(RateStrikeStep, object()),),
+        )
+
+
+def test_fra_structural_type_guards_are_direct() -> None:
+    valid = _fra()
+    with pytest.raises(RatesOtcValidationError, match="terms_id"):
+        replace(valid, terms_id=cast(DerivativeTermsId, object()))
+    with pytest.raises(RatesOtcValidationError, match="instrument identity"):
+        replace(
+            valid,
+            instrument_identity_id=cast(EconomicIdentityId, object()),
+        )
+    with pytest.raises(RatesOtcValidationError, match="notional"):
+        replace(valid, notional=cast(DerivativeNotional, object()))
+    with pytest.raises(RatesOtcValidationError, match="fixed_rate"):
+        replace(valid, fixed_rate=cast(DerivativeContractRate, object()))
+    with pytest.raises(RatesOtcValidationError, match="benchmark must"):
+        replace(valid, benchmark=cast(DerivativeBenchmarkReference, object()))
+    with pytest.raises(RatesOtcValidationError, match="day_count"):
+        replace(valid, day_count=cast(DayCountConventionCode, object()))
+    with pytest.raises(RatesOtcValidationError, match="fixing_date_offset"):
+        replace(valid, fixing_date_offset=cast(FraFixingDateOffset, object()))
+    with pytest.raises(RatesOtcValidationError, match="evidence_ref"):
+        replace(valid, evidence_ref=cast(DerivativeEvidenceRef, object()))
+
+
+def test_cap_floor_structural_type_and_chronology_guards_are_direct() -> None:
+    valid = _cap_floor(RateCapFloorKind.CAP, cap=_strike_schedule("0.05"))
+    with pytest.raises(RatesOtcValidationError, match="terms_id"):
+        replace(valid, terms_id=cast(DerivativeTermsId, object()))
+    with pytest.raises(RatesOtcValidationError, match="instrument identity"):
+        replace(
+            valid,
+            instrument_identity_id=cast(EconomicIdentityId, object()),
+        )
+    with pytest.raises(RatesOtcValidationError, match="kind"):
+        replace(valid, kind=cast(RateCapFloorKind, "cap"))
+    with pytest.raises(RatesOtcValidationError, match="termination_date"):
+        replace(valid, termination_date=valid.effective_date)
+    with pytest.raises(RatesOtcValidationError, match="notional_schedule"):
+        replace(
+            valid,
+            notional_schedule=cast(DerivativeNotionalSchedule, object()),
+        )
+
+    later_change = DerivativeNotionalSchedule(
+        (
+            DerivativeNotionalStep(valid.effective_date, _notional()),
+            DerivativeNotionalStep(valid.termination_date, _notional("900000")),
+        )
+    )
+    with pytest.raises(RatesOtcValidationError, match="changes must precede"):
+        replace(valid, notional_schedule=later_change)
+    with pytest.raises(RatesOtcValidationError, match="benchmark must"):
+        replace(valid, benchmark=cast(DerivativeBenchmarkReference, object()))
+    with pytest.raises(RatesOtcValidationError, match="benchmark identity"):
+        replace(
+            valid,
+            benchmark=replace(
+                valid.benchmark,
+                reference_identity_id=valid.instrument_identity_id,
+            ),
+        )
+    with pytest.raises(RatesOtcValidationError, match="day_count"):
+        replace(valid, day_count=cast(DayCountConventionCode, object()))
+    with pytest.raises(RatesOtcValidationError, match="payment_tenor"):
+        replace(valid, payment_tenor=cast(FinancialTenor, object()))
+    with pytest.raises(RatesOtcValidationError, match="reset_tenor"):
+        replace(valid, reset_tenor=cast(FinancialTenor, object()))
+    with pytest.raises(RatesOtcValidationError, match="fixing_convention"):
+        replace(
+            valid,
+            fixing_convention=cast(DerivativeFloatingRateConvention, object()),
+        )
+    with pytest.raises(RatesOtcValidationError, match="schedule_convention"):
+        replace(
+            valid,
+            schedule_convention=cast(DerivativeScheduleConvention, object()),
+        )
+    with pytest.raises(RatesOtcValidationError, match="settlement_convention"):
+        replace(
+            valid,
+            settlement_convention=cast(SettlementConvention, object()),
+        )
+    with pytest.raises(RatesOtcValidationError, match="evidence_ref"):
+        replace(valid, evidence_ref=cast(DerivativeEvidenceRef, object()))
+    with pytest.raises(RatesOtcValidationError, match="cap_strikes"):
+        replace(valid, cap_strikes=cast(RateStrikeSchedule, object()))
+
+    floor_valid = _cap_floor(
+        RateCapFloorKind.FLOOR,
+        floor=_strike_schedule("0.02"),
+    )
+    with pytest.raises(RatesOtcValidationError, match="floor_strikes"):
+        replace(floor_valid, floor_strikes=cast(RateStrikeSchedule, object()))
+
+
+def test_swaption_structural_type_and_exercise_guards_are_direct() -> None:
+    valid = _swaption(SwaptionPosition.PAYER)
+    with pytest.raises(RatesOtcValidationError, match="terms_id"):
+        replace(valid, terms_id=cast(DerivativeTermsId, object()))
+    with pytest.raises(RatesOtcValidationError, match="instrument identity"):
+        replace(
+            valid,
+            instrument_identity_id=cast(EconomicIdentityId, object()),
+        )
+    with pytest.raises(RatesOtcValidationError, match="underlying_swap"):
+        replace(valid, underlying_swap=cast(SwapContractTerms, object()))
+    with pytest.raises(RatesOtcValidationError, match="position"):
+        replace(valid, position=cast(SwaptionPosition, "payer"))
+    with pytest.raises(RatesOtcValidationError, match="exercise must"):
+        replace(valid, exercise=cast(OptionExerciseTerms, object()))
+
+    american = OptionExerciseTerms(
+        style=OptionExerciseStyle.AMERICAN,
+        american_start_date=date(2026, 12, 16),
+    )
+    with pytest.raises(RatesOtcValidationError, match="American exercise start"):
+        replace(valid, exercise=american)
+    with pytest.raises(RatesOtcValidationError, match="settlement_style"):
+        replace(
+            valid,
+            settlement_style=cast(DerivativeSettlementStyle, "physical"),
+        )
+    with pytest.raises(RatesOtcValidationError, match="cash settlement method"):
+        replace(
+            valid,
+            cash_settlement_method=cast(
+                SwaptionCashSettlementMethodCode,
+                object(),
+            ),
+        )
+    with pytest.raises(RatesOtcValidationError, match="evidence_ref"):
+        replace(valid, evidence_ref=cast(DerivativeEvidenceRef, object()))
+
+
+def test_swaption_bounded_underlying_requires_one_fixed_and_one_floating() -> None:
+    underlying = _swap()
+    first_fixed = cast(FixedRateSwapLeg, underlying.legs[0])
+    second_fixed = replace(
+        first_fixed,
+        leg_id=DerivativeLegId(_uuid(309)),
+        ordinal=DerivativeLegOrdinal(2),
+        direction=DerivativeLegDirection.RECEIVE,
+    )
+    two_fixed = replace(underlying, legs=(first_fixed, second_fixed))
+    with pytest.raises(RatesOtcValidationError, match="one fixed and one floating"):
+        _swaption(SwaptionPosition.PAYER, swap=two_fixed)
