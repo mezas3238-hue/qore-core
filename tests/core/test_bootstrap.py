@@ -19,6 +19,7 @@ EVENT_ID = UUID("00000000-0000-0000-0000-000000000099")
 
 
 def current_state(lifecycle: ApplicationLifecycle) -> LifecycleState:
+    """Read lifecycle state without retaining literal narrowing across transitions."""
     return lifecycle.state
 
 
@@ -89,6 +90,7 @@ class TestEventBus:
 
         assert handled == ["failing", "good"]
         assert isinstance(result, Failure)
+        assert isinstance(result.error, KernelError)
         assert "boom" in str(result.error)
 
     def test_publish_success_when_all_handlers_succeed(self) -> None:
