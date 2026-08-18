@@ -949,3 +949,133 @@ def test_swaption_bounded_underlying_requires_one_fixed_and_one_floating() -> No
     two_fixed = replace(underlying, legs=(first_fixed, second_fixed))
     with pytest.raises(RatesOtcValidationError, match="one fixed and one floating"):
         _swaption(SwaptionPosition.PAYER, swap=two_fixed)
+
+
+def test_rate_strike_step_date_and_rate_are_distinct_logical_material() -> None:
+    base = RateStrikeStep(
+        date(2027, 7, 1),
+        DerivativeContractRate(Decimal("0.05")),
+    )
+    different_date = RateStrikeStep(
+        date(2027, 7, 2),
+        DerivativeContractRate(Decimal("0.05")),
+    )
+    different_rate = RateStrikeStep(
+        date(2027, 7, 1),
+        DerivativeContractRate(Decimal("0.06")),
+    )
+    assert len(
+        {
+            base.logical_values(),
+            different_date.logical_values(),
+            different_rate.logical_values(),
+        }
+    ) == 3
+
+
+def test_rate_strike_schedule_initial_rate_and_steps_are_logical_material() -> None:
+    base = _strike_schedule("0.05")
+    different_initial = _strike_schedule("0.06")
+    with_step = _strike_schedule(
+        "0.05",
+        (date(2027, 7, 1), "0.055"),
+    )
+    assert len(
+        {
+            base.logical_values(),
+            different_initial.logical_values(),
+            with_step.logical_values(),
+        }
+    ) == 3
+
+
+def test_cap_strike_payload_is_distinct_logical_material() -> None:
+    five_percent = _cap_floor(
+        RateCapFloorKind.CAP,
+        cap=_strike_schedule("0.05"),
+    )
+    six_percent = _cap_floor(
+        RateCapFloorKind.CAP,
+        cap=_strike_schedule("0.06"),
+    )
+    assert five_percent.logical_values() != six_percent.logical_values()
+
+
+def test_fra_calculation_dates_are_distinct_logical_material() -> None:
+    base = _fra()
+    different_start = _fra(calculation_start_date=date(2027, 3, 16))
+    different_end = _fra(calculation_end_date=date(2027, 6, 16))
+    assert len(
+        {
+            base.logical_values(),
+            different_start.logical_values(),
+            different_end.logical_values(),
+        }
+    ) == 3
+
+
+def test_fra_benchmark_notional_and_day_count_are_distinct_logical_material() -> None:
+    base = _fra()
+    different_benchmark = replace(
+        base,
+        benchmark=replace(
+            base.benchmark,
+            reference_identity_id=_identity(11),
+        ),
+    )
+    different_notional = replace(base, notional=_notional("2000000"))
+    different_day_count = replace(
+        base,
+        day_count=DayCountConventionCode("30-360"),
+    )
+    assert len(
+        {
+            base.logical_values(),
+            different_benchmark.logical_values(),
+            different_notional.logical_values(),
+            different_day_count.logical_values(),
+        }
+    ) == 4
+
+
+def test_swaption_underlying_is_distinct_logical_material() -> None:
+    underlying = _swap(fixed_direction=DerivativeLegDirection.PAY)
+    fixed = cast(FixedRateSwapLeg, underlying.legs[0])
+    floating = cast(FloatingRateSwapLeg, underlying.legs[1])
+    changed_underlying = replace(
+        underlying,
+        legs=(
+            replace(
+                fixed,
+                rate=DerivativeContractRate(Decimal("0.041")),
+            ),
+            floating,
+        ),
+    )
+    original = _swaption(SwaptionPosition.PAYER, swap=underlying)
+    changed = _swaption(SwaptionPosition.PAYER, swap=changed_underlying)
+    assert original.logical_values() != changed.logical_values()
+
+
+def test_swaption_expiry_is_distinct_logical_material() -> None:
+    earlier = _swaption(
+        SwaptionPosition.PAYER,
+        expiry=date(2026, 12, 14),
+    )
+    later = _swaption(
+        SwaptionPosition.PAYER,
+        expiry=date(2026, 12, 15),
+    )
+    assert earlier.logical_values() != later.logical_values()
+
+
+def test_swaption_exercise_is_distinct_logical_material() -> None:
+    european = _swaption(SwaptionPosition.PAYER)
+    bermudan = replace(
+        european,
+        exercise=OptionExerciseTerms(
+            style=OptionExerciseStyle.BERMUDAN,
+            bermudan_dates=(date(2026, 12, 10),),
+        ),
+    )
+    assert european.logical_values() != bermudan.logical_values()
