@@ -321,6 +321,12 @@ def test_fra_has_no_invented_payment_period_chronology(payment_date: date) -> No
     assert terms.payment_date == payment_date
 
 
+def test_fra_payment_date_is_distinct_logical_material() -> None:
+    at_start = _fra(payment_date=date(2027, 3, 15))
+    at_end = _fra(payment_date=date(2027, 6, 15))
+    assert at_start.logical_values() != at_end.logical_values()
+
+
 def test_fra_rejects_non_increasing_calculation_period() -> None:
     with pytest.raises(RatesOtcValidationError, match="must be after"):
         _fra(
@@ -644,6 +650,11 @@ def test_bounded_swaption_rejects_non_vanilla_underlying_leg_set() -> None:
 def test_swaption_expiry_must_not_follow_underlying_effective_date() -> None:
     with pytest.raises(RatesOtcValidationError, match="effective_date"):
         _swaption(SwaptionPosition.PAYER, expiry=date(2027, 1, 2))
+
+
+def test_swaption_expiry_at_underlying_effective_date_is_valid() -> None:
+    terms = _swaption(SwaptionPosition.PAYER, expiry=date(2027, 1, 1))
+    assert terms.expiry_date == terms.underlying_swap.effective_date
 
 
 def test_cash_swaption_accepts_none_cash_settlement_method() -> None:
