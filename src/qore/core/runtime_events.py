@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
 from qore.core.runtime import RuntimeContext
 from qore.kernel.domain_event import DomainEvent
@@ -10,10 +11,17 @@ from qore.kernel.errors import KernelError
 class RuntimeStartedEvent(DomainEvent):
     """Evento emitido cuando una ejecución del runtime entra en RUNNING."""
 
-    def __init__(self, *, timestamp: datetime, context: RuntimeContext) -> None:
+    def __init__(
+        self,
+        *,
+        event_id: UUID,
+        timestamp: datetime,
+        context: RuntimeContext,
+    ) -> None:
         super().__init__(
             timestamp=timestamp,
             event_name="qore.runtime.started",
+            event_id=event_id,
             metadata={
                 "execution_id": str(context.execution_id),
                 "runtime_version": context.runtime_version,
@@ -24,10 +32,17 @@ class RuntimeStartedEvent(DomainEvent):
 class RuntimeStoppedEvent(DomainEvent):
     """Evento emitido cuando una ejecución del runtime entra en STOPPED."""
 
-    def __init__(self, *, timestamp: datetime, context: RuntimeContext) -> None:
+    def __init__(
+        self,
+        *,
+        event_id: UUID,
+        timestamp: datetime,
+        context: RuntimeContext,
+    ) -> None:
         super().__init__(
             timestamp=timestamp,
             event_name="qore.runtime.stopped",
+            event_id=event_id,
             metadata={
                 "execution_id": str(context.execution_id),
                 "runtime_version": context.runtime_version,
@@ -41,6 +56,7 @@ class RuntimeFailedEvent(DomainEvent):
     def __init__(
         self,
         *,
+        event_id: UUID,
         timestamp: datetime,
         context: RuntimeContext,
         error: KernelError,
@@ -48,6 +64,7 @@ class RuntimeFailedEvent(DomainEvent):
         super().__init__(
             timestamp=timestamp,
             event_name="qore.runtime.failed",
+            event_id=event_id,
             metadata={
                 "execution_id": str(context.execution_id),
                 "runtime_version": context.runtime_version,
