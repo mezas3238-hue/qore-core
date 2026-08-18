@@ -93,6 +93,7 @@ _NAIVE_TIMESTAMP = datetime(2026, 8, 9, 18, 0)
 _NON_UTC = timezone(timedelta(hours=5, minutes=30))
 _NON_UTC_TIMESTAMP = datetime(2026, 8, 9, 23, 30, tzinfo=_NON_UTC)
 _CORRELATION_ID = CorrelationId(UUID("71000000-0000-0000-0000-000000000001"))
+_EVENT_ID = UUID("71000000-0000-0000-0000-000000000099")
 
 
 def _uuid(suffix: int) -> UUID:
@@ -298,11 +299,16 @@ def test_base_command_rejects_naive_and_accepts_non_utc_aware_timestamp() -> Non
 
 def test_domain_event_rejects_naive_and_accepts_non_utc_aware_timestamp() -> None:
     with pytest.raises(ValidationError, match="timezone-aware"):
-        DomainEvent(timestamp=_NAIVE_TIMESTAMP, event_name="qore.temporal-test")
+        DomainEvent(
+            timestamp=_NAIVE_TIMESTAMP,
+            event_name="qore.temporal-test",
+            event_id=_EVENT_ID,
+        )
 
     value = DomainEvent(
         timestamp=_NON_UTC_TIMESTAMP,
         event_name="qore.temporal-test",
+        event_id=_EVENT_ID,
     )
     assert value.timestamp == _NON_UTC_TIMESTAMP
 

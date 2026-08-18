@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 from qore.core.configuration import Configuration
+from qore.core.lifecycle import EventIdSource
 from qore.core.runtime import RuntimeContext
+from qore.core.runtime_events import RuntimeStartedEvent
 from qore.domain.commands import CommandId
 from qore.domain.events import CorrelationId
 from qore.functional.decisions import (
@@ -17,6 +20,8 @@ from qore.functional.decisions import (
     FunctionalDecision,
 )
 from qore.governance.decision_flow import CrossModuleDecisionFlowPlan
+from qore.kernel.domain_event import DomainEvent
+from qore.kernel.errors import ValidationError
 from qore.kernel.result import Failure, Success
 from qore.modules.knowledge.contracts import KnowledgeRecordId
 from qore.modules.optimization.contracts import (
@@ -47,6 +52,18 @@ from qore.specialized_governance.decision_flow import SpecializedServicesDecisio
 
 _TIMESTAMP = datetime(2026, 8, 8, 1, 0, tzinfo=UTC)
 _CORRELATION = CorrelationId(UUID("98000000-0000-0000-0000-000000000001"))
+_SOURCE_ID = UUID("98000000-0000-0000-0000-000000000099")
+
+
+class SequenceEventIdSource:
+    def __init__(self, ids: tuple[UUID, ...]) -> None:
+        self._ids = ids
+        self.calls = 0
+
+    def __call__(self) -> UUID:
+        index = self.calls
+        self.calls += 1
+        return self._ids[index]
 
 
 def _functional_plan() -> CrossModuleDecisionFlowPlan:
@@ -254,6 +271,7 @@ def test_composition_preserves_explicit_runtime_context_and_clock() -> None:
         Configuration(application_name="qore-specialized-runtime-context"),
         runtime_context=context,
         clock=clock,
+        event_id_source=lambda: _SOURCE_ID,
     )
 
     assert isinstance(result, Success)
@@ -277,6 +295,61 @@ def test_composition_requires_runtime_context_and_clock_together() -> None:
         Configuration(application_name="qore-specialized-with-clock-only"),
         clock=lambda: _TIMESTAMP,
     )
+    with_source_only = compose_specialized_governance(
+        Configuration(application_name="qore-specialized-with-source-only"),
+        event_id_source=lambda: _SOURCE_ID,
+    )
 
     assert isinstance(without_clock, Failure)
     assert isinstance(with_clock_only, Failure)
+    assert isinstance(with_source_only, Failure)
+
+
+def test_specialized_composition_propagates_event_id_source() -> None:
+    source = SequenceEventIdSource((_SOURCE_ID,))
+    context = RuntimeContext(
+        execution_id=UUID("98000000-0000-0000-0000-000000000132"),
+        runtime_version="phase-05-source-test",
+    )
+
+    result = compose_specialized_governance(
+        Configuration(application_name="qore-specialized-source-propagation"),
+        runtime_context=context,
+        clock=lambda: _TIMESTAMP,
+        event_id_source=source,
+    )
+    assert isinstance(result, Success)
+    application = result.value
+
+    captured: list[RuntimeStartedEvent] = []
+
+    class Handler:
+        def handle(self, event: DomainEvent) -> None:
+            assert isinstance(event, RuntimeStartedEvent)
+            captured.append(event)
+
+    application.core.event_bus.subscribe(RuntimeStartedEvent, Handler())
+    assert isinstance(application.core.lifecycle.start(), Success)
+
+    assert source.calls == 1
+    assert len(captured) == 1
+    assert captured[0].event_id == _SOURCE_ID
+
+
+def test_specialized_composition_rejects_non_callable_event_id_source() -> None:
+    source = cast(EventIdSource, object())
+    context = RuntimeContext(
+        execution_id=UUID("98000000-0000-0000-0000-000000000133"),
+        runtime_version="phase-05-noncallable",
+    )
+
+    result = compose_specialized_governance(
+        Configuration(application_name="qore-specialized-noncallable"),
+        runtime_context=context,
+        clock=lambda: _TIMESTAMP,
+        event_id_source=source,
+    )
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, ValidationError)
+    assert str(result.error) == "event id source must be callable"
