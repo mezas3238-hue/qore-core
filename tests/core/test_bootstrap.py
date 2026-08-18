@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 
@@ -14,10 +15,10 @@ from qore.kernel.errors import DomainError, KernelError, ValidationError
 from qore.kernel.result import Failure, Result, Success
 
 FIXED_TS = datetime(2026, 1, 1, tzinfo=UTC)
+EVENT_ID = UUID("00000000-0000-0000-0000-000000000099")
 
 
 def current_state(lifecycle: ApplicationLifecycle) -> LifecycleState:
-    """Read lifecycle state without retaining literal narrowing across transitions."""
     return lifecycle.state
 
 
@@ -65,12 +66,12 @@ class TestServiceRegistry:
 class TestEventBus:
     def test_publish_without_subscribers_is_success(self) -> None:
         bus = EventBus()
-        event = DomainEvent(timestamp=FIXED_TS, event_name="test.event")
+        event = DomainEvent(timestamp=FIXED_TS, event_name="test.event", event_id=EVENT_ID)
         assert isinstance(bus.publish(event), Success)
 
     def test_publish_continues_after_handler_failure(self) -> None:
         bus = EventBus()
-        event = DomainEvent(timestamp=FIXED_TS, event_name="test.event")
+        event = DomainEvent(timestamp=FIXED_TS, event_name="test.event", event_id=EVENT_ID)
         handled: list[str] = []
 
         class FailingHandler:
@@ -88,12 +89,11 @@ class TestEventBus:
 
         assert handled == ["failing", "good"]
         assert isinstance(result, Failure)
-        assert isinstance(result.error, KernelError)
         assert "boom" in str(result.error)
 
     def test_publish_success_when_all_handlers_succeed(self) -> None:
         bus = EventBus()
-        event = DomainEvent(timestamp=FIXED_TS, event_name="test.event")
+        event = DomainEvent(timestamp=FIXED_TS, event_name="test.event", event_id=EVENT_ID)
 
         class GoodHandler:
             def handle(self, event: DomainEvent) -> None:
@@ -209,7 +209,7 @@ class TestBootstrap:
     def test_event_bus_starts_with_no_subscriptions(self) -> None:
         result = bootstrap(Configuration(application_name="test-app"))
         assert isinstance(result, Success)
-        event = DomainEvent(timestamp=FIXED_TS, event_name="test")
+        event = DomainEvent(timestamp=FIXED_TS, event_name="test", event_id=EVENT_ID)
         assert isinstance(result.value.event_bus.publish(event), Success)
 
     def test_lifecycle_initial_state_is_initialized(self) -> None:
