@@ -348,7 +348,7 @@ The correction candidate has been synchronized to certified main
 
 Protected order:
 
-`LANE 3 / PR #376 -> LANE 4 / PR #382 -> LANE 5 / PR #384 -> LANE 6 / #385`
+`LANE 3 / PR #376 -> LANE 4 / PR #382 -> LANE 5 / PR #384 -> LANE 6 / PR #386`
 
 Final Lane-6 certification still requires the resulting exact head, exact-head
 CI, diff audit, independent review and Integration-Gate adjudication.
