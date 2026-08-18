@@ -863,7 +863,10 @@ def test_cash_flow_schedule_complete_projection_with_order() -> None:
 
 
 def test_instrument_terms_fixed_coupon_maturity_redemption() -> None:
-    terms = _terms()
+    terms = replace(
+        _terms(),
+        redemption_amount=fie.FixedIncomeCashAmount(Decimal("950")),
+    )
     fixed_coupon = terms.coupon
     assert isinstance(fixed_coupon, fie.FixedCouponTerms)
     expected = _expected_instrument_terms(
@@ -877,7 +880,7 @@ def test_instrument_terms_fixed_coupon_maturity_redemption() -> None:
         ),
         expected_settlement=_expected_settlement_convention(terms.settlement),
         expected_yield=_expected_yield_convention(terms.yield_convention),
-        expected_redemption=_REDEMPTION_STR,
+        expected_redemption="950",
     )
     assert terms.logical_values() == expected
 
