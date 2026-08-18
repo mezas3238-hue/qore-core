@@ -15,7 +15,7 @@ from qore.domain.events import (
     DomainEventVersion,
 )
 from qore.kernel.errors import DomainError
-from qore.kernel.temporal import is_timezone_aware_datetime
+from qore.kernel.temporal import canonical_instant, is_timezone_aware_datetime
 from qore.modules.validation.contracts import ValidationAssessment, ValidationVerdict
 from qore.specialist.analysis import SpecialistConfidence
 
@@ -139,7 +139,7 @@ class StatisticsSnapshot:
     def logical_values(self) -> tuple[object, ...]:
         return (
             str(self.snapshot_id.value),
-            self.timestamp.isoformat(),
+            canonical_instant(self.timestamp),
             str(self.correlation_id.value),
             tuple(item.logical_values() for item in self.source_assessments),
             self.sample_size,

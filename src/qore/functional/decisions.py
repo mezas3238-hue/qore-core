@@ -11,7 +11,7 @@ from uuid import UUID
 
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.kernel.errors import DomainError
-from qore.kernel.temporal import is_timezone_aware_datetime
+from qore.kernel.temporal import canonical_instant, is_timezone_aware_datetime
 
 _RESERVED_DECISION_METADATA_KEYS = frozenset({"correlation_id", "causation_id"})
 
@@ -197,7 +197,7 @@ class FunctionalDecision:
         """Representación lógica estable por valores."""
         return (
             str(self.decision_id.value),
-            self.timestamp.isoformat(),
+            canonical_instant(self.timestamp),
             self.decision_type.value,
             self.status.value,
             self.priority.value,

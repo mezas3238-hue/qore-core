@@ -200,7 +200,7 @@ class TestDomainEventCompatibility:
 
         assert domain_event.logical_values() == (
             str(EVENT_ID.value),
-            TIMESTAMP.isoformat(),
+            "2026-01-01T00:00:00.000000+00:00",
             "qore.portfolio.created",
             "1.0",
             "portfolio",

@@ -15,7 +15,7 @@ from qore.domain.events import (
     DomainEventVersion,
 )
 from qore.kernel.errors import DomainError
-from qore.kernel.temporal import is_timezone_aware_datetime
+from qore.kernel.temporal import canonical_instant, is_timezone_aware_datetime
 from qore.specialist.analysis import (
     SpecialistAnalysis,
     SpecialistAnalysisId,
@@ -149,7 +149,7 @@ class ValidationAssessment:
     def logical_values(self) -> tuple[object, ...]:
         return (
             str(self.assessment_id.value),
-            self.timestamp.isoformat(),
+            canonical_instant(self.timestamp),
             self.source_analysis.logical_values(),
             str(self.correlation_id.value),
             str(self.causation_id.value),

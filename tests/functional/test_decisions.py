@@ -259,4 +259,4 @@ class TestFunctionalDecision:
 
         assert first.logical_values() == second.logical_values()
         assert first.logical_values()[0] == str(_DECISION_ID.value)
-        assert first.logical_values()[1] == _TIMESTAMP.isoformat()
+        assert first.logical_values()[1] == "2026-08-07T18:00:00.000000+00:00"
