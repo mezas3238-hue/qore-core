@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -491,3 +491,30 @@ def test_asian_locator_kind_discriminates_and_fails_closed() -> None:
 def test_asian_locator_key_fails_closed_for_invalid_locator() -> None:
     with pytest.raises(OptionExoticValidationError, match="invalid asian observation locator"):
         option_exotic_semantics._asian_locator_key(object())
+
+
+def test_asian_same_instant_different_offset_are_distinct_exact_locators() -> None:
+    plus_one = timezone(timedelta(hours=1))
+    utc_locator = _literal_datetime(1, 10, UTC)
+    plus_one_locator = _literal_datetime(1, 11, plus_one)
+
+    assert utc_locator.value == plus_one_locator.value
+    assert utc_locator.logical_values() != plus_one_locator.logical_values()
+
+    first = AsianAveragingPeriod(
+        explicit_observations=(
+            AsianAveragingObservation(utc_locator),
+            AsianAveragingObservation(plus_one_locator),
+        ),
+        observation_kind=AsianAveragingObservationKind.WEIGHTED,
+    )
+    second = AsianAveragingPeriod(
+        explicit_observations=(
+            AsianAveragingObservation(plus_one_locator),
+            AsianAveragingObservation(utc_locator),
+        ),
+        observation_kind=AsianAveragingObservationKind.WEIGHTED,
+    )
+
+    assert len(first.explicit_observations) == 2
+    assert first.logical_values() == second.logical_values()
