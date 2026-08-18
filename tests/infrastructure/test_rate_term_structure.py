@@ -753,6 +753,15 @@ def test_computed_provenance_complete_projection() -> None:
     )
     assert prov.logical_values() == expected
 
+    source = _source()
+    with_source = replace(prov, source=source)
+    expected_with_source = _expected_provenance(
+        with_source,
+        expected_source=_expected_source_descriptor(source),
+        expected_fingerprint=_FINGERPRINT_STR,
+    )
+    assert with_source.logical_values() == expected_with_source
+
 
 def test_tenor_zero_rate_node_complete_projection() -> None:
     node = _node(1)  # ZeroRate(0.01), coordinate FinancialTenor(1, YEAR)
