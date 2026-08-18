@@ -608,3 +608,306 @@ def test_logical_values_are_deterministic_and_secret_free() -> None:
     assert "token=" not in material
     assert "password=" not in material
     assert "secret=" not in material
+
+
+# ---- Oracle test constants ----
+_AS_OF_CANONICAL = "2026-08-14T12:00:00.000000+00:00"
+_RECORDED_CANONICAL = "2026-08-14T12:01:00.000000+00:00"
+_FINGERPRINT_STR = "a" * 64
+
+# ---- Expected-side oracles (no production logical_values calls) ----
+
+
+def _expected_source_descriptor(source: ExternalSourceDescriptor) -> tuple[object, ...]:
+    return (
+        str(source.adapter_id.value),
+        str(source.source_id.value),
+        source.port_name.value,
+    )
+
+
+def _expected_rate_convention(
+    convention: rts.RateCurveConvention,
+) -> tuple[object, ...]:
+    comp_tenor = None
+    if convention.compounding_tenor is not None:
+        comp_tenor = (
+            convention.compounding_tenor.value,
+            convention.compounding_tenor.unit.value,
+        )
+    return (
+        "rate-convention",
+        (convention.day_count.value,),
+        (convention.compounding.value,),
+        comp_tenor,
+    )
+
+
+def _expected_yield_convention(
+    convention: fie.YieldConvention,
+) -> tuple[object, ...]:
+    comp_tenor = None
+    if convention.compounding_tenor is not None:
+        comp_tenor = (
+            convention.compounding_tenor.value,
+            convention.compounding_tenor.unit.value,
+        )
+
+    ref_material = None
+    if convention.reference is not None:
+        ref = convention.reference
+        ref_tenor = None
+        if ref.tenor is not None:
+            ref_tenor = (ref.tenor.value, ref.tenor.unit.value)
+        ref_material = (
+            (str(ref.reference_identity_id.value),),
+            (ref.role.value,),
+            ref_tenor,
+        )
+
+    return (
+        (convention.yield_code.value,),
+        (convention.day_count.value,),
+        (convention.compounding.value,),
+        comp_tenor,
+        ref_material,
+    )
+
+
+def _expected_provenance(
+    prov: rts.RateTermStructureProvenance,
+    *,
+    expected_source: tuple[object, ...] | None,
+    expected_fingerprint: str | None,
+) -> tuple[object, ...]:
+    return (
+        prov.kind.value,
+        (prov.methodology.value,),
+        (str(prov.evidence_ref.value),),
+        expected_source,
+        (expected_fingerprint,) if expected_fingerprint is not None else None,
+    )
+
+
+def _expected_node(
+    node: rts.RateTermStructureNode,
+    *,
+    expected_coordinate: tuple[object, ...],
+    expected_value: tuple[object, ...],
+) -> tuple[object, ...]:
+    return (
+        (str(node.node_id.value),),
+        (node.ordinal.value,),
+        expected_coordinate,
+        expected_value,
+        (str(node.evidence_ref.value),),
+    )
+
+
+def _expected_snapshot(
+    snapshot: rts.RateTermStructureSnapshot,
+    *,
+    expected_convention: tuple[object, ...] | None,
+    expected_provenance: tuple[object, ...],
+    expected_nodes: tuple[tuple[object, ...], ...],
+    expected_measure: str,
+    expected_as_of: str,
+    expected_recorded_at: str,
+) -> tuple[object, ...]:
+    return (
+        (str(snapshot.snapshot_id.value),),
+        (str(snapshot.curve_identity_id.value),),
+        (str(snapshot.currency_identity_id.value),),
+        (snapshot.curve_kind.value,),
+        expected_measure,
+        expected_convention,
+        expected_as_of,
+        expected_recorded_at,
+        expected_provenance,
+        expected_nodes,
+    )
+
+
+# ---- Complete projection tests ----
+
+
+def test_observed_provenance_complete_projection() -> None:
+    prov = _observed_provenance()
+    source = prov.source
+    assert source is not None
+    expected_source = _expected_source_descriptor(source)
+    expected = _expected_provenance(
+        prov,
+        expected_source=expected_source,
+        expected_fingerprint=None,
+    )
+    assert prov.logical_values() == expected
+
+
+def test_computed_provenance_complete_projection() -> None:
+    prov = _computed_provenance()
+    expected = _expected_provenance(
+        prov,
+        expected_source=None,
+        expected_fingerprint=_FINGERPRINT_STR,
+    )
+    assert prov.logical_values() == expected
+
+
+def test_tenor_zero_rate_node_complete_projection() -> None:
+    node = _node(1)  # ZeroRate(0.01), coordinate FinancialTenor(1, YEAR)
+    expected_coordinate = ("tenor", (1, "year"))
+    expected_value = ("zero-rate", ("0.01",))
+    expected = _expected_node(
+        node,
+        expected_coordinate=expected_coordinate,
+        expected_value=expected_value,
+    )
+    assert node.logical_values() == expected
+
+
+def test_forward_rate_node_complete_projection() -> None:
+    start_tenor = fie.FinancialTenor(3, fie.FinancialTenorUnit.MONTH)
+    period_tenor = fie.FinancialTenor(6, fie.FinancialTenorUnit.MONTH)
+    coord = rts.ForwardRatePeriod(start_tenor, period_tenor)
+    node = _node(
+        1,
+        coordinate=coord,
+        node_value=rts.ForwardRate(Decimal("0.03")),
+    )
+    expected_coordinate = ("forward-period", (3, "month"), (6, "month"))
+    expected_value = ("forward-rate", ("0.03",))
+    expected = _expected_node(
+        node,
+        expected_coordinate=expected_coordinate,
+        expected_value=expected_value,
+    )
+    assert node.logical_values() == expected
+
+
+def test_rate_snapshot_complete_projection_with_order() -> None:
+    first = _node(1)  # zero rate 0.01, tenor 1 year, ordinal 1
+    second = _node(2)  # zero rate 0.02, tenor 2 years, ordinal 2
+    provenance = _observed_provenance()
+    # Pass nodes in reverse caller order (second, first)
+    snapshot = _snapshot(
+        nodes=(second, first),
+        provenance=provenance,
+    )
+
+    first_exp = _expected_node(
+        first,
+        expected_coordinate=("tenor", (1, "year")),
+        expected_value=("zero-rate", ("0.01",)),
+    )
+    second_exp = _expected_node(
+        second,
+        expected_coordinate=("tenor", (2, "year")),
+        expected_value=("zero-rate", ("0.02",)),
+    )
+    expected_nodes = (first_exp, second_exp)
+
+    rate_convention = _rate_convention()
+    expected_convention = _expected_rate_convention(rate_convention)
+
+    src = provenance.source
+    assert src is not None
+    expected_provenance = _expected_provenance(
+        provenance,
+        expected_source=_expected_source_descriptor(src),
+        expected_fingerprint=None,
+    )
+
+    expected = _expected_snapshot(
+        snapshot,
+        expected_convention=expected_convention,
+        expected_provenance=expected_provenance,
+        expected_nodes=expected_nodes,
+        expected_measure="zero-rate",
+        expected_as_of=_AS_OF_CANONICAL,
+        expected_recorded_at=_RECORDED_CANONICAL,
+    )
+    assert snapshot.logical_values() == expected
+
+
+def test_yield_snapshot_complete_projection() -> None:
+    node = _node(
+        1,
+        node_value=fie.FixedIncomeYield(Decimal("0.045")),
+    )
+    provenance = _observed_provenance()
+    snapshot = _snapshot(
+        measure=rts.RateTermStructureMeasure.YIELD,
+        nodes=(node,),
+        provenance=provenance,
+    )
+
+    yield_conv = _yield_convention()
+    expected_convention = (
+        "yield-convention",
+        _expected_yield_convention(yield_conv),
+    )
+
+    expected_node = _expected_node(
+        node,
+        expected_coordinate=("tenor", (1, "year")),
+        expected_value=("yield", ("0.045",)),
+    )
+    expected_nodes = (expected_node,)
+
+    src = provenance.source
+    assert src is not None
+    expected_provenance = _expected_provenance(
+        provenance,
+        expected_source=_expected_source_descriptor(src),
+        expected_fingerprint=None,
+    )
+
+    expected = _expected_snapshot(
+        snapshot,
+        expected_convention=expected_convention,
+        expected_provenance=expected_provenance,
+        expected_nodes=expected_nodes,
+        expected_measure="yield",
+        expected_as_of=_AS_OF_CANONICAL,
+        expected_recorded_at=_RECORDED_CANONICAL,
+    )
+    assert snapshot.logical_values() == expected
+
+
+def test_computed_spread_snapshot_complete_projection_convention_none() -> None:
+    node = _node(
+        1,
+        node_value=fie.FixedIncomeSpread(Decimal("0.0015")),
+    )
+    provenance = _computed_provenance()
+    snapshot = _snapshot(
+        measure=rts.RateTermStructureMeasure.SPREAD,
+        nodes=(node,),
+        provenance=provenance,
+    )
+
+    expected_node = _expected_node(
+        node,
+        expected_coordinate=("tenor", (1, "year")),
+        expected_value=("spread", ("0.0015",)),
+    )
+    expected_nodes = (expected_node,)
+
+    expected_convention = None
+    expected_provenance = _expected_provenance(
+        provenance,
+        expected_source=None,
+        expected_fingerprint=_FINGERPRINT_STR,
+    )
+
+    expected = _expected_snapshot(
+        snapshot,
+        expected_convention=expected_convention,
+        expected_provenance=expected_provenance,
+        expected_nodes=expected_nodes,
+        expected_measure="spread",
+        expected_as_of=_AS_OF_CANONICAL,
+        expected_recorded_at=_RECORDED_CANONICAL,
+    )
+    assert snapshot.logical_values() == expected
