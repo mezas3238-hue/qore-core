@@ -9,7 +9,7 @@ from qore.core.application import CoreApplication
 from qore.core.configuration import Configuration
 from qore.core.engine import CoreEngine
 from qore.core.event_bus import EventBus
-from qore.core.lifecycle import ApplicationLifecycle, Clock
+from qore.core.lifecycle import ApplicationLifecycle, Clock, EventIdSource
 from qore.core.runtime import RuntimeContext
 from qore.core.runtime_plan import RuntimeComponentSpec, RuntimePlan
 from qore.core.runtime_supervisor import RuntimeSupervisor
@@ -50,6 +50,7 @@ def bootstrap(
     *,
     runtime_context: RuntimeContext,
     clock: Clock,
+    event_id_source: EventIdSource,
     domain_modules: tuple[ComposableDomainModule, ...] = (),
 ) -> Result[CoreApplication, KernelError]: ...
 
@@ -59,18 +60,25 @@ def bootstrap(
     *,
     runtime_context: RuntimeContext | None = None,
     clock: Clock | None = None,
+    event_id_source: EventIdSource | None = None,
     domain_modules: tuple[ComposableDomainModule, ...] = (),
 ) -> CoreIdentity | Result[CoreApplication, KernelError]:
     """Construir el Core o preservar el bootstrap histórico de Genesis.
 
     Sin argumentos mantiene la API Genesis ya publicada. Con ``Configuration``
     ensambla una ``CoreApplication`` con ``RuntimePlan``, ``RuntimeSupervisor`` y
-    la composición oficial del dominio. ``RuntimeContext`` y ``clock`` son
-    opt-in y deben suministrarse juntos para activar eventos deterministas de
-    runtime. Los módulos de dominio no participan del lifecycle del Runtime.
+    la composición oficial del dominio. ``RuntimeContext``, ``clock`` y
+    ``event_id_source`` son opt-in y deben suministrarse juntos para activar
+    eventos deterministas de runtime. Los módulos de dominio no participan del
+    lifecycle del Runtime.
     """
     if configuration is None:
-        if runtime_context is not None or clock is not None or domain_modules:
+        if (
+            runtime_context is not None
+            or clock is not None
+            or event_id_source is not None
+            or domain_modules
+        ):
             return Failure(
                 ValidationError(
                     "configuration is required when bootstrap arguments are provided"
@@ -78,8 +86,20 @@ def bootstrap(
             )
         return CoreIdentity(name="QORE", version="0.1.0", mode="GENESIS")
 
-    if (runtime_context is None) != (clock is None):
-        return Failure(ValidationError("runtime_context and clock must be provided together"))
+    if (
+        (runtime_context is None)
+        != (clock is None)
+        or (runtime_context is None)
+        != (event_id_source is None)
+    ):
+        return Failure(
+            ValidationError(
+                "runtime_context, clock and event_id_source must be provided together"
+            )
+        )
+
+    if event_id_source is not None and not callable(event_id_source):
+        return Failure(ValidationError("event id source must be callable"))
 
     service_registry = ServiceRegistry()
     event_bus = EventBus()
@@ -101,6 +121,7 @@ def bootstrap(
         runtime_supervisor=runtime_supervisor,
         runtime_context=runtime_context,
         clock=clock,
+        event_id_source=event_id_source,
     )
     try:
         domain = compose_domain(modules=domain_modules)
