@@ -726,12 +726,12 @@ def test_zero_coupon_terms_complete_projection() -> None:
 
 
 def test_accrual_period_complete_projection() -> None:
-    period = _accrual()
+    period = _accrual(payment=date(2026, 7, 2))
     expected = _expected_accrual_period(
         period,
         expected_start=_ISSUE_STR,
         expected_end=_MID_STR,
-        expected_payment=_MID_STR,
+        expected_payment="2026-07-02",
     )
     assert period.logical_values() == expected
 
