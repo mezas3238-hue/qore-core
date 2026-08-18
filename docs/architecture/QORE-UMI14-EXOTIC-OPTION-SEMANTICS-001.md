@@ -2,7 +2,8 @@
 
 Status: **PROGRAM D / UMI-14 LANE-5 CORRECTION CANDIDATE — INDEPENDENT CERTIFICATION REQUIRED**
 
-Tracker: `#380`
+Adjudication tracker: `#380`
+Implementation PR: `#384`
 Target: `UMI13-UNR-007`
 Family: `options`
 Current baseline: `b30f0847f4962fd12a8506fea61f797e402a8a9c`
@@ -19,7 +20,7 @@ The correction deliberately reuses the existing UMI-09 barrier owner instead of 
 
 ## 2. Evidence boundary
 
-Tracker `#380` records the Integration-Gate adjudication based on exact UMI-05 and UMI-09 repository evidence plus primary FpML product semantics.
+Adjudication tracker `#380` records the Integration-Gate adjudication based on exact UMI-05 and UMI-09 repository evidence plus primary FpML product semantics. PR `#384` carries this bounded implementation candidate.
 
 The present artifact is a correction candidate only. Source, tests and documentation require exact-head CI, independent review and Integration-Gate adjudication before any integration decision.
 
@@ -160,6 +161,8 @@ Explicit observations are immutable and unique by complete locator identity.
 
 `AsianAveragingLiteralDateTime` retains an exact timezone-aware `datetime`. It enables multiple observations on the same calendar date without fabricating midnight. Timezone-aware timestamps are retained exactly and never silently normalized.
 
+Expiry qualification for a literal datetime uses that locator's own contractual calendar date (`locator.value.date()`). D04 deliberately does not normalize the timestamp to UTC or invent an expiry time before comparing it with the contractual expiry date.
+
 ### Schedule observation locator
 
 `AsianAveragingScheduleObservation` retains a governed schedule code and positive integer observation number. It identifies an observation by schedule identity plus observation number. It does not generate or resolve schedule dates.
@@ -289,6 +292,7 @@ The dedicated test modules directly falsify:
 - strike-factor finite typing and logical sensitivity;
 - literal date and timezone-aware datetime locators;
 - multiple same-day datetime observations;
+- same-instant/different-offset datetime locators remaining distinct exact contractual locators;
 - schedule observation number typing and binding;
 - multiple schedule identities and canonical schedule ordering;
 - unweighted vs weighted logical distinction;
