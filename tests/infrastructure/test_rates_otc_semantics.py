@@ -183,7 +183,7 @@ def _cap_floor(
     floor: RateStrikeSchedule | None = None,
     effective: date = date(2027, 1, 1),
     termination: date = date(2030, 1, 1),
-    spread: FixedIncomeSpread | None = FixedIncomeSpread(Decimal("0")),
+    spread: FixedIncomeSpread | None = None,
 ) -> RateCapFloorTerms:
     return RateCapFloorTerms(
         terms_id=DerivativeTermsId(_uuid(200)),
