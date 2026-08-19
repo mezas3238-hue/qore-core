@@ -141,6 +141,15 @@ def test_equity_common_and_preferred_semantics_do_not_collapse() -> None:
         ("class-a",),
         (str(UUID(int=301)),),
     )
+    assert preferred.logical_values() == (
+        "equity-security",
+        (str(UUID(int=102)),),
+        (str(UUID(int=1)),),
+        (str(UUID(int=2)),),
+        "preferred",
+        ("class-a",),
+        (str(UUID(int=302)),),
+    )
 
 
 def test_equity_security_terms_absent_share_class_projects_none() -> None:
@@ -161,6 +170,27 @@ def test_equity_security_terms_absent_share_class_projects_none() -> None:
         "preferred",
         None,
         (str(UUID(int=303)),),
+    )
+
+
+def test_equity_security_terms_common_absent_share_class_projects_none() -> None:
+    terms = EquitySecurityTerms(
+        terms_id=_terms_id(104),
+        instrument_identity_id=_economic_id(5),
+        issuer_identity_id=_economic_id(6),
+        security_kind=EquitySecurityKind.COMMON,
+        share_class=None,
+        evidence_ref=_evidence(304),
+    )
+
+    assert terms.logical_values() == (
+        "equity-security",
+        (str(UUID(int=104)),),
+        (str(UUID(int=5)),),
+        (str(UUID(int=6)),),
+        "common",
+        None,
+        (str(UUID(int=304)),),
     )
 
 
