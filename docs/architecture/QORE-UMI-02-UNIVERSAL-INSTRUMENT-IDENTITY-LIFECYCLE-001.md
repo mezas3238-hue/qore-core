@@ -14,7 +14,7 @@ Historical merge commit: `89705ed8c5cc3e4bf39a74ec2c37111a52285f8f`
 Full Closure correction starting main: `9bb96525caaa6b8aaf20e0ff0dc27ae36eca721d`  
 Full Closure correction starting tree: `d168c6b087112f084a98ebf068a578b872cca7d0`
 
-This artifact is the durable UMI-02 architecture and Full Closure record. It preserves the historical identity/lifecycle certification while reconciling the current integrated repository and the later-discovered mapping-revision currentness obligation. The document does not self-certify closure. Final UMI-02 closure is governed by integrated evidence, the mandatory final whole-UMI Claude audit, independent IA falsification, #301 evidence and final baseline freeze.
+This artifact defines the minimum provider-neutral identity/lifecycle graph required before QORE can safely add family-specific universal economics. It is additive to legacy boundaries and does not silently reinterpret current symbol contracts. The historical architecture below is retained; the Full Closure addendum at the end governs current recertification and does not self-certify closure.
 
 ## Governing invariants
 
@@ -31,9 +31,7 @@ DISPLAY SYMBOL != CANONICAL IDENTITY
 CONTINUOUS REFERENCE != NATIVE CONTRACT
 COMPOSITE / SYNTHETIC != PRIMITIVE INSTRUMENT
 LIFECYCLE != UNIVERSAL EXPIRY FIELD
-LATEST REVISION != CURRENT MAPPING
 CURRENT MAPPING != HISTORICAL IDENTITY INTERPRETATION
-EFFECTIVE TIME != KNOWLEDGE CUTOFF
 MAPPING DIGEST != RETAINED VERSIONED MAPPING EVIDENCE
 IDENTITY FOUNDATION != FAMILY-SPECIFIC ECONOMIC TERMS
 NO DATA PROVENANCE -> NO QUANTITATIVE CLAIM
@@ -47,50 +45,104 @@ CROSS-OWNER LABEL != PERMISSION TO EXPORT UMI-02 INTERNAL DEBT
 
 ## Scope and authority
 
-Markets / Instruments owns canonical economic identity/reference facts and the interpretation policy for retained external-identity mapping revisions. Provider/platform adapters retain provider-native identifiers and map them through governed boundaries. Market Data, Execution, Position, Risk, Research, Valuation, Client EA and presentation surfaces consume identity; none becomes a parallel identity authority.
+Under the certified departmental sovereignty freeze, Markets / Instruments owns canonical economic identity/reference facts. Provider/platform adapters retain provider-native IDs and map them through governed boundaries. Market Data, Execution, Position, Risk, Research, Valuation, Client EA and presentation surfaces consume identity; none becomes a parallel identity authority.
 
-UMI-02 owns:
-
-- stable economic/reference identity;
-- independent listing/venue identity;
-- external identifier classification and mapping lineage;
-- typed effective-dated identity relationships;
-- heterogeneous lifecycle facts;
-- canonical graph integrity;
-- deterministic mapping-revision resolution over retained UMI-02 history.
-
-UMI-02 does not own provider discovery, market sessions/calendars, family valuation, risk models, execution economics, provider runtime capability, production support or productive authorization.
+UMI-02 freezes the identity graph and lifecycle foundation only. It does not implement provider discovery, operational registries, family valuation, risk models, execution economics or productive support.
 
 ---
 
-# 1. Canonical identity graph
+# 1. Repository starting evidence
 
-`EconomicIdentityId` is the stable QORE identity for one economic instrument or reference object. It is independent of display symbol, provider identifier and listing.
+The certified baseline still contains multiple valid but bounded identity surfaces:
 
-`EconomicIdentityKind` distinguishes tradable instruments from reference objects. `IdentityConstructionKind` distinguishes native, synthetic, composite and continuous-reference construction; a continuous reference must remain a reference object rather than masquerade as a native dated contract.
+- `market_data.Instrument(symbol: str)` — legacy provider-neutral market symbol;
+- `order_intent.ExecutionInstrument(value: str)` — execution-scope symbol;
+- provider/source identity through `ExternalSourceDescriptor`;
+- provider-native symbol/contract IDs in adapter contracts;
+- presentation-specific symbols in executive/client read models;
+- historical/research evidence that serializes legacy symbol material.
 
-`ListingIdentity` is a separately governed listing representation with its own ID, parent economic identity, venue, display symbol, effective interval and evidence reference.
+UMI-01 certified that these bounded contracts are reusable but insufficient as universal economic identity. UMI-02 therefore adds a canonical graph without changing the meaning of those legacy types.
+
+```text
+ADDITIVE CANONICAL GRAPH
+!=
+SILENT LEGACY TYPE REINTERPRETATION
+```
+
+---
+
+# 2. Canonical identity graph
+
+## 2.1 Economic identity
+
+`EconomicIdentityId` is the stable QORE identity for one economic instrument or one reference object. It is independent of display symbol, provider ID and listing.
+
+`EconomicIdentity` carries only identity-foundation material:
+
+- stable identity ID;
+- `EconomicIdentityKind`;
+- extensible family classification;
+- construction kind;
+- retained evidence reference.
+
+It does not carry one universal price, quantity, expiry, strike, coupon or settlement field.
+
+## 2.2 Tradable instrument vs reference object
+
+`EconomicIdentityKind` distinguishes:
+
+- `TRADABLE_INSTRUMENT`;
+- `REFERENCE_OBJECT`.
+
+Reference objects include concepts such as benchmark rates, indices, currencies or physical/reference objects that may be referenced by instruments without themselves being directly tradable.
+
+This prevents benchmark/index/reference semantics from being forced into an orderable instrument shape.
+
+## 2.3 Construction kind
+
+`IdentityConstructionKind` distinguishes:
+
+- native;
+- synthetic;
+- composite;
+- continuous reference.
+
+A continuous reference must be a reference object. A continuous futures chain is therefore not allowed to masquerade as one native dated futures contract.
+
+## 2.4 Listing / venue identity
+
+`ListingIdentity` gives one economic identity a separately governed listing/venue representation with:
+
+- independent listing ID;
+- parent economic identity ID;
+- venue code;
+- display symbol;
+- effective interval;
+- evidence reference.
+
+Two listings may legitimately share a display symbol while remaining distinct listings of the same economic identity.
 
 ```text
 SAME SYMBOL != SAME LISTING
 SAME ECONOMIC IDENTITY MAY HAVE MULTIPLE LISTINGS
 ```
 
-Legacy `market_data.Instrument`, `ExecutionInstrument`, executive/presentation symbols and provider-native symbol material retain their bounded meanings. UMI-02 is additive; it does not silently reinterpret them as sovereign economic identity.
-
 ---
 
-# 2. External identifier model
+# 3. External identifier model
 
-`ExternalIdentifier` retains external identity material explicitly and non-sovereignly. Its semantic classes remain:
+`ExternalIdentifier` keeps external identity material explicit and non-sovereign.
 
-- `LEGACY_QORE`;
-- `PROVIDER_NATIVE`;
-- `VENUE_NATIVE`;
-- `STANDARD`;
-- `NETWORK_NATIVE`.
+The semantic classes are:
 
-Provider-native identifiers require explicit source provenance. Venue-native identifiers require explicit venue scope. Legacy QORE identifiers cannot masquerade as provider/venue facts. Public identifier material must remain secret-free.
+- `LEGACY_QORE` — legacy QORE symbol identity material used for migration;
+- `PROVIDER_NATIVE` — broker/provider runtime identifiers; explicit `ExternalSourceDescriptor` required;
+- `VENUE_NATIVE` — exchange/venue-native identifiers; explicit venue required;
+- `STANDARD` — cross-provider standards such as ISIN-like namespaces;
+- `NETWORK_NATIVE` — network/on-chain identifiers where applicable.
+
+This explicitly resolves the UMI-01 informational observation that a standard security identifier and a broker runtime key are not semantically identical even though neither becomes QORE canonical identity.
 
 ```text
 STANDARD IDENTIFIER MAY AID CROSS-PROVIDER RECONCILIATION
@@ -98,21 +150,58 @@ STANDARD IDENTIFIER MAY AID CROSS-PROVIDER RECONCILIATION
 STANDARD IDENTIFIER BECOMES QORE SOVEREIGN IDENTITY
 ```
 
----
-
-# 3. Typed identity relationships
-
-`IdentityRelationship` is an immutable effective-dated directed edge between economic identities. Relationship roles are extensible validated codes rather than one universal family enum.
-
-The graph can represent underlying/reference, series membership, benchmark, denomination/trading/settlement currency and ordered component relationships without absorbing family-specific economics. Optional positive `ordinal` preserves material component order. Self-relations, dangling endpoints and duplicate ordered ordinals in the same scope fail closed.
-
-Currency may be represented as a canonical reference-object identity for relationship topology, but UMI-02 does not create a universal money amount/value primitive.
+Provider-native identifiers require explicit source provenance. Venue-native identifiers require explicit venue scope. Legacy QORE identifiers cannot masquerade as provider/venue facts.
 
 ---
 
-# 4. Contract / series / derivative boundary
+# 4. Typed identity relationships
 
-A dated contract may have its own `EconomicIdentityId`; a continuous series or benchmark may have a distinct reference-object identity; `IdentityRelationship` links them.
+`IdentityRelationship` forms an effective-dated directed edge between economic identities.
+
+Relationship roles are extensible validated codes rather than a closed global family enum. This permits later family stages to define semantic roles without redesigning identity.
+
+Examples that UMI-02 can already represent:
+
+- option / future / derivative -> underlying;
+- future contract -> series/reference;
+- instrument -> benchmark;
+- FX pair -> base-currency reference;
+- FX pair -> quote-currency reference;
+- instrument -> denomination/settlement currency reference;
+- synthetic/composite -> ordered component identities;
+- structured instrument -> reference/component identities.
+
+Optional positive `ordinal` preserves ordered composition where leg ordering is material.
+
+A relationship cannot point from an identity to itself. The graph rejects dangling endpoints and duplicate ordered ordinals within the same relationship/effective scope.
+
+---
+
+# 5. Currency / denomination boundary
+
+UMI-02 deliberately does not promote the existing account-specific `CurrencyCode` or create a universal money/value primitive. Those economic primitives belong to FND-04 and the family stages.
+
+Instead, currencies required for identity relationships are representable as canonical `REFERENCE_OBJECT` economic identities, and instruments relate to them with typed roles such as base, quote, denomination, trading, settlement or collateral currency where applicable.
+
+```text
+CURRENCY REFERENCE IDENTITY
+!=
+MONEY AMOUNT TYPE
+```
+
+This permits UMI-02 to freeze identity relationships without prematurely freezing quantity/value semantics.
+
+---
+
+# 6. Contract / series / derivative boundary
+
+A dated contract or option may have its own stable `EconomicIdentityId`; a continuous series or benchmark may have a separate reference-object identity; `IdentityRelationship` links them.
+
+UMI-02 therefore solves contract identity and reference topology without flattening everything into a symbol.
+
+UMI-02 does **not** define every derivative economic term. In particular, numeric strike semantics, option right/exercise style, multipliers, payoff terms and other family economics remain mandatory UMI-05/FND-04 work.
+
+This is the certified UMI-01 sequencing rule:
 
 ```text
 UMI-02 MUST MAKE FAMILY TERMS ATTACHABLE WITHOUT IDENTITY REDESIGN
@@ -120,194 +209,245 @@ UMI-02 MUST MAKE FAMILY TERMS ATTACHABLE WITHOUT IDENTITY REDESIGN
 UMI-02 IMPLEMENTS EVERY FAMILY ECONOMIC TERM
 ```
 
-Strike/right/exercise, coupon/yield, multiplier, payoff, settlement, corporate-action and other family economics remain with their certified downstream owners.
+A future option contract can therefore be uniquely identified and related to its underlying/lifecycle now, while its strike/right/exercise semantics are added by UMI-05 without replacing the identity model.
 
 ---
 
-# 5. Lifecycle model
+# 7. Lifecycle model
 
-`IdentityLifecycleEvent` remains an immutable evidence-bearing lifecycle fact with explicit event ID, economic-or-listing subject, extensible event code, `effective_at`, `recorded_at` and evidence reference.
+`IdentityLifecycleEvent` is an immutable evidence-bearing lifecycle fact with:
 
-There is intentionally no universal expiry field and no global lifecycle-state enum. `recorded_at` is distinct from `effective_at`, permitting future-dated announcements and later-discovered evidence without rewriting historical time.
+- explicit event identity;
+- economic or listing subject;
+- extensible lifecycle event code;
+- `effective_at`;
+- `recorded_at`;
+- evidence reference.
+
+There is intentionally no universal `expiry` field and no one global lifecycle-state enum.
+
+Examples:
+
+- equity: listing/start, suspension, delisting, corporate-action-related lifecycle events later;
+- future: listing, first notice, last trade, expiry where family semantics require them;
+- bond: issue, maturity, call/put lifecycle where defined later;
+- swap: effective/termination lifecycle;
+- perpetual: valid identity with no expiry event.
+
+`recorded_at` is distinct from `effective_at`, allowing future-dated announcements and evidence discovered after an effective event without rewriting historical time.
 
 ---
 
-# 6. Versioned mapping lineage
+# 8. Versioned mapping lineage
 
-`ExternalIdentityMappingRevision` retains:
+`ExternalIdentityMappingRevision` is an immutable revision of one external/legacy-to-canonical mapping.
+
+It contains:
 
 - stable mapping ID;
-- positive revision;
-- exact parent revision;
+- positive mapping revision;
+- explicit parent revision;
 - exact external identifier;
 - canonical economic or listing target;
-- half-open effective interval `[effective_from, effective_until)` where bounded;
-- explicit `recorded_at`;
+- effective interval;
+- recorded time;
 - retained evidence reference.
 
-`IdentityMappingHistory` remains one immutable linear history for one mapping ID and exact external identity. Revisions are contiguous from 1, parent-linked and strictly increasing by `recorded_at`. The canonical graph forbids multiple retained histories for the same exact external identity and rejects dangling mapping targets.
+`IdentityMappingHistory` retains the complete revision chain. It requires:
 
-Historical certification established retained mapping lineage but did not define the cross-revision currentness/precedence resolver later required by UMI09/10/11/13. Full Closure therefore adds a pure resolver over the existing history rather than a second identity system.
+- one mapping ID;
+- one external identity;
+- contiguous revisions starting at 1;
+- exact parent-revision chain.
 
----
+The canonical graph additionally requires strictly increasing `recorded_at` across retained revisions and forbids multiple independent mapping histories for the same exact external identity.
 
-# 7. Mapping currentness / precedence policy
-
-Canonical resolver:
-
-`resolve_identity_mapping_revision(history, *, effective_at, known_at)`
-
-The resolver is deterministic and has no implicit wall clock.
-
-For a requested interpretation:
-
-1. `effective_at` is the economic instant being interpreted.
-2. `known_at` is the explicit information cutoff for replay/currentness evaluation.
-3. A revision is eligible only if `revision.recorded_at <= known_at`.
-4. It must also satisfy `effective_from <= effective_at` and `effective_at < effective_until` when `effective_until` is present.
-5. If multiple retained linear-history revisions are eligible because effective intervals overlap, the highest already-known revision has precedence.
-6. If no revision is eligible, resolution fails closed with a typed UMI-02 resolution error.
+This closes the reproducibility requirement certified in UMI-01:
 
 ```text
-LATEST REVISION PROPERTY != CURRENTNESS RESOLUTION
-EFFECTIVE AT T + KNOWN AT K -> REPRODUCIBLE HISTORICAL INTERPRETATION
-LATER BACKFILL != SILENT REWRITE OF AN EARLIER KNOWLEDGE CUTOFF
-OVERLAPPING EFFECTIVE WINDOWS + LINEAR REVISION CHAIN -> HIGHEST KNOWN ELIGIBLE REVISION
-NO ELIGIBLE REVISION -> FAIL CLOSED
+DATASET REVISION != IDENTITY MAPPING REVISION
+CURRENT MAPPING != HISTORICAL IDENTITY INTERPRETATION
+MAPPING DIGEST != RETAINED VERSIONED MAPPING EVIDENCE
 ```
 
-This policy intentionally separates economic applicability from knowledge chronology. It does not require `known_at >= effective_at`; future-effective mappings may be known before activation, and backfilled revisions may be recorded after the period they reinterpret.
+Historical research/replay can retain the original legacy symbol bytes while separately citing the mapping revision/evidence that governed the economic interpretation used for a later certified analysis.
 
-The resolver does not choose provider capability, market session state, topology, valuation currentness, execution route or any other downstream policy.
+No historical dataset is silently rewritten by UMI-02.
 
 ---
 
-# 8. Canonical graph integrity
+# 9. Canonical graph integrity
 
-`UniversalInstrumentIdentityGraph` remains an immutable composition boundary, not a database or registry implementation. It requires:
+`UniversalInstrumentIdentityGraph` is an immutable composition boundary, not a database or registry implementation.
+
+It requires:
 
 - at least one economic identity;
 - unique economic IDs;
-- unique listing IDs and retained listing parents;
-- unique relationship IDs and retained endpoints;
-- unique lifecycle event IDs and retained subjects;
+- unique listing IDs;
+- listing parent identities retained in the graph;
+- unique relationship IDs;
+- retained relationship endpoints;
+- unique ordered-component ordinals inside their scope;
+- unique lifecycle event IDs;
+- retained lifecycle subjects;
 - unique mapping IDs;
 - one retained mapping history per exact external identity;
 - retained mapping targets;
-- deterministic canonical ordering.
+- increasing mapping recording chronology.
+
+All retained collections are canonicalized into deterministic order before `logical_values()` are emitted.
 
 ```text
 TYPES EXIST != GRAPH IS CONSISTENT
 LOCAL INPUT ORDER != CANONICAL LOGICAL ORDER
 ```
 
-No SQL/event-log/consensus/distributed-registry technology is selected here.
+The graph is technology-neutral. It does not select SQL, Event Sourcing, Kafka, consensus, one global database or a distributed registry implementation.
 
 ---
 
-# 9. Historical UMI-02 certification record
+# 10. Answers to the 13 UMI-02 mandatory questions
 
-Historical UMI-02 was implemented and integrated through PR #309 from certified base `ab69f0f2f43c73e2b0d2c4c4c4ca480b1b8f68f7`.
+## Q1 — Stable economic/reference identity
 
-Permanent historical ledger:
+Answer: `EconomicIdentityId` + `EconomicIdentity`, independent of symbol/provider/listing.
 
-- PR: `#309`;
-- final reviewed head: `0314e3aeb0997ff4a1e90b3e1a5c4945290d5af8`;
-- merge commit: `89705ed8c5cc3e4bf39a74ec2c37111a52285f8f`;
-- historical scope: economic/reference identity, independent listing identity, external identifier classification, relationships, lifecycle, versioned mapping lineage, canonical graph integrity and adversarial conformance;
-- legacy symbol contracts were retained rather than redefined;
-- PR #298 remained HOLD and was not promoted by UMI-02.
+## Q2 — Listing / venue independence
 
-The historical certification is preserved. Full Closure does not retroactively invalidate those results; it closes a later-discovered internal obligation that subsequent UMI work explicitly left with D04/UMI-02.
+Answer: `ListingIdentity` has an independent ID and effective interval while referencing its economic identity.
 
----
+## Q3 — Provider-native mappings with provenance/effective scope
 
-# 10. Current-main reconstruction and no-regression result
+Answer: `ExternalIdentifier(PROVIDER_NATIVE)` requires `ExternalSourceDescriptor`; mapping revisions carry explicit effective intervals, recording time and evidence.
 
-Full Closure reconstruction began from integrated main:
+## Q4 — Series/contracts without universal expiry
 
-- main: `9bb96525caaa6b8aaf20e0ff0dc27ae36eca721d`;
-- tree: `d168c6b087112f084a98ebf068a578b872cca7d0`.
+Answer: each native contract may have its own economic identity; series/continuous references use separate reference identities and relationships; expiry is a lifecycle event only where applicable.
 
-Current source still preserves the certified UMI-02 identity split:
+## Q5 — Underlying/reference links
 
-- `EconomicIdentityId` remains distinct from `ListingIdentityId`;
-- `IdentityFamilyCode` remains classification, not identity;
-- `EconomicIdentity` remains independent of provider/listing symbol text;
-- `CONTINUOUS_REFERENCE` remains constrained to reference-object identity;
-- mapping history remains retained, immutable and evidence-bearing;
-- the canonical graph still forbids parallel mapping histories for one exact external identity.
+Answer: evidence-bearing effective-dated `IdentityRelationship` edges.
 
-Later Program-D stages preserve UMI-02 ownership instead of replacing it:
+## Q6 — Denomination/trading/settlement currency relationships
 
-- UMI09 explicitly retained the inherited UMI-02 current/as-of resolver obligation;
-- UMI10 assigns mapping revisions/currentness policy and reference meaning to D04/UMI-02 and refuses to choose current mapping itself;
-- UMI11 consumes UMI-02 identity/listing/venue material and refuses to select a current mapping/listing revision;
-- UMI13 preserves UMI-02 cross-revision overlap/precedence/currentness as a carry-forward rather than absorbing it.
+Answer: currencies are reference-object identities; relationship roles carry the identity topology. Money/value primitives remain FND-04 scope.
 
-Result before this correction:
+## Q7 — Lifecycle without one flattening enum
 
-`VERIFIED UMI-02 INTERNAL GAP — CROSS-REVISION MAPPING CURRENTNESS/PRECEDENCE`
+Answer: extensible `LifecycleEventCode` + evidence-bearing lifecycle events, no one global lifecycle state or forced expiry.
 
-No evidence was found that a downstream UMI had become a second sovereign economic/listing identity owner.
+## Q8 — Continuous/synthetic/composite vs native
 
----
+Answer: `IdentityConstructionKind`; continuous reference is constrained to reference-object identity, while synthetic/composite identities remain distinguishable from native primitives.
 
-# 11. Full Closure findings and correction ledger
+## Q9 — Legacy migration without breaking evidence/replay
 
-The complete UMI-02 Full Closure reconstruction identified four UMI-02-owned findings:
+Answer: existing `Instrument`, `ExecutionInstrument` and presentation symbols keep their current meanings; `ExternalIdentifier(LEGACY_QORE)` + mapping history creates an additive bridge. Existing datasets are not rewritten.
 
-### FC02-01 — historical/candidate document state stale
+## Q10 — Deterministic logical values / secret hygiene
 
-The architecture artifact still described itself as an implementation candidate after PR #309 had already been integrated. Full Closure replaces that stale state with this durable certification/recertification record.
+Answer: all new values are immutable and explicitly validated; IDs/timestamps/codes serialize deterministically; graph collections are canonicalized before serialization. External identifiers are identity facts only, never credentials or secret references. Credential-like material is prohibited from identity evidence/logical-value paths.
 
-### FC02-02 — current-main authority/no-regression reconciliation absent
+## Q11 — PR #298 compatibility boundary
 
-The historical document predated UMI03..13 and therefore did not permanently record their identity-authority relationship to UMI-02. Section 10 records the current integrated authority result and confirms that later stages consume rather than replace UMI-02 identity.
+Answer: cTrader/provider-native symbol and symbol-ID material maps as external/provider identity evidence into economic/listing targets. PR #298 remains on hold until its then-current exact head is rebased and independently certified against this model.
 
-### FC02-03 — cross-revision mapping currentness/precedence missing
+## Q12 — Minimal adversarial family conformance
 
-Later certified stages repeatedly preserved this obligation with D04/UMI-02. Full Closure adds the pure deterministic resolver and adversarial tests in:
+Answer: the identity foundation must represent, without semantic collapse, at minimum:
 
-- `src/qore/infrastructure/universal_instrument_identity_resolution.py`;
-- `tests/infrastructure/test_universal_instrument_identity_resolution.py`.
+- bond identity + maturity lifecycle/reference relationships;
+- listed equity with multiple listings;
+- dated future + separate series + expiry lifecycle;
+- option identity + underlying + lifecycle while family economics remain UMI-05;
+- FX pair + base/quote currency reference identities;
+- benchmark/index as a non-tradable reference object;
+- multi-leg/composite identity with ordered component relationships;
+- perpetual identity without forced expiry.
 
-The correction reuses `IdentityMappingHistory`; it does not create a second graph, database, provider resolver, wall clock or mutable registry.
+## Q13 — Versioned historical mapping lineage
 
-### FC02-04 — Full Closure protocol stale
-
-The historical closure gate did not contain the definitive integrated-state sequence requiring zero internal pending work, mandatory final whole-UMI Claude audit, complete correction/re-audit of any surviving findings, final IA falsification, #301 evidence and baseline freeze. Section 15 now governs.
-
-These findings are one complete UMI-02 correction contract, not four independent deliveries.
+Answer: `ExternalIdentityMappingRevision` + `IdentityMappingHistory` + graph uniqueness/chronology rules provide versioned, effective-dated, evidence-bearing, historically retained mapping lineage.
 
 ---
 
-# 12. Adversarial resolution requirements
+# 11. Legacy migration classification
 
-The Full Closure resolver must prove at minimum:
+| Existing boundary | UMI-02 treatment |
+|---|---|
+| `market_data.Instrument` | Retained unchanged as legacy market-symbol boundary; mapped additively |
+| `ExecutionInstrument` | Retained unchanged; future execution projection references certified canonical identity |
+| `ExecutiveMarketInstrument` | Retained as presentation projection; not identity authority |
+| provider symbol / provider contract ID | Retained external boundary evidence; mapped, never promoted as economic identity |
+| standard security identifier | Retained typed external identifier; useful reconciliation bridge, never QORE sovereign identity |
+| `FuturesContractMapping` | Retained provider adapter foundation; future mapping target must bind certified identity graph |
+| historical OHLC/replay datasets | Retained unchanged; historical identity interpretation is carried by explicit mapping lineage |
+| research fingerprints/evidence | Existing values remain reproducible; future identity-aware evidence must cite mapping/canonical identity lineage |
+| PR #298 cTrader catalog | Remains HOLD until exact-head compatibility rebase/re-review after UMI-02 certification |
+
+No old public/internal symbol type is redefined in place by this stage.
+
+---
+
+# 12. Downstream family boundary
+
+UMI-02 intentionally leaves these OPEN:
+
+- FND-04: universal quantity/price/value/rate/yield/currency economic primitives;
+- UMI-03: fixed-income/bond economics;
+- UMI-04: rates/curves/term structures;
+- UMI-05: derivatives economics including strike/right/exercise/multiplier/legs/payoff;
+- UMI-06: equity/fund/corporate-action semantics;
+- UMI-07: commodity/contract delivery economics;
+- UMI-08: crypto/perpetual/funding/network economics;
+- UMI-09: structured/hybrid/payoff composition;
+- UMI-10/11: universal valuation observations and market topology;
+- Program G: research execution/analysis lineage producer gaps.
+
+These are not UMI-02 defects. UMI-02 is correct only if those stages can attach their semantics to the identity graph without replacing it.
+
+---
+
+# 13. Security and evidence discipline
+
+New identity contracts contain no authentication secrets, provider credentials or execution authority.
+
+`IdentityEvidenceRef` is an opaque reference to retained evidence, not the evidence payload and not a hash substitute.
+
+External identifiers may contain public/provider-native lookup material, but they must never be used to carry credentials. Any identity value admitted into `logical_values()` must remain safe for deterministic evidence use.
 
 ```text
-FC02-RES-01  Explicit timezone-aware effective_at required
-FC02-RES-02  Explicit timezone-aware known_at required
-FC02-RES-03  Invalid/non-history input fails closed
-FC02-RES-04  Effective interval is half-open [from, until)
-FC02-RES-05  Revision recorded after known_at cannot affect replay
-FC02-RES-06  Latest-revision property is not historical currentness
-FC02-RES-07  Highest known eligible revision wins an effective overlap
-FC02-RES-08  Backfilled revision cannot rewrite an earlier knowledge cutoff
-FC02-RES-09  Older revision may remain applicable outside a bounded later override
-FC02-RES-10  No known/effective revision fails closed
-FC02-RES-11  Timezone-equivalent instants resolve identically
-FC02-RES-12  Returned revision preserves exact target/evidence lineage
+IDENTIFIER != CREDENTIAL
+EVIDENCE REF != SECRET
+EVIDENCE REF != RETAINED EVIDENCE CONTENT
+HASH != RETAINED SOURCE EVIDENCE
 ```
-
-No test may replace the repository-wide quality gate.
 
 ---
 
-# 13. Historical certification cases retained
+# 14. Explicit non-claims
 
-The original UMI02 cases remain part of the closure surface:
+UMI-02 does **not** claim:
+
+- every asset family is fully modeled;
+- strike/right/coupon/yield/multiplier/payoff semantics are implemented;
+- any provider catalog is universally certified;
+- PR #298 is ready to merge/promote;
+- existing market/execution symbols are obsolete;
+- historical datasets have been rewritten;
+- a productive instrument registry exists;
+- external identifiers are globally unique outside their declared namespace/scope;
+- a database, event log or consensus mechanism has been selected;
+- operational trading support has been enabled;
+- research lineage gaps are closed;
+- production is authorized.
+
+---
+
+# 15. Certification cases
+
+The implementation candidate must demonstrate at minimum:
 
 ```text
 UMI02-CASE-01  Stable economic identity independent of symbol/provider
@@ -328,11 +468,157 @@ UMI02-CASE-15  Legacy compatibility / no silent reinterpretation
 UMI02-CASE-16  PR #298 remains HOLD pending compatibility certification
 ```
 
-Historical certification of these cases does not substitute for current Full Closure recertification of the integrated UMI-02 surface.
+No case is `CLOSED` merely because this document or a type exists. Historical case closure required exact-head tests, CI, independent adversarial review, Integration Gate, exact-head integration and post-merge verification. Current Full Closure additionally requires the superseding gate in section 17.8.
 
 ---
 
-# 14. Downstream boundary and carry-forwards
+# 16. Historical UMI-02 closure gate — retained evidence, superseded for Full Closure
+
+The original certification used the following gate:
+
+```text
+IMPLEMENTATION
+-> ADVERSARIAL TESTS
+-> DIFF / BLAST-RADIUS AUDIT
+-> DRAFT PR
+-> EXACT-HEAD QUALITY GATE
+-> INDEPENDENT ADVERSARIAL REVIEW
+-> CORRECTION / EXACT-HEAD RE-REVIEW IF REQUIRED
+-> INTEGRATION GATE
+-> VERIFY MAIN NO DRIFT
+-> EXPECTED-HEAD MERGE
+-> VERIFY MERGE COMMIT
+-> VERIFY POST-MERGE MAIN
+-> FREEZE NEW CERTIFIED BASELINE
+-> MARK UMI02-CASE-01..16 CLOSED
+-> MARK UMI-02 CLOSED IN #301
+-> DECLARE STAGE-03 CLOSED
+```
+
+That historical process remains evidence of PR #309 certification, but it is not sufficient for the definitive Full Closure protocol below.
+
+---
+
+# 17. Full Closure recertification addendum
+
+## 17.1 Permanent certification and starting-baseline ledger
+
+Historical UMI-02 certification:
+
+- certified base: `ab69f0f2f43c73e2b0d2c4c4c4ca480b1b8f68f7`;
+- PR: `#309`;
+- final reviewed head: `0314e3aeb0997ff4a1e90b3e1a5c4945290d5af8`;
+- merge commit: `89705ed8c5cc3e4bf39a74ec2c37111a52285f8f`.
+
+Full Closure reconstruction started from integrated main:
+
+- main: `9bb96525caaa6b8aaf20e0ff0dc27ae36eca721d`;
+- tree: `d168c6b087112f084a98ebf068a578b872cca7d0`.
+
+This record does not self-declare final closure. Candidate, merge and final baseline SHAs after this starting point are governed by the PR/integration evidence and #301 after the mandatory final whole-UMI audit sequence.
+
+## 17.2 Current-main authority/no-regression reconstruction
+
+Current source preserves the certified UMI-02 identity split:
+
+- `EconomicIdentityId` remains distinct from `ListingIdentityId`;
+- `IdentityFamilyCode` remains classification, not identity;
+- `EconomicIdentity` remains independent of provider/listing symbol text;
+- `CONTINUOUS_REFERENCE` remains constrained to reference-object identity;
+- `IdentityMappingHistory` remains retained, immutable and evidence-bearing;
+- the canonical graph still forbids parallel mapping histories for one exact external identity.
+
+Later Program-D stages preserve UMI-02 ownership rather than replacing it:
+
+- UMI09 explicitly retained the inherited UMI-02 current/as-of resolver obligation;
+- UMI10 assigns mapping revisions/currentness policy and reference meaning to D04/UMI-02 and refuses to choose current mapping itself;
+- UMI11 consumes UMI-02 identity/listing/venue material and refuses to select a current mapping/listing revision;
+- UMI13 preserves UMI-02 cross-revision overlap/precedence/currentness as a carry-forward rather than absorbing it.
+
+Result before the Full Closure correction:
+
+`VERIFIED UMI-02 INTERNAL GAP — CROSS-REVISION MAPPING CURRENTNESS/PRECEDENCE`
+
+No verified current downstream stage became a second sovereign economic/listing identity authority.
+
+## 17.3 Mapping currentness / precedence policy
+
+Full Closure adds the pure resolver:
+
+`resolve_identity_mapping_revision(history, *, effective_at, known_at)`
+
+in:
+
+`src/qore/infrastructure/universal_instrument_identity_resolution.py`
+
+The resolver reuses the certified `IdentityMappingHistory`; it does not create a second graph, database, provider resolver, wall clock or mutable registry.
+
+Canonical policy:
+
+1. `effective_at` is the economic instant being interpreted.
+2. `known_at` is the explicit information cutoff for historical replay/currentness evaluation.
+3. A revision is eligible only if `recorded_at <= known_at`.
+4. The effective interval is half-open: `effective_from <= effective_at < effective_until` when bounded.
+5. When retained revisions overlap, the highest already-known eligible revision has precedence because the retained history is one validated contiguous linear revision chain.
+6. If no revision is both known and effective, resolution fails closed with a typed UMI-02 resolution error.
+
+```text
+LATEST REVISION != CURRENT MAPPING
+EFFECTIVE TIME != KNOWLEDGE CUTOFF
+LATER BACKFILL != SILENT REWRITE OF EARLIER REPLAY
+OVERLAP + LINEAR REVISION CHAIN -> HIGHEST KNOWN ELIGIBLE REVISION
+NO ELIGIBLE REVISION -> FAIL CLOSED
+```
+
+No chronology rule such as `known_at >= effective_at` is imposed: future-effective mappings may be known before activation, and backfills may be recorded after the period they reinterpret.
+
+The resolver does not choose provider capability, market session state, topology, valuation currentness, execution route or any downstream policy.
+
+## 17.4 Full Closure findings and correction ledger
+
+The complete UMI-02 reconstruction identified exactly these current UMI-02-owned findings:
+
+- `FC02-01 — UMI02_INTERNAL_NONCODE`: historical artifact still described itself as an implementation candidate after PR #309 integration.
+- `FC02-02 — UMI02_INTERNAL_NONCODE`: no durable current-main authority/no-regression reconciliation against later UMI stages.
+- `FC02-03 — UMI02_INTERNAL_BLOCKER`: cross-revision effective-overlap/currentness/precedence resolver missing despite later stages explicitly retaining the obligation with D04/UMI-02.
+- `FC02-04 — UMI02_INTERNAL_NONCODE`: historical closure gate predates the definitive final whole-UMI Claude/IA/#301/freeze protocol.
+
+These four findings form **one complete UMI-02 Full Closure correction contract**, not separate deliveries.
+
+The correction surface is bounded to:
+
+- the pure UMI-02 mapping resolver;
+- adversarial resolver tests;
+- this durable Full Closure addendum/status reconciliation.
+
+No verified UMI-02-owned production/source defect beyond FC02-03 was established by reconstruction.
+
+## 17.5 Adversarial resolution requirements
+
+The Full Closure resolver must demonstrate at minimum:
+
+```text
+FC02-RES-01  Explicit timezone-aware effective_at required
+FC02-RES-02  Explicit timezone-aware known_at required
+FC02-RES-03  Invalid/non-history input fails closed
+FC02-RES-04  Effective interval is half-open [from, until)
+FC02-RES-05  Revision recorded after known_at cannot affect replay
+FC02-RES-06  latest_revision property is not historical currentness
+FC02-RES-07  Highest known eligible revision wins an effective overlap
+FC02-RES-08  Backfilled revision cannot rewrite an earlier knowledge cutoff
+FC02-RES-09  Older revision may remain applicable outside a bounded later override
+FC02-RES-10  No known/effective revision fails closed
+FC02-RES-11  Timezone-equivalent instants resolve identically
+FC02-RES-12  Returned revision preserves exact target/evidence lineage
+```
+
+The dedicated tests live in:
+
+`tests/infrastructure/test_universal_instrument_identity_resolution.py`
+
+No dedicated test replaces the repository-wide quality gate.
+
+## 17.6 Downstream boundary / carry-forwards
 
 UMI-02 does not absorb:
 
@@ -348,19 +634,32 @@ UMI-02 does not absorb:
 - UMI13 date-qualified instrument-universe registry authority;
 - UMI14 final Program-D reconstruction/falsification authority;
 - D05 raw market evidence;
-- D06 calendars/sessions/other temporal policy outside UMI-02 mapping interpretation;
+- D06 calendars/sessions and temporal policy outside UMI-02 mapping interpretation;
 - D08/D09 Portfolio/Risk state;
 - D10/D18 execution authority;
-- D20 executive/presentation identity projection;
+- D20 executive/presentation projections;
 - Program G research execution/analysis-lineage producer gaps;
 - provider/platform operational capability;
 - productive credentials, Production readiness or real-capital authority.
 
 PR #298 remains outside UMI-02 Full Closure unless independently reactivated and certified under its own gate.
 
----
+## 17.7 Full Closure non-claims
 
-# 15. Full Closure Definition of Done
+This addendum does **not** claim:
+
+- exact candidate CI is already green;
+- candidate review is complete;
+- Ready is authorized;
+- merge is authorized;
+- final Claude whole-UMI02 audit has run;
+- final IA falsification has passed;
+- #301 has been mutated;
+- UMI-02 is already Full-Closure RECERTIFIED/SEALED/CLOSED;
+- UMI03 Full Closure may begin;
+- provider/platform/Production support or real-capital authority.
+
+## 17.8 Definitive Full Closure Definition of Done
 
 UMI-02 Full Closure requires all of the following on one integrated candidate lineage:
 
@@ -402,7 +701,7 @@ UMI-02 Full Closure requires all of the following on one integrated candidate li
 36. Only then may UMI-02 be declared FULL-CLOSURE RECERTIFIED / SEALED / CLOSED.
 37. Only then may UMI03 Full Closure begin.
 
-Canonical sequence:
+Canonical law:
 
 ```text
 FULL UMI RECONSTRUCTION
@@ -420,23 +719,3 @@ FULL UMI RECONSTRUCTION
 ```
 
 No intermediate PR, merge, CI result, document update or favorable review is equivalent to UMI closure.
-
----
-
-# 16. Explicit non-claims
-
-This record does **not** claim:
-
-- final Claude approval;
-- final IA closure;
-- #301 mutation has occurred;
-- every asset family is fully modeled;
-- family valuation/economic semantics are owned by UMI-02;
-- provider catalog/capability support is universally certified;
-- PR #298 is ready to merge/promote;
-- historical datasets were rewritten;
-- a productive instrument registry exists;
-- a database/event log/consensus mechanism has been selected;
-- operational trading support is enabled;
-- research producer/lineage gaps are closed;
-- Production is authorized.
