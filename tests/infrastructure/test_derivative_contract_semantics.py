@@ -597,8 +597,8 @@ def test_american_exercise_requires_start_and_parent_bounds_it_to_expiry() -> No
         replace(
             base,
             exercise=dcs.OptionExerciseTerms(
-                dcs.OptionExerciseStyle.AMERICAN,
-                american_start_date=date(2027, 1, 16),
+                dcs.OptionExerciseStyle.BERMUDAN,
+                bermudan_dates=(date(2027, 1, 16),),
             ),
         )
 
@@ -1779,7 +1779,6 @@ def test_strike_level_complete_projection() -> None:
 
 
 def test_option_exercise_complete_projection() -> None:
-    # European
     euro = dcs.OptionExerciseTerms(
         style=dcs.OptionExerciseStyle.EUROPEAN,
         american_start_date=None,
@@ -1793,7 +1792,6 @@ def test_option_exercise_complete_projection() -> None:
     )
     assert euro.logical_values() == expected
 
-    # American
     start = date(2026, 3, 1)
     amer = dcs.OptionExerciseTerms(
         style=dcs.OptionExerciseStyle.AMERICAN,
@@ -1808,7 +1806,6 @@ def test_option_exercise_complete_projection() -> None:
     )
     assert amer.logical_values() == expected
 
-    # Bermudan with reversed input
     d1 = date(2027, 7, 1)
     d2 = date(2027, 1, 1)
     berm = dcs.OptionExerciseTerms(
@@ -1905,6 +1902,20 @@ def test_futures_terms_complete_projection() -> None:
         expected_last_trade="2026-06-28",
     )
     assert last_trade_only.logical_values() == last_trade_only_expected
+    first_notice_only = replace(
+        terms,
+        tick_value=None,
+        last_trade_date=None,
+    )
+    first_notice_only_expected = _expected_futures_terms(
+        first_notice_only,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=None,
+        expected_first_notice="2026-05-15",
+        expected_last_trade=None,
+    )
+    assert first_notice_only.logical_values() == first_notice_only_expected
 
 
 def test_option_terms_complete_projection() -> None:
@@ -2364,7 +2375,6 @@ def test_protection_swap_leg_complete_projection() -> None:
 
 
 def test_swap_terms_complete_projection() -> None:
-    # --- Fixed leg ---
     fixed_unit = _identity(631)
     fixed_step = dcs.DerivativeNotionalStep(
         effective_date=date(2026, 1, 2),
@@ -2391,7 +2401,6 @@ def test_swap_terms_complete_projection() -> None:
         evidence_ref=dcs.DerivativeEvidenceRef(_uuid(20)),
     )
 
-    # --- Floating leg ---
     float_unit = _identity(632)
     float_step = dcs.DerivativeNotionalStep(
         effective_date=date(2026, 1, 2),
@@ -2437,17 +2446,15 @@ def test_swap_terms_complete_projection() -> None:
         evidence_ref=dcs.DerivativeEvidenceRef(_uuid(22)),
     )
 
-    # --- Parent swap ---
     swap = dcs.SwapContractTerms(
         terms_id=dcs.DerivativeTermsId(_uuid(23)),
         instrument_identity_id=_identity(634),
         effective_date=date(2026, 1, 2),
         termination_date=date(2031, 1, 2),
-        legs=(floating, fixed),  # reversed caller order
+        legs=(floating, fixed),
         evidence_ref=dcs.DerivativeEvidenceRef(_uuid(24)),
     )
 
-    # --- Build expected child material from named fixtures ---
     expected_fixed_step = _expected_notional_step(
         fixed_step,
         expected_date="2026-01-02",
@@ -2480,7 +2487,7 @@ def test_swap_terms_complete_projection() -> None:
         expected_fixing_convention=_expected_floating_convention(float_fixing_conv),
     )
 
-    expected_legs = (expected_fixed, expected_float)  # canonical order: fixed then floating
+    expected_legs = (expected_fixed, expected_float)
 
     expected = _expected_swap_terms(
         swap,
@@ -2511,7 +2518,7 @@ def test_composition_terms_complete_projection() -> None:
     comp = dcs.DerivativeCompositionTerms(
         terms_id=dcs.DerivativeTermsId(_uuid(29)),
         instrument_identity_id=_identity(636),
-        legs=(leg2, leg1),  # reversed
+        legs=(leg2, leg1),
         evidence_ref=dcs.DerivativeEvidenceRef(_uuid(30)),
     )
     expected_leg1 = _expected_composition_leg(leg1, expected_ratio="1.25")
