@@ -148,6 +148,47 @@ def test_resolution_uses_half_open_effective_interval() -> None:
         )
 
 
+def test_known_future_effective_revision_is_excluded_before_activation() -> None:
+    mapping_id = IdentityMappingId(_u(2_500))
+    external = _external()
+    first = _revision(
+        mapping_id=mapping_id,
+        number=1,
+        external=external,
+        target=251,
+        effective_from=_T0,
+        effective_until=None,
+        recorded_at=_T0,
+    )
+    future = _revision(
+        mapping_id=mapping_id,
+        number=2,
+        external=external,
+        target=252,
+        effective_from=_T2,
+        effective_until=None,
+        recorded_at=_T1,
+    )
+    history = IdentityMappingHistory((first, future))
+
+    assert (
+        resolve_identity_mapping_revision(
+            history,
+            effective_at=_T1,
+            known_at=_T1,
+        )
+        == first
+    )
+    assert (
+        resolve_identity_mapping_revision(
+            history,
+            effective_at=_T2,
+            known_at=_T1,
+        )
+        == future
+    )
+
+
 def test_latest_revision_property_is_not_historical_currentness() -> None:
     history, first, second = _overlapping_history()
 
