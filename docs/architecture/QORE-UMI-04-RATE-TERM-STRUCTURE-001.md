@@ -837,9 +837,31 @@ Resolution is defined in sections 10.8-10.10.
 
 `FC04-04 -> RESOLVED IN CANDIDATE`
 
-No fifth material UMI-04-owned gap was established by the Gate-A reconstruction.
-If later independent review proves one, it must be corrected inside UMI-04 before
-closure rather than exported merely because another owner is nearby.
+### FC04-05 — stale current cross-owner disposition for TIME-01
+
+Classification: `UMI04_INTERNAL_NONCODE`.
+
+Independent exact-candidate review followed by IA falsification established that
+the current Full Closure addendum still listed `GAP-FND04-TIME-01` as an open
+carry-forward even though its authoritative downstream tracker #333 is now
+CLOSED / completed after the independently governed TIME-01 remediation.
+
+Resolution in this Gate-B2 correction:
+
+- the historical `OPEN / HIGH` statements in sections 1-9 remain preserved as
+  historical UMI-04 certification facts;
+- the current addendum records `GAP-FND04-TIME-01` as
+  `CLOSED_DOWNSTREAM_VERIFIED` under FND-04 ownership;
+- downstream evidence binds #333 closure to merged PR #408 and the verified
+  post-merge baseline `a88aa34677ca3778275d8fcca972627ff6b2714a`;
+- no UMI-04 production or test change is inferred from that downstream closure;
+- `GAP-FND07-RES-01` remains independently OPEN / HIGH under #332.
+
+`FC04-05 -> RESOLVED IN CORRECTED CANDIDATE`
+
+No additional material UMI-04-owned gap is established by the current correction
+ledger. If later independent review proves one, it must be corrected inside
+UMI-04 before closure rather than exported merely because another owner is nearby.
 
 ## 10.5 Current authority and downstream ownership reconciliation
 
@@ -912,24 +934,34 @@ retained curve observation with a concrete valuation methodology.
 UMI-14 may discover a defect and route a correction back to UMI-04, but the audit
 stage does not silently become the owner of UMI-04 semantics.
 
-## 10.6 Cross-owner carry-forward ledger
+## 10.6 Cross-owner disposition ledger
 
-The following are not silently closed by UMI-04 Full Closure:
+Current downstream dispositions independently revalidated for this correction:
 
-- #350 — D07 concrete computed-valuation methodology/producer/reproduction;
-- `GAP-FND04-TIME-01` — repository-wide temporal canonicalization carry-forward;
-- `GAP-FND07-RES-01` — retained research/analytics carry-forward;
-- PR #298 — HOLD / provider-catalog boundary;
-- provider-native curve catalog/feed support;
-- provider operational activation;
-- execution/account/position/settlement/risk-capacity state;
-- Production readiness or real-capital authority;
-- any product-specific curve methodology not separately certified.
+- #350 — OPEN / BACKLOG-PREPARATORY; D07 concrete computed-valuation
+  methodology/producer/reproduction remains external to UMI-04;
+- `GAP-FND04-TIME-01` / #333 — `CLOSED_DOWNSTREAM_VERIFIED`; #333 is CLOSED /
+  completed after merged PR #408, with post-merge closure evidence on baseline
+  `a88aa34677ca3778275d8fcca972627ff6b2714a`; historical UMI-04 statements that
+  TIME-01 was `OPEN / HIGH` remain historical only;
+- `GAP-FND07-RES-01` / #332 — OPEN / HIGH under the separate scarce-capacity
+  reservation owner;
+- #363 — OPEN / ACTIVE as UMI-14 final Program-D reconstruction/falsification
+  audit authority, not UMI-04 implementation ownership;
+- PR #298 — OPEN / DRAFT / HOLD at the provider-catalog boundary;
+- provider-native curve catalog/feed support remains external and uncertified by
+  this semantic artifact;
+- provider operational activation remains external;
+- execution/account/position/settlement/risk-capacity state remains external;
+- Production readiness or real-capital authority remains external;
+- any product-specific curve methodology not separately certified remains
+  external.
 
-A cross-owner label is not permission to export UMI-04 internal debt. These items
-remain external only because their ownership is independently evidenced and the
-current reconstruction established no missing UMI-04 implementation required to
-close them.
+A cross-owner label is not permission to export UMI-04 internal debt. Open items
+above remain external only because their ownership is independently evidenced and
+the current reconstruction established no missing UMI-04 implementation required
+to close them. A downstream item already closed by its own authority is recorded
+as closed downstream rather than kept artificially open in UMI-04.
 
 ## 10.7 Current non-claims
 
@@ -1072,7 +1104,7 @@ independently evidenced:
 
 ## 10.11 Current candidate posture
 
-This addendum resolves FC04-01 through FC04-04 inside the authorized Gate-B
+This addendum resolves FC04-01 through FC04-05 inside the authorized Gate-B/Gate-B2
 candidate. It does not declare the UMI closed.
 
 At this point the permitted claim is only:
