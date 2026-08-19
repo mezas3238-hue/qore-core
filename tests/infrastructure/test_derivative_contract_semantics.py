@@ -1860,6 +1860,22 @@ def test_futures_terms_complete_projection() -> None:
         expected_last_trade="2026-06-28",
     )
     assert terms.logical_values() == expected
+    cash_without_optionals = replace(
+        terms,
+        settlement_style=dcs.DerivativeSettlementStyle.CASH,
+        tick_value=None,
+        first_notice_date=None,
+        last_trade_date=None,
+    )
+    cash_without_optionals_expected = _expected_futures_terms(
+        cash_without_optionals,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=None,
+        expected_first_notice=None,
+        expected_last_trade=None,
+    )
+    assert cash_without_optionals.logical_values() == cash_without_optionals_expected
 
 
 def test_option_terms_complete_projection() -> None:
@@ -1924,6 +1940,33 @@ def test_option_terms_complete_projection() -> None:
         expected_notional=expected_not,
     )
     assert terms.logical_values() == expected
+    notional_only = replace(
+        terms,
+        multiplier=None,
+    )
+    notional_only_expected = _expected_option_terms(
+        notional_only,
+        expected_strike=expected_strike,
+        expected_expiry="2026-12-31",
+        expected_exercise=expected_exercise,
+        expected_multiplier=None,
+        expected_notional=expected_not,
+    )
+    assert notional_only.logical_values() == notional_only_expected
+
+    multiplier_only = replace(
+        terms,
+        notional=None,
+    )
+    multiplier_only_expected = _expected_option_terms(
+        multiplier_only,
+        expected_strike=expected_strike,
+        expected_expiry="2026-12-31",
+        expected_exercise=expected_exercise,
+        expected_multiplier=expected_mult,
+        expected_notional=None,
+    )
+    assert multiplier_only.logical_values() == multiplier_only_expected
 
 
 def test_fixing_terms_complete_projection() -> None:
@@ -2008,6 +2051,42 @@ def test_forward_terms_complete_projection() -> None:
         expected_settlement_convention=expected_conv,
     )
     assert terms.logical_values() == expected
+    expected_notional = _expected_notional(terms.notional, "1000000")
+
+    physical_without_fixing = replace(
+        terms,
+        settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL,
+        fixing=None,
+    )
+    physical_without_fixing_expected = _expected_forward_terms(
+        physical_without_fixing,
+        expected_notional=expected_notional,
+        expected_strike=expected_strike,
+        expected_maturity="2026-06-30",
+        expected_fixing=None,
+        expected_settlement_convention=expected_conv,
+    )
+    assert (
+        physical_without_fixing.logical_values()
+        == physical_without_fixing_expected
+    )
+
+    cash_without_settlement = replace(
+        terms,
+        settlement_convention=None,
+    )
+    cash_without_settlement_expected = _expected_forward_terms(
+        cash_without_settlement,
+        expected_notional=expected_notional,
+        expected_strike=expected_strike,
+        expected_maturity="2026-06-30",
+        expected_fixing=expected_fixing,
+        expected_settlement_convention=None,
+    )
+    assert (
+        cash_without_settlement.logical_values()
+        == cash_without_settlement_expected
+    )
 
 
 def test_fixed_rate_swap_leg_complete_projection() -> None:
@@ -2241,6 +2320,18 @@ def test_protection_swap_leg_complete_projection() -> None:
         expected_fixed_recovery="0.4",
     )
     assert leg.logical_values() == expected
+    auction = replace(
+        leg,
+        settlement_method=dcs.DerivativeProtectionSettlementMethodCode("auction"),
+        fixed_recovery_rate=None,
+    )
+    auction_expected = _expected_protection_swap_leg(
+        auction,
+        expected_notional_schedule=expected_schedule,
+        expected_reference=expected_ref,
+        expected_fixed_recovery=None,
+    )
+    assert auction.logical_values() == auction_expected
 
 
 def test_swap_terms_complete_projection() -> None:
