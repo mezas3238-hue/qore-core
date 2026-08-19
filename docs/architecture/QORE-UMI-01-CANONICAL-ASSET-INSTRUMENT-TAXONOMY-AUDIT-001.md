@@ -2,21 +2,23 @@
 
 ## Status
 
-**STAGE-02 / UMI-01 — FULL CLOSURE RECERTIFICATION CANDIDATE; CURRENT-MAIN QUALIFICATION REQUIRED**
+**STAGE-02 / UMI-01 — FULL CLOSURE RECERTIFICATION RECORD; FINAL CLOSURE STATUS GOVERNED BY #301**
 
 Tracking: #301  
 Master roadmap: #303  
 Preceding foundation: #302 — CLOSED  
-Certified starting baseline: `ac4841c3e55884890af2215f4eee3dc1bca20c1c`
+Certified starting baseline: `ac4841c3e55884890af2215f4eee3dc1bca20c1c`  
 Historical certification: PR #308 / final reviewed head `924c7b47c8e25f817f56017edb2b00d74cfd84f4` / merge `ab69f0f2f43c73e2b0d2c4c4c4ca480b1b8f68f7` / QORE CI #962 SUCCESS  
-Full Closure current-main baseline: `35faa1aeba97c4024134b66cc3b2b014bb92d376`  
-Full Closure current-main tree: `2123210004d45ab7ffc64fb2114e64d32785db1b`
+Full Closure recertification PR #416: reviewed head `eb0f518fd109373e0f813446380e9de1135e2ad5` / merge `ebe73a1b244677cc98b0f52a4dea57fa74e72c1a`  
+PR #416 merged tree: `cb58a2ce908d400a4875ffe773f3b2fd6a28ed37`  
+PR #416 merged artifact blob: `51680a4d4a0eb792bc4f2fb59e7a4c1816372a12`  
+Final-correction starting baseline: `ebe73a1b244677cc98b0f52a4dea57fa74e72c1a`
 
 This artifact inventories the current QORE instrument, asset, market-observation, execution, research, portfolio/risk and presentation assumptions that materially constrain universal financial semantics.
 
 It is an audit only. It does **not** implement UMI-02, introduce a new universal identity type, migrate existing contracts, promote PR #298, or claim that any unimplemented asset family is supported.
 
-The original audit observations below are retained as historical evidence. Section 14 adds the current-main Full Closure recertification and is authoritative for the present disposition of the original UMI-01 gaps.
+The original audit observations below are retained as historical evidence. Section 14 is authoritative for the later Full Closure recertification record, current gap dispositions and final closure protocol. This artifact does not self-certify closure; final closure status is governed by independently verified evidence recorded in #301 after the mandatory final Claude Code audit and Integration Authority verification.
 
 ## Governing rules
 
@@ -32,6 +34,9 @@ CURVE != SINGLE SCALAR
 DOCUMENTED ASSET FAMILY != IMPLEMENTED ASSET FAMILY
 CONTRACT FITNESS != OPERATIONAL SUPPORT
 NO VERIFIED SEMANTICS -> NO SUPPORT CLAIM
+NO PARTIAL UMI WORK
+NO ISOLATED FIX AS UMI CLOSURE
+NO FRAGMENTED DELIVERY
 ```
 
 ## Audit method
@@ -955,22 +960,45 @@ That historical gate was completed by PR #308. UMI-02 and later stages subsequen
 
 ---
 
-# 14. Full Closure recertification — current main
+# 14. Full Closure recertification — post-merge record
 
 ## 14.1 Purpose and qualification state
 
-This section re-falsifies UMI-01 against a later exact repository baseline without rewriting the historical audit.
+This section re-falsifies UMI-01 against later exact repository states without rewriting the historical audit.
 
-Current Full Closure candidate baseline:
+The first Full Closure correction was prepared from:
 
 ```text
-main = 35faa1aeba97c4024134b66cc3b2b014bb92d376
-tree = 2123210004d45ab7ffc64fb2114e64d32785db1b
+base main = 35faa1aeba97c4024134b66cc3b2b014bb92d376
+base tree = 2123210004d45ab7ffc64fb2114e64d32785db1b
+candidate head = eb0f518fd109373e0f813446380e9de1135e2ad5
+candidate tree = cb58a2ce908d400a4875ffe773f3b2fd6a28ed37
 ```
 
-This pre-merge document is a **Full Closure recertification candidate**, not a declaration that the new Full Closure gate has already merged or completed.
+It was integrated by PR #416:
 
-Historical certification evidence retained:
+```text
+PR #416 = MERGED
+reviewed/candidate head = eb0f518fd109373e0f813446380e9de1135e2ad5
+merge = ebe73a1b244677cc98b0f52a4dea57fa74e72c1a
+merge tree = cb58a2ce908d400a4875ffe773f3b2fd6a28ed37
+merge parent 1 = 35faa1aeba97c4024134b66cc3b2b014bb92d376
+merge parent 2 = eb0f518fd109373e0f813446380e9de1135e2ad5
+merged artifact blob = 51680a4d4a0eb792bc4f2fb59e7a4c1816372a12
+```
+
+The merge commit was GitHub-signature verified and `main` was independently verified equal to that merge after integration. The PR #416 correction was documentation-only.
+
+The present final-correction work starts from exact integrated baseline:
+
+```text
+main = ebe73a1b244677cc98b0f52a4dea57fa74e72c1a
+tree = cb58a2ce908d400a4875ffe773f3b2fd6a28ed37
+```
+
+This record does **not** self-declare UMI-01 closed. Its final state is governed by the final whole-UMI Claude Code audit, any resulting correction/re-audit loop, final Integration Authority falsification, #301 evidence and the final baseline freeze.
+
+Historical certification evidence remains preserved:
 
 ```text
 PR #308
@@ -980,7 +1008,7 @@ merge = ab69f0f2f43c73e2b0d2c4c4c4ca480b1b8f68f7
 QORE CI #962 = SUCCESS
 ```
 
-Full Closure applies a stricter current recertification standard. It does not invalidate the historical certification.
+Full Closure applies a stricter recertification standard and does not invalidate the historical certification.
 
 ## 14.2 Current authority map
 
@@ -1002,6 +1030,9 @@ Current authority law:
 ```text
 AUDIT DISCOVERS GAP
 != AUDIT OWNS DOWNSTREAM IMPLEMENTATION
+
+CROSS-OWNER LABEL
+!= PERMISSION TO EXPORT UMI-01 INTERNAL DEBT
 
 LOCAL SYMBOL / PRESENTATION VALUE
 != SOVEREIGN ECONOMIC IDENTITY
@@ -1028,7 +1059,9 @@ The current-main recertification is anchored to the following owner surfaces and
 - `src/qore/modules/portfolio/contracts.py` and `src/qore/modules/risk/contracts.py` — bounded current Portfolio/Risk foundations;
 - legacy `market_data.Instrument` and `ExecutionInstrument` surfaces as local compatibility contracts, not universal identity authority.
 
-No source/test mutation is required by the UMI-01 Full Closure findings below.
+The post-merge reconstruction additionally verified that UMI-02 still separates `EconomicIdentityId` from `ListingIdentityId`, treats `IdentityFamilyCode` as classification rather than identity, keeps `EconomicIdentity` independent of provider/listing symbol text, and restricts `CONTINUOUS_REFERENCE` construction to reference-object identity rather than a native tradable contract.
+
+No source/test mutation is required by the surviving UMI-01 Full Closure findings.
 
 ## 14.4 Current disposition of GAP-UMI-01..08
 
@@ -1071,17 +1104,19 @@ REGISTRY != PROVIDER SUPPORT
 TAXONOMY FAMILY != ECONOMIC IDENTITY
 ```
 
-No current evidence establishes that the bounded legacy symbols have displaced UMI-02 sovereign economic identity, that OHLC has become the universal observation ontology, or that a provider catalog has become the D04 instrument universe.
+Post-merge reconstruction found no evidence that bounded legacy symbols displaced UMI-02 sovereign economic identity, that OHLC became the universal observation ontology, that a provider catalog became the D04 instrument universe, or that Portfolio/Risk presentation targets became economic identity owners.
 
-Therefore the Full Closure no-regression result is:
+Therefore the current Full Closure no-regression result remains:
 
 `NO VERIFIED CURRENT SOVEREIGN-UNIVERSAL-AUTHORITY REGRESSION`.
+
+This is a bounded UMI-01 audit result, not a Program-D final universality claim.
 
 ## 14.6 External carry-forwards — explicitly not closed by UMI-01
 
 The following remain outside UMI-01 Full Closure authority and must retain their own governance/evidence state:
 
-- UMI-13 date-qualified universe registry authority;
+- UMI-13 date-qualified universe registry authority and its historical certified evidence;
 - UMI-14 final Program-D reconstruction/falsification;
 - PR #298 provider-instrument-catalog architecture hold / future compatibility certification;
 - concrete research decision/specialist methodology and producer lineage, including #286 and `GAP-ANALYSIS-PRODUCER`;
@@ -1099,53 +1134,97 @@ DOWNSTREAM OWNER EXISTS
 != DOWNSTREAM WORK COMPLETE
 ```
 
-## 14.7 Full Closure findings
+UMI-13 remains the date-qualified registry authority. UMI-14 remains the final Program-D reconstruction/falsification authority. Neither authority is absorbed into UMI-01.
 
-The current Full Closure recertification found exactly four UMI-01-owned documentation/evidence findings:
+## 14.7 Full Closure findings and correction ledger
+
+The first Full Closure recertification identified and corrected in PR #416:
 
 - `FC01-01` — stale historical candidate/active status;
 - `FC01-02` — stale all-OPEN downstream gap ledger;
 - `FC01-03` — current authority reconciliation with later UMI owners/registry/final audit;
 - `FC01-04` — current-main no-regression evidence absent from the historical artifact.
 
-This section is the bounded correction for all four findings.
+Post-merge exhaustive reconstruction then identified three additional UMI-01-owned documentation/evidence findings:
 
-No `FC01-05` internal UMI-01 work item is established.
+- `FC01-05` — post-merge state reconciliation: the merged artifact still described the pre-merge candidate baseline as current;
+- `FC01-06` — PR #416 integration evidence was not yet permanently recorded inside the artifact;
+- `FC01-07` — the Full Closure definition of done predated the mandatory final whole-UMI Claude Code audit and correction/re-audit loop.
+
+This final-correction revision is the **single complete bounded correction** for `FC01-05..07`. They are not separate deliveries and must not be treated as isolated work items.
+
+The reconstruction did **not** establish a UMI-01 production defect.
 
 Production verdict:
 
 `NO UMI01 PRODUCTION DEFECT FOUND`.
 
+Governance-only work still required after this correction is integrated:
+
+- final whole-UMI Claude Code audit on the integrated UMI-01 state;
+- correction/re-audit loop if Claude finds any material UMI-01-owned defect;
+- final Integration Authority falsification;
+- #301 final Full Closure evidence;
+- final baseline freeze.
+
+Those are steps of the same UMI-01 Full Closure, not separate UMI work packages.
+
 ## 14.8 Full Closure definition of done
 
-UMI-01 may be declared **FULL-CLOSURE RECERTIFIED / SEALED / CLOSED** only after the current candidate satisfies all applicable gates:
+UMI-01 may be declared **FULL-CLOSURE RECERTIFIED / SEALED / CLOSED** only when every applicable requirement below is satisfied:
 
 1. original UMI-EVID-01..10 remain preserved;
 2. historical PR #308 certification evidence remains preserved;
-3. every GAP-UMI-01..08 has an exact current disposition;
-4. no unresolved UMI-01-owned production defect remains;
-5. external carry-forwards are explicitly bounded and not silently closed;
-6. UMI-01 does not absorb downstream owner authority;
-7. current-main no-regression audit remains clean;
-8. UMI-13 retains date-qualified registry authority;
-9. UMI-14 retains final Program-D audit authority;
-10. diff remains documentation-only unless a separately proven blocker requires a new work order;
-11. Ruff passes on the exact candidate;
-12. Mypy passes on the exact candidate;
-13. full Pytest/coverage passes on the exact candidate;
-14. diff/blast-radius audit passes;
-15. exact-head CI passes;
-16. independent exact-head review passes;
-17. Integration Authority falsification passes;
-18. Closure Gate passes;
-19. Ready is separately authorized;
-20. merge is separately authorized and protected by the expected candidate head;
-21. post-merge main/tree/blob are verified;
-22. #301 receives the Full Closure recertification evidence;
-23. #301 remains open for the broader Program-D lifecycle unless its own program-wide closure criteria are separately met;
-24. only after those gates may UMI-01 be declared Full-Closure recertified/sealed/closed.
+3. PR #416 integration evidence remains preserved;
+4. every GAP-UMI-01..08 has an exact current disposition;
+5. no unresolved UMI-01-owned production defect remains;
+6. no unresolved UMI-01-owned documentation/evidence defect remains;
+7. external carry-forwards are explicitly bounded and not silently closed;
+8. UMI-01 does not absorb downstream owner authority;
+9. current-main no-regression audit remains clean;
+10. UMI-13 retains date-qualified registry authority;
+11. UMI-14 retains final Program-D audit authority;
+12. `FC01-01..07` are resolved in the integrated record;
+13. the candidate diff remains within the complete UMI-01 correction contract unless a newly proven UMI-01 blocker requires reopening that same correction loop;
+14. Ruff passes on the exact candidate;
+15. Mypy passes on the exact candidate;
+16. full Pytest/coverage passes on the exact candidate;
+17. diff/blast-radius audit passes;
+18. exact-head CI passes;
+19. independent exact-candidate review passes;
+20. Integration Authority candidate falsification passes;
+21. Ready is separately authorized;
+22. merge is separately authorized and protected by the expected candidate head;
+23. post-merge main/tree/blob are verified;
+24. the integrated UMI-01 state is reconstructed again and provisionally demonstrates **ZERO UMI-01-OWNED PENDING WORK**;
+25. Claude Code performs the mandatory **final whole-UMI audit on the integrated UMI-01 state**, not merely a review of one PR diff;
+26. if Claude finds any material UMI-01-owned defect, UMI-01 remains open and **all surviving findings are corrected as one complete UMI-01 correction contract**, integrated, and the final Claude audit is repeated;
+27. final Claude audit has zero surviving material UMI-01-owned findings;
+28. Integration Authority performs final independent falsification against live GitHub after the final Claude result;
+29. #301 receives exact Full Closure evidence, including the final integrated baseline and final Claude/IA dispositions;
+30. #301 remains open for the broader Program-D lifecycle unless its program-wide closure criteria are separately met;
+31. the final UMI-01 baseline is frozen from live GitHub evidence;
+32. only after all preceding gates may UMI-01 be declared `FULL-CLOSURE RECERTIFIED / SEALED / CLOSED`;
+33. only after that declaration may UMI-02 Full Closure begin.
 
-This pre-merge artifact does not itself satisfy or predeclare those final integration steps.
+Canonical Full Closure law:
+
+```text
+FULL UMI RECONSTRUCTION
+-> ALL UMI-OWNED WORK DISCOVERED
+-> ONE COMPLETE CORRECTION CONTRACT
+-> ALL UMI-OWNED WORK IMPLEMENTED
+-> ZERO INTERNAL PENDING WORK
+-> FINAL CLAUDE CODE WHOLE-UMI AUDIT
+-> COMPLETE CORRECTION + RE-AUDIT IF ANY FINDING SURVIVES
+-> IA FINAL VERIFICATION
+-> #301 FINAL EVIDENCE
+-> BASELINE FREEZE
+-> UMI CLOSED
+-> NEXT UMI
+```
+
+No intermediate PR, merge, CI result, document update or favorable review is equivalent to UMI closure.
 
 ## 14.9 Full Closure non-claims
 
@@ -1159,6 +1238,8 @@ This Full Closure recertification does **not** claim:
 - a concrete valuation or research methodology producer exists merely because semantic contracts exist;
 - PR #298 is promoted, merged, rejected or closed;
 - provider/platform support follows from semantic representability;
+- the existence of this document constitutes final Claude approval;
+- the existence of this document constitutes IA final closure;
 - QORE Universal Market Ready;
 - operational readiness;
 - Production authorization;
