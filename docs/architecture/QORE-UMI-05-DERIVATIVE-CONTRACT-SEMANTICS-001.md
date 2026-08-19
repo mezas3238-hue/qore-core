@@ -1205,7 +1205,9 @@ Disposition:
 ## 19.4 Full Closure Gate-A findings and correction disposition
 
 Gate-A reconstruction found five material UMI-05-owned recertification findings
-and no surviving production or test-oracle defect.
+and no surviving production or test-oracle defect. Post-write IA falsification of
+the initial Gate-B candidate found one additional current-state documentation
+error, `FC05-06`, which is retained below as correction history rather than hidden.
 
 ### FC05-01 — stale implementation-candidate status / historical ledger
 
@@ -1283,9 +1285,31 @@ Current disposition:
 
 `FC05-05 -> RESOLVED IN CANDIDATE`
 
-No additional material UMI-05-owned source/test defect was established by Gate A.
-A later independent review finding, if valid, must be corrected inside UMI-05
-before closure and cannot be exported solely because another owner is nearby.
+### FC05-06 — stale specialized-PR integration disposition in initial Gate-B candidate
+
+Classification: `UMI_INTERNAL_NONCODE` / candidate audit error.
+
+Initial Gate-B candidate head
+`eb0d518cb34ce8f259aead7877857002aaf9c1a5` correctly separated specialized
+product ownership but incorrectly grouped all referenced UMI-14 specialized PRs as
+open/preparatory. Live post-write falsification proved:
+
+- FX PR #382 is merged as `b30f0847f4962fd12a8506fea61f797e402a8a9c`;
+- exotic-option PR #384 is merged as
+  `b848f018146b4860664021e3715201509449cf75`;
+- their specialized source owners are present in the Full Closure reconstruction
+  baseline;
+- PRs #386, #393 and #399 remain open/draft.
+
+The initial head is historical only and does not qualify the corrected candidate.
+Sections 19.6-19.7 now record the split integrated/open disposition explicitly.
+
+`FC05-06 -> RESOLVED IN CORRECTED CANDIDATE`
+
+No additional material UMI-05-owned source/test defect was established by Gate A
+or the post-write correction audit. A later independent review finding, if valid,
+must be corrected inside UMI-05 before closure and cannot be exported solely
+because another owner is nearby.
 
 ## 19.5 Current UMI-05 authority
 
@@ -1381,26 +1405,38 @@ not execute settlement.
 
 ### UMI-14 specialized derivative lanes
 
-Current Program-D specialized work remains separate from the generic UMI-05 owner:
+Later Program-D specialized owners remain separate from the generic UMI-05 owner,
+but their current integration states are not uniform:
 
 - FX lane / #378 / PR #382 adds FX pair, dual-currency-flow, NDF, near/far and
-  FX-option bindings while reusing UMI-05 where exact;
+  FX-option bindings while reusing UMI-05 where exact. PR #382 is
+  `CLOSED_DOWNSTREAM_VERIFIED`, merged as
+  `b30f0847f4962fd12a8506fea61f797e402a8a9c`; current-main
+  `fx_semantics.py` blob is `8e83e7260dd632f456dcbd616ebff30c4052d2d8`;
 - exotic-option lane / #380 / PR #384 adds bounded digital/touch/Asian and
-  option-feature composition without recreating vanilla UMI-05 option terms;
+  option-feature composition without recreating vanilla UMI-05 option terms.
+  PR #384 is `CLOSED_DOWNSTREAM_VERIFIED`, merged as
+  `b848f018146b4860664021e3715201509449cf75`; current-main
+  `option_exotic_semantics.py` blob is
+  `dd8873b663e01cf300a8128560a0f925b8d4ad48`;
 - rates/OTC lane / #385 / PR #386 adds FRA, cap/floor/collar and swaption
-  specialization while explicitly retaining the UMI-05 generic swap owner;
+  specialization while explicitly retaining the UMI-05 generic swap owner. PR
+  #386 remains `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT`;
 - volatility/variance/correlation lane / #392 / PR #393 adds specialized static
   tradeable-contract semantics while retaining UMI-05 as generic derivative
-  primitive owner;
+  primitive owner. PR #393 remains `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT`;
 - CFD lane / #398 / PR #399 uses bounded qualification/composition over existing
   UMI-05 economic forms rather than creating a universal replacement or narrowing
-  generic `ForwardContractTerms`.
+  generic `ForwardContractTerms`. PR #399 remains
+  `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT`.
 
-These open/preparatory specialized PRs are not `main` and do not constitute
-integrated support merely because a type or candidate exists.
+The integrated FX/exotic specializations do not become UMI-05 internal debt merely
+because they compose UMI-05 primitives. Conversely, the three remaining open
+specialized candidates are not `main` and do not constitute integrated support.
 
 ```text
 SPECIALIZED PRODUCT GAP != DEFECT IN GENERIC UMI05 OWNER
+MERGED SPECIALIZATION != UMI05 OWNER MUTATION
 OPEN PR != MAIN
 PREPARATORY CANDIDATE != INTEGRATED SUPPORT
 ```
@@ -1422,12 +1458,24 @@ At this Full Closure reconstruction/correction baseline:
 - PR #298:
   `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT-HOLD` under provider-instrument/runtime
   ownership;
-- later UMI-14 specialized derivative PRs:
-  cross-owner preparatory/open until individually integrated under their own gates.
+- PR #382 / FX specialization:
+  `CLOSED_DOWNSTREAM_VERIFIED`, merged as
+  `b30f0847f4962fd12a8506fea61f797e402a8a9c`;
+- PR #384 / exotic-option specialization:
+  `CLOSED_DOWNSTREAM_VERIFIED`, merged as
+  `b848f018146b4860664021e3715201509449cf75`;
+- PR #386 / rates-OTC specialization:
+  `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT`;
+- PR #393 / volatility-variance-correlation specialization:
+  `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT`;
+- PR #399 / CFD qualification:
+  `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT`.
 
 A cross-owner disposition is not permission to export UMI-05 internal debt. Gate A
-found no current evidence that #332, #298 or the specialized UMI-14 lanes are
-required to satisfy the bounded generic UMI-05 contract itself.
+and post-write falsification found no current evidence that #332, #298 or the three
+remaining open specialized UMI-14 lanes are required to satisfy the bounded generic
+UMI-05 contract itself. The two integrated specializations preserve separate owner
+surfaces and do not mutate the generic UMI-05 owner.
 
 ## 19.8 Current owner blob / no-regression ledger
 
@@ -1471,9 +1519,10 @@ Gate-A direct owner audit found no current UMI-05-specific evidence of:
 - UMI-05-owned material TODO/FIXME/HACK debt.
 
 Open-PR file-surface review found no current open PR modifying any of the three
-UMI-05 owner files listed in section 19.8. Specialized UMI-14 derivative PRs add
-separate owner files and do not mutate the generic owner at the reconstruction
-baseline.
+UMI-05 owner files listed in section 19.8. The currently open specialized UMI-14
+PRs #386, #393 and #399 add separate owner files; already integrated #382 and #384
+also preserve separate owner surfaces. None mutates the generic UMI-05 owner in the
+reconstruction baseline.
 
 This is current evidence, not a guarantee against future drift. The exact candidate
 and integrated state must each be reconstructed again at their applicable gates.
@@ -1532,10 +1581,11 @@ No authorization propagates from one gate to another.
 
 ## 19.11 Current Full Closure candidate posture / non-claims
 
-This addendum resolves the five Gate-A owner-local non-code findings in the
-candidate artifact. It does not self-certify that the candidate is clean; exact
-post-write diff audit, exact-head QORE CI, independent exact-candidate Claude audit
-and IA falsification remain mandatory.
+This addendum resolves the Gate-A owner-local non-code findings plus the current-
+state reconciliation error discovered by post-write IA falsification. It does not
+self-certify that the corrected candidate is clean; exact post-write diff audit,
+exact-head QORE CI, independent exact-candidate Claude audit and IA falsification
+remain mandatory.
 
 Until that sequence is complete:
 
@@ -1558,7 +1608,7 @@ Nothing in UMI-05 Full Closure authorizes:
 - real-money trading;
 - autonomous productive execution;
 - promotion of PR #298;
-- automatic integration of UMI-14 specialized candidates;
+- automatic integration of open UMI-14 specialized candidates;
 - UMI-06 Full Closure before UMI-05 is formally sealed.
 
 `TEST/DEMO != PRODUCTION`
