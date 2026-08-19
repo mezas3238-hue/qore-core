@@ -1876,6 +1876,35 @@ def test_futures_terms_complete_projection() -> None:
         expected_last_trade=None,
     )
     assert cash_without_optionals.logical_values() == cash_without_optionals_expected
+    tick_only = replace(
+        terms,
+        first_notice_date=None,
+        last_trade_date=None,
+    )
+    tick_only_expected = _expected_futures_terms(
+        tick_only,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=expected_tick,
+        expected_first_notice=None,
+        expected_last_trade=None,
+    )
+    assert tick_only.logical_values() == tick_only_expected
+
+    last_trade_only = replace(
+        terms,
+        tick_value=None,
+        first_notice_date=None,
+    )
+    last_trade_only_expected = _expected_futures_terms(
+        last_trade_only,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=None,
+        expected_first_notice=None,
+        expected_last_trade="2026-06-28",
+    )
+    assert last_trade_only.logical_values() == last_trade_only_expected
 
 
 def test_option_terms_complete_projection() -> None:
