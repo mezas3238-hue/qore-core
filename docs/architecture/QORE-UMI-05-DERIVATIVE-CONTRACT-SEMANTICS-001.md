@@ -2,13 +2,22 @@
 
 ## Status
 
-**PROGRAM D / UMI-05 — IMPLEMENTATION CANDIDATE; INDEPENDENT CERTIFICATION REQUIRED**
+**PROGRAM D / UMI-05 — FULL CLOSURE RECERTIFICATION RECORD; FINAL CLOSURE STATUS GOVERNED BY #301**
 
 Tracking: Issue #324  
 Master roadmap: Issue #303  
 Universal Markets / Instruments program: Issue #301  
-Certified starting baseline: `c1b18750782a3a16bfb037f2f100dedcf2b1f238`  
-Predecessor: UMI-04 / #322 / PR #323 — CLOSED
+Historical certified starting baseline: `c1b18750782a3a16bfb037f2f100dedcf2b1f238`  
+Full Closure reconstruction baseline: `54a71480b45b83c40cfac5a7629c1ea3685ac511`  
+Full Closure reconstruction tree: `022ee2c28d268f3f9d312c156bfa37dbb9b4d99e`  
+Predecessor: UMI-04 / #322 / PR #420 — FULL-CLOSURE RECERTIFIED / SEALED / CLOSED at the reconstruction baseline
+
+Sections 1-18 preserve the historical UMI-05 implementation and certification
+record. Section 19 is the current Full Closure recertification addendum and is
+authoritative for current certification sequencing, evidence reconciliation,
+ownership, carry-forward disposition and final closure status. This document does
+not self-certify final closure; durable final disposition remains governed by the
+serial Full Closure protocol and authorized #301 evidence.
 
 This artifact defines the minimum provider-neutral derivative contractual semantic
 foundation required by UMI-05 after the exact-baseline audit recorded on #324.
@@ -1092,3 +1101,466 @@ The candidate means only:
 > QORE has a provider-neutral immutable semantic vocabulary for the minimum
 > contractual economics of the derivative families covered by UMI-05, subject to
 > exact-head independent review and Integration Gate certification.
+
+---
+
+# 19. Full Closure recertification addendum
+
+## 19.1 Full Closure reconstruction baseline
+
+The UMI-05 Full Closure read-only reconstruction began from exact current `main`:
+
+- SHA: `54a71480b45b83c40cfac5a7629c1ea3685ac511`;
+- tree: `022ee2c28d268f3f9d312c156bfa37dbb9b4d99e`;
+- merge commit signature: verified / valid;
+- current `main` is the verified UMI-04 Full Closure merge baseline;
+- QORE CI #1231 / run `32305110042` completed successfully on that exact SHA.
+
+The repository state, exact Git objects and current owner blobs are authoritative.
+Historical PR bodies, issue prose, branch names, prior CI or review verdicts do not
+replace current verification.
+
+```text
+NO VERIFICATION -> NO APPROVAL
+NO EVIDENCE -> NO CLAIM
+CI GREEN ALONE != ENGINEERING APPROVAL
+HISTORICAL HEAD != CURRENT AUTHORITY
+HISTORICAL CERTIFICATION != FULL CLOSURE RECERTIFICATION
+```
+
+## 19.2 Historical PR #325 certification ledger
+
+UMI-05's original implementation remains historical certification evidence:
+
+- tracking issue: #324;
+- PR: #325 — `QORE-UMI-05 — Derivatives Contract Semantics`;
+- certified starting base: `c1b18750782a3a16bfb037f2f100dedcf2b1f238`;
+- final reviewed candidate head: `127e5a4f01deed550eb2f6eb4e2c2f82ffbab9ef`;
+- candidate / merge tree: `aa0100af3ee3079bdcc321c0aca4726b0f95607b`;
+- synthetic PR merge used by historical CI: `03449841fbe1fcf4ff82f98c1db889825ae0d74a`;
+- authoritative historical QORE CI: #1042 / run `31828749791` / SUCCESS;
+- Ruff PASS;
+- Mypy PASS on 574 source files;
+- Pytest 2497 passed with six inherited warnings;
+- global statement coverage 84%;
+- `derivative_contract_semantics.py` statement coverage 90%;
+- original implementation delta: three additive files, `+3904/-0`;
+- actual merge: `22241b770975083cd31bfa65a680339cec5a33ed`;
+- actual merge parents:
+  - `c1b18750782a3a16bfb037f2f100dedcf2b1f238`;
+  - `127e5a4f01deed550eb2f6eb4e2c2f82ffbab9ef`;
+- actual merge tree: `aa0100af3ee3079bdcc321c0aca4726b0f95607b`;
+- actual merge signature: verified / valid.
+
+Earlier candidate heads and their review/CI evidence remain historical only. The
+final reviewed head above is the only historical #325 candidate authority retained
+for the original certification ledger.
+
+## 19.3 Later owner-local hardening — UMI05-LI-01
+
+A later logical-identity/oracle audit established an owner-local test-oracle
+completeness gap. It did not establish a production defect.
+
+Durable ledger:
+
+- retrospective tracker: #405 / `UMI05-LI-01`;
+- classification: TEST-ONLY ORACLE GAP / MEDIUM;
+- PR: #412 — `QORE-UMI05-LI-01 — complete derivative projection oracles`;
+- base: `c9e7467bcd65f7cd4afdc8f7cd3ab7b5f7f5564a`;
+- corrected final head: `11b464a40003028530dd9f403217c8562de2bcbe`;
+- corrected final tree: `155ae9e52d1605542da258e6dd3b514deced2cb8`;
+- corrected final test blob: `251848e39a3e634836d43f789d11fc5e44d27aa7`;
+- production source blob remained unchanged:
+  `36e4d672459c489573eabc7ba5413bb5ef99c3a6`;
+- exact corrected synthetic PR merge:
+  `323eefa39bfab6c44b0ce604b1db4c55c3142e05`;
+- authoritative corrected QORE CI: #1212 / run `32205103878` / SUCCESS;
+- Ruff PASS;
+- Mypy PASS on 612 source files;
+- Pytest 3237 passed with six historical warnings;
+- total statement coverage 86%;
+- derivative owner statement coverage 90%;
+- actual merge: `0ea5ee2774b860acffc51bea773bb9e7c462c9dc`;
+- merge parents:
+  - `c9e7467bcd65f7cd4afdc8f7cd3ab7b5f7f5564a`;
+  - `11b464a40003028530dd9f403217c8562de2bcbe`;
+- merge tree: `155ae9e52d1605542da258e6dd3b514deced2cb8`;
+- merge signature: verified / valid.
+
+The rejected intermediate
+`cc59501c540f5fda6ee6e0bf4c20b38c5f7c87a8` introduced unauthorized full-file
+reconstruction drift and has zero qualification value. CI #1211 attached to that
+rejected intermediate is likewise not qualification evidence for the corrected
+R8 head.
+
+The final hardening supplies independent expected-side complete-projection oracles
+and explicit optional-presence witnesses for the targeted Futures, Option, Forward
+and Protection logical-material contracts. Historical reviews of earlier R5/R6/R7
+heads do not qualify the corrected R8 head.
+
+Disposition:
+
+`UMI05-LI-01 = CLOSED`
+
+## 19.4 Full Closure Gate-A findings and correction disposition
+
+Gate-A reconstruction found five material UMI-05-owned recertification findings
+and no surviving production or test-oracle defect.
+
+### FC05-01 — stale implementation-candidate status / historical ledger
+
+Classification: `UMI_INTERNAL_NONCODE`.
+
+The live artifact still described UMI-05 as an implementation candidate and did
+not durably retain the final #325 Git-object certification ledger as current
+recertification evidence.
+
+Resolution in this addendum:
+
+- the top status now records Full Closure recertification posture;
+- #325 final base/head/tree/CI/merge/signature evidence is retained;
+- historical heads remain historical only;
+- exact Git objects, not narrative snapshots, govern recertification.
+
+`FC05-01 -> RESOLVED IN CANDIDATE`
+
+### FC05-02 — missing UMI05-LI-01 durable evidence
+
+Classification: `UMI_INTERNAL_NONCODE`.
+
+The architecture artifact predated the later owner-local oracle correction and did
+not record the final corrected R8 chain.
+
+Resolution in this addendum:
+
+- #405 / PR #412 / exact corrected head/tree/blobs / CI #1212 / merge are retained;
+- the TEST-ONLY classification is preserved;
+- the rejected intermediate and its failed CI remain explicit historical
+  non-authority;
+- no false production-defect claim is introduced.
+
+`FC05-02 -> RESOLVED IN CANDIDATE`
+
+### FC05-03 — current-main authority and downstream reconciliation
+
+Classification: `UMI_INTERNAL_NONCODE`.
+
+The historical artifact correctly bounded generic derivative authority but could
+not encode later Program-D specialized owners and current cross-owner state.
+
+Resolution is defined in sections 19.5-19.7.
+
+`FC05-03 -> RESOLVED IN CANDIDATE`
+
+### FC05-04 — historical certification procedure is not definitive Full Closure
+
+Classification: `UMI_INTERNAL_NONCODE`.
+
+Historical UMI-05 certification predates the mandatory final whole-UMI audit,
+correction/re-audit loop, IA final falsification and authorized #301 final evidence
+law.
+
+Resolution is defined in section 19.10.
+
+`FC05-04 -> RESOLVED IN CANDIDATE`
+
+### FC05-05 — stale current TIME-01 carry-forward disposition
+
+Classification: `UMI_INTERNAL_NONCODE`.
+
+Sections 1-18 correctly preserve the historical UMI-05 fact that
+`GAP-FND04-TIME-01` was OPEN/HIGH during original certification. Current GitHub
+state is different: authoritative tracker #333 is CLOSED after its independently
+governed downstream remediation.
+
+Current disposition:
+
+- historical OPEN/HIGH statements remain historical evidence;
+- current Full Closure state is `CLOSED_DOWNSTREAM_VERIFIED`;
+- downstream closure includes merged PR #408 and the verified post-merge baseline
+  `a88aa34677ca3778275d8fcca972627ff6b2714a`;
+- no UMI-05 production or test change is inferred from that downstream closure.
+
+`FC05-05 -> RESOLVED IN CANDIDATE`
+
+No additional material UMI-05-owned source/test defect was established by Gate A.
+A later independent review finding, if valid, must be corrected inside UMI-05
+before closure and cannot be exported solely because another owner is nearby.
+
+## 19.5 Current UMI-05 authority
+
+UMI-05 remains the bounded generic provider-neutral derivative contractual
+primitive owner for:
+
+- local derivative terms/leg/evidence artifact identities;
+- derivative notional and notional schedules;
+- contract multiplier and contractual tick-value semantics;
+- typed strike basis and PRICE quote-basis qualification;
+- dated futures month/expiry/multiplier/settlement/notice/trade-date semantics;
+- generic vanilla option right/strike/expiry/exercise/settlement/sizing semantics;
+- generic forward maturity/fixing/settlement semantics;
+- generic fixed-rate, floating-rate, reference-return, exchange and protection swap
+  leg primitives;
+- generic swap aggregation with deterministic leg identity/order;
+- structural derivative schedule/fixing conventions without a calendar or fixing
+  engine;
+- narrow derivative component composition with LONG/SHORT/ratio semantics;
+- deterministic, immutable and secret-free logical material for those contracts.
+
+This remains a generic primitive authority. Product specialization discovered by
+later audit does not retroactively convert every specialized product gap into a
+UMI-05 defect.
+
+```text
+GENERIC DERIVATIVE PRIMITIVE
+!=
+EVERY SPECIALIZED DERIVATIVE PRODUCT
+```
+
+## 19.6 Current downstream / cross-owner reconciliation
+
+### UMI-02
+
+Owns canonical economic/reference identity, identity construction, relationships
+and generic lifecycle. UMI-05 consumes `EconomicIdentityId` and does not create a
+second economic identity graph.
+
+### UMI-03
+
+Owns reusable financial-tenor, day-count, yield/spread and bounded fixed-income
+semantic contracts that UMI-05 composes only where exact.
+
+### UMI-04
+
+Owns rate/curve term-structure and quotation-convention semantics. UMI-05 reuses
+bounded rate convention material without becoming a curve-construction owner.
+
+### D05
+
+Owns acquired/observed market and fixing evidence. Static fixing terms in UMI-05
+do not produce a current fixing.
+
+### D06
+
+Owns current calendar/time/date resolution. UMI-05 retains date and schedule-rule
+semantics but does not resolve calendars or generate schedules.
+
+### D07 / UMI-10
+
+Owns pricing, valuation, Greeks, implied volatility, calculated observations and
+valuation methodology execution. UMI-05 does not calculate them.
+
+### UMI-07
+
+Owns commodity-specific physical-delivery qualification. Generic UMI-05
+CASH/PHYSICAL style does not replace commodity grade/location/method/window terms.
+
+### UMI-08
+
+Owns bounded perpetual/funding/network contractual specialization while reusing
+UMI-05 derivative multiplier/tick primitives where exact.
+
+### UMI-09
+
+Owns higher-order structured/hybrid/synthetic composition and structured features.
+UMI-05 retains only narrow derivative component composition.
+
+### D08 / D09
+
+Own account/capital/collateral/risk/exposure/capacity authority. Derivative
+notional and valid contract terms do not reserve capacity.
+
+### D10 / D18
+
+Own execution and submission authority. UMI-05 terms do not authorize an order.
+
+### D11
+
+Own position, cash, payment and settlement mutation. Static settlement semantics do
+not execute settlement.
+
+### UMI-14 specialized derivative lanes
+
+Current Program-D specialized work remains separate from the generic UMI-05 owner:
+
+- FX lane / #378 / PR #382 adds FX pair, dual-currency-flow, NDF, near/far and
+  FX-option bindings while reusing UMI-05 where exact;
+- exotic-option lane / #380 / PR #384 adds bounded digital/touch/Asian and
+  option-feature composition without recreating vanilla UMI-05 option terms;
+- rates/OTC lane / #385 / PR #386 adds FRA, cap/floor/collar and swaption
+  specialization while explicitly retaining the UMI-05 generic swap owner;
+- volatility/variance/correlation lane / #392 / PR #393 adds specialized static
+  tradeable-contract semantics while retaining UMI-05 as generic derivative
+  primitive owner;
+- CFD lane / #398 / PR #399 uses bounded qualification/composition over existing
+  UMI-05 economic forms rather than creating a universal replacement or narrowing
+  generic `ForwardContractTerms`.
+
+These open/preparatory specialized PRs are not `main` and do not constitute
+integrated support merely because a type or candidate exists.
+
+```text
+SPECIALIZED PRODUCT GAP != DEFECT IN GENERIC UMI05 OWNER
+OPEN PR != MAIN
+PREPARATORY CANDIDATE != INTEGRATED SUPPORT
+```
+
+If a future specialized review proves a collision inside the generic UMI-05
+contract itself, that new evidence must be independently adjudicated rather than
+being hidden under a cross-owner label.
+
+## 19.7 Current carry-forward ledger
+
+At this Full Closure reconstruction/correction baseline:
+
+- `GAP-FND04-TIME-01` / #333:
+  `CLOSED_DOWNSTREAM_VERIFIED` under FND-04 ownership after PR #408 and verified
+  post-merge baseline `a88aa34677ca3778275d8fcca972627ff6b2714a`;
+- `GAP-FND07-RES-01` / #332:
+  `CROSS_OWNER_VERIFIED_OPEN / OPEN-HIGH` under D08/D09/D10 distributed-capacity
+  ownership;
+- PR #298:
+  `CROSS_OWNER_VERIFIED_OPEN / OPEN-DRAFT-HOLD` under provider-instrument/runtime
+  ownership;
+- later UMI-14 specialized derivative PRs:
+  cross-owner preparatory/open until individually integrated under their own gates.
+
+A cross-owner disposition is not permission to export UMI-05 internal debt. Gate A
+found no current evidence that #332, #298 or the specialized UMI-14 lanes are
+required to satisfy the bounded generic UMI-05 contract itself.
+
+## 19.8 Current owner blob / no-regression ledger
+
+Gate-A current-main owner state before this documentation correction:
+
+- production source:
+  `src/qore/infrastructure/derivative_contract_semantics.py`;
+- production source blob:
+  `36e4d672459c489573eabc7ba5413bb5ef99c3a6`;
+- primary/hardened test owner:
+  `tests/infrastructure/test_derivative_contract_semantics.py`;
+- test blob:
+  `251848e39a3e634836d43f789d11fc5e44d27aa7`;
+- pre-Full-Closure architecture artifact blob:
+  `a61effb926048868671eb33d198009c7136d8e61`.
+
+Gate A established:
+
+```text
+SURVIVING UMI05 PRODUCTION DEFECT = NONE VERIFIED
+SURVIVING UMI05 TEST-ORACLE DEFECT = NONE VERIFIED
+UMI05-LI-01 = CLOSED
+```
+
+The present correction is documentation/evidence/governance-only. It does not
+modify production source or tests and must not manufacture an engineering change
+merely to make Full Closure appear substantive.
+
+## 19.9 Determinism, security, hidden-work and open-PR reconciliation
+
+Gate-A direct owner audit found no current UMI-05-specific evidence of:
+
+- implicit wall clock;
+- implicit UUID generation in deterministic UMI-05 contracts;
+- implicit randomness;
+- mutable global authority;
+- hidden provider/network/file/database I/O;
+- hidden retry/sleep/thread/scheduler behavior;
+- execution or corrective-trading side effects;
+- credentials, tokens, passwords or productive secrets in contract material;
+- UMI-05-owned material TODO/FIXME/HACK debt.
+
+Open-PR file-surface review found no current open PR modifying any of the three
+UMI-05 owner files listed in section 19.8. Specialized UMI-14 derivative PRs add
+separate owner files and do not mutate the generic owner at the reconstruction
+baseline.
+
+This is current evidence, not a guarantee against future drift. The exact candidate
+and integrated state must each be reconstructed again at their applicable gates.
+
+## 19.10 Definitive Full Closure protocol
+
+The historical sequence in section 17 remains evidence of the original UMI-05
+certification procedure. It is not sufficient for current Full Closure.
+
+UMI-05 may be declared `FULL-CLOSURE RECERTIFIED / SEALED / CLOSED` only through:
+
+```text
+COMPLETE UMI05 OWNER WORK
+-> ZERO MATERIAL UMI05 INTERNAL PENDING WORK
+-> EXACT-CANDIDATE QUALITY GATE
+-> CLAUDE EXACT-CANDIDATE READ-ONLY AUDIT
+-> IA CANDIDATE FALSIFICATION
+-> COMPLETE CORRECTION OF EVERY VALID FINDING
+-> NEW EXACT-HEAD CI + RE-AUDIT WHEN HEAD CHANGES MATERIALLY
+-> CLAUDE CANDIDATE CLEAN
+-> IA CANDIDATE PASS
+-> EXPLICIT READY AUTHORIZATION
+-> EXPLICIT EXPECTED-HEAD MERGE AUTHORIZATION
+-> VERIFY ACTUAL MERGE SHA/TREE/PARENTS/SIGNATURE
+-> VERIFY MAIN == MERGE
+-> POST-MERGE QORE CI ON EXACT MERGE SHA
+-> INTEGRATED OWNER SOURCE/TEST/ARTIFACT RECONSTRUCTION
+-> INTEGRATED HIDDEN-WORK + OPEN-PR INTERFERENCE AUDIT
+-> CLAUDE FINAL WHOLE-UMI05 AUDIT ON ACTUAL CURRENT MAIN
+-> COMPLETE CORRECTION / RE-AUDIT OF EVERY VALID FINAL FINDING
+-> CLAUDE FINAL CLEAN
+-> IA FINAL FALSIFICATION
+-> ZERO VERIFIED MATERIAL UMI05-OWNED PENDING WORK
+-> EXPLICIT GATE F AUTHORIZATION
+-> DURABLE FINAL #301 EVIDENCE
+-> FREEZE FINAL SHA/TREE/OWNER BLOBS/EVIDENCE COMMENT ID
+-> UMI05 FULL-CLOSURE RECERTIFIED / SEALED / CLOSED
+-> ONLY THEN UMI06
+```
+
+Binding laws:
+
+```text
+PR MERGED != UMI CLOSED
+CI GREEN != UMI CLOSED
+CLAUDE PRE-INTEGRATION PASS != FINAL WHOLE-UMI PASS
+HISTORICAL REVIEW != CURRENT-HEAD REVIEW
+NO GREEN EXACT HEAD -> NO MERGE
+NO POST-MERGE VERIFICATION -> NO NEXT STEP
+NO FINAL WHOLE-UMI AUDIT -> NO #301 FINAL EVIDENCE
+NO IA FINAL PASS -> NO #301 FINAL EVIDENCE
+NO EXPLICIT GATE F -> NO #301 MUTATION
+```
+
+No authorization propagates from one gate to another.
+
+## 19.11 Current Full Closure candidate posture / non-claims
+
+This addendum resolves the five Gate-A owner-local non-code findings in the
+candidate artifact. It does not self-certify that the candidate is clean; exact
+post-write diff audit, exact-head QORE CI, independent exact-candidate Claude audit
+and IA falsification remain mandatory.
+
+Until that sequence is complete:
+
+```text
+DOCUMENTATION CORRECTED != FULL CLOSURE
+CANDIDATE EXISTS != CERTIFIED CANDIDATE
+ZERO PENDING CLAIM REQUIRES REVALIDATION
+```
+
+Nothing in UMI-05 Full Closure authorizes:
+
+- provider operational support;
+- pricing, valuation or Greeks;
+- execution or exercise execution;
+- settlement/payment/position mutation;
+- account/risk/capacity authority;
+- productive credentials;
+- Production accounts;
+- real capital;
+- real-money trading;
+- autonomous productive execution;
+- promotion of PR #298;
+- automatic integration of UMI-14 specialized candidates;
+- UMI-06 Full Closure before UMI-05 is formally sealed.
+
+`TEST/DEMO != PRODUCTION`
+
+`SEMANTIC SUPPORT != PROVIDER SUPPORT != OPERATIONAL SUPPORT != PRODUCTION AUTHORITY`
