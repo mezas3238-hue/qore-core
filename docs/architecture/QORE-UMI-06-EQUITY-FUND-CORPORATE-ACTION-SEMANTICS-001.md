@@ -625,13 +625,14 @@ The current serial recertification requires the stronger Full Closure sequence:
 `GATE A / COMPLETE RECONSTRUCTION`
 `-> IDENTIFY ALL UMI06-OWNED PENDING WORK`
 `-> GATE B / OWNER CORRECTION`
-`-> ZERO INTERNAL PENDING`
-`-> EXACT-CANDIDATE QUALITY GATE`
+`-> ZERO INTERNAL PENDING CANDIDATE`
+`-> GATE C / CREATE DRAFT PR`
+`-> EXACT-CANDIDATE SYNTHETIC-MERGE QUALITY GATE`
 `-> CLAUDE EXACT-CANDIDATE READ-ONLY AUDIT`
-`-> IA FALSIFICATION`
-`-> GATE C / DRAFT PR`
-`-> GATE D / READY`
+`-> IA EXACT-CANDIDATE FALSIFICATION`
+`-> GATE D / DRAFT -> READY`
 `-> GATE E / EXPECTED-HEAD MERGE`
+`-> VERIFY ACTUAL MERGE / MAIN`
 `-> POST-MERGE CI ON ACTUAL MAIN`
 `-> CLAUDE FINAL WHOLE-UMI06 AUDIT`
 `-> IA FINAL FALSIFICATION`
@@ -731,11 +732,11 @@ The corrected hardening supplied full reconstruction oracles for equity security
 depositary receipt, fund optional branches, benchmark qualification, cash
 dividend, stock dividend, split and rights distribution material.
 
-## 12.4 Full Closure Gate A findings
+## 12.4 Full Closure Gate A / Gate B findings
 
-The current Full Closure reconstruction classified:
+The current Full Closure reconstruction and same-branch IA falsification classified:
 
-| Finding | Classification | Gate A state | Gate B disposition |
+| Finding | Classification | Initial state | Gate B disposition |
 |---|---|---:|---:|
 | `FC06-01` stale candidate status / missing #327 durable ledger | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
 | `FC06-02` missing #405/#414 hardening ledger | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
@@ -744,6 +745,7 @@ The current Full Closure reconstruction classified:
 | `FC06-05` stale TIME-01 OPEN claim after #333 closure | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
 | `FC06-06` missing durable disposition of historical UMI06 findings | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
 | `FC06-07` `FundVehicleTerms` optional/kind projection oracle correlation | `UMI_INTERNAL_BLOCKER / TEST-ONLY ORACLE GAP / MEDIUM` | OPEN | CORRECTED IN CANDIDATE |
+| `FC06-08` initial Gate B artifact ordered Gate C after exact-candidate audit | `UMI_INTERNAL_NONCODE / GOVERNANCE PROCEDURE ORDER` | OPEN ON INITIAL GATE-B HEAD | RESOLVED IN CANDIDATE |
 
 `FC06-07` did not establish a production defect. The production implementation
 already projects `share_class` and `nav_basis` independently. The gap was that the
@@ -762,6 +764,12 @@ Gate B adds one owner-local Full Closure oracle module that covers:
 This forms the complete `6 × 2 × 2` witness basis for the current bounded enum and
 optional-state space. A projection guarded incorrectly by either optional sibling
 or by any one current vehicle kind must fail at least one full-parent oracle.
+
+`FC06-08` was found by IA while falsifying initial Gate B head
+`a2d9bb654826998fe15ea0caa04b975697909efb`. That head is historical only and
+receives no qualification. The corrected procedure now places Gate C/Draft PR
+before synthetic-merge CI and exact-candidate independent audit, consistent with
+the serial Full Closure law.
 
 ## 12.5 Current owner / downstream boundary
 
@@ -788,13 +796,14 @@ Gate B correction status is candidate-only. It does not certify itself.
 
 Before UMI-06 can be sealed, the unchanged exact candidate must still receive:
 
-- exact candidate diff/blob audit;
-- full authoritative QORE quality gate;
+- explicit Gate C before Draft PR creation;
+- exact candidate / synthetic merge diff and blob audit;
+- full authoritative QORE quality gate on the exact PR candidate;
 - independent Claude exact-candidate read-only audit;
-- IA falsification;
-- explicit Gate C before PR creation;
-- explicit Gate D before Ready;
+- IA exact-candidate falsification;
+- explicit Gate D before Draft -> Ready;
 - explicit Gate E before expected-head merge;
+- actual merge/main verification;
 - post-merge CI on actual `main`;
 - independent Claude final whole-UMI06 audit;
 - IA final falsification;
