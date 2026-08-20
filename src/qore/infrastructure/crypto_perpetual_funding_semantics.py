@@ -31,7 +31,7 @@ class CryptoPerpetualValidationError(CryptoPerpetualSemanticsError):
 
 
 def _validate_uuid(value: UUID, *, field_name: str) -> None:
-    if not isinstance(value, UUID):
+    if type(value) is not UUID:
         raise CryptoPerpetualValidationError(f"{field_name} must be UUID")
 
 
