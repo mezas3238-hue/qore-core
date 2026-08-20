@@ -4,25 +4,17 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure.equity_fund_corporate_action_semantics import (
-    EquityFundEvidenceRef,
-    EquityFundTermsId,
-    EquityShareClassCode,
-    FundNavBasis,
-    FundNavBasisCode,
-    FundVehicleKind,
-    FundVehicleTerms,
-)
-from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
+from qore.infrastructure import equity_fund_corporate_action_semantics as equity
+from qore.infrastructure import universal_instrument_identity as identity
 
 
-_FUND_VEHICLE_KIND_CASES: tuple[tuple[FundVehicleKind, str], ...] = (
-    (FundVehicleKind.ETF, "etf"),
-    (FundVehicleKind.MUTUAL_FUND, "mutual-fund"),
-    (FundVehicleKind.CLOSED_END_FUND, "closed-end-fund"),
-    (FundVehicleKind.MONEY_MARKET_FUND, "money-market-fund"),
-    (FundVehicleKind.LISTED_TRUST, "listed-trust"),
-    (FundVehicleKind.REIT, "reit"),
+_FUND_VEHICLE_KIND_CASES: tuple[tuple[equity.FundVehicleKind, str], ...] = (
+    (equity.FundVehicleKind.ETF, "etf"),
+    (equity.FundVehicleKind.MUTUAL_FUND, "mutual-fund"),
+    (equity.FundVehicleKind.CLOSED_END_FUND, "closed-end-fund"),
+    (equity.FundVehicleKind.MONEY_MARKET_FUND, "money-market-fund"),
+    (equity.FundVehicleKind.LISTED_TRUST, "listed-trust"),
+    (equity.FundVehicleKind.REIT, "reit"),
 )
 
 _OPTIONAL_STATE_CASES: tuple[tuple[bool, bool], ...] = (
@@ -34,7 +26,7 @@ _OPTIONAL_STATE_CASES: tuple[tuple[bool, bool], ...] = (
 
 
 def test_full_closure_fund_vehicle_kind_matrix_matches_current_bounded_enum() -> None:
-    assert {kind for kind, _ in _FUND_VEHICLE_KIND_CASES} == set(FundVehicleKind)
+    assert {kind for kind, _ in _FUND_VEHICLE_KIND_CASES} == set(equity.FundVehicleKind)
     assert {expected for _, expected in _FUND_VEHICLE_KIND_CASES} == {
         "etf",
         "mutual-fund",
@@ -54,27 +46,27 @@ def test_full_closure_fund_vehicle_kind_matrix_matches_current_bounded_enum() ->
     _OPTIONAL_STATE_CASES,
 )
 def test_full_closure_fund_vehicle_projection_breaks_kind_and_optional_guard_correlation(
-    vehicle_kind: FundVehicleKind,
+    vehicle_kind: equity.FundVehicleKind,
     expected_kind: str,
     include_share_class: bool,
     include_nav_basis: bool,
 ) -> None:
-    share_class = EquityShareClassCode("retail") if include_share_class else None
+    share_class = equity.EquityShareClassCode("retail") if include_share_class else None
     nav_basis = (
-        FundNavBasis(
-            currency_identity_id=EconomicIdentityId(UUID(int=504)),
-            unit_identity_id=EconomicIdentityId(UUID(int=505)),
-            basis=FundNavBasisCode("per-share"),
-            evidence_ref=EquityFundEvidenceRef(UUID(int=506)),
+        equity.FundNavBasis(
+            currency_identity_id=identity.EconomicIdentityId(UUID(int=504)),
+            unit_identity_id=identity.EconomicIdentityId(UUID(int=505)),
+            basis=equity.FundNavBasisCode("per-share"),
+            evidence_ref=equity.EquityFundEvidenceRef(UUID(int=506)),
         )
         if include_nav_basis
         else None
     )
-    terms = FundVehicleTerms(
-        terms_id=EquityFundTermsId(UUID(int=501)),
-        instrument_identity_id=EconomicIdentityId(UUID(int=502)),
+    terms = equity.FundVehicleTerms(
+        terms_id=equity.EquityFundTermsId(UUID(int=501)),
+        instrument_identity_id=identity.EconomicIdentityId(UUID(int=502)),
         vehicle_kind=vehicle_kind,
-        evidence_ref=EquityFundEvidenceRef(UUID(int=503)),
+        evidence_ref=equity.EquityFundEvidenceRef(UUID(int=503)),
         share_class=share_class,
         nav_basis=nav_basis,
     )
