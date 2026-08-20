@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROGRAM D / UMI-07 — FULL CLOSURE RECERTIFICATION — GATE B CORRECTION CANDIDATE**
+**PROGRAM D / UMI-07 — FULL CLOSURE RECERTIFICATION — GATE B COMPLETE / EXACT-CANDIDATE QUALIFICATION PENDING**
 
 This artifact is the durable current-status/evidence overlay for UMI-07 Full Closure.
 It does not replace or rewrite the historical bounded semantic specification:
@@ -12,8 +12,8 @@ It does not replace or rewrite the historical bounded semantic specification:
 The historical artifact remains authoritative for bounded commodity/reference,
 physical-delivery and UMI-05 composition semantics. For current lifecycle,
 certification, carry-forward and Full Closure state only, this artifact supersedes
-historical status/carry-forward/certification-gate statements that were true when
-UMI-07 was first certified but no longer describe current repository reality.
+historical status/carry-forward/certification-gate statements that no longer describe
+current repository reality.
 
 ```text
 HISTORICAL SEMANTIC ARTIFACT != CURRENT FULL-CLOSURE STATUS LEDGER
@@ -21,19 +21,11 @@ SEMANTIC PRESERVATION != STALE STATUS PRESERVATION
 FULL CLOSURE RECERTIFICATION != PRODUCTION REIMPLEMENTATION
 ```
 
-Tracking:
-- UMI-07 issue: #328
-- Original implementation PR: #329
-- Logical-identity retrospective: #405
-- UMI07-LI-01 hardening PR: #415
-- Universal Markets / Instruments program: #301
-- Master roadmap: #303
+Tracking: #328 / PR #329 / #405 / PR #415 / #301 / #303.
 
 ---
 
 # 1. Full Closure governance
-
-UMI-07 is governed by the serial Full Closure sequence:
 
 ```text
 GATE A — READ-ONLY COMPLETE RECONSTRUCTION
@@ -61,29 +53,18 @@ execution or settlement mutation.
 
 # 2. Gate-A frozen baseline
 
-Exact integrated main at UMI-07 Full Closure activation:
-
 ```text
-main
-= d36bb93205d3330b0645730c570461fa95090090
+main = d36bb93205d3330b0645730c570461fa95090090
+tree = 7af09badaa6a93be15a0d911b1e22eaead34df25
+GitHub signature = verified / valid
 
-tree
-= 7af09badaa6a93be15a0d911b1e22eaead34df25
-
-GitHub signature
-= verified / valid
-```
-
-Mandatory post-merge baseline quality evidence:
-
-```text
 QORE CI #1241
-run 32318327535
-event push
-branch main
-head d36bb93205d3330b0645730c570461fa95090090
-status completed
-conclusion success
+run = 32318327535
+event = push
+branch = main
+head = d36bb93205d3330b0645730c570461fa95090090
+status = completed
+conclusion = success
 ```
 
 Authorized Gate-B branch:
@@ -92,67 +73,32 @@ Authorized Gate-B branch:
 agent/qore-umi07-full-closure-001
 ```
 
-The branch was created directly from exact
-`d36bb93205d3330b0645730c570461fa95090090`.
+The branch was created directly from exact frozen main.
 
 ---
 
 # 3. Historical UMI-07 implementation — PR #329
 
-Original exact review target:
-
 ```text
-certified base
-= b44529c8e3caf5badf6ff49da2f0246f3f985219
+certified base = b44529c8e3caf5badf6ff49da2f0246f3f985219
+exact reviewed head = 961a9558f9c6566450c548350e10e123be51dd48
+head tree = 85548bf280a370fc3f71e9346e196b35a8e5be38
+synthetic PR merge = 0a5ee46cd098268f86c0213e9e685b6a8f78efb4
+historical diff = 3 additive files / +1573 / -0
 
-exact reviewed head
-= 961a9558f9c6566450c548350e10e123be51dd48
+production blob = e2e7b4e302996a351cd3044077f250234ec81b25
+primary-test blob = 3f05f9307c110f1ead9d7763767e538d47ab497c
+semantic-architecture blob = 29b5f853ff083173065486e06a00240966e9b7c4
 
-head tree
-= 85548bf280a370fc3f71e9346e196b35a8e5be38
-
-synthetic PR merge used by CI only
-= 0a5ee46cd098268f86c0213e9e685b6a8f78efb4
-
-historical diff
-= 3 additive files / +1573 / -0
+QORE CI #1056 / run 31846727015 / job 94914607905
+Ruff = PASS
+Mypy = PASS / 578 source files
+Pytest = PASS / 2558 passed / 6 inherited warnings
+global coverage = 84%
+UMI-07 production owner = 94%
 ```
 
-Exact historical owner blobs:
-
-```text
-production source
-src/qore/infrastructure/commodity_contract_delivery_semantics.py
-= e2e7b4e302996a351cd3044077f250234ec81b25
-
-primary tests
-tests/infrastructure/test_commodity_contract_delivery_semantics.py
-= 3f05f9307c110f1ead9d7763767e538d47ab497c
-
-semantic architecture
-docs/architecture/QORE-UMI-07-COMMODITY-CONTRACT-DELIVERY-SEMANTICS-001.md
-= 29b5f853ff083173065486e06a00240966e9b7c4
-```
-
-Historical exact-head quality gate:
-
-```text
-QORE CI #1056
-run 31846727015
-job 94914607905
-Ruff PASS
-Mypy PASS — 578 source files
-Pytest PASS — 2558 passed / 6 inherited warnings
-global coverage 84%
-UMI-07 production owner 94%
-```
-
-Claude independent adversarial review returned:
-
-```text
-READY FOR INTEGRATION GATE
-```
-
+Claude independent adversarial review returned `READY FOR INTEGRATION GATE`.
 Integration Gate independently revalidated exact head/base/CI/source/tests/architecture
 and returned PASS.
 
@@ -176,83 +122,52 @@ c7173ab0b21969c8d836127999f70c10ad66707c
 ```
 
 The historical #301 progress ledger records #328/#329 as certified/closed at that
-point. That closure is retained as evidence but predates the definitive serial Full
-Closure protocol and therefore cannot substitute for this recertification.
+point. That closure is evidence to reconstruct but predates the definitive serial Full
+Closure protocol and cannot substitute for this recertification.
 
 ---
 
 # 4. Logical-identity hardening — #405 / PR #415
 
-Retrospective classification:
-
 ```text
-UMI07-LI-01
-= CONFIRMED ORACLE GAP / MEDIUM
-= NO CURRENT PRODUCTION DEFECT ESTABLISHED
+UMI07-LI-01 = CONFIRMED ORACLE GAP / MEDIUM
+CURRENT PRODUCTION DEFECT = NONE ESTABLISHED
+
+PR #415 base = 120856305588154459af925196687ffad69424ea
+PR #415 head = 6286c213e1d22fb30d0d84ccf4d192160767f849
+head tree = 2123210004d45ab7ffc64fb2114e64d32785db1b
+protected merge = 35faa1aeba97c4024134b66cc3b2b014bb92d376
+files changed = 1 test file
+additions / deletions = +140 / -0
+production files touched = 0
+
+historical hardened primary-test blob
+= 27e5888726d0a067f6f894e3dded1a4b5cf6337c
+
+production blob retained
+= e2e7b4e302996a351cd3044077f250234ec81b25
+
+QORE CI #1217 / run 32246240666
+head = 6286c213e1d22fb30d0d84ccf4d192160767f849
+status = completed
+conclusion = success
 ```
 
-PR #415 was TEST-ONLY:
-
-```text
-base
-= 120856305588154459af925196687ffad69424ea
-
-head
-= 6286c213e1d22fb30d0d84ccf4d192160767f849
-
-head tree
-= 2123210004d45ab7ffc64fb2114e64d32785db1b
-
-protected merge
-= 35faa1aeba97c4024134b66cc3b2b014bb92d376
-
-files changed
-= 1 test file
-
-additions / deletions
-= +140 / -0
-
-production files touched
-= 0
-```
-
-Historical hardened primary-test blob:
-
-```text
-27e5888726d0a067f6f894e3dded1a4b5cf6337c
-```
-
-Production remained exactly:
-
-```text
-e2e7b4e302996a351cd3044077f250234ec81b25
-```
-
-Exact-head #415 CI:
-
-```text
-QORE CI #1217
-run 32246240666
-head 6286c213e1d22fb30d0d84ccf4d192160767f849
-status completed
-conclusion success
-```
-
-Historical evidence limitation is preserved rather than invented away:
+Historical evidence limitation is preserved explicitly:
 
 - PR #415 has no GitHub-native review submissions;
 - PR #415 has no PR Conversation comments;
 - this artifact does not manufacture an independent-review record that GitHub does not
   contain.
 
-The current Full Closure therefore requires fresh exact-candidate and final whole-UMI
+Current Full Closure therefore requires fresh exact-candidate and final whole-UMI
 independent audits regardless of historical #415 metadata.
 
 ---
 
 # 5. Current owner reconciliation
 
-At exact Gate-A main, historical owner blobs are:
+At exact Gate-A main:
 
 ```text
 production source
@@ -266,70 +181,42 @@ historical semantic architecture
 ```
 
 The production blob remains byte-identical to the exact reviewed #329 implementation.
-No later hardening changed production semantics.
+No later UMI-07 hardening changed production semantics.
 
-Current UMI-07 production owns only bounded immutable provider-neutral semantics for:
-
-- local commodity terms/evidence IDs;
-- bounded commodity class qualification without UMI-02 family authority;
-- commodity/reference and measurement-unit identities via UMI-02;
-- grade, delivery-location and delivery-method qualification;
-- exact date-only delivery windows;
-- explicit eligible delivery alternatives with deterministic ordering;
-- composition over exact UMI-05 `FuturesContractTerms`;
-- reference and multiplier-unit consistency;
-- PHYSICAL/CASH physical-delivery laws.
-
-It does not own/provider-operate identity lifecycle, observed data, calendars,
-logistics, warehouse/title state, valuation, risk/capacity, execution, settlement,
-position/cash mutation, provider SDK capability, productive credentials, Production or
-real capital.
+UMI-07 owns bounded immutable provider-neutral commodity reference / physical-delivery
+contract qualification composed over UMI-02 identity and UMI-05 futures semantics.
+It does not own/provider-operate identity lifecycle, current observations, calendars,
+logistics, warehouse/title state, valuation, account/risk/capacity, execution,
+settlement, position/cash mutation, provider SDK capability, productive credentials,
+Production or real capital.
 
 ---
 
 # 6. Current downstream / cross-owner state
 
-### TIME-01 / #333
-
 ```text
+#333 TIME-01
 state = CLOSED
 state_reason = completed
 classification = CLOSED_DOWNSTREAM_VERIFIED
-```
 
-The #333 body retains historical `OPEN / HIGH` prose. Current live GitHub state is the
-authoritative disposition.
-
-### RES-01 / #332
-
-```text
+#332 RES-01
 state = OPEN
 GAP-FND07-RES-01 = OPEN / HIGH
 classification = CROSS_OWNER_VERIFIED_OPEN
-```
 
-### Research methodology / producer gaps / #286
-
-Issue #286 remains OPEN and explicitly retains:
-
-```text
+#286
+state = OPEN
 GAP-EXEC = OPEN
 GAP-ANALYSIS-PRODUCER = OPEN
 GAP-LIN-001 = OPEN
+
+PR #298
+state = OPEN / DRAFT / NOT MERGED
+classification = HOLD / CROSS_OWNER
 ```
 
-These are cross-owner methodology/producer/reproducibility obligations.
-
-### PR #298
-
-```text
-OPEN / DRAFT / NOT MERGED
-```
-
-Its changed-file surface does not modify UMI-07 owner paths. `HOLD` is the QORE
-governance classification, not a native GitHub PR field.
-
-### Open-PR overlap
+The #333 body retains historical OPEN prose; current GitHub state is authoritative.
 
 Gate A and Gate-B preflight enumerated the current open PR set:
 
@@ -337,75 +224,61 @@ Gate A and Gate-B preflight enumerated the current open PR set:
 #401 #399 #397 #395 #393 #391 #389 #386 #298 #291
 ```
 
-No current open PR modifies the historical UMI-07 production, primary test or
-semantic architecture paths. PR #389 reuses UMI-07 contracts but adds only its own
-specialized-commodity files; reuse does not transfer ownership.
+None modifies the historical UMI-07 production, primary-test or semantic-architecture
+paths. PR #389 reuses UMI-07 contracts but adds only its own specialized-commodity
+files; reuse does not transfer ownership.
 
 ---
 
 # 7. Full Closure finding ledger
 
-## FC07-01 — stale historical candidate status / missing #329 durable ledger
+### FC07-01 — stale historical candidate status / missing #329 durable ledger
 
 ```text
 classification = UMI_INTERNAL_NONCODE
 status = CORRECTED IN GATE B
 ```
 
-This artifact records exact #329 base/head/tree/synthetic/blobs/CI/review/Integration
-Gate/merge evidence.
-
-## FC07-02 — missing #405/#415 hardening ledger
+### FC07-02 — missing #405/#415 hardening ledger
 
 ```text
 classification = UMI_INTERNAL_NONCODE
 status = CORRECTED IN GATE B
 ```
 
-This artifact records UMI07-LI-01, exact #415 binding, TEST-ONLY blast radius, CI,
-production immutability and the historical review-evidence limitation.
-
-## FC07-03 — missing current-main/blob/downstream reconciliation
+### FC07-03 — missing current-main/blob/downstream reconciliation
 
 ```text
 classification = UMI_INTERNAL_NONCODE
 status = CORRECTED IN GATE B
 ```
 
-This artifact binds exact current baseline, owner blobs, downstream states and open-PR
-overlap.
-
-## FC07-04 — historical exit procedure predates serial Full Closure
+### FC07-04 — historical exit procedure predates serial Full Closure
 
 ```text
 classification = UMI_INTERNAL_NONCODE
 status = CORRECTED IN GATE B
 ```
 
-Section 1 freezes the A->F procedure, including current exact-candidate/final audits,
-post-merge exact-main CI and final #301 evidence.
-
-## FC07-05 — historical TIME-01 OPEN claim is stale
+### FC07-05 — historical TIME-01 OPEN claim is stale
 
 ```text
 classification = UMI_INTERNAL_NONCODE
 status = CORRECTED IN GATE B
 ```
 
-For current carry-forward state this artifact supersedes the historical status line
-and records #333 as `CLOSED_DOWNSTREAM_VERIFIED`. The old semantic artifact is kept
+For current carry-forward state this artifact supersedes the historical status line and
+records #333 as `CLOSED_DOWNSTREAM_VERIFIED`. The historical semantic artifact remains
 byte-identical so historical evidence is not silently rewritten.
 
-## FC07-06 — historical FINDING-UMI07-01..04 dispositions absent from owner ledger
+### FC07-06 — historical FINDING-UMI07-01..04 dispositions absent
 
 ```text
 classification = UMI_INTERNAL_NONCODE
 status = CORRECTED IN GATE B
 ```
 
-Section 3 records all four dispositions.
-
-## FC07-07 — parent projection sibling-guard oracle incompleteness
+### FC07-07 — parent projection sibling-guard oracle incompleteness
 
 ```text
 classification = UMI_INTERNAL_BLOCKER / TEST-ONLY ORACLE GAP / MEDIUM
@@ -413,23 +286,17 @@ production defect = NONE VERIFIED
 status = CORRECTED IN GATE B / EXACT-CANDIDATE QUALIFICATION PENDING
 ```
 
-Current production already projects the complete parent tuple correctly. The remaining
-weakness was test protection for the valid parent state where both physical delivery
-and first notice are present.
-
 Gate-B correction adds:
 
-```text
-tests/infrastructure/test_commodity_contract_delivery_semantics_full_closure.py
-```
+`tests/infrastructure/test_commodity_contract_delivery_semantics_full_closure.py`
 
-Current corrected Gate-B test blob:
+Current corrected test blob:
 
 ```text
 65d4196f69e7943e61bebd4ee1eb5b891cfa9be3
 ```
 
-The oracle covers exactly the three valid `(G,F)` parent states:
+The oracle covers exactly the valid `(G,F)` parent basis:
 
 ```text
 G = physical_delivery present
@@ -440,55 +307,100 @@ F = first_notice_date present
 (G,F) = (1,1)  PHYSICAL / physical delivery / first notice present
 ```
 
-For every state it independently reconstructs the complete
-`CommodityFuturesContractTerms.logical_values()` projection:
+For all three states it independently reconstructs the complete parent projection:
+tag, local terms ID, complete expected nested UMI-05 futures tuple, complete commodity
+reference, PRESENT/NONE physical-delivery slot and evidence reference.
 
-- parent tag;
-- local terms ID;
-- complete expected nested UMI-05 futures tuple;
-- complete commodity-reference tuple;
-- PRESENT/NONE physical-delivery slot;
-- evidence reference.
-
-The expected side uses explicit literals for settlement style, UUIDs, dates, Decimal
-canonical material and `None`. It does not derive expected values from production
+Expected material uses explicit literals for settlement style, UUID/date/Decimal
+material and `None`. It does not derive expected values from production
 `.logical_values()`, enum `.value`, production sorting/canonicalizers, hashes, wall
 clock, randomness or caller-supplied fingerprints.
 
-No invalid-state mutation, `noqa`, suppression, skip, xfail, strictness reduction,
-fake test, coverage weakening or production churn is used.
+### FC07-08 — initial Gate-B oracle expected-side dependency
+
+Initial Gate-B test commit:
+
+```text
+85311b7c1d1838e03628c8ed366414aa8d534d0c
+```
+
+The initial oracle used `settlement_style.value` in expected material. Integration
+Authority self-audit rejected that as an expected-side independence weakness because a
+production enum-value mutation could co-vary with the expected tuple.
+
+```text
+classification = UMI_INTERNAL_BLOCKER / TEST-ORACLE INDEPENDENCE / MEDIUM
+status = CORRECTED IN GATE B
+qualification value of initial head = ZERO
+```
+
+Correction commit:
+
+```text
+27587ac6b2245d16865969c064703bfc7c2e510f
+```
+
+The corrected matrix carries explicit `G`, `F` and literal expected settlement-style
+strings independently of enum `.value`.
+
+### FC07-09 — Gate-B evidence drift after FC07-08 correction
+
+Initial recertification commit:
+
+```text
+a907f69b6f9a7a3f42cadb852ec311f75d723d82
+```
+
+After FC07-08 changed the test blob, that artifact temporarily referenced the
+superseded test blob. It also contained one ambiguous phrase describing #415 blast
+radius.
+
+```text
+classification = UMI_INTERNAL_NONCODE / EVIDENCE DRIFT
+status = CORRECTED IN GATE B
+qualification value of stale artifact head = ZERO
+```
+
+Synchronization commit:
+
+```text
+16ac68889e3681e33f08a91312c3ed09a4ed15eb
+```
+
+The artifact now binds corrected test blob
+`65d4196f69e7943e61bebd4ee1eb5b891cfa9be3` and states #415 changed one test file and
+zero production files.
+
+No `noqa`, suppression, skip, xfail, strictness reduction, fake test, coverage
+weakening, invalid-state mutation or production churn was used in any correction.
 
 ---
 
-# 8. Gate-B authorized surface
-
-Effective candidate surface is intentionally additive:
+# 8. Gate-B effective candidate surface
 
 ```text
 ADD docs/architecture/QORE-UMI-07-FULL-CLOSURE-RECERTIFICATION-001.md
 ADD tests/infrastructure/test_commodity_contract_delivery_semantics_full_closure.py
 
-src/ production delta = 0 files expected
-historical hardened primary-test delta = 0 files expected
-historical semantic-architecture delta = 0 files expected
+src/ production delta = 0 files
+historical hardened primary-test delta = 0 files
+historical semantic-architecture delta = 0 files
 ```
 
-The separate status/evidence overlay is deliberate: it preserves the original
-semantic architecture and historical certification-time assertions while making
-current precedence explicit.
+The separate current-status/evidence overlay deliberately preserves the original
+semantic artifact byte-identical while making current precedence explicit.
 
 ---
 
 # 9. Determinism / security / authority requirements
 
-The exact candidate must preserve:
+Exact-candidate and final audits must preserve:
 
 - frozen/slotted immutable UMI-07 values;
 - typed identity/code boundaries;
-- exact date-only roles and datetime-laundering rejection;
+- exact date roles and datetime-laundering rejection;
 - deterministic ordering and complete logical material;
-- no implicit wall clock or random/uuid4 identity generation;
-- no mutable global state;
+- no implicit wall clock, uuid4/random generation or mutable global state;
 - no secrets;
 - no provider/network/filesystem/database I/O;
 - no hidden retry/sleep/thread/scheduler;
@@ -498,11 +410,11 @@ The exact candidate must preserve:
 - no Production or real-capital authority;
 - no reverse dependency from canonical owners to concrete provider adapters.
 
-Any exact-candidate audit finding that disproves these requirements reopens UMI-07.
+Any evidence disproving these requirements reopens UMI-07.
 
 ---
 
-# 10. Quality and independent audit gates
+# 10. Qualification and independent-audit gates
 
 Gate B does not claim exact-candidate qualification.
 
@@ -519,20 +431,21 @@ Any candidate SHA mutation after qualification invalidates SHA-bound CI/review a
 requires requalification.
 
 Before Gate D, Claude Code must independently audit the exact remote candidate
-READ-ONLY, followed by independent Integration Authority falsification.
+READ-ONLY, followed by Integration Authority exact-candidate falsification.
 
-After Gate E and mandatory post-merge exact-main CI, a second Claude FINAL whole-UMI
-audit and second Integration Authority FINAL falsification are mandatory.
+After Gate E and mandatory post-merge exact-main CI, Claude FINAL whole-UMI and
+Integration Authority FINAL whole-UMI audits are mandatory before Gate F.
 
-Historical #329/#415 review/CI cannot substitute for current Full Closure audits.
+Historical #329/#415 evidence cannot substitute for current Full Closure audits.
 
 ---
 
-# 11. Gate state at this artifact revision
+# 11. Gate state
 
 ```text
 GATE A                         COMPLETE
-GATE B                         IN PROGRESS / CORRECTIONS WRITTEN
+GATE B                         COMPLETE
+FC07-01..09                    CORRECTED IN BRANCH
 GATE C                         NOT AUTHORIZED
 PR                             NOT CREATED
 EXACT-CANDIDATE CI             NOT YET RUN
@@ -550,8 +463,8 @@ UMI08 FULL CLOSURE             NOT STARTED
 ```
 
 The final Gate-B branch head/tree/blob/diff freeze is recorded externally by
-Integration Authority after all Gate-B writes. A source artifact cannot contain its
-own final commit SHA without changing that SHA.
+Integration Authority after this write. A source artifact cannot contain its own final
+commit SHA without changing that SHA.
 
 ---
 
