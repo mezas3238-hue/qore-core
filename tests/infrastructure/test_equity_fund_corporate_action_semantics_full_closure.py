@@ -4,8 +4,10 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure import equity_fund_corporate_action_semantics as equity
-from qore.infrastructure import universal_instrument_identity as identity
+from qore.infrastructure import (
+    equity_fund_corporate_action_semantics as equity,
+    universal_instrument_identity as identity,
+)
 
 
 _FUND_VEHICLE_KIND_CASES: tuple[tuple[equity.FundVehicleKind, str], ...] = (
