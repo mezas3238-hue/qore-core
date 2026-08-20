@@ -732,11 +732,11 @@ The corrected hardening supplied full reconstruction oracles for equity security
 depositary receipt, fund optional branches, benchmark qualification, cash
 dividend, stock dividend, split and rights distribution material.
 
-## 12.4 Full Closure Gate A / Gate B findings
+## 12.4 Full Closure Gate A / Gate B / Gate C findings
 
 The current Full Closure reconstruction and same-branch IA falsification classified:
 
-| Finding | Classification | Initial state | Gate B disposition |
+| Finding | Classification | Initial state | Current candidate disposition |
 |---|---|---:|---:|
 | `FC06-01` stale candidate status / missing #327 durable ledger | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
 | `FC06-02` missing #405/#414 hardening ledger | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
@@ -746,6 +746,7 @@ The current Full Closure reconstruction and same-branch IA falsification classif
 | `FC06-06` missing durable disposition of historical UMI06 findings | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
 | `FC06-07` `FundVehicleTerms` optional/kind projection oracle correlation | `UMI_INTERNAL_BLOCKER / TEST-ONLY ORACLE GAP / MEDIUM` | OPEN | CORRECTED IN CANDIDATE |
 | `FC06-08` initial Gate B artifact ordered Gate C after exact-candidate audit | `UMI_INTERNAL_NONCODE / GOVERNANCE PROCEDURE ORDER` | OPEN ON INITIAL GATE-B HEAD | RESOLVED IN CANDIDATE |
+| `FC06-09` Draft-PR exact-candidate CI failed Ruff import ordering | `UMI_INTERNAL_BLOCKER / CI-LINT` | OPEN DURING GATE-C QUALIFICATION | CORRECTED IN CURRENT CANDIDATE; REQUALIFICATION REQUIRED |
 
 `FC06-07` did not establish a production defect. The production implementation
 already projects `share_class` and `nav_basis` independently. The gap was that the
@@ -771,6 +772,16 @@ receives no qualification. The corrected procedure now places Gate C/Draft PR
 before synthetic-merge CI and exact-candidate independent audit, consistent with
 the serial Full Closure law.
 
+`FC06-09` was exposed only after Gate C created Draft PR #422 and GitHub evaluated
+the exact synthetic merge. QORE CI #1234 / run `32316182718` on head
+`67c3021e503bd36c3544605e8a2df9dac778e778`, QORE CI #1235 / run `32316335818`
+on head `305520eb65260e91cb9cbf222b8b9229fda7e104`, and QORE CI #1236 / run
+`32316410139` on head `1aded7ce5b4438ba59bc4461eb890312510213e6` all failed exclusively at
+Ruff `I001`; Mypy and Pytest were skipped. Those heads and runs have zero
+qualification value. No suppression, `noqa`, strictness reduction or production
+mutation was used. The current test-owner correction follows Ruff's mechanically
+reported canonical import grouping and must obtain a fresh full quality gate.
+
 ## 12.5 Current owner / downstream boundary
 
 UMI-06 continues to own only bounded equity, fund and corporate-action semantic
@@ -792,12 +803,11 @@ OPEN DOWNSTREAM PR != MAIN
 
 ## 12.6 Full Closure qualification law
 
-Gate B correction status is candidate-only. It does not certify itself.
+Gate C correction status remains candidate-only. It does not certify itself.
 
 Before UMI-06 can be sealed, the unchanged exact candidate must still receive:
 
-- explicit Gate C before Draft PR creation;
-- exact candidate / synthetic merge diff and blob audit;
+- fresh exact candidate / synthetic merge diff and blob audit;
 - full authoritative QORE quality gate on the exact PR candidate;
 - independent Claude exact-candidate read-only audit;
 - IA exact-candidate falsification;
@@ -810,6 +820,7 @@ Before UMI-06 can be sealed, the unchanged exact candidate must still receive:
 - explicit Gate F before final #301 evidence/freeze.
 
 ```text
+FAILED HISTORICAL HEAD != QUALIFIED CANDIDATE
 CORRECTION CANDIDATE != QUALIFIED CANDIDATE
 CI GREEN != ENGINEERING APPROVAL
 HISTORICAL PASS != CURRENT EXACT-HEAD PASS
