@@ -7,7 +7,6 @@ import pytest
 import qore.infrastructure.equity_fund_corporate_action_semantics as equity
 import qore.infrastructure.universal_instrument_identity as identity
 
-
 _FUND_VEHICLE_KIND_CASES: tuple[tuple[equity.FundVehicleKind, str], ...] = (
     (equity.FundVehicleKind.ETF, "etf"),
     (equity.FundVehicleKind.MUTUAL_FUND, "mutual-fund"),
