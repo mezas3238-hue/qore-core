@@ -11,11 +11,11 @@ import qore.infrastructure.derivative_contract_semantics as derivative
 import qore.infrastructure.universal_instrument_identity as identity
 
 _VALID_PARENT_STATE_CASES: tuple[
-    tuple[derivative.DerivativeSettlementStyle, bool], ...
+    tuple[derivative.DerivativeSettlementStyle, bool, bool, str], ...
 ] = (
-    (derivative.DerivativeSettlementStyle.CASH, False),
-    (derivative.DerivativeSettlementStyle.PHYSICAL, False),
-    (derivative.DerivativeSettlementStyle.PHYSICAL, True),
+    (derivative.DerivativeSettlementStyle.CASH, False, False, "cash"),
+    (derivative.DerivativeSettlementStyle.PHYSICAL, True, False, "physical"),
+    (derivative.DerivativeSettlementStyle.PHYSICAL, True, True, "physical"),
 )
 
 
@@ -25,19 +25,26 @@ def _economic_id(seed: int) -> identity.EconomicIdentityId:
 
 def test_full_closure_parent_guard_basis_is_exactly_the_three_valid_states() -> None:
     assert _VALID_PARENT_STATE_CASES == (
-        (derivative.DerivativeSettlementStyle.CASH, False),
-        (derivative.DerivativeSettlementStyle.PHYSICAL, False),
-        (derivative.DerivativeSettlementStyle.PHYSICAL, True),
+        (derivative.DerivativeSettlementStyle.CASH, False, False, "cash"),
+        (derivative.DerivativeSettlementStyle.PHYSICAL, True, False, "physical"),
+        (derivative.DerivativeSettlementStyle.PHYSICAL, True, True, "physical"),
     )
 
 
 @pytest.mark.parametrize(
-    ("settlement_style", "include_first_notice"),
+    (
+        "settlement_style",
+        "include_physical_delivery",
+        "include_first_notice",
+        "expected_settlement_style",
+    ),
     _VALID_PARENT_STATE_CASES,
 )
 def test_full_closure_commodity_futures_projection_breaks_parent_guard_correlation(
     settlement_style: derivative.DerivativeSettlementStyle,
+    include_physical_delivery: bool,
     include_first_notice: bool,
+    expected_settlement_style: str,
 ) -> None:
     first_notice_date = date(2026, 8, 17) if include_first_notice else None
     futures = derivative.FuturesContractTerms(
@@ -79,7 +86,7 @@ def test_full_closure_commodity_futures_projection_breaks_parent_guard_correlati
                 ),
             )
         )
-        if settlement_style is derivative.DerivativeSettlementStyle.PHYSICAL
+        if include_physical_delivery
         else None
     )
     terms = commodity.CommodityFuturesContractTerms(
@@ -102,7 +109,7 @@ def test_full_closure_commodity_futures_projection_breaks_parent_guard_correlati
                 ),
             ),
         )
-        if settlement_style is derivative.DerivativeSettlementStyle.PHYSICAL
+        if include_physical_delivery
         else None
     )
 
@@ -121,7 +128,7 @@ def test_full_closure_commodity_futures_projection_breaks_parent_guard_correlati
                 "1000",
                 (str(UUID(int=11)),),
             ),
-            settlement_style.value,
+            expected_settlement_style,
             (str(UUID(int=400)),),
             None,
             expected_first_notice,
