@@ -6,6 +6,8 @@ import pytest
 
 from qore.infrastructure import (
     equity_fund_corporate_action_semantics as equity,
+)
+from qore.infrastructure import (
     universal_instrument_identity as identity,
 )
 
