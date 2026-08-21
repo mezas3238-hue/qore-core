@@ -47,8 +47,8 @@ Gate A reconstructed the following current findings:
 | ID | Classification | Severity | Gate B disposition |
 |---|---|---:|---|
 | `FC12-01` | historical lifecycle prose stale / noncode | LOW | preserved as historical evidence |
-| `FC12-02` | mandatory owner-universe carry-forward | MEDIUM-HIGH | corrected by additive current-universe oracle |
-| `FC12-03` | cross-asset oracle / guard staleness | MEDIUM-HIGH | corrected by additive Full Closure oracle and guard |
+| `FC12-02` | mandatory owner-universe carry-forward | MEDIUM-HIGH | additive current-universe correction present; independent re-audit pending |
+| `FC12-03` | cross-asset oracle / guard staleness | MEDIUM-HIGH | complete-projection correction present after `UMI12-ORACLE-GAP-1`; independent re-audit pending |
 | `FC12-04` | Full Closure recertification ledger absent | MEDIUM | this artifact |
 | `FC12-05` | historical negative-space finding | LOW | retained; current guard is explicit and bounded |
 | `FC12-06` | open-PR owner overlap | 0 | closed at Gate A |
@@ -85,6 +85,29 @@ The Gate B correction adds:
 The oracle constructs real public QORE contracts from the three mandatory new
 owners. It does not define semantic facsimiles.
 
+The initial candidate head
+`2837d0fed324cc47f9eaf0b86a5698eb4db1cd17` independently checked selected
+public material but did not traverse the complete owner `logical_values()`
+projections. DeepSeek Coder correctly identified that gap as
+`UMI12-ORACLE-GAP-1`: a projection-only mutation could survive while direct
+fields remained intact.
+
+IA revalidated that finding against the production projection contracts and
+accepted it. Test correction commit
+`bfea4cd24a58b45ddfc110d1e1aaa580789f2955` adds complete projection assertions
+for `FxSpotTerms`, `DigitalOptionPayout`, `AsianOptionTerms`, and
+`CumulativeRealizedLossRatioMetricDefinition`, plus the exercised
+`ExactFraction` and contractual-balance value projections.
+
+The actual side now calls the SUT projections. The expected side remains manually
+constructed from literal, independently reasoned material and does not derive
+expected values from production `logical_values()`, serializers, fingerprints,
+or canonical projection helpers.
+
+This ledger update changes the candidate head again. No DeepSeek PASS is claimed
+for the resulting head; the complete corrected candidate must be independently
+re-audited before Gate B can be consumed.
+
 ### 4.1 FX
 
 The FX specimen retains independently checked material for:
@@ -98,8 +121,9 @@ The FX specimen retains independently checked material for:
 - agreed contractual exchange rate;
 - retained evidence reference.
 
-The expected projection is assembled manually from public fields and literal
-expected values. It is not built by calling production `logical_values()`.
+The test also compares `FxSpotTerms.logical_values()` against a complete manual
+literal expected tuple. Expected material is not built by calling production
+`logical_values()`.
 
 ### 4.2 Exotic options
 
@@ -109,6 +133,11 @@ new owner to exist:
 - digital payout kind, amount/unit, timing and evidence;
 - Asian averaging-in role, averaging method, explicit observation dates,
   absence of a fabricated fixed strike, and explicit strike factor.
+
+The corrected test additionally compares complete `DigitalOptionPayout` and
+`AsianOptionTerms` projections against independent literal expected tuples,
+including exercise, evidence, averaging-period, optional fields, strike factor,
+and notional material.
 
 The oracle therefore does not reduce the owner to generic vanilla-option terms.
 
@@ -121,6 +150,10 @@ The securitization specimen directly retains:
 - exact evidence;
 - exact rational reduction `2/24 -> 1/12`;
 - a distinct contractual pool-balance value.
+
+The corrected test compares the complete metric projection to independent literal
+expected material and directly protects the `ExactFraction` and contractual
+balance projections.
 
 This is static securitization contract material, not a waterfall, pricing,
 prepayment forecast, or current pool-state engine.
@@ -173,8 +206,10 @@ Gate B default rule remains:
 
 No `src/qore/**` mutation is part of this correction.
 
-No new independent oracle has demonstrated a production defect in FX, exotic
-options, fixed-income securitization, or any historical UMI-02..11 owner.
+DeepSeek Coder reported `PRODUCTION DEFECTS = 0` and
+`PRODUCTION SOURCE REOPEN = NOT REQUIRED` for the sealed-source audit that found
+`UMI12-ORACLE-GAP-1`. IA independently confirmed that the finding is test-side
+projection coverage, not a production semantic defect.
 
 Therefore no semantic owner is reopened.
 
@@ -210,8 +245,22 @@ Objective reason: current repository/owner-universe reconstruction, additive
 cross-asset oracle validation, static guard validation, and Full Closure evidence
 require an independent technical/repository audit.
 
-Current Gate B evidence does **not** claim that DeepSeek Coder has executed,
-passed, or failed against this candidate.
+DeepSeek Coder chronology for Gate B:
+
+1. first attempt: `BLOCKED` because the DeepSeek environment had no GitHub access;
+2. second attempt: `BLOCKED` because only manifest/hash evidence was supplied;
+3. sealed-source audit against head
+   `2837d0fed324cc47f9eaf0b86a5698eb4db1cd17`: `FAIL`, with one blocking
+   finding `UMI12-ORACLE-GAP-1`;
+4. IA independently revalidated and accepted the finding;
+5. correction commit `bfea4cd24a58b45ddfc110d1e1aaa580789f2955`
+   adds complete owner-projection oracles;
+6. this ledger correction follows, so the resulting candidate head requires a
+   fresh DeepSeek Coder audit.
+
+Current evidence therefore claims neither PASS nor FAIL for the new final head:
+
+`DEEPSEEK CODER = REQUIRED / RE-AUDIT PENDING`
 
 `DEEPSEEK EXPERT = NOT REQUIRED ON CURRENT EVIDENCE`
 
@@ -235,7 +284,7 @@ No exact-candidate QORE CI result is claimed by this artifact.
 
 ## 10. Gate state
 
-At publication of this Gate B correction:
+At publication of this corrected Gate B evidence:
 
 ```text
 GATE A = COMPLETE / CONSUMED
@@ -244,7 +293,8 @@ GATE B =
 ACTIVE
 OWNER-LOCAL CORRECTION PRESENT
 PRODUCTION MUTATION = ZERO
-DEEPSEEK CODER = REQUIRED / PENDING
+UMI12-ORACLE-GAP-1 = CORRECTION PRESENT / RE-AUDIT PENDING
+DEEPSEEK CODER = REQUIRED / RE-AUDIT PENDING
 NOT COMPLETE / NOT CONSUMED
 
 GATE C = NOT AVAILABLE / NOT AUTHORIZED
