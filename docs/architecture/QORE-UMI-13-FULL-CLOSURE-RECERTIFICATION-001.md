@@ -93,7 +93,7 @@ classification only; it is not operational/provider/production capability.
 | `commodities` | PARTIAL | UMI-07 ownership remains; specialized commodity semantics remain outside current main |
 | `crypto-digital-assets` | PARTIAL | UMI-08 ownership remains; staking/yield/tokenization qualification remains |
 | `structured-hybrid-products` | PARTIAL | UMI-09 bounded composition remains; product-specific/Sukuk/ILS remainder remains |
-| `volatility-variance-products` | PARTIAL | observation/generic derivative support exists; dedicated variance/correlation contract semantics remain |
+| `volatility-variance-products` | UNRESOLVED | implied-volatility observation and generic derivative support do not establish a current-main tradeable volatility/variance/correlation contract owner; PR #393 remains draft/unmerged |
 | `securities-financing` | UNRESOLVED | no current-main dedicated certified owner established by this recertification |
 | `cross-asset-compositions` | PARTIAL | bounded UMI-05/UMI-09 composition exists; product-specific composition remains |
 | `event-contracts` | UNRESOLVED | no current-main dedicated certified owner established by this recertification |
