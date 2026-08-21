@@ -355,14 +355,21 @@ def _nav_measure(value: str = "25.5") -> valuation.FundNavMeasure:
     )
 
 
+_NAV_CANONICAL: dict[str, str] = {
+    "24.5": "24.5",
+    "25": "25",
+    "25.25": "25.25",
+    "25.5": "25.5",
+    "26": "26",
+    "27": "27",
+    "28": "28",
+}
+
+
 def _nav_material(value: str = "25.5") -> tuple[object, ...]:
-    canonical_value = format(
-        Decimal(0) if Decimal(value) == 0 else Decimal(value).normalize(),
-        "f",
-    )
     return (
         "fund-nav",
-        (canonical_value,),
+        (_NAV_CANONICAL[value],),
         (
             _uuid_material(701),
             _uuid_material(702),
@@ -503,18 +510,26 @@ def test_full_closure_local_uuid_material_requires_exact_uuid_type() -> None:
     assert isinstance(forged, UUID)
     assert str(forged) == "forged-noncanonical-uuid-material"
 
-    wrappers = (
-        valuation.ValuationObservationId,
-        valuation.ValuationEvidenceRef,
-        valuation.ValuationSourceObservationId,
-        valuation.ValuationSourceEvidenceRef,
-    )
-    for wrapper in wrappers:
-        with pytest.raises(
-            valuation.UniversalValuationObservationValidationError,
-            match="UUID",
-        ):
-            wrapper(forged)
+    with pytest.raises(
+        valuation.UniversalValuationObservationValidationError,
+        match="UUID",
+    ):
+        valuation.ValuationObservationId(forged)
+    with pytest.raises(
+        valuation.UniversalValuationObservationValidationError,
+        match="UUID",
+    ):
+        valuation.ValuationEvidenceRef(forged)
+    with pytest.raises(
+        valuation.UniversalValuationObservationValidationError,
+        match="UUID",
+    ):
+        valuation.ValuationSourceObservationId(forged)
+    with pytest.raises(
+        valuation.UniversalValuationObservationValidationError,
+        match="UUID",
+    ):
+        valuation.ValuationSourceEvidenceRef(forged)
 
 
 def test_full_closure_temporal_projections_are_literal_and_offset_canonical() -> None:
@@ -784,7 +799,8 @@ def test_full_closure_published_and_observed_projection_is_complete_and_offset_s
     )
 
 
-def test_full_closure_computed_provenance_uses_independent_sorted_material_and_fingerprint() -> None:
+def test_full_closure_computed_provenance_uses_independent_sorted_material_and_fingerprint(
+) -> None:
     source_a = _published(
         source_seed=51,
         binding_seed=51,
@@ -991,6 +1007,7 @@ def test_full_closure_three_residual_guards_are_structural_not_coverage_targets(
             roles=(crypto.CryptoPerpetualPriceRole.MARK_PRICE,),
             evidence_ref=crypto.CryptoEvidenceRef(_uuid(9221)),
         )
+
 
 def test_full_closure_reachable_measure_type_guards_fail_closed_directly() -> None:
     yield_convention = _yield_convention()
