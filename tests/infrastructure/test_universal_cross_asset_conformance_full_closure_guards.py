@@ -82,6 +82,7 @@ def _file_imports(path: Path) -> tuple[str, ...]:
 
 
 def test_full_closure_owner_universe_includes_mandatory_carry_forward() -> None:
+    assert len(_OWNER_MODULE_NAMES) == 14
     assert _OWNER_MODULE_NAMES[-3:] == _MANDATORY_CARRY_FORWARD_MODULES
 
 
