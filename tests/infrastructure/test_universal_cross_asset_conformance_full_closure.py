@@ -149,6 +149,10 @@ def test_exotic_carry_forward_retains_digital_and_asian_semantics() -> None:
     )
 
     assert asian.averaging_period_in is not None
+    observation_dates: list[str] = []
+    for observation in asian.averaging_period_in.explicit_observations:
+        assert isinstance(observation.locator, exotic.AsianAveragingLiteralDate)
+        observation_dates.append(observation.locator.value.isoformat())
 
     payout_material = (
         payout.kind.value,
@@ -160,10 +164,7 @@ def test_exotic_carry_forward_retains_digital_and_asian_semantics() -> None:
     asian_material = (
         asian.averaging_role.value,
         asian.averaging_method.value,
-        tuple(
-            observation.locator.value.isoformat()
-            for observation in asian.averaging_period_in.explicit_observations
-        ),
+        tuple(observation_dates),
         asian.averaging_period_out,
         asian.fixed_strike,
         str(asian.strike_factor),
