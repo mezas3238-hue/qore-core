@@ -21,7 +21,7 @@ CURRENT_FAMILY_COVERAGE: tuple[tuple[str, str], ...] = (
     ("commodities", "partial"),
     ("crypto-digital-assets", "partial"),
     ("structured-hybrid-products", "partial"),
-    ("volatility-variance-products", "partial"),
+    ("volatility-variance-products", "unresolved"),
     ("securities-financing", "unresolved"),
     ("cross-asset-compositions", "partial"),
     ("event-contracts", "unresolved"),
@@ -161,6 +161,7 @@ def test_current_coverage_statuses_preserve_partial_vs_unresolved_distinction() 
         "contracts-for-difference",
         "event-contracts",
         "securities-financing",
+        "volatility-variance-products",
     }
 
 
