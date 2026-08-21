@@ -106,6 +106,43 @@ def test_fx_carry_forward_retains_pair_direction_and_currency_roles() -> None:
         "currency1-per-currency2",
         "00000000-0000-0000-0000-000000000106",
     )
+    assert spot.logical_values() == (
+        "fx-spot-terms",
+        ("00000000-0000-0000-0000-000000000104",),
+        ("00000000-0000-0000-0000-000000000105",),
+        (
+            "fx-quoted-currency-pair",
+            ("00000000-0000-0000-0000-000000000100",),
+            ("00000000-0000-0000-0000-000000000101",),
+            ("00000000-0000-0000-0000-000000000102",),
+            "currency1-per-currency2",
+            ("00000000-0000-0000-0000-000000000103",),
+        ),
+        (
+            (
+                "pay",
+                (
+                    "100",
+                    ("00000000-0000-0000-0000-000000000101",),
+                ),
+            ),
+            (
+                "receive",
+                (
+                    "110",
+                    ("00000000-0000-0000-0000-000000000102",),
+                ),
+            ),
+        ),
+        ("2026-08-24", "2026-08-24"),
+        (
+            "fx-exchange-rate",
+            "1.1",
+            ("00000000-0000-0000-0000-000000000100",),
+            "currency1-per-currency2",
+        ),
+        ("00000000-0000-0000-0000-000000000106",),
+    )
 
 
 def test_exotic_carry_forward_retains_digital_and_asian_semantics() -> None:
@@ -185,6 +222,45 @@ def test_exotic_carry_forward_retains_digital_and_asian_semantics() -> None:
         None,
         "1.1",
     )
+    assert payout.logical_values() == (
+        "cash",
+        (
+            "10",
+            ("00000000-0000-0000-0000-000000000200",),
+        ),
+        "deferred",
+        ("00000000-0000-0000-0000-000000000201",),
+    )
+    assert asian.logical_values() == (
+        "asian-option",
+        ("00000000-0000-0000-0000-000000000202",),
+        ("00000000-0000-0000-0000-000000000203",),
+        ("00000000-0000-0000-0000-000000000204",),
+        ("00000000-0000-0000-0000-000000000205",),
+        "call",
+        "2026-12-18",
+        ("european", None, ()),
+        "cash",
+        ("00000000-0000-0000-0000-000000000206",),
+        "in",
+        ("arithmetic",),
+        (
+            (
+                (("literal-date", "2026-10-01"), None),
+                (("literal-date", "2026-10-02"), None),
+            ),
+            (),
+            "unweighted",
+        ),
+        None,
+        None,
+        "1.1",
+        None,
+        (
+            "1000",
+            ("00000000-0000-0000-0000-000000000205",),
+        ),
+    )
 
 
 def test_securitization_carry_forward_retains_fixed_contract_roles() -> None:
@@ -227,6 +303,17 @@ def test_securitization_carry_forward_retains_fixed_contract_roles() -> None:
         12,
         "1000000",
     )
+    assert metric.logical_values() == (
+        "cumulative-realized-loss-ratio",
+        ("00000000-0000-0000-0000-000000000300",),
+        "aggregate-realized-losses-from-cutoff-through-measurement-period",
+        "cutoff-date-pool-balance",
+        "cumulative-from-cutoff",
+        "none-aggregation",
+        ("00000000-0000-0000-0000-000000000301",),
+    )
+    assert fraction.logical_values() == ("1", "12")
+    assert balance.logical_values() == ("1000000",)
 
 
 def test_equal_decimal_does_not_flatten_new_owner_semantics() -> None:
