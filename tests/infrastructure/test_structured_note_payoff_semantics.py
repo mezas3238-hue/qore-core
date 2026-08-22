@@ -350,14 +350,17 @@ def test_branch_runtime_and_collection_guards(
     overrides: dict[str, Any],
     message: str,
 ) -> None:
+    values: dict[str, Any] = {
+        "branch_id": note.StructuredNotePayoffBranchId(UUID(int=301)),
+        "ordinal": 1,
+        "condition_mode": note.StructuredNoteConditionMode.ALL,
+        "condition_feature_ids": (_feature_id(201),),
+        "outcome": _outcome(note.StructuredNoteOutcomeKind.REDEMPTION),
+        "evidence_ref": _evidence(401),
+    }
+    values.update(overrides)
     with pytest.raises(note.StructuredNotePayoffValidationError, match=message):
-        _branch(
-            1,
-            condition_ids=(201,),
-            mode=note.StructuredNoteConditionMode.ALL,
-            kind=note.StructuredNoteOutcomeKind.REDEMPTION,
-            **overrides,
-        )
+        note.StructuredNotePayoffBranch(**values)
 
 
 def test_fallback_and_conditional_branch_shapes_fail_closed() -> None:
