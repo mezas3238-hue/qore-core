@@ -611,3 +611,260 @@ def test_logical_values_are_deterministic_under_caller_order() -> None:
     first = _terms()
     second = _terms(branches=tuple(reversed(first.branches)))
     assert first.logical_values() == second.logical_values()
+
+
+def _participation_selection(
+    *feature_ids: int,
+) -> note.StructuredNoteParticipationSelection:
+    return note.StructuredNoteParticipationSelection(
+        kind=note.StructuredNoteParticipationSelectionKind.WORST_PERFORMING_BY_RETURN,
+        candidate_feature_ids=tuple(_feature_id(value) for value in feature_ids),
+    )
+
+
+def _structured_terms_with_participation_candidates(
+    *,
+    same_reference: bool = False,
+) -> structured.StructuredHybridSyntheticTerms:
+    base = _structured_terms()
+    reference_a = _economic_id(2)
+    reference_b = reference_a if same_reference else _economic_id(3)
+    candidate_features: tuple[structured.StructuredFeature, ...] = (
+        structured.StructuredParticipationFeature(
+            feature_id=_feature_id(207),
+            reference_identity_id=reference_a,
+            direction=structured.StructuredParticipationDirection.POSITIVE,
+            participation_ratio=structured.StructuredPositiveRatio(Decimal("1")),
+            evidence_ref=_evidence(207),
+        ),
+        structured.StructuredParticipationFeature(
+            feature_id=_feature_id(208),
+            reference_identity_id=reference_b,
+            direction=structured.StructuredParticipationDirection.POSITIVE,
+            participation_ratio=structured.StructuredPositiveRatio(Decimal("1")),
+            evidence_ref=_evidence(208),
+        ),
+    )
+    return structured.StructuredHybridSyntheticTerms(
+        terms_id=base.terms_id,
+        instrument_identity_id=base.instrument_identity_id,
+        components=base.components,
+        features=base.features + candidate_features,
+        evidence_ref=base.evidence_ref,
+    )
+
+
+@pytest.mark.parametrize(
+    ("factory", "message"),
+    [
+        (
+            lambda: note.StructuredNoteParticipationSelection(
+                kind=cast(Any, "worst-performing-by-return"),
+                candidate_feature_ids=(_feature_id(207), _feature_id(208)),
+            ),
+            "selection kind",
+        ),
+        (
+            lambda: note.StructuredNoteParticipationSelection(
+                kind=(
+                    note.StructuredNoteParticipationSelectionKind.WORST_PERFORMING_BY_RETURN
+                ),
+                candidate_feature_ids=cast(
+                    Any,
+                    [_feature_id(207), _feature_id(208)],
+                ),
+            ),
+            "immutable tuple",
+        ),
+        (
+            lambda: _participation_selection(207),
+            "at least two candidates",
+        ),
+        (
+            lambda: note.StructuredNoteParticipationSelection(
+                kind=(
+                    note.StructuredNoteParticipationSelectionKind.WORST_PERFORMING_BY_RETURN
+                ),
+                candidate_feature_ids=(_feature_id(207), cast(Any, "bad")),
+            ),
+            "StructuredFeatureId",
+        ),
+        (
+            lambda: _participation_selection(207, 207),
+            "candidate ids must be unique",
+        ),
+    ],
+)
+def test_participation_selection_runtime_and_collection_guards(
+    factory: Any,
+    message: str,
+) -> None:
+    with pytest.raises(note.StructuredNotePayoffValidationError, match=message):
+        factory()
+
+
+def test_worst_performing_selection_is_static_and_canonical() -> None:
+    selection = _participation_selection(208, 207)
+    assert selection.candidate_feature_ids == (_feature_id(207), _feature_id(208))
+    assert selection.logical_values() == (
+        "worst-performing-by-return",
+        (
+            (str(UUID(int=207)),),
+            (str(UUID(int=208)),),
+        ),
+    )
+
+
+def test_outcome_rejects_raw_or_ambiguous_participation_selection() -> None:
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="participation_selection",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+            participation_selection=cast(Any, "bad"),
+        )
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="direct feature or selection",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+            participation_feature_id=_feature_id(205),
+            participation_selection=_participation_selection(207, 208),
+        )
+
+
+def test_worst_performing_selection_resolves_exact_umi09_participation_candidates() -> None:
+    structured_terms = _structured_terms_with_participation_candidates()
+    selected_outcome = note.StructuredNotePayoffOutcome(
+        kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        participation_selection=_participation_selection(208, 207),
+    )
+    first = _branch(
+        1,
+        condition_ids=(202, 203),
+        mode=note.StructuredNoteConditionMode.ANY,
+        kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        outcome=selected_outcome,
+    )
+    terms = _terms(
+        structured_terms=structured_terms,
+        branches=(
+            first,
+            _branch(
+                2,
+                condition_ids=(),
+                mode=None,
+                kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+            ),
+        ),
+    )
+    assert terms.branches[0].outcome.participation_selection == _participation_selection(
+        207,
+        208,
+    )
+
+
+@pytest.mark.parametrize("candidate_ids", [(207, 999), (201, 207)])
+def test_participation_selection_candidates_must_resolve_to_participation_features(
+    candidate_ids: tuple[int, int],
+) -> None:
+    selected_outcome = note.StructuredNotePayoffOutcome(
+        kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        participation_selection=_participation_selection(*candidate_ids),
+    )
+    first = _branch(
+        1,
+        condition_ids=(202,),
+        mode=note.StructuredNoteConditionMode.ALL,
+        kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        outcome=selected_outcome,
+    )
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="selection candidate must resolve to StructuredParticipationFeature",
+    ):
+        _terms(
+            structured_terms=_structured_terms_with_participation_candidates(),
+            branches=(
+                first,
+                _branch(
+                    2,
+                    condition_ids=(),
+                    mode=None,
+                    kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+                ),
+            ),
+        )
+
+
+def test_worst_performing_selection_requires_distinct_underlying_identities() -> None:
+    selected_outcome = note.StructuredNotePayoffOutcome(
+        kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        participation_selection=_participation_selection(207, 208),
+    )
+    first = _branch(
+        1,
+        condition_ids=(202,),
+        mode=note.StructuredNoteConditionMode.ALL,
+        kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        outcome=selected_outcome,
+    )
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="distinct underlying identities",
+    ):
+        _terms(
+            structured_terms=_structured_terms_with_participation_candidates(
+                same_reference=True
+            ),
+            branches=(
+                first,
+                _branch(
+                    2,
+                    condition_ids=(),
+                    mode=None,
+                    kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+                ),
+            ),
+        )
+
+
+def test_singleton_any_canonicalizes_to_all() -> None:
+    branch = _branch(
+        1,
+        condition_ids=(201,),
+        mode=note.StructuredNoteConditionMode.ANY,
+        kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+    )
+    assert branch.condition_mode is note.StructuredNoteConditionMode.ALL
+    assert branch.logical_values()[2] == "all"
+
+
+def test_singleton_all_and_any_collapse_to_duplicate_signature() -> None:
+    branches = (
+        _branch(
+            1,
+            condition_ids=(201,),
+            mode=note.StructuredNoteConditionMode.ALL,
+            kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+        ),
+        _branch(
+            2,
+            condition_ids=(201,),
+            mode=note.StructuredNoteConditionMode.ANY,
+            kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        ),
+        _branch(
+            3,
+            condition_ids=(),
+            mode=None,
+            kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+        ),
+    )
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="signatures must be unique",
+    ):
+        _terms(branches=branches)
