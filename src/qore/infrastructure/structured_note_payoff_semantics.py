@@ -300,29 +300,37 @@ class StructuredNotePayoffTerms:
 
         for branch in self.branches:
             for feature_id in branch.condition_feature_ids:
-                feature = features_by_id.get(feature_id)
-                if not isinstance(feature, StructuredBarrierFeature):
+                condition_feature = features_by_id.get(feature_id)
+                if not isinstance(condition_feature, StructuredBarrierFeature):
                     raise StructuredNotePayoffValidationError(
                         "structured-note condition feature must resolve to StructuredBarrierFeature"
                     )
             outcome = branch.outcome
             if outcome.redemption_feature_id is not None:
-                feature = features_by_id.get(outcome.redemption_feature_id)
-                if not isinstance(feature, StructuredRedemptionFeature):
+                redemption_feature = features_by_id.get(outcome.redemption_feature_id)
+                if not isinstance(redemption_feature, StructuredRedemptionFeature):
                     raise StructuredNotePayoffValidationError(
-                        "structured-note redemption outcome must resolve to StructuredRedemptionFeature"
+                        "structured-note redemption outcome must resolve to "
+                        "StructuredRedemptionFeature"
                     )
             if outcome.participation_feature_id is not None:
-                feature = features_by_id.get(outcome.participation_feature_id)
-                if not isinstance(feature, StructuredParticipationFeature):
+                participation_feature = features_by_id.get(
+                    outcome.participation_feature_id
+                )
+                if not isinstance(
+                    participation_feature,
+                    StructuredParticipationFeature,
+                ):
                     raise StructuredNotePayoffValidationError(
-                        "structured-note participation outcome must resolve to StructuredParticipationFeature"
+                        "structured-note participation outcome must resolve to "
+                        "StructuredParticipationFeature"
                     )
             if outcome.conversion_feature_id is not None:
-                feature = features_by_id.get(outcome.conversion_feature_id)
-                if not isinstance(feature, StructuredConversionFeature):
+                conversion_feature = features_by_id.get(outcome.conversion_feature_id)
+                if not isinstance(conversion_feature, StructuredConversionFeature):
                     raise StructuredNotePayoffValidationError(
-                        "structured-note conversion outcome must resolve to StructuredConversionFeature"
+                        "structured-note conversion outcome must resolve to "
+                        "StructuredConversionFeature"
                     )
 
         if not isinstance(self.evidence_ref, StructuredEvidenceRef):
