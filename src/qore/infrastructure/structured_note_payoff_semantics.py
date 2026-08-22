@@ -179,7 +179,8 @@ class StructuredNotePayoffOutcome:
         has_participation_selection = self.participation_selection is not None
         if has_direct_participation and has_participation_selection:
             raise StructuredNotePayoffValidationError(
-                "structured-note participation outcome must use direct feature or selection, not both"
+                "structured-note participation outcome must use direct feature or "
+                "selection, not both"
             )
         has_participation = has_direct_participation or has_participation_selection
         has_conversion = self.conversion_feature_id is not None
