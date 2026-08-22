@@ -75,6 +75,61 @@ class StructuredNoteOutcomeKind(StrEnum):
     CONVERSION = "conversion"
 
 
+class StructuredNoteParticipationSelectionKind(StrEnum):
+    """Static rule for selecting one participation input without evaluating it."""
+
+    WORST_PERFORMING_BY_RETURN = "worst-performing-by-return"
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredNoteParticipationSelection:
+    """Static participation-input selector; D07 resolves observed returns."""
+
+    kind: StructuredNoteParticipationSelectionKind
+    candidate_feature_ids: tuple[StructuredFeatureId, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.kind, StructuredNoteParticipationSelectionKind):
+            raise StructuredNotePayoffValidationError(
+                "structured-note participation selection kind must be "
+                "StructuredNoteParticipationSelectionKind"
+            )
+        if type(self.candidate_feature_ids) is not tuple:
+            raise StructuredNotePayoffValidationError(
+                "structured-note participation selection candidates must be an immutable tuple"
+            )
+        if len(self.candidate_feature_ids) < 2:
+            raise StructuredNotePayoffValidationError(
+                "worst-performing participation selection requires at least two candidates"
+            )
+        for feature_id in self.candidate_feature_ids:
+            if not isinstance(feature_id, StructuredFeatureId):
+                raise StructuredNotePayoffValidationError(
+                    "structured-note participation selection candidates must contain "
+                    "StructuredFeatureId"
+                )
+        if len(set(self.candidate_feature_ids)) != len(self.candidate_feature_ids):
+            raise StructuredNotePayoffValidationError(
+                "structured-note participation selection candidate ids must be unique"
+            )
+        object.__setattr__(
+            self,
+            "candidate_feature_ids",
+            tuple(
+                sorted(
+                    self.candidate_feature_ids,
+                    key=lambda feature_id: str(feature_id.value),
+                )
+            ),
+        )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.kind.value,
+            tuple(feature_id.logical_values() for feature_id in self.candidate_feature_ids),
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class StructuredNotePayoffOutcome:
     """One static branch outcome; no payoff calculation or settlement mutation."""
@@ -83,6 +138,7 @@ class StructuredNotePayoffOutcome:
     redemption_feature_id: StructuredFeatureId | None = None
     participation_feature_id: StructuredFeatureId | None = None
     conversion_feature_id: StructuredFeatureId | None = None
+    participation_selection: StructuredNoteParticipationSelection | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.kind, StructuredNoteOutcomeKind):
@@ -110,9 +166,22 @@ class StructuredNotePayoffOutcome:
             raise StructuredNotePayoffValidationError(
                 "conversion_feature_id must be StructuredFeatureId or None"
             )
+        if self.participation_selection is not None and not isinstance(
+            self.participation_selection,
+            StructuredNoteParticipationSelection,
+        ):
+            raise StructuredNotePayoffValidationError(
+                "participation_selection must be StructuredNoteParticipationSelection or None"
+            )
 
         has_redemption = self.redemption_feature_id is not None
-        has_participation = self.participation_feature_id is not None
+        has_direct_participation = self.participation_feature_id is not None
+        has_participation_selection = self.participation_selection is not None
+        if has_direct_participation and has_participation_selection:
+            raise StructuredNotePayoffValidationError(
+                "structured-note participation outcome must use direct feature or selection, not both"
+            )
+        has_participation = has_direct_participation or has_participation_selection
         has_conversion = self.conversion_feature_id is not None
 
         if self.kind is StructuredNoteOutcomeKind.REDEMPTION:
@@ -130,14 +199,20 @@ class StructuredNotePayoffOutcome:
             )
 
     def logical_values(self) -> tuple[object, ...]:
+        if self.participation_feature_id is not None:
+            participation_material: object | None = (
+                self.participation_feature_id.logical_values()
+            )
+        elif self.participation_selection is not None:
+            participation_material = self.participation_selection.logical_values()
+        else:
+            participation_material = None
         return (
             self.kind.value,
             self.redemption_feature_id.logical_values()
             if self.redemption_feature_id is not None
             else None,
-            self.participation_feature_id.logical_values()
-            if self.participation_feature_id is not None
-            else None,
+            participation_material,
             self.conversion_feature_id.logical_values()
             if self.conversion_feature_id is not None
             else None,
@@ -204,6 +279,12 @@ class StructuredNotePayoffBranch:
                     )
                 ),
             )
+            if len(self.condition_feature_ids) == 1:
+                object.__setattr__(
+                    self,
+                    "condition_mode",
+                    StructuredNoteConditionMode.ALL,
+                )
         if not isinstance(self.outcome, StructuredNotePayoffOutcome):
             raise StructuredNotePayoffValidationError(
                 "structured-note outcome must be StructuredNotePayoffOutcome"
@@ -324,6 +405,25 @@ class StructuredNotePayoffTerms:
                     raise StructuredNotePayoffValidationError(
                         "structured-note participation outcome must resolve to "
                         "StructuredParticipationFeature"
+                    )
+            if outcome.participation_selection is not None:
+                selected_participation_features: list[StructuredParticipationFeature] = []
+                for feature_id in outcome.participation_selection.candidate_feature_ids:
+                    selected_feature = features_by_id.get(feature_id)
+                    if not isinstance(selected_feature, StructuredParticipationFeature):
+                        raise StructuredNotePayoffValidationError(
+                            "structured-note participation selection candidate must resolve to "
+                            "StructuredParticipationFeature"
+                        )
+                    selected_participation_features.append(selected_feature)
+                reference_identity_ids = tuple(
+                    feature.reference_identity_id
+                    for feature in selected_participation_features
+                )
+                if len(set(reference_identity_ids)) != len(reference_identity_ids):
+                    raise StructuredNotePayoffValidationError(
+                        "worst-performing participation selection candidates must reference "
+                        "distinct underlying identities"
                     )
             if outcome.conversion_feature_id is not None:
                 conversion_feature = features_by_id.get(outcome.conversion_feature_id)
