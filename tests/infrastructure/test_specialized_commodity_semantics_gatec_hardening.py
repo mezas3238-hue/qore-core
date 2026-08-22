@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -46,9 +45,6 @@ from qore.infrastructure.specialized_commodity_semantics import (
     WeatherSettlementLevelCode,
 )
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
-
-
-InvalidFactory = Callable[[], object]
 
 
 def _uuid(value: int) -> UUID:
@@ -107,7 +103,7 @@ def _eligibility() -> EnvironmentalVintageEligibility:
     )
 
 
-def _assert_invalid(*factories: InvalidFactory) -> None:
+def _assert_invalid(*factories: Any) -> None:
     for factory in factories:
         with pytest.raises(SpecializedCommodityValidationError):
             factory()
@@ -134,14 +130,10 @@ def test_electricity_quantity_steps_reject_duplicate_dates_and_mixed_units() -> 
             (ElectricitySettlementPeriodCode("all-hours"),),
             (
                 ElectricityQuantityStep(
-                    date(2027, 1, 1),
-                    Decimal("100"),
-                    _identity(12),
+                    date(2027, 1, 1), Decimal("100"), _identity(12)
                 ),
                 ElectricityQuantityStep(
-                    date(2027, 1, 1),
-                    Decimal("80"),
-                    _identity(12),
+                    date(2027, 1, 1), Decimal("80"), _identity(12)
                 ),
             ),
         )
@@ -151,14 +143,10 @@ def test_electricity_quantity_steps_reject_duplicate_dates_and_mixed_units() -> 
             (ElectricitySettlementPeriodCode("all-hours"),),
             (
                 ElectricityQuantityStep(
-                    date(2027, 1, 1),
-                    Decimal("100"),
-                    _identity(12),
+                    date(2027, 1, 1), Decimal("100"), _identity(12)
                 ),
                 ElectricityQuantityStep(
-                    date(2027, 1, 15),
-                    Decimal("80"),
-                    _identity(99),
+                    date(2027, 1, 15), Decimal("80"), _identity(99)
                 ),
             ),
         )
@@ -171,10 +159,7 @@ def test_electricity_structural_guards_are_mutation_protected() -> None:
     delivery = _delivery()
     profile = _profile()
     _assert_invalid(
-        lambda: ElectricityDeliveryProfile(
-            cast(ElectricityLoadType, "base"),
-            (period,),
-        ),
+        lambda: ElectricityDeliveryProfile(cast(ElectricityLoadType, "base"), (period,)),
         lambda: ElectricityDeliveryProfile(
             ElectricityLoadType.BASE,
             cast(tuple[ElectricitySettlementPeriodCode, ...], [period]),
@@ -240,10 +225,7 @@ def test_freight_structural_guards_are_mutation_protected() -> None:
     worldscale = FreightWorldscalePoints(Decimal("100"))
     rate = FreightContractRate(Decimal("15"), _identity(44))
     _assert_invalid(
-        lambda: FreightContractRate(
-            Decimal("15"),
-            cast(EconomicIdentityId, object()),
-        ),
+        lambda: FreightContractRate(Decimal("15"), cast(EconomicIdentityId, object())),
         lambda: FreightContractRate(Decimal("-1"), _identity(44)),
         lambda: FreightTerms(
             cast(CommodityTermsId, object()),
@@ -320,22 +302,18 @@ def test_freight_structural_guards_are_mutation_protected() -> None:
 
 def test_weather_structural_guards_are_mutation_protected() -> None:
     reference_level = WeatherReferenceLevel(
-        Decimal("65"),
-        WeatherLevelUnitCode("degree-days"),
+        Decimal("65"), WeatherLevelUnitCode("degree-days")
     )
     notional = WeatherNotionalPerIndexUnit(Decimal("20"), _identity(53))
     _assert_invalid(
         lambda: WeatherReferenceLevel(
-            Decimal("65"),
-            cast(WeatherLevelUnitCode, object()),
+            Decimal("65"), cast(WeatherLevelUnitCode, object())
         ),
         lambda: WeatherReferenceLevel(
-            cast(Decimal, 65),
-            WeatherLevelUnitCode("degree-days"),
+            cast(Decimal, 65), WeatherLevelUnitCode("degree-days")
         ),
         lambda: WeatherNotionalPerIndexUnit(
-            Decimal("20"),
-            cast(EconomicIdentityId, object()),
+            Decimal("20"), cast(EconomicIdentityId, object())
         ),
         lambda: WeatherIndexTerms(
             cast(CommodityTermsId, object()),
