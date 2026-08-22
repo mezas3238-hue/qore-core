@@ -41,6 +41,40 @@ def _evidence(value: int) -> CommodityEvidenceRef:
     return CommodityEvidenceRef(UUID(f"00000000-0000-0000-0000-{value:012d}"))
 
 
+def _freight(start_date: date, end_date: date) -> FreightTerms:
+    return FreightTerms(
+        terms_id=_terms_id(40),
+        instrument_identity_id=_identity(41),
+        route_identity_id=_identity(42),
+        kind=FreightTransactionKind.WET_VOYAGE_CHARTER,
+        calculation_start_date=start_date,
+        calculation_end_date=end_date,
+        evidence_ref=_evidence(43),
+        worldscale_points=FreightWorldscalePoints(Decimal("100")),
+    )
+
+
+def _weather(start_date: date, end_date: date) -> WeatherIndexTerms:
+    return WeatherIndexTerms(
+        terms_id=_terms_id(50),
+        instrument_identity_id=_identity(51),
+        station_identity_id=_identity(52),
+        index_code=WeatherIndexCode("hdd"),
+        calculation_start_date=start_date,
+        calculation_end_date=end_date,
+        reference_level=WeatherReferenceLevel(
+            Decimal("65"),
+            WeatherLevelUnitCode("degree-days"),
+        ),
+        settlement_level=WeatherSettlementLevelCode("cumulative"),
+        notional_per_index_unit=WeatherNotionalPerIndexUnit(
+            Decimal("20"),
+            _identity(53),
+        ),
+        evidence_ref=_evidence(54),
+    )
+
+
 def test_all_electricity_load_types_are_distinct_logical_material() -> None:
     profiles = tuple(
         ElectricityDeliveryProfile(
@@ -66,45 +100,25 @@ def test_all_electricity_load_types_are_distinct_logical_material() -> None:
     assert len({profile.logical_values() for profile in profiles}) == 5
 
 
-@pytest.mark.parametrize("field_name", ("calculation_start_date", "calculation_end_date"))
-def test_freight_calculation_dates_reject_datetime_values(field_name: str) -> None:
-    kwargs: dict[str, object] = {
-        "terms_id": _terms_id(40),
-        "instrument_identity_id": _identity(41),
-        "route_identity_id": _identity(42),
-        "kind": FreightTransactionKind.WET_VOYAGE_CHARTER,
-        "calculation_start_date": date(2027, 2, 1),
-        "calculation_end_date": date(2027, 2, 28),
-        "evidence_ref": _evidence(43),
-        "worldscale_points": FreightWorldscalePoints(Decimal("100")),
-    }
-    kwargs[field_name] = cast(date, datetime(2027, 2, 15, 12, 0))
-
+def test_freight_calculation_start_date_rejects_datetime() -> None:
+    invalid = cast(date, datetime(2027, 2, 15, 12, 0))
     with pytest.raises(SpecializedCommodityValidationError, match="must be date"):
-        FreightTerms(**kwargs)  # type: ignore[arg-type]
+        _freight(invalid, date(2027, 2, 28))
 
 
-@pytest.mark.parametrize("field_name", ("calculation_start_date", "calculation_end_date"))
-def test_weather_calculation_dates_reject_datetime_values(field_name: str) -> None:
-    kwargs: dict[str, object] = {
-        "terms_id": _terms_id(50),
-        "instrument_identity_id": _identity(51),
-        "station_identity_id": _identity(52),
-        "index_code": WeatherIndexCode("hdd"),
-        "calculation_start_date": date(2027, 1, 1),
-        "calculation_end_date": date(2027, 1, 31),
-        "reference_level": WeatherReferenceLevel(
-            Decimal("65"),
-            WeatherLevelUnitCode("degree-days"),
-        ),
-        "settlement_level": WeatherSettlementLevelCode("cumulative"),
-        "notional_per_index_unit": WeatherNotionalPerIndexUnit(
-            Decimal("20"),
-            _identity(53),
-        ),
-        "evidence_ref": _evidence(54),
-    }
-    kwargs[field_name] = cast(date, datetime(2027, 1, 15, 12, 0))
-
+def test_freight_calculation_end_date_rejects_datetime() -> None:
+    invalid = cast(date, datetime(2027, 2, 15, 12, 0))
     with pytest.raises(SpecializedCommodityValidationError, match="must be date"):
-        WeatherIndexTerms(**kwargs)  # type: ignore[arg-type]
+        _freight(date(2027, 2, 1), invalid)
+
+
+def test_weather_calculation_start_date_rejects_datetime() -> None:
+    invalid = cast(date, datetime(2027, 1, 15, 12, 0))
+    with pytest.raises(SpecializedCommodityValidationError, match="must be date"):
+        _weather(invalid, date(2027, 1, 31))
+
+
+def test_weather_calculation_end_date_rejects_datetime() -> None:
+    invalid = cast(date, datetime(2027, 1, 15, 12, 0))
+    with pytest.raises(SpecializedCommodityValidationError, match="must be date"):
+        _weather(date(2027, 1, 1), invalid)
