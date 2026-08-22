@@ -256,7 +256,7 @@ class FreightWorldscalePoints:
     value: Decimal
 
     def __post_init__(self) -> None:
-        _finite(self.value, "freight Worldscale points")
+        _finite(self.value, "freight Worldscale points", non_negative=True)
 
     def logical_values(self) -> tuple[str, ...]:
         return (_decimal(self.value),)
