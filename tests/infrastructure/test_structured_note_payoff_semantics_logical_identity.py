@@ -572,3 +572,41 @@ def test_singleton_any_projection_canonicalizes_to_all_independently() -> None:
         _EXPECTED_OUTCOME_REDEMPTION,
         (str(UUID(int=1_801)),),
     )
+
+
+def test_multi_element_any_projection_remains_distinct_from_all_independently() -> None:
+    any_branch = note.StructuredNotePayoffBranch(
+        branch_id=note.StructuredNotePayoffBranchId(UUID(int=802)),
+        ordinal=1,
+        condition_mode=note.StructuredNoteConditionMode.ANY,
+        condition_feature_ids=(_feature_id(202), _feature_id(201)),
+        outcome=_outcome(note.StructuredNoteOutcomeKind.REDEMPTION),
+        evidence_ref=_evidence(1_802),
+    )
+    all_branch = note.StructuredNotePayoffBranch(
+        branch_id=note.StructuredNotePayoffBranchId(UUID(int=802)),
+        ordinal=1,
+        condition_mode=note.StructuredNoteConditionMode.ALL,
+        condition_feature_ids=(_feature_id(202), _feature_id(201)),
+        outcome=_outcome(note.StructuredNoteOutcomeKind.REDEMPTION),
+        evidence_ref=_evidence(1_802),
+    )
+    expected_any = (
+        (str(UUID(int=802)),),
+        1,
+        "any",
+        ((str(UUID(int=201)),), (str(UUID(int=202)),)),
+        _EXPECTED_OUTCOME_REDEMPTION,
+        (str(UUID(int=1_802)),),
+    )
+    expected_all = (
+        (str(UUID(int=802)),),
+        1,
+        "all",
+        ((str(UUID(int=201)),), (str(UUID(int=202)),)),
+        _EXPECTED_OUTCOME_REDEMPTION,
+        (str(UUID(int=1_802)),),
+    )
+    assert any_branch.logical_values() == expected_any
+    assert all_branch.logical_values() == expected_all
+    assert expected_any != expected_all
