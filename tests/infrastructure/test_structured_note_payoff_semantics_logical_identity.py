@@ -385,11 +385,18 @@ def test_exact_dataclass_field_surface_is_frozen() -> None:
     assert tuple(field.name for field in fields(note.StructuredNotePayoffBranchId)) == (
         "value",
     )
+    assert tuple(
+        field.name for field in fields(note.StructuredNoteParticipationSelection)
+    ) == (
+        "kind",
+        "candidate_feature_ids",
+    )
     assert tuple(field.name for field in fields(note.StructuredNotePayoffOutcome)) == (
         "kind",
         "redemption_feature_id",
         "participation_feature_id",
         "conversion_feature_id",
+        "participation_selection",
     )
     assert tuple(field.name for field in fields(note.StructuredNotePayoffBranch)) == (
         "branch_id",
@@ -515,4 +522,53 @@ def test_condition_set_and_branch_order_are_canonical_without_expected_side_sut(
             ),
         ),
         (str(UUID(int=777)),),
+    )
+
+
+def test_worst_performing_selection_projection_is_independently_reconstructed() -> None:
+    selection = note.StructuredNoteParticipationSelection(
+        kind=note.StructuredNoteParticipationSelectionKind.WORST_PERFORMING_BY_RETURN,
+        candidate_feature_ids=(_feature_id(208), _feature_id(207)),
+    )
+    assert selection.logical_values() == (
+        "worst-performing-by-return",
+        (
+            (str(UUID(int=207)),),
+            (str(UUID(int=208)),),
+        ),
+    )
+    outcome = note.StructuredNotePayoffOutcome(
+        kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        participation_selection=selection,
+    )
+    assert outcome.logical_values() == (
+        "participation",
+        None,
+        (
+            "worst-performing-by-return",
+            (
+                (str(UUID(int=207)),),
+                (str(UUID(int=208)),),
+            ),
+        ),
+        None,
+    )
+
+
+def test_singleton_any_projection_canonicalizes_to_all_independently() -> None:
+    branch = note.StructuredNotePayoffBranch(
+        branch_id=note.StructuredNotePayoffBranchId(UUID(int=801)),
+        ordinal=1,
+        condition_mode=note.StructuredNoteConditionMode.ANY,
+        condition_feature_ids=(_feature_id(201),),
+        outcome=_outcome(note.StructuredNoteOutcomeKind.REDEMPTION),
+        evidence_ref=_evidence(1_801),
+    )
+    assert branch.logical_values() == (
+        (str(UUID(int=801)),),
+        1,
+        "all",
+        ((str(UUID(int=201)),),),
+        _EXPECTED_OUTCOME_REDEMPTION,
+        (str(UUID(int=1_801)),),
     )
