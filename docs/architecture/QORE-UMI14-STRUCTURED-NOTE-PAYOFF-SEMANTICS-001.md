@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROGRAM D / UMI-14 — UNR-011 GATE-B ADDITIVE CORRECTION CANDIDATE**
+**PROGRAM D / UMI-14 — UNR-011 GATE-C R1 CORRECTION CANDIDATE — NOT CERTIFIED**
 
 Tracker: #434  
 Parent final audit: #363  
@@ -11,7 +11,7 @@ Target: `UMI13-UNR-011`
 Certified starting baseline: `4ba5ccfcad890350729e57783755391c33cdaa8a`  
 Starting tree: `ee86de15976c1ee13a15e7bcb16275a853fa79d0`
 
-This record defines the bounded D04 correction for product-specific structured-note conditional payoff qualification. It does not claim Gate C, certification, Ready, merge, UNR-011 closure, UMI14 closure, Program-D closure, Production, provider support, legal suitability, or real-capital authority.
+This record defines the bounded D04 correction for product-specific structured-note conditional payoff qualification. It does not claim Gate-C certification, Ready, merge, UNR-011 closure, UMI14 closure, Program-D closure, Production, provider support, legal suitability, or real-capital authority.
 
 ---
 
@@ -30,12 +30,13 @@ Current UMI-09 already provides the correct static feature owners for capital pr
 
 Those feature contracts are certified owner material and are reused byte-for-byte. They are not duplicated or weakened by this correction.
 
-The remaining gap is a relation gap. `StructuredHybridSyntheticTerms` retains a canonical collection of independent features, but it does not state which static condition selects which static outcome, how multiple conditions combine, which branch has contractual precedence, or which outcome is the final fallback.
+The remaining gap is a relation gap. `StructuredHybridSyntheticTerms` retains a canonical collection of independent features, but it does not state which static condition selects which static outcome, how multiple conditions combine, which branch has contractual precedence, which outcome is the final fallback, or—when the contractual payoff input is selected among multiple references—which static selection rule owns that choice.
 
 ```text
 FEATURE SET != CONDITIONAL PAYOFF MAP
 BARRIER EXISTS != BARRIER SELECTS THIS OUTCOME
 OUTCOME FEATURES EXIST != OUTCOME PRECEDENCE EXISTS
+MULTI-REFERENCE FEATURES != PAYOFF-INPUT SELECTION RULE
 ```
 
 A consumer cannot infer those relations without introducing an out-of-band payoff interpreter. That is the semantic loss this bounded owner prevents.
@@ -73,7 +74,9 @@ FIXED / ORDINARY COUPON ECONOMICS                    -> UMI-03
 GENERIC DERIVATIVE PRIMITIVES                         -> UMI-05
 STRUCTURED FEATURES + COMPONENT BINDINGS              -> UMI-09
 CONDITIONAL STRUCTURED-NOTE PAYOFF QUALIFICATION      -> THIS UNR-011 OWNER
+STATIC PAYOFF-INPUT SELECTION RULE + CANDIDATES       -> THIS UNR-011 OWNER / D04
 OBSERVED MARKET / BARRIER STATE                       -> D05
+OBSERVED RETURNS + SELECTED WORST PERFORMER           -> D07 / UMI-10
 CALENDAR / SCHEDULE RESOLUTION                        -> D06
 CURRENT VALUE / PAYOFF METHODOLOGY / CALCULATION      -> UMI-10 / D07
 POSITIONS / COLLATERAL / RISK                         -> D08 / D09
@@ -89,6 +92,7 @@ STRUCTURED-NOTE PAYOFF TERMS != PAYOFF CALCULATION
 CONTRACTUAL CONDITION != OBSERVED CONDITION STATE
 BARRIER SPECIFICATION != BARRIER EVENT DETECTION
 FIRST-MATCH BRANCH ORDER != RUNTIME EVALUATION ENGINE
+STATIC WORST-PERFORMING RULE != OBSERVED WORST PERFORMER
 OUTCOME QUALIFICATION != CASH / SECURITY DELIVERY
 CONVERSION OUTCOME != CONVERSION EXECUTION
 REDEMPTION OUTCOME != PAYMENT FINALITY
@@ -119,6 +123,8 @@ A conditional branch carries a non-empty immutable set-like tuple of exact UMI-0
 
 The condition-ID collection is canonicalized by stable UUID text. This ordering is deterministic material only; it is not evaluation precedence.
 
+For a singleton condition, `ALL(A)` and `ANY(A)` have the same Boolean truth set. The owner therefore canonicalizes either authored form to `ALL(A)` before top-level signature uniqueness is evaluated. This prevents two observationally identical singleton branches from surviving as distinct contract signatures.
+
 An unconditional branch carries:
 
 ```text
@@ -137,9 +143,14 @@ and is the explicit fallback.
 - `PARTICIPATION`;
 - `CONVERSION`.
 
-`StructuredNotePayoffOutcome` contains only the exact UMI-09 feature IDs required by its kind. Invalid combinations fail closed.
+`StructuredNotePayoffOutcome` contains only the exact UMI-09 references required by its kind. A participation-bearing outcome uses exactly one of:
 
-At top-level validation, redemption IDs must resolve to `StructuredRedemptionFeature`; participation IDs to `StructuredParticipationFeature`; and conversion IDs to `StructuredConversionFeature`.
+- one direct `StructuredParticipationFeature` ID; or
+- one `StructuredNoteParticipationSelection`.
+
+Direct participation retains the historical exact UMI-09 feature identity. A selection retains a static rule plus a canonical candidate feature set. Invalid combinations fail closed.
+
+At top-level validation, redemption IDs must resolve to `StructuredRedemptionFeature`; direct participation IDs and selection candidate IDs to `StructuredParticipationFeature`; and conversion IDs to `StructuredConversionFeature`.
 
 The new owner therefore establishes the missing conditional relation without creating a second redemption, participation or conversion contract.
 
@@ -147,13 +158,40 @@ This bounded set preserves common maturity shapes such as:
 
 ```text
 condition -> redemption
-condition -> redemption + participation
-condition -> participation
+condition -> redemption + direct participation
+condition -> redemption + selected participation
+condition -> direct participation
+condition -> selected participation
 condition -> conversion
 else      -> one bounded outcome
 ```
 
 It is not an arbitrary mathematical expression language.
+
+### 4.3.1 Worst-performing participation selection
+
+`StructuredNoteParticipationSelectionKind` currently has one explicit bounded rule:
+
+`WORST_PERFORMING_BY_RETURN = "worst-performing-by-return"`.
+
+`StructuredNoteParticipationSelection` contains:
+
+- the exact typed selection kind; and
+- an immutable, unique, canonical tuple of at least two UMI-09 participation feature IDs.
+
+Every candidate ID must resolve to a `StructuredParticipationFeature` in the bound `StructuredHybridSyntheticTerms`. The resolved candidates must reference distinct underlying economic identities.
+
+This owner does **not** observe prices, compute percentage returns, decide which candidate is currently worst, or calculate a payoff. Its only authority is to preserve the static contract rule and candidate set:
+
+```text
+D04:
+WORST_PERFORMING_BY_RETURN(A, B, ...)
+
+D07:
+observe inputs -> compute returns -> resolve selected candidate -> calculate result
+```
+
+Thus a fixed-reference participation contract and a worst-of contract cannot collapse to the same D04 logical identity.
 
 ### 4.4 Ordered branches
 
@@ -165,7 +203,7 @@ At top level:
 - branch ordinals are unique;
 - ordinals are contiguous `1..N`;
 - branches canonicalize by ordinal;
-- conditional signatures are unique;
+- effective conditional signatures are unique after singleton normalization;
 - exactly one fallback exists;
 - fallback is last.
 
@@ -186,7 +224,7 @@ The complete nested UMI-09 logical material is retained in the payoff terms logi
 
 ## 5. Product-shape examples
 
-A trigger/threshold note can retain statically:
+A single-reference trigger/threshold note can retain statically:
 
 ```text
 1: initial-level barrier satisfied
@@ -198,6 +236,22 @@ A trigger/threshold note can retain statically:
 ```
 
 For multiple references, one branch may bind multiple barrier IDs with `ALL` or `ANY` without introducing a general Boolean expression language.
+
+A two-underlier worst-of downside branch can retain the condition and payoff-input rule separately:
+
+```text
+1: ALL(downside-threshold-A, downside-threshold-B)
+   -> REDEMPTION
+2: fallback
+   -> PARTICIPATION(
+        WORST_PERFORMING_BY_RETURN(
+          participation-A,
+          participation-B
+        )
+      )
+```
+
+The D04 artifact states neither which underlier will be worst nor the calculated percentage return. Those are D07 results.
 
 A bounded reverse-convertible maturity structure can retain:
 
@@ -228,7 +282,7 @@ Conditional-coupon extensions are not silently inferred by this bounded maturity
 
 ## 7. Determinism and fail-closed rules
 
-All new dataclasses are frozen and slotted. The candidate uses explicit caller-supplied IDs, exact UUID local IDs, strict positive branch ordinals, immutable tuples, canonical condition-ID order, canonical branch order, explicit fallback, exact typed UMI-09 feature resolution, and deterministic nested logical material.
+All new dataclasses are frozen and slotted. The candidate uses explicit caller-supplied IDs, exact UUID local IDs, strict positive branch ordinals, immutable tuples, canonical condition-ID order, singleton condition-mode normalization, canonical participation-selection candidate order, canonical branch order, explicit fallback, exact typed UMI-09 feature resolution, and deterministic nested logical material.
 
 There is no `datetime.now()`, `date.today()`, `uuid4()`, random source, mutable global state, retry loop, sleep, thread, scheduler, network or database I/O.
 
@@ -236,31 +290,31 @@ There is no `datetime.now()`, `date.today()`, `uuid4()`, random source, mutable 
 
 ## 8. No executable payoff DSL
 
-The source contains no formula/expression payload, callback/callable, AST, `eval`, `exec`, script, mutable parameter dictionary, arbitrary arithmetic operator tree, price observation, trigger evaluator, or payoff calculator.
+The source contains no formula/expression payload, callback/callable, AST, `eval`, `exec`, script, mutable parameter dictionary, arbitrary arithmetic operator tree, price observation, return calculator, worst-performer evaluator, trigger evaluator, or payoff calculator.
 
-The finite outcome enum is a semantic taxonomy, not an interpreter.
+The finite outcome and selection enums are semantic taxonomies, not interpreters.
 
 ---
 
-## 9. Gate-B tests
+## 9. Gate-C correction tests
 
 Primary tests:
 `tests/infrastructure/test_structured_note_payoff_semantics.py`
 
-They cover trigger-note and reverse-convertible shapes, multi-reference condition material, local UUID guards, strict ordinal/type/collection guards, fallback invariants, outcome-kind feature-shape rules, branch identity/ordinal/signature rules, exact UMI-09 condition/outcome type resolution, and deterministic caller-order canonicalization.
+They cover trigger-note and reverse-convertible shapes, multi-reference condition material, local UUID guards, strict ordinal/type/collection guards, fallback invariants, outcome-kind feature-shape rules, branch identity/ordinal/signature rules, exact UMI-09 condition/outcome type resolution, deterministic caller-order canonicalization, worst-performing selector shape/candidate ordering, exact selection candidate type resolution, distinct underlying references, and singleton `ANY -> ALL` canonicalization.
 
 Independent logical oracle:
 `tests/infrastructure/test_structured_note_payoff_semantics_logical_identity.py`
 
 Expected material is manually reconstructed from primitive fixture constants. The expected side does not call SUT `.logical_values()`, production sort helpers, production enum `.value`, or actual output.
 
-It protects exact dataclass field surfaces; local ID material; all four outcome projections; conditional/fallback branch projection; condition-set/branch-order canonicalization; and complete nested UMI-09 + UNR-011 top-level logical material.
+It protects exact dataclass field surfaces; local ID material; all four historical outcome projections; worst-performing selector material; conditional/fallback branch projection; singleton condition-mode normalization; condition-set/branch-order canonicalization; and complete nested UMI-09 + UNR-011 top-level logical material.
 
 ---
 
 ## 10. Negative space
 
-This owner grants no authority for current price/index/level observation; barrier/trigger/event detection; payoff evaluation; return/P&L/NAV/valuation calculation; probability/scenario/risk calculation; provider/broker/exchange/chain APIs; account/position/collateral state; wallet/custody/signing; order submission/cancel; early-redemption execution; conversion/share delivery; cash/position/settlement mutation; legal/security/suitability determination; Production; or real capital.
+This owner grants no authority for current price/index/level observation; percentage-return observation or computation; worst-performer resolution; barrier/trigger/event detection; payoff evaluation; return/P&L/NAV/valuation calculation; probability/scenario/risk calculation; provider/broker/exchange/chain APIs; account/position/collateral state; wallet/custody/signing; order submission/cancel; early-redemption execution; conversion/share delivery; cash/position/settlement mutation; legal/security/suitability determination; Production; or real capital.
 
 ---
 
@@ -268,13 +322,16 @@ This owner grants no authority for current price/index/level observation; barrie
 
 ```text
 GATE A = COMPLETE / CONSUMED
-GATE B = AUTHORIZED / ACTIVE
-GATE C = NOT AUTHORIZED
+GATE B = COMPLETE / CANDIDATE PREPARED
+GATE C R1 = FAIL / HISTORICAL / INVALIDATED BY AUTHORIZED CORRECTION
+DS-EXPERT-UNR011-R1-01 = ACCEPTED / HIGH / CORRECTION APPLIED
+DS-EXPERT-UNR011-R1-02 = ACCEPTED / NONBLOCKING HARDENING APPLIED
+GATE C R2 = NOT AUTHORIZED / NOT STARTED
 GATE D = NOT AUTHORIZED
 GATE E = NOT AUTHORIZED
 GATE F = NOT AUTHORIZED
 TRACKER #434 = OPEN
-PR = NOT CREATED
+PR #435 = OPEN / DRAFT / UNMERGED
 READY = NOT AUTHORIZED
 MERGE = NOT AUTHORIZED
 UNR-011 = NOT CLOSED
@@ -284,6 +341,20 @@ PRODUCTION = CLOSED
 REAL CAPITAL = NOT AUTHORIZED
 ```
 
-`GATE B CORRECTION != GATE C AUTHORIZATION`
+`R1 CORRECTION != R2 CERTIFICATION`
+
+`CI GREEN != ENGINEERING APPROVAL`
 
 `AUTHORIZATION NEVER PROPAGATES`
+
+---
+
+## 12. Gate-C R1 audit correction provenance
+
+DeepSeek Expert R1 identified that the frozen R1 candidate could represent multi-underlier threshold conditions but could not preserve the static contractual fact that a downside participation payoff selects the worst-performing underlier. IA accepted that as `DS-EXPERT-UNR011-R1-01 / HIGH / BLOCKING`.
+
+The correction adds only a bounded static selector. It does not add a return engine or payoff methodology. The rule `WORST_PERFORMING_BY_RETURN` and candidate UMI-09 participation feature IDs are D04 material; observed returns, determination of the actual worst performer, and payoff calculation remain D07 authority.
+
+The same audit identified `ALL(A)` versus `ANY(A)` as duplicate effective singleton condition semantics. IA accepted this as nonblocking hardening and authorized its correction together with the blocking finding. Singleton conditions are now canonicalized to `ALL` before signature uniqueness is checked.
+
+Any certification of this corrected candidate requires a new exact Gate-C round with a fresh HEAD/TREE/SYNTHETIC freeze, a fresh post-freeze exact-synthetic CI, and the complete serial auditor chain starting again with DeepSeek Expert.
