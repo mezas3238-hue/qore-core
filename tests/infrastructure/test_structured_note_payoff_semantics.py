@@ -252,6 +252,8 @@ def test_any_mode_preserves_multi_reference_condition_set() -> None:
         kind=note.StructuredNoteOutcomeKind.CONVERSION,
     )
     assert branch.condition_feature_ids == (_feature_id(202), _feature_id(203))
+    assert branch.condition_mode is note.StructuredNoteConditionMode.ANY
+    assert branch.logical_values()[2] == "any"
 
 
 class _UuidSubclass(UUID):
