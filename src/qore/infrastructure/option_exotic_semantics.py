@@ -653,6 +653,23 @@ class LookbackExtremumRole(StrEnum):
     MAX = "max"
 
 
+def _lookback_expected_extremum(
+    kind: LookbackKind,
+    right: OptionRight,
+) -> LookbackExtremumRole:
+    if kind is LookbackKind.FIXED_STRIKE:
+        return (
+            LookbackExtremumRole.MAX
+            if right is OptionRight.CALL
+            else LookbackExtremumRole.MIN
+        )
+    return (
+        LookbackExtremumRole.MIN
+        if right is OptionRight.CALL
+        else LookbackExtremumRole.MAX
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class LookbackOptionTerms:
     terms_id: DerivativeTermsId
@@ -702,6 +719,11 @@ class LookbackOptionTerms:
             raise OptionExoticValidationError("lookback observation window must not follow expiry")
         if not isinstance(self.extremum_role, LookbackExtremumRole):
             raise OptionExoticValidationError("lookback extremum role has invalid type")
+        expected_extremum = _lookback_expected_extremum(self.kind, self.right)
+        if self.extremum_role is not expected_extremum:
+            raise OptionExoticValidationError(
+                "lookback extremum role is inconsistent with kind/right"
+            )
         if self.observation_schedule is not None and not isinstance(
             self.observation_schedule, StructuredObservationScheduleCode
         ):
@@ -889,8 +911,10 @@ class CliquetOptionFeature:
             )
         for reset_date in self.reset_dates:
             _date(reset_date, "cliquet reset date")
-            if reset_date >= self.option.expiry_date:
-                raise OptionExoticValidationError("cliquet reset date must precede option expiry")
+            if reset_date > self.option.expiry_date:
+                raise OptionExoticValidationError(
+                    "cliquet reset date must not follow option expiry"
+                )
         if len(set(self.reset_dates)) != len(self.reset_dates):
             raise OptionExoticValidationError("cliquet reset dates must be unique")
         object.__setattr__(self, "reset_dates", tuple(sorted(self.reset_dates)))
@@ -924,6 +948,10 @@ class CliquetOptionFeature:
             if end > self.option.expiry_date:
                 raise OptionExoticValidationError(
                     "cliquet reset observation window must not follow option expiry"
+                )
+            if any(not (start <= reset_date <= end) for reset_date in self.reset_dates):
+                raise OptionExoticValidationError(
+                    "cliquet reset date must fall inside observation window"
                 )
         if not isinstance(self.evidence_ref, DerivativeEvidenceRef):
             raise OptionExoticValidationError("cliquet evidence has invalid type")
@@ -991,10 +1019,16 @@ class ShoutOptionFeature:
         )
 
 
+class BarrierRebateTriggerCondition(StrEnum):
+    ON_BARRIER_EVENT = "on-barrier-event"
+    ON_NO_BARRIER_EVENT_BY_EXPIRY = "on-no-barrier-event-by-expiry"
+
+
 @dataclass(frozen=True, slots=True)
 class BarrierRebateTerms:
     barrier_option: BarrierOptionTerms
     barrier_feature_id: StructuredFeatureId
+    trigger_condition: BarrierRebateTriggerCondition
     payout: DigitalOptionPayout
     evidence_ref: DerivativeEvidenceRef
 
@@ -1012,6 +1046,10 @@ class BarrierRebateTerms:
             raise OptionExoticValidationError(
                 "barrier rebate feature id must bind exactly one option barrier"
             )
+        if not isinstance(self.trigger_condition, BarrierRebateTriggerCondition):
+            raise OptionExoticValidationError(
+                "barrier rebate trigger condition must be BarrierRebateTriggerCondition"
+            )
         if not isinstance(self.payout, DigitalOptionPayout):
             raise OptionExoticValidationError("barrier rebate payout has invalid type")
         if not isinstance(self.evidence_ref, DerivativeEvidenceRef):
@@ -1022,6 +1060,7 @@ class BarrierRebateTerms:
             "barrier-rebate",
             self.barrier_option.logical_values(),
             self.barrier_feature_id.logical_values(),
+            self.trigger_condition.value,
             self.payout.logical_values(),
             self.evidence_ref.logical_values(),
         )

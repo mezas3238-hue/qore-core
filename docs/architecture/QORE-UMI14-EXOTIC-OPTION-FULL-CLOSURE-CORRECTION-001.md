@@ -60,6 +60,15 @@ No changes are made to:
 
 A fixed-strike lookback requires `fixed_strike`. A floating-strike lookback forbids it.
 
+The bounded canonical lookback payoff family also binds option right, strike kind, and extremum role fail-closed:
+
+- `FIXED_STRIKE + CALL => MAX`;
+- `FIXED_STRIKE + PUT => MIN`;
+- `FLOATING_STRIKE + CALL => MIN`;
+- `FLOATING_STRIKE + PUT => MAX`.
+
+Opposite combinations are rejected rather than represented as false lookback products.
+
 The aggregate retains:
 
 - exact derivative terms identity;
@@ -133,7 +142,7 @@ It retains:
 - optional bounded local reset observation window;
 - evidence.
 
-Reset dates are unique, canonicalized, and strictly before the option expiry. If both local floor and cap are present, floor may not exceed cap.
+Reset dates are unique, canonicalized, and may occur at or before option expiry. Dates after expiry are rejected. If `local_reset_observation_window` is present, every reset date must satisfy the inclusive containment law `window_start <= reset_date <= window_end`; together with `window_end <= option.expiry_date`, a maturity reset under an explicit window is valid only when that window ends at maturity. If both local floor and cap are present, floor may not exceed cap.
 
 No observed reset level, accrued performance, valuation observation, or pricing model is represented.
 
@@ -160,10 +169,11 @@ Existing barrier and payout primitives preserve their own material, but before t
 
 - a `BarrierOptionTerms` parent;
 - one exact `StructuredFeatureId` that must occur exactly once in the parent's immutable barrier tuple;
+- `BarrierRebateTriggerCondition`, distinguishing `ON_BARRIER_EVENT` from `ON_NO_BARRIER_EVENT_BY_EXPIRY`;
 - a reused `DigitalOptionPayout` static payout;
 - independent derivative evidence.
 
-No duplicate rebate-condition enum is introduced. Barrier kind/direction/observation remain owned by UMI09, while payout kind/amount/timing remain owned by the existing exotic-option payout type.
+Barrier kind/direction/observation remain owned by UMI09, while the rebate trigger condition independently preserves why the rebate becomes contractually payable and payout kind/amount/timing remain owned by the existing exotic-option payout type. Trigger condition is never inferred from the opaque barrier-kind code and is distinct from payout timing.
 
 `SAME PAYOUT FIELDS != SAME CONTRACTUAL ROLE`
 
@@ -198,9 +208,9 @@ There is no wall clock, `date.today()`, `datetime.now()`, UUID generation, rando
 - chooser decision chronology;
 - compound identity binding and corrected outer-before-underlying expiry;
 - all four compound CALL/PUT forms;
-- cliquet reset uniqueness, ordering, expiry boundary, finite cap/floor, and bounded reset window;
+- cliquet reset uniqueness, ordering, inclusive maturity boundary, observation-window containment, finite cap/floor, and bounded reset window;
 - shout count strictness and shout-window chronology;
-- rebate exact parent/feature binding;
+- rebate exact parent/feature binding and independent static trigger-condition materiality;
 - frozen/slotted values;
 - cross-type Decimal non-flattening;
 - absence of operational methods.

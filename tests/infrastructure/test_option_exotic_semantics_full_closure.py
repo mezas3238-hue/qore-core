@@ -25,6 +25,7 @@ from qore.infrastructure.derivative_contract_semantics import (
 from qore.infrastructure.option_exotic_semantics import (
     BarrierOptionTerms,
     BarrierRebateTerms,
+    BarrierRebateTriggerCondition,
     ChooserOptionTerms,
     CliquetOptionFeature,
     CliquetStrikeConventionCode,
@@ -280,6 +281,8 @@ def _payout_expected(value: DigitalOptionPayout) -> tuple[object, ...]:
 def _lookback(
     *,
     kind: LookbackKind = LookbackKind.FIXED_STRIKE,
+    right: OptionRight = OptionRight.PUT,
+    extremum_role: LookbackExtremumRole | None = None,
     fixed_strike: DerivativeStrike | None = None,
     schedule: StructuredObservationScheduleCode | None = None,
     start: date = date(2027, 1, 2),
@@ -291,6 +294,19 @@ def _lookback(
 ) -> LookbackOptionTerms:
     if fixed_strike is None and kind is LookbackKind.FIXED_STRIKE:
         fixed_strike = _strike("95")
+    if extremum_role is None:
+        if kind is LookbackKind.FIXED_STRIKE:
+            extremum_role = (
+                LookbackExtremumRole.MAX
+                if right is OptionRight.CALL
+                else LookbackExtremumRole.MIN
+            )
+        else:
+            extremum_role = (
+                LookbackExtremumRole.MIN
+                if right is OptionRight.CALL
+                else LookbackExtremumRole.MAX
+            )
     if notional is None and multiplier is None:
         notional = _notional()
     return LookbackOptionTerms(
@@ -298,12 +314,12 @@ def _lookback(
         instrument_identity_id=_identity(501),
         underlying_identity_id=_identity(502),
         settlement_identity_id=_identity(102),
-        right=OptionRight.PUT,
+        right=right,
         kind=kind,
         fixed_strike=fixed_strike,
         observation_window_start=start,
         observation_window_end=end,
-        extremum_role=LookbackExtremumRole.MIN,
+        extremum_role=extremum_role,
         observation_schedule=schedule,
         expiry_date=expiry,
         exercise=exercise or _exercise(),
@@ -404,12 +420,19 @@ def _shout(
     )
 
 
-def _rebate(*, feature: int = 300) -> BarrierRebateTerms:
+def _rebate(
+    *,
+    feature: int = 300,
+    trigger_condition: BarrierRebateTriggerCondition = (
+        BarrierRebateTriggerCondition.ON_BARRIER_EVENT
+    ),
+) -> BarrierRebateTerms:
     first = _barrier(feature=300)
     second = _barrier(feature=301, kind="knock-in")
     return BarrierRebateTerms(
         barrier_option=_barrier_option(first, second),
         barrier_feature_id=StructuredFeatureId(_uuid(feature)),
+        trigger_condition=trigger_condition,
         payout=_payout(),
         evidence_ref=_evidence(999),
     )
@@ -446,6 +469,44 @@ def test_lookback_floating_has_no_fake_strike_and_is_logically_distinct() -> Non
     assert floating.logical_values()[6] == "floating-strike"
     assert floating.logical_values()[7] is None
     assert floating.logical_values() != fixed.logical_values()
+
+
+@pytest.mark.parametrize(
+    ("kind", "right", "extremum"),
+    [
+        (LookbackKind.FIXED_STRIKE, OptionRight.CALL, LookbackExtremumRole.MAX),
+        (LookbackKind.FIXED_STRIKE, OptionRight.PUT, LookbackExtremumRole.MIN),
+        (LookbackKind.FLOATING_STRIKE, OptionRight.CALL, LookbackExtremumRole.MIN),
+        (LookbackKind.FLOATING_STRIKE, OptionRight.PUT, LookbackExtremumRole.MAX),
+    ],
+)
+def test_lookback_kind_right_extremum_mapping_accepts_canonical_forms(
+    kind: LookbackKind,
+    right: OptionRight,
+    extremum: LookbackExtremumRole,
+) -> None:
+    value = _lookback(kind=kind, right=right, extremum_role=extremum)
+    assert value.right is right
+    assert value.kind is kind
+    assert value.extremum_role is extremum
+
+
+@pytest.mark.parametrize(
+    ("kind", "right", "extremum"),
+    [
+        (LookbackKind.FIXED_STRIKE, OptionRight.CALL, LookbackExtremumRole.MIN),
+        (LookbackKind.FIXED_STRIKE, OptionRight.PUT, LookbackExtremumRole.MAX),
+        (LookbackKind.FLOATING_STRIKE, OptionRight.CALL, LookbackExtremumRole.MAX),
+        (LookbackKind.FLOATING_STRIKE, OptionRight.PUT, LookbackExtremumRole.MIN),
+    ],
+)
+def test_lookback_kind_right_extremum_mapping_rejects_inverse_forms(
+    kind: LookbackKind,
+    right: OptionRight,
+    extremum: LookbackExtremumRole,
+) -> None:
+    with pytest.raises(OptionExoticValidationError):
+        _lookback(kind=kind, right=right, extremum_role=extremum)
 
 
 def test_lookback_strike_presence_is_fail_closed() -> None:
@@ -740,7 +801,6 @@ def test_cliquet_projection_canonicalizes_resets_and_retains_static_limits() -> 
     [
         (),
         (date(2027, 3, 1), date(2027, 3, 1)),
-        (date(2027, 12, 18),),
         (date(2028, 1, 1),),
         cast(tuple[date, ...], ("2027-03-01",)),
     ],
@@ -748,6 +808,53 @@ def test_cliquet_projection_canonicalizes_resets_and_retains_static_limits() -> 
 def test_cliquet_reset_dates_are_fail_closed(reset_dates: tuple[date, ...]) -> None:
     with pytest.raises(OptionExoticValidationError):
         _cliquet(reset_dates=reset_dates)
+
+
+def test_cliquet_reset_at_expiry_is_valid_without_observation_window() -> None:
+    value = _cliquet(reset_dates=(date(2027, 12, 18),), window=None)
+    assert value.reset_dates == (date(2027, 12, 18),)
+
+
+def test_cliquet_reset_after_expiry_is_rejected() -> None:
+    with pytest.raises(OptionExoticValidationError):
+        _cliquet(reset_dates=(date(2027, 12, 19),), window=None)
+
+
+@pytest.mark.parametrize(
+    ("reset", "window", "valid"),
+    [
+        (date(2026, 12, 31), (date(2027, 1, 1), date(2027, 11, 1)), False),
+        (date(2027, 1, 1), (date(2027, 1, 1), date(2027, 11, 1)), True),
+        (date(2027, 6, 1), (date(2027, 1, 1), date(2027, 11, 1)), True),
+        (date(2027, 11, 1), (date(2027, 1, 1), date(2027, 11, 1)), True),
+        (date(2027, 11, 2), (date(2027, 1, 1), date(2027, 11, 1)), False),
+    ],
+)
+def test_cliquet_reset_observation_window_contains_every_reset(
+    reset: date,
+    window: tuple[date, date],
+    valid: bool,
+) -> None:
+    if valid:
+        value = _cliquet(reset_dates=(reset,), window=window)
+        assert value.reset_dates == (reset,)
+    else:
+        with pytest.raises(OptionExoticValidationError):
+            _cliquet(reset_dates=(reset,), window=window)
+
+
+def test_cliquet_maturity_reset_requires_window_end_at_maturity_when_window_present() -> None:
+    expiry = date(2027, 12, 18)
+    value = _cliquet(
+        reset_dates=(expiry,),
+        window=(date(2027, 1, 1), expiry),
+    )
+    assert value.reset_dates == (expiry,)
+    with pytest.raises(OptionExoticValidationError):
+        _cliquet(
+            reset_dates=(expiry,),
+            window=(date(2027, 1, 1), date(2027, 12, 17)),
+        )
 
 
 def test_cliquet_requires_tuple_reset_dates() -> None:
@@ -879,9 +986,24 @@ def test_barrier_rebate_projection_binds_exact_parent_feature_and_payout() -> No
         "barrier-rebate",
         _barrier_option_expected(value.barrier_option),
         (str(_uuid(301)),),
+        "on-barrier-event",
         _payout_expected(value.payout),
         (str(_uuid(999)),),
     )
+
+
+def test_barrier_rebate_trigger_condition_is_independent_material() -> None:
+    on_event = _rebate(trigger_condition=BarrierRebateTriggerCondition.ON_BARRIER_EVENT)
+    no_event = _rebate(
+        trigger_condition=BarrierRebateTriggerCondition.ON_NO_BARRIER_EVENT_BY_EXPIRY
+    )
+    assert on_event.barrier_option == no_event.barrier_option
+    assert on_event.barrier_feature_id == no_event.barrier_feature_id
+    assert on_event.payout == no_event.payout
+    assert on_event.evidence_ref == no_event.evidence_ref
+    assert on_event.logical_values()[3] == "on-barrier-event"
+    assert no_event.logical_values()[3] == "on-no-barrier-event-by-expiry"
+    assert on_event.logical_values() != no_event.logical_values()
 
 
 def test_barrier_rebate_rejects_feature_not_in_parent_option() -> None:
@@ -894,6 +1016,8 @@ def test_barrier_rebate_rejects_feature_not_in_parent_option() -> None:
     [
         ("barrier_option", object()),
         ("barrier_feature_id", object()),
+        ("trigger_condition", "on-barrier-event"),
+        ("trigger_condition", LookbackKind.FIXED_STRIKE),
         ("payout", object()),
         ("evidence_ref", object()),
     ],
