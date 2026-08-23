@@ -777,6 +777,12 @@ def test_securities_lending_compensation_fails_closed() -> None:
     with pytest.raises(SecuritiesFinancingValidationError):
         SecuritiesLendingCompensationTerms()
 
+    with pytest.raises(
+        SecuritiesFinancingValidationError,
+        match="exact SecuritiesLendingCompensationLegTerms",
+    ):
+        SecuritiesLendingCompensationTerms(lending_fee=cast(Any, Decimal("0.01")))
+
     negative_fixed_fee = _compensation_leg(
         rate=_fixed_rate("-0.01"),
         currency=303,
@@ -831,6 +837,16 @@ def test_compensation_revalidates_imported_tenor_and_local_basis_state() -> None
             currency=303,
             basis="principal-market-value",
             payment_tenor=malformed_unit_tenor,
+        )
+
+    with pytest.raises(
+        SecuritiesFinancingValidationError,
+        match="exact SftCompensationAccrualBasisCode",
+    ):
+        SecuritiesLendingCompensationLegTerms(
+            rate=_fixed_rate("0.01"),
+            currency_identity_id=_identity(303),
+            accrual_basis=cast(Any, "principal-market-value"),
         )
 
     malformed_basis = object.__new__(SftCompensationAccrualBasisCode)
