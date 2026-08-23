@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError, fields
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Any, cast
 from uuid import UUID
 
@@ -272,6 +272,32 @@ def test_product_discriminants_and_material_do_not_collapse() -> None:
         ),
         *_EXPECTED_CORRELATION[4:],
     )
+
+
+def test_decimal_identity_is_independent_of_ambient_context() -> None:
+    precise_strike = VarianceStrike(Decimal("0.123456789000"))
+    precise_notional = DerivativeNotional(
+        Decimal("123.456789000"),
+        _identity(301),
+    )
+    with localcontext() as context:
+        context.prec = 2
+        assert precise_strike.logical_values() == ("0.123456789",)
+        terms = VolatilitySwapTerms(
+            terms_id=_terms_id(104),
+            instrument_identity_id=_identity(40),
+            reference_identity_id=_identity(41),
+            observation_terms=_observation(),
+            volatility_strike=VolatilityStrike(Decimal("0.23456789000")),
+            vega_notional=precise_notional,
+            settlement_terms=_settlement(),
+            evidence_ref=_evidence(204),
+        )
+        assert terms.logical_values()[5] == ("0.23456789",)
+        assert terms.logical_values()[6] == (
+            "123.456789",
+            (str(_uuid(301)),),
+        )
 
 
 def test_composite_values_are_frozen_and_slotted() -> None:
