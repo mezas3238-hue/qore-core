@@ -12,6 +12,16 @@ def _feature_id(value: int) -> structured.StructuredFeatureId:
     return structured.StructuredFeatureId(UUID(int=value))
 
 
+def test_redemption_requires_redemption_material() -> None:
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="feature references",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+        )
+
+
 def test_redemption_rejects_conversion_material() -> None:
     with pytest.raises(
         note.StructuredNotePayoffValidationError,
@@ -24,6 +34,40 @@ def test_redemption_rejects_conversion_material() -> None:
         )
 
 
+def test_redemption_with_participation_requires_redemption_material() -> None:
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="feature references",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.REDEMPTION_WITH_PARTICIPATION,
+            participation_feature_id=_feature_id(205),
+        )
+
+
+def test_redemption_with_participation_rejects_conversion_material() -> None:
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="feature references",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.REDEMPTION_WITH_PARTICIPATION,
+            redemption_feature_id=_feature_id(204),
+            participation_feature_id=_feature_id(205),
+            conversion_feature_id=_feature_id(206),
+        )
+
+
+def test_participation_requires_participation_material() -> None:
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="feature references",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+        )
+
+
 def test_participation_rejects_redemption_material() -> None:
     with pytest.raises(
         note.StructuredNotePayoffValidationError,
@@ -33,6 +77,16 @@ def test_participation_rejects_redemption_material() -> None:
             kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
             participation_feature_id=_feature_id(205),
             redemption_feature_id=_feature_id(204),
+        )
+
+
+def test_conversion_requires_conversion_material() -> None:
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="feature references",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.CONVERSION,
         )
 
 
