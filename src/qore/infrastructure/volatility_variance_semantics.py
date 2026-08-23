@@ -102,6 +102,18 @@ def _validate_notional(value: DerivativeNotional, *, field_name: str) -> None:
     )
 
 
+def _validate_payout_unit(
+    value: DerivativeNotional,
+    settlement_terms: VolatilitySettlementTerms,
+    *,
+    field_name: str,
+) -> None:
+    if value.unit_identity_id != settlement_terms.settlement_identity_id:
+        raise VolatilityVarianceValidationError(
+            f"{field_name} unit identity must equal settlement identity"
+        )
+
+
 def _canonical_decimal(value: Decimal) -> str:
     text = format(value, "f")
     if "." in text:
@@ -307,6 +319,10 @@ def _validate_common_contract(
         raise VolatilityVarianceValidationError(
             "volatility-family settlement date must not precede observation end"
         )
+    if settlement_terms.settlement_identity_id == instrument_identity_id:
+        raise VolatilityVarianceValidationError(
+            "volatility-family instrument and settlement identities must differ"
+        )
     _validate_evidence_ref(evidence_ref)
 
 
@@ -348,9 +364,19 @@ class VarianceSwapTerms:
             self.variance_amount,
             field_name="variance swap variance_amount",
         )
+        _validate_payout_unit(
+            self.variance_amount,
+            self.settlement_terms,
+            field_name="variance swap variance_amount",
+        )
         if self.vega_notional is not None:
             _validate_notional(
                 self.vega_notional,
+                field_name="variance swap vega_notional",
+            )
+            _validate_payout_unit(
+                self.vega_notional,
+                self.settlement_terms,
                 field_name="variance swap vega_notional",
             )
 
@@ -406,6 +432,11 @@ class VolatilitySwapTerms:
             )
         _validate_notional(
             self.vega_notional,
+            field_name="volatility swap vega_notional",
+        )
+        _validate_payout_unit(
+            self.vega_notional,
+            self.settlement_terms,
             field_name="volatility swap vega_notional",
         )
 
@@ -477,6 +508,11 @@ class CorrelationSwapTerms:
             )
         _validate_notional(
             self.correlation_amount,
+            field_name="correlation swap correlation_amount",
+        )
+        _validate_payout_unit(
+            self.correlation_amount,
+            self.settlement_terms,
             field_name="correlation swap correlation_amount",
         )
 
