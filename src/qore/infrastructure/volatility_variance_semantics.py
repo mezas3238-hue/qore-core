@@ -115,12 +115,30 @@ def _validate_payout_unit(
 
 
 def _canonical_decimal(value: Decimal) -> str:
-    text = format(value, "f")
-    if "." in text:
-        text = text.rstrip("0").rstrip(".")
-    if text == "-0":
+    parts = value.as_tuple()
+    if all(digit == 0 for digit in parts.digits):
         return "0"
-    return text
+
+    digits = list(parts.digits)
+    exponent = int(parts.exponent)
+    while digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+
+    normalized = Decimal((parts.sign, tuple(digits), exponent))
+    compact = str(normalized).lower()
+    sign_length = 1 if parts.sign else 0
+
+    if exponent >= 0:
+        fixed_length = sign_length + len(digits) + exponent
+    elif -exponent < len(digits):
+        fixed_length = sign_length + len(digits) + 1
+    else:
+        fixed_length = sign_length + 2 - exponent
+
+    if fixed_length <= len(compact) + 1:
+        return format(normalized, "f")
+    return compact
 
 
 def _notional_logical_values(value: DerivativeNotional) -> tuple[object, ...]:
