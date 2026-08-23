@@ -670,6 +670,70 @@ def test_repo_semantics_and_fail_closed_matrix() -> None:
             replace(repo, **cast(Any, changes))
 
 
+def test_repo_floating_financing_calculation_observation_noncollapse() -> None:
+    base = replace(
+        _repo(),
+        financing_rate=_floating("0.002", ref=550),
+        financing_calculation=SftFinancingCalculationCode("arithmetic-average"),
+        financing_observation_mode=SftFinancingObservationMode.NONE,
+        far_leg=RepoFarLegTerms(date(2026, 2, 2)),
+    )
+    compounded = replace(
+        base,
+        financing_calculation=SftFinancingCalculationCode("daily-compounded"),
+    )
+    reference = replace(
+        base,
+        financing_observation_mode=SftFinancingObservationMode.REFERENCE_CONVENTION,
+    )
+    lookback = replace(
+        base,
+        financing_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+        financing_observation_reference=_schedule(750),
+    )
+    lookback_other = replace(
+        lookback,
+        financing_observation_reference=_schedule(751),
+    )
+    base_values = cast(tuple[object, ...], base.logical_values()[9])
+    assert base_values == (("arithmetic-average",), ("none", None))
+    assert len(
+        {
+            base.logical_values(),
+            compounded.logical_values(),
+            reference.logical_values(),
+            lookback.logical_values(),
+            lookback_other.logical_values(),
+        }
+    ) == 5
+
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires calculation code"):
+        replace(base, financing_calculation=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact calculation code"):
+        replace(base, financing_calculation=cast(Any, "arithmetic-average"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact observation mode"):
+        replace(base, financing_observation_mode=cast(Any, "none"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="require reference"):
+        replace(
+            base,
+            financing_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry reference"):
+        replace(base, financing_observation_reference=_schedule(752))
+    with pytest.raises(SecuritiesFinancingValidationError, match="floating convention"):
+        replace(
+            _repo(),
+            financing_calculation=SftFinancingCalculationCode("arithmetic-average"),
+        )
+    bad_ref = _malformed(SftScheduleReferenceId, value=cast(Any, _BadUUID(int=753)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        replace(
+            base,
+            financing_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+            financing_observation_reference=bad_ref,
+        )
+
+
 def test_securities_lending_collateralization_modes_close_empty_collision() -> None:
     loan = _loan()
     assert loan.collateralization_mode is SftCollateralizationMode.EXPLICIT
