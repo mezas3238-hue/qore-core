@@ -886,21 +886,35 @@ def test_margin_lending_financing_reset_fixing_and_calculation_noncollapse() -> 
         financing_fixing_timing=None,
     )
 
-    assert periodic_advance.logical_values()[9] == (
+    advance_values = cast(tuple[object, ...], periodic_advance.logical_values()[9])
+    arrears_values = cast(tuple[object, ...], periodic_arrears.logical_values()[9])
+    periodic_reference_values = cast(tuple[object, ...], periodic_reference.logical_values()[9])
+    compounded_values = cast(tuple[object, ...], compounded.logical_values()[9])
+    observation_reference_values = cast(
+        tuple[object, ...], observation_reference.logical_values()[9]
+    )
+    observation_external_values = cast(
+        tuple[object, ...], observation_external.logical_values()[9]
+    )
+    at_payment_values = cast(tuple[object, ...], at_payment.logical_values()[9])
+    external_values = cast(tuple[object, ...], external.logical_values()[9])
+    reference_values = cast(tuple[object, ...], reference.logical_values()[9])
+
+    assert advance_values == (
         "periodic", (1, "month"), None, "in-advance", ("daily-simple",), ("none", None)
     )
-    assert periodic_arrears.logical_values()[9][3] == "in-arrears"
-    assert periodic_reference.logical_values()[9][3] == "reference-convention"
-    assert compounded.logical_values()[9][4] == ("daily-compounded",)
-    assert observation_reference.logical_values()[9][5] == ("reference-convention", None)
-    assert observation_external.logical_values()[9][5] == (
+    assert arrears_values[3] == "in-arrears"
+    assert periodic_reference_values[3] == "reference-convention"
+    assert compounded_values[4] == ("daily-compounded",)
+    assert observation_reference_values[5] == ("reference-convention", None)
+    assert observation_external_values[5] == (
         "external-terms", (str(_uuid(740)),)
     )
-    assert at_payment.logical_values()[9][0:4] == ("at-payment", None, None, None)
-    assert external.logical_values()[9][0:4] == (
+    assert at_payment_values[0:4] == ("at-payment", None, None, None)
+    assert external_values[0:4] == (
         "external-schedule", None, (str(_uuid(730)),), None
     )
-    assert reference.logical_values()[9][0:4] == (
+    assert reference_values[0:4] == (
         "reference-convention", None, None, None
     )
     variants = (
