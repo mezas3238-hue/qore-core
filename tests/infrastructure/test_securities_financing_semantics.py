@@ -10,6 +10,7 @@ from uuid import UUID
 
 import pytest
 
+import qore.infrastructure.securities_financing_semantics as sft_semantics
 from qore.infrastructure.fixed_income_economics import DayCountConventionCode
 from qore.infrastructure.securities_financing_semantics import (
     MarginLendingTerms,
@@ -323,6 +324,15 @@ def test_rate_terms_reject_imported_subclasses_and_malformed_exact_children() ->
         )
 
 
+def test_rate_terms_reject_raw_kind() -> None:
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftRateKind"):
+        SftRateTerms(
+            cast(Any, "fixed"),
+            Decimal("0.01"),
+            DayCountConventionCode("act-360"),
+        )
+
+
 def test_duration_modes_are_distinct_and_strict() -> None:
     assert _term_duration().logical_values() == (
         "term",
@@ -364,6 +374,13 @@ def test_duration_mode_contracts_fail_closed() -> None:
         SftDurationTerms(SftDurationMode.CALLABLE, date(2026, 1, 1))
 
 
+def test_duration_rejects_raw_mode_and_date() -> None:
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftDurationMode"):
+        SftDurationTerms(cast(Any, "open"), date(2026, 1, 1))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact date"):
+        SftDurationTerms(SftDurationMode.OPEN, cast(Any, "2026-01-01"))
+
+
 @pytest.mark.parametrize("notice", [0, -1, True, 1.5, "2"])
 def test_notice_days_are_strict_positive_int(notice: object) -> None:
     with pytest.raises(SecuritiesFinancingValidationError):
@@ -388,6 +405,11 @@ def test_arrangement_modes_are_distinct_and_agent_is_deeply_validated() -> None:
         SftArrangementTerms(SftArrangementMode.TRI_PARTY, _malformed_party())
 
 
+def test_arrangement_rejects_raw_mode() -> None:
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftArrangementMode"):
+        SftArrangementTerms(cast(Any, "bilateral"))
+
+
 def test_margin_terms_retain_unbounded_nonnegative_contractual_ratios() -> None:
     value = SftMarginTerms(
         initial_margin_ratio=Decimal("1.05"),
@@ -410,6 +432,13 @@ def test_repo_far_leg_preserves_supplied_cash_without_calculation() -> None:
     )
 
 
+def test_repo_far_leg_rejects_raw_date_and_cash_child_type() -> None:
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact date"):
+        RepoFarLegTerms(cast(Any, "2026-02-01"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftCashAmount"):
+        RepoFarLegTerms(date(2026, 2, 1), cast(Any, Decimal("1")))
+
+
 def test_term_open_and_callable_repo_far_leg_rules() -> None:
     base = _term_repo()
     with pytest.raises(SecuritiesFinancingValidationError):
@@ -430,6 +459,13 @@ def test_term_open_and_callable_repo_far_leg_rules() -> None:
     callable_repo = replace(base, duration=callable_without_end, far_leg=None)
     with pytest.raises(SecuritiesFinancingValidationError):
         replace(callable_repo, far_leg=RepoFarLegTerms(date(2026, 2, 2)))
+
+    callable_with_end = replace(base, duration=_callable_duration(), far_leg=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="far date"):
+        replace(
+            callable_with_end,
+            far_leg=RepoFarLegTerms(date(2026, 6, 3)),
+        )
 
 
 def test_repo_supplied_far_cash_currency_must_match_near_cash() -> None:
@@ -462,6 +498,12 @@ def test_repo_security_basket_is_unique_canonical_and_order_invariant() -> None:
         )
 
 
+def test_repo_instrument_must_not_equal_transferred_security() -> None:
+    base = _term_repo()
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not equal"):
+        replace(base, instrument_identity_id=_identity(401))
+
+
 def test_repo_product_logical_identity_uses_primitive_expected_oracle() -> None:
     repo = _term_repo()
     expected = (
@@ -471,7 +513,7 @@ def test_repo_product_logical_identity_uses_primitive_expected_oracle() -> None:
         (str(_uuid(1)),),
         (str(_uuid(2)),),
         ("term", "2026-01-02", "2026-02-02", None),
-        ("1000000", (str(_uuid(300)),)),
+        ("1e+6", (str(_uuid(300)),)),
         (
             ((str(_uuid(401)),), "100"),
             ((str(_uuid(402)),), "50"),
@@ -526,6 +568,24 @@ def test_repo_rejects_local_subclasses_and_malformed_exact_ids() -> None:
         replace(base, terms_id=_malformed_terms_id())
 
 
+def test_repo_exact_child_type_rejection_matrix() -> None:
+    base = _term_repo()
+    invalid: tuple[dict[str, object], ...] = (
+        {"terms_id": _uuid(101)},
+        {"seller_reference_id": _uuid(1)},
+        {"buyer_reference_id": _uuid(2)},
+        {"transferred_securities": (cast(Any, "bad"),)},
+        {"financing_rate": Decimal("0.01")},
+        {"arrangement": "bilateral"},
+        {"evidence_ref": _uuid(201)},
+        {"margin_terms": Decimal("0.1")},
+        {"far_leg": date(2026, 2, 2)},
+    )
+    for changes in invalid:
+        with pytest.raises(SecuritiesFinancingValidationError):
+            replace(base, **cast(Any, changes))
+
+
 def test_securities_lending_fee_and_rebate_remain_distinct() -> None:
     compensation = SecuritiesLendingCompensationTerms(
         lending_fee_rate=Decimal("0.01"),
@@ -574,6 +634,16 @@ def test_securities_lending_rejects_duplicate_collateral_role_identity() -> None
         )
 
 
+def test_securities_lending_rejects_bad_collateral_container_and_item() -> None:
+    loan = _securities_loan()
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact tuple"):
+        replace(loan, collateral=cast(Any, [_cash("1", 301)]))
+    with pytest.raises(SecuritiesFinancingValidationError, match="unsupported"):
+        replace(loan, collateral=cast(Any, ("bad",)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="unsupported"):
+        sft_semantics._collateral_key(cast(Any, object()))
+
+
 def test_securities_lending_product_logical_identity_uses_primitive_expected_oracle() -> None:
     loan = _securities_loan()
     expected = (
@@ -586,7 +656,7 @@ def test_securities_lending_product_logical_identity_uses_primitive_expected_ora
         ((str(_uuid(410)),), "250"),
         ("0.0025", "-0.001"),
         (
-            ("500000", (str(_uuid(301)),)),
+            ("5e+5", (str(_uuid(301)),)),
             ((str(_uuid(411)),), "75"),
         ),
         ("tri-party", (str(_uuid(50)),)),
@@ -603,6 +673,19 @@ def test_securities_lending_parent_revalidates_malformed_compensation() -> None:
     object.__setattr__(bad, "cash_collateral_rebate_rate", None)
     with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
         replace(loan, compensation=bad)
+
+
+def test_securities_lending_exact_child_and_identity_collisions_fail_closed() -> None:
+    loan = _securities_loan()
+    with pytest.raises(SecuritiesFinancingValidationError, match="must differ"):
+        replace(
+            loan,
+            instrument_identity_id=loan.principal_security.security_identity_id,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact"):
+        replace(loan, compensation=cast(Any, Decimal("0.1")))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftSecurityQuantity"):
+        replace(loan, principal_security=cast(Any, _identity(410)))
 
 
 def test_margin_lending_has_arrangement_and_canonical_eligible_collateral() -> None:
@@ -641,6 +724,11 @@ def test_margin_lending_eligible_collateral_constraints() -> None:
                 _IdentitySubclass(_uuid(420)),
             ),
         )
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact tuple"):
+        replace(
+            base,
+            eligible_collateral_identity_ids=cast(Any, [_identity(420)]),
+        )
 
 
 def test_margin_lending_product_logical_identity_uses_primitive_expected_oracle() -> None:
@@ -675,6 +763,20 @@ def test_margin_lending_parent_revalidates_malformed_eligibility_and_margin() ->
     object.__setattr__(bad_margin, "haircut_ratio", Decimal("-0.1"))
     with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
         replace(base, margin_terms=bad_margin)
+
+
+def test_margin_lending_exact_child_type_rejection_matrix() -> None:
+    base = _margin_loan()
+    invalid: tuple[dict[str, object], ...] = (
+        {"collateral_eligibility": "approved"},
+        {"arrangement": "bilateral"},
+        {"financing_rate": Decimal("0.1")},
+        {"margin_terms": Decimal("0.1")},
+        {"evidence_ref": _uuid(203)},
+    )
+    for changes in invalid:
+        with pytest.raises(SecuritiesFinancingValidationError):
+            replace(base, **cast(Any, changes))
 
 
 def test_three_product_families_do_not_collapse() -> None:
@@ -714,8 +816,6 @@ def test_decimal_canonicalization_is_context_independent_and_scalable() -> None:
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        ("0", "0"),
-        ("-0", "0"),
         ("1.2300", "1.23"),
         ("1000.00", "1000"),
         ("0.00100", "0.001"),
@@ -723,8 +823,14 @@ def test_decimal_canonicalization_is_context_independent_and_scalable() -> None:
         ("1E-20", "1e-20"),
     ],
 )
-def test_decimal_canonical_equivalence(raw: str, expected: str) -> None:
+def test_positive_decimal_canonical_equivalence(raw: str, expected: str) -> None:
     assert SftCashAmount(Decimal(raw), _identity(300)).logical_values()[0] == expected
+
+
+def test_zero_and_signed_zero_canonicalize_through_nonnegative_ratio() -> None:
+    for raw in ("0", "-0"):
+        value = SftMarginTerms(haircut_ratio=Decimal(raw))
+        assert value.logical_values()[1] == "0"
 
 
 def test_logical_values_revalidate_after_reflective_post_construction_mutation() -> None:
