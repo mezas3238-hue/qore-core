@@ -240,14 +240,8 @@ class VolatilityObservationTerms:
             raise VolatilityVarianceValidationError(
                 "volatility observation end date must be after start date"
             )
-        if type(self.schedule_code) is not VolatilityObservationScheduleCode:
-            raise VolatilityVarianceValidationError(
-                "volatility observation schedule_code must be typed"
-            )
-        if type(self.calculation_convention) is not VolatilityCalculationConventionCode:
-            raise VolatilityVarianceValidationError(
-                "volatility observation calculation_convention must be typed"
-            )
+        _validate_schedule_code_child(self.schedule_code)
+        _validate_calculation_convention_child(self.calculation_convention)
         if self.expected_observation_count is not None and (
             type(self.expected_observation_count) is not int
             or self.expected_observation_count <= 0
