@@ -166,10 +166,9 @@ class StructuredNotePayoffOutcome:
             raise StructuredNotePayoffValidationError(
                 "conversion_feature_id must be StructuredFeatureId or None"
             )
-        if self.participation_selection is not None and not isinstance(
-            self.participation_selection,
-            StructuredNoteParticipationSelection,
-        ):
+        if self.participation_selection is not None and type(
+            self.participation_selection
+        ) is not StructuredNoteParticipationSelection:
             raise StructuredNotePayoffValidationError(
                 "participation_selection must be StructuredNoteParticipationSelection or None"
             )
@@ -232,7 +231,7 @@ class StructuredNotePayoffBranch:
     evidence_ref: StructuredEvidenceRef
 
     def __post_init__(self) -> None:
-        if not isinstance(self.branch_id, StructuredNotePayoffBranchId):
+        if type(self.branch_id) is not StructuredNotePayoffBranchId:
             raise StructuredNotePayoffValidationError(
                 "structured-note branch_id must be StructuredNotePayoffBranchId"
             )
@@ -286,7 +285,7 @@ class StructuredNotePayoffBranch:
                     "condition_mode",
                     StructuredNoteConditionMode.ALL,
                 )
-        if not isinstance(self.outcome, StructuredNotePayoffOutcome):
+        if type(self.outcome) is not StructuredNotePayoffOutcome:
             raise StructuredNotePayoffValidationError(
                 "structured-note outcome must be StructuredNotePayoffOutcome"
             )
@@ -320,7 +319,7 @@ class StructuredNotePayoffTerms:
     evidence_ref: StructuredEvidenceRef
 
     def __post_init__(self) -> None:
-        if not isinstance(self.terms_id, StructuredNotePayoffTermsId):
+        if type(self.terms_id) is not StructuredNotePayoffTermsId:
             raise StructuredNotePayoffValidationError(
                 "structured-note terms_id must be StructuredNotePayoffTermsId"
             )
@@ -333,7 +332,7 @@ class StructuredNotePayoffTerms:
                 "structured-note branches must be an immutable tuple with at least two branches"
             )
         for branch in self.branches:
-            if not isinstance(branch, StructuredNotePayoffBranch):
+            if type(branch) is not StructuredNotePayoffBranch:
                 raise StructuredNotePayoffValidationError(
                     "structured-note branches must contain StructuredNotePayoffBranch"
                 )
