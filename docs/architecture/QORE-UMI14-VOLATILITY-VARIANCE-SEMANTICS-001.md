@@ -13,6 +13,8 @@ Starting tree: `b7cea560575cfd10034f02c9bec60c3d71ac7f09`
 
 Historical preparatory PR #393 and head `390f13eaae656ad740fde4c094c19b6c0f130a31` were built from stale baseline `39e1598e91c912f473f9628c3aab30fe7b9cc034`. They remain provenance only and are not integration authority.
 
+R4 DeepSeek Coder finding `DS-CODER-UNR012-R4-01`, adjudicated by IA in PR #436 comment `5386942260`, demonstrated that exact local frozen/slotted child values could be manufactured with `object.__new__` plus `object.__setattr__` without invoking their constructor validation and then accepted by parent contracts that checked only exact type. The current correction therefore revalidates local child state at every parent trust edge. All R4 SHA-bound certification evidence is historical for the former R4 HEAD only.
+
 ---
 
 ## 1. Fresh Gate-A reconstruction
@@ -58,7 +60,7 @@ Fresh candidate surface:
 4. `tests/infrastructure/test_volatility_variance_semantics_decimal_scalability.py`
 5. `docs/architecture/QORE-UMI14-VOLATILITY-VARIANCE-SEMANTICS-001.md`
 
-The dedicated logical-identity oracle is required by current Full Closure oracle law. The separate Decimal-scalability oracle was added after R3 IA falsification demonstrated that fixed-point rendering of a compact finite Decimal exponent could amplify output length linearly with exponent magnitude. This verification-only addition does not broaden financial or runtime authority.
+The dedicated logical-identity oracle is required by current Full Closure oracle law. The fourth verification-only test file was originally added after R3 IA falsification demonstrated that fixed-point rendering of a compact finite Decimal exponent could amplify output length linearly with exponent magnitude. After the R4 Coder falsification, that same verification-only file also carries explicit malformed-exact-local-child regression witnesses using `object.__new__` and `object.__setattr__`. This does not broaden financial or runtime authority.
 
 The historical preparatory tests used SUT/nested `.logical_values()` helpers in portions of expected material and therefore are not sufficient as the sole independent logical-identity oracle.
 
@@ -131,9 +133,18 @@ Owner-local values whose virtual `logical_values()` results are trusted by a par
 - local strike wrappers inside their respective contracts;
 - `CorrelationConstituent` entries inside `CorrelationSwapTerms`.
 
-R1/R2 IA falsification then produced concrete counterexamples against permissive imported-owner composition: a subclass of `EconomicIdentityId`, `DerivativeTermsId`, `DerivativeEvidenceRef` or `DerivativeNotional` can satisfy an `isinstance` guard while overriding virtual projection behavior; base/subclass identity equality can also diverge despite identical UUID material. Imported owners can furthermore contain subclassed primitive `UUID` / `Decimal` values where their historical constructors accept subclasses.
+Exact type alone is not considered sufficient evidence of valid local state. R4 Coder demonstrated that Python permits an exact frozen/slotted dataclass instance to be manufactured without `__post_init__` by using `object.__new__` and reflective slot assignment. Therefore each parent edge now revalidates the local child's primitive/internal state before trust:
 
-Because this is a demonstrated exploit rather than an arbitrary policy preference, the UNR-012 composition boundary requires exact imported wrapper types and exact trusted primitive material for the imported values it projects:
+- schedule and calculation-convention code syntax is revalidated;
+- variance and volatility strike finiteness/non-negativity is revalidated;
+- correlation strike finiteness and `[-1, 1]` bounds are revalidated;
+- observation dates, chronology, codes and strict-positive optional count are revalidated;
+- settlement identity and exact date are revalidated;
+- correlation constituent identity and positive finite weight are revalidated.
+
+R1/R2 IA falsification produced concrete counterexamples against permissive imported-owner composition: a subclass of `EconomicIdentityId`, `DerivativeTermsId`, `DerivativeEvidenceRef` or `DerivativeNotional` can satisfy an `isinstance` guard while overriding virtual projection behavior; base/subclass identity equality can also diverge despite identical UUID material. Imported owners can furthermore contain subclassed primitive `UUID` / `Decimal` values where their historical constructors accept subclasses.
+
+Because these are demonstrated exploits rather than arbitrary policy preferences, the UNR-012 composition boundary requires exact imported wrapper types and exact trusted primitive material for the imported values it projects:
 
 - exact `EconomicIdentityId` with exact `UUID`;
 - exact `DerivativeTermsId` with exact `UUID`;
@@ -197,7 +208,9 @@ A product whose payout amount itself requires conversion from a notional unit di
 
 ## 9. Determinism / immutability
 
-All local semantic values are frozen and slotted. Caller-supplied IDs are explicit. Decimal logical material is canonical, compact for extreme finite exponents, and independent of ambient Decimal precision/rounding context. Correlation constituents are canonically ordered by economic reference identity. Dates are explicit contract dates. No implicit wall clock or random identity generation exists.
+All local semantic values are frozen and slotted under normal Python mutation rules. Caller-supplied IDs are explicit. Decimal logical material is canonical, compact for extreme finite exponents, and independent of ambient Decimal precision/rounding context. Correlation constituents are canonically ordered by economic reference identity. Dates are explicit contract dates. No implicit wall clock or random identity generation exists.
+
+Frozen/slotted is not treated as a substitute for parent-boundary validation: reflective construction can bypass dataclass initialization, so the parent revalidates any exact local child state it consumes.
 
 ---
 
@@ -210,11 +223,13 @@ Historical source/test semantics are retained where compatible with current owne
 - context-independent Decimal logical identity with an ambient-precision adversarial witness;
 - compact exponent-safe Decimal canonicalization with explicit million-exponent resource-amplification witnesses;
 - owner-local exact-type child boundaries against behavioral subclass spoofing;
+- parent-boundary revalidation of exact local child internal state against `object.__new__` / `object.__setattr__` constructor bypass;
 - demonstrated-exploit-driven exact imported-owner composition checks, including nested trusted `UUID` / `Decimal` primitives;
 - explicit instrument-vs-settlement non-self-reference;
 - payout notional-unit equality with settlement identity, with no silent FX/quanto conversion inference;
 - canonical correlation constituent ordering;
 - a dedicated independent logical-identity oracle with adversarial subclass witnesses;
+- verification-only malformed exact-child regression witnesses;
 - current-baseline governance/documentation.
 
 These changes are bounded to UNR-012 and do not modify UMI-05 or UMI-10.
@@ -232,6 +247,8 @@ These changes are bounded to UNR-012 and do not modify UMI-05 or UMI-10.
 `TRACKER #392 = OPEN`
 
 `HISTORICAL PR #393 = STALE / PROVENANCE ONLY`
+
+`R4 DEEPSEEK CODER = FAIL / IA ACCEPTED / HISTORICAL FOR FORMER HEAD`
 
 `READY = NOT YET ESTABLISHED`
 
