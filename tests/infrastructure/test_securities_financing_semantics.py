@@ -35,6 +35,7 @@ from qore.infrastructure.securities_financing_semantics import (
     SftDurationMode,
     SftDurationTerms,
     SftEvidenceRef,
+    SftFinancingPaymentMode,
     SftMarginTerms,
     SftPartyReferenceId,
     SftRateKind,
@@ -212,10 +213,12 @@ def _margin_loan() -> MarginLendingTerms:
         duration=_callable(),
         credit_limit=_cash("2500000", 302),
         financing_rate=_floating("0.015"),
+        financing_payment_mode=SftFinancingPaymentMode.PERIODIC,
         collateral_eligibility=SftCollateralEligibilityCode("prime-broker-approved"),
         eligible_collateral_identity_ids=(_id(421), _id(420)),
         arrangement=_bilateral(),
         evidence_ref=_evidence(203),
+        financing_payment_tenor=_tenor(),
         margin_terms=SftMarginTerms(haircut_ratio=Decimal("0.25")),
     )
 
@@ -760,10 +763,89 @@ def test_securities_lending_collateral_container_and_parent_guards() -> None:
         replace(loan, compensation=bad_comp)
 
 
+def test_margin_lending_financing_payment_modes_close_r3_collision() -> None:
+    periodic = _margin_loan()
+    at_end = replace(
+        periodic,
+        financing_payment_mode=SftFinancingPaymentMode.AT_TERMINATION,
+        financing_payment_tenor=None,
+    )
+    external = replace(
+        periodic,
+        financing_payment_mode=SftFinancingPaymentMode.EXTERNAL_SCHEDULE,
+        financing_payment_tenor=None,
+        financing_payment_schedule_reference=_schedule(720),
+    )
+
+    assert periodic.logical_values()[8] == ("periodic", (1, "month"), None)
+    assert at_end.logical_values()[8] == ("at-termination", None, None)
+    assert external.logical_values()[8] == (
+        "external-schedule",
+        None,
+        (str(_uuid(720)),),
+    )
+    assert len(
+        {periodic.logical_values(), at_end.logical_values(), external.logical_values()}
+    ) == 3
+
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires exact mode"):
+        replace(periodic, financing_payment_mode=cast(Any, "periodic"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires tenor only"):
+        replace(periodic, financing_payment_tenor=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires tenor only"):
+        replace(periodic, financing_payment_schedule_reference=_schedule(721))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        replace(
+            at_end,
+            financing_payment_tenor=_tenor(),
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        replace(
+            at_end,
+            financing_payment_schedule_reference=_schedule(722),
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule ref only"):
+        replace(
+            periodic,
+            financing_payment_mode=SftFinancingPaymentMode.EXTERNAL_SCHEDULE,
+            financing_payment_tenor=None,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule ref only"):
+        replace(external, financing_payment_tenor=_tenor())
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftScheduleReferenceId"):
+        replace(
+            periodic,
+            financing_payment_mode=SftFinancingPaymentMode.EXTERNAL_SCHEDULE,
+            financing_payment_tenor=None,
+            financing_payment_schedule_reference=cast(Any, _uuid(723)),
+        )
+    bad_ref = _malformed(SftScheduleReferenceId, value=cast(Any, _BadUUID(int=724)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        replace(
+            periodic,
+            financing_payment_mode=SftFinancingPaymentMode.EXTERNAL_SCHEDULE,
+            financing_payment_tenor=None,
+            financing_payment_schedule_reference=bad_ref,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenor"):
+        replace(periodic, financing_payment_tenor=cast(Any, "monthly"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenor"):
+        replace(
+            periodic,
+            financing_payment_tenor=_TenorSubclass(1, FinancialTenorUnit.MONTH),
+        )
+    bad_tenor = _malformed(FinancialTenor, value=0, unit=FinancialTenorUnit.MONTH)
+    with pytest.raises(SecuritiesFinancingValidationError, match="positive int"):
+        replace(periodic, financing_payment_tenor=bad_tenor)
+    bad_unit = _malformed(FinancialTenor, value=1, unit=cast(Any, "month"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenorUnit"):
+        replace(periodic, financing_payment_tenor=bad_unit)
+
+
 def test_margin_lending_constraints() -> None:
     m = _margin_loan()
     assert tuple(x.value for x in m.eligible_collateral_identity_ids) == (_uuid(420), _uuid(421))
-    assert replace(m, eligible_collateral_identity_ids=()).logical_values()[9] == ()
+    assert replace(m, eligible_collateral_identity_ids=()).logical_values()[10] == ()
     with pytest.raises(SecuritiesFinancingValidationError, match="unique"):
         replace(m, eligible_collateral_identity_ids=(_id(420), _id(420)))
     with pytest.raises(SecuritiesFinancingValidationError, match="must not be eligible"):
@@ -809,6 +891,7 @@ def test_complete_logical_identity_oracles() -> None:
     )
     margin = _margin_loan()
     assert margin.logical_values()[0] == "margin-lending"
+    assert margin.logical_values()[8] == ("periodic", (1, "month"), None)
     assert {repo.logical_values()[0], lv[0], margin.logical_values()[0]} == {
         "repo", "securities-lending", "margin-lending"
     }
