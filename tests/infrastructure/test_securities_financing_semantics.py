@@ -360,7 +360,10 @@ def test_security_quantity_requires_positive_finite_decimal(value: str) -> None:
 
 
 def test_security_quantity_basis_is_exact_and_deeply_revalidated() -> None:
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftSecurityQuantityBasisCode"):
+    with pytest.raises(
+        SecuritiesFinancingValidationError,
+        match="exact SftSecurityQuantityBasisCode",
+    ):
         SftSecurityQuantity(_identity(400), Decimal("1"), cast(Any, "units"))
     malformed = object.__new__(SftSecurityQuantityBasisCode)
     object.__setattr__(malformed, "value", "INVALID CODE")
