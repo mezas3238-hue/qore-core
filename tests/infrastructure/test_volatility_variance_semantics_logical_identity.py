@@ -245,7 +245,11 @@ def test_wrapper_and_nested_projections_are_independently_reconstructed() -> Non
 def test_top_level_projections_are_complete_and_independent() -> None:
     assert _variance().logical_values() == _EXPECTED_VARIANCE
     assert _volatility().logical_values() == _EXPECTED_VOLATILITY
-    assert _correlation(reverse=True).logical_values() == _EXPECTED_CORRELATION
+    terms = _correlation(reverse=True)
+    assert tuple(
+        constituent.reference_identity_id for constituent in terms.constituents
+    ) == (_identity(31), _identity(32))
+    assert terms.logical_values() == _EXPECTED_CORRELATION
 
 
 def test_correlation_caller_order_does_not_change_logical_identity() -> None:
@@ -367,6 +371,39 @@ class _HostileDecimal(Decimal):
         return Decimal("999")
 
 
+class _HostileUUID(UUID):
+    def __str__(self) -> str:
+        return "spoofed-uuid"
+
+
+class _IdentitySubclass(EconomicIdentityId):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[str, ...]:
+        return ("spoofed-identity",)
+
+
+class _TermsIdSubclass(DerivativeTermsId):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[str, ...]:
+        return ("spoofed-terms-id",)
+
+
+class _EvidenceSubclass(DerivativeEvidenceRef):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[str, ...]:
+        return ("spoofed-evidence",)
+
+
+class _NotionalSubclass(DerivativeNotional):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[object, ...]:
+        return ("spoofed-notional",)
+
+
 def test_code_wrappers_reject_string_subclass() -> None:
     with pytest.raises(VolatilityVarianceValidationError, match="canonical lowercase"):
         VolatilityObservationScheduleCode(cast(Any, _StringSubclass("daily")))
@@ -379,6 +416,140 @@ def test_decimal_boundaries_reject_hostile_subclasses_before_behavior() -> None:
             factory(hostile)
     with pytest.raises(VolatilityVarianceValidationError, match="finite Decimal"):
         CorrelationConstituent(_identity(31), hostile)
+
+
+def test_imported_owner_subclasses_are_rejected_before_virtual_behavior() -> None:
+    with pytest.raises(VolatilityVarianceValidationError, match="exact EconomicIdentityId"):
+        VolatilitySettlementTerms(
+            settlement_identity_id=_IdentitySubclass(_uuid(301)),
+            settlement_date=date(2026, 7, 2),
+        )
+
+    variance = _variance()
+    with pytest.raises(VolatilityVarianceValidationError, match="exact DerivativeTermsId"):
+        VarianceSwapTerms(
+            terms_id=_TermsIdSubclass(_uuid(101)),
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=variance.variance_amount,
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=variance.evidence_ref,
+            vega_notional=variance.vega_notional,
+        )
+
+    with pytest.raises(VolatilityVarianceValidationError, match="exact DerivativeEvidenceRef"):
+        VarianceSwapTerms(
+            terms_id=variance.terms_id,
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=variance.variance_amount,
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=_EvidenceSubclass(_uuid(201)),
+            vega_notional=variance.vega_notional,
+        )
+
+    with pytest.raises(VolatilityVarianceValidationError, match="exact DerivativeNotional"):
+        VarianceSwapTerms(
+            terms_id=variance.terms_id,
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=_NotionalSubclass(Decimal("5000"), _identity(301)),
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=variance.evidence_ref,
+            vega_notional=variance.vega_notional,
+        )
+
+    with pytest.raises(VolatilityVarianceValidationError, match="exact EconomicIdentityId"):
+        VarianceSwapTerms(
+            terms_id=variance.terms_id,
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=_IdentitySubclass(
+                variance.instrument_identity_id.value
+            ),
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=variance.variance_amount,
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=variance.evidence_ref,
+            vega_notional=variance.vega_notional,
+        )
+
+
+def test_imported_owner_nested_primitives_are_rejected_before_behavior() -> None:
+    hostile_uuid = cast(Any, _HostileUUID(int=301))
+    with pytest.raises(VolatilityVarianceValidationError, match="exact UUID"):
+        VolatilitySettlementTerms(
+            settlement_identity_id=EconomicIdentityId(hostile_uuid),
+            settlement_date=date(2026, 7, 2),
+        )
+
+    variance = _variance()
+    with pytest.raises(VolatilityVarianceValidationError, match="exact UUID"):
+        VarianceSwapTerms(
+            terms_id=DerivativeTermsId(cast(Any, _HostileUUID(int=101))),
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=variance.variance_amount,
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=variance.evidence_ref,
+            vega_notional=variance.vega_notional,
+        )
+
+    with pytest.raises(VolatilityVarianceValidationError, match="exact UUID"):
+        VarianceSwapTerms(
+            terms_id=variance.terms_id,
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=variance.variance_amount,
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=DerivativeEvidenceRef(cast(Any, _HostileUUID(int=201))),
+            vega_notional=variance.vega_notional,
+        )
+
+    hostile_decimal_notional = DerivativeNotional(
+        cast(Any, _HostileDecimal("1")),
+        _identity(301),
+    )
+    with pytest.raises(VolatilityVarianceValidationError, match="finite Decimal"):
+        VolatilitySwapTerms(
+            terms_id=_terms_id(102),
+            instrument_identity_id=_identity(20),
+            reference_identity_id=_identity(21),
+            observation_terms=_observation(),
+            volatility_strike=VolatilityStrike(Decimal("0.2")),
+            vega_notional=hostile_decimal_notional,
+            settlement_terms=_settlement(),
+            evidence_ref=_evidence(202),
+        )
+
+    hostile_unit_identity = EconomicIdentityId(
+        cast(Any, _HostileUUID(int=301))
+    )
+    hostile_unit_notional = DerivativeNotional(
+        Decimal("100"),
+        hostile_unit_identity,
+    )
+    with pytest.raises(VolatilityVarianceValidationError, match="exact UUID"):
+        VolatilitySwapTerms(
+            terms_id=_terms_id(102),
+            instrument_identity_id=_identity(20),
+            reference_identity_id=_identity(21),
+            observation_terms=_observation(),
+            volatility_strike=VolatilityStrike(Decimal("0.2")),
+            vega_notional=hostile_unit_notional,
+            settlement_terms=_settlement(),
+            evidence_ref=_evidence(202),
+        )
 
 
 def test_observation_rejects_local_code_subclasses_before_projection() -> None:
