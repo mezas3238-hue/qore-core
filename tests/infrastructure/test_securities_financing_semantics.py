@@ -128,11 +128,22 @@ def _floating_leg(
     reset_mode: SftCompensationResetMode = SftCompensationResetMode.PERIODIC,
     reset_tenor: FinancialTenor | None = None,
     reset_ref: SftScheduleReferenceId | None = None,
+    reset_fixing_timing: SftFinancingFixingTiming | None = None,
+    calculation: SftFinancingCalculationCode | None = None,
+    observation_mode: SftFinancingObservationMode | None = None,
+    observation_ref: SftScheduleReferenceId | None = None,
 ) -> SecuritiesLendingCompensationLegTerms:
     if payment_mode is SftCompensationPaymentMode.PERIODIC and payment_tenor is None:
         payment_tenor = _tenor()
-    if reset_mode is SftCompensationResetMode.PERIODIC and reset_tenor is None:
-        reset_tenor = _tenor(1, FinancialTenorUnit.DAY)
+    if reset_mode is SftCompensationResetMode.PERIODIC:
+        if reset_tenor is None:
+            reset_tenor = _tenor(1, FinancialTenorUnit.DAY)
+        if reset_fixing_timing is None:
+            reset_fixing_timing = SftFinancingFixingTiming.IN_ADVANCE
+    if calculation is None:
+        calculation = SftFinancingCalculationCode("daily-simple")
+    if observation_mode is None:
+        observation_mode = SftFinancingObservationMode.NONE
     return SecuritiesLendingCompensationLegTerms(
         rate=_floating(rate),
         currency_identity_id=_id(currency),
@@ -143,6 +154,10 @@ def _floating_leg(
         reset_mode=reset_mode,
         reset_tenor=reset_tenor,
         reset_schedule_reference=reset_ref,
+        reset_fixing_timing=reset_fixing_timing,
+        floating_calculation=calculation,
+        floating_observation_mode=observation_mode,
+        floating_observation_reference=observation_ref,
     )
 
 
@@ -494,7 +509,7 @@ def test_compensation_reset_modes_and_fixed_boundary() -> None:
     assert reference.logical_values()[4] == ("reference-convention", None, None)
     assert len({x.logical_values() for x in (periodic, at_payment, external, reference)}) == 4
 
-    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry reset timing"):
+    with pytest.raises(SecuritiesFinancingValidationError, match="reset/fixing timing"):
         _fixed_leg().__class__(
             rate=_fixed(),
             currency_identity_id=_id(303),
@@ -508,6 +523,8 @@ def test_compensation_reset_modes_and_fixed_boundary() -> None:
             currency_identity_id=_id(301),
             accrual_basis=SftCompensationAccrualBasisCode("cash-collateral"),
             payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
+            floating_calculation=SftFinancingCalculationCode("daily-simple"),
+            floating_observation_mode=SftFinancingObservationMode.NONE,
         )
     with pytest.raises(SecuritiesFinancingValidationError, match="requires tenor"):
         SecuritiesLendingCompensationLegTerms(
@@ -517,6 +534,9 @@ def test_compensation_reset_modes_and_fixed_boundary() -> None:
             payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
             reset_mode=SftCompensationResetMode.PERIODIC,
             reset_tenor=None,
+            reset_fixing_timing=SftFinancingFixingTiming.IN_ADVANCE,
+            floating_calculation=SftFinancingCalculationCode("daily-simple"),
+            floating_observation_mode=SftFinancingObservationMode.NONE,
         )
     with pytest.raises(SecuritiesFinancingValidationError, match="no schedule ref"):
         _floating_leg(reset_ref=_schedule(2))
@@ -528,7 +548,7 @@ def test_compensation_reset_modes_and_fixed_boundary() -> None:
             _floating_leg(reset_mode=mode, reset_tenor=_tenor())
     with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule ref"):
         _floating_leg(reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE, reset_tenor=None)
-    with pytest.raises(SecuritiesFinancingValidationError, match="no tenor"):
+    with pytest.raises(SecuritiesFinancingValidationError, match="schedule ref only"):
         _floating_leg(
             reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE,
             reset_tenor=_tenor(),
@@ -540,6 +560,122 @@ def test_compensation_reset_modes_and_fixed_boundary() -> None:
             reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE,
             reset_tenor=None,
             reset_ref=bad_ref,
+        )
+
+
+def test_compensation_floating_calculation_fixing_and_observation_noncollapse() -> None:
+    base = _floating_leg()
+    arrears = replace(base, reset_fixing_timing=SftFinancingFixingTiming.IN_ARREARS)
+    reference_fixing = replace(
+        base,
+        reset_fixing_timing=SftFinancingFixingTiming.REFERENCE_CONVENTION,
+    )
+    compounded = replace(
+        base,
+        floating_calculation=SftFinancingCalculationCode("daily-compounded"),
+    )
+    observation_reference = replace(
+        base,
+        floating_observation_mode=SftFinancingObservationMode.REFERENCE_CONVENTION,
+    )
+    observation_external = replace(
+        base,
+        floating_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+        floating_observation_reference=_schedule(760),
+    )
+    observation_external_other = replace(
+        observation_external,
+        floating_observation_reference=_schedule(761),
+    )
+
+    base_values = cast(tuple[object, ...], base.logical_values()[5])
+    assert base_values == ("in-advance", ("daily-simple",), ("none", None))
+    assert cast(tuple[object, ...], arrears.logical_values()[5])[0] == "in-arrears"
+    assert cast(tuple[object, ...], reference_fixing.logical_values()[5])[0] == (
+        "reference-convention"
+    )
+    assert cast(tuple[object, ...], compounded.logical_values()[5])[1] == (
+        "daily-compounded",
+    )
+    assert cast(tuple[object, ...], observation_reference.logical_values()[5])[2] == (
+        "reference-convention",
+        None,
+    )
+    assert cast(tuple[object, ...], observation_external.logical_values()[5])[2] == (
+        "external-terms",
+        (str(_uuid(760)),),
+    )
+    variants = (
+        base,
+        arrears,
+        reference_fixing,
+        compounded,
+        observation_reference,
+        observation_external,
+        observation_external_other,
+    )
+    assert len({item.logical_values() for item in variants}) == len(variants)
+
+
+def test_compensation_floating_convention_guards() -> None:
+    fixed = _fixed_leg()
+    with pytest.raises(SecuritiesFinancingValidationError, match="reset/fixing timing"):
+        replace(fixed, reset_fixing_timing=SftFinancingFixingTiming.IN_ADVANCE)
+    with pytest.raises(SecuritiesFinancingValidationError, match="floating convention"):
+        replace(fixed, floating_calculation=SftFinancingCalculationCode("daily-simple"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="floating convention"):
+        replace(fixed, floating_observation_mode=SftFinancingObservationMode.NONE)
+
+    periodic = _floating_leg()
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact fixing timing"):
+        replace(periodic, reset_fixing_timing=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact fixing timing"):
+        replace(periodic, reset_fixing_timing=cast(Any, "in-advance"))
+    at_payment = _floating_leg(
+        reset_mode=SftCompensationResetMode.AT_PAYMENT,
+        reset_tenor=None,
+    )
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        replace(at_payment, reset_fixing_timing=SftFinancingFixingTiming.IN_ARREARS)
+    external_reset = _floating_leg(
+        reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE,
+        reset_tenor=None,
+        reset_ref=_schedule(762),
+    )
+    with pytest.raises(SecuritiesFinancingValidationError, match="schedule ref only"):
+        replace(external_reset, reset_fixing_timing=SftFinancingFixingTiming.IN_ADVANCE)
+
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires calculation code"):
+        replace(periodic, floating_calculation=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact calculation code"):
+        replace(periodic, floating_calculation=cast(Any, "daily-simple"))
+    bad_calculation = _malformed(SftFinancingCalculationCode, value="INVALID CODE")
+    with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
+        replace(periodic, floating_calculation=bad_calculation)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact observation mode"):
+        replace(periodic, floating_observation_mode=cast(Any, "none"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="require reference"):
+        replace(
+            periodic,
+            floating_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry reference"):
+        replace(periodic, floating_observation_reference=_schedule(763))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftScheduleReferenceId"):
+        replace(
+            periodic,
+            floating_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+            floating_observation_reference=cast(Any, _uuid(764)),
+        )
+    bad_observation_ref = _malformed(
+        SftScheduleReferenceId,
+        value=cast(Any, _BadUUID(int=765)),
+    )
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        replace(
+            periodic,
+            floating_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+            floating_observation_reference=bad_observation_ref,
         )
 
 
@@ -827,6 +963,8 @@ def test_securities_lending_collateral_container_and_parent_guards() -> None:
         payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
         payment_tenor=None, payment_schedule_reference=None,
         reset_mode=None, reset_tenor=None, reset_schedule_reference=None,
+        reset_fixing_timing=None, floating_calculation=None,
+        floating_observation_mode=None, floating_observation_reference=None,
     )
     bad_comp = _malformed(
         SecuritiesLendingCompensationTerms,
@@ -1162,7 +1300,13 @@ def test_complete_logical_identity_oracles() -> None:
     fee_values = cast(tuple[object, ...], compensation_values[0])
     rebate_values = cast(tuple[object, ...], compensation_values[1])
     assert fee_values[3] == ("periodic", (1, "month"), None)
+    assert fee_values[5] is None
     assert rebate_values[4] == ("periodic", (1, "day"), None)
+    assert rebate_values[5] == (
+        "in-advance",
+        ("daily-simple",),
+        ("none", None),
+    )
     assert lv[8] == ("explicit", None)
     assert lv[9] == (
         ("5e+5", (str(_uuid(301)),)),
@@ -1193,6 +1337,11 @@ def test_reflective_revalidation_and_frozen_slotted_values() -> None:
     object.__setattr__(leg.accrual_basis, "value", "INVALID CODE")
     with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
         leg.logical_values()
+    floating_leg = _floating_leg()
+    assert floating_leg.floating_calculation is not None
+    object.__setattr__(floating_leg.floating_calculation, "value", "INVALID CODE")
+    with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
+        SecuritiesLendingCompensationTerms(cash_collateral_rebate=floating_leg).logical_values()
     margin = _margin_loan()
     assert margin.financing_calculation is not None
     object.__setattr__(margin.financing_calculation, "value", "INVALID CODE")
