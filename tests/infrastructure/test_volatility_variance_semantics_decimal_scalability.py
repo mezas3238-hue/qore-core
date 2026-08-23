@@ -234,3 +234,67 @@ def test_parent_rejects_malformed_exact_correlation_constituent() -> None:
             settlement_terms=_settlement_terms(),
             evidence_ref=_evidence(207),
         )
+
+
+def _malformed_observation_terms(
+    *,
+    schedule_code: object,
+    calculation_convention: object,
+    expected_observation_count: object = 125,
+) -> VolatilityObservationTerms:
+    malformed = object.__new__(VolatilityObservationTerms)
+    object.__setattr__(malformed, "observation_start_date", date(2026, 1, 2))
+    object.__setattr__(malformed, "observation_end_date", date(2026, 6, 30))
+    object.__setattr__(malformed, "schedule_code", schedule_code)
+    object.__setattr__(malformed, "calculation_convention", calculation_convention)
+    object.__setattr__(malformed, "expected_observation_count", expected_observation_count)
+    return malformed
+
+
+def _assert_variance_parent_rejects_observation_terms(
+    observation_terms: VolatilityObservationTerms,
+    *,
+    suffix: int,
+) -> None:
+    with pytest.raises(VolatilityVarianceValidationError):
+        VarianceSwapTerms(
+            terms_id=_terms_id(200 + suffix),
+            instrument_identity_id=_identity(100 + suffix * 2),
+            reference_identity_id=_identity(101 + suffix * 2),
+            observation_terms=observation_terms,
+            variance_strike=VarianceStrike(Decimal("0.04")),
+            variance_amount=_notional("5000"),
+            settlement_terms=_settlement_terms(),
+            evidence_ref=_evidence(300 + suffix),
+        )
+
+
+def test_parent_rejects_wrong_exact_schedule_child_type() -> None:
+    malformed = _malformed_observation_terms(
+        schedule_code=VolatilityCalculationConventionCode("daily-close"),
+        calculation_convention=VolatilityCalculationConventionCode(
+            "log-return-standard"
+        ),
+    )
+    _assert_variance_parent_rejects_observation_terms(malformed, suffix=1)
+
+
+def test_parent_rejects_wrong_exact_calculation_convention_child_type() -> None:
+    malformed = _malformed_observation_terms(
+        schedule_code=VolatilityObservationScheduleCode("daily-close"),
+        calculation_convention=VolatilityObservationScheduleCode(
+            "log-return-standard"
+        ),
+    )
+    _assert_variance_parent_rejects_observation_terms(malformed, suffix=2)
+
+
+def test_parent_rejects_malformed_exact_expected_observation_count() -> None:
+    malformed = _malformed_observation_terms(
+        schedule_code=VolatilityObservationScheduleCode("daily-close"),
+        calculation_convention=VolatilityCalculationConventionCode(
+            "log-return-standard"
+        ),
+        expected_observation_count=False,
+    )
+    _assert_variance_parent_rejects_observation_terms(malformed, suffix=3)
