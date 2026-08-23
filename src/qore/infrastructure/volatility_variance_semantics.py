@@ -312,6 +312,108 @@ class CorrelationConstituent:
         )
 
 
+def _validate_schedule_code_child(value: VolatilityObservationScheduleCode) -> None:
+    if type(value) is not VolatilityObservationScheduleCode:
+        raise VolatilityVarianceValidationError(
+            "volatility observation schedule_code must be typed"
+        )
+    _validate_code(value.value, field_name="volatility observation schedule code")
+
+
+def _validate_calculation_convention_child(
+    value: VolatilityCalculationConventionCode,
+) -> None:
+    if type(value) is not VolatilityCalculationConventionCode:
+        raise VolatilityVarianceValidationError(
+            "volatility observation calculation_convention must be typed"
+        )
+    _validate_code(value.value, field_name="volatility calculation convention code")
+
+
+def _validate_variance_strike_child(value: VarianceStrike) -> None:
+    if type(value) is not VarianceStrike:
+        raise VolatilityVarianceValidationError(
+            "variance swap variance_strike must be VarianceStrike"
+        )
+    _validate_decimal(value.value, field_name="variance strike", non_negative=True)
+
+
+def _validate_volatility_strike_child(value: VolatilityStrike) -> None:
+    if type(value) is not VolatilityStrike:
+        raise VolatilityVarianceValidationError(
+            "volatility swap volatility_strike must be VolatilityStrike"
+        )
+    _validate_decimal(value.value, field_name="volatility strike", non_negative=True)
+
+
+def _validate_correlation_strike_child(value: CorrelationStrike) -> None:
+    if type(value) is not CorrelationStrike:
+        raise VolatilityVarianceValidationError(
+            "correlation swap correlation_strike must be CorrelationStrike"
+        )
+    _validate_decimal(value.value, field_name="correlation strike")
+    if value.value < Decimal("-1") or value.value > Decimal("1"):
+        raise VolatilityVarianceValidationError(
+            "correlation strike must be between -1 and 1 inclusive"
+        )
+
+
+def _validate_observation_terms_child(value: VolatilityObservationTerms) -> None:
+    if type(value) is not VolatilityObservationTerms:
+        raise VolatilityVarianceValidationError(
+            "volatility-family observation_terms must be typed"
+        )
+    _validate_date(
+        value.observation_start_date,
+        field_name="volatility observation start date",
+    )
+    _validate_date(
+        value.observation_end_date,
+        field_name="volatility observation end date",
+    )
+    if value.observation_end_date <= value.observation_start_date:
+        raise VolatilityVarianceValidationError(
+            "volatility observation end date must be after start date"
+        )
+    _validate_schedule_code_child(value.schedule_code)
+    _validate_calculation_convention_child(value.calculation_convention)
+    if value.expected_observation_count is not None and (
+        type(value.expected_observation_count) is not int
+        or value.expected_observation_count <= 0
+    ):
+        raise VolatilityVarianceValidationError(
+            "expected observation count must be a positive int or None"
+        )
+
+
+def _validate_settlement_terms_child(value: VolatilitySettlementTerms) -> None:
+    if type(value) is not VolatilitySettlementTerms:
+        raise VolatilityVarianceValidationError(
+            "volatility-family settlement_terms must be typed"
+        )
+    _validate_identity(
+        value.settlement_identity_id,
+        field_name="volatility settlement identity",
+    )
+    _validate_date(value.settlement_date, field_name="volatility settlement date")
+
+
+def _validate_correlation_constituent_child(value: CorrelationConstituent) -> None:
+    if type(value) is not CorrelationConstituent:
+        raise VolatilityVarianceValidationError(
+            "correlation swap constituents must be CorrelationConstituent"
+        )
+    _validate_identity(
+        value.reference_identity_id,
+        field_name="correlation constituent reference identity",
+    )
+    _validate_decimal(value.weight, field_name="correlation constituent weight")
+    if value.weight <= 0:
+        raise VolatilityVarianceValidationError(
+            "correlation constituent weight must be positive"
+        )
+
+
 def _validate_common_contract(
     *,
     terms_id: DerivativeTermsId,
@@ -325,14 +427,8 @@ def _validate_common_contract(
         instrument_identity_id,
         field_name="volatility-family instrument identity",
     )
-    if type(observation_terms) is not VolatilityObservationTerms:
-        raise VolatilityVarianceValidationError(
-            "volatility-family observation_terms must be typed"
-        )
-    if type(settlement_terms) is not VolatilitySettlementTerms:
-        raise VolatilityVarianceValidationError(
-            "volatility-family settlement_terms must be typed"
-        )
+    _validate_observation_terms_child(observation_terms)
+    _validate_settlement_terms_child(settlement_terms)
     if settlement_terms.settlement_date < observation_terms.observation_end_date:
         raise VolatilityVarianceValidationError(
             "volatility-family settlement date must not precede observation end"
@@ -374,10 +470,7 @@ class VarianceSwapTerms:
             raise VolatilityVarianceValidationError(
                 "variance swap instrument and reference identities must differ"
             )
-        if type(self.variance_strike) is not VarianceStrike:
-            raise VolatilityVarianceValidationError(
-                "variance swap variance_strike must be VarianceStrike"
-            )
+        _validate_variance_strike_child(self.variance_strike)
         _validate_notional(
             self.variance_amount,
             field_name="variance swap variance_amount",
@@ -444,10 +537,7 @@ class VolatilitySwapTerms:
             raise VolatilityVarianceValidationError(
                 "volatility swap instrument and reference identities must differ"
             )
-        if type(self.volatility_strike) is not VolatilityStrike:
-            raise VolatilityVarianceValidationError(
-                "volatility swap volatility_strike must be VolatilityStrike"
-            )
+        _validate_volatility_strike_child(self.volatility_strike)
         _validate_notional(
             self.vega_notional,
             field_name="volatility swap vega_notional",
@@ -498,10 +588,7 @@ class CorrelationSwapTerms:
                 "correlation swap constituents must be a tuple with at least two entries"
             )
         for constituent in self.constituents:
-            if type(constituent) is not CorrelationConstituent:
-                raise VolatilityVarianceValidationError(
-                    "correlation swap constituents must be CorrelationConstituent"
-                )
+            _validate_correlation_constituent_child(constituent)
         ordered_constituents = tuple(
             sorted(
                 self.constituents,
@@ -520,10 +607,7 @@ class CorrelationSwapTerms:
             raise VolatilityVarianceValidationError(
                 "correlation swap instrument must not be a basket constituent"
             )
-        if type(self.correlation_strike) is not CorrelationStrike:
-            raise VolatilityVarianceValidationError(
-                "correlation swap correlation_strike must be CorrelationStrike"
-            )
+        _validate_correlation_strike_child(self.correlation_strike)
         _validate_notional(
             self.correlation_amount,
             field_name="correlation swap correlation_amount",
