@@ -300,6 +300,87 @@ def test_decimal_identity_is_independent_of_ambient_context() -> None:
         )
 
 
+def test_instrument_must_not_equal_settlement_identity() -> None:
+    variance = _variance()
+    self_settlement = VolatilitySettlementTerms(
+        settlement_identity_id=variance.instrument_identity_id,
+        settlement_date=variance.settlement_terms.settlement_date,
+    )
+    with pytest.raises(
+        VolatilityVarianceValidationError,
+        match="instrument and settlement identities must differ",
+    ):
+        VarianceSwapTerms(
+            terms_id=variance.terms_id,
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=DerivativeNotional(
+                variance.variance_amount.value,
+                variance.instrument_identity_id,
+            ),
+            settlement_terms=self_settlement,
+            evidence_ref=variance.evidence_ref,
+            vega_notional=None,
+        )
+
+
+def test_all_payout_notionals_must_match_settlement_identity() -> None:
+    variance = _variance()
+    wrong_unit = _notional("5000", 302)
+    with pytest.raises(VolatilityVarianceValidationError, match="variance_amount unit"):
+        VarianceSwapTerms(
+            terms_id=variance.terms_id,
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=wrong_unit,
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=variance.evidence_ref,
+            vega_notional=None,
+        )
+    with pytest.raises(VolatilityVarianceValidationError, match="vega_notional unit"):
+        VarianceSwapTerms(
+            terms_id=variance.terms_id,
+            instrument_identity_id=variance.instrument_identity_id,
+            reference_identity_id=variance.reference_identity_id,
+            observation_terms=variance.observation_terms,
+            variance_strike=variance.variance_strike,
+            variance_amount=variance.variance_amount,
+            settlement_terms=variance.settlement_terms,
+            evidence_ref=variance.evidence_ref,
+            vega_notional=_notional("250", 302),
+        )
+
+    volatility = _volatility()
+    with pytest.raises(VolatilityVarianceValidationError, match="vega_notional unit"):
+        VolatilitySwapTerms(
+            terms_id=volatility.terms_id,
+            instrument_identity_id=volatility.instrument_identity_id,
+            reference_identity_id=volatility.reference_identity_id,
+            observation_terms=volatility.observation_terms,
+            volatility_strike=volatility.volatility_strike,
+            vega_notional=_notional("100", 302),
+            settlement_terms=volatility.settlement_terms,
+            evidence_ref=volatility.evidence_ref,
+        )
+
+    correlation = _correlation()
+    with pytest.raises(VolatilityVarianceValidationError, match="correlation_amount unit"):
+        CorrelationSwapTerms(
+            terms_id=correlation.terms_id,
+            instrument_identity_id=correlation.instrument_identity_id,
+            constituents=correlation.constituents,
+            observation_terms=correlation.observation_terms,
+            correlation_strike=correlation.correlation_strike,
+            correlation_amount=_notional("10000", 302),
+            settlement_terms=correlation.settlement_terms,
+            evidence_ref=correlation.evidence_ref,
+        )
+
+
 def test_composite_values_are_frozen_and_slotted() -> None:
     instances: tuple[object, ...] = (
         _observation(),
