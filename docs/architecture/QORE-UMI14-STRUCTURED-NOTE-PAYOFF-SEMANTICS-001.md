@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROGRAM D / UMI-14 — UNR-011 GATE-C R6 DOCUMENTATION CORRECTION CANDIDATE — NOT CERTIFIED**
+**PROGRAM D / UMI-14 — UNR-011 GATE-C R8 DOCUMENTATION CORRECTION CANDIDATE — NOT CERTIFIED**
 
 Tracker: #434  
 Parent final audit: #363  
@@ -303,6 +303,16 @@ Primary tests:
 
 They cover trigger-note and reverse-convertible shapes, multi-reference condition material, local UUID guards, strict ordinal/type/collection guards, fallback invariants, outcome-kind feature-shape rules, branch identity/ordinal/signature rules, exact UMI-09 condition/outcome type resolution, deterministic caller-order canonicalization, worst-performing selector shape/candidate ordering, exact selection candidate type resolution, distinct underlying references, and singleton `ANY -> ALL` canonicalization.
 
+Gate-C immutability / adversarial tests:
+`tests/infrastructure/test_structured_note_payoff_semantics_gatec_immutability.py`
+
+They directly protect frozen/slotted composite contracts and reject owner-local behavioral subclasses before virtual `logical_values()` or `is_fallback` behavior can become trusted parent material.
+
+Gate-C outcome truth-table mutation-resistance tests:
+`tests/infrastructure/test_structured_note_payoff_semantics_gatec_truth_table.py`
+
+They directly reject the three contradictory feature-presence shapes that survived R6 mutation falsification: `REDEMPTION + conversion`, `PARTICIPATION + redemption`, and `CONVERSION + participation`.
+
 Independent logical oracle:
 `tests/infrastructure/test_structured_note_payoff_semantics_logical_identity.py`
 
@@ -328,7 +338,9 @@ GATE C R2 = FAIL / HISTORICAL / MULTI-ELEMENT ANY-vs-ALL ORACLE CORRECTION APPLI
 GATE C R3 = FAIL / HISTORICAL / IMMUTABILITY EVIDENCE CORRECTION APPLIED
 GATE C R4 = FAIL / HISTORICAL / OWNER-LOCAL SUBCLASS HARDENING APPLIED
 GATE C R5 = FAIL / HISTORICAL / IA FINAL DOCUMENTATION-ACCURACY FINDING
-GATE C R6 = CANDIDATE PREPARED / FREEZE REQUIRED / NOT CERTIFIED
+GATE C R6 = FAIL / HISTORICAL / TRUTH-TABLE TEST-STRENGTH FINDINGS
+GATE C R7 = FAIL / HISTORICAL / GOVERNANCE-TRUTH DOCUMENTATION FINDING
+GATE C R8 = CANDIDATE PREPARED / FREEZE REQUIRED / NOT CERTIFIED
 GATE D = NOT AUTHORIZED
 GATE E = NOT AUTHORIZED
 GATE F = NOT AUTHORIZED
@@ -343,7 +355,7 @@ PRODUCTION = CLOSED
 REAL CAPITAL = NOT AUTHORIZED
 ```
 
-`R6 CANDIDATE != GATE-C CERTIFICATION`
+`R8 CANDIDATE != GATE-C CERTIFICATION`
 
 `CI GREEN != ENGINEERING APPROVAL`
 
@@ -363,4 +375,10 @@ R4 identified and corrected owner-local behavioral subclass spoofing. The result
 
 R5 completed the exact post-freeze CI and serial DeepSeek Expert, DeepSeek Coder, and Claude audits, but IA final falsification rejected integration because this document still reported an obsolete Gate-C state. No semantic, production-code, test-oracle, determinism, immutability, or negative-space defect was demonstrated by that R5 final finding.
 
-R6 is therefore a documentation-only correction candidate. Production source and tests are intentionally unchanged. Certification still requires a fresh exact R6 HEAD/TREE/SYNTHETIC freeze, fresh post-freeze exact-synthetic CI, the complete serial auditor chain, and IA final falsification.
+R6 was a documentation-only correction over R5. Its production source and tests were unchanged from R5. During R6 serial audit, DeepSeek Coder retry demonstrated three HIGH / blocking test-strength and mutation-resistance gaps in the outcome truth-table witnesses: `REDEMPTION + conversion`, `PARTICIPATION + redemption`, and `CONVERSION + participation` could be admitted by concrete partial mutants without being killed by the then-current tests. IA accepted those findings. No current production semantic defect was demonstrated.
+
+R7 was therefore a test-only correction over R6. It added `tests/infrastructure/test_structured_note_payoff_semantics_gatec_truth_table.py` with three direct negative witnesses for those exact surviving mutants. Production source, architecture semantics, primary tests, immutability/adversarial tests, and the independent logical-identity oracle remained byte-identical to R6. R7 completed an exact candidate freeze and exact post-freeze synthetic CI, but DeepSeek Expert R7 identified a HIGH / blocking governance-truth defect because this document still presented the candidate as R6 and did not record R6's test-strength failure or the R7 correction. IA accepted that finding. No production defect was demonstrated.
+
+R8 is therefore a documentation-only correction over R7. Production source and all tests are intentionally unchanged from R7. This revision updates only the embedded Gate-C state, test-evidence inventory, and audit provenance so the candidate truthfully records R6 and R7 history while identifying R8 as the current not-certified correction candidate.
+
+Certification still requires a fresh exact R8 HEAD/TREE/SYNTHETIC freeze, fresh post-freeze exact-synthetic CI, the complete serial auditor chain, and IA final falsification. No prior R7 freeze, CI, or auditor result certifies R8.
