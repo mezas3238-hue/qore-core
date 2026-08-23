@@ -2,21 +2,20 @@
 
 ## Estado
 
-**PROGRAM D / UMI-14 — UNR-013 R5 CORRECCIÓN FULL-CLOSURE CANDIDATA — NO CERTIFICADA**
+**PROGRAM D / UMI-14 — UNR-013 R6 CORRECCIÓN FULL-CLOSURE CANDIDATA — NO CERTIFICADA**
 
 Tracker: #394  
 Parent final review: #363  
 PR: #437  
 Target: `UMI13-UNR-013` — `securities-financing`  
-Baseline certificado: `db83b106f3a5e7f30a788567dfa970a38b7a379a`  
+Baseline certificado HASH: `db83b106f3a5e7f30a788567dfa970a38b7a379a`  
 Tree inicial: `5b9c218a4fe3609b10e34b1cf8523cade0d10bbe`  
 Rama: `agent/qore-umi14-securities-financing-full-closure-013`
 
-R1, R2, R3 y R4 son rondas históricas. R5 incorpora la corrección aceptada por IA para
-`DS-EXPERT-UNR013-R4-01`: la convención contractual de reset del financing rate flotante
-de margin lending debe formar parte de D04 y de la identidad lógica.
-
-La adjudicación IA del hallazgo R4 está registrada en la revisión `5003271066`.
+R1–R5 son rondas históricas. R6 incorpora la corrección aceptada por IA para
+`DS-EXPERT-UNR013-R5-01`: un reset flotante periódico de margin lending necesita retener
+si el fixing contractual ocurre `IN_ADVANCE`, `IN_ARREARS` o conforme a la convención de
+la referencia.
 
 Este responsable continúa limitado a semántica contractual estática D04. No observa,
 calcula, ejecuta, liquida, valora, genera calendarios, opera custodias, habilita Production
@@ -24,48 +23,36 @@ ni autoriza capital real.
 
 ---
 
-## 1. Alcance autorizado
+## 1. Alcance
 
 UMI-13 retuvo:
 
 `UMI13-UNR-013 — securities-financing — repo/securities lending/margin lending — distinct SFT forms; no dedicated owner`.
 
-La corrección mantiene un responsable específico para tres formas estáticas distintas:
-
-- repo;
-- securities lending;
-- margin lending.
-
-Cash/money-market, derivados genéricos y facilidades genéricas no sustituyen por sí solos
-esta estructura contractual.
-
-La superficie continúa siendo exactamente tres archivos aditivos respecto del baseline:
+La superficie sigue siendo exactamente tres archivos aditivos respecto del baseline:
 
 1. `src/qore/infrastructure/securities_financing_semantics.py`
 2. `tests/infrastructure/test_securities_financing_semantics.py`
 3. `docs/architecture/QORE-UMI14-SECURITIES-FINANCING-SEMANTICS-001.md`
 
-No se modifica ningún archivo previamente certificado.
+Ningún archivo certificado previo se modifica.
 
 ---
 
 ## 2. Contratos reutilizados
 
-Se reutilizan únicamente contratos cuya semántica coincide:
+Se reutilizan:
 
 - `EconomicIdentityId` para referencias económicas canónicas;
 - `DayCountConventionCode` para day-count contractual;
 - `FinancialTenor` / `FinancialTenorUnit` para tenor financiero estático.
 
-El consumidor vuelve a validar:
+El consumidor revalida tipo exacto y estado interno relevante. No se confía en subclases
+ni en objetos exactos fabricados con estado interno inválido.
 
-- tipo exacto;
-- UUID interno exacto;
-- código interno canónico;
-- `FinancialTenor.value` exacto y positivo;
-- `FinancialTenor.unit` exacto.
-
-No se confía en subclases ni en objetos exactos con estado interno malformado.
+No existe en el baseline un contrato genérico cross-product de fixing que pueda importarse
+sin trasladar semántica específica de otro responsable. Por eso R6 conserva un enum local
+mínimo para la colocación temporal del fixing periódico.
 
 ---
 
@@ -73,28 +60,26 @@ No se confía en subclases ni en objetos exactos con estado interno malformado.
 
 ### `SftTermsId`
 
-Identidad UUID explícita de términos SFT.
+UUID explícito de términos SFT.
 
 ### `SftEvidenceRef`
 
-Referencia UUID opaca a respaldo contractual retenido. No transporta contenido ni autoridad
-operativa.
+Referencia UUID opaca a respaldo contractual retenido.
 
 ### `SftPartyReferenceId`
 
-Referencia UUID opaca de parte contractual. No afirma identidad legal, KYC, cuenta ni LEI.
+Referencia UUID opaca de parte contractual; no afirma identidad legal, KYC, cuenta ni LEI.
 
 ### `SftScheduleReferenceId`
 
-Referencia UUID opaca a material contractual estático externo de calendario/términos.
-
-`SftScheduleReferenceId` no genera fechas, no resuelve calendarios y no ejecuta pagos.
+Referencia UUID opaca a material contractual estático externo de calendario/términos. No
+genera fechas ni resuelve calendarios.
 
 ---
 
 ## 4. Códigos canónicos
 
-Los siguientes valores usan código lowercase canónico, no vacío y con máximo 64 caracteres:
+Usan código lowercase canónico, no vacío y de máximo 64 caracteres:
 
 - `SftCollateralEligibilityCode`;
 - `SftSecurityQuantityBasisCode`;
@@ -104,37 +89,26 @@ Sintaxis:
 
 `[a-z0-9]+(?:[._-][a-z0-9]+)*`
 
-El responsable conserva el código contractual suministrado; no inventa una taxonomía
-universal que el baseline no haya certificado.
-
 ---
 
 ## 5. Dinero y cantidades de securities
 
 ### `SftCashAmount`
 
-Conserva:
-
-- `amount: Decimal` exacto, finito y positivo;
-- `currency_identity_id: EconomicIdentityId` exacto.
+Conserva monto Decimal exacto, finito y positivo más `currency_identity_id` exacto.
 
 ### `SftSecurityQuantity`
 
 Conserva:
 
 - `security_identity_id`;
-- `quantity: Decimal` exacto, finito y positivo;
-- `quantity_basis: SftSecurityQuantityBasisCode`.
+- cantidad Decimal exacta, finita y positiva;
+- `quantity_basis`.
 
-La base de cantidad forma parte de identidad lógica.
+La base de cantidad forma parte de identidad lógica. Por tanto `units` y
+`nominal-amount` no colapsan para la misma security y el mismo número.
 
-Por tanto, para la misma security y el mismo valor numérico:
-
-`units != nominal-amount`
-
-cuando el contrato suministra bases distintas.
-
-Esto conserva el cierre material de `DS-EXPERT-UNR013-R1-02`.
+Esto mantiene cerrado `DS-EXPERT-UNR013-R1-02` salvo una nueva demostración material.
 
 ---
 
@@ -142,45 +116,26 @@ Esto conserva el cierre material de `DS-EXPERT-UNR013-R1-02`.
 
 `SftRateTerms` conserva:
 
-- `SftRateKind.FIXED` o `FLOATING`;
-- tasa contractual o spread exacto;
-- `DayCountConventionCode`;
-- referencia económica exacta cuando el rate es FLOATING.
+- FIXED o FLOATING;
+- tasa contractual o spread;
+- day count;
+- referencia económica exacta cuando FLOATING.
 
-FIXED prohíbe una referencia flotante.
+FIXED prohíbe referencia flotante. FLOATING la exige.
 
-FLOATING exige una referencia flotante.
+`SftRateTerms` no pretende contener por sí solo cada convención temporal de cada producto.
+Las convenciones contractuales adicionales se conservan en el contrato que las necesita.
 
-`SftRateTerms` no pretende por sí solo contener todas las convenciones temporales de cada
-producto. Las convenciones estáticas adicionales se conservan en el contrato que las
-necesita.
-
-No se observa el índice, no se calcula el all-in rate y no se calcula devengo.
+No observa el índice, no calcula fixing, all-in rate, devengo ni interés.
 
 ---
 
 ## 7. Duración
 
-`SftDurationTerms` distingue:
+`SftDurationTerms` distingue TERM, OPEN y CALLABLE.
 
-### TERM
-
-- fecha inicial exacta;
-- fecha final exacta requerida;
-- fecha final posterior a la inicial;
-- sin notice period.
-
-### OPEN
-
-- fecha inicial exacta;
-- sin fecha final inventada;
-- notice days positivo opcional.
-
-### CALLABLE
-
-- notice days positivo requerido;
-- fecha final contractual opcional;
-- cuando existe debe ser posterior a la inicial.
+TERM exige fecha de terminación y no notice period. OPEN no inventa una terminación.
+CALLABLE exige notice days positivo y puede retener una fecha final contractual opcional.
 
 No representa estado actual de ejercicio o terminación.
 
@@ -188,34 +143,20 @@ No representa estado actual de ejercicio o terminación.
 
 ## 8. Arrangement
 
-`SftArrangementTerms` distingue:
+`SftArrangementTerms` distingue BILATERAL y TRI_PARTY.
 
-- `BILATERAL`;
-- `TRI_PARTY`.
-
-BILATERAL prohíbe agente tri-party.
-
-TRI_PARTY exige `SftPartyReferenceId` exacto para el agente.
-
-La existencia de la referencia no otorga autoridad operacional al agente.
+BILATERAL prohíbe agente tri-party. TRI_PARTY exige `SftPartyReferenceId` exacto para el
+agente.
 
 ---
 
 ## 9. Margin/haircut estático
 
-`SftMarginTerms` conserva:
+`SftMarginTerms` conserva `initial_margin_ratio` y/o `haircut_ratio` como Decimal exacto,
+finito y no negativo.
 
-- `initial_margin_ratio` opcional;
-- `haircut_ratio` opcional.
-
-Al menos uno debe existir.
-
-Cada valor suministrado debe ser Decimal exacto, finito y no negativo.
-
-No existe restricción universal `<= 1` porque esa ley no está demostrada para todas las
-convenciones cubiertas.
-
-Estos son términos contractuales, no current margin ni cálculo de riesgo.
+No se impone una ley universal `<= 1` no demostrada. Son términos contractuales, no current
+margin ni cálculo de riesgo.
 
 ---
 
@@ -223,8 +164,8 @@ Estos son términos contractuales, no current margin ni cálculo de riesgo.
 
 `RepoTerms` conserva:
 
-- términos e instrumento;
-- seller y buyer distintos;
+- instrumento;
+- seller/buyer distintos;
 - duración;
 - near cash;
 - basket no vacío de securities con quantity basis;
@@ -234,34 +175,23 @@ Estos son términos contractuales, no current margin ni cálculo de riesgo.
 - far leg cuando corresponde;
 - margin/haircut estático opcional.
 
-El basket se canonicaliza por material económico y el orden del caller no forma parte de
-la economía declarada.
+El basket se canonicaliza porque el orden del caller no es economía declarada. Se rechazan
+identidades duplicadas dentro del basket.
 
-Se rechazan securities duplicadas por `EconomicIdentityId` dentro del basket.
+TERM exige far leg y coincidencia con la terminación contractual. OPEN prohíbe inventarlo.
+CALLABLE sólo lo permite con terminación contractual compatible.
 
-La identidad del producto repo no puede ser la misma que una security transferida.
-
-TERM exige far leg y su fecha debe coincidir con la terminación contractual.
-
-OPEN prohíbe inventar far leg.
-
-CALLABLE permite far leg únicamente cuando existe terminación contractual y las fechas
-coinciden.
-
-Si existe `repurchase_cash`, su currency debe coincidir con la del near cash.
-
-No se calcula repurchase cash.
+Si se suministra far cash, su moneda debe coincidir con near cash. No se calcula repurchase
+cash.
 
 ---
 
 ## 11. Securities lending — compensación
 
-`SecuritiesLendingCompensationTerms` mantiene separados:
+`SecuritiesLendingCompensationTerms` mantiene separados lending fee y cash-collateral
+rebate.
 
-- `lending_fee`;
-- `cash_collateral_rebate`.
-
-Cada leg usa `SecuritiesLendingCompensationLegTerms`, que conserva:
+Cada leg conserva:
 
 - rate fijo/flotante;
 - day count;
@@ -269,41 +199,27 @@ Cada leg usa `SecuritiesLendingCompensationLegTerms`, que conserva:
 - currency;
 - accrual basis;
 - payment mode;
-- payment tenor o schedule reference según modo;
-- reset mode para rate flotante;
-- reset tenor o schedule reference según modo.
+- payment tenor o schedule reference;
+- reset mode para flotante;
+- reset tenor o schedule reference.
 
-### Payment modes
-
-`SftCompensationPaymentMode`:
+Payment modes:
 
 - `PERIODIC`;
 - `AT_TERMINATION`;
 - `EXTERNAL_SCHEDULE`.
 
-PERIODIC exige tenor financiero exacto y prohíbe schedule reference.
-
-AT_TERMINATION prohíbe tenor y schedule reference.
-
-EXTERNAL_SCHEDULE exige `SftScheduleReferenceId` exacto y prohíbe tenor.
-
-### Reset modes flotantes
-
-`SftCompensationResetMode`:
+Reset modes:
 
 - `PERIODIC`;
 - `AT_PAYMENT`;
 - `EXTERNAL_SCHEDULE`;
 - `REFERENCE_CONVENTION`.
 
-Rate fijo prohíbe todo reset material.
+Fixed compensation prohíbe reset material. Floating compensation exige reset mode exacto.
 
-Rate flotante exige un reset mode exacto.
-
-Estas convenciones son estáticas. No se generan fechas ni se observan índices.
-
-La superficie conserva el cierre de `DS-EXPERT-UNR013-R1-01` y
-`DS-EXPERT-UNR013-R2-02` salvo demostración posterior de una colisión nueva.
+Esto mantiene cerrados `DS-EXPERT-UNR013-R1-01` y `DS-EXPERT-UNR013-R2-02` salvo una nueva
+demostración material.
 
 ---
 
@@ -315,173 +231,157 @@ La superficie conserva el cierre de `DS-EXPERT-UNR013-R1-01` y
 - `EXPLICIT`;
 - `EXTERNAL_SCHEDULE`.
 
-### UNCOLLATERALIZED
+UNCOLLATERALIZED exige tuple vacío y sin referencia externa. EXPLICIT exige tuple no vacío
+y sin referencia externa. EXTERNAL_SCHEDULE exige referencia exacta y puede retener además
+items estáticos explícitos.
 
-- collateral tuple vacío;
-- sin external schedule reference.
-
-### EXPLICIT
-
-- collateral tuple no vacío;
-- sin external schedule reference.
-
-### EXTERNAL_SCHEDULE
-
-- `SftScheduleReferenceId` exacto requerido;
-- collateral tuple puede estar vacío o contener items estáticos explícitos adicionales.
-
-El modo y la referencia externa forman parte de identidad lógica.
-
-Así, un contrato uncollateralized no colapsa con otro cuya collateralization está gobernada
-por material contractual externo.
-
-Esto conserva el cierre de `DS-EXPERT-UNR013-R2-01`.
-
-No se representa collateral actual, valoración, sustitución, custody ni settlement.
+El modo y la referencia forman parte de identidad lógica. Esto mantiene cerrado
+`DS-EXPERT-UNR013-R2-01` salvo una nueva demostración material.
 
 ---
 
-## 13. Margin lending — pago y reset de financiación
+## 13. Margin lending — payment
 
-`MarginLendingTerms` conserva:
+R4 introdujo `SftFinancingPaymentMode` para cerrar `DS-EXPERT-UNR013-R3-01`:
 
-- términos e instrumento;
-- lender y borrower distintos;
-- duración;
-- credit limit contractual positivo;
-- financing rate;
-- convención contractual de pago del financing rate;
-- convención contractual de reset cuando el financing rate es flotante;
-- collateral eligibility;
-- conjunto canónico opcional de identidades elegibles;
-- arrangement;
-- respaldo contractual;
-- margin/haircut estático opcional.
+- `PERIODIC`;
+- `AT_TERMINATION`;
+- `EXTERNAL_SCHEDULE`.
 
-### Cierre del hallazgo R3 — payment
+PERIODIC exige tenor financiero exacto y prohíbe schedule reference. AT_TERMINATION prohíbe
+ambos. EXTERNAL_SCHEDULE exige `SftScheduleReferenceId` y prohíbe tenor.
 
-DeepSeek Expert R3 identificó `DS-EXPERT-UNR013-R3-01`: R3 podía representar dos
-facilidades iguales en todo material retenido pero con interés periódico frente a interés
-pagadero al terminar.
+La convención de pago forma parte de identidad lógica.
 
-R4 añadió `SftFinancingPaymentMode`:
+---
 
-- `PERIODIC = "periodic"`;
-- `AT_TERMINATION = "at-termination"`;
-- `EXTERNAL_SCHEDULE = "external-schedule"`.
+## 14. Margin lending — reset
 
-`MarginLendingTerms` conserva:
+R5 introdujo `SftFinancingResetMode` para cerrar `DS-EXPERT-UNR013-R4-01`:
 
-- `financing_payment_mode`;
-- `financing_payment_tenor` cuando PERIODIC;
-- `financing_payment_schedule_reference` cuando EXTERNAL_SCHEDULE.
+- `PERIODIC`;
+- `AT_PAYMENT`;
+- `EXTERNAL_SCHEDULE`;
+- `REFERENCE_CONVENTION`.
 
-No existe default semántico para `financing_payment_mode`.
+FIXED prohíbe material de reset. FLOATING exige reset mode exacto.
 
-PERIODIC exige tenor financiero exacto y positivo y prohíbe referencia externa.
+PERIODIC exige tenor. AT_PAYMENT no acepta tenor ni referencia. EXTERNAL_SCHEDULE exige
+referencia externa. REFERENCE_CONVENTION delega la regla de reset al material contractual
+de la referencia.
 
-AT_TERMINATION prohíbe tenor y referencia externa.
+---
 
-EXTERNAL_SCHEDULE exige `SftScheduleReferenceId` exacto y prohíbe tenor.
+## 15. Margin lending — R6 fixing placement
 
-R4 cerró el par `monthly != at-termination` y R5 conserva ese cierre.
+### Hallazgo R5 aceptado
 
-### Hallazgo R4 aceptado — floating reset
+DeepSeek Expert R5 identificó `DS-EXPERT-UNR013-R5-01`.
 
-DeepSeek Expert R4, paquete `UNR013-ETAPAC-R4-DS-EXPERT-01`, identificó
-`DS-EXPERT-UNR013-R4-01`.
+R5 podía representar dos contratos con el mismo:
 
-El R4 podía representar dos facilidades flotantes iguales en todo material retenido, con la
-misma referencia, spread, day count y convención de pago, pero con reset:
+- floating reference;
+- spread;
+- day count;
+- payment mensual;
+- reset periódico mensual;
+- resto del material;
 
-- PERIODIC 1 month;
-- AT_PAYMENT.
+pero uno con fixing `IN_ADVANCE` y otro `IN_ARREARS`.
 
-Como R4 no retenía la convención de reset de margin lending, ambas podían compartir
-identidad lógica.
+Como R5 sólo retenía reset mode + tenor, ambos podían proyectar la misma identidad lógica.
 
-IA aceptó el hallazgo en `5003271066`.
+La distinción es estática: define la colocación contractual del fixing respecto del período
+de devengo. D05 puede aportar observaciones, D06 resolver fechas y D07 calcular intereses,
+pero esos responsables no sustituyen la regla contractual.
 
-### Corrección R5 — floating reset
+### Corrección R6
 
-R5 añade `SftFinancingResetMode`:
+R6 añade `SftFinancingFixingTiming`:
 
-- `PERIODIC = "periodic"`;
-- `AT_PAYMENT = "at-payment"`;
-- `EXTERNAL_SCHEDULE = "external-schedule"`;
+- `IN_ADVANCE = "in-advance"`;
+- `IN_ARREARS = "in-arrears"`;
 - `REFERENCE_CONVENTION = "reference-convention"`.
 
-`MarginLendingTerms` conserva adicionalmente:
+El campo nuevo es:
 
-- `financing_reset_mode`;
-- `financing_reset_tenor`;
-- `financing_reset_schedule_reference`.
+`financing_fixing_timing: SftFinancingFixingTiming | None`.
 
-Para financing rate FIXED:
+La regla es intencionalmente acotada:
 
-- todo material de reset está prohibido.
+### FLOATING + PERIODIC reset
 
-Para financing rate FLOATING:
+- `financing_reset_tenor` exacto y positivo requerido;
+- `financing_fixing_timing` exacto requerido;
+- external reset schedule reference prohibida.
 
-- un `financing_reset_mode` exacto es obligatorio.
+Esto permite distinguir, para el mismo tenor:
 
-#### PERIODIC
+`IN_ADVANCE != IN_ARREARS != REFERENCE_CONVENTION`.
 
-- tenor financiero exacto y positivo requerido;
-- schedule reference prohibida.
-
-#### AT_PAYMENT
+### FLOATING + AT_PAYMENT
 
 - tenor prohibido;
-- schedule reference prohibida.
+- external schedule reference prohibida;
+- `financing_fixing_timing` adicional prohibido.
 
-#### REFERENCE_CONVENTION
+El propio modo ya fija el trigger contractual y no necesita un segundo calificador.
+
+### FLOATING + REFERENCE_CONVENTION
 
 - tenor prohibido;
-- schedule reference prohibida.
+- external schedule reference prohibida;
+- `financing_fixing_timing` adicional prohibido.
 
-#### EXTERNAL_SCHEDULE
+El propio modo delega la convención temporal completa al material contractual de la
+referencia; duplicar un segundo valor podría crear contradicción.
+
+### FLOATING + EXTERNAL_SCHEDULE
 
 - `SftScheduleReferenceId` exacto requerido;
-- tenor prohibido.
+- tenor prohibido;
+- `financing_fixing_timing` adicional prohibido.
 
-La proyección lógica de margin lending incluye por separado:
+La referencia externa identifica el material contractual que gobierna las fechas de reset;
+no se introduce un segundo schedule reference de fixing que pueda divergir del primero.
 
-`(payment_mode, payment_tenor | None, payment_schedule_reference | None)`
+### FIXED
 
-seguido de:
+Todo material de reset/fixing está prohibido.
 
-`(reset_mode, reset_tenor | None, reset_schedule_reference | None) | None`.
+La identidad lógica R6 del reset de margin lending es:
 
-Por tanto, para tasa flotante:
+`(reset_mode, reset_tenor | None, reset_schedule_reference | None, fixing_timing | None)`.
 
-`PERIODIC != AT_PAYMENT != EXTERNAL_SCHEDULE != REFERENCE_CONVENTION`
-
-cuando todos los demás términos sean idénticos.
-
-La corrección conserva solamente la convención estática. D05 puede aportar observaciones,
-D06 puede resolver fechas concretas y D07 puede calcular fixing/devengo/interés; este
-responsable no realiza ninguna de esas funciones.
+Por tanto el par material que originó R6 ya no colapsa.
 
 ---
 
-## 14. Margin lending — collateral eligibility
+## 16. Alcance de `REFERENCE_CONVENTION`
 
-`SftCollateralEligibilityCode` conserva calificación contractual canónica.
+`REFERENCE_CONVENTION` es una delegación estática explícita, no una observación implícita.
 
-`eligible_collateral_identity_ids` es una tupla exacta opcional:
+Cuando se usa como fixing timing de un reset periódico, indica que la colocación temporal
+es la definida por el material contractual de la referencia. Cuando se usa como reset mode,
+la propia frecuencia/trigger también queda gobernada por ese material.
 
-- puede estar vacía;
-- cuando contiene referencias, cada una debe ser `EconomicIdentityId` exacta;
-- no permite duplicados;
-- el orden del caller se canonicaliza;
-- el instrumento de la facility no puede ser su propio eligible collateral.
-
-La tupla no representa collateral actual ni disponibilidad.
+R6 no afirma que este enum sea una metodología universal de tasas flotantes. Convenciones
+como simple/compounded, lookback, lockout u observation shift sólo deben añadirse aquí si
+una revisión futura demuestra un par contractual material que no puede distinguirse por la
+referencia contractual o por una referencia externa ya retenida.
 
 ---
 
-## 15. Identidad lógica
+## 17. Margin lending — collateral eligibility
+
+`SftCollateralEligibilityCode` conserva la calificación contractual canónica.
+
+`eligible_collateral_identity_ids` puede estar vacío o contener identidades exactas,
+únicas y canonicalizadas. No representa collateral actual ni disponibilidad.
+
+---
+
+## 18. Identidad lógica
 
 Cada producto comienza con un discriminante distinto:
 
@@ -489,10 +389,7 @@ Cada producto comienza con un discriminante distinto:
 - `securities-lending`;
 - `margin-lending`.
 
-La identidad lógica conserva todo material estático de cada contrato dentro del alcance
-demostrado.
-
-Para margin lending R5 incluye específicamente:
+Para margin lending R6, la proyección incluye:
 
 1. discriminante;
 2. terms ID;
@@ -503,20 +400,19 @@ Para margin lending R5 incluye específicamente:
 7. credit limit;
 8. financing rate;
 9. financing payment convention;
-10. financing reset convention o `None` para tasa fija;
+10. financing reset + fixing convention o `None` para tasa fija;
 11. collateral eligibility;
 12. eligible collateral identities;
 13. arrangement;
 14. optional static margin terms;
-15. contractual reference.
+15. respaldo contractual.
 
-Casos de no-colapso requeridos por pruebas R5:
+Casos de no-colapso requeridos por pruebas R6 incluyen:
 
-- monthly periodic payment != at termination;
-- periodic payment != external payment schedule;
-- periodic floating reset != at-payment reset;
-- periodic reset != external reset schedule;
-- external reset schedule A != external reset schedule B por referencia;
+- periodic payment != at termination != external schedule;
+- periodic reset != at-payment != external schedule != reference convention;
+- periodic 1 month + in-advance != periodic 1 month + in-arrears;
+- periodic explicit timing != periodic reference convention;
 - units != nominal-amount;
 - fee != rebate;
 - uncollateralized != explicit != external-schedule collateralization;
@@ -524,36 +420,24 @@ Casos de no-colapso requeridos por pruebas R5:
 
 ---
 
-## 16. Determinismo Decimal
+## 19. Determinismo Decimal
 
-Todo material numérico utiliza Decimal exacto y finito.
+Todo material numérico usa Decimal exacto y finito. Subclases se rechazan.
 
-Subclases Decimal se rechazan.
-
-La representación lógica Decimal:
+La representación lógica:
 
 - usa `Decimal.as_tuple()`;
 - canonicaliza signed zero a `"0"`;
 - elimina ceros finales del coeficiente;
 - no depende de `Decimal.normalize()`;
 - no depende de precisión ambiental;
-- conserva round-trip exacto;
-- mantiene exponentes extremos en forma compacta cuando la forma fija crecería de manera
-  desproporcionada.
-
-Ejemplos:
-
-`Decimal("1E+1000000") -> "1e+1000000"`
-
-`Decimal("1E-1000000") -> "1e-1000000"`
+- conserva exponentes extremos en representación compacta cuando corresponde.
 
 ---
 
-## 17. Bordes de composición
+## 20. Bordes de composición
 
-Todo hijo local/importado se vuelve a validar en el padre.
-
-La matriz incluye, entre otros:
+Los padres revalidan hijos locales/importados y su estado interno relevante. Entre otros:
 
 - UUID wrappers;
 - EconomicIdentityId;
@@ -564,16 +448,17 @@ La matriz incluye, entre otros:
 - schedule references;
 - compensation payment/reset modes;
 - financing payment/reset modes;
+- financing fixing timing;
 - collateralization mode;
 - cash/security children;
 - compensation legs;
 - top-level product terms.
 
-Objetos exactos fabricados sin constructor no adquieren confianza únicamente por su clase.
+Un objeto exacto fabricado sin su constructor no recibe confianza sólo por su clase.
 
 ---
 
-## 18. Límites de autoridad
+## 21. Límites de autoridad
 
 | Material | Responsable |
 |---|---|
@@ -582,7 +467,7 @@ Objetos exactos fabricados sin constructor no adquieren confianza únicamente po
 | SFT static terms y referencias de schedule | este UNR-013 |
 | Observaciones de mercado/collateral | D05 |
 | Resolución de calendario/fechas | D06 |
-| Devengo, cashflow, pricing y valuation | D07 |
+| Devengo, fixing calculado, cashflow, pricing y valuation | D07 |
 | Holdings y balances actuales | D08 |
 | Margin/risk/exposure/capacity | D09 |
 | Orders/execution/transfer instructions | D10 |
@@ -591,12 +476,12 @@ Objetos exactos fabricados sin constructor no adquieren confianza únicamente po
 
 ---
 
-## 19. Espacio negativo
+## 22. Espacio negativo
 
-R5 no contiene autoridad para:
+R6 no contiene autoridad para:
 
 - provider/network I/O;
-- generación de payment/reset dates;
+- generación de payment/reset/fixing dates;
 - observación de índices;
 - cálculo de fixing, interés, accrual o cashflow;
 - pricing/valuation;
@@ -616,17 +501,15 @@ R5 no contiene autoridad para:
 - Production;
 - real-capital authority.
 
-`STATIC PAYMENT CONVENTION != GENERATED PAYMENT DATES`
+`STATIC FIXING PLACEMENT != OBSERVED FIXING`
 
-`STATIC RESET CONVENTION != OBSERVED OR CALCULATED RATE`
+`STATIC RESET CONVENTION != GENERATED RESET DATES`
 
 `STATIC COLLATERALIZATION != CURRENT COLLATERAL STATE`
 
-`STATIC FINANCING RATE != CALCULATED INTEREST`
-
 ---
 
-## 20. Historial de rondas
+## 23. Historial de rondas
 
 ### R1
 
@@ -637,51 +520,47 @@ DeepSeek Expert identificó:
 
 ### R2
 
-R2 cerró quantity basis, pero DeepSeek Expert identificó:
+R2 cerró quantity basis y se identificaron:
 
-- `DS-EXPERT-UNR013-R2-01` — collateralization no distinguía external schedule;
+- `DS-EXPERT-UNR013-R2-01` — collateralization sin external schedule distinction;
 - `DS-EXPERT-UNR013-R2-02` — payment/reset timing ambiguo.
 
 ### R3
 
-R3 cerró los cuatro hallazgos anteriores. DeepSeek Expert R3 identificó:
+R3 cerró los cuatro anteriores y se identificó:
 
-- `DS-EXPERT-UNR013-R3-01` — MarginLendingTerms no retenía la convención contractual de
-  pago del financing rate.
-
-IA aceptó ese hallazgo en `5003219200`.
+- `DS-EXPERT-UNR013-R3-01` — margin lending sin convención de pago del financing rate.
 
 ### R4
 
-R4 incorporó `SftFinancingPaymentMode` y material de tenor/referencia de pago. DeepSeek
-Expert R4 confirmó el cierre de R3-01 e identificó:
+R4 añadió la convención de pago y se identificó:
 
-- `DS-EXPERT-UNR013-R4-01` — MarginLendingTerms no retenía la convención contractual de
-  reset del financing rate flotante.
-
-IA aceptó ese hallazgo en `5003271066`.
+- `DS-EXPERT-UNR013-R4-01` — margin lending flotante sin convención de reset.
 
 ### R5
 
-R5 incorpora `SftFinancingResetMode` y material de tenor/referencia de reset requerido por
-modo, con prohibición explícita para tasa fija y exigencia explícita para tasa flotante.
+R5 añadió reset mode/tenor/reference. DeepSeek Expert confirmó el cierre de R4-01 e
+identificó:
 
-R5 debe ser validado desde cero; ninguna conclusión anterior certifica este HEAD.
+- `DS-EXPERT-UNR013-R5-01` — reset periódico sin distinción fixing in-advance/in-arrears.
+
+### R6
+
+R6 añade `SftFinancingFixingTiming` y lo exige únicamente para reset flotante PERIODIC.
+
+R6 debe validarse desde cero; ninguna conclusión anterior certifica este HEAD.
 
 ---
 
-## 21. Estado de validación R5
+## 24. Estado de validación R6
 
 Estado al guardar este documento:
 
-- R1 = histórico;
-- R2 = histórico;
-- R3 = histórico;
-- R4 = histórico tras el primer cambio R5;
-- R5 candidate = presente;
-- PRUEBAS COMPLETAS R5 = pendientes;
-- CONGELADO R5 = no establecido;
-- revisión externa R5 = en espera;
+- R1–R5 = históricos;
+- R6 candidate = presente;
+- PRUEBAS COMPLETAS R6 = pendientes;
+- CONGELADO R6 = no establecido;
+- revisión externa R6 = en espera;
 - Ready = no establecido;
 - #394 = abierto;
 - UNR-013 = no cerrado;
@@ -690,9 +569,9 @@ Estado al guardar este documento:
 - Production = cerrado;
 - real capital = no autorizado.
 
-Secuencia requerida después de fijar el HEAD final:
+Secuencia requerida tras fijar el HEAD final:
 
-`PRUEBAS COMPLETAS -> REVISIÓN DEL DIFF -> CONGELAR R5 -> PRUEBAS COMPLETAS SOBRE SYNTHETIC EXACTO -> DEEPSEEK EXPERT R5 -> IA -> DEEPSEEK CODER R5 -> IA -> CLAUDE CODE R5 -> IA -> IA FINAL -> READY -> INTEGRAR CON HEAD ESPERADO -> VERIFICAR INTEGRACIÓN -> CERRAR #394 -> CONTINUAR UMI-14`
+`PRUEBAS COMPLETAS -> REVISIÓN DEL DIFF -> CONGELAR R6 -> PRUEBAS COMPLETAS SOBRE SYNTHETIC EXACTO -> DEEPSEEK EXPERT R6 -> IA -> DEEPSEEK CODER R6 -> IA -> CLAUDE CODE R6 -> IA -> IA FINAL -> READY -> INTEGRAR CON HEAD ESPERADO -> VERIFICAR INTEGRACIÓN -> CERRAR #394 -> CONTINUAR UMI-14`
 
-Cualquier cambio del HEAD después del CONGELADO R5 obliga a una nueva ronda desde DeepSeek
+Cualquier cambio del HEAD después del CONGELADO R6 obliga a una nueva ronda desde DeepSeek
 Expert.
