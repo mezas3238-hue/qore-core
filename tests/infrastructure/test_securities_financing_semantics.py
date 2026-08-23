@@ -264,18 +264,23 @@ def test_id_and_code_values() -> None:
     assert [x.logical_values() for x in ids] == [
         (str(_uuid(1)),), (str(_uuid(2)),), (str(_uuid(3)),), (str(_uuid(4)),)
     ]
-    for cls in (SftTermsId, SftEvidenceRef, SftPartyReferenceId, SftScheduleReferenceId):
+    for id_cls in (
+        SftTermsId,
+        SftEvidenceRef,
+        SftPartyReferenceId,
+        SftScheduleReferenceId,
+    ):
         with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
-            cls(cast(Any, "bad"))
-    for cls in (
+            id_cls(cast(Any, "bad"))
+    for code_cls in (
         SftCollateralEligibilityCode,
         SftSecurityQuantityBasisCode,
         SftCompensationAccrualBasisCode,
     ):
-        assert cls("valid-code").logical_values() == ("valid-code",)
+        assert code_cls("valid-code").logical_values() == ("valid-code",)
         for bad in ("", "UPPER", "bad code", "a" * 65, 1, True):
             with pytest.raises(SecuritiesFinancingValidationError):
-                cls(cast(Any, bad))
+                code_cls(cast(Any, bad))
 
 
 def test_cash_and_security_validation_and_decimal_canonicalization() -> None:
@@ -792,8 +797,11 @@ def test_complete_logical_identity_oracles() -> None:
     loan = _loan()
     lv = loan.logical_values()
     assert lv[0] == "securities-lending"
-    assert lv[7][0][3] == ("periodic", (1, "month"), None)
-    assert lv[7][1][4] == ("periodic", (1, "day"), None)
+    compensation_values = loan.compensation.logical_values()
+    fee_values = cast(tuple[object, ...], compensation_values[0])
+    rebate_values = cast(tuple[object, ...], compensation_values[1])
+    assert fee_values[3] == ("periodic", (1, "month"), None)
+    assert rebate_values[4] == ("periodic", (1, "day"), None)
     assert lv[8] == ("explicit", None)
     assert lv[9] == (
         ("5e+5", (str(_uuid(301)),)),
