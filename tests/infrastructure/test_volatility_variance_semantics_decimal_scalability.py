@@ -65,6 +65,36 @@ def _observation_terms() -> VolatilityObservationTerms:
     )
 
 
+def test_observation_terms_rejects_malformed_exact_schedule_directly() -> None:
+    malformed = object.__new__(VolatilityObservationScheduleCode)
+    object.__setattr__(malformed, "value", "INVALID CODE")
+
+    with pytest.raises(VolatilityVarianceValidationError):
+        VolatilityObservationTerms(
+            observation_start_date=date(2026, 1, 2),
+            observation_end_date=date(2026, 6, 30),
+            schedule_code=malformed,
+            calculation_convention=VolatilityCalculationConventionCode(
+                "log-return-standard"
+            ),
+            expected_observation_count=125,
+        )
+
+
+def test_observation_terms_rejects_malformed_exact_convention_directly() -> None:
+    malformed = object.__new__(VolatilityCalculationConventionCode)
+    object.__setattr__(malformed, "value", "INVALID CODE")
+
+    with pytest.raises(VolatilityVarianceValidationError):
+        VolatilityObservationTerms(
+            observation_start_date=date(2026, 1, 2),
+            observation_end_date=date(2026, 6, 30),
+            schedule_code=VolatilityObservationScheduleCode("daily-close"),
+            calculation_convention=malformed,
+            expected_observation_count=125,
+        )
+
+
 def _settlement_terms() -> VolatilitySettlementTerms:
     return VolatilitySettlementTerms(
         settlement_identity_id=_identity(301),
