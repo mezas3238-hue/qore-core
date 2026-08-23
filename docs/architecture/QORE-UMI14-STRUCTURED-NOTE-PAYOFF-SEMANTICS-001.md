@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROGRAM D / UMI-14 — UNR-011 GATE-C R8 DOCUMENTATION CORRECTION CANDIDATE — NOT CERTIFIED**
+**PROGRAM D / UMI-14 — UNR-011 GATE-C R9 TEST-STRENGTH CORRECTION CANDIDATE — NOT CERTIFIED**
 
 Tracker: #434  
 Parent final audit: #363  
@@ -311,7 +311,7 @@ They directly protect frozen/slotted composite contracts and reject owner-local 
 Gate-C outcome truth-table mutation-resistance tests:
 `tests/infrastructure/test_structured_note_payoff_semantics_gatec_truth_table.py`
 
-They directly reject the three contradictory feature-presence shapes that survived R6 mutation falsification: `REDEMPTION + conversion`, `PARTICIPATION + redemption`, and `CONVERSION + participation`.
+The dedicated file directly rejects eight atomic invalid shapes: `REDEMPTION` without redemption material; `REDEMPTION + conversion`; `REDEMPTION_WITH_PARTICIPATION` without redemption; `REDEMPTION_WITH_PARTICIPATION + conversion`; `PARTICIPATION` without participation material; `PARTICIPATION + redemption`; `CONVERSION` without conversion material; and `CONVERSION + participation`. Together with the four direct primary-test witnesses for `REDEMPTION + participation`, `REDEMPTION_WITH_PARTICIPATION` without participation, `PARTICIPATION + conversion`, and `CONVERSION + redemption`, the candidate has a direct witness for every atomic clause in the four bounded outcome-kind feature-presence predicates.
 
 Independent logical oracle:
 `tests/infrastructure/test_structured_note_payoff_semantics_logical_identity.py`
@@ -340,7 +340,8 @@ GATE C R4 = FAIL / HISTORICAL / OWNER-LOCAL SUBCLASS HARDENING APPLIED
 GATE C R5 = FAIL / HISTORICAL / IA FINAL DOCUMENTATION-ACCURACY FINDING
 GATE C R6 = FAIL / HISTORICAL / TRUTH-TABLE TEST-STRENGTH FINDINGS
 GATE C R7 = FAIL / HISTORICAL / GOVERNANCE-TRUTH DOCUMENTATION FINDING
-GATE C R8 = CANDIDATE PREPARED / FREEZE REQUIRED / NOT CERTIFIED
+GATE C R8 = FAIL / HISTORICAL / FIVE ATOMIC TRUTH-TABLE TEST-STRENGTH FINDINGS
+GATE C R9 = CANDIDATE PREPARED / FREEZE REQUIRED / NOT CERTIFIED
 GATE D = NOT AUTHORIZED
 GATE E = NOT AUTHORIZED
 GATE F = NOT AUTHORIZED
@@ -355,7 +356,7 @@ PRODUCTION = CLOSED
 REAL CAPITAL = NOT AUTHORIZED
 ```
 
-`R8 CANDIDATE != GATE-C CERTIFICATION`
+`R9 CANDIDATE != GATE-C CERTIFICATION`
 
 `CI GREEN != ENGINEERING APPROVAL`
 
@@ -379,6 +380,8 @@ R6 was a documentation-only correction over R5. Its production source and tests 
 
 R7 was therefore a test-only correction over R6. It added `tests/infrastructure/test_structured_note_payoff_semantics_gatec_truth_table.py` with three direct negative witnesses for those exact surviving mutants. Production source, architecture semantics, primary tests, immutability/adversarial tests, and the independent logical-identity oracle remained byte-identical to R6. R7 completed an exact candidate freeze and exact post-freeze synthetic CI, but DeepSeek Expert R7 identified a HIGH / blocking governance-truth defect because this document still presented the candidate as R6 and did not record R6's test-strength failure or the R7 correction. IA accepted that finding. No production defect was demonstrated.
 
-R8 is therefore a documentation-only correction over R7. Production source and all tests are intentionally unchanged from R7. This revision updates only the embedded Gate-C state, test-evidence inventory, and audit provenance so the candidate truthfully records R6 and R7 history while identifying R8 as the current not-certified correction candidate.
+R8 was therefore a documentation-only correction over R7. Production source and all tests were unchanged from R7. R8 updated the embedded Gate-C state, test-evidence inventory, and audit provenance. DeepSeek Expert R8 passed and IA accepted the distinction between immutable prospective candidate provenance and later external freeze/CI state. DeepSeek Coder R8 then identified five HIGH / blocking test-strength and mutation-resistance gaps in atomic outcome truth-table clauses: `REDEMPTION` without redemption material; `REDEMPTION_WITH_PARTICIPATION` without redemption material; `REDEMPTION_WITH_PARTICIPATION + conversion`; `PARTICIPATION` without participation material; and `CONVERSION` without conversion material. IA independently confirmed and accepted all five findings. No current production defect was demonstrated.
 
-Certification still requires a fresh exact R8 HEAD/TREE/SYNTHETIC freeze, fresh post-freeze exact-synthetic CI, the complete serial auditor chain, and IA final falsification. No prior R7 freeze, CI, or auditor result certifies R8.
+R9 is therefore a tests-and-documentation correction over R8. Production source, primary tests, immutability/adversarial tests, the independent logical-identity oracle, and certified UMI-09 owner material are intentionally unchanged. R9 extends `tests/infrastructure/test_structured_note_payoff_semantics_gatec_truth_table.py` with five direct negative witnesses for the five accepted R8 surviving mutants and updates this document to identify R9, preserve the full R8 failure provenance, and inventory the complete atomic truth-table witness surface. The correction does not expand D04 authority and does not claim any production semantic defect.
+
+Certification still requires a fresh exact R9 HEAD/TREE/SYNTHETIC freeze, fresh post-freeze exact-synthetic CI, the complete serial auditor chain, and IA final falsification. No R8 freeze, CI, Expert result, Coder result, or IA adjudication certifies R9.
