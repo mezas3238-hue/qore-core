@@ -412,7 +412,7 @@ def _validate_compensation_basis_child(value: SftCompensationAccrualBasisCode) -
 
 def _validate_financing_calculation_child(value: SftFinancingCalculationCode) -> None:
     if type(value) is not SftFinancingCalculationCode:
-        _fail("floating margin-lending financing requires exact calculation code")
+        _fail("floating SFT financing requires exact calculation code")
     _validate_code(value.value, field_name="SFT financing calculation code")
 
 
@@ -732,23 +732,37 @@ def _validate_financing_observation(
 ) -> None:
     if rate.kind is SftRateKind.FIXED:
         if calculation is not None or observation_mode is not None or observation_ref is not None:
-            _fail("fixed margin-lending financing rate must not carry floating convention")
+            _fail("fixed SFT financing rate must not carry floating convention")
         return
     if calculation is None:
-        _fail("floating margin-lending financing requires calculation code")
+        _fail("floating SFT financing requires calculation code")
     _validate_financing_calculation_child(calculation)
     if type(observation_mode) is not SftFinancingObservationMode:
-        _fail("floating margin-lending financing requires exact observation mode")
+        _fail("floating SFT financing requires exact observation mode")
     if observation_mode is SftFinancingObservationMode.EXTERNAL_TERMS:
         if observation_ref is None:
             _fail("external floating observation terms require reference")
         _validate_schedule_ref_child(
             observation_ref,
-            field_name="margin-lending floating observation terms reference",
+            field_name="SFT floating observation terms reference",
         )
         return
     if observation_ref is not None:
         _fail("non-external floating observation mode must not carry reference")
+
+
+def _financing_observation_values(
+    calculation: SftFinancingCalculationCode,
+    observation_mode: SftFinancingObservationMode,
+    observation_ref: SftScheduleReferenceId | None,
+) -> tuple[object, ...]:
+    return (
+        calculation.logical_values(),
+        (
+            observation_mode.value,
+            observation_ref.logical_values() if observation_ref is not None else None,
+        ),
+    )
 
 
 def _validate_financing_reset_timing(
@@ -803,6 +817,11 @@ def _financing_floating_values(
     observation_mode: SftFinancingObservationMode,
     observation_ref: SftScheduleReferenceId | None,
 ) -> tuple[object, ...]:
+    observation = _financing_observation_values(
+        calculation,
+        observation_mode,
+        observation_ref,
+    )
     return (
         mode.value,
         _tenor_values(tenor, field_name="margin-lending financing reset tenor")
@@ -810,11 +829,8 @@ def _financing_floating_values(
         else None,
         schedule_ref.logical_values() if schedule_ref is not None else None,
         fixing_timing.value if fixing_timing is not None else None,
-        calculation.logical_values(),
-        (
-            observation_mode.value,
-            observation_ref.logical_values() if observation_ref is not None else None,
-        ),
+        observation[0],
+        observation[1],
     )
 
 
@@ -1096,6 +1112,9 @@ class RepoTerms:
     financing_rate: SftRateTerms
     arrangement: SftArrangementTerms
     evidence_ref: SftEvidenceRef
+    financing_calculation: SftFinancingCalculationCode | None = None
+    financing_observation_mode: SftFinancingObservationMode | None = None
+    financing_observation_reference: SftScheduleReferenceId | None = None
     far_leg: RepoFarLegTerms | None = None
     margin_terms: SftMarginTerms | None = None
 
@@ -1120,6 +1139,12 @@ class RepoTerms:
         }:
             _fail("repo instrument identity must not equal transferred security identity")
         _validate_rate_child(self.financing_rate, field_name="repo financing_rate")
+        _validate_financing_observation(
+            self.financing_rate,
+            self.financing_calculation,
+            self.financing_observation_mode,
+            self.financing_observation_reference,
+        )
         _validate_arrangement_child(self.arrangement, field_name="repo arrangement")
         _validate_evidence_child(self.evidence_ref)
         if self.margin_terms is not None:
@@ -1158,6 +1183,16 @@ class RepoTerms:
             self.near_cash.logical_values(),
             tuple(item.logical_values() for item in self.transferred_securities),
             self.financing_rate.logical_values(),
+            _financing_observation_values(
+                self.financing_calculation,
+                self.financing_observation_mode,
+                self.financing_observation_reference,
+            )
+            if (
+                self.financing_calculation is not None
+                and self.financing_observation_mode is not None
+            )
+            else None,
             self.arrangement.logical_values(),
             self.far_leg.logical_values() if self.far_leg is not None else None,
             self.margin_terms.logical_values() if self.margin_terms is not None else None,
