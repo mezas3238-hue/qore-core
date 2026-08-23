@@ -285,6 +285,14 @@ class SftFinancingResetMode(StrEnum):
     REFERENCE_CONVENTION = "reference-convention"
 
 
+class SftFinancingFixingTiming(StrEnum):
+    """Static placement of a periodic floating fixing relative to its accrual period."""
+
+    IN_ADVANCE = "in-advance"
+    IN_ARREARS = "in-arrears"
+    REFERENCE_CONVENTION = "reference-convention"
+
+
 @dataclass(frozen=True, slots=True)
 class SftCashAmount:
     amount: Decimal
@@ -693,10 +701,16 @@ def _validate_financing_reset_timing(
     mode: SftFinancingResetMode | None,
     tenor: FinancialTenor | None,
     schedule_ref: SftScheduleReferenceId | None,
+    fixing_timing: SftFinancingFixingTiming | None,
 ) -> None:
     if rate.kind is SftRateKind.FIXED:
-        if mode is not None or tenor is not None or schedule_ref is not None:
-            _fail("fixed margin-lending financing rate must not carry reset timing")
+        if (
+            mode is not None
+            or tenor is not None
+            or schedule_ref is not None
+            or fixing_timing is not None
+        ):
+            _fail("fixed margin-lending financing rate must not carry reset/fixing timing")
         return
     if type(mode) is not SftFinancingResetMode:
         _fail("floating margin-lending financing rate requires exact reset mode")
@@ -707,15 +721,17 @@ def _validate_financing_reset_timing(
             tenor,
             field_name="margin-lending financing reset tenor",
         )
+        if type(fixing_timing) is not SftFinancingFixingTiming:
+            _fail("periodic margin-lending financing reset requires exact fixing timing")
         return
     if mode in {
         SftFinancingResetMode.AT_PAYMENT,
         SftFinancingResetMode.REFERENCE_CONVENTION,
     }:
-        if tenor is not None or schedule_ref is not None:
+        if tenor is not None or schedule_ref is not None or fixing_timing is not None:
             _fail("non-scheduled margin-lending financing reset must not carry timing material")
         return
-    if tenor is not None or schedule_ref is None:
+    if tenor is not None or schedule_ref is None or fixing_timing is not None:
         _fail("external-schedule margin-lending financing reset requires schedule ref only")
     _validate_schedule_ref_child(
         schedule_ref,
@@ -727,6 +743,7 @@ def _financing_reset_values(
     mode: SftFinancingResetMode,
     tenor: FinancialTenor | None,
     schedule_ref: SftScheduleReferenceId | None,
+    fixing_timing: SftFinancingFixingTiming | None,
 ) -> tuple[object, ...]:
     return (
         mode.value,
@@ -734,6 +751,7 @@ def _financing_reset_values(
         if tenor is not None
         else None,
         schedule_ref.logical_values() if schedule_ref is not None else None,
+        fixing_timing.value if fixing_timing is not None else None,
     )
 
 
@@ -1197,6 +1215,7 @@ class MarginLendingTerms:
     financing_reset_mode: SftFinancingResetMode | None = None
     financing_reset_tenor: FinancialTenor | None = None
     financing_reset_schedule_reference: SftScheduleReferenceId | None = None
+    financing_fixing_timing: SftFinancingFixingTiming | None = None
     margin_terms: SftMarginTerms | None = None
 
     def __post_init__(self) -> None:
@@ -1224,6 +1243,7 @@ class MarginLendingTerms:
             self.financing_reset_mode,
             self.financing_reset_tenor,
             self.financing_reset_schedule_reference,
+            self.financing_fixing_timing,
         )
         _validate_eligibility_child(self.collateral_eligibility)
         canonical_identities = _canonicalize_identity_tuple(self.eligible_collateral_identity_ids)
@@ -1260,6 +1280,7 @@ class MarginLendingTerms:
                 self.financing_reset_mode,
                 self.financing_reset_tenor,
                 self.financing_reset_schedule_reference,
+                self.financing_fixing_timing,
             )
             if self.financing_reset_mode is not None
             else None,
