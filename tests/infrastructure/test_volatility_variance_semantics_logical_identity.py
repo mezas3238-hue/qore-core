@@ -235,6 +235,7 @@ def test_wrapper_and_nested_projections_are_independently_reconstructed() -> Non
     assert VarianceStrike(Decimal("0.0400")).logical_values() == ("0.04",)
     assert VolatilityStrike(Decimal("0.2000")).logical_values() == ("0.2",)
     assert CorrelationStrike(Decimal("0.3500")).logical_values() == ("0.35",)
+    assert VarianceStrike(Decimal("-0.000")).logical_values() == ("0",)
     assert _observation().logical_values() == _EXPECTED_OBSERVATION
     assert _settlement().logical_values() == _EXPECTED_SETTLEMENT
     assert CorrelationConstituent(
@@ -378,6 +379,23 @@ def test_all_payout_notionals_must_match_settlement_identity() -> None:
             correlation_amount=_notional("10000", 302),
             settlement_terms=correlation.settlement_terms,
             evidence_ref=correlation.evidence_ref,
+        )
+
+
+def test_consumer_rejects_malformed_exact_notional_value() -> None:
+    malformed = object.__new__(DerivativeNotional)
+    object.__setattr__(malformed, "value", Decimal("0"))
+    object.__setattr__(malformed, "unit_identity_id", _identity(301))
+    with pytest.raises(VolatilityVarianceValidationError, match="value must be positive"):
+        VolatilitySwapTerms(
+            terms_id=_terms_id(102),
+            instrument_identity_id=_identity(20),
+            reference_identity_id=_identity(21),
+            observation_terms=_observation(),
+            volatility_strike=VolatilityStrike(Decimal("0.2")),
+            vega_notional=malformed,
+            settlement_terms=_settlement(),
+            evidence_ref=_evidence(202),
         )
 
 
