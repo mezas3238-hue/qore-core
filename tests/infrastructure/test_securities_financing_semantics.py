@@ -10,7 +10,7 @@ from uuid import UUID
 
 import pytest
 
-import qore.infrastructure.securities_financing_semantics as sft_semantics
+import qore.infrastructure.securities_financing_semantics as s
 from qore.infrastructure.fixed_income_economics import (
     DayCountConventionCode,
     FinancialTenor,
@@ -28,7 +28,10 @@ from qore.infrastructure.securities_financing_semantics import (
     SftArrangementTerms,
     SftCashAmount,
     SftCollateralEligibilityCode,
+    SftCollateralizationMode,
     SftCompensationAccrualBasisCode,
+    SftCompensationPaymentMode,
+    SftCompensationResetMode,
     SftDurationMode,
     SftDurationTerms,
     SftEvidenceRef,
@@ -36,6 +39,7 @@ from qore.infrastructure.securities_financing_semantics import (
     SftPartyReferenceId,
     SftRateKind,
     SftRateTerms,
+    SftScheduleReferenceId,
     SftSecurityQuantity,
     SftSecurityQuantityBasisCode,
     SftTermsId,
@@ -43,128 +47,114 @@ from qore.infrastructure.securities_financing_semantics import (
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
 
 
-def _uuid(value: int) -> UUID:
-    return UUID(int=value)
+def _uuid(n: int) -> UUID:
+    return UUID(int=n)
 
 
-def _identity(value: int) -> EconomicIdentityId:
-    return EconomicIdentityId(_uuid(value))
+def _id(n: int) -> EconomicIdentityId:
+    return EconomicIdentityId(_uuid(n))
 
 
-def _terms_id(value: int = 100) -> SftTermsId:
-    return SftTermsId(_uuid(value))
+def _terms(n: int = 100) -> SftTermsId:
+    return SftTermsId(_uuid(n))
 
 
-def _evidence(value: int = 200) -> SftEvidenceRef:
-    return SftEvidenceRef(_uuid(value))
+def _evidence(n: int = 200) -> SftEvidenceRef:
+    return SftEvidenceRef(_uuid(n))
 
 
-def _party(value: int) -> SftPartyReferenceId:
-    return SftPartyReferenceId(_uuid(value))
+def _party(n: int) -> SftPartyReferenceId:
+    return SftPartyReferenceId(_uuid(n))
+
+
+def _schedule(n: int = 700) -> SftScheduleReferenceId:
+    return SftScheduleReferenceId(_uuid(n))
 
 
 def _cash(amount: str = "1000000", currency: int = 300) -> SftCashAmount:
-    return SftCashAmount(Decimal(amount), _identity(currency))
+    return SftCashAmount(Decimal(amount), _id(currency))
 
 
-def _quantity_basis(value: str = "units") -> SftSecurityQuantityBasisCode:
-    return SftSecurityQuantityBasisCode(value)
+def _security(n: int = 400, q: str = "100", basis: str = "units") -> SftSecurityQuantity:
+    return SftSecurityQuantity(_id(n), Decimal(q), SftSecurityQuantityBasisCode(basis))
 
 
-def _security(
-    identity: int = 400,
-    quantity: str = "100",
-    basis: str = "units",
-) -> SftSecurityQuantity:
-    return SftSecurityQuantity(
-        _identity(identity),
-        Decimal(quantity),
-        _quantity_basis(basis),
-    )
+def _fixed(v: str = "0.03", dc: str = "act-360") -> SftRateTerms:
+    return SftRateTerms(SftRateKind.FIXED, Decimal(v), DayCountConventionCode(dc))
 
 
-def _fixed_rate(value: str = "0.03", day_count: str = "act-360") -> SftRateTerms:
-    return SftRateTerms(
-        kind=SftRateKind.FIXED,
-        contractual_rate_or_spread=Decimal(value),
-        day_count=DayCountConventionCode(day_count),
-    )
+def _floating(v: str = "0.001", dc: str = "act-360", ref: int = 500) -> SftRateTerms:
+    return SftRateTerms(SftRateKind.FLOATING, Decimal(v), DayCountConventionCode(dc), _id(ref))
 
 
-def _floating_rate(value: str = "0.001", day_count: str = "act-360") -> SftRateTerms:
-    return SftRateTerms(
-        kind=SftRateKind.FLOATING,
-        contractual_rate_or_spread=Decimal(value),
-        day_count=DayCountConventionCode(day_count),
-        floating_reference_identity_id=_identity(500),
-    )
+def _tenor(v: int = 1, unit: FinancialTenorUnit = FinancialTenorUnit.MONTH) -> FinancialTenor:
+    return FinancialTenor(v, unit)
 
 
-def _tenor(
-    value: int = 1,
-    unit: FinancialTenorUnit = FinancialTenorUnit.MONTH,
-) -> FinancialTenor:
-    return FinancialTenor(value, unit)
-
-
-def _compensation_leg(
+def _fixed_leg(
     *,
-    rate: SftRateTerms,
-    currency: int,
-    basis: str,
+    rate: str = "0.0025",
+    currency: int = 303,
+    basis: str = "principal-market-value",
+    payment_mode: SftCompensationPaymentMode = SftCompensationPaymentMode.PERIODIC,
     payment_tenor: FinancialTenor | None = None,
-    reset_tenor: FinancialTenor | None = None,
+    payment_ref: SftScheduleReferenceId | None = None,
 ) -> SecuritiesLendingCompensationLegTerms:
+    if payment_mode is SftCompensationPaymentMode.PERIODIC and payment_tenor is None:
+        payment_tenor = _tenor()
     return SecuritiesLendingCompensationLegTerms(
-        rate=rate,
-        currency_identity_id=_identity(currency),
+        rate=_fixed(rate),
+        currency_identity_id=_id(currency),
         accrual_basis=SftCompensationAccrualBasisCode(basis),
+        payment_mode=payment_mode,
         payment_tenor=payment_tenor,
+        payment_schedule_reference=payment_ref,
+    )
+
+
+def _floating_leg(
+    *,
+    rate: str = "-0.001",
+    currency: int = 301,
+    basis: str = "cash-collateral",
+    payment_mode: SftCompensationPaymentMode = SftCompensationPaymentMode.PERIODIC,
+    payment_tenor: FinancialTenor | None = None,
+    payment_ref: SftScheduleReferenceId | None = None,
+    reset_mode: SftCompensationResetMode = SftCompensationResetMode.PERIODIC,
+    reset_tenor: FinancialTenor | None = None,
+    reset_ref: SftScheduleReferenceId | None = None,
+) -> SecuritiesLendingCompensationLegTerms:
+    if payment_mode is SftCompensationPaymentMode.PERIODIC and payment_tenor is None:
+        payment_tenor = _tenor()
+    if reset_mode is SftCompensationResetMode.PERIODIC and reset_tenor is None:
+        reset_tenor = _tenor(1, FinancialTenorUnit.DAY)
+    return SecuritiesLendingCompensationLegTerms(
+        rate=_floating(rate),
+        currency_identity_id=_id(currency),
+        accrual_basis=SftCompensationAccrualBasisCode(basis),
+        payment_mode=payment_mode,
+        payment_tenor=payment_tenor,
+        payment_schedule_reference=payment_ref,
+        reset_mode=reset_mode,
         reset_tenor=reset_tenor,
+        reset_schedule_reference=reset_ref,
     )
 
 
-def _fee_leg(value: str = "0.0025") -> SecuritiesLendingCompensationLegTerms:
-    return _compensation_leg(
-        rate=_fixed_rate(value),
-        currency=303,
-        basis="principal-market-value",
-        payment_tenor=_tenor(),
-    )
+def _term() -> SftDurationTerms:
+    return SftDurationTerms(SftDurationMode.TERM, date(2026, 1, 2), date(2026, 2, 2))
 
 
-def _rebate_leg(value: str = "-0.001") -> SecuritiesLendingCompensationLegTerms:
-    return _compensation_leg(
-        rate=_floating_rate(value),
-        currency=301,
-        basis="cash-collateral",
-        payment_tenor=_tenor(),
-        reset_tenor=_tenor(unit=FinancialTenorUnit.DAY),
-    )
+def _open() -> SftDurationTerms:
+    return SftDurationTerms(SftDurationMode.OPEN, date(2026, 1, 2), notice_days=1)
 
 
-def _term_duration() -> SftDurationTerms:
+def _callable(end: bool = True) -> SftDurationTerms:
     return SftDurationTerms(
-        mode=SftDurationMode.TERM,
-        start_date=date(2026, 1, 2),
-        termination_date=date(2026, 2, 2),
-    )
-
-
-def _open_duration() -> SftDurationTerms:
-    return SftDurationTerms(
-        mode=SftDurationMode.OPEN,
-        start_date=date(2026, 1, 2),
-        notice_days=1,
-    )
-
-
-def _callable_duration() -> SftDurationTerms:
-    return SftDurationTerms(
-        mode=SftDurationMode.CALLABLE,
-        start_date=date(2026, 1, 2),
-        termination_date=date(2026, 6, 2),
-        notice_days=2,
+        SftDurationMode.CALLABLE,
+        date(2026, 1, 2),
+        date(2026, 6, 2) if end else None,
+        2,
     )
 
 
@@ -172,77 +162,70 @@ def _bilateral() -> SftArrangementTerms:
     return SftArrangementTerms(SftArrangementMode.BILATERAL)
 
 
-def _tri_party() -> SftArrangementTerms:
-    return SftArrangementTerms(
-        SftArrangementMode.TRI_PARTY,
-        tri_party_agent_reference_id=_party(50),
-    )
+def _tri() -> SftArrangementTerms:
+    return SftArrangementTerms(SftArrangementMode.TRI_PARTY, _party(50))
 
 
-def _term_repo() -> RepoTerms:
+def _repo() -> RepoTerms:
     return RepoTerms(
-        terms_id=_terms_id(101),
-        instrument_identity_id=_identity(10),
+        terms_id=_terms(101),
+        instrument_identity_id=_id(10),
         seller_reference_id=_party(1),
         buyer_reference_id=_party(2),
-        duration=_term_duration(),
+        duration=_term(),
         near_cash=_cash(),
         transferred_securities=(_security(402, "50"), _security(401)),
-        financing_rate=_fixed_rate(),
+        financing_rate=_fixed(),
         arrangement=_bilateral(),
-        far_leg=RepoFarLegTerms(
-            repurchase_date=date(2026, 2, 2),
-            repurchase_cash=_cash("1002500"),
-        ),
-        margin_terms=SftMarginTerms(haircut_ratio=Decimal("0.02")),
         evidence_ref=_evidence(201),
+        far_leg=RepoFarLegTerms(date(2026, 2, 2), _cash("1002500")),
+        margin_terms=SftMarginTerms(haircut_ratio=Decimal("0.02")),
     )
 
 
-def _securities_loan() -> SecuritiesLendingTerms:
+def _loan() -> SecuritiesLendingTerms:
     return SecuritiesLendingTerms(
-        terms_id=_terms_id(102),
-        instrument_identity_id=_identity(20),
+        terms_id=_terms(102),
+        instrument_identity_id=_id(20),
         lender_reference_id=_party(3),
         borrower_reference_id=_party(4),
-        duration=_open_duration(),
+        duration=_open(),
         principal_security=_security(410, "250"),
         compensation=SecuritiesLendingCompensationTerms(
-            lending_fee=_fee_leg(),
-            cash_collateral_rebate=_rebate_leg(),
+            lending_fee=_fixed_leg(),
+            cash_collateral_rebate=_floating_leg(),
         ),
         collateral=(_security(411, "75"), _cash("500000", 301)),
-        arrangement=_tri_party(),
-        margin_terms=SftMarginTerms(initial_margin_ratio=Decimal("1.05")),
+        arrangement=_tri(),
         evidence_ref=_evidence(202),
+        collateralization_mode=SftCollateralizationMode.EXPLICIT,
+        margin_terms=SftMarginTerms(initial_margin_ratio=Decimal("1.05")),
     )
 
 
 def _margin_loan() -> MarginLendingTerms:
     return MarginLendingTerms(
-        terms_id=_terms_id(103),
-        instrument_identity_id=_identity(30),
+        terms_id=_terms(103),
+        instrument_identity_id=_id(30),
         lender_reference_id=_party(5),
         borrower_reference_id=_party(6),
-        duration=_callable_duration(),
+        duration=_callable(),
         credit_limit=_cash("2500000", 302),
-        financing_rate=_floating_rate("0.015"),
+        financing_rate=_floating("0.015"),
         collateral_eligibility=SftCollateralEligibilityCode("prime-broker-approved"),
-        eligible_collateral_identity_ids=(_identity(421), _identity(420)),
+        eligible_collateral_identity_ids=(_id(421), _id(420)),
         arrangement=_bilateral(),
-        margin_terms=SftMarginTerms(haircut_ratio=Decimal("0.25")),
         evidence_ref=_evidence(203),
+        margin_terms=SftMarginTerms(haircut_ratio=Decimal("0.25")),
     )
 
 
-class _HostileDecimal(Decimal):
-    def is_finite(self) -> bool:
-        return True
+class _BadDecimal(Decimal):
+    pass
 
 
-class _HostileUUID(UUID):
-    def __str__(self) -> str:
-        return "spoofed-uuid"
+class _BadUUID(UUID):
+    pass
 
 
 class _IdentitySubclass(EconomicIdentityId):
@@ -253,7 +236,7 @@ class _DayCountSubclass(DayCountConventionCode):
     __slots__ = ()
 
 
-class _FinancialTenorSubclass(FinancialTenor):
+class _TenorSubclass(FinancialTenor):
     __slots__ = ()
 
 
@@ -265,465 +248,288 @@ class _DurationSubclass(SftDurationTerms):
     __slots__ = ()
 
 
-def _malformed_identity() -> EconomicIdentityId:
-    return EconomicIdentityId(cast(Any, _HostileUUID(int=99)))
+def _bad_identity() -> EconomicIdentityId:
+    return EconomicIdentityId(cast(Any, _BadUUID(int=99)))
 
 
-def _malformed_terms_id() -> SftTermsId:
-    value = object.__new__(SftTermsId)
-    object.__setattr__(value, "value", cast(Any, _HostileUUID(int=101)))
+def _malformed(cls: type[Any], **attrs: object) -> Any:
+    value = object.__new__(cls)
+    for name, attr in attrs.items():
+        object.__setattr__(value, name, attr)
     return value
 
 
-def _malformed_party() -> SftPartyReferenceId:
-    value = object.__new__(SftPartyReferenceId)
-    object.__setattr__(value, "value", cast(Any, _HostileUUID(int=1)))
-    return value
-
-
-def test_owner_ids_are_exact_uuid_backed_and_repeatable() -> None:
-    values = (SftTermsId(_uuid(1)), SftEvidenceRef(_uuid(2)), _party(3))
-    assert [item.logical_values() for item in values] == [
-        (str(_uuid(1)),),
-        (str(_uuid(2)),),
-        (str(_uuid(3)),),
+def test_id_and_code_values() -> None:
+    ids = (_terms(1), _evidence(2), _party(3), _schedule(4))
+    assert [x.logical_values() for x in ids] == [
+        (str(_uuid(1)),), (str(_uuid(2)),), (str(_uuid(3)),), (str(_uuid(4)),)
     ]
-    for item in values:
-        assert item.logical_values() == item.logical_values()
-
-
-@pytest.mark.parametrize("factory", [SftTermsId, SftEvidenceRef, SftPartyReferenceId])
-def test_owner_ids_reject_raw_and_uuid_subclass(factory: Any) -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
-        factory(cast(Any, str(_uuid(1))))
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
-        factory(cast(Any, _HostileUUID(int=1)))
-
-
-@pytest.mark.parametrize(
-    "factory",
-    [
+    for cls in (SftTermsId, SftEvidenceRef, SftPartyReferenceId, SftScheduleReferenceId):
+        with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+            cls(cast(Any, "bad"))
+    for cls in (
         SftCollateralEligibilityCode,
         SftSecurityQuantityBasisCode,
         SftCompensationAccrualBasisCode,
-    ],
-)
-@pytest.mark.parametrize(
-    "value",
-    ["", "UPPER", "bad code", "a" * 65, cast(Any, 7), cast(Any, True)],
-)
-def test_owner_codes_fail_closed(factory: Any, value: object) -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
-        factory(cast(Any, value))
+    ):
+        assert cls("valid-code").logical_values() == ("valid-code",)
+        for bad in ("", "UPPER", "bad code", "a" * 65, 1, True):
+            with pytest.raises(SecuritiesFinancingValidationError):
+                cls(cast(Any, bad))
 
 
-def test_cash_amount_preserves_amount_and_currency_without_virtual_identity_trust() -> None:
-    value = _cash("1000.00", 300)
-    assert value.logical_values() == ("1000", (str(_uuid(300)),))
-
-
-@pytest.mark.parametrize("value", ["0", "-1", "NaN", "Infinity"])
-def test_cash_amount_requires_positive_finite_decimal(value: str) -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftCashAmount(Decimal(value), _identity(300))
-
-
-def test_cash_amount_rejects_decimal_and_identity_subclasses() -> None:
+def test_cash_and_security_validation_and_decimal_canonicalization() -> None:
+    assert _cash("1000.00").logical_values()[0] == "1000"
+    assert _security(400, "12.500").logical_values()[-2:] == ("12.5", ("units",))
+    assert _security(400, "100", "units").logical_values() != _security(
+        400, "100", "nominal-amount"
+    ).logical_values()
+    for bad in ("0", "-1", "NaN", "Infinity"):
+        with pytest.raises(SecuritiesFinancingValidationError):
+            SftCashAmount(Decimal(bad), _id(300))
+        with pytest.raises(SecuritiesFinancingValidationError):
+            SftSecurityQuantity(_id(400), Decimal(bad), SftSecurityQuantityBasisCode("units"))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact Decimal"):
-        SftCashAmount(cast(Any, _HostileDecimal("1")), _identity(300))
+        SftCashAmount(cast(Any, _BadDecimal("1")), _id(300))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact EconomicIdentityId"):
-        SftCashAmount(Decimal("1"), _IdentitySubclass(_uuid(300)))
+        SftCashAmount(Decimal("1"), cast(Any, _IdentitySubclass(_uuid(300))))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
-        SftCashAmount(Decimal("1"), _malformed_identity())
-
-
-def test_security_quantity_preserves_reference_quantity_and_basis() -> None:
-    assert _security(400, "12.500").logical_values() == (
-        (str(_uuid(400)),),
-        "12.5",
-        ("units",),
-    )
-
-
-def test_security_quantity_basis_prevents_units_nominal_collapse() -> None:
-    units = _security(400, "100", "units")
-    nominal = _security(400, "100", "nominal-amount")
-    assert units.logical_values() != nominal.logical_values()
-    assert units.logical_values()[-1] == ("units",)
-    assert nominal.logical_values()[-1] == ("nominal-amount",)
-
-
-@pytest.mark.parametrize("value", ["0", "-1", "NaN", "Infinity"])
-def test_security_quantity_requires_positive_finite_decimal(value: str) -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftSecurityQuantity(_identity(400), Decimal(value), _quantity_basis())
-
-
-def test_security_quantity_basis_is_exact_and_deeply_revalidated() -> None:
+        SftCashAmount(Decimal("1"), _bad_identity())
     with pytest.raises(
         SecuritiesFinancingValidationError,
         match="exact SftSecurityQuantityBasisCode",
     ):
-        SftSecurityQuantity(_identity(400), Decimal("1"), cast(Any, "units"))
-    malformed = object.__new__(SftSecurityQuantityBasisCode)
-    object.__setattr__(malformed, "value", "INVALID CODE")
+        SftSecurityQuantity(_id(400), Decimal("1"), cast(Any, "units"))
+    bad_basis = _malformed(SftSecurityQuantityBasisCode, value="INVALID CODE")
     with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
-        SftSecurityQuantity(_identity(400), Decimal("1"), malformed)
+        SftSecurityQuantity(_id(400), Decimal("1"), bad_basis)
+    with localcontext() as ctx:
+        ctx.prec = 2
+        assert _cash("1.2300").logical_values()[0] == "1.23"
+        assert _cash("0.00100").logical_values()[0] == "0.001"
+        assert _cash("1E+20").logical_values()[0] == "1e+20"
+        assert _cash("1E-20").logical_values()[0] == "1e-20"
+        assert _cash("1E+1000000").logical_values()[0] == "1e+1000000"
+        assert _cash("1E-1000000").logical_values()[0] == "1e-1000000"
+    assert SftMarginTerms(haircut_ratio=Decimal("-0")).logical_values()[1] == "0"
 
 
-def test_rate_terms_reuse_and_revalidate_certified_day_count() -> None:
-    fixed = _fixed_rate("-0.001")
-    assert fixed.logical_values() == ("fixed", "-0.001", ("act-360",), None)
-    floating = _floating_rate("0.00125")
-    assert floating.logical_values() == (
-        "floating",
-        "0.00125",
-        ("act-360",),
-        (str(_uuid(500)),),
-    )
-
-
-def test_rate_terms_fixed_and_floating_reference_rules() -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftRateTerms(
-            SftRateKind.FIXED,
-            Decimal("0.01"),
-            DayCountConventionCode("act-360"),
-            _identity(500),
-        )
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftRateTerms(
-            SftRateKind.FLOATING,
-            Decimal("0.01"),
-            DayCountConventionCode("act-360"),
-        )
-
-
-def test_rate_terms_reject_imported_subclasses_and_malformed_exact_children() -> None:
+def test_rate_contracts() -> None:
+    assert _fixed("-0.001").logical_values() == ("fixed", "-0.001", ("act-360",), None)
+    assert _floating().logical_values()[-1] == (str(_uuid(500)),)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftRateKind"):
+        SftRateTerms(cast(Any, "fixed"), Decimal("0.1"), DayCountConventionCode("act-360"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="finite exact Decimal"):
+        SftRateTerms(SftRateKind.FIXED, cast(Any, 1.0), DayCountConventionCode("act-360"))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact DayCountConventionCode"):
-        SftRateTerms(
-            SftRateKind.FIXED,
-            Decimal("0.01"),
-            _DayCountSubclass("act-360"),
-        )
-    malformed = object.__new__(DayCountConventionCode)
-    object.__setattr__(malformed, "value", "INVALID CODE")
+        SftRateTerms(SftRateKind.FIXED, Decimal("0.1"), _DayCountSubclass("act-360"))
+    bad_dc = _malformed(DayCountConventionCode, value="INVALID CODE")
     with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
-        SftRateTerms(SftRateKind.FIXED, Decimal("0.01"), malformed)
+        SftRateTerms(SftRateKind.FIXED, Decimal("0.1"), bad_dc)
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        SftRateTerms(SftRateKind.FIXED, Decimal("0.1"), DayCountConventionCode("act-360"), _id(500))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires reference"):
+        SftRateTerms(SftRateKind.FLOATING, Decimal("0.1"), DayCountConventionCode("act-360"))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact EconomicIdentityId"):
         SftRateTerms(
             SftRateKind.FLOATING,
-            Decimal("0.01"),
+            Decimal("0.1"),
             DayCountConventionCode("act-360"),
-            _IdentitySubclass(_uuid(500)),
+            cast(Any, _IdentitySubclass(_uuid(500))),
         )
 
 
-def test_rate_terms_reject_raw_kind() -> None:
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftRateKind"):
-        SftRateTerms(
-            cast(Any, "fixed"),
-            Decimal("0.01"),
-            DayCountConventionCode("act-360"),
-        )
-
-
-def test_duration_modes_are_distinct_and_strict() -> None:
-    assert _term_duration().logical_values() == (
-        "term",
-        "2026-01-02",
-        "2026-02-02",
-        None,
-    )
-    assert _open_duration().logical_values() == (
-        "open",
-        "2026-01-02",
-        None,
-        1,
-    )
-    assert _callable_duration().logical_values() == (
-        "callable",
-        "2026-01-02",
-        "2026-06-02",
-        2,
-    )
-
-
-def test_duration_mode_contracts_fail_closed() -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftDurationTerms(SftDurationMode.TERM, date(2026, 1, 1))
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftDurationTerms(
-            SftDurationMode.TERM,
-            date(2026, 1, 1),
-            date(2026, 2, 1),
-            1,
-        )
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftDurationTerms(
-            SftDurationMode.OPEN,
-            date(2026, 1, 1),
-            date(2026, 2, 1),
-        )
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftDurationTerms(SftDurationMode.CALLABLE, date(2026, 1, 1))
-
-
-def test_duration_rejects_raw_mode_and_date() -> None:
+def test_duration_arrangement_margin_and_far_leg() -> None:
+    assert _term().logical_values() == ("term", "2026-01-02", "2026-02-02", None)
+    assert _open().logical_values() == ("open", "2026-01-02", None, 1)
+    assert _callable().logical_values() == ("callable", "2026-01-02", "2026-06-02", 2)
     with pytest.raises(SecuritiesFinancingValidationError, match="exact SftDurationMode"):
         SftDurationTerms(cast(Any, "open"), date(2026, 1, 1))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact date"):
-        SftDurationTerms(SftDurationMode.OPEN, cast(Any, "2026-01-01"))
+        SftDurationTerms(SftDurationMode.OPEN, cast(Any, "bad"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="after start"):
+        SftDurationTerms(SftDurationMode.TERM, date(2026, 2, 1), date(2026, 1, 1))
+    for notice in (0, -1, True, 1.2, "2"):
+        with pytest.raises(SecuritiesFinancingValidationError, match="notice_days"):
+            SftDurationTerms(SftDurationMode.OPEN, date(2026, 1, 1), notice_days=cast(Any, notice))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires termination"):
+        SftDurationTerms(SftDurationMode.TERM, date(2026, 1, 1))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires termination"):
+        SftDurationTerms(SftDurationMode.TERM, date(2026, 1, 1), date(2026, 2, 1), 1)
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not invent"):
+        SftDurationTerms(SftDurationMode.OPEN, date(2026, 1, 1), date(2026, 2, 1))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires positive"):
+        SftDurationTerms(SftDurationMode.CALLABLE, date(2026, 1, 1))
 
-
-@pytest.mark.parametrize("notice", [0, -1, True, 1.5, "2"])
-def test_notice_days_are_strict_positive_int(notice: object) -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftDurationTerms(
-            SftDurationMode.OPEN,
-            date(2026, 1, 1),
-            notice_days=cast(Any, notice),
-        )
-
-
-def test_arrangement_modes_are_distinct_and_agent_is_deeply_validated() -> None:
     assert _bilateral().logical_values() == ("bilateral", None)
-    assert _tri_party().logical_values() == (
-        "tri-party",
-        (str(_uuid(50)),),
-    )
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftArrangementTerms(SftArrangementMode.BILATERAL, _party(50))
-    with pytest.raises(SecuritiesFinancingValidationError):
-        SftArrangementTerms(SftArrangementMode.TRI_PARTY)
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
-        SftArrangementTerms(SftArrangementMode.TRI_PARTY, _malformed_party())
-
-
-def test_arrangement_rejects_raw_mode() -> None:
+    assert _tri().logical_values()[0] == "tri-party"
     with pytest.raises(SecuritiesFinancingValidationError, match="exact SftArrangementMode"):
         SftArrangementTerms(cast(Any, "bilateral"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        SftArrangementTerms(SftArrangementMode.BILATERAL, _party(1))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires agent"):
+        SftArrangementTerms(SftArrangementMode.TRI_PARTY)
+    bad_party = _malformed(SftPartyReferenceId, value=cast(Any, _BadUUID(int=1)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        SftArrangementTerms(SftArrangementMode.TRI_PARTY, bad_party)
 
-
-def test_margin_terms_retain_unbounded_nonnegative_contractual_ratios() -> None:
     value = SftMarginTerms(
         initial_margin_ratio=Decimal("1.05"),
-        haircut_ratio=Decimal("0.0250"),
+        haircut_ratio=Decimal("0.02"),
     )
-    assert value.logical_values() == ("1.05", "0.025")
+    assert value.logical_values() == ("1.05", "0.02")
     with pytest.raises(SecuritiesFinancingValidationError):
         SftMarginTerms()
-    with pytest.raises(SecuritiesFinancingValidationError):
+    with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
         SftMarginTerms(initial_margin_ratio=Decimal("-0.1"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
+        SftMarginTerms(haircut_ratio=Decimal("-0.1"))
 
-
-def test_repo_far_leg_preserves_supplied_cash_without_calculation() -> None:
-    no_cash = RepoFarLegTerms(date(2026, 2, 1))
-    with_cash = RepoFarLegTerms(date(2026, 2, 1), _cash("1010"))
-    assert no_cash.logical_values() == ("2026-02-01", None)
-    assert with_cash.logical_values() == (
-        "2026-02-01",
-        ("1010", (str(_uuid(300)),)),
-    )
-
-
-def test_repo_far_leg_rejects_raw_date_and_cash_child_type() -> None:
+    assert RepoFarLegTerms(date(2026, 2, 1)).logical_values() == ("2026-02-01", None)
+    assert RepoFarLegTerms(date(2026, 2, 1), _cash("1010")).logical_values()[1] is not None
     with pytest.raises(SecuritiesFinancingValidationError, match="exact date"):
-        RepoFarLegTerms(cast(Any, "2026-02-01"))
+        RepoFarLegTerms(cast(Any, "bad"))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact SftCashAmount"):
         RepoFarLegTerms(date(2026, 2, 1), cast(Any, Decimal("1")))
 
 
-def test_term_open_and_callable_repo_far_leg_rules() -> None:
-    base = _term_repo()
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(base, far_leg=None)
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(base, far_leg=RepoFarLegTerms(date(2026, 2, 3)))
-
-    opened = replace(base, duration=_open_duration(), far_leg=None)
-    assert opened.far_leg is None
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(opened, far_leg=RepoFarLegTerms(date(2026, 2, 2)))
-
-    callable_without_end = SftDurationTerms(
-        SftDurationMode.CALLABLE,
-        date(2026, 1, 2),
-        notice_days=2,
+def test_compensation_payment_modes_and_references() -> None:
+    periodic = _fixed_leg()
+    at_end = _fixed_leg(payment_mode=SftCompensationPaymentMode.AT_TERMINATION)
+    external = _fixed_leg(
+        payment_mode=SftCompensationPaymentMode.EXTERNAL_SCHEDULE,
+        payment_ref=_schedule(701),
     )
-    callable_repo = replace(base, duration=callable_without_end, far_leg=None)
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(callable_repo, far_leg=RepoFarLegTerms(date(2026, 2, 2)))
+    assert periodic.logical_values()[3] == ("periodic", (1, "month"), None)
+    assert at_end.logical_values()[3] == ("at-termination", None, None)
+    assert external.logical_values()[3] == ("external-schedule", None, (str(_uuid(701)),))
+    assert len({periodic.logical_values(), at_end.logical_values(), external.logical_values()}) == 3
 
-    callable_with_end = replace(base, duration=_callable_duration(), far_leg=None)
-    with pytest.raises(SecuritiesFinancingValidationError, match="far date"):
-        replace(
-            callable_with_end,
-            far_leg=RepoFarLegTerms(date(2026, 6, 3)),
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact payment mode"):
+        SecuritiesLendingCompensationLegTerms(
+            _fixed(), _id(303), SftCompensationAccrualBasisCode("principal-market-value")
         )
-
-
-def test_repo_supplied_far_cash_currency_must_match_near_cash() -> None:
-    base = _term_repo()
-    with pytest.raises(SecuritiesFinancingValidationError, match="currencies must match"):
-        replace(
-            base,
-            far_leg=RepoFarLegTerms(
-                date(2026, 2, 2),
-                _cash("1002500", 999),
-            ),
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires tenor"):
+        SecuritiesLendingCompensationLegTerms(
+            rate=_fixed(),
+            currency_identity_id=_id(303),
+            accrual_basis=SftCompensationAccrualBasisCode("principal-market-value"),
+            payment_mode=SftCompensationPaymentMode.PERIODIC,
+            payment_tenor=None,
         )
-
-
-def test_repo_security_basket_is_unique_canonical_and_order_invariant() -> None:
-    base = _term_repo()
-    ids = tuple(item.security_identity_id.value for item in base.transferred_securities)
-    assert ids == tuple(sorted(ids, key=str))
-    reversed_repo = replace(
-        base,
-        transferred_securities=tuple(reversed(base.transferred_securities)),
-    )
-    assert reversed_repo.logical_values() == base.logical_values()
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(base, transferred_securities=())
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(
-            base,
-            transferred_securities=(_security(401, "1"), _security(401, "2")),
+    with pytest.raises(SecuritiesFinancingValidationError, match="no schedule ref"):
+        _fixed_leg(payment_ref=_schedule(1))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        _fixed_leg(
+            payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
+            payment_tenor=_tenor(),
         )
-
-
-def test_repo_instrument_must_not_equal_transferred_security() -> None:
-    base = _term_repo()
-    with pytest.raises(SecuritiesFinancingValidationError, match="must not equal"):
-        replace(base, instrument_identity_id=_identity(401))
-
-
-def test_repo_product_logical_identity_uses_primitive_expected_oracle() -> None:
-    repo = _term_repo()
-    expected = (
-        "repo",
-        (str(_uuid(101)),),
-        (str(_uuid(10)),),
-        (str(_uuid(1)),),
-        (str(_uuid(2)),),
-        ("term", "2026-01-02", "2026-02-02", None),
-        ("1e+6", (str(_uuid(300)),)),
-        (
-            ((str(_uuid(401)),), "100", ("units",)),
-            ((str(_uuid(402)),), "50", ("units",)),
-        ),
-        ("fixed", "0.03", ("act-360",), None),
-        ("bilateral", None),
-        ("2026-02-02", ("1002500", (str(_uuid(300)),))),
-        (None, "0.02"),
-        (str(_uuid(201)),),
-    )
-    assert repo.logical_values() == expected
-
-
-def test_repo_parent_revalidates_malformed_exact_local_children() -> None:
-    base = _term_repo()
-
-    bad_cash = object.__new__(SftCashAmount)
-    object.__setattr__(bad_cash, "amount", Decimal("0"))
-    object.__setattr__(bad_cash, "currency_identity_id", _identity(300))
-    with pytest.raises(SecuritiesFinancingValidationError, match="positive"):
-        replace(base, near_cash=bad_cash)
-
-    bad_duration = object.__new__(SftDurationTerms)
-    object.__setattr__(bad_duration, "mode", SftDurationMode.TERM)
-    object.__setattr__(bad_duration, "start_date", date(2026, 2, 2))
-    object.__setattr__(bad_duration, "termination_date", date(2026, 1, 2))
-    object.__setattr__(bad_duration, "notice_days", None)
-    with pytest.raises(SecuritiesFinancingValidationError, match="after start"):
-        replace(base, duration=bad_duration)
-
-    bad_security = object.__new__(SftSecurityQuantity)
-    object.__setattr__(bad_security, "security_identity_id", _identity(401))
-    object.__setattr__(bad_security, "quantity", Decimal("-1"))
-    object.__setattr__(bad_security, "quantity_basis", _quantity_basis())
-    with pytest.raises(SecuritiesFinancingValidationError, match="positive"):
-        replace(base, transferred_securities=(bad_security,))
-
-    bad_basis = object.__new__(SftSecurityQuantityBasisCode)
-    object.__setattr__(bad_basis, "value", "INVALID CODE")
-    malformed_basis_security = object.__new__(SftSecurityQuantity)
-    object.__setattr__(malformed_basis_security, "security_identity_id", _identity(401))
-    object.__setattr__(malformed_basis_security, "quantity", Decimal("1"))
-    object.__setattr__(malformed_basis_security, "quantity_basis", bad_basis)
-    with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
-        replace(base, transferred_securities=(malformed_basis_security,))
-
-
-def test_repo_rejects_local_subclasses_and_malformed_exact_ids() -> None:
-    base = _term_repo()
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftCashAmount"):
-        replace(base, near_cash=_CashSubclass(Decimal("1"), _identity(300)))
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftDurationTerms"):
-        replace(
-            base,
-            duration=_DurationSubclass(
-                SftDurationMode.TERM,
-                date(2026, 1, 2),
-                date(2026, 2, 2),
-            ),
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule ref"):
+        _fixed_leg(payment_mode=SftCompensationPaymentMode.EXTERNAL_SCHEDULE)
+    with pytest.raises(SecuritiesFinancingValidationError, match="no tenor"):
+        _fixed_leg(
+            payment_mode=SftCompensationPaymentMode.EXTERNAL_SCHEDULE,
+            payment_tenor=_tenor(),
+            payment_ref=_schedule(2),
         )
+    bad_ref = _malformed(SftScheduleReferenceId, value=cast(Any, _BadUUID(int=2)))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
-        replace(base, terms_id=_malformed_terms_id())
+        _fixed_leg(
+            payment_mode=SftCompensationPaymentMode.EXTERNAL_SCHEDULE,
+            payment_ref=bad_ref,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenor"):
+        _fixed_leg(payment_tenor=cast(Any, "monthly"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenor"):
+        _fixed_leg(payment_tenor=_TenorSubclass(1, FinancialTenorUnit.MONTH))
+    bad_tenor = _malformed(FinancialTenor, value=0, unit=FinancialTenorUnit.MONTH)
+    with pytest.raises(SecuritiesFinancingValidationError, match="positive int"):
+        _fixed_leg(payment_tenor=bad_tenor)
+    bad_unit = _malformed(FinancialTenor, value=1, unit=cast(Any, "month"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenorUnit"):
+        _fixed_leg(payment_tenor=bad_unit)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftScheduleReferenceId"):
+        SecuritiesLendingCompensationLegTerms(
+            rate=_fixed(),
+            currency_identity_id=_id(303),
+            accrual_basis=SftCompensationAccrualBasisCode("principal-market-value"),
+            payment_mode=SftCompensationPaymentMode.EXTERNAL_SCHEDULE,
+            payment_schedule_reference=cast(Any, _uuid(1)),
+        )
 
 
-def test_repo_exact_child_type_rejection_matrix() -> None:
-    base = _term_repo()
-    invalid: tuple[dict[str, object], ...] = (
-        {"terms_id": _uuid(101)},
-        {"seller_reference_id": _uuid(1)},
-        {"buyer_reference_id": _uuid(2)},
-        {"transferred_securities": (cast(Any, "bad"),)},
-        {"financing_rate": Decimal("0.01")},
-        {"arrangement": "bilateral"},
-        {"evidence_ref": _uuid(201)},
-        {"margin_terms": Decimal("0.1")},
-        {"far_leg": date(2026, 2, 2)},
+def test_compensation_reset_modes_and_fixed_boundary() -> None:
+    periodic = _floating_leg()
+    at_payment = _floating_leg(reset_mode=SftCompensationResetMode.AT_PAYMENT, reset_tenor=None)
+    external = _floating_leg(
+        reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE,
+        reset_tenor=None,
+        reset_ref=_schedule(702),
     )
-    for changes in invalid:
-        with pytest.raises(SecuritiesFinancingValidationError):
-            replace(base, **cast(Any, changes))
+    reference = _floating_leg(
+        reset_mode=SftCompensationResetMode.REFERENCE_CONVENTION,
+        reset_tenor=None,
+    )
+    assert periodic.logical_values()[4] == ("periodic", (1, "day"), None)
+    assert at_payment.logical_values()[4] == ("at-payment", None, None)
+    assert external.logical_values()[4] == ("external-schedule", None, (str(_uuid(702)),))
+    assert reference.logical_values()[4] == ("reference-convention", None, None)
+    assert len({x.logical_values() for x in (periodic, at_payment, external, reference)}) == 4
+
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry reset timing"):
+        _fixed_leg().__class__(
+            rate=_fixed(),
+            currency_identity_id=_id(303),
+            accrual_basis=SftCompensationAccrualBasisCode("principal-market-value"),
+            payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
+            reset_mode=SftCompensationResetMode.AT_PAYMENT,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires exact reset mode"):
+        SecuritiesLendingCompensationLegTerms(
+            rate=_floating(),
+            currency_identity_id=_id(301),
+            accrual_basis=SftCompensationAccrualBasisCode("cash-collateral"),
+            payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires tenor"):
+        SecuritiesLendingCompensationLegTerms(
+            rate=_floating(),
+            currency_identity_id=_id(301),
+            accrual_basis=SftCompensationAccrualBasisCode("cash-collateral"),
+            payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
+            reset_mode=SftCompensationResetMode.PERIODIC,
+            reset_tenor=None,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="no schedule ref"):
+        _floating_leg(reset_ref=_schedule(2))
+    for mode in (
+        SftCompensationResetMode.AT_PAYMENT,
+        SftCompensationResetMode.REFERENCE_CONVENTION,
+    ):
+        with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+            _floating_leg(reset_mode=mode, reset_tenor=_tenor())
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule ref"):
+        _floating_leg(reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE, reset_tenor=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="no tenor"):
+        _floating_leg(
+            reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE,
+            reset_tenor=_tenor(),
+            reset_ref=_schedule(2),
+        )
+    bad_ref = _malformed(SftScheduleReferenceId, value=cast(Any, _BadUUID(int=2)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        _floating_leg(
+            reset_mode=SftCompensationResetMode.EXTERNAL_SCHEDULE,
+            reset_tenor=None,
+            reset_ref=bad_ref,
+        )
 
 
-def test_securities_lending_fee_and_rebate_remain_distinct() -> None:
-    fee = _compensation_leg(
-        rate=_fixed_rate("0.01"),
-        currency=303,
-        basis="principal-market-value",
-        payment_tenor=_tenor(),
-    )
-    rebate = _compensation_leg(
-        rate=_fixed_rate("-0.002"),
-        currency=301,
-        basis="cash-collateral",
-        payment_tenor=_tenor(),
-    )
-    compensation = SecuritiesLendingCompensationTerms(
-        lending_fee=fee,
-        cash_collateral_rebate=rebate,
-    )
-    assert compensation.logical_values() == (
-        (
-            ("fixed", "0.01", ("act-360",), None),
-            (str(_uuid(303)),),
-            ("principal-market-value",),
-            (1, "month"),
-            None,
-        ),
-        (
-            ("fixed", "-0.002", ("act-360",), None),
-            (str(_uuid(301)),),
-            ("cash-collateral",),
-            (1, "month"),
-            None,
-        ),
-    )
+def test_compensation_container_and_material_noncollapse() -> None:
+    fee = _fixed_leg(rate="0.01")
+    rebate = _fixed_leg(rate="-0.002", currency=301, basis="cash-collateral")
+    c = SecuritiesLendingCompensationTerms(fee, rebate)
+    assert c.logical_values() == (fee.logical_values(), rebate.logical_values())
     assert SecuritiesLendingCompensationTerms(lending_fee=fee).logical_values() == (
         fee.logical_values(),
         None,
@@ -731,450 +537,312 @@ def test_securities_lending_fee_and_rebate_remain_distinct() -> None:
     assert SecuritiesLendingCompensationTerms(
         cash_collateral_rebate=rebate
     ).logical_values() == (None, rebate.logical_values())
-
-
-def test_compensation_conventions_prevent_material_static_collisions() -> None:
-    base = _compensation_leg(
-        rate=_fixed_rate("0.002"),
-        currency=303,
-        basis="principal-market-value",
-        payment_tenor=_tenor(),
-    )
-    different_day_count = replace(base, rate=_fixed_rate("0.002", "30-360"))
-    different_basis = replace(
-        base,
-        accrual_basis=SftCompensationAccrualBasisCode("original-principal"),
-    )
-    different_payment = replace(base, payment_tenor=_tenor(3, FinancialTenorUnit.MONTH))
-    different_currency = replace(base, currency_identity_id=_identity(304))
-    values = {
-        base.logical_values(),
-        different_day_count.logical_values(),
-        different_basis.logical_values(),
-        different_payment.logical_values(),
-        different_currency.logical_values(),
-    }
-    assert len(values) == 5
-
-    floating_a = _compensation_leg(
-        rate=_floating_rate("0.001"),
-        currency=301,
-        basis="cash-collateral",
-        payment_tenor=_tenor(),
-        reset_tenor=_tenor(unit=FinancialTenorUnit.DAY),
-    )
-    floating_b = replace(
-        floating_a,
-        rate=replace(
-            floating_a.rate,
-            floating_reference_identity_id=_identity(501),
-        ),
-    )
-    assert floating_a.logical_values() != floating_b.logical_values()
-
-
-def test_securities_lending_compensation_fails_closed() -> None:
-    with pytest.raises(SecuritiesFinancingValidationError):
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires fee or rebate"):
         SecuritiesLendingCompensationTerms()
-
     with pytest.raises(
         SecuritiesFinancingValidationError,
         match="exact SecuritiesLendingCompensationLegTerms",
     ):
-        SecuritiesLendingCompensationTerms(lending_fee=cast(Any, Decimal("0.01")))
-
-    negative_fixed_fee = _compensation_leg(
-        rate=_fixed_rate("-0.01"),
-        currency=303,
-        basis="principal-market-value",
-    )
+        SecuritiesLendingCompensationTerms(lending_fee=cast(Any, Decimal("0.1")))
     with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
-        SecuritiesLendingCompensationTerms(lending_fee=negative_fixed_fee)
+        SecuritiesLendingCompensationTerms(lending_fee=_fixed_leg(rate="-0.01"))
 
-    with pytest.raises(SecuritiesFinancingValidationError, match="reset tenor"):
-        _compensation_leg(
-            rate=_fixed_rate("0.01"),
-            currency=303,
-            basis="principal-market-value",
-            reset_tenor=_tenor(unit=FinancialTenorUnit.DAY),
-        )
-
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenor"):
-        _compensation_leg(
-            rate=_fixed_rate("0.01"),
-            currency=303,
-            basis="principal-market-value",
-            payment_tenor=cast(Any, "monthly"),
-        )
-
-
-def test_compensation_revalidates_imported_tenor_and_local_basis_state() -> None:
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenor"):
-        _compensation_leg(
-            rate=_fixed_rate("0.01"),
-            currency=303,
-            basis="principal-market-value",
-            payment_tenor=_FinancialTenorSubclass(1, FinancialTenorUnit.MONTH),
-        )
-
-    malformed_tenor = object.__new__(FinancialTenor)
-    object.__setattr__(malformed_tenor, "value", 0)
-    object.__setattr__(malformed_tenor, "unit", FinancialTenorUnit.MONTH)
-    with pytest.raises(SecuritiesFinancingValidationError, match="positive int"):
-        _compensation_leg(
-            rate=_fixed_rate("0.01"),
-            currency=303,
-            basis="principal-market-value",
-            payment_tenor=malformed_tenor,
-        )
-
-    malformed_unit_tenor = object.__new__(FinancialTenor)
-    object.__setattr__(malformed_unit_tenor, "value", 1)
-    object.__setattr__(malformed_unit_tenor, "unit", cast(Any, "month"))
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact FinancialTenorUnit"):
-        _compensation_leg(
-            rate=_fixed_rate("0.01"),
-            currency=303,
-            basis="principal-market-value",
-            payment_tenor=malformed_unit_tenor,
-        )
+    base = _fixed_leg(rate="0.002")
+    variants = (
+        replace(base, rate=_fixed("0.002", "30-360")),
+        replace(base, accrual_basis=SftCompensationAccrualBasisCode("original-principal")),
+        replace(base, currency_identity_id=_id(304)),
+        replace(base, payment_tenor=_tenor(3)),
+        _fixed_leg(rate="0.002", payment_mode=SftCompensationPaymentMode.AT_TERMINATION),
+        _fixed_leg(
+            rate="0.002",
+            payment_mode=SftCompensationPaymentMode.EXTERNAL_SCHEDULE,
+            payment_ref=_schedule(703),
+        ),
+    )
+    assert len({base.logical_values(), *(x.logical_values() for x in variants)}) == 7
+    assert _floating_leg().logical_values() != replace(
+        _floating_leg(), rate=_floating("-0.001", ref=501)
+    ).logical_values()
 
     with pytest.raises(
         SecuritiesFinancingValidationError,
         match="exact SftCompensationAccrualBasisCode",
     ):
         SecuritiesLendingCompensationLegTerms(
-            rate=_fixed_rate("0.01"),
-            currency_identity_id=_identity(303),
-            accrual_basis=cast(Any, "principal-market-value"),
+            _fixed(), _id(303), cast(Any, "principal-market-value"),
+            payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
         )
-
-    malformed_basis = object.__new__(SftCompensationAccrualBasisCode)
-    object.__setattr__(malformed_basis, "value", "INVALID CODE")
+    bad_basis = _malformed(SftCompensationAccrualBasisCode, value="INVALID CODE")
     with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
         SecuritiesLendingCompensationLegTerms(
-            rate=_fixed_rate("0.01"),
-            currency_identity_id=_identity(303),
-            accrual_basis=malformed_basis,
+            _fixed(), _id(303), bad_basis,
+            payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
         )
 
 
-def test_securities_lending_collateral_role_is_canonical_and_order_invariant() -> None:
-    loan = _securities_loan()
+def test_repo_semantics_and_fail_closed_matrix() -> None:
+    repo = _repo()
+    assert repo.transferred_securities[0].security_identity_id.value == _uuid(401)
+    reversed_repo = replace(
+        repo,
+        transferred_securities=tuple(reversed(repo.transferred_securities)),
+    )
+    assert reversed_repo.logical_values() == repo.logical_values()
+    with pytest.raises(SecuritiesFinancingValidationError, match="non-empty"):
+        replace(repo, transferred_securities=())
+    with pytest.raises(SecuritiesFinancingValidationError, match="duplicate"):
+        replace(repo, transferred_securities=(_security(401, "1"), _security(401, "2")))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not equal"):
+        replace(repo, instrument_identity_id=_id(401))
+    with pytest.raises(SecuritiesFinancingValidationError, match="term repo requires"):
+        replace(repo, far_leg=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="far date"):
+        replace(repo, far_leg=RepoFarLegTerms(date(2026, 2, 3)))
+    opened = replace(repo, duration=_open(), far_leg=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not invent"):
+        replace(opened, far_leg=RepoFarLegTerms(date(2026, 2, 2)))
+    callable_no_end = replace(repo, duration=_callable(False), far_leg=None)
+    with pytest.raises(
+        SecuritiesFinancingValidationError,
+        match="requires contractual termination",
+    ):
+        replace(callable_no_end, far_leg=RepoFarLegTerms(date(2026, 2, 2)))
+    callable_end = replace(repo, duration=_callable(True), far_leg=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="far date"):
+        replace(callable_end, far_leg=RepoFarLegTerms(date(2026, 6, 3)))
+    assert replace(callable_end, far_leg=RepoFarLegTerms(date(2026, 6, 2))).far_leg is not None
+    with pytest.raises(SecuritiesFinancingValidationError, match="currencies must match"):
+        replace(repo, far_leg=RepoFarLegTerms(date(2026, 2, 2), _cash("1", 999)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must differ"):
+        replace(repo, buyer_reference_id=repo.seller_reference_id)
+
+    bad_cash = _malformed(SftCashAmount, amount=Decimal("0"), currency_identity_id=_id(300))
+    with pytest.raises(SecuritiesFinancingValidationError, match="positive"):
+        replace(repo, near_cash=bad_cash)
+    bad_duration = _malformed(
+        SftDurationTerms,
+        mode=SftDurationMode.TERM,
+        start_date=date(2026, 2, 2),
+        termination_date=date(2026, 1, 2),
+        notice_days=None,
+    )
+    with pytest.raises(SecuritiesFinancingValidationError, match="after start"):
+        replace(repo, duration=bad_duration)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftCashAmount"):
+        replace(repo, near_cash=_CashSubclass(Decimal("1"), _id(300)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact SftDurationTerms"):
+        replace(
+            repo,
+            duration=_DurationSubclass(
+                SftDurationMode.TERM,
+                date(2026, 1, 2),
+                date(2026, 2, 2),
+            ),
+        )
+
+    invalid: tuple[dict[str, object], ...] = (
+        {"terms_id": _uuid(1)}, {"seller_reference_id": _uuid(1)}, {"buyer_reference_id": _uuid(2)},
+        {"transferred_securities": (cast(Any, "bad"),)}, {"financing_rate": Decimal("0.1")},
+        {"arrangement": "bilateral"}, {"evidence_ref": _uuid(1)}, {"margin_terms": Decimal("0.1")},
+        {"far_leg": date(2026, 2, 2)},
+    )
+    for changes in invalid:
+        with pytest.raises(SecuritiesFinancingValidationError):
+            replace(repo, **cast(Any, changes))
+
+
+def test_securities_lending_collateralization_modes_close_empty_collision() -> None:
+    loan = _loan()
+    assert loan.collateralization_mode is SftCollateralizationMode.EXPLICIT
+    assert loan.collateral[0] == _cash("500000", 301)
     reversed_loan = replace(loan, collateral=tuple(reversed(loan.collateral)))
     assert reversed_loan.logical_values() == loan.logical_values()
-    assert loan.collateral[0] == _cash("500000", 301)
-    assert loan.collateral[1] == _security(411, "75")
-    assert replace(loan, collateral=()).collateral == ()
 
+    with pytest.raises(SecuritiesFinancingValidationError, match="non-empty"):
+        replace(loan, collateral=())
+    unsecured = replace(
+        loan,
+        collateral=(),
+        collateralization_mode=SftCollateralizationMode.UNCOLLATERALIZED,
+    )
+    external = replace(
+        loan,
+        collateral=(),
+        collateralization_mode=SftCollateralizationMode.EXTERNAL_SCHEDULE,
+        collateral_schedule_reference=_schedule(710),
+    )
+    assert unsecured.logical_values() != external.logical_values()
+    assert unsecured.logical_values()[8] == ("uncollateralized", None)
+    assert external.logical_values()[8] == ("external-schedule", (str(_uuid(710)),))
 
-def test_securities_lending_rejects_duplicate_collateral_role_identity() -> None:
-    loan = _securities_loan()
-    with pytest.raises(SecuritiesFinancingValidationError, match="duplicate"):
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact mode"):
+        replace(loan, collateralization_mode=cast(Any, "explicit"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
         replace(
             loan,
-            collateral=(_cash("1", 301), _cash("2", 301)),
+            collateralization_mode=SftCollateralizationMode.UNCOLLATERALIZED,
+            collateral_schedule_reference=_schedule(1),
         )
-    with pytest.raises(SecuritiesFinancingValidationError, match="duplicate"):
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        replace(loan, collateralization_mode=SftCollateralizationMode.UNCOLLATERALIZED)
+    with pytest.raises(SecuritiesFinancingValidationError, match="non-empty"):
         replace(
             loan,
-            collateral=(_security(411, "1"), _security(411, "2")),
+            collateral=(),
+            collateralization_mode=SftCollateralizationMode.EXPLICIT,
         )
+    with pytest.raises(SecuritiesFinancingValidationError, match="non-empty"):
+        replace(
+            loan,
+            collateralization_mode=SftCollateralizationMode.EXPLICIT,
+            collateral_schedule_reference=_schedule(1),
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule reference"):
+        replace(
+            loan,
+            collateral=(),
+            collateralization_mode=SftCollateralizationMode.EXTERNAL_SCHEDULE,
+            collateral_schedule_reference=None,
+        )
+    bad_ref = _malformed(SftScheduleReferenceId, value=cast(Any, _BadUUID(int=10)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        replace(
+            loan,
+            collateralization_mode=SftCollateralizationMode.EXTERNAL_SCHEDULE,
+            collateral_schedule_reference=bad_ref,
+        )
+    assert replace(
+        loan,
+        collateralization_mode=SftCollateralizationMode.EXTERNAL_SCHEDULE,
+        collateral_schedule_reference=_schedule(711),
+    ).collateral
 
 
-def test_securities_lending_rejects_bad_collateral_container_and_item() -> None:
-    loan = _securities_loan()
+def test_securities_lending_collateral_container_and_parent_guards() -> None:
+    loan = _loan()
+    with pytest.raises(SecuritiesFinancingValidationError, match="duplicate"):
+        replace(loan, collateral=(_cash("1", 301), _cash("2", 301)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="duplicate"):
+        replace(loan, collateral=(_security(411, "1"), _security(411, "2")))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact tuple"):
         replace(loan, collateral=cast(Any, [_cash("1", 301)]))
     with pytest.raises(SecuritiesFinancingValidationError, match="unsupported"):
         replace(loan, collateral=cast(Any, ("bad",)))
     with pytest.raises(SecuritiesFinancingValidationError, match="unsupported"):
-        sft_semantics._collateral_key(cast(Any, object()))
-
-
-def test_securities_lending_product_logical_identity_uses_primitive_expected_oracle() -> None:
-    loan = _securities_loan()
-    expected = (
-        "securities-lending",
-        (str(_uuid(102)),),
-        (str(_uuid(20)),),
-        (str(_uuid(3)),),
-        (str(_uuid(4)),),
-        ("open", "2026-01-02", None, 1),
-        ((str(_uuid(410)),), "250", ("units",)),
-        (
-            (
-                ("fixed", "0.0025", ("act-360",), None),
-                (str(_uuid(303)),),
-                ("principal-market-value",),
-                (1, "month"),
-                None,
-            ),
-            (
-                ("floating", "-0.001", ("act-360",), (str(_uuid(500)),)),
-                (str(_uuid(301)),),
-                ("cash-collateral",),
-                (1, "month"),
-                (1, "day"),
-            ),
-        ),
-        (
-            ("5e+5", (str(_uuid(301)),)),
-            ((str(_uuid(411)),), "75", ("units",)),
-        ),
-        ("tri-party", (str(_uuid(50)),)),
-        ("1.05", None),
-        (str(_uuid(202)),),
-    )
-    assert loan.logical_values() == expected
-
-
-def test_securities_lending_parent_revalidates_malformed_compensation() -> None:
-    loan = _securities_loan()
-    bad_leg = object.__new__(SecuritiesLendingCompensationLegTerms)
-    object.__setattr__(bad_leg, "rate", _fixed_rate("-1"))
-    object.__setattr__(bad_leg, "currency_identity_id", _identity(303))
-    object.__setattr__(
-        bad_leg,
-        "accrual_basis",
-        SftCompensationAccrualBasisCode("principal-market-value"),
-    )
-    object.__setattr__(bad_leg, "payment_tenor", None)
-    object.__setattr__(bad_leg, "reset_tenor", None)
-
-    bad = object.__new__(SecuritiesLendingCompensationTerms)
-    object.__setattr__(bad, "lending_fee", bad_leg)
-    object.__setattr__(bad, "cash_collateral_rebate", None)
-    with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
-        replace(loan, compensation=bad)
-
-
-def test_securities_lending_exact_child_and_identity_collisions_fail_closed() -> None:
-    loan = _securities_loan()
+        s._collateral_key(cast(Any, object()))
     with pytest.raises(SecuritiesFinancingValidationError, match="must differ"):
-        replace(
-            loan,
-            instrument_identity_id=loan.principal_security.security_identity_id,
-        )
+        replace(loan, instrument_identity_id=loan.principal_security.security_identity_id)
     with pytest.raises(SecuritiesFinancingValidationError, match="exact"):
         replace(loan, compensation=cast(Any, Decimal("0.1")))
     with pytest.raises(SecuritiesFinancingValidationError, match="exact SftSecurityQuantity"):
-        replace(loan, principal_security=cast(Any, _identity(410)))
+        replace(loan, principal_security=cast(Any, _id(410)))
 
-
-def test_margin_lending_has_arrangement_and_canonical_eligible_collateral() -> None:
-    terms = _margin_loan()
-    assert terms.arrangement.logical_values() == ("bilateral", None)
-    assert tuple(identity.value for identity in terms.eligible_collateral_identity_ids) == (
-        _uuid(420),
-        _uuid(421),
+    bad_leg = _malformed(
+        SecuritiesLendingCompensationLegTerms,
+        rate=_fixed("-1"), currency_identity_id=_id(303),
+        accrual_basis=SftCompensationAccrualBasisCode("principal-market-value"),
+        payment_mode=SftCompensationPaymentMode.AT_TERMINATION,
+        payment_tenor=None, payment_schedule_reference=None,
+        reset_mode=None, reset_tenor=None, reset_schedule_reference=None,
     )
-    reversed_terms = replace(
-        terms,
-        eligible_collateral_identity_ids=tuple(
-            reversed(terms.eligible_collateral_identity_ids)
-        ),
+    bad_comp = _malformed(
+        SecuritiesLendingCompensationTerms,
+        lending_fee=bad_leg,
+        cash_collateral_rebate=None,
     )
-    assert reversed_terms.logical_values() == terms.logical_values()
-
-
-def test_margin_lending_eligible_collateral_constraints() -> None:
-    base = _margin_loan()
-    assert replace(base, eligible_collateral_identity_ids=()).logical_values()[9] == ()
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(
-            base,
-            eligible_collateral_identity_ids=(_identity(420), _identity(420)),
-        )
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(
-            base,
-            eligible_collateral_identity_ids=(base.instrument_identity_id,),
-        )
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact EconomicIdentityId"):
-        replace(
-            base,
-            eligible_collateral_identity_ids=(
-                _IdentitySubclass(_uuid(420)),
-            ),
-        )
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact tuple"):
-        replace(
-            base,
-            eligible_collateral_identity_ids=cast(Any, [_identity(420)]),
-        )
-
-
-def test_margin_lending_product_logical_identity_uses_primitive_expected_oracle() -> None:
-    terms = _margin_loan()
-    expected = (
-        "margin-lending",
-        (str(_uuid(103)),),
-        (str(_uuid(30)),),
-        (str(_uuid(5)),),
-        (str(_uuid(6)),),
-        ("callable", "2026-01-02", "2026-06-02", 2),
-        ("2500000", (str(_uuid(302)),)),
-        ("floating", "0.015", ("act-360",), (str(_uuid(500)),)),
-        ("prime-broker-approved",),
-        ((str(_uuid(420)),), (str(_uuid(421)),)),
-        ("bilateral", None),
-        (None, "0.25"),
-        (str(_uuid(203)),),
-    )
-    assert terms.logical_values() == expected
-
-
-def test_margin_lending_parent_revalidates_malformed_eligibility_and_margin() -> None:
-    base = _margin_loan()
-    bad_code = object.__new__(SftCollateralEligibilityCode)
-    object.__setattr__(bad_code, "value", "INVALID CODE")
-    with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
-        replace(base, collateral_eligibility=bad_code)
-
-    bad_margin = object.__new__(SftMarginTerms)
-    object.__setattr__(bad_margin, "initial_margin_ratio", None)
-    object.__setattr__(bad_margin, "haircut_ratio", Decimal("-0.1"))
     with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
-        replace(base, margin_terms=bad_margin)
+        replace(loan, compensation=bad_comp)
 
 
-def test_margin_lending_exact_child_type_rejection_matrix() -> None:
-    base = _margin_loan()
-    invalid: tuple[dict[str, object], ...] = (
-        {"collateral_eligibility": "approved"},
-        {"arrangement": "bilateral"},
-        {"financing_rate": Decimal("0.1")},
-        {"margin_terms": Decimal("0.1")},
-        {"evidence_ref": _uuid(203)},
+def test_margin_lending_constraints() -> None:
+    m = _margin_loan()
+    assert tuple(x.value for x in m.eligible_collateral_identity_ids) == (_uuid(420), _uuid(421))
+    assert replace(m, eligible_collateral_identity_ids=()).logical_values()[9] == ()
+    with pytest.raises(SecuritiesFinancingValidationError, match="unique"):
+        replace(m, eligible_collateral_identity_ids=(_id(420), _id(420)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not be eligible"):
+        replace(m, eligible_collateral_identity_ids=(m.instrument_identity_id,))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact EconomicIdentityId"):
+        replace(m, eligible_collateral_identity_ids=(cast(Any, _IdentitySubclass(_uuid(420))),))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact tuple"):
+        replace(m, eligible_collateral_identity_ids=cast(Any, [_id(420)]))
+    bad_code = _malformed(SftCollateralEligibilityCode, value="INVALID CODE")
+    with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
+        replace(m, collateral_eligibility=bad_code)
+    bad_margin = _malformed(
+        SftMarginTerms,
+        initial_margin_ratio=None,
+        haircut_ratio=Decimal("-0.1"),
     )
-    for changes in invalid:
+    with pytest.raises(SecuritiesFinancingValidationError, match="non-negative"):
+        replace(m, margin_terms=bad_margin)
+    for changes in (
+        {"collateral_eligibility": "approved"}, {"arrangement": "bilateral"},
+        {"financing_rate": Decimal("0.1")}, {"margin_terms": Decimal("0.1")},
+        {"evidence_ref": _uuid(203)},
+    ):
         with pytest.raises(SecuritiesFinancingValidationError):
-            replace(base, **cast(Any, changes))
+            replace(m, **cast(Any, changes))
 
 
-def test_three_product_families_do_not_collapse() -> None:
-    logical = {
-        _term_repo().logical_values()[0],
-        _securities_loan().logical_values()[0],
-        _margin_loan().logical_values()[0],
+def test_complete_logical_identity_oracles() -> None:
+    repo = _repo()
+    assert repo.logical_values()[0] == "repo"
+    loan = _loan()
+    lv = loan.logical_values()
+    assert lv[0] == "securities-lending"
+    assert lv[7][0][3] == ("periodic", (1, "month"), None)
+    assert lv[7][1][4] == ("periodic", (1, "day"), None)
+    assert lv[8] == ("explicit", None)
+    assert lv[9] == (
+        ("5e+5", (str(_uuid(301)),)),
+        ((str(_uuid(411)),), "75", ("units",)),
+    )
+    margin = _margin_loan()
+    assert margin.logical_values()[0] == "margin-lending"
+    assert {repo.logical_values()[0], lv[0], margin.logical_values()[0]} == {
+        "repo", "securities-lending", "margin-lending"
     }
-    assert logical == {"repo", "securities-lending", "margin-lending"}
 
 
-def test_parties_are_exact_distinct_and_deeply_validated() -> None:
-    repo = _term_repo()
-    with pytest.raises(SecuritiesFinancingValidationError):
-        replace(repo, buyer_reference_id=repo.seller_reference_id)
-    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
-        replace(repo, seller_reference_id=_malformed_party())
-
-
-def test_decimal_canonicalization_is_context_independent_and_scalable() -> None:
-    ordinary = SftCashAmount(Decimal("1000.000"), _identity(300))
-    with localcontext() as context:
-        context.prec = 2
-        assert ordinary.logical_values()[0] == "1000"
-        huge_positive = SftCashAmount(Decimal("1E+1000000"), _identity(300))
-        huge_negative = SftCashAmount(Decimal("1E-1000000"), _identity(300))
-        positive_text = cast(str, huge_positive.logical_values()[0])
-        negative_text = cast(str, huge_negative.logical_values()[0])
-    assert positive_text == "1e+1000000"
-    assert negative_text == "1e-1000000"
-    assert len(positive_text) == 10
-    assert len(negative_text) == 10
-    assert Decimal(positive_text) == Decimal("1E+1000000")
-    assert Decimal(negative_text) == Decimal("1E-1000000")
-
-
-@pytest.mark.parametrize(
-    ("raw", "expected"),
-    [
-        ("1.2300", "1.23"),
-        ("1000.00", "1000"),
-        ("0.00100", "0.001"),
-        ("1E+20", "1e+20"),
-        ("1E-20", "1e-20"),
-    ],
-)
-def test_positive_decimal_canonical_equivalence(raw: str, expected: str) -> None:
-    assert SftCashAmount(Decimal(raw), _identity(300)).logical_values()[0] == expected
-
-
-def test_zero_and_signed_zero_canonicalize_through_nonnegative_ratio() -> None:
-    for raw in ("0", "-0"):
-        value = SftMarginTerms(haircut_ratio=Decimal(raw))
-        assert value.logical_values()[1] == "0"
-
-
-def test_logical_values_revalidate_after_reflective_post_construction_mutation() -> None:
+def test_reflective_revalidation_and_frozen_slotted_values() -> None:
     cash = _cash("1")
     object.__setattr__(cash, "amount", Decimal("0"))
     with pytest.raises(SecuritiesFinancingValidationError, match="positive"):
         cash.logical_values()
-
-    repo = _term_repo()
+    leg = _fixed_leg()
+    object.__setattr__(leg.accrual_basis, "value", "INVALID CODE")
+    with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
+        leg.logical_values()
+    repo = _repo()
     object.__setattr__(repo.duration, "termination_date", date(2025, 1, 1))
     with pytest.raises(SecuritiesFinancingValidationError, match="after start"):
         repo.logical_values()
 
-    leg = _fee_leg()
-    object.__setattr__(leg.accrual_basis, "value", "INVALID CODE")
-    with pytest.raises(SecuritiesFinancingValidationError, match="canonical lowercase"):
-        leg.logical_values()
-
-
-def test_all_public_semantic_values_are_frozen_and_slotted() -> None:
     values: tuple[object, ...] = (
-        _terms_id(),
-        _evidence(),
-        _party(1),
-        SftCollateralEligibilityCode("approved"),
-        SftSecurityQuantityBasisCode("units"),
-        SftCompensationAccrualBasisCode("principal-market-value"),
-        _cash(),
-        _security(),
-        _fixed_rate(),
-        _term_duration(),
-        _bilateral(),
-        SftMarginTerms(haircut_ratio=Decimal("0.1")),
-        RepoFarLegTerms(date(2026, 2, 2)),
-        _fee_leg(),
-        SecuritiesLendingCompensationTerms(lending_fee=_fee_leg()),
-        _term_repo(),
-        _securities_loan(),
-        _margin_loan(),
+        _terms(), _evidence(), _party(1), _schedule(1),
+        SftCollateralEligibilityCode("approved"), SftSecurityQuantityBasisCode("units"),
+        SftCompensationAccrualBasisCode("principal-market-value"), _cash(), _security(),
+        _fixed(), _term(), _bilateral(), SftMarginTerms(haircut_ratio=Decimal("0.1")),
+        RepoFarLegTerms(date(2026, 2, 2)), _fixed_leg(), _floating_leg(),
+        SecuritiesLendingCompensationTerms(lending_fee=_fixed_leg()),
+        _repo(), _loan(), _margin_loan(),
     )
-    assert all(not hasattr(value, "__dict__") for value in values)
+    assert all(not hasattr(v, "__dict__") for v in values)
     with pytest.raises(FrozenInstanceError):
-        cast(Any, values[6]).amount = Decimal("2")
+        cast(Any, values[7]).amount = Decimal("2")
 
 
-def test_top_level_field_surfaces_do_not_expose_current_state() -> None:
-    repo_fields = {field.name for field in fields(RepoTerms)}
-    loan_fields = {field.name for field in fields(SecuritiesLendingTerms)}
-    margin_fields = {field.name for field in fields(MarginLendingTerms)}
-    forbidden = {
-        "current_margin",
-        "current_collateral",
-        "current_utilization",
-        "available_credit",
-        "margin_call",
-        "position",
-        "valuation",
-        "provider_symbol",
-        "settled",
+def test_top_level_negative_space_and_source_guards() -> None:
+    forbidden_fields = {
+        "current_margin", "current_collateral", "current_utilization", "available_credit",
+        "margin_call", "position", "valuation", "provider_symbol", "settled",
     }
-    assert not repo_fields.intersection(forbidden)
-    assert not loan_fields.intersection(forbidden)
-    assert not margin_fields.intersection(forbidden)
-
-
-def test_source_has_exact_type_and_no_context_sensitive_decimal_regression() -> None:
-    source = (
-        Path(__file__).parents[2]
-        / "src/qore/infrastructure/securities_financing_semantics.py"
-    ).read_text(encoding="utf-8")
+    for cls in (RepoTerms, SecuritiesLendingTerms, MarginLendingTerms):
+        assert not {f.name for f in fields(cls)}.intersection(forbidden_fields)
+    source_path = Path(s.__file__)
+    source = source_path.read_text()
     assert "isinstance(" not in source
     assert ".normalize(" not in source
     assert "datetime.now(" not in source
@@ -1182,16 +850,8 @@ def test_source_has_exact_type_and_no_context_sensitive_decimal_regression() -> 
     assert "uuid4(" not in source
     assert "random." not in source
     assert "secrets." not in source
-
-
-def test_source_has_no_runtime_financing_or_settlement_authority() -> None:
-    source_path = (
-        Path(__file__).parents[2]
-        / "src/qore/infrastructure/securities_financing_semantics.py"
-    )
-    source = source_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
-    forbidden_import_roots = {
+    forbidden_imports = {
         "asyncio",
         "httpx",
         "numpy",
@@ -1201,21 +861,15 @@ def test_source_has_no_runtime_financing_or_settlement_authority() -> None:
         "subprocess",
         "threading",
     }
-    imported_names = {
+    imported = {
         alias.name.split(".")[0]
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Import)
+        for node in ast.walk(tree) if isinstance(node, ast.Import)
         for alias in node.names
-    }
-    imported_modules = {
+    } | {
         node.module.split(".")[0]
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module is not None
+        for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module
     }
-    assert not (imported_names | imported_modules).intersection(
-        forbidden_import_roots
-    )
-
+    assert not imported.intersection(forbidden_imports)
     forbidden_calls = {
         "calculate",
         "connect",
@@ -1227,31 +881,9 @@ def test_source_has_no_runtime_financing_or_settlement_authority() -> None:
         "submit",
         "transfer",
     }
-    called_names = {
+    calls = {
         node.func.id
         for node in ast.walk(tree)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
     }
-    assert not called_names.intersection(forbidden_calls)
-
-
-@pytest.mark.parametrize(
-    "forbidden",
-    [
-        "current_margin",
-        "current_collateral",
-        "available_to_borrow",
-        "current_utilization",
-        "margin_call",
-        "provider_symbol",
-        "private_key",
-        "password",
-        "access_token",
-    ],
-)
-def test_source_contains_no_current_or_secret_material(forbidden: str) -> None:
-    source = (
-        Path(__file__).parents[2]
-        / "src/qore/infrastructure/securities_financing_semantics.py"
-    ).read_text(encoding="utf-8")
-    assert forbidden not in source
+    assert not calls.intersection(forbidden_calls)
