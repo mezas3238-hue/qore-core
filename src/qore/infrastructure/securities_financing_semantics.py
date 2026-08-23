@@ -237,6 +237,20 @@ class SftCompensationAccrualBasisCode:
         return (self.value,)
 
 
+@dataclass(frozen=True, slots=True)
+class SftFinancingCalculationCode:
+    """Static floating-rate calculation qualification such as daily-simple."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="SFT financing calculation code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
+        return (self.value,)
+
+
 class SftDurationMode(StrEnum):
     TERM = "term"
     OPEN = "open"
@@ -291,6 +305,14 @@ class SftFinancingFixingTiming(StrEnum):
     IN_ADVANCE = "in-advance"
     IN_ARREARS = "in-arrears"
     REFERENCE_CONVENTION = "reference-convention"
+
+
+class SftFinancingObservationMode(StrEnum):
+    """Authority for additional floating observation mechanics."""
+
+    NONE = "none"
+    REFERENCE_CONVENTION = "reference-convention"
+    EXTERNAL_TERMS = "external-terms"
 
 
 @dataclass(frozen=True, slots=True)
@@ -386,6 +408,12 @@ def _validate_compensation_basis_child(value: SftCompensationAccrualBasisCode) -
             "SftCompensationAccrualBasisCode"
         )
     _validate_code(value.value, field_name="SFT compensation accrual basis code")
+
+
+def _validate_financing_calculation_child(value: SftFinancingCalculationCode) -> None:
+    if type(value) is not SftFinancingCalculationCode:
+        _fail("floating margin-lending financing requires exact calculation code")
+    _validate_code(value.value, field_name="SFT financing calculation code")
 
 
 def _validate_cash_child(value: SftCashAmount, *, field_name: str) -> None:
@@ -696,6 +724,33 @@ def _financing_payment_values(
     )
 
 
+def _validate_financing_observation(
+    rate: SftRateTerms,
+    calculation: SftFinancingCalculationCode | None,
+    observation_mode: SftFinancingObservationMode | None,
+    observation_ref: SftScheduleReferenceId | None,
+) -> None:
+    if rate.kind is SftRateKind.FIXED:
+        if calculation is not None or observation_mode is not None or observation_ref is not None:
+            _fail("fixed margin-lending financing rate must not carry floating convention")
+        return
+    if calculation is None:
+        _fail("floating margin-lending financing requires calculation code")
+    _validate_financing_calculation_child(calculation)
+    if type(observation_mode) is not SftFinancingObservationMode:
+        _fail("floating margin-lending financing requires exact observation mode")
+    if observation_mode is SftFinancingObservationMode.EXTERNAL_TERMS:
+        if observation_ref is None:
+            _fail("external floating observation terms require reference")
+        _validate_schedule_ref_child(
+            observation_ref,
+            field_name="margin-lending floating observation terms reference",
+        )
+        return
+    if observation_ref is not None:
+        _fail("non-external floating observation mode must not carry reference")
+
+
 def _validate_financing_reset_timing(
     rate: SftRateTerms,
     mode: SftFinancingResetMode | None,
@@ -739,11 +794,14 @@ def _validate_financing_reset_timing(
     )
 
 
-def _financing_reset_values(
+def _financing_floating_values(
     mode: SftFinancingResetMode,
     tenor: FinancialTenor | None,
     schedule_ref: SftScheduleReferenceId | None,
     fixing_timing: SftFinancingFixingTiming | None,
+    calculation: SftFinancingCalculationCode,
+    observation_mode: SftFinancingObservationMode,
+    observation_ref: SftScheduleReferenceId | None,
 ) -> tuple[object, ...]:
     return (
         mode.value,
@@ -752,6 +810,11 @@ def _financing_reset_values(
         else None,
         schedule_ref.logical_values() if schedule_ref is not None else None,
         fixing_timing.value if fixing_timing is not None else None,
+        calculation.logical_values(),
+        (
+            observation_mode.value,
+            observation_ref.logical_values() if observation_ref is not None else None,
+        ),
     )
 
 
@@ -1216,6 +1279,9 @@ class MarginLendingTerms:
     financing_reset_tenor: FinancialTenor | None = None
     financing_reset_schedule_reference: SftScheduleReferenceId | None = None
     financing_fixing_timing: SftFinancingFixingTiming | None = None
+    financing_calculation: SftFinancingCalculationCode | None = None
+    financing_observation_mode: SftFinancingObservationMode | None = None
+    financing_observation_reference: SftScheduleReferenceId | None = None
     margin_terms: SftMarginTerms | None = None
 
     def __post_init__(self) -> None:
@@ -1244,6 +1310,12 @@ class MarginLendingTerms:
             self.financing_reset_tenor,
             self.financing_reset_schedule_reference,
             self.financing_fixing_timing,
+        )
+        _validate_financing_observation(
+            self.financing_rate,
+            self.financing_calculation,
+            self.financing_observation_mode,
+            self.financing_observation_reference,
         )
         _validate_eligibility_child(self.collateral_eligibility)
         canonical_identities = _canonicalize_identity_tuple(self.eligible_collateral_identity_ids)
@@ -1276,13 +1348,20 @@ class MarginLendingTerms:
                 self.financing_payment_tenor,
                 self.financing_payment_schedule_reference,
             ),
-            _financing_reset_values(
+            _financing_floating_values(
                 self.financing_reset_mode,
                 self.financing_reset_tenor,
                 self.financing_reset_schedule_reference,
                 self.financing_fixing_timing,
+                self.financing_calculation,
+                self.financing_observation_mode,
+                self.financing_observation_reference,
             )
-            if self.financing_reset_mode is not None
+            if (
+                self.financing_reset_mode is not None
+                and self.financing_calculation is not None
+                and self.financing_observation_mode is not None
+            )
             else None,
             self.collateral_eligibility.logical_values(),
             tuple(
