@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROGRAM D / UMI-14 — UNR-011 GATE-C R1 CORRECTION CANDIDATE — NOT CERTIFIED**
+**PROGRAM D / UMI-14 — UNR-011 GATE-C R6 DOCUMENTATION CORRECTION CANDIDATE — NOT CERTIFIED**
 
 Tracker: #434  
 Parent final audit: #363  
@@ -323,10 +323,12 @@ This owner grants no authority for current price/index/level observation; percen
 ```text
 GATE A = COMPLETE / CONSUMED
 GATE B = COMPLETE / CANDIDATE PREPARED
-GATE C R1 = FAIL / HISTORICAL / INVALIDATED BY AUTHORIZED CORRECTION
-DS-EXPERT-UNR011-R1-01 = ACCEPTED / HIGH / CORRECTION APPLIED
-DS-EXPERT-UNR011-R1-02 = ACCEPTED / NONBLOCKING HARDENING APPLIED
-GATE C R2 = NOT AUTHORIZED / NOT STARTED
+GATE C R1 = FAIL / HISTORICAL / SELECTOR CORRECTION APPLIED
+GATE C R2 = FAIL / HISTORICAL / MULTI-ELEMENT ANY-vs-ALL ORACLE CORRECTION APPLIED
+GATE C R3 = FAIL / HISTORICAL / IMMUTABILITY EVIDENCE CORRECTION APPLIED
+GATE C R4 = FAIL / HISTORICAL / OWNER-LOCAL SUBCLASS HARDENING APPLIED
+GATE C R5 = FAIL / HISTORICAL / IA FINAL DOCUMENTATION-ACCURACY FINDING
+GATE C R6 = CANDIDATE PREPARED / FREEZE REQUIRED / NOT CERTIFIED
 GATE D = NOT AUTHORIZED
 GATE E = NOT AUTHORIZED
 GATE F = NOT AUTHORIZED
@@ -341,7 +343,7 @@ PRODUCTION = CLOSED
 REAL CAPITAL = NOT AUTHORIZED
 ```
 
-`R1 CORRECTION != R2 CERTIFICATION`
+`R6 CANDIDATE != GATE-C CERTIFICATION`
 
 `CI GREEN != ENGINEERING APPROVAL`
 
@@ -349,12 +351,16 @@ REAL CAPITAL = NOT AUTHORIZED
 
 ---
 
-## 12. Gate-C R1 audit correction provenance
+## 12. Gate-C audit correction provenance
 
-DeepSeek Expert R1 identified that the frozen R1 candidate could represent multi-underlier threshold conditions but could not preserve the static contractual fact that a downside participation payoff selects the worst-performing underlier. IA accepted that as `DS-EXPERT-UNR011-R1-01 / HIGH / BLOCKING`.
+R1 established the missing static contractual `WORST_PERFORMING_BY_RETURN` selector and preserved only the D04 rule plus candidate UMI-09 participation feature IDs. Observed returns, determination of the actual worst performer, and payoff calculation remain D07 authority.
 
-The correction adds only a bounded static selector. It does not add a return engine or payoff methodology. The rule `WORST_PERFORMING_BY_RETURN` and candidate UMI-09 participation feature IDs are D04 material; observed returns, determination of the actual worst performer, and payoff calculation remain D07 authority.
+R2 strengthened the independent oracle so multi-element `ANY(A, B)` and `ALL(A, B)` remain materially distinct while singleton `ANY(A)` canonicalizes to `ALL(A)`.
 
-The same audit identified `ALL(A)` versus `ANY(A)` as duplicate effective singleton condition semantics. IA accepted this as nonblocking hardening and authorized its correction together with the blocking finding. Singleton conditions are now canonicalized to `ALL` before signature uniqueness is checked.
+R3 added direct frozen/slots evidence for the composite payoff contracts.
 
-Any certification of this corrected candidate requires a new exact Gate-C round with a fresh HEAD/TREE/SYNTHETIC freeze, a fresh post-freeze exact-synthetic CI, and the complete serial auditor chain starting again with DeepSeek Expert.
+R4 identified and corrected owner-local behavioral subclass spoofing. The resulting exact-type boundaries reject local payoff IDs, selections, outcomes, and branches before trusted virtual `logical_values()` or `is_fallback` behavior can be used.
+
+R5 completed the exact post-freeze CI and serial DeepSeek Expert, DeepSeek Coder, and Claude audits, but IA final falsification rejected integration because this document still reported an obsolete Gate-C state. No semantic, production-code, test-oracle, determinism, immutability, or negative-space defect was demonstrated by that R5 final finding.
+
+R6 is therefore a documentation-only correction candidate. Production source and tests are intentionally unchanged. Certification still requires a fresh exact R6 HEAD/TREE/SYNTHETIC freeze, fresh post-freeze exact-synthetic CI, the complete serial auditor chain, and IA final falsification.
