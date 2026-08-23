@@ -686,26 +686,28 @@ def _validate_financing_payment_timing(
     mode: SftFinancingPaymentMode,
     tenor: FinancialTenor | None,
     schedule_ref: SftScheduleReferenceId | None,
+    *,
+    owner: str,
 ) -> None:
     if type(mode) is not SftFinancingPaymentMode:
-        _fail("margin-lending financing payment requires exact mode")
+        _fail(f"{owner} financing payment requires exact mode")
     if mode is SftFinancingPaymentMode.PERIODIC:
         if tenor is None or schedule_ref is not None:
-            _fail("periodic margin-lending financing payment requires tenor only")
+            _fail(f"periodic {owner} financing payment requires tenor only")
         _validate_financial_tenor(
             tenor,
-            field_name="margin-lending financing payment tenor",
+            field_name=f"{owner} financing payment tenor",
         )
         return
     if mode is SftFinancingPaymentMode.AT_TERMINATION:
         if tenor is not None or schedule_ref is not None:
-            _fail("at-termination margin-lending payment must not carry timing material")
+            _fail(f"at-termination {owner} payment must not carry timing material")
         return
     if tenor is not None or schedule_ref is None:
-        _fail("external-schedule margin-lending payment requires schedule ref only")
+        _fail(f"external-schedule {owner} payment requires schedule ref only")
     _validate_schedule_ref_child(
         schedule_ref,
-        field_name="margin-lending financing payment schedule reference",
+        field_name=f"{owner} financing payment schedule reference",
     )
 
 
@@ -713,11 +715,13 @@ def _financing_payment_values(
     mode: SftFinancingPaymentMode,
     tenor: FinancialTenor | None,
     schedule_ref: SftScheduleReferenceId | None,
+    *,
+    owner: str,
 ) -> tuple[object, ...]:
-    _validate_financing_payment_timing(mode, tenor, schedule_ref)
+    _validate_financing_payment_timing(mode, tenor, schedule_ref, owner=owner)
     return (
         mode.value,
-        _tenor_values(tenor, field_name="margin-lending financing payment tenor")
+        _tenor_values(tenor, field_name=f"{owner} financing payment tenor")
         if tenor is not None
         else None,
         schedule_ref.logical_values() if schedule_ref is not None else None,
@@ -771,6 +775,8 @@ def _validate_financing_reset_timing(
     tenor: FinancialTenor | None,
     schedule_ref: SftScheduleReferenceId | None,
     fixing_timing: SftFinancingFixingTiming | None,
+    *,
+    owner: str,
 ) -> None:
     if rate.kind is SftRateKind.FIXED:
         if (
@@ -779,32 +785,32 @@ def _validate_financing_reset_timing(
             or schedule_ref is not None
             or fixing_timing is not None
         ):
-            _fail("fixed margin-lending financing rate must not carry reset/fixing timing")
+            _fail(f"fixed {owner} financing rate must not carry reset/fixing timing")
         return
     if type(mode) is not SftFinancingResetMode:
-        _fail("floating margin-lending financing rate requires exact reset mode")
+        _fail(f"floating {owner} financing rate requires exact reset mode")
     if mode is SftFinancingResetMode.PERIODIC:
         if tenor is None or schedule_ref is not None:
-            _fail("periodic margin-lending financing reset requires tenor only")
+            _fail(f"periodic {owner} financing reset requires tenor only")
         _validate_financial_tenor(
             tenor,
-            field_name="margin-lending financing reset tenor",
+            field_name=f"{owner} financing reset tenor",
         )
         if type(fixing_timing) is not SftFinancingFixingTiming:
-            _fail("periodic margin-lending financing reset requires exact fixing timing")
+            _fail(f"periodic {owner} financing reset requires exact fixing timing")
         return
     if mode in {
         SftFinancingResetMode.AT_PAYMENT,
         SftFinancingResetMode.REFERENCE_CONVENTION,
     }:
         if tenor is not None or schedule_ref is not None or fixing_timing is not None:
-            _fail("non-scheduled margin-lending financing reset must not carry timing material")
+            _fail(f"non-scheduled {owner} financing reset must not carry timing material")
         return
     if tenor is not None or schedule_ref is None or fixing_timing is not None:
-        _fail("external-schedule margin-lending financing reset requires schedule ref only")
+        _fail(f"external-schedule {owner} financing reset requires schedule ref only")
     _validate_schedule_ref_child(
         schedule_ref,
-        field_name="margin-lending financing reset schedule reference",
+        field_name=f"{owner} financing reset schedule reference",
     )
 
 
@@ -816,6 +822,8 @@ def _financing_floating_values(
     calculation: SftFinancingCalculationCode,
     observation_mode: SftFinancingObservationMode,
     observation_ref: SftScheduleReferenceId | None,
+    *,
+    owner: str,
 ) -> tuple[object, ...]:
     observation = _financing_observation_values(
         calculation,
@@ -824,7 +832,7 @@ def _financing_floating_values(
     )
     return (
         mode.value,
-        _tenor_values(tenor, field_name="margin-lending financing reset tenor")
+        _tenor_values(tenor, field_name=f"{owner} financing reset tenor")
         if tenor is not None
         else None,
         schedule_ref.logical_values() if schedule_ref is not None else None,
@@ -1161,8 +1169,15 @@ class RepoTerms:
     near_cash: SftCashAmount
     transferred_securities: tuple[SftSecurityQuantity, ...]
     financing_rate: SftRateTerms
+    financing_payment_mode: SftFinancingPaymentMode
     arrangement: SftArrangementTerms
     evidence_ref: SftEvidenceRef
+    financing_payment_tenor: FinancialTenor | None = None
+    financing_payment_schedule_reference: SftScheduleReferenceId | None = None
+    financing_reset_mode: SftFinancingResetMode | None = None
+    financing_reset_tenor: FinancialTenor | None = None
+    financing_reset_schedule_reference: SftScheduleReferenceId | None = None
+    financing_fixing_timing: SftFinancingFixingTiming | None = None
     financing_calculation: SftFinancingCalculationCode | None = None
     financing_observation_mode: SftFinancingObservationMode | None = None
     financing_observation_reference: SftScheduleReferenceId | None = None
@@ -1190,6 +1205,20 @@ class RepoTerms:
         }:
             _fail("repo instrument identity must not equal transferred security identity")
         _validate_rate_child(self.financing_rate, field_name="repo financing_rate")
+        _validate_financing_payment_timing(
+            self.financing_payment_mode,
+            self.financing_payment_tenor,
+            self.financing_payment_schedule_reference,
+            owner="repo",
+        )
+        _validate_financing_reset_timing(
+            self.financing_rate,
+            self.financing_reset_mode,
+            self.financing_reset_tenor,
+            self.financing_reset_schedule_reference,
+            self.financing_fixing_timing,
+            owner="repo",
+        )
         _validate_financing_observation(
             self.financing_rate,
             self.financing_calculation,
@@ -1234,13 +1263,25 @@ class RepoTerms:
             self.near_cash.logical_values(),
             tuple(item.logical_values() for item in self.transferred_securities),
             self.financing_rate.logical_values(),
-            _financing_observation_values(
+            _financing_payment_values(
+                self.financing_payment_mode,
+                self.financing_payment_tenor,
+                self.financing_payment_schedule_reference,
+                owner="repo",
+            ),
+            _financing_floating_values(
+                self.financing_reset_mode,
+                self.financing_reset_tenor,
+                self.financing_reset_schedule_reference,
+                self.financing_fixing_timing,
                 self.financing_calculation,
                 self.financing_observation_mode,
                 self.financing_observation_reference,
+                owner="repo",
             )
             if (
-                self.financing_calculation is not None
+                self.financing_reset_mode is not None
+                and self.financing_calculation is not None
                 and self.financing_observation_mode is not None
             )
             else None,
@@ -1389,6 +1430,7 @@ class MarginLendingTerms:
             self.financing_payment_mode,
             self.financing_payment_tenor,
             self.financing_payment_schedule_reference,
+            owner="margin-lending",
         )
         _validate_financing_reset_timing(
             self.financing_rate,
@@ -1396,6 +1438,7 @@ class MarginLendingTerms:
             self.financing_reset_tenor,
             self.financing_reset_schedule_reference,
             self.financing_fixing_timing,
+            owner="margin-lending",
         )
         _validate_financing_observation(
             self.financing_rate,
@@ -1433,6 +1476,7 @@ class MarginLendingTerms:
                 self.financing_payment_mode,
                 self.financing_payment_tenor,
                 self.financing_payment_schedule_reference,
+                owner="margin-lending",
             ),
             _financing_floating_values(
                 self.financing_reset_mode,
@@ -1442,6 +1486,7 @@ class MarginLendingTerms:
                 self.financing_calculation,
                 self.financing_observation_mode,
                 self.financing_observation_reference,
+                owner="margin-lending",
             )
             if (
                 self.financing_reset_mode is not None

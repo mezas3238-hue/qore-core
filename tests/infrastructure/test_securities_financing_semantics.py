@@ -196,10 +196,24 @@ def _repo() -> RepoTerms:
         near_cash=_cash(),
         transferred_securities=(_security(402, "50"), _security(401)),
         financing_rate=_fixed(),
+        financing_payment_mode=SftFinancingPaymentMode.AT_TERMINATION,
         arrangement=_bilateral(),
         evidence_ref=_evidence(201),
         far_leg=RepoFarLegTerms(date(2026, 2, 2), _cash("1002500")),
         margin_terms=SftMarginTerms(haircut_ratio=Decimal("0.02")),
+    )
+
+
+def _floating_repo() -> RepoTerms:
+    return replace(
+        _repo(),
+        financing_rate=_floating("0.002", ref=550),
+        financing_reset_mode=SftFinancingResetMode.PERIODIC,
+        financing_reset_tenor=_tenor(1, FinancialTenorUnit.DAY),
+        financing_fixing_timing=SftFinancingFixingTiming.IN_ADVANCE,
+        financing_calculation=SftFinancingCalculationCode("arithmetic-average"),
+        financing_observation_mode=SftFinancingObservationMode.NONE,
+        far_leg=RepoFarLegTerms(date(2026, 2, 2)),
     )
 
 
@@ -798,7 +812,8 @@ def test_repo_semantics_and_fail_closed_matrix() -> None:
     invalid: tuple[dict[str, object], ...] = (
         {"terms_id": _uuid(1)}, {"seller_reference_id": _uuid(1)}, {"buyer_reference_id": _uuid(2)},
         {"transferred_securities": (cast(Any, "bad"),)}, {"financing_rate": Decimal("0.1")},
-        {"arrangement": "bilateral"}, {"evidence_ref": _uuid(1)}, {"margin_terms": Decimal("0.1")},
+        {"financing_payment_mode": "at-termination"}, {"arrangement": "bilateral"},
+        {"evidence_ref": _uuid(1)}, {"margin_terms": Decimal("0.1")},
         {"far_leg": date(2026, 2, 2)},
     )
     for changes in invalid:
@@ -806,14 +821,44 @@ def test_repo_semantics_and_fail_closed_matrix() -> None:
             replace(repo, **cast(Any, changes))
 
 
-def test_repo_floating_financing_calculation_observation_noncollapse() -> None:
-    base = replace(
-        _repo(),
-        financing_rate=_floating("0.002", ref=550),
-        financing_calculation=SftFinancingCalculationCode("arithmetic-average"),
-        financing_observation_mode=SftFinancingObservationMode.NONE,
-        far_leg=RepoFarLegTerms(date(2026, 2, 2)),
+def test_repo_financing_payment_modes_close_claude_r7_collision() -> None:
+    at_end = _repo()
+    periodic = replace(
+        at_end,
+        financing_payment_mode=SftFinancingPaymentMode.PERIODIC,
+        financing_payment_tenor=_tenor(),
     )
+    external = replace(
+        at_end,
+        financing_payment_mode=SftFinancingPaymentMode.EXTERNAL_SCHEDULE,
+        financing_payment_schedule_reference=_schedule(770),
+    )
+    assert at_end.logical_values()[9] == ("at-termination", None, None)
+    assert periodic.logical_values()[9] == ("periodic", (1, "month"), None)
+    assert external.logical_values()[9] == (
+        "external-schedule", None, (str(_uuid(770)),)
+    )
+    assert len({at_end.logical_values(), periodic.logical_values(), external.logical_values()}) == 3
+
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires exact mode"):
+        replace(at_end, financing_payment_mode=cast(Any, "at-termination"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires tenor only"):
+        replace(at_end, financing_payment_mode=SftFinancingPaymentMode.PERIODIC)
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        replace(at_end, financing_payment_tenor=_tenor())
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule ref only"):
+        replace(at_end, financing_payment_mode=SftFinancingPaymentMode.EXTERNAL_SCHEDULE)
+    bad_ref = _malformed(SftScheduleReferenceId, value=cast(Any, _BadUUID(int=771)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        replace(
+            at_end,
+            financing_payment_mode=SftFinancingPaymentMode.EXTERNAL_SCHEDULE,
+            financing_payment_schedule_reference=bad_ref,
+        )
+
+
+def test_repo_floating_financing_calculation_observation_noncollapse() -> None:
+    base = _floating_repo()
     compounded = replace(
         base,
         financing_calculation=SftFinancingCalculationCode("daily-compounded"),
@@ -831,8 +876,11 @@ def test_repo_floating_financing_calculation_observation_noncollapse() -> None:
         lookback,
         financing_observation_reference=_schedule(751),
     )
-    base_values = cast(tuple[object, ...], base.logical_values()[9])
-    assert base_values == (("arithmetic-average",), ("none", None))
+    base_values = cast(tuple[object, ...], base.logical_values()[10])
+    assert base_values == (
+        "periodic", (1, "day"), None, "in-advance",
+        ("arithmetic-average",), ("none", None),
+    )
     assert len(
         {
             base.logical_values(),
@@ -868,6 +916,91 @@ def test_repo_floating_financing_calculation_observation_noncollapse() -> None:
             financing_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
             financing_observation_reference=bad_ref,
         )
+
+
+def test_repo_financing_reset_fixing_noncollapse_and_guards() -> None:
+    advance = _floating_repo()
+    arrears = replace(advance, financing_fixing_timing=SftFinancingFixingTiming.IN_ARREARS)
+    fixing_reference = replace(
+        advance,
+        financing_fixing_timing=SftFinancingFixingTiming.REFERENCE_CONVENTION,
+    )
+    at_payment = replace(
+        advance,
+        financing_reset_mode=SftFinancingResetMode.AT_PAYMENT,
+        financing_reset_tenor=None,
+        financing_fixing_timing=None,
+    )
+    external = replace(
+        advance,
+        financing_reset_mode=SftFinancingResetMode.EXTERNAL_SCHEDULE,
+        financing_reset_tenor=None,
+        financing_reset_schedule_reference=_schedule(772),
+        financing_fixing_timing=None,
+    )
+    reference = replace(
+        advance,
+        financing_reset_mode=SftFinancingResetMode.REFERENCE_CONVENTION,
+        financing_reset_tenor=None,
+        financing_fixing_timing=None,
+    )
+    observation_external = replace(
+        external,
+        financing_observation_mode=SftFinancingObservationMode.EXTERNAL_TERMS,
+        financing_observation_reference=_schedule(773),
+    )
+
+    variants = (advance, arrears, fixing_reference, at_payment, external, reference)
+    assert len({item.logical_values() for item in variants}) == len(variants)
+    assert cast(tuple[object, ...], advance.logical_values()[10])[3] == "in-advance"
+    assert cast(tuple[object, ...], arrears.logical_values()[10])[3] == "in-arrears"
+    assert cast(tuple[object, ...], fixing_reference.logical_values()[10])[3] == (
+        "reference-convention"
+    )
+    assert cast(tuple[object, ...], at_payment.logical_values()[10])[0:4] == (
+        "at-payment", None, None, None
+    )
+    assert cast(tuple[object, ...], external.logical_values()[10])[0:4] == (
+        "external-schedule", None, (str(_uuid(772)),), None
+    )
+    assert cast(tuple[object, ...], observation_external.logical_values()[10]) == (
+        "external-schedule",
+        None,
+        (str(_uuid(772)),),
+        None,
+        ("arithmetic-average",),
+        ("external-terms", (str(_uuid(773)),)),
+    )
+
+    with pytest.raises(SecuritiesFinancingValidationError, match="reset/fixing timing"):
+        replace(_repo(), financing_reset_mode=SftFinancingResetMode.AT_PAYMENT)
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires exact reset mode"):
+        replace(
+            advance,
+            financing_reset_mode=None,
+            financing_reset_tenor=None,
+            financing_fixing_timing=None,
+        )
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires exact reset mode"):
+        replace(advance, financing_reset_mode=cast(Any, "periodic"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires tenor only"):
+        replace(advance, financing_reset_tenor=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact fixing timing"):
+        replace(advance, financing_fixing_timing=None)
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact fixing timing"):
+        replace(advance, financing_fixing_timing=cast(Any, "in-advance"))
+    with pytest.raises(SecuritiesFinancingValidationError, match="must not carry"):
+        replace(at_payment, financing_reset_tenor=_tenor())
+    with pytest.raises(SecuritiesFinancingValidationError, match="requires schedule ref only"):
+        replace(
+            advance,
+            financing_reset_mode=SftFinancingResetMode.EXTERNAL_SCHEDULE,
+            financing_reset_tenor=None,
+            financing_fixing_timing=None,
+        )
+    bad_reset_ref = _malformed(SftScheduleReferenceId, value=cast(Any, _BadUUID(int=774)))
+    with pytest.raises(SecuritiesFinancingValidationError, match="exact UUID"):
+        replace(external, financing_reset_schedule_reference=bad_reset_ref)
 
 
 def test_securities_lending_collateralization_modes_close_empty_collision() -> None:
@@ -1293,6 +1426,8 @@ def test_margin_lending_constraints() -> None:
 def test_complete_logical_identity_oracles() -> None:
     repo = _repo()
     assert repo.logical_values()[0] == "repo"
+    assert repo.logical_values()[9] == ("at-termination", None, None)
+    assert repo.logical_values()[10] is None
     loan = _loan()
     lv = loan.logical_values()
     assert lv[0] == "securities-lending"
@@ -1351,6 +1486,11 @@ def test_reflective_revalidation_and_frozen_slotted_values() -> None:
     object.__setattr__(repo.duration, "termination_date", date(2025, 1, 1))
     with pytest.raises(SecuritiesFinancingValidationError, match="after start"):
         repo.logical_values()
+    floating_repo = _floating_repo()
+    assert floating_repo.financing_reset_tenor is not None
+    object.__setattr__(floating_repo.financing_reset_tenor, "value", 0)
+    with pytest.raises(SecuritiesFinancingValidationError, match="positive int"):
+        floating_repo.logical_values()
 
     values: tuple[object, ...] = (
         _terms(), _evidence(), _party(1), _schedule(1),
