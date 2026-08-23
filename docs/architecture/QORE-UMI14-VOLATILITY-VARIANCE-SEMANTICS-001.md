@@ -85,7 +85,9 @@ It is static contract material only. It does not generate schedules, fetch obser
 
 ### 4.3 Settlement terms
 
-`VolatilitySettlementTerms` retains settlement economic identity and date only. Settlement date cannot precede the observation end date. No settlement mutation is performed.
+`VolatilitySettlementTerms` retains settlement economic identity and date only. Settlement date cannot precede the observation end date. At each top-level contract the instrument identity must differ from the settlement identity. No settlement mutation is performed.
+
+The settlement identity is the denomination of the contractual payout amount represented by this bounded owner. A reference/underlying identity may differ from settlement, including a quanto-style underlying distinction, but an amount unit different from settlement would require additional conversion semantics that this owner does not contain and therefore is rejected rather than silently under-specified.
 
 ### 4.4 Variance swap
 
@@ -96,18 +98,20 @@ It is static contract material only. It does not generate schedules, fetch obser
 - reference identity distinct from the instrument identity;
 - observation terms;
 - typed variance strike;
-- variance amount as `DerivativeNotional`;
-- optional distinct vega notional;
+- variance amount as `DerivativeNotional` denominated in settlement identity;
+- optional distinct vega notional, also denominated in settlement identity;
 - settlement terms;
 - evidence.
 
+No universal algebraic equality between `variance_amount` and optional `vega_notional` is invented because conversion between those quoted notions depends on product conventions/strike scaling beyond this bounded static owner.
+
 ### 4.5 Volatility swap
 
-`VolatilitySwapTerms` retains the same bounded structural material with a typed volatility strike and required vega notional.
+`VolatilitySwapTerms` retains the same bounded structural material with a typed volatility strike and required vega notional. The vega-notional unit must equal settlement identity.
 
 ### 4.6 Correlation swap
 
-`CorrelationSwapTerms` retains at least two unique `CorrelationConstituent` entries, each containing a reference identity and positive finite contractual weight, together with a bounded correlation strike and correlation amount.
+`CorrelationSwapTerms` retains at least two unique `CorrelationConstituent` entries, each containing a reference identity and positive finite contractual weight, together with a bounded correlation strike and correlation amount. The correlation-amount unit must equal settlement identity.
 
 Constituent order is canonicalized by reference identity because caller tuple order is not treated as separate product economics. Weights are preserved exactly and are not forced to sum to one; this owner does not invent a universal normalization law.
 
@@ -174,11 +178,15 @@ Hard distinctions:
 
 `SETTLEMENT TERMS != SETTLEMENT MUTATION`
 
+`REFERENCE IDENTITY != PAYOUT DENOMINATION`
+
 ---
 
 ## 8. Negative space
 
-The owner contains no variance option, dispersion strategy, volatility surface, VIX/index methodology, Greeks, realized-metric calculation, payoff calculator, pricing, calibration, current observation lookup, provider symbol or SDK, network/database I/O, account/position/risk state, execution, settlement mutation, wall-clock lookup, implicit UUID, random source, retry, sleep, thread, scheduler, Production or real-capital authority.
+The owner contains no variance option, dispersion strategy, volatility surface, VIX/index methodology, Greeks, realized-metric calculation, payoff calculator, pricing, calibration, current observation lookup, provider symbol or SDK, network/database I/O, account/position/risk state, execution, settlement mutation, FX conversion/quanto conversion formula, wall-clock lookup, implicit UUID, random source, retry, sleep, thread, scheduler, Production or real-capital authority.
+
+A product whose payout amount itself requires conversion from a notional unit different from settlement identity needs additional explicit semantics outside this bounded correction; it must not be represented here by mismatched unit IDs alone.
 
 ---
 
@@ -197,6 +205,8 @@ Historical source/test semantics are retained where compatible with current owne
 - context-independent Decimal logical identity with an ambient-precision adversarial witness;
 - owner-local exact-type child boundaries against behavioral subclass spoofing;
 - demonstrated-exploit-driven exact imported-owner composition checks, including nested trusted `UUID` / `Decimal` primitives;
+- explicit instrument-vs-settlement non-self-reference;
+- payout notional-unit equality with settlement identity, with no silent FX/quanto conversion inference;
 - canonical correlation constituent ordering;
 - a dedicated independent logical-identity oracle with adversarial subclass witnesses;
 - current-baseline governance/documentation.
