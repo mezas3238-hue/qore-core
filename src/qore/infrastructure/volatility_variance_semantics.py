@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from re import fullmatch
+from uuid import UUID
 
 from qore.infrastructure.derivative_contract_semantics import (
     DerivativeEvidenceRef,
@@ -37,11 +38,33 @@ def _validate_code(value: str, *, field_name: str) -> None:
         )
 
 
+def _validate_uuid(value: UUID, *, field_name: str) -> None:
+    if type(value) is not UUID:
+        raise VolatilityVarianceValidationError(f"{field_name} must be exact UUID")
+
+
 def _validate_identity(value: EconomicIdentityId, *, field_name: str) -> None:
-    if not isinstance(value, EconomicIdentityId):
+    if type(value) is not EconomicIdentityId:
         raise VolatilityVarianceValidationError(
-            f"{field_name} must be EconomicIdentityId"
+            f"{field_name} must be exact EconomicIdentityId"
         )
+    _validate_uuid(value.value, field_name=f"{field_name} value")
+
+
+def _validate_terms_id(value: DerivativeTermsId) -> None:
+    if type(value) is not DerivativeTermsId:
+        raise VolatilityVarianceValidationError(
+            "volatility-family terms_id must be exact DerivativeTermsId"
+        )
+    _validate_uuid(value.value, field_name="volatility-family terms_id value")
+
+
+def _validate_evidence_ref(value: DerivativeEvidenceRef) -> None:
+    if type(value) is not DerivativeEvidenceRef:
+        raise VolatilityVarianceValidationError(
+            "volatility-family evidence_ref must be exact DerivativeEvidenceRef"
+        )
+    _validate_uuid(value.value, field_name="volatility-family evidence_ref value")
 
 
 def _validate_date(value: date, *, field_name: str) -> None:
@@ -63,6 +86,20 @@ def _validate_decimal(
         raise VolatilityVarianceValidationError(
             f"{field_name} must be non-negative"
         )
+
+
+def _validate_notional(value: DerivativeNotional, *, field_name: str) -> None:
+    if type(value) is not DerivativeNotional:
+        raise VolatilityVarianceValidationError(
+            f"{field_name} must be exact DerivativeNotional"
+        )
+    _validate_decimal(value.value, field_name=f"{field_name} value")
+    if value.value <= 0:
+        raise VolatilityVarianceValidationError(f"{field_name} value must be positive")
+    _validate_identity(
+        value.unit_identity_id,
+        field_name=f"{field_name} unit identity",
+    )
 
 
 def _canonical_decimal(value: Decimal) -> str:
@@ -242,10 +279,7 @@ def _validate_common_contract(
     settlement_terms: VolatilitySettlementTerms,
     evidence_ref: DerivativeEvidenceRef,
 ) -> None:
-    if not isinstance(terms_id, DerivativeTermsId):
-        raise VolatilityVarianceValidationError(
-            "volatility-family terms_id must be DerivativeTermsId"
-        )
+    _validate_terms_id(terms_id)
     _validate_identity(
         instrument_identity_id,
         field_name="volatility-family instrument identity",
@@ -262,10 +296,7 @@ def _validate_common_contract(
         raise VolatilityVarianceValidationError(
             "volatility-family settlement date must not precede observation end"
         )
-    if not isinstance(evidence_ref, DerivativeEvidenceRef):
-        raise VolatilityVarianceValidationError(
-            "volatility-family evidence_ref must be DerivativeEvidenceRef"
-        )
+    _validate_evidence_ref(evidence_ref)
 
 
 @dataclass(frozen=True, slots=True)
@@ -302,16 +333,14 @@ class VarianceSwapTerms:
             raise VolatilityVarianceValidationError(
                 "variance swap variance_strike must be VarianceStrike"
             )
-        if not isinstance(self.variance_amount, DerivativeNotional):
-            raise VolatilityVarianceValidationError(
-                "variance swap variance_amount must be DerivativeNotional"
-            )
-        if self.vega_notional is not None and not isinstance(
-            self.vega_notional,
-            DerivativeNotional,
-        ):
-            raise VolatilityVarianceValidationError(
-                "variance swap vega_notional must be DerivativeNotional or None"
+        _validate_notional(
+            self.variance_amount,
+            field_name="variance swap variance_amount",
+        )
+        if self.vega_notional is not None:
+            _validate_notional(
+                self.vega_notional,
+                field_name="variance swap vega_notional",
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -364,10 +393,10 @@ class VolatilitySwapTerms:
             raise VolatilityVarianceValidationError(
                 "volatility swap volatility_strike must be VolatilityStrike"
             )
-        if not isinstance(self.vega_notional, DerivativeNotional):
-            raise VolatilityVarianceValidationError(
-                "volatility swap vega_notional must be DerivativeNotional"
-            )
+        _validate_notional(
+            self.vega_notional,
+            field_name="volatility swap vega_notional",
+        )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -435,10 +464,10 @@ class CorrelationSwapTerms:
             raise VolatilityVarianceValidationError(
                 "correlation swap correlation_strike must be CorrelationStrike"
             )
-        if not isinstance(self.correlation_amount, DerivativeNotional):
-            raise VolatilityVarianceValidationError(
-                "correlation swap correlation_amount must be DerivativeNotional"
-            )
+        _validate_notional(
+            self.correlation_amount,
+            field_name="correlation swap correlation_amount",
+        )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
