@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 from re import fullmatch
-from typing import Never, cast
+from typing import Never
 from uuid import UUID
 
 from qore.infrastructure.fixed_income_economics import DayCountConventionCode
@@ -590,7 +590,7 @@ def _canonicalize_security_basket(
 
 def _collateral_key(value: SftCollateralItem) -> tuple[str, str, str]:
     if type(value) is SftCashAmount:
-        cash = cast(SftCashAmount, value)
+        cash = value
         _validate_cash_child(cash, field_name="SFT collateral cash")
         return (
             "cash",
@@ -598,7 +598,7 @@ def _collateral_key(value: SftCollateralItem) -> tuple[str, str, str]:
             _canonical_decimal(cash.amount),
         )
     if type(value) is SftSecurityQuantity:
-        security = cast(SftSecurityQuantity, value)
+        security = value
         _validate_security_child(security, field_name="SFT collateral security")
         return (
             "security",
@@ -618,11 +618,11 @@ def _canonicalize_collateral(
     role_identity_keys: list[tuple[str, UUID]] = []
     for item in collateral:
         if type(item) is SftCashAmount:
-            cash = cast(SftCashAmount, item)
+            cash = item
             _validate_cash_child(cash, field_name=field_name)
             role_identity_keys.append(("cash", cash.currency_identity_id.value))
         elif type(item) is SftSecurityQuantity:
-            security = cast(SftSecurityQuantity, item)
+            security = item
             _validate_security_child(security, field_name=field_name)
             role_identity_keys.append(("security", security.security_identity_id.value))
         else:
