@@ -168,3 +168,130 @@ def test_composite_payoff_contracts_are_slotted_without_instance_dict() -> None:
 
     for instance in instances:
         assert not hasattr(instance, "__dict__")
+
+
+class _TermsIdSubclass(note.StructuredNotePayoffTermsId):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[str, ...]:
+        return ("spoofed-terms-id",)
+
+
+class _BranchIdSubclass(note.StructuredNotePayoffBranchId):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[str, ...]:
+        return ("spoofed-branch-id",)
+
+
+class _SelectionSubclass(note.StructuredNoteParticipationSelection):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[object, ...]:
+        return ("spoofed-selection",)
+
+
+class _OutcomeSubclass(note.StructuredNotePayoffOutcome):
+    __slots__ = ()
+
+    def logical_values(self) -> tuple[object, ...]:
+        return ("spoofed-outcome",)
+
+
+class _InvertedFallbackBranch(note.StructuredNotePayoffBranch):
+    __slots__ = ()
+
+    @property
+    def is_fallback(self) -> bool:
+        return self.condition_mode is not None
+
+    def logical_values(self) -> tuple[object, ...]:
+        return ("spoofed-branch",)
+
+
+def test_local_id_subclasses_are_rejected_before_logical_identity_use() -> None:
+    with pytest.raises(note.StructuredNotePayoffValidationError, match="terms_id"):
+        note.StructuredNotePayoffTerms(
+            terms_id=_TermsIdSubclass(UUID(int=500)),
+            structured_terms=_structured_terms(),
+            branches=(_conditional_branch(), _fallback_branch()),
+            evidence_ref=_evidence(888),
+        )
+
+    with pytest.raises(note.StructuredNotePayoffValidationError, match="branch_id"):
+        note.StructuredNotePayoffBranch(
+            branch_id=_BranchIdSubclass(UUID(int=401)),
+            ordinal=1,
+            condition_mode=note.StructuredNoteConditionMode.ALL,
+            condition_feature_ids=(_feature_id(201),),
+            outcome=_outcome(),
+            evidence_ref=_evidence(401),
+        )
+
+
+def test_selection_and_outcome_subclasses_are_rejected_before_virtual_projection() -> None:
+    selection = _SelectionSubclass(
+        kind=note.StructuredNoteParticipationSelectionKind.WORST_PERFORMING_BY_RETURN,
+        candidate_feature_ids=(_feature_id(301), _feature_id(302)),
+    )
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="participation_selection",
+    ):
+        note.StructuredNotePayoffOutcome(
+            kind=note.StructuredNoteOutcomeKind.PARTICIPATION,
+            participation_selection=selection,
+        )
+
+    outcome = _OutcomeSubclass(
+        kind=note.StructuredNoteOutcomeKind.REDEMPTION,
+        redemption_feature_id=_feature_id(202),
+    )
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="StructuredNotePayoffOutcome",
+    ):
+        note.StructuredNotePayoffBranch(
+            branch_id=note.StructuredNotePayoffBranchId(UUID(int=401)),
+            ordinal=1,
+            condition_mode=note.StructuredNoteConditionMode.ALL,
+            condition_feature_ids=(_feature_id(201),),
+            outcome=outcome,
+            evidence_ref=_evidence(401),
+        )
+
+
+def test_branch_subclass_cannot_spoof_final_fallback_or_logical_identity() -> None:
+    real_fallback = _InvertedFallbackBranch(
+        branch_id=note.StructuredNotePayoffBranchId(UUID(int=401)),
+        ordinal=1,
+        condition_mode=None,
+        condition_feature_ids=(),
+        outcome=_outcome(),
+        evidence_ref=_evidence(401),
+    )
+    real_conditional = _InvertedFallbackBranch(
+        branch_id=note.StructuredNotePayoffBranchId(UUID(int=402)),
+        ordinal=2,
+        condition_mode=note.StructuredNoteConditionMode.ALL,
+        condition_feature_ids=(_feature_id(201),),
+        outcome=_outcome(),
+        evidence_ref=_evidence(402),
+    )
+
+    assert real_fallback.condition_mode is None
+    assert not real_fallback.is_fallback
+    assert real_conditional.condition_mode is note.StructuredNoteConditionMode.ALL
+    assert real_conditional.is_fallback
+    assert real_fallback.logical_values() == ("spoofed-branch",)
+
+    with pytest.raises(
+        note.StructuredNotePayoffValidationError,
+        match="branches must contain StructuredNotePayoffBranch",
+    ):
+        note.StructuredNotePayoffTerms(
+            terms_id=note.StructuredNotePayoffTermsId(UUID(int=500)),
+            structured_terms=_structured_terms(),
+            branches=(real_fallback, real_conditional),
+            evidence_ref=_evidence(888),
+        )
