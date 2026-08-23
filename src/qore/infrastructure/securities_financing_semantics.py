@@ -272,6 +272,12 @@ class SftCompensationResetMode(StrEnum):
     REFERENCE_CONVENTION = "reference-convention"
 
 
+class SftFinancingPaymentMode(StrEnum):
+    PERIODIC = "periodic"
+    AT_TERMINATION = "at-termination"
+    EXTERNAL_SCHEDULE = "external-schedule"
+
+
 @dataclass(frozen=True, slots=True)
 class SftCashAmount:
     amount: Decimal
@@ -627,6 +633,48 @@ def _reset_values(
     return (
         mode.value,
         _tenor_values(tenor, field_name="securities-lending reset tenor")
+        if tenor is not None
+        else None,
+        schedule_ref.logical_values() if schedule_ref is not None else None,
+    )
+
+
+def _validate_financing_payment_timing(
+    mode: SftFinancingPaymentMode,
+    tenor: FinancialTenor | None,
+    schedule_ref: SftScheduleReferenceId | None,
+) -> None:
+    if type(mode) is not SftFinancingPaymentMode:
+        _fail("margin-lending financing payment requires exact mode")
+    if mode is SftFinancingPaymentMode.PERIODIC:
+        if tenor is None or schedule_ref is not None:
+            _fail("periodic margin-lending financing payment requires tenor only")
+        _validate_financial_tenor(
+            tenor,
+            field_name="margin-lending financing payment tenor",
+        )
+        return
+    if mode is SftFinancingPaymentMode.AT_TERMINATION:
+        if tenor is not None or schedule_ref is not None:
+            _fail("at-termination margin-lending payment must not carry timing material")
+        return
+    if tenor is not None or schedule_ref is None:
+        _fail("external-schedule margin-lending payment requires schedule ref only")
+    _validate_schedule_ref_child(
+        schedule_ref,
+        field_name="margin-lending financing payment schedule reference",
+    )
+
+
+def _financing_payment_values(
+    mode: SftFinancingPaymentMode,
+    tenor: FinancialTenor | None,
+    schedule_ref: SftScheduleReferenceId | None,
+) -> tuple[object, ...]:
+    _validate_financing_payment_timing(mode, tenor, schedule_ref)
+    return (
+        mode.value,
+        _tenor_values(tenor, field_name="margin-lending financing payment tenor")
         if tenor is not None
         else None,
         schedule_ref.logical_values() if schedule_ref is not None else None,
@@ -1083,10 +1131,13 @@ class MarginLendingTerms:
     duration: SftDurationTerms
     credit_limit: SftCashAmount
     financing_rate: SftRateTerms
+    financing_payment_mode: SftFinancingPaymentMode
     collateral_eligibility: SftCollateralEligibilityCode
     eligible_collateral_identity_ids: tuple[EconomicIdentityId, ...]
     arrangement: SftArrangementTerms
     evidence_ref: SftEvidenceRef
+    financing_payment_tenor: FinancialTenor | None = None
+    financing_payment_schedule_reference: SftScheduleReferenceId | None = None
     margin_terms: SftMarginTerms | None = None
 
     def __post_init__(self) -> None:
@@ -1104,6 +1155,11 @@ class MarginLendingTerms:
         _validate_duration_child(self.duration, field_name="margin-lending duration")
         _validate_cash_child(self.credit_limit, field_name="margin-lending credit_limit")
         _validate_rate_child(self.financing_rate, field_name="margin-lending financing_rate")
+        _validate_financing_payment_timing(
+            self.financing_payment_mode,
+            self.financing_payment_tenor,
+            self.financing_payment_schedule_reference,
+        )
         _validate_eligibility_child(self.collateral_eligibility)
         canonical_identities = _canonicalize_identity_tuple(self.eligible_collateral_identity_ids)
         object.__setattr__(self, "eligible_collateral_identity_ids", canonical_identities)
@@ -1130,6 +1186,11 @@ class MarginLendingTerms:
             self.duration.logical_values(),
             self.credit_limit.logical_values(),
             self.financing_rate.logical_values(),
+            _financing_payment_values(
+                self.financing_payment_mode,
+                self.financing_payment_tenor,
+                self.financing_payment_schedule_reference,
+            ),
             self.collateral_eligibility.logical_values(),
             tuple(
                 _identity_values(identity, field_name="eligible collateral identity")
