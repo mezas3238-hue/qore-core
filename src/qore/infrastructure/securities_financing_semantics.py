@@ -184,6 +184,20 @@ class SftPartyReferenceId:
 
 
 @dataclass(frozen=True, slots=True)
+class SftScheduleReferenceId:
+    """Opaque reference to static externally governed schedule/terms material."""
+
+    value: UUID
+
+    def __post_init__(self) -> None:
+        _validate_uuid(self.value, field_name="SFT schedule reference ID")
+
+    def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
+        return (str(self.value),)
+
+
+@dataclass(frozen=True, slots=True)
 class SftCollateralEligibilityCode:
     value: str
 
@@ -237,6 +251,25 @@ class SftRateKind(StrEnum):
 class SftArrangementMode(StrEnum):
     BILATERAL = "bilateral"
     TRI_PARTY = "tri-party"
+
+
+class SftCollateralizationMode(StrEnum):
+    EXPLICIT = "explicit"
+    EXTERNAL_SCHEDULE = "external-schedule"
+    UNCOLLATERALIZED = "uncollateralized"
+
+
+class SftCompensationPaymentTimingMode(StrEnum):
+    PERIODIC = "periodic"
+    AT_TERMINATION = "at-termination"
+    EXTERNAL_SCHEDULE = "external-schedule"
+
+
+class SftCompensationResetTimingMode(StrEnum):
+    NOT_APPLICABLE = "not-applicable"
+    PERIODIC = "periodic"
+    AT_PAYMENT = "at-payment"
+    EXTERNAL_SCHEDULE = "external-schedule"
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,6 +343,16 @@ def _validate_evidence_child(value: SftEvidenceRef) -> None:
 def _validate_party_child(value: SftPartyReferenceId, *, field_name: str) -> None:
     if type(value) is not SftPartyReferenceId:
         _fail(f"{field_name} must be exact SftPartyReferenceId")
+    _validate_uuid(value.value, field_name=f"{field_name}.value")
+
+
+def _validate_schedule_reference_child(
+    value: SftScheduleReferenceId,
+    *,
+    field_name: str,
+) -> None:
+    if type(value) is not SftScheduleReferenceId:
+        _fail(f"{field_name} must be exact SftScheduleReferenceId")
     _validate_uuid(value.value, field_name=f"{field_name}.value")
 
 
@@ -573,8 +616,12 @@ class SecuritiesLendingCompensationLegTerms:
     rate: SftRateTerms
     currency_identity_id: EconomicIdentityId
     accrual_basis: SftCompensationAccrualBasisCode
+    payment_timing_mode: SftCompensationPaymentTimingMode
+    reset_timing_mode: SftCompensationResetTimingMode
     payment_tenor: FinancialTenor | None = None
+    payment_schedule_reference: SftScheduleReferenceId | None = None
     reset_tenor: FinancialTenor | None = None
+    reset_schedule_reference: SftScheduleReferenceId | None = None
 
     def __post_init__(self) -> None:
         _validate_rate_child(self.rate, field_name="securities-lending compensation rate")
@@ -583,18 +630,74 @@ class SecuritiesLendingCompensationLegTerms:
             field_name="securities-lending compensation currency identity",
         )
         _validate_compensation_basis_child(self.accrual_basis)
-        if self.payment_tenor is not None:
+        if type(self.payment_timing_mode) is not SftCompensationPaymentTimingMode:
+            _fail(
+                "securities-lending compensation payment_timing_mode must be exact "
+                "SftCompensationPaymentTimingMode"
+            )
+        if type(self.reset_timing_mode) is not SftCompensationResetTimingMode:
+            _fail(
+                "securities-lending compensation reset_timing_mode must be exact "
+                "SftCompensationResetTimingMode"
+            )
+        self._validate_payment_timing()
+        self._validate_reset_timing()
+
+    def _validate_payment_timing(self) -> None:
+        if self.payment_timing_mode is SftCompensationPaymentTimingMode.PERIODIC:
+            if self.payment_tenor is None:
+                _fail("periodic securities-lending compensation requires payment tenor")
             _validate_financial_tenor(
                 self.payment_tenor,
                 field_name="securities-lending compensation payment tenor",
             )
-        if self.reset_tenor is not None:
+            if self.payment_schedule_reference is not None:
+                _fail("periodic compensation must not carry external payment schedule")
+            return
+        if self.payment_timing_mode is SftCompensationPaymentTimingMode.AT_TERMINATION:
+            if self.payment_tenor is not None or self.payment_schedule_reference is not None:
+                _fail("at-termination compensation must not carry payment tenor or schedule")
+            return
+        if self.payment_tenor is not None:
+            _fail("external-schedule compensation must not carry payment tenor")
+        if self.payment_schedule_reference is None:
+            _fail("external-schedule compensation requires payment schedule reference")
+        _validate_schedule_reference_child(
+            self.payment_schedule_reference,
+            field_name="securities-lending compensation payment schedule reference",
+        )
+
+    def _validate_reset_timing(self) -> None:
+        if self.rate.kind is SftRateKind.FIXED:
+            if self.reset_timing_mode is not SftCompensationResetTimingMode.NOT_APPLICABLE:
+                _fail("fixed compensation reset timing must be not-applicable")
+            if self.reset_tenor is not None or self.reset_schedule_reference is not None:
+                _fail("fixed compensation must not carry reset tenor or schedule")
+            return
+        if self.reset_timing_mode is SftCompensationResetTimingMode.NOT_APPLICABLE:
+            _fail("floating compensation requires explicit reset timing")
+        if self.reset_timing_mode is SftCompensationResetTimingMode.PERIODIC:
+            if self.reset_tenor is None:
+                _fail("periodic floating compensation requires reset tenor")
             _validate_financial_tenor(
                 self.reset_tenor,
                 field_name="securities-lending compensation reset tenor",
             )
-            if self.rate.kind is SftRateKind.FIXED:
-                _fail("fixed securities-lending compensation must not carry reset tenor")
+            if self.reset_schedule_reference is not None:
+                _fail("periodic reset must not carry external reset schedule")
+            return
+        if self.reset_timing_mode is SftCompensationResetTimingMode.AT_PAYMENT:
+            if self.reset_tenor is not None or self.reset_schedule_reference is not None:
+                _fail("at-payment reset must not carry reset tenor or schedule")
+            return
+        if self.reset_tenor is not None:
+            _fail("external-schedule reset must not carry reset tenor")
+        if self.reset_schedule_reference is None:
+            _fail("external-schedule reset requires reset schedule reference")
+        _validate_schedule_reference_child(
+            self.reset_schedule_reference,
+            field_name="securities-lending compensation reset schedule reference",
+        )
 
     def logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
@@ -605,17 +708,25 @@ class SecuritiesLendingCompensationLegTerms:
                 field_name="securities-lending compensation currency identity",
             ),
             self.accrual_basis.logical_values(),
+            self.payment_timing_mode.value,
             _tenor_values(
                 self.payment_tenor,
                 field_name="securities-lending compensation payment tenor",
             )
             if self.payment_tenor is not None
             else None,
+            self.payment_schedule_reference.logical_values()
+            if self.payment_schedule_reference is not None
+            else None,
+            self.reset_timing_mode.value,
             _tenor_values(
                 self.reset_tenor,
                 field_name="securities-lending compensation reset tenor",
             )
             if self.reset_tenor is not None
+            else None,
+            self.reset_schedule_reference.logical_values()
+            if self.reset_schedule_reference is not None
             else None,
         )
 
@@ -883,9 +994,11 @@ class SecuritiesLendingTerms:
     principal_security: SftSecurityQuantity
     compensation: SecuritiesLendingCompensationTerms
     collateral: tuple[SftCollateralItem, ...]
+    collateralization_mode: SftCollateralizationMode
     arrangement: SftArrangementTerms
     evidence_ref: SftEvidenceRef
     margin_terms: SftMarginTerms | None = None
+    collateral_schedule_reference: SftScheduleReferenceId | None = None
 
     def __post_init__(self) -> None:
         _validate_terms_id_child(self.terms_id)
@@ -918,6 +1031,7 @@ class SecuritiesLendingTerms:
             field_name="securities-lending collateral",
         )
         object.__setattr__(self, "collateral", canonical_collateral)
+        self._validate_collateralization()
         _validate_arrangement_child(
             self.arrangement,
             field_name="securities-lending arrangement",
@@ -928,6 +1042,31 @@ class SecuritiesLendingTerms:
                 self.margin_terms,
                 field_name="securities-lending margin_terms",
             )
+
+    def _validate_collateralization(self) -> None:
+        if type(self.collateralization_mode) is not SftCollateralizationMode:
+            _fail(
+                "securities-lending collateralization_mode must be exact "
+                "SftCollateralizationMode"
+            )
+        if self.collateralization_mode is SftCollateralizationMode.EXPLICIT:
+            if not self.collateral:
+                _fail("explicit securities-lending collateralization requires collateral")
+            if self.collateral_schedule_reference is not None:
+                _fail("explicit collateralization must not carry external schedule reference")
+            return
+        if self.collateralization_mode is SftCollateralizationMode.UNCOLLATERALIZED:
+            if self.collateral:
+                _fail("uncollateralized securities lending must not carry collateral")
+            if self.collateral_schedule_reference is not None:
+                _fail("uncollateralized securities lending must not carry collateral schedule")
+            return
+        if self.collateral_schedule_reference is None:
+            _fail("external-schedule collateralization requires schedule reference")
+        _validate_schedule_reference_child(
+            self.collateral_schedule_reference,
+            field_name="securities-lending collateral schedule reference",
+        )
 
     def logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
@@ -944,6 +1083,10 @@ class SecuritiesLendingTerms:
             self.principal_security.logical_values(),
             self.compensation.logical_values(),
             tuple(item.logical_values() for item in self.collateral),
+            self.collateralization_mode.value,
+            self.collateral_schedule_reference.logical_values()
+            if self.collateral_schedule_reference is not None
+            else None,
             self.arrangement.logical_values(),
             self.margin_terms.logical_values()
             if self.margin_terms is not None
@@ -1006,10 +1149,7 @@ class MarginLendingTerms:
         )
         _validate_evidence_child(self.evidence_ref)
         if self.margin_terms is not None:
-            _validate_margin_child(
-                self.margin_terms,
-                field_name="margin-lending margin_terms",
-            )
+            _validate_margin_child(self.margin_terms, field_name="margin-lending margin_terms")
 
     def logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
