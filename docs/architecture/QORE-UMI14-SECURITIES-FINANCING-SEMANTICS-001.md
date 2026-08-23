@@ -2,7 +2,7 @@
 
 ## Estado
 
-**PROGRAM D / UMI-14 — UNR-013 R6 CANDIDATA DE CIERRE — NO CERTIFICADA**
+**PROGRAM D / UMI-14 — UNR-013 R7 CANDIDATA DE CIERRE — NO CERTIFICADA**
 
 Tracker: #394  
 Parent: #363  
@@ -12,9 +12,9 @@ Baseline certificado HASH: `db83b106f3a5e7f30a788567dfa970a38b7a379a`
 Tree inicial: `5b9c218a4fe3609b10e34b1cf8523cade0d10bbe`  
 Rama: `agent/qore-umi14-securities-financing-full-closure-013`
 
-R1–R5 son históricas. R6 incorpora la corrección aceptada para `DS-EXPERT-UNR013-R5-01` y dos comprobaciones IA adicionales realizadas antes del CONGELADO: convenciones flotantes materiales de margin lending y repo no pueden depender sólo de la identidad de la referencia económica.
+R1–R6 son históricas. R7 corrige `DS-EXPERT-UNR013-R6-01`, aceptado por IA: un fee/rebate flotante de securities lending no puede depender únicamente de benchmark, spread, day count y frecuencia de reset cuando el contrato también distingue metodología de cálculo, colocación del fixing o términos adicionales de observación.
 
-Este responsable conserva únicamente semántica contractual estática D04. No observa índices, genera fechas, calcula tasas/intereses, valora collateral, ejecuta instrucciones, liquida operaciones, habilita Production ni autoriza capital real.
+Este responsable conserva únicamente semántica contractual estática D04. No observa índices, genera fechas, calcula tasas o intereses, valora collateral, ejecuta instrucciones, liquida operaciones, habilita Production ni autoriza capital real.
 
 ---
 
@@ -108,7 +108,7 @@ Si se suministra far cash, su moneda debe coincidir con near cash. No se calcula
 
 El basket se canonicaliza por identidad/basis/cantidad y no acepta identidades duplicadas.
 
-### Repo flotante R6
+### Repo flotante
 
 Un repo FLOATING exige:
 
@@ -122,7 +122,7 @@ Modos de observación:
 - `REFERENCE_CONVENTION`;
 - `EXTERNAL_TERMS`.
 
-Esto evita que dos repos con el mismo benchmark/spread/day count pero distinta metodología contractual u otros términos de observación queden representados como el mismo material. La referencia externa identifica términos estáticos como lookback/observation mechanics sin generar fechas ni calcular la tasa.
+Así se preserva la diferencia entre metodologías contractuales o términos adicionales de observación sin generar fechas ni calcular la tasa.
 
 Repo FIXED prohíbe esos campos flotantes.
 
@@ -144,20 +144,63 @@ Cada leg conserva:
 - payment mode;
 - payment tenor o schedule reference;
 - reset mode para FLOATING;
-- reset tenor o schedule reference.
+- reset tenor o schedule reference;
+- colocación del fixing para reset periódico FLOATING;
+- metodología contractual de cálculo FLOATING;
+- modo de observación FLOATING;
+- referencia externa de términos de observación cuando aplica.
 
-Payment modes:
+### 6.1 Payment
+
+Modos:
 
 - `PERIODIC`;
 - `AT_TERMINATION`;
 - `EXTERNAL_SCHEDULE`.
 
-Reset modes:
+`PERIODIC` exige tenor y prohíbe schedule reference. `AT_TERMINATION` prohíbe ambos. `EXTERNAL_SCHEDULE` exige referencia exacta y prohíbe tenor.
+
+### 6.2 Reset FLOATING
+
+Modos:
 
 - `PERIODIC`;
 - `AT_PAYMENT`;
 - `EXTERNAL_SCHEDULE`;
 - `REFERENCE_CONVENTION`.
+
+`PERIODIC` exige reset tenor y `SftFinancingFixingTiming` exacto:
+
+- `IN_ADVANCE`;
+- `IN_ARREARS`;
+- `REFERENCE_CONVENTION`.
+
+`AT_PAYMENT` y `REFERENCE_CONVENTION` no aceptan tenor, referencia ni fixing adicional. `EXTERNAL_SCHEDULE` exige su referencia exacta y tampoco acepta fixing adicional.
+
+### 6.3 Corrección R7 — calculation / observation de fee y rebate flotantes
+
+Todo `SecuritiesLendingCompensationLegTerms` FLOATING exige:
+
+- `floating_calculation: SftFinancingCalculationCode`;
+- `floating_observation_mode: SftFinancingObservationMode`;
+- `floating_observation_reference` sólo para `EXTERNAL_TERMS`.
+
+Ejemplos representables de cálculo contractual incluyen `daily-simple`, `daily-compounded` y `reference-convention`.
+
+Para el mismo benchmark, spread, day count, currency, accrual basis, payment y reset:
+
+- `daily-simple != daily-compounded`;
+- `IN_ADVANCE != IN_ARREARS` cuando el reset es periódico;
+- `NONE != REFERENCE_CONVENTION != EXTERNAL_TERMS`;
+- dos referencias externas diferentes producen identidad lógica diferente.
+
+`EXTERNAL_TERMS` permite identificar material contractual estático adicional como lookback, lockout u observation shift sin trasladar a D04 la generación de fechas ni el cálculo financiero.
+
+Un leg FIXED prohíbe reset/fixing/calculation/observation material flotante.
+
+Esto corrige la colisión demostrada en `DS-EXPERT-UNR013-R6-01` sin crear un motor de cálculo.
+
+### 6.4 Collateralization
 
 `SftCollateralizationMode` distingue:
 
@@ -186,31 +229,9 @@ Reset modes FLOATING:
 - `EXTERNAL_SCHEDULE`;
 - `REFERENCE_CONVENTION`.
 
-### Corrección R6 — fixing placement
+Para reset `PERIODIC` se exige `SftFinancingFixingTiming` exacto. Esto mantiene cerrado `DS-EXPERT-UNR013-R5-01`: dos contratos idénticos salvo `IN_ADVANCE` / `IN_ARREARS` no comparten identidad lógica.
 
-Para reset `PERIODIC`, R6 exige `SftFinancingFixingTiming` exacto:
-
-- `IN_ADVANCE`;
-- `IN_ARREARS`;
-- `REFERENCE_CONVENTION`.
-
-Esto cierra `DS-EXPERT-UNR013-R5-01`: dos contratos con la misma referencia, spread, day count, payment y reset tenor pero distinto fixing placement ya no comparten identidad lógica.
-
-`AT_PAYMENT`, `REFERENCE_CONVENTION` y `EXTERNAL_SCHEDULE` no aceptan un fixing timing adicional porque el propio modo define o delega la colocación temporal.
-
-### Cálculo y observación FLOATING
-
-Todo margin lending FLOATING exige además:
-
-- `SftFinancingCalculationCode`;
-- `SftFinancingObservationMode`;
-- referencia exacta sólo para `EXTERNAL_TERMS`.
-
-Ejemplos de códigos canónicos posibles incluyen `daily-simple`, `daily-compounded` y `reference-convention`.
-
-Así, para el mismo benchmark y demás material, `daily-simple != daily-compounded`.
-
-El modo `EXTERNAL_TERMS` permite identificar material estático adicional como lookback/lockout/observation-shift/calendario sin trasladar a D04 la generación de fechas ni el cálculo financiero.
+Todo margin lending FLOATING exige además `SftFinancingCalculationCode`, `SftFinancingObservationMode` y referencia exacta sólo para `EXTERNAL_TERMS`.
 
 FIXED prohíbe reset/fixing/calculation/observation material.
 
@@ -218,7 +239,7 @@ FIXED prohíbe reset/fixing/calculation/observation material.
 
 ## 8. Identidad lógica y no-colapso
 
-Las pruebas R6 deben demostrar al menos:
+Las pruebas R7 deben demostrar al menos:
 
 - repo != securities lending != margin lending;
 - units != nominal-amount;
@@ -226,11 +247,13 @@ Las pruebas R6 deben demostrar al menos:
 - uncollateralized != explicit != external-schedule collateralization;
 - periodic payment != at-termination != external-schedule;
 - periodic reset != at-payment != reference-convention != external-schedule;
-- periodic + in-advance != periodic + in-arrears;
-- daily-simple != daily-compounded;
-- observation `NONE != REFERENCE_CONVENTION != EXTERNAL_TERMS`;
-- distintas referencias externas != mismo material;
-- repo FLOATING con distinta convención de cálculo/observación != misma identidad lógica.
+- margin lending periodic + in-advance != periodic + in-arrears;
+- securities-lending FLOATING periodic + in-advance != periodic + in-arrears;
+- securities-lending FLOATING daily-simple != daily-compounded;
+- securities-lending FLOATING observation `NONE != REFERENCE_CONVENTION != EXTERNAL_TERMS`;
+- distintas referencias externas de observación != mismo material;
+- repo FLOATING con distinta convención de cálculo/observación != misma identidad lógica;
+- margin lending FLOATING con distinta convención de cálculo/observación != misma identidad lógica.
 
 Los órdenes no económicos de baskets/sets se canonicalizan determinísticamente.
 
@@ -240,7 +263,9 @@ Los órdenes no económicos de baskets/sets se canonicalizan determinísticament
 
 Los padres revalidan tipo exacto y estado interno relevante de hijos locales/importados. Objetos fabricados reflectivamente sin ejecutar constructor no reciben confianza sólo por pertenecer a la clase correcta.
 
-La superficie usa dataclasses `frozen=True, slots=True`, timestamps no implícitos, UUID explícitos y ausencia de estado global mutable.
+La nueva convención de securities-lending compensation reutiliza valores ya presentes en este responsable y también se revalida cuando el leg es consumido por `SecuritiesLendingCompensationTerms` y por el contrato superior.
+
+La superficie usa dataclasses `frozen=True, slots=True`, fechas explícitas, UUID explícitos y ausencia de estado global mutable.
 
 ---
 
@@ -260,11 +285,13 @@ La superficie usa dataclasses `frozen=True, slots=True`, timestamps no implícit
 | Settlement/custody/collateral movement | D11 |
 | Legal/regulatory/master-agreement determinations | D22 |
 
+La convención de cálculo o de observación guardada en D04 describe el contrato. No ejecuta esa convención.
+
 ---
 
 ## 11. Espacio negativo
 
-R6 no contiene autoridad para:
+R7 no contiene autoridad para:
 
 - provider/network I/O;
 - generación de payment/reset/fixing dates;
@@ -298,33 +325,36 @@ R6 no contiene autoridad para:
 
 ## 12. Historial de rondas
 
-R1 cerró compensación securities-lending y quantity basis.
+R1 identificó compensación securities-lending incompleta y quantity basis ausente.
 
-R2 cerró collateralization explícita/externa y ambigüedad de payment/reset en securities lending.
+R2 cerró quantity basis y añadió material de compensation; después se identificaron collateralization y timing incompletos.
 
-R3 identificó payment convention ausente en margin lending.
+R3 cerró collateralization/payment/reset de securities lending e identificó payment convention ausente en margin lending.
 
 R4 añadió payment convention e identificó reset convention ausente.
 
-R5 añadió reset mode/tenor/reference; DeepSeek Expert confirmó ese cierre e identificó `DS-EXPERT-UNR013-R5-01` por falta de `IN_ADVANCE`/`IN_ARREARS`.
+R5 añadió reset mode/tenor/reference; DeepSeek Expert identificó falta de `IN_ADVANCE`/`IN_ARREARS` en margin lending.
 
-R6 corrige ese hallazgo y, antes del CONGELADO, amplía preventivamente calculation/observation para margin lending y repo FLOATING donde IA demostró pares contractuales materiales adicionales.
+R6 corrigió ese punto y añadió calculation/observation para margin lending y repo FLOATING. DeepSeek Expert R6 aceptó esos cierres, pero demostró `DS-EXPERT-UNR013-R6-01`: fee/rebate flotante de securities lending todavía podía colapsar entre calculation/fixing conventions diferentes. IA aceptó el hallazgo como ALTA.
 
-Toda conclusión R1–R5 queda histórica para sus HASH anteriores; R6 debe validarse desde cero.
+R7 reutiliza los mismos tipos de calculation/fixing/observation para cerrar esa colisión en `SecuritiesLendingCompensationLegTerms`.
+
+Toda conclusión anterior queda histórica para sus hashes previos; R7 debe validarse desde cero.
 
 ---
 
-## 13. Estado R6
+## 13. Estado R7
 
 Al guardar este documento:
 
-- R1–R5 = históricas;
-- R6 candidate = presente;
+- R1–R6 = históricas;
+- R7 candidate = presente;
+- `DS-EXPERT-UNR013-R6-01` = corrección implementada, pendiente de revisión independiente R7;
 - PRUEBAS COMPLETAS del HEAD final = pendientes;
-- CONGELADO R6 = no establecido;
-- DeepSeek Expert R6 = EN ESPERA;
-- DeepSeek Coder R6 = EN ESPERA;
-- Claude Code R6 = EN ESPERA;
+- CONGELADO R7 = no establecido;
+- DeepSeek Expert R7 = EN ESPERA;
+- DeepSeek Coder R7 = EN ESPERA;
+- Claude Code R7 = EN ESPERA;
 - Ready = no establecido;
 - #394 = abierto;
 - UNR-013 / UMI-14 / PROGRAM D = no cerrados;
@@ -333,6 +363,6 @@ Al guardar este documento:
 
 Secuencia restante:
 
-`PRUEBAS COMPLETAS -> REVISIÓN TÉCNICA -> CONGELAR R6 -> PRUEBAS COMPLETAS SOBRE SYNTHETIC EXACTO -> DEEPSEEK EXPERT R6 -> IA -> DEEPSEEK CODER R6 -> IA -> CLAUDE CODE R6 -> IA -> IA FINAL -> READY -> INTEGRAR CON HEAD ESPERADO -> VERIFICAR INTEGRACIÓN -> CERRAR #394 -> CONTINUAR UMI-14`
+`PRUEBAS COMPLETAS -> REVISIÓN TÉCNICA -> CONGELAR R7 -> PRUEBAS COMPLETAS SOBRE SYNTHETIC EXACTO -> DEEPSEEK EXPERT R7 -> IA -> DEEPSEEK CODER R7 -> IA -> CLAUDE CODE R7 -> IA -> IA FINAL -> READY -> INTEGRAR CON HEAD ESPERADO -> VERIFICAR INTEGRACIÓN -> CERRAR #394 -> CONTINUAR UMI-14`
 
 Cualquier cambio del HEAD después del CONGELADO obliga a una nueva ronda y reinicia la secuencia externa desde DeepSeek Expert.
