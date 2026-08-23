@@ -103,8 +103,19 @@ def _validate_notional(value: DerivativeNotional, *, field_name: str) -> None:
 
 
 def _canonical_decimal(value: Decimal) -> str:
-    normalized = Decimal(0) if value == 0 else value.normalize()
-    return format(normalized, "f")
+    text = format(value, "f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    if text == "-0":
+        return "0"
+    return text
+
+
+def _notional_logical_values(value: DerivativeNotional) -> tuple[object, ...]:
+    return (
+        _canonical_decimal(value.value),
+        (str(value.unit_identity_id.value),),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,7 +216,7 @@ class VolatilityObservationTerms:
             )
         if type(self.calculation_convention) is not VolatilityCalculationConventionCode:
             raise VolatilityVarianceValidationError(
-                "volatility calculation_convention must be typed"
+                "volatility observation calculation_convention must be typed"
             )
         if self.expected_observation_count is not None and (
             type(self.expected_observation_count) is not int
@@ -351,8 +362,8 @@ class VarianceSwapTerms:
             self.reference_identity_id.logical_values(),
             self.observation_terms.logical_values(),
             self.variance_strike.logical_values(),
-            self.variance_amount.logical_values(),
-            self.vega_notional.logical_values()
+            _notional_logical_values(self.variance_amount),
+            _notional_logical_values(self.vega_notional)
             if self.vega_notional is not None
             else None,
             self.settlement_terms.logical_values(),
@@ -406,7 +417,7 @@ class VolatilitySwapTerms:
             self.reference_identity_id.logical_values(),
             self.observation_terms.logical_values(),
             self.volatility_strike.logical_values(),
-            self.vega_notional.logical_values(),
+            _notional_logical_values(self.vega_notional),
             self.settlement_terms.logical_values(),
             self.evidence_ref.logical_values(),
         )
@@ -477,7 +488,7 @@ class CorrelationSwapTerms:
             tuple(constituent.logical_values() for constituent in self.constituents),
             self.observation_terms.logical_values(),
             self.correlation_strike.logical_values(),
-            self.correlation_amount.logical_values(),
+            _notional_logical_values(self.correlation_amount),
             self.settlement_terms.logical_values(),
             self.evidence_ref.logical_values(),
         )
