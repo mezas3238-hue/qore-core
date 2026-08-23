@@ -8,7 +8,11 @@ from re import fullmatch
 from typing import Never
 from uuid import UUID
 
-from qore.infrastructure.fixed_income_economics import DayCountConventionCode
+from qore.infrastructure.fixed_income_economics import (
+    DayCountConventionCode,
+    FinancialTenor,
+    FinancialTenorUnit,
+)
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
 from qore.kernel.errors import InfrastructureError
 
@@ -60,6 +64,15 @@ def _validate_day_count(value: DayCountConventionCode) -> None:
     if type(value) is not DayCountConventionCode:
         _fail("SFT day_count must be exact DayCountConventionCode")
     _validate_code(value.value, field_name="SFT day-count convention code")
+
+
+def _validate_financial_tenor(value: FinancialTenor, *, field_name: str) -> None:
+    if type(value) is not FinancialTenor:
+        _fail(f"{field_name} must be exact FinancialTenor")
+    if type(value.value) is not int or value.value <= 0:
+        _fail(f"{field_name}.value must be positive int")
+    if type(value.unit) is not FinancialTenorUnit:
+        _fail(f"{field_name}.unit must be exact FinancialTenorUnit")
 
 
 def _validate_decimal(
@@ -127,6 +140,11 @@ def _identity_values(value: EconomicIdentityId, *, field_name: str) -> tuple[str
     return (str(value.value),)
 
 
+def _tenor_values(value: FinancialTenor, *, field_name: str) -> tuple[object, ...]:
+    _validate_financial_tenor(value, field_name=field_name)
+    return (value.value, value.unit.value)
+
+
 @dataclass(frozen=True, slots=True)
 class SftTermsId:
     value: UUID
@@ -177,6 +195,34 @@ class SftCollateralEligibilityCode:
         return (self.value,)
 
 
+@dataclass(frozen=True, slots=True)
+class SftSecurityQuantityBasisCode:
+    """Provider-neutral contractual quantity basis such as units or nominal-amount."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="SFT security quantity basis code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class SftCompensationAccrualBasisCode:
+    """Static compensation accrual-base qualification; never a current valuation."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="SFT compensation accrual basis code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
+        return (self.value,)
+
+
 class SftDurationMode(StrEnum):
     TERM = "term"
     OPEN = "open"
@@ -220,6 +266,7 @@ class SftCashAmount:
 class SftSecurityQuantity:
     security_identity_id: EconomicIdentityId
     quantity: Decimal
+    quantity_basis: SftSecurityQuantityBasisCode
 
     def __post_init__(self) -> None:
         _validate_identity(
@@ -231,6 +278,7 @@ class SftSecurityQuantity:
             field_name="SFT security quantity",
             positive=True,
         )
+        _validate_security_quantity_basis_child(self.quantity_basis)
 
     def logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
@@ -240,6 +288,7 @@ class SftSecurityQuantity:
                 field_name="SFT security identity",
             ),
             _canonical_decimal(self.quantity),
+            self.quantity_basis.logical_values(),
         )
 
 
@@ -264,6 +313,21 @@ def _validate_party_child(value: SftPartyReferenceId, *, field_name: str) -> Non
     _validate_uuid(value.value, field_name=f"{field_name}.value")
 
 
+def _validate_security_quantity_basis_child(value: SftSecurityQuantityBasisCode) -> None:
+    if type(value) is not SftSecurityQuantityBasisCode:
+        _fail("SFT security quantity_basis must be exact SftSecurityQuantityBasisCode")
+    _validate_code(value.value, field_name="SFT security quantity basis code")
+
+
+def _validate_compensation_basis_child(value: SftCompensationAccrualBasisCode) -> None:
+    if type(value) is not SftCompensationAccrualBasisCode:
+        _fail(
+            "SFT compensation accrual_basis must be exact "
+            "SftCompensationAccrualBasisCode"
+        )
+    _validate_code(value.value, field_name="SFT compensation accrual basis code")
+
+
 def _validate_cash_child(value: SftCashAmount, *, field_name: str) -> None:
     if type(value) is not SftCashAmount:
         _fail(f"{field_name} must be exact SftCashAmount")
@@ -286,6 +350,7 @@ def _validate_security_child(value: SftSecurityQuantity, *, field_name: str) -> 
         field_name=f"{field_name}.quantity",
         positive=True,
     )
+    _validate_security_quantity_basis_child(value.quantity_basis)
 
 
 @dataclass(frozen=True, slots=True)
@@ -502,35 +567,101 @@ def _validate_far_leg_child(value: RepoFarLegTerms) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class SecuritiesLendingCompensationTerms:
-    """Fee and cash-collateral rebate remain distinct contractual quantities."""
+class SecuritiesLendingCompensationLegTerms:
+    """One static fee/rebate leg; retains convention but computes no cashflow."""
 
-    lending_fee_rate: Decimal | None = None
-    cash_collateral_rebate_rate: Decimal | None = None
+    rate: SftRateTerms
+    currency_identity_id: EconomicIdentityId
+    accrual_basis: SftCompensationAccrualBasisCode
+    payment_tenor: FinancialTenor | None = None
+    reset_tenor: FinancialTenor | None = None
 
     def __post_init__(self) -> None:
-        if self.lending_fee_rate is None and self.cash_collateral_rebate_rate is None:
-            _fail("securities-lending compensation requires fee or rebate material")
-        if self.lending_fee_rate is not None:
-            _validate_decimal(
-                self.lending_fee_rate,
-                field_name="securities-lending fee rate",
-                non_negative=True,
+        _validate_rate_child(self.rate, field_name="securities-lending compensation rate")
+        _validate_identity(
+            self.currency_identity_id,
+            field_name="securities-lending compensation currency identity",
+        )
+        _validate_compensation_basis_child(self.accrual_basis)
+        if self.payment_tenor is not None:
+            _validate_financial_tenor(
+                self.payment_tenor,
+                field_name="securities-lending compensation payment tenor",
             )
-        if self.cash_collateral_rebate_rate is not None:
-            _validate_decimal(
-                self.cash_collateral_rebate_rate,
-                field_name="securities-lending rebate rate",
+        if self.reset_tenor is not None:
+            _validate_financial_tenor(
+                self.reset_tenor,
+                field_name="securities-lending compensation reset tenor",
+            )
+            if self.rate.kind is SftRateKind.FIXED:
+                _fail("fixed securities-lending compensation must not carry reset tenor")
+
+    def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
+        return (
+            self.rate.logical_values(),
+            _identity_values(
+                self.currency_identity_id,
+                field_name="securities-lending compensation currency identity",
+            ),
+            self.accrual_basis.logical_values(),
+            _tenor_values(
+                self.payment_tenor,
+                field_name="securities-lending compensation payment tenor",
+            )
+            if self.payment_tenor is not None
+            else None,
+            _tenor_values(
+                self.reset_tenor,
+                field_name="securities-lending compensation reset tenor",
+            )
+            if self.reset_tenor is not None
+            else None,
+        )
+
+
+def _validate_compensation_leg_child(
+    value: SecuritiesLendingCompensationLegTerms,
+    *,
+    field_name: str,
+) -> None:
+    if type(value) is not SecuritiesLendingCompensationLegTerms:
+        _fail(f"{field_name} must be exact SecuritiesLendingCompensationLegTerms")
+    value.__post_init__()
+
+
+@dataclass(frozen=True, slots=True)
+class SecuritiesLendingCompensationTerms:
+    """Fee and cash-collateral rebate remain distinct contractual legs."""
+
+    lending_fee: SecuritiesLendingCompensationLegTerms | None = None
+    cash_collateral_rebate: SecuritiesLendingCompensationLegTerms | None = None
+
+    def __post_init__(self) -> None:
+        if self.lending_fee is None and self.cash_collateral_rebate is None:
+            _fail("securities-lending compensation requires fee or rebate material")
+        if self.lending_fee is not None:
+            _validate_compensation_leg_child(
+                self.lending_fee,
+                field_name="securities-lending fee",
+            )
+            if (
+                self.lending_fee.rate.kind is SftRateKind.FIXED
+                and self.lending_fee.rate.contractual_rate_or_spread < 0
+            ):
+                _fail("fixed securities-lending fee rate must be non-negative")
+        if self.cash_collateral_rebate is not None:
+            _validate_compensation_leg_child(
+                self.cash_collateral_rebate,
+                field_name="securities-lending cash-collateral rebate",
             )
 
     def logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
         return (
-            _canonical_decimal(self.lending_fee_rate)
-            if self.lending_fee_rate is not None
-            else None,
-            _canonical_decimal(self.cash_collateral_rebate_rate)
-            if self.cash_collateral_rebate_rate is not None
+            self.lending_fee.logical_values() if self.lending_fee is not None else None,
+            self.cash_collateral_rebate.logical_values()
+            if self.cash_collateral_rebate is not None
             else None,
         )
 
@@ -568,9 +699,13 @@ def _validate_parties(
         _fail(f"{first_name} and {second_name} must differ")
 
 
-def _security_sort_key(value: SftSecurityQuantity) -> tuple[str, str]:
+def _security_sort_key(value: SftSecurityQuantity) -> tuple[str, str, str]:
     _validate_security_child(value, field_name="SFT security basket item")
-    return (str(value.security_identity_id.value), _canonical_decimal(value.quantity))
+    return (
+        str(value.security_identity_id.value),
+        value.quantity_basis.value,
+        _canonical_decimal(value.quantity),
+    )
 
 
 def _canonicalize_security_basket(
@@ -588,13 +723,14 @@ def _canonicalize_security_basket(
     return tuple(sorted(securities, key=_security_sort_key))
 
 
-def _collateral_key(value: SftCollateralItem) -> tuple[str, str, str]:
+def _collateral_key(value: SftCollateralItem) -> tuple[str, str, str, str]:
     if type(value) is SftCashAmount:
         cash = value
         _validate_cash_child(cash, field_name="SFT collateral cash")
         return (
             "cash",
             str(cash.currency_identity_id.value),
+            "cash",
             _canonical_decimal(cash.amount),
         )
     if type(value) is SftSecurityQuantity:
@@ -603,6 +739,7 @@ def _collateral_key(value: SftCollateralItem) -> tuple[str, str, str]:
         return (
             "security",
             str(security.security_identity_id.value),
+            security.quantity_basis.value,
             _canonical_decimal(security.quantity),
         )
     _fail("SFT collateral contains unsupported item")
