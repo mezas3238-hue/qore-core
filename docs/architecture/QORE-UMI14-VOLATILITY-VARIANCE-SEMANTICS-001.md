@@ -55,9 +55,12 @@ Fresh candidate surface:
 1. `src/qore/infrastructure/volatility_variance_semantics.py`
 2. `tests/infrastructure/test_volatility_variance_semantics.py`
 3. `tests/infrastructure/test_volatility_variance_semantics_logical_identity.py`
-4. `docs/architecture/QORE-UMI14-VOLATILITY-VARIANCE-SEMANTICS-001.md`
+4. `tests/infrastructure/test_volatility_variance_semantics_decimal_scalability.py`
+5. `docs/architecture/QORE-UMI14-VOLATILITY-VARIANCE-SEMANTICS-001.md`
 
-The fourth file is required by current Full Closure oracle law. The historical preparatory tests used SUT/nested `.logical_values()` helpers in portions of expected material and therefore are not sufficient as the sole independent logical-identity oracle.
+The dedicated logical-identity oracle is required by current Full Closure oracle law. The separate Decimal-scalability oracle was added after R3 IA falsification demonstrated that fixed-point rendering of a compact finite Decimal exponent could amplify output length linearly with exponent magnitude. This verification-only addition does not broaden financial or runtime authority.
+
+The historical preparatory tests used SUT/nested `.logical_values()` helpers in portions of expected material and therefore are not sufficient as the sole independent logical-identity oracle.
 
 No certified pre-existing file is modified by this bounded candidate.
 
@@ -147,7 +150,9 @@ Logical material must bind complete static economics, including product discrimi
 
 The independent oracle reconstructs expected tuples from primitive UUID/date/Decimal/string fixture constants. Expected material must not be produced from SUT `.logical_values()`, actual output, production sort helpers, production serializers or production enum `.value`.
 
-Decimal identity is reconstructed without `Decimal.normalize()` because `normalize()` is sensitive to ambient `decimal.Context` precision. The UNR-012 owner uses context-independent fixed-point material and reconstructs imported `DerivativeNotional` projection from the exact validated notional primitives instead of delegating to context-sensitive imported Decimal formatting.
+Decimal identity is reconstructed without `Decimal.normalize()` because `normalize()` is sensitive to ambient `decimal.Context` precision. The UNR-012 owner first canonicalizes finite exact Decimal tuple material directly, removes only numerically redundant trailing coefficient zeros, and then chooses between fixed and compact exponent notation from the normalized value without first expanding a large exponent. Fixed notation is used only when its calculated output length is at most one character longer than the compact representation; otherwise the compact representation is retained. This preserves human-scale material such as `0.04`, `5000` and `10000` while preventing a compact exponent from causing output proportional to exponent magnitude.
+
+The Decimal-scalability oracle explicitly binds `1E+1000000 -> 1e+1000000` and `1E-1000000 -> 1e-1000000` under ambient precision `2`, verifies compact length, and verifies exact Decimal round-trip equality. The same local canonicalizer reconstructs imported `DerivativeNotional` projection from exact validated notional primitives instead of delegating to context-sensitive imported Decimal formatting.
 
 Correlation caller order must not change logical identity after canonicalization.
 
@@ -192,7 +197,7 @@ A product whose payout amount itself requires conversion from a notional unit di
 
 ## 9. Determinism / immutability
 
-All local semantic values are frozen and slotted. Caller-supplied IDs are explicit. Decimal logical material is canonical and independent of ambient Decimal precision/rounding context. Correlation constituents are canonically ordered by economic reference identity. Dates are explicit contract dates. No implicit wall clock or random identity generation exists.
+All local semantic values are frozen and slotted. Caller-supplied IDs are explicit. Decimal logical material is canonical, compact for extreme finite exponents, and independent of ambient Decimal precision/rounding context. Correlation constituents are canonically ordered by economic reference identity. Dates are explicit contract dates. No implicit wall clock or random identity generation exists.
 
 ---
 
@@ -203,6 +208,7 @@ Historical source/test semantics are retained where compatible with current owne
 - exact `str` code boundary;
 - exact local `Decimal` primitive boundary against behavioral subclass spoofing;
 - context-independent Decimal logical identity with an ambient-precision adversarial witness;
+- compact exponent-safe Decimal canonicalization with explicit million-exponent resource-amplification witnesses;
 - owner-local exact-type child boundaries against behavioral subclass spoofing;
 - demonstrated-exploit-driven exact imported-owner composition checks, including nested trusted `UUID` / `Decimal` primitives;
 - explicit instrument-vs-settlement non-self-reference;
