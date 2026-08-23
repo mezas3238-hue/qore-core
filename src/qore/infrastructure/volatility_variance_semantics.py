@@ -55,7 +55,7 @@ def _validate_decimal(
     field_name: str,
     non_negative: bool = False,
 ) -> None:
-    if not isinstance(value, Decimal) or not value.is_finite():
+    if type(value) is not Decimal or not value.is_finite():
         raise VolatilityVarianceValidationError(
             f"{field_name} must be a finite Decimal"
         )
@@ -445,10 +445,7 @@ class CorrelationSwapTerms:
             "correlation-swap",
             self.terms_id.logical_values(),
             self.instrument_identity_id.logical_values(),
-            tuple(
-                constituent.logical_values()
-                for constituent in self.constituents
-            ),
+            tuple(constituent.logical_values() for constituent in self.constituents),
             self.observation_terms.logical_values(),
             self.correlation_strike.logical_values(),
             self.correlation_amount.logical_values(),

@@ -242,20 +242,10 @@ def test_wrapper_and_nested_projections_are_independently_reconstructed() -> Non
     ).logical_values() == ((str(_uuid(31)),), "0.6")
 
 
-def test_variance_projection_is_complete_and_independent() -> None:
+def test_top_level_projections_are_complete_and_independent() -> None:
     assert _variance().logical_values() == _EXPECTED_VARIANCE
-
-
-def test_volatility_projection_is_complete_and_independent() -> None:
     assert _volatility().logical_values() == _EXPECTED_VOLATILITY
-
-
-def test_correlation_projection_is_complete_canonical_and_independent() -> None:
-    terms = _correlation(reverse=True)
-    assert tuple(
-        constituent.reference_identity_id for constituent in terms.constituents
-    ) == (_identity(31), _identity(32))
-    assert terms.logical_values() == _EXPECTED_CORRELATION
+    assert _correlation(reverse=True).logical_values() == _EXPECTED_CORRELATION
 
 
 def test_correlation_caller_order_does_not_change_logical_identity() -> None:
@@ -264,13 +254,20 @@ def test_correlation_caller_order_does_not_change_logical_identity() -> None:
     ).logical_values()
 
 
-def test_variance_volatility_and_correlation_contracts_do_not_collapse() -> None:
-    expected = {
-        _EXPECTED_VARIANCE,
-        _EXPECTED_VOLATILITY,
-        _EXPECTED_CORRELATION,
-    }
-    assert len(expected) == 3
+def test_product_discriminants_and_material_do_not_collapse() -> None:
+    assert len({_EXPECTED_VARIANCE, _EXPECTED_VOLATILITY, _EXPECTED_CORRELATION}) == 3
+    assert _variance().logical_values() != (
+        "volatility-swap",
+        *_EXPECTED_VARIANCE[1:],
+    )
+    assert _correlation().logical_values() != (
+        *_EXPECTED_CORRELATION[:3],
+        (
+            ((str(_uuid(31)),), "0.5"),
+            ((str(_uuid(32)),), "0.5"),
+        ),
+        *_EXPECTED_CORRELATION[4:],
+    )
 
 
 def test_composite_values_are_frozen_and_slotted() -> None:
@@ -350,9 +347,38 @@ class _ConstituentSubclass(CorrelationConstituent):
         return ("spoofed-constituent",)
 
 
+class _HostileDecimal(Decimal):
+    def is_finite(self) -> bool:
+        return True
+
+    def __lt__(self, other: object) -> bool:
+        return False
+
+    def __le__(self, other: object) -> bool:
+        return False
+
+    def __gt__(self, other: object) -> bool:
+        return False
+
+    def __ge__(self, other: object) -> bool:
+        return False
+
+    def normalize(self, *args: object, **kwargs: object) -> Decimal:
+        return Decimal("999")
+
+
 def test_code_wrappers_reject_string_subclass() -> None:
     with pytest.raises(VolatilityVarianceValidationError, match="canonical lowercase"):
         VolatilityObservationScheduleCode(cast(Any, _StringSubclass("daily")))
+
+
+def test_decimal_boundaries_reject_hostile_subclasses_before_behavior() -> None:
+    hostile = cast(Any, _HostileDecimal("NaN"))
+    for factory in (VarianceStrike, VolatilityStrike, CorrelationStrike):
+        with pytest.raises(VolatilityVarianceValidationError, match="finite Decimal"):
+            factory(hostile)
+    with pytest.raises(VolatilityVarianceValidationError, match="finite Decimal"):
+        CorrelationConstituent(_identity(31), hostile)
 
 
 def test_observation_rejects_local_code_subclasses_before_projection() -> None:
