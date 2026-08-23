@@ -834,6 +834,24 @@ def _financing_floating_values(
     )
 
 
+def _compensation_floating_values(
+    fixing_timing: SftFinancingFixingTiming | None,
+    calculation: SftFinancingCalculationCode,
+    observation_mode: SftFinancingObservationMode,
+    observation_ref: SftScheduleReferenceId | None,
+) -> tuple[object, ...]:
+    observation = _financing_observation_values(
+        calculation,
+        observation_mode,
+        observation_ref,
+    )
+    return (
+        fixing_timing.value if fixing_timing is not None else None,
+        observation[0],
+        observation[1],
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SecuritiesLendingCompensationLegTerms:
     """One static fee/rebate leg; retains convention but computes no cashflow."""
@@ -847,6 +865,10 @@ class SecuritiesLendingCompensationLegTerms:
     reset_mode: SftCompensationResetMode | None = None
     reset_tenor: FinancialTenor | None = None
     reset_schedule_reference: SftScheduleReferenceId | None = None
+    reset_fixing_timing: SftFinancingFixingTiming | None = None
+    floating_calculation: SftFinancingCalculationCode | None = None
+    floating_observation_mode: SftFinancingObservationMode | None = None
+    floating_observation_reference: SftScheduleReferenceId | None = None
 
     def __post_init__(self) -> None:
         _validate_rate_child(self.rate, field_name="securities-lending compensation rate")
@@ -857,6 +879,12 @@ class SecuritiesLendingCompensationLegTerms:
         _validate_compensation_basis_child(self.accrual_basis)
         self._validate_payment_timing()
         self._validate_reset_timing()
+        _validate_financing_observation(
+            self.rate,
+            self.floating_calculation,
+            self.floating_observation_mode,
+            self.floating_observation_reference,
+        )
 
     def _validate_payment_timing(self) -> None:
         if type(self.payment_mode) is not SftCompensationPaymentMode:
@@ -886,8 +914,9 @@ class SecuritiesLendingCompensationLegTerms:
                 self.reset_mode is not None
                 or self.reset_tenor is not None
                 or self.reset_schedule_reference is not None
+                or self.reset_fixing_timing is not None
             ):
-                _fail("fixed securities-lending compensation must not carry reset timing")
+                _fail("fixed securities-lending compensation must not carry reset/fixing timing")
             return
         if type(self.reset_mode) is not SftCompensationResetMode:
             _fail("floating securities-lending compensation requires exact reset mode")
@@ -898,16 +927,26 @@ class SecuritiesLendingCompensationLegTerms:
                 self.reset_tenor,
                 field_name="securities-lending compensation reset tenor",
             )
+            if type(self.reset_fixing_timing) is not SftFinancingFixingTiming:
+                _fail("periodic compensation reset requires exact fixing timing")
             return
         if self.reset_mode in {
             SftCompensationResetMode.AT_PAYMENT,
             SftCompensationResetMode.REFERENCE_CONVENTION,
         }:
-            if self.reset_tenor is not None or self.reset_schedule_reference is not None:
-                _fail("non-scheduled reset mode must not carry tenor or schedule ref")
+            if (
+                self.reset_tenor is not None
+                or self.reset_schedule_reference is not None
+                or self.reset_fixing_timing is not None
+            ):
+                _fail("non-scheduled compensation reset must not carry timing material")
             return
-        if self.reset_tenor is not None or self.reset_schedule_reference is None:
-            _fail("external-schedule reset requires schedule ref and no tenor")
+        if (
+            self.reset_tenor is not None
+            or self.reset_schedule_reference is None
+            or self.reset_fixing_timing is not None
+        ):
+            _fail("external-schedule compensation reset requires schedule ref only")
         _validate_schedule_ref_child(
             self.reset_schedule_reference,
             field_name="securities-lending reset schedule reference",
@@ -934,6 +973,18 @@ class SecuritiesLendingCompensationLegTerms:
                 self.reset_schedule_reference,
             )
             if self.reset_mode is not None
+            else None,
+            _compensation_floating_values(
+                self.reset_fixing_timing,
+                self.floating_calculation,
+                self.floating_observation_mode,
+                self.floating_observation_reference,
+            )
+            if (
+                self.rate.kind is SftRateKind.FLOATING
+                and self.floating_calculation is not None
+                and self.floating_observation_mode is not None
+            )
             else None,
         )
 
