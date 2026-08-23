@@ -143,6 +143,8 @@ Logical material must bind complete static economics, including product discrimi
 
 The independent oracle reconstructs expected tuples from primitive UUID/date/Decimal/string fixture constants. Expected material must not be produced from SUT `.logical_values()`, actual output, production sort helpers, production serializers or production enum `.value`.
 
+Decimal identity is reconstructed without `Decimal.normalize()` because `normalize()` is sensitive to ambient `decimal.Context` precision. The UNR-012 owner uses context-independent fixed-point material and reconstructs imported `DerivativeNotional` projection from the exact validated notional primitives instead of delegating to context-sensitive imported Decimal formatting.
+
 Correlation caller order must not change logical identity after canonicalization.
 
 ---
@@ -182,7 +184,7 @@ The owner contains no variance option, dispersion strategy, volatility surface, 
 
 ## 9. Determinism / immutability
 
-All local semantic values are frozen and slotted. Caller-supplied IDs are explicit. Decimal logical material is canonical. Correlation constituents are canonically ordered by economic reference identity. Dates are explicit contract dates. No implicit wall clock or random identity generation exists.
+All local semantic values are frozen and slotted. Caller-supplied IDs are explicit. Decimal logical material is canonical and independent of ambient Decimal precision/rounding context. Correlation constituents are canonically ordered by economic reference identity. Dates are explicit contract dates. No implicit wall clock or random identity generation exists.
 
 ---
 
@@ -192,6 +194,7 @@ Historical source/test semantics are retained where compatible with current owne
 
 - exact `str` code boundary;
 - exact local `Decimal` primitive boundary against behavioral subclass spoofing;
+- context-independent Decimal logical identity with an ambient-precision adversarial witness;
 - owner-local exact-type child boundaries against behavioral subclass spoofing;
 - demonstrated-exploit-driven exact imported-owner composition checks, including nested trusted `UUID` / `Decimal` primitives;
 - canonical correlation constituent ordering;
