@@ -115,7 +115,7 @@ Constituent order is canonicalized by reference identity because caller tuple or
 
 ## 5. Exact-type trust boundary
 
-Current Full Closure hardening distinguishes local trusted child contracts from certified external owners.
+Current Full Closure hardening distinguishes local semantic ownership from imported certified owners while protecting every virtual-behavior edge used by this D04 owner.
 
 Owner-local values whose virtual `logical_values()` results are trusted by a parent use exact-type boundaries at the parent edge:
 
@@ -124,7 +124,16 @@ Owner-local values whose virtual `logical_values()` results are trusted by a par
 - local strike wrappers inside their respective contracts;
 - `CorrelationConstituent` entries inside `CorrelationSwapTerms`.
 
-Certified external owners such as `EconomicIdentityId`, `DerivativeTermsId`, `DerivativeEvidenceRef` and `DerivativeNotional` are composed through their established owner contracts and are not arbitrarily redefined here.
+R1/R2 IA falsification then produced concrete counterexamples against permissive imported-owner composition: a subclass of `EconomicIdentityId`, `DerivativeTermsId`, `DerivativeEvidenceRef` or `DerivativeNotional` can satisfy an `isinstance` guard while overriding virtual projection behavior; base/subclass identity equality can also diverge despite identical UUID material. Imported owners can furthermore contain subclassed primitive `UUID` / `Decimal` values where their historical constructors accept subclasses.
+
+Because this is a demonstrated exploit rather than an arbitrary policy preference, the UNR-012 composition boundary requires exact imported wrapper types and exact trusted primitive material for the imported values it projects:
+
+- exact `EconomicIdentityId` with exact `UUID`;
+- exact `DerivativeTermsId` with exact `UUID`;
+- exact `DerivativeEvidenceRef` with exact `UUID`;
+- exact `DerivativeNotional` with exact finite positive `Decimal` and exact validated unit identity.
+
+This is a bounded trust check at the UNR-012 consumer edge. It does **not** change, fork, or claim ownership of UMI-02/UMI-05 semantics, and no certified pre-existing owner source is modified.
 
 ---
 
@@ -182,9 +191,11 @@ All local semantic values are frozen and slotted. Caller-supplied IDs are explic
 Historical source/test semantics are retained where compatible with current owners, but fresh Full Closure hardening adds:
 
 - exact `str` code boundary;
+- exact local `Decimal` primitive boundary against behavioral subclass spoofing;
 - owner-local exact-type child boundaries against behavioral subclass spoofing;
+- demonstrated-exploit-driven exact imported-owner composition checks, including nested trusted `UUID` / `Decimal` primitives;
 - canonical correlation constituent ordering;
-- a dedicated independent logical-identity oracle;
+- a dedicated independent logical-identity oracle with adversarial subclass witnesses;
 - current-baseline governance/documentation.
 
 These changes are bounded to UNR-012 and do not modify UMI-05 or UMI-10.
