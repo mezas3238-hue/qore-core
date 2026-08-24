@@ -198,6 +198,7 @@ class UnitInvestmentTrustQualification:
         if not self.specified_securities:
             _fail("specified securities tuple cannot be empty")
 
+        root_id = str(self.fund_identity.identity_id.value)
         for component in self.specified_securities:
             if type(component) is not UnitInvestmentTrustSpecifiedSecurity:
                 _fail(
@@ -205,6 +206,8 @@ class UnitInvestmentTrustQualification:
                     "UnitInvestmentTrustSpecifiedSecurity"
                 )
             component.__post_init__()
+            if _component_sort_key(component) == root_id:
+                _fail("specified security identity must differ from fund identity")
 
         canonical = tuple(sorted(self.specified_securities, key=_component_sort_key))
 
