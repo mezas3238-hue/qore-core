@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import fields
-from datetime import UTC, date, datetime, time, timedelta, timezone
+import ast
+import inspect
+from dataclasses import FrozenInstanceError, fields
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
 
 import pytest
 
+import qore.infrastructure.cfd_contract_qualification as cfd_module
 from qore.infrastructure.cfd_contract_qualification import (
     CfdEvidenceRef,
     CfdForwardFormQualification,
@@ -22,9 +25,6 @@ from qore.infrastructure.derivative_contract_semantics import (
     DerivativeNotional,
     DerivativePriceQuoteBasisCode,
     DerivativeReferenceRoleCode,
-    DerivativeScheduleConvention,
-    DerivativeScheduleRollCode,
-    DerivativeScheduleStubCode,
     DerivativeSettlementStyle,
     DerivativeStrike,
     DerivativeStrikeBasis,
@@ -36,23 +36,23 @@ from qore.infrastructure.fixed_income_economics import (
     BusinessDayConventionCode,
     FinancialTenor,
     FinancialTenorUnit,
-    FixedIncomeEconomicsValidationError,
+    SettlementConvention,
+)
+from qore.infrastructure.fx_semantics import (
+    FxEvidenceRef,
+    FxQuoteBasis,
+    FxQuotedCurrencyPair,
 )
 from qore.infrastructure.universal_instrument_identity import (
-    CanonicalIdentityRef,
     EconomicIdentity,
     EconomicIdentityId,
     EconomicIdentityKind,
     IdentityConstructionKind,
     IdentityEvidenceRef,
     IdentityFamilyCode,
-    IdentityLifecycleEvent,
-    IdentityLifecycleEventId,
     IdentityRelationship,
     IdentityRelationshipCode,
     IdentityRelationshipId,
-    LifecycleEventCode,
-    UniversalInstrumentIdentityValidationError,
 )
 
 
@@ -68,770 +68,648 @@ def _identity_evidence(i: int) -> IdentityEvidenceRef:
     return IdentityEvidenceRef(_uuid(i))
 
 
-def _relationship_id(i: int) -> IdentityRelationshipId:
-    return IdentityRelationshipId(_uuid(i))
+def _cfd_identity(
+    identity_index: int = 1,
+    *,
+    evidence_index: int = 2,
+    family: str = "contracts-for-difference",
+    kind: EconomicIdentityKind = EconomicIdentityKind.TRADABLE_INSTRUMENT,
+    construction: IdentityConstructionKind = IdentityConstructionKind.NATIVE,
+) -> EconomicIdentity:
+    return EconomicIdentity(
+        identity_id=_identity_id(identity_index),
+        kind=kind,
+        family=IdentityFamilyCode(family),
+        construction=construction,
+        evidence_ref=_identity_evidence(evidence_index),
+    )
 
 
-def _terms_id(i: int) -> DerivativeTermsId:
-    return DerivativeTermsId(_uuid(i))
+def _qualification_id(i: int = 10) -> CfdQualificationId:
+    return CfdQualificationId(_uuid(i))
+
+
+def _cfd_evidence(i: int = 11) -> CfdEvidenceRef:
+    return CfdEvidenceRef(_uuid(i))
 
 
 def _derivative_evidence(i: int) -> DerivativeEvidenceRef:
     return DerivativeEvidenceRef(_uuid(i))
 
 
-def _qualification_id(i: int) -> CfdQualificationId:
-    return CfdQualificationId(_uuid(i))
-
-
-def _cfd_evidence(i: int) -> CfdEvidenceRef:
-    return CfdEvidenceRef(_uuid(i))
-
-
-def _cfd_identity_with_evidence(
-    identity_index: int,
-    evidence_index: int,
-) -> EconomicIdentity:
-    return EconomicIdentity(
-        identity_id=_identity_id(identity_index),
-        kind=EconomicIdentityKind.TRADABLE_INSTRUMENT,
-        family=IdentityFamilyCode("contracts-for-difference"),
-        construction=IdentityConstructionKind.NATIVE,
-        evidence_ref=_identity_evidence(evidence_index),
-    )
-
-
-def _cfd_identity(i: int) -> EconomicIdentity:
-    return _cfd_identity_with_evidence(i, i)
-
-
 def _cash_forward(
-    instrument_id: EconomicIdentityId,
-    reference_id: EconomicIdentityId,
+    *,
+    instrument_id: EconomicIdentityId | None = None,
+    reference_id: EconomicIdentityId | None = None,
     fixing_reference_id: EconomicIdentityId | None = None,
+    settlement_style: DerivativeSettlementStyle = DerivativeSettlementStyle.CASH,
+    strike_basis: DerivativeStrikeBasis = DerivativeStrikeBasis.PRICE,
+    settlement_convention: SettlementConvention | None = None,
 ) -> ForwardContractTerms:
-    fixing_ref = fixing_reference_id or reference_id
-    settlement_identity = _identity_id(900)
+    instrument = instrument_id or _identity_id(1)
+    reference = reference_id or _identity_id(20)
+    fixing_reference = fixing_reference_id or reference
+    settlement = _identity_id(21)
+    if strike_basis is DerivativeStrikeBasis.PRICE:
+        quote_identity: EconomicIdentityId | None = settlement
+        quote_basis: DerivativePriceQuoteBasisCode | None = (
+            DerivativePriceQuoteBasisCode("currency-per-unit")
+        )
+    else:
+        quote_identity = None
+        quote_basis = None
     return ForwardContractTerms(
-        terms_id=_terms_id(901),
-        instrument_identity_id=instrument_id,
-        reference_identity_id=reference_id,
-        settlement_identity_id=settlement_identity,
-        notional=DerivativeNotional(
-            value=Decimal("1"),
-            unit_identity_id=settlement_identity,
-        ),
+        terms_id=DerivativeTermsId(_uuid(30)),
+        instrument_identity_id=instrument,
+        reference_identity_id=reference,
+        settlement_identity_id=settlement,
+        notional=DerivativeNotional(Decimal("100"), settlement),
         agreed_strike=DerivativeStrike(
-            value=Decimal("100"),
-            basis=DerivativeStrikeBasis.PRICE,
-            quote_identity_id=settlement_identity,
-            price_quote_basis=DerivativePriceQuoteBasisCode(
-                "currency-per-unit"
-            ),
+            value=Decimal("1.25"),
+            basis=strike_basis,
+            quote_identity_id=quote_identity,
+            price_quote_basis=quote_basis,
             convention=None,
         ),
-        maturity_date=date(2026, 8, 24),
-        settlement_style=DerivativeSettlementStyle.CASH,
-        evidence_ref=_derivative_evidence(902),
+        maturity_date=date(2027, 1, 31),
+        settlement_style=settlement_style,
+        evidence_ref=_derivative_evidence(31),
         fixing=DerivativeFixingTerms(
             reference=DerivativeBenchmarkReference(
-                reference_identity_id=fixing_ref,
+                reference_identity_id=fixing_reference,
                 role=DerivativeReferenceRoleCode("closing-price"),
                 tenor=None,
             ),
-            fixing_date=date(2026, 8, 20),
-            evidence_ref=_derivative_evidence(903),
-        ),
-        settlement_convention=None,
-    )
-
-
-def _physical_forward(
-    instrument_id: EconomicIdentityId,
-    reference_id: EconomicIdentityId,
-) -> ForwardContractTerms:
-    settlement_identity = _identity_id(900)
-    return ForwardContractTerms(
-        terms_id=_terms_id(901),
-        instrument_identity_id=instrument_id,
-        reference_identity_id=reference_id,
-        settlement_identity_id=settlement_identity,
-        notional=DerivativeNotional(
-            value=Decimal("1"),
-            unit_identity_id=settlement_identity,
-        ),
-        agreed_strike=DerivativeStrike(
-            value=Decimal("100"),
-            basis=DerivativeStrikeBasis.PRICE,
-            quote_identity_id=settlement_identity,
-            price_quote_basis=DerivativePriceQuoteBasisCode(
-                "currency-per-unit"
-            ),
-            convention=None,
-        ),
-        maturity_date=date(2026, 8, 24),
-        settlement_style=DerivativeSettlementStyle.PHYSICAL,
-        evidence_ref=_derivative_evidence(902),
-        fixing=None,
-        settlement_convention=None,
+            fixing_date=date(2027, 1, 30),
+            evidence_ref=_derivative_evidence(32),
+        )
+        if settlement_style is DerivativeSettlementStyle.CASH
+        else None,
+        settlement_convention=settlement_convention,
     )
 
 
 def _binding(
-    source: EconomicIdentityId,
-    target: EconomicIdentityId,
+    *,
+    source: EconomicIdentityId | None = None,
+    target: EconomicIdentityId | None = None,
+    relationship: str = "price-determination-reference",
+    ordinal: int | None = None,
     effective_from: datetime | None = None,
     effective_until: datetime | None = None,
 ) -> IdentityRelationship:
+    start = effective_from or datetime(2026, 1, 1, tzinfo=UTC)
     return IdentityRelationship(
-        relationship_id=_relationship_id(700),
-        source_identity_id=source,
-        target_identity_id=target,
-        relationship=IdentityRelationshipCode(
-            "price-determination-reference"
-        ),
-        effective_from=effective_from or datetime(2026, 1, 1, tzinfo=UTC),
+        relationship_id=IdentityRelationshipId(_uuid(40)),
+        source_identity_id=source or _identity_id(20),
+        target_identity_id=target or _identity_id(22),
+        relationship=IdentityRelationshipCode(relationship),
+        effective_from=start,
         effective_until=effective_until,
-        evidence_ref=_identity_evidence(701),
+        evidence_ref=_identity_evidence(41),
+        ordinal=ordinal,
     )
 
 
-def _valid_same_reference_forward() -> ForwardContractTerms:
-    return _cash_forward(_identity_id(1), _identity_id(2))
+def _spot_reference(
+    *,
+    pair_index: int = 50,
+    quote_basis: FxQuoteBasis = FxQuoteBasis.CURRENCY2_PER_CURRENCY1,
+) -> FxQuotedCurrencyPair:
+    return FxQuotedCurrencyPair(
+        pair_identity_id=_identity_id(pair_index),
+        currency1_identity_id=_identity_id(51),
+        currency2_identity_id=_identity_id(52),
+        quote_basis=quote_basis,
+        evidence_ref=FxEvidenceRef(_uuid(53)),
+    )
 
 
-def _valid_distinct_forward() -> ForwardContractTerms:
-    return _cash_forward(_identity_id(1), _identity_id(2), _identity_id(3))
-
-
-def _valid_same_reference_qualification() -> CfdForwardFormQualification:
+def _same_reference_qualification() -> CfdForwardFormQualification:
     return CfdForwardFormQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=_cfd_identity(1),
-        forward=_valid_same_reference_forward(),
-        evidence_ref=_cfd_evidence(4),
+        qualification_id=_qualification_id(),
+        cfd_identity=_cfd_identity(),
+        forward=_cash_forward(),
+        evidence_ref=_cfd_evidence(),
         price_determination_binding=None,
     )
 
 
-def _valid_distinct_qualification() -> CfdForwardFormQualification:
+def _distinct_reference_qualification(
+    *,
+    binding: IdentityRelationship | None = None,
+) -> CfdForwardFormQualification:
+    forward = _cash_forward(fixing_reference_id=_identity_id(22))
     return CfdForwardFormQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=_cfd_identity(1),
-        forward=_valid_distinct_forward(),
-        evidence_ref=_cfd_evidence(4),
-        price_determination_binding=_binding(_identity_id(2), _identity_id(3)),
+        qualification_id=_qualification_id(),
+        cfd_identity=_cfd_identity(),
+        forward=forward,
+        evidence_ref=_cfd_evidence(),
+        price_determination_binding=binding or _binding(),
     )
 
 
-def _valid_rolling_qualification() -> CfdRollingSpotLifecycleQualification:
+def _rolling_qualification(
+    *,
+    identity_index: int = 1,
+    spot_reference: FxQuotedCurrencyPair | None = None,
+    period: FinancialTenor | None = None,
+) -> CfdRollingSpotLifecycleQualification:
     return CfdRollingSpotLifecycleQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=_cfd_identity(1),
-        contract_period=FinancialTenor(
-            value=1,
-            unit=FinancialTenorUnit.DAY,
-        ),
-        evidence_ref=_cfd_evidence(4),
+        qualification_id=_qualification_id(),
+        cfd_identity=_cfd_identity(identity_index),
+        spot_reference=spot_reference or _spot_reference(),
+        contract_period=period or FinancialTenor(1, FinancialTenorUnit.DAY),
+        evidence_ref=_cfd_evidence(),
     )
 
 
 def test_valid_same_reference_forward_qualification() -> None:
-    q = _valid_same_reference_qualification()
-    assert q.logical_values()[0] == "cfd-forward-form-qualification"
+    value = _same_reference_qualification()
+    assert value.logical_values()[0] == "cfd-forward-form-qualification"
+    assert value.logical_values() == value.logical_values()
 
 
-def test_wrong_family_rejected() -> None:
-    instrument_id = _identity_id(1)
-    bad_identity = EconomicIdentity(
-        identity_id=instrument_id,
-        kind=EconomicIdentityKind.TRADABLE_INSTRUMENT,
-        family=IdentityFamilyCode("equities"),
-        construction=IdentityConstructionKind.NATIVE,
-        evidence_ref=_identity_evidence(5),
+def test_valid_distinct_reference_forward_qualification() -> None:
+    value = _distinct_reference_qualification()
+    assert value.price_determination_binding is not None
+    assert value.logical_values()[4] == value.price_determination_binding.logical_values()
+
+
+def test_valid_settlement_convention_is_preserved() -> None:
+    convention = SettlementConvention(
+        business_day_lag=2,
+        calendar_ref=BusinessCalendarRef("nyc"),
+        business_day_convention=BusinessDayConventionCode("modified-following"),
     )
+    value = CfdForwardFormQualification(
+        qualification_id=_qualification_id(),
+        cfd_identity=_cfd_identity(),
+        forward=_cash_forward(settlement_convention=convention),
+        evidence_ref=_cfd_evidence(),
+        price_determination_binding=None,
+    )
+    assert value.forward.settlement_convention == convention
+
+
+def test_wrong_family_and_non_tradable_identity_rejected() -> None:
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=bad_identity,
-            forward=_valid_same_reference_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=None,
+            _qualification_id(),
+            _cfd_identity(family="equities"),
+            _cash_forward(),
+            _cfd_evidence(),
+            None,
         )
-
-
-def test_identity_forward_instrument_mismatch_rejected() -> None:
-    forward_id = _identity_id(99)
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_cash_forward(forward_id, _identity_id(2)),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=None,
+            _qualification_id(),
+            _cfd_identity(kind=EconomicIdentityKind.REFERENCE_OBJECT),
+            _cash_forward(),
+            _cfd_evidence(),
+            None,
         )
 
 
-def test_physical_forward_rejected() -> None:
+def test_cfd_forward_identity_mismatch_rejected() -> None:
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_physical_forward(_identity_id(1), _identity_id(2)),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=None,
+            _qualification_id(),
+            _cfd_identity(),
+            _cash_forward(instrument_id=_identity_id(99)),
+            _cfd_evidence(),
+            None,
         )
 
 
-def test_same_reference_unnecessary_binding_rejected() -> None:
-    unnecessary = _binding(_identity_id(10), _identity_id(11))
+def test_physical_and_non_price_forward_forms_rejected() -> None:
+    physical = _cash_forward(settlement_style=DerivativeSettlementStyle.PHYSICAL)
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_valid_same_reference_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=unnecessary,
+            _qualification_id(), _cfd_identity(), physical, _cfd_evidence(), None
         )
 
-
-def test_distinct_fixing_without_binding_rejected() -> None:
+    rate_forward = _cash_forward(strike_basis=DerivativeStrikeBasis.SPREAD)
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_valid_distinct_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=None,
+            _qualification_id(),
+            _cfd_identity(),
+            rate_forward,
+            _cfd_evidence(),
+            None,
         )
 
 
-def test_distinct_fixing_with_binding_accepted() -> None:
-    q = _valid_distinct_qualification()
-    assert q.logical_values()[0] == "cfd-forward-form-qualification"
-
-
-def test_binding_wrong_source_rejected() -> None:
+def test_same_reference_redundant_binding_rejected() -> None:
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_valid_distinct_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=_binding(
-                _identity_id(4),
-                _identity_id(3),
-            ),
+            _qualification_id(),
+            _cfd_identity(),
+            _cash_forward(),
+            _cfd_evidence(),
+            _binding(source=_identity_id(20), target=_identity_id(22)),
         )
 
 
-def test_binding_wrong_target_rejected() -> None:
+def test_distinct_reference_requires_exact_binding() -> None:
+    forward = _cash_forward(fixing_reference_id=_identity_id(22))
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_valid_distinct_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=_binding(
-                _identity_id(2),
-                _identity_id(4),
-            ),
+            _qualification_id(), _cfd_identity(), forward, _cfd_evidence(), None
         )
-
-
-def test_binding_wrong_relationship_code_rejected() -> None:
-    bad = IdentityRelationship(
-        relationship_id=_relationship_id(700),
-        source_identity_id=_identity_id(2),
-        target_identity_id=_identity_id(3),
-        relationship=IdentityRelationshipCode("not-price-determination"),
-        effective_from=datetime(2026, 1, 1, tzinfo=UTC),
-        effective_until=None,
-        evidence_ref=_identity_evidence(701),
-    )
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_valid_distinct_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=bad,
+            _qualification_id(),
+            _cfd_identity(),
+            forward,
+            _cfd_evidence(),
+            _binding(source=_identity_id(23)),
         )
-
-
-def _make_temporal_binding(
-    effective_from: datetime,
-    effective_until: datetime | None,
-) -> IdentityRelationship:
-    return _binding(
-        _identity_id(2),
-        _identity_id(3),
-        effective_from=effective_from,
-        effective_until=effective_until,
-    )
-
-
-def _build_forward_with_binding(
-    binding: IdentityRelationship,
-) -> CfdForwardFormQualification:
-    return CfdForwardFormQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=_cfd_identity(1),
-        forward=_valid_distinct_forward(),
-        evidence_ref=_cfd_evidence(4),
-        price_determination_binding=binding,
-    )
-
-
-def test_temporal_binding_start_before_day_open_accepted() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    _build_forward_with_binding(
-        _make_temporal_binding(day_start - timedelta(days=1), None)
-    )
-
-
-def test_temporal_binding_start_exactly_day_start_accepted() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    _build_forward_with_binding(_make_temporal_binding(day_start, None))
-
-
-def test_temporal_binding_start_intraday_rejected() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    with pytest.raises(CfdQualificationValidationError):
-        _build_forward_with_binding(
-            _make_temporal_binding(day_start + timedelta(hours=1), None)
-        )
-
-
-def test_temporal_binding_start_next_day_rejected() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    with pytest.raises(CfdQualificationValidationError):
-        _build_forward_with_binding(
-            _make_temporal_binding(day_start + timedelta(days=1), None)
-        )
-
-
-def test_temporal_binding_expires_before_day_rejected() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    with pytest.raises(CfdQualificationValidationError):
-        _build_forward_with_binding(
-            _make_temporal_binding(
-                day_start - timedelta(days=2),
-                day_start - timedelta(days=1),
-            )
-        )
-
-
-def test_temporal_binding_expires_exactly_day_start_rejected() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    with pytest.raises(CfdQualificationValidationError):
-        _build_forward_with_binding(
-            _make_temporal_binding(
-                day_start - timedelta(days=1),
-                day_start,
-            )
-        )
-
-
-def test_temporal_binding_expires_intraday_rejected() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    with pytest.raises(CfdQualificationValidationError):
-        _build_forward_with_binding(
-            _make_temporal_binding(
-                day_start - timedelta(days=1),
-                day_start + timedelta(hours=1),
-            )
-        )
-
-
-def test_temporal_binding_expires_exactly_next_day_start_accepted() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    next_day_start = day_start + timedelta(days=1)
-    _build_forward_with_binding(
-        _make_temporal_binding(
-            day_start - timedelta(days=1),
-            next_day_start,
-        )
-    )
-
-
-def test_temporal_binding_expires_after_next_day_start_accepted() -> None:
-    day_start = datetime.combine(date(2026, 8, 20), time.min, tzinfo=UTC)
-    next_day_start = day_start + timedelta(days=1)
-    _build_forward_with_binding(
-        _make_temporal_binding(
-            day_start - timedelta(days=1),
-            next_day_start + timedelta(days=1),
-        )
-    )
-
-
-def test_non_utc_offset_normalization_exact_utc_projection() -> None:
-    plus_two = timezone(timedelta(hours=2))
-    effective_from = datetime(2026, 8, 20, 2, 0, tzinfo=plus_two)
-    effective_until = datetime(2026, 8, 22, 2, 0, tzinfo=plus_two)
-    binding = _binding(
-        _identity_id(2),
-        _identity_id(3),
-        effective_from=effective_from,
-        effective_until=effective_until,
-    )
-    q = _build_forward_with_binding(binding)
-    retained_binding = q.price_determination_binding
-    assert retained_binding is not None
-    assert retained_binding.logical_values()[4] == (
-        "2026-08-20T00:00:00.000000+00:00"
-    )
-    assert retained_binding.logical_values()[5] == (
-        "2026-08-22T00:00:00.000000+00:00"
-    )
-
-
-def test_naive_relationship_rejected_by_umi02() -> None:
-    with pytest.raises(UniversalInstrumentIdentityValidationError):
-        IdentityRelationship(
-            relationship_id=_relationship_id(700),
-            source_identity_id=_identity_id(2),
-            target_identity_id=_identity_id(3),
-            relationship=IdentityRelationshipCode(
-                "price-determination-reference"
-            ),
-            effective_from=datetime(2026, 1, 1),
-            effective_until=None,
-            evidence_ref=_identity_evidence(701),
-        )
-
-
-class DeceptiveFamily(IdentityFamilyCode):
-    pass
-
-
-class DeceptiveRelationshipCode(IdentityRelationshipCode):
-    pass
-
-
-class DeceptiveEconomicIdentityId(EconomicIdentityId):
-    pass
-
-
-def test_polymorphic_family_subclass_rejected() -> None:
-    bad_identity = EconomicIdentity(
-        identity_id=_identity_id(1),
-        kind=EconomicIdentityKind.TRADABLE_INSTRUMENT,
-        family=DeceptiveFamily("contracts-for-difference"),
-        construction=IdentityConstructionKind.NATIVE,
-        evidence_ref=_identity_evidence(5),
-    )
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=bad_identity,
-            forward=_valid_same_reference_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=None,
+            _qualification_id(),
+            _cfd_identity(),
+            forward,
+            _cfd_evidence(),
+            _binding(target=_identity_id(24)),
         )
-
-
-def test_polymorphic_relationship_code_subclass_rejected() -> None:
-    bad = IdentityRelationship(
-        relationship_id=_relationship_id(700),
-        source_identity_id=_identity_id(2),
-        target_identity_id=_identity_id(3),
-        relationship=DeceptiveRelationshipCode(
-            "price-determination-reference"
-        ),
-        effective_from=datetime(2026, 1, 1, tzinfo=UTC),
-        effective_until=None,
-        evidence_ref=_identity_evidence(701),
-    )
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_valid_distinct_forward(),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=bad,
+            _qualification_id(),
+            _cfd_identity(),
+            forward,
+            _cfd_evidence(),
+            _binding(relationship="other-reference"),
         )
-
-
-def test_polymorphic_economic_identity_id_subclass_rejected() -> None:
-    deceptive_instrument = DeceptiveEconomicIdentityId(_uuid(1))
     with pytest.raises(CfdQualificationValidationError):
         CfdForwardFormQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            forward=_cash_forward(deceptive_instrument, _identity_id(2)),
-            evidence_ref=_cfd_evidence(4),
-            price_determination_binding=None,
+            _qualification_id(),
+            _cfd_identity(),
+            forward,
+            _cfd_evidence(),
+            _binding(ordinal=1),
         )
 
 
-def test_same_reference_exact_logical_values_oracle() -> None:
-    q = _valid_same_reference_qualification()
-    expected = (
-        "cfd-forward-form-qualification",
-        _qualification_id(3).logical_values(),
-        _cfd_identity(1).logical_values(),
-        _valid_same_reference_forward().logical_values(),
-        None,
-        _cfd_evidence(4).logical_values(),
+def test_no_invented_complete_utc_fixing_day_law() -> None:
+    start = datetime(2027, 1, 30, 12, 0, tzinfo=UTC)
+    end = start + timedelta(hours=2)
+    value = _distinct_reference_qualification(
+        binding=_binding(effective_from=start, effective_until=end)
     )
-    assert q.logical_values() == expected
-    assert q.logical_values() == q.logical_values()
+    assert value.price_determination_binding is not None
+    assert value.price_determination_binding.effective_from == start
+    assert value.price_determination_binding.effective_until == end
 
 
-def test_distinct_reference_exact_logical_values_oracle() -> None:
-    q = _valid_distinct_qualification()
-    binding = _binding(_identity_id(2), _identity_id(3))
-    expected = (
-        "cfd-forward-form-qualification",
-        _qualification_id(3).logical_values(),
-        _cfd_identity(1).logical_values(),
-        _valid_distinct_forward().logical_values(),
-        binding.logical_values(),
-        _cfd_evidence(4).logical_values(),
+def test_binding_timezone_state_is_revalidated_not_executed() -> None:
+    value = _distinct_reference_qualification()
+    binding = value.price_determination_binding
+    assert binding is not None
+    object.__setattr__(binding, "effective_from", datetime(2026, 1, 1))
+    with pytest.raises(CfdQualificationValidationError):
+        value.logical_values()
+
+
+def test_valid_rolling_spot_qualification_reuses_fx_pair_semantics() -> None:
+    value = _rolling_qualification()
+    logical = value.logical_values()
+    assert logical[0] == "cfd-rolling-spot-lifecycle-qualification"
+    assert logical[3] == _spot_reference().logical_values()
+    assert logical[5:7] == (
+        "automatic-contract-rollover",
+        "party-termination-capability",
     )
-    assert q.logical_values() == expected
-    assert q.logical_values() == q.logical_values()
 
 
-def test_forward_field_surface_exact() -> None:
-    assert tuple(
-        field.name for field in fields(CfdForwardFormQualification)
-    ) == (
+def test_rolling_spot_reference_and_period_are_identity_material() -> None:
+    base = _rolling_qualification()
+    other_pair = _rolling_qualification(spot_reference=_spot_reference(pair_index=60))
+    other_quote = _rolling_qualification(
+        spot_reference=_spot_reference(
+            quote_basis=FxQuoteBasis.CURRENCY1_PER_CURRENCY2
+        )
+    )
+    other_period = _rolling_qualification(
+        period=FinancialTenor(2, FinancialTenorUnit.DAY)
+    )
+    assert len(
+        {
+            base.logical_values(),
+            other_pair.logical_values(),
+            other_quote.logical_values(),
+            other_period.logical_values(),
+        }
+    ) == 4
+
+
+def test_rolling_cfd_identity_cannot_collapse_into_fx_pair_identity() -> None:
+    with pytest.raises(CfdQualificationValidationError):
+        _rolling_qualification(identity_index=50)
+
+
+def test_exact_field_surfaces() -> None:
+    assert tuple(field.name for field in fields(CfdForwardFormQualification)) == (
         "qualification_id",
         "cfd_identity",
         "forward",
         "evidence_ref",
         "price_determination_binding",
     )
-
-
-def test_rolling_field_surface_exact() -> None:
-    assert tuple(
-        field.name
-        for field in fields(CfdRollingSpotLifecycleQualification)
-    ) == (
+    assert tuple(field.name for field in fields(CfdRollingSpotLifecycleQualification)) == (
         "qualification_id",
         "cfd_identity",
+        "spot_reference",
         "contract_period",
         "evidence_ref",
     )
 
 
-def test_rolling_exact_logical_values_oracle() -> None:
-    q = _valid_rolling_qualification()
-    expected = (
-        "cfd-rolling-spot-lifecycle-qualification",
-        _qualification_id(3).logical_values(),
-        _cfd_identity(1).logical_values(),
-        FinancialTenor(
-            value=1,
-            unit=FinancialTenorUnit.DAY,
-        ).logical_values(),
-        "automatic-contract-rollover",
-        "party-termination-capability",
-        _cfd_evidence(4).logical_values(),
-    )
-    assert q.logical_values() == expected
-    assert q.logical_values() == q.logical_values()
+class BadUUID(UUID):
+    pass
 
 
-def test_rolling_wrong_family_rejected() -> None:
-    bad_identity = EconomicIdentity(
-        identity_id=_identity_id(1),
-        kind=EconomicIdentityKind.TRADABLE_INSTRUMENT,
-        family=IdentityFamilyCode("equities"),
-        construction=IdentityConstructionKind.NATIVE,
-        evidence_ref=_identity_evidence(5),
+class BadDecimal(Decimal):
+    pass
+
+
+class BadIdentityId(EconomicIdentityId):
+    pass
+
+
+class BadFamily(IdentityFamilyCode):
+    pass
+
+
+class BadRelationshipCode(IdentityRelationshipCode):
+    pass
+
+
+class BadPriceQuoteBasis(DerivativePriceQuoteBasisCode):
+    pass
+
+
+def test_local_ids_require_exact_uuid_and_revalidate() -> None:
+    with pytest.raises(CfdQualificationValidationError):
+        CfdQualificationId(BadUUID(int=1))
+    value = _qualification_id()
+    object.__setattr__(value, "value", "not-a-uuid")
+    with pytest.raises(CfdQualificationValidationError):
+        value.logical_values()
+
+
+def test_nested_identity_wrappers_and_family_require_exact_state() -> None:
+    identity = _cfd_identity()
+    object.__setattr__(identity, "identity_id", BadIdentityId(_uuid(1)))
+    with pytest.raises(CfdQualificationValidationError):
+        CfdForwardFormQualification(
+            _qualification_id(), identity, _cash_forward(), _cfd_evidence(), None
+        )
+
+    identity = _cfd_identity()
+    object.__setattr__(identity, "family", BadFamily("contracts-for-difference"))
+    with pytest.raises(CfdQualificationValidationError):
+        CfdForwardFormQualification(
+            _qualification_id(), identity, _cash_forward(), _cfd_evidence(), None
+        )
+
+    identity = _cfd_identity()
+    object.__setattr__(identity.identity_id, "value", "bad")
+    with pytest.raises(CfdQualificationValidationError):
+        CfdForwardFormQualification(
+            _qualification_id(), identity, _cash_forward(), _cfd_evidence(), None
+        )
+
+
+def test_nested_forward_decimal_and_quote_code_subclasses_rejected() -> None:
+    forward = _cash_forward()
+    object.__setattr__(forward.notional, "value", BadDecimal("100"))
+    with pytest.raises(CfdQualificationValidationError):
+        CfdForwardFormQualification(
+            _qualification_id(), _cfd_identity(), forward, _cfd_evidence(), None
+        )
+
+    forward = _cash_forward()
+    object.__setattr__(
+        forward.agreed_strike,
+        "price_quote_basis",
+        BadPriceQuoteBasis("currency-per-unit"),
     )
     with pytest.raises(CfdQualificationValidationError):
-        CfdRollingSpotLifecycleQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=bad_identity,
-            contract_period=FinancialTenor(
-                value=1,
-                unit=FinancialTenorUnit.DAY,
-            ),
-            evidence_ref=_cfd_evidence(4),
+        CfdForwardFormQualification(
+            _qualification_id(), _cfd_identity(), forward, _cfd_evidence(), None
         )
 
 
-def test_rolling_zero_period_rejected() -> None:
-    with pytest.raises(FixedIncomeEconomicsValidationError):
-        FinancialTenor(value=0, unit=FinancialTenorUnit.DAY)
-
-
-def test_rolling_negative_period_rejected() -> None:
-    with pytest.raises(FixedIncomeEconomicsValidationError):
-        FinancialTenor(value=-1, unit=FinancialTenorUnit.DAY)
-
-
-def test_rolling_plain_string_unit_rejected() -> None:
-    with pytest.raises(FixedIncomeEconomicsValidationError):
-        FinancialTenor(
-            value=1,
-            unit=cast(FinancialTenorUnit, "DAY"),
-        )
-
-
-def test_rolling_schedule_convention_cannot_substitute() -> None:
-    schedule = DerivativeScheduleConvention(
-        stub=DerivativeScheduleStubCode("none"),
-        roll=DerivativeScheduleRollCode("end-of-month"),
-        calendar_ref=BusinessCalendarRef("nyc"),
-        business_day_convention=BusinessDayConventionCode(
-            "modified-following"
-        ),
-    )
-    bad = cast(FinancialTenor, schedule)
+def test_nested_fixing_corruption_fails_closed_on_logical_values() -> None:
+    value = _same_reference_qualification()
+    fixing = value.forward.fixing
+    assert fixing is not None
+    object.__setattr__(fixing, "fixing_date", datetime(2027, 1, 30, tzinfo=UTC))
     with pytest.raises(CfdQualificationValidationError):
-        CfdRollingSpotLifecycleQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            contract_period=bad,
-            evidence_ref=_cfd_evidence(4),
-        )
+        value.logical_values()
 
-
-def test_rolling_identity_lifecycle_event_cannot_substitute() -> None:
-    event = IdentityLifecycleEvent(
-        event_id=IdentityLifecycleEventId(_uuid(800)),
-        subject=CanonicalIdentityRef(_identity_id(1)),
-        event_type=LifecycleEventCode("expiry"),
-        effective_at=datetime(2026, 1, 1, tzinfo=UTC),
-        recorded_at=datetime(2026, 1, 2, tzinfo=UTC),
-        evidence_ref=_identity_evidence(801),
-    )
-    bad = cast(FinancialTenor, event)
+    value = _same_reference_qualification()
+    fixing = value.forward.fixing
+    assert fixing is not None
+    object.__setattr__(fixing.reference, "role", cast(DerivativeReferenceRoleCode, "bad"))
     with pytest.raises(CfdQualificationValidationError):
-        CfdRollingSpotLifecycleQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            contract_period=bad,
-            evidence_ref=_cfd_evidence(4),
-        )
+        value.logical_values()
 
 
-def test_rolling_crypto_perpetual_cannot_substitute_type_boundary() -> None:
-    from qore.infrastructure.crypto_perpetual_funding_semantics import (
-        CryptoPerpetualContractTerms,
-    )
+def test_postconstruction_parent_corruption_fails_closed() -> None:
+    forward_value = _same_reference_qualification()
+    object.__setattr__(forward_value.evidence_ref, "value", "bad")
+    with pytest.raises(CfdQualificationValidationError):
+        forward_value.logical_values()
 
-    bad = cast(
-        FinancialTenor,
-        object.__new__(CryptoPerpetualContractTerms),
+    rolling = _rolling_qualification()
+    object.__setattr__(rolling.contract_period, "value", 0)
+    with pytest.raises(CfdQualificationValidationError):
+        rolling.logical_values()
+
+
+def test_spot_reference_nested_corruption_fails_closed() -> None:
+    rolling = _rolling_qualification()
+    object.__setattr__(rolling.spot_reference, "quote_basis", "bad")
+    with pytest.raises(CfdQualificationValidationError):
+        rolling.logical_values()
+
+    rolling = _rolling_qualification()
+    object.__setattr__(rolling.spot_reference.pair_identity_id, "value", "bad")
+    with pytest.raises(CfdQualificationValidationError):
+        rolling.logical_values()
+
+
+def test_binding_nested_corruption_fails_closed() -> None:
+    value = _distinct_reference_qualification()
+    binding = value.price_determination_binding
+    assert binding is not None
+    object.__setattr__(
+        binding,
+        "relationship",
+        BadRelationshipCode("price-determination-reference"),
     )
     with pytest.raises(CfdQualificationValidationError):
-        CfdRollingSpotLifecycleQualification(
-            qualification_id=_qualification_id(3),
-            cfd_identity=_cfd_identity(1),
-            contract_period=bad,
-            evidence_ref=_cfd_evidence(4),
-        )
+        value.logical_values()
 
 
-_FORBIDDEN_AUTHORITY_FIELDS = {
+def test_settlement_convention_nested_corruption_fails_closed() -> None:
+    convention = SettlementConvention(
+        2,
+        BusinessCalendarRef("nyc"),
+        BusinessDayConventionCode("following"),
+    )
+    value = CfdForwardFormQualification(
+        _qualification_id(),
+        _cfd_identity(),
+        _cash_forward(settlement_convention=convention),
+        _cfd_evidence(),
+        None,
+    )
+    object.__setattr__(convention, "business_day_lag", True)
+    with pytest.raises(CfdQualificationValidationError):
+        value.logical_values()
+
+
+def test_partially_fabricated_objects_never_become_logical_identity() -> None:
+    fabricated = object.__new__(CfdQualificationId)
+    with pytest.raises((AttributeError, CfdQualificationValidationError)):
+        fabricated.logical_values()
+
+    fabricated_parent = object.__new__(CfdRollingSpotLifecycleQualification)
+    with pytest.raises((AttributeError, CfdQualificationValidationError)):
+        fabricated_parent.logical_values()
+
+
+def test_values_are_frozen_and_slotted() -> None:
+    value = _same_reference_qualification()
+    assert not hasattr(value, "__dict__")
+    with pytest.raises(FrozenInstanceError):
+        value.evidence_ref = _cfd_evidence(999)  # type: ignore[misc]
+
+
+def test_forward_logical_identity_does_not_collapse_material_dimensions() -> None:
+    base = _same_reference_qualification()
+    different_qid = CfdForwardFormQualification(
+        _qualification_id(99),
+        base.cfd_identity,
+        base.forward,
+        base.evidence_ref,
+        None,
+    )
+    different_identity_evidence = CfdForwardFormQualification(
+        base.qualification_id,
+        _cfd_identity(evidence_index=99),
+        base.forward,
+        base.evidence_ref,
+        None,
+    )
+    different_evidence = CfdForwardFormQualification(
+        base.qualification_id,
+        base.cfd_identity,
+        base.forward,
+        _cfd_evidence(99),
+        None,
+    )
+    assert len(
+        {
+            base.logical_values(),
+            different_qid.logical_values(),
+            different_identity_evidence.logical_values(),
+            different_evidence.logical_values(),
+        }
+    ) == 4
+
+
+def test_distinct_binding_identity_is_material() -> None:
+    first = _distinct_reference_qualification()
+    second_binding = IdentityRelationship(
+        relationship_id=IdentityRelationshipId(_uuid(44)),
+        source_identity_id=_identity_id(20),
+        target_identity_id=_identity_id(22),
+        relationship=IdentityRelationshipCode("price-determination-reference"),
+        effective_from=datetime(2026, 1, 1, tzinfo=UTC),
+        effective_until=None,
+        evidence_ref=_identity_evidence(41),
+        ordinal=None,
+    )
+    second = _distinct_reference_qualification(binding=second_binding)
+    assert first.logical_values() != second.logical_values()
+
+
+_FORBIDDEN_FIELDS = {
     "current_price",
     "observed_fixing_value",
-    "fixing_value",
     "pnl",
     "payoff",
     "margin",
-    "account_equity",
     "leverage",
-    "margin_closeout",
     "provider_symbol",
-    "provider_capability",
-    "overnight_funding",
-    "fx_pair",
-    "quote_basis",
     "order",
     "trade",
-    "receipt",
     "settlement_mutation",
     "legal_eligibility",
     "spread_bet",
-    "automatic_rollover",
-    "party_termination_capability",
 }
 
-_FORBIDDEN_OPERATIONAL_METHODS = {
+_FORBIDDEN_CALL_NAMES = {
     "execute",
     "settle",
     "calculate_pnl",
     "calculate_payoff",
     "observe",
-    "schedule",
-    "roll",
     "sleep",
-    "timer",
-    "thread",
+    "submit",
+    "connect",
+}
+
+_FORBIDDEN_IMPORT_ROOTS = {
+    "requests",
+    "httpx",
+    "socket",
+    "subprocess",
+    "threading",
+    "secrets",
+    "random",
 }
 
 
-def test_forward_field_names_disjoint_forbidden_authority_fields() -> None:
-    actual = {field.name for field in fields(CfdForwardFormQualification)}
-    assert actual.isdisjoint(_FORBIDDEN_AUTHORITY_FIELDS)
+def test_negative_space_field_and_method_surface() -> None:
+    for owner in (CfdForwardFormQualification, CfdRollingSpotLifecycleQualification):
+        assert {field.name for field in fields(owner)}.isdisjoint(_FORBIDDEN_FIELDS)
+        instance = _same_reference_qualification() if owner is CfdForwardFormQualification else _rolling_qualification()
+        for name in _FORBIDDEN_CALL_NAMES:
+            assert not hasattr(instance, name)
 
 
-def test_rolling_field_names_disjoint_forbidden_authority_fields() -> None:
-    actual = {
-        field.name
-        for field in fields(CfdRollingSpotLifecycleQualification)
-    }
-    assert actual.isdisjoint(_FORBIDDEN_AUTHORITY_FIELDS)
-
-
-def test_forward_has_no_forbidden_operational_methods() -> None:
-    q = _valid_same_reference_qualification()
-    for method in _FORBIDDEN_OPERATIONAL_METHODS:
-        assert not hasattr(q, method)
-
-
-def test_rolling_has_no_forbidden_operational_methods() -> None:
-    q = _valid_rolling_qualification()
-    for method in _FORBIDDEN_OPERATIONAL_METHODS:
-        assert not hasattr(q, method)
-
-
-def test_logical_projection_collision_regression() -> None:
-    identity_a = _cfd_identity_with_evidence(1, 100)
-    identity_b = _cfd_identity_with_evidence(1, 200)
-    forward = _valid_same_reference_forward()
-
-    q_a = CfdForwardFormQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=identity_a,
-        forward=forward,
-        evidence_ref=_cfd_evidence(4),
-        price_determination_binding=None,
+def test_source_ast_has_no_operational_authority_or_wall_clock() -> None:
+    source = inspect.getsource(cfd_module)
+    tree = ast.parse(source)
+    import_roots: set[str] = set()
+    called_names: set[str] = set()
+    called_attributes: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            import_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            import_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_attributes.add(node.func.attr)
+    assert import_roots.isdisjoint(_FORBIDDEN_IMPORT_ROOTS)
+    assert called_names.isdisjoint(_FORBIDDEN_CALL_NAMES | {"uuid4"})
+    assert called_attributes.isdisjoint(
+        _FORBIDDEN_CALL_NAMES | {"now", "today", "uuid4"}
     )
-    q_b = CfdForwardFormQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=identity_b,
-        forward=forward,
-        evidence_ref=_cfd_evidence(4),
-        price_determination_binding=None,
-    )
-    assert q_a.logical_values() != q_b.logical_values()
 
-    roll_a = CfdRollingSpotLifecycleQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=identity_a,
-        contract_period=FinancialTenor(
-            value=1,
-            unit=FinancialTenorUnit.DAY,
-        ),
-        evidence_ref=_cfd_evidence(4),
+
+def test_module_constants_are_immutable_primitives_not_mutable_value_objects() -> None:
+    assert cfd_module._CFD_FAMILY_CODE == "contracts-for-difference"
+    assert type(cfd_module._CFD_FAMILY_CODE) is str
+    assert cfd_module._PRICE_DETERMINATION_RELATIONSHIP_CODE == (
+        "price-determination-reference"
     )
-    roll_b = CfdRollingSpotLifecycleQualification(
-        qualification_id=_qualification_id(3),
-        cfd_identity=identity_b,
-        contract_period=FinancialTenor(
-            value=1,
-            unit=FinancialTenorUnit.DAY,
-        ),
-        evidence_ref=_cfd_evidence(4),
-    )
-    assert roll_a.logical_values() != roll_b.logical_values()
+    assert type(cfd_module._PRICE_DETERMINATION_RELATIONSHIP_CODE) is str
