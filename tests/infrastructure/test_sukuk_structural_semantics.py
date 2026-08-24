@@ -121,6 +121,10 @@ def _qualification(
             key=lambda binding: str(binding.binding_id.value),
         ).binding_id
         if selected_underlyings
+        and all(
+            type(binding) is SukukUnderlyingInterestBinding
+            for binding in selected_underlyings
+        )
         else None
     )
     selected_legs = (
