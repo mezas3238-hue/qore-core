@@ -679,10 +679,11 @@ def test_negative_space_field_and_method_surface() -> None:
     owners = (CfdForwardFormQualification, CfdRollingSpotLifecycleQualification)
     for owner in owners:
         assert {field.name for field in fields(owner)}.isdisjoint(_FORBIDDEN_FIELDS)
-        if owner is CfdForwardFormQualification:
-            instance = _same_reference_qualification()
-        else:
-            instance = _rolling_qualification()
+    instances: tuple[object, ...] = (
+        _same_reference_qualification(),
+        _rolling_qualification(),
+    )
+    for instance in instances:
         for name in _FORBIDDEN_CALL_NAMES:
             assert not hasattr(instance, name)
 
