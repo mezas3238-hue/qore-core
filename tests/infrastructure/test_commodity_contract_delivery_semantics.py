@@ -171,6 +171,14 @@ def test_commodity_reference_retains_class_identity_and_measurement_unit() -> No
     assert terms.logical_values()[2] == _economic_id(10).logical_values()
     assert terms.logical_values()[3] == ("energy",)
     assert terms.logical_values()[4] == _economic_id(11).logical_values()
+    assert terms.logical_values() == (
+        "commodity-reference",
+        (str(UUID(int=101)),),
+        (str(UUID(int=10)),),
+        ("energy",),
+        (str(UUID(int=11)),),
+        (str(UUID(int=201)),),
+    )
 
 
 def test_commodity_reference_rejects_raw_identity_and_self_unit() -> None:
@@ -303,6 +311,28 @@ def test_physical_delivery_canonicalizes_caller_order() -> None:
 
     assert left.alternatives == right.alternatives
     assert left.logical_values() == right.logical_values()
+    assert left.logical_values() == (
+        (
+            (
+                ("grade-a",),
+                (str(UUID(int=21)),),
+                ("warehouse-receipt",),
+                (
+                    "2026-08-21",
+                    "2026-08-31",
+                ),
+            ),
+            (
+                ("grade-b",),
+                (str(UUID(int=20)),),
+                ("warehouse-receipt",),
+                (
+                    "2026-08-21",
+                    "2026-08-31",
+                ),
+            ),
+        ),
+    )
 
 
 def test_commodity_futures_reuses_umi05_futures_terms_without_flattening() -> None:
@@ -315,6 +345,84 @@ def test_commodity_futures_reuses_umi05_futures_terms_without_flattening() -> No
     assert terms.futures.expiry_date == date(2026, 8, 20)
     assert terms.futures.first_notice_date == date(2026, 8, 17)
     assert terms.futures.last_trade_date == date(2026, 8, 19)
+    assert terms.logical_values()[4] == (
+        (
+            (
+                ("grade-a",),
+                (str(UUID(int=20)),),
+                ("warehouse-receipt",),
+                (
+                    "2026-08-21",
+                    "2026-08-31",
+                ),
+            ),
+        ),
+    )
+
+
+def test_commodity_futures_physical_complete_projection_without_first_notice() -> None:
+    futures = FuturesContractTerms(
+        terms_id=_derivative_terms_id(),
+        instrument_identity_id=_economic_id(1),
+        reference_identity_id=_economic_id(10),
+        settlement_identity_id=_economic_id(12),
+        contract_month=DerivativeContractMonth(2026, 9),
+        expiry_date=date(2026, 8, 20),
+        multiplier=DerivativeContractMultiplier(
+            value=Decimal("1000"),
+            unit_identity_id=_economic_id(11),
+        ),
+        settlement_style=DerivativeSettlementStyle.PHYSICAL,
+        evidence_ref=_derivative_evidence(),
+        first_notice_date=None,
+        last_trade_date=date(2026, 8, 19),
+    )
+    terms = _commodity_futures(futures=futures)
+
+    assert terms.logical_values() == (
+        "commodity-futures",
+        (str(UUID(int=100)),),
+        (
+            "futures",
+            (str(UUID(int=300)),),
+            (str(UUID(int=1)),),
+            (str(UUID(int=10)),),
+            (str(UUID(int=12)),),
+            (2026, 9),
+            "2026-08-20",
+            (
+                "1000",
+                (str(UUID(int=11)),),
+            ),
+            "physical",
+            (str(UUID(int=400)),),
+            None,
+            None,
+            "2026-08-19",
+        ),
+        (
+            "commodity-reference",
+            (str(UUID(int=101)),),
+            (str(UUID(int=10)),),
+            ("energy",),
+            (str(UUID(int=11)),),
+            (str(UUID(int=201)),),
+        ),
+        (
+            (
+                (
+                    ("grade-a",),
+                    (str(UUID(int=20)),),
+                    ("warehouse-receipt",),
+                    (
+                        "2026-08-21",
+                        "2026-08-31",
+                    ),
+                ),
+            ),
+        ),
+        (str(UUID(int=200)),),
+    )
 
 
 def test_commodity_futures_rejects_reference_identity_mismatch() -> None:
@@ -366,6 +474,38 @@ def test_cash_futures_are_representable_without_physical_delivery() -> None:
     assert terms.futures.settlement_style is DerivativeSettlementStyle.CASH
     assert terms.physical_delivery is None
     assert terms.logical_values()[4] is None
+    assert terms.logical_values() == (
+        "commodity-futures",
+        (str(UUID(int=100)),),
+        (
+            "futures",
+            (str(UUID(int=300)),),
+            (str(UUID(int=1)),),
+            (str(UUID(int=10)),),
+            (str(UUID(int=12)),),
+            (2026, 9),
+            "2026-08-20",
+            (
+                "1000",
+                (str(UUID(int=11)),),
+            ),
+            "cash",
+            (str(UUID(int=400)),),
+            None,
+            None,
+            "2026-08-19",
+        ),
+        (
+            "commodity-reference",
+            (str(UUID(int=101)),),
+            (str(UUID(int=10)),),
+            ("energy",),
+            (str(UUID(int=11)),),
+            (str(UUID(int=201)),),
+        ),
+        None,
+        (str(UUID(int=200)),),
+    )
 
 
 def test_delivery_location_cannot_launder_contract_commodity_or_unit_identity() -> None:

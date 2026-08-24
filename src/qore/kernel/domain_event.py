@@ -7,7 +7,8 @@ Propósito:
 Alcance:
     - ``DomainEvent`` como dataclass inmutable.
     - ``timestamp`` y ``event_name`` obligatorios.
-    - ``event_id``, ``event_version`` y ``metadata`` con defaults.
+    - ``event_id`` obligatorio y explícito.
+    - ``event_version`` y ``metadata`` con defaults.
     - Igualdad y hash basados en ``event_id``.
 
 Dependencias:
@@ -25,7 +26,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from types import MappingProxyType
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from qore.kernel.errors import ValidationError
 from qore.kernel.temporal import is_timezone_aware_datetime
@@ -37,14 +38,16 @@ class DomainEvent:
 
     timestamp: datetime
     event_name: str
-    event_id: UUID = field(default_factory=uuid4)
+    event_id: UUID
     event_version: str = "1.0"
     metadata: Mapping[str, Any] = field(
         default_factory=lambda: MappingProxyType({}), compare=False, hash=False
     )
 
     def __post_init__(self) -> None:
-        """Validar tiempo y aislar metadata de mutaciones externas."""
+        """Validar identidad, tiempo y aislar metadata de mutaciones externas."""
+        if not isinstance(self.event_id, UUID):
+            raise ValidationError("domain event event_id must be UUID")
         if not is_timezone_aware_datetime(self.timestamp):
             raise ValidationError(
                 "domain event timestamp must be a timezone-aware datetime"

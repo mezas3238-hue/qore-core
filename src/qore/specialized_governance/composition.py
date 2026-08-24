@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from qore.core.application import CoreApplication
 from qore.core.bootstrap import bootstrap
 from qore.core.configuration import Configuration
-from qore.core.lifecycle import Clock
+from qore.core.lifecycle import Clock, EventIdSource
 from qore.core.runtime import RuntimeContext
 from qore.domain.composition import ComposableDomainModule
 from qore.governance.composition import FunctionalModules
@@ -74,12 +74,22 @@ def compose_specialized_governance(
     *,
     runtime_context: RuntimeContext | None = None,
     clock: Clock | None = None,
+    event_id_source: EventIdSource | None = None,
 ) -> Result[SpecializedGovernanceApplication, KernelError]:
     """Compose PHASE-04 and PHASE-05 modules through one official Core bootstrap."""
-    if (runtime_context is None) != (clock is None):
+    if (
+        (runtime_context is None)
+        != (clock is None)
+        or (runtime_context is None)
+        != (event_id_source is None)
+    ):
         return Failure(
-            ValidationError("runtime_context and clock must be provided together")
+            ValidationError(
+                "runtime_context, clock and event_id_source must be provided together"
+            )
         )
+    if event_id_source is not None and not callable(event_id_source):
+        return Failure(ValidationError("event id source must be callable"))
 
     functional_modules = FunctionalModules.create()
     modules = SpecializedServiceModules.create()
@@ -94,10 +104,12 @@ def compose_specialized_governance(
         boot = bootstrap(configuration, domain_modules=domain_modules)
     else:
         assert clock is not None
+        assert event_id_source is not None
         boot = bootstrap(
             configuration,
             runtime_context=runtime_context,
             clock=clock,
+            event_id_source=event_id_source,
             domain_modules=domain_modules,
         )
     if isinstance(boot, Failure):

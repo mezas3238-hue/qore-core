@@ -2,16 +2,25 @@
 
 ## Status
 
-**PROGRAM B / UMI-03 — IMPLEMENTATION CANDIDATE; INDEPENDENT CERTIFICATION REQUIRED**
+**PROGRAM D / UMI-03 — FULL CLOSURE RECERTIFICATION RECORD; FINAL CLOSURE STATUS GOVERNED BY #301**
 
 Tracking: Issue #320  
 Master roadmap: Issue #303  
 Universal Markets / Instruments program: Issue #301  
-Certified starting baseline: `ccf3755e42c51ee7a9d9d61ea3dd9cc756906bf1`  
-Predecessor: STAGE-08 / FND-08 — CLOSED
+Historical certified starting baseline: `ccf3755e42c51ee7a9d9d61ea3dd9cc756906bf1`  
+Historical certified PR: #321  
+Historical reviewed head: `dabfb8f6f3dca52e8f585387253cfccae90f1f41`  
+Historical merge / certified baseline: `86bd54d92bc1d0d6c42888c85bdf59a0998a87b1`  
+Full Closure reconstruction starting main: `58d29e37787f602fcfc28b730e0ce746e13d7960`  
+Full Closure reconstruction starting tree: `9c7e535ad996a19d081538b6f7a50078c37cc1ee`  
+Predecessor: UMI-02 — FULL CLOSURE RECERTIFIED / SEALED / CLOSED
 
 This artifact defines the bounded provider-neutral fixed-income / bond economic
 foundation required by UMI-03.
+
+Sections 1-9 preserve the original UMI-03 architecture and historical certification
+contract. Sections 10 onward are the additive Full Closure recertification record.
+The existence of this record does not self-certify final Full Closure.
 
 It is additive to UMI-02 identity/lifecycle and FND-04 economic-semantic law.
 It does not create a second instrument identity authority, a curve engine, a
@@ -516,3 +525,484 @@ IMPLEMENTED CANDIDATE != CERTIFIED UMI-03
 CI GREEN != ENGINEERING APPROVAL
 PR OPEN != PROGRAM CLOSURE
 ```
+
+The sequence above is retained as the **historical UMI-03 certification protocol**.
+It completed for PR #321. It is not sufficient by itself for the current Full Closure
+recertification, whose definitive gate is recorded below.
+
+---
+
+# 10. Historical certification and current integration ledger
+
+## 10.1 Original UMI-03 certification
+
+The original bounded UMI-03 semantic foundation was independently certified and
+integrated with the following exact evidence:
+
+- historical starting main: `ccf3755e42c51ee7a9d9d61ea3dd9cc756906bf1`;
+- PR: #321 — `QORE-UMI-03 — Fixed Income / Bonds Economics`;
+- final independently reviewed head: `dabfb8f6f3dca52e8f585387253cfccae90f1f41`;
+- QORE CI #1021 / run `31812006419`: SUCCESS;
+- Ruff: PASS;
+- Mypy: PASS — 570 source files;
+- Pytest: PASS — 2410 passed / 6 historical warnings;
+- total statement coverage: 84%;
+- `fixed_income_economics.py`: 91% statement coverage;
+- actual expected-head merge: `86bd54d92bc1d0d6c42888c85bdf59a0998a87b1`;
+- candidate tree == merge tree: `5d16c19079f2a5e58098316235bc93f837666dc6`;
+- GitHub merge signature: verified / valid.
+
+The original independent review and Integration Gate found no surviving
+BLOCKER/HIGH UMI-03-scope defect before merge.
+
+Historical review dispositions remain evidence, not current debt:
+
+- `UMI03-CLAUDE-01`: rejected as a defect;
+- `UMI03-CLAUDE-02`: LOW optional test-hardening recommendation, not a production
+  defect or closure blocker;
+- `UMI03-CLAUDE-03`: NOTE / optional Decimal regression hardening, not a production
+  defect or closure blocker;
+- `UMI03-CLAUDE-04`: rejected by exact artifact evidence.
+
+## 10.2 Retrospective logical-identity hardening
+
+Tracker #405 later applied a stronger field-materiality / omission-mutation audit
+to already-certified UMI semantic owners. For UMI-03 it established:
+
+```text
+UMI03-LI-01 = ORACLE GAP / MEDIUM
+PRODUCTION DEFECT = NOT ESTABLISHED
+MINIMUM CORRECTION = TEST-ONLY
+```
+
+PR #410 completed that UMI-03-owned correction:
+
+- correction baseline main: `25f72e580f1ae1ca32b51a92a79fa7e482773c66`;
+- final corrected head: `519e171059ac102379aeeb86603b748e482b713b`;
+- candidate tree: `e5c538e6c622ba167be8bdb3dcb9df8114e2d77e`;
+- test-only diff: exactly one owner test file / +561 / -0;
+- QORE CI #1203 / run `32179560831`: SUCCESS;
+- Ruff: PASS;
+- Mypy: PASS — 612 source files;
+- Pytest: PASS — 3210 passed / 6 historical warnings;
+- total coverage: 86%;
+- UMI-03 source coverage: 91%;
+- independent exact-head review: PASS;
+- Integration Gate: PASS;
+- expected-head merge: `af9a3a3c5ac1d993d994a274a221ed22597d912a`;
+- merge tree: `e5c538e6c622ba167be8bdb3dcb9df8114e2d77e`;
+- merge signature: verified / valid.
+
+The correction added complete independent projection/reconstruction guards for:
+
+- `FixedIncomePrice`;
+- `FixedIncomeBenchmarkReference`;
+- `FixedCouponTerms`;
+- `FloatingCouponTerms`;
+- `ZeroCouponTerms`;
+- `AccrualPeriod`;
+- `SettlementConvention`;
+- `YieldConvention`;
+- `FixedIncomeCashFlow`;
+- `FixedIncomeCashFlowSchedule`;
+- `FixedIncomeInstrumentTerms`;
+- `FixedIncomeEconomicProfile`.
+
+Two same-shape/equal-value oracle collisions discovered during review were closed
+before merge with valid discriminating fixtures:
+
+- face amount vs redemption amount;
+- accrual end date vs payment date.
+
+Tracker #405 records `UMI03-LI-01 = CLOSED / PROTECTED FOR TRACKER PURPOSES`.
+
+## 10.3 Full Closure reconstruction baseline
+
+The current Full Closure reconstruction started from exact live repository state:
+
+- main: `58d29e37787f602fcfc28b730e0ce746e13d7960`;
+- tree: `9c7e535ad996a19d081538b6f7a50078c37cc1ee`;
+- GitHub signature: verified / valid;
+- current UMI-03 production blob:
+  `src/qore/infrastructure/fixed_income_economics.py` =
+  `166a1b9896c2f7c3fc833bdd8eb20827f93ad12c`;
+- current UMI-03 test blob:
+  `tests/infrastructure/test_fixed_income_economics.py` =
+  `dce76e6b0009021057c59607016f3688f840bbf9`;
+- pre-correction architecture blob:
+  `docs/architecture/QORE-UMI-03-FIXED-INCOME-BOND-ECONOMICS-001.md` =
+  `d4ff27b4e863a8a95b10a5c4efa2b48fbe06490a`.
+
+The production blob remains the historically certified semantic implementation;
+PR #410 changed only its test owner. No current production projection defect was
+established by the retrospective audit or the Full Closure reconstruction.
+
+---
+
+# 11. Full Closure reconstruction findings and dispositions
+
+The read-only Full Closure reconstruction established exactly four verified
+UMI-03-owned findings.
+
+## FC03-01 — stale status / missing durable historical ledger
+
+Classification: `UMI03_INTERNAL_NONCODE`.
+
+Before this recertification record, the artifact still claimed
+`IMPLEMENTATION CANDIDATE; INDEPENDENT CERTIFICATION REQUIRED` after PR #321 had
+already been independently certified and merged.
+
+Disposition: **IMPLEMENTED IN THIS FULL CLOSURE CANDIDATE**.
+
+The top status is corrected to a Full Closure recertification record and the exact
+historical certification ledger is retained permanently in section 10.
+
+## FC03-02 — missing post-certification UMI03-LI-01 ledger
+
+Classification: `UMI03_INTERNAL_NONCODE`.
+
+The historical artifact did not record tracker #405 / PR #410 even though that
+later owner-local correction is part of the current UMI-03 evidence chain.
+
+Disposition: **IMPLEMENTED IN THIS FULL CLOSURE CANDIDATE**.
+
+Section 10.2 now retains the classification, correction scope, exact head/tree,
+quality evidence, review/integration result, merge and final protected status.
+
+## FC03-03 — missing current-main authority / no-regression reconciliation
+
+Classification: `UMI03_INTERNAL_NONCODE`.
+
+The historical artifact did not reconcile UMI-03 against later UMI stages and the
+product-specific unresolved/corrected semantic inventory discovered by UMI-13 and
+UMI-14.
+
+Disposition: **IMPLEMENTED IN THIS FULL CLOSURE CANDIDATE**.
+
+Sections 12-13 define the current bounded UMI-03 owner and classify downstream or
+cross-owner semantics without exporting any UMI-03 internal debt.
+
+## FC03-04 — historical closure protocol predates Full Closure law
+
+Classification: `UMI03_INTERNAL_NONCODE`.
+
+The historical protocol ended at expected-head merge / post-merge baseline and did
+not include final integrated-state whole-UMI audit, correction/re-audit, IA final
+falsification, #301 final evidence and Full Closure baseline freeze.
+
+Disposition: **IMPLEMENTED IN THIS FULL CLOSURE CANDIDATE**.
+
+Section 15 defines the mandatory definitive Full Closure gate.
+
+## Full Closure source/test finding state
+
+```text
+CURRENT PRODUCTION DEFECT FOUND = NO
+CURRENT MATERIAL UMI03 SEMANTIC BLOCKER FOUND = NO
+CURRENT OWNER-LOCAL ORACLE GAP = NO VERIFIED
+UMI03-LI-01 = CLOSED / PROTECTED
+FC03-01..04 = NONCODE RECERTIFICATION CORRECTIONS
+```
+
+No fifth material UMI-03-owned finding was established during the read-only
+reconstruction or this bounded documentation correction.
+
+---
+
+# 12. Current authority and downstream ownership reconciliation
+
+UMI-03 remains a **bounded fixed-income / bond economic foundation owner**. It owns
+only the semantics actually represented and certified here, including:
+
+- canonical economic-identity attachment;
+- face/par principal;
+- fixed/floating/zero-coupon structural semantics;
+- typed coupon rate / yield / spread separation;
+- financial tenor as structural financial period;
+- accrual-period and day-count references;
+- settlement lag/calendar/convention references;
+- clean/dirty price distinction;
+- yield convention;
+- benchmark/reference attachment;
+- contractual fixed-income cash-flow identity and deterministic schedule;
+- instrument terms and economic profile consistency.
+
+The following are **not unresolved UMI-03 internal debt merely because they involve
+fixed-income products**.
+
+## 12.1 UMI-04 / rates and term structures
+
+Curve nodes, discount factors, zero/par/forward rates, bootstrapping,
+interpolation, curve construction and term-structure provenance belong to UMI-04
+and later valuation methodology where applicable.
+
+```text
+UMI03 BENCHMARK REFERENCE
+!= UMI04 CURVE AUTHORITY
+```
+
+## 12.2 D07 / computed valuation and analytics producer
+
+Issue #350 retains concrete computed-valuation methodology, exact input evidence,
+producer invocation and reproduction authority.
+
+UMI-03 value types and conventions do not prove YTM solving, fair value, accrued
+interest calculation, duration, convexity, spread calculation or any other
+computed analytics producer.
+
+```text
+VALUE TYPE EXISTS != VALUE COMPUTED
+YIELD CONVENTION EXISTS != YIELD SOLVER EXISTS
+```
+
+## 12.3 UMI-14 product-specific fixed-income / credit specializations
+
+UMI-13 correctly recorded broad `fixed-income-credit` coverage as partial where
+material subfamily semantics exceeded ordinary-bond foundation ownership. UMI-14
+then created or adjudicated bounded product-specific owners rather than silently
+expanding UMI-03.
+
+Examples include:
+
+- ABS/MBS pool, tranche, priority and prepayment semantics — separately corrected
+  under UMI-14 Lane 2 / PR #371;
+- loans / credit facilities — separately governed by the UMI-14 loan/facility
+  owner lane;
+- Sukuk / Shari'ah-compliant structural semantics — cross-family/product-specific
+  qualification, not ordinary-bond foundation by implication;
+- insurance-linked risk-transfer / trigger semantics — product-specific
+  qualification, not ordinary-bond semantics;
+- warrant / convertible structural-payoff semantics — cross-family derivative /
+  equity / structured-product qualification where material.
+
+These specializations may be required for broader Program-D universal semantic
+closure, but their existence does not prove a defect in the bounded UMI-03
+foundation.
+
+## 12.4 Operational and provider boundaries
+
+UMI-03 does not own or certify:
+
+- provider-native instrument catalogs or capability support;
+- provider market-data support;
+- provider execution support;
+- account/portfolio state;
+- risk/margin/capacity reservation;
+- routing or order execution;
+- payment/settlement mutation;
+- productive credentials;
+- operational fixed-income support;
+- Production or real-capital authority.
+
+PR #298 and wider platform/provider readiness remain separate authority.
+
+## 12.5 Historical inherited gaps
+
+Historical references to `GAP-FND04-TIME-01` and `GAP-FND07-RES-01` remain useful
+provenance of the original certification context. They do not become UMI-03
+semantic debt merely because they were listed in the original artifact.
+
+The Full Closure criterion is owner-bounded:
+
+```text
+CROSS-OWNER LABEL != PERMISSION TO EXPORT UMI03 INTERNAL DEBT
+CROSS-OWNER REQUIREMENT != UMI03 DEFECT WITHOUT OWNER EVIDENCE
+```
+
+---
+
+# 13. Current-main no-regression reconciliation
+
+The Full Closure reconstruction verified the following current-state facts before
+this documentation correction:
+
+1. The exact production owner remains present at current main with blob
+   `166a1b9896c2f7c3fc833bdd8eb20827f93ad12c`.
+2. The exact PR #410 hardened test owner remains present with blob
+   `dce76e6b0009021057c59607016f3688f840bbf9`.
+3. The production owner still preserves the semantic separations declared by the
+   historical architecture: price/money, clean/dirty, rate/yield/spread,
+   tenor/timeframe, settlement convention/execution, benchmark reference/curve
+   authority and contractual cash flow/payment execution.
+4. PR #410 did not mutate production semantics; it strengthened independent
+   field-materiality regression oracles.
+5. No later stage established a current UMI-03 production projection defect.
+6. Later UMI-13/UMI-14 inventory/corrections preserve bounded UMI-03 foundation
+   ownership while assigning product-specific semantics to bounded downstream
+   owners where required.
+7. UMI-02 Full Closure is integrated into the starting main and remains the sole
+   canonical identity/lifecycle predecessor; UMI-03 does not create a competing
+   identity authority.
+8. No provider/platform/operational evidence is used to redefine UMI-03 economic
+   semantics.
+
+No-regression here is an architecture/ownership conclusion anchored to exact
+repository evidence. It is not a substitute for the repository-wide Quality Gate
+required on the final correction candidate.
+
+---
+
+# 14. Full Closure correction blast radius
+
+The authorized Gate-B correction is intentionally noncode and owner-local.
+
+Expected effective diff from exact starting main:
+
+```text
+MODIFIED:
+  docs/architecture/QORE-UMI-03-FIXED-INCOME-BOND-ECONOMICS-001.md
+
+UNCHANGED:
+  src/qore/infrastructure/fixed_income_economics.py
+  tests/infrastructure/test_fixed_income_economics.py
+  all other source/tests/docs/configuration
+```
+
+This correction must preserve the original architecture and historical evidence;
+it adds the durable Full Closure ledger instead of rewriting UMI-03 semantics.
+
+No code change is justified by FC03-01..04.
+
+---
+
+# 15. Definitive UMI-03 Full Closure gate
+
+Historical UMI-03 certification does not substitute for current Full Closure
+recertification.
+
+The mandatory sequence is now:
+
+```text
+COMPLETE UMI03 WORK
+-> ZERO UMI03 INTERNAL PENDING WORK
+-> EXACT CANDIDATE QUALITY GATE
+-> INDEPENDENT EXACT-CANDIDATE REVIEW
+-> IA CANDIDATE FALSIFICATION
+-> AUTHORIZED READY TRANSITION
+-> AUTHORIZED EXPECTED-HEAD MERGE
+-> VERIFY ACTUAL MERGE COMMIT / PARENTS / TREE / SIGNATURE
+-> VERIFY POST-MERGE MAIN
+-> RECONSTRUCT INTEGRATED UMI03 STATE
+-> CLAUDE FINAL WHOLE-UMI03 AUDIT
+-> COMPLETE CORRECTION OF EVERY MATERIAL UMI03-OWNED FINDING
+-> RE-AUDIT IF ANY CORRECTION CHANGED THE INTEGRATED STATE
+-> CLAUDE CLEAN
+-> IA FINAL INDEPENDENT FALSIFICATION
+-> #301 FINAL UMI03 EVIDENCE
+-> FREEZE FINAL UMI03 BASELINE
+-> UMI03 FULL-CLOSURE RECERTIFIED / SEALED / CLOSED
+-> ONLY THEN UMI04 FULL CLOSURE MAY ACTIVATE
+```
+
+The repository-wide Quality Gate remains mandatory:
+
+```text
+ruff check .
+mypy src tests
+pytest --cov=src/qore --cov-report=term-missing
+```
+
+No strictness downgrade, suppression, fake test, selective test weakening or CI
+shortcut is permitted.
+
+---
+
+# 16. Definitive Full Closure Definition of Done
+
+UMI-03 may be declared `FULL-CLOSURE RECERTIFIED / SEALED / CLOSED` only when all
+of the following are simultaneously true:
+
+1. exact starting main SHA/tree/signature are recorded;
+2. historical PR #321 base/head/merge evidence is permanently retained;
+3. historical PR #321 independent review and Quality Gate evidence are retained;
+4. original semantic architecture remains represented without distortion;
+5. PR #410 / `UMI03-LI-01` evidence is permanently retained;
+6. PR #410 exact corrected head/tree/merge evidence is retained;
+7. PR #410 Quality Gate and independent review evidence are retained;
+8. `UMI03-LI-01` remains classified correctly as TEST-ONLY oracle hardening;
+9. no production defect is fabricated from the retrospective oracle finding;
+10. current production blob is verified against the Full Closure baseline;
+11. current test blob is verified against the Full Closure baseline;
+12. all UMI-03-owned semantic invariants remain represented;
+13. rate/yield/spread remain non-interchangeable;
+14. clean/dirty price remain distinct;
+15. face/par remains distinct from execution quantity;
+16. financial tenor remains distinct from market timeframe/fixed seconds;
+17. settlement convention remains distinct from settlement execution;
+18. benchmark reference remains distinct from curve construction authority;
+19. contractual cash flow remains distinct from payment/ledger execution;
+20. UMI-04 curve/term-structure authority remains separate;
+21. D07 computed valuation/methodology authority remains separate;
+22. provider/platform support remains separate;
+23. account/risk/execution/settlement operational authority remains separate;
+24. ABS/MBS specialization is not silently treated as ordinary-bond UMI-03 debt;
+25. loans/facilities specialization is not silently treated as UMI-03 debt;
+26. Sukuk/Shari'ah qualification is not falsely closed by conventional bond terms;
+27. insurance-linked risk/trigger semantics are not falsely closed by conventional
+    bond terms;
+28. convertible/warrant payoff semantics are not falsely closed by static UMI-03
+    terms;
+29. every verified FC03 finding has an explicit owner/disposition;
+30. no verified material UMI-03-owned finding remains pending;
+31. correction diff is owner-local and blast-radius audited;
+32. exact candidate passes Ruff;
+33. exact candidate passes strict Mypy;
+34. exact candidate passes Pytest with repository coverage reporting;
+35. independent exact-candidate review is bound to the exact candidate SHA;
+36. IA independently falsifies the exact candidate before Ready/merge;
+37. Ready occurs only under explicit authorization;
+38. merge occurs only under explicit expected-head authorization;
+39. actual merge SHA/parents/tree/signature are independently verified;
+40. post-merge main is independently verified;
+41. integrated-state reconstruction finds zero internal UMI-03 pending work;
+42. Claude performs a final whole-UMI03 audit on the integrated state;
+43. every material final-audit finding is completely corrected in UMI-03 ownership;
+44. any changed integrated state is re-audited;
+45. final Claude result is clean;
+46. IA performs final independent falsification after Claude clean;
+47. IA final result is PASS;
+48. #301 receives explicit authorized final UMI-03 closure evidence;
+49. final UMI-03 main/tree/artifact baseline is frozen;
+50. final status explicitly distinguishes bounded UMI-03 semantic closure from
+    universal Program-D, operational, provider and Production readiness;
+51. UMI-04 Full Closure starts only after UMI-03 is formally sealed and closed.
+
+Failure of any required item means UMI-03 Full Closure remains incomplete.
+
+---
+
+# 17. Full Closure non-claims and current candidate state
+
+This recertification record does **not** claim:
+
+- UMI-03 is already Full-Closure recertified;
+- the current Gate-B documentation candidate has passed the Quality Gate;
+- the current candidate has completed independent review;
+- Ready is authorized or completed;
+- merge is authorized or completed;
+- final Claude whole-UMI03 audit is complete;
+- IA final falsification is complete;
+- #301 final evidence is written;
+- UMI-04 Full Closure is authorized;
+- Program-D universal semantic closure;
+- QORE universal market readiness;
+- provider/platform fixed-income support;
+- computed valuation methodology/producer support;
+- operational execution/settlement support;
+- Production readiness;
+- real-capital authority.
+
+Current Gate-B disposition after this correction is intended to be:
+
+```text
+FC03-01 = IMPLEMENTED / NOT YET RECERTIFIED
+FC03-02 = IMPLEMENTED / NOT YET RECERTIFIED
+FC03-03 = IMPLEMENTED / NOT YET RECERTIFIED
+FC03-04 = IMPLEMENTED / NOT YET RECERTIFIED
+SOURCE SEMANTIC CHANGE = NONE
+TEST CHANGE = NONE
+FULL CLOSURE = CANDIDATE ONLY
+```
+
+The artifact may become final closure evidence only through the sequence in
+sections 15-16 and the authorized #301 final evidence gate.

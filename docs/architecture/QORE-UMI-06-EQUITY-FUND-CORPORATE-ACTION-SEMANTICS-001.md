@@ -2,13 +2,15 @@
 
 ## Status
 
-**PROGRAM D / UMI-06 — IMPLEMENTATION CANDIDATE; INDEPENDENT CERTIFICATION REQUIRED**
+**PROGRAM D / UMI-06 — FULL CLOSURE RECERTIFICATION CORRECTION CANDIDATE; NOT SEALED**
 
 Tracking: Issue #326  
 Master roadmap: Issue #303  
 Universal Markets / Instruments program: Issue #301  
-Certified starting baseline: `22241b770975083cd31bfa65a680339cec5a33ed`  
-Predecessor: UMI-05 / Issue #324 / PR #325 — CLOSED
+Historical certified starting baseline: `22241b770975083cd31bfa65a680339cec5a33ed`  
+Historical implementation merge: `b44529c8e3caf5badf6ff49da2f0246f3f985219` / PR #327  
+Full Closure starting baseline: `e355a14257073862c3e6767d44d3bc058fb9ad8c`  
+Predecessor in the serial Full Closure sequence: UMI-05 — SEALED / CLOSED
 
 This artifact defines the minimum provider-neutral immutable semantics needed for
 equity securities, depositary receipts, fund/pooled vehicles, structural NAV and
@@ -67,14 +69,15 @@ NO DATA PROVENANCE -> NO QUANTITATIVE CLAIM
 NO VERIFIED SEMANTICS -> NO SUPPORT CLAIM
 ```
 
-Repository-wide carry-forwards remain binding:
+Repository-wide carry-forwards are reconciled as of the Full Closure starting
+baseline:
 
-- `GAP-FND04-TIME-01` — OPEN / HIGH;
-- `GAP-FND07-RES-01` — OPEN / HIGH;
-- PR #298 — HOLD;
-- research lineage gaps remain open.
+- `GAP-FND04-TIME-01` / #333 — CLOSED / completed downstream; it is not UMI-06-owned work;
+- `GAP-FND07-RES-01` / #332 — OPEN / HIGH and remains cross-owner;
+- PR #298 — OPEN / DRAFT / HOLD and remains cross-owner;
+- research lineage / concrete methodology gaps remain outside UMI-06 ownership.
 
-UMI-06 does not close, promote, or reclassify any of them.
+UMI-06 does not close, promote, or reclassify cross-owner work by implication.
 
 ---
 
@@ -567,16 +570,27 @@ Tests must attack at minimum:
 26. Rights expiration cannot precede record date.
 27. Rights terms expose no exercise/execution engine.
 28. Material logical values are repeatable and secret-free.
+29. `FundVehicleTerms` full parent projection covers every current bounded
+    `FundVehicleKind` across the complete `share_class` present/absent ×
+    `nav_basis` present/absent matrix, so sibling-guard or kind-conditioned
+    projection contamination fails.
 
 ---
 
 # 10. Compatibility / blast radius
 
-The candidate is intentionally additive:
+The original implementation was intentionally additive:
 
-- one new infrastructure semantic module;
-- one new adversarial test module;
+- one infrastructure semantic module;
+- one adversarial test module;
 - this architecture artifact.
+
+The Full Closure correction is also bounded:
+
+- production source remains byte-identical;
+- the historical owner test remains intact;
+- one owner-local Full Closure oracle module is added;
+- this architecture artifact is reconciled with durable repository evidence.
 
 No certified UMI-02/03/04/05, provider, market-data, execution, account, risk,
 position/settlement, runtime, persistence or client implementation is modified.
@@ -590,9 +604,9 @@ receive separate certification.
 
 ---
 
-# 11. Stage exit
+# 11. Full Closure stage exit
 
-UMI-06 may close only after:
+Historical UMI-06 implementation already completed its original governed lifecycle:
 
 `IMPLEMENTATION`
 `-> ADVERSARIAL TESTS`
@@ -606,6 +620,209 @@ UMI-06 may close only after:
 `-> BASELINE FREEZE`
 `-> ISSUE #326 CLOSED`
 
-Until then:
+The current serial recertification requires the stronger Full Closure sequence:
 
-`IMPLEMENTED CANDIDATE != CERTIFIED UMI-06`
+`GATE A / COMPLETE RECONSTRUCTION`
+`-> IDENTIFY ALL UMI06-OWNED PENDING WORK`
+`-> GATE B / OWNER CORRECTION`
+`-> ZERO INTERNAL PENDING CANDIDATE`
+`-> GATE C / CREATE DRAFT PR`
+`-> EXACT-CANDIDATE SYNTHETIC-MERGE QUALITY GATE`
+`-> CLAUDE EXACT-CANDIDATE READ-ONLY AUDIT`
+`-> IA EXACT-CANDIDATE FALSIFICATION`
+`-> GATE D / DRAFT -> READY`
+`-> GATE E / EXPECTED-HEAD MERGE`
+`-> VERIFY ACTUAL MERGE / MAIN`
+`-> POST-MERGE CI ON ACTUAL MAIN`
+`-> CLAUDE FINAL WHOLE-UMI06 AUDIT`
+`-> IA FINAL FALSIFICATION`
+`-> GATE F / FINAL #301 EVIDENCE`
+`-> FREEZE / SEALED / CLOSED`
+
+Until that entire sequence completes:
+
+`HISTORICALLY CERTIFIED UMI-06 != FULL-CLOSURE SEALED UMI-06`
+
+---
+
+# 12. Full Closure reconstruction and correction ledger
+
+## 12.1 Exact current baseline
+
+Gate A and Gate B were bound to:
+
+- `main`: `e355a14257073862c3e6767d44d3bc058fb9ad8c`;
+- tree: `221297010c1019a0f7e89e39e091edac6f2040f2`;
+- GitHub merge signature: verified / valid;
+- source blob: `44ed79ad27ea7b95c28b6811376bbb62bf4a7b0e`;
+- hardened historical test blob: `56f3e257b99aca7ebe77a5d6949c50e9d71aa7b2`;
+- pre-Full-Closure architecture blob: `b78d679060e357e660c038ea97d7585de2175d58`.
+
+No production-source drift was found between the historical UMI-06 implementation
+and the Full Closure starting baseline.
+
+## 12.2 Historical implementation ledger — PR #327
+
+The durable original implementation evidence is:
+
+- base: `22241b770975083cd31bfa65a680339cec5a33ed`;
+- exact reviewed head: `e757c8a22cbed2905c9b37dc164f10681502662e`;
+- candidate tree: `d4601aa043ddeb707a584b1ee49889c1f7197044`;
+- exact-head QORE CI #1049 / run `31842589207` — SUCCESS;
+- Ruff PASS;
+- Mypy PASS — 576 source files at that historical baseline;
+- Pytest PASS — 2532 passed / 6 inherited warnings;
+- global coverage 84%;
+- UMI-06 module 92%;
+- actual protected merge: `b44529c8e3caf5badf6ff49da2f0246f3f985219`;
+- merge tree: `d4601aa043ddeb707a584b1ee49889c1f7197044`;
+- merge parents: historical base + exact reviewed head;
+- GitHub merge signature: verified / valid;
+- exact diff: three additive owner files, `+1916/-0`;
+- source blob: `44ed79ad27ea7b95c28b6811376bbb62bf4a7b0e`;
+- original test blob: `104ac7fdf856649b9c06c4c315bd65a2334a0039`;
+- architecture blob: `b78d679060e357e660c038ea97d7585de2175d58`;
+- #301 recorded UMI-06 certified and Issue #326 closed/completed.
+
+Historical PRE-CHK corrections retained as permanent evidence:
+
+- `PRE-CHK-UMI06-01` — ETN/index-linked leakage removed from `FundVehicleKind`;
+- `PRE-CHK-UMI06-02` — benchmark qualification bound to existing UMI-02
+  `IdentityRelationshipId` rather than creating second endpoint authority.
+
+Claude's first review package encountered `FINDING-UMI06-01`, an evidence-access
+blocker only. The package was corrected without candidate mutation and the same
+exact head later received `READY FOR INTEGRATION GATE`. Historical findings
+`FINDING-UMI06-02..06` were adjudicated as non-blocking hardening/informational
+items and did not establish a production defect.
+
+## 12.3 Logical-identity retrospective hardening — #405 / PR #414
+
+The retrospective field-materiality audit later classified:
+
+`UMI06-LI-01 = CONFIRMED ORACLE GAP / MEDIUM`
+
+No production semantic/projection defect was established. Production source was
+not reopened.
+
+PR #414 added owner-local TEST-ONLY complete-projection guards. Its first reviewed
+head `755b52c0df006590ce5cf3096b3377dc8ca4cdce` is historical only: IA found
+`UMI06-LI-01-GATE-001`, a sibling-guard correlation in the equity
+`security_kind × share_class` fixtures.
+
+The corrected exact head was:
+
+- head: `d21623e73bab33b8376e7b1fa1e8337cfcb0ac45`;
+- head tree: `d881e97f979dcec7121e02b6e7a0b5b30d82bc33`;
+- test blob: `56f3e257b99aca7ebe77a5d6949c50e9d71aa7b2`;
+- production blob retained: `44ed79ad27ea7b95c28b6811376bbb62bf4a7b0e`;
+- QORE CI #1215 / run `32212531241` — SUCCESS;
+- Ruff PASS;
+- Mypy PASS — 612 source files at that baseline;
+- Pytest PASS — 3241 passed / 6 inherited warnings;
+- total coverage 86%;
+- UMI-06 module 93%;
+- cumulative PR blast radius: one test file, `+185/-0`;
+- production files touched: zero;
+- actual merge: `120856305588154459af925196687ffad69424ea`;
+- merge tree: `d881e97f979dcec7121e02b6e7a0b5b30d82bc33`;
+- GitHub merge signature: verified / valid.
+
+The corrected hardening supplied full reconstruction oracles for equity security,
+depositary receipt, fund optional branches, benchmark qualification, cash
+dividend, stock dividend, split and rights distribution material.
+
+## 12.4 Full Closure Gate A / Gate B / Gate C findings
+
+The current Full Closure reconstruction and same-branch IA falsification classified:
+
+| Finding | Classification | Initial state | Current candidate disposition |
+|---|---|---:|---:|
+| `FC06-01` stale candidate status / missing #327 durable ledger | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
+| `FC06-02` missing #405/#414 hardening ledger | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
+| `FC06-03` missing current-main/blob/downstream reconciliation | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
+| `FC06-04` historical exit procedure predates serial Full Closure | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
+| `FC06-05` stale TIME-01 OPEN claim after #333 closure | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
+| `FC06-06` missing durable disposition of historical UMI06 findings | `UMI_INTERNAL_NONCODE` | OPEN | RESOLVED IN CANDIDATE |
+| `FC06-07` `FundVehicleTerms` optional/kind projection oracle correlation | `UMI_INTERNAL_BLOCKER / TEST-ONLY ORACLE GAP / MEDIUM` | OPEN | CORRECTED IN CANDIDATE |
+| `FC06-08` initial Gate B artifact ordered Gate C after exact-candidate audit | `UMI_INTERNAL_NONCODE / GOVERNANCE PROCEDURE ORDER` | OPEN ON INITIAL GATE-B HEAD | RESOLVED IN CANDIDATE |
+| `FC06-09` Draft-PR exact-candidate CI failed Ruff import ordering | `UMI_INTERNAL_BLOCKER / CI-LINT` | OPEN DURING GATE-C QUALIFICATION | CORRECTED IN CURRENT CANDIDATE; REQUALIFICATION REQUIRED |
+
+`FC06-07` did not establish a production defect. The production implementation
+already projects `share_class` and `nav_basis` independently. The gap was that the
+pre-existing test suite did not independently kill all sibling-guard and
+vehicle-kind-conditioned omission mutations.
+
+Gate B adds one owner-local Full Closure oracle module that covers:
+
+- every current bounded `FundVehicleKind`;
+- `share_class=None`, `nav_basis=None`;
+- share-class present / NAV absent;
+- share-class absent / NAV present;
+- share-class present / NAV present;
+- complete parent projection with independently reconstructed nested NAV material.
+
+This forms the complete `6 × 2 × 2` witness basis for the current bounded enum and
+optional-state space. A projection guarded incorrectly by either optional sibling
+or by any one current vehicle kind must fail at least one full-parent oracle.
+
+`FC06-08` was found by IA while falsifying initial Gate B head
+`a2d9bb654826998fe15ea0caa04b975697909efb`. That head is historical only and
+receives no qualification. The corrected procedure now places Gate C/Draft PR
+before synthetic-merge CI and exact-candidate independent audit, consistent with
+the serial Full Closure law.
+
+`FC06-09` was exposed only after Gate C created Draft PR #422 and GitHub evaluated
+the exact synthetic merge. QORE CI #1234 / run `32316182718` on head
+`67c3021e503bd36c3544605e8a2df9dac778e778`, QORE CI #1235 / run `32316335818`
+on head `305520eb65260e91cb9cbf222b8b9229fda7e104`, and QORE CI #1236 / run
+`32316410139` on head `1aded7ce5b4438ba59bc4461eb890312510213e6` all failed exclusively at
+Ruff `I001`; Mypy and Pytest were skipped. Those heads and runs have zero
+qualification value. No suppression, `noqa`, strictness reduction or production
+mutation was used. The current test-owner correction follows Ruff's mechanically
+reported canonical import grouping and must obtain a fresh full quality gate.
+
+## 12.5 Current owner / downstream boundary
+
+UMI-06 continues to own only bounded equity, fund and corporate-action semantic
+terms. It does not absorb downstream specialization merely because those products
+reference UMI-06 material.
+
+Current open/draft work inspected during Gate A — including UMI-14 UIT, CFD,
+event-contract, securities-financing, volatility/variance, crypto staking/tokenization,
+specialized commodity and rates/OTC lanes, plus PR #298 and the cTrader Demo probe —
+does not modify the UMI-06 production owner or the historical UMI-06 test owner.
+
+The UIT lane is a bounded downstream qualification and deliberately does not add
+`FundVehicleKind.UNIT_INVESTMENT_TRUST` or rewrite `FundVehicleTerms`.
+
+```text
+DOWNSTREAM QUALIFICATION != UMI-06 OWNER DRIFT
+OPEN DOWNSTREAM PR != MAIN
+```
+
+## 12.6 Full Closure qualification law
+
+Gate C correction status remains candidate-only. It does not certify itself.
+
+Before UMI-06 can be sealed, the unchanged exact candidate must still receive:
+
+- fresh exact candidate / synthetic merge diff and blob audit;
+- full authoritative QORE quality gate on the exact PR candidate;
+- independent Claude exact-candidate read-only audit;
+- IA exact-candidate falsification;
+- explicit Gate D before Draft -> Ready;
+- explicit Gate E before expected-head merge;
+- actual merge/main verification;
+- post-merge CI on actual `main`;
+- independent Claude final whole-UMI06 audit;
+- IA final falsification;
+- explicit Gate F before final #301 evidence/freeze.
+
+```text
+FAILED HISTORICAL HEAD != QUALIFIED CANDIDATE
+CORRECTION CANDIDATE != QUALIFIED CANDIDATE
+CI GREEN != ENGINEERING APPROVAL
+HISTORICAL PASS != CURRENT EXACT-HEAD PASS
+NO FINAL #301 EVIDENCE -> NO FULL-CLOSURE SEAL
+```

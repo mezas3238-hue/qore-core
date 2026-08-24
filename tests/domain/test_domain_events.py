@@ -27,6 +27,7 @@ EVENT_ID = DomainEventId(UUID("00000000-0000-0000-0000-000000000101"))
 CORRELATION_ID = CorrelationId(UUID("00000000-0000-0000-0000-000000000102"))
 CAUSATION_ID = CausationId(UUID("00000000-0000-0000-0000-000000000103"))
 TIMESTAMP = datetime(2026, 1, 1, tzinfo=UTC)
+RUNTIME_ID = UUID("00000000-0000-0000-0000-000000000199")
 
 
 def metadata() -> DomainEventMetadata:
@@ -177,7 +178,11 @@ class TestDomainEventCompatibility:
             execution_id=UUID("00000000-0000-0000-0000-000000000104"),
             runtime_version="0.2.0",
         )
-        runtime_event = RuntimeStartedEvent(timestamp=TIMESTAMP, context=context)
+        runtime_event = RuntimeStartedEvent(
+            timestamp=TIMESTAMP,
+            context=context,
+            event_id=RUNTIME_ID,
+        )
 
         assert isinstance(runtime_event, DomainEvent)
         assert not isinstance(runtime_event, BusinessDomainEvent)
@@ -195,7 +200,7 @@ class TestDomainEventCompatibility:
 
         assert domain_event.logical_values() == (
             str(EVENT_ID.value),
-            TIMESTAMP.isoformat(),
+            "2026-01-01T00:00:00.000000+00:00",
             "qore.portfolio.created",
             "1.0",
             "portfolio",

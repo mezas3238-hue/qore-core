@@ -338,7 +338,7 @@ def test_logical_values_are_stable_and_value_based() -> None:
     assert first.logical_values() == second.logical_values()
     assert first.logical_values() == (
         "90000000-0000-0000-0000-000000000001",
-        "2026-08-07T21:00:00+00:00",
+        "2026-08-07T21:00:00.000000+00:00",
         "virtual-trader.structure",
         "completed",
         (

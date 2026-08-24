@@ -17,10 +17,17 @@ from qore.kernel.result import Failure, Result, Success
 
 FIXED_TS = datetime(2026, 1, 1, tzinfo=UTC)
 EXECUTION_ID = UUID("00000000-0000-0000-0000-000000000001")
+STARTED_ID = UUID("00000000-0000-0000-0000-000000000010")
+STOPPED_ID = UUID("00000000-0000-0000-0000-000000000011")
+FAILED_ID = UUID("00000000-0000-0000-0000-000000000012")
 
 
 def fixed_clock() -> datetime:
     return FIXED_TS
+
+
+def fixed_ids() -> UUID:
+    return STARTED_ID
 
 
 def runtime_context() -> RuntimeContext:
@@ -28,7 +35,6 @@ def runtime_context() -> RuntimeContext:
 
 
 def current_state(lifecycle: ApplicationLifecycle) -> LifecycleState:
-    """Read state without retaining literal narrowing across transitions."""
     return lifecycle.state
 
 
@@ -96,6 +102,7 @@ class TestRuntimeBootstrap:
             Configuration(application_name="test-app"),
             runtime_context=context,
             clock=fixed_clock,
+            event_id_source=fixed_ids,
         )
 
         assert isinstance(result, Success)
@@ -114,6 +121,7 @@ class TestRuntimeBootstrap:
         result = bootstrap(  # type: ignore[call-overload]
             runtime_context=runtime_context(),
             clock=fixed_clock,
+            event_id_source=fixed_ids,
         )
 
         assert isinstance(result, Failure)
@@ -124,11 +132,16 @@ class TestRuntimeBootstrap:
 class TestRuntimeLifecycleEvents:
     def test_start_and_stop_emit_deterministic_runtime_events(self) -> None:
         bus = EventBus()
-        engine = CoreEngine(Configuration(application_name="test-app"), ServiceRegistry(), bus)
+        engine = CoreEngine(
+            Configuration(application_name="test-app"),
+            ServiceRegistry(),
+            bus,
+        )
         lifecycle = ApplicationLifecycle(
             engine,
             runtime_context=runtime_context(),
             clock=fixed_clock,
+            event_id_source=fixed_ids,
         )
         started = CapturingHandler()
         stopped = CapturingHandler()
@@ -149,11 +162,16 @@ class TestRuntimeLifecycleEvents:
 
     def test_event_handlers_observe_committed_lifecycle_states(self) -> None:
         bus = EventBus()
-        engine = CoreEngine(Configuration(application_name="test-app"), ServiceRegistry(), bus)
+        engine = CoreEngine(
+            Configuration(application_name="test-app"),
+            ServiceRegistry(),
+            bus,
+        )
         lifecycle = ApplicationLifecycle(
             engine,
             runtime_context=runtime_context(),
             clock=fixed_clock,
+            event_id_source=fixed_ids,
         )
         started = StateCapturingHandler(lifecycle)
         stopped = StateCapturingHandler(lifecycle)
@@ -181,6 +199,7 @@ class TestRuntimeLifecycleEvents:
             engine,
             runtime_context=runtime_context(),
             clock=fixed_clock,
+            event_id_source=fixed_ids,
         )
         failed = CapturingHandler()
         bus.subscribe(RuntimeFailedEvent, failed)
@@ -200,11 +219,16 @@ class TestRuntimeLifecycleEvents:
                 raise RuntimeError(f"cannot handle {event.event_name}")
 
         bus = EventBus()
-        engine = CoreEngine(Configuration(application_name="test-app"), ServiceRegistry(), bus)
+        engine = CoreEngine(
+            Configuration(application_name="test-app"),
+            ServiceRegistry(),
+            bus,
+        )
         lifecycle = ApplicationLifecycle(
             engine,
             runtime_context=runtime_context(),
             clock=fixed_clock,
+            event_id_source=fixed_ids,
         )
         failed = CapturingHandler()
         bus.subscribe(RuntimeStartedEvent, FailingHandler())
