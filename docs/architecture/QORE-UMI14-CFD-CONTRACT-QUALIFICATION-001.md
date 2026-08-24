@@ -2,242 +2,233 @@
 
 ## 1. STATUS
 
-PROGRAM D / UMI-14 LANE IMPLEMENTATION CANDIDATE
-INDEPENDENT CERTIFICATION REQUIRED
+PROGRAM D / UMI-14 — UNR-015 FULL-CLOSURE CANDIDATE
 
-## 2. MISSION / ISSUE
+Tracker: #398  
+PR: #399  
+Family: `contracts-for-difference`
 
-Issue #398
-UMI13-UNR-015 bounded CFD qualification / rolling lifecycle semantics
+This document describes the current integration candidate. Certification still
+requires an exact frozen SHA, post-freeze full CI, serial independent review and
+protected expected-head merge.
 
-## 3. EXACT BASELINE
+## 2. CURRENT CERTIFIED PREDECESSOR BASELINE
 
-SHA: 39e1598e91c912f473f9628c3aab30fe7b9cc034
-TREE: 380140cd55ba7d90dcbd9e5fbb4944bdec9368d2
+The candidate is synchronized after UNR-014 integration to certified `main`:
 
-## 4. EVIDENCE BOUNDARY
+`59767ac2fccd1ee6db0a199800e55d6e0c6f0ba2`
 
-Repository facts are Integration-Gate verified and supplied.
-Not independently verified by DeepSeek.
+The previous preparatory CFD candidate was built on an earlier snapshot and is
+historical only. No earlier CI/reviewer result certifies the current candidate.
 
-## 5. FINANCIAL EXPERT R6 RESULT
+## 3. AUTHORIZED D04 MISSION
 
-- Bounded ISDA CFD price-return/opening-closing semantics proven.
-- Dividend/income/distribution/gross-net return not proven universal.
-- Financing leg not proven mandatory.
-- ESMA rolling-spot specimen requires bounded:
-  - spot reference
-  - automatic contract rollover
-  - party termination capability.
+UNR-015 does **not** create one universal standalone CFD economic owner.
+It composes already certified static authority and adds only bounded CFD
+qualification where the tracker proved material residual semantics:
 
-## 6. REPOSITORY CODER R5 RESULT
+1. CFD family/economic-form qualification over UMI-02 + UMI-05;
+2. explicit price-determination reference binding for a bounded cash-settled
+   forward-form CFD when the economic and fixing references differ;
+3. bounded rolling-spot lifecycle qualification retaining:
+   - the certified FX quoted-pair / quotation-direction reference;
+   - contract period;
+   - automatic contract rollover;
+   - party termination capability.
 
-No universal standalone CFD owner required.
-Standard fixed-maturity and swap-form economics can use existing UMI-05
-forward/swap primitives.
-Bounded rolling-lifecycle residual remains.
+`CFD QUALIFICATION != NEW UNIVERSAL CFD ECONOMIC IDENTITY`
 
-## 7. INTEGRATION-GATE FINAL CROSS-ADJUDICATION
+## 4. CERTIFIED AUTHORITY REUSE
 
-No universal CFD owner.
-Bounded qualification/composition over UMI-02 + UMI-05.
+- UMI-02: `EconomicIdentity`, `EconomicIdentityId`, family classification and
+  `IdentityRelationship`.
+- UMI-05: `ForwardContractTerms`, price strike, fixing and CASH settlement.
+- Certified FX lane: `FxQuotedCurrencyPair` + `FxQuoteBasis` for the rolling-spot
+  reference. UNR-015 does not duplicate FX pair or quotation-direction authority.
+- D06-owned calendar semantics may remain referenced by an existing UMI-05
+  settlement convention, but this owner generates no dates.
 
-## 8. R1/R2/R3/R4 CORRECTION HISTORY
+## 5. FORWARD-FORM CFD QUALIFICATION
 
-- R1: constructors/oracles/rolling semantics/type hardening corrected.
-- R2: exact UMI-02/05 constructors, temporal rule, same-reference oracle corrected.
-- R3: module docstring, exact logical-value oracles, non-UTC projection,
-  field-surface and negative-space oracles corrected.
-- R4: final static package.
-- R5: full EconomicIdentity logical projection, collision regression,
-  valid foreign negative oracles, exact optional narrowing, and finite
-  negative-space field/method oracles added.
+`CfdForwardFormQualification` requires:
 
-## 9. WHY NO UNIVERSAL CFD OWNER
+- exact CFD `EconomicIdentity` with family `contracts-for-difference` and
+  `TRADABLE_INSTRUMENT` kind;
+- identity ID equal to the reused UMI-05 forward instrument identity;
+- exact `ForwardContractTerms`;
+- CASH settlement;
+- PRICE strike semantics;
+- explicit fixing terms;
+- exact finite positive notional state and exact nested identity wrappers;
+- all retained nested UMI-05 material revalidated before logical projection.
 
-UMI-02 already provides `IdentityFamilyCode` classification.
-UMI-05 already provides forward/fixing/settlement/composition.
-Only bounded binding and rolling lifecycle specialization are missing.
+When the forward economic reference and fixing reference are identical, no
+extra relationship is needed and a redundant relationship is rejected.
 
-## 10. AUTHORITY MAP
+When they differ, an exact `IdentityRelationship` is mandatory:
 
-- Economic identity/family: UMI-02
-- Forward/fixing/settlement: UMI-05
-- Price-determination binding: this module
-- Rolling lifecycle qualification: this module
-- FX pair/quotation: future certified Lane 4
-- Current observation: D05
-- Payoff/valuation: D07
-- Margin/leverage: D08/D09
-- Execution/close-out: D10
-- Settlement mutation: D11
-- Legal/regulatory: D22
+- source = forward economic reference;
+- target = fixing reference;
+- relationship code = `price-determination-reference`;
+- explicit effective interval retained as UMI-02 static relationship material;
+- no ordinal precedence on this single binding.
 
-## 11. EXACT REUSED UMI-02 TYPES
+## 6. NO INVENTED FIXING-DAY TIME LAW
 
-EconomicIdentity
-EconomicIdentityId
-IdentityFamilyCode
-IdentityRelationship
-IdentityRelationshipCode
+The earlier preparatory candidate required the relationship to cover the entire
+UTC civil fixing date. That rule is removed.
 
-## 12. EXACT REUSED UMI-05 TYPES
+A UMI-05 fixing carries an exact `date`, not an intraday fixing instant. UNR-015
+therefore cannot prove or execute a universal UTC-day coverage rule without
+inventing timing authority. Relationship effective dates are retained and
+revalidated, but this D04 owner does not evaluate whether a runtime/intraday
+fixing instant lies inside them.
 
-ForwardContractTerms
-DerivativeFixingTerms
-DerivativeBenchmarkReference
-DerivativeSettlementStyle
+`STATIC RELATIONSHIP != D06 FIXING-TIME EVALUATION`
 
-## 13. TYPED CANONICAL CFD FAMILY CONSTANT
+## 7. ROLLING-SPOT CFD QUALIFICATION
 
-IdentityFamilyCode("contracts-for-difference")
+`CfdRollingSpotLifecycleQualification` retains exactly:
 
-## 14. TYPED PRICE-DETERMINATION RELATIONSHIP CONSTANT
+- CFD qualification ID;
+- CFD economic identity;
+- certified `FxQuotedCurrencyPair` as the spot/quotation reference;
+- exact positive `FinancialTenor` contract period;
+- type-encoded `automatic-contract-rollover` semantic;
+- type-encoded `party-termination-capability` semantic;
+- evidence reference.
 
-IdentityRelationshipCode("price-determination-reference")
+The CFD identity must not collapse into the FX quoted-pair identity.
+
+The value stores no current spot price, observed fixing, generated roll date,
+roll scheduler, order, margin state or settlement mutation.
 
-## 15. SAME-REFERENCE RULE
-
-When economic reference equals fixing reference, no relationship is required.
-Any supplied relationship fails closed.
-
-## 16. DISTINCT-REFERENCE RULE
-
-When economic reference differs from fixing reference, an explicit
-price-determination reference relationship is mandatory.
-
-## 17. UMI-02 SOURCE != TARGET RULE
-
-UMI-02 rejects same-source-target relationships upstream.
-Tests never construct a same-endpoint relationship for qualification.
-
-## 18. COMPLETE UTC FIXING-DATE COVERAGE LAW
-
-Exact date fixing has unknown intraday location.
-Relationship must cover complete UTC civil date:
-effective_from <= fixing_day_start
-effective_until is None or effective_until >= next_day_start.
-
-## 19. NON-UTC NORMALIZATION
-
-All datetimes canonicalize through UTC.
-Tests prove non-UTC input yields exact UTC logical projection.
-
-## 20. UPSTREAM NAIVE-DATETIME REJECTION
-
-UMI-02 rejects naive datetime before CFD aggregation.
-
-## 21. SUBCLASS-LAUNDERING BOUNDARY
-
-Local exact-type checks reject:
-IdentityFamilyCode subclass
-IdentityRelationshipCode subclass
-EconomicIdentityId subclass.
-
-## 22. FORWARD-FORM CFD QUALIFICATION
-
-Cash-settled bounded forward qualification binding fix reference to economic
-reference.
-
-## 23. ROLLING-SPOT LIFECYCLE QUALIFICATION
-
-Bounded ESMA automatic rollover + party termination capability.
-
-## 24. AUTOMATIC-ROLLOVER SEMANTIC
-
-Type-encoded, no configurable False field.
-
-## 25. PARTY-TERMINATION CAPABILITY
-
-Type-encoded, no configurable False field.
-
-## 26. ABSENCE OF FALSE-STATE BOOLEANS
-
-Field surface excludes automatic_rollover/party_termination_capability bools.
-
-## 27. FINANCIAL TENOR REUSE
-
-FinancialTenor and FinancialTenorUnit reused exactly.
-
-## 28. SCHEDULE-ROLL NEGATIVE BOUNDARY
-
-Valid DerivativeScheduleConvention cannot substitute.
-
-## 29. IDENTITY-LIFECYCLE-EVENT NEGATIVE BOUNDARY
-
-Valid IdentityLifecycleEvent cannot substitute.
-
-## 30. CRYPTO-PERPETUAL NEGATIVE BOUNDARY
-
-CryptoPerpetualContractTerms cannot substitute.
-Test is explicitly classified as TYPE-BOUNDARY evidence only.
-
-## 31. SWAP/TRS NON-CLAIM
-
-This module does not create total-return CFD completeness.
-UMI-05 ReferenceReturnSwapLeg remains uncertified for full TRS CFD.
-
-## 32. FINANCING NON-CLAIM
-
-No universal CFD financing.
-
-## 33. MARGIN-CLOSEOUT NON-CLAIM
-
-D08/D09/D10/D22 authority remains outside this module.
-
-## 34. SPREAD-BET NON-CLAIM
-
-D22 legal qualification remains outside this module.
-
-## 35. FUTURE LANE-4 / PR-382 FX COMPOSITION
-
-PR #382 is unmerged and non-certified.
-This module does not import fx_semantics.
-After certification, rolling-spot composition must reuse certified FX pair/
-quotation.
-
-## 36. FIELD / AUTHORITY MATRIX
-
-CfdForwardFormQualification: UMI-02 + UMI-05 + local binding.
-CfdRollingSpotLifecycleQualification: UMI-02 + FinancialTenor + local lifecycle.
-
-## 37. NEGATIVE-SPACE AUTHORITY MATRIX
-
-No current price, observed fixing, PnL, payoff, margin, leverage, provider,
-execution, settlement mutation, legal eligibility, or spread-bet status.
-
-## 38. COMPLETE FORWARD TEST-ORACLE LEDGER
-
-All required forward oracles are present in the R5 test file.
-
-## 39. COMPLETE ROLLING TEST-ORACLE LEDGER
-
-All required rolling oracles are present in the R5 test file.
-
-## 40. DETERMINISM / TYPE / SECURITY LAW
-
-Frozen/slotted dataclasses, exact runtime type checks, no Any, no type ignore,
-deterministic logical_values(), secret-free.
-
-## 41. REGISTRY PROHIBITION
-
-UMI-13 registry artifact is not modified.
-
-## 42. UMI-12 HARNESS PROHIBITION
-
-UMI-12 tests and architecture are not modified.
-
-## 43. INTEGRATION SEQUENCING
-
-Candidate is preparatory only.
-PR #376 remains prior integration gate.
-This lane cannot merge around earlier lanes.
-After predecessor certification, branch must be synced/rebased through approved
-process, producing a new SHA/CI/diff audit/independent review.
-
-## 44. EXPLICIT NON-CLAIMS
-
-THIS MODULE QUALIFIES / COMPOSES EXISTING ECONOMIC AUTHORITY.
-IT DOES NOT REPLACE UMI-05.
-No UMI-14 pass. No Program-D pass. No production readiness. No provider support.
-No valuation. No execution. No settlement mutation. No real-capital authority.
+## 8. WHY THE FX REFERENCE IS NOW PRESENT
+
+The preparatory CFD branch predated certification of the FX lane and therefore
+could only state that future rolling-spot composition must reuse certified FX
+pair/quotation semantics later.
+
+That predecessor is now integrated. The current UNR-015 candidate therefore
+performs the required sequential composition and binds the rolling-spot
+qualification to `FxQuotedCurrencyPair` rather than inventing a second FX model.
+
+## 9. EXACT-TYPE / MALFORMED-STATE LAW
+
+The local owner hardens reused older contracts at the composition boundary:
+
+- exact local wrappers and exact UUIDs;
+- exact `EconomicIdentityId` plus exact nested UUID;
+- exact family/kind/construction/evidence types;
+- exact UMI-05 forward/notional/strike/fixing/reference/evidence types;
+- exact finite `Decimal` where retained;
+- exact dates (not `datetime`);
+- exact settlement-convention children when supplied;
+- exact UMI-02 relationship IDs/codes/timestamps/evidence;
+- exact FX pair IDs, quote basis and evidence;
+- exact positive `FinancialTenor` and unit.
+
+Every local `logical_values()` re-runs validation. Parent projections therefore
+fail closed against `object.__setattr__` corruption of nested retained state.
+Partially fabricated objects with missing required slots fail before trust and
+cannot become valid logical identity.
+
+## 10. LOGICAL IDENTITY
+
+Forward-form identity contains:
+
+- qualification ID;
+- full CFD economic identity projection;
+- full reused forward projection;
+- price-determination relationship projection when required;
+- evidence reference.
+
+Rolling-spot identity contains:
+
+- qualification ID;
+- full CFD economic identity projection;
+- full certified FX quoted-pair projection, including quotation direction;
+- contract period;
+- automatic-rollover marker;
+- party-termination marker;
+- evidence reference.
+
+Material reference/binding/period dimensions must not collapse. No caller-order
+collection exists in this bounded owner.
+
+## 11. NEGATIVE SPACE / OWNER MAP
+
+This module owns no:
+
+- current market observation or resolved state (D05);
+- clock, calendar generation or intraday fixing evaluation (D06);
+- payoff, PnL, probability or valuation (D07);
+- account, position, leverage or margin state (D08/D09);
+- order, close-out or execution (D10);
+- settlement/cash mutation (D11);
+- legal/regulatory/spread-bet determination (D22);
+- provider/network capability;
+- Production or real-capital authority.
+
+No universal CFD financing convention is claimed.
+No complete total-return-swap CFD owner is claimed.
+
+## 12. DETERMINISM / SECURITY
+
+- local values are `dataclass(frozen=True, slots=True)`;
+- no implicit wall clock;
+- no random UUID generation;
+- no mutable dataclass singleton used as a module constant;
+- no filesystem/network/provider access;
+- no retry/scheduler/thread/subprocess authority;
+- no secrets or productive credentials;
+- deterministic logical projection from retained static state.
+
+## 13. TEST / FALSIFICATION OBLIGATIONS
+
+The owner tests must falsify at least:
+
+- same vs distinct fixing-reference binding;
+- wrong binding endpoints/code/ordinal;
+- absence of the old invented complete-UTC-day law;
+- non-PRICE / non-CASH forward-form rejection;
+- exact wrappers, subclasses and nested UUID/Decimal/date corruption;
+- post-construction corruption during `logical_values()`;
+- FX spot-reference pair/quotation non-collapse;
+- CFD identity vs FX pair identity non-conflation;
+- contract-period non-collapse;
+- negative operational/Production authority;
+- AST checks covering both direct-name and attribute calls.
+
+Green coverage is mechanical evidence only and never substitutes for reviewer
+falsification.
+
+## 14. SERIAL GATE
+
+Required integration sequence for the final candidate:
+
+`VERIFY CURRENT MAIN`
+`-> HARDEN/SYNC CANDIDATE`
+`-> FULL CI`
+`-> DIFF AUDIT`
+`-> FREEZE EXACT HEAD + SYNTHETIC`
+`-> POST-FREEZE FULL CI`
+`-> DEEPSEEK EXPERT`
+`-> IA ADJUDICATION`
+`-> DEEPSEEK CODER`
+`-> IA ADJUDICATION`
+`-> CLAUDE CODE`
+`-> IA ADJUDICATION`
+`-> IA FINAL`
+`-> READY`
+`-> PROTECTED EXPECTED-HEAD MERGE`
+`-> POST-MERGE MAIN VERIFICATION`
+`-> #398 CLOSE IF SATISFIED`
+
+Any material HEAD mutation after freeze invalidates that round and restarts the
+serial review chain from DeepSeek Expert.
+
+## 15. NON-CLAIMS
+
+No UMI-14 final pass. No Program-D final pass. No QORE universal-market-ready
+claim. No provider readiness. No Production. No real capital.
