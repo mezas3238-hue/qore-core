@@ -40,7 +40,10 @@ def _identity(
     )
 
 
-def _component(identity: EconomicIdentity, evidence_index: int) -> UnitInvestmentTrustSpecifiedSecurity:
+def _component(
+    identity: EconomicIdentity,
+    evidence_index: int,
+) -> UnitInvestmentTrustSpecifiedSecurity:
     return UnitInvestmentTrustSpecifiedSecurity(
         security_identity=identity,
         evidence_ref=UnitInvestmentTrustEvidenceRef(_uuid(evidence_index)),
