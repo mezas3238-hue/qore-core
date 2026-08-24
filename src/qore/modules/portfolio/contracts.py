@@ -21,7 +21,7 @@ from qore.functional.decisions import (
     FunctionalDecision,
 )
 from qore.kernel.errors import DomainError
-from qore.kernel.temporal import is_timezone_aware_datetime
+from qore.kernel.temporal import canonical_instant, is_timezone_aware_datetime
 
 
 class PortfolioError(DomainError):
@@ -100,7 +100,7 @@ class AllocationIntent:
             str(self.intent_id.value),
             str(self.source_decision_id.value),
             str(self.correlation_id.value),
-            self.timestamp.isoformat(),
+            canonical_instant(self.timestamp),
             tuple(target.logical_values() for target in self.targets),
         )
 

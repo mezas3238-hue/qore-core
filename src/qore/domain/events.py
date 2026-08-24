@@ -9,6 +9,7 @@ from uuid import UUID
 
 from qore.kernel.domain_event import DomainEvent
 from qore.kernel.errors import ValidationError
+from qore.kernel.temporal import canonical_instant
 
 type DomainMetadataScalar = str | int | float | bool | UUID | None
 type DomainMetadataValue = DomainMetadataScalar | tuple[DomainMetadataValue, ...]
@@ -162,7 +163,7 @@ class BusinessDomainEvent(DomainEvent):
         """Representación determinista por valores del contrato de dominio."""
         return (
             str(self.event_id),
-            self.timestamp.isoformat(),
+            canonical_instant(self.timestamp),
             self.event_name,
             self.event_version,
             *self._domain_metadata.logical_values(),

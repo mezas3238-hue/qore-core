@@ -21,10 +21,15 @@ from qore.kernel.result import Failure, Result, Success
 
 FIXED_TS = datetime(2026, 1, 1, tzinfo=UTC)
 EXECUTION_ID = UUID("00000000-0000-0000-0000-000000000005")
+RUNTIME_EVENT_ID = UUID("00000000-0000-0000-0000-000000000020")
 
 
 def fixed_clock() -> datetime:
     return FIXED_TS
+
+
+def fixed_event_id() -> UUID:
+    return RUNTIME_EVENT_ID
 
 
 def runtime_context() -> RuntimeContext:
@@ -39,11 +44,13 @@ class CountingEngine(CoreEngine):
         event_bus: EventBus,
         *,
         fail_start: bool = False,
+        fail_stop: bool = False,
     ) -> None:
         super().__init__(configuration, service_registry, event_bus)
         self.start_count = 0
         self.stop_count = 0
         self._fail_start = fail_start
+        self._fail_stop = fail_stop
 
     def start(self) -> Result[None, KernelError]:
         self.start_count += 1
@@ -53,6 +60,8 @@ class CountingEngine(CoreEngine):
 
     def stop(self) -> Result[None, KernelError]:
         self.stop_count += 1
+        if self._fail_stop:
+            return Failure(KernelError("engine stop failed"))
         return Success(None)
 
 
@@ -75,6 +84,7 @@ def supervised_lifecycle(
         runtime_supervisor=supervisor,
         runtime_context=context,
         clock=fixed_clock if context is not None else None,
+        event_id_source=fixed_event_id if context is not None else None,
     )
     return lifecycle, supervisor
 
@@ -157,6 +167,7 @@ class TestBootstrappedRuntimeComposition:
             Configuration(application_name="test-app"),
             runtime_context=context,
             clock=fixed_clock,
+            event_id_source=fixed_event_id,
         )
         assert isinstance(result, Success)
         app = result.value

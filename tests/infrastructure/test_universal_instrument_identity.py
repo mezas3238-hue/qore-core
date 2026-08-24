@@ -41,6 +41,10 @@ _T0 = datetime(2026, 1, 1, tzinfo=UTC)
 _T1 = datetime(2026, 3, 1, tzinfo=UTC)
 _T2 = datetime(2026, 6, 1, tzinfo=UTC)
 _T3 = datetime(2026, 9, 1, tzinfo=UTC)
+_T0_CANONICAL = "2026-01-01T00:00:00.000000+00:00"
+_T1_CANONICAL = "2026-03-01T00:00:00.000000+00:00"
+_T2_CANONICAL = "2026-06-01T00:00:00.000000+00:00"
+_T3_CANONICAL = "2026-09-01T00:00:00.000000+00:00"
 _PLUS_TWO = timezone(timedelta(hours=2))
 
 
@@ -105,6 +109,111 @@ def _revision(
         effective_until=effective_until,
         recorded_at=recorded_at,
         evidence_ref=_evidence(5_000 + revision),
+    )
+
+
+def _expected_economic_identity(identity: EconomicIdentity) -> tuple[object, ...]:
+    return (
+        (str(identity.identity_id.value),),
+        identity.kind.value,
+        (identity.family.value,),
+        identity.construction.value,
+        (str(identity.evidence_ref.value),),
+    )
+
+
+def _expected_listing(
+    listing: ListingIdentity,
+    *,
+    valid_from: str,
+    valid_until: str | None,
+) -> tuple[object, ...]:
+    return (
+        (str(listing.listing_id.value),),
+        (str(listing.economic_identity_id.value),),
+        (listing.venue.value,),
+        listing.display_symbol,
+        valid_from,
+        valid_until,
+        (str(listing.evidence_ref.value),),
+    )
+
+
+def _expected_external_identifier(identifier: ExternalIdentifier) -> tuple[object, ...]:
+    source_tuple = None
+    if identifier.source is not None:
+        source_tuple = (
+            str(identifier.source.adapter_id.value),
+            str(identifier.source.source_id.value),
+            identifier.source.port_name.value,
+        )
+    return (
+        identifier.kind.value,
+        (identifier.namespace.value,),
+        (identifier.value.value,),
+        source_tuple,
+        (identifier.venue.value,) if identifier.venue is not None else None,
+    )
+
+
+def _expected_canonical_ref(reference: CanonicalIdentityRef) -> tuple[object, ...]:
+    if isinstance(reference.value, EconomicIdentityId):
+        return ("economic", (str(reference.value.value),))
+    else:  # ListingIdentityId
+        return ("listing", (str(reference.value.value),))
+
+
+def _expected_relationship(
+    relationship: IdentityRelationship,
+    *,
+    effective_from: str,
+    effective_until: str | None,
+) -> tuple[object, ...]:
+    return (
+        (str(relationship.relationship_id.value),),
+        (str(relationship.source_identity_id.value),),
+        (str(relationship.target_identity_id.value),),
+        (relationship.relationship.value,),
+        effective_from,
+        effective_until,
+        (str(relationship.evidence_ref.value),),
+        relationship.ordinal,
+    )
+
+
+def _expected_lifecycle_event(
+    event: IdentityLifecycleEvent,
+    *,
+    effective_at: str,
+    recorded_at: str,
+) -> tuple[object, ...]:
+    return (
+        (str(event.event_id.value),),
+        _expected_canonical_ref(event.subject),
+        (event.event_type.value,),
+        effective_at,
+        recorded_at,
+        (str(event.evidence_ref.value),),
+    )
+
+
+def _expected_mapping_revision(
+    revision: ExternalIdentityMappingRevision,
+    *,
+    effective_from: str,
+    effective_until: str | None,
+    recorded_at: str,
+) -> tuple[object, ...]:
+    return (
+        (str(revision.mapping_id.value),),
+        (revision.revision.value,),
+        (revision.parent_revision.value,) if revision.parent_revision is not None else None,
+        _expected_external_identifier(revision.external_identity),
+        _expected_canonical_ref(revision.target),
+        effective_from,
+        effective_until,
+        recorded_at,
+        (str(revision.evidence_ref.value),),
     )
 
 
@@ -504,6 +613,384 @@ def test_mapping_logical_values_canonicalize_timezone_equivalent_instants() -> N
         recorded_at=_T2.astimezone(_PLUS_TWO),
     )
     assert mapping.logical_values() == offset_mapping.logical_values()
+
+
+def test_economic_identity_complete_projection() -> None:
+    identity = _identity(
+        91,
+        family="future-series",
+        kind=EconomicIdentityKind.REFERENCE_OBJECT,
+        construction=IdentityConstructionKind.CONTINUOUS_REFERENCE,
+    )
+    expected = _expected_economic_identity(identity)
+    assert identity.logical_values() == expected
+
+
+def test_listing_identity_complete_projection() -> None:
+    identity = _identity(92)
+    listing = ListingIdentity(
+        listing_id=ListingIdentityId(_uuid(901)),
+        economic_identity_id=identity.identity_id,
+        venue=MarketVenueCode("xnas"),
+        display_symbol="AAPL",
+        valid_from=_T0,
+        valid_until=_T1,
+        evidence_ref=_evidence(901),
+    )
+    expected = _expected_listing(
+        listing,
+        valid_from=_T0_CANONICAL,
+        valid_until=_T1_CANONICAL,
+    )
+    assert listing.logical_values() == expected
+
+
+def test_listing_identity_complete_projection_optional_none() -> None:
+    identity = _identity(92)
+    listing = ListingIdentity(
+        listing_id=ListingIdentityId(_uuid(902)),
+        economic_identity_id=identity.identity_id,
+        venue=MarketVenueCode("xnas"),
+        display_symbol="AAPL",
+        valid_from=_T0,
+        valid_until=None,
+        evidence_ref=_evidence(902),
+    )
+    expected = _expected_listing(
+        listing,
+        valid_from=_T0_CANONICAL,
+        valid_until=None,
+    )
+    assert listing.logical_values() == expected
+
+
+def test_external_identifier_complete_projection() -> None:
+    source = _source()
+    identifier = ExternalIdentifier(
+        kind=ExternalIdentifierKind.PROVIDER_NATIVE,
+        namespace=ExternalIdentifierNamespace("ctrader.symbol-id"),
+        value=ExternalIdentifierValue("12345"),
+        source=source,
+        venue=MarketVenueCode("otc"),
+    )
+    expected = _expected_external_identifier(identifier)
+    assert identifier.logical_values() == expected
+
+
+def test_external_identifier_complete_projection_optional_none() -> None:
+    identifier = _external("EURUSD")
+    expected = _expected_external_identifier(identifier)
+    assert identifier.logical_values() == expected
+
+
+def test_canonical_ref_economic_complete_projection() -> None:
+    identity = _identity(93)
+    ref = CanonicalIdentityRef(identity.identity_id)
+    expected = _expected_canonical_ref(ref)
+    assert ref.logical_values() == expected
+
+
+def test_canonical_ref_listing_complete_projection() -> None:
+    identity = _identity(94)
+    listing = ListingIdentity(
+        listing_id=ListingIdentityId(_uuid(903)),
+        economic_identity_id=identity.identity_id,
+        venue=MarketVenueCode("xnas"),
+        display_symbol="MSFT",
+        valid_from=_T0,
+        valid_until=_T1,
+        evidence_ref=_evidence(903),
+    )
+    ref = CanonicalIdentityRef(listing.listing_id)
+    expected = _expected_canonical_ref(ref)
+    assert ref.logical_values() == expected
+
+
+def test_identity_relationship_complete_projection() -> None:
+    source = _identity(95)
+    target = _identity(96)
+    relationship = IdentityRelationship(
+        relationship_id=IdentityRelationshipId(_uuid(904)),
+        source_identity_id=source.identity_id,
+        target_identity_id=target.identity_id,
+        relationship=IdentityRelationshipCode("component"),
+        effective_from=_T0,
+        effective_until=_T2,
+        evidence_ref=_evidence(904),
+        ordinal=2,
+    )
+    expected = _expected_relationship(
+        relationship,
+        effective_from=_T0_CANONICAL,
+        effective_until=_T2_CANONICAL,
+    )
+    assert relationship.logical_values() == expected
+
+
+def test_identity_relationship_complete_projection_optional_none() -> None:
+    source = _identity(95)
+    target = _identity(96)
+    relationship = IdentityRelationship(
+        relationship_id=IdentityRelationshipId(_uuid(905)),
+        source_identity_id=source.identity_id,
+        target_identity_id=target.identity_id,
+        relationship=IdentityRelationshipCode("underlying"),
+        effective_from=_T0,
+        effective_until=None,
+        evidence_ref=_evidence(905),
+        ordinal=None,
+    )
+    expected = _expected_relationship(
+        relationship,
+        effective_from=_T0_CANONICAL,
+        effective_until=None,
+    )
+    assert relationship.logical_values() == expected
+
+
+def test_identity_lifecycle_event_complete_projection() -> None:
+    identity = _identity(97)
+    event = IdentityLifecycleEvent(
+        event_id=IdentityLifecycleEventId(_uuid(906)),
+        subject=CanonicalIdentityRef(identity.identity_id),
+        event_type=LifecycleEventCode("listing.start"),
+        effective_at=_T1,
+        recorded_at=_T2,
+        evidence_ref=_evidence(906),
+    )
+    expected = _expected_lifecycle_event(
+        event,
+        effective_at=_T1_CANONICAL,
+        recorded_at=_T2_CANONICAL,
+    )
+    assert event.logical_values() == expected
+
+
+def test_external_identity_mapping_revision_complete_projection() -> None:
+    identity = _identity(98)
+    listing = ListingIdentity(
+        listing_id=ListingIdentityId(_uuid(907)),
+        economic_identity_id=identity.identity_id,
+        venue=MarketVenueCode("xnas"),
+        display_symbol="NVDA",
+        valid_from=_T0,
+        valid_until=_T2,
+        evidence_ref=_evidence(907),
+    )
+    external = ExternalIdentifier(
+        kind=ExternalIdentifierKind.PROVIDER_NATIVE,
+        namespace=ExternalIdentifierNamespace("provider.symbol"),
+        value=ExternalIdentifierValue("NVDA.US"),
+        source=_source(),
+        venue=MarketVenueCode("xnas"),
+    )
+    revision = _revision(
+        mapping_id=IdentityMappingId(_uuid(908)),
+        revision=2,
+        parent=1,
+        external=external,
+        target=CanonicalIdentityRef(listing.listing_id),
+        effective_from=_T0,
+        effective_until=_T2,
+        recorded_at=_T3,
+    )
+    expected = _expected_mapping_revision(
+        revision,
+        effective_from=_T0_CANONICAL,
+        effective_until=_T2_CANONICAL,
+        recorded_at=_T3_CANONICAL,
+    )
+    assert revision.logical_values() == expected
+
+
+def test_external_identity_mapping_revision_optional_none() -> None:
+    identity = _identity(99)
+    external = _external("EURUSD")
+    revision = _revision(
+        mapping_id=IdentityMappingId(_uuid(909)),
+        revision=1,
+        parent=None,
+        external=external,
+        target=CanonicalIdentityRef(identity.identity_id),
+        effective_from=_T0,
+        effective_until=None,
+        recorded_at=_T2,
+    )
+    expected = _expected_mapping_revision(
+        revision,
+        effective_from=_T0_CANONICAL,
+        effective_until=None,
+        recorded_at=_T2_CANONICAL,
+    )
+    assert revision.logical_values() == expected
+
+
+def test_identity_mapping_history_complete_projection() -> None:
+    identity = _identity(100)
+    mapping_id = IdentityMappingId(_uuid(910))
+    external = _external("AAPL")
+    target = CanonicalIdentityRef(identity.identity_id)
+
+    first = _revision(
+        mapping_id=mapping_id,
+        revision=1,
+        parent=None,
+        external=external,
+        target=target,
+        effective_from=_T0,
+        effective_until=_T2,
+        recorded_at=_T1,
+    )
+    second = _revision(
+        mapping_id=mapping_id,
+        revision=2,
+        parent=1,
+        external=external,
+        target=target,
+        effective_from=_T2,
+        effective_until=None,
+        recorded_at=_T3,
+    )
+    history = IdentityMappingHistory((first, second))
+
+    expected = (
+        (
+            _expected_mapping_revision(
+                first,
+                effective_from=_T0_CANONICAL,
+                effective_until=_T2_CANONICAL,
+                recorded_at=_T1_CANONICAL,
+            ),
+            _expected_mapping_revision(
+                second,
+                effective_from=_T2_CANONICAL,
+                effective_until=None,
+                recorded_at=_T3_CANONICAL,
+            ),
+        ),
+    )
+    assert history.logical_values() == expected
+
+
+def test_universal_instrument_identity_graph_complete_projection() -> None:
+    # Two economic identities with guaranteed ordering: low < high by UUID.
+    low = _identity(101)
+    high = _identity(
+        102,
+        family="benchmark-index",
+        kind=EconomicIdentityKind.REFERENCE_OBJECT,
+    )
+
+    listing = ListingIdentity(
+        listing_id=ListingIdentityId(_uuid(911)),
+        economic_identity_id=low.identity_id,
+        venue=MarketVenueCode("xnas"),
+        display_symbol="AAPL",
+        valid_from=_T0,
+        valid_until=_T2,
+        evidence_ref=_evidence(911),
+    )
+
+    relationship = IdentityRelationship(
+        relationship_id=IdentityRelationshipId(_uuid(912)),
+        source_identity_id=low.identity_id,
+        target_identity_id=high.identity_id,
+        relationship=IdentityRelationshipCode("underlying"),
+        effective_from=_T0,
+        effective_until=_T2,
+        evidence_ref=_evidence(912),
+        ordinal=1,
+    )
+
+    event = IdentityLifecycleEvent(
+        event_id=IdentityLifecycleEventId(_uuid(913)),
+        subject=CanonicalIdentityRef(listing.listing_id),
+        event_type=LifecycleEventCode("listing.start"),
+        effective_at=_T1,
+        recorded_at=_T2,
+        evidence_ref=_evidence(913),
+    )
+
+    mapping_id = IdentityMappingId(_uuid(914))
+    external = _external("AAPL")
+    first = _revision(
+        mapping_id=mapping_id,
+        revision=1,
+        parent=None,
+        external=external,
+        target=CanonicalIdentityRef(listing.listing_id),
+        effective_from=_T0,
+        effective_until=_T2,
+        recorded_at=_T1,
+    )
+    second = _revision(
+        mapping_id=mapping_id,
+        revision=2,
+        parent=1,
+        external=external,
+        target=CanonicalIdentityRef(listing.listing_id),
+        effective_from=_T2,
+        effective_until=None,
+        recorded_at=_T3,
+    )
+    history = IdentityMappingHistory((first, second))
+
+    # Graph constructed with high before low to test sorting.
+    graph = UniversalInstrumentIdentityGraph(
+        economic_identities=(high, low),
+        listings=(listing,),
+        relationships=(relationship,),
+        lifecycle_events=(event,),
+        mapping_histories=(history,),
+    )
+
+    expected_history = (
+        (
+            _expected_mapping_revision(
+                first,
+                effective_from=_T0_CANONICAL,
+                effective_until=_T2_CANONICAL,
+                recorded_at=_T1_CANONICAL,
+            ),
+            _expected_mapping_revision(
+                second,
+                effective_from=_T2_CANONICAL,
+                effective_until=None,
+                recorded_at=_T3_CANONICAL,
+            ),
+        ),
+    )
+
+    expected = (
+        (
+            _expected_economic_identity(low),
+            _expected_economic_identity(high),
+        ),
+        (
+            _expected_listing(
+                listing,
+                valid_from=_T0_CANONICAL,
+                valid_until=_T2_CANONICAL,
+            ),
+        ),
+        (
+            _expected_relationship(
+                relationship,
+                effective_from=_T0_CANONICAL,
+                effective_until=_T2_CANONICAL,
+            ),
+        ),
+        (
+            _expected_lifecycle_event(
+                event,
+                effective_at=_T1_CANONICAL,
+                recorded_at=_T2_CANONICAL,
+            ),
+        ),
+        (expected_history,),
+    )
+
+    assert graph.logical_values() == expected
 
 
 def test_runtime_type_guards_reject_invalid_public_shapes() -> None:

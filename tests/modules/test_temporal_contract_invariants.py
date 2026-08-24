@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -36,6 +37,7 @@ from qore.functional.decisions import (
 )
 from qore.kernel.domain_event import DomainEvent
 from qore.kernel.errors import ValidationError
+from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.contracts import ReviewFunctionalDecisionCommand
 from qore.modules.cio.contracts import CreateCioDecisionCommand
 from qore.modules.knowledge.contracts import (
@@ -92,7 +94,9 @@ _UTC_TIMESTAMP = datetime(2026, 8, 9, 18, 0, tzinfo=UTC)
 _NAIVE_TIMESTAMP = datetime(2026, 8, 9, 18, 0)
 _NON_UTC = timezone(timedelta(hours=5, minutes=30))
 _NON_UTC_TIMESTAMP = datetime(2026, 8, 9, 23, 30, tzinfo=_NON_UTC)
+_CANONICAL_TIMESTAMP = "2026-08-09T18:00:00.000000+00:00"
 _CORRELATION_ID = CorrelationId(UUID("71000000-0000-0000-0000-000000000001"))
+_EVENT_ID = UUID("71000000-0000-0000-0000-000000000099")
 
 
 def _uuid(suffix: int) -> UUID:
@@ -277,6 +281,41 @@ def _direct_artifacts() -> tuple[
     return decision, analysis, assessment, snapshot, intent, record, proposal
 
 
+def _with_nested_timestamp(
+    proposal: OptimizationProposal,
+    timestamp: datetime,
+) -> OptimizationProposal:
+    record = proposal.source_knowledge
+    snapshot = record.source_snapshot
+    assessment = snapshot.source_assessments[0]
+    analysis = assessment.source_analysis
+
+    adjusted_analysis = replace(
+        analysis,
+        timestamp=timestamp,
+    )
+    adjusted_assessment = replace(
+        assessment,
+        timestamp=timestamp,
+        source_analysis=adjusted_analysis,
+    )
+    adjusted_snapshot = replace(
+        snapshot,
+        timestamp=timestamp,
+        source_assessments=(adjusted_assessment,),
+    )
+    adjusted_record = replace(
+        record,
+        timestamp=timestamp,
+        source_snapshot=adjusted_snapshot,
+    )
+    return replace(
+        proposal,
+        timestamp=timestamp,
+        source_knowledge=adjusted_record,
+    )
+
+
 def test_base_command_rejects_naive_and_accepts_non_utc_aware_timestamp() -> None:
     with pytest.raises(CommandValidationError, match="timezone-aware"):
         Command(
@@ -298,11 +337,16 @@ def test_base_command_rejects_naive_and_accepts_non_utc_aware_timestamp() -> Non
 
 def test_domain_event_rejects_naive_and_accepts_non_utc_aware_timestamp() -> None:
     with pytest.raises(ValidationError, match="timezone-aware"):
-        DomainEvent(timestamp=_NAIVE_TIMESTAMP, event_name="qore.temporal-test")
+        DomainEvent(
+            timestamp=_NAIVE_TIMESTAMP,
+            event_name="qore.temporal-test",
+            event_id=_EVENT_ID,
+        )
 
     value = DomainEvent(
         timestamp=_NON_UTC_TIMESTAMP,
         event_name="qore.temporal-test",
+        event_id=_EVENT_ID,
     )
     assert value.timestamp == _NON_UTC_TIMESTAMP
 
@@ -411,13 +455,15 @@ def test_direct_artifacts_accept_non_utc_aware_offsets() -> None:
     }
 
 
-def test_logical_values_preserve_explicit_offset() -> None:
-    decision = replace(_direct_artifacts()[0], timestamp=_NON_UTC_TIMESTAMP)
-    serialized_timestamp = decision.logical_values()[1]
+def test_stored_offset_preserved_and_logical_timestamp_canonicalized() -> None:
+    decision = replace(
+        _direct_artifacts()[0],
+        timestamp=_NON_UTC_TIMESTAMP,
+    )
 
-    assert serialized_timestamp == _NON_UTC_TIMESTAMP.isoformat()
-    assert isinstance(serialized_timestamp, str)
-    assert serialized_timestamp.endswith("+05:30")
+    assert decision.timestamp == _NON_UTC_TIMESTAMP
+    assert decision.timestamp.isoformat().endswith("+05:30")
+    assert decision.logical_values()[1] == _CANONICAL_TIMESTAMP
 
 
 def test_functional_decision_constructor_remains_resolved_and_explicit() -> None:
@@ -432,3 +478,221 @@ def test_functional_decision_constructor_remains_resolved_and_explicit() -> None
         outcome=DecisionOutcome.APPROVED,
     )
     assert decision.timestamp.utcoffset() == timedelta(hours=5, minutes=30)
+
+
+def test_canonical_instant_rejects_non_datetime() -> None:
+    invalid = cast(datetime, object())
+    with pytest.raises(
+        TypeError,
+        match="canonical instant requires a datetime",
+    ):
+        canonical_instant(invalid)
+
+
+def test_canonical_instant_rejects_naive_datetime() -> None:
+    with pytest.raises(
+        ValueError,
+        match="canonical instant requires a timezone-aware datetime",
+    ):
+        canonical_instant(_NAIVE_TIMESTAMP)
+
+
+def test_canonical_instant_positive_offset_equivalent() -> None:
+    assert canonical_instant(_UTC_TIMESTAMP) == _CANONICAL_TIMESTAMP
+    assert canonical_instant(_NON_UTC_TIMESTAMP) == _CANONICAL_TIMESTAMP
+
+
+def test_canonical_instant_negative_offset_equivalent() -> None:
+    negative_offset = timezone(timedelta(hours=-5))
+    negative_timestamp = datetime(
+        2026,
+        8,
+        9,
+        13,
+        0,
+        tzinfo=negative_offset,
+    )
+    assert canonical_instant(negative_timestamp) == _CANONICAL_TIMESTAMP
+
+
+def test_canonical_instant_different_instant_not_equal() -> None:
+    later = datetime(2026, 8, 9, 19, 0, tzinfo=UTC)
+    assert canonical_instant(later) != _CANONICAL_TIMESTAMP
+
+
+def test_canonical_instant_microseconds_preserved() -> None:
+    dt = datetime(2026, 8, 9, 18, 0, 0, 123456, tzinfo=UTC)
+    assert canonical_instant(dt) == "2026-08-09T18:00:00.123456+00:00"
+
+
+def test_canonical_instant_zero_microseconds() -> None:
+    assert canonical_instant(_UTC_TIMESTAMP) == _CANONICAL_TIMESTAMP
+
+
+def test_canonical_instant_input_preserved() -> None:
+    original = _NON_UTC_TIMESTAMP
+    original_iso = original.isoformat()
+    original_offset = original.utcoffset()
+
+    result = canonical_instant(original)
+    assert result == _CANONICAL_TIMESTAMP
+    assert original is _NON_UTC_TIMESTAMP
+    assert original.isoformat() == original_iso
+    assert original.utcoffset() == original_offset
+    assert original.isoformat().endswith("+05:30")
+
+
+def test_a1_command_equivalent_instant() -> None:
+    utc_command = Command(
+        command_id=CommandId(_uuid(121)),
+        timestamp=_UTC_TIMESTAMP,
+        name=CommandName("qore.temporal-test"),
+        metadata=_command_metadata(),
+    )
+    offset_command = replace(
+        utc_command,
+        timestamp=_NON_UTC_TIMESTAMP,
+    )
+    assert utc_command.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert offset_command.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert offset_command.timestamp == _NON_UTC_TIMESTAMP
+
+
+def test_a2_business_domain_event_equivalent_instant() -> None:
+    metadata = DomainEventMetadata(
+        category=DomainEventCategory("temporal"),
+        correlation_id=_CORRELATION_ID,
+    )
+    event_id = DomainEventId(_uuid(122))
+    event_version = DomainEventVersion("1")
+    event_name = "qore.temporal-test"
+
+    utc_event = BusinessDomainEvent(
+        timestamp=_UTC_TIMESTAMP,
+        event_name=event_name,
+        event_id=event_id,
+        event_version=event_version,
+        metadata=metadata,
+    )
+    offset_event = BusinessDomainEvent(
+        timestamp=_NON_UTC_TIMESTAMP,
+        event_name=event_name,
+        event_id=event_id,
+        event_version=event_version,
+        metadata=metadata,
+    )
+    assert utc_event.logical_values() == offset_event.logical_values()
+    assert offset_event.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert offset_event.timestamp == _NON_UTC_TIMESTAMP
+    assert offset_event.timestamp.isoformat().endswith("+05:30")
+
+
+def test_a3_functional_decision_equivalent_instant() -> None:
+    original = _direct_artifacts()[0]
+    adjusted = replace(original, timestamp=_NON_UTC_TIMESTAMP)
+    assert original.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+
+def test_a4_specialist_analysis_equivalent_instant() -> None:
+    original = _direct_artifacts()[1]
+    adjusted = replace(original, timestamp=_NON_UTC_TIMESTAMP)
+    assert original.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+
+def test_a5_allocation_intent_equivalent_instant() -> None:
+    original = _direct_artifacts()[4]
+    adjusted = replace(original, timestamp=_NON_UTC_TIMESTAMP)
+    assert original.logical_values()[3] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[3] == _CANONICAL_TIMESTAMP
+    assert adjusted.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+
+def test_a6_validation_assessment_equivalent_instant() -> None:
+    original = _direct_artifacts()[2]
+    adjusted = replace(original, timestamp=_NON_UTC_TIMESTAMP)
+    assert original.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+
+def test_a7_statistics_snapshot_equivalent_instant() -> None:
+    original = _direct_artifacts()[3]
+    adjusted = replace(original, timestamp=_NON_UTC_TIMESTAMP)
+    assert original.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+
+def test_a8_knowledge_record_equivalent_instant() -> None:
+    original = _direct_artifacts()[5]
+    adjusted = replace(original, timestamp=_NON_UTC_TIMESTAMP)
+    assert original.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+
+def test_a9_optimization_proposal_equivalent_instant() -> None:
+    original = _direct_artifacts()[6]
+    adjusted = replace(original, timestamp=_NON_UTC_TIMESTAMP)
+    assert original.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.timestamp == _NON_UTC_TIMESTAMP
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+
+def test_nested_equivalence_all_levels() -> None:
+    original = _direct_artifacts()[6]
+    adjusted = _with_nested_timestamp(original, _NON_UTC_TIMESTAMP)
+
+    adj_record = adjusted.source_knowledge
+    adj_snapshot = adj_record.source_snapshot
+    adj_assessment = adj_snapshot.source_assessments[0]
+    adj_analysis = adj_assessment.source_analysis
+
+    assert adj_analysis.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adj_assessment.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adj_snapshot.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adj_record.logical_values()[1] == _CANONICAL_TIMESTAMP
+    assert adjusted.logical_values()[1] == _CANONICAL_TIMESTAMP
+
+    assert adj_analysis.timestamp.isoformat().endswith("+05:30")
+    assert adj_assessment.timestamp.isoformat().endswith("+05:30")
+    assert adj_snapshot.timestamp.isoformat().endswith("+05:30")
+    assert adj_record.timestamp.isoformat().endswith("+05:30")
+    assert adjusted.timestamp.isoformat().endswith("+05:30")
+
+    assert original.logical_values() == adjusted.logical_values()
+
+
+def test_different_upstream_instant_materializes() -> None:
+    proposal = _direct_artifacts()[6]
+    record = proposal.source_knowledge
+    snapshot = record.source_snapshot
+    assessment = snapshot.source_assessments[0]
+    analysis = assessment.source_analysis
+
+    new_analysis = replace(
+        analysis,
+        timestamp=datetime(2026, 8, 9, 19, 0, tzinfo=UTC),
+    )
+    new_assessment = replace(assessment, source_analysis=new_analysis)
+    new_snapshot = replace(snapshot, source_assessments=(new_assessment,))
+    new_record = replace(record, source_snapshot=new_snapshot)
+    new_proposal = replace(proposal, source_knowledge=new_record)
+
+    assert proposal.logical_values() != new_proposal.logical_values()
+
+    assert assessment.timestamp == new_assessment.timestamp
+    assert snapshot.timestamp == new_snapshot.timestamp
+    assert record.timestamp == new_record.timestamp
+    assert proposal.timestamp == new_proposal.timestamp

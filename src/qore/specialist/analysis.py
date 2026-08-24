@@ -11,7 +11,7 @@ from uuid import UUID
 
 from qore.domain.events import CausationId, CorrelationId, DomainMetadataValue
 from qore.kernel.errors import DomainError
-from qore.kernel.temporal import is_timezone_aware_datetime
+from qore.kernel.temporal import canonical_instant, is_timezone_aware_datetime
 
 _RESERVED_SPECIALIST_METADATA_KEYS = frozenset({"correlation_id", "causation_id"})
 
@@ -264,7 +264,7 @@ class SpecialistAnalysis:
     def logical_values(self) -> tuple[object, ...]:
         return (
             str(self.analysis_id.value),
-            self.timestamp.isoformat(),
+            canonical_instant(self.timestamp),
             self.kind.value,
             self.status.value,
             self.metadata.logical_values(),

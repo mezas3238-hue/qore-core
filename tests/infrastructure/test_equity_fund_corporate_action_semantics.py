@@ -132,6 +132,66 @@ def test_equity_common_and_preferred_semantics_do_not_collapse() -> None:
     assert common.logical_values()[4] == "common"
     assert preferred.logical_values()[4] == "preferred"
     assert common.logical_values() != preferred.logical_values()
+    assert common.logical_values() == (
+        "equity-security",
+        (str(UUID(int=101)),),
+        (str(UUID(int=1)),),
+        (str(UUID(int=2)),),
+        "common",
+        ("class-a",),
+        (str(UUID(int=301)),),
+    )
+    assert preferred.logical_values() == (
+        "equity-security",
+        (str(UUID(int=102)),),
+        (str(UUID(int=1)),),
+        (str(UUID(int=2)),),
+        "preferred",
+        ("class-a",),
+        (str(UUID(int=302)),),
+    )
+
+
+def test_equity_security_terms_absent_share_class_projects_none() -> None:
+    terms = EquitySecurityTerms(
+        terms_id=_terms_id(103),
+        instrument_identity_id=_economic_id(3),
+        issuer_identity_id=_economic_id(4),
+        security_kind=EquitySecurityKind.PREFERRED,
+        share_class=None,
+        evidence_ref=_evidence(303),
+    )
+
+    assert terms.logical_values() == (
+        "equity-security",
+        (str(UUID(int=103)),),
+        (str(UUID(int=3)),),
+        (str(UUID(int=4)),),
+        "preferred",
+        None,
+        (str(UUID(int=303)),),
+    )
+
+
+def test_equity_security_terms_common_absent_share_class_projects_none() -> None:
+    terms = EquitySecurityTerms(
+        terms_id=_terms_id(104),
+        instrument_identity_id=_economic_id(5),
+        issuer_identity_id=_economic_id(6),
+        security_kind=EquitySecurityKind.COMMON,
+        share_class=None,
+        evidence_ref=_evidence(304),
+    )
+
+    assert terms.logical_values() == (
+        "equity-security",
+        (str(UUID(int=104)),),
+        (str(UUID(int=5)),),
+        (str(UUID(int=6)),),
+        "common",
+        None,
+        (str(UUID(int=304)),),
+    )
 
 
 def test_equity_terms_reject_identity_authority_laundering() -> None:
@@ -212,6 +272,15 @@ def test_depositary_receipt_retains_program_underlying_and_exact_ratio() -> None
     assert adr.logical_values()[4] == ("adr",)
     assert gdr.logical_values()[4] == ("gdr",)
     assert adr.logical_values() != gdr.logical_values()
+    assert adr.logical_values() == (
+        "depositary-receipt",
+        (str(UUID(int=100)),),
+        (str(UUID(int=10)),),
+        (str(UUID(int=11)),),
+        ("adr",),
+        ("2",),
+        (str(UUID(int=300)),),
+    )
 
 
 def test_depositary_receipt_rejects_self_reference() -> None:
@@ -248,6 +317,59 @@ def test_fund_nav_basis_is_structural_and_contains_no_nav_value_engine() -> None
     assert not hasattr(nav_basis, "calculate")
     assert not hasattr(nav_basis, "observe")
     assert not hasattr(fund, "nav")
+
+
+def test_fund_vehicle_terms_share_class_present_nav_basis_none() -> None:
+    terms = FundVehicleTerms(
+        terms_id=_terms_id(120),
+        instrument_identity_id=_economic_id(121),
+        vehicle_kind=FundVehicleKind.ETF,
+        share_class=EquityShareClassCode("retail"),
+        nav_basis=None,
+        evidence_ref=_evidence(122),
+    )
+
+    assert terms.logical_values() == (
+        "fund-vehicle",
+        (str(UUID(int=120)),),
+        (str(UUID(int=121)),),
+        "etf",
+        ("retail",),
+        None,
+        (str(UUID(int=122)),),
+    )
+
+
+def test_fund_vehicle_terms_share_class_none_nav_basis_present() -> None:
+    nav_basis = FundNavBasis(
+        currency_identity_id=_economic_id(133),
+        unit_identity_id=_economic_id(134),
+        basis=FundNavBasisCode("per-share"),
+        evidence_ref=_evidence(135),
+    )
+    terms = FundVehicleTerms(
+        terms_id=_terms_id(130),
+        instrument_identity_id=_economic_id(131),
+        vehicle_kind=FundVehicleKind.ETF,
+        share_class=None,
+        nav_basis=nav_basis,
+        evidence_ref=_evidence(132),
+    )
+
+    assert terms.logical_values() == (
+        "fund-vehicle",
+        (str(UUID(int=130)),),
+        (str(UUID(int=131)),),
+        "etf",
+        None,
+        (
+            (str(UUID(int=133)),),
+            (str(UUID(int=134)),),
+            ("per-share",),
+            (str(UUID(int=135)),),
+        ),
+        (str(UUID(int=132)),),
+    )
 
 
 def test_fund_nav_basis_rejects_same_currency_and_unit_identity() -> None:
@@ -300,6 +422,14 @@ def test_fund_benchmark_relationship_binds_umi02_relationship_and_return_basis()
     assert not hasattr(price_return, "benchmark_identity_id")
     assert not hasattr(price_return, "level")
     assert not hasattr(price_return, "calculate")
+    assert price_return.logical_values() == (
+        "fund-benchmark-relationship",
+        (str(UUID(int=110)),),
+        (str(UUID(int=80)),),
+        ("tracking-index",),
+        ("price-return",),
+        (str(UUID(int=310)),),
+    )
 
 
 def test_fund_benchmark_relationship_rejects_raw_relationship_id() -> None:
@@ -354,6 +484,21 @@ def test_cash_dividend_retains_exact_amount_and_does_not_invent_date_ordering() 
     assert not hasattr(terms, "pay")
     assert not hasattr(terms, "settle")
     assert not hasattr(terms, "apply")
+    assert terms.logical_values() == (
+        "cash-dividend",
+        (str(UUID(int=200)),),
+        (1,),
+        (str(UUID(int=41)),),
+        (
+            "1.25",
+            (str(UUID(int=40)),),
+        ),
+        "2026-01-01",
+        "2026-03-01",
+        "2026-01-15",
+        "2026-02-01",
+        (str(UUID(int=300)),),
+    )
 
 
 def test_cash_dividend_date_fields_reject_datetime_laundering() -> None:
@@ -393,6 +538,18 @@ def test_stock_dividend_retains_distribution_identity_and_ratio() -> None:
     assert terms.revision.logical_values() == (2,)
     assert terms.units_per_existing_unit.logical_values() == ("0.1",)
     assert not hasattr(terms, "apply")
+    assert terms.logical_values() == (
+        "stock-dividend",
+        (str(UUID(int=200)),),
+        (2,),
+        (str(UUID(int=50)),),
+        (str(UUID(int=51)),),
+        ("0.1",),
+        "2026-02-01",
+        "2026-02-02",
+        "2026-02-10",
+        (str(UUID(int=300)),),
+    )
 
 
 def test_split_allows_reverse_split_ratio_below_one_without_position_mutation() -> None:
@@ -418,6 +575,15 @@ def test_split_allows_reverse_split_ratio_below_one_without_position_mutation() 
     assert reverse_split.logical_values() != forward_split.logical_values()
     assert not hasattr(reverse_split, "apply")
     assert not hasattr(reverse_split, "adjust_position")
+    assert reverse_split.logical_values() == (
+        "split",
+        (str(UUID(int=200)),),
+        (1,),
+        (str(UUID(int=60)),),
+        ("0.1",),
+        "2026-04-01",
+        (str(UUID(int=300)),),
+    )
 
 
 def test_rights_distribution_reuses_umi05_price_strike_semantics() -> None:
@@ -439,6 +605,25 @@ def test_rights_distribution_reuses_umi05_price_strike_semantics() -> None:
     assert not hasattr(rights, "execute")
     assert not hasattr(rights, "exercise")
     assert not hasattr(rights, "settle")
+    assert rights.logical_values() == (
+        "rights-distribution",
+        (str(UUID(int=200)),),
+        (1,),
+        (str(UUID(int=70)),),
+        (str(UUID(int=71)),),
+        ("0.25",),
+        (
+            "17.5",
+            "price",
+            (str(UUID(int=900)),),
+            ("currency-per-unit",),
+            None,
+        ),
+        "2026-05-01",
+        "2026-05-02",
+        "2026-05-31",
+        (str(UUID(int=300)),),
+    )
 
 
 def test_rights_distribution_rejects_non_price_strike() -> None:

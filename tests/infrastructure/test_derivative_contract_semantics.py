@@ -1181,3 +1181,1357 @@ def test_logical_values_are_deterministic_and_do_not_contain_secret_markers() ->
     material = repr(left.logical_values()).lower()
     for marker in ("token=", "password=", "secret=", "bearer "):
         assert marker not in material
+
+# ---- Oracle test constants (independent) ----
+_EXP_DATE1 = "2026-01-02"
+_EXP_DATE2 = "2029-01-02"
+_EXP_FIXING = "2026-02-01"
+_EXP_EXPIRY = "2026-06-30"
+_EXP_FIRST_NOTICE = "2026-05-15"
+_EXP_LAST_TRADE = "2026-06-28"
+_EXP_AM_START = "2026-03-01"
+_EXP_BERM_DATES = ("2027-01-01", "2027-07-01")
+_EXP_EFF = "2026-01-02"
+_EXP_TERM = "2031-01-02"
+_EXP_PAY = "2026-12-31"
+_EXP_OPT_EXPIRY = "2026-12-31"
+_EXP_MATURITY = "2026-06-30"
+
+_EXP_AMT1 = "1000000"
+_EXP_AMT2 = "1750000"
+_EXP_RATE = "0.03"
+_EXP_SPREAD = "0.001"
+_EXP_RATE2 = "0.051"
+_EXP_YIELD2 = "0.047"
+_EXP_SPREAD2 = "0.0027"
+_EXP_LEVEL = "1.2345"
+_EXP_PRICE = "99.5"
+_EXP_MULT = "100"
+_EXP_TICK = "0.01"
+_EXP_RECOVERY = "0.4"
+_EXP_RATIO1 = "1.25"
+_EXP_RATIO2 = "2.5"
+_EXP_NOTIONAL_FIXED = "1000000"
+_EXP_NOTIONAL_FLOAT = "1250000"
+_EXP_AMOUNT_EXCHANGE = "1500000"
+
+# ---- Expected-side helpers (no production serializers) ----
+
+def _expected_identity(
+    value: EconomicIdentityId
+    | dcs.DerivativeTermsId
+    | dcs.DerivativeLegId
+    | dcs.DerivativeEvidenceRef,
+) -> tuple[object, ...]:
+    return (str(value.value),)
+
+
+def _expected_notional(
+    notional: dcs.DerivativeNotional,
+    expected_amount: str,
+) -> tuple[object, ...]:
+    return (
+        expected_amount,
+        _expected_identity(notional.unit_identity_id),
+    )
+
+
+def _expected_notional_step(
+    step: dcs.DerivativeNotionalStep,
+    expected_date: str,
+    expected_notional: tuple[object, ...],
+) -> tuple[object, ...]:
+    return (expected_date, expected_notional)
+
+
+def _expected_notional_schedule(
+    schedule: dcs.DerivativeNotionalSchedule,
+    expected_steps: tuple[tuple[object, ...], ...],
+) -> tuple[object, ...]:
+    return (expected_steps,)
+
+
+def _expected_multiplier(
+    multiplier: dcs.DerivativeContractMultiplier,
+    expected_amount: str,
+) -> tuple[object, ...]:
+    return (
+        expected_amount,
+        _expected_identity(multiplier.unit_identity_id),
+    )
+
+
+def _expected_tick_value(
+    tick: dcs.DerivativeTickValue,
+    expected_amount: str,
+) -> tuple[object, ...]:
+    return (
+        expected_amount,
+        _expected_identity(tick.value_identity_id),
+    )
+
+
+def _expected_benchmark_reference(
+    ref: dcs.DerivativeBenchmarkReference,
+) -> tuple[object, ...]:
+    tenor_tuple = None
+    if ref.tenor is not None:
+        tenor_tuple = (ref.tenor.value, ref.tenor.unit.value)
+    return (
+        _expected_identity(ref.reference_identity_id),
+        (ref.role.value,),
+        tenor_tuple,
+    )
+
+
+def _expected_settlement_convention(
+    conv: fie.SettlementConvention,
+) -> tuple[object, ...]:
+    return (
+        conv.business_day_lag,
+        (conv.calendar_ref.value,),
+        (conv.business_day_convention.value,),
+    )
+
+
+def _expected_schedule_convention(
+    conv: dcs.DerivativeScheduleConvention,
+) -> tuple[object, ...]:
+    return (
+        (conv.stub.value,),
+        (conv.roll.value,),
+        (conv.calendar_ref.value,),
+        (conv.business_day_convention.value,),
+    )
+
+
+def _expected_rate_convention(
+    conv: rts.RateCurveConvention,
+) -> tuple[object, ...]:
+    comp_tenor = None
+    if conv.compounding_tenor is not None:
+        comp_tenor = (conv.compounding_tenor.value, conv.compounding_tenor.unit.value)
+    return (
+        "rate-convention",
+        (conv.day_count.value,),
+        (conv.compounding.value,),
+        comp_tenor,
+    )
+
+
+def _expected_yield_convention(
+    conv: fie.YieldConvention,
+) -> tuple[object, ...]:
+    comp_tenor = None
+    if conv.compounding_tenor is not None:
+        comp_tenor = (conv.compounding_tenor.value, conv.compounding_tenor.unit.value)
+    ref_material = None
+    if conv.reference is not None:
+        ref = conv.reference
+        tenor = None
+        if ref.tenor is not None:
+            tenor = (ref.tenor.value, ref.tenor.unit.value)
+        ref_material = (
+            _expected_identity(ref.reference_identity_id),
+            (ref.role.value,),
+            tenor,
+        )
+    return (
+        (conv.yield_code.value,),
+        (conv.day_count.value,),
+        (conv.compounding.value,),
+        comp_tenor,
+        ref_material,
+    )
+
+
+def _expected_floating_convention(
+    conv: dcs.DerivativeFloatingRateConvention,
+) -> tuple[object, ...]:
+    return (
+        (conv.calculation.value,),
+        (conv.fixing_calendar_ref.value,),
+        conv.fixing_lag_business_days,
+        conv.lockout_business_days,
+        conv.observation_shift,
+    )
+
+
+def _expected_strike(
+    strike: dcs.DerivativeStrike,
+    expected_value: str,
+    expected_basis: str,
+    expected_quote: tuple[object, ...] | None,
+    expected_price_basis: tuple[object, ...] | None,
+    expected_convention: tuple[object, ...] | None,
+) -> tuple[object, ...]:
+    return (
+        expected_value,
+        expected_basis,
+        expected_quote,
+        expected_price_basis,
+        expected_convention,
+    )
+
+
+def _expected_option_exercise(
+    exercise: dcs.OptionExerciseTerms,
+    expected_style: str,
+    expected_american_start: str | None,
+    expected_bermudan_dates: tuple[object, ...],
+) -> tuple[object, ...]:
+    return (
+        expected_style,
+        expected_american_start,
+        expected_bermudan_dates,
+    )
+
+
+def _expected_futures_terms(
+    terms: dcs.FuturesContractTerms,
+    *,
+    expected_expiry: str,
+    expected_multiplier: tuple[object, ...],
+    expected_tick: tuple[object, ...] | None,
+    expected_first_notice: str | None,
+    expected_last_trade: str | None,
+) -> tuple[object, ...]:
+    return (
+        "futures",
+        _expected_identity(terms.terms_id),
+        _expected_identity(terms.instrument_identity_id),
+        _expected_identity(terms.reference_identity_id),
+        _expected_identity(terms.settlement_identity_id),
+        (terms.contract_month.year, terms.contract_month.month),
+        expected_expiry,
+        expected_multiplier,
+        terms.settlement_style.value,
+        _expected_identity(terms.evidence_ref),
+        expected_tick,
+        expected_first_notice,
+        expected_last_trade,
+    )
+
+
+def _expected_option_terms(
+    terms: dcs.OptionContractTerms,
+    *,
+    expected_strike: tuple[object, ...],
+    expected_expiry: str,
+    expected_exercise: tuple[object, ...],
+    expected_multiplier: tuple[object, ...] | None,
+    expected_notional: tuple[object, ...] | None,
+) -> tuple[object, ...]:
+    return (
+        "option",
+        _expected_identity(terms.terms_id),
+        _expected_identity(terms.instrument_identity_id),
+        _expected_identity(terms.underlying_identity_id),
+        _expected_identity(terms.settlement_identity_id),
+        terms.right.value,
+        expected_strike,
+        expected_expiry,
+        expected_exercise,
+        terms.settlement_style.value,
+        _expected_identity(terms.evidence_ref),
+        expected_multiplier,
+        expected_notional,
+    )
+
+
+def _expected_fixing_terms(
+    fixing: dcs.DerivativeFixingTerms,
+    expected_benchmark: tuple[object, ...],
+    expected_date: str,
+) -> tuple[object, ...]:
+    return (
+        expected_benchmark,
+        expected_date,
+        _expected_identity(fixing.evidence_ref),
+    )
+
+
+def _expected_forward_terms(
+    terms: dcs.ForwardContractTerms,
+    *,
+    expected_notional: tuple[object, ...],
+    expected_strike: tuple[object, ...],
+    expected_maturity: str,
+    expected_fixing: tuple[object, ...] | None,
+    expected_settlement_convention: tuple[object, ...] | None,
+) -> tuple[object, ...]:
+    return (
+        "forward",
+        _expected_identity(terms.terms_id),
+        _expected_identity(terms.instrument_identity_id),
+        _expected_identity(terms.reference_identity_id),
+        _expected_identity(terms.settlement_identity_id),
+        expected_notional,
+        expected_strike,
+        expected_maturity,
+        terms.settlement_style.value,
+        _expected_identity(terms.evidence_ref),
+        expected_fixing,
+        expected_settlement_convention,
+    )
+
+
+def _expected_fixed_rate_swap_leg(
+    leg: dcs.FixedRateSwapLeg,
+    expected_notional_schedule: tuple[object, ...],
+    expected_rate: str,
+) -> tuple[object, ...]:
+    return (
+        "fixed-rate",
+        _expected_identity(leg.leg_id),
+        (leg.ordinal.value,),
+        leg.direction.value,
+        expected_notional_schedule,
+        (expected_rate,),
+        (leg.day_count.value,),
+        (leg.payment_tenor.value, leg.payment_tenor.unit.value),
+        _expected_settlement_convention(leg.settlement_convention),
+        _expected_schedule_convention(leg.schedule_convention),
+        _expected_identity(leg.evidence_ref),
+    )
+
+
+def _expected_floating_rate_swap_leg(
+    leg: dcs.FloatingRateSwapLeg,
+    expected_notional_schedule: tuple[object, ...],
+    expected_benchmark: tuple[object, ...],
+    expected_spread: str,
+    expected_fixing_convention: tuple[object, ...],
+) -> tuple[object, ...]:
+    return (
+        "floating-rate",
+        _expected_identity(leg.leg_id),
+        (leg.ordinal.value,),
+        leg.direction.value,
+        expected_notional_schedule,
+        expected_benchmark,
+        (expected_spread,),
+        (leg.day_count.value,),
+        (leg.payment_tenor.value, leg.payment_tenor.unit.value),
+        (leg.reset_tenor.value, leg.reset_tenor.unit.value),
+        expected_fixing_convention,
+        _expected_settlement_convention(leg.settlement_convention),
+        _expected_schedule_convention(leg.schedule_convention),
+        _expected_identity(leg.evidence_ref),
+    )
+
+
+def _expected_reference_return_swap_leg(
+    leg: dcs.ReferenceReturnSwapLeg,
+    expected_notional_schedule: tuple[object, ...],
+    expected_reference: tuple[object, ...],
+) -> tuple[object, ...]:
+    return (
+        "reference-return",
+        _expected_identity(leg.leg_id),
+        (leg.ordinal.value,),
+        leg.direction.value,
+        expected_notional_schedule,
+        expected_reference,
+        (leg.payment_tenor.value, leg.payment_tenor.unit.value),
+        _expected_settlement_convention(leg.settlement_convention),
+        _expected_schedule_convention(leg.schedule_convention),
+        _expected_identity(leg.evidence_ref),
+    )
+
+
+def _expected_exchange_swap_leg(
+    leg: dcs.ExchangeSwapLeg,
+    expected_amount: tuple[object, ...],
+    expected_payment_date: str,
+) -> tuple[object, ...]:
+    return (
+        "exchange",
+        _expected_identity(leg.leg_id),
+        (leg.ordinal.value,),
+        leg.direction.value,
+        expected_amount,
+        expected_payment_date,
+        _expected_identity(leg.evidence_ref),
+    )
+
+
+def _expected_protection_swap_leg(
+    leg: dcs.ProtectionSwapLeg,
+    expected_notional_schedule: tuple[object, ...],
+    expected_reference: tuple[object, ...],
+    expected_fixed_recovery: str | None,
+) -> tuple[object, ...]:
+    return (
+        "protection",
+        _expected_identity(leg.leg_id),
+        (leg.ordinal.value,),
+        leg.direction.value,
+        expected_notional_schedule,
+        expected_reference,
+        (leg.contingency.value,),
+        leg.settlement_style.value,
+        (leg.settlement_method.value,),
+        _expected_identity(leg.settlement_identity_id),
+        _expected_settlement_convention(leg.settlement_convention),
+        (expected_fixed_recovery,) if expected_fixed_recovery is not None else None,
+        _expected_identity(leg.evidence_ref),
+    )
+
+
+def _expected_swap_terms(
+    terms: dcs.SwapContractTerms,
+    *,
+    expected_effective: str,
+    expected_termination: str,
+    expected_legs: tuple[tuple[object, ...], ...],
+) -> tuple[object, ...]:
+    return (
+        "swap",
+        _expected_identity(terms.terms_id),
+        _expected_identity(terms.instrument_identity_id),
+        expected_effective,
+        expected_termination,
+        expected_legs,
+        _expected_identity(terms.evidence_ref),
+    )
+
+
+def _expected_composition_leg(
+    leg: dcs.DerivativeCompositionLeg,
+    expected_ratio: str,
+) -> tuple[object, ...]:
+    return (
+        _expected_identity(leg.leg_id),
+        (leg.ordinal.value,),
+        _expected_identity(leg.component_identity_id),
+        leg.side.value,
+        expected_ratio,
+        _expected_identity(leg.evidence_ref),
+    )
+
+
+def _expected_composition_terms(
+    terms: dcs.DerivativeCompositionTerms,
+    expected_legs: tuple[tuple[object, ...], ...],
+) -> tuple[object, ...]:
+    return (
+        "derivative-composition",
+        _expected_identity(terms.terms_id),
+        _expected_identity(terms.instrument_identity_id),
+        expected_legs,
+        _expected_identity(terms.evidence_ref),
+    )
+
+
+# ---- Complete projection tests ----
+
+def test_notional_schedule_complete_projection() -> None:
+    unit = _identity(601)
+    step1 = dcs.DerivativeNotionalStep(
+        effective_date=date(2026, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1000000"), unit),
+    )
+    step2 = dcs.DerivativeNotionalStep(
+        effective_date=date(2029, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1750000"), unit),
+    )
+    schedule = dcs.DerivativeNotionalSchedule(steps=(step2, step1))
+    expected_step1 = _expected_notional_step(
+        step1,
+        expected_date="2026-01-02",
+        expected_notional=_expected_notional(step1.notional, "1000000"),
+    )
+    expected_step2 = _expected_notional_step(
+        step2,
+        expected_date="2029-01-02",
+        expected_notional=_expected_notional(step2.notional, "1750000"),
+    )
+    expected = _expected_notional_schedule(
+        schedule,
+        expected_steps=(expected_step1, expected_step2),
+    )
+    assert schedule.logical_values() == expected
+
+
+def test_benchmark_reference_complete_projection() -> None:
+    identity = _identity(602)
+    tenor = _tenor(1, fie.FinancialTenorUnit.MONTH)
+    ref = dcs.DerivativeBenchmarkReference(
+        reference_identity_id=identity,
+        role=dcs.DerivativeReferenceRoleCode("floating-index"),
+        tenor=tenor,
+    )
+    expected = _expected_benchmark_reference(ref)
+    assert ref.logical_values() == expected
+
+
+def test_schedule_convention_complete_projection() -> None:
+    conv = dcs.DerivativeScheduleConvention(
+        stub=dcs.DerivativeScheduleStubCode("short-first"),
+        roll=dcs.DerivativeScheduleRollCode("imm"),
+        calendar_ref=fie.BusinessCalendarRef("lon"),
+        business_day_convention=fie.BusinessDayConventionCode("following"),
+    )
+    expected = _expected_schedule_convention(conv)
+    assert conv.logical_values() == expected
+
+
+def test_strike_price_complete_projection() -> None:
+    quote_id = _identity(603)
+    strike = dcs.DerivativeStrike(
+        value=Decimal("99.50"),
+        basis=dcs.DerivativeStrikeBasis.PRICE,
+        quote_identity_id=quote_id,
+        price_quote_basis=dcs.DerivativePriceQuoteBasisCode("currency-per-unit"),
+        convention=None,
+    )
+    expected = _expected_strike(
+        strike,
+        expected_value="99.5",
+        expected_basis="price",
+        expected_quote=_expected_identity(quote_id),
+        expected_price_basis=("currency-per-unit",),
+        expected_convention=None,
+    )
+    assert strike.logical_values() == expected
+
+
+def test_strike_rate_complete_projection() -> None:
+    conv = _rate_convention()
+    strike = dcs.DerivativeStrike(
+        value=Decimal("0.051"),
+        basis=dcs.DerivativeStrikeBasis.RATE,
+        quote_identity_id=None,
+        price_quote_basis=None,
+        convention=conv,
+    )
+    expected_conv = _expected_rate_convention(conv)
+    expected = _expected_strike(
+        strike,
+        expected_value="0.051",
+        expected_basis="rate",
+        expected_quote=None,
+        expected_price_basis=None,
+        expected_convention=expected_conv,
+    )
+    assert strike.logical_values() == expected
+
+
+def test_strike_yield_complete_projection() -> None:
+    conv = _yield_convention()
+    strike = dcs.DerivativeStrike(
+        value=Decimal("0.047"),
+        basis=dcs.DerivativeStrikeBasis.YIELD,
+        quote_identity_id=None,
+        price_quote_basis=None,
+        convention=conv,
+    )
+    expected_yield = _expected_yield_convention(conv)
+    expected_conv = ("yield-convention", expected_yield)
+    expected = _expected_strike(
+        strike,
+        expected_value="0.047",
+        expected_basis="yield",
+        expected_quote=None,
+        expected_price_basis=None,
+        expected_convention=expected_conv,
+    )
+    assert strike.logical_values() == expected
+
+
+def test_strike_spread_complete_projection() -> None:
+    strike = dcs.DerivativeStrike(
+        value=Decimal("0.0027"),
+        basis=dcs.DerivativeStrikeBasis.SPREAD,
+        quote_identity_id=None,
+        price_quote_basis=None,
+        convention=None,
+    )
+    expected = _expected_strike(
+        strike,
+        expected_value="0.0027",
+        expected_basis="spread",
+        expected_quote=None,
+        expected_price_basis=None,
+        expected_convention=None,
+    )
+    assert strike.logical_values() == expected
+
+
+def test_strike_level_complete_projection() -> None:
+    strike = dcs.DerivativeStrike(
+        value=Decimal("1.2345"),
+        basis=dcs.DerivativeStrikeBasis.LEVEL,
+        quote_identity_id=None,
+        price_quote_basis=None,
+        convention=None,
+    )
+    expected = _expected_strike(
+        strike,
+        expected_value="1.2345",
+        expected_basis="level",
+        expected_quote=None,
+        expected_price_basis=None,
+        expected_convention=None,
+    )
+    assert strike.logical_values() == expected
+
+
+def test_option_exercise_complete_projection() -> None:
+    # European
+    euro = dcs.OptionExerciseTerms(
+        style=dcs.OptionExerciseStyle.EUROPEAN,
+        american_start_date=None,
+        bermudan_dates=(),
+    )
+    expected = _expected_option_exercise(
+        euro,
+        expected_style="european",
+        expected_american_start=None,
+        expected_bermudan_dates=(),
+    )
+    assert euro.logical_values() == expected
+
+    # American
+    start = date(2026, 3, 1)
+    amer = dcs.OptionExerciseTerms(
+        style=dcs.OptionExerciseStyle.AMERICAN,
+        american_start_date=start,
+        bermudan_dates=(),
+    )
+    expected = _expected_option_exercise(
+        amer,
+        expected_style="american",
+        expected_american_start="2026-03-01",
+        expected_bermudan_dates=(),
+    )
+    assert amer.logical_values() == expected
+
+    # Bermudan with reversed input
+    d1 = date(2027, 7, 1)
+    d2 = date(2027, 1, 1)
+    berm = dcs.OptionExerciseTerms(
+        style=dcs.OptionExerciseStyle.BERMUDAN,
+        american_start_date=None,
+        bermudan_dates=(d1, d2),
+    )
+    expected = _expected_option_exercise(
+        berm,
+        expected_style="bermudan",
+        expected_american_start=None,
+        expected_bermudan_dates=("2027-01-01", "2027-07-01"),
+    )
+    assert berm.logical_values() == expected
+
+
+def test_futures_terms_complete_projection() -> None:
+    instrument = _identity(604)
+    reference = _identity(605)
+    settlement = _identity(606)
+    mult_unit = _identity(607)
+    tick_unit = _identity(608)
+
+    multiplier = dcs.DerivativeContractMultiplier(Decimal("100"), mult_unit)
+    tick_value = dcs.DerivativeTickValue(Decimal("0.01"), tick_unit)
+
+    terms = dcs.FuturesContractTerms(
+        terms_id=dcs.DerivativeTermsId(_uuid(1)),
+        instrument_identity_id=instrument,
+        reference_identity_id=reference,
+        settlement_identity_id=settlement,
+        contract_month=dcs.DerivativeContractMonth(2026, 6),
+        expiry_date=date(2026, 6, 30),
+        multiplier=multiplier,
+        settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(2)),
+        tick_value=tick_value,
+        first_notice_date=date(2026, 5, 15),
+        last_trade_date=date(2026, 6, 28),
+    )
+    expected_mult = _expected_multiplier(multiplier, "100")
+    expected_tick = _expected_tick_value(tick_value, "0.01")
+    expected = _expected_futures_terms(
+        terms,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=expected_tick,
+        expected_first_notice="2026-05-15",
+        expected_last_trade="2026-06-28",
+    )
+    assert terms.logical_values() == expected
+    cash_without_optionals = replace(
+        terms,
+        settlement_style=dcs.DerivativeSettlementStyle.CASH,
+        tick_value=None,
+        first_notice_date=None,
+        last_trade_date=None,
+    )
+    cash_without_optionals_expected = _expected_futures_terms(
+        cash_without_optionals,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=None,
+        expected_first_notice=None,
+        expected_last_trade=None,
+    )
+    assert cash_without_optionals.logical_values() == cash_without_optionals_expected
+    tick_only = replace(
+        terms,
+        first_notice_date=None,
+        last_trade_date=None,
+    )
+    tick_only_expected = _expected_futures_terms(
+        tick_only,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=expected_tick,
+        expected_first_notice=None,
+        expected_last_trade=None,
+    )
+    assert tick_only.logical_values() == tick_only_expected
+
+    last_trade_only = replace(
+        terms,
+        tick_value=None,
+        first_notice_date=None,
+    )
+    last_trade_only_expected = _expected_futures_terms(
+        last_trade_only,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=None,
+        expected_first_notice=None,
+        expected_last_trade="2026-06-28",
+    )
+    assert last_trade_only.logical_values() == last_trade_only_expected
+    first_notice_only = replace(
+        terms,
+        tick_value=None,
+        last_trade_date=None,
+    )
+    first_notice_only_expected = _expected_futures_terms(
+        first_notice_only,
+        expected_expiry="2026-06-30",
+        expected_multiplier=expected_mult,
+        expected_tick=None,
+        expected_first_notice="2026-05-15",
+        expected_last_trade=None,
+    )
+    assert first_notice_only.logical_values() == first_notice_only_expected
+
+
+def test_option_terms_complete_projection() -> None:
+    instrument = _identity(609)
+    underlying = _identity(610)
+    settlement = _identity(611)
+    mult_unit = _identity(612)
+    notional_unit = _identity(613)
+    quote_id = _identity(614)
+
+    multiplier = dcs.DerivativeContractMultiplier(Decimal("100"), mult_unit)
+    notional = dcs.DerivativeNotional(Decimal("1000000"), notional_unit)
+
+    strike = dcs.DerivativeStrike(
+        value=Decimal("99.50"),
+        basis=dcs.DerivativeStrikeBasis.PRICE,
+        quote_identity_id=quote_id,
+        price_quote_basis=dcs.DerivativePriceQuoteBasisCode("currency-per-unit"),
+        convention=None,
+    )
+    exercise = dcs.OptionExerciseTerms(
+        style=dcs.OptionExerciseStyle.EUROPEAN,
+        american_start_date=None,
+        bermudan_dates=(),
+    )
+    terms = dcs.OptionContractTerms(
+        terms_id=dcs.DerivativeTermsId(_uuid(3)),
+        instrument_identity_id=instrument,
+        underlying_identity_id=underlying,
+        settlement_identity_id=settlement,
+        right=dcs.OptionRight.CALL,
+        strike=strike,
+        expiry_date=date(2026, 12, 31),
+        exercise=exercise,
+        settlement_style=dcs.DerivativeSettlementStyle.CASH,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(4)),
+        multiplier=multiplier,
+        notional=notional,
+    )
+    expected_strike = _expected_strike(
+        strike,
+        expected_value="99.5",
+        expected_basis="price",
+        expected_quote=_expected_identity(quote_id),
+        expected_price_basis=("currency-per-unit",),
+        expected_convention=None,
+    )
+    expected_exercise = _expected_option_exercise(
+        exercise,
+        expected_style="european",
+        expected_american_start=None,
+        expected_bermudan_dates=(),
+    )
+    expected_mult = _expected_multiplier(multiplier, "100")
+    expected_not = _expected_notional(notional, "1000000")
+    expected = _expected_option_terms(
+        terms,
+        expected_strike=expected_strike,
+        expected_expiry="2026-12-31",
+        expected_exercise=expected_exercise,
+        expected_multiplier=expected_mult,
+        expected_notional=expected_not,
+    )
+    assert terms.logical_values() == expected
+    notional_only = replace(
+        terms,
+        multiplier=None,
+    )
+    notional_only_expected = _expected_option_terms(
+        notional_only,
+        expected_strike=expected_strike,
+        expected_expiry="2026-12-31",
+        expected_exercise=expected_exercise,
+        expected_multiplier=None,
+        expected_notional=expected_not,
+    )
+    assert notional_only.logical_values() == notional_only_expected
+
+    multiplier_only = replace(
+        terms,
+        notional=None,
+    )
+    multiplier_only_expected = _expected_option_terms(
+        multiplier_only,
+        expected_strike=expected_strike,
+        expected_expiry="2026-12-31",
+        expected_exercise=expected_exercise,
+        expected_multiplier=expected_mult,
+        expected_notional=None,
+    )
+    assert multiplier_only.logical_values() == multiplier_only_expected
+
+
+def test_fixing_terms_complete_projection() -> None:
+    identity = _identity(615)
+    bench = dcs.DerivativeBenchmarkReference(
+        reference_identity_id=identity,
+        role=dcs.DerivativeReferenceRoleCode("floating-index"),
+        tenor=None,
+    )
+    fixing = dcs.DerivativeFixingTerms(
+        reference=bench,
+        fixing_date=date(2026, 2, 1),
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(5)),
+    )
+    expected = _expected_fixing_terms(
+        fixing,
+        expected_benchmark=_expected_benchmark_reference(bench),
+        expected_date="2026-02-01",
+    )
+    assert fixing.logical_values() == expected
+
+
+def test_forward_terms_complete_projection() -> None:
+    quote_id = _identity(616)
+    notional_unit = _identity(617)
+    fixing_ref = _identity(618)
+    instrument = _identity(619)
+    reference = _identity(620)
+    settlement = _identity(621)
+
+    strike = dcs.DerivativeStrike(
+        value=Decimal("99.50"),
+        basis=dcs.DerivativeStrikeBasis.PRICE,
+        quote_identity_id=quote_id,
+        price_quote_basis=dcs.DerivativePriceQuoteBasisCode("currency-per-unit"),
+        convention=None,
+    )
+    bench = dcs.DerivativeBenchmarkReference(
+        reference_identity_id=fixing_ref,
+        role=dcs.DerivativeReferenceRoleCode("floating-index"),
+        tenor=None,
+    )
+    fixing = dcs.DerivativeFixingTerms(
+        reference=bench,
+        fixing_date=date(2026, 2, 1),
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(6)),
+    )
+    settlement_conv = _settlement()
+    terms = dcs.ForwardContractTerms(
+        terms_id=dcs.DerivativeTermsId(_uuid(7)),
+        instrument_identity_id=instrument,
+        reference_identity_id=reference,
+        settlement_identity_id=settlement,
+        notional=dcs.DerivativeNotional(Decimal("1000000"), notional_unit),
+        agreed_strike=strike,
+        maturity_date=date(2026, 6, 30),
+        settlement_style=dcs.DerivativeSettlementStyle.CASH,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(8)),
+        fixing=fixing,
+        settlement_convention=settlement_conv,
+    )
+    expected_strike = _expected_strike(
+        strike,
+        expected_value="99.5",
+        expected_basis="price",
+        expected_quote=_expected_identity(quote_id),
+        expected_price_basis=("currency-per-unit",),
+        expected_convention=None,
+    )
+    expected_fixing = _expected_fixing_terms(
+        fixing,
+        expected_benchmark=_expected_benchmark_reference(bench),
+        expected_date="2026-02-01",
+    )
+    expected_conv = _expected_settlement_convention(settlement_conv)
+    expected = _expected_forward_terms(
+        terms,
+        expected_notional=_expected_notional(terms.notional, "1000000"),
+        expected_strike=expected_strike,
+        expected_maturity="2026-06-30",
+        expected_fixing=expected_fixing,
+        expected_settlement_convention=expected_conv,
+    )
+    assert terms.logical_values() == expected
+    expected_notional = _expected_notional(terms.notional, "1000000")
+
+    physical_without_fixing = replace(
+        terms,
+        settlement_style=dcs.DerivativeSettlementStyle.PHYSICAL,
+        fixing=None,
+    )
+    physical_without_fixing_expected = _expected_forward_terms(
+        physical_without_fixing,
+        expected_notional=expected_notional,
+        expected_strike=expected_strike,
+        expected_maturity="2026-06-30",
+        expected_fixing=None,
+        expected_settlement_convention=expected_conv,
+    )
+    assert (
+        physical_without_fixing.logical_values()
+        == physical_without_fixing_expected
+    )
+
+    cash_without_settlement = replace(
+        terms,
+        settlement_convention=None,
+    )
+    cash_without_settlement_expected = _expected_forward_terms(
+        cash_without_settlement,
+        expected_notional=expected_notional,
+        expected_strike=expected_strike,
+        expected_maturity="2026-06-30",
+        expected_fixing=expected_fixing,
+        expected_settlement_convention=None,
+    )
+    assert (
+        cash_without_settlement.logical_values()
+        == cash_without_settlement_expected
+    )
+
+
+def test_fixed_rate_swap_leg_complete_projection() -> None:
+    unit = _identity(622)
+    step1 = dcs.DerivativeNotionalStep(
+        effective_date=date(2026, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1000000"), unit),
+    )
+    step2 = dcs.DerivativeNotionalStep(
+        effective_date=date(2029, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1750000"), unit),
+    )
+    schedule = dcs.DerivativeNotionalSchedule(steps=(step2, step1))
+
+    settlement_conv = _settlement()
+    schedule_conv = dcs.DerivativeScheduleConvention(
+        stub=dcs.DerivativeScheduleStubCode("short-first"),
+        roll=dcs.DerivativeScheduleRollCode("imm"),
+        calendar_ref=fie.BusinessCalendarRef("lon"),
+        business_day_convention=fie.BusinessDayConventionCode("following"),
+    )
+
+    leg = dcs.FixedRateSwapLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(9)),
+        ordinal=dcs.DerivativeLegOrdinal(1),
+        direction=dcs.DerivativeLegDirection.PAY,
+        notional_schedule=schedule,
+        rate=dcs.DerivativeContractRate(Decimal("0.03")),
+        day_count=fie.DayCountConventionCode("actual-360"),
+        payment_tenor=fie.FinancialTenor(6, fie.FinancialTenorUnit.MONTH),
+        settlement_convention=settlement_conv,
+        schedule_convention=schedule_conv,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(10)),
+    )
+    expected_step1 = _expected_notional_step(
+        step1,
+        expected_date="2026-01-02",
+        expected_notional=_expected_notional(step1.notional, "1000000"),
+    )
+    expected_step2 = _expected_notional_step(
+        step2,
+        expected_date="2029-01-02",
+        expected_notional=_expected_notional(step2.notional, "1750000"),
+    )
+    expected_schedule = _expected_notional_schedule(
+        schedule,
+        expected_steps=(expected_step1, expected_step2),
+    )
+    expected = _expected_fixed_rate_swap_leg(
+        leg,
+        expected_notional_schedule=expected_schedule,
+        expected_rate="0.03",
+    )
+    assert leg.logical_values() == expected
+
+
+def test_floating_rate_swap_leg_complete_projection() -> None:
+    unit = _identity(623)
+    step = dcs.DerivativeNotionalStep(
+        effective_date=date(2026, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1000000"), unit),
+    )
+    schedule = dcs.DerivativeNotionalSchedule(steps=(step,))
+
+    bench = dcs.DerivativeBenchmarkReference(
+        reference_identity_id=_identity(624),
+        role=dcs.DerivativeReferenceRoleCode("floating-index"),
+        tenor=_tenor(1, fie.FinancialTenorUnit.MONTH),
+    )
+    fixing_conv = dcs.DerivativeFloatingRateConvention(
+        calculation=dcs.DerivativeFloatingRateCalculationCode("compounded"),
+        fixing_calendar_ref=fie.BusinessCalendarRef("chi"),
+        fixing_lag_business_days=4,
+        lockout_business_days=2,
+        observation_shift=True,
+    )
+    settlement_conv = _settlement()
+    schedule_conv = dcs.DerivativeScheduleConvention(
+        stub=dcs.DerivativeScheduleStubCode("short-first"),
+        roll=dcs.DerivativeScheduleRollCode("imm"),
+        calendar_ref=fie.BusinessCalendarRef("lon"),
+        business_day_convention=fie.BusinessDayConventionCode("following"),
+    )
+
+    leg = dcs.FloatingRateSwapLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(11)),
+        ordinal=dcs.DerivativeLegOrdinal(2),
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+        notional_schedule=schedule,
+        benchmark=bench,
+        spread=fie.FixedIncomeSpread(Decimal("0.001")),
+        day_count=fie.DayCountConventionCode("actual-360"),
+        payment_tenor=fie.FinancialTenor(6, fie.FinancialTenorUnit.MONTH),
+        reset_tenor=fie.FinancialTenor(3, fie.FinancialTenorUnit.MONTH),
+        fixing_convention=fixing_conv,
+        settlement_convention=settlement_conv,
+        schedule_convention=schedule_conv,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(12)),
+    )
+    expected_step = _expected_notional_step(
+        step,
+        expected_date="2026-01-02",
+        expected_notional=_expected_notional(step.notional, "1000000"),
+    )
+    expected_schedule = _expected_notional_schedule(
+        schedule,
+        expected_steps=(expected_step,),
+    )
+    expected_bench = _expected_benchmark_reference(bench)
+    expected_fixing = _expected_floating_convention(fixing_conv)
+    expected = _expected_floating_rate_swap_leg(
+        leg,
+        expected_notional_schedule=expected_schedule,
+        expected_benchmark=expected_bench,
+        expected_spread="0.001",
+        expected_fixing_convention=expected_fixing,
+    )
+    assert leg.logical_values() == expected
+
+
+def test_reference_return_swap_leg_complete_projection() -> None:
+    unit = _identity(625)
+    step = dcs.DerivativeNotionalStep(
+        effective_date=date(2026, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1000000"), unit),
+    )
+    schedule = dcs.DerivativeNotionalSchedule(steps=(step,))
+
+    ref = dcs.DerivativeBenchmarkReference(
+        reference_identity_id=_identity(626),
+        role=dcs.DerivativeReferenceRoleCode("reference"),
+        tenor=None,
+    )
+    settlement_conv = _settlement()
+    schedule_conv = dcs.DerivativeScheduleConvention(
+        stub=dcs.DerivativeScheduleStubCode("short-first"),
+        roll=dcs.DerivativeScheduleRollCode("imm"),
+        calendar_ref=fie.BusinessCalendarRef("lon"),
+        business_day_convention=fie.BusinessDayConventionCode("following"),
+    )
+
+    leg = dcs.ReferenceReturnSwapLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(13)),
+        ordinal=dcs.DerivativeLegOrdinal(1),
+        direction=dcs.DerivativeLegDirection.PAY,
+        notional_schedule=schedule,
+        reference=ref,
+        payment_tenor=fie.FinancialTenor(6, fie.FinancialTenorUnit.MONTH),
+        settlement_convention=settlement_conv,
+        schedule_convention=schedule_conv,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(14)),
+    )
+    expected_step = _expected_notional_step(
+        step,
+        expected_date="2026-01-02",
+        expected_notional=_expected_notional(step.notional, "1000000"),
+    )
+    expected_schedule = _expected_notional_schedule(
+        schedule,
+        expected_steps=(expected_step,),
+    )
+    expected_ref = _expected_benchmark_reference(ref)
+    expected = _expected_reference_return_swap_leg(
+        leg,
+        expected_notional_schedule=expected_schedule,
+        expected_reference=expected_ref,
+    )
+    assert leg.logical_values() == expected
+
+
+def test_exchange_swap_leg_complete_projection() -> None:
+    unit = _identity(627)
+    leg = dcs.ExchangeSwapLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(15)),
+        ordinal=dcs.DerivativeLegOrdinal(1),
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+        amount=dcs.DerivativeNotional(Decimal("1500000"), unit),
+        payment_date=date(2026, 12, 31),
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(16)),
+    )
+    expected = _expected_exchange_swap_leg(
+        leg,
+        expected_amount=_expected_notional(leg.amount, "1500000"),
+        expected_payment_date="2026-12-31",
+    )
+    assert leg.logical_values() == expected
+
+
+def test_protection_swap_leg_complete_projection() -> None:
+    unit = _identity(628)
+    step = dcs.DerivativeNotionalStep(
+        effective_date=date(2026, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1000000"), unit),
+    )
+    schedule = dcs.DerivativeNotionalSchedule(steps=(step,))
+
+    ref = dcs.DerivativeBenchmarkReference(
+        reference_identity_id=_identity(629),
+        role=dcs.DerivativeReferenceRoleCode("reference"),
+        tenor=None,
+    )
+    settlement_conv = _settlement()
+    leg = dcs.ProtectionSwapLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(17)),
+        ordinal=dcs.DerivativeLegOrdinal(1),
+        direction=dcs.DerivativeLegDirection.PAY,
+        notional_schedule=schedule,
+        reference=ref,
+        contingency=dcs.DerivativeContingencyCode("credit-event"),
+        settlement_style=dcs.DerivativeSettlementStyle.CASH,
+        settlement_method=dcs.DerivativeProtectionSettlementMethodCode("fixed-recovery"),
+        settlement_identity_id=_identity(630),
+        settlement_convention=settlement_conv,
+        fixed_recovery_rate=dcs.DerivativeRecoveryRate(Decimal("0.4")),
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(18)),
+    )
+    expected_step = _expected_notional_step(
+        step,
+        expected_date="2026-01-02",
+        expected_notional=_expected_notional(step.notional, "1000000"),
+    )
+    expected_schedule = _expected_notional_schedule(
+        schedule,
+        expected_steps=(expected_step,),
+    )
+    expected_ref = _expected_benchmark_reference(ref)
+    expected = _expected_protection_swap_leg(
+        leg,
+        expected_notional_schedule=expected_schedule,
+        expected_reference=expected_ref,
+        expected_fixed_recovery="0.4",
+    )
+    assert leg.logical_values() == expected
+    auction = replace(
+        leg,
+        settlement_method=dcs.DerivativeProtectionSettlementMethodCode("auction"),
+        fixed_recovery_rate=None,
+    )
+    auction_expected = _expected_protection_swap_leg(
+        auction,
+        expected_notional_schedule=expected_schedule,
+        expected_reference=expected_ref,
+        expected_fixed_recovery=None,
+    )
+    assert auction.logical_values() == auction_expected
+
+
+def test_swap_terms_complete_projection() -> None:
+    # --- Fixed leg ---
+    fixed_unit = _identity(631)
+    fixed_step = dcs.DerivativeNotionalStep(
+        effective_date=date(2026, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1000000"), fixed_unit),
+    )
+    fixed_schedule = dcs.DerivativeNotionalSchedule(steps=(fixed_step,))
+    fixed_settlement = _settlement()
+    fixed_schedule_conv = dcs.DerivativeScheduleConvention(
+        stub=dcs.DerivativeScheduleStubCode("short-first"),
+        roll=dcs.DerivativeScheduleRollCode("imm"),
+        calendar_ref=fie.BusinessCalendarRef("lon"),
+        business_day_convention=fie.BusinessDayConventionCode("following"),
+    )
+    fixed = dcs.FixedRateSwapLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(19)),
+        ordinal=dcs.DerivativeLegOrdinal(1),
+        direction=dcs.DerivativeLegDirection.PAY,
+        notional_schedule=fixed_schedule,
+        rate=dcs.DerivativeContractRate(Decimal("0.03")),
+        day_count=fie.DayCountConventionCode("actual-360"),
+        payment_tenor=fie.FinancialTenor(12, fie.FinancialTenorUnit.MONTH),
+        settlement_convention=fixed_settlement,
+        schedule_convention=fixed_schedule_conv,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(20)),
+    )
+
+    # --- Floating leg ---
+    float_unit = _identity(632)
+    float_step = dcs.DerivativeNotionalStep(
+        effective_date=date(2026, 1, 2),
+        notional=dcs.DerivativeNotional(Decimal("1250000"), float_unit),
+    )
+    float_schedule = dcs.DerivativeNotionalSchedule(steps=(float_step,))
+    float_bench = dcs.DerivativeBenchmarkReference(
+        reference_identity_id=_identity(633),
+        role=dcs.DerivativeReferenceRoleCode("floating-index"),
+        tenor=_tenor(1, fie.FinancialTenorUnit.MONTH),
+    )
+    float_fixing_conv = dcs.DerivativeFloatingRateConvention(
+        calculation=dcs.DerivativeFloatingRateCalculationCode("compounded"),
+        fixing_calendar_ref=fie.BusinessCalendarRef("chi"),
+        fixing_lag_business_days=4,
+        lockout_business_days=2,
+        observation_shift=True,
+    )
+    float_settlement = fie.SettlementConvention(   # <-- CORRECTED namespace
+        business_day_lag=3,
+        calendar_ref=fie.BusinessCalendarRef("tky"),
+        business_day_convention=fie.BusinessDayConventionCode("preceding"),
+    )
+    float_schedule_conv = dcs.DerivativeScheduleConvention(
+        stub=dcs.DerivativeScheduleStubCode("long-last"),
+        roll=dcs.DerivativeScheduleRollCode("day-15"),
+        calendar_ref=fie.BusinessCalendarRef("syd"),
+        business_day_convention=fie.BusinessDayConventionCode("modified-preceding"),
+    )
+    floating = dcs.FloatingRateSwapLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(21)),
+        ordinal=dcs.DerivativeLegOrdinal(2),
+        direction=dcs.DerivativeLegDirection.RECEIVE,
+        notional_schedule=float_schedule,
+        benchmark=float_bench,
+        spread=fie.FixedIncomeSpread(Decimal("0.0025")),
+        day_count=fie.DayCountConventionCode("actual-365-fixed"),
+        payment_tenor=fie.FinancialTenor(6, fie.FinancialTenorUnit.MONTH),
+        reset_tenor=fie.FinancialTenor(3, fie.FinancialTenorUnit.MONTH),
+        fixing_convention=float_fixing_conv,
+        settlement_convention=float_settlement,
+        schedule_convention=float_schedule_conv,
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(22)),
+    )
+
+    # --- Parent swap ---
+    swap = dcs.SwapContractTerms(
+        terms_id=dcs.DerivativeTermsId(_uuid(23)),
+        instrument_identity_id=_identity(634),
+        effective_date=date(2026, 1, 2),
+        termination_date=date(2031, 1, 2),
+        legs=(floating, fixed),  # reversed caller order
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(24)),
+    )
+
+    # --- Build expected child material from named fixtures ---
+    expected_fixed_step = _expected_notional_step(
+        fixed_step,
+        expected_date="2026-01-02",
+        expected_notional=_expected_notional(fixed_step.notional, "1000000"),
+    )
+    expected_fixed_schedule = _expected_notional_schedule(
+        fixed_schedule,
+        expected_steps=(expected_fixed_step,),
+    )
+    expected_fixed = _expected_fixed_rate_swap_leg(
+        fixed,
+        expected_notional_schedule=expected_fixed_schedule,
+        expected_rate="0.03",
+    )
+
+    expected_float_step = _expected_notional_step(
+        float_step,
+        expected_date="2026-01-02",
+        expected_notional=_expected_notional(float_step.notional, "1250000"),
+    )
+    expected_float_schedule = _expected_notional_schedule(
+        float_schedule,
+        expected_steps=(expected_float_step,),
+    )
+    expected_float = _expected_floating_rate_swap_leg(
+        floating,
+        expected_notional_schedule=expected_float_schedule,
+        expected_benchmark=_expected_benchmark_reference(float_bench),
+        expected_spread="0.0025",
+        expected_fixing_convention=_expected_floating_convention(float_fixing_conv),
+    )
+
+    expected_legs = (expected_fixed, expected_float)  # canonical order: fixed then floating
+
+    expected = _expected_swap_terms(
+        swap,
+        expected_effective="2026-01-02",
+        expected_termination="2031-01-02",
+        expected_legs=expected_legs,
+    )
+    assert swap.logical_values() == expected
+
+
+def test_composition_terms_complete_projection() -> None:
+    leg1 = dcs.DerivativeCompositionLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(25)),
+        ordinal=dcs.DerivativeLegOrdinal(1),
+        component_identity_id=_identity(634),
+        side=dcs.DerivativeCompositionSide.LONG,
+        ratio=Decimal("1.25"),
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(26)),
+    )
+    leg2 = dcs.DerivativeCompositionLeg(
+        leg_id=dcs.DerivativeLegId(_uuid(27)),
+        ordinal=dcs.DerivativeLegOrdinal(2),
+        component_identity_id=_identity(635),
+        side=dcs.DerivativeCompositionSide.SHORT,
+        ratio=Decimal("2.5"),
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(28)),
+    )
+    comp = dcs.DerivativeCompositionTerms(
+        terms_id=dcs.DerivativeTermsId(_uuid(29)),
+        instrument_identity_id=_identity(636),
+        legs=(leg2, leg1),  # reversed
+        evidence_ref=dcs.DerivativeEvidenceRef(_uuid(30)),
+    )
+    expected_leg1 = _expected_composition_leg(leg1, expected_ratio="1.25")
+    expected_leg2 = _expected_composition_leg(leg2, expected_ratio="2.5")
+    expected = _expected_composition_terms(
+        comp,
+        expected_legs=(expected_leg1, expected_leg2),
+    )
+    assert comp.logical_values() == expected
