@@ -1,40 +1,58 @@
-"""Bounded CFD qualification/composition over existing UMI-02 and UMI-05.
+"""Bounded CFD qualification/composition over certified UMI-02/05/FX semantics.
 
-This module does not own universal CFD economics, market observations,
-valuation, execution, settlement mutation, provider support, or legal
-eligibility.
+This module owns only static D04 qualification material required by UNR-015.
+It does not own universal CFD economics, observations, valuation, margin/risk,
+execution, settlement mutation, provider support, legal eligibility, or Production.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Never
 from uuid import UUID
 
 from qore.infrastructure.derivative_contract_semantics import (
     DerivativeBenchmarkReference,
+    DerivativeEvidenceRef,
     DerivativeFixingTerms,
+    DerivativeNotional,
+    DerivativePriceQuoteBasisCode,
+    DerivativeReferenceRoleCode,
     DerivativeSettlementStyle,
+    DerivativeStrike,
+    DerivativeStrikeBasis,
+    DerivativeTermsId,
     ForwardContractTerms,
 )
 from qore.infrastructure.fixed_income_economics import (
+    BusinessCalendarRef,
+    BusinessDayConventionCode,
     FinancialTenor,
     FinancialTenorUnit,
+    SettlementConvention,
+)
+from qore.infrastructure.fx_semantics import (
+    FxEvidenceRef,
+    FxQuoteBasis,
+    FxQuotedCurrencyPair,
 )
 from qore.infrastructure.universal_instrument_identity import (
     EconomicIdentity,
     EconomicIdentityId,
+    EconomicIdentityKind,
+    IdentityConstructionKind,
+    IdentityEvidenceRef,
     IdentityFamilyCode,
     IdentityRelationship,
     IdentityRelationshipCode,
+    IdentityRelationshipId,
 )
 from qore.kernel.errors import InfrastructureError
 
-_CFD_FAMILY = IdentityFamilyCode("contracts-for-difference")
-_PRICE_DETERMINATION_RELATIONSHIP = IdentityRelationshipCode(
-    "price-determination-reference"
-)
+_CFD_FAMILY_CODE = "contracts-for-difference"
+_PRICE_DETERMINATION_RELATIONSHIP_CODE = "price-determination-reference"
 
 
 class CfdQualificationSemanticsError(InfrastructureError):
@@ -49,14 +67,285 @@ def _fail(message: str) -> Never:
     raise CfdQualificationValidationError(message)
 
 
-def _require_uuid(value: object) -> None:
+def _require_uuid(value: object, *, field_name: str) -> None:
     if type(value) is not UUID:
-        _fail("expected UUID")
+        _fail(f"{field_name} must be exact UUID")
 
 
-def _require_economic_identity_id(value: object) -> None:
+def _require_decimal(
+    value: object,
+    *,
+    field_name: str,
+    positive: bool = False,
+) -> None:
+    if type(value) is not Decimal or not value.is_finite():
+        _fail(f"{field_name} must be exact finite Decimal")
+    if positive and value <= 0:
+        _fail(f"{field_name} must be positive")
+
+
+def _require_identity_id(value: object, *, field_name: str) -> None:
     if type(value) is not EconomicIdentityId:
-        _fail("expected EconomicIdentityId")
+        _fail(f"{field_name} must be exact EconomicIdentityId")
+    _require_uuid(value.value, field_name=f"{field_name}.value")
+
+
+def _require_uuid_wrapper(
+    value: object,
+    expected_type: type[object],
+    *,
+    field_name: str,
+) -> None:
+    if type(value) is not expected_type:
+        _fail(f"{field_name} has invalid exact type")
+    nested = getattr(value, "value", None)
+    _require_uuid(nested, field_name=f"{field_name}.value")
+
+
+def _require_code_wrapper(
+    value: object,
+    expected_type: type[object],
+    *,
+    field_name: str,
+) -> None:
+    if type(value) is not expected_type:
+        _fail(f"{field_name} has invalid exact type")
+    nested = getattr(value, "value", None)
+    if type(nested) is not str or not nested:
+        _fail(f"{field_name}.value must be non-empty exact str")
+    value.__post_init__()  # type: ignore[attr-defined]
+
+
+def _validate_financial_tenor(value: object, *, field_name: str) -> None:
+    if type(value) is not FinancialTenor:
+        _fail(f"{field_name} must be exact FinancialTenor")
+    if type(value.value) is not int or value.value <= 0:
+        _fail(f"{field_name}.value must be positive exact int")
+    if type(value.unit) is not FinancialTenorUnit:
+        _fail(f"{field_name}.unit must be exact FinancialTenorUnit")
+
+
+def _validate_identity(identity: object) -> None:
+    if type(identity) is not EconomicIdentity:
+        _fail("cfd_identity must be exact EconomicIdentity")
+    _require_identity_id(identity.identity_id, field_name="cfd_identity.identity_id")
+    if type(identity.kind) is not EconomicIdentityKind:
+        _fail("cfd_identity.kind must be exact EconomicIdentityKind")
+    if identity.kind is not EconomicIdentityKind.TRADABLE_INSTRUMENT:
+        _fail("CFD identity must be a tradable instrument")
+    _require_code_wrapper(
+        identity.family,
+        IdentityFamilyCode,
+        field_name="cfd_identity.family",
+    )
+    if identity.family.value != _CFD_FAMILY_CODE:
+        _fail("CFD identity family must be contracts-for-difference")
+    if type(identity.construction) is not IdentityConstructionKind:
+        _fail("cfd_identity.construction must be exact IdentityConstructionKind")
+    _require_uuid_wrapper(
+        identity.evidence_ref,
+        IdentityEvidenceRef,
+        field_name="cfd_identity.evidence_ref",
+    )
+
+
+def _validate_fx_pair(pair: object) -> None:
+    if type(pair) is not FxQuotedCurrencyPair:
+        _fail("spot_reference must be exact FxQuotedCurrencyPair")
+    _require_identity_id(pair.pair_identity_id, field_name="spot_reference.pair_identity_id")
+    _require_identity_id(
+        pair.currency1_identity_id,
+        field_name="spot_reference.currency1_identity_id",
+    )
+    _require_identity_id(
+        pair.currency2_identity_id,
+        field_name="spot_reference.currency2_identity_id",
+    )
+    if pair.currency1_identity_id == pair.currency2_identity_id:
+        _fail("spot-reference currencies must differ")
+    if pair.pair_identity_id in (
+        pair.currency1_identity_id,
+        pair.currency2_identity_id,
+    ):
+        _fail("spot-reference pair identity must differ from currency identities")
+    if type(pair.quote_basis) is not FxQuoteBasis:
+        _fail("spot_reference.quote_basis must be exact FxQuoteBasis")
+    _require_uuid_wrapper(
+        pair.evidence_ref,
+        FxEvidenceRef,
+        field_name="spot_reference.evidence_ref",
+    )
+
+
+def _validate_settlement_convention(value: object) -> None:
+    if type(value) is not SettlementConvention:
+        _fail("forward settlement_convention must be exact SettlementConvention")
+    if type(value.business_day_lag) is not int or value.business_day_lag < 0:
+        _fail("settlement business_day_lag must be non-negative exact int")
+    _require_code_wrapper(
+        value.calendar_ref,
+        BusinessCalendarRef,
+        field_name="settlement calendar_ref",
+    )
+    _require_code_wrapper(
+        value.business_day_convention,
+        BusinessDayConventionCode,
+        field_name="settlement business_day_convention",
+    )
+
+
+def _validate_forward(forward: object) -> None:
+    if type(forward) is not ForwardContractTerms:
+        _fail("forward must be exact ForwardContractTerms")
+
+    _require_uuid_wrapper(forward.terms_id, DerivativeTermsId, field_name="forward.terms_id")
+    _require_identity_id(
+        forward.instrument_identity_id,
+        field_name="forward.instrument_identity_id",
+    )
+    _require_identity_id(
+        forward.reference_identity_id,
+        field_name="forward.reference_identity_id",
+    )
+    _require_identity_id(
+        forward.settlement_identity_id,
+        field_name="forward.settlement_identity_id",
+    )
+    if forward.instrument_identity_id == forward.reference_identity_id:
+        _fail("forward instrument and reference identity must differ")
+    if forward.instrument_identity_id == forward.settlement_identity_id:
+        _fail("forward instrument and settlement identity must differ")
+
+    if type(forward.notional) is not DerivativeNotional:
+        _fail("forward.notional must be exact DerivativeNotional")
+    _require_decimal(
+        forward.notional.value,
+        field_name="forward.notional.value",
+        positive=True,
+    )
+    _require_identity_id(
+        forward.notional.unit_identity_id,
+        field_name="forward.notional.unit_identity_id",
+    )
+
+    if type(forward.agreed_strike) is not DerivativeStrike:
+        _fail("forward.agreed_strike must be exact DerivativeStrike")
+    strike = forward.agreed_strike
+    _require_decimal(strike.value, field_name="forward.agreed_strike.value")
+    if type(strike.basis) is not DerivativeStrikeBasis:
+        _fail("forward.agreed_strike.basis must be exact DerivativeStrikeBasis")
+    if strike.basis is not DerivativeStrikeBasis.PRICE:
+        _fail("bounded forward-form CFD requires PRICE strike semantics")
+    _require_identity_id(
+        strike.quote_identity_id,
+        field_name="forward.agreed_strike.quote_identity_id",
+    )
+    _require_code_wrapper(
+        strike.price_quote_basis,
+        DerivativePriceQuoteBasisCode,
+        field_name="forward.agreed_strike.price_quote_basis",
+    )
+    if strike.convention is not None:
+        _fail("PRICE strike must not carry rate/yield convention")
+
+    if type(forward.maturity_date) is not date:
+        _fail("forward.maturity_date must be exact date")
+    if type(forward.settlement_style) is not DerivativeSettlementStyle:
+        _fail("forward.settlement_style must be exact DerivativeSettlementStyle")
+    if forward.settlement_style is not DerivativeSettlementStyle.CASH:
+        _fail("bounded forward-form CFD requires CASH settlement")
+    _require_uuid_wrapper(
+        forward.evidence_ref,
+        DerivativeEvidenceRef,
+        field_name="forward.evidence_ref",
+    )
+
+    fixing = forward.fixing
+    if type(fixing) is not DerivativeFixingTerms:
+        _fail("bounded forward-form CFD requires exact DerivativeFixingTerms")
+    if type(fixing.fixing_date) is not date:
+        _fail("forward.fixing.fixing_date must be exact date")
+    if fixing.fixing_date > forward.maturity_date:
+        _fail("forward fixing_date must not be after maturity_date")
+    _require_uuid_wrapper(
+        fixing.evidence_ref,
+        DerivativeEvidenceRef,
+        field_name="forward.fixing.evidence_ref",
+    )
+    if type(fixing.reference) is not DerivativeBenchmarkReference:
+        _fail("forward.fixing.reference must be exact DerivativeBenchmarkReference")
+    _require_identity_id(
+        fixing.reference.reference_identity_id,
+        field_name="forward.fixing.reference.reference_identity_id",
+    )
+    _require_code_wrapper(
+        fixing.reference.role,
+        DerivativeReferenceRoleCode,
+        field_name="forward.fixing.reference.role",
+    )
+    if fixing.reference.tenor is not None:
+        _validate_financial_tenor(
+            fixing.reference.tenor,
+            field_name="forward.fixing.reference.tenor",
+        )
+
+    if forward.settlement_convention is not None:
+        _validate_settlement_convention(forward.settlement_convention)
+
+
+def _validate_binding(
+    binding: object,
+    *,
+    economic_reference: EconomicIdentityId,
+    fixing_reference: EconomicIdentityId,
+) -> None:
+    if type(binding) is not IdentityRelationship:
+        _fail("price_determination_binding must be exact IdentityRelationship")
+    _require_uuid_wrapper(
+        binding.relationship_id,
+        IdentityRelationshipId,
+        field_name="price_determination_binding.relationship_id",
+    )
+    _require_identity_id(
+        binding.source_identity_id,
+        field_name="price_determination_binding.source_identity_id",
+    )
+    _require_identity_id(
+        binding.target_identity_id,
+        field_name="price_determination_binding.target_identity_id",
+    )
+    if binding.source_identity_id != economic_reference:
+        _fail("price-determination binding source must be economic reference")
+    if binding.target_identity_id != fixing_reference:
+        _fail("price-determination binding target must be fixing reference")
+    _require_code_wrapper(
+        binding.relationship,
+        IdentityRelationshipCode,
+        field_name="price_determination_binding.relationship",
+    )
+    if binding.relationship.value != _PRICE_DETERMINATION_RELATIONSHIP_CODE:
+        _fail("binding relationship must be price-determination-reference")
+    if type(binding.effective_from) is not datetime:
+        _fail("binding effective_from must be exact datetime")
+    if binding.effective_from.tzinfo is None or binding.effective_from.utcoffset() is None:
+        _fail("binding effective_from must be timezone-aware")
+    if binding.effective_until is not None:
+        if type(binding.effective_until) is not datetime:
+            _fail("binding effective_until must be exact datetime or None")
+        if (
+            binding.effective_until.tzinfo is None
+            or binding.effective_until.utcoffset() is None
+        ):
+            _fail("binding effective_until must be timezone-aware")
+        if binding.effective_until <= binding.effective_from:
+            _fail("binding effective_until must be after effective_from")
+    _require_uuid_wrapper(
+        binding.evidence_ref,
+        IdentityEvidenceRef,
+        field_name="price_determination_binding.evidence_ref",
+    )
+    if binding.ordinal is not None:
+        _fail("single price-determination binding must not carry ordinal precedence")
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,9 +353,10 @@ class CfdQualificationId:
     value: UUID
 
     def __post_init__(self) -> None:
-        _require_uuid(self.value)
+        _require_uuid(self.value, field_name="qualification_id.value")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
@@ -75,34 +365,16 @@ class CfdEvidenceRef:
     value: UUID
 
     def __post_init__(self) -> None:
-        _require_uuid(self.value)
+        _require_uuid(self.value, field_name="evidence_ref.value")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
-
-
-def _validate_cfd_identity(identity: EconomicIdentity) -> None:
-    if type(identity) is not EconomicIdentity:
-        _fail("expected EconomicIdentity")
-    if type(identity.family) is not IdentityFamilyCode:
-        _fail("family must be exact IdentityFamilyCode")
-    if type(identity.family.value) is not str:
-        _fail("family value must be str")
-    if identity.family != _CFD_FAMILY:
-        _fail("CFD identity family must be contracts-for-difference")
-    _require_economic_identity_id(identity.identity_id)
 
 
 @dataclass(frozen=True, slots=True)
 class CfdForwardFormQualification:
-    """Bounded fixed-maturity forward-form CFD qualification.
-
-    This value qualifies an existing UMI-05 ForwardContractTerms as a
-    CFD-family, cash-settled forward-form instrument with a contractually
-    bound price-determination/fixing reference.
-
-    It does not calculate payoff, retain observations, or mutate settlement.
-    """
+    """Static qualification for a bounded cash-settled forward-form CFD."""
 
     qualification_id: CfdQualificationId
     cfd_identity: EconomicIdentity
@@ -112,134 +384,37 @@ class CfdForwardFormQualification:
 
     def __post_init__(self) -> None:
         if type(self.qualification_id) is not CfdQualificationId:
-            _fail("expected CfdQualificationId")
+            _fail("qualification_id must be exact CfdQualificationId")
+        self.qualification_id.__post_init__()
         if type(self.evidence_ref) is not CfdEvidenceRef:
-            _fail("expected CfdEvidenceRef")
+            _fail("evidence_ref must be exact CfdEvidenceRef")
+        self.evidence_ref.__post_init__()
+        _validate_identity(self.cfd_identity)
+        _validate_forward(self.forward)
 
-        _validate_cfd_identity(self.cfd_identity)
-
-        if type(self.forward) is not ForwardContractTerms:
-            _fail("expected ForwardContractTerms")
-
-        _require_economic_identity_id(self.forward.instrument_identity_id)
         if self.cfd_identity.identity_id != self.forward.instrument_identity_id:
-            _fail(
-                "CFD identity id must equal ForwardContractTerms."
-                "instrument_identity_id"
-            )
-
-        if type(self.forward.settlement_style) is not DerivativeSettlementStyle:
-            _fail("expected DerivativeSettlementStyle")
-        if self.forward.settlement_style is not DerivativeSettlementStyle.CASH:
-            _fail(
-                "bounded forward-form CFD qualification requires CASH "
-                "settlement"
-            )
+            _fail("CFD identity id must equal forward instrument identity id")
 
         fixing = self.forward.fixing
-        if fixing is None:
-            _fail("bounded forward-form CFD qualification requires fixing terms")
-        if type(fixing) is not DerivativeFixingTerms:
-            _fail("expected DerivativeFixingTerms")
-        if type(fixing.fixing_date) is not date:
-            _fail("fixing date must be exact date")
-        if fixing.fixing_date > self.forward.maturity_date:
-            _fail("fixing date cannot exceed forward maturity date")
-
-        if type(fixing.reference) is not DerivativeBenchmarkReference:
-            _fail("expected DerivativeBenchmarkReference")
-        _require_economic_identity_id(fixing.reference.reference_identity_id)
-
+        assert fixing is not None
         economic_reference = self.forward.reference_identity_id
         fixing_reference = fixing.reference.reference_identity_id
-        _require_economic_identity_id(economic_reference)
-        _require_economic_identity_id(fixing_reference)
 
         if economic_reference == fixing_reference:
             if self.price_determination_binding is not None:
-                _fail(
-                    "price-determination binding is not required when "
-                    "economic reference and fixing reference are identical"
-                )
+                _fail("same reference must not carry redundant price binding")
             return
 
         if self.price_determination_binding is None:
-            _fail(
-                "distinct fixing reference requires explicit "
-                "price-determination binding"
-            )
-
-        binding = self.price_determination_binding
-        if type(binding) is not IdentityRelationship:
-            _fail("expected IdentityRelationship")
-
-        _require_economic_identity_id(binding.source_identity_id)
-        _require_economic_identity_id(binding.target_identity_id)
-
-        if binding.source_identity_id != economic_reference:
-            _fail(
-                "price-determination binding source must be the CFD "
-                "economic reference"
-            )
-        if binding.target_identity_id != fixing_reference:
-            _fail(
-                "price-determination binding target must be the fixing "
-                "reference"
-            )
-
-        if type(binding.relationship) is not IdentityRelationshipCode:
-            _fail("expected IdentityRelationshipCode")
-        if type(binding.relationship.value) is not str:
-            _fail("relationship code value must be str")
-        if binding.relationship != _PRICE_DETERMINATION_RELATIONSHIP:
-            _fail(
-                "price-determination binding must use "
-                "price-determination-reference"
-            )
-
-        self._validate_binding_covers_fixing_day(binding, fixing.fixing_date)
-
-    @staticmethod
-    def _validate_binding_covers_fixing_day(
-        binding: IdentityRelationship,
-        fixing_date: date,
-    ) -> None:
-        if type(binding.effective_from) is not datetime:
-            _fail("effective_from must be datetime")
-        if binding.effective_from.tzinfo is None:
-            _fail("effective_from must be timezone-aware")
-
-        effective_from_utc = binding.effective_from.astimezone(UTC)
-        fixing_day_start = datetime.combine(
-            fixing_date,
-            time.min,
-            tzinfo=UTC,
+            _fail("distinct fixing reference requires explicit price binding")
+        _validate_binding(
+            self.price_determination_binding,
+            economic_reference=economic_reference,
+            fixing_reference=fixing_reference,
         )
-        if effective_from_utc > fixing_day_start:
-            _fail(
-                "price-determination binding is not effective at the "
-                "start of the fixing date"
-            )
-
-        next_day_start = fixing_day_start + timedelta(days=1)
-
-        effective_until = binding.effective_until
-        if effective_until is None:
-            return
-
-        if type(effective_until) is not datetime:
-            _fail("effective_until must be datetime")
-        if effective_until.tzinfo is None:
-            _fail("effective_until must be timezone-aware")
-
-        effective_until_utc = effective_until.astimezone(UTC)
-        if effective_until_utc < next_day_start:
-            _fail(
-                "price-determination binding does not cover the complete "
-                "fixing date"
-            )
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             "cfd-forward-form-qualification",
             self.qualification_id.logical_values(),
@@ -254,40 +429,34 @@ class CfdForwardFormQualification:
 
 @dataclass(frozen=True, slots=True)
 class CfdRollingSpotLifecycleQualification:
-    """Bounded ESMA-style rolling-spot CFD lifecycle qualification.
-
-    Existence of this value means the bounded specimen retains:
-
-    - automatic contract rollover at the end of each contract period;
-    - contractual party termination capability.
-
-    It grants NO scheduler, execution, generated roll dates, margin close-out,
-    current price, or financing authority.
-    """
+    """Static qualification for the bounded ESMA-style rolling-spot specimen."""
 
     qualification_id: CfdQualificationId
     cfd_identity: EconomicIdentity
+    spot_reference: FxQuotedCurrencyPair
     contract_period: FinancialTenor
     evidence_ref: CfdEvidenceRef
 
     def __post_init__(self) -> None:
         if type(self.qualification_id) is not CfdQualificationId:
-            _fail("expected CfdQualificationId")
+            _fail("qualification_id must be exact CfdQualificationId")
+        self.qualification_id.__post_init__()
         if type(self.evidence_ref) is not CfdEvidenceRef:
-            _fail("expected CfdEvidenceRef")
-
-        _validate_cfd_identity(self.cfd_identity)
-
-        if type(self.contract_period) is not FinancialTenor:
-            _fail("expected FinancialTenor")
-        if type(self.contract_period.unit) is not FinancialTenorUnit:
-            _fail("expected FinancialTenorUnit")
+            _fail("evidence_ref must be exact CfdEvidenceRef")
+        self.evidence_ref.__post_init__()
+        _validate_identity(self.cfd_identity)
+        _validate_fx_pair(self.spot_reference)
+        _validate_financial_tenor(self.contract_period, field_name="contract_period")
+        if self.cfd_identity.identity_id == self.spot_reference.pair_identity_id:
+            _fail("CFD identity must not collapse into FX pair reference identity")
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             "cfd-rolling-spot-lifecycle-qualification",
             self.qualification_id.logical_values(),
             self.cfd_identity.logical_values(),
+            self.spot_reference.logical_values(),
             self.contract_period.logical_values(),
             "automatic-contract-rollover",
             "party-termination-capability",
