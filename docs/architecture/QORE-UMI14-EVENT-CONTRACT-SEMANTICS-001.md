@@ -1,56 +1,74 @@
 # QORE-UMI14-EVENT-CONTRACT-SEMANTICS-001
 
-## Status
+## Estado
 
-**PROGRAM D / UMI-14 — LANE 11 / UMI13-UNR-014 — PREPARATORY CORRECTION CANDIDATE; INDEPENDENT CERTIFICATION REQUIRED**
+**PROGRAM D / UMI-14 — UMI13-UNR-014 R1 CANDIDATA DE FULL CLOSURE — NO CERTIFICADA**
 
 Tracker: #396  
 Parent audit: #363  
-Starting certified baseline: `39e1598e91c912f473f9628c3aab30fe7b9cc034`
+PR: #397  
+Target: `UMI13-UNR-014` — `event-contracts`  
+Baseline de recertificación: `76eda1ce4c324c3e97b70001ea4cac37a6d4a6a9`  
+Baseline tree: `ca9722d11059f13a3c74c6820a15e15232c92171`  
+Rama: `agent/qore-umi14-event-contract-semantics-014`
 
-This artifact closes only the bounded static D04 event-contract definition and
-resolution-terms gap. It does not observe or adjudicate an event, calculate a current
-probability, execute orders, settle cash, determine legality, enable Production or
-open real capital.
+El candidato histórico fue preparado sobre una base anterior. Después del cierre e
+integración de UNR-013, la rama se sincronizó con el `main` certificado sin alterar los
+tres blobs preparatorios y se inició una nueva falsificación interna antes de cualquier
+congelado R1.
 
-## 1. Evidence boundary
+La revisión interna encontró que el candidato preparatorio todavía usaba límites
+`isinstance`, no revalidaba suficientemente estado anidado/fabricado, permitía que
+`logical_values()` confiara en estado ya construido y usaba una canonicalización Decimal
+no adecuada para Full Closure. R1 corrige esas debilidades antes del gate externo.
 
-Exact QORE baseline evidence:
+Este responsable conserva únicamente semántica contractual estática D04. No observa un
+evento, no decide su resultado, no calcula probabilidad/precio, no ejecuta órdenes, no
+liquida cash, no determina legalidad, no habilita Production y no autoriza capital real.
 
-- UMI-13 architecture blob: `ec51c900c2701f885053141601a7792cdf74856e`;
-- canonical unresolved entry:
-  `UMI13-UNR-014 — event-resolution / outcome authority — binary payoff shape != authoritative resolution`.
+---
 
-Exact-baseline repository searches did not identify a dedicated static event-contract
-resolution owner. That mechanical result was not treated as sufficient by itself.
+## 1. Gap material
 
-Primary external evidence used for financial falsification is current CFTC event-contract
-guidance and 2026 CFTC product-term filings. Those materials show that event contracts
-require contractual payout terms plus rules for how settlement is determined, who
-makes the determination, which source controls, and how corrections/source conflicts
-are handled. CME prediction-market material independently confirms that terminal event
-payout can be a fixed binary amount while rulebook/resolution semantics remain
-separate.
+UMI-13 conserva:
 
-## 2. Adjudication
+`UMI13-UNR-014 — event-resolution / outcome authority — binary payoff shape != authoritative resolution`
 
-`VERIFIED MATERIAL D04 GAP — BOUNDED CORRECTION REQUIRED`
+Un payoff binario por sí solo no preserva:
 
-Surviving material collisions:
+- qué criterio define el evento;
+- qué outcomes contractuales existen;
+- qué autoridad contractual resuelve;
+- qué fuentes primarias/fallback controlan y en qué prioridad;
+- qué regla de resolución se aplica;
+- cómo se tratan correcciones de fuente;
+- cómo se tratan conflictos entre fuentes;
+- qué payout contractual corresponde a cada outcome.
 
-1. identical binary payout shape with different event criterion/question;
-2. identical criterion with different contracted resolution source;
-3. primary source vs fallback source priority;
-4. different correction policies;
-5. different source-conflict policies;
-6. binary yes/no vs another explicit outcome taxonomy;
-7. outcome code != observed/resolved outcome;
-8. scheduled resolution date != actual resolution timestamp;
-9. contractual payout != settlement mutation.
+Por tanto:
 
-## 3. Candidate inventory
+`BINARY PAYOFF SHAPE != AUTHORITATIVE RESOLUTION TERMS`
 
-The candidate adds:
+`RESOLUTION TERMS != RESOLVED OUTCOME`
+
+---
+
+## 2. Superficie autorizada
+
+La corrección permanece limitada a exactamente tres archivos aditivos respecto del
+baseline certificado:
+
+1. `src/qore/infrastructure/event_contract_semantics.py`
+2. `tests/infrastructure/test_event_contract_semantics.py`
+3. `docs/architecture/QORE-UMI14-EVENT-CONTRACT-SEMANTICS-001.md`
+
+No se modifica ningún owner certificado previo.
+
+---
+
+## 3. Valores estáticos
+
+El owner define valores locales inmutables para:
 
 - `EventContractTermsId`;
 - `EventEvidenceRef`;
@@ -68,161 +86,260 @@ The candidate adds:
 - `EventResolutionTerms`;
 - `EventContractTerms`.
 
-UMI-02 `EconomicIdentityId` is reused for the contract instrument and payout currency.
-No economic identity is created or mutated here.
+UMI-02 `EconomicIdentityId` se reutiliza para el instrumento y la moneda de payout. Este
+owner no crea una segunda autoridad de identidad económica.
 
-## 4. Event definition boundary
+IDs UUID locales y `EconomicIdentityId` se validan con tipo exacto y el estado UUID
+anidado también se revalida. Los códigos exigen `str` exacto, no vacío, sintaxis
+canonical lowercase y máximo 96 caracteres.
 
-`EventContractTerms` retains only static product material:
+---
 
-- event-contract terms ID;
-- instrument economic identity;
-- opaque event-subject reference;
-- event criterion/rule code;
-- outcome-structure code;
-- at least two explicit unique outcomes;
-- optional expiration date;
-- static resolution terms;
-- evidence reference.
+## 4. Payout contractual y Decimal
 
-The subject reference is deliberately opaque. It is not a URL, provider symbol,
-scraping key, API identifier or current-event-state source.
+`EventCashPayout` conserva:
 
-Different criteria with identical payouts remain different contracts.
+- Decimal exacto, finito y no negativo;
+- `EconomicIdentityId` exacto de moneda.
 
-## 5. Outcome and payout semantics
+Zero payout es válido. No se impone una ley universal `$1/$0`, complementariedad ni
+misma moneda para todos los outcomes.
 
-Each `EventOutcomeTerms` retains:
+La representación Decimal lógica:
 
-- an explicit typed outcome code;
-- a non-negative finite contractual cash payout;
-- payout currency economic identity.
+- es independiente del contexto Decimal;
+- colapsa signed zero a `0`;
+- colapsa formas numéricamente equivalentes;
+- no expande exponentes extremos proporcionalmente a su magnitud;
+- usa forma compacta cuando la forma fija sería materialmente mayor.
 
-Zero payout is valid. The owner does not impose a universal complementary-payout law,
-a universal `$1/$0` law, or a universal same-currency rule across all possible event
-contracts. Those would be stronger universal claims than the evidence supports.
+`CONTRACTUAL PAYOUT != SETTLEMENT MUTATION`
 
-At least two outcomes are required, but the owner is not restricted to binary
-contracts. A three-or-more-outcome contract can preserve its explicit taxonomy without
-being translated into multiple synthetic binaries.
+---
 
-`OUTCOME CODE != RESOLVED OUTCOME`
+## 5. Outcomes y orden no económico
 
-No field stores a current/resolved outcome, resolution timestamp, vote count, score,
-weather measurement or other observed event state.
+Cada `EventOutcomeTerms` conserva un `EventOutcomeCode` exacto y su payout exacto.
 
-## 6. Resolution authority and source precedence
+`EventContractTerms` exige:
 
-`EventResolutionTerms` retains:
+- tuple exacta;
+- al menos dos outcomes;
+- outcome codes únicos.
 
-- opaque contracted resolution-authority reference;
-- ordered, non-empty primary resolution-source codes;
-- ordered optional fallback source codes;
-- resolution-rule code;
-- correction-policy code;
-- source-conflict-policy code;
-- optional scheduled resolution date.
+El orden de entrada de los outcomes **no es autoridad contractual por sí solo**. R1
+canonicaliza el conjunto por outcome code/currency/amount para evitar que una simple
+permutación del caller cree otra identidad económica.
 
-Primary and fallback collections are exact tuples. Duplicates are rejected and the two
-sets must be disjoint. Order is preserved as contractual material because source
-precedence can affect resolution.
+Si un producto futuro necesita precedencia entre outcomes, esa precedencia debe quedar
+representada mediante material contractual explícito, por ejemplo ordinal/rule code, y
+no mediante el orden accidental de una colección de entrada.
 
-The authority reference is contractual metadata only. It is not a legal-person registry,
-credential, API connection or adjudication capability.
+Por contraste, el orden de las fuentes de resolución sí es material contractual y se
+preserva exactamente.
+
+`OUTCOME COLLECTION ORDER != RESOLUTION SOURCE PRIORITY`
+
+---
+
+## 6. Resolution authority y fuentes
+
+`EventResolutionTerms` conserva:
+
+- `EventResolutionAuthorityRef` opaco;
+- sources primarias exactas, ordenadas y no vacías;
+- sources fallback exactas, ordenadas y opcionales;
+- `EventResolutionRuleCode`;
+- `EventCorrectionPolicyCode`;
+- `EventSourceConflictPolicyCode`;
+- `scheduled_resolution_date` opcional.
+
+Primary y fallback:
+
+- deben ser tuples exactas;
+- no admiten códigos duplicados;
+- deben ser disjuntas entre sí;
+- mantienen orden porque la prioridad de fuentes puede cambiar el contrato.
+
+La referencia de authority no prueba identidad legal, credencial, API, provider support
+ni capacidad de adjudicación.
 
 `SOURCE REFERENCE != DATA FETCH`
 
-`RESOLUTION TERMS != RESOLVED OUTCOME`
+`SOURCE PRIORITY != CALLER-ORDER NOISE`
 
-D05 owns observed external evidence and any retained authoritative resolution
-observation. This D04 owner merely preserves what the contract says should control.
+---
 
-## 7. Correction and source-conflict policies
+## 7. Fechas estáticas sin ley cronológica inventada
 
-Correction and source-conflict policy codes are explicit typed contract terms so that
-contracts which use the same source but differ on post-publication corrections or
-conflicting-source treatment do not collapse into one representation.
+El contrato puede conservar de forma independiente:
 
-The codes do not execute those policies. There is no source fetch, polling, parser,
-conflict adjudication, retry loop or scheduler in this owner.
+- `expiration_date: date | None`;
+- `scheduled_resolution_date: date | None`.
 
-## 8. Time boundary
+Ambas, cuando existen, deben ser `date` exactas y no `datetime`.
 
-Expiration and scheduled resolution are optional exact dates. When both are supplied,
-scheduled resolution cannot precede expiration and may equal it.
+R1 **no impone** que scheduled resolution deba ser anterior, igual o posterior a
+expiration. La autoridad de #396 sólo exige conservar material contractual estático; no
+prueba una relación cronológica universal aplicable a todos los event contracts.
 
-No current clock is consulted. The scheduled date does not assert when the event was
-actually resolved.
+Esto evita convertir una convención frecuente en una ley D04 universal no demostrada.
+D06 conserva evaluación de reloj, deadline y calendario; D05 conserva la observación del
+resultado real y su timestamp cuando exista.
 
 `SCHEDULED RESOLUTION DATE != ACTUAL RESOLUTION TIME`
 
-D06 retains current clock/calendar/deadline authority.
+`STATIC DATE PAIR != UNIVERSAL DATE-ORDER LAW`
 
-## 9. Authority map
+---
 
-| Material | Authority |
+## 8. Exact types y revalidación fail-closed
+
+R1 usa límites de tipo exacto en lugar de composición permisiva por subclases.
+
+Los padres revalidan:
+
+- wrappers UUID locales;
+- `EconomicIdentityId` y su UUID interno;
+- códigos locales;
+- payout/moneda;
+- outcomes;
+- resolution terms;
+- sources y policies;
+- fechas exactas.
+
+Cada `logical_values()` vuelve a ejecutar su validación. Por ello un objeto fabricado con
+`object.__new__` o corrompido después de construcción con `object.__setattr__` no recibe
+confianza sólo porque pertenece a la clase correcta.
+
+`TYPE NAME EXISTS != VALID INTERNAL STATE`
+
+`FROZEN DATACLASS != TRUSTED FOREVER`
+
+---
+
+## 9. Identidad lógica y no-colapso
+
+La identidad lógica conserva por separado:
+
+- tag `event-contract`;
+- terms ID;
+- instrument identity;
+- subject reference;
+- criterion code;
+- outcome-structure code;
+- outcomes canonicalizados;
+- expiration date;
+- resolution authority/sources/rules/policies/scheduled date;
+- evidence ref.
+
+Las pruebas R1 deben demostrar al menos:
+
+- misma payout shape + distinto criterion != misma identidad;
+- distinta outcome taxonomy != misma identidad;
+- distinto payout amount/currency != misma identidad;
+- distinta resolution authority != misma identidad;
+- distinto primary/fallback source material != misma identidad;
+- distinta source priority != misma identidad;
+- distinta correction/conflict/resolution rule != misma identidad;
+- distinta fecha estática representada != misma identidad;
+- permutar outcomes sin cambiar material económico = misma identidad;
+- permutar sources prioritarias = identidad distinta.
+
+---
+
+## 10. Separación de autoridad
+
+| Material | Autoridad |
 |---|---|
-| Instrument/economic identity | UMI-02 / D04 |
-| Static event criterion, outcomes, payout and resolution terms | this bounded D04 owner |
-| Observed event/source evidence and retained resolution observation | D05 |
-| Current deadlines/calendars/time | D06 |
+| Economic instrument / currency identity | UMI-02 / D04 |
+| Static event criterion/outcome/payout/resolution terms | UNR-014 / D04 |
+| Observed external event/source evidence / resolved observation | D05 |
+| Current clock/deadline/calendar evaluation | D06 |
 | Probability, market price, valuation methodology/results | D07 |
-| Current positions/exposure | D08 / D09 |
-| Order/execution | D10 |
-| Cash/position settlement mutation | D11 |
-| Legality/eligibility/regulatory determination | D22 |
+| Current positions / exposure / risk | D08 / D09 |
+| Order / execution | D10 |
+| Settlement / cash / position mutation | D11 |
+| Legal / regulatory / eligibility determination | D22 |
 
-## 10. Fail-closed invariants
+El owner no ejecuta los policies de resolución. Sólo preserva el contrato estático que
+otros departamentos podrán consumir bajo su propia autoridad.
 
-- explicit UUID-backed owner IDs; no implicit identity generation;
-- typed economic identity for instrument and payout currency;
-- canonical bounded lowercase codes;
-- payout amount must be finite and non-negative;
-- outcomes are an exact tuple of at least two typed entries;
-- outcome codes are unique;
-- primary resolution sources are non-empty, ordered, typed and unique;
-- fallback sources are ordered, typed and unique;
-- primary/fallback source sets are disjoint;
-- authority/rule/correction/conflict values are typed;
-- expiration/scheduled resolution dates are exact `date` values;
-- scheduled resolution does not precede expiration when both exist;
-- frozen/slotted deterministic values;
-- deterministic `logical_values()`;
-- no wall clock, UUID generation, random state, secret/provider material or current
-  outcome field.
+---
 
-## 11. Explicit exclusions
+## 11. Espacio negativo
 
-This candidate implements no:
+R1 no contiene autoridad para:
 
-- event scraping, feed or exchange/provider API;
-- current event state;
-- current probability or market price;
-- vote/score/weather/election parser;
-- event adjudication engine;
-- source-conflict execution;
-- source-correction execution;
-- realized/resolved outcome state;
-- order/execution;
+- event scraping o feeds;
+- provider/exchange API;
+- current/resolved outcome;
+- actual resolution timestamp;
+- vote/score/weather/election parsing;
+- current probability;
+- market price;
+- valuation;
+- adjudication engine;
+- correction/conflict execution;
+- retry/polling/scheduler;
+- order submission;
 - settlement/cash/position mutation;
 - portfolio/risk calculation;
-- legal/regulatory eligibility engine;
-- UMI-12 conformance-harness mutation;
-- productive Cloud or real-capital authority.
+- legal/regulatory eligibility;
+- implicit wall clock;
+- implicit/random UUID;
+- secrets/productive credentials;
+- Production;
+- capital real.
 
-## 12. Gate discipline
+`STATIC RESOLUTION TERMS != RESOLUTION ENGINE`
 
-This candidate is preparatory because Lane 3 / PR #376 remains the integration-order
-gate.
+`CONTRACTUAL PAYOUT != CASH MOVEMENT`
 
-Required eventual sequence:
+---
 
-`PREPARATORY CANDIDATE -> EXACT-HEAD CI -> FREEZE -> WAIT FOR PRECEDING LANES -> SYNC TO NEW CERTIFIED MAIN -> NEW EXACT SHA -> FULL CI -> INDEPENDENT REVIEW -> INTEGRATION GATE -> EXPECTED-HEAD MERGE -> POST-MERGE CERTIFICATION`
+## 12. R1 pre-freeze hardening
 
-`BINARY PAYOFF SHAPE != AUTHORITATIVE RESOLUTION`
+El candidato preparatorio anterior es evidencia histórica solamente.
 
-`CI GREEN != ENGINEERING APPROVAL`
+Antes de establecer cualquier congelado R1 se corrigieron explícitamente:
 
-`NO INDEPENDENT EXACT-HEAD REVIEW -> NO MERGE`
+1. exact-type boundaries;
+2. nested UUID/EconomicIdentity revalidation;
+3. local child-state revalidation;
+4. reflective malformed-object resistance;
+5. revalidación en cada `logical_values()`;
+6. Decimal canonicalization context-independent y compacta;
+7. outcome order no económico;
+8. eliminación de la regla no demostrada `scheduled_resolution >= expiration`;
+9. pruebas de negative space y autoridad D04.
 
-`NO LANE-ORDER BYPASS`
+Ninguna de estas correcciones habilita D05/D06/D07/D08/D09/D10/D11/D22.
+
+---
+
+## 13. Estado de gate
+
+Al guardar este documento:
+
+- baseline de recertificación = `76eda1ce4c324c3e97b70001ea4cac37a6d4a6a9`;
+- R1 candidate = presente;
+- Full Closure hardening = implementado, pendiente de Quality Gate;
+- R1 freeze = NO ESTABLECIDO;
+- exact post-freeze synthetic CI = NO ESTABLECIDO;
+- DeepSeek Expert R1 = EN ESPERA;
+- DeepSeek Coder R1 = EN ESPERA;
+- Claude Code R1 = EN ESPERA;
+- IA Final R1 = EN ESPERA;
+- Ready = NO;
+- #396 = OPEN;
+- UMI-14 / PROGRAM D = NO CERRADOS;
+- Production = CERRADO;
+- capital real = NO AUTORIZADO.
+
+Secuencia:
+
+`FULL CI -> DIFF AUDIT -> CONGELADO R1 -> EXACT POST-FREEZE SYNTHETIC CI -> DEEPSEEK EXPERT -> IA -> DEEPSEEK CODER -> IA -> CLAUDE CODE -> IA -> IA FINAL -> READY -> MERGE(expected_head) -> POST-MERGE VERIFY -> CERRAR #396`
+
+Cualquier cambio del HEAD después del CONGELADO invalida la ronda y exige nueva
+vinculación, nuevo congelado, nuevo synthetic CI y reinicio serial desde DeepSeek Expert.
