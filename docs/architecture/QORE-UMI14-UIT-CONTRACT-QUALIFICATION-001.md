@@ -2,261 +2,197 @@
 
 ## 1. STATUS
 
-PROGRAM D / UMI-14 LANE IMPLEMENTATION CANDIDATE
-INDEPENDENT CERTIFICATION REQUIRED
+**PROGRAM D / UMI-14 — UMI13-UNR-016 R1 FULL-CLOSURE CANDIDATE — NOT YET CERTIFIED**
 
-## 2. MISSION / ISSUE
+Tracker: #400  
+Parent audit: #363  
+PR: #401  
+Target: `UMI13-UNR-016` — bounded US-style Unit Investment Trust qualification
 
-Issue #400
-UMI13-UNR-016 — unit investment trusts / funds-pooled-vehicles
+Current certified predecessor baseline:
 
-## 3. EXACT BASELINE
+`40280e0574ae0e7ac6c9ff37afb7bbe314c6368a`
 
-SHA: 39e1598e91c912f473f9628c3aab30fe7b9cc034
-TREE: 380140cd55ba7d90dcbd9e5fbb4944bdec9368d2
+The earlier preparatory candidate and its CI/reviews were built on an older baseline and are historical evidence only. The current R1 candidate was reconstructed directly on the certified predecessor baseline before a new exact-head quality/review cycle.
 
-## 4. EXACT BOUNDED PURPOSE
+## 2. BOUNDED PURPOSE
 
-This module provides a bounded identity-rooted Unit Investment Trust
-qualification over complete UMI-02 EconomicIdentity.
+This owner provides a bounded identity-rooted Unit Investment Trust qualification over complete UMI-02 `EconomicIdentity`.
 
-It does not create a sovereign UIT fund owner, a generic fund taxonomy, a
-parallel FundVehicleTerms owner, or a NAV value/calculation authority.
+It does **not** create:
 
-## 5. FINANCIAL EVIDENCE SCOPE
+- a universal/global UIT ontology;
+- a sovereign fund vehicle owner;
+- a parallel `FundVehicleTerms` owner;
+- a generic fund taxonomy rewrite;
+- NAV/current holdings authority;
+- execution, redemption, liquidation or settlement authority;
+- provider or legal/regulatory authority.
 
-The implementation follows the authoritative US-style bounded UIT scope.
+`UIT QUALIFICATION != UNIVERSAL FUND TAXONOMY`
 
-It does not create a universal global legal ontology.
+## 3. ETF + UIT COEXISTENCE
 
-## 6. ETF + UIT COEXISTENCE
+ETF and UIT are not mutually exclusive in the bounded scope.
 
-ETF and UIT are not mutually exclusive.
+QORE may retain ETF form through UMI-06 `FundVehicleTerms(vehicle_kind=ETF)` while this qualifier retains UIT-specific structure on the same complete economic identity.
 
-QORE retains ETF form through UMI-06 FundVehicleTerms(vehicle_kind=ETF)
-and UIT structure through this qualifier on the same economic identity.
+A non-ETF UIT is also representable because this owner does not require `FundVehicleTerms` or any existing `FundVehicleKind` member.
 
-## 7. NON-ETF UIT REPRESENTABILITY
+No `FundVehicleKind.UNIT_INVESTMENT_TRUST` member is added in this lane.
 
-The UIT qualifier is rooted directly on EconomicIdentity.
+## 4. COMPLETE ECONOMIC IDENTITY ROOT
 
-It does not require FundVehicleTerms or any existing FundVehicleKind member.
-Therefore a non-ETF UIT can be qualified without falsely assigning:
-ETF, LISTED_TRUST, MUTUAL_FUND, CLOSED_END_FUND, MONEY_MARKET_FUND, or REIT.
+The root is:
 
-## 8. WHY FundVehicleTerms IS NOT REQUIRED
+`fund_identity: EconomicIdentity`
 
-FundVehicleTerms enforces one mutually-exclusive FundVehicleKind.
+not merely `EconomicIdentityId`.
 
-Non-ETF UIT has no truthful current FundVehicleKind value.
+The qualifier preserves complete identity projection: identity ID, kind, family, construction and identity evidence.
 
-Forcing FundVehicleTerms would reintroduce the exact R2 contradiction:
-a valid non-ETF UIT could not be constructed without a false vehicle kind.
+The root must be an exact `EconomicIdentity`, exact `TRADABLE_INSTRUMENT`, exact `IdentityFamilyCode("funds-pooled-vehicles")`, and must retain exact nested UUID state.
 
-## 9. WHY FundVehicleKind IS NOT EXTENDED
+A tradable UIT identity cannot use `CONTINUOUS_REFERENCE` construction.
 
-Adding UNIT_INVESTMENT_TRUST to the same closed enum would allow
-FundVehicleTerms(vehicle_kind=UNIT_INVESTMENT_TRUST) without the
-mandatory bounded UIT qualification.
+## 5. TYPE-ENCODED UIT MATERIAL
 
-It would also be unable to represent ETF + UIT simultaneously.
+Existence of a valid `UnitInvestmentTrustQualification` explicitly means:
 
-## 10. WHY GENERIC FUND TAXONOMY IS NOT REWRITTEN
+- `redeemable-security`;
+- `undivided-interest`;
+- one or more contractually specified securities.
 
-No repository evidence proves a generic orthogonal fund vehicle structure
-decomposition beyond UIT.
+The first two are type-encoded invariants rather than booleans because `False` would contradict the bounded qualified form.
 
-A bounded qualifier solves UNR-016 with smaller blast radius.
+## 6. SPECIFIED-SECURITY MATERIAL
 
-## 11. COMPLETE ECONOMIC IDENTITY ROOT
+`UnitInvestmentTrustSpecifiedSecurity` is a local D04 carrier for one contractually specified security identity plus local evidence.
 
-The root field is:
+Each component:
 
-fund_identity: EconomicIdentity
+- carries a complete exact `EconomicIdentity`;
+- must be a tradable instrument;
+- retains identity evidence plus local UIT evidence;
+- is not a current holding, quantity, weight, allocation, market value or derivative payoff leg.
 
-NOT EconomicIdentityId.
+The tuple is exact, immutable and non-empty. Duplicate component economic identity IDs are rejected. Incidental caller ordering is not contractual authority, so components are canonicalized deterministically by economic identity ID.
 
-Complete identity material includes identity ID, kind, family, construction,
-and identity evidence.
+No UMI-09 `StructuredComponentBinding` is reused as a false fund-holdings owner.
 
-Lossy projection of only ID + family is prohibited.
+## 7. NO INVENTED QUANTITY / WEIGHT LAW
 
-## 12. FUNDS-POOLED-VEHICLES FAMILY GUARD
+The bounded evidence establishes specified securities but does not establish a universal contract quantity, weight or allocation field for every valid in-scope UIT.
 
-The root fund EconomicIdentity must be:
+Therefore R1 does not invent quantity/weight semantics and does not claim current portfolio state.
 
-family == IdentityFamilyCode("funds-pooled-vehicles")
+`SPECIFIED SECURITY != CURRENT HOLDING`
 
-## 13. TRADABLE INSTRUMENT GUARD
+## 8. OPTIONAL CONTRACTUAL TERMINATION DATE
 
-The root and each specified security must have:
+`contractual_termination_date: date | None` is optional bounded static material.
 
-kind == EconomicIdentityKind.TRADABLE_INSTRUMENT
+When present it must be exact `date`, not `datetime`.
 
-## 14. REDEEMABLE-SECURITY TYPE-ENCODED SEMANTIC
+It does not create:
 
-A completed UnitInvestmentTrustQualification means redeemable-security.
+- wall-clock/currentness evaluation;
+- scheduler/timer;
+- lifecycle-event generation;
+- liquidation execution;
+- settlement mutation.
 
-No configurable `redeemable: bool` exists because `False` would be an
-invalid bounded state.
+UMI-02 `IdentityLifecycleEvent` is historical/evidence-bearing lifecycle material and cannot substitute a future contractual termination date.
 
-## 15. UNDIVIDED-INTEREST TYPE-ENCODED SEMANTIC
+## 9. EXACT-TYPE / MALFORMED-STATE LAW
 
-A completed UnitInvestmentTrustQualification means undivided-interest.
+R1 treats composition boundaries as untrusted even when an imported type name is correct.
 
-No configurable `undivided_interest: bool` exists.
+It therefore revalidates:
 
-## 16. SPECIFIED-SECURITY LOCAL CARRIER
+- local wrapper exact types and nested exact UUIDs;
+- exact `EconomicIdentityId` plus nested UUID;
+- exact kind/family/construction/evidence types;
+- exact family string and imported family-code validation;
+- exact component types and their complete retained child state;
+- exact `date` for optional termination.
 
-UnitInvestmentTrustSpecifiedSecurity is local to UIT semantics.
+Every local `logical_values()` re-runs local validation. A frozen dataclass is not trusted forever: reflective/fabricated or post-construction-corrupted state must fail closed rather than project a valid logical identity.
 
-It represents one contractually specified security identity.
+`TYPE NAME EXISTS != VALID INTERNAL STATE`
 
-It is not:
-- current holding
-- portfolio quantity
-- portfolio weight
-- allocation
-- market value
-- derivative payoff leg
-- UMI-09 structured component binding
+## 10. LOGICAL IDENTITY
 
-## 17. SPECIFIED-SECURITIES ORDER / DUPLICATES
+Qualifier logical material includes, in deterministic order:
 
-The specified-securities tuple is non-empty.
+- discriminator;
+- qualification ID;
+- complete fund economic identity;
+- `redeemable-security` marker;
+- `undivided-interest` marker;
+- canonical complete specified-security projections;
+- optional contractual termination date;
+- local evidence reference.
 
-Duplicate security identities are rejected based on security identity ID,
-even if component evidence differs.
+Specified-security logical material includes:
 
-Order is not material and is canonicalized deterministically by identity ID.
+- discriminator;
+- complete security economic identity;
+- local evidence reference.
 
-## 18. NO UNIVERSAL QUANTITY/WEIGHT CLAIM
+Material differences in retained static state must not collapse. Caller component order alone must not split an otherwise identical logical contract.
 
-This implementation does not introduce quantity, weight, allocation, or
-current portfolio state.
+## 11. NAV / OBSERVATION BOUNDARY
 
-## 19. OPTIONAL CONTRACTUAL TERMINATION DATE
+UMI-06 retains fund structural semantics and UMI-10 retains valuation-observation carriers. This owner does not import or duplicate current NAV, NAV calculation, redemption price, current holdings or valuation methodology.
 
-`contractual_termination_date` is an optional exact civil date.
+`STATIC UIT QUALIFICATION != NAV OBSERVATION`
 
-It is not mandatory §80a-4(2) material.
+## 12. NEGATIVE AUTHORITY SURFACE
 
-It does not create scheduler, rollover, lifecycle event, liquidation, or
-settlement behavior.
+This module owns no:
 
-## 20. TERMINATION DATE != LIFECYCLE EVENT
+- current NAV/value/calculation;
+- current holdings/positions;
+- quantity/weight/allocation/market value;
+- redemption request or execution;
+- cash/in-kind distribution;
+- liquidation execution;
+- listing/venue authority;
+- provider symbol/capability;
+- order/trade/receipt;
+- settlement mutation;
+- legal eligibility or governance determination;
+- wall clock, random UUID, network, I/O, retry, scheduler, thread or timer;
+- Production enablement;
+- real-capital authorization.
 
-UMI-02 IdentityLifecycleEvent is evidence-bearing event history.
+## 13. R1 RECONSTRUCTION / HARDENING
 
-It cannot substitute a contractual future termination date.
+After UNR-015 integration, the preparatory three-file candidate was reconstructed directly over certified `main` without carrying its historical commit chain.
 
-## 21. NAV AUTHORITY BOUNDARY
+The current Full Closure bar additionally requires logical projection to fail closed against malformed nested or post-construction-corrupted state. R1 therefore hardens local wrapper and child revalidation and makes every local `logical_values()` re-run validation before projection.
 
-UMI-06 FundNavBasis remains the structural basis owner.
-UMI-10 FundNavValue and FundNavMeasure remain observation/value carriers.
+This hardening does not expand the semantic surface or grant any downstream authority.
 
-This module does not import or duplicate NAV authority.
+## 14. FILE SURFACE
 
-## 22. CURRENT HOLDINGS BOUNDARY
+Exactly three additive files are authorized relative to the certified predecessor baseline:
 
-This module contains no current holdings, current position, or portfolio
-state.
+1. `src/qore/infrastructure/uit_contract_qualification.py`
+2. `tests/infrastructure/test_uit_contract_qualification.py`
+3. `docs/architecture/QORE-UMI14-UIT-CONTRACT-QUALIFICATION-001.md`
 
-## 23. UMI-09 STRUCTURED-COMPONENT NON-REUSE
+No certified UMI-02/06/09/10 owner is modified. No UMI-13 registry mutation. No UMI-12 conformance-harness mutation.
 
-UMI-09 StructuredComponentBinding is qualified for structured-product use.
+## 15. GATE
 
-It is not a fund contractual specified-security carrier.
+R1 remains uncertified until the exact final HEAD completes:
 
-This module uses a local UnitInvestmentTrustSpecifiedSecurity type.
+`FULL CI -> DIFF AUDIT -> FREEZE -> EXACT SYNTHETIC BINDING -> DEEPSEEK EXPERT -> IA -> DEEPSEEK CODER -> IA -> CLAUDE CODE -> IA -> IA FINAL -> READY -> MERGE(expected_head) -> POST-MERGE VERIFY -> CLOSE #400`
 
-## 24. LISTING != UIT STRUCTURE
+Any HEAD mutation after freeze invalidates the external-review round and requires a new exact binding.
 
-ListingIdentity remains separate UMI-02 authority.
+CI green is necessary but not semantic certification. No self-certification is permitted.
 
-This module does not require FundVehicleKind.LISTED_TRUST.
-
-## 25. LEGAL/GOVERNANCE EXCLUSION
-
-Board absence, registration, voting-trust exclusion, trustee/custodian
-regulatory status, and legal eligibility remain outside this D04 qualifier.
-
-## 26. PROVIDER / EXECUTION / SETTLEMENT EXCLUSION
-
-No provider symbol, provider capability, execution, settlement mutation,
-redemption execution, cash distribution, or liquidation authority exists.
-
-## 27. DETERMINISM
-
-All values are frozen/slotted dataclasses.
-Tuple-based deterministic logical_values material.
-No unordered set/dict as retained material.
-No wall clock, no UUID generation, no random identity, no I/O, no scheduler.
-
-## 28. LOGICAL VALUES DESIGN
-
-Qualifier logical material includes complete:
-- qualification ID
-- complete fund EconomicIdentity
-- redeemable-security tag
-- undivided-interest tag
-- canonical specified securities
-- optional termination date
-- local evidence
-
-Specified security logical material includes:
-- complete security EconomicIdentity
-- local evidence
-
-## 29. NEGATIVE AUTHORITY SURFACE
-
-No current NAV, NAV value/calculation, current holdings, redemption price,
-request/execution, cash distribution, in-kind settlement, liquidation
-execution, provider, legal/governance, order/trade/receipt, or settlement
-mutation.
-
-No operational methods.
-
-## 30. TESTS / ORACLES
-
-The test file contains direct oracles for:
-- valid non-ETF UIT
-- ETF + UIT coexistence
-- wrong root family/kind
-- exact-type and subclass laundering
-- full root/component identity-evidence collision resistance
-- specified-security component rules
-- deterministic exact logical values
-- exact field surfaces and frozen/slotted values
-- forbidden authority/method negative space
-- no FundVehicleTerms dependency
-- no FundVehicleKind.UNIT_INVESTMENT_TRUST addition
-- no lifecycle-event or structured-component substitution
-
-## 31. INTEGRATION SEQUENCING
-
-This candidate is preparatory only.
-
-It does not merge around prior integration lanes.
-
-After predecessor lanes integrate, this branch must be synchronized through
-the approved process, producing a new SHA, CI, diff audit, independent
-review, and Integration Gate adjudication.
-
-## 32. REGISTRY / UMI-12 PROHIBITION
-
-UMI-13 registry artifact is not modified.
-
-UMI-12 conformance harness tests and architecture are not modified.
-
-Registry and final conformance reconciliation occur only after bounded
-semantic lanes are integrated/certified.
-
-## 33. EXPLICIT NON-CLAIMS
-
-NO CI PASS CLAIMED.
-NO INDEPENDENT REVIEW CLAIMED.
-NO MERGE AUTHORITY.
-NO UNR-016 CLOSURE.
-NO UMI-14 PASS.
-NO PROGRAM-D PASS.
+No UMI-14 / Program-D closure is authorized by this lane alone. Production remains closed and real capital remains unauthorized.
