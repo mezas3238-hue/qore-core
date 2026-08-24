@@ -354,6 +354,49 @@ class FuturesFinalSettlementInput:
         )
 
 
+def _input_sort_key(
+    value: FuturesFinalSettlementInput,
+) -> tuple[str, str, int, str, str, str, int, str]:
+    value.__post_init__()
+    window = value.observation_window
+    if window is None:
+        window_present = 0
+        opened_at = ""
+        closed_at = ""
+        sampling_interval = ""
+    else:
+        window_present = 1
+        opened_at = _canonical_timestamp(
+            window.opened_at,
+            "final-settlement observation opened_at",
+        )
+        closed_at = _canonical_timestamp(
+            window.closed_at,
+            "final-settlement observation closed_at",
+        )
+        sampling_interval = (
+            str(window.sampling_interval_seconds)
+            if window.sampling_interval_seconds is not None
+            else ""
+        )
+    weight_present = 1 if value.fixed_weight is not None else 0
+    weight = (
+        _canonical_decimal(value.fixed_weight)
+        if value.fixed_weight is not None
+        else ""
+    )
+    return (
+        str(value.reference_identity_id.value),
+        value.role.value,
+        window_present,
+        opened_at,
+        closed_at,
+        sampling_interval,
+        weight_present,
+        weight,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class FuturesFinalSettlementRoundingRule:
     """Static rounding convention only; no numeric result is produced."""
@@ -410,13 +453,6 @@ class FuturesFinalSettlementRule:
         self.algorithm.__post_init__()
 
         _exact_date(self.final_settlement_date, "final_settlement_date")
-        if (
-            self.futures_terms.last_trade_date is not None
-            and self.final_settlement_date < self.futures_terms.last_trade_date
-        ):
-            raise FuturesFinalSettlementValidationError(
-                "final_settlement_date must not precede futures last_trade_date"
-            )
 
         if type(self.inputs) is not tuple or not self.inputs:
             raise FuturesFinalSettlementValidationError(
@@ -429,7 +465,7 @@ class FuturesFinalSettlementRule:
                 )
             input_value.__post_init__()
 
-        ordered = tuple(sorted(self.inputs, key=lambda value: value.logical_values()))
+        ordered = tuple(sorted(self.inputs, key=_input_sort_key))
         logical_inputs = tuple(value.logical_values() for value in ordered)
         if len(set(logical_inputs)) != len(logical_inputs):
             raise FuturesFinalSettlementValidationError(
