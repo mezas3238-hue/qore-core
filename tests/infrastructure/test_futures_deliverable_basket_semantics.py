@@ -25,10 +25,7 @@ from qore.infrastructure.futures_deliverable_basket_semantics import (
     FuturesDeliverableBasketTermsId,
     FuturesDeliverableBasketValidationError,
 )
-from qore.infrastructure.universal_instrument_identity import (
-    EconomicIdentityId,
-    UniversalInstrumentIdentityValidationError,
-)
+from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
 
 
 class _CollidingUUID(UUID):
@@ -158,28 +155,40 @@ def test_corrupted_nested_futures_identity_is_revalidated_fail_closed() -> None:
         "value",
         "not-a-uuid",
     )
-    with pytest.raises(UniversalInstrumentIdentityValidationError):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="futures instrument identity value must be exact UUID",
+    ):
         basket.logical_values()
 
 
 def test_corrupted_nested_futures_terms_id_is_revalidated_fail_closed() -> None:
     basket = _basket((_entry(30, "0.875"),))
     object.__setattr__(basket.futures_terms.terms_id, "value", "not-a-uuid")
-    with pytest.raises(DerivativeContractValidationError):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="futures terms_id value must be exact UUID",
+    ):
         basket.logical_values()
 
 
 def test_corrupted_nested_futures_evidence_is_revalidated_fail_closed() -> None:
     basket = _basket((_entry(30, "0.875"),))
     object.__setattr__(basket.futures_terms.evidence_ref, "value", "not-a-uuid")
-    with pytest.raises(DerivativeContractValidationError):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="futures evidence_ref value must be exact UUID",
+    ):
         basket.logical_values()
 
 
 def test_corrupted_nested_futures_multiplier_is_revalidated_fail_closed() -> None:
     basket = _basket((_entry(30, "0.875"),))
     object.__setattr__(basket.futures_terms.multiplier, "value", "not-a-decimal")
-    with pytest.raises(DerivativeContractValidationError):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="futures multiplier value must be exact Decimal",
+    ):
         basket.logical_values()
 
 
