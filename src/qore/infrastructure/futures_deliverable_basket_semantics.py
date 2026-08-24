@@ -154,6 +154,40 @@ def _revalidate_futures_terms(value: FuturesContractTerms) -> None:
         )
 
 
+def _futures_terms_logical_values(value: FuturesContractTerms) -> tuple[object, ...]:
+    """Project reused futures terms without ambient Decimal-context dependence."""
+
+    _revalidate_futures_terms(value)
+    multiplier_values: tuple[object, ...] = (
+        _canonical_decimal(value.multiplier.value),
+        value.multiplier.unit_identity_id.logical_values(),
+    )
+    tick_values: tuple[object, ...] | None = None
+    if value.tick_value is not None:
+        tick_values = (
+            _canonical_decimal(value.tick_value.value),
+            value.tick_value.value_identity_id.logical_values(),
+        )
+
+    return (
+        "futures",
+        value.terms_id.logical_values(),
+        value.instrument_identity_id.logical_values(),
+        value.reference_identity_id.logical_values(),
+        value.settlement_identity_id.logical_values(),
+        value.contract_month.logical_values(),
+        value.expiry_date.isoformat(),
+        multiplier_values,
+        value.settlement_style.value,
+        value.evidence_ref.logical_values(),
+        tick_values,
+        value.first_notice_date.isoformat()
+        if value.first_notice_date is not None
+        else None,
+        value.last_trade_date.isoformat() if value.last_trade_date is not None else None,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class FuturesDeliverableBasketTermsId:
     value: UUID
@@ -291,7 +325,7 @@ class FuturesDeliverableBasketTerms:
         return (
             "futures-deliverable-basket",
             self.terms_id.logical_values(),
-            self.futures_terms.logical_values(),
+            _futures_terms_logical_values(self.futures_terms),
             tuple(entry.logical_values() for entry in self.entries),
             self.evidence_ref.logical_values(),
         )
