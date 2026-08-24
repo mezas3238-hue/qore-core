@@ -2,7 +2,7 @@
 
 ## 1. STATUS
 
-**PROGRAM D / UMI-14 — UMI13-UNR-016 R1 FULL-CLOSURE CANDIDATE — NOT YET CERTIFIED**
+**PROGRAM D / UMI-14 — UMI13-UNR-016 R2 FULL-CLOSURE CANDIDATE — NOT YET CERTIFIED**
 
 Tracker: #400  
 Parent audit: #363  
@@ -13,7 +13,7 @@ Current certified predecessor baseline:
 
 `40280e0574ae0e7ac6c9ff37afb7bbe314c6368a`
 
-The earlier preparatory candidate and its CI/reviews were built on an older baseline and are historical evidence only. The current R1 candidate was reconstructed directly on the certified predecessor baseline before a new exact-head quality/review cycle.
+The earlier preparatory candidate and R1 freeze are historical evidence only. R2 is the bounded correction produced after independent DeepSeek Expert finding `DS-EXPERT-UNR016-R1-01` identified an unguarded root-to-component economic identity collision.
 
 ## 2. BOUNDED PURPOSE
 
@@ -74,9 +74,12 @@ Each component:
 - carries a complete exact `EconomicIdentity`;
 - must be a tradable instrument;
 - retains identity evidence plus local UIT evidence;
+- must have an `EconomicIdentityId` different from the root `fund_identity.identity_id`;
 - is not a current holding, quantity, weight, allocation, market value or derivative payoff leg.
 
-The tuple is exact, immutable and non-empty. Duplicate component economic identity IDs are rejected. Incidental caller ordering is not contractual authority, so components are canonicalized deterministically by economic identity ID.
+The tuple is exact, immutable and non-empty. Duplicate component economic identity IDs are rejected. A specified security whose canonical `EconomicIdentityId` equals the root fund identity is also rejected, even when its family/evidence projection differs, because UMI-02 identity authority makes that the same economic instrument. Incidental caller ordering is not contractual authority, so components are canonicalized deterministically by economic identity ID.
+
+A fund-of-funds style specified security remains valid when the nested fund has a distinct `EconomicIdentityId`.
 
 No UMI-09 `StructuredComponentBinding` is reused as a false fund-holdings owner.
 
@@ -84,7 +87,7 @@ No UMI-09 `StructuredComponentBinding` is reused as a false fund-holdings owner.
 
 The bounded evidence establishes specified securities but does not establish a universal contract quantity, weight or allocation field for every valid in-scope UIT.
 
-Therefore R1 does not invent quantity/weight semantics and does not claim current portfolio state.
+Therefore R2 does not invent quantity/weight semantics and does not claim current portfolio state.
 
 `SPECIFIED SECURITY != CURRENT HOLDING`
 
@@ -106,7 +109,7 @@ UMI-02 `IdentityLifecycleEvent` is historical/evidence-bearing lifecycle materia
 
 ## 9. EXACT-TYPE / MALFORMED-STATE LAW
 
-R1 treats composition boundaries as untrusted even when an imported type name is correct.
+R2 treats composition boundaries as untrusted even when an imported type name is correct.
 
 It therefore revalidates:
 
@@ -115,6 +118,7 @@ It therefore revalidates:
 - exact kind/family/construction/evidence types;
 - exact family string and imported family-code validation;
 - exact component types and their complete retained child state;
+- root-to-component economic identity separation;
 - exact `date` for optional termination.
 
 Every local `logical_values()` re-runs local validation. A frozen dataclass is not trusted forever: reflective/fabricated or post-construction-corrupted state must fail closed rather than project a valid logical identity.
@@ -140,7 +144,7 @@ Specified-security logical material includes:
 - complete security economic identity;
 - local evidence reference.
 
-Material differences in retained static state must not collapse. Caller component order alone must not split an otherwise identical logical contract.
+Material differences in retained static state must not collapse. Caller component order alone must not split an otherwise identical logical contract. The root fund cannot re-enter the specified-security set under the same canonical UMI-02 identity.
 
 ## 11. NAV / OBSERVATION BOUNDARY
 
@@ -167,27 +171,28 @@ This module owns no:
 - Production enablement;
 - real-capital authorization.
 
-## 13. R1 RECONSTRUCTION / HARDENING
+## 13. R1 HARDENING / R2 EXPERT CORRECTION
 
-After UNR-015 integration, the preparatory three-file candidate was reconstructed directly over certified `main` without carrying its historical commit chain.
+After UNR-015 integration, the preparatory candidate was reconstructed directly over certified `main`. R1 hardened local wrapper and child revalidation and made every local `logical_values()` re-run validation before projection.
 
-The current Full Closure bar additionally requires logical projection to fail closed against malformed nested or post-construction-corrupted state. R1 therefore hardens local wrapper and child revalidation and makes every local `logical_values()` re-run validation before projection.
+DeepSeek Expert R1 then identified `DS-EXPERT-UNR016-R1-01`: the qualifier rejected duplicate component IDs but did not reject a component carrying the root fund's own canonical `EconomicIdentityId`. R2 adds that single identity-separation invariant plus adversarial regressions for exact self-reference, same-ID/different-projection collision, and a distinct-ID nested-fund acceptance witness.
 
-This hardening does not expand the semantic surface or grant any downstream authority.
+This correction does not expand semantic or downstream authority.
 
 ## 14. FILE SURFACE
 
-Exactly three additive files are authorized relative to the certified predecessor baseline:
+R2 remains bounded to the UIT owner, its tests and its architecture evidence. Relative to the certified predecessor baseline the changed surface is:
 
 1. `src/qore/infrastructure/uit_contract_qualification.py`
 2. `tests/infrastructure/test_uit_contract_qualification.py`
-3. `docs/architecture/QORE-UMI14-UIT-CONTRACT-QUALIFICATION-001.md`
+3. `tests/infrastructure/test_uit_contract_qualification_r2.py`
+4. `docs/architecture/QORE-UMI14-UIT-CONTRACT-QUALIFICATION-001.md`
 
 No certified UMI-02/06/09/10 owner is modified. No UMI-13 registry mutation. No UMI-12 conformance-harness mutation.
 
 ## 15. GATE
 
-R1 remains uncertified until the exact final HEAD completes:
+R2 remains uncertified until the exact final HEAD completes:
 
 `FULL CI -> DIFF AUDIT -> FREEZE -> EXACT SYNTHETIC BINDING -> DEEPSEEK EXPERT -> IA -> DEEPSEEK CODER -> IA -> CLAUDE CODE -> IA -> IA FINAL -> READY -> MERGE(expected_head) -> POST-MERGE VERIFY -> CLOSE #400`
 
