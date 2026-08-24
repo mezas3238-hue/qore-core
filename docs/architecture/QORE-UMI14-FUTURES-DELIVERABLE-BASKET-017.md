@@ -12,9 +12,9 @@ UNR-017 is a bounded D04 semantic gap. Generic UMI-05 futures terms already own 
 
 `FuturesDeliverableBasketTerms` composes exact `FuturesContractTerms`; it does not duplicate generic futures semantics. Each `FuturesDeliverableBasketEntry` binds an existing UMI-02 `EconomicIdentityId` to one positive finite `FuturesConversionFactor`.
 
-Entries are immutable and canonically ordered. Duplicate economic deliverable identities fail closed even when supplied with different factors. Logical material retains both deliverable identity and conversion factor, preventing distinct contractual basket material from collapsing.
+Entries are immutable and canonically ordered. Duplicate economic deliverable identities fail closed even when supplied with different factors. The futures contract's own `instrument_identity_id` cannot re-enter the basket as an eligible deliverable. Logical material retains both deliverable identity and conversion factor, preventing distinct contractual basket material from collapsing.
 
-Nested `FuturesContractTerms` is revalidated on composition. Only `PHYSICAL` futures may carry this basket.
+Nested futures, entry identity/factor, basket ID and evidence wrappers are revalidated so post-construction reflective corruption fails closed. Only `PHYSICAL` futures may carry this basket.
 
 ## Authority boundary
 
@@ -35,6 +35,8 @@ This lane provides no:
 ## Laws
 
 `DELIVERABLE BASKET != SINGLE REFERENCE IDENTITY`
+
+`FUTURES CONTRACT IDENTITY != ELIGIBLE DELIVERABLE IDENTITY`
 
 `DELIVERABLE IDENTITY != CONVERSION FACTOR`
 
