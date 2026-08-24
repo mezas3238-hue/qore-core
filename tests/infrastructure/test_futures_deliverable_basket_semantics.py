@@ -86,21 +86,32 @@ def test_basket_is_canonical_and_retains_conversion_factor_material() -> None:
 
 
 def test_same_deliverable_with_different_factor_does_not_collapse_identity() -> None:
-    assert _entry(30, "0.875").logical_values() != _entry(30, "0.900").logical_values()
+    assert _entry(30, "0.875").logical_values() != _entry(
+        30, "0.900"
+    ).logical_values()
 
 
 def test_duplicate_deliverable_identity_is_rejected_even_if_factor_differs() -> None:
-    with pytest.raises(FuturesDeliverableBasketValidationError, match="identities must be unique"):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="identities must be unique",
+    ):
         _basket((_entry(30, "0.875"), _entry(30, "0.900")))
 
 
 def test_self_deliverable_is_rejected() -> None:
-    with pytest.raises(FuturesDeliverableBasketValidationError, match="cannot be its own deliverable"):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="cannot be its own deliverable",
+    ):
         _basket((_entry(11, "1"),))
 
 
 def test_cash_settled_future_cannot_carry_deliverable_basket() -> None:
-    with pytest.raises(FuturesDeliverableBasketValidationError, match="physically settled"):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="physically settled",
+    ):
         FuturesDeliverableBasketTerms(
             FuturesDeliverableBasketTermsId(UUID(int=20)),
             _futures(settlement=DerivativeSettlementStyle.CASH),
@@ -109,7 +120,10 @@ def test_cash_settled_future_cannot_carry_deliverable_basket() -> None:
         )
 
 
-@pytest.mark.parametrize("value", [Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")])
+@pytest.mark.parametrize(
+    "value",
+    [Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")],
+)
 def test_conversion_factor_must_be_positive_and_finite(value: Decimal) -> None:
     with pytest.raises(FuturesDeliverableBasketValidationError):
         FuturesConversionFactor(value)
@@ -120,14 +134,20 @@ def test_nested_futures_state_is_revalidated_fail_closed() -> None:
     object.__setattr__(futures, "expiry_date", "2027-03-22")
     with pytest.raises(DerivativeContractValidationError):
         FuturesDeliverableBasketTerms(
-            FuturesDeliverableBasketTermsId(UUID(int=20)), futures, (_entry(30, "0.875"),), FuturesDeliverableBasketEvidenceRef(UUID(int=21))
+            FuturesDeliverableBasketTermsId(UUID(int=20)),
+            futures,
+            (_entry(30, "0.875"),),
+            FuturesDeliverableBasketEvidenceRef(UUID(int=21)),
         )
 
 
 def test_corrupted_conversion_factor_is_revalidated_fail_closed() -> None:
     entry = _entry(30, "0.875")
     object.__setattr__(entry.conversion_factor, "value", Decimal("NaN"))
-    with pytest.raises(FuturesDeliverableBasketValidationError, match="finite Decimal"):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="finite Decimal",
+    ):
         _basket((entry,))
 
 
@@ -141,27 +161,42 @@ def test_corrupted_deliverable_identity_is_revalidated_fail_closed() -> None:
 def test_corrupted_terms_id_is_revalidated_by_logical_values() -> None:
     basket = _basket((_entry(30, "0.875"),))
     object.__setattr__(basket.terms_id, "value", "not-a-uuid")
-    with pytest.raises(FuturesDeliverableBasketValidationError, match="terms id must be UUID"):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="terms id must be UUID",
+    ):
         basket.logical_values()
 
 
 def test_corrupted_evidence_ref_is_revalidated_by_logical_values() -> None:
     basket = _basket((_entry(30, "0.875"),))
     object.__setattr__(basket.evidence_ref, "value", "not-a-uuid")
-    with pytest.raises(FuturesDeliverableBasketValidationError, match="evidence ref must be UUID"):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="evidence ref must be UUID",
+    ):
         basket.logical_values()
 
 
 def test_exact_types_and_non_empty_entries_fail_closed() -> None:
     with pytest.raises(FuturesDeliverableBasketValidationError):
         FuturesDeliverableBasketTerms(
-            FuturesDeliverableBasketTermsId(UUID(int=20)), _futures(), (), FuturesDeliverableBasketEvidenceRef(UUID(int=21))
+            FuturesDeliverableBasketTermsId(UUID(int=20)),
+            _futures(),
+            (),
+            FuturesDeliverableBasketEvidenceRef(UUID(int=21)),
         )
     with pytest.raises(FuturesDeliverableBasketValidationError):
-        FuturesDeliverableBasketEntry("bond", FuturesConversionFactor(Decimal("1")))  # type: ignore[arg-type]
+        FuturesDeliverableBasketEntry(
+            "bond",  # type: ignore[arg-type]
+            FuturesConversionFactor(Decimal("1")),
+        )
 
 
 def test_all_parent_fields_are_material_to_logical_values() -> None:
     basket = _basket((_entry(30, "0.875"),))
-    changed = replace(basket, evidence_ref=FuturesDeliverableBasketEvidenceRef(UUID(int=99)))
+    changed = replace(
+        basket,
+        evidence_ref=FuturesDeliverableBasketEvidenceRef(UUID(int=99)),
+    )
     assert basket.logical_values() != changed.logical_values()
