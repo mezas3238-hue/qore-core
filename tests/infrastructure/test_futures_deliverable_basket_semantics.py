@@ -141,6 +141,38 @@ def test_nested_futures_state_is_revalidated_fail_closed() -> None:
         )
 
 
+def test_corrupted_nested_futures_identity_is_revalidated_fail_closed() -> None:
+    basket = _basket((_entry(30, "0.875"),))
+    object.__setattr__(
+        basket.futures_terms.instrument_identity_id,
+        "value",
+        "not-a-uuid",
+    )
+    with pytest.raises(UniversalInstrumentIdentityValidationError):
+        basket.logical_values()
+
+
+def test_corrupted_nested_futures_terms_id_is_revalidated_fail_closed() -> None:
+    basket = _basket((_entry(30, "0.875"),))
+    object.__setattr__(basket.futures_terms.terms_id, "value", "not-a-uuid")
+    with pytest.raises(DerivativeContractValidationError):
+        basket.logical_values()
+
+
+def test_corrupted_nested_futures_evidence_is_revalidated_fail_closed() -> None:
+    basket = _basket((_entry(30, "0.875"),))
+    object.__setattr__(basket.futures_terms.evidence_ref, "value", "not-a-uuid")
+    with pytest.raises(DerivativeContractValidationError):
+        basket.logical_values()
+
+
+def test_corrupted_nested_futures_multiplier_is_revalidated_fail_closed() -> None:
+    basket = _basket((_entry(30, "0.875"),))
+    object.__setattr__(basket.futures_terms.multiplier, "value", "not-a-decimal")
+    with pytest.raises(DerivativeContractValidationError):
+        basket.logical_values()
+
+
 def test_corrupted_conversion_factor_is_revalidated_fail_closed() -> None:
     entry = _entry(30, "0.875")
     object.__setattr__(entry.conversion_factor, "value", Decimal("NaN"))
