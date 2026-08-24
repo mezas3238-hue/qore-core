@@ -145,6 +145,8 @@ def _validate_identity(identity: object) -> None:
         _fail("CFD identity family must be contracts-for-difference")
     if type(identity.construction) is not IdentityConstructionKind:
         _fail("cfd_identity.construction must be exact IdentityConstructionKind")
+    if identity.construction is IdentityConstructionKind.CONTINUOUS_REFERENCE:
+        _fail("tradable CFD identity must not use continuous-reference construction")
     _require_uuid_wrapper(
         identity.evidence_ref,
         IdentityEvidenceRef,
@@ -347,8 +349,10 @@ def _validate_binding(
         IdentityEvidenceRef,
         field_name="price_determination_binding.evidence_ref",
     )
-    if binding.ordinal is not None:
-        _fail("single price-determination binding must not carry ordinal precedence")
+    if binding.ordinal is not None and (
+        type(binding.ordinal) is not int or binding.ordinal <= 0
+    ):
+        _fail("binding ordinal must be positive exact int or None")
 
 
 @dataclass(frozen=True, slots=True)
