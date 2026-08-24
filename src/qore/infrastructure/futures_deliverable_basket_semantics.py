@@ -5,7 +5,12 @@ from decimal import Decimal
 from uuid import UUID
 
 from qore.infrastructure.derivative_contract_semantics import (
+    DerivativeContractMonth,
+    DerivativeContractMultiplier,
+    DerivativeEvidenceRef,
     DerivativeSettlementStyle,
+    DerivativeTermsId,
+    DerivativeTickValue,
     FuturesContractTerms,
 )
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
@@ -29,6 +34,76 @@ def _canonical_decimal(value: Decimal) -> str:
     if normalized == 0:
         return "0"
     return format(normalized, "f")
+
+
+def _revalidate_economic_identity(
+    value: EconomicIdentityId,
+    *,
+    field_name: str,
+) -> None:
+    if type(value) is not EconomicIdentityId:
+        raise FuturesDeliverableBasketValidationError(
+            f"{field_name} must be exact EconomicIdentityId"
+        )
+    value.__post_init__()
+
+
+def _revalidate_futures_terms(value: FuturesContractTerms) -> None:
+    """Revalidate UMI-05 futures leaves without owning their semantics."""
+
+    value.__post_init__()
+
+    if type(value.terms_id) is not DerivativeTermsId:
+        raise FuturesDeliverableBasketValidationError(
+            "futures terms_id must be exact DerivativeTermsId"
+        )
+    value.terms_id.__post_init__()
+
+    _revalidate_economic_identity(
+        value.instrument_identity_id,
+        field_name="futures instrument identity",
+    )
+    _revalidate_economic_identity(
+        value.reference_identity_id,
+        field_name="futures reference identity",
+    )
+    _revalidate_economic_identity(
+        value.settlement_identity_id,
+        field_name="futures settlement identity",
+    )
+
+    if type(value.contract_month) is not DerivativeContractMonth:
+        raise FuturesDeliverableBasketValidationError(
+            "futures contract_month must be exact DerivativeContractMonth"
+        )
+    value.contract_month.__post_init__()
+
+    if type(value.multiplier) is not DerivativeContractMultiplier:
+        raise FuturesDeliverableBasketValidationError(
+            "futures multiplier must be exact DerivativeContractMultiplier"
+        )
+    value.multiplier.__post_init__()
+    _revalidate_economic_identity(
+        value.multiplier.unit_identity_id,
+        field_name="futures multiplier unit identity",
+    )
+
+    if type(value.evidence_ref) is not DerivativeEvidenceRef:
+        raise FuturesDeliverableBasketValidationError(
+            "futures evidence_ref must be exact DerivativeEvidenceRef"
+        )
+    value.evidence_ref.__post_init__()
+
+    if value.tick_value is not None:
+        if type(value.tick_value) is not DerivativeTickValue:
+            raise FuturesDeliverableBasketValidationError(
+                "futures tick_value must be exact DerivativeTickValue or None"
+            )
+        value.tick_value.__post_init__()
+        _revalidate_economic_identity(
+            value.tick_value.value_identity_id,
+            field_name="futures tick value identity",
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,7 +205,7 @@ class FuturesDeliverableBasketTerms:
             raise FuturesDeliverableBasketValidationError(
                 "futures_terms must be FuturesContractTerms"
             )
-        self.futures_terms.__post_init__()
+        _revalidate_futures_terms(self.futures_terms)
         if self.futures_terms.settlement_style is not DerivativeSettlementStyle.PHYSICAL:
             raise FuturesDeliverableBasketValidationError(
                 "deliverable basket requires physically settled futures"
