@@ -116,7 +116,12 @@ def _qualification(
         underlyings if underlyings is not None else (default_binding,)
     )
     default_related = (
-        selected_underlyings[0].binding_id if selected_underlyings else None
+        min(
+            selected_underlyings,
+            key=lambda binding: str(binding.binding_id.value),
+        ).binding_id
+        if selected_underlyings
+        else None
     )
     selected_legs = (
         legs
@@ -217,7 +222,6 @@ def test_valid_perpetual_mudarabah_certificate() -> None:
         framework="iifm-sukuk-al-mudarabah-tier1",
         maturity=None,
     )
-
     assert value.maturity_date is None
     assert value.logical_values()[3] == ("mudarabah",)
 
