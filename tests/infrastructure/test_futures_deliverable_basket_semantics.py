@@ -128,13 +128,32 @@ def test_extreme_exponent_conversion_factor_uses_compact_logical_material() -> N
     assert len(logical_values[0]) < 32
 
 
-def test_composed_futures_projection_matches_umi05_for_normal_decimal_values() -> None:
+def test_composed_futures_projection_preserves_umi05_field_semantics() -> None:
     futures = replace(
         _futures(),
         tick_value=DerivativeTickValue(Decimal("12.5"), _id(16)),
     )
-    basket = _basket_with_futures(futures)
-    assert basket.logical_values()[2] == futures.logical_values()
+    composed = _basket_with_futures(futures).logical_values()[2]
+    native = futures.logical_values()
+    assert isinstance(composed, tuple)
+    assert len(composed) == len(native)
+    for index in (0, 1, 2, 3, 4, 5, 6, 8, 9, 11, 12):
+        assert composed[index] == native[index]
+
+    composed_multiplier = composed[7]
+    native_multiplier = native[7]
+    assert isinstance(composed_multiplier, tuple)
+    assert isinstance(native_multiplier, tuple)
+    assert composed_multiplier[1] == native_multiplier[1]
+    assert Decimal(str(composed_multiplier[0])) == futures.multiplier.value
+
+    composed_tick = composed[10]
+    native_tick = native[10]
+    assert isinstance(composed_tick, tuple)
+    assert isinstance(native_tick, tuple)
+    assert futures.tick_value is not None
+    assert composed_tick[1] == native_tick[1]
+    assert Decimal(str(composed_tick[0])) == futures.tick_value.value
 
 
 def test_composed_futures_high_precision_multiplier_does_not_collapse() -> None:
