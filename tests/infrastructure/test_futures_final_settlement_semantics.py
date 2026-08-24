@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal, localcontext
 from pathlib import Path
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -157,8 +158,19 @@ def test_all_rule_fields_are_material_to_logical_identity() -> None:
     baseline = base.logical_values()
     variants = (
         replace(base, rule_id=FuturesFinalSettlementRuleId(UUID(int=22))),
-        replace(base, futures_terms=replace(base.futures_terms, expiry_date=date(2027, 3, 23))),
-        replace(base, algorithm=FuturesFinalSettlementAlgorithmCode("settlement-window-average")),
+        replace(
+            base,
+            futures_terms=replace(
+                base.futures_terms,
+                expiry_date=date(2027, 3, 23),
+            ),
+        ),
+        replace(
+            base,
+            algorithm=FuturesFinalSettlementAlgorithmCode(
+                "settlement-window-average"
+            ),
+        ),
         replace(base, final_settlement_date=date(2027, 3, 23)),
         replace(base, inputs=(_input(32, "primary-price", weight="1"),)),
         replace(
@@ -168,7 +180,10 @@ def test_all_rule_fields_are_material_to_logical_identity() -> None:
                 Decimal("0.005"),
             ),
         ),
-        replace(base, evidence_ref=FuturesFinalSettlementEvidenceRef(UUID(int=23))),
+        replace(
+            base,
+            evidence_ref=FuturesFinalSettlementEvidenceRef(UUID(int=23)),
+        ),
     )
     for variant in variants:
         assert variant.logical_values() != baseline
@@ -380,7 +395,15 @@ def test_datetime_subclass_is_rejected() -> None:
         )
 
 
-@pytest.mark.parametrize("value", (Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")))
+@pytest.mark.parametrize(
+    "value",
+    (
+        Decimal("0"),
+        Decimal("-1"),
+        Decimal("NaN"),
+        Decimal("Infinity"),
+    ),
+)
 def test_fixed_weight_must_be_positive_finite_exact_decimal(value: Decimal) -> None:
     with pytest.raises(FuturesFinalSettlementValidationError):
         FuturesFinalSettlementInput(
@@ -390,8 +413,18 @@ def test_fixed_weight_must_be_positive_finite_exact_decimal(value: Decimal) -> N
         )
 
 
-@pytest.mark.parametrize("value", (Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")))
-def test_rounding_increment_must_be_positive_finite_exact_decimal(value: Decimal) -> None:
+@pytest.mark.parametrize(
+    "value",
+    (
+        Decimal("0"),
+        Decimal("-1"),
+        Decimal("NaN"),
+        Decimal("Infinity"),
+    ),
+)
+def test_rounding_increment_must_be_positive_finite_exact_decimal(
+    value: Decimal,
+) -> None:
     with pytest.raises(FuturesFinalSettlementValidationError):
         FuturesFinalSettlementRoundingRule(
             FuturesFinalSettlementRoundingModeCode("nearest"),
@@ -419,7 +452,10 @@ def test_colliding_uuid_subclasses_are_rejected_before_logical_material() -> Non
     assert left.value != right.value
     assert left.logical_values() == right.logical_values() == ("collision",)
     with pytest.raises(FuturesFinalSettlementValidationError, match="exact UUID"):
-        FuturesFinalSettlementInput(left, FuturesFinalSettlementInputRoleCode("price"))
+        FuturesFinalSettlementInput(
+            left,
+            FuturesFinalSettlementInputRoleCode("price"),
+        )
 
 
 def test_rule_and_evidence_uuid_subclasses_are_rejected() -> None:
@@ -455,32 +491,28 @@ def test_nested_input_reflective_corruption_fails_closed() -> None:
 def test_non_empty_exact_tuple_and_exact_input_types_are_required() -> None:
     with pytest.raises(FuturesFinalSettlementValidationError, match="non-empty"):
         replace(_rule(), inputs=())
-    with pytest.raises(FuturesFinalSettlementValidationError, match="immutable tuple"):
-        FuturesFinalSettlementRule(
-            rule_id=FuturesFinalSettlementRuleId(UUID(int=20)),
-            futures_terms=_futures(),
-            algorithm=FuturesFinalSettlementAlgorithmCode("average"),
-            final_settlement_date=date(2027, 3, 22),
-            inputs=[_input(30, "price")],  # type: ignore[arg-type]
-            evidence_ref=FuturesFinalSettlementEvidenceRef(UUID(int=21)),
-        )
-    with pytest.raises(FuturesFinalSettlementValidationError, match="exact FuturesFinalSettlementInput"):
-        FuturesFinalSettlementRule(
-            rule_id=FuturesFinalSettlementRuleId(UUID(int=20)),
-            futures_terms=_futures(),
-            algorithm=FuturesFinalSettlementAlgorithmCode("average"),
-            final_settlement_date=date(2027, 3, 22),
-            inputs=("wrong",),  # type: ignore[arg-type]
-            evidence_ref=FuturesFinalSettlementEvidenceRef(UUID(int=21)),
-        )
+    invalid_list = cast(
+        tuple[FuturesFinalSettlementInput, ...],
+        [_input(30, "price")],
+    )
+    with pytest.raises(
+        FuturesFinalSettlementValidationError,
+        match="immutable tuple",
+    ):
+        replace(_rule(), inputs=invalid_list)
+
+    wrong_item = cast(tuple[FuturesFinalSettlementInput, ...], ("wrong",))
+    with pytest.raises(
+        FuturesFinalSettlementValidationError,
+        match="exact FuturesFinalSettlementInput",
+    ):
+        replace(_rule(), inputs=wrong_item)
 
 
 def test_final_settlement_date_requires_exact_date_not_datetime() -> None:
+    invalid_date = cast(date, datetime(2027, 3, 22, tzinfo=UTC))
     with pytest.raises(FuturesFinalSettlementValidationError, match="exact date"):
-        replace(
-            _rule(),
-            final_settlement_date=datetime(2027, 3, 22, tzinfo=UTC),  # type: ignore[arg-type]
-        )
+        replace(_rule(), final_settlement_date=invalid_date)
 
 
 def test_source_has_no_engine_provider_or_implicit_clock_authority() -> None:
