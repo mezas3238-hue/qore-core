@@ -10,6 +10,7 @@ import pytest
 from qore.infrastructure.derivative_contract_semantics import (
     DerivativeContractMonth,
     DerivativeContractMultiplier,
+    DerivativeContractValidationError,
     DerivativeEvidenceRef,
     DerivativeSettlementStyle,
     DerivativeTermsId,
@@ -30,7 +31,15 @@ def _id(value: int) -> EconomicIdentityId:
     return EconomicIdentityId(UUID(int=value))
 
 
-def _futures(*, settlement: DerivativeSettlementStyle = DerivativeSettlementStyle.PHYSICAL) -> FuturesContractTerms:
+def _futures(
+    *,
+    settlement: DerivativeSettlementStyle = DerivativeSettlementStyle.PHYSICAL,
+) -> FuturesContractTerms:
+    first_notice_date = (
+        date(2027, 2, 26)
+        if settlement is DerivativeSettlementStyle.PHYSICAL
+        else None
+    )
     return FuturesContractTerms(
         terms_id=DerivativeTermsId(UUID(int=10)),
         instrument_identity_id=_id(11),
@@ -41,16 +50,21 @@ def _futures(*, settlement: DerivativeSettlementStyle = DerivativeSettlementStyl
         multiplier=DerivativeContractMultiplier(Decimal("100000"), _id(14)),
         settlement_style=settlement,
         evidence_ref=DerivativeEvidenceRef(UUID(int=15)),
-        first_notice_date=date(2027, 2, 26) if settlement is DerivativeSettlementStyle.PHYSICAL else None,
+        first_notice_date=first_notice_date,
         last_trade_date=date(2027, 3, 19),
     )
 
 
 def _entry(identity: int, factor: str) -> FuturesDeliverableBasketEntry:
-    return FuturesDeliverableBasketEntry(_id(identity), FuturesConversionFactor(Decimal(factor)))
+    return FuturesDeliverableBasketEntry(
+        _id(identity),
+        FuturesConversionFactor(Decimal(factor)),
+    )
 
 
-def _basket(entries: tuple[FuturesDeliverableBasketEntry, ...]) -> FuturesDeliverableBasketTerms:
+def _basket(
+    entries: tuple[FuturesDeliverableBasketEntry, ...],
+) -> FuturesDeliverableBasketTerms:
     return FuturesDeliverableBasketTerms(
         terms_id=FuturesDeliverableBasketTermsId(UUID(int=20)),
         futures_terms=_futures(),
@@ -80,7 +94,10 @@ def test_same_deliverable_with_different_factor_does_not_collapse_identity() -> 
 
 
 def test_duplicate_deliverable_identity_is_rejected_even_if_factor_differs() -> None:
-    with pytest.raises(FuturesDeliverableBasketValidationError, match="identities must be unique"):
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="identities must be unique",
+    ):
         _basket((_entry(30, "0.875"), _entry(30, "0.900")))
 
 
@@ -94,7 +111,10 @@ def test_cash_settled_future_cannot_carry_deliverable_basket() -> None:
         )
 
 
-@pytest.mark.parametrize("value", [Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")])
+@pytest.mark.parametrize(
+    "value",
+    [Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")],
+)
 def test_conversion_factor_must_be_positive_and_finite(value: Decimal) -> None:
     with pytest.raises(FuturesDeliverableBasketValidationError):
         FuturesConversionFactor(value)
@@ -103,7 +123,7 @@ def test_conversion_factor_must_be_positive_and_finite(value: Decimal) -> None:
 def test_nested_futures_state_is_revalidated_fail_closed() -> None:
     futures = _futures()
     object.__setattr__(futures, "expiry_date", "2027-03-22")
-    with pytest.raises(Exception):
+    with pytest.raises(DerivativeContractValidationError):
         FuturesDeliverableBasketTerms(
             terms_id=FuturesDeliverableBasketTermsId(UUID(int=20)),
             futures_terms=futures,
@@ -121,7 +141,10 @@ def test_exact_types_and_non_empty_entries_fail_closed() -> None:
             evidence_ref=FuturesDeliverableBasketEvidenceRef(UUID(int=21)),
         )
     with pytest.raises(FuturesDeliverableBasketValidationError):
-        FuturesDeliverableBasketEntry("bond", FuturesConversionFactor(Decimal("1")))  # type: ignore[arg-type]
+        FuturesDeliverableBasketEntry(
+            "bond",  # type: ignore[arg-type]
+            FuturesConversionFactor(Decimal("1")),
+        )
 
 
 def test_all_parent_fields_are_material_to_logical_values() -> None:
