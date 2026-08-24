@@ -36,6 +36,20 @@ def _canonical_decimal(value: Decimal) -> str:
     return format(normalized, "f")
 
 
+def _require_exact_uuid(value: UUID, *, field_name: str) -> None:
+    if type(value) is not UUID:
+        raise FuturesDeliverableBasketValidationError(
+            f"{field_name} must be exact UUID"
+        )
+
+
+def _require_exact_decimal(value: Decimal, *, field_name: str) -> None:
+    if type(value) is not Decimal:
+        raise FuturesDeliverableBasketValidationError(
+            f"{field_name} must be exact Decimal"
+        )
+
+
 def _revalidate_economic_identity(
     value: EconomicIdentityId,
     *,
@@ -45,6 +59,7 @@ def _revalidate_economic_identity(
         raise FuturesDeliverableBasketValidationError(
             f"{field_name} must be exact EconomicIdentityId"
         )
+    _require_exact_uuid(value.value, field_name=f"{field_name} value")
     value.__post_init__()
 
 
@@ -57,6 +72,7 @@ def _revalidate_futures_terms(value: FuturesContractTerms) -> None:
         raise FuturesDeliverableBasketValidationError(
             "futures terms_id must be exact DerivativeTermsId"
         )
+    _require_exact_uuid(value.terms_id.value, field_name="futures terms_id value")
     value.terms_id.__post_init__()
 
     _revalidate_economic_identity(
@@ -82,6 +98,10 @@ def _revalidate_futures_terms(value: FuturesContractTerms) -> None:
         raise FuturesDeliverableBasketValidationError(
             "futures multiplier must be exact DerivativeContractMultiplier"
         )
+    _require_exact_decimal(
+        value.multiplier.value,
+        field_name="futures multiplier value",
+    )
     value.multiplier.__post_init__()
     _revalidate_economic_identity(
         value.multiplier.unit_identity_id,
@@ -92,6 +112,10 @@ def _revalidate_futures_terms(value: FuturesContractTerms) -> None:
         raise FuturesDeliverableBasketValidationError(
             "futures evidence_ref must be exact DerivativeEvidenceRef"
         )
+    _require_exact_uuid(
+        value.evidence_ref.value,
+        field_name="futures evidence_ref value",
+    )
     value.evidence_ref.__post_init__()
 
     if value.tick_value is not None:
@@ -99,6 +123,10 @@ def _revalidate_futures_terms(value: FuturesContractTerms) -> None:
             raise FuturesDeliverableBasketValidationError(
                 "futures tick_value must be exact DerivativeTickValue or None"
             )
+        _require_exact_decimal(
+            value.tick_value.value,
+            field_name="futures tick_value value",
+        )
         value.tick_value.__post_init__()
         _revalidate_economic_identity(
             value.tick_value.value_identity_id,
@@ -167,11 +195,10 @@ class FuturesDeliverableBasketEntry:
     conversion_factor: FuturesConversionFactor
 
     def __post_init__(self) -> None:
-        if type(self.deliverable_identity_id) is not EconomicIdentityId:
-            raise FuturesDeliverableBasketValidationError(
-                "deliverable identity must be EconomicIdentityId"
-            )
-        self.deliverable_identity_id.__post_init__()
+        _revalidate_economic_identity(
+            self.deliverable_identity_id,
+            field_name="deliverable identity",
+        )
         if type(self.conversion_factor) is not FuturesConversionFactor:
             raise FuturesDeliverableBasketValidationError(
                 "conversion factor must be FuturesConversionFactor"
