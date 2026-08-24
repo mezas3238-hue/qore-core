@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from re import fullmatch
+from typing import Never
 from uuid import UUID
 
 from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
@@ -22,44 +23,92 @@ class EventContractValidationError(EventContractSemanticsError):
     __slots__ = ()
 
 
+def _fail(message: str) -> Never:
+    raise EventContractValidationError(message)
+
+
 def _validate_uuid(value: UUID, *, field_name: str) -> None:
-    if not isinstance(value, UUID):
-        raise EventContractValidationError(f"{field_name} must be UUID")
+    if type(value) is not UUID:
+        _fail(f"{field_name} must be exact UUID")
 
 
 def _validate_identity(value: EconomicIdentityId, *, field_name: str) -> None:
-    if not isinstance(value, EconomicIdentityId):
-        raise EventContractValidationError(
-            f"{field_name} must be EconomicIdentityId"
-        )
+    if type(value) is not EconomicIdentityId:
+        _fail(f"{field_name} must be exact EconomicIdentityId")
+    _validate_uuid(value.value, field_name=f"{field_name}.value")
 
 
 def _validate_date(value: date, *, field_name: str) -> None:
     if type(value) is not date:
-        raise EventContractValidationError(f"{field_name} must be date")
+        _fail(f"{field_name} must be exact date")
 
 
 def _validate_code(value: str, *, field_name: str) -> None:
-    if (
-        not isinstance(value, str)
-        or len(value) > 96
-        or fullmatch(r"[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*", value) is None
-    ):
-        raise EventContractValidationError(
-            f"{field_name} must use canonical lowercase code syntax"
-        )
+    valid = (
+        type(value) is str
+        and bool(value)
+        and len(value) <= 96
+        and fullmatch(r"[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*", value) is not None
+    )
+    if not valid:
+        _fail(f"{field_name} must use canonical lowercase code syntax")
 
 
 def _validate_decimal(value: Decimal, *, field_name: str) -> None:
-    if not isinstance(value, Decimal) or not value.is_finite() or value < 0:
-        raise EventContractValidationError(
-            f"{field_name} must be a non-negative finite Decimal"
-        )
+    if type(value) is not Decimal or not value.is_finite():
+        _fail(f"{field_name} must be a finite exact Decimal")
+    if value < 0:
+        _fail(f"{field_name} must be non-negative")
 
 
 def _canonical_decimal(value: Decimal) -> str:
-    normalized = Decimal(0) if value == 0 else value.normalize()
-    return format(normalized, "f")
+    """Context-independent compact finite-Decimal representation."""
+
+    parts = value.as_tuple()
+    digits = list(parts.digits)
+    if not any(digits):
+        return "0"
+
+    exponent = int(parts.exponent)
+    while len(digits) > 1 and digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+
+    digit_text = "".join(str(digit) for digit in digits)
+    sign = "-" if parts.sign else ""
+    adjusted_exponent = exponent + len(digits) - 1
+    mantissa = digit_text[0]
+    if len(digit_text) > 1:
+        mantissa += "." + digit_text[1:]
+    exponent_sign = "+" if adjusted_exponent >= 0 else ""
+    compact = f"{sign}{mantissa}e{exponent_sign}{adjusted_exponent}"
+
+    if exponent >= 0:
+        fixed_length = len(sign) + len(digit_text) + exponent
+    else:
+        point = len(digit_text) + exponent
+        if point > 0:
+            fixed_length = len(sign) + len(digit_text) + 1
+        else:
+            fixed_length = len(sign) + 2 + (-point) + len(digit_text)
+
+    if fixed_length > len(compact) + 1:
+        return compact
+
+    if exponent >= 0:
+        fixed = digit_text + ("0" * exponent)
+    else:
+        point = len(digit_text) + exponent
+        if point > 0:
+            fixed = digit_text[:point] + "." + digit_text[point:]
+        else:
+            fixed = "0." + ("0" * (-point)) + digit_text
+    return sign + fixed
+
+
+def _identity_values(value: EconomicIdentityId, *, field_name: str) -> tuple[str, ...]:
+    _validate_identity(value, field_name=field_name)
+    return (str(value.value),)
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +119,7 @@ class EventContractTermsId:
         _validate_uuid(self.value, field_name="event-contract terms ID")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
@@ -81,12 +131,13 @@ class EventEvidenceRef:
         _validate_uuid(self.value, field_name="event-contract evidence reference")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
 @dataclass(frozen=True, slots=True)
 class EventSubjectReferenceId:
-    """Opaque contractual subject reference; not an external-data fetch key."""
+    """Opaque contractual subject reference; never an external-data fetch key."""
 
     value: UUID
 
@@ -94,12 +145,13 @@ class EventSubjectReferenceId:
         _validate_uuid(self.value, field_name="event subject reference ID")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
 @dataclass(frozen=True, slots=True)
 class EventResolutionAuthorityRef:
-    """Opaque contractual authority reference; not a legal-identity registry."""
+    """Opaque contractual resolution-authority reference; not legal identity."""
 
     value: UUID
 
@@ -107,6 +159,7 @@ class EventResolutionAuthorityRef:
         _validate_uuid(self.value, field_name="event resolution authority reference")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
@@ -118,6 +171,7 @@ class EventCriterionCode:
         _validate_code(self.value, field_name="event criterion code")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -129,6 +183,7 @@ class EventOutcomeStructureCode:
         _validate_code(self.value, field_name="event outcome structure code")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -140,6 +195,7 @@ class EventOutcomeCode:
         _validate_code(self.value, field_name="event outcome code")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -151,6 +207,7 @@ class EventResolutionSourceCode:
         _validate_code(self.value, field_name="event resolution source code")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -162,6 +219,7 @@ class EventResolutionRuleCode:
         _validate_code(self.value, field_name="event resolution rule code")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -173,6 +231,7 @@ class EventCorrectionPolicyCode:
         _validate_code(self.value, field_name="event correction policy code")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -184,7 +243,74 @@ class EventSourceConflictPolicyCode:
         _validate_code(self.value, field_name="event source-conflict policy code")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
+
+
+def _validate_terms_id_child(value: EventContractTermsId) -> None:
+    if type(value) is not EventContractTermsId:
+        _fail("event-contract terms_id must be exact EventContractTermsId")
+    _validate_uuid(value.value, field_name="event-contract terms_id.value")
+
+
+def _validate_evidence_child(value: EventEvidenceRef) -> None:
+    if type(value) is not EventEvidenceRef:
+        _fail("event-contract evidence_ref must be exact EventEvidenceRef")
+    _validate_uuid(value.value, field_name="event-contract evidence_ref.value")
+
+
+def _validate_subject_child(value: EventSubjectReferenceId) -> None:
+    if type(value) is not EventSubjectReferenceId:
+        _fail("event-contract subject_reference_id must be exact EventSubjectReferenceId")
+    _validate_uuid(value.value, field_name="event-contract subject_reference_id.value")
+
+
+def _validate_authority_child(value: EventResolutionAuthorityRef) -> None:
+    if type(value) is not EventResolutionAuthorityRef:
+        _fail("event resolution authority_ref must be exact EventResolutionAuthorityRef")
+    _validate_uuid(value.value, field_name="event resolution authority_ref.value")
+
+
+def _validate_criterion_child(value: EventCriterionCode) -> None:
+    if type(value) is not EventCriterionCode:
+        _fail("event-contract criterion_code must be exact EventCriterionCode")
+    _validate_code(value.value, field_name="event criterion code")
+
+
+def _validate_structure_child(value: EventOutcomeStructureCode) -> None:
+    if type(value) is not EventOutcomeStructureCode:
+        _fail("event-contract outcome_structure_code must be exact EventOutcomeStructureCode")
+    _validate_code(value.value, field_name="event outcome structure code")
+
+
+def _validate_outcome_code_child(value: EventOutcomeCode) -> None:
+    if type(value) is not EventOutcomeCode:
+        _fail("event outcome_code must be exact EventOutcomeCode")
+    _validate_code(value.value, field_name="event outcome code")
+
+
+def _validate_source_child(value: EventResolutionSourceCode, *, field_name: str) -> None:
+    if type(value) is not EventResolutionSourceCode:
+        _fail(f"{field_name} must contain exact EventResolutionSourceCode")
+    _validate_code(value.value, field_name="event resolution source code")
+
+
+def _validate_rule_child(value: EventResolutionRuleCode) -> None:
+    if type(value) is not EventResolutionRuleCode:
+        _fail("event resolution_rule_code must be exact EventResolutionRuleCode")
+    _validate_code(value.value, field_name="event resolution rule code")
+
+
+def _validate_correction_child(value: EventCorrectionPolicyCode) -> None:
+    if type(value) is not EventCorrectionPolicyCode:
+        _fail("event correction_policy_code must be exact EventCorrectionPolicyCode")
+    _validate_code(value.value, field_name="event correction policy code")
+
+
+def _validate_conflict_child(value: EventSourceConflictPolicyCode) -> None:
+    if type(value) is not EventSourceConflictPolicyCode:
+        _fail("event source_conflict_policy_code must be exact EventSourceConflictPolicyCode")
+    _validate_code(value.value, field_name="event source-conflict policy code")
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,10 +326,20 @@ class EventCashPayout:
         )
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             _canonical_decimal(self.amount),
-            self.currency_identity_id.logical_values(),
+            _identity_values(
+                self.currency_identity_id,
+                field_name="event payout currency identity",
+            ),
         )
+
+
+def _validate_payout_child(value: EventCashPayout) -> None:
+    if type(value) is not EventCashPayout:
+        _fail("event payout must be exact EventCashPayout")
+    value.__post_init__()
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,17 +348,27 @@ class EventOutcomeTerms:
     payout: EventCashPayout
 
     def __post_init__(self) -> None:
-        if not isinstance(self.outcome_code, EventOutcomeCode):
-            raise EventContractValidationError(
-                "event outcome_code must be EventOutcomeCode"
-            )
-        if not isinstance(self.payout, EventCashPayout):
-            raise EventContractValidationError(
-                "event payout must be EventCashPayout"
-            )
+        _validate_outcome_code_child(self.outcome_code)
+        _validate_payout_child(self.payout)
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (self.outcome_code.logical_values(), self.payout.logical_values())
+
+
+def _validate_outcome_child(value: EventOutcomeTerms) -> None:
+    if type(value) is not EventOutcomeTerms:
+        _fail("event-contract outcomes must contain exact EventOutcomeTerms")
+    value.__post_init__()
+
+
+def _outcome_sort_key(value: EventOutcomeTerms) -> tuple[str, str, str]:
+    _validate_outcome_child(value)
+    return (
+        value.outcome_code.value,
+        str(value.payout.currency_identity_id.value),
+        _canonical_decimal(value.payout.amount),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,10 +384,7 @@ class EventResolutionTerms:
     scheduled_resolution_date: date | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.authority_ref, EventResolutionAuthorityRef):
-            raise EventContractValidationError(
-                "event resolution authority_ref must be typed"
-            )
+        _validate_authority_child(self.authority_ref)
         self._validate_sources(
             self.primary_source_codes,
             field_name="event primary resolution sources",
@@ -252,27 +395,13 @@ class EventResolutionTerms:
             field_name="event fallback resolution sources",
             allow_empty=True,
         )
-        primary = set(self.primary_source_codes)
-        fallback = set(self.fallback_source_codes)
-        if primary.intersection(fallback):
-            raise EventContractValidationError(
-                "primary and fallback resolution sources must be disjoint"
-            )
-        if not isinstance(self.resolution_rule_code, EventResolutionRuleCode):
-            raise EventContractValidationError(
-                "event resolution_rule_code must be typed"
-            )
-        if not isinstance(self.correction_policy_code, EventCorrectionPolicyCode):
-            raise EventContractValidationError(
-                "event correction_policy_code must be typed"
-            )
-        if not isinstance(
-            self.source_conflict_policy_code,
-            EventSourceConflictPolicyCode,
-        ):
-            raise EventContractValidationError(
-                "event source_conflict_policy_code must be typed"
-            )
+        primary_values = {source.value for source in self.primary_source_codes}
+        fallback_values = {source.value for source in self.fallback_source_codes}
+        if primary_values.intersection(fallback_values):
+            _fail("primary and fallback resolution sources must be disjoint")
+        _validate_rule_child(self.resolution_rule_code)
+        _validate_correction_child(self.correction_policy_code)
+        _validate_conflict_child(self.source_conflict_policy_code)
         if self.scheduled_resolution_date is not None:
             _validate_date(
                 self.scheduled_resolution_date,
@@ -287,20 +416,18 @@ class EventResolutionTerms:
         allow_empty: bool,
     ) -> None:
         if type(sources) is not tuple:
-            raise EventContractValidationError(f"{field_name} must be tuple")
+            _fail(f"{field_name} must be exact tuple")
         if not sources and not allow_empty:
-            raise EventContractValidationError(f"{field_name} must not be empty")
+            _fail(f"{field_name} must not be empty")
+        values: list[str] = []
         for source in sources:
-            if not isinstance(source, EventResolutionSourceCode):
-                raise EventContractValidationError(
-                    f"{field_name} must contain EventResolutionSourceCode"
-                )
-        if len(set(sources)) != len(sources):
-            raise EventContractValidationError(
-                f"{field_name} must not contain duplicate sources"
-            )
+            _validate_source_child(source, field_name=field_name)
+            values.append(source.value)
+        if len(set(values)) != len(values):
+            _fail(f"{field_name} must not contain duplicate sources")
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             self.authority_ref.logical_values(),
             tuple(source.logical_values() for source in self.primary_source_codes),
@@ -314,9 +441,15 @@ class EventResolutionTerms:
         )
 
 
+def _validate_resolution_child(value: EventResolutionTerms) -> None:
+    if type(value) is not EventResolutionTerms:
+        _fail("event-contract resolution_terms must be exact EventResolutionTerms")
+    value.__post_init__()
+
+
 @dataclass(frozen=True, slots=True)
 class EventContractTerms:
-    """Static event contract definition with no current/resolved outcome state."""
+    """Static event-contract definition with no current/resolved outcome state."""
 
     terms_id: EventContractTermsId
     instrument_identity_id: EconomicIdentityId
@@ -329,51 +462,25 @@ class EventContractTerms:
     expiration_date: date | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.terms_id, EventContractTermsId):
-            raise EventContractValidationError(
-                "event-contract terms_id must be EventContractTermsId"
-            )
+        _validate_terms_id_child(self.terms_id)
         _validate_identity(
             self.instrument_identity_id,
             field_name="event-contract instrument identity",
         )
-        if not isinstance(self.subject_reference_id, EventSubjectReferenceId):
-            raise EventContractValidationError(
-                "event-contract subject_reference_id must be typed"
-            )
-        if not isinstance(self.criterion_code, EventCriterionCode):
-            raise EventContractValidationError(
-                "event-contract criterion_code must be typed"
-            )
-        if not isinstance(
-            self.outcome_structure_code,
-            EventOutcomeStructureCode,
-        ):
-            raise EventContractValidationError(
-                "event-contract outcome_structure_code must be typed"
-            )
+        _validate_subject_child(self.subject_reference_id)
+        _validate_criterion_child(self.criterion_code)
+        _validate_structure_child(self.outcome_structure_code)
         if type(self.outcomes) is not tuple or len(self.outcomes) < 2:
-            raise EventContractValidationError(
-                "event-contract outcomes must be a tuple with at least two entries"
-            )
+            _fail("event-contract outcomes must be an exact tuple with at least two entries")
         for outcome in self.outcomes:
-            if not isinstance(outcome, EventOutcomeTerms):
-                raise EventContractValidationError(
-                    "event-contract outcomes must contain EventOutcomeTerms"
-                )
-        outcome_codes = tuple(outcome.outcome_code for outcome in self.outcomes)
+            _validate_outcome_child(outcome)
+        outcome_codes = tuple(outcome.outcome_code.value for outcome in self.outcomes)
         if len(set(outcome_codes)) != len(outcome_codes):
-            raise EventContractValidationError(
-                "event-contract outcome codes must be unique"
-            )
-        if not isinstance(self.resolution_terms, EventResolutionTerms):
-            raise EventContractValidationError(
-                "event-contract resolution_terms must be typed"
-            )
-        if not isinstance(self.evidence_ref, EventEvidenceRef):
-            raise EventContractValidationError(
-                "event-contract evidence_ref must be EventEvidenceRef"
-            )
+            _fail("event-contract outcome codes must be unique")
+        canonical_outcomes = tuple(sorted(self.outcomes, key=_outcome_sort_key))
+        object.__setattr__(self, "outcomes", canonical_outcomes)
+        _validate_resolution_child(self.resolution_terms)
+        _validate_evidence_child(self.evidence_ref)
         if self.expiration_date is not None:
             _validate_date(
                 self.expiration_date,
@@ -385,15 +492,17 @@ class EventContractTerms:
             and scheduled is not None
             and scheduled < self.expiration_date
         ):
-            raise EventContractValidationError(
-                "scheduled resolution date must not precede expiration date"
-            )
+            _fail("scheduled resolution date must not precede expiration date")
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             "event-contract",
             self.terms_id.logical_values(),
-            self.instrument_identity_id.logical_values(),
+            _identity_values(
+                self.instrument_identity_id,
+                field_name="event-contract instrument identity",
+            ),
             self.subject_reference_id.logical_values(),
             self.criterion_code.logical_values(),
             self.outcome_structure_code.logical_values(),
