@@ -586,7 +586,7 @@ def test_values_are_frozen_and_slotted() -> None:
     value = _same_reference_qualification()
     assert not hasattr(value, "__dict__")
     with pytest.raises(FrozenInstanceError):
-        value.evidence_ref = _cfd_evidence(999)  # type: ignore[misc]
+        setattr(value, "evidence_ref", _cfd_evidence(999))
 
 
 def test_forward_logical_identity_does_not_collapse_material_dimensions() -> None:
@@ -676,9 +676,13 @@ _FORBIDDEN_IMPORT_ROOTS = {
 
 
 def test_negative_space_field_and_method_surface() -> None:
-    for owner in (CfdForwardFormQualification, CfdRollingSpotLifecycleQualification):
+    owners = (CfdForwardFormQualification, CfdRollingSpotLifecycleQualification)
+    for owner in owners:
         assert {field.name for field in fields(owner)}.isdisjoint(_FORBIDDEN_FIELDS)
-        instance = _same_reference_qualification() if owner is CfdForwardFormQualification else _rolling_qualification()
+        if owner is CfdForwardFormQualification:
+            instance = _same_reference_qualification()
+        else:
+            instance = _rolling_qualification()
         for name in _FORBIDDEN_CALL_NAMES:
             assert not hasattr(instance, name)
 
