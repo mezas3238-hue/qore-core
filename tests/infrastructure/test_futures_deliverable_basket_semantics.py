@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from uuid import UUID
 
 import pytest
@@ -96,6 +96,27 @@ def test_same_deliverable_with_different_factor_does_not_collapse_identity() -> 
     assert _entry(30, "0.875").logical_values() != _entry(
         30, "0.900"
     ).logical_values()
+
+
+def test_high_precision_conversion_factors_do_not_collapse() -> None:
+    first = FuturesConversionFactor(Decimal("0.1234567890123456789012345678901"))
+    second = FuturesConversionFactor(Decimal("0.1234567890123456789012345678909"))
+    assert first.value != second.value
+    assert first.logical_values() != second.logical_values()
+
+
+def test_conversion_factor_logical_values_ignore_ambient_decimal_context() -> None:
+    factor = FuturesConversionFactor(Decimal("0.123456789012345678901234567890"))
+    baseline = factor.logical_values()
+    with localcontext() as context:
+        context.prec = 5
+        assert factor.logical_values() == baseline
+
+
+def test_extreme_exponent_conversion_factor_uses_compact_logical_material() -> None:
+    logical_values = FuturesConversionFactor(Decimal("1E+1000000")).logical_values()
+    assert logical_values == ("1e+1000000",)
+    assert len(logical_values[0]) < 32
 
 
 def test_duplicate_deliverable_identity_is_rejected_even_if_factor_differs() -> None:
