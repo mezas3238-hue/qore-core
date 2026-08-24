@@ -586,7 +586,7 @@ def test_values_are_frozen_and_slotted() -> None:
     value = _same_reference_qualification()
     assert not hasattr(value, "__dict__")
     with pytest.raises(FrozenInstanceError):
-        setattr(value, "evidence_ref", _cfd_evidence(999))
+        value.__setattr__("evidence_ref", _cfd_evidence(999))
 
 
 def test_forward_logical_identity_does_not_collapse_material_dimensions() -> None:
