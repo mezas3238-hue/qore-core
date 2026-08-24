@@ -14,6 +14,7 @@ from qore.infrastructure.derivative_contract_semantics import (
     DerivativeEvidenceRef,
     DerivativeSettlementStyle,
     DerivativeTermsId,
+    DerivativeTickValue,
     FuturesContractTerms,
 )
 from qore.infrastructure.futures_deliverable_basket_semantics import (
@@ -28,6 +29,15 @@ from qore.infrastructure.universal_instrument_identity import (
     EconomicIdentityId,
     UniversalInstrumentIdentityValidationError,
 )
+
+
+class _CollidingUUID(UUID):
+    def __str__(self) -> str:
+        return "collision"
+
+
+class _DecimalSubclass(Decimal):
+    pass
 
 
 def _id(value: int) -> EconomicIdentityId:
@@ -173,6 +183,71 @@ def test_corrupted_nested_futures_multiplier_is_revalidated_fail_closed() -> Non
         basket.logical_values()
 
 
+def test_uuid_subclass_cannot_collapse_deliverable_identity() -> None:
+    first = EconomicIdentityId(_CollidingUUID(int=30))
+    second = EconomicIdentityId(_CollidingUUID(int=31))
+    assert first != second
+    assert first.logical_values() == second.logical_values()
+    for identity in (first, second):
+        with pytest.raises(
+            FuturesDeliverableBasketValidationError,
+            match="deliverable identity value must be exact UUID",
+        ):
+            FuturesDeliverableBasketEntry(
+                identity,
+                FuturesConversionFactor(Decimal("0.875")),
+            )
+
+
+def test_uuid_subclass_in_reused_futures_leaf_is_rejected() -> None:
+    futures = _futures()
+    object.__setattr__(futures.terms_id, "value", _CollidingUUID(int=10))
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="futures terms_id value must be exact UUID",
+    ):
+        FuturesDeliverableBasketTerms(
+            FuturesDeliverableBasketTermsId(UUID(int=20)),
+            futures,
+            (_entry(30, "0.875"),),
+            FuturesDeliverableBasketEvidenceRef(UUID(int=21)),
+        )
+
+
+def test_decimal_subclass_in_multiplier_is_rejected() -> None:
+    futures = _futures()
+    object.__setattr__(futures.multiplier, "value", _DecimalSubclass("100000"))
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="futures multiplier value must be exact Decimal",
+    ):
+        FuturesDeliverableBasketTerms(
+            FuturesDeliverableBasketTermsId(UUID(int=20)),
+            futures,
+            (_entry(30, "0.875"),),
+            FuturesDeliverableBasketEvidenceRef(UUID(int=21)),
+        )
+
+
+def test_decimal_subclass_in_tick_value_is_rejected() -> None:
+    futures = replace(
+        _futures(),
+        tick_value=DerivativeTickValue(Decimal("12.5"), _id(16)),
+    )
+    assert futures.tick_value is not None
+    object.__setattr__(futures.tick_value, "value", _DecimalSubclass("12.5"))
+    with pytest.raises(
+        FuturesDeliverableBasketValidationError,
+        match="futures tick_value value must be exact Decimal",
+    ):
+        FuturesDeliverableBasketTerms(
+            FuturesDeliverableBasketTermsId(UUID(int=20)),
+            futures,
+            (_entry(30, "0.875"),),
+            FuturesDeliverableBasketEvidenceRef(UUID(int=21)),
+        )
+
+
 def test_corrupted_conversion_factor_is_revalidated_fail_closed() -> None:
     entry = _entry(30, "0.875")
     object.__setattr__(entry.conversion_factor, "value", Decimal("NaN"))
@@ -186,7 +261,7 @@ def test_corrupted_conversion_factor_is_revalidated_fail_closed() -> None:
 def test_corrupted_deliverable_identity_is_revalidated_fail_closed() -> None:
     entry = _entry(30, "0.875")
     object.__setattr__(entry.deliverable_identity_id, "value", "not-a-uuid")
-    with pytest.raises(UniversalInstrumentIdentityValidationError):
+    with pytest.raises(FuturesDeliverableBasketValidationError):
         _basket((entry,))
 
 
