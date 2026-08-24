@@ -174,12 +174,14 @@ def _qualification(
 def test_valid_ijarah_qualification_retains_non_debt_structure() -> None:
     value = _qualification()
     logical = value.logical_values()
+    distribution = cast(tuple[object, ...], logical[7])
+    shariah = cast(tuple[object, ...], logical[8])
 
     assert logical[0] == "sukuk-structural-qualification"
     assert logical[3] == ("ijarah",)
     assert logical[4] == ("undivided-beneficial-interest",)
-    assert logical[7][1] == ("lease-rental",)
-    assert logical[8][1] == ("iifm-sukuk-al-ijarah",)
+    assert distribution[1] == ("lease-rental",)
+    assert shariah[1] == ("iifm-sukuk-al-ijarah",)
 
 
 def test_valid_perpetual_mudarabah_certificate() -> None:
@@ -587,7 +589,7 @@ def test_qualification_is_frozen() -> None:
     value = _qualification()
 
     with pytest.raises(FrozenInstanceError):
-        setattr(value, "maturity_date", None)
+        type(value).__setattr__(value, "maturity_date", None)
 
 
 def test_source_has_no_engine_provider_or_implicit_clock_path() -> None:
