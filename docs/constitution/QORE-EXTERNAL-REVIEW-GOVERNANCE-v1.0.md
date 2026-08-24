@@ -120,6 +120,7 @@ Los secretos nunca se incorporan a prompts, reviews, evidencia, logs o commits d
 
 Perfil operativo validado al adoptar esta norma:
 
+- profile id: `QORE-DEEPSEEK-V2.1.1-STABLE`;
 - repositorio de infraestructura: `mezas3238-hue/qore-deepseek-reviewer`;
 - reviewer family: V2.1.1;
 - modelo autoritativo: `deepseek-v4-pro`;
@@ -131,7 +132,7 @@ Perfil operativo validado al adoptar esta norma:
 - no replay completo del evidence bundle en el extractor;
 - extractor sin autoridad para inventar hallazgos ni fabricar PASS.
 
-Este perfil puede evolucionar sin modificar esta norma siempre que preserve o mejore cobertura, independencia, binding, fail-closed, anti-duplicación y calidad.
+Este perfil puede evolucionar sin modificar esta norma siempre que preserve o mejore cobertura, independencia, binding, fail-closed, anti-duplicación y calidad. Un sucesor sólo sustituye al perfil estable cuando ha sido validado, adjudicado y mergeado en la infraestructura de reviewer; nunca por decisión local de una sesión de chat.
 
 ## 9. Presupuesto de consumo
 
@@ -177,8 +178,38 @@ Una optimización futura del reviewer se acepta sólo si:
 
 Ante conflicto entre ahorro y calidad, prevalece calidad.
 
-## 12. Autoridad y vigencia
+No existe fallback permitido a una familia histórica de reviewer por iniciar un chat nuevo, perder contexto, cambiar coordinador o reiniciar una sesión. Si el perfil estable no puede reconstruirse con evidencia desde GitHub, el dispatch se bloquea hasta reconstruirlo; nunca se sustituye silenciosamente por una configuración anterior.
 
-Esta norma es obligatoria para nuevas entregas de QORE Core que entren al gate de revisión externa desde su merge en `main`.
+## 12. Persistencia entre chats, sesiones y coordinadores
+
+El método de trabajo DeepSeek vigente es **estado persistente del proyecto**, no estado conversacional.
+
+Su vigencia no cambia por:
+
+- abrir un chat nuevo;
+- compactar o perder contexto conversacional;
+- reiniciar una sesión;
+- cambiar de dispositivo;
+- cambiar el coordinador técnico o agente que continúa el trabajo;
+- transcurrir tiempo entre entregas.
+
+Al inicio de cada sesión que pueda despachar DeepSeek, el coordinador debe reconstruir desde GitHub, antes de cualquier dispatch:
+
+1. esta norma desde `qore-core/main`;
+2. el profile id estable vigente;
+3. el `main` actual de `qore-deepseek-reviewer` y su entrypoint operativo;
+4. los workflows permanentes autorizados;
+5. el último estado de `requests/current.json` para anti-duplicación;
+6. el binding exacto del PR candidato y su CI.
+
+El coordinador no puede inferir una configuración DeepSeek desde memoria, un prompt antiguo o un chat anterior cuando GitHub puede verificarla.
+
+Si el reviewer `main` no corresponde al perfil estable vigente, o existe duda sobre qué perfil está activo, **no se despacha DeepSeek** hasta resolver la discrepancia. La ausencia de contexto conversacional nunca autoriza degradar a una configuración histórica de mayor consumo.
+
+El perfil estable permanece obligatorio **hasta el cierre formal de QORE Core**, salvo que antes sea sustituido por un sucesor validado bajo la sección 11. En cualquier caso, siempre existe exactamente un perfil operativo estable vigente y reconstruible desde GitHub.
+
+## 13. Autoridad y vigencia
+
+Esta norma es obligatoria para nuevas entregas de QORE Core que entren al gate de revisión externa desde su merge en `main` y permanece vigente hasta el cierre formal de QORE Core o una modificación constitucional explícita.
 
 No autoriza Production, real capital, ejecución real, bypass de Risk ni ninguna ampliación de autoridad operativa.
