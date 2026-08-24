@@ -112,29 +112,37 @@ def _qualification(
 ) -> SukukStructuralQualification:
     root = certificate or _identity(1)
     default_binding = _binding(1, 10)
-    selected_underlyings = underlyings or (default_binding,)
-    default_related = selected_underlyings[0].binding_id
-    selected_legs = legs or (
-        _leg(
-            1,
-            1,
-            kind="sale-purchase",
-            role="asset-transfer",
-            related=default_related,
-        ),
-        _leg(
-            2,
-            2,
-            kind="lease",
-            role="usufruct-generation",
-            related=default_related,
-        ),
-        _leg(
-            3,
-            3,
-            kind="declaration-of-trust",
-            role="certificate-trust",
-        ),
+    selected_underlyings = (
+        underlyings if underlyings is not None else (default_binding,)
+    )
+    default_related = (
+        selected_underlyings[0].binding_id if selected_underlyings else None
+    )
+    selected_legs = (
+        legs
+        if legs is not None
+        else (
+            _leg(
+                1,
+                1,
+                kind="sale-purchase",
+                role="asset-transfer",
+                related=default_related,
+            ),
+            _leg(
+                2,
+                2,
+                kind="lease",
+                role="usufruct-generation",
+                related=default_related,
+            ),
+            _leg(
+                3,
+                3,
+                kind="declaration-of-trust",
+                role="certificate-trust",
+            ),
+        )
     )
     return SukukStructuralQualification(
         qualification_id=SukukQualificationId(_uuid(6001)),
@@ -165,8 +173,8 @@ def _qualification(
 
 def test_valid_ijarah_qualification_retains_non_debt_structure() -> None:
     value = _qualification()
-
     logical = value.logical_values()
+
     assert logical[0] == "sukuk-structural-qualification"
     assert logical[3] == ("ijarah",)
     assert logical[4] == ("undivided-beneficial-interest",)
@@ -207,11 +215,12 @@ def test_valid_perpetual_mudarabah_certificate() -> None:
         framework="iifm-sukuk-al-mudarabah-tier1",
         maturity=None,
     )
+
     assert value.maturity_date is None
     assert value.logical_values()[3] == ("mudarabah",)
 
 
-def test_underlying_input_order_is_canonical_but_material_roles_are_not_collapsed() -> None:
+def test_underlying_input_order_is_canonical() -> None:
     first = _binding(1, 10, role="leased-asset", interest="usufruct-interest")
     second = _binding(2, 11, role="reserve-asset", interest="ownership-interest")
     a = _qualification(underlyings=(second, first))
@@ -227,12 +236,14 @@ def test_same_underlying_with_different_role_or_interest_remains_distinct() -> N
     first = _binding(1, 10, role="leased-asset", interest="usufruct-interest")
     second = _binding(2, 10, role="reserve-asset", interest="ownership-interest")
     value = _qualification(underlyings=(first, second))
+
     assert len(value.underlying_interests) == 2
 
 
-def test_semantically_duplicate_underlying_rejected_even_with_different_ids() -> None:
+def test_semantic_duplicate_underlying_rejected_with_different_ids() -> None:
     first = _binding(1, 10)
     duplicate = _binding(2, 10)
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(underlyings=(first, duplicate))
 
@@ -250,6 +261,7 @@ def test_duplicate_underlying_binding_id_rejected() -> None:
         interest=SukukUnderlyingInterestCode("ownership-interest"),
         evidence_ref=SukukEvidenceRef(_uuid(3999)),
     )
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(underlyings=(first, second))
 
@@ -272,6 +284,7 @@ def test_structural_leg_order_is_canonical_by_explicit_ordinal() -> None:
     )
     a = _qualification(underlyings=(binding,), legs=(second, first))
     b = _qualification(underlyings=(binding,), legs=(first, second))
+
     assert a.logical_values() == b.logical_values()
     assert tuple(leg.ordinal for leg in a.structural_legs) == (1, 2)
 
@@ -306,13 +319,16 @@ def test_changing_leg_ordinals_changes_contractual_structure() -> None:
         role="usufruct-generation",
         related=binding.binding_id,
     )
-    assert _qualification(
+
+    baseline = _qualification(
         underlyings=(binding,),
         legs=(first, second),
-    ).logical_values() != _qualification(
+    ).logical_values()
+    reordered = _qualification(
         underlyings=(binding,),
         legs=(reversed_first, reversed_second),
     ).logical_values()
+    assert baseline != reordered
 
 
 def test_duplicate_leg_id_and_ordinal_fail_closed() -> None:
@@ -331,6 +347,7 @@ def test_duplicate_leg_id_and_ordinal_fail_closed() -> None:
         role=SukukStructuralLegRoleCode("asset-servicing"),
         evidence_ref=SukukEvidenceRef(_uuid(5998)),
     )
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(underlyings=(binding,), legs=(first, duplicate_id))
 
@@ -354,9 +371,9 @@ def test_leg_and_distribution_cannot_reference_undeclared_underlying() -> None:
         role="usufruct-generation",
         related=missing,
     )
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(underlyings=(binding,), legs=(bad_leg,))
-
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(
             underlyings=(binding,),
@@ -387,6 +404,7 @@ def test_certificate_cannot_be_its_own_underlying() -> None:
         interest=SukukUnderlyingInterestCode("ownership-interest"),
         evidence_ref=SukukEvidenceRef(_uuid(3001)),
     )
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(certificate=root, underlyings=(self_binding,))
 
@@ -394,7 +412,12 @@ def test_certificate_cannot_be_its_own_underlying() -> None:
 def test_mutable_or_empty_collections_fail_closed() -> None:
     binding = _binding(1, 10)
     with pytest.raises(SukukStructuralSemanticsValidationError):
-        _qualification(underlyings=cast(tuple[SukukUnderlyingInterestBinding, ...], [binding]))
+        _qualification(
+            underlyings=cast(
+                tuple[SukukUnderlyingInterestBinding, ...],
+                [binding],
+            )
+        )
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(underlyings=())
 
@@ -475,17 +498,19 @@ def test_uuid_wrappers_reject_non_uuid_runtime_values() -> None:
 def test_wrapper_runtime_types_are_exact_at_composition_boundary() -> None:
     value = _qualification()
     object.__setattr__(value, "structure", cast(SukukStructureCode, object()))
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         value.logical_values()
 
 
-def test_reflective_root_identity_corruption_fails_on_logical_projection() -> None:
+def test_reflective_root_identity_corruption_fails_on_projection() -> None:
     value = _qualification()
     object.__setattr__(
         value.certificate_identity.identity_id,
         "value",
         cast(UUID, "corrupt"),
     )
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         value.logical_values()
 
@@ -511,19 +536,32 @@ def test_identity_family_str_subclass_laundering_is_rejected_locally() -> None:
         pass
 
     root = _identity(1)
-    object.__setattr__(root.family, "value", StringSubclass("fixed-income-credit"))
+    object.__setattr__(
+        root.family,
+        "value",
+        StringSubclass("fixed-income-credit"),
+    )
+
     with pytest.raises(SukukStructuralSemanticsValidationError):
         _qualification(certificate=root)
 
 
-def test_structure_interest_distribution_and_framework_are_all_material() -> None:
+def test_structure_interest_distribution_and_framework_are_material() -> None:
     baseline = _qualification().logical_values()
+
     assert _qualification(structure="mudarabah").logical_values() != baseline
-    assert _qualification(
-        certificate_interest="ownership-interest"
-    ).logical_values() != baseline
-    assert _qualification(distribution_source="asset-income").logical_values() != baseline
-    assert _qualification(framework="external-board-reference").logical_values() != baseline
+    assert (
+        _qualification(certificate_interest="ownership-interest").logical_values()
+        != baseline
+    )
+    assert (
+        _qualification(distribution_source="asset-income").logical_values()
+        != baseline
+    )
+    assert (
+        _qualification(framework="external-board-reference").logical_values()
+        != baseline
+    )
 
 
 def test_evidence_references_are_material() -> None:
@@ -541,17 +579,20 @@ def test_evidence_references_are_material() -> None:
         maturity_date=baseline.maturity_date,
         evidence_ref=SukukEvidenceRef(_uuid(7000)),
     )
+
     assert baseline.logical_values() != altered.logical_values()
 
 
 def test_qualification_is_frozen() -> None:
     value = _qualification()
+
     with pytest.raises(FrozenInstanceError):
-        value.maturity_date = None  # type: ignore[misc]
+        setattr(value, "maturity_date", None)
 
 
 def test_source_has_no_engine_provider_or_implicit_clock_path() -> None:
     source = inspect.getsource(sukuk_module)
+
     assert "fixed_income_economics" not in source
     assert "datetime.now" not in source
     assert "uuid4" not in source
