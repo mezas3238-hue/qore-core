@@ -22,7 +22,7 @@ from qore.infrastructure.universal_instrument_identity import (
 )
 from qore.kernel.errors import InfrastructureError
 
-_FUNDS_POOLED_VEHICLES_FAMILY = IdentityFamilyCode("funds-pooled-vehicles")
+_FUNDS_POOLED_VEHICLES_FAMILY = "funds-pooled-vehicles"
 
 
 class UnitInvestmentTrustQualificationError(InfrastructureError):
@@ -39,9 +39,65 @@ def _fail(message: str) -> Never:
     raise UnitInvestmentTrustQualificationValidationError(message)
 
 
-def _require_uuid(value: object) -> None:
+def _require_uuid(value: object, *, field_name: str) -> None:
     if type(value) is not UUID:
-        _fail("expected UUID")
+        _fail(f"{field_name} must be exact UUID")
+
+
+def _require_local_uuid_wrapper(
+    value: object,
+    expected_type: type[object],
+    *,
+    field_name: str,
+) -> None:
+    if type(value) is not expected_type:
+        _fail(f"{field_name} has invalid exact type")
+    _require_uuid(getattr(value, "value", None), field_name=f"{field_name}.value")
+
+
+def _validate_economic_identity(
+    identity: object,
+    *,
+    require_fund_family: bool,
+) -> None:
+    if type(identity) is not EconomicIdentity:
+        _fail("expected exact EconomicIdentity")
+
+    if type(identity.identity_id) is not EconomicIdentityId:
+        _fail("expected exact EconomicIdentityId")
+    _require_uuid(identity.identity_id.value, field_name="economic identity id")
+
+    if type(identity.kind) is not EconomicIdentityKind:
+        _fail("expected exact EconomicIdentityKind")
+    if identity.kind is not EconomicIdentityKind.TRADABLE_INSTRUMENT:
+        _fail("UIT qualification requires TRADABLE_INSTRUMENT")
+
+    if type(identity.family) is not IdentityFamilyCode:
+        _fail("expected exact IdentityFamilyCode")
+    if type(identity.family.value) is not str:
+        _fail("family value must be exact str")
+    identity.family.__post_init__()
+
+    if type(identity.construction) is not IdentityConstructionKind:
+        _fail("expected exact IdentityConstructionKind")
+    if identity.construction is IdentityConstructionKind.CONTINUOUS_REFERENCE:
+        _fail("tradable UIT material must not use continuous-reference construction")
+
+    if type(identity.evidence_ref) is not IdentityEvidenceRef:
+        _fail("expected exact IdentityEvidenceRef")
+    _require_uuid(
+        identity.evidence_ref.value,
+        field_name="economic identity evidence ref",
+    )
+
+    if require_fund_family and identity.family.value != _FUNDS_POOLED_VEHICLES_FAMILY:
+        _fail("UIT fund family must be funds-pooled-vehicles")
+
+
+def _component_sort_key(
+    component: UnitInvestmentTrustSpecifiedSecurity,
+) -> str:
+    return str(component.security_identity.identity_id.value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,9 +105,10 @@ class UnitInvestmentTrustQualificationId:
     value: UUID
 
     def __post_init__(self) -> None:
-        _require_uuid(self.value)
+        _require_uuid(self.value, field_name="qualification_id.value")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
@@ -60,54 +117,11 @@ class UnitInvestmentTrustEvidenceRef:
     value: UUID
 
     def __post_init__(self) -> None:
-        _require_uuid(self.value)
+        _require_uuid(self.value, field_name="evidence_ref.value")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
-
-
-def _validate_economic_identity(
-    identity: EconomicIdentity,
-    *,
-    require_fund_family: bool,
-) -> None:
-    if type(identity) is not EconomicIdentity:
-        _fail("expected EconomicIdentity")
-
-    if type(identity.identity_id) is not EconomicIdentityId:
-        _fail("expected EconomicIdentityId")
-    if type(identity.identity_id.value) is not UUID:
-        _fail("expected UUID identity id")
-
-    if type(identity.kind) is not EconomicIdentityKind:
-        _fail("expected EconomicIdentityKind")
-    if identity.kind is not EconomicIdentityKind.TRADABLE_INSTRUMENT:
-        _fail("UIT qualification requires TRADABLE_INSTRUMENT")
-
-    if type(identity.family) is not IdentityFamilyCode:
-        _fail("expected IdentityFamilyCode")
-    if type(identity.family.value) is not str:
-        _fail("family value must be str")
-
-    if type(identity.construction) is not IdentityConstructionKind:
-        _fail("expected IdentityConstructionKind")
-
-    if type(identity.evidence_ref) is not IdentityEvidenceRef:
-        _fail("expected IdentityEvidenceRef")
-    if type(identity.evidence_ref.value) is not UUID:
-        _fail("expected UUID identity evidence ref")
-
-    if require_fund_family:
-        if identity.family != _FUNDS_POOLED_VEHICLES_FAMILY:
-            _fail("UIT fund family must be funds-pooled-vehicles")
-        if identity.family.value != "funds-pooled-vehicles":
-            _fail("UIT fund family value must be funds-pooled-vehicles")
-
-
-def _component_sort_key(
-    component: UnitInvestmentTrustSpecifiedSecurity,
-) -> str:
-    return str(component.security_identity.identity_id.value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,10 +140,14 @@ class UnitInvestmentTrustSpecifiedSecurity:
             self.security_identity,
             require_fund_family=False,
         )
-        if type(self.evidence_ref) is not UnitInvestmentTrustEvidenceRef:
-            _fail("expected UnitInvestmentTrustEvidenceRef")
+        _require_local_uuid_wrapper(
+            self.evidence_ref,
+            UnitInvestmentTrustEvidenceRef,
+            field_name="specified_security.evidence_ref",
+        )
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             "specified-security",
             self.security_identity.logical_values(),
@@ -159,10 +177,16 @@ class UnitInvestmentTrustQualification:
     contractual_termination_date: date | None = None
 
     def __post_init__(self) -> None:
-        if type(self.qualification_id) is not UnitInvestmentTrustQualificationId:
-            _fail("expected UnitInvestmentTrustQualificationId")
-        if type(self.evidence_ref) is not UnitInvestmentTrustEvidenceRef:
-            _fail("expected UnitInvestmentTrustEvidenceRef")
+        _require_local_uuid_wrapper(
+            self.qualification_id,
+            UnitInvestmentTrustQualificationId,
+            field_name="qualification_id",
+        )
+        _require_local_uuid_wrapper(
+            self.evidence_ref,
+            UnitInvestmentTrustEvidenceRef,
+            field_name="evidence_ref",
+        )
 
         _validate_economic_identity(
             self.fund_identity,
@@ -171,19 +195,18 @@ class UnitInvestmentTrustQualification:
 
         if type(self.specified_securities) is not tuple:
             _fail("specified securities must be an immutable tuple")
-        if len(self.specified_securities) == 0:
+        if not self.specified_securities:
             _fail("specified securities tuple cannot be empty")
 
-        for item in self.specified_securities:
-            if type(item) is not UnitInvestmentTrustSpecifiedSecurity:
+        for component in self.specified_securities:
+            if type(component) is not UnitInvestmentTrustSpecifiedSecurity:
                 _fail(
-                    "specified securities tuple must contain only "
+                    "specified securities tuple must contain only exact "
                     "UnitInvestmentTrustSpecifiedSecurity"
                 )
+            component.__post_init__()
 
-        canonical = tuple(
-            sorted(self.specified_securities, key=_component_sort_key)
-        )
+        canonical = tuple(sorted(self.specified_securities, key=_component_sort_key))
 
         seen_ids: set[str] = set()
         for component in canonical:
@@ -192,13 +215,15 @@ class UnitInvestmentTrustQualification:
                 _fail("duplicate specified security identity")
             seen_ids.add(key)
 
-        object.__setattr__(self, "specified_securities", canonical)
+        if self.specified_securities != canonical:
+            object.__setattr__(self, "specified_securities", canonical)
 
         if self.contractual_termination_date is not None:
             if type(self.contractual_termination_date) is not date:
                 _fail("contractual termination date must be exact date")
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             "unit-investment-trust-qualification",
             self.qualification_id.logical_values(),
