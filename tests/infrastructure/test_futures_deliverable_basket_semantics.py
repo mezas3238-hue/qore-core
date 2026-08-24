@@ -72,6 +72,15 @@ def _entry(identity: int, factor: str) -> FuturesDeliverableBasketEntry:
     )
 
 
+def _basket_with_futures(futures: FuturesContractTerms) -> FuturesDeliverableBasketTerms:
+    return FuturesDeliverableBasketTerms(
+        terms_id=FuturesDeliverableBasketTermsId(UUID(int=20)),
+        futures_terms=futures,
+        entries=(_entry(30, "0.875"),),
+        evidence_ref=FuturesDeliverableBasketEvidenceRef(UUID(int=21)),
+    )
+
+
 def _basket(
     entries: tuple[FuturesDeliverableBasketEntry, ...],
 ) -> FuturesDeliverableBasketTerms:
@@ -117,6 +126,70 @@ def test_extreme_exponent_conversion_factor_uses_compact_logical_material() -> N
     logical_values = FuturesConversionFactor(Decimal("1E+1000000")).logical_values()
     assert logical_values == ("1e+1000000",)
     assert len(logical_values[0]) < 32
+
+
+def test_composed_futures_projection_matches_umi05_for_normal_decimal_values() -> None:
+    futures = replace(
+        _futures(),
+        tick_value=DerivativeTickValue(Decimal("12.5"), _id(16)),
+    )
+    basket = _basket_with_futures(futures)
+    assert basket.logical_values()[2] == futures.logical_values()
+
+
+def test_composed_futures_high_precision_multiplier_does_not_collapse() -> None:
+    first_futures = replace(
+        _futures(),
+        multiplier=DerivativeContractMultiplier(
+            Decimal("1234567890123456789012345678901"),
+            _id(14),
+        ),
+    )
+    second_futures = replace(
+        _futures(),
+        multiplier=DerivativeContractMultiplier(
+            Decimal("1234567890123456789012345678909"),
+            _id(14),
+        ),
+    )
+    assert first_futures.multiplier.value != second_futures.multiplier.value
+    assert _basket_with_futures(first_futures).logical_values() != _basket_with_futures(
+        second_futures
+    ).logical_values()
+
+
+def test_composed_futures_decimal_leaves_ignore_ambient_context() -> None:
+    futures = replace(
+        _futures(),
+        multiplier=DerivativeContractMultiplier(
+            Decimal("123456789012345678901234567890"),
+            _id(14),
+        ),
+        tick_value=DerivativeTickValue(
+            Decimal("0.987654321098765432109876543210"),
+            _id(16),
+        ),
+    )
+    basket = _basket_with_futures(futures)
+    baseline = basket.logical_values()
+    with localcontext() as context:
+        context.prec = 5
+        assert basket.logical_values() == baseline
+
+
+def test_composed_futures_extreme_decimal_leaves_stay_compact() -> None:
+    futures = replace(
+        _futures(),
+        multiplier=DerivativeContractMultiplier(Decimal("1E+1000000"), _id(14)),
+        tick_value=DerivativeTickValue(Decimal("1E-1000000"), _id(16)),
+    )
+    futures_values = _basket_with_futures(futures).logical_values()[2]
+    multiplier_text = futures_values[7][0]
+    tick_text = futures_values[10][0]
+    assert multiplier_text == "1e+1000000"
+    assert tick_text == "1e-1000000"
+    assert len(multiplier_text) < 32
+    assert len(tick_text) < 32
 
 
 def test_duplicate_deliverable_identity_is_rejected_even_if_factor_differs() -> None:
