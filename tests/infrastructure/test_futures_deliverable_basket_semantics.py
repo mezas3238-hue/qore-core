@@ -184,8 +184,15 @@ def test_composed_futures_extreme_decimal_leaves_stay_compact() -> None:
         tick_value=DerivativeTickValue(Decimal("1E-1000000"), _id(16)),
     )
     futures_values = _basket_with_futures(futures).logical_values()[2]
-    multiplier_text = futures_values[7][0]
-    tick_text = futures_values[10][0]
+    assert isinstance(futures_values, tuple)
+    multiplier_values = futures_values[7]
+    tick_values = futures_values[10]
+    assert isinstance(multiplier_values, tuple)
+    assert isinstance(tick_values, tuple)
+    multiplier_text = multiplier_values[0]
+    tick_text = tick_values[0]
+    assert isinstance(multiplier_text, str)
+    assert isinstance(tick_text, str)
     assert multiplier_text == "1e+1000000"
     assert tick_text == "1e-1000000"
     assert len(multiplier_text) < 32
