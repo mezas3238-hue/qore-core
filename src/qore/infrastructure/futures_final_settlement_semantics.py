@@ -330,7 +330,7 @@ class FuturesFinalSettlementInput:
         if self.observation_window is not None:
             if type(self.observation_window) is not FuturesFinalSettlementObservationWindow:
                 raise FuturesFinalSettlementValidationError(
-                    "observation_window must be exact FuturesFinalSettlementObservationWindow or None"
+                    "observation_window must be exact settlement window or None"
                 )
             self.observation_window.__post_init__()
         if self.fixed_weight is not None:
