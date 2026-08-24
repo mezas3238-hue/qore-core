@@ -522,7 +522,7 @@ def test_reflective_underlying_and_leg_corruption_fail_closed() -> None:
     object.__setattr__(
         value.underlying_interests[0].role,
         "value",
-        cast(str, "Bad Role"),
+        "Bad Role",
     )
     with pytest.raises(SukukStructuralSemanticsValidationError):
         value.logical_values()
