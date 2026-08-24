@@ -30,10 +30,30 @@ class FuturesDeliverableBasketValidationError(FuturesDeliverableBasketSemanticsE
 
 
 def _canonical_decimal(value: Decimal) -> str:
-    normalized = value.normalize()
-    if normalized == 0:
+    parts = value.as_tuple()
+    if all(digit == 0 for digit in parts.digits):
         return "0"
-    return format(normalized, "f")
+
+    digits = list(parts.digits)
+    exponent = int(parts.exponent)
+    while digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+
+    normalized = Decimal((parts.sign, tuple(digits), exponent))
+    compact = str(normalized).lower()
+    sign_length = 1 if parts.sign else 0
+
+    if exponent >= 0:
+        fixed_length = sign_length + len(digits) + exponent
+    elif -exponent < len(digits):
+        fixed_length = sign_length + len(digits) + 1
+    else:
+        fixed_length = sign_length + 2 - exponent
+
+    if fixed_length <= len(compact) + 1:
+        return format(normalized, "f")
+    return compact
 
 
 def _require_exact_uuid(value: UUID, *, field_name: str) -> None:
