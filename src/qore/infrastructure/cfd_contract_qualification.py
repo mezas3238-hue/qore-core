@@ -113,7 +113,10 @@ def _require_code_wrapper(
     nested = getattr(value, "value", None)
     if type(nested) is not str or not nested:
         _fail(f"{field_name}.value must be non-empty exact str")
-    value.__post_init__()  # type: ignore[attr-defined]
+    post_init = getattr(value, "__post_init__", None)
+    if not callable(post_init):
+        _fail(f"{field_name} has no validator")
+    post_init()
 
 
 def _validate_financial_tenor(value: object, *, field_name: str) -> None:
@@ -396,7 +399,8 @@ class CfdForwardFormQualification:
             _fail("CFD identity id must equal forward instrument identity id")
 
         fixing = self.forward.fixing
-        assert fixing is not None
+        if fixing is None:
+            _fail("validated forward unexpectedly lacks fixing terms")
         economic_reference = self.forward.reference_identity_id
         fixing_reference = fixing.reference.reference_identity_id
 
