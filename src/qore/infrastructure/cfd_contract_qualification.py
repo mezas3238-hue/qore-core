@@ -349,10 +349,8 @@ def _validate_binding(
         IdentityEvidenceRef,
         field_name="price_determination_binding.evidence_ref",
     )
-    if binding.ordinal is not None and (
-        type(binding.ordinal) is not int or binding.ordinal <= 0
-    ):
-        _fail("binding ordinal must be positive exact int or None")
+    if binding.ordinal is not None:
+        _fail("price-determination binding must not carry ordinal semantics")
 
 
 @dataclass(frozen=True, slots=True)
