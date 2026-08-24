@@ -36,12 +36,13 @@ class FuturesDeliverableBasketTermsId:
     value: UUID
 
     def __post_init__(self) -> None:
-        if not isinstance(self.value, UUID):
+        if type(self.value) is not UUID:
             raise FuturesDeliverableBasketValidationError(
                 "futures deliverable basket terms id must be UUID"
             )
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
@@ -52,12 +53,13 @@ class FuturesDeliverableBasketEvidenceRef:
     value: UUID
 
     def __post_init__(self) -> None:
-        if not isinstance(self.value, UUID):
+        if type(self.value) is not UUID:
             raise FuturesDeliverableBasketValidationError(
                 "futures deliverable basket evidence ref must be UUID"
             )
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (str(self.value),)
 
 
@@ -68,7 +70,7 @@ class FuturesConversionFactor:
     value: Decimal
 
     def __post_init__(self) -> None:
-        if not isinstance(self.value, Decimal) or not self.value.is_finite():
+        if type(self.value) is not Decimal or not self.value.is_finite():
             raise FuturesDeliverableBasketValidationError(
                 "futures conversion factor must be a finite Decimal"
             )
@@ -78,6 +80,7 @@ class FuturesConversionFactor:
             )
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (_canonical_decimal(self.value),)
 
 
@@ -89,16 +92,19 @@ class FuturesDeliverableBasketEntry:
     conversion_factor: FuturesConversionFactor
 
     def __post_init__(self) -> None:
-        if not isinstance(self.deliverable_identity_id, EconomicIdentityId):
+        if type(self.deliverable_identity_id) is not EconomicIdentityId:
             raise FuturesDeliverableBasketValidationError(
                 "deliverable identity must be EconomicIdentityId"
             )
-        if not isinstance(self.conversion_factor, FuturesConversionFactor):
+        self.deliverable_identity_id.__post_init__()
+        if type(self.conversion_factor) is not FuturesConversionFactor:
             raise FuturesDeliverableBasketValidationError(
                 "conversion factor must be FuturesConversionFactor"
             )
+        self.conversion_factor.__post_init__()
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             self.deliverable_identity_id.logical_values(),
             self.conversion_factor.logical_values(),
@@ -115,15 +121,15 @@ class FuturesDeliverableBasketTerms:
     evidence_ref: FuturesDeliverableBasketEvidenceRef
 
     def __post_init__(self) -> None:
-        if not isinstance(self.terms_id, FuturesDeliverableBasketTermsId):
+        if type(self.terms_id) is not FuturesDeliverableBasketTermsId:
             raise FuturesDeliverableBasketValidationError(
                 "basket terms_id must be FuturesDeliverableBasketTermsId"
             )
-        if not isinstance(self.futures_terms, FuturesContractTerms):
+        self.terms_id.__post_init__()
+        if type(self.futures_terms) is not FuturesContractTerms:
             raise FuturesDeliverableBasketValidationError(
                 "futures_terms must be FuturesContractTerms"
             )
-        # Re-run the nested owner's validation so forged/mutated nested state fails closed.
         self.futures_terms.__post_init__()
         if self.futures_terms.settlement_style is not DerivativeSettlementStyle.PHYSICAL:
             raise FuturesDeliverableBasketValidationError(
@@ -134,7 +140,7 @@ class FuturesDeliverableBasketTerms:
                 "deliverable basket entries must be a non-empty tuple"
             )
         for entry in self.entries:
-            if not isinstance(entry, FuturesDeliverableBasketEntry):
+            if type(entry) is not FuturesDeliverableBasketEntry:
                 raise FuturesDeliverableBasketValidationError(
                     "deliverable basket must contain FuturesDeliverableBasketEntry"
                 )
@@ -152,12 +158,14 @@ class FuturesDeliverableBasketTerms:
             )
         object.__setattr__(self, "entries", ordered)
 
-        if not isinstance(self.evidence_ref, FuturesDeliverableBasketEvidenceRef):
+        if type(self.evidence_ref) is not FuturesDeliverableBasketEvidenceRef:
             raise FuturesDeliverableBasketValidationError(
                 "basket evidence_ref must be FuturesDeliverableBasketEvidenceRef"
             )
+        self.evidence_ref.__post_init__()
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             "futures-deliverable-basket",
             self.terms_id.logical_values(),
