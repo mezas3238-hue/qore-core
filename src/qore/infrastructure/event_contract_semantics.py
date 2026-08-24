@@ -261,13 +261,19 @@ def _validate_evidence_child(value: EventEvidenceRef) -> None:
 
 def _validate_subject_child(value: EventSubjectReferenceId) -> None:
     if type(value) is not EventSubjectReferenceId:
-        _fail("event-contract subject_reference_id must be exact EventSubjectReferenceId")
+        _fail(
+            "event-contract subject_reference_id must be exact "
+            "EventSubjectReferenceId"
+        )
     _validate_uuid(value.value, field_name="event-contract subject_reference_id.value")
 
 
 def _validate_authority_child(value: EventResolutionAuthorityRef) -> None:
     if type(value) is not EventResolutionAuthorityRef:
-        _fail("event resolution authority_ref must be exact EventResolutionAuthorityRef")
+        _fail(
+            "event resolution authority_ref must be exact "
+            "EventResolutionAuthorityRef"
+        )
     _validate_uuid(value.value, field_name="event resolution authority_ref.value")
 
 
@@ -279,7 +285,10 @@ def _validate_criterion_child(value: EventCriterionCode) -> None:
 
 def _validate_structure_child(value: EventOutcomeStructureCode) -> None:
     if type(value) is not EventOutcomeStructureCode:
-        _fail("event-contract outcome_structure_code must be exact EventOutcomeStructureCode")
+        _fail(
+            "event-contract outcome_structure_code must be exact "
+            "EventOutcomeStructureCode"
+        )
     _validate_code(value.value, field_name="event outcome structure code")
 
 
@@ -289,7 +298,11 @@ def _validate_outcome_code_child(value: EventOutcomeCode) -> None:
     _validate_code(value.value, field_name="event outcome code")
 
 
-def _validate_source_child(value: EventResolutionSourceCode, *, field_name: str) -> None:
+def _validate_source_child(
+    value: EventResolutionSourceCode,
+    *,
+    field_name: str,
+) -> None:
     if type(value) is not EventResolutionSourceCode:
         _fail(f"{field_name} must contain exact EventResolutionSourceCode")
     _validate_code(value.value, field_name="event resolution source code")
@@ -303,13 +316,18 @@ def _validate_rule_child(value: EventResolutionRuleCode) -> None:
 
 def _validate_correction_child(value: EventCorrectionPolicyCode) -> None:
     if type(value) is not EventCorrectionPolicyCode:
-        _fail("event correction_policy_code must be exact EventCorrectionPolicyCode")
+        _fail(
+            "event correction_policy_code must be exact EventCorrectionPolicyCode"
+        )
     _validate_code(value.value, field_name="event correction policy code")
 
 
 def _validate_conflict_child(value: EventSourceConflictPolicyCode) -> None:
     if type(value) is not EventSourceConflictPolicyCode:
-        _fail("event source_conflict_policy_code must be exact EventSourceConflictPolicyCode")
+        _fail(
+            "event source_conflict_policy_code must be exact "
+            "EventSourceConflictPolicyCode"
+        )
     _validate_code(value.value, field_name="event source-conflict policy code")
 
 
@@ -471,7 +489,10 @@ class EventContractTerms:
         _validate_criterion_child(self.criterion_code)
         _validate_structure_child(self.outcome_structure_code)
         if type(self.outcomes) is not tuple or len(self.outcomes) < 2:
-            _fail("event-contract outcomes must be an exact tuple with at least two entries")
+            _fail(
+                "event-contract outcomes must be an exact tuple with at least "
+                "two entries"
+            )
         for outcome in self.outcomes:
             _validate_outcome_child(outcome)
         outcome_codes = tuple(outcome.outcome_code.value for outcome in self.outcomes)
@@ -486,13 +507,6 @@ class EventContractTerms:
                 self.expiration_date,
                 field_name="event-contract expiration date",
             )
-        scheduled = self.resolution_terms.scheduled_resolution_date
-        if (
-            self.expiration_date is not None
-            and scheduled is not None
-            and scheduled < self.expiration_date
-        ):
-            _fail("scheduled resolution date must not precede expiration date")
 
     def logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
