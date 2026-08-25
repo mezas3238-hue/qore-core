@@ -17,6 +17,10 @@ Esta Constitución establece las leyes fundacionales que gobiernan la construcci
 9. **Una condición no segura debe degradar el sistema hacia un estado seguro.** El comportamiento por defecto ante incertidumbre crítica es proteger el sistema y el capital.
 10. **El código ejecutable y su evidencia prevalecen sobre afirmaciones documentales.** La documentación describe; la ejecución demuestra.
 
+## Normas subordinadas vigentes
+
+La revisión técnica externa de entregas de QORE Core se rige por `docs/constitution/QORE-EXTERNAL-REVIEW-GOVERNANCE-v1.0.md`. Esa norma operacionaliza las leyes de evidencia, independencia de validación, fail-safe y mejora continua sin introducir dependencias de proveedores de IA en el Core.
+
 ## Autoridad
 
 Toda fase, ADR, módulo, servicio, adaptador, agente o proceso futuro deberá ser compatible con estas leyes o documentar formalmente la razón de una propuesta de modificación constitucional.
