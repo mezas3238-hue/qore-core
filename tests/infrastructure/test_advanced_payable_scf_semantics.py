@@ -456,7 +456,8 @@ def test_recursive_logical_values_revalidates_corrupted_nested_obligation() -> N
         AdvancedPayableTechniqueKind.CORPORATE_PAYMENT_UNDERTAKING,
         _cpu(),
     )
-    obligation = cast(CorporatePaymentUndertakingTerms, qualification.terms).approved_obligation.obligation
+    terms = cast(CorporatePaymentUndertakingTerms, qualification.terms)
+    obligation = terms.approved_obligation.obligation
     object.__setattr__(obligation.obligation_kind, "value", "receivable")
     with pytest.raises(
         AdvancedPayableScfValidationError,
@@ -482,7 +483,7 @@ def test_values_are_frozen() -> None:
         _bpu(),
     )
     with pytest.raises(FrozenInstanceError):
-        qualification.effective_date = date(2027, 1, 1)  # type: ignore[misc]
+        setattr(qualification, "effective_date", date(2027, 1, 1))
 
 
 def test_source_has_no_implicit_runtime_network_or_payment_side_effects() -> None:
