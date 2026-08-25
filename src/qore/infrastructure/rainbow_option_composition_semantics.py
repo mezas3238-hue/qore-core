@@ -49,6 +49,8 @@ def _require_code(value: object, *, field_name: str) -> str:
 def _declared_dataclass_types(annotation: object) -> tuple[type[object], ...]:
     if isinstance(annotation, type) and is_dataclass(annotation):
         return (annotation,)
+    if isinstance(annotation, typing.TypeAliasType):
+        return _declared_dataclass_types(annotation.__value__)
     origin = get_origin(annotation)
     if origin in (types.UnionType, typing.Union):
         declared: list[type[object]] = []

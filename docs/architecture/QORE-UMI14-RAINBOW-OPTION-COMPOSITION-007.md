@@ -196,6 +196,11 @@ certified owner validations before serialization. Forced post-construction corru
 of the option/composition binding, composition internals, selection or performance rule
 therefore fails closed on the next projection.
 
+The recursive type gate unwraps declared PEP 695 type aliases before enumerating their
+exact dataclass members. This preserves valid UMI-05 `RATE` and `YIELD` strikes carrying
+`RateCurveConvention` or `YieldConvention` while still rejecting subclasses before a
+dynamic validator can run.
+
 The projection embeds the complete deterministic owner projections rather than
 flattening them or manufacturing a parallel representation.
 
@@ -215,6 +220,8 @@ The dedicated test suite proves at least:
 - performance rule is required, canonical and opaque;
 - exact aggregate/wrapper/enum runtime types;
 - nested composition corruption is detected recursively;
+- valid RATE and YIELD strike conventions remain representable through PEP 695 aliases;
+- convention subclasses are rejected before dynamic validation;
 - root-binding corruption is detected recursively;
 - selection/rule corruption is detected recursively;
 - frozen values;
