@@ -524,6 +524,13 @@ class AdvanceBasedFinanceTerms:
         reference_ids = [item.reference_id.value for item in self.trade_objects]
         if len(set(reference_ids)) != len(reference_ids):
             _fail("SCF advance trade-object references must be unique")
+        economic_identity_ids = [
+            item.economic_identity_id.value
+            for item in self.trade_objects
+            if item.economic_identity_id is not None
+        ]
+        if len(set(economic_identity_ids)) != len(economic_identity_ids):
+            _fail("SCF advance trade objects must not duplicate economic identity")
         self.funding.__post_init__()
         _validate_date(self.start_date, field_name="SCF advance start date")
         self.evidence_ref.__post_init__()
