@@ -275,7 +275,10 @@ def test_selection_requires_exact_enum_not_string() -> None:
 
 def test_rule_and_evidence_require_exact_wrappers() -> None:
     valid = _qualification()
-    with pytest.raises(RainbowOptionCompositionValidationError, match="performance rule must be exact"):
+    with pytest.raises(
+        RainbowOptionCompositionValidationError,
+        match="performance rule must be exact",
+    ):
         RainbowOptionCompositionQualification(
             option=valid.option,
             composition=valid.composition,
