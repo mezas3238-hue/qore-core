@@ -124,6 +124,8 @@ Perfil operativo validado al adoptar esta norma:
 
 - profile id: `QORE-DEEPSEEK-V2.1.1-STABLE`;
 - repositorio de infraestructura: `mezas3238-hue/qore-deepseek-reviewer`;
+- profile manifest autoritativamente pinneado por Core: `profiles/QORE-DEEPSEEK-V2.1.1-STABLE.json`;
+- blob SHA esperado del manifest: `14db06a4a8014f7af114d9832f11542c70ddb28c`;
 - reviewer family: V2.1.1;
 - meter: `scripts/run_review_with_meter.py`;
 - entrypoint: `scripts/deepseek_reviewer_v2_1_1_entrypoint.py`;
@@ -133,14 +135,26 @@ Perfil operativo validado al adoptar esta norma:
   - `.github/workflows/deepseek-qore-review.yml`;
 - modelo autoritativo: `deepseek-v4-pro`;
 - análisis adversarial: thinking/high;
-- evidencia: determinista y completa para el delta congelado, con herramientas exactas y fail-closed;
+- evidence path obligatorio:
+  - contenido exacto y completo de cada archivo cambiado BASE→HEAD;
+  - patch BASE→HEAD exacto para archivos modificados;
+  - slices semánticos deterministas de definiciones locales `qore.infrastructure` importadas directamente, con helpers referenciados de forma acotada;
+  - repo state congelado, binding del PR, checks del HEAD y combined commit status exactos;
+  - un único planner non-thinking acotado para evidencia adicional genuinamente necesaria;
+  - herramientas de planner autorizadas exactamente: `read_file`, `search_text`, `git_show`, `github_get`;
+  - `search_text` usa `git grep -n -F -I` sobre contenido tracked del checkout congelado de qore-core;
+  - herramientas read-only restringidas al checkout congelado y endpoints GitHub de qore-core;
+  - resultados exactos hasta el hard gate; nunca pre-clipping silencioso; falta/truncación material ⇒ `EVIDENCIA INSUFICIENTE / VALIDACIÓN BLOQUEADA`;
+- el manifest pinneado enumera por blob SHA toda la cadena ejecutable que materializa este evidence path, además del meter y workflows; todos esos blobs forman parte del perfil y deben coincidir en vivo;
 - emisión de veredicto: mismo modelo en non-thinking únicamente para extraer/formatear conclusiones soportadas por el análisis retenido cuando el high pass no emite contenido visible completo;
 - no Flash substitution;
 - no CoT continuation;
 - no replay completo del evidence bundle en el extractor;
 - extractor sin autoridad para inventar hallazgos ni fabricar PASS.
 
-El `main` del reviewer puede avanzar por prompts, requests, dispatches, telemetría u otros cambios que no alteren el perfil. Eso no cambia el profile id estable. Cualquier cambio semántico que altere el meter seleccionado, el entrypoint, la familia, el modelo, el modo de reasoning, la política del extractor, el evidence path, el fail-closed o el conjunto de workflows permanentes constituye un cambio de perfil y debe seguir la sección 11.
+El manifest vive en la infraestructura externa sólo como descripción/fingerprint verificable. No posee autoridad para activar perfiles: su path y blob SHA esperado son fijados por esta norma en `qore-core/main`. Cambiar o reemplazar el manifest en reviewer sin actualizar Core conforme a la sección 11 produce discrepancia y bloquea dispatch.
+
+El `main` del reviewer puede avanzar por prompts, requests, dispatches, telemetría u otros cambios que no alteren el perfil. Eso no cambia el profile id estable mientras el manifest pinneado y todos sus blobs de componentes sigan coincidiendo. Cualquier cambio semántico que altere el manifest, el meter seleccionado, el entrypoint o su cadena ejecutable, la familia, el modelo, el modo de reasoning, la política del extractor, el evidence path, el fail-closed o el conjunto de workflows permanentes constituye un cambio de perfil y debe seguir la sección 11.
 
 Un sucesor puede existir como candidato o benchmark en la infraestructura sin quedar activo. No sustituye a `QORE-DEEPSEEK-V2.1.1-STABLE` por estar implementado, benchmarkeado, revisado por DeepSeek o mergeado en `qore-deepseek-reviewer`. La activación sólo ocurre después de completar el gate independiente de la sección 11 y mergear en `qore-core/main` una actualización explícita de esta norma que nombre el nuevo profile id y su tuple operativo.
 
@@ -189,7 +203,7 @@ Una optimización futura del reviewer se acepta sólo si:
 7. no produce una regresión de calidad conocida;
 8. recibe validación independiente que no dependa exclusivamente del componente DeepSeek que está siendo sustituido o modificado;
 9. su evidencia y adjudicación quedan vinculadas desde una actualización explícita de esta norma en `qore-core`;
-10. esa actualización declara el nuevo profile id, meter, entrypoint, workflows permanentes y cualquier otra parte modificada del tuple operativo.
+10. esa actualización declara el nuevo profile id, profile manifest path + blob SHA esperado, meter, entrypoint, workflows permanentes, evidence path y cualquier otra parte modificada del tuple operativo.
 
 La infraestructura DeepSeek bajo cambio puede aportar benchmarks y findings como evidencia, pero no puede aprobar por sí sola su propio sucesor. El gate independiente debe incluir, como mínimo, adjudicación técnica independiente de la evidencia y revisión manual de Claude Code sobre el delta de infraestructura/perfil relevante; cualquier finding material se corrige y vuelve a validar antes de promover el candidato.
 
@@ -223,18 +237,20 @@ Su vigencia no cambia por:
 Al inicio de cada sesión que pueda despachar DeepSeek, el coordinador debe reconstruir desde GitHub, antes de cualquier dispatch:
 
 1. esta norma desde `qore-core/main` como fuente autoritativa;
-2. el único profile id estable y su tuple operativo explícito de la sección 8;
+2. el único profile id estable, manifest path + blob SHA esperado y tuple operativo explícitos de la sección 8;
 3. el `main` actual de `qore-deepseek-reviewer`;
-4. que `scripts/run_review_with_meter.py` exista y seleccione el entrypoint estable declarado;
-5. que el entrypoint declarado y sus dependencias correspondan a la familia/modelo/reasoning/extractor autorizados;
-6. que existan exactamente los tres workflows permanentes autorizados declarados en la sección 8 y que el workflow de review use el meter/modelo autorizados;
-7. el último estado de `requests/current.json` para anti-duplicación;
-8. los reviews/markers existentes del PR objetivo;
-9. el binding exacto del PR candidato y su CI.
+4. que el manifest exista en reviewer `main`, su blob sea exactamente el pinneado por Core, declare el mismo profile id y marque exactamente los componentes/evidence contract del perfil;
+5. que cada meter/engine/workflow blob enumerado por el manifest coincida exactamente con el archivo vivo correspondiente; una diferencia es profile drift y bloquea dispatch;
+6. que `scripts/run_review_with_meter.py` seleccione el entrypoint estable declarado y que la cadena ejecutable corresponda al modelo/reasoning/extractor/evidence path autorizados;
+7. que existan exactamente los tres workflows permanentes autorizados declarados en la sección 8 y que el workflow de review use el meter/modelo autorizados;
+8. que el evidence path vivo preserve el mandatory bundle y exactamente las herramientas `read_file`, `search_text`, `git_show`, `github_get`, con `search_text` por `git grep` y autoridad read-only acotada a qore-core; cualquier drift debe fallar cerrado;
+9. el último estado de `requests/current.json` para anti-duplicación;
+10. los reviews/markers existentes del PR objetivo;
+11. el binding exacto del PR candidato y su CI.
 
 El coordinador no puede inferir una configuración DeepSeek desde memoria, un prompt antiguo o un chat anterior cuando GitHub puede verificarla.
 
-Los commits de dispatch o requests en reviewer `main` no constituyen por sí mismos una discrepancia de perfil. Sí existe discrepancia si el call path o cualquier semántica definitoria del perfil no corresponde al tuple estable publicado por Core, si aparece un workflow permanente no autorizado, o si existe más de un perfil marcado como estable.
+Los commits de dispatch o requests en reviewer `main` no constituyen por sí mismos una discrepancia de perfil. Sí existe discrepancia si el manifest pinneado no coincide, cualquiera de sus blobs de componentes no coincide, el call path o cualquier semántica definitoria del perfil no corresponde al tuple estable publicado por Core, aparece un workflow permanente no autorizado, o existe más de un perfil marcado como estable.
 
 Ante cualquiera de esas discrepancias, o ante duda sobre qué perfil está activo, **no se despacha DeepSeek** hasta resolverla. La ausencia de contexto conversacional nunca autoriza degradar a una configuración histórica de mayor consumo.
 
