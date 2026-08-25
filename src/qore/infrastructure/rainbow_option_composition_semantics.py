@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import types
+import typing
 from dataclasses import dataclass, fields, is_dataclass
 from enum import StrEnum
 from re import fullmatch
-from typing import cast
+from typing import cast, get_args, get_origin, get_type_hints
 
 from qore.infrastructure.derivative_contract_semantics import (
     DerivativeEvidenceRef,
@@ -44,12 +46,47 @@ def _require_code(value: object, *, field_name: str) -> str:
     return text
 
 
+def _declared_dataclass_types(annotation: object) -> tuple[type[object], ...]:
+    if isinstance(annotation, type) and is_dataclass(annotation):
+        return (annotation,)
+    origin = get_origin(annotation)
+    if origin in (types.UnionType, typing.Union):
+        declared: list[type[object]] = []
+        for member in get_args(annotation):
+            declared.extend(_declared_dataclass_types(member))
+        return tuple(declared)
+    return ()
+
+
+def _tuple_item_annotations(annotation: object, *, length: int) -> tuple[object, ...]:
+    if get_origin(annotation) is not tuple:
+        return ()
+    members = get_args(annotation)
+    if len(members) == 2 and members[1] is Ellipsis:
+        return (members[0],) * length
+    if len(members) == length:
+        return members
+    return ()
+
+
+def _require_exact_declared_dataclass_type(
+    value: object,
+    *,
+    annotation: object,
+    field_path: str,
+) -> None:
+    declared = _declared_dataclass_types(annotation)
+    if not declared or type(value) not in declared:
+        _fail(f"{field_path} must use exact declared dataclass type")
+
+
 def _revalidate_dataclass_tree(
     value: object,
     *,
     visited: set[int] | None = None,
+    path: str = "option",
 ) -> None:
-    """Re-run each nested dataclass owner's own validation, without copying rules."""
+    """Re-run exact nested dataclass owners without accepting subclass laundering."""
 
     if not is_dataclass(value) or isinstance(value, type):
         return
@@ -59,18 +96,38 @@ def _revalidate_dataclass_tree(
         return
     seen.add(marker)
 
+    type_hints = get_type_hints(type(value))
+    for dataclass_field in fields(value):
+        child = getattr(value, dataclass_field.name)
+        annotation = type_hints[dataclass_field.name]
+        child_path = f"{path}.{dataclass_field.name}"
+        if is_dataclass(child) and not isinstance(child, type):
+            _require_exact_declared_dataclass_type(
+                child,
+                annotation=annotation,
+                field_path=child_path,
+            )
+            _revalidate_dataclass_tree(child, visited=seen, path=child_path)
+        elif type(child) is tuple:
+            item_annotations = _tuple_item_annotations(annotation, length=len(child))
+            for index, item in enumerate(child):
+                if is_dataclass(item) and not isinstance(item, type):
+                    item_annotation = (
+                        item_annotations[index]
+                        if index < len(item_annotations)
+                        else object
+                    )
+                    item_path = f"{child_path}[{index}]"
+                    _require_exact_declared_dataclass_type(
+                        item,
+                        annotation=item_annotation,
+                        field_path=item_path,
+                    )
+                    _revalidate_dataclass_tree(item, visited=seen, path=item_path)
+
     post_init = getattr(value, "__post_init__", None)
     if callable(post_init):
         post_init()
-
-    for dataclass_field in fields(value):
-        child = getattr(value, dataclass_field.name)
-        if is_dataclass(child) and not isinstance(child, type):
-            _revalidate_dataclass_tree(child, visited=seen)
-        elif type(child) is tuple:
-            for item in child:
-                if is_dataclass(item) and not isinstance(item, type):
-                    _revalidate_dataclass_tree(item, visited=seen)
 
 
 class RainbowOptionSelectionKind(StrEnum):
