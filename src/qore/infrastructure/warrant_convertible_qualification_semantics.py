@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 from re import fullmatch
-from typing import TypeVar, cast
+from typing import cast
 from uuid import UUID
 
 from qore.infrastructure.derivative_contract_semantics import (
@@ -58,14 +58,11 @@ class WarrantConvertibleQualificationValidationError(
     __slots__ = ()
 
 
-T = TypeVar("T")
-
-
 def _fail(message: str) -> None:
     raise WarrantConvertibleQualificationValidationError(message)
 
 
-def _exact(value: object, expected_type: type[T], *, field_name: str) -> T:
+def _exact[T](value: object, expected_type: type[T], *, field_name: str) -> T:
     if type(value) is not expected_type:
         _fail(f"{field_name} must be exact {expected_type.__name__}")
     return cast(T, value)
