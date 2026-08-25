@@ -22,6 +22,15 @@ from qore.infrastructure.derivative_contract_semantics import (
     OptionExerciseTerms,
     OptionRight,
 )
+from qore.infrastructure.fixed_income_economics import (
+    CompoundingConventionCode,
+    DayCountConventionCode,
+    FinancialTenor,
+    FinancialTenorUnit,
+    FixedIncomeYieldCode,
+    YieldConvention,
+)
+from qore.infrastructure.rate_term_structure import RateCurveConvention
 from qore.infrastructure.structured_hybrid_synthetic_semantics import (
     StructuredContractLevel,
     StructuredContractLevelKind,
@@ -112,6 +121,56 @@ def _option(
             Decimal("1"),
             EconomicIdentityId(_uuid(902)),
         ),
+    )
+
+
+def _option_with_convention(
+    warrant_identity_id: EconomicIdentityId,
+    target_identity_id: EconomicIdentityId,
+    *,
+    basis: DerivativeStrikeBasis,
+    convention: RateCurveConvention | YieldConvention,
+) -> OptionContractTerms:
+    return OptionContractTerms(
+        terms_id=DerivativeTermsId(_uuid(905)),
+        instrument_identity_id=warrant_identity_id,
+        underlying_identity_id=target_identity_id,
+        settlement_identity_id=EconomicIdentityId(_uuid(906)),
+        right=OptionRight.CALL,
+        strike=DerivativeStrike(
+            value=Decimal("0.05"),
+            basis=basis,
+            convention=convention,
+        ),
+        expiry_date=date(2030, 6, 30),
+        exercise=OptionExerciseTerms(OptionExerciseStyle.EUROPEAN),
+        settlement_style=DerivativeSettlementStyle.PHYSICAL,
+        evidence_ref=DerivativeEvidenceRef(_uuid(907)),
+        multiplier=DerivativeContractMultiplier(
+            Decimal("1"),
+            EconomicIdentityId(_uuid(908)),
+        ),
+    )
+
+
+def _periodic_tenor() -> FinancialTenor:
+    return FinancialTenor(6, FinancialTenorUnit.MONTH)
+
+
+def _rate_convention() -> RateCurveConvention:
+    return RateCurveConvention(
+        day_count=DayCountConventionCode("actual-365-fixed"),
+        compounding=CompoundingConventionCode("periodic"),
+        compounding_tenor=_periodic_tenor(),
+    )
+
+
+def _yield_convention() -> YieldConvention:
+    return YieldConvention(
+        yield_code=FixedIncomeYieldCode("yield-to-maturity"),
+        day_count=DayCountConventionCode("actual-365-fixed"),
+        compounding=CompoundingConventionCode("periodic"),
+        compounding_tenor=_periodic_tenor(),
     )
 
 
@@ -409,6 +468,52 @@ def test_post_construction_option_strike_float_corruption_is_rejected() -> None:
     )
     object.__setattr__(option.strike, "value", 12.5)
     with pytest.raises(WarrantConvertibleQualificationValidationError, match="exact Decimal"):
+        qualification.logical_values()
+
+
+def test_post_construction_rate_convention_corruption_is_rejected() -> None:
+    warrant = _identity(152, "options")
+    target = _identity(153, "equities")
+    convention = _rate_convention()
+    option = _option_with_convention(
+        warrant.identity_id,
+        target.identity_id,
+        basis=DerivativeStrikeBasis.RATE,
+        convention=convention,
+    )
+    qualification = _qualification(
+        WarrantConvertibleQualificationKind.WARRANT,
+        EquityWarrantQualificationTerms(warrant, target, option),
+    )
+
+    object.__setattr__(convention, "day_count", "actual-365-fixed")
+    with pytest.raises(
+        WarrantConvertibleQualificationValidationError,
+        match="exact DayCountConventionCode",
+    ):
+        qualification.logical_values()
+
+
+def test_post_construction_yield_convention_corruption_is_rejected() -> None:
+    warrant = _identity(154, "options")
+    target = _identity(155, "equities")
+    convention = _yield_convention()
+    option = _option_with_convention(
+        warrant.identity_id,
+        target.identity_id,
+        basis=DerivativeStrikeBasis.YIELD,
+        convention=convention,
+    )
+    qualification = _qualification(
+        WarrantConvertibleQualificationKind.WARRANT,
+        EquityWarrantQualificationTerms(warrant, target, option),
+    )
+
+    object.__setattr__(convention, "yield_code", "yield-to-maturity")
+    with pytest.raises(
+        WarrantConvertibleQualificationValidationError,
+        match="exact FixedIncomeYieldCode",
+    ):
         qualification.logical_values()
 
 
