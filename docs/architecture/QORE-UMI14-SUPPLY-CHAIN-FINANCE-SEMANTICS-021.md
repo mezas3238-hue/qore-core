@@ -20,7 +20,7 @@ Finance, publication date 2017-01-09.
 
 This contract closes only the semantic surface explicitly retained by that snapshot.
 It does not claim that eight techniques are a complete present-day SCF taxonomy.
-Payment-undertaking and later early-payment techniques discovered during the UMI-14
+Payment-undertaking and later early-payment techniques discovered during UMI-14
 reconstruction remain separate qualification work for the final UMI-14 pass.
 
 ## 2. Responsibility boundary
@@ -84,12 +84,8 @@ terms is rejected.
 
 ## 5. Contract-local references
 
-SCF uses caller-supplied opaque UUID references for:
-
-- qualification identity;
-- retained support reference;
-- contractual parties;
-- trade objects.
+SCF uses caller-supplied opaque UUID references for qualification identity, retained
+support reference, contractual parties and trade objects.
 
 `ScfPartyReferenceId` does not establish legal identity, KYC status, registry identity,
 account authority or provider identity.
@@ -100,15 +96,13 @@ has canonical UMI-02 economic identity, an optional `EconomicIdentityId` may be 
 explicitly.
 
 Every imported `EconomicIdentityId` is checked as an exact wrapper and its nested
-UUID is checked as an exact `UUID` both at construction and when logical values are
-emitted.
+UUID is checked as an exact `UUID` both at construction and whenever logical values
+are emitted.
 
 ## 6. Contractual monetary values
 
-`ScfContractualAmount` contains:
-
-- a positive, finite, exact `Decimal`;
-- an exact UMI-02 currency `EconomicIdentityId`.
+`ScfContractualAmount` contains a positive, finite, exact `Decimal` and an exact
+UMI-02 currency `EconomicIdentityId`.
 
 It is a contractual amount, not current balance, utilization, availability, valuation
 or accounting state.
@@ -120,10 +114,8 @@ large intermediate fixed representation.
 
 ## 7. Funding terms
 
-`ScfFundingTerms` retains:
-
-- an extensible canonical funding-rule code;
-- an optional explicit fixed contractual amount.
+`ScfFundingTerms` retains an extensible canonical funding-rule code and an optional
+explicit fixed contractual amount.
 
 A formula/rule-based arrangement is representable without inventing a fixed amount.
 An explicit fixed amount can be retained when the contract supplies one. The model
@@ -157,9 +149,15 @@ a structural rejection condition.
 - transferor and financier references;
 - explicit assignment/transfer qualification;
 - explicit recourse qualification;
+- optional `ScfServicingResponsibilityCode` when servicing/collection responsibility
+  is stated by the contract;
 - funding rule and optional fixed magnitude;
 - purchase date;
 - retained support reference.
+
+The servicing field is static responsibility only. It does not collect a receivable,
+call a provider, move cash, update a ledger or infer who services a transaction when
+the contract does not state that fact. `None` is therefore a valid value.
 
 Obligation references must be unique. Caller tuple order has no contractual authority,
 so obligations are canonicalized deterministically.
