@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -19,6 +19,7 @@ from qore.infrastructure.supply_chain_finance_semantics import (
     ScfObligationFormCode,
     ScfPartyReferenceId,
     ScfRecourseQualificationCode,
+    ScfServicingResponsibilityCode,
     ScfTradeObjectBinding,
     ScfTradeObjectKindCode,
     ScfTradeObjectReferenceId,
@@ -89,6 +90,7 @@ def _purchase_terms(
     *,
     obligations: tuple[ReceivablePaymentObligationTerms, ...] | None = None,
     recourse: str = "with-recourse",
+    servicing: str | None = None,
     purchase_date: date = date(2026, 8, 25),
 ) -> ReceivablesPurchaseTerms:
     return ReceivablesPurchaseTerms(
@@ -102,6 +104,9 @@ def _purchase_terms(
         funding=_funding(),
         purchase_date=purchase_date,
         evidence_ref=_evidence(60),
+        servicing_responsibility=None
+        if servicing is None
+        else ScfServicingResponsibilityCode(servicing),
     )
 
 
@@ -294,13 +299,26 @@ def test_distributor_and_pre_shipment_are_not_forced_into_receivable_shape() -> 
     assert pre_shipment.technique is SupplyChainFinanceTechniqueKind.PRE_SHIPMENT_FINANCE
 
 
+def test_optional_servicing_responsibility_is_static_and_revalidated() -> None:
+    terms = _purchase_terms(servicing="financier-collects")
+    assert terms.servicing_responsibility is not None
+    assert terms.servicing_responsibility.logical_values() == ("financier-collects",)
+
+    object.__setattr__(terms.servicing_responsibility, "value", "INVALID CODE")
+    with pytest.raises(SupplyChainFinanceValidationError, match="canonical lowercase"):
+        terms.logical_values()
+
+
 def test_formula_funding_does_not_require_synthetic_fixed_amount() -> None:
     funding = _funding(rule="eligibility-formula", fixed_amount=None)
     assert funding.logical_values() == (("eligibility-formula",), None)
 
 
 def test_fixed_contractual_amount_is_retained_when_explicit() -> None:
-    funding = _funding(rule="fixed-contractual-amount", fixed_amount=_amount("123.4500"))
+    funding = _funding(
+        rule="fixed-contractual-amount",
+        fixed_amount=_amount("123.4500"),
+    )
     assert funding.logical_values()[1] == ("123.45", (str(_uuid(900)),))
 
 
@@ -320,7 +338,7 @@ def test_contractual_amount_requires_positive_finite_exact_decimal(
     bad_value: object,
 ) -> None:
     with pytest.raises(SupplyChainFinanceValidationError):
-        ScfContractualAmount(Any if False else bad_value, _currency())  # type: ignore[arg-type]
+        ScfContractualAmount(cast(Any, bad_value), _currency())
 
 
 def test_extreme_decimal_exponents_use_compact_bounded_output() -> None:
@@ -390,23 +408,23 @@ def test_uuid_subclass_and_str_subclass_laundering_are_rejected() -> None:
 def test_datetime_is_rejected_where_exact_date_is_required() -> None:
     bad_date = datetime(2026, 8, 25, 12, 0)
     with pytest.raises(SupplyChainFinanceValidationError, match="exact date"):
-        _purchase_terms(purchase_date=Any if False else bad_date)  # type: ignore[arg-type]
+        _purchase_terms(purchase_date=cast(Any, bad_date))
 
     with pytest.raises(SupplyChainFinanceValidationError, match="exact date"):
-        _advance_terms(start=Any if False else bad_date)  # type: ignore[arg-type]
+        _advance_terms(start=cast(Any, bad_date))
 
     with pytest.raises(SupplyChainFinanceValidationError, match="exact date"):
         _qualification(
             SupplyChainFinanceTechniqueKind.FACTORING,
             _purchase_terms(),
-            effective=Any if False else bad_date,  # type: ignore[arg-type]
+            effective=cast(Any, bad_date),
         )
 
 
 def test_non_tuple_collections_are_rejected() -> None:
     with pytest.raises(SupplyChainFinanceValidationError, match="non-empty exact tuple"):
         ReceivablesPurchaseTerms(
-            obligations=Any if False else [_obligation()],  # type: ignore[arg-type]
+            obligations=cast(Any, [_obligation()]),
             transferor_reference_id=_party(40),
             financier_reference_id=_party(50),
             assignment_qualification=ScfAssignmentQualificationCode(
@@ -422,7 +440,7 @@ def test_non_tuple_collections_are_rejected() -> None:
         AdvanceBasedFinanceTerms(
             borrower_reference_id=_party(70),
             financier_reference_id=_party(80),
-            trade_objects=Any if False else [_binding(81, "receivable")],  # type: ignore[arg-type]
+            trade_objects=cast(Any, [_binding(81, "receivable")]),
             funding=_funding(),
             start_date=date(2026, 8, 25),
             evidence_ref=_evidence(90),
@@ -508,7 +526,7 @@ def test_top_level_rejects_raw_technique_string() -> None:
     ):
         SupplyChainFinanceQualification(
             qualification_id=SupplyChainFinanceQualificationId(_uuid(1)),
-            technique=Any if False else "factoring",  # type: ignore[arg-type]
+            technique=cast(Any, "factoring"),
             terms=_purchase_terms(),
             effective_date=date(2026, 8, 25),
             evidence_ref=_evidence(2),
