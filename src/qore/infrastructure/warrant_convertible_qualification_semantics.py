@@ -101,17 +101,21 @@ def _require_decimal(
 
 
 def _canonical_decimal(value: Decimal) -> str:
-    normalized = value.normalize()
-    if normalized == 0:
+    decimal_tuple = value.as_tuple()
+    digits_list = list(decimal_tuple.digits)
+    if not any(digits_list):
         return "0"
 
-    decimal_tuple = normalized.as_tuple()
     exponent = _exact(
         decimal_tuple.exponent,
         int,
         field_name="finite Decimal exponent",
     )
-    digits = "".join(str(digit) for digit in decimal_tuple.digits)
+    while len(digits_list) > 1 and digits_list[-1] == 0:
+        digits_list.pop()
+        exponent += 1
+
+    digits = "".join(str(digit) for digit in digits_list)
     sign = "-" if decimal_tuple.sign else ""
 
     if exponent == 0:
