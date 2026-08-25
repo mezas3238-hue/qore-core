@@ -320,6 +320,8 @@ class ReceivablePaymentObligationTerms:
         self.obligation_kind.__post_init__()
         self.creditor_reference_id.__post_init__()
         self.debtor_reference_id.__post_init__()
+        if self.creditor_reference_id == self.debtor_reference_id:
+            _fail("SCF obligation creditor and debtor references must differ")
         self.face_amount.__post_init__()
         _validate_date(self.due_date, field_name="SCF obligation due date")
         self.obligation_form.__post_init__()
@@ -421,6 +423,13 @@ class ReceivablesPurchaseTerms:
         ]
         if len(set(reference_ids)) != len(reference_ids):
             _fail("SCF purchase obligation references must be unique")
+        economic_identity_ids = [
+            item.economic_identity_id.value
+            for item in self.obligations
+            if item.economic_identity_id is not None
+        ]
+        if len(set(economic_identity_ids)) != len(economic_identity_ids):
+            _fail("SCF purchase obligations must not duplicate economic identity")
 
         if type(self.transferor_reference_id) is not ScfPartyReferenceId:
             _fail("SCF transferor reference must be exact ScfPartyReferenceId")
@@ -450,6 +459,8 @@ class ReceivablesPurchaseTerms:
 
         self.transferor_reference_id.__post_init__()
         self.financier_reference_id.__post_init__()
+        if self.transferor_reference_id == self.financier_reference_id:
+            _fail("SCF transferor and financier references must differ")
         self.assignment_qualification.__post_init__()
         self.recourse_qualification.__post_init__()
         self.funding.__post_init__()
@@ -506,6 +517,8 @@ class AdvanceBasedFinanceTerms:
 
         self.borrower_reference_id.__post_init__()
         self.financier_reference_id.__post_init__()
+        if self.borrower_reference_id == self.financier_reference_id:
+            _fail("SCF borrower and financier references must differ")
         for item in self.trade_objects:
             item.__post_init__()
         reference_ids = [item.reference_id.value for item in self.trade_objects]
