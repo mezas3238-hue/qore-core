@@ -158,16 +158,19 @@ El `main` del reviewer puede avanzar por prompts, requests, dispatches, telemetr
 
 Un sucesor puede existir como candidato o benchmark en la infraestructura sin quedar activo. No sustituye a `QORE-DEEPSEEK-V2.1.1-STABLE` por estar implementado, benchmarkeado, revisado por DeepSeek o mergeado en `qore-deepseek-reviewer`. La activación sólo ocurre después de completar el gate independiente de la sección 11 y mergear en `qore-core/main` una actualización explícita de esta norma que nombre el nuevo profile id y su tuple operativo.
 
-## 9. Presupuesto de consumo
+## 9. Presupuesto y revisión de consumo
 
-Para superficies comparables a las UNR recientes:
+Para cada trabajo DeepSeek Expert o DeepSeek Coder se calcula y publica el consumo total del job como `prompt_tokens + completion_tokens`, agregado sobre todas sus llamadas API. `reasoning_tokens` se informa como telemetría adicional pero no se suma nuevamente al total porque ya forma parte de `completion_tokens`.
 
-- rango preferido de prompt: 25.000–60.000 tokens;
-- tolerable: ≤75.000;
-- warning: >75.000;
-- no estabilizado: >100.000 salvo evidencia concreta de una superficie materialmente mayor;
+Reglas operativas de consumo:
+
+- techo de vigilancia por trabajo: **52.000 tokens totales**;
+- cada reporte DeepSeek debe incluir, como mínimo, prompt, completion, reasoning, total, número de llamadas API, límite vigente y estado respecto del límite;
+- total `≤52.000` ⇒ `DENTRO DEL LÍMITE` y la cadena puede continuar normalmente si los gates técnicos también están cerrados;
+- total `>52.000` ⇒ `REVISIÓN DE CONSUMO ACTIVADA`; debe identificarse qué etapa produjo la regresión y qué optimización acotada puede reducir consumo antes de considerar ese nivel como baseline estabilizado;
+- superar 52.000 no invalida por sí solo un resultado técnico ya vinculado y soportado por evidencia, pero sí constituye una regresión de consumo que debe investigarse;
 - objetivo normal: máximo 3 llamadas cuando se requiera planner + análisis + extractor;
-- cualquier regresión de calidad atribuible a reducción de tokens obliga a aumentar evidencia/budget o revertir la optimización.
+- cualquier optimización debe conservar cobertura material, modelo autorizado, evidencia obligatoria y fail-closed.
 
 El ahorro de tokens nunca justifica reducir cobertura material, cambiar silenciosamente a un modelo inferior ni relajar fail-closed.
 
