@@ -94,7 +94,6 @@ def _canonical_decimal(value: Decimal) -> str:
     compact = f"{sign}{mantissa}e{'+' if adjusted >= 0 else ''}{adjusted}"
     if exponent >= 0:
         fixed_len = len(sign) + len(text) + exponent
-        fixed = text + ("0" * exponent)
     else:
         point = len(text) + exponent
         fixed_len = (
@@ -102,12 +101,18 @@ def _canonical_decimal(value: Decimal) -> str:
             if point > 0
             else len(sign) + 2 + (-point) + len(text)
         )
+    if fixed_len > len(compact) + 1:
+        return compact
+    if exponent >= 0:
+        fixed = text + ("0" * exponent)
+    else:
+        point = len(text) + exponent
         fixed = (
             text[:point] + "." + text[point:]
             if point > 0
             else "0." + ("0" * (-point)) + text
         )
-    return compact if fixed_len > len(compact) + 1 else sign + fixed
+    return sign + fixed
 
 
 @dataclass(frozen=True, slots=True)
