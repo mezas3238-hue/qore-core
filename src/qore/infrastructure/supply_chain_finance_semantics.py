@@ -55,7 +55,12 @@ def _validate_code(value: str, *, field_name: str) -> None:
         _fail(f"{field_name} must use canonical lowercase code syntax")
 
 
-def _validate_decimal(value: Decimal, *, field_name: str, positive: bool = False) -> None:
+def _validate_decimal(
+    value: Decimal,
+    *,
+    field_name: str,
+    positive: bool = False,
+) -> None:
     if type(value) is not Decimal or not value.is_finite():
         _fail(f"{field_name} must be a finite exact Decimal")
     if positive and value <= 0:
@@ -206,6 +211,20 @@ class ScfRecourseQualificationCode:
 
     def __post_init__(self) -> None:
         _validate_code(self.value, field_name="SCF recourse qualification code")
+
+    def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class ScfServicingResponsibilityCode:
+    """Static servicing/collection responsibility; never collection execution."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_code(self.value, field_name="SCF servicing responsibility code")
 
     def logical_values(self) -> tuple[str, ...]:
         self.__post_init__()
@@ -384,16 +403,22 @@ class ReceivablesPurchaseTerms:
     funding: ScfFundingTerms
     purchase_date: date
     evidence_ref: ScfEvidenceRef
+    servicing_responsibility: ScfServicingResponsibilityCode | None = None
 
     def __post_init__(self) -> None:
         if type(self.obligations) is not tuple or not self.obligations:
             _fail("SCF purchase obligations must be a non-empty exact tuple")
-        if any(type(item) is not ReceivablePaymentObligationTerms for item in self.obligations):
+        if any(
+            type(item) is not ReceivablePaymentObligationTerms
+            for item in self.obligations
+        ):
             _fail("SCF purchase obligations must contain exact obligation terms")
         for item in self.obligations:
             item.__post_init__()
 
-        reference_ids = [item.obligation_reference_id.value for item in self.obligations]
+        reference_ids = [
+            item.obligation_reference_id.value for item in self.obligations
+        ]
         if len(set(reference_ids)) != len(reference_ids):
             _fail("SCF purchase obligation references must be unique")
 
@@ -403,16 +428,25 @@ class ReceivablesPurchaseTerms:
             _fail("SCF financier reference must be exact ScfPartyReferenceId")
         if type(self.assignment_qualification) is not ScfAssignmentQualificationCode:
             _fail(
-                "SCF assignment qualification must be exact ScfAssignmentQualificationCode"
+                "SCF assignment qualification must be exact "
+                "ScfAssignmentQualificationCode"
             )
         if type(self.recourse_qualification) is not ScfRecourseQualificationCode:
             _fail(
-                "SCF recourse qualification must be exact ScfRecourseQualificationCode"
+                "SCF recourse qualification must be exact "
+                "ScfRecourseQualificationCode"
             )
         if type(self.funding) is not ScfFundingTerms:
             _fail("SCF purchase funding must be exact ScfFundingTerms")
         if type(self.evidence_ref) is not ScfEvidenceRef:
             _fail("SCF purchase evidence must be exact ScfEvidenceRef")
+        if self.servicing_responsibility is not None:
+            if type(self.servicing_responsibility) is not ScfServicingResponsibilityCode:
+                _fail(
+                    "SCF servicing responsibility must be exact "
+                    "ScfServicingResponsibilityCode"
+                )
+            self.servicing_responsibility.__post_init__()
 
         self.transferor_reference_id.__post_init__()
         self.financier_reference_id.__post_init__()
@@ -436,6 +470,9 @@ class ReceivablesPurchaseTerms:
             self.financier_reference_id.logical_values(),
             self.assignment_qualification.logical_values(),
             self.recourse_qualification.logical_values(),
+            None
+            if self.servicing_responsibility is None
+            else self.servicing_responsibility.logical_values(),
             self.funding.logical_values(),
             self.purchase_date.isoformat(),
             self.evidence_ref.logical_values(),
@@ -589,12 +626,19 @@ class SupplyChainFinanceQualification:
         self.terms.__post_init__()
 
         object_kinds = {item.kind.value for item in self.terms.trade_objects}
-        if self.technique is SupplyChainFinanceTechniqueKind.LOAN_OR_ADVANCE_AGAINST_RECEIVABLES:
+        if (
+            self.technique
+            is SupplyChainFinanceTechniqueKind.LOAN_OR_ADVANCE_AGAINST_RECEIVABLES
+        ):
             if not object_kinds.issubset({"receivable", "payment-obligation"}):
                 _fail(
-                    "SCF receivables advance requires receivable/payment-obligation objects"
+                    "SCF receivables advance requires receivable/payment-obligation "
+                    "objects"
                 )
-        elif self.technique is SupplyChainFinanceTechniqueKind.LOAN_OR_ADVANCE_AGAINST_INVENTORY:
+        elif (
+            self.technique
+            is SupplyChainFinanceTechniqueKind.LOAN_OR_ADVANCE_AGAINST_INVENTORY
+        ):
             if object_kinds != {"inventory"}:
                 _fail("SCF inventory advance requires inventory trade objects")
 
