@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import FrozenInstanceError, fields
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -17,6 +17,7 @@ from qore.infrastructure.advanced_payable_scf_semantics import (
     AdvancedPayableQualificationId,
     AdvancedPayableScfValidationError,
     AdvancedPayableTechniqueKind,
+    AdvancedPayableTerms,
     AdvancedPayableUndertakingReferenceId,
     BankPaymentUndertakingTerms,
     CorporatePaymentUndertakingTerms,
@@ -99,9 +100,12 @@ def _cpu(
     )
 
 
-def _discount() -> DynamicDiscountConvention:
+def _discount(
+    *,
+    setter: DynamicDiscountRateSetter = DynamicDiscountRateSetter.BUYER,
+) -> DynamicDiscountConvention:
     return DynamicDiscountConvention(
-        rate_setter=DynamicDiscountRateSetter.BUYER,
+        rate_setter=setter,
         timing_basis=DynamicDiscountTimingBasis.DAYS_BEFORE_ORIGINAL_DUE_DATE,
         evidence_ref=_evidence(60),
     )
@@ -110,10 +114,11 @@ def _discount() -> DynamicDiscountConvention:
 def _dd(
     *,
     approved: AdvancedPayableApprovedObligation | None = None,
+    convention: DynamicDiscountConvention | None = None,
 ) -> DynamicDiscountingTerms:
     return DynamicDiscountingTerms(
         approved_obligation=_approved() if approved is None else approved,
-        discount_convention=_discount(),
+        discount_convention=_discount() if convention is None else convention,
         evidence_ref=_evidence(61),
     )
 
@@ -136,9 +141,7 @@ def _bpu(
 
 def _qualification(
     technique: AdvancedPayableTechniqueKind,
-    terms: CorporatePaymentUndertakingTerms
-    | DynamicDiscountingTerms
-    | BankPaymentUndertakingTerms,
+    terms: AdvancedPayableTerms,
     *,
     effective: date = date(2026, 8, 25),
     end: date | None = None,
@@ -174,36 +177,32 @@ def test_retained_icc_2017_technique_set_remains_exactly_eight() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    ("technique", "terms_type"),
-    (
-        (
-            AdvancedPayableTechniqueKind.CORPORATE_PAYMENT_UNDERTAKING,
-            CorporatePaymentUndertakingTerms,
-        ),
-        (
-            AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING,
-            DynamicDiscountingTerms,
-        ),
-        (
-            AdvancedPayableTechniqueKind.BANK_PAYMENT_UNDERTAKING,
-            BankPaymentUndertakingTerms,
-        ),
-    ),
-)
-def test_each_technique_accepts_only_its_bounded_terms(
-    technique: AdvancedPayableTechniqueKind,
-    terms_type: type[object],
-) -> None:
-    terms = {
-        AdvancedPayableTechniqueKind.CORPORATE_PAYMENT_UNDERTAKING: _cpu(),
-        AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING: _dd(),
-        AdvancedPayableTechniqueKind.BANK_PAYMENT_UNDERTAKING: _bpu(),
-    }[technique]
-    qualification = _qualification(technique, terms)
-    assert type(qualification.terms) is terms_type
+def test_cpu_qualification_binds_exact_cpu_terms() -> None:
+    qualification = _qualification(
+        AdvancedPayableTechniqueKind.CORPORATE_PAYMENT_UNDERTAKING,
+        _cpu(),
+    )
+    assert type(qualification.terms) is CorporatePaymentUndertakingTerms
     assert qualification.logical_values()[0] == "advanced-payable-scf.v1"
-    assert qualification.logical_values()[2] == technique.value
+    assert qualification.logical_values()[2] == "corporate-payment-undertaking"
+
+
+def test_dd_qualification_binds_exact_dd_terms() -> None:
+    qualification = _qualification(
+        AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING,
+        _dd(),
+    )
+    assert type(qualification.terms) is DynamicDiscountingTerms
+    assert qualification.logical_values()[2] == "dynamic-discounting"
+
+
+def test_bpu_qualification_binds_exact_bpu_terms() -> None:
+    qualification = _qualification(
+        AdvancedPayableTechniqueKind.BANK_PAYMENT_UNDERTAKING,
+        _bpu(),
+    )
+    assert type(qualification.terms) is BankPaymentUndertakingTerms
+    assert qualification.logical_values()[2] == "bank-payment-undertaking"
 
 
 @pytest.mark.parametrize(
@@ -228,11 +227,11 @@ def test_each_technique_accepts_only_its_bounded_terms(
 )
 def test_technique_and_terms_cannot_be_cross_laundered(
     technique: AdvancedPayableTechniqueKind,
-    wrong_terms: object,
+    wrong_terms: AdvancedPayableTerms,
     message: str,
 ) -> None:
     with pytest.raises(AdvancedPayableScfValidationError, match=message):
-        _qualification(technique, cast(Any, wrong_terms))
+        _qualification(technique, wrong_terms)
 
 
 def test_advanced_payable_requires_approved_payment_obligation_not_receivable() -> None:
@@ -243,95 +242,111 @@ def test_advanced_payable_requires_approved_payment_obligation_not_receivable() 
         _approved(obligation=_obligation(kind="receivable"))
 
 
-def test_approved_obligation_reuses_exact_unr021_amount_and_due_date_semantics() -> None:
+def test_approved_obligation_reuses_unr021_amount_due_date_and_parties() -> None:
     approved = _approved(
-        obligation=_obligation(amount="123.4500", due_date=date(2027, 1, 15))
+        obligation=_obligation(
+            amount="123.4500",
+            due_date=date(2027, 1, 15),
+            seller=22,
+            buyer=33,
+        )
     )
-    values = approved.logical_values()[0]
+    obligation = approved.obligation
+    values = obligation.logical_values()
     assert values[4] == ("123.45", (str(_uuid(900)),))
     assert values[5] == "2027-01-15"
-    assert values[1] == ("payment-obligation",)
+    assert obligation.creditor_reference_id == _party(22)
+    assert obligation.debtor_reference_id == _party(33)
+    assert obligation.obligation_kind.value == "payment-obligation"
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    (
+        Decimal("0"),
+        Decimal("-1"),
+        Decimal("NaN"),
+        Decimal("Infinity"),
+        1.0,
+        True,
+    ),
+)
+def test_reused_contractual_amount_remains_positive_finite_exact_decimal(
+    bad_value: object,
+) -> None:
+    with pytest.raises(SupplyChainFinanceValidationError):
+        ScfContractualAmount(cast(Any, bad_value), _currency())
 
 
 def test_cpu_finance_provider_must_differ_from_buyer_and_seller() -> None:
-    with pytest.raises(
-        AdvancedPayableScfValidationError,
-        match="finance provider must differ",
-    ):
-        _cpu(finance_provider=20)
-    with pytest.raises(
-        AdvancedPayableScfValidationError,
-        match="finance provider must differ",
-    ):
-        _cpu(finance_provider=30)
+    for party in (20, 30):
+        with pytest.raises(
+            AdvancedPayableScfValidationError,
+            match="finance provider must differ",
+        ):
+            _cpu(finance_provider=party)
 
 
 def test_cpu_retains_undertaking_without_receivables_purchase_shape() -> None:
     terms = _cpu()
-    values = terms.logical_values()
-    assert values[1] == (str(_uuid(40)),)
-    assert values[2] == (str(_uuid(50)),)
-    assert "ReceivablesPurchaseTerms" not in {
-        field.type if isinstance(field.type, str) else str(field.type)
-        for field in fields(CorporatePaymentUndertakingTerms)
-    }
+    assert terms.finance_provider_reference_id == _party(40)
+    assert terms.undertaking_reference_id.logical_values() == (str(_uuid(50)),)
+    names = {field.name for field in fields(CorporatePaymentUndertakingTerms)}
+    assert "obligations" not in names
+    assert "assignment_qualification" not in names
+    assert "recourse_qualification" not in names
+    source = Path(advanced_payable_module.__file__).read_text()
+    assert "ReceivablesPurchaseTerms" not in source
+    assert "AdvanceBasedFinanceTerms" not in source
+    assert "ScfFundingTerms" not in source
 
 
-def test_dynamic_discount_is_structurally_buyer_funded() -> None:
+def test_dynamic_discount_is_structurally_buyer_funded_without_financier_field() -> None:
     terms = _dd()
-    assert terms.logical_values()[1] == "buyer-own-funds"
-    assert tuple(field.name for field in fields(DynamicDiscountingTerms)) == (
+    values = terms.logical_values()
+    assert values[1] == "buyer-own-funds"
+    names = tuple(field.name for field in fields(DynamicDiscountingTerms))
+    assert names == (
         "approved_obligation",
         "discount_convention",
         "evidence_ref",
     )
-    assert "finance_provider_reference_id" not in {
-        field.name for field in fields(DynamicDiscountingTerms)
-    }
+    assert "finance_provider_reference_id" not in names
 
 
-def test_dynamic_discount_timing_is_days_before_original_due_date() -> None:
-    convention = _discount()
-    assert convention.logical_values()[:2] == (
+def test_dynamic_discount_preserves_timing_and_rate_setter_without_calculation() -> None:
+    buyer_convention = _discount()
+    seller_convention = _discount(setter=DynamicDiscountRateSetter.SELLER)
+    assert buyer_convention.logical_values()[:2] == (
         "buyer",
         "days-before-original-due-date",
     )
-
-
-def test_dynamic_discount_allows_seller_rate_setter_without_changing_funding_source() -> None:
-    convention = DynamicDiscountConvention(
-        rate_setter=DynamicDiscountRateSetter.SELLER,
-        timing_basis=DynamicDiscountTimingBasis.DAYS_BEFORE_ORIGINAL_DUE_DATE,
-        evidence_ref=_evidence(62),
+    assert seller_convention.logical_values()[:2] == (
+        "seller",
+        "days-before-original-due-date",
     )
-    terms = DynamicDiscountingTerms(
-        approved_obligation=_approved(),
-        discount_convention=convention,
-        evidence_ref=_evidence(63),
-    )
+    terms = _dd(convention=seller_convention)
     assert terms.logical_values()[1] == "buyer-own-funds"
-    assert terms.logical_values()[2][0] == "seller"
+    assert terms.discount_convention.rate_setter is DynamicDiscountRateSetter.SELLER
 
 
 @pytest.mark.parametrize(
-    ("field_name", "bad_value"),
+    ("setter", "timing"),
     (
-        ("rate_setter", "buyer"),
-        ("timing_basis", "days-before-original-due-date"),
+        ("buyer", DynamicDiscountTimingBasis.DAYS_BEFORE_ORIGINAL_DUE_DATE),
+        (DynamicDiscountRateSetter.BUYER, "days-before-original-due-date"),
     ),
 )
 def test_dynamic_discount_enum_fields_require_exact_runtime_types(
-    field_name: str,
-    bad_value: object,
+    setter: object,
+    timing: object,
 ) -> None:
-    values: dict[str, object] = {
-        "rate_setter": DynamicDiscountRateSetter.BUYER,
-        "timing_basis": DynamicDiscountTimingBasis.DAYS_BEFORE_ORIGINAL_DUE_DATE,
-        "evidence_ref": _evidence(64),
-    }
-    values[field_name] = bad_value
     with pytest.raises(AdvancedPayableScfValidationError):
-        DynamicDiscountConvention(**cast(Any, values))
+        DynamicDiscountConvention(
+            rate_setter=cast(Any, setter),
+            timing_basis=cast(Any, timing),
+            evidence_ref=_evidence(64),
+        )
 
 
 def test_bpu_issuing_bank_must_differ_from_buyer_seller_and_beneficiary() -> None:
@@ -351,46 +366,46 @@ def test_bpu_beneficiary_must_differ_from_buyer() -> None:
         _bpu(beneficiary=30)
 
 
-def test_bpu_may_name_seller_or_other_bank_as_beneficiary() -> None:
+def test_bpu_allows_seller_or_other_bank_beneficiary_and_keeps_bank_primary_obligor() -> None:
     seller_beneficiary = _bpu(beneficiary=20)
-    bank_beneficiary = _bpu(beneficiary=80)
-    assert seller_beneficiary.logical_values()[2] == (str(_uuid(20)),)
-    assert bank_beneficiary.logical_values()[2] == (str(_uuid(80)),)
-
-
-def test_bpu_retains_primary_obligor_and_opaque_network_reference() -> None:
-    values = _bpu().logical_values()
+    other_bank_beneficiary = _bpu(beneficiary=80)
+    assert seller_beneficiary.beneficiary_reference_id == _party(20)
+    assert other_bank_beneficiary.beneficiary_reference_id == _party(80)
+    values = seller_beneficiary.logical_values()
     assert values[3] == "issuing-bank-primary-obligor"
-    assert values[5] == (str(_uuid(72)),)
+    assert seller_beneficiary.network_reference_id.logical_values() == (str(_uuid(72)),)
 
 
-def test_network_reference_requires_exact_uuid() -> None:
-    with pytest.raises(
-        AdvancedPayableScfValidationError,
-        match="network reference ID must be exact UUID",
-    ):
-        AdvancedPayableNetworkReferenceId(cast(Any, 72))
-
-
-def test_undertaking_reference_requires_exact_uuid() -> None:
-    with pytest.raises(
-        AdvancedPayableScfValidationError,
-        match="undertaking reference ID must be exact UUID",
-    ):
-        AdvancedPayableUndertakingReferenceId(cast(Any, "not-a-uuid"))
-
-
-def test_qualification_id_rejects_uuid_subclass_or_non_uuid() -> None:
-    class UUIDSubclass(UUID):
-        pass
-
+@pytest.mark.parametrize(
+    "wrapper",
+    (
+        AdvancedPayableQualificationId,
+        AdvancedPayableUndertakingReferenceId,
+        AdvancedPayableNetworkReferenceId,
+    ),
+)
+def test_advanced_payable_id_wrappers_require_exact_uuid(
+    wrapper: type[
+        AdvancedPayableQualificationId
+        | AdvancedPayableUndertakingReferenceId
+        | AdvancedPayableNetworkReferenceId
+    ],
+) -> None:
     with pytest.raises(AdvancedPayableScfValidationError, match="exact UUID"):
-        AdvancedPayableQualificationId(cast(Any, UUIDSubclass(int=1)))
+        wrapper(cast(Any, "not-a-uuid"))
     with pytest.raises(AdvancedPayableScfValidationError, match="exact UUID"):
-        AdvancedPayableQualificationId(cast(Any, True))
+        wrapper(cast(Any, True))
 
 
-def test_qualification_requires_exact_date_not_datetime() -> None:
+def test_qualification_requires_exact_enum_and_exact_date() -> None:
+    with pytest.raises(AdvancedPayableScfValidationError, match="technique must be exact"):
+        AdvancedPayableQualification(
+            qualification_id=AdvancedPayableQualificationId(_uuid(1)),
+            technique=cast(Any, "dynamic-discounting"),
+            terms=_dd(),
+            effective_date=date(2026, 8, 25),
+            evidence_ref=_evidence(2),
+        )
     with pytest.raises(
         AdvancedPayableScfValidationError,
         match="effective date must be exact date",
@@ -402,7 +417,13 @@ def test_qualification_requires_exact_date_not_datetime() -> None:
         )
 
 
-def test_qualification_end_date_cannot_precede_effective_date() -> None:
+def test_qualification_end_date_must_be_exact_and_not_precede_effective_date() -> None:
+    with pytest.raises(AdvancedPayableScfValidationError, match="end date must be exact"):
+        _qualification(
+            AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING,
+            _dd(),
+            end=cast(Any, datetime(2027, 1, 1, 0, 0)),
+        )
     with pytest.raises(
         AdvancedPayableScfValidationError,
         match="end date must not precede",
@@ -413,9 +434,6 @@ def test_qualification_end_date_cannot_precede_effective_date() -> None:
             effective=date(2026, 8, 25),
             end=date(2026, 8, 24),
         )
-
-
-def test_qualification_end_date_is_retained_when_present() -> None:
     qualification = _qualification(
         AdvancedPayableTechniqueKind.BANK_PAYMENT_UNDERTAKING,
         _bpu(),
@@ -424,29 +442,22 @@ def test_qualification_end_date_is_retained_when_present() -> None:
     assert qualification.logical_values()[-1] == "2027-08-25"
 
 
-def test_logical_values_are_deterministic_for_equal_material() -> None:
+def test_logical_values_are_deterministic_and_distinguish_techniques() -> None:
     first = _qualification(AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING, _dd())
     second = _qualification(AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING, _dd())
-    assert first.logical_values() == second.logical_values()
-
-
-def test_logical_values_distinguish_cpu_dd_and_bpu() -> None:
     cpu = _qualification(AdvancedPayableTechniqueKind.CORPORATE_PAYMENT_UNDERTAKING, _cpu())
-    dd = _qualification(AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING, _dd())
     bpu = _qualification(AdvancedPayableTechniqueKind.BANK_PAYMENT_UNDERTAKING, _bpu())
-    assert len({cpu.logical_values(), dd.logical_values(), bpu.logical_values()}) == 3
+    assert first.logical_values() == second.logical_values()
+    assert len({first.logical_values(), cpu.logical_values(), bpu.logical_values()}) == 3
 
 
-def test_recursive_revalidation_catches_corrupted_payment_obligation_kind() -> None:
+def test_recursive_logical_values_revalidates_corrupted_nested_obligation() -> None:
     qualification = _qualification(
         AdvancedPayableTechniqueKind.CORPORATE_PAYMENT_UNDERTAKING,
         _cpu(),
     )
-    object.__setattr__(
-        qualification.terms.approved_obligation.obligation.obligation_kind,
-        "value",
-        "receivable",
-    )
+    obligation = cast(CorporatePaymentUndertakingTerms, qualification.terms).approved_obligation.obligation
+    object.__setattr__(obligation.obligation_kind, "value", "receivable")
     with pytest.raises(
         AdvancedPayableScfValidationError,
         match="requires payment-obligation kind",
@@ -454,55 +465,28 @@ def test_recursive_revalidation_catches_corrupted_payment_obligation_kind() -> N
         qualification.logical_values()
 
 
-def test_recursive_revalidation_catches_corrupted_nested_party_uuid() -> None:
-    terms = _cpu()
-    object.__setattr__(terms.finance_provider_reference_id, "value", cast(Any, "bad"))
-    with pytest.raises(SupplyChainFinanceValidationError, match="exact UUID"):
-        terms.logical_values()
-
-
-def test_recursive_revalidation_catches_corrupted_network_uuid() -> None:
-    terms = _bpu()
-    object.__setattr__(terms.network_reference_id, "value", cast(Any, "bad"))
-    with pytest.raises(AdvancedPayableScfValidationError, match="exact UUID"):
-        terms.logical_values()
-
-
-def test_recursive_revalidation_catches_corrupted_discount_enum() -> None:
-    terms = _dd()
-    object.__setattr__(terms.discount_convention, "rate_setter", cast(Any, "buyer"))
-    with pytest.raises(AdvancedPayableScfValidationError, match="rate setter"):
-        terms.logical_values()
-
-
-def test_exact_terms_wrapper_rejects_subclass_laundering() -> None:
-    class DynamicDiscountingTermsSubclass(DynamicDiscountingTerms):
-        pass
-
-    subclassed = DynamicDiscountingTermsSubclass(
-        approved_obligation=_approved(),
-        discount_convention=_discount(),
-        evidence_ref=_evidence(90),
+def test_recursive_logical_values_revalidates_corrupted_nested_evidence() -> None:
+    qualification = _qualification(
+        AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING,
+        _dd(),
     )
-    with pytest.raises(
-        AdvancedPayableScfValidationError,
-        match="DD technique requires exact",
-    ):
-        _qualification(
-            AdvancedPayableTechniqueKind.DYNAMIC_DISCOUNTING,
-            cast(Any, subclassed),
-        )
+    terms = cast(DynamicDiscountingTerms, qualification.terms)
+    object.__setattr__(terms.evidence_ref, "value", cast(Any, "corrupt"))
+    with pytest.raises(SupplyChainFinanceValidationError, match="exact UUID"):
+        qualification.logical_values()
 
 
-def test_advanced_payable_source_does_not_import_purchase_or_advance_terms() -> None:
-    source = Path(cast(str, advanced_payable_module.__file__)).read_text()
-    assert "ReceivablesPurchaseTerms" not in source
-    assert "AdvanceBasedFinanceTerms" not in source
-    assert "ScfFundingTerms" not in source
+def test_values_are_frozen() -> None:
+    qualification = _qualification(
+        AdvancedPayableTechniqueKind.BANK_PAYMENT_UNDERTAKING,
+        _bpu(),
+    )
+    with pytest.raises(FrozenInstanceError):
+        qualification.effective_date = date(2027, 1, 1)  # type: ignore[misc]
 
 
-def test_advanced_payable_source_has_no_implicit_runtime_or_network_side_effects() -> None:
-    source = Path(cast(str, advanced_payable_module.__file__)).read_text()
+def test_source_has_no_implicit_runtime_network_or_payment_side_effects() -> None:
+    source = Path(advanced_payable_module.__file__).read_text().lower()
     forbidden = (
         "datetime.now",
         "datetime.utcnow",
@@ -514,21 +498,24 @@ def test_advanced_payable_source_has_no_implicit_runtime_or_network_side_effects
         "sleep(",
         "threading",
         "subprocess",
+        "submit_order",
+        "place_order",
+        "execute_payment",
+        "settle_payment",
     )
     for token in forbidden:
         assert token not in source
 
 
-def test_advanced_payable_source_does_not_claim_operational_authority() -> None:
-    source = Path(cast(str, advanced_payable_module.__file__)).read_text().lower()
+def test_source_has_no_provider_credentials_or_production_authority() -> None:
+    source = Path(advanced_payable_module.__file__).read_text().lower()
     forbidden = (
-        "submit_order",
-        "place_order",
-        "execute_payment",
-        "settle_payment",
         "broker_token",
         "api_key",
+        "access_token",
+        "client_secret",
         "production_account",
+        "real_capital",
     )
     for token in forbidden:
         assert token not in source
