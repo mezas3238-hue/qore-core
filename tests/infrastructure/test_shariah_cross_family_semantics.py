@@ -196,7 +196,8 @@ def test_hedging_qualifies_existing_otc_identity(
         ShariahCrossFamilyCategory.HEDGING,
         _hedging(structure=structure),
     )
-    assert result.logical_values()[2][0] == "shariah-hedging"
+    terms_values = cast(tuple[object, ...], result.logical_values()[2])
+    assert terms_values[0] == "shariah-hedging"
 
 
 @pytest.mark.parametrize("structure", tuple(ShariahSyndicatedFinancingKind))
@@ -207,7 +208,8 @@ def test_syndicated_financing_qualifies_existing_loan_family(
         ShariahCrossFamilyCategory.SYNDICATED_FINANCING,
         _syndicated(structure=structure),
     )
-    assert result.logical_values()[2][0] == "shariah-syndicated-financing"
+    terms_values = cast(tuple[object, ...], result.logical_values()[2])
+    assert terms_values[0] == "shariah-syndicated-financing"
 
 
 def test_category_and_terms_variant_must_match_exactly() -> None:
