@@ -185,13 +185,19 @@ Como evidencia histórica de operación del perfil V2.1.1 se conserva el cierre 
 - sin tool errors ni reason markers;
 - `HALLAZGOS: NINGUNO / VALIDACIÓN OK`;
 - 39.069 prompt tokens;
-- 20.000 reasoning tokens;
+- 20.020 completion tokens;
+- 20.000 reasoning tokens, incluidos dentro de completion;
+- 59.089 tokens totales bajo la fórmula vigente `prompt + completion`;
 - 3 llamadas API;
-- adjudicación IA: Coder PASS.
+- límite vigente de comparación: 52.000 tokens;
+- estado bajo la política vigente: `REVISIÓN DE CONSUMO ACTIVADA` por excedente histórico de 7.089 tokens;
+- adjudicación IA técnica: Coder PASS.
 
-Esta evidencia demuestra comportamiento y consumo observados; no es autoridad suficiente para auto-certificar un perfil ni un sucesor. La autoridad del perfil activo proviene del tuple explícito de la sección 8 publicado en `qore-core/main` después de completar la cadena de revisión de Core. Ningún PASS emitido por DeepSeek sobre su propia infraestructura puede sustituir el gate independiente de la sección 11.
+R1H ocurrió antes de la adopción de la sección 9 y conserva valor como evidencia técnica de calidad, binding y comportamiento del perfil, pero **no es un baseline de consumo aceptable** bajo la política vigente. La revisión de consumo retrospectiva identifica el exceso en la suma agregada de 39.069 prompt + 20.020 completion dentro de un flujo de 3 llamadas. El PASS técnico no se invalida por esa regresión de consumo; cualquier recurrencia futura por encima de 52.000 debe investigarse antes de considerar ese nivel como baseline estabilizado, sin reducir modelo, cobertura, evidencia ni fail-closed.
 
-La evidencia histórica justifica mantener el perfil actual; no convierte esos números en una excepción para relajar la calidad.
+Esta evidencia demuestra comportamiento observado; no es autoridad suficiente para auto-certificar un perfil ni un sucesor, ni evidencia de cumplimiento presupuestario vigente. La autoridad del perfil activo proviene del tuple explícito de la sección 8 publicado en `qore-core/main` después de completar la cadena de revisión de Core. Ningún PASS emitido por DeepSeek sobre su propia infraestructura puede sustituir el gate independiente de la sección 11.
+
+La evidencia histórica justifica mantener el perfil actual por sus propiedades técnicas; no convierte esos números en una excepción para relajar la calidad ni el umbral de vigilancia.
 
 ## 11. Cambio de perfil
 
