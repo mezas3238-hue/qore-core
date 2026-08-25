@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -33,6 +35,7 @@ from qore.infrastructure.product_composition_semantics import (
 )
 from qore.infrastructure.rainbow_option_composition_semantics import (
     RainbowOptionCompositionQualification,
+    RainbowOptionCompositionValidationError,
     RainbowOptionSelectionKind,
     RainbowPerformanceRuleCode,
 )
@@ -45,6 +48,17 @@ def _uuid(value: int) -> UUID:
 
 def _identity(value: int) -> EconomicIdentityId:
     return EconomicIdentityId(_uuid(value))
+
+
+class _EvilTermsId(DerivativeTermsId):
+    def __post_init__(self) -> None:
+        pass
+
+
+@dataclass(frozen=True, slots=True)
+class _DecoratedEvilTermsId(DerivativeTermsId):
+    def __post_init__(self) -> None:
+        pass
 
 
 def _qualification() -> RainbowOptionCompositionQualification:
@@ -123,5 +137,29 @@ def test_projection_rejects_corrupted_nested_option_strike() -> None:
     with pytest.raises(
         DerivativeContractValidationError,
         match="derivative strike must be a finite Decimal",
+    ):
+        qualification.logical_values()
+
+
+def test_projection_rejects_nested_owner_subclass_laundering() -> None:
+    qualification = _qualification()
+    evil = _EvilTermsId(cast(Any, "not-a-uuid"))
+    object.__setattr__(qualification.option, "terms_id", evil)
+
+    with pytest.raises(
+        RainbowOptionCompositionValidationError,
+        match=r"option\.terms_id must use exact declared dataclass type",
+    ):
+        qualification.logical_values()
+
+
+def test_projection_rejects_decorated_nested_owner_subclass_laundering() -> None:
+    qualification = _qualification()
+    evil = _DecoratedEvilTermsId(cast(Any, "not-a-uuid"))
+    object.__setattr__(qualification.option, "terms_id", evil)
+
+    with pytest.raises(
+        RainbowOptionCompositionValidationError,
+        match=r"option\.terms_id must use exact declared dataclass type",
     ):
         qualification.logical_values()
