@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from enum import StrEnum
 from re import fullmatch
 from typing import cast
@@ -44,6 +44,35 @@ def _require_code(value: object, *, field_name: str) -> str:
     return text
 
 
+def _revalidate_dataclass_tree(
+    value: object,
+    *,
+    visited: set[int] | None = None,
+) -> None:
+    """Re-run each nested dataclass owner's own validation, without copying rules."""
+
+    if not is_dataclass(value) or isinstance(value, type):
+        return
+    seen = set() if visited is None else visited
+    marker = id(value)
+    if marker in seen:
+        return
+    seen.add(marker)
+
+    post_init = getattr(value, "__post_init__", None)
+    if callable(post_init):
+        post_init()
+
+    for dataclass_field in fields(value):
+        child = getattr(value, dataclass_field.name)
+        if is_dataclass(child) and not isinstance(child, type):
+            _revalidate_dataclass_tree(child, visited=seen)
+        elif type(child) is tuple:
+            for item in child:
+                if is_dataclass(item) and not isinstance(item, type):
+                    _revalidate_dataclass_tree(item, visited=seen)
+
+
 class RainbowOptionSelectionKind(StrEnum):
     """Contractual best/worst selection; never a current constituent result."""
 
@@ -78,7 +107,7 @@ class RainbowOptionCompositionQualification:
     def __post_init__(self) -> None:
         if type(self.option) is not OptionContractTerms:
             _fail("rainbow option must be exact OptionContractTerms")
-        self.option.__post_init__()
+        _revalidate_dataclass_tree(self.option)
 
         if type(self.composition) is not ProductCompositionTerms:
             _fail("rainbow composition must be exact ProductCompositionTerms")
