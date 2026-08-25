@@ -99,6 +99,10 @@ Every imported `EconomicIdentityId` is checked as an exact wrapper and its neste
 UUID is checked as an exact `UUID` both at construction and whenever logical values
 are emitted.
 
+Local party references preserve contractual role separation. A single local reference
+cannot simultaneously occupy the opposing roles creditor/debtor,
+transferor/financier, or borrower/financier within the same terms object.
+
 ## 6. Contractual monetary values
 
 `ScfContractualAmount` contains a positive, finite, exact `Decimal` and an exact
@@ -127,7 +131,7 @@ performs no discount, present-value, eligibility, borrowing-base or ECL calculat
 
 - local obligation reference;
 - exact object kind: `receivable` or `payment-obligation`;
-- creditor and debtor contract-local references;
+- distinct creditor and debtor contract-local references;
 - positive face amount and currency identity;
 - exact due date;
 - extensible obligation-form code;
@@ -146,7 +150,7 @@ a structural rejection condition.
 `ReceivablesPurchaseTerms` retains:
 
 - a non-empty exact tuple of receivable/payment-obligation terms;
-- transferor and financier references;
+- distinct transferor and financier references;
 - explicit assignment/transfer qualification;
 - explicit recourse qualification;
 - optional `ScfServicingResponsibilityCode` when servicing/collection responsibility
@@ -159,8 +163,11 @@ The servicing field is static responsibility only. It does not collect a receiva
 call a provider, move cash, update a ledger or infer who services a transaction when
 the contract does not state that fact. `None` is therefore a valid value.
 
-Obligation references must be unique. Caller tuple order has no contractual authority,
-so obligations are canonicalized deterministically.
+Obligation references must be unique. If multiple obligations carry canonical UMI-02
+economic identity, that economic identity must also be unique across the purchase set;
+a caller cannot duplicate one economic obligation through different local references.
+Caller tuple order has no contractual authority, so obligations are canonicalized
+deterministically.
 
 The contract does not execute an assignment, transfer title, collect an invoice, move
 cash or decide credit status.
@@ -173,7 +180,7 @@ bounded definition rather than a universal law imposed on all purchases.
 
 `AdvanceBasedFinanceTerms` retains:
 
-- borrower and financier contract-local references;
+- distinct borrower and financier contract-local references;
 - a non-empty exact tuple of typed trade-object bindings;
 - funding rule and optional fixed magnitude;
 - start date;
@@ -223,6 +230,9 @@ The implementation follows the strongest current Program-D validation pattern:
 - exact `date` checks, so `datetime` is rejected;
 - exact `EconomicIdentityId` plus exact nested UUID checks;
 - no caller-supplied list where an exact tuple is required;
+- duplicate local object references rejected;
+- duplicate canonical economic obligation identities rejected when present;
+- opposing contractual party roles require distinct local references;
 - nested revalidation whenever `logical_values()` is emitted;
 - deterministic caller-order canonicalization where order is not contractual;
 - no implicit clock;
