@@ -255,9 +255,9 @@ def _require_strike(value: object) -> DerivativeStrike:
     convention = strike.convention
     if convention is not None:
         if type(convention) is RateCurveConvention:
-            cast(RateCurveConvention, convention).__post_init__()
+            convention.__post_init__()
         elif type(convention) is YieldConvention:
-            cast(YieldConvention, convention).__post_init__()
+            convention.__post_init__()
         else:
             _fail("option strike convention must use an exact retained convention type")
 
@@ -295,14 +295,11 @@ def _strike_values(value: DerivativeStrike) -> tuple[object, ...]:
     strike = _require_strike(value)
     convention = strike.convention
     if type(convention) is RateCurveConvention:
-        convention_values: tuple[object, ...] | None = cast(
-            RateCurveConvention,
-            convention,
-        ).logical_values()
+        convention_values: tuple[object, ...] | None = convention.logical_values()
     elif type(convention) is YieldConvention:
         convention_values = (
             "yield-convention",
-            cast(YieldConvention, convention).logical_values(),
+            convention.logical_values(),
         )
     else:
         convention_values = None
@@ -705,19 +702,19 @@ class WarrantConvertibleQualification:
         evidence_ref.__post_init__()
 
         if kind is WarrantConvertibleQualificationKind.WARRANT:
-            terms = _exact(
+            warrant_terms = _exact(
                 self.terms,
                 EquityWarrantQualificationTerms,
                 field_name="warrant qualification terms",
             )
-            terms.__post_init__()
+            warrant_terms.__post_init__()
         else:
-            terms = _exact(
+            convertible_terms = _exact(
                 self.terms,
                 ConvertibleQualificationTerms,
                 field_name="convertible qualification terms",
             )
-            terms.__post_init__()
+            convertible_terms.__post_init__()
 
     def logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
