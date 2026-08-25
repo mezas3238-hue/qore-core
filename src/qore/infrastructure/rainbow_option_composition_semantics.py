@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from re import fullmatch
+from typing import cast
 
 from qore.infrastructure.derivative_contract_semantics import (
     DerivativeEvidenceRef,
@@ -34,7 +35,7 @@ def _fail(message: str) -> None:
 def _require_code(value: object, *, field_name: str) -> str:
     if type(value) is not str:
         _fail(f"{field_name} must be exact str")
-    text = value
+    text = cast(str, value)
     if (
         len(text) > 64
         or fullmatch(r"[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*", text) is None
