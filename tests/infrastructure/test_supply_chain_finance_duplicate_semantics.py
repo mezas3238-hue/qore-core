@@ -140,3 +140,33 @@ def test_advance_rejects_same_borrower_and_financier_reference() -> None:
             start_date=date(2026, 8, 25),
             evidence_ref=_evidence(90),
         )
+
+
+def test_advance_rejects_duplicate_canonical_economic_trade_object_identity() -> None:
+    canonical_identity = EconomicIdentityId(_uuid(701))
+    trade_objects = (
+        ScfTradeObjectBinding(
+            reference_id=_trade_ref(80),
+            kind=ScfTradeObjectKindCode("inventory"),
+            evidence_ref=_evidence(2080),
+            economic_identity_id=canonical_identity,
+        ),
+        ScfTradeObjectBinding(
+            reference_id=_trade_ref(81),
+            kind=ScfTradeObjectKindCode("inventory"),
+            evidence_ref=_evidence(2081),
+            economic_identity_id=canonical_identity,
+        ),
+    )
+    with pytest.raises(
+        SupplyChainFinanceValidationError,
+        match="advance trade objects must not duplicate economic identity",
+    ):
+        AdvanceBasedFinanceTerms(
+            borrower_reference_id=_party(70),
+            financier_reference_id=_party(71),
+            trade_objects=trade_objects,
+            funding=_funding(),
+            start_date=date(2026, 8, 25),
+            evidence_ref=_evidence(90),
+        )
