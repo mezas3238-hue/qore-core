@@ -272,14 +272,21 @@ def _root_identity(value: object) -> None:
         _fail("instrument_identity.kind must be exact EconomicIdentityKind")
     if value.kind is not EconomicIdentityKind.TRADABLE_INSTRUMENT:
         _fail("insurance-linked root identity must be tradable instrument")
-    _exact(value.family, IdentityFamilyCode, "instrument_identity.family")
+    if type(value.family) is not IdentityFamilyCode:
+        _fail("instrument_identity.family has invalid exact type")
+    if type(value.family.value) is not str:
+        _fail("instrument_identity.family.value must be exact str")
+    value.family.__post_init__()
     if value.family.value not in _ALLOWED_ROOT_FAMILIES:
         _fail("insurance-linked root family is outside UNR-020 scope")
     if type(value.construction) is not IdentityConstructionKind:
         _fail("instrument_identity.construction has invalid exact type")
     if value.construction is IdentityConstructionKind.CONTINUOUS_REFERENCE:
         _fail("tradable insurance-linked root cannot be continuous-reference")
-    _exact(value.evidence_ref, IdentityEvidenceRef, "instrument_identity.evidence_ref")
+    if type(value.evidence_ref) is not IdentityEvidenceRef:
+        _fail("instrument_identity.evidence_ref has invalid exact type")
+    _uuid(value.evidence_ref.value, "instrument_identity.evidence_ref.value")
+    value.evidence_ref.__post_init__()
 
 
 @dataclass(frozen=True, slots=True)
@@ -415,6 +422,7 @@ class InsuranceLinkedTriggerStructure:
                 _fail("duplicate trigger component semantics")
             semantics.add(key)
             ordinals.append(component.sequence_ordinal)
+        canonical: tuple[InsuranceLinkedTriggerComponent, ...]
         if self.kind is InsuranceLinkedTriggerStructureKind.SINGLE:
             if len(self.components) != 1:
                 _fail("single trigger requires exactly one component")

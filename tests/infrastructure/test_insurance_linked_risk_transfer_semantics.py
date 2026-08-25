@@ -412,6 +412,32 @@ def test_bool_str_subclass_and_datetime_laundering_rejected() -> None:
         value.logical_values()
 
 
+def test_imported_identity_wrapper_nested_laundering_rejected() -> None:
+    class SneakyStr(str):
+        pass
+
+    class SneakyUuid(UUID):
+        pass
+
+    family_identity = _identity()
+    object.__setattr__(
+        family_identity.family,
+        "value",
+        cast(str, SneakyStr("fixed-income-credit")),
+    )
+    with pytest.raises(InsuranceLinkedRiskTransferValidationError):
+        _terms(identity=family_identity)
+
+    evidence_identity = _identity(2)
+    object.__setattr__(
+        evidence_identity.evidence_ref,
+        "value",
+        cast(UUID, SneakyUuid(str(_uuid(2002)))),
+    )
+    with pytest.raises(InsuranceLinkedRiskTransferValidationError):
+        _terms(identity=evidence_identity)
+
+
 def test_fabricated_and_corrupted_nested_state_rejected() -> None:
     broken = object.__new__(InsuranceLinkedTriggerStructure)
     object.__setattr__(broken, "trigger_id", InsuranceLinkedTriggerId(_uuid(1)))
