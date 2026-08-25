@@ -4,7 +4,7 @@
 
 Esta norma define el contrato obligatorio de revisión técnica externa para entregas de QORE Core. Su objetivo es preservar independencia de validación, evidencia reproducible, fail-closed ante incertidumbre y consumo eficiente de revisores externos sin degradar la calidad.
 
-La infraestructura que ejecuta revisores externos permanece fuera de QORE Core. Core fija el contrato de revisión; la implementación operativa vive en un repositorio de reviewer aislado y puede evolucionar mientras conserve este contrato.
+La infraestructura que ejecuta revisores externos permanece fuera de QORE Core. Core fija el contrato de revisión; la implementación operativa vive en un repositorio de reviewer aislado y puede evolucionar mientras conserve este contrato. La identidad y el tuple operativo del perfil estable activo, sin embargo, son gobernados exclusivamente por `qore-core/main` conforme a las secciones 8 y 11.
 
 ## 1. Fuente de verdad y binding congelado
 
@@ -118,11 +118,19 @@ Los secretos nunca se incorporan a prompts, reviews, evidencia, logs o commits d
 
 ## 8. Perfil DeepSeek validado vigente
 
+`qore-core/main`, mediante esta norma, es la fuente autoritativa del perfil DeepSeek estable activo. Debe existir exactamente un perfil estable activo y reconstruible. Un commit, merge, branch, prompt o request en `qore-deepseek-reviewer` no puede cambiar por sí solo cuál perfil está autorizado operativamente.
+
 Perfil operativo validado al adoptar esta norma:
 
 - profile id: `QORE-DEEPSEEK-V2.1.1-STABLE`;
 - repositorio de infraestructura: `mezas3238-hue/qore-deepseek-reviewer`;
 - reviewer family: V2.1.1;
+- meter: `scripts/run_review_with_meter.py`;
+- entrypoint: `scripts/deepseek_reviewer_v2_1_1_entrypoint.py`;
+- workflows permanentes autorizados, exactamente estos tres:
+  - `.github/workflows/deepseek-auto-dispatch.yml`;
+  - `.github/workflows/deepseek-connection-test.yml`;
+  - `.github/workflows/deepseek-qore-review.yml`;
 - modelo autoritativo: `deepseek-v4-pro`;
 - análisis adversarial: thinking/high;
 - evidencia: determinista y completa para el delta congelado, con herramientas exactas y fail-closed;
@@ -132,7 +140,9 @@ Perfil operativo validado al adoptar esta norma:
 - no replay completo del evidence bundle en el extractor;
 - extractor sin autoridad para inventar hallazgos ni fabricar PASS.
 
-Este perfil puede evolucionar sin modificar esta norma siempre que preserve o mejore cobertura, independencia, binding, fail-closed, anti-duplicación y calidad. Un sucesor sólo sustituye al perfil estable cuando ha sido validado, adjudicado y mergeado en la infraestructura de reviewer; nunca por decisión local de una sesión de chat.
+El `main` del reviewer puede avanzar por prompts, requests, dispatches, telemetría u otros cambios que no alteren el perfil. Eso no cambia el profile id estable. Cualquier cambio semántico que altere el meter seleccionado, el entrypoint, la familia, el modelo, el modo de reasoning, la política del extractor, el evidence path, el fail-closed o el conjunto de workflows permanentes constituye un cambio de perfil y debe seguir la sección 11.
+
+Un sucesor puede existir como candidato o benchmark en la infraestructura sin quedar activo. No sustituye a `QORE-DEEPSEEK-V2.1.1-STABLE` por estar implementado, benchmarkeado, revisado por DeepSeek o mergeado en `qore-deepseek-reviewer`. La activación sólo ocurre después de completar el gate independiente de la sección 11 y mergear en `qore-core/main` una actualización explícita de esta norma que nombre el nuevo profile id y su tuple operativo.
 
 ## 9. Presupuesto de consumo
 
@@ -149,7 +159,7 @@ El ahorro de tokens nunca justifica reducir cobertura material, cambiar silencio
 
 ## 10. Evidencia de referencia de adopción
 
-La adopción se basa en el cierre de DeepSeek Coder R1H de UNR-019 sobre el freeze:
+Como evidencia histórica de operación del perfil V2.1.1 se conserva el cierre de DeepSeek Coder R1H de UNR-019 sobre el freeze:
 
 - BASE `25ed21be1ba427820be78dbb8958d441e5f27f9c`;
 - HEAD `b2fae639779bdf27c497929af1a545ae70a42649`;
@@ -162,7 +172,9 @@ La adopción se basa en el cierre de DeepSeek Coder R1H de UNR-019 sobre el free
 - 3 llamadas API;
 - adjudicación IA: Coder PASS.
 
-La evidencia histórica justifica el perfil actual; no convierte esos números en una excepción para relajar la calidad.
+Esta evidencia demuestra comportamiento y consumo observados; no es autoridad suficiente para auto-certificar un perfil ni un sucesor. La autoridad del perfil activo proviene del tuple explícito de la sección 8 publicado en `qore-core/main` después de completar la cadena de revisión de Core. Ningún PASS emitido por DeepSeek sobre su propia infraestructura puede sustituir el gate independiente de la sección 11.
+
+La evidencia histórica justifica mantener el perfil actual; no convierte esos números en una excepción para relajar la calidad.
 
 ## 11. Cambio de perfil
 
@@ -174,7 +186,22 @@ Una optimización futura del reviewer se acepta sólo si:
 4. conserva independencia respecto de la implementación;
 5. no introduce secretos o autoridad operativa en Core;
 6. demuestra consumo igual o mejor en revisiones legítimas o benchmarks no publicantes;
-7. no produce una regresión de calidad conocida.
+7. no produce una regresión de calidad conocida;
+8. recibe validación independiente que no dependa exclusivamente del componente DeepSeek que está siendo sustituido o modificado;
+9. su evidencia y adjudicación quedan vinculadas desde una actualización explícita de esta norma en `qore-core`;
+10. esa actualización declara el nuevo profile id, meter, entrypoint, workflows permanentes y cualquier otra parte modificada del tuple operativo.
+
+La infraestructura DeepSeek bajo cambio puede aportar benchmarks y findings como evidencia, pero no puede aprobar por sí sola su propio sucesor. El gate independiente debe incluir, como mínimo, adjudicación técnica independiente de la evidencia y revisión manual de Claude Code sobre el delta de infraestructura/perfil relevante; cualquier finding material se corrige y vuelve a validar antes de promover el candidato.
+
+El orden de activación es obligatorio:
+
+1. implementar o benchmarkear el candidato sin desplazar el profile estable activo;
+2. producir evidencia reproducible y completar el gate independiente;
+3. abrir en `qore-core` un PR de governance que actualice explícitamente esta norma y enlace/resuma la evidencia material de validación;
+4. completar para ese PR la cadena externa vigente y mergearlo de forma protegida;
+5. sólo después de que `qore-core/main` publique el nuevo tuple puede ese perfil usarse como estable en dispatches ordinarios.
+
+Hasta el paso 4 inclusive, el tuple estable anterior continúa siendo la única configuración autorizada. Si el reviewer no puede ejecutar ese tuple mientras un candidato está en evaluación, los dispatches se bloquean; no se adelanta el switch.
 
 Ante conflicto entre ahorro y calidad, prevalece calidad.
 
@@ -195,16 +222,21 @@ Su vigencia no cambia por:
 
 Al inicio de cada sesión que pueda despachar DeepSeek, el coordinador debe reconstruir desde GitHub, antes de cualquier dispatch:
 
-1. esta norma desde `qore-core/main`;
-2. el profile id estable vigente;
-3. el `main` actual de `qore-deepseek-reviewer` y su entrypoint operativo;
-4. los workflows permanentes autorizados;
-5. el último estado de `requests/current.json` para anti-duplicación;
-6. el binding exacto del PR candidato y su CI.
+1. esta norma desde `qore-core/main` como fuente autoritativa;
+2. el único profile id estable y su tuple operativo explícito de la sección 8;
+3. el `main` actual de `qore-deepseek-reviewer`;
+4. que `scripts/run_review_with_meter.py` exista y seleccione el entrypoint estable declarado;
+5. que el entrypoint declarado y sus dependencias correspondan a la familia/modelo/reasoning/extractor autorizados;
+6. que existan exactamente los tres workflows permanentes autorizados declarados en la sección 8 y que el workflow de review use el meter/modelo autorizados;
+7. el último estado de `requests/current.json` para anti-duplicación;
+8. los reviews/markers existentes del PR objetivo;
+9. el binding exacto del PR candidato y su CI.
 
 El coordinador no puede inferir una configuración DeepSeek desde memoria, un prompt antiguo o un chat anterior cuando GitHub puede verificarla.
 
-Si el reviewer `main` no corresponde al perfil estable vigente, o existe duda sobre qué perfil está activo, **no se despacha DeepSeek** hasta resolver la discrepancia. La ausencia de contexto conversacional nunca autoriza degradar a una configuración histórica de mayor consumo.
+Los commits de dispatch o requests en reviewer `main` no constituyen por sí mismos una discrepancia de perfil. Sí existe discrepancia si el call path o cualquier semántica definitoria del perfil no corresponde al tuple estable publicado por Core, si aparece un workflow permanente no autorizado, o si existe más de un perfil marcado como estable.
+
+Ante cualquiera de esas discrepancias, o ante duda sobre qué perfil está activo, **no se despacha DeepSeek** hasta resolverla. La ausencia de contexto conversacional nunca autoriza degradar a una configuración histórica de mayor consumo.
 
 El perfil estable permanece obligatorio **hasta el cierre formal de QORE Core**, salvo que antes sea sustituido por un sucesor validado bajo la sección 11. En cualquier caso, siempre existe exactamente un perfil operativo estable vigente y reconstruible desde GitHub.
 
