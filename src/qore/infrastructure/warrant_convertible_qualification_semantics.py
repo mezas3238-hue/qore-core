@@ -22,7 +22,16 @@ from qore.infrastructure.derivative_contract_semantics import (
     OptionExerciseTerms,
     OptionRight,
 )
-from qore.infrastructure.fixed_income_economics import YieldConvention
+from qore.infrastructure.fixed_income_economics import (
+    CompoundingConventionCode,
+    DayCountConventionCode,
+    FinancialTenor,
+    FinancialTenorUnit,
+    FixedIncomeBenchmarkReference,
+    FixedIncomeReferenceRoleCode,
+    FixedIncomeYieldCode,
+    YieldConvention,
+)
 from qore.infrastructure.rate_term_structure import RateCurveConvention
 from qore.infrastructure.structured_hybrid_synthetic_semantics import (
     StructuredContractLevel,
@@ -83,6 +92,16 @@ def _require_code(value: object, *, field_name: str) -> str:
         or fullmatch(r"[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*", text) is None
     ):
         _fail(f"{field_name} must use canonical lowercase code syntax")
+    return text
+
+
+def _require_fixed_income_code(value: object, *, field_name: str) -> str:
+    text = _exact(value, str, field_name=field_name)
+    if (
+        len(text) > 64
+        or fullmatch(r"[a-z0-9]+(?:[._-][a-z0-9]+)*", text) is None
+    ):
+        _fail(f"{field_name} must use canonical fixed-income code syntax")
     return text
 
 
@@ -240,6 +259,162 @@ def _require_price_quote_basis(value: object) -> DerivativePriceQuoteBasisCode:
     return basis
 
 
+def _require_day_count(value: object, *, field_name: str) -> DayCountConventionCode:
+    day_count = _exact(value, DayCountConventionCode, field_name=field_name)
+    _require_fixed_income_code(day_count.value, field_name=f"{field_name} value")
+    return day_count
+
+
+def _require_compounding(
+    value: object,
+    *,
+    field_name: str,
+) -> CompoundingConventionCode:
+    compounding = _exact(value, CompoundingConventionCode, field_name=field_name)
+    _require_fixed_income_code(compounding.value, field_name=f"{field_name} value")
+    return compounding
+
+
+def _require_financial_tenor(value: object, *, field_name: str) -> FinancialTenor:
+    tenor = _exact(value, FinancialTenor, field_name=field_name)
+    tenor_value = _exact(tenor.value, int, field_name=f"{field_name} value")
+    if tenor_value <= 0:
+        _fail(f"{field_name} value must be positive")
+    _exact(tenor.unit, FinancialTenorUnit, field_name=f"{field_name} unit")
+    return tenor
+
+
+def _financial_tenor_values(value: FinancialTenor) -> tuple[object, ...]:
+    tenor = _require_financial_tenor(value, field_name="financial tenor")
+    return (tenor.value, tenor.unit.value)
+
+
+def _require_yield_code(value: object) -> FixedIncomeYieldCode:
+    yield_code = _exact(value, FixedIncomeYieldCode, field_name="yield convention yield_code")
+    _require_fixed_income_code(
+        yield_code.value,
+        field_name="yield convention yield_code value",
+    )
+    return yield_code
+
+
+def _require_reference_role(value: object) -> FixedIncomeReferenceRoleCode:
+    role = _exact(
+        value,
+        FixedIncomeReferenceRoleCode,
+        field_name="yield benchmark role",
+    )
+    _require_fixed_income_code(role.value, field_name="yield benchmark role value")
+    return role
+
+
+def _require_benchmark_reference(value: object) -> FixedIncomeBenchmarkReference:
+    reference = _exact(
+        value,
+        FixedIncomeBenchmarkReference,
+        field_name="yield benchmark reference",
+    )
+    _require_identity_id(
+        reference.reference_identity_id,
+        field_name="yield benchmark reference identity",
+    )
+    _require_reference_role(reference.role)
+    if reference.tenor is not None:
+        _require_financial_tenor(reference.tenor, field_name="yield benchmark tenor")
+    return reference
+
+
+def _benchmark_reference_values(
+    value: FixedIncomeBenchmarkReference,
+) -> tuple[object, ...]:
+    reference = _require_benchmark_reference(value)
+    return (
+        _identity_values(reference.reference_identity_id),
+        (reference.role.value,),
+        _financial_tenor_values(reference.tenor)
+        if reference.tenor is not None
+        else None,
+    )
+
+
+def _require_rate_curve_convention(value: object) -> RateCurveConvention:
+    convention = _exact(
+        value,
+        RateCurveConvention,
+        field_name="option rate strike convention",
+    )
+    _require_day_count(
+        convention.day_count,
+        field_name="option rate strike day_count",
+    )
+    compounding = _require_compounding(
+        convention.compounding,
+        field_name="option rate strike compounding",
+    )
+    if convention.compounding_tenor is not None:
+        _require_financial_tenor(
+            convention.compounding_tenor,
+            field_name="option rate strike compounding tenor",
+        )
+    if compounding.value == "periodic" and convention.compounding_tenor is None:
+        _fail("periodic rate compounding requires compounding_tenor")
+    return convention
+
+
+def _rate_curve_convention_values(value: RateCurveConvention) -> tuple[object, ...]:
+    convention = _require_rate_curve_convention(value)
+    return (
+        "rate-convention",
+        (convention.day_count.value,),
+        (convention.compounding.value,),
+        _financial_tenor_values(convention.compounding_tenor)
+        if convention.compounding_tenor is not None
+        else None,
+    )
+
+
+def _require_yield_convention(value: object) -> YieldConvention:
+    convention = _exact(
+        value,
+        YieldConvention,
+        field_name="option yield strike convention",
+    )
+    _require_yield_code(convention.yield_code)
+    _require_day_count(
+        convention.day_count,
+        field_name="option yield strike day_count",
+    )
+    compounding = _require_compounding(
+        convention.compounding,
+        field_name="option yield strike compounding",
+    )
+    if convention.compounding_tenor is not None:
+        _require_financial_tenor(
+            convention.compounding_tenor,
+            field_name="option yield strike compounding tenor",
+        )
+    if compounding.value == "periodic" and convention.compounding_tenor is None:
+        _fail("periodic yield compounding requires compounding_tenor")
+    if convention.reference is not None:
+        _require_benchmark_reference(convention.reference)
+    return convention
+
+
+def _yield_convention_values(value: YieldConvention) -> tuple[object, ...]:
+    convention = _require_yield_convention(value)
+    return (
+        (convention.yield_code.value,),
+        (convention.day_count.value,),
+        (convention.compounding.value,),
+        _financial_tenor_values(convention.compounding_tenor)
+        if convention.compounding_tenor is not None
+        else None,
+        _benchmark_reference_values(convention.reference)
+        if convention.reference is not None
+        else None,
+    )
+
+
 def _require_strike(value: object) -> DerivativeStrike:
     strike = _exact(value, DerivativeStrike, field_name="option strike")
     _require_decimal(strike.value, field_name="option strike value")
@@ -259,9 +434,9 @@ def _require_strike(value: object) -> DerivativeStrike:
     convention = strike.convention
     if convention is not None:
         if type(convention) is RateCurveConvention:
-            convention.__post_init__()
+            _require_rate_curve_convention(convention)
         elif type(convention) is YieldConvention:
-            convention.__post_init__()
+            _require_yield_convention(convention)
         else:
             _fail("option strike convention must use an exact retained convention type")
 
@@ -299,11 +474,13 @@ def _strike_values(value: DerivativeStrike) -> tuple[object, ...]:
     strike = _require_strike(value)
     convention = strike.convention
     if type(convention) is RateCurveConvention:
-        convention_values: tuple[object, ...] | None = convention.logical_values()
+        convention_values: tuple[object, ...] | None = _rate_curve_convention_values(
+            convention
+        )
     elif type(convention) is YieldConvention:
         convention_values = (
             "yield-convention",
-            convention.logical_values(),
+            _yield_convention_values(convention),
         )
     else:
         convention_values = None
