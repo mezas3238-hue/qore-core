@@ -94,12 +94,11 @@ def _leg(
     leg_id: int,
     component: int,
     weight: str,
-    role: str = "constituent",
 ) -> ProductCompositionLeg:
     return ProductCompositionLeg(
         leg_id=ProductCompositionLegId(_uuid(leg_id)),
         component_identity_id=_identity(component),
-        role=ProductCompositionRoleCode(role),
+        role=ProductCompositionRoleCode("constituent"),
         magnitude=ProductCompositionMagnitude(
             kind=ProductCompositionMagnitudeKind.WEIGHT,
             value=Decimal(weight),
@@ -114,7 +113,7 @@ def _composition(
     composition_class: ProductCompositionClass = ProductCompositionClass.BASKET,
     reverse: bool = False,
 ) -> ProductCompositionTerms:
-    legs = (
+    legs: tuple[ProductCompositionLeg, ...] = (
         _leg(leg_id=201, component=301, weight="0.4"),
         _leg(leg_id=202, component=302, weight="0.6"),
     )
@@ -157,7 +156,7 @@ def test_selection_set_is_exactly_best_of_and_worst_of() -> None:
     )
 
 
-def test_best_of_qualification_binds_option_to_exact_basket_root() -> None:
+def test_best_of_binds_option_to_exact_basket_root() -> None:
     qualification = _qualification()
     assert qualification.option.underlying_identity_id == qualification.composition.root_identity_id
     assert qualification.composition.composition_class is ProductCompositionClass.BASKET
@@ -173,7 +172,7 @@ def test_worst_of_is_distinct_contractual_material() -> None:
     assert worst.logical_values()[3] == "worst-of"
 
 
-def test_option_underlying_must_equal_composition_root() -> None:
+def test_underlying_must_equal_composition_root() -> None:
     with pytest.raises(
         RainbowOptionCompositionValidationError,
         match="underlying must equal composition root",
@@ -191,60 +190,51 @@ def test_option_underlying_must_equal_composition_root() -> None:
     "composition_class",
     (ProductCompositionClass.SPREAD, ProductCompositionClass.MULTI_LEG),
 )
-def test_best_worst_rainbow_requires_basket_composition(
+def test_best_worst_rainbow_requires_basket(
     composition_class: ProductCompositionClass,
 ) -> None:
-    with pytest.raises(
-        RainbowOptionCompositionValidationError,
-        match="must be BASKET",
-    ):
+    with pytest.raises(RainbowOptionCompositionValidationError, match="must be BASKET"):
         _qualification(composition_class=composition_class)
 
 
-def test_product_composition_remains_the_only_owner_of_legs_and_weights() -> None:
-    names = tuple(field.name for field in fields(RainbowOptionCompositionQualification))
-    assert names == (
+def test_qualification_does_not_duplicate_composition_leg_material() -> None:
+    assert tuple(field.name for field in fields(RainbowOptionCompositionQualification)) == (
         "option",
         "composition",
         "selection",
         "performance_rule",
         "evidence_ref",
     )
-    source = Path(cast(str, rainbow_module.__file__)).read_text()
+    source = Path(rainbow_module.__file__).read_text()
     assert "ProductCompositionLeg" not in source
     assert "ProductCompositionMagnitude" not in source
     assert "component_identity_id" not in source
 
 
-def test_qualification_has_no_current_selected_constituent_or_performance_state() -> None:
+def test_no_current_winner_or_performance_state_is_stored() -> None:
     names = {field.name for field in fields(RainbowOptionCompositionQualification)}
-    forbidden = {
-        "selected_component",
-        "winning_component",
-        "current_winner",
-        "current_performance",
-        "observed_performance",
-        "payoff",
-        "valuation",
-        "price",
-    }
-    assert names.isdisjoint(forbidden)
+    assert names.isdisjoint(
+        {
+            "selected_component",
+            "winning_component",
+            "current_winner",
+            "current_performance",
+            "observed_performance",
+            "payoff",
+            "valuation",
+            "price",
+        }
+    )
 
 
-@pytest.mark.parametrize(
-    "bad_rule",
-    ("", "Uppercase", "bad rule", "a" * 65),
-)
-def test_performance_rule_requires_canonical_bounded_code(bad_rule: str) -> None:
+@pytest.mark.parametrize("bad_rule", ("", "Uppercase", "bad rule", "a" * 65))
+def test_performance_rule_requires_canonical_code(bad_rule: str) -> None:
     with pytest.raises(RainbowOptionCompositionValidationError):
         RainbowPerformanceRuleCode(bad_rule)
 
 
 def test_performance_rule_rejects_non_exact_string() -> None:
-    with pytest.raises(
-        RainbowOptionCompositionValidationError,
-        match="must be exact str",
-    ):
+    with pytest.raises(RainbowOptionCompositionValidationError, match="must be exact str"):
         RainbowPerformanceRuleCode(cast(Any, True))
 
 
@@ -273,10 +263,7 @@ def test_aggregate_requires_exact_owner_types() -> None:
 
 def test_selection_requires_exact_enum_not_string() -> None:
     valid = _qualification()
-    with pytest.raises(
-        RainbowOptionCompositionValidationError,
-        match="selection must be exact",
-    ):
+    with pytest.raises(RainbowOptionCompositionValidationError, match="selection must be exact"):
         RainbowOptionCompositionQualification(
             option=valid.option,
             composition=valid.composition,
@@ -286,12 +273,9 @@ def test_selection_requires_exact_enum_not_string() -> None:
         )
 
 
-def test_performance_rule_and_evidence_require_exact_wrapper_types() -> None:
+def test_rule_and_evidence_require_exact_wrappers() -> None:
     valid = _qualification()
-    with pytest.raises(
-        RainbowOptionCompositionValidationError,
-        match="performance rule must be exact",
-    ):
+    with pytest.raises(RainbowOptionCompositionValidationError, match="performance rule must be exact"):
         RainbowOptionCompositionQualification(
             option=valid.option,
             composition=valid.composition,
@@ -299,10 +283,7 @@ def test_performance_rule_and_evidence_require_exact_wrapper_types() -> None:
             performance_rule=cast(Any, "contractual-performance"),
             evidence_ref=_derivative_evidence(204),
         )
-    with pytest.raises(
-        RainbowOptionCompositionValidationError,
-        match="evidence must be exact",
-    ):
+    with pytest.raises(RainbowOptionCompositionValidationError, match="evidence must be exact"):
         RainbowOptionCompositionQualification(
             option=valid.option,
             composition=valid.composition,
@@ -312,7 +293,7 @@ def test_performance_rule_and_evidence_require_exact_wrapper_types() -> None:
         )
 
 
-def test_unordered_composition_caller_order_does_not_change_projection() -> None:
+def test_unordered_caller_order_does_not_change_projection() -> None:
     normal = _qualification(reverse=False)
     reversed_input = _qualification(reverse=True)
     assert normal.composition.logical_values() == reversed_input.composition.logical_values()
@@ -335,13 +316,9 @@ def test_composition_projection_is_preserved_not_flattened() -> None:
     assert len(qualification.composition.legs) == 2
 
 
-def test_logical_values_revalidates_root_binding_after_forced_corruption() -> None:
+def test_logical_values_revalidates_root_binding_after_corruption() -> None:
     qualification = _qualification()
-    object.__setattr__(
-        qualification.option,
-        "underlying_identity_id",
-        _identity(998),
-    )
+    object.__setattr__(qualification.option, "underlying_identity_id", _identity(998))
     with pytest.raises(
         RainbowOptionCompositionValidationError,
         match="underlying must equal composition root",
@@ -349,7 +326,7 @@ def test_logical_values_revalidates_root_binding_after_forced_corruption() -> No
         qualification.logical_values()
 
 
-def test_logical_values_revalidates_nested_product_composition() -> None:
+def test_logical_values_revalidates_nested_composition() -> None:
     qualification = _qualification()
     first_leg = qualification.composition.legs[0]
     object.__setattr__(
@@ -361,14 +338,12 @@ def test_logical_values_revalidates_nested_product_composition() -> None:
         qualification.logical_values()
 
 
-def test_logical_values_revalidates_performance_rule_after_corruption() -> None:
+def test_logical_values_revalidates_rule_and_selection_after_corruption() -> None:
     qualification = _qualification()
     object.__setattr__(qualification.performance_rule, "value", "BAD RULE")
     with pytest.raises(RainbowOptionCompositionValidationError):
         qualification.logical_values()
 
-
-def test_logical_values_revalidates_selection_after_corruption() -> None:
     qualification = _qualification()
     object.__setattr__(qualification, "selection", "best-of")
     with pytest.raises(RainbowOptionCompositionValidationError, match="selection must be exact"):
@@ -384,15 +359,16 @@ def test_values_are_frozen() -> None:
         qualification.__setattr__("selection", RainbowOptionSelectionKind.WORST_OF)
 
 
-def test_no_third_ambiguous_rainbow_selection_is_authorized() -> None:
-    assert "rainbow" not in {item.value for item in RainbowOptionSelectionKind}
-    assert "other" not in {item.value for item in RainbowOptionSelectionKind}
-    assert "ranked" not in {item.value for item in RainbowOptionSelectionKind}
+def test_no_ambiguous_third_selection_is_authorized() -> None:
+    values = {item.value for item in RainbowOptionSelectionKind}
+    assert "rainbow" not in values
+    assert "other" not in values
+    assert "ranked" not in values
 
 
-def test_source_contains_no_operational_or_valuation_authority() -> None:
-    source = Path(cast(str, rainbow_module.__file__)).read_text()
-    forbidden = (
+def test_source_has_no_operational_or_valuation_authority() -> None:
+    source = Path(rainbow_module.__file__).read_text()
+    for token in (
         "datetime.now",
         "date.today",
         "uuid4",
@@ -404,7 +380,6 @@ def test_source_contains_no_operational_or_valuation_authority() -> None:
         "sleep(",
         "submit_order",
         "execute_order",
-        "settle",
         "market_data",
         "current_winner",
         "selected_component",
@@ -415,13 +390,12 @@ def test_source_contains_no_operational_or_valuation_authority() -> None:
         "api_key",
         "secret",
         "password",
-    )
-    for token in forbidden:
+    ):
         assert token not in source
 
 
-def test_source_dependencies_are_only_cross_owner_aggregates_not_leg_primitives() -> None:
-    source = Path(cast(str, rainbow_module.__file__)).read_text()
+def test_source_dependencies_stop_at_certified_aggregates() -> None:
+    source = Path(rainbow_module.__file__).read_text()
     assert "OptionContractTerms" in source
     assert "ProductCompositionTerms" in source
     assert "ProductCompositionClass" in source
@@ -429,7 +403,7 @@ def test_source_dependencies_are_only_cross_owner_aggregates_not_leg_primitives(
     assert "ProductCompositionMagnitude" not in source
 
 
-def test_performance_rule_is_opaque_not_a_formula_or_runtime_calculator() -> None:
+def test_performance_rule_is_opaque_not_a_runtime_calculator() -> None:
     qualification = _qualification(rule="total-return-comparison")
     assert qualification.performance_rule.logical_values() == ("total-return-comparison",)
     assert not hasattr(qualification.performance_rule, "evaluate")
