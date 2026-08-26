@@ -162,12 +162,15 @@ def _contains_dangerous_callable_reference(
 ) -> bool:
     if isinstance(expression, ast.Name):
         return expression.id in dangerous_direct_names
-    if isinstance(expression, ast.Attribute):
-        if expression.attr in _DYNAMIC_EXECUTION_CALL_NAMES and _is_builtins_namespace(
+    if (
+        isinstance(expression, ast.Attribute)
+        and expression.attr in _DYNAMIC_EXECUTION_CALL_NAMES
+        and _is_builtins_namespace(
             expression.value,
             builtins_aliases=builtins_aliases,
-        ):
-            return True
+        )
+    ):
+        return True
     if (
         isinstance(expression, ast.Call)
         and isinstance(expression.func, ast.Name)
@@ -182,52 +185,25 @@ def _contains_dangerous_callable_reference(
             and attribute.value in _DYNAMIC_EXECUTION_CALL_NAMES
         ):
             return True
-    if isinstance(expression, ast.Subscript):
-        if (
-            _is_builtins_namespace(
-                expression.value,
-                builtins_aliases=builtins_aliases,
-            )
-            and isinstance(expression.slice, ast.Constant)
-            and isinstance(expression.slice.value, str)
-            and expression.slice.value in _DYNAMIC_EXECUTION_CALL_NAMES
-        ):
-            return True
-        return _contains_dangerous_callable_reference(
+    if (
+        isinstance(expression, ast.Subscript)
+        and _is_builtins_namespace(
             expression.value,
             builtins_aliases=builtins_aliases,
-            dangerous_direct_names=dangerous_direct_names,
-        ) or _contains_dangerous_callable_reference(
-            expression.slice,
+        )
+        and isinstance(expression.slice, ast.Constant)
+        and isinstance(expression.slice.value, str)
+        and expression.slice.value in _DYNAMIC_EXECUTION_CALL_NAMES
+    ):
+        return True
+    return any(
+        _contains_dangerous_callable_reference(
+            child,
             builtins_aliases=builtins_aliases,
             dangerous_direct_names=dangerous_direct_names,
         )
-    if isinstance(expression, ast.Starred):
-        return _contains_dangerous_callable_reference(
-            expression.value,
-            builtins_aliases=builtins_aliases,
-            dangerous_direct_names=dangerous_direct_names,
-        )
-    if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
-        return any(
-            _contains_dangerous_callable_reference(
-                element,
-                builtins_aliases=builtins_aliases,
-                dangerous_direct_names=dangerous_direct_names,
-            )
-            for element in expression.elts
-        )
-    if isinstance(expression, ast.Dict):
-        return any(
-            child is not None
-            and _contains_dangerous_callable_reference(
-                child,
-                builtins_aliases=builtins_aliases,
-                dangerous_direct_names=dangerous_direct_names,
-            )
-            for child in (*expression.keys, *expression.values)
-        )
-    return False
+        for child in ast.iter_child_nodes(expression)
+    )
 
 
 def _dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
@@ -295,6 +271,20 @@ x("1+1")
     markers = _dynamic_execution_markers_from_source(source)
 
     assert "binding:2" in markers
+
+
+def test_r6_callable_attribute_execution_fails_closed() -> None:
+    source = """
+eval.__call__("1+1")
+exec.__call__("pass")
+__import__.__call__("math")
+getattr(eval, "__call__")("2+2")
+"""
+
+    markers = _dynamic_execution_markers_from_source(source)
+
+    for line_number in (2, 3, 4, 5):
+        assert f"call:{line_number}" in markers
 
 
 def test_r6_absolute_package_from_import_expands_for_directionality() -> None:
