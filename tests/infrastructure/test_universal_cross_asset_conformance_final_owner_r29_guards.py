@@ -6,9 +6,9 @@ import test_universal_cross_asset_conformance_final_owner_r25_guards as _r25
 import test_universal_cross_asset_conformance_final_owner_r28_guards as _r28
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
+    _UNKNOWN,
     _integer_value,
     _owner_paths,
-    _UNKNOWN,
     _Value,
 )
 from test_universal_cross_asset_conformance_final_owner_r14_guards import (
