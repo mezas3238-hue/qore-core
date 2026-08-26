@@ -77,8 +77,8 @@ The updated UMI-12 guard/oracle surface verifies the following boundaries agains
 - all 19 Program-D family codes can bind through UMI-02 `EconomicIdentity` / `CanonicalIdentityRef` without provider symbol text becoming economic identity material;
 - `EconomicIdentity` retains its exact canonical field surface and therefore cannot silently absorb listing/provider symbol material without recertification;
 - listing identity remains distinct from economic identity;
-- owner modules and the historical oracle statically reject direct provider/runtime/network imports and dynamic import/code-execution mechanisms (`importlib`/`import_module`, `__import__`, `eval`, `exec`), including `builtins` aliases/attribute access and `__builtins__` lookup shapes covered by the final guard;
-- relative `from .…` owner imports are resolved to fully-qualified module names before reverse-dependency/collision checks, so relative syntax cannot bypass generic/product or cross-family directionality rules;
+- owner modules and the historical oracle statically reject direct provider/runtime/network imports and dynamic import/code-execution mechanisms (`importlib`/`import_module`, `__import__`, `eval`, `exec`), including `builtins` aliases/attribute access, `__builtins__` lookup shapes, and direct callable rebinding covered by the final guard;
+- relative `from .…` owner imports are resolved to fully-qualified module names before provider/runtime/network and reverse-dependency/collision checks, so relative syntax cannot bypass either exclusion family;
 - a numerically identical finite `Decimal` remains semantically distinct across RATE, YIELD, SPREAD, PRICE, NAV, IV, NOTIONAL, QUANTITY, and WEIGHT; quantity and weight remain explicitly discriminated even though they share the generic product-composition magnitude type;
 - generic identity, derivative, product-composition, and valuation authorities do not reverse-import product-specific qualifications;
 - rainbow qualification composes existing option economics and product-composition authority instead of owning either one;
@@ -103,6 +103,15 @@ Independent Expert R2 proposed four additional findings. Independent adjudicatio
 4. **Accepted — tautological UMI-02 symbol-laundering witness.** Checking that one listing symbol string is absent from one current economic-identity projection does not prevent a future optional economic field from carrying listing/provider material. The final guard now freezes the exact `EconomicIdentity` dataclass field surface; any new field requires explicit recertification rather than silently passing the symbol-separation proof.
 
 All accepted R2 corrections remain test/doc-only. No production semantic owner was modified.
+
+## Expert R3 adjudication and hardening
+
+Independent Expert R3 proposed two additional high-severity harness bypasses. Independent adjudication reproduced and accepted both:
+
+1. **Accepted — dangerous callable rebinding.** A local alias such as `f = eval; f("1+1")`, a transitive alias such as `g = f`, or a binding from `builtins.eval`, `getattr(builtins, "__import__")`, or `__builtins__["eval"]` could evade call-site-only detection. The final scanner now propagates dangerous callable bindings through `Assign`, `AnnAssign` and named-expression targets until a fixed point and rejects both the binding and subsequent call. A fixed synthetic regression witness covers direct, transitive, annotated, `getattr`, and `__builtins__` shapes.
+2. **Accepted — relative provider/runtime import bypass in historical exclusion helpers.** The historical `_imported_modules` / `_file_imports` helpers ignore `ImportFrom` nodes where `node.module is None`, so `from . import provider_runtime` could make those individual historical assertions pass. The final recertification guard now independently applies the normalized relative-import resolver across every current D04 owner and the historical oracle, then enforces the same provider/runtime/network exclusions. A fixed synthetic witness proves that `from . import provider_runtime` and `from . import execution_boundary` resolve to fully-qualified forbidden dependencies. Therefore the complete recertification suite fails closed even if the historical helper alone would miss that syntax.
+
+All accepted R3 corrections remain test/doc-only. No production semantic owner was modified. Because the candidate HEAD changed, all prior SHA-bound review authorization is invalidated and the serial external-review chain must restart from Expert after a new full Quality Gate and freeze.
 
 ## Determinism, immutability, and evidence posture
 
