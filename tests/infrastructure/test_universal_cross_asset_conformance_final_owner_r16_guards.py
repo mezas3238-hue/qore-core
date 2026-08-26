@@ -3,17 +3,19 @@ from __future__ import annotations
 import ast
 import builtins as _python_builtins
 
-from test_universal_cross_asset_conformance_final_owner_r15_guards import (
+from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
     _UNKNOWN,
     _Atom,
-    _builtins_member_value,
     _contains_kind,
     _merge_values,
     _owner_paths,
-    _R15DynamicExecutionScanner,
     _static_strings,
     _Value,
+)
+from test_universal_cross_asset_conformance_final_owner_r15_guards import (
+    _builtins_member_value,
+    _R15DynamicExecutionScanner,
 )
 
 _PYTHON_BUILTINS_MEMBER_NAMES = frozenset(vars(_python_builtins))
