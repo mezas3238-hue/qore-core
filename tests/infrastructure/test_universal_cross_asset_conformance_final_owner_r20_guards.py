@@ -14,11 +14,11 @@ from test_universal_cross_asset_conformance_final_owner_r18_guards import (
     _uses_postponed_annotations,
 )
 from test_universal_cross_asset_conformance_final_owner_r19_guards import (
-    _R19DynamicExecutionScanner,
-    _R19LocalBindingCollector,
     _r19_function_local_names,
     _r19_iterated_value,
     _r19_lambda_local_names,
+    _R19DynamicExecutionScanner,
+    _R19LocalBindingCollector,
 )
 
 
