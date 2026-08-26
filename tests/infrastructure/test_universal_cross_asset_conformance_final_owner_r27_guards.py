@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 
+import test_universal_cross_asset_conformance_final_owner_r25_guards as _r25
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
     _UNKNOWN,
@@ -12,11 +13,6 @@ from test_universal_cross_asset_conformance_final_owner_r12_guards import (
 from test_universal_cross_asset_conformance_final_owner_r15_guards import (
     _selected_slots,
     _sequence_length,
-)
-from test_universal_cross_asset_conformance_final_owner_r25_guards import (
-    _r25_iterated_value,
-    _r25_sequence_lengths,
-    _R25ExactIterationScanner,
 )
 
 
@@ -41,7 +37,7 @@ def _r27_target_reachability(target: ast.AST, value: _Value) -> bool | None:
     if not isinstance(target, (ast.Tuple, ast.List)):
         return True
 
-    lengths = _r25_sequence_lengths(value)
+    lengths = _r25._r25_sequence_lengths(value)
     if not lengths:
         return False if _r27_definitely_non_iterable(value) else None
 
@@ -97,7 +93,7 @@ def _r27_target_reachability(target: ast.AST, value: _Value) -> bool | None:
     return True
 
 
-class _R27IterationTargetScanner(_R25ExactIterationScanner):
+class _R27IterationTargetScanner(_r25._R25ExactIterationScanner):
     def _assign_iterated_target(
         self,
         target: ast.AST,
@@ -122,7 +118,7 @@ class _R27IterationTargetScanner(_R25ExactIterationScanner):
     ) -> _Value:
         first_generator = node.generators[0]
         first_iterable = self._scan_expression(first_generator.iter, environment)
-        first_value = _r25_iterated_value(first_iterable)
+        first_value = _r25._r25_iterated_value(first_iterable)
         if _r27_target_reachability(first_generator.target, first_value) is False:
             return _UNKNOWN
 
@@ -150,7 +146,7 @@ class _R27IterationTargetScanner(_R25ExactIterationScanner):
 
             for generator in node.generators[1:]:
                 iterable = self._scan_expression(generator.iter, child_environment)
-                iterated_value = _r25_iterated_value(iterable)
+                iterated_value = _r25._r25_iterated_value(iterable)
                 if _r27_target_reachability(generator.target, iterated_value) is False:
                     return _UNKNOWN
                 self._scan_assignment_target_execution(
@@ -182,7 +178,7 @@ class _R27IterationTargetScanner(_R25ExactIterationScanner):
     ) -> None:
         if isinstance(node, ast.For):
             iterable_value = self._scan_expression(node.iter, environment)
-            iterated_value = _r25_iterated_value(iterable_value)
+            iterated_value = _r25._r25_iterated_value(iterable_value)
             if _r27_target_reachability(node.target, iterated_value) is False:
                 return
 
