@@ -4,7 +4,6 @@ import ast
 import importlib.util
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias
 
 _REPOSITORY_ROOT = Path(__file__).parents[2]
 _INFRASTRUCTURE_ROOT = _REPOSITORY_ROOT / "src" / "qore" / "infrastructure"
@@ -111,7 +110,7 @@ class _Atom:
     text: str | None = None
 
 
-_Value: TypeAlias = frozenset[_Atom]
+type _Value = frozenset[_Atom]
 _UNKNOWN: _Value = frozenset({_Atom("unknown")})
 _BUILTINS_NAMESPACE: _Value = frozenset({_Atom("builtins")})
 _DANGEROUS_CALLABLE: _Value = frozenset({_Atom("dangerous")})
