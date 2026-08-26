@@ -194,21 +194,21 @@ class _R15DynamicExecutionScanner(_R14DynamicExecutionScanner):
                 for token in _key_tokens(key_value):
                     selected_by_token[token] = value
 
-            metadata: set[_Atom] = {_Atom("container-kind", "mapping")}
+            mapping_metadata: set[_Atom] = {_Atom("container-kind", "mapping")}
             for token, selected_value in selected_by_token.items():
                 for value_atom in selected_value:
-                    metadata.add(_selected_slot_atom(token, value_atom))
+                    mapping_metadata.add(_selected_slot_atom(token, value_atom))
                 if _contains_kind(selected_value, "dangerous"):
-                    metadata.add(_Atom("dangerous-key", token))
+                    mapping_metadata.add(_Atom("dangerous-key", token))
                 if _contains_kind(selected_value, "builtins"):
-                    metadata.add(_Atom("builtins-key", token))
+                    mapping_metadata.add(_Atom("builtins-key", token))
 
             flattened = [
                 _semantic_atoms(item)
                 for pair in pairs
                 for item in pair
             ]
-            return _merge_values(*flattened, frozenset(metadata))
+            return _merge_values(*flattened, frozenset(mapping_metadata))
 
         return super()._scan_expression(node, environment)
 
