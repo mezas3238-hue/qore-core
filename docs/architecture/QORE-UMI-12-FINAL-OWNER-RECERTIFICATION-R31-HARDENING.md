@@ -6,6 +6,8 @@ DeepSeek Expert R31 reviewed frozen PR #461 HEAD `85742a8f6f5e31238b446e1daa7443
 
 The R31 package is consumed. Its semantic verdict cannot certify any later HEAD. The run also reported `plan_incomplete=true` because one planner `git_show` request used an invalid ref; this does not invalidate the two independently reproducible findings, but it independently prevents treating R31 as a clean certification even hypothetically.
 
+After the accepted correction was committed, a documentation-only synchronization commit was issued to force a fresh pull-request Quality Gate. This note changes no scanner semantics and does not substitute for exact-head CI evidence.
+
 ## R31-H1 — accepted
 
 Witness:
