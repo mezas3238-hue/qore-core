@@ -202,20 +202,28 @@ def _composite_dangerous_rebinding_markers(source: str) -> tuple[str, ...]:
 
     for node in ast.walk(tree):
         value: ast.expr | None = None
+        line_number: int | None = None
         if isinstance(node, ast.Assign):
             value = node.value
+            line_number = node.lineno
         elif isinstance(node, ast.AnnAssign):
             value = node.value
+            line_number = node.lineno
         elif isinstance(node, ast.NamedExpr):
             value = node.value
-        if value is None or isinstance(value, (ast.Name, ast.Attribute, ast.Call, ast.Subscript)):
+            line_number = node.lineno
+        if (
+            value is None
+            or line_number is None
+            or isinstance(value, (ast.Name, ast.Attribute, ast.Call, ast.Subscript))
+        ):
             continue
         if _contains_dangerous_callable_reference(
             value,
             builtins_aliases=builtins_aliases,
             dangerous_direct_names=dangerous_direct_names,
         ):
-            markers.append(f"dangerous-composite-binding:{node.lineno}")
+            markers.append(f"dangerous-composite-binding:{line_number}")
 
     return tuple(markers)
 
