@@ -181,13 +181,18 @@ def _dynamic_import_or_execution_markers_from_source(source: str) -> tuple[str, 
                     markers.append(f"call:{function.id}")
                 elif function.id == "getattr" and len(node.args) >= 2:
                     target, attribute = node.args[0], node.args[1]
+                    attribute_value = (
+                        attribute.value
+                        if isinstance(attribute, ast.Constant)
+                        and isinstance(attribute.value, str)
+                        else None
+                    )
                     if (
                         isinstance(target, ast.Name)
                         and target.id in builtins_aliases
-                        and isinstance(attribute, ast.Constant)
-                        and attribute.value in _DYNAMIC_EXECUTION_CALL_NAMES
+                        and attribute_value in _DYNAMIC_EXECUTION_CALL_NAMES
                     ):
-                        markers.append(f"call:getattr:{attribute.value}")
+                        markers.append("call:getattr:" + attribute_value)
             elif isinstance(function, ast.Attribute):
                 if (
                     function.attr in _DYNAMIC_EXECUTION_CALL_NAMES
@@ -206,9 +211,10 @@ def _dynamic_import_or_execution_markers_from_source(source: str) -> tuple[str, 
             and isinstance(node.value, ast.Name)
             and node.value.id == "__builtins__"
             and isinstance(node.slice, ast.Constant)
-            and node.slice.value in _DYNAMIC_EXECUTION_CALL_NAMES
         ):
-            markers.append(f"subscript:__builtins__:{node.slice.value}")
+            slice_value = node.slice.value if isinstance(node.slice.value, str) else None
+            if slice_value in _DYNAMIC_EXECUTION_CALL_NAMES:
+                markers.append("subscript:__builtins__:" + slice_value)
 
     return tuple(markers)
 
@@ -231,6 +237,7 @@ def _resolved_imported_modules_from_source(
         if isinstance(node, ast.Import):
             imports.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
+            imported_module: str | None
             if node.level > 0:
                 relative_name = "." * node.level + (node.module or "")
                 imported_module = importlib.util.resolve_name(relative_name, package)
