@@ -242,16 +242,16 @@ class _R15DynamicExecutionScanner(_R14DynamicExecutionScanner):
             for keyword in node.keywords:
                 self._scan_expression(keyword.value, environment)
 
+            if _container_kind(receiver) == "mapping":
+                matched, selected = _selected_slots(receiver, arguments[0])
+                if matched:
+                    return selected
+                if node.func.attr == "get" and len(arguments) >= 2:
+                    return arguments[1]
+                return _UNKNOWN
+
             handled, selected = _selected_static_value(receiver, arguments[0])
             if handled:
-                matched, _ = _selected_slots(receiver, arguments[0])
-                if (
-                    node.func.attr == "get"
-                    and _container_kind(receiver) == "mapping"
-                    and not matched
-                    and len(arguments) >= 2
-                ):
-                    return arguments[1]
                 return selected
 
         return super()._evaluate_call(node, environment)
