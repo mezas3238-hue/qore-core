@@ -4,7 +4,6 @@ import ast
 import json
 
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
-    _DANGEROUS_CALLABLE,
     _DYNAMIC_EXECUTION_CALL_NAMES,
     _FULL_CLOSURE_ORACLE_PATH,
     _GETATTR_HELPER,
