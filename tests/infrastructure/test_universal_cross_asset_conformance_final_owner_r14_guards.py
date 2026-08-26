@@ -75,15 +75,15 @@ class _R14DynamicExecutionScanner(_R13DynamicExecutionScanner):
                 self._scan_expression(element, environment)
                 for element in node.elts
             ]
-            metadata: set[_Atom] = {
+            position_metadata: set[_Atom] = {
                 _Atom("sequence-length", str(len(node.elts)))
             }
             for index, value in enumerate(values):
                 if _contains_kind(value, "dangerous"):
-                    metadata.add(_Atom("dangerous-index", str(index)))
+                    position_metadata.add(_Atom("dangerous-index", str(index)))
                 if _contains_kind(value, "builtins"):
-                    metadata.add(_Atom("builtins-index", str(index)))
-            return _merge_values(*values, frozenset(metadata))
+                    position_metadata.add(_Atom("builtins-index", str(index)))
+            return _merge_values(*values, frozenset(position_metadata))
 
         if isinstance(node, ast.Dict):
             pairs: list[tuple[_Value, _Value]] = []
@@ -100,16 +100,16 @@ class _R14DynamicExecutionScanner(_R13DynamicExecutionScanner):
                 value = self._scan_expression(value_node, environment)
                 pairs.append((key_value, value))
 
-            metadata: set[_Atom] = set()
+            key_metadata: set[_Atom] = set()
             for key_value, value in pairs:
                 for token in _key_tokens(key_value):
                     if _contains_kind(value, "dangerous"):
-                        metadata.add(_Atom("dangerous-key", token))
+                        key_metadata.add(_Atom("dangerous-key", token))
                     if _contains_kind(value, "builtins"):
-                        metadata.add(_Atom("builtins-key", token))
+                        key_metadata.add(_Atom("builtins-key", token))
 
             flattened = [item for pair in pairs for item in pair]
-            return _merge_values(*flattened, frozenset(metadata))
+            return _merge_values(*flattened, frozenset(key_metadata))
 
         return super()._scan_expression(node, environment)
 
