@@ -150,6 +150,16 @@ def _is_builtins_namespace(
                 builtins_aliases=builtins_aliases,
             )
         )
+    if (
+        isinstance(expression, ast.Call)
+        and isinstance(expression.func, ast.Name)
+        and expression.func.id == "vars"
+        and len(expression.args) == 1
+    ):
+        return _is_builtins_namespace(
+            expression.args[0],
+            builtins_aliases=builtins_aliases,
+        )
     return False
 
 
@@ -200,6 +210,20 @@ def _contains_dangerous_callable_reference(
             and attribute.value in _DYNAMIC_EXECUTION_CALL_NAMES
         ):
             return True
+    if (
+        isinstance(expression, ast.Call)
+        and isinstance(expression.func, ast.Attribute)
+        and expression.func.attr in {"get", "__getitem__"}
+        and _is_builtins_namespace(
+            expression.func.value,
+            builtins_aliases=builtins_aliases,
+        )
+        and len(expression.args) >= 1
+        and isinstance(expression.args[0], ast.Constant)
+        and isinstance(expression.args[0].value, str)
+        and expression.args[0].value in _DYNAMIC_EXECUTION_CALL_NAMES
+    ):
+        return True
     if (
         isinstance(expression, ast.Subscript)
         and _is_builtins_namespace(
@@ -314,6 +338,49 @@ getattr(getattr(b, "__dict__"), "__import__")("math")
 
     for line_number in (3, 4, 5):
         assert f"call:{line_number}" in markers
+
+
+def test_r9_vars_builtins_namespace_lookup_fails_closed() -> None:
+    source = """
+import builtins as b
+vars(b)["eval"]("1+1")
+vars(b)["exec"]("pass")
+vars(b)["__import__"]("math")
+getattr(vars(b), "eval")("2+2")
+"""
+
+    markers = _dynamic_execution_markers_from_source(source)
+
+    for line_number in (3, 4, 5, 6):
+        assert f"call:{line_number}" in markers
+
+
+def test_r9_builtins_mapping_lookup_methods_fail_closed() -> None:
+    source = """
+import builtins as b
+b.__dict__.get("eval")("1+1")
+vars(b).get("exec")("pass")
+b.__dict__.__getitem__("__import__")("math")
+"""
+
+    markers = _dynamic_execution_markers_from_source(source)
+
+    for line_number in (3, 4, 5):
+        assert f"call:{line_number}" in markers
+
+
+def test_r9_safe_vars_and_mapping_lookups_do_not_false_positive() -> None:
+    source = """
+class Safe:
+    eval = staticmethod(lambda value: value)
+
+safe = {"eval": lambda value: value}
+safe["eval"]("x")
+safe.get("eval")("x")
+vars(Safe)["eval"]("x")
+"""
+
+    assert _dynamic_execution_markers_from_source(source) == ()
 
 
 def test_r6_absolute_package_from_import_expands_for_directionality() -> None:
