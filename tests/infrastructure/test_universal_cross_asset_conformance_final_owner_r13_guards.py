@@ -50,6 +50,18 @@ class _R13DynamicExecutionScanner(_R12DynamicExecutionScanner):
         node: ast.AST,
         environment: dict[str, _Value],
     ) -> _Value:
+        if (
+            isinstance(node, ast.UnaryOp)
+            and isinstance(node.op, (ast.USub, ast.UAdd))
+            and isinstance(node.operand, ast.Constant)
+            and isinstance(node.operand.value, int)
+            and not isinstance(node.operand.value, bool)
+        ):
+            integer = node.operand.value
+            if isinstance(node.op, ast.USub):
+                integer = -integer
+            return frozenset({_Atom("integer", str(integer))})
+
         value = super()._scan_expression(node, environment)
         if isinstance(node, (ast.Tuple, ast.List)):
             return _merge_atoms(value, _Atom("sequence-length", str(len(node.elts))))
