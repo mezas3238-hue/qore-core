@@ -481,12 +481,12 @@ from . import execution_boundary
         )
     )
 
-    assert "qore.infrastructure.provider_runtime" in imported
-    assert "qore.infrastructure.execution_boundary" in imported
-    assert all(
-        _is_forbidden_provider_runtime_or_network_import(module_name)
-        for module_name in imported
-    )
+    for module_name in (
+        "qore.infrastructure.provider_runtime",
+        "qore.infrastructure.execution_boundary",
+    ):
+        assert module_name in imported
+        assert _is_forbidden_provider_runtime_or_network_import(module_name)
 
 
 def test_final_owner_and_oracle_reject_resolved_provider_runtime_network_imports() -> None:
