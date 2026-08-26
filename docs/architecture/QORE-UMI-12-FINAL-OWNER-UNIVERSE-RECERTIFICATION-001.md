@@ -19,6 +19,8 @@ UMI-12 remains a falsification/evidence harness. This correction creates no new 
 
 The recertification freezes an explicit owner manifest and independently discovers every `src/qore/infrastructure/*_semantics.py` and `*_qualification.py` module. The only current non-D04 qualification, `dataset_integrity_qualification`, is an explicit audited exclusion because it qualifies research/data evidence rather than market/instrument semantics. Six legacy D04 owners whose filenames use neither suffix are explicit carry-ins. Exact equality between the discovered D04 surface and the frozen manifest is the guard.
 
+This discovery contract is intentionally tied to the actual D04 naming conventions plus the six audited legacy carry-ins. UMI-12 does not classify every arbitrary `src/qore/infrastructure/*.py` file as a potential D04 owner: that directory also contains provider, runtime, execution, persistence, research, hosting and other non-D04 modules. A new D04 owner that intentionally bypasses the established naming/registration convention is an architecture-governance violation to classify at source, not a reason to couple this semantic recertification to a global allowlist of all infrastructure modules.
+
 ### Legacy owners
 
 1. `universal_instrument_identity`
@@ -73,8 +75,10 @@ The updated UMI-12 guard/oracle surface verifies the following boundaries agains
 
 - every manifest owner exists and the discovered live `*_semantics.py` + `*_qualification.py` D04 surface matches it exactly, with only the audited non-D04 dataset qualification excluded;
 - all 19 Program-D family codes can bind through UMI-02 `EconomicIdentity` / `CanonicalIdentityRef` without provider symbol text becoming economic identity material;
+- `EconomicIdentity` retains its exact canonical field surface and therefore cannot silently absorb listing/provider symbol material without recertification;
 - listing identity remains distinct from economic identity;
-- owner modules and the historical oracle statically reject direct provider/runtime/network imports and dynamic import/code-execution mechanisms (`importlib`/`import_module`, `__import__`, `eval`, `exec`);
+- owner modules and the historical oracle statically reject direct provider/runtime/network imports and dynamic import/code-execution mechanisms (`importlib`/`import_module`, `__import__`, `eval`, `exec`), including `builtins` aliases/attribute access and `__builtins__` lookup shapes covered by the final guard;
+- relative `from .…` owner imports are resolved to fully-qualified module names before reverse-dependency/collision checks, so relative syntax cannot bypass generic/product or cross-family directionality rules;
 - a numerically identical finite `Decimal` remains semantically distinct across RATE, YIELD, SPREAD, PRICE, NAV, IV, NOTIONAL, QUANTITY, and WEIGHT; quantity and weight remain explicitly discriminated even though they share the generic product-composition magnitude type;
 - generic identity, derivative, product-composition, and valuation authorities do not reverse-import product-specific qualifications;
 - rainbow qualification composes existing option economics and product-composition authority instead of owning either one;
@@ -89,9 +93,20 @@ The updated UMI-12 guard/oracle surface verifies the following boundaries agains
 
 Independent Expert review identified three harness bypasses: undiscovered future `*_qualification.py` D04 owners, dynamic import/code-execution paths invisible to ordinary import-node scans, and an exact-name-only SFT current-state blacklist. Independent adjudication reproduced all three as accepted-invalid harness witnesses. The correction is test-only: fail-closed qualification discovery, prohibition of dynamic import/code-execution mechanisms across owners/oracle, and structural SFT current-state class-shape rejection. No production semantic owner was modified.
 
+## Expert R2 adjudication and hardening
+
+Independent Expert R2 proposed four additional findings. Independent adjudication accepted three and rejected one as outside the bounded #458 contract:
+
+1. **Accepted — builtins/alias dynamic-execution bypass.** `builtins.eval`/`builtins.exec`/`builtins.__import__` and direct aliases imported from `builtins` could evade the prior scanner. The final guard now resolves these shapes, `getattr` on builtins aliases and `__builtins__` subscript access, with a fixed synthetic regression witness.
+2. **Accepted — relative-import reverse-dependency bypass.** `from .product_specific_module import …` was not normalized to a fully-qualified dependency by the historical helper. The final guard now resolves relative imports and independently rechecks generic/product, Sukuk/Shari'ah, ILS/event-contract and SCF/Advanced-Payable directionality. A fixed synthetic regression witness proves the resolver itself.
+3. **Rejected as non-material — arbitrary non-conventional `future_d04_owner.py`.** #458 requires reconstruction of the complete current D04 owner/qualification set from source/tests/docs and final currentness across the actual D04 conventions. Treating every future arbitrary `infrastructure/*.py` as D04 would force a global allowlist covering operational/provider/research/runtime modules and would broaden UMI-12 beyond its semantic-owner mandate. Established suffix discovery plus audited legacy carry-ins remains the bounded contract.
+4. **Accepted — tautological UMI-02 symbol-laundering witness.** Checking that one listing symbol string is absent from one current economic-identity projection does not prevent a future optional economic field from carrying listing/provider material. The final guard now freezes the exact `EconomicIdentity` dataclass field surface; any new field requires explicit recertification rather than silently passing the symbol-separation proof.
+
+All accepted R2 corrections remain test/doc-only. No production semantic owner was modified.
+
 ## Determinism, immutability, and evidence posture
 
-The recertification uses fixed UUIDs, fixed dates/timestamps, exact `Decimal` values, immutable owner value objects, and deterministic `logical_values()` projections. It introduces no wall clock, implicit UUID generation, network access, provider query, secret, credential, mutable global state, scheduler, retry loop, execution call, or settlement mutation.
+The recertification uses fixed UUIDs, fixed dates/timestamps, exact `Decimal` values, immutable owner value objects, deterministic `logical_values()` projections and fixed in-memory AST regression specimens. It introduces no wall clock, implicit UUID generation, network access, provider query, secret, credential, mutable global state, scheduler, retry loop, execution call, or settlement mutation.
 
 The harness validates semantic ownership and collision resistance. It does not manufacture operational evidence.
 
