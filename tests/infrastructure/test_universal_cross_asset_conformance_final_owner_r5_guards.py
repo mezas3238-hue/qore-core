@@ -184,12 +184,19 @@ def _dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
 
     for node in ast.walk(tree):
         value, _targets = _assignment_value_and_targets(node)
-        if value is not None and _contains_dangerous_callable_reference(
-            value,
-            builtins_aliases=builtins_aliases,
-            dangerous_direct_names=dangerous_direct_names,
+        line_number: int | None = None
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+            line_number = node.lineno
+        if (
+            value is not None
+            and line_number is not None
+            and _contains_dangerous_callable_reference(
+                value,
+                builtins_aliases=builtins_aliases,
+                dangerous_direct_names=dangerous_direct_names,
+            )
         ):
-            markers.append(f"binding:{node.lineno}")
+            markers.append(f"binding:{line_number}")
 
         if isinstance(node, ast.Call) and _contains_dangerous_callable_reference(
             node.func,
