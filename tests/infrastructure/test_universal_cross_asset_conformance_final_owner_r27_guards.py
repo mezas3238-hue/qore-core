@@ -15,7 +15,6 @@ from test_universal_cross_asset_conformance_final_owner_r15_guards import (
     _sequence_length,
 )
 
-
 _R27_DEFINITELY_NON_ITERABLE_KINDS = {
     "builtins",
     "dangerous",
