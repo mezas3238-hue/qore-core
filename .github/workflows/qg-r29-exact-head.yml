@@ -11,9 +11,9 @@ jobs:
       - name: Checkout exact R29 corrected candidate
         uses: actions/checkout@v4
         with:
-          ref: d52510081253f85fc878a71d25c4e6eb69e5f76d
+          ref: 4258cfe1222b8de42f807d388d507d9368db4fb7
       - name: Verify exact candidate binding
-        run: test "$(git rev-parse HEAD)" = "d52510081253f85fc878a71d25c4e6eb69e5f76d"
+        run: test "$(git rev-parse HEAD)" = "4258cfe1222b8de42f807d388d507d9368db4fb7"
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
