@@ -342,7 +342,6 @@ def test_sukuk_and_shariah_cross_family_owners_do_not_collide() -> None:
     import qore.infrastructure.shariah_cross_family_semantics as shariah
     import qore.infrastructure.sukuk_structural_semantics as sukuk
 
-    assert sukuk.SukukStructuralQualification is not shariah.ShariahCrossFamilyQualification
     assert sukuk.SukukStructuralQualification.__module__ == sukuk.__name__
     assert shariah.ShariahCrossFamilyQualification.__module__ == shariah.__name__
     assert shariah.__name__ not in _imported_modules(sukuk)
@@ -353,7 +352,6 @@ def test_insurance_linked_and_event_contract_owners_do_not_collide() -> None:
     import qore.infrastructure.event_contract_semantics as event
     import qore.infrastructure.insurance_linked_risk_transfer_semantics as insurance
 
-    assert insurance.InsuranceLinkedRiskTransferTerms is not event.EventContractTerms
     assert insurance.InsuranceLinkedRiskTransferTerms.__module__ == insurance.__name__
     assert event.EventContractTerms.__module__ == event.__name__
     assert event.__name__ not in _imported_modules(insurance)
