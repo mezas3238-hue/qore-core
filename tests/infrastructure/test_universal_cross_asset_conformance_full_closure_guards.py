@@ -3,8 +3,11 @@ from __future__ import annotations
 import ast
 import importlib
 import inspect
+from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from types import ModuleType
+from uuid import UUID
 
 _REPOSITORY_ROOT = Path(__file__).parents[2]
 _INFRASTRUCTURE_ROOT = _REPOSITORY_ROOT / "src" / "qore" / "infrastructure"
@@ -76,6 +79,27 @@ _PRODUCT_QUALIFICATION_MODULE_NAMES = (
     "qore.infrastructure.rainbow_option_composition_semantics",
     "qore.infrastructure.uit_contract_qualification",
     "qore.infrastructure.warrant_convertible_qualification_semantics",
+)
+_PROGRAM_D_FAMILY_CODES = (
+    "cash-money-market",
+    "fixed-income-credit",
+    "rates-term-structures",
+    "equities",
+    "funds-pooled-vehicles",
+    "indices-benchmarks",
+    "fx",
+    "futures",
+    "options",
+    "forwards-swaps-otc",
+    "commodities",
+    "crypto-digital-assets",
+    "structured-hybrid-products",
+    "volatility-variance-products",
+    "securities-financing",
+    "cross-asset-compositions",
+    "event-contracts",
+    "contracts-for-difference",
+    "loans-credit-facilities",
 )
 
 _VENDOR_OR_RUNTIME_IMPORT_FRAGMENTS = (
@@ -175,6 +199,123 @@ def test_full_closure_owner_universe_has_no_direct_network_clients() -> None:
     assert violations == []
 
 
+def test_umi02_binds_all_program_d_families_without_symbol_laundering() -> None:
+    from qore.infrastructure.universal_instrument_identity import (
+        CanonicalIdentityRef,
+        EconomicIdentity,
+        EconomicIdentityId,
+        EconomicIdentityKind,
+        IdentityConstructionKind,
+        IdentityEvidenceRef,
+        IdentityFamilyCode,
+        ListingIdentity,
+        ListingIdentityId,
+        MarketVenueCode,
+    )
+
+    identities: list[EconomicIdentity] = []
+    for index, family in enumerate(_PROGRAM_D_FAMILY_CODES, start=1):
+        identity = EconomicIdentity(
+            identity_id=EconomicIdentityId(UUID(int=10_000 + index)),
+            kind=(
+                EconomicIdentityKind.REFERENCE_OBJECT
+                if family == "indices-benchmarks"
+                else EconomicIdentityKind.TRADABLE_INSTRUMENT
+            ),
+            family=IdentityFamilyCode(family),
+            construction=IdentityConstructionKind.NATIVE,
+            evidence_ref=IdentityEvidenceRef(UUID(int=20_000 + index)),
+        )
+        identities.append(identity)
+        assert CanonicalIdentityRef(identity.identity_id).logical_values()[0] == "economic"
+        assert identity.family.value == family
+
+    listed = ListingIdentity(
+        listing_id=ListingIdentityId(UUID(int=30_001)),
+        economic_identity_id=identities[3].identity_id,
+        venue=MarketVenueCode("xnas"),
+        display_symbol="PROVIDER-SYMBOL-ALIAS",
+        valid_from=datetime(2026, 8, 25, tzinfo=UTC),
+        valid_until=None,
+        evidence_ref=IdentityEvidenceRef(UUID(int=30_002)),
+    )
+
+    assert listed.economic_identity_id == identities[3].identity_id
+    assert CanonicalIdentityRef(listed.listing_id).logical_values()[0] == "listing"
+    assert listed.display_symbol not in repr(identities[3].logical_values())
+
+
+def test_equal_decimal_preserves_nine_distinct_semantic_roles() -> None:
+    from qore.infrastructure.derivative_contract_semantics import DerivativeNotional
+    from qore.infrastructure.fixed_income_economics import (
+        FixedIncomePrice,
+        FixedIncomePriceBasisCode,
+        FixedIncomePriceKind,
+        FixedIncomeSpread,
+        FixedIncomeYield,
+    )
+    from qore.infrastructure.product_composition_semantics import (
+        ProductCompositionMagnitude,
+        ProductCompositionMagnitudeKind,
+    )
+    from qore.infrastructure.rate_term_structure import ZeroRate
+    from qore.infrastructure.universal_instrument_identity import EconomicIdentityId
+    from qore.infrastructure.universal_valuation_observation import (
+        FundNavValue,
+        ImpliedVolatility,
+    )
+
+    amount = Decimal("0.05")
+    unit = EconomicIdentityId(UUID(int=40_001))
+    rate = ZeroRate(amount)
+    yield_value = FixedIncomeYield(amount)
+    spread = FixedIncomeSpread(amount)
+    price = FixedIncomePrice(
+        amount,
+        FixedIncomePriceKind.CLEAN,
+        FixedIncomePriceBasisCode("percent-of-par"),
+    )
+    nav = FundNavValue(amount)
+    implied_volatility = ImpliedVolatility(amount)
+    notional = DerivativeNotional(amount, unit)
+    quantity = ProductCompositionMagnitude(
+        ProductCompositionMagnitudeKind.QUANTITY,
+        amount,
+        unit,
+    )
+    weight = ProductCompositionMagnitude(
+        ProductCompositionMagnitudeKind.WEIGHT,
+        amount,
+    )
+
+    assert (
+        rate.value,
+        yield_value.value,
+        spread.value,
+        price.value,
+        nav.value,
+        implied_volatility.value,
+        notional.value,
+        quantity.value,
+        weight.value,
+    ) == (amount,) * 9
+    semantic_types: set[type[object]] = {
+        type(rate),
+        type(yield_value),
+        type(spread),
+        type(price),
+        type(nav),
+        type(implied_volatility),
+        type(notional),
+        type(quantity),
+    }
+    assert len(semantic_types) == 8
+    assert quantity.kind is ProductCompositionMagnitudeKind.QUANTITY
+    assert weight.kind is ProductCompositionMagnitudeKind.WEIGHT
+    assert quantity.logical_values()[0] == "quantity"
+    assert weight.logical_values()[0] == "weight"
+
+
 def test_generic_authorities_do_not_reverse_import_product_qualifications() -> None:
     forbidden = set(_PRODUCT_QUALIFICATION_MODULE_NAMES)
     violations: list[tuple[str, str]] = []
@@ -195,6 +336,47 @@ def test_rainbow_composes_existing_option_and_product_composition_authorities() 
 
     assert "qore.infrastructure.derivative_contract_semantics" in imported
     assert "qore.infrastructure.product_composition_semantics" in imported
+
+
+def test_sukuk_and_shariah_cross_family_owners_do_not_collide() -> None:
+    import qore.infrastructure.shariah_cross_family_semantics as shariah
+    import qore.infrastructure.sukuk_structural_semantics as sukuk
+
+    assert sukuk.SukukStructuralQualification is not shariah.ShariahCrossFamilyQualification
+    assert sukuk.SukukStructuralQualification.__module__ == sukuk.__name__
+    assert shariah.ShariahCrossFamilyQualification.__module__ == shariah.__name__
+    assert shariah.__name__ not in _imported_modules(sukuk)
+    assert sukuk.__name__ not in _imported_modules(shariah)
+
+
+def test_insurance_linked_and_event_contract_owners_do_not_collide() -> None:
+    import qore.infrastructure.event_contract_semantics as event
+    import qore.infrastructure.insurance_linked_risk_transfer_semantics as insurance
+
+    assert insurance.InsuranceLinkedRiskTransferTerms is not event.EventContractTerms
+    assert insurance.InsuranceLinkedRiskTransferTerms.__module__ == insurance.__name__
+    assert event.EventContractTerms.__module__ == event.__name__
+    assert event.__name__ not in _imported_modules(insurance)
+    assert insurance.__name__ not in _imported_modules(event)
+
+
+def test_securities_financing_does_not_define_current_state_authority() -> None:
+    module = importlib.import_module(
+        "qore.infrastructure.securities_financing_semantics"
+    )
+    tree = ast.parse(inspect.getsource(module))
+    class_names = {
+        node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
+    }
+    forbidden = {
+        "Position",
+        "PositionState",
+        "RiskState",
+        "CollateralState",
+        "CurrentCollateralState",
+    }
+
+    assert class_names.isdisjoint(forbidden)
 
 
 def test_advanced_payable_extends_without_redefining_scf_owner_module() -> None:
@@ -241,7 +423,7 @@ def test_full_closure_oracle_defines_no_operational_authority_helpers() -> None:
 
 
 def test_full_closure_oracle_does_not_import_provider_or_runtime_code() -> None:
-    violations = []
+    violations: list[str] = []
     for imported in _file_imports(_ORACLE_PATH):
         root = imported.split(".", 1)[0]
         if root in _NETWORK_IMPORT_ROOTS or any(
