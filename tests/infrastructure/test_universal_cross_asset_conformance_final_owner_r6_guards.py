@@ -130,12 +130,27 @@ def _is_builtins_namespace(
 ) -> bool:
     if isinstance(expression, ast.Name):
         return expression.id in builtins_aliases
-    return (
-        isinstance(expression, ast.Attribute)
-        and expression.attr == "__dict__"
-        and isinstance(expression.value, ast.Name)
-        and expression.value.id in builtins_aliases
-    )
+    if isinstance(expression, ast.Attribute) and expression.attr == "__dict__":
+        return _is_builtins_namespace(
+            expression.value,
+            builtins_aliases=builtins_aliases,
+        )
+    if (
+        isinstance(expression, ast.Call)
+        and isinstance(expression.func, ast.Name)
+        and expression.func.id == "getattr"
+        and len(expression.args) >= 2
+    ):
+        target, attribute = expression.args[0], expression.args[1]
+        return (
+            isinstance(attribute, ast.Constant)
+            and attribute.value == "__dict__"
+            and _is_builtins_namespace(
+                target,
+                builtins_aliases=builtins_aliases,
+            )
+        )
+    return False
 
 
 def _contains_builtins_namespace_reference(
@@ -284,6 +299,20 @@ getattr(eval, "__call__")("2+2")
     markers = _dynamic_execution_markers_from_source(source)
 
     for line_number in (2, 3, 4, 5):
+        assert f"call:{line_number}" in markers
+
+
+def test_r8_nested_getattr_builtins_dict_execution_fails_closed() -> None:
+    source = """
+import builtins as b
+getattr(getattr(b, "__dict__"), "eval")("1+1")
+getattr(getattr(b, "__dict__"), "exec")("pass")
+getattr(getattr(b, "__dict__"), "__import__")("math")
+"""
+
+    markers = _dynamic_execution_markers_from_source(source)
+
+    for line_number in (3, 4, 5):
         assert f"call:{line_number}" in markers
 
 
