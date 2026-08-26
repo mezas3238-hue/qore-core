@@ -524,9 +524,9 @@ class _DynamicExecutionScanner:
             self._scan_expression(decorator, environment)
         for default in node.args.defaults:
             self._scan_expression(default, environment)
-        for default in node.args.kw_defaults:
-            if default is not None:
-                self._scan_expression(default, environment)
+        for keyword_default in node.args.kw_defaults:
+            if keyword_default is not None:
+                self._scan_expression(keyword_default, environment)
 
         child_environment = environment.copy()
         for name in _function_local_names(node):
