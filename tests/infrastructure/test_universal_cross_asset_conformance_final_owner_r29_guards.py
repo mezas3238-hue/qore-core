@@ -17,7 +17,6 @@ from test_universal_cross_asset_conformance_final_owner_r14_guards import (
 from test_universal_cross_asset_conformance_final_owner_r15_guards import (
     _container_kind,
     _selected_slots,
-    _sequence_length,
 )
 
 
