@@ -110,6 +110,10 @@ def _builtins_aliases(tree: ast.AST) -> set[str]:
             for alias in node.names:
                 if alias.name == "builtins":
                     aliases.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module == "builtins":
+            for alias in node.names:
+                if alias.name == "__dict__":
+                    aliases.add(alias.asname or alias.name)
     return aliases
 
 
@@ -123,10 +127,95 @@ def _dangerous_direct_names(tree: ast.AST) -> set[str]:
     return names
 
 
+def _operator_getitem_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
+    module_aliases: set[str] = set()
+    direct_names: set[str] = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "operator":
+                    module_aliases.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module == "operator":
+            for alias in node.names:
+                if alias.name == "getitem":
+                    direct_names.add(alias.asname or alias.name)
+
+    return module_aliases, direct_names
+
+
+def _static_string_value(
+    expression: ast.AST,
+    *,
+    constant_strings: dict[str, str],
+) -> str | None:
+    if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
+        return expression.value
+    if isinstance(expression, ast.Name):
+        return constant_strings.get(expression.id)
+    if isinstance(expression, ast.BinOp) and isinstance(expression.op, ast.Add):
+        left = _static_string_value(
+            expression.left,
+            constant_strings=constant_strings,
+        )
+        right = _static_string_value(
+            expression.right,
+            constant_strings=constant_strings,
+        )
+        if left is not None and right is not None:
+            return left + right
+    return None
+
+
+def _constant_string_bindings(tree: ast.AST) -> dict[str, str]:
+    write_counts: dict[str, int] = {}
+    candidate_values: dict[str, ast.AST] = {}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            write_counts[node.id] = write_counts.get(node.id, 0) + 1
+        elif isinstance(node, ast.arg):
+            write_counts[node.arg] = write_counts.get(node.arg, 0) + 1
+
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    candidate_values[target.id] = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if node.value is not None:
+                candidate_values[node.target.id] = node.value
+        elif isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
+            candidate_values[node.target.id] = node.value
+
+    candidates = {
+        name: value
+        for name, value in candidate_values.items()
+        if write_counts.get(name) == 1
+    }
+    resolved: dict[str, str] = {}
+
+    changed = True
+    while changed:
+        changed = False
+        for name, expression in candidates.items():
+            if name in resolved:
+                continue
+            value = _static_string_value(
+                expression,
+                constant_strings=resolved,
+            )
+            if value is not None:
+                resolved[name] = value
+                changed = True
+
+    return resolved
+
+
 def _is_builtins_namespace(
     expression: ast.AST,
     *,
     builtins_aliases: set[str],
+    constant_strings: dict[str, str],
 ) -> bool:
     if isinstance(expression, ast.Name):
         return expression.id in builtins_aliases
@@ -134,6 +223,7 @@ def _is_builtins_namespace(
         return _is_builtins_namespace(
             expression.value,
             builtins_aliases=builtins_aliases,
+            constant_strings=constant_strings,
         )
     if (
         isinstance(expression, ast.Call)
@@ -143,11 +233,15 @@ def _is_builtins_namespace(
     ):
         target, attribute = expression.args[0], expression.args[1]
         return (
-            isinstance(attribute, ast.Constant)
-            and attribute.value == "__dict__"
+            _static_string_value(
+                attribute,
+                constant_strings=constant_strings,
+            )
+            == "__dict__"
             and _is_builtins_namespace(
                 target,
                 builtins_aliases=builtins_aliases,
+                constant_strings=constant_strings,
             )
         )
     if (
@@ -159,6 +253,7 @@ def _is_builtins_namespace(
         return _is_builtins_namespace(
             expression.args[0],
             builtins_aliases=builtins_aliases,
+            constant_strings=constant_strings,
         )
     return False
 
@@ -167,15 +262,37 @@ def _contains_builtins_namespace_reference(
     expression: ast.AST,
     *,
     builtins_aliases: set[str],
+    constant_strings: dict[str, str],
 ) -> bool:
-    if _is_builtins_namespace(expression, builtins_aliases=builtins_aliases):
+    if _is_builtins_namespace(
+        expression,
+        builtins_aliases=builtins_aliases,
+        constant_strings=constant_strings,
+    ):
         return True
     return any(
         _contains_builtins_namespace_reference(
             child,
             builtins_aliases=builtins_aliases,
+            constant_strings=constant_strings,
         )
         for child in ast.iter_child_nodes(expression)
+    )
+
+
+def _is_operator_getitem_reference(
+    expression: ast.AST,
+    *,
+    operator_aliases: set[str],
+    operator_getitem_names: set[str],
+) -> bool:
+    if isinstance(expression, ast.Name):
+        return expression.id in operator_getitem_names
+    return (
+        isinstance(expression, ast.Attribute)
+        and expression.attr == "getitem"
+        and isinstance(expression.value, ast.Name)
+        and expression.value.id in operator_aliases
     )
 
 
@@ -184,6 +301,9 @@ def _contains_dangerous_callable_reference(
     *,
     builtins_aliases: set[str],
     dangerous_direct_names: set[str],
+    constant_strings: dict[str, str],
+    operator_aliases: set[str],
+    operator_getitem_names: set[str],
 ) -> bool:
     if isinstance(expression, ast.Name):
         return expression.id in dangerous_direct_names
@@ -193,6 +313,7 @@ def _contains_dangerous_callable_reference(
         and _is_builtins_namespace(
             expression.value,
             builtins_aliases=builtins_aliases,
+            constant_strings=constant_strings,
         )
     ):
         return True
@@ -203,11 +324,17 @@ def _contains_dangerous_callable_reference(
         and len(expression.args) >= 2
     ):
         target, attribute = expression.args[0], expression.args[1]
+        attribute_value = _static_string_value(
+            attribute,
+            constant_strings=constant_strings,
+        )
         if (
-            _is_builtins_namespace(target, builtins_aliases=builtins_aliases)
-            and isinstance(attribute, ast.Constant)
-            and isinstance(attribute.value, str)
-            and attribute.value in _DYNAMIC_EXECUTION_CALL_NAMES
+            _is_builtins_namespace(
+                target,
+                builtins_aliases=builtins_aliases,
+                constant_strings=constant_strings,
+            )
+            and attribute_value in _DYNAMIC_EXECUTION_CALL_NAMES
         ):
             return True
     if (
@@ -217,11 +344,34 @@ def _contains_dangerous_callable_reference(
         and _is_builtins_namespace(
             expression.func.value,
             builtins_aliases=builtins_aliases,
+            constant_strings=constant_strings,
         )
         and len(expression.args) >= 1
-        and isinstance(expression.args[0], ast.Constant)
-        and isinstance(expression.args[0].value, str)
-        and expression.args[0].value in _DYNAMIC_EXECUTION_CALL_NAMES
+        and _static_string_value(
+            expression.args[0],
+            constant_strings=constant_strings,
+        )
+        in _DYNAMIC_EXECUTION_CALL_NAMES
+    ):
+        return True
+    if (
+        isinstance(expression, ast.Call)
+        and _is_operator_getitem_reference(
+            expression.func,
+            operator_aliases=operator_aliases,
+            operator_getitem_names=operator_getitem_names,
+        )
+        and len(expression.args) >= 2
+        and _is_builtins_namespace(
+            expression.args[0],
+            builtins_aliases=builtins_aliases,
+            constant_strings=constant_strings,
+        )
+        and _static_string_value(
+            expression.args[1],
+            constant_strings=constant_strings,
+        )
+        in _DYNAMIC_EXECUTION_CALL_NAMES
     ):
         return True
     if (
@@ -229,10 +379,13 @@ def _contains_dangerous_callable_reference(
         and _is_builtins_namespace(
             expression.value,
             builtins_aliases=builtins_aliases,
+            constant_strings=constant_strings,
         )
-        and isinstance(expression.slice, ast.Constant)
-        and isinstance(expression.slice.value, str)
-        and expression.slice.value in _DYNAMIC_EXECUTION_CALL_NAMES
+        and _static_string_value(
+            expression.slice,
+            constant_strings=constant_strings,
+        )
+        in _DYNAMIC_EXECUTION_CALL_NAMES
     ):
         return True
     return any(
@@ -240,6 +393,9 @@ def _contains_dangerous_callable_reference(
             child,
             builtins_aliases=builtins_aliases,
             dangerous_direct_names=dangerous_direct_names,
+            constant_strings=constant_strings,
+            operator_aliases=operator_aliases,
+            operator_getitem_names=operator_getitem_names,
         )
         for child in ast.iter_child_nodes(expression)
     )
@@ -249,6 +405,8 @@ def _dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
     tree = ast.parse(source)
     builtins_aliases = _builtins_aliases(tree)
     dangerous_direct_names = _dangerous_direct_names(tree)
+    constant_strings = _constant_string_bindings(tree)
+    operator_aliases, operator_getitem_names = _operator_getitem_bindings(tree)
     markers: list[str] = []
 
     for node in ast.walk(tree):
@@ -269,9 +427,13 @@ def _dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
                 value,
                 builtins_aliases=builtins_aliases,
                 dangerous_direct_names=dangerous_direct_names,
+                constant_strings=constant_strings,
+                operator_aliases=operator_aliases,
+                operator_getitem_names=operator_getitem_names,
             ) or _contains_builtins_namespace_reference(
                 value,
                 builtins_aliases=builtins_aliases,
+                constant_strings=constant_strings,
             ):
                 markers.append(f"binding:{line_number}")
 
@@ -279,6 +441,9 @@ def _dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
             node.func,
             builtins_aliases=builtins_aliases,
             dangerous_direct_names=dangerous_direct_names,
+            constant_strings=constant_strings,
+            operator_aliases=operator_aliases,
+            operator_getitem_names=operator_getitem_names,
         ):
             markers.append(f"call:{node.lineno}")
 
@@ -378,6 +543,71 @@ safe = {"eval": lambda value: value}
 safe["eval"]("x")
 safe.get("eval")("x")
 vars(Safe)["eval"]("x")
+"""
+
+    assert _dynamic_execution_markers_from_source(source) == ()
+
+
+def test_r10_imported_builtins_dict_namespace_fails_closed() -> None:
+    source = """
+from builtins import __dict__ as namespace
+namespace["eval"]("1+1")
+namespace.get("exec")("pass")
+namespace.__getitem__("__import__")("math")
+"""
+
+    markers = _dynamic_execution_markers_from_source(source)
+
+    for line_number in (3, 4, 5):
+        assert f"call:{line_number}" in markers
+
+
+def test_r10_constant_string_lookup_aliases_fail_closed() -> None:
+    source = """
+import builtins
+
+dict_name = "__" + "dict__"
+eval_key = "ev" + "al"
+exec_key = "exec"
+import_key = "__import__"
+forwarded_key = eval_key
+getattr(builtins, forwarded_key)("1+1")
+getattr(builtins, dict_name)[exec_key]("pass")
+builtins.__dict__.get(import_key)("math")
+"""
+
+    markers = _dynamic_execution_markers_from_source(source)
+
+    for line_number in (9, 10, 11):
+        assert f"call:{line_number}" in markers
+
+
+def test_r10_operator_getitem_aliases_fail_closed() -> None:
+    source = """
+import builtins
+import operator
+import operator as op
+from operator import getitem as lookup
+operator.getitem(builtins.__dict__, "eval")("1+1")
+op.getitem(vars(builtins), "exec")("pass")
+lookup(builtins.__dict__, "__import__")("math")
+"""
+
+    markers = _dynamic_execution_markers_from_source(source)
+
+    for line_number in (6, 7, 8):
+        assert f"call:{line_number}" in markers
+
+
+def test_r10_safe_constant_and_operator_lookups_do_not_false_positive() -> None:
+    source = """
+import operator
+
+key = "eval"
+safe = {"eval": lambda value: value}
+safe[key]("x")
+safe.get(key)("x")
+operator.getitem(safe, key)("x")
 """
 
     assert _dynamic_execution_markers_from_source(source) == ()
