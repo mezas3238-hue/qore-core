@@ -68,6 +68,31 @@ _DYNAMIC_EXECUTION_CALL_NAMES = {
     "exec",
 }
 
+_VENDOR_OR_RUNTIME_IMPORT_FRAGMENTS = (
+    "oanda_",
+    "ctrader_",
+    "tradovate",
+    "tradestation",
+    "tastytrade",
+    "ibkr_adapter",
+    "provider_runtime",
+    "supervised_provider_harness",
+    "client_execution_agent",
+    "execution_orchestration",
+    "execution_boundary",
+    "order_intent",
+    "controlled_execution",
+)
+
+_NETWORK_IMPORT_ROOTS = {
+    "aiohttp",
+    "httpx",
+    "requests",
+    "socket",
+    "urllib",
+    "websockets",
+}
+
 _SFT_CURRENT_STATE_NAME_FRAGMENTS = {
     "Account",
     "Balance",
@@ -139,6 +164,64 @@ def _discovered_d04_owner_module_names() -> set[str]:
     return semantic_names | qualification_names | _LEGACY_D04_OWNER_MODULE_NAMES
 
 
+def _assignment_target_names(target: ast.expr) -> tuple[str, ...]:
+    if isinstance(target, ast.Name):
+        return (target.id,)
+    if isinstance(target, (ast.Tuple, ast.List)):
+        return tuple(
+            name
+            for element in target.elts
+            for name in _assignment_target_names(element)
+        )
+    return ()
+
+
+def _dangerous_callable_reference(
+    expression: ast.expr,
+    *,
+    builtins_aliases: set[str],
+    dangerous_direct_names: set[str],
+) -> str | None:
+    if isinstance(expression, ast.Name) and expression.id in dangerous_direct_names:
+        return expression.id
+    if (
+        isinstance(expression, ast.Attribute)
+        and expression.attr in _DYNAMIC_EXECUTION_CALL_NAMES
+        and isinstance(expression.value, ast.Name)
+        and expression.value.id in builtins_aliases
+    ):
+        return f"{expression.value.id}.{expression.attr}"
+    if (
+        isinstance(expression, ast.Call)
+        and isinstance(expression.func, ast.Name)
+        and expression.func.id == "getattr"
+        and len(expression.args) >= 2
+    ):
+        target, attribute = expression.args[0], expression.args[1]
+        attribute_value = (
+            attribute.value
+            if isinstance(attribute, ast.Constant)
+            and isinstance(attribute.value, str)
+            else None
+        )
+        if (
+            isinstance(target, ast.Name)
+            and target.id in builtins_aliases
+            and attribute_value in _DYNAMIC_EXECUTION_CALL_NAMES
+        ):
+            return f"getattr:{target.id}:{attribute_value}"
+    if (
+        isinstance(expression, ast.Subscript)
+        and isinstance(expression.value, ast.Name)
+        and expression.value.id == "__builtins__"
+        and isinstance(expression.slice, ast.Constant)
+        and isinstance(expression.slice.value, str)
+        and expression.slice.value in _DYNAMIC_EXECUTION_CALL_NAMES
+    ):
+        return f"__builtins__:{expression.slice.value}"
+    return None
+
+
 def _dynamic_import_or_execution_markers_from_source(source: str) -> tuple[str, ...]:
     tree = ast.parse(source)
     markers: list[str] = []
@@ -170,6 +253,37 @@ def _dynamic_import_or_execution_markers_from_source(source: str) -> tuple[str, 
                     if alias.name in _DYNAMIC_EXECUTION_CALL_NAMES:
                         markers.append(f"from:builtins:{alias.name}")
                         dangerous_direct_names.add(alias.asname or alias.name)
+
+    changed = True
+    while changed:
+        changed = False
+        for node in ast.walk(tree):
+            value: ast.expr | None = None
+            targets: tuple[ast.expr, ...] = ()
+            if isinstance(node, ast.Assign):
+                value = node.value
+                targets = tuple(node.targets)
+            elif isinstance(node, ast.AnnAssign):
+                value = node.value
+                targets = (node.target,)
+            elif isinstance(node, ast.NamedExpr):
+                value = node.value
+                targets = (node.target,)
+            if value is None:
+                continue
+            source_marker = _dangerous_callable_reference(
+                value,
+                builtins_aliases=builtins_aliases,
+                dangerous_direct_names=dangerous_direct_names,
+            )
+            if source_marker is None:
+                continue
+            for target in targets:
+                for target_name in _assignment_target_names(target):
+                    if target_name not in dangerous_direct_names:
+                        dangerous_direct_names.add(target_name)
+                        markers.append(f"bind:{target_name}<-{source_marker}")
+                        changed = True
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
@@ -263,6 +377,13 @@ def _resolved_owner_imports(module_name: str) -> tuple[str, ...]:
     )
 
 
+def _is_forbidden_provider_runtime_or_network_import(imported: str) -> bool:
+    root = imported.split(".", 1)[0]
+    return root in _NETWORK_IMPORT_ROOTS or any(
+        fragment in imported for fragment in _VENDOR_OR_RUNTIME_IMPORT_FRAGMENTS
+    )
+
+
 def test_final_owner_discovery_is_exact_across_semantics_and_qualifications() -> None:
     live_qualification_names = {
         _module_name(path) for path in _INFRASTRUCTURE_ROOT.glob("*_qualification.py")
@@ -304,6 +425,34 @@ __builtins__["eval"]("2 + 2")
     assert "subscript:__builtins__:eval" in markers
 
 
+def test_dynamic_execution_scanner_closes_callable_rebinding_bypasses() -> None:
+    source = """
+import builtins as b
+first = eval
+second = first
+third: object = b.exec
+fourth = getattr(b, "__import__")
+fifth = __builtins__["eval"]
+first("1 + 1")
+second("2 + 2")
+third("pass")
+fourth("math")
+fifth("3 + 3")
+"""
+    markers = _dynamic_import_or_execution_markers_from_source(source)
+
+    assert "bind:first<-eval" in markers
+    assert "bind:second<-first" in markers
+    assert "bind:third<-b.exec" in markers
+    assert "bind:fourth<-getattr:b:__import__" in markers
+    assert "bind:fifth<-__builtins__:eval" in markers
+    assert "call:first" in markers
+    assert "call:second" in markers
+    assert "call:third" in markers
+    assert "call:fourth" in markers
+    assert "call:fifth" in markers
+
+
 def test_relative_import_scanner_resolves_owner_dependencies() -> None:
     source = """
 from .rainbow_option_composition_semantics import RainbowOptionComposition
@@ -318,6 +467,44 @@ from . import uit_contract_qualification
 
     assert "qore.infrastructure.rainbow_option_composition_semantics" in imported
     assert "qore.infrastructure.uit_contract_qualification" in imported
+
+
+def test_relative_imports_cannot_hide_provider_runtime_or_network_authority() -> None:
+    source = """
+from . import provider_runtime
+from . import execution_boundary
+"""
+    imported = set(
+        _resolved_imported_modules_from_source(
+            source,
+            package="qore.infrastructure",
+        )
+    )
+
+    assert "qore.infrastructure.provider_runtime" in imported
+    assert "qore.infrastructure.execution_boundary" in imported
+    assert all(
+        _is_forbidden_provider_runtime_or_network_import(module_name)
+        for module_name in imported
+    )
+
+
+def test_final_owner_and_oracle_reject_resolved_provider_runtime_network_imports() -> None:
+    violations: list[tuple[str, str]] = []
+    for module_name in sorted(_EXPECTED_D04_OWNER_MODULE_NAMES):
+        for imported in _resolved_owner_imports(module_name):
+            if _is_forbidden_provider_runtime_or_network_import(imported):
+                violations.append((module_name, imported))
+
+    oracle_imports = _resolved_imported_modules_from_source(
+        _FULL_CLOSURE_ORACLE_PATH.read_text(encoding="utf-8"),
+        package="tests.infrastructure",
+    )
+    for imported in oracle_imports:
+        if _is_forbidden_provider_runtime_or_network_import(imported):
+            violations.append((str(_FULL_CLOSURE_ORACLE_PATH), imported))
+
+    assert violations == []
 
 
 def test_relative_imports_cannot_bypass_owner_directionality_guards() -> None:
