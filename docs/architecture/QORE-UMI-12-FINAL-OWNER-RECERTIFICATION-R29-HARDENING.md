@@ -75,6 +75,14 @@ The R29 guard covers:
 - comprehension divergent-star sensitive binding;
 - complete current owner + historical oracle zero-marker recertification.
 
+## Review-consumption boundary
+
+DeepSeek Expert R29 certifies only the superseded HEAD
+`4166d59a2d0b4691f254fb133a6cd6425069e5d4`. Its two accepted findings caused the
+R29 correction, so that review is consumed and cannot certify any corrected HEAD.
+The corrected candidate must pass a fresh exact-head Quality Gate and a new unique
+Expert package before any Coder gate is eligible.
+
 ## Scope
 
 This remains a tests/docs-only UMI-12 recertification hardening. It does not modify
