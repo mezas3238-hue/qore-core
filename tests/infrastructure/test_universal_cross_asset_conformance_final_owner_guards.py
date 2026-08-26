@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
+from dataclasses import fields
 from pathlib import Path
 
 _REPOSITORY_ROOT = Path(__file__).parents[2]
@@ -77,6 +79,46 @@ _SFT_CURRENT_STATE_NAME_FRAGMENTS = {
     "State",
 }
 
+_GENERIC_AUTHORITY_MODULE_NAMES = {
+    "qore.infrastructure.derivative_contract_semantics",
+    "qore.infrastructure.product_composition_semantics",
+    "qore.infrastructure.universal_instrument_identity",
+    "qore.infrastructure.universal_valuation_observation",
+}
+
+_PRODUCT_QUALIFICATION_MODULE_NAMES = {
+    "qore.infrastructure.cfd_contract_qualification",
+    "qore.infrastructure.rainbow_option_composition_semantics",
+    "qore.infrastructure.uit_contract_qualification",
+    "qore.infrastructure.warrant_convertible_qualification_semantics",
+}
+
+_FORBIDDEN_DIRECTIONAL_IMPORTS = {
+    "qore.infrastructure.insurance_linked_risk_transfer_semantics": {
+        "qore.infrastructure.event_contract_semantics",
+    },
+    "qore.infrastructure.event_contract_semantics": {
+        "qore.infrastructure.insurance_linked_risk_transfer_semantics",
+    },
+    "qore.infrastructure.shariah_cross_family_semantics": {
+        "qore.infrastructure.sukuk_structural_semantics",
+    },
+    "qore.infrastructure.sukuk_structural_semantics": {
+        "qore.infrastructure.shariah_cross_family_semantics",
+    },
+    "qore.infrastructure.supply_chain_finance_semantics": {
+        "qore.infrastructure.advanced_payable_scf_semantics",
+    },
+}
+
+_EXPECTED_ECONOMIC_IDENTITY_FIELDS = (
+    "identity_id",
+    "kind",
+    "family",
+    "construction",
+    "evidence_ref",
+)
+
 
 def _module_name(path: Path) -> str:
     return f"qore.infrastructure.{path.stem}"
@@ -97,34 +139,121 @@ def _discovered_d04_owner_module_names() -> set[str]:
     return semantic_names | qualification_names | _LEGACY_D04_OWNER_MODULE_NAMES
 
 
-def _dynamic_import_or_execution_markers(path: Path) -> tuple[str, ...]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+def _dynamic_import_or_execution_markers_from_source(source: str) -> tuple[str, ...]:
+    tree = ast.parse(source)
     markers: list[str] = []
+    builtins_aliases = {"builtins", "__builtins__"}
+    importlib_aliases = {"importlib"}
+    dangerous_direct_names = set(_DYNAMIC_EXECUTION_CALL_NAMES)
+    import_module_names = {"import_module"}
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
+                if alias.name == "builtins":
+                    builtins_aliases.add(alias.asname or alias.name)
                 if alias.name == "importlib" or alias.name.startswith("importlib."):
                     markers.append(f"import:{alias.name}")
+                    if alias.name == "importlib":
+                        importlib_aliases.add(alias.asname or alias.name)
         elif isinstance(node, ast.ImportFrom):
             module = node.module
             if module is not None and (
                 module == "importlib" or module.startswith("importlib.")
             ):
                 markers.append(f"from:{module}")
-        elif isinstance(node, ast.Call):
+                for alias in node.names:
+                    if alias.name == "import_module":
+                        import_module_names.add(alias.asname or alias.name)
+            if module == "builtins":
+                for alias in node.names:
+                    if alias.name in _DYNAMIC_EXECUTION_CALL_NAMES:
+                        markers.append(f"from:builtins:{alias.name}")
+                        dangerous_direct_names.add(alias.asname or alias.name)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
             function = node.func
-            if (
-                isinstance(function, ast.Name)
-                and function.id in _DYNAMIC_EXECUTION_CALL_NAMES
-            ):
-                markers.append(f"call:{function.id}")
-            elif isinstance(function, ast.Name) and function.id == "import_module":
-                markers.append("call:import_module")
-            elif isinstance(function, ast.Attribute) and function.attr == "import_module":
-                markers.append("call:*.import_module")
+            if isinstance(function, ast.Name):
+                if function.id in dangerous_direct_names:
+                    markers.append(f"call:{function.id}")
+                elif function.id in import_module_names:
+                    markers.append(f"call:{function.id}")
+                elif function.id == "getattr" and len(node.args) >= 2:
+                    target, attribute = node.args[0], node.args[1]
+                    if (
+                        isinstance(target, ast.Name)
+                        and target.id in builtins_aliases
+                        and isinstance(attribute, ast.Constant)
+                        and attribute.value in _DYNAMIC_EXECUTION_CALL_NAMES
+                    ):
+                        markers.append(f"call:getattr:{attribute.value}")
+            elif isinstance(function, ast.Attribute):
+                if (
+                    function.attr in _DYNAMIC_EXECUTION_CALL_NAMES
+                    and isinstance(function.value, ast.Name)
+                    and function.value.id in builtins_aliases
+                ):
+                    markers.append(f"call:{function.value.id}.{function.attr}")
+                elif (
+                    function.attr == "import_module"
+                    and isinstance(function.value, ast.Name)
+                    and function.value.id in importlib_aliases
+                ):
+                    markers.append(f"call:{function.value.id}.import_module")
+        elif (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "__builtins__"
+            and isinstance(node.slice, ast.Constant)
+            and node.slice.value in _DYNAMIC_EXECUTION_CALL_NAMES
+        ):
+            markers.append(f"subscript:__builtins__:{node.slice.value}")
 
     return tuple(markers)
+
+
+def _dynamic_import_or_execution_markers(path: Path) -> tuple[str, ...]:
+    return _dynamic_import_or_execution_markers_from_source(
+        path.read_text(encoding="utf-8")
+    )
+
+
+def _resolved_imported_modules_from_source(
+    source: str,
+    *,
+    package: str,
+) -> tuple[str, ...]:
+    tree = ast.parse(source)
+    imports: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level > 0:
+                relative_name = "." * node.level + (node.module or "")
+                imported_module = importlib.util.resolve_name(relative_name, package)
+            else:
+                imported_module = node.module
+            if imported_module is None:
+                continue
+            imports.append(imported_module)
+            if node.level > 0 and node.module is None:
+                imports.extend(
+                    f"{imported_module}.{alias.name}"
+                    for alias in node.names
+                    if alias.name != "*"
+                )
+
+    return tuple(imports)
+
+
+def _resolved_owner_imports(module_name: str) -> tuple[str, ...]:
+    return _resolved_imported_modules_from_source(
+        _owner_path(module_name).read_text(encoding="utf-8"),
+        package="qore.infrastructure",
+    )
 
 
 def test_final_owner_discovery_is_exact_across_semantics_and_qualifications() -> None:
@@ -148,6 +277,64 @@ def test_final_owner_surface_forbids_dynamic_import_or_code_execution() -> None:
         violations[str(_FULL_CLOSURE_ORACLE_PATH)] = oracle_markers
 
     assert violations == {}
+
+
+def test_dynamic_execution_scanner_closes_builtins_alias_bypasses() -> None:
+    source = """
+import builtins as b
+from builtins import eval as evaluate
+b.exec("pass")
+evaluate("1 + 1")
+getattr(b, "__import__")("math")
+__builtins__["eval"]("2 + 2")
+"""
+    markers = _dynamic_import_or_execution_markers_from_source(source)
+
+    assert "from:builtins:eval" in markers
+    assert "call:b.exec" in markers
+    assert "call:evaluate" in markers
+    assert "call:getattr:__import__" in markers
+    assert "subscript:__builtins__:eval" in markers
+
+
+def test_relative_import_scanner_resolves_owner_dependencies() -> None:
+    source = """
+from .rainbow_option_composition_semantics import RainbowOptionComposition
+from . import uit_contract_qualification
+"""
+    imported = set(
+        _resolved_imported_modules_from_source(
+            source,
+            package="qore.infrastructure",
+        )
+    )
+
+    assert "qore.infrastructure.rainbow_option_composition_semantics" in imported
+    assert "qore.infrastructure.uit_contract_qualification" in imported
+
+
+def test_relative_imports_cannot_bypass_owner_directionality_guards() -> None:
+    violations: list[tuple[str, str]] = []
+
+    for module_name in sorted(_GENERIC_AUTHORITY_MODULE_NAMES):
+        for imported in _resolved_owner_imports(module_name):
+            if imported in _PRODUCT_QUALIFICATION_MODULE_NAMES:
+                violations.append((module_name, imported))
+
+    for module_name, forbidden_imports in sorted(_FORBIDDEN_DIRECTIONAL_IMPORTS.items()):
+        for imported in _resolved_owner_imports(module_name):
+            if imported in forbidden_imports:
+                violations.append((module_name, imported))
+
+    assert violations == []
+
+
+def test_economic_identity_schema_cannot_absorb_listing_or_provider_material() -> None:
+    from qore.infrastructure.universal_instrument_identity import EconomicIdentity
+
+    assert tuple(field.name for field in fields(EconomicIdentity)) == (
+        _EXPECTED_ECONOMIC_IDENTITY_FIELDS
+    )
 
 
 def test_securities_financing_owner_cannot_add_current_state_authority_shapes() -> None:
