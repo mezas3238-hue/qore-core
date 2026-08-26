@@ -14,9 +14,9 @@ from test_universal_cross_asset_conformance_final_owner_r15_guards import (
     _sequence_length,
 )
 from test_universal_cross_asset_conformance_final_owner_r25_guards import (
-    _R25ExactIterationScanner,
     _r25_iterated_value,
     _r25_sequence_lengths,
+    _R25ExactIterationScanner,
 )
 
 
