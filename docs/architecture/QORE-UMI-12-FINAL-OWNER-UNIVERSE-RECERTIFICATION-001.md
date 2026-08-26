@@ -17,7 +17,7 @@ UMI-12 remains a falsification/evidence harness. This correction creates no new 
 
 ## Current D04 owner universe
 
-The recertification freezes an explicit owner manifest and independently discovers every `src/qore/infrastructure/*_semantics.py` module. The test fails if the frozen semantic manifest and the live semantic surface diverge. Six legacy owners whose filenames do not use `_semantics.py` and two bounded `_qualification.py` owners are explicit exceptions.
+The recertification freezes an explicit owner manifest and independently discovers every `src/qore/infrastructure/*_semantics.py` and `*_qualification.py` module. The only current non-D04 qualification, `dataset_integrity_qualification`, is an explicit audited exclusion because it qualifies research/data evidence rather than market/instrument semantics. Six legacy D04 owners whose filenames use neither suffix are explicit carry-ins. Exact equality between the discovered D04 surface and the frozen manifest is the guard.
 
 ### Legacy owners
 
@@ -58,10 +58,12 @@ The recertification freezes an explicit owner manifest and independently discove
 26. `volatility_variance_semantics`
 27. `warrant_convertible_qualification_semantics`
 
-### Explicit `_qualification.py` owners
+### D04 owners discovered through `_qualification.py`
 
 1. `cfd_contract_qualification`
 2. `uit_contract_qualification`
+
+`dataset_integrity_qualification` is intentionally excluded from D04 because it qualifies research/data evidence rather than markets/instruments. Any new `*_qualification.py` file therefore fails closed until it is explicitly classified by this recertification surface.
 
 Total current recertified owner/qualification modules on the activation baseline: **35**. The count is descriptive evidence, not the source of truth; source discovery plus exact manifest equality is the guard.
 
@@ -69,19 +71,23 @@ Total current recertified owner/qualification modules on the activation baseline
 
 The updated UMI-12 guard/oracle surface verifies the following boundaries against the current owner universe:
 
-- every manifest owner imports successfully and every live `*_semantics.py` owner is represented;
+- every manifest owner exists and the discovered live `*_semantics.py` + `*_qualification.py` D04 surface matches it exactly, with only the audited non-D04 dataset qualification excluded;
 - all 19 Program-D family codes can bind through UMI-02 `EconomicIdentity` / `CanonicalIdentityRef` without provider symbol text becoming economic identity material;
 - listing identity remains distinct from economic identity;
-- owner modules do not directly import network clients or known provider/runtime/execution implementations;
+- owner modules and the historical oracle statically reject direct provider/runtime/network imports and dynamic import/code-execution mechanisms (`importlib`/`import_module`, `__import__`, `eval`, `exec`);
 - a numerically identical finite `Decimal` remains semantically distinct across RATE, YIELD, SPREAD, PRICE, NAV, IV, NOTIONAL, QUANTITY, and WEIGHT; quantity and weight remain explicitly discriminated even though they share the generic product-composition magnitude type;
 - generic identity, derivative, product-composition, and valuation authorities do not reverse-import product-specific qualifications;
 - rainbow qualification composes existing option economics and product-composition authority instead of owning either one;
 - Sukuk structural qualification and Shari'ah cross-family qualification remain distinct owner types without mutual owner imports;
 - insurance-linked risk-transfer terms and event-contract terms remain distinct owner types without mutual owner imports;
-- securities-financing semantics do not define current position/risk/collateral-state authority;
+- securities-financing semantics reject current-state authority class shapes involving account, balance, current state, exposure, inventory, position or Risk while retaining bounded static contractual collateral/margin terms;
 - Advanced Payable SCF extends the existing Supply Chain Finance owner directionally; the ICC-2017 owner does not reverse-import the later qualification;
 - the historical FX, option-exotic, and fixed-income-securitization carry-forward specimens and their deterministic projections remain unchanged;
 - the oracle continues to define no semantic facsimile classes and no execution/routing/valuation/settlement helper authority.
+
+## Expert R1 hardening
+
+Independent Expert review identified three harness bypasses: undiscovered future `*_qualification.py` D04 owners, dynamic import/code-execution paths invisible to ordinary import-node scans, and an exact-name-only SFT current-state blacklist. Independent adjudication reproduced all three as accepted-invalid harness witnesses. The correction is test-only: fail-closed qualification discovery, prohibition of dynamic import/code-execution mechanisms across owners/oracle, and structural SFT current-state class-shape rejection. No production semantic owner was modified.
 
 ## Determinism, immutability, and evidence posture
 
