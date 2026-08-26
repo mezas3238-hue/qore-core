@@ -365,8 +365,8 @@ class _R12DynamicExecutionScanner:
             ):
                 result.add(_Atom("dangerous"))
             if token.startswith("i:"):
-                index = token[2:]
-                if _contains_kind(receiver, "dangerous-index", index):
+                index_text = token[2:]
+                if _contains_kind(receiver, "dangerous-index", index_text):
                     result.add(_Atom("dangerous"))
                 if _contains_kind(receiver, "dangerous-key", token):
                     result.add(_Atom("dangerous"))
@@ -457,6 +457,9 @@ class _R12DynamicExecutionScanner:
                 elif part.conversion not in {-1, ord("s")}:
                     return _UNKNOWN
                 if part.format_spec is not None:
+                    if not isinstance(part.format_spec, ast.JoinedStr):
+                        self._scan_expression(part.format_spec, environment)
+                        return _UNKNOWN
                     format_value = self._evaluate_joined_string(
                         part.format_spec,
                         environment,
