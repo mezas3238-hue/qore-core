@@ -72,7 +72,7 @@ flag = False
 f(-vars(builtins if flag else SafeLookup())["Ellipsis"], eval("1+1"))
 """
 
-    assert _r50_dynamic_execution_markers_from_source(source) == ("call:9",)
+    assert _r50_dynamic_execution_markers_from_source(source) == ("call:10",)
 
 
 def test_r50_mixed_builtins_getattr_dict_does_not_hide_reachable_eval() -> None:
@@ -89,7 +89,7 @@ flag = False
 f(-getattr(builtins if flag else SafeLookup(), "__dict__").get("Ellipsis"), eval("1+1"))
 """
 
-    assert _r50_dynamic_execution_markers_from_source(source) == ("call:9",)
+    assert _r50_dynamic_execution_markers_from_source(source) == ("call:10",)
 
 
 def test_r50_mixed_builtins_attrgetter_dict_does_not_hide_reachable_eval() -> None:
@@ -108,7 +108,7 @@ flag = False
 f(-operator.attrgetter("__dict__")(builtins if flag else SafeLookup())["Ellipsis"], eval("1+1"))
 """
 
-    assert _r50_dynamic_execution_markers_from_source(source) == ("call:11",)
+    assert _r50_dynamic_execution_markers_from_source(source) == ("call:12",)
 
 
 def test_r50_exact_builtins_namespace_derivations_preserve_ellipsis_failure() -> None:
