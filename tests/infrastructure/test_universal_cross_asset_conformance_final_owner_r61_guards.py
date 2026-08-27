@@ -16,7 +16,6 @@ from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _Value,
 )
 
-
 _SENSITIVE_MAPPING_RESULT_KINDS = frozenset(
     {"builtins", "dangerous", "helper", "itemgetter", "attrgetter"}
 )
