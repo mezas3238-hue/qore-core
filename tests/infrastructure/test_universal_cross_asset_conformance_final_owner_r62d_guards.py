@@ -14,24 +14,25 @@ from test_universal_cross_asset_conformance_final_owner_r12_guards import (
 class _R62DCallableDefaultEgressScanner(
     _r62c._R62CLambdaAndComputedImportlibScanner
 ):
-    """Fail closed when a callable default captures dynamic-execution authority.
+    """Fail closed when a callable default captures execution authority.
 
-    CPython evaluates function and lambda defaults at definition time and stores
-    those objects for later omitted-argument calls. A dangerous callable such as
-    ``eval`` or ``importlib.import_module`` can therefore escape through a
-    positional or keyword-only default even when the callable body itself only
-    refers to an otherwise opaque parameter.
+    CPython stores function and lambda default objects for later omitted-argument
+    calls. The inherited scanner chain already scans both positional and
+    keyword-only defaults, but it discards their abstract values before the
+    callable body is scanned with parameter names set to unknown. A dangerous
+    callable such as ``eval`` or ``importlib.import_module`` can therefore
+    escape through a default even when the body merely returns the parameter.
 
-    Function defaults are already scanned by the inherited R12 implementation;
-    retain their exact abstract values without evaluating them a second time and
-    mark the definition when any captured default is sensitive. Lambda defaults
-    are not scanned by R12, so scan them once in the defining environment before
-    delegating to R62C's existing lambda-body capture.
+    Retain only the abstract values already produced by inherited default
+    scanning, keyed by AST node identity. No default expression is scanned a
+    second time. Mark the function/lambda definition when any captured default
+    is sensitive, while preserving R62C lambda-body capture and every inherited
+    ordering/scope rule.
     """
 
     def __init__(self) -> None:
         super().__init__()
-        self._r62d_function_default_capture_stack: list[dict[int, _Value]] = []
+        self._r62d_default_capture_stack: list[dict[int, _Value]] = []
 
     def _scan_expression(
         self,
@@ -39,24 +40,29 @@ class _R62DCallableDefaultEgressScanner(
         environment: dict[str, _Value],
     ) -> _Value:
         if isinstance(node, ast.Lambda):
-            default_values = [
-                self._scan_expression(default, environment)
-                for default in node.args.defaults
-            ]
-            default_values.extend(
-                self._scan_expression(default, environment)
-                for default in node.args.kw_defaults
-                if default is not None
-            )
+            self._r62d_default_capture_stack.append({})
+            try:
+                value = super()._scan_expression(node, environment)
+                captured_values = self._r62d_default_capture_stack[-1]
+                default_values = [
+                    captured_values.get(id(default), _UNKNOWN)
+                    for default in node.args.defaults
+                ]
+                default_values.extend(
+                    captured_values.get(id(default), _UNKNOWN)
+                    for default in node.args.kw_defaults
+                    if default is not None
+                )
+            finally:
+                self._r62d_default_capture_stack.pop()
+
             if any(self._is_sensitive_value(value) for value in default_values):
                 self._mark_binding(node.lineno)
-
-            value = super()._scan_expression(node, environment)
         else:
             value = super()._scan_expression(node, environment)
 
-        if self._r62d_function_default_capture_stack:
-            self._r62d_function_default_capture_stack[-1][id(node)] = value
+        if self._r62d_default_capture_stack:
+            self._r62d_default_capture_stack[-1][id(node)] = value
         return value
 
     def _scan_function(
@@ -64,10 +70,10 @@ class _R62DCallableDefaultEgressScanner(
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         environment: dict[str, _Value],
     ) -> None:
-        self._r62d_function_default_capture_stack.append({})
+        self._r62d_default_capture_stack.append({})
         try:
             super()._scan_function(node, environment)
-            captured_values = self._r62d_function_default_capture_stack[-1]
+            captured_values = self._r62d_default_capture_stack[-1]
             default_values = [
                 captured_values.get(id(default), _UNKNOWN)
                 for default in node.args.defaults
@@ -78,7 +84,7 @@ class _R62DCallableDefaultEgressScanner(
                 if default is not None
             )
         finally:
-            self._r62d_function_default_capture_stack.pop()
+            self._r62d_default_capture_stack.pop()
 
         if any(self._is_sensitive_value(value) for value in default_values):
             self._mark_binding(node.lineno)
@@ -86,6 +92,18 @@ class _R62DCallableDefaultEgressScanner(
 
 def _r62d_dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
     return _R62DCallableDefaultEgressScanner().scan(source)
+
+
+def test_r62d_predecessor_reproduces_callable_default_false_negative() -> None:
+    lambda_source = '(lambda candidate=eval: candidate)()("1+1")\n'
+    function_source = """\
+def reveal(candidate=eval):
+    return candidate
+reveal()("1+1")
+"""
+
+    assert _r62c._r62c_dynamic_execution_markers_from_source(lambda_source) == ()
+    assert _r62c._r62c_dynamic_execution_markers_from_source(function_source) == ()
 
 
 def test_r62d_positional_lambda_default_eval_fails_closed() -> None:
