@@ -2,19 +2,13 @@ from __future__ import annotations
 
 import ast
 
+import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r15_guards as _r15
 import test_universal_cross_asset_conformance_final_owner_r35_guards as _r35
 import test_universal_cross_asset_conformance_final_owner_r38_guards as _r38
 import test_universal_cross_asset_conformance_final_owner_r39_guards as _r39
 import test_universal_cross_asset_conformance_final_owner_r41_guards as _r41
 import test_universal_cross_asset_conformance_final_owner_r60_guards as _r60
-from test_universal_cross_asset_conformance_final_owner_r12_guards import (
-    _FULL_CLOSURE_ORACLE_PATH,
-    _UNKNOWN,
-    _contains_kind,
-    _owner_paths,
-    _Value,
-)
 
 
 _SENSITIVE_MAPPING_RESULT_KINDS = frozenset(
@@ -22,7 +16,7 @@ _SENSITIVE_MAPPING_RESULT_KINDS = frozenset(
 )
 
 
-def _r61_receiver_can_expose_sensitive_callable(receiver: _Value) -> bool:
+def _r61_receiver_can_expose_sensitive_callable(receiver: _r12._Value) -> bool:
     return any(atom.kind in _SENSITIVE_MAPPING_RESULT_KINDS for atom in receiver)
 
 
@@ -44,8 +38,8 @@ class _R61UnknownStarredMappingAccessorScanner(
     def _evaluate_call(
         self,
         node: ast.Call,
-        environment: dict[str, _Value],
-    ) -> _Value:
+        environment: dict[str, _r12._Value],
+    ) -> _r12._Value:
         if not (
             any(isinstance(argument, ast.Starred) for argument in node.args)
             and isinstance(node.func, ast.Attribute)
@@ -66,7 +60,7 @@ class _R61UnknownStarredMappingAccessorScanner(
         if failed:
             return _r35._FAILURE_VALUE
         if not arguments:
-            return _UNKNOWN
+            return _r12._UNKNOWN
 
         if _r39._r39_has_unknown_positional_shape(arguments):
             unresolved_receiver = kind not in {"mapping", "sequence"}
@@ -76,23 +70,23 @@ class _R61UnknownStarredMappingAccessorScanner(
                 or _r61_receiver_can_expose_sensitive_callable(receiver)
             ):
                 self._markers.append(f"starred-mapping:{node.lineno}")
-            return _UNKNOWN
+            return _r12._UNKNOWN
 
         if kind == "mapping":
             matched, selected = _r41._r41_selected_slots(receiver, arguments[0])
             if matched:
                 return selected
             if not _r41._r41_selection_tokens(receiver, arguments[0]):
-                return _UNKNOWN
+                return _r12._UNKNOWN
             if node.func.attr == "get" and len(arguments) >= 2:
                 return arguments[1]
-            return _UNKNOWN
+            return _r12._UNKNOWN
 
         if kind == "sequence" and node.func.attr == "__getitem__":
             matched, selected = _r38._r38_selected_slots(receiver, arguments[0])
-            return selected if matched else _UNKNOWN
+            return selected if matched else _r12._UNKNOWN
 
-        if _contains_kind(receiver, "builtins"):
+        if _r12._contains_kind(receiver, "builtins"):
             if node.func.attr == "get":
                 if len(arguments) >= 2:
                     return _r41._r41_builtins_get_value(
@@ -102,7 +96,7 @@ class _R61UnknownStarredMappingAccessorScanner(
                 return _r15._builtins_member_value(arguments[0])
             return _r15._builtins_member_value(arguments[0])
 
-        return _UNKNOWN
+        return _r12._UNKNOWN
 
 
 def _r61_dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
@@ -200,7 +194,7 @@ def reveal(arguments):
 
 
 def test_r61_complete_owner_and_oracle_surface_has_no_dynamic_execution() -> None:
-    paths = (*_owner_paths(), _FULL_CLOSURE_ORACLE_PATH)
+    paths = (*_r12._owner_paths(), _r12._FULL_CLOSURE_ORACLE_PATH)
 
     for path in paths:
         assert _r61_dynamic_execution_markers_from_source(
