@@ -6,6 +6,7 @@ import test_universal_cross_asset_conformance_final_owner_r62c_guards as _r62c
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
     _UNKNOWN,
+    _contains_kind,
     _owner_paths,
     _Value,
 )
@@ -17,11 +18,15 @@ class _R62DCallableDefaultEgressScanner(
     """Fail closed when a callable default captures execution authority.
 
     CPython stores function and lambda default objects for later omitted-argument
-    calls. The inherited scanner chain already scans both positional and
-    keyword-only defaults, but it discards their abstract values before the
-    callable body is scanned with parameter names set to unknown. A dangerous
-    callable such as ``eval`` or ``importlib.import_module`` can therefore
-    escape through a default even when the body merely returns the parameter.
+    calls and also exposes those stored objects through ``__defaults__``. The
+    inherited scanner chain already scans both positional and keyword-only
+    defaults, but it discards their abstract values before the callable body is
+    scanned with parameter names set to unknown. A dangerous callable such as
+    ``eval`` or ``importlib.import_module`` can therefore escape through a
+    default even when the body merely returns the parameter. The statically
+    known ``importlib`` namespace is likewise sensitive when stored as a
+    default, because its retained ``import_module`` capability is observable
+    through ``__defaults__`` even when the body never uses the parameter.
 
     Retain only the abstract values already produced by inherited default
     scanning, keyed by AST node identity. No default expression is scanned a
@@ -33,6 +38,9 @@ class _R62DCallableDefaultEgressScanner(
     def __init__(self) -> None:
         super().__init__()
         self._r62d_default_capture_stack: list[dict[int, _Value]] = []
+
+    def _is_sensitive_default_value(self, value: _Value) -> bool:
+        return self._is_sensitive_value(value) or _contains_kind(value, "importlib")
 
     def _scan_expression(
         self,
@@ -56,7 +64,10 @@ class _R62DCallableDefaultEgressScanner(
             finally:
                 self._r62d_default_capture_stack.pop()
 
-            if any(self._is_sensitive_value(value) for value in default_values):
+            if any(
+                self._is_sensitive_default_value(default_value)
+                for default_value in default_values
+            ):
                 self._mark_binding(node.lineno)
         else:
             value = super()._scan_expression(node, environment)
@@ -86,7 +97,10 @@ class _R62DCallableDefaultEgressScanner(
         finally:
             self._r62d_default_capture_stack.pop()
 
-        if any(self._is_sensitive_value(value) for value in default_values):
+        if any(
+            self._is_sensitive_default_value(default_value)
+            for default_value in default_values
+        ):
             self._mark_binding(node.lineno)
 
 
@@ -104,6 +118,23 @@ reveal()("1+1")
 
     assert _r62c._r62c_dynamic_execution_markers_from_source(lambda_source) == ()
     assert _r62c._r62c_dynamic_execution_markers_from_source(function_source) == ()
+
+
+def test_r62d_predecessor_reproduces_importlib_namespace_default_escape() -> None:
+    function_source = """\
+import importlib
+def hold(namespace=importlib):
+    return None
+hold.__defaults__[0].import_module("math")
+"""
+    lambda_source = """\
+import importlib
+hold = lambda namespace=importlib: None
+hold.__defaults__[0].import_module("math")
+"""
+
+    assert _r62c._r62c_dynamic_execution_markers_from_source(function_source) == ()
+    assert _r62c._r62c_dynamic_execution_markers_from_source(lambda_source) == ()
 
 
 def test_r62d_positional_lambda_default_eval_fails_closed() -> None:
@@ -195,6 +226,33 @@ result = load()("math")
     lambda_source = """\
 import importlib
 result = (lambda loader=importlib.import_module: loader)()("math")
+"""
+
+    function_namespace: dict[str, object] = {}
+    lambda_namespace: dict[str, object] = {}
+    exec(function_source, function_namespace)
+    exec(lambda_source, lambda_namespace)
+    assert getattr(function_namespace["result"], "__name__", None) == "math"
+    assert getattr(lambda_namespace["result"], "__name__", None) == "math"
+    assert _r62d_dynamic_execution_markers_from_source(function_source) == (
+        "binding:2",
+    )
+    assert _r62d_dynamic_execution_markers_from_source(lambda_source) == (
+        "binding:2",
+    )
+
+
+def test_r62d_importlib_namespace_defaults_fail_closed() -> None:
+    function_source = """\
+import importlib
+def hold(namespace=importlib):
+    return None
+result = hold.__defaults__[0].import_module("math")
+"""
+    lambda_source = """\
+import importlib
+hold = lambda namespace=importlib: None
+result = hold.__defaults__[0].import_module("math")
 """
 
     function_namespace: dict[str, object] = {}
