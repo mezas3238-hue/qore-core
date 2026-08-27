@@ -8,13 +8,12 @@ from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _DYNAMIC_EXECUTION_CALL_NAMES,
     _FULL_CLOSURE_ORACLE_PATH,
     _UNKNOWN,
-    _Atom,
-    _Value,
     _contains_kind,
     _integer_value,
     _merge_values,
     _owner_paths,
     _static_strings,
+    _Value,
 )
 from test_universal_cross_asset_conformance_final_owner_r15_guards import (
     _container_kind,
