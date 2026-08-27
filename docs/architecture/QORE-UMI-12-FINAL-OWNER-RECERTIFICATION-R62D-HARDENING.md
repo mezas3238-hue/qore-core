@@ -2,7 +2,7 @@
 
 ## Scope
 
-R62D is a bounded test-harness correction for dangerous callable authority
+R62D is a bounded test-harness correction for dangerous execution capability
 stored in function or lambda defaults. It changes tests/documentation only. It
 does not modify `src/qore`, any D04 semantic owner, provider/runtime behavior,
 Production authority, or real-capital behavior.
@@ -21,31 +21,40 @@ lambda-return and computed-`importlib` false negatives and concluded:
 
 Integration Authority did not accept that conclusion by authority. Independent
 post-review falsification inspected definition-time/default handling outside the
-R74 matrix and found a material callable-default escape. R74 is therefore
-consumed evidence, but it is not an adjudicated CLEAN certification and cannot
-advance the candidate to Coder.
+R74 matrix and found a material callable-default escape. A subsequent adjacent
+same-family audit found that storing the statically known `importlib` namespace
+as a default is also execution-capability egress because CPython exposes stored
+defaults through `__defaults__`, from which `import_module` remains reachable.
+R74 is therefore consumed evidence, but it is not an adjudicated CLEAN
+certification and cannot advance the candidate to Coder.
 
 ## Exact predecessor defect
 
-The inherited current scanner chain does scan function and lambda defaults. In
-particular, the R19 layer scans positional and keyword-only default expressions
-in the defining environment. The defect is not that those AST nodes are wholly
-unvisited.
+The inherited current scanner chain does scan function and lambda defaults. The
+defect is not that those AST nodes are wholly unvisited.
 
 The defect is that their resulting abstract values are discarded before the
 callable body is scanned with parameter names set to `_UNKNOWN`. Thus a default
 that evaluates to a dangerous callable can be stored by CPython and later
 exposed through an omitted argument while the R62C scanner emits no marker.
 
-The R62D regression suite explicitly executes the predecessor R62C scanner on
-both a lambda and a function witness and requires the historical false-negative
-result `()` before checking the successor closure. This prevents the correction
-from being justified only by code-reading inference.
+The same storage boundary also matters for the statically known R62C `importlib`
+namespace. That namespace carries the modeled `import_module` capability but is
+not itself a top-level `dangerous` or `builtins` atom. When stored as a default,
+`function.__defaults__` or a bound lambda's `__defaults__` exposes the module
+object even if the callable body never references its parameter, making dynamic
+import reachable outside the body.
+
+The R62D regression suite explicitly executes the predecessor R62C scanner and
+requires historical false-negative result `()` for both callable-default and
+`importlib`-namespace-default witnesses before checking the successor closure.
+This prevents the correction from being justified only by code-reading
+inference.
 
 ## Executable witnesses
 
-Under the exact CPython 3.12.14 Quality Gate, the following families execute the
-stored dangerous callable and are required to fail closed under R62D:
+Under the exact CPython 3.12.14 Quality Gate, the following families execute or
+expose stored execution capability and are required to fail closed under R62D:
 
 - positional lambda default: `(lambda candidate=eval: candidate)()("1+1")`;
 - keyword-only lambda default: `(lambda *, candidate=eval: candidate)()("1+1")`;
@@ -54,7 +63,11 @@ stored dangerous callable and are required to fail closed under R62D:
 - keyword-only function default: `def reveal(*, candidate=eval): ...`;
 - computed function default: `getattr(builtins, "eval")`;
 - function and lambda defaults carrying `importlib.import_module`;
-- a container default carrying `eval`.
+- a container default carrying `eval`;
+- function default `namespace=importlib` followed by
+  `hold.__defaults__[0].import_module("math")`;
+- bound-lambda default `namespace=importlib` followed by the same stored-default
+  access.
 
 The direct `eval` witnesses produce `2`; the importlib witnesses load `math`.
 Safe `len` defaults remain clean.
@@ -68,11 +81,19 @@ semantics.
 A stack of AST-node-identity capture dictionaries records only the `_Value`
 objects already returned by inherited `_scan_expression` calls while a function
 or lambda is being scanned. The successor then retrieves the values associated
-with the exact `defaults` and non-`None` `kw_defaults` nodes. If any captured
-default is already sensitive according to the inherited `_is_sensitive_value`
-contract, R62D emits the existing definition-line `binding` marker.
+with the exact `defaults` and non-`None` `kw_defaults` nodes. No default
+expression is scanned a second time.
 
-No default expression is scanned a second time. This preserves:
+R62D treats a stored default as sensitive when either:
+
+- the inherited `_is_sensitive_value` contract already classifies it as
+  sensitive; or
+- the captured value contains the statically known `importlib` namespace atom,
+  because storage exposes its modeled `import_module` capability independently
+  of callable-body use.
+
+A sensitive stored default emits the existing definition-line `binding` marker.
+This preserves:
 
 - inherited decorator/default/body evaluation order;
 - current class/function/lambda lexical scope handling;
@@ -90,13 +111,17 @@ inner scan returns.
 
 R62D covers:
 
-- predecessor R62C false-negative reproduction for function and lambda defaults;
+- predecessor R62C false-negative reproduction for function/lambda callable
+  defaults;
+- predecessor R62C false-negative reproduction for function/lambda stored
+  `importlib` namespace defaults;
 - positional and keyword-only lambda `eval` defaults;
 - computed lambda `eval` default;
 - safe lambda `len` inverse;
 - positional and keyword-only function `eval` defaults;
 - computed function `eval` default;
 - function/lambda `importlib.import_module` defaults;
+- function/lambda `importlib` namespace defaults exposed through `__defaults__`;
 - safe function `len` inverse;
 - sensitive container default;
 - inherited R62C lambda-return, computed-importlib, and failed-star chronology
@@ -109,32 +134,35 @@ used.
 
 ## Code-only Quality Gate
 
-The corrected code-only R62D HEAD
-`e376e870a3f9d1a90368939af9a1d0ea388767f9` was certified by QORE CI #1627 /
-run `33126982169` on synthetic
-`3a264e84732be13c5fcd0cc5037397ab09a87c73`:
+The final code-only R62D HEAD
+`cc7f247416708a9f2ed3bbb4f20a0c08873f3e8e` was certified by QORE CI #1629 /
+run `33127368239` on synthetic
+`3478e87fef4af756d193437e6e03cde22704a0e7`:
 
 - CPython 3.12.14;
 - Ruff: all checks passed;
 - Mypy: no issues in 730 source files;
-- Pytest: 4744 passed;
+- Pytest: 4746 passed;
 - same six pre-existing `PytestCollectionWarning` entries;
 - `src/qore` coverage: 47568 statements / 6234 missed / 87%.
 
-The 13-test increase from the prior exact R62C gate is exactly the R62D
-regression module.
+The two-test increase from #1627 is exactly the predecessor reproduction and
+successor runtime/scanner closure for stored `importlib` namespace defaults.
 
 ## Review and gate validity
 
-This documentation commit changes the Core HEAD and therefore makes #1627
-historical evidence rather than the final integration gate. A fresh exact-head
-Quality Gate is mandatory before another external package is activated.
+This documentation commit changes the Core HEAD and therefore makes #1629
+historical evidence rather than the final exact-head external-review gate. A
+fresh exact-head Quality Gate is mandatory before another external package is
+activated.
 
-R74 is permanently consumed and becomes SHA-invalid after the R62D mutation.
-The next Expert must use a fresh package ID, bind the new HEAD/synthetic/QG, run
-the exact `scanner=r62d`, and explicitly compare predecessor R62C versus
-successor R62D on positional/keyword-only function and lambda defaults, computed
-`eval`, importlib defaults, container defaults, and safe inverses.
+R74 is permanently consumed and SHA-invalid after the R62D mutations. The next
+Expert must use a fresh package ID, bind the final post-documentation
+HEAD/synthetic/QG, run exact `scanner=r62d`, and explicitly compare predecessor
+R62C versus successor R62D on positional/keyword-only function and lambda
+defaults, computed `eval`, direct `importlib.import_module` defaults, stored
+`importlib` namespace defaults exposed through `__defaults__`, container
+defaults, and safe inverses.
 
 Only a fresh Expert that survives independent adjudication may unblock a fresh
 Coder review. Claude and integration/merge gates remain downstream.
