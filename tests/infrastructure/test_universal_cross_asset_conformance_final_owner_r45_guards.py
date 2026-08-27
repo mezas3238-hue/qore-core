@@ -284,8 +284,7 @@ def f(*args):
 alias = Ellipsis
 f(*-alias, eval("1+1"))
 import builtins as b
-module_alias = b
-ellipsis_alias = module_alias.Ellipsis
+ellipsis_alias = b.Ellipsis
 f(*+ellipsis_alias, exec("pass"))
 """
 
