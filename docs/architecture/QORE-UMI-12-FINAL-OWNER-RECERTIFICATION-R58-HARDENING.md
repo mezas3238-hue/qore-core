@@ -1,42 +1,48 @@
-# QORE UMI-12 final-owner recertification — R58 hardening
+# QORE UMI-12 final-owner recertification — R58 runtime adjudication
 
 ## Scope
 
-This additive tests/docs-only successor corrects the R57 module/class comprehension `vars()` model introduced concurrently after the R56 correction.
+This tests/docs-only layer records the direct CPython 3.12 adjudication of the version-sensitive comprehension `locals()` / zero-argument `vars()` behavior introduced in R57.
 
 No `src/qore` code is changed. This work does not authorize provider support, operational activation, Production, real capital, or Program-D final PASS.
 
-## R57 adjudication
+## Why a runtime adjudication was required
 
-R57 correctly noted that Python 3.12 implements PEP 709 and inlines list, set, and dictionary comprehensions, while generator expressions remain separate generator scopes. However, R57 drew an incorrect conclusion for `locals()` / zero-argument `vars()` at module and class scope.
+R57 correctly identified that Python 3.12 implements PEP 709: list, set, and dictionary comprehensions are inlined, while generator expressions remain separate generator scopes. The subtle point was whether an inlined comprehension at module scope exposes the module `__builtins__` binding through zero-argument `vars()`.
 
-PEP 709 states that comprehensions still introduce an isolated sub-scope for iteration variables even when inlined. More importantly for the owner scanner, the language/runtime behavior for `locals()` at module/class scope does not expose the module/class namespace to an inlined comprehension as if the call occurred directly in that outer scope. PEP 667's discussion of PEP 709 explicitly records that module/class inlined comprehensions behave as if the comprehension were still a distinct function for `locals()`.
+An initial R58 interpretation projected later Python namespace semantics backward and expected the module-scope comprehension lookup to fail. QORE CI #1603 deliberately executed the witness on its configured runtime, CPython 3.12.14, and falsified that interpretation:
 
-Therefore this witness:
+```python
+visible = ["__builtins__" in vars() for _ in (0,)]
+```
+
+On the QORE Python 3.12 gate the result is `[True]`. Therefore R57's module-scope classification is correct for this repository's current Quality Gate.
+
+The corresponding dynamic witness is reachable under Python 3.12:
 
 ```python
 values = [vars()["__builtins__"].__dict__["eval"]("1+1") for _ in (0,)]
 ```
 
-raises at the `__builtins__` lookup instead of reaching `eval`. The same applies to set and dictionary comprehensions at module scope. Treating those calls as true module `vars()` creates a false positive and can fabricate dynamic-execution reachability.
+R57 must mark the dynamic call. Set and dictionary comprehensions have the same Python 3.12 module-scope behavior.
 
-The Python 3.13 PEP 667 changes do not justify projecting module globals into Python 3.12 comprehensions. PEP 667 standardizes namespace-view behavior while explicitly describing module/class inlined comprehensions as nested-function-like for `locals()`.
+This behavior is version-sensitive. Later Python releases changed/standardized `locals()` semantics through PEP 667, so a newer interpreter must not be used as a substitute for the repository's configured Python 3.12 gate when adjudicating this contract.
 
 ## Bounded R58 correction
 
-`test_universal_cross_asset_conformance_final_owner_r58_guards.py` adds a successor scanner that:
+The failed, unreviewed R58 scanner override was removed before any external package was dispatched. The R58 test layer now:
 
-1. preserves the R57 file as historical evidence rather than rewriting it;
-2. restores R56's call-position scope classifier for the narrow zero-argument `vars()` module-vs-non-module distinction;
-3. keeps list/set/dict comprehension bodies non-module at module/class scope;
-4. keeps generator-expression bodies nested while preserving the outer evaluation of the leftmost iterable;
-5. preserves true module `vars()` and function/lambda definition-default detection;
-6. preserves the inherited R56 global/lambda/class scope fixes and all R55 fallback fixes;
-7. validates real runtime key visibility for list/set/dict comprehensions and revalidates the complete owner/oracle surface as marker-free.
+1. delegates marker semantics to the R57 Python 3.12 scanner;
+2. executes list/set/dict comprehension visibility directly and records the version-sensitive result;
+3. verifies R57 marks the Python 3.12 module dynamic witnesses;
+4. preserves generator-expression nested-body semantics and outer evaluation of the leftmost iterable;
+5. preserves non-module function-comprehension handling for zero-argument `vars()`;
+6. preserves true module/default detection, R56 inherited scope fixes, and R55 fallback fixes;
+7. revalidates the complete owner/oracle surface as marker-free.
 
 ## External review posture
 
-DeepSeek Expert R56 is consumed and applies only to predecessor HEAD `c7cc6efb1928e21754a3714d0d21f4ccb22c1876`. No DeepSeek R57 package was activated against the transient R57 Core candidate. The R58 successor requires a full exact-head QORE Quality Gate and a fresh frozen Expert review before any Coder review can proceed.
+DeepSeek Expert R56 is consumed and applies only to predecessor HEAD `c7cc6efb1928e21754a3714d0d21f4ccb22c1876`. No DeepSeek R57 or R58 package was activated against the transient candidates. After the corrected R58 layer passes the complete QORE Quality Gate, a fresh exact-head Expert package is required before Coder can proceed.
 
 ## Boundaries preserved
 
