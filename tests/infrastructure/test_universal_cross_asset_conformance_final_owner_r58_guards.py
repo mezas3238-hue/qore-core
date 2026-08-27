@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import test_universal_cross_asset_conformance_final_owner_r56_guards as _r56
+import sys
+
 import test_universal_cross_asset_conformance_final_owner_r57_guards as _r57
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
@@ -8,21 +9,14 @@ from test_universal_cross_asset_conformance_final_owner_r12_guards import (
 )
 
 
-class _R58Python312ModuleScopeScanner(_r57._R57Python312ScopeScanner):
-    def scan(self, source: str) -> tuple[str, ...]:
-        # PEP 709 inlines list/set/dict comprehensions, but at module and class
-        # scope locals()/vars() still behaves as if the comprehension were a
-        # nested function.  R56's call-position classifier is therefore the
-        # correct fail-closed model for the only distinction needed here:
-        # whether zero-argument vars() is executing in true module scope.
-        return _r56._R56ScopePreservingFallbackScanner.scan(self, source)
-
-
 def _r58_dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
-    return _R58Python312ModuleScopeScanner().scan(source)
+    # R57 is authoritative for the Python 3.12 QORE gate.  R58 adds direct
+    # runtime certification of the version-sensitive locals()/vars() behavior
+    # instead of introducing another scanner override.
+    return _r57._r57_dynamic_execution_markers_from_source(source)
 
 
-def test_r58_module_list_set_dict_comprehension_vars_is_not_module_globals() -> None:
+def test_r58_python312_module_comprehensions_preserve_r57_module_vars() -> None:
     sources = (
         'values = [vars()["__builtins__"].__dict__["eval"]("1+1") for _ in (0,)]\n',
         'values = {vars()["__builtins__"].__dict__["eval"]("1+1") for _ in (0,)}\n',
@@ -30,15 +24,16 @@ def test_r58_module_list_set_dict_comprehension_vars_is_not_module_globals() -> 
     )
 
     for source in sources:
-        assert _r58_dynamic_execution_markers_from_source(source) == ()
+        assert _r58_dynamic_execution_markers_from_source(source) == ("call:1",)
 
 
-def test_r58_module_comprehension_vars_matches_real_python_key_visibility() -> None:
+def test_r58_runtime_records_version_sensitive_module_key_visibility() -> None:
     sources = (
         'visible = ["__builtins__" in vars() for _ in (0,)]\n',
         'visible = {"__builtins__" in vars() for _ in (0,)}\n',
         'visible = {_: "__builtins__" in vars() for _ in (0,)}\n',
     )
+    expected = sys.version_info[:2] == (3, 12)
 
     namespace: dict[str, object] = {}
     for source in sources:
@@ -46,11 +41,11 @@ def test_r58_module_comprehension_vars_matches_real_python_key_visibility() -> N
         exec(source, namespace)
         visible = namespace["visible"]
         if isinstance(visible, dict):
-            assert tuple(visible.values()) == (False,)
+            assert tuple(visible.values()) == (expected,)
         elif isinstance(visible, set):
-            assert visible == {False}
+            assert visible == {expected}
         else:
-            assert visible == [False]
+            assert visible == [expected]
 
 
 def test_r58_generator_body_remains_nested_and_leftmost_iterable_outer() -> None:
