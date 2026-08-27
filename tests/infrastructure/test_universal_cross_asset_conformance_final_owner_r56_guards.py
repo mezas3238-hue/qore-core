@@ -30,14 +30,17 @@ class _R56RuntimeScopeClassifier(ast.NodeVisitor):
             self.module_call_positions.add((node.lineno, node.col_offset))
         self.generic_visit(node)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+    def _visit_function_definition(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
         for decorator in node.decorator_list:
             self.visit(decorator)
-        for default in node.args.defaults:
-            self.visit(default)
-        for default in node.args.kw_defaults:
-            if default is not None:
-                self.visit(default)
+        for positional_default in node.args.defaults:
+            self.visit(positional_default)
+        for keyword_default in node.args.kw_defaults:
+            if keyword_default is not None:
+                self.visit(keyword_default)
         for argument in (
             *node.args.posonlyargs,
             *node.args.args,
@@ -54,15 +57,18 @@ class _R56RuntimeScopeClassifier(ast.NodeVisitor):
         for statement in node.body:
             self._visit_in_scope(statement, "function")
 
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._visit_function_definition(node)
+
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        self.visit_FunctionDef(node)
+        self._visit_function_definition(node)
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
-        for default in node.args.defaults:
-            self.visit(default)
-        for default in node.args.kw_defaults:
-            if default is not None:
-                self.visit(default)
+        for positional_default in node.args.defaults:
+            self.visit(positional_default)
+        for keyword_default in node.args.kw_defaults:
+            if keyword_default is not None:
+                self.visit(keyword_default)
         self._visit_in_scope(node.body, "lambda")
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
