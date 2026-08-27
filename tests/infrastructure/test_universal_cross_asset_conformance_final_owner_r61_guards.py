@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ast
 
-import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r15_guards as _r15
 import test_universal_cross_asset_conformance_final_owner_r35_guards as _r35
 import test_universal_cross_asset_conformance_final_owner_r38_guards as _r38
@@ -12,6 +11,7 @@ import test_universal_cross_asset_conformance_final_owner_r60_guards as _r60
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
     _UNKNOWN,
+    _contains_kind,
     _owner_paths,
     _Value,
 )
@@ -92,7 +92,7 @@ class _R61UnknownStarredMappingAccessorScanner(
             matched, selected = _r38._r38_selected_slots(receiver, arguments[0])
             return selected if matched else _UNKNOWN
 
-        if _r12._contains_kind(receiver, "builtins"):
+        if _contains_kind(receiver, "builtins"):
             if node.func.attr == "get":
                 if len(arguments) >= 2:
                     return _r41._r41_builtins_get_value(
