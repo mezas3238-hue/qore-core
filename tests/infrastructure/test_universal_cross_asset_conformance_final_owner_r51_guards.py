@@ -129,7 +129,10 @@ getter = namespace.get
 f(-getter("Ellipsis"), eval("1+1"))
 """
 
-    assert _r51_dynamic_execution_markers_from_source(source) == ("call:9",)
+    assert _r51_dynamic_execution_markers_from_source(source) == (
+        "binding:7",
+        "call:9",
+    )
 
 
 def test_r51_complete_owner_and_oracle_surface_has_no_dynamic_execution() -> None:
