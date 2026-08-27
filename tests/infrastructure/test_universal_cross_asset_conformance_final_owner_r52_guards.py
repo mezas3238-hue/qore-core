@@ -180,7 +180,11 @@ else:
 f(namespace.get("Ellipsis"), eval("1+1"))
 """
 
-    assert _r52_dynamic_execution_markers_from_source(source) == ("call:12",)
+    assert _r52_dynamic_execution_markers_from_source(source) == (
+        "binding:8",
+        "binding:10",
+        "call:12",
+    )
 
 
 def test_r52_exact_sequence_get_attribute_fails_before_later_eval() -> None:
