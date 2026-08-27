@@ -23,6 +23,16 @@ The executable witness returns `42` under CPython 3.12 when the caller passes
 execution scanner also does not mark the direct dangerous callable when it is
 used only as an argument rather than bound or directly invoked.
 
+A later Integration Authority reinspection of the exact R62 HEAD exposed a
+second false-negative within the same bounded defect class. R39's authoritative
+ordered/starred argument scanner evaluates keyword expressions for chronology
+and failure handling, but returns only positional abstract values. The initial
+R62 implementation therefore recovered direct keyword syntax such as
+`candidate=eval`, while a computed keyword value such as
+`candidate=getattr(builtins, "eval")`, `candidate=builtins.__dict__["eval"]`,
+or `**{"candidate": eval}` could be evaluated as dangerous and then discarded
+before R62's opaque-call escape decision.
+
 ## Correction
 
 `test_universal_cross_asset_conformance_final_owner_r62_guards.py` adds a
@@ -32,19 +42,34 @@ evaluation reuses the inherited ordered/star-expansion machinery. If argument
 evaluation succeeds and a dangerous callable is passed into that opaque call,
 R62 emits an explicit `dangerous-escape` review marker.
 
-Definite argument failure remains authoritative and prevents a later dangerous
-argument from being promoted. Known `getattr` default semantics remain
-unchanged, so an unreachable `eval` default for an exact existing `len`
-attribute is not falsely marked.
+The follow-up correction captures the abstract value already produced while
+the inherited argument scanner evaluates each keyword expression. It does not
+reevaluate the expression, so it does not duplicate markers, mutate scanner
+environment twice, or invent a new evaluation order. After successful argument
+evaluation, R62 applies the same dangerous-callable predicate to both retained
+positional values and captured keyword values. This includes statically known
+`**` mappings because the inherited container abstraction preserves dangerous
+semantic atoms in addition to structural selection metadata.
+
+Definite argument failure remains authoritative for the existing positional
+failure contract, and known `getattr` default semantics remain unchanged. The
+separate question of exact CPython 3.12 evaluation behavior for mixed failed
+starred positional expansion and keyword expressions remains a mandatory
+adversarial review probe; this correction does not broaden that historical
+contract by assumption.
 
 ## Adversarial regression set
 
 R62 covers:
 
 - positional dangerous-callable escape through the concrete mapping witness;
-- keyword dangerous-callable escape;
-- safe `len` inverse;
-- definite starred failure before a later dangerous argument;
+- direct keyword dangerous-callable escape;
+- computed keyword escape through `getattr(builtins, "eval")`;
+- computed keyword escape through `builtins.__dict__["eval"]`;
+- computed keyword escape through statically known `**` mapping unpacking;
+- safe direct `len` inverse;
+- safe computed `getattr(builtins, "len")` inverse;
+- definite starred failure before a later positional dangerous argument;
 - preservation of known-helper default semantics;
 - multiple legal starred positional segments in one call;
 - the complete current owner plus historical-oracle surface remaining clean.
