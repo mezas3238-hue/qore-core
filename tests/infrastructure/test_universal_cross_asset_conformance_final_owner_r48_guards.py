@@ -121,7 +121,10 @@ else:
 f(-ns.get("Ellipsis"), eval("1+1"))
 """
 
-    assert _r48_dynamic_execution_markers_from_source(source) == ("call:12",)
+    assert _r48_dynamic_execution_markers_from_source(source) == (
+        "binding:8",
+        "call:12",
+    )
 
 
 def test_r48_exact_imported_vars_alias_preserves_ellipsis_failure() -> None:
