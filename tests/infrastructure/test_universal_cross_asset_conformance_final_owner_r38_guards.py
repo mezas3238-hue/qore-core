@@ -8,8 +8,6 @@ import test_universal_cross_asset_conformance_final_owner_r16_guards as _r16
 import test_universal_cross_asset_conformance_final_owner_r35_guards as _r35
 import test_universal_cross_asset_conformance_final_owner_r37_guards as _r37
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
-    _DANGEROUS_CALLABLE,
-    _DYNAMIC_EXECUTION_CALL_NAMES,
     _FULL_CLOSURE_ORACLE_PATH,
     _UNKNOWN,
     _Atom,
