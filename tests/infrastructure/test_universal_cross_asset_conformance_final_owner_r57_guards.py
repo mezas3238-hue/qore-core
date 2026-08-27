@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import ast
 
-import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r56_guards as _r56
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
     _owner_paths,
-    _Value,
 )
 
 
