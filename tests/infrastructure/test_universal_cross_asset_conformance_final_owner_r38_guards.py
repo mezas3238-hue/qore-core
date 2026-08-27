@@ -185,8 +185,12 @@ class _R38ArgumentExpansionAndMappingScanner(_r37._R37CallFailureAndIndexScanner
         ordered: list[tuple[int, int, int, int | None, ast.expr, bool]] = []
 
         for index, argument in enumerate(node.args):
-            is_starred = isinstance(argument, ast.Starred)
-            expression = argument.value if is_starred else argument
+            if isinstance(argument, ast.Starred):
+                expression = argument.value
+                is_starred = True
+            else:
+                expression = argument
+                is_starred = False
             ordered.append(
                 (
                     getattr(argument, "lineno", node.lineno),
