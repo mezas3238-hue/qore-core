@@ -21,6 +21,8 @@ from test_universal_cross_asset_conformance_final_owner_r12_guards import (
 _FLOAT_CONSTANT_KIND = "exact-float-constant"
 _COMPLEX_CONSTANT_KIND = "exact-complex-constant"
 _ELLIPSIS_CONSTANT_KIND = "exact-ellipsis-constant"
+_ITEMGETTER_FLOAT_PREFIX = "vf:"
+_ITEMGETTER_COMPLEX_PREFIX = "vc:"
 _R41_DEFINITELY_NON_ITERABLE_KINDS = frozenset(
     {
         *_r40._R40_DEFINITELY_NON_ITERABLE_KINDS,
@@ -100,6 +102,22 @@ def _r41_key_tokens(value: _Value) -> set[str]:
     return tokens
 
 
+def _r41_itemgetter_tokens(value: _Value) -> set[str]:
+    tokens = _r38._r38_key_tokens(value)
+    for atom in value:
+        float_value = _r41_float_from_atom(atom)
+        if float_value is not None:
+            tokens.add(f"{_ITEMGETTER_FLOAT_PREFIX}{float_value.hex()}")
+            continue
+        complex_value = _r41_complex_from_atom(atom)
+        if complex_value is not None:
+            tokens.add(
+                f"{_ITEMGETTER_COMPLEX_PREFIX}"
+                f"{complex_value.real.hex()}|{complex_value.imag.hex()}"
+            )
+    return tokens
+
+
 def _r41_selection_tokens(receiver: _Value, key: _Value) -> set[str]:
     tokens = _r38._r38_selection_tokens(receiver, key)
     if _r15._container_kind(receiver) == "mapping":
@@ -144,6 +162,17 @@ def _r41_builtins_get_value(key: _Value, default: _Value) -> _Value:
 
 
 def _r41_value_from_itemgetter_token(token: str) -> _Value:
+    if token.startswith(_ITEMGETTER_FLOAT_PREFIX):
+        return _r41_float_value(
+            float.fromhex(token[len(_ITEMGETTER_FLOAT_PREFIX) :])
+        )
+    if token.startswith(_ITEMGETTER_COMPLEX_PREFIX):
+        payload = token[len(_ITEMGETTER_COMPLEX_PREFIX) :]
+        real_text, separator, imag_text = payload.partition("|")
+        if separator:
+            return _r41_complex_value(
+                complex(float.fromhex(real_text), float.fromhex(imag_text))
+            )
     if token.startswith("f:"):
         return _r41_float_value(float.fromhex(token[2:]))
     if token.startswith("c:"):
@@ -153,10 +182,6 @@ def _r41_value_from_itemgetter_token(token: str) -> _Value:
                 complex(float.fromhex(real_text), float.fromhex(imag_text))
             )
     return _r40._r40_value_from_itemgetter_token(token)
-
-
-def _r41_sequence_value(values: list[_Value]) -> _Value:
-    return _r38._r38_sequence_value(values)
 
 
 class _R41NumericStarAndMappingScanner(_r40._R40StarredAndNoneOperatorScanner):
@@ -223,7 +248,7 @@ class _R41NumericStarAndMappingScanner(_r40._R40StarredAndNoneOperatorScanner):
                     _UNKNOWN,
                     *(_r15._semantic_atoms(value) for value in values),
                 )
-            return _r41_sequence_value(values)
+            return _r38._r38_sequence_value(values)
 
         if isinstance(node, ast.Dict):
             pairs: list[tuple[_Value, _Value]] = []
@@ -440,7 +465,7 @@ class _R41NumericStarAndMappingScanner(_r40._R40StarredAndNoneOperatorScanner):
         if helper.kind == "helper" and helper.text == "itemgetter" and arguments:
             additions = frozenset(
                 _Atom("itemgetter", token)
-                for token in _r41_key_tokens(arguments[0])
+                for token in _r41_itemgetter_tokens(arguments[0])
             )
             if additions:
                 return _merge_values(result, additions)
@@ -552,6 +577,15 @@ operator.itemgetter(1.0)([len, eval])("1+1")
 """
 
     assert _r41_dynamic_execution_markers_from_source(source) == ()
+
+
+def test_r41_integer_itemgetter_remains_a_valid_sequence_index() -> None:
+    source = """\
+import operator
+operator.itemgetter(1)([len, eval])("1+1")
+"""
+
+    assert _r41_dynamic_execution_markers_from_source(source) == ("call:2",)
 
 
 def test_r41_builtins_get_exact_numeric_miss_still_uses_default() -> None:
