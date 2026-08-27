@@ -177,10 +177,12 @@ def test_r62c_lambda_safe_callable_inverse_stays_clean() -> None:
 def test_r62c_getattr_importlib_import_module_fails_closed() -> None:
     source = """\
 import importlib
-getattr(importlib, "import_module")("math")
+result = getattr(importlib, "import_module")("math")
 """
 
-    assert getattr(importlib, "import_module")("math").__name__ == "math"
+    namespace: dict[str, object] = {}
+    exec(source, namespace)
+    assert getattr(namespace["result"], "__name__") == "math"
     assert _r62c_dynamic_execution_markers_from_source(source) == ("call:2",)
 
 
