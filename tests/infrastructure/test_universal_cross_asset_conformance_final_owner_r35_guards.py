@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 
+import test_universal_cross_asset_conformance_final_owner_r13_guards as _r13
 import test_universal_cross_asset_conformance_final_owner_r14_guards as _r14
 import test_universal_cross_asset_conformance_final_owner_r31_guards as _r31
 import test_universal_cross_asset_conformance_final_owner_r34_guards as _r34
@@ -132,7 +133,7 @@ class _R35SliceFailureAndAssignmentScanner(_r34._R34BoolAliasSliceScanner):
                     result.add(_Atom("unknown"))
 
         for index in _r14._static_indices(key):
-            if _r14._selects_dangerous_index(receiver, index):
+            if _r13._selects_dangerous_index(receiver, index):
                 result.add(_Atom("dangerous"))
             if _r14._selects_builtins_index(receiver, index):
                 result.add(_Atom("builtins"))
