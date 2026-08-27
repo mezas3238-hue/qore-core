@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from typing import Any
 
 import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r35_guards as _r35
@@ -179,14 +180,15 @@ def test_r62b_cpython_failed_star_evaluates_keywords_not_later_positionals() -> 
     def consume(*arguments: object, **keywords: object) -> None:
         del arguments, keywords
 
+    not_iterable: Any = None
     try:
-        consume(*None, record("positional"))  # type: ignore[misc]
+        consume(*not_iterable, record("positional"))
     except TypeError:
         pass
     assert events == []
 
     try:
-        consume(*None, candidate=record("keyword"))  # type: ignore[misc]
+        consume(*not_iterable, candidate=record("keyword"))
     except TypeError:
         pass
     assert events == ["keyword"]
