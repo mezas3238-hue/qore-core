@@ -182,7 +182,7 @@ result = getattr(importlib, "import_module")("math")
 
     namespace: dict[str, object] = {}
     exec(source, namespace)
-    assert getattr(namespace["result"], "__name__") == "math"
+    assert namespace["result"] is importlib.import_module("math")
     assert _r62c_dynamic_execution_markers_from_source(source) == ("call:2",)
 
 
