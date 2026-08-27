@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ast
 
-import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r15_guards as _r15
 import test_universal_cross_asset_conformance_final_owner_r35_guards as _r35
 import test_universal_cross_asset_conformance_final_owner_r45_guards as _r45
