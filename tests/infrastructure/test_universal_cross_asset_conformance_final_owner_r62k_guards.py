@@ -152,6 +152,62 @@ def _r62k_apply_owner_binding(
         _r62k_assign_owner_names(node.target, None, owner_bindings)
 
 
+def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
+    """Return owners used outside the bounded direct-name invocation model."""
+
+    tree = ast.parse(source)
+    owner_bindings: dict[str, _R62KOwner] = {}
+    escaped: set[_R62KOwner] = set()
+
+    def visit_use(node: ast.AST) -> None:
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            owner = owner_bindings.get(node.id)
+            if owner is not None:
+                escaped.add(owner)
+            return
+
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id in owner_bindings:
+                for argument in node.args:
+                    visit_use(argument)
+                for keyword in node.keywords:
+                    visit_use(keyword.value)
+                return
+            visit_use(node.func)
+            for argument in node.args:
+                visit_use(argument)
+            for keyword in node.keywords:
+                visit_use(keyword.value)
+            return
+
+        for child in ast.iter_child_nodes(node):
+            visit_use(child)
+
+    for statement in tree.body:
+        safe_alias = False
+        if (
+            isinstance(statement, ast.Assign)
+            and isinstance(statement.value, ast.Name)
+            and statement.value.id in owner_bindings
+            and all(isinstance(target, ast.Name) for target in statement.targets)
+        ):
+            safe_alias = True
+        elif (
+            isinstance(statement, ast.AnnAssign)
+            and statement.value is not None
+            and isinstance(statement.value, ast.Name)
+            and statement.value.id in owner_bindings
+            and isinstance(statement.target, ast.Name)
+        ):
+            safe_alias = True
+
+        if not safe_alias:
+            visit_use(statement)
+        _r62k_apply_owner_binding(statement, owner_bindings)
+
+    return frozenset(escaped)
+
+
 def _r62k_observable_states_by_owner(
     source: str,
 ) -> dict[_R62KOwner, tuple[dict[str, _Value], ...]]:
@@ -202,12 +258,13 @@ def _r62k_observable_authority_by_call(
 ) -> dict[tuple[int, int], dict[str, tuple[_Value, bool]]]:
     fallback = _r62j._r62j_future_authority_by_call(source)
     owner_by_call = _r62k_top_level_owner_calls(source)
+    escaped_owners = _r62k_escaped_owners(source)
     states_by_owner = _r62k_observable_states_by_owner(source)
     result: dict[tuple[int, int], dict[str, tuple[_Value, bool]]] = {}
 
     for position, future in fallback.items():
         owner = owner_by_call.get(position)
-        if owner is None:
+        if owner is None or owner in escaped_owners:
             result[position] = future
             continue
         states = states_by_owner.get(owner)
@@ -231,8 +288,9 @@ class _R62KObservableDeferredGlobalsScanner(
     broad when dangerous authority exists only transiently and is rebound before
     every observable invocation. R62K follows direct/aliased straight-line
     top-level invocations of top-level functions and the final state while such a
-    function remains module-reachable. Unclassified deferred contexts retain the
-    conservative R62J suffix model.
+    function remains module-reachable. If the callable escapes that bounded
+    direct-name model, or if the deferred context is otherwise unclassified,
+    R62K retains the conservative R62J suffix model.
     """
 
     def scan(self, source: str) -> tuple[str, ...]:
@@ -328,6 +386,31 @@ def run():
 alias = run
 import builtins as b
 result = alias()
+b = len
+""",
+    )
+
+    for source in sources:
+        assert _runtime_result(source) == 2
+        assert "call:2" in _r62k_dynamic_execution_markers_from_source(source)
+
+
+def test_r62k_escaped_callable_falls_back_to_future_authority() -> None:
+    sources = (
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+holder = {"run": run}
+import builtins as b
+result = holder["run"]()
+b = len
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+holder = [run]
+import builtins as b
+result = holder[0]()
 b = len
 """,
     )
