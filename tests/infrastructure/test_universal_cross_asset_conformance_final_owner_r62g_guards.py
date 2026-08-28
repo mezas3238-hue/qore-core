@@ -172,7 +172,7 @@ result = hold.__defaults__[0]["builtins"].eval("1+1")
 
     for source in sources:
         assert _r62g_runtime_result(source) == 2
-        assert "binding:4" in _r62g_dynamic_execution_markers_from_source(source)
+        assert "binding:3" in _r62g_dynamic_execution_markers_from_source(source)
 
 
 def test_r62g_module_comprehensions_keep_python312_module_scope() -> None:
