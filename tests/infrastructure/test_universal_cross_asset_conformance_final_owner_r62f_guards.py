@@ -16,10 +16,6 @@ from test_universal_cross_asset_conformance_final_owner_r12_guards import (
 )
 
 _R62F_NAMESPACE_HELPERS = frozenset({"globals", "locals", "vars"})
-_R62F_BUILTINS_HELPERS = frozenset(
-    {"getattr", "globals", "locals", "vars"}
-)
-_R62F_DANGEROUS_BUILTINS = frozenset({"__import__", "eval", "exec"})
 
 
 def _r62f_selected_mapping(
@@ -160,9 +156,22 @@ def test_r62f_predecessor_reproduces_direct_namespace_false_negatives() -> None:
         "import builtins\nresult = globals()[\"builtins\"].eval(\"1+1\")\n",
         "import builtins\nresult = locals()[\"builtins\"].eval(\"1+1\")\n",
         "import builtins\nresult = vars()[\"builtins\"].eval(\"1+1\")\n",
-        "import builtins\nresult = builtins.__dict__[\"globals\"]()[\"builtins\"].eval(\"1+1\")\n",
-        "import builtins\nresult = vars(builtins)[\"globals\"]()[\"builtins\"].eval(\"1+1\")\n",
-        "import builtins\nresult = getattr(builtins, \"globals\")()[\"builtins\"].eval(\"1+1\")\n",
+        "result = globals()[\"__builtins__\"][\"eval\"](\"1+1\")\n",
+        (
+            "import builtins\n"
+            "result = builtins.__dict__[\"globals\"]()[\"builtins\"]"
+            ".eval(\"1+1\")\n"
+        ),
+        (
+            "import builtins\n"
+            "result = vars(builtins)[\"globals\"]()[\"builtins\"]"
+            ".eval(\"1+1\")\n"
+        ),
+        (
+            "import builtins\n"
+            "result = getattr(builtins, \"globals\")()[\"builtins\"]"
+            ".eval(\"1+1\")\n"
+        ),
     )
 
     for source in sources:
@@ -175,22 +184,47 @@ def test_r62f_direct_namespace_helpers_fail_closed() -> None:
         "import builtins\nresult = globals()[\"builtins\"].eval(\"1+1\")\n",
         "import builtins\nresult = locals()[\"builtins\"].exec(\"result = 2\")\n",
         "import builtins\nresult = vars()[\"builtins\"].eval(\"1+1\")\n",
+        "result = globals()[\"__builtins__\"][\"eval\"](\"1+1\")\n",
     )
 
     assert _r62f_runtime_result(sources[0]) == 2
     assert _r62f_runtime_result(sources[1]) is None
     assert _r62f_runtime_result(sources[2]) == 2
+    assert _r62f_runtime_result(sources[3]) == 2
     for source in sources:
-        assert _r62f_dynamic_execution_markers_from_source(source) == ("call:2",)
+        expected_line = 1 if source.startswith("result =") else 2
+        assert _r62f_dynamic_execution_markers_from_source(source) == (
+            f"call:{expected_line}",
+        )
 
 
 def test_r62f_builtins_mapping_namespace_helper_derivations_fail_closed() -> None:
     sources = (
-        "import builtins\nresult = builtins.__dict__[\"globals\"]()[\"builtins\"].eval(\"1+1\")\n",
-        "import builtins\nresult = builtins.__dict__.get(\"globals\")()[\"builtins\"].eval(\"1+1\")\n",
-        "import builtins\nresult = builtins.__dict__.__getitem__(\"globals\")()[\"builtins\"].eval(\"1+1\")\n",
-        "import builtins\nresult = vars(builtins)[\"globals\"]()[\"builtins\"].eval(\"1+1\")\n",
-        "import builtins\nresult = getattr(builtins, \"globals\")()[\"builtins\"].eval(\"1+1\")\n",
+        (
+            "import builtins\n"
+            "result = builtins.__dict__[\"globals\"]()[\"builtins\"]"
+            ".eval(\"1+1\")\n"
+        ),
+        (
+            "import builtins\n"
+            "result = builtins.__dict__.get(\"globals\")()[\"builtins\"]"
+            ".eval(\"1+1\")\n"
+        ),
+        (
+            "import builtins\n"
+            "result = builtins.__dict__.__getitem__(\"globals\")()"
+            "[\"builtins\"].eval(\"1+1\")\n"
+        ),
+        (
+            "import builtins\n"
+            "result = vars(builtins)[\"globals\"]()[\"builtins\"]"
+            ".eval(\"1+1\")\n"
+        ),
+        (
+            "import builtins\n"
+            "result = getattr(builtins, \"globals\")()[\"builtins\"]"
+            ".eval(\"1+1\")\n"
+        ),
     )
 
     for source in sources:
@@ -199,14 +233,25 @@ def test_r62f_builtins_mapping_namespace_helper_derivations_fail_closed() -> Non
 
 
 def test_r62f_imported_namespace_helper_and_mapping_aliases_fail_closed() -> None:
-    sources = (
-        "from builtins import globals as current_globals\nimport builtins\nresult = current_globals()[\"builtins\"].eval(\"1+1\")\n",
-        "from builtins import __dict__ as namespace\nresult = namespace[\"globals\"]()[\"__builtins__\"].eval(\"1+1\")\n",
+    imported_helper = (
+        "from builtins import globals as current_globals\n"
+        "import builtins\n"
+        "result = current_globals()[\"builtins\"].eval(\"1+1\")\n"
+    )
+    imported_mapping = (
+        "from builtins import __dict__ as namespace\n"
+        "result = namespace[\"globals\"]()[\"__builtins__\"]"
+        "[\"eval\"](\"1+1\")\n"
     )
 
-    for source in sources:
-        assert _r62f_runtime_result(source) == 2
-        assert _r62f_dynamic_execution_markers_from_source(source) == ("call:3",) if source.startswith("from builtins import globals") else ("call:2",)
+    assert _r62f_runtime_result(imported_helper) == 2
+    assert _r62f_runtime_result(imported_mapping) == 2
+    assert _r62f_dynamic_execution_markers_from_source(imported_helper) == (
+        "call:3",
+    )
+    assert _r62f_dynamic_execution_markers_from_source(imported_mapping) == (
+        "call:2",
+    )
 
 
 def test_r62f_operator_builtins_mapping_derivations_fail_closed() -> None:
@@ -262,28 +307,34 @@ result = vars(safe)
 
 
 def test_r62f_r62e_default_regressions_remain_authoritative() -> None:
-    sources = (
-        """\
+    namespace_default = """\
 import builtins
 def hold(namespace=globals()):
     return None
 result = hold.__defaults__[0]["builtins"].eval("1+1")
-""",
-        """\
+"""
+    helper_default = """\
 def hold(candidate=globals):
     return None
 namespace = hold.__defaults__[0]()
-result = namespace["__builtins__"].eval("1+1")
-""",
-        "def hold(candidate=len):\n    return None\nresult = hold.__defaults__[0](\"abc\")\n",
+result = namespace["__builtins__"]["eval"]("1+1")
+"""
+    safe_default = (
+        "def hold(candidate=len):\n"
+        "    return None\n"
+        "result = hold.__defaults__[0](\"abc\")\n"
     )
 
-    assert _r62f_runtime_result(sources[0]) == 2
-    assert _r62f_runtime_result(sources[1]) == 2
-    assert _r62f_runtime_result(sources[2]) == 3
-    assert _r62f_dynamic_execution_markers_from_source(sources[0]) == ("binding:2",)
-    assert _r62f_dynamic_execution_markers_from_source(sources[1]) == ("binding:1",)
-    assert _r62f_dynamic_execution_markers_from_source(sources[2]) == ()
+    assert _r62f_runtime_result(namespace_default) == 2
+    assert _r62f_runtime_result(helper_default) == 2
+    assert _r62f_runtime_result(safe_default) == 3
+    assert _r62f_dynamic_execution_markers_from_source(namespace_default) == (
+        "binding:2",
+    )
+    assert _r62f_dynamic_execution_markers_from_source(helper_default) == (
+        "binding:1",
+    )
+    assert _r62f_dynamic_execution_markers_from_source(safe_default) == ()
 
 
 def test_r62f_complete_owner_and_oracle_surface_has_no_dynamic_execution() -> None:
