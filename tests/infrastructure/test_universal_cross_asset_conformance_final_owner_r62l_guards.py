@@ -801,9 +801,29 @@ def _runtime_result(source: str) -> object:
 
 def test_r62l_predecessor_reproduces_module_control_flow_false_negatives() -> None:
     sources = (
-        'def run():\n    return globals()["b"].eval("1+1")\ntry:\n    import builtins as b\nexcept ImportError:\n    pass\nresult = run()\n',
-        'def run():\n    return globals()["b"].eval("1+1")\nif True:\n    import builtins as b\nresult = run()\n',
-        'def run():\n    return globals()["b"].eval("1+1")\nif True:\n    import builtins as b\n    result = run()\n',
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+try:
+    import builtins as b
+except ImportError:
+    pass
+result = run()
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+if True:
+    import builtins as b
+result = run()
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+if True:
+    import builtins as b
+    result = run()
+""",
     )
     for source in sources:
         assert _runtime_result(source) == 2
@@ -812,11 +832,44 @@ def test_r62l_predecessor_reproduces_module_control_flow_false_negatives() -> No
 
 def test_r62l_module_control_flow_authority_fails_closed() -> None:
     sources = (
-        'def run():\n    return globals()["b"].eval("1+1")\ntry:\n    import builtins as b\nexcept ImportError:\n    pass\nresult = run()\n',
-        'def run():\n    return globals()["b"].eval("1+1")\nif True:\n    import builtins as b\nresult = run()\n',
-        'def run():\n    return globals()["b"].eval("1+1")\nif True:\n    import builtins as b\n    result = run()\n',
-        'def run():\n    return globals()["b"].eval("1+1")\nfor _ in (0,):\n    import builtins as b\nresult = run()\n',
-        'def run():\n    return globals()["b"].eval("1+1")\nwhile True:\n    import builtins as b\n    break\nresult = run()\n',
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+try:
+    import builtins as b
+except ImportError:
+    pass
+result = run()
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+if True:
+    import builtins as b
+result = run()
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+if True:
+    import builtins as b
+    result = run()
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+for _ in (0,):
+    import builtins as b
+result = run()
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+while True:
+    import builtins as b
+    break
+result = run()
+""",
     )
     for source in sources:
         assert _runtime_result(source) == 2
@@ -824,34 +877,81 @@ def test_r62l_module_control_flow_authority_fails_closed() -> None:
 
 
 def test_r62l_literal_false_branch_does_not_invent_module_authority() -> None:
-    source = 'def run():\n    return globals()["b"].eval("1+1")\nif False:\n    import builtins as b\ntry:\n    result = run()\nexcept KeyError:\n    result = 3\n'
+    source = """\
+def run():
+    return globals()["b"].eval("1+1")
+if False:
+    import builtins as b
+try:
+    result = run()
+except KeyError:
+    result = 3
+"""
     assert _runtime_result(source) == 3
     assert _r62l_dynamic_execution_markers_from_source(source) == ()
 
 
 def test_r62l_safe_same_statement_walrus_rebind_precedes_observation() -> None:
-    source = 'def run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nimport builtins as b\nresult = ((b := len), run())[1]\n'
+    source = """\
+def run():
+    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")
+import builtins as b
+result = ((b := len), run())[1]
+"""
     assert _runtime_result(source) == 3
     assert _r62k._r62k_dynamic_execution_markers_from_source(source) == ("call:2",)
     assert _r62l_dynamic_execution_markers_from_source(source) == ()
 
 
 def test_r62l_dangerous_same_statement_walrus_remains_fail_closed() -> None:
-    source = 'import builtins\ndef run():\n    return globals()["b"].eval("1+1")\nb = len\nresult = ((b := builtins), run())[1]\n'
+    source = """\
+import builtins
+def run():
+    return globals()["b"].eval("1+1")
+b = len
+result = ((b := builtins), run())[1]
+"""
     assert _runtime_result(source) == 2
     assert _r62l_dynamic_execution_markers_from_source(source)
 
 
 def test_r62l_control_flow_authority_rebound_before_call_stays_clean() -> None:
-    source = 'def run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nflag = True\nif flag:\n    import builtins as b\nb = len\nresult = run()\n'
+    source = """\
+def run():
+    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")
+flag = True
+if flag:
+    import builtins as b
+b = len
+result = run()
+"""
     assert _runtime_result(source) == 3
     assert _r62l_dynamic_execution_markers_from_source(source) == ()
 
 
 def test_r62l_r62k_regressions_remain_authoritative() -> None:
-    dangerous = 'def run():\n    return globals()["b"].eval("1+1")\nimport builtins as b\nresult = run()\nb = len\n'
-    transient = 'def run():\n    return globals()["b"].eval("1+1")\nimport builtins as b\nb = len\nresult = 3\n'
-    escaped = 'def run():\n    return globals()["b"].eval("1+1")\nholder = {"run": run}\nimport builtins as b\nresult = holder["run"]()\nb = len\n'
+    dangerous = """\
+def run():
+    return globals()["b"].eval("1+1")
+import builtins as b
+result = run()
+b = len
+"""
+    transient = """\
+def run():
+    return globals()["b"].eval("1+1")
+import builtins as b
+b = len
+result = 3
+"""
+    escaped = """\
+def run():
+    return globals()["b"].eval("1+1")
+holder = {"run": run}
+import builtins as b
+result = holder["run"]()
+b = len
+"""
     assert _runtime_result(dangerous) == 2
     assert _runtime_result(transient) == 3
     assert _runtime_result(escaped) == 2
