@@ -19,14 +19,23 @@ def _r62k_top_level_owner_calls(source: str) -> dict[tuple[int, int], _R62KOwner
     result: dict[tuple[int, int], _R62KOwner] = {}
     tree = ast.parse(source)
 
+    def collect(node: ast.AST, owner: _R62KOwner) -> None:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            return
+        if isinstance(node, ast.GeneratorExp):
+            collect(node.generators[0].iter, owner)
+            return
+        if isinstance(node, ast.Call):
+            result[(node.lineno, node.col_offset)] = owner
+        for child in ast.iter_child_nodes(node):
+            collect(child, owner)
+
     for statement in tree.body:
         if not isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         owner = (statement.lineno, statement.col_offset)
         for body_statement in statement.body:
-            for node in ast.walk(body_statement):
-                if isinstance(node, ast.Call):
-                    result[(node.lineno, node.col_offset)] = owner
+            collect(body_statement, owner)
     return result
 
 
@@ -52,13 +61,13 @@ def _r62k_immediate_called_owners(
                 *current.args.defaults,
                 *(item for item in current.args.kw_defaults if item is not None),
             ]
-            for argument in (
+            for parameter in (
                 *current.args.posonlyargs,
                 *current.args.args,
                 *current.args.kwonlyargs,
             ):
-                if argument.annotation is not None:
-                    immediate_nodes.append(argument.annotation)
+                if parameter.annotation is not None:
+                    immediate_nodes.append(parameter.annotation)
             if current.args.vararg is not None and current.args.vararg.annotation is not None:
                 immediate_nodes.append(current.args.vararg.annotation)
             if current.args.kwarg is not None and current.args.kwarg.annotation is not None:
@@ -152,12 +161,43 @@ def _r62k_apply_owner_binding(
         _r62k_assign_owner_names(node.target, None, owner_bindings)
 
 
+def _r62k_contains_outer_yield(function: ast.FunctionDef) -> bool:
+    found = False
+
+    def visit(node: ast.AST) -> None:
+        nonlocal found
+        if found:
+            return
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            return
+        if isinstance(node, (ast.Yield, ast.YieldFrom)):
+            found = True
+            return
+        for child in ast.iter_child_nodes(node):
+            visit(child)
+
+    for statement in function.body:
+        visit(statement)
+    return found
+
+
+def _r62k_non_immediate_owners(source: str) -> frozenset[_R62KOwner]:
+    tree = ast.parse(source)
+    result: set[_R62KOwner] = set()
+    for statement in tree.body:
+        if isinstance(statement, ast.AsyncFunctionDef):
+            result.add((statement.lineno, statement.col_offset))
+        elif isinstance(statement, ast.FunctionDef) and _r62k_contains_outer_yield(statement):
+            result.add((statement.lineno, statement.col_offset))
+    return frozenset(result)
+
+
 def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
     """Return owners used outside the bounded immediate direct-name model."""
 
     tree = ast.parse(source)
     owner_bindings: dict[str, _R62KOwner] = {}
-    escaped: set[_R62KOwner] = set()
+    escaped: set[_R62KOwner] = set(_r62k_non_immediate_owners(source))
 
     def visit_use(node: ast.AST, *, immediate: bool) -> None:
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
@@ -177,8 +217,8 @@ def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
                     escaped.add(direct_owner)
             else:
                 visit_use(node.func, immediate=immediate)
-            for argument in node.args:
-                visit_use(argument, immediate=immediate)
+            for call_argument in node.args:
+                visit_use(call_argument, immediate=immediate)
             for keyword in node.keywords:
                 visit_use(keyword.value, immediate=immediate)
             return
@@ -189,13 +229,13 @@ def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
                 *node.args.defaults,
                 *(item for item in node.args.kw_defaults if item is not None),
             ]
-            for argument in (
+            for parameter in (
                 *node.args.posonlyargs,
                 *node.args.args,
                 *node.args.kwonlyargs,
             ):
-                if argument.annotation is not None:
-                    immediate_nodes.append(argument.annotation)
+                if parameter.annotation is not None:
+                    immediate_nodes.append(parameter.annotation)
             if node.args.vararg is not None and node.args.vararg.annotation is not None:
                 immediate_nodes.append(node.args.vararg.annotation)
             if node.args.kwarg is not None and node.args.kwarg.annotation is not None:
@@ -204,8 +244,8 @@ def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
                 immediate_nodes.append(node.returns)
             for child in immediate_nodes:
                 visit_use(child, immediate=immediate)
-            for statement in node.body:
-                visit_use(statement, immediate=False)
+            for body_statement in node.body:
+                visit_use(body_statement, immediate=False)
             return
 
         if isinstance(node, ast.Lambda):
@@ -248,7 +288,9 @@ def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
         ):
             safe_alias = True
 
-        if not safe_alias:
+        if safe_alias and isinstance(statement, ast.AnnAssign):
+            visit_use(statement.annotation, immediate=True)
+        elif not safe_alias:
             visit_use(statement, immediate=True)
         _r62k_apply_owner_binding(statement, owner_bindings)
 
@@ -333,11 +375,13 @@ class _R62KObservableDeferredGlobalsScanner(
     bindings introduced after its lexical definition. Its suffix union is too
     broad when dangerous authority exists only transiently and is rebound before
     every observable invocation. R62K follows direct/aliased straight-line
-    top-level invocations of top-level functions and the final state while such a
-    function remains module-reachable. If the callable escapes that bounded
-    direct-name model, including through another deferred body, R62K retains the
-    conservative R62J suffix model. A non-escaped callable with no modeled
-    invocation and no final reachability has no observable module state.
+    top-level invocations of ordinary synchronous top-level functions and the
+    final state while such a function remains module-reachable. If the callable
+    escapes that bounded direct-name model, including through another deferred
+    body, or if it is async/generator-backed, R62K retains the conservative R62J
+    suffix model. Nested callable bodies are never attributed to their outer
+    owner. A non-escaped callable with no modeled invocation and no final
+    reachability has no observable module state.
     """
 
     def scan(self, source: str) -> tuple[str, ...]:
@@ -474,6 +518,22 @@ b = len
     for source in sources:
         assert _runtime_result(source) == 2
         assert "call:2" in _r62k_dynamic_execution_markers_from_source(source)
+
+
+def test_r62k_annotated_alias_escape_remains_fail_closed() -> None:
+    source = """\
+def run():
+    return globals()["b"].eval("1+1")
+alias: run = run
+del run
+del alias
+import builtins as b
+result = __annotations__["alias"]()
+b = len
+"""
+
+    assert _runtime_result(source) == 2
+    assert "call:2" in _r62k_dynamic_execution_markers_from_source(source)
 
 
 def test_r62k_unobserved_unreachable_callable_drops_transient_authority() -> None:
