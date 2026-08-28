@@ -334,13 +334,6 @@ def run():
 from builtins import __dict__ as namespace
 result = run()
 """,
-        """\
-def run():
-    return globals()["alias"].eval("1+1")
-import builtins as b
-alias = b
-result = run()
-""",
     )
 
     for source in sources:
@@ -368,18 +361,30 @@ def run():
 from builtins import __dict__ as namespace
 result = run()
 """,
-        """\
-def run():
-    return globals()["alias"].eval("1+1")
-import builtins as b
-alias = b
-result = run()
-""",
     )
 
     for source in sources:
         assert _runtime_result(source) == 2
         assert _r62j_dynamic_execution_markers_from_source(source) == ("call:2",)
+
+
+def test_r62j_transitive_late_alias_keeps_predecessor_binding_and_adds_call() -> None:
+    source = """\
+def run():
+    return globals()["alias"].eval("1+1")
+import builtins as b
+alias = b
+result = run()
+"""
+
+    assert _runtime_result(source) == 2
+    assert _r62i._r62i_dynamic_execution_markers_from_source(source) == (
+        "binding:4",
+    )
+    assert _r62j_dynamic_execution_markers_from_source(source) == (
+        "call:2",
+        "binding:4",
+    )
 
 
 def test_r62j_late_safe_bindings_do_not_invent_authority() -> None:
