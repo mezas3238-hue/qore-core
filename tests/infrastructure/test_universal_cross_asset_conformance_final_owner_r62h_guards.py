@@ -140,11 +140,11 @@ class _R62HLocalCallClassifier(ast.NodeVisitor):
     ) -> None:
         for decorator in node.decorator_list:
             self.visit(decorator)
-        for default in node.args.defaults:
-            self.visit(default)
-        for default in node.args.kw_defaults:
-            if default is not None:
-                self.visit(default)
+        for positional_default in node.args.defaults:
+            self.visit(positional_default)
+        for keyword_default in node.args.kw_defaults:
+            if keyword_default is not None:
+                self.visit(keyword_default)
         for argument in (
             *node.args.posonlyargs,
             *node.args.args,
@@ -177,11 +177,11 @@ class _R62HLocalCallClassifier(ast.NodeVisitor):
         self._visit_function_definition(node)
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
-        for default in node.args.defaults:
-            self.visit(default)
-        for default in node.args.kw_defaults:
-            if default is not None:
-                self.visit(default)
+        for positional_default in node.args.defaults:
+            self.visit(positional_default)
+        for keyword_default in node.args.kw_defaults:
+            if keyword_default is not None:
+                self.visit(keyword_default)
         self._visit_in_scope(
             _R62HScope("lambda", set(_r62h_lambda_local_names(node)), set()),
             [node.body],
