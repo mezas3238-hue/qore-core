@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import builtins as _py_builtins
 
 import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r62i_guards as _r62i
@@ -29,6 +30,206 @@ def _r62n_unique_states(
             result.append(state)
     return result
 
+
+_R62N_EXCEPTION_TAG = "\x00r62n_exception"
+_R62N_EXCEPTION_KIND = "r62n_exception"
+
+
+def _r62n_builtin_exception_class(name: str) -> type[BaseException] | None:
+    candidate = getattr(_py_builtins, name, None)
+    if (
+        isinstance(candidate, type)
+        and issubclass(candidate, _py_builtins.BaseException)
+    ):
+        return candidate
+    return None
+
+
+def _r62n_static_exception_name(
+    node: ast.AST | None,
+    authority: _r62l._R62LAuthorityBindings,
+) -> str | None:
+    target: ast.Name | None = None
+    if isinstance(node, ast.Name):
+        target = node
+    elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        target = node.func
+    if target is None or target.id in authority:
+        return None
+    return (
+        target.id
+        if _r62n_builtin_exception_class(target.id) is not None
+        else None
+    )
+
+
+def _r62n_set_exception_tag(
+    state: _r62l._R62LState,
+    exception_name: str | None,
+) -> None:
+    state[0][_R62N_EXCEPTION_TAG] = (
+        frozenset({_r12._Atom(_R62N_EXCEPTION_KIND, exception_name)})
+        if exception_name is not None
+        else _UNKNOWN
+    )
+
+
+def _r62n_exception_name(state: _r62l._R62LState) -> str | None:
+    value = state[0].get(_R62N_EXCEPTION_TAG)
+    if value is None:
+        return None
+    names = {
+        atom.text
+        for atom in value
+        if atom.kind == _R62N_EXCEPTION_KIND and atom.text is not None
+    }
+    return next(iter(names)) if len(names) == 1 else None
+
+
+def _r62n_handler_match(
+    exception_name: str | None,
+    handler_type: ast.AST | None,
+    authority: _r62l._R62LAuthorityBindings,
+) -> bool | None:
+    if handler_type is None:
+        return True
+    if exception_name is None:
+        return None
+    exception_class = _r62n_builtin_exception_class(exception_name)
+    if exception_class is None:
+        return None
+    if isinstance(handler_type, ast.Name):
+        if handler_type.id in authority:
+            return None
+        handler_class = _r62n_builtin_exception_class(handler_type.id)
+        if handler_class is None:
+            return None
+        return issubclass(exception_class, handler_class)
+    if isinstance(handler_type, ast.Tuple):
+        matches = [
+            _r62n_handler_match(exception_name, item, authority)
+            for item in handler_type.elts
+        ]
+        if any(match is True for match in matches):
+            return True
+        if all(match is False for match in matches):
+            return False
+    return None
+
+
+def _r62n_raise_outcomes_from_states(
+    states: list[_r62l._R62LState],
+    *,
+    exception_name: str | None = None,
+) -> list[_r62m._R62MOutcome]:
+    result: list[_r62m._R62MOutcome] = []
+    for state in _r62n_unique_states(states):
+        tagged = _r62n_copy_state(state)
+        _r62n_set_exception_tag(tagged, exception_name)
+        result.append(_r62m._R62MOutcome("raise", tagged))
+    return result
+
+
+def _r62n_scratch_eval(
+    node: ast.AST,
+    state: _r62l._R62LState,
+) -> _r62l._R62LState:
+    working = _r62n_copy_state(state)
+    scratch_timeline: dict[int, list[_r62l._R62LAuthorityBindings]] = {}
+    scratch_observations: dict[
+        _r62k._R62KOwner,
+        list[_r62l._R62LAuthorityBindings],
+    ] = {}
+    _r62n_eval(
+        node,
+        working,
+        top_index=0,
+        timeline=scratch_timeline,
+        observations=scratch_observations,
+        precision_lost=[False],
+    )
+    return working
+
+
+def _r62n_ordered_expression_raise_states(
+    node: ast.AST,
+    state: _r62l._R62LState,
+) -> tuple[_r62l._R62LState, list[_r62l._R62LState]]:
+    if isinstance(node, ast.NamedExpr):
+        working, raised = _r62n_ordered_expression_raise_states(node.value, state)
+        binding_value = _r62j._r62j_binding_expression_value(
+            node.value,
+            working[0],
+        )
+        _r62j._r62j_assign_names(node.target, binding_value, working[0])
+        owners = _r62l._r62l_owner_expression_value(node.value, working[1])
+        _r62l._r62l_assign_owner_names(node.target, owners, working[1])
+        return working, raised
+
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        working = _r62n_copy_state(state)
+        raised: list[_r62l._R62LState] = []
+        for child in node.elts:
+            working, child_raised = _r62n_ordered_expression_raise_states(
+                child,
+                working,
+            )
+            raised.extend(child_raised)
+        raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(raised)
+
+    if isinstance(node, ast.Dict):
+        working = _r62n_copy_state(state)
+        raised: list[_r62l._R62LState] = []
+        for key, value in zip(node.keys, node.values, strict=True):
+            if key is not None:
+                working, child_raised = _r62n_ordered_expression_raise_states(
+                    key,
+                    working,
+                )
+                raised.extend(child_raised)
+            working, child_raised = _r62n_ordered_expression_raise_states(
+                value,
+                working,
+            )
+            raised.extend(child_raised)
+        raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(raised)
+
+    if isinstance(node, ast.Call):
+        working, raised = _r62n_ordered_expression_raise_states(node.func, state)
+        arguments: list[ast.expr] = [
+            *node.args,
+            *(keyword.value for keyword in node.keywords),
+        ]
+        arguments.sort(key=lambda item: (item.lineno, item.col_offset))
+        for argument in arguments:
+            working, child_raised = _r62n_ordered_expression_raise_states(
+                argument,
+                working,
+            )
+            raised.extend(child_raised)
+        raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(raised)
+
+    if isinstance(node, ast.BinOp):
+        working, raised = _r62n_ordered_expression_raise_states(node.left, state)
+        working, child_raised = _r62n_ordered_expression_raise_states(
+            node.right,
+            working,
+        )
+        raised.extend(child_raised)
+        raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(raised)
+
+    before = _r62n_copy_state(state)
+    working = _r62n_scratch_eval(node, state)
+    raised = (
+        [before, _r62n_copy_state(working)]
+        if _r62n_expression_may_raise(node)
+        else []
+    )
+    return working, _r62n_unique_states(raised)
 
 def _r62n_eval(
     node: ast.AST,
@@ -131,7 +332,7 @@ def _r62n_implicit_raise_outcomes(
     states = _r62n_unique_states(
         [_r62n_copy_state(before), *(_r62n_copy_state(item) for item in after)]
     )
-    return [_r62m._R62MOutcome("raise", state) for state in states]
+    return _r62n_raise_outcomes_from_states(states)
 
 
 def _r62n_process_block(
@@ -317,14 +518,23 @@ def _r62n_process_try(
     propagated = [
         item for item in body if item.kind in {"break", "continue"}
     ]
-    raised = [item for item in body if item.kind == "raise"]
-    entries = _r62n_unique_states(
-        [_r62n_copy_state(item.state) for item in raised]
-    )
+    unhandled = [item for item in body if item.kind == "raise"]
     handled: list[_r62m._R62MOutcome] = []
+
     for handler in node.handlers:
-        for entry in entries:
-            handler_state = _r62n_copy_state(entry)
+        next_unhandled: list[_r62m._R62MOutcome] = []
+        for raised in unhandled:
+            match = _r62n_handler_match(
+                _r62n_exception_name(raised.state),
+                handler.type,
+                raised.state[0],
+            )
+            if match is False:
+                next_unhandled.append(raised)
+                continue
+
+            handler_state = _r62n_copy_state(raised.state)
+            handler_state[0].pop(_R62N_EXCEPTION_TAG, None)
             if handler.type is not None:
                 _r62n_eval(
                     handler.type,
@@ -347,9 +557,12 @@ def _r62n_process_try(
                     precision_lost=precision_lost,
                 )
             )
+            if match is None:
+                next_unhandled.append(raised)
+        unhandled = next_unhandled
 
     combined = _r62m._r62m_bound_outcomes(
-        [*successful, *propagated, *raised, *handled]
+        [*successful, *propagated, *unhandled, *handled]
     )
     if node.finalbody:
         return _r62n_process_finally(
@@ -808,6 +1021,7 @@ def _r62n_process_statement(
 
     if isinstance(node, ast.Raise):
         working = _r62n_copy_state(state)
+        exception_name = _r62n_static_exception_name(node.exc, working[0])
         if node.exc is not None:
             _r62n_eval(
                 node.exc,
@@ -826,6 +1040,7 @@ def _r62n_process_statement(
                 observations=observations,
                 precision_lost=precision_lost,
             )
+        _r62n_set_exception_tag(working, exception_name)
         return [_r62m._R62MOutcome("raise", working)]
     if isinstance(node, ast.Break):
         return [_r62m._R62MOutcome("break", _r62n_copy_state(state))]
@@ -888,6 +1103,14 @@ def _r62n_process_statement(
     normal = [_r62m._R62MOutcome("normal", item) for item in next_states]
     if not _r62n_simple_statement_may_raise(node):
         return normal
+    if isinstance(node, (ast.Expr, ast.Assign)):
+        _, raise_states = _r62n_ordered_expression_raise_states(
+            node.value,
+            state,
+        )
+        return _r62m._r62m_bound_outcomes(
+            [*normal, *_r62n_raise_outcomes_from_states(raise_states)]
+        )
     return _r62m._r62m_bound_outcomes(
         [
             *normal,
@@ -989,7 +1212,12 @@ def _r62n_observable_authority_by_call(
 def _r62n_namespace_from_states(
     states: tuple[_r62l._R62LAuthorityBindings, ...],
 ) -> _Value:
-    names = {name for state in states for name in state}
+    names = {
+        name
+        for state in states
+        for name in state
+        if name != _R62N_EXCEPTION_TAG
+    }
     values: dict[str, tuple[_Value, bool]] = {}
     for name in names:
         present = [state[name] for state in states if name in state]
@@ -1326,3 +1554,62 @@ def test_r62n_complete_owner_and_oracle_surface_has_no_dynamic_execution() -> No
         assert _r62n_dynamic_execution_markers_from_source(
             path.read_text(encoding="utf-8")
         ) == (), path
+
+def test_r62n_explicit_exception_matching_preserves_safe_inverse() -> None:
+    source = """\
+import builtins as b
+def run():
+    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")
+try:
+    try:
+        raise ValueError
+    except KeyError:
+        result = run()
+except ValueError:
+    b = len
+    result = run()
+"""
+    assert _runtime_result(source) == 3
+    assert _r62n_dynamic_execution_markers_from_source(source) == ()
+
+
+def test_r62n_shadowed_exception_names_remain_conservative() -> None:
+    source = """\
+import builtins as b
+ValueError = KeyError
+def run():
+    return globals()["b"].eval("1+1")
+try:
+    raise ValueError
+except KeyError:
+    result = run()
+"""
+    assert _runtime_result(source) == 2
+    assert _r62n_dynamic_execution_markers_from_source(source)
+
+
+def test_r62n_namedexpr_exception_order_preserves_safe_and_dangerous() -> None:
+    safe = """\
+import builtins as b
+def run():
+    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")
+try:
+    ((b := len), 1 / 0)
+except ZeroDivisionError:
+    result = run()
+"""
+    dangerous = """\
+import builtins
+def run():
+    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")
+b = len
+try:
+    ((b := builtins), 1 / 0)
+except ZeroDivisionError:
+    result = run()
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    assert _r62n_dynamic_execution_markers_from_source(safe) == ()
+    assert _r62n_dynamic_execution_markers_from_source(dangerous)
+
