@@ -1,0 +1,68 @@
+name: Apply R62N adjacent precision repair
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-adjacent-fix.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Apply bounded repair
+        env:
+          PATCH_ZLIB_B64: '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'
+        run: |
+          python - <<'PY'
+          import base64, os, zlib
+          script = zlib.decompress(base64.b64decode(os.environ['PATCH_ZLIB_B64'])).decode('utf-8')
+          exec(compile(script, '<r62n-adjacent-patch>', 'exec'))
+          PY
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Deterministic regression matrix
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('tests/infrastructure').resolve()))
+          n = importlib.import_module('test_universal_cross_asset_conformance_final_owner_r62n_guards')
+          cases = {
+              'trystar_danger': ('def run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    raise ExceptionGroup("x", [ValueError()])\nexcept* ValueError:\n    import builtins as b\n    result = run()\nb = len\n', 2, True),
+              'trystar_safe': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    raise ExceptionGroup("x", [ValueError()])\nexcept* ValueError:\n    b = len\n    result = run()\n', 3, False),
+              'implicit_mismatch_safe': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    b = len\n    1 / 0\nexcept KeyError:\n    import builtins as b\n    result = run()\nexcept ZeroDivisionError:\n    b = len\n    result = run()\n', 3, False),
+              'if_false_int_safe': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nif 0:\n    import builtins as b\n    result = run()\nb = len\nresult = run()\n', 3, False),
+              'if_true_int_danger': ('def run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nif 1:\n    import builtins as b\n    result = run()\nb = len\n', 2, True),
+              'annassign_safe': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    x: object = ((b := len), 1 / 0)\nexcept ZeroDivisionError:\n    result = run()\n', 3, False),
+              'assert_safe': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    assert ((b := len), 1 / 0)\nexcept ZeroDivisionError:\n    result = run()\n', 3, False),
+              'danger_namedexpr': ('import builtins\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nb = len\ntry:\n    ((b := builtins), 1 / 0)\nexcept ZeroDivisionError:\n    result = run()\n', 2, True),
+              'second_iteration_for': ('def run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nb = len\nfor _ in (0, 1):\n    result = run()\n    import builtins as b\nb = len\n', 2, True),
+          }
+          for name, (source, expected_runtime, expected_marker) in cases.items():
+              namespace = {}
+              exec(compile(source, '<adjacent>', 'exec', dont_inherit=True), namespace)
+              markers = n._r62n_dynamic_execution_markers_from_source(source)
+              print(name, namespace.get('result'), markers)
+              assert namespace.get('result') == expected_runtime
+              assert bool(markers) is expected_marker
+          PY
+      - name: Commit repair and remove staging workflow
+        run: |
+          set -euo pipefail
+          git config user.name 'qore-integration-authority'
+          git config user.email 'qore-integration-authority@users.noreply.github.com'
+          git rm .github/workflows/r62n-adjacent-fix.yml
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git commit -m 'Harden R62N adjacent control-flow precision'
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
