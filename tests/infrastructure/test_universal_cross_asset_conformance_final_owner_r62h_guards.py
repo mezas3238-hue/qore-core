@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 
-import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r15_guards as _r15
 import test_universal_cross_asset_conformance_final_owner_r55_guards as _r55
 import test_universal_cross_asset_conformance_final_owner_r62e_guards as _r62e
