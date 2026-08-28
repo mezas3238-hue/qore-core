@@ -395,7 +395,7 @@ def _r62k_dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
 
 def _runtime_result(source: str) -> object:
     namespace: dict[str, object] = {}
-    exec(source, namespace)
+    exec(compile(source, "<r62k>", "exec", dont_inherit=True), namespace)
     return namespace["result"]
 
 
