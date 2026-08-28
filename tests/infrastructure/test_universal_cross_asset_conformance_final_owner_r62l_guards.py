@@ -154,8 +154,8 @@ def _r62l_eval_expression(
             observations=observations,
             precision_lost=precision_lost,
         )
-        value = _r62j._r62j_binding_expression_value(node.value, authority)
-        _r62j._r62j_assign_names(node.target, value, authority)
+        binding_value = _r62j._r62j_binding_expression_value(node.value, authority)
+        _r62j._r62j_assign_names(node.target, binding_value, authority)
         owners = _r62l_owner_expression_value(node.value, owner_bindings)
         _r62l_assign_owner_names(node.target, owners, owner_bindings)
         _r62l_record_timeline(timeline, top_index, authority)
@@ -175,7 +175,7 @@ def _r62l_eval_expression(
             if isinstance(node.func, ast.Name)
             else frozenset()
         )
-        arguments: list[ast.AST] = [
+        arguments: list[ast.expr] = [
             *node.args,
             *(item.value for item in node.keywords),
         ]
@@ -228,7 +228,7 @@ def _r62l_eval_expression(
         return
 
     if isinstance(node, ast.Dict):
-        for key, value in zip(node.keys, node.values, strict=True):
+        for key, dict_value in zip(node.keys, node.values, strict=True):
             if key is not None:
                 _r62l_eval_expression(
                     key,
@@ -239,7 +239,7 @@ def _r62l_eval_expression(
                     precision_lost=precision_lost,
                 )
             _r62l_eval_expression(
-                value,
+                dict_value,
                 state,
                 top_index=top_index,
                 timeline=timeline,
@@ -268,6 +268,7 @@ def _r62l_eval_expression(
             )
         return
 
+    children: tuple[ast.AST, ...]
     if isinstance(node, ast.BinOp):
         children = (node.left, node.right)
     elif isinstance(node, (ast.Tuple, ast.List, ast.Set)):
