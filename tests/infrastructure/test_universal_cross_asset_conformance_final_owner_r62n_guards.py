@@ -986,16 +986,79 @@ def _r62n_observable_authority_by_call(
     return result
 
 
+def _r62n_namespace_from_states(
+    states: tuple[_r62l._R62LAuthorityBindings, ...],
+) -> _Value:
+    names = {name for state in states for name in state}
+    values: dict[str, tuple[_Value, bool]] = {}
+    for name in names:
+        present = [state[name] for state in states if name in state]
+        values[name] = (
+            _r12._merge_values(*present),
+            all(name in state for state in states),
+        )
+    return _r62j._r62j_enrich_namespace(
+        _r62i._r62i_selected_namespace({}, frozenset()),
+        values,
+    )
+
+
+def _r62n_observable_namespace_by_call(
+    source: str,
+) -> dict[tuple[int, int], _Value]:
+    observations, _, precision_lost = _r62n_flow(source)
+    if precision_lost:
+        return {}
+    owner_by_call = _r62k._r62k_top_level_owner_calls(source)
+    escaped = _r62k._r62k_escaped_owners(source)
+    result: dict[tuple[int, int], _Value] = {}
+    for position in _r62j._r62j_deferred_call_top_indexes(source):
+        owner = owner_by_call.get(position)
+        if owner is None or owner in escaped:
+            continue
+        states = observations.get(owner)
+        if states:
+            result[position] = _r62n_namespace_from_states(states)
+    return result
+
+
 class _R62NBoundedExceptionalLoopGlobalsScanner(
     _r62m._R62MAbruptControlFlowGlobalsScanner
 ):
     """Bound implicit exceptions and repeated module-loop authority states."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._r62n_observable_namespace_by_call: dict[
+            tuple[int, int], _Value
+        ] = {}
+
     def scan(self, source: str) -> tuple[str, ...]:
         self._r62j_future_authority_by_call = _r62n_observable_authority_by_call(
             source
         )
+        self._r62n_observable_namespace_by_call = (
+            _r62n_observable_namespace_by_call(source)
+        )
         return _r62i._R62IModuleAndParameterNamespaceScanner.scan(self, source)
+
+    def _evaluate_special_call(
+        self,
+        helper: _r12._Atom,
+        arguments: list[_Value],
+    ) -> _Value:
+        if (
+            helper.kind == "helper"
+            and helper.text == "globals"
+            and not arguments
+            and self._r62i_call_position_stack
+        ):
+            replacement = self._r62n_observable_namespace_by_call.get(
+                self._r62i_call_position_stack[-1]
+            )
+            if replacement is not None:
+                return replacement
+        return super()._evaluate_special_call(helper, arguments)
 
 
 def _r62n_dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
