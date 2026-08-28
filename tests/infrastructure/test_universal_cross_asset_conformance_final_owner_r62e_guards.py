@@ -137,6 +137,7 @@ class _R62ERetainedNamespaceDefaultScanner(
 
         if (
             helper.kind == "attrgetter"
+            and helper.text is not None
             and helper.text in _R62E_NAMESPACE_HELPERS
             and arguments
             and _contains_kind(arguments[0], "builtins")
@@ -241,8 +242,8 @@ result = hold.__defaults__[0]["builtins"].eval("1+1")
 def test_r62e_nested_scope_namespace_defaults_fail_closed() -> None:
     sources = (
         """\
+import builtins
 def outer():
-    import builtins
     def hold(namespace=globals()):
         return None
     return hold
