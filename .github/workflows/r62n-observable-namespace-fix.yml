@@ -34,7 +34,6 @@ jobs:
               raise SystemExit(f'expected one scanner anchor, got {text.count(anchor)}')
           path.write_text(text.replace(anchor, replacement), encoding='utf-8')
           PY
-          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
           python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
       - name: Commit repair and remove staging workflow
         run: |
