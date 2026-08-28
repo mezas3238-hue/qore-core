@@ -153,13 +153,13 @@ def _r62k_apply_owner_binding(
 
 
 def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
-    """Return owners used outside the bounded direct-name invocation model."""
+    """Return owners used outside the bounded immediate direct-name model."""
 
     tree = ast.parse(source)
     owner_bindings: dict[str, _R62KOwner] = {}
     escaped: set[_R62KOwner] = set()
 
-    def visit_use(node: ast.AST) -> None:
+    def visit_use(node: ast.AST, *, immediate: bool) -> None:
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
             owner = owner_bindings.get(node.id)
             if owner is not None:
@@ -167,21 +167,68 @@ def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
             return
 
         if isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name) and node.func.id in owner_bindings:
-                for argument in node.args:
-                    visit_use(argument)
-                for keyword in node.keywords:
-                    visit_use(keyword.value)
-                return
-            visit_use(node.func)
+            direct_owner = (
+                owner_bindings.get(node.func.id)
+                if isinstance(node.func, ast.Name)
+                else None
+            )
+            if direct_owner is not None:
+                if not immediate:
+                    escaped.add(direct_owner)
+            else:
+                visit_use(node.func, immediate=immediate)
             for argument in node.args:
-                visit_use(argument)
+                visit_use(argument, immediate=immediate)
             for keyword in node.keywords:
-                visit_use(keyword.value)
+                visit_use(keyword.value, immediate=immediate)
+            return
+
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            immediate_nodes: list[ast.AST] = [
+                *node.decorator_list,
+                *node.args.defaults,
+                *(item for item in node.args.kw_defaults if item is not None),
+            ]
+            for argument in (
+                *node.args.posonlyargs,
+                *node.args.args,
+                *node.args.kwonlyargs,
+            ):
+                if argument.annotation is not None:
+                    immediate_nodes.append(argument.annotation)
+            if node.args.vararg is not None and node.args.vararg.annotation is not None:
+                immediate_nodes.append(node.args.vararg.annotation)
+            if node.args.kwarg is not None and node.args.kwarg.annotation is not None:
+                immediate_nodes.append(node.args.kwarg.annotation)
+            if node.returns is not None:
+                immediate_nodes.append(node.returns)
+            for child in immediate_nodes:
+                visit_use(child, immediate=immediate)
+            for statement in node.body:
+                visit_use(statement, immediate=False)
+            return
+
+        if isinstance(node, ast.Lambda):
+            for child in (
+                *node.args.defaults,
+                *(item for item in node.args.kw_defaults if item is not None),
+            ):
+                visit_use(child, immediate=immediate)
+            visit_use(node.body, immediate=False)
+            return
+
+        if isinstance(node, ast.GeneratorExp):
+            visit_use(node.generators[0].iter, immediate=immediate)
+            visit_use(node.elt, immediate=False)
+            for index, generator in enumerate(node.generators):
+                if index:
+                    visit_use(generator.iter, immediate=False)
+                for condition in generator.ifs:
+                    visit_use(condition, immediate=False)
             return
 
         for child in ast.iter_child_nodes(node):
-            visit_use(child)
+            visit_use(child, immediate=immediate)
 
     for statement in tree.body:
         safe_alias = False
@@ -202,7 +249,7 @@ def _r62k_escaped_owners(source: str) -> frozenset[_R62KOwner]:
             safe_alias = True
 
         if not safe_alias:
-            visit_use(statement)
+            visit_use(statement, immediate=True)
         _r62k_apply_owner_binding(statement, owner_bindings)
 
     return frozenset(escaped)
@@ -269,7 +316,6 @@ def _r62k_observable_authority_by_call(
             continue
         states = states_by_owner.get(owner)
         if not states:
-            result[position] = future
             continue
         observable = _r62k_authority_from_states(states)
         if observable:
@@ -289,8 +335,9 @@ class _R62KObservableDeferredGlobalsScanner(
     every observable invocation. R62K follows direct/aliased straight-line
     top-level invocations of top-level functions and the final state while such a
     function remains module-reachable. If the callable escapes that bounded
-    direct-name model, or if the deferred context is otherwise unclassified,
-    R62K retains the conservative R62J suffix model.
+    direct-name model, including through another deferred body, R62K retains the
+    conservative R62J suffix model. A non-escaped callable with no modeled
+    invocation and no final reachability has no observable module state.
     """
 
     def scan(self, source: str) -> tuple[str, ...]:
@@ -413,11 +460,46 @@ import builtins as b
 result = holder[0]()
 b = len
 """,
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+def wrapper():
+    return run()
+import builtins as b
+result = wrapper()
+b = len
+""",
     )
 
     for source in sources:
         assert _runtime_result(source) == 2
         assert "call:2" in _r62k_dynamic_execution_markers_from_source(source)
+
+
+def test_r62k_unobserved_unreachable_callable_drops_transient_authority() -> None:
+    sources = (
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+import builtins as b
+run = len
+b = len
+result = 3
+""",
+        """\
+def run():
+    return globals()["b"].eval("1+1")
+import builtins as b
+del run
+b = len
+result = 3
+""",
+    )
+
+    for source in sources:
+        assert _runtime_result(source) == 3
+        assert "call:2" in _r62j._r62j_dynamic_execution_markers_from_source(source)
+        assert _r62k_dynamic_execution_markers_from_source(source) == ()
 
 
 def test_r62k_final_reachable_dangerous_state_remains_fail_closed() -> None:
