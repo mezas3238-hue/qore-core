@@ -209,7 +209,7 @@ class _R62IModuleAndParameterNamespaceScanner(
         self._r62i_module_environment_stack = []
         return super().scan(source)
 
-    def _module_environment(
+    def _r62i_module_environment_for(
         self,
         environment: dict[str, _Value],
     ) -> dict[str, _Value]:
@@ -222,7 +222,7 @@ class _R62IModuleAndParameterNamespaceScanner(
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         environment: dict[str, _Value],
     ) -> None:
-        module_environment = self._module_environment(environment).copy()
+        module_environment = self._r62i_module_environment_for(environment).copy()
         self._r62i_module_environment_stack.append(module_environment)
         try:
             super()._scan_function(node, environment)
@@ -235,7 +235,7 @@ class _R62IModuleAndParameterNamespaceScanner(
         environment: dict[str, _Value],
     ) -> None:
         if isinstance(node, ast.ClassDef):
-            module_environment = self._module_environment(environment).copy()
+            module_environment = self._r62i_module_environment_for(environment).copy()
             self._r62i_module_environment_stack.append(module_environment)
             try:
                 super()._scan_statement(node, environment)
@@ -279,7 +279,7 @@ class _R62IModuleAndParameterNamespaceScanner(
                     frozenset({"__builtins__"}),
                 )
                 return _r62i_selected_namespace(
-                    self._module_environment(environment),
+                    self._r62i_module_environment_for(environment),
                     module_names,
                 )
 
