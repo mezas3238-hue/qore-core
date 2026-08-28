@@ -1,0 +1,47 @@
+name: Apply R62N observable namespace repair
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-observable-namespace-fix.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Apply exact repair
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py')
+          text = path.read_text(encoding='utf-8')
+          anchor = '''\n\nclass _R62NBoundedExceptionalLoopGlobalsScanner(\n    _r62m._R62MAbruptControlFlowGlobalsScanner\n):\n    \"\"\"Bound implicit exceptions and repeated module-loop authority states.\"\"\"\n\n    def scan(self, source: str) -> tuple[str, ...]:\n        self._r62j_future_authority_by_call = _r62n_observable_authority_by_call(\n            source\n        )\n        return _r62i._R62IModuleAndParameterNamespaceScanner.scan(self, source)\n'''
+          replacement = '''\n\ndef _r62n_namespace_from_states(\n    states: tuple[_r62l._R62LAuthorityBindings, ...],\n) -> _Value:\n    names = {name for state in states for name in state}\n    values: dict[str, tuple[_Value, bool]] = {}\n    for name in names:\n        present = [state[name] for state in states if name in state]\n        values[name] = (\n            _r12._merge_values(*present),\n            all(name in state for state in states),\n        )\n    return _r62j._r62j_enrich_namespace(\n        _r62i._r62i_selected_namespace({}, frozenset()),\n        values,\n    )\n\n\ndef _r62n_observable_namespace_by_call(\n    source: str,\n) -> dict[tuple[int, int], _Value]:\n    observations, _, precision_lost = _r62n_flow(source)\n    if precision_lost:\n        return {}\n    owner_by_call = _r62k._r62k_top_level_owner_calls(source)\n    escaped = _r62k._r62k_escaped_owners(source)\n    result: dict[tuple[int, int], _Value] = {}\n    for position in _r62j._r62j_deferred_call_top_indexes(source):\n        owner = owner_by_call.get(position)\n        if owner is None or owner in escaped:\n            continue\n        states = observations.get(owner)\n        if states:\n            result[position] = _r62n_namespace_from_states(states)\n    return result\n\n\nclass _R62NBoundedExceptionalLoopGlobalsScanner(\n    _r62m._R62MAbruptControlFlowGlobalsScanner\n):\n    \"\"\"Bound implicit exceptions and repeated module-loop authority states.\"\"\"\n\n    def __init__(self) -> None:\n        super().__init__()\n        self._r62n_observable_namespace_by_call: dict[\n            tuple[int, int], _Value\n        ] = {}\n\n    def scan(self, source: str) -> tuple[str, ...]:\n        self._r62j_future_authority_by_call = _r62n_observable_authority_by_call(\n            source\n        )\n        self._r62n_observable_namespace_by_call = (\n            _r62n_observable_namespace_by_call(source)\n        )\n        return _r62i._R62IModuleAndParameterNamespaceScanner.scan(self, source)\n\n    def _evaluate_special_call(\n        self,\n        helper: _r12._Atom,\n        arguments: list[_Value],\n    ) -> _Value:\n        if (\n            helper.kind == \"helper\"\n            and helper.text == \"globals\"\n            and not arguments\n            and self._r62i_call_position_stack\n        ):\n            replacement = self._r62n_observable_namespace_by_call.get(\n                self._r62i_call_position_stack[-1]\n            )\n            if replacement is not None:\n                return replacement\n        return super()._evaluate_special_call(helper, arguments)\n'''
+          if text.count(anchor) != 1:
+              raise SystemExit(f'expected one scanner anchor, got {text.count(anchor)}')
+          path.write_text(text.replace(anchor, replacement), encoding='utf-8')
+          PY
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Commit repair and remove staging workflow
+        run: |
+          set -euo pipefail
+          git config user.name 'qore-integration-authority'
+          git config user.email 'qore-integration-authority@users.noreply.github.com'
+          git rm .github/workflows/r62n-observable-namespace-fix.yml
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git commit -m 'Fix R62N observable globals namespace'
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
