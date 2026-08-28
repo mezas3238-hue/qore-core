@@ -70,7 +70,10 @@ class _R62ERetainedNamespaceDefaultScanner(
             and node.id in {"globals", "locals"}
             and node.id not in environment
         ):
-            return _r62e_helper_value(node.id)
+            value = _r62e_helper_value(node.id)
+            if self._r62d_default_capture_stack:
+                self._r62d_default_capture_stack[-1][id(node)] = value
+            return value
         return super()._scan_expression(node, environment)
 
     def _evaluate_attribute(
