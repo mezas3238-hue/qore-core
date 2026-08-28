@@ -3,13 +3,11 @@ from __future__ import annotations
 import ast
 
 import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
-import test_universal_cross_asset_conformance_final_owner_r55_guards as _r55
 import test_universal_cross_asset_conformance_final_owner_r62h_guards as _r62h
 import test_universal_cross_asset_conformance_final_owner_r62i_guards as _r62i
 import test_universal_cross_asset_conformance_final_owner_r62j_guards as _r62j
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
-    _UNKNOWN,
     _owner_paths,
     _Value,
 )
@@ -174,10 +172,7 @@ def _r62k_observable_states_by_owner(
     for owner in frozenset(owner_bindings.values()):
         observations.setdefault(owner, []).append(final_state)
 
-    return {
-        owner: tuple(states)
-        for owner, states in observations.items()
-    }
+    return {owner: tuple(states) for owner, states in observations.items()}
 
 
 def _r62k_authority_from_states(
@@ -241,9 +236,7 @@ class _R62KObservableDeferredGlobalsScanner(
     """
 
     def scan(self, source: str) -> tuple[str, ...]:
-        result = _r62k_observable_authority_by_call(source)
-        super().scan(source)
-        self._r62j_future_authority_by_call = result
+        self._r62j_future_authority_by_call = _r62k_observable_authority_by_call(source)
         return _r62i._R62IModuleAndParameterNamespaceScanner.scan(self, source)
 
 
