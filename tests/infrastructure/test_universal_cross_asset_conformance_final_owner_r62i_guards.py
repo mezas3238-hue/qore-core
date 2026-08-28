@@ -23,16 +23,17 @@ class _R62IModuleBindingClassifier(_r62h._R62HLocalCallClassifier):
         self.module_names_by_call: dict[tuple[int, int], frozenset[str]] = {}
         self._module_names: set[str] = {"__builtins__"}
 
-    def visit_Module(self, node: ast.Module) -> None:
-        for statement in node.body:
-            self.visit(statement)
-            self._record_module_bindings(statement)
-
-    def visit_Call(self, node: ast.Call) -> None:
-        self.module_names_by_call[(node.lineno, node.col_offset)] = frozenset(
-            self._module_names
-        )
-        super().visit_Call(node)
+    def visit(self, node: ast.AST) -> object:
+        if isinstance(node, ast.Module):
+            for statement in node.body:
+                self.visit(statement)
+                self._record_module_bindings(statement)
+            return None
+        if isinstance(node, ast.Call):
+            self.module_names_by_call[(node.lineno, node.col_offset)] = frozenset(
+                self._module_names
+            )
+        return super().visit(node)
 
     def _record_module_bindings(self, node: ast.stmt) -> None:
         if isinstance(node, ast.Delete):
