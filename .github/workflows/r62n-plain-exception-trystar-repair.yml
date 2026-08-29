@@ -23,9 +23,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e '.[dev]'
-      - name: Apply repair
-        run: python .github/scripts/r62n_plain_exception_trystar_patch.py
-      - name: Validate bounded repair
+      - name: Validate precise repair
         run: |
           ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
           mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
@@ -36,6 +34,6 @@ jobs:
           rm .github/workflows/r62n-plain-exception-trystar-repair.yml
           git config user.name 'mezas3238-hue'
           git config user.email 'mezas3238@gmail.com'
-          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py .github/scripts/r62n_plain_exception_trystar_patch.py .github/workflows/r62n-plain-exception-trystar-repair.yml
-          git commit -m 'Handle plain exceptions through except-star fallback'
+          git add .github/scripts/r62n_plain_exception_trystar_patch.py .github/workflows/r62n-plain-exception-trystar-repair.yml
+          git commit -m 'Clean R62N plain-exception repair staging'
           git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
