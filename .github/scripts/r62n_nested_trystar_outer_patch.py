@@ -149,8 +149,9 @@ except ValueError:
     assert _runtime_result(dangerous) == 2
     assert _runtime_result(safe) == 3
     dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
-    assert any(marker.startswith("call:") for marker in dangerous_markers)
-    assert _r62n_dynamic_execution_markers_from_source(safe) == ()
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:11" in dangerous_markers
+    assert "call:11" not in safe_markers
 '''
 
 TARGET.write_text(text, encoding="utf-8")

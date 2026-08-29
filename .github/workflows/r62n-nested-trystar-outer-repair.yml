@@ -40,4 +40,4 @@ jobs:
           git commit -m 'Handle nested TryStar exceptions in outer handlers'
           git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
 
-# retry 3: precise nested-TryStar successor, bypass generic outer-Try merge
+# retry 4: keep executed binding marker; assert only exact outer call safety
