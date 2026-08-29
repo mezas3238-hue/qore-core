@@ -160,7 +160,7 @@ finally:
             pass
         assert namespace["result"] == expected
         markers = _r62n_dynamic_execution_markers_from_source(source)
-        assert ("call:10" in markers) is marker_present
+        assert ("call:11" in markers) is marker_present
 '''
 
 TARGET.write_text(text, encoding="utf-8")
