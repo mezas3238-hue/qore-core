@@ -1,0 +1,53 @@
+name: R62N plain exception TryStar repair
+
+on:
+  push:
+    branches:
+      - agent/qore-umi14-umi12-final-owner-recert-001
+    paths:
+      - .github/scripts/r62n_plain_exception_trystar_repair.py
+      - .github/workflows/r62n-plain-exception-trystar-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Apply bounded repair
+        run: python .github/scripts/r62n_plain_exception_trystar_repair.py
+
+      - name: Validate targeted R62N contract
+        run: |
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+
+      - name: Publish clean target only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/scripts/r62n_plain_exception_trystar_repair.py
+          git rm .github/workflows/r62n-plain-exception-trystar-repair.yml
+          CHANGED="$(git diff --name-only HEAD)"
+          test "$CHANGED" = "tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py"
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git commit -m "Fix plain exception flow through TryStar"
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
