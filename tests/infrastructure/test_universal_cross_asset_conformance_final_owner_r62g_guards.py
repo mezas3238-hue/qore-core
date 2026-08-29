@@ -308,8 +308,14 @@ def test_r62g_real_builtins_mappings_remain_fail_closed() -> None:
         'import builtins\nresult = builtins.__dict__["eval"]("1+1")\n',
         'import builtins\nresult = vars(builtins)["eval"]("1+1")\n',
         'result = __builtins__["eval"]("1+1")\n',
-        'import builtins\nimport operator\nresult = operator.getitem(builtins.__dict__, "eval")("1+1")\n',
-        'import builtins\nimport operator\nresult = operator.itemgetter("eval")(builtins.__dict__)("1+1")\n',
+        (
+            'import builtins\nimport operator\n'
+            'result = operator.getitem(builtins.__dict__, "eval")("1+1")\n'
+        ),
+        (
+            'import builtins\nimport operator\n'
+            'result = operator.itemgetter("eval")(builtins.__dict__)("1+1")\n'
+        ),
         'import operator\nresult = operator.getitem(__builtins__, "eval")("1+1")\n',
     )
 
