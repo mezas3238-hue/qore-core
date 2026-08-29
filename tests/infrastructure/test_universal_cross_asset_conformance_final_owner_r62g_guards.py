@@ -1,15 +1,30 @@
 from __future__ import annotations
 
+import ast
 from collections.abc import Iterable
 
+import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r62e_guards as _r62e
 import test_universal_cross_asset_conformance_final_owner_r62f_guards as _r62f
 from test_universal_cross_asset_conformance_final_owner_r12_guards import (
     _FULL_CLOSURE_ORACLE_PATH,
+    _UNKNOWN,
     _Atom,
     _owner_paths,
     _Value,
 )
+
+_R62G_BUILTINS_MODULE_KIND = "r62g-builtins-module"
+_R62G_BUILTINS_MODULE: _Value = frozenset(
+    {_Atom("builtins"), _Atom(_R62G_BUILTINS_MODULE_KIND)}
+)
+
+
+def _r62g_is_builtins_module(value: _Value) -> bool:
+    return _r12._contains_kind(
+        value,
+        _R62G_BUILTINS_MODULE_KIND,
+    ) and not _r12._contains_kind(value, "container-kind", "mapping")
 
 
 class _R62GScopePreservingRetainedNamespaceScanner(
@@ -27,13 +42,72 @@ class _R62GScopePreservingRetainedNamespaceScanner(
     when captured as a callable default, but it carries no invented module slots.
     ``globals()`` remains module-scoped from every runtime scope, while module
     ``locals()``/``vars()`` continue to use R62F's selected-slot representation.
+
+    The explicit ``builtins`` import is a module object, not a mapping. Preserve
+    that distinction so ``builtins[... ]``/mapping-helper forms do not invent
+    execution that CPython rejects with ``TypeError``. ``builtins.__dict__``,
+    ``vars(builtins)`` and module ``__builtins__`` remain real mappings and keep
+    their fail-closed selected-slot semantics.
     """
+
+    def _scan_import(
+        self,
+        node: ast.Import,
+        environment: dict[str, _Value],
+    ) -> None:
+        super()._scan_import(node, environment)
+        for alias in node.names:
+            if alias.name != "builtins":
+                continue
+            local_name = alias.asname or alias.name.split(".", 1)[0]
+            environment[local_name] = _R62G_BUILTINS_MODULE
+
+    def _scan_expression(
+        self,
+        node: ast.AST,
+        environment: dict[str, _Value],
+    ) -> _Value:
+        if isinstance(node, ast.Name):
+            value = environment.get(
+                node.id,
+                _r12._IMPLICIT_BINDINGS.get(node.id, _UNKNOWN),
+            )
+            if node.id == "__builtins__" and value == _r12._BUILTINS_NAMESPACE:
+                return _r62f._R62F_BUILTINS_MAPPING
+            if node.id == "builtins" and value == _r12._BUILTINS_NAMESPACE:
+                return _UNKNOWN
+        return super()._scan_expression(node, environment)
+
+    def _evaluate_subscript(
+        self,
+        node: ast.Subscript,
+        environment: dict[str, _Value],
+    ) -> _Value:
+        if isinstance(node.value, ast.Name):
+            receiver = self._scan_expression(node.value, environment)
+            if _r62g_is_builtins_module(receiver):
+                self._scan_expression(node.slice, environment)
+                return _UNKNOWN
+        return super()._evaluate_subscript(node, environment)
 
     def _evaluate_special_call(
         self,
         helper: _Atom,
         arguments: list[_Value],
     ) -> _Value:
+        if (
+            helper.kind == "helper"
+            and helper.text == "getitem"
+            and arguments
+            and _r62g_is_builtins_module(arguments[0])
+        ):
+            return _UNKNOWN
+        if (
+            helper.kind == "itemgetter"
+            and arguments
+            and _r62g_is_builtins_module(arguments[0])
+        ):
+            return _UNKNOWN
         if (
             helper.kind == "helper"
             and helper.text in {"locals", "vars"}
@@ -47,6 +121,25 @@ class _R62GScopePreservingRetainedNamespaceScanner(
 
         return super()._evaluate_special_call(helper, arguments)
 
+    def _evaluate_call(
+        self,
+        node: ast.Call,
+        environment: dict[str, _Value],
+    ) -> _Value:
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"get", "__getitem__"}
+            and isinstance(node.func.value, ast.Name)
+        ):
+            receiver = self._scan_expression(node.func.value, environment)
+            if _r62g_is_builtins_module(receiver):
+                for argument in node.args:
+                    self._scan_expression(argument, environment)
+                for keyword in node.keywords:
+                    self._scan_expression(keyword.value, environment)
+                return _UNKNOWN
+        return super()._evaluate_call(node, environment)
+
 
 def _r62g_dynamic_execution_markers_from_source(source: str) -> tuple[str, ...]:
     return _R62GScopePreservingRetainedNamespaceScanner().scan(source)
@@ -59,6 +152,15 @@ def _r62g_runtime_key_error(source: str) -> tuple[object, ...]:
     except KeyError as exc:
         return exc.args
     raise AssertionError("expected KeyError")
+
+
+def _r62g_runtime_type_error(source: str) -> str:
+    namespace: dict[str, object] = {}
+    try:
+        exec(source, namespace)
+    except TypeError as exc:
+        return str(exc)
+    raise AssertionError("expected TypeError")
 
 
 def _r62g_runtime_result(source: str) -> object:
@@ -184,6 +286,49 @@ def test_r62g_module_comprehensions_keep_python312_module_scope() -> None:
     for source in sources:
         assert _r62g_runtime_result(source) == 2
         assert "call:1" in _r62g_dynamic_execution_markers_from_source(source)
+
+
+def test_r62g_builtins_module_mapping_operations_do_not_false_positive() -> None:
+    sources = (
+        'import builtins\nresult = builtins["eval"]("1+1")\n',
+        'import builtins as b\nresult = b["eval"]("1+1")\n',
+        'import builtins\nresult = builtins.get("eval")("1+1")\n',
+        'import builtins\nresult = builtins.__getitem__("eval")("1+1")\n',
+        'import builtins\nimport operator\nresult = operator.getitem(builtins, "eval")("1+1")\n',
+        'import builtins\nimport operator\nresult = operator.itemgetter("eval")(builtins)("1+1")\n',
+    )
+
+    for source in sources:
+        _r62g_runtime_type_error(source)
+        assert _r62g_dynamic_execution_markers_from_source(source) == ()
+
+
+def test_r62g_real_builtins_mappings_remain_fail_closed() -> None:
+    sources = (
+        'import builtins\nresult = builtins.__dict__["eval"]("1+1")\n',
+        'import builtins\nresult = vars(builtins)["eval"]("1+1")\n',
+        'result = __builtins__["eval"]("1+1")\n',
+        'import builtins\nimport operator\nresult = operator.getitem(builtins.__dict__, "eval")("1+1")\n',
+        'import builtins\nimport operator\nresult = operator.itemgetter("eval")(builtins.__dict__)("1+1")\n',
+        'import operator\nresult = operator.getitem(__builtins__, "eval")("1+1")\n',
+    )
+
+    for source in sources:
+        assert _r62g_runtime_result(source) == 2
+        assert _r62g_dynamic_execution_markers_from_source(source)
+
+
+def test_r62g_unbound_builtins_name_does_not_false_positive() -> None:
+    source = 'result = builtins["eval"]("1+1")\n'
+    namespace: dict[str, object] = {}
+    try:
+        exec(source, namespace)
+    except NameError:
+        pass
+    else:
+        raise AssertionError("expected NameError")
+
+    assert _r62g_dynamic_execution_markers_from_source(source) == ()
 
 
 def test_r62g_r62f_and_r62e_regressions_remain_authoritative() -> None:
