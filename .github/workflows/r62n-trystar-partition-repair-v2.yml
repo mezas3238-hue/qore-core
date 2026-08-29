@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12.14'
       - name: Verify exact semantic base and isolated staging delta
         run: |
-          test "$(git rev-parse HEAD^)" = "810e1fdd53471d2ac2ef92d199e20ec7b2c1b9e3"
+          test "$(git rev-parse HEAD^)" = "37e5c04a842e0b2252c63e8297e74e86aa16f658"
           git merge-base --is-ancestor 903c0e2e221f51df705873f90ff9ec18d58101fe HEAD
           test "$(git rev-parse HEAD:tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py)" = "95d4ffbf9479310e7a5bfd2ad5652ffec54c96fc"
           python - <<'PY'
@@ -70,7 +70,7 @@ jobs:
           git config user.name "qore-integration-authority"
           git config user.email "qore-integration-authority@users.noreply.github.com"
           git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
-          git rm .github/scripts/r62n_trystar_partition_patch.py
+          git rm -f .github/scripts/r62n_trystar_partition_patch.py
           git rm .github/workflows/r62n-trystar-partition-repair.yml
           git rm .github/workflows/r62n-trystar-partition-repair-v2.yml
           git diff --cached --check
