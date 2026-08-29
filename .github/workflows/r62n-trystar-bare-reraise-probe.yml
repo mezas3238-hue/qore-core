@@ -40,3 +40,5 @@ jobs:
           git rm .github/workflows/r62n-trystar-bare-reraise-probe.yml
           git commit -m 'Validate TryStar bare reraise state sequencing'
           git push origin HEAD:agent/r62n-trystar-bare-reraise-probe-001
+
+# retry 2: explicit exception takes precedence over empty group-members view
