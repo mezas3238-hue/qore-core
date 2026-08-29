@@ -45,7 +45,7 @@ class _R62GScopePreservingRetainedNamespaceScanner(
 
     The explicit ``builtins`` import is a module object, not a mapping. Preserve
     that distinction so ``builtins[... ]``/mapping-helper forms do not invent
-    execution that CPython rejects with ``TypeError``. ``builtins.__dict__``,
+    execution that CPython rejects before dynamic execution. ``builtins.__dict__``,
     ``vars(builtins)`` and module ``__builtins__`` remain real mappings and keep
     their fail-closed selected-slot semantics.
     """
@@ -154,13 +154,13 @@ def _r62g_runtime_key_error(source: str) -> tuple[object, ...]:
     raise AssertionError("expected KeyError")
 
 
-def _r62g_runtime_type_error(source: str) -> str:
+def _r62g_runtime_mapping_error(source: str) -> type[Exception]:
     namespace: dict[str, object] = {}
     try:
         exec(source, namespace)
-    except TypeError as exc:
-        return str(exc)
-    raise AssertionError("expected TypeError")
+    except (TypeError, AttributeError) as exc:
+        return type(exc)
+    raise AssertionError("expected module mapping access failure")
 
 
 def _r62g_runtime_result(source: str) -> object:
@@ -299,7 +299,7 @@ def test_r62g_builtins_module_mapping_operations_do_not_false_positive() -> None
     )
 
     for source in sources:
-        _r62g_runtime_type_error(source)
+        assert _r62g_runtime_mapping_error(source) in {TypeError, AttributeError}
         assert _r62g_dynamic_execution_markers_from_source(source) == ()
 
 
