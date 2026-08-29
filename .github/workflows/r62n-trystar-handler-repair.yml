@@ -1,0 +1,109 @@
+name: Apply bounded R62N TryStar handler repair
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-trystar-handler-repair.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout candidate branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Verify and apply exact TryStar patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py')
+          text = path.read_text()
+
+          old_signature = '''    def _scan_flow_failed_star_exception_paths(\n        self,\n        node: ast.Try,\n        environment: dict[str, _Value],\n    ) -> None:\n'''
+          new_signature = '''    def _scan_flow_failed_star_exception_paths(\n        self,\n        node: ast.Try | ast.TryStar,\n        environment: dict[str, _Value],\n    ) -> None:\n'''
+          if text.count(old_signature) != 1:
+              raise SystemExit('unexpected flow-helper signature anchor count')
+          text = text.replace(old_signature, new_signature, 1)
+
+          old_dispatch = '''        if isinstance(node, ast.Try):\n            self._scan_flow_failed_star_exception_paths(node, environment)\n'''
+          new_dispatch = '''        if isinstance(node, (ast.Try, ast.TryStar)):\n            self._scan_flow_failed_star_exception_paths(node, environment)\n'''
+          if text.count(old_dispatch) != 1:
+              raise SystemExit('unexpected scanner dispatch anchor count')
+          text = text.replace(old_dispatch, new_dispatch, 1)
+
+          test_name = 'test_r62n_failed_star_trystar_handlers_preserve_partial_authority'
+          if test_name in text:
+              raise SystemExit('TryStar regression already present')
+          anchor = '\n\ndef test_r62n_unknown_star_import_taints_new_call_names() -> None:\n'
+          if text.count(anchor) != 1:
+              raise SystemExit('unexpected regression insertion anchor count')
+          regression = r'''
+
+
+def test_r62n_failed_star_trystar_handlers_preserve_partial_authority() -> None:
+    module_name = "qore_r62n_trystar_star_regression"
+    module = _R62NStarImportModule(module_name)
+    module.__all__ = ["b", "missing"]
+    module.b = _py_builtins.eval
+    sys.modules[module_name] = module
+    try:
+        handler_danger = (
+            "b = len\n"
+            "try:\n"
+            f"    from {module_name} import *\n"
+            "except* AttributeError:\n"
+            "    result = b(\"1+1\")\n"
+        )
+        downstream_danger = (
+            "b = len\n"
+            "try:\n"
+            f"    from {module_name} import *\n"
+            "except* AttributeError:\n"
+            "    pass\n"
+            "result = b(\"1+1\")\n"
+        )
+        assert _runtime_result(handler_danger) == 2
+        assert _runtime_result(downstream_danger) == 2
+        assert _r62n_dynamic_execution_markers_from_source(handler_danger)
+        assert _r62n_dynamic_execution_markers_from_source(downstream_danger)
+    finally:
+        sys.modules.pop(module_name, None)
+'''
+          text = text.replace(anchor, regression + anchor, 1)
+          path.write_text(text)
+          PY
+          git diff --check
+          git diff -- tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Focused R62N TryStar regression
+        run: |
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py -k 'trystar_handlers_preserve_partial_authority'
+      - name: Canonical full quality gate
+        run: |
+          ruff check .
+          mypy src tests
+          pytest --cov=src/qore --cov-report=term-missing
+      - name: Publish repaired candidate and remove staging workflow
+        run: |
+          git config user.name qore-integration-authority
+          git config user.email qore-integration-authority@users.noreply.github.com
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git rm .github/workflows/r62n-trystar-handler-repair.yml
+          git diff --cached --check
+          git commit -m 'Harden R62N TryStar failed-star handlers'
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
