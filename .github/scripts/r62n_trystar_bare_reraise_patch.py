@@ -144,20 +144,20 @@ new_outcomes = '''                for handler_outcome in handler_outcomes:
                     next_pending = pending_exceptions
                     next_pending_group_members = pending_group_members
                     if handler_outcome.kind == "raise":
+                        exception_name = _r62n_exception_name(
+                            handler_outcome.state
+                        )
                         reraised_members = _r62n_exception_group_members(
                             handler_outcome.state
                         )
-                        if reraised_members is not None:
+                        if exception_name is not None:
+                            next_pending = (*pending_exceptions, exception_name)
+                        elif reraised_members:
                             next_pending_group_members = (
                                 pending_group_members | reraised_members
                             )
                         else:
-                            exception_name = _r62n_exception_name(
-                                handler_outcome.state
-                            )
-                            if exception_name is None:
-                                return None
-                            next_pending = (*pending_exceptions, exception_name)
+                            return None
                     elif handler_outcome.kind != "normal":
                         return None
 
