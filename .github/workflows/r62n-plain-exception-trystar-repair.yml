@@ -1,7 +1,9 @@
 name: R62N plain exception TryStar repair
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - agent/qore-umi14-umi12-final-owner-recert-001
 
 permissions:
   contents: write
