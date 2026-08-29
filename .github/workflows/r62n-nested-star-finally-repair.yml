@@ -1,0 +1,67 @@
+name: Apply bounded R62N nested failed-star finally repair
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-nested-star-finally-repair.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact staging ancestry
+        run: |
+          test "$(git rev-parse HEAD^)" = "e87778368efc8887b50c1be94bae7381842ac3a6"
+      - name: Install canonical development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Verify and apply bounded repair
+        env:
+          PATCH_SHA256: '4fac640c42a5f08c39e986c4b33e4e8fe03dad3075d8c0c38ae0c6d52313ae69'
+          PATCH_ZLIB_B64: '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'
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import os
+          import zlib
+
+          payload = os.environ['PATCH_ZLIB_B64']
+          if hashlib.sha256(payload.encode()).hexdigest() != os.environ['PATCH_SHA256']:
+              raise SystemExit('patch payload digest mismatch')
+          script = zlib.decompress(base64.b64decode(payload)).decode('utf-8')
+          compile(script, '<r62n-nested-star-finally-repair>', 'exec')
+          exec(compile(script, '<r62n-nested-star-finally-repair>', 'exec'))
+          PY
+      - name: Focused validation
+        run: |
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Full canonical quality gate
+        run: |
+          ruff check .
+          mypy src tests
+          pytest --cov=src/qore --cov-report=term-missing
+      - name: Commit validated repair and remove staging
+        run: |
+          git config user.name "qore-integration-authority"
+          git config user.email "qore-integration-authority@users.noreply.github.com"
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git rm .github/workflows/r62n-nested-star-finally-repair.yml
+          git diff --cached --check
+          git commit -m "Preserve nested failed-star exception authority"
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
