@@ -322,6 +322,8 @@ def _r62n_eval(
 
 
 def _r62n_static_bool(node: ast.AST) -> bool | None:
+    if isinstance(node, ast.NamedExpr):
+        return _r62n_static_bool(node.value)
     if isinstance(node, ast.Constant) and isinstance(
         node.value,
         (bool, int, float, complex, str, bytes, type(None)),
@@ -656,16 +658,19 @@ def _r62n_process_try(
             if handler.name is not None:
                 handler_state[0][handler.name] = _UNKNOWN
                 handler_state[1].pop(handler.name, None)
-            handled.extend(
-                _r62n_process_block(
-                    handler.body,
-                    [handler_state],
-                    top_index=top_index,
-                    timeline=timeline,
-                    observations=observations,
-                    precision_lost=precision_lost,
-                )
+            handler_outcomes = _r62n_process_block(
+                handler.body,
+                [handler_state],
+                top_index=top_index,
+                timeline=timeline,
+                observations=observations,
+                precision_lost=precision_lost,
             )
+            if handler.name is not None:
+                for handler_outcome in handler_outcomes:
+                    handler_outcome.state[0].pop(handler.name, None)
+                    handler_outcome.state[1].pop(handler.name, None)
+            handled.extend(handler_outcomes)
             if match is None or not fully_handled:
                 next_unhandled.append(raised)
         unhandled = next_unhandled
@@ -729,7 +734,14 @@ def _r62n_process_with(
         observations=observations,
         precision_lost=precision_lost,
     )
-    return _r62m._r62m_bound_outcomes([*raised, *body])
+    suppressed: list[_r62m._R62MOutcome] = []
+    for outcome in body:
+        if outcome.kind != "raise":
+            continue
+        suppressed_state = _r62n_copy_state(outcome.state)
+        suppressed_state[0].pop(_R62N_EXCEPTION_TAG, None)
+        suppressed.append(_r62m._R62MOutcome("normal", suppressed_state))
+    return _r62m._r62m_bound_outcomes([*raised, *body, *suppressed])
 
 
 def _r62n_loop_body(
@@ -1182,6 +1194,26 @@ def _r62n_process_assert(
     )
 
 
+def _r62n_process_builtin_import_from(
+    node: ast.ImportFrom,
+    state: _r62l._R62LState,
+) -> list[_r62m._R62MOutcome]:
+    working = _r62n_copy_state(state)
+    for alias in node.names:
+        if alias.name != "*" and not hasattr(_py_builtins, alias.name):
+            failed = _r62n_copy_state(working)
+            _r62n_set_exception_tag(failed, "ImportError")
+            return [_r62m._R62MOutcome("raise", failed)]
+        partial = ast.ImportFrom(
+            module="builtins",
+            names=[alias],
+            level=0,
+        )
+        _r62j._r62j_apply_straight_line_module_binding(partial, working[0])
+        _r62l._r62l_apply_owner_binding(partial, working[1])
+    return [_r62m._R62MOutcome("normal", working)]
+
+
 def _r62n_process_statement(
     node: ast.stmt,
     state: _r62l._R62LState,
@@ -1196,6 +1228,12 @@ def _r62n_process_statement(
 ) -> list[_r62m._R62MOutcome]:
     _r62l._r62l_record_timeline(timeline, top_index, state[0])
 
+    if (
+        isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module == "builtins"
+    ):
+        return _r62n_process_builtin_import_from(node, state)
     if isinstance(node, ast.Raise):
         working = _r62n_copy_state(state)
         exception_name = _r62n_static_exception_name(node.exc, working[0])
@@ -1486,11 +1524,83 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
         )
         return _r62i._R62IModuleAndParameterNamespaceScanner.scan(self, source)
 
+    def _scan_exact_failed_builtin_import_try(
+        self,
+        node: ast.Try,
+        environment: dict[str, _Value],
+    ) -> bool:
+        working = environment.copy()
+        failure_environment: dict[str, _Value] | None = None
+
+        for statement in node.body:
+            if (
+                isinstance(statement, ast.ImportFrom)
+                and statement.level == 0
+                and statement.module == "builtins"
+            ):
+                for alias in statement.names:
+                    if alias.name != "*" and not hasattr(
+                        _py_builtins,
+                        alias.name,
+                    ):
+                        failure_environment = working.copy()
+                        break
+                    partial = ast.ImportFrom(
+                        module="builtins",
+                        names=[alias],
+                        level=0,
+                    )
+                    self._scan_import_from(partial, working)
+                if failure_environment is not None:
+                    break
+                continue
+
+            if _r62n_simple_statement_may_raise(statement):
+                return False
+            self._scan_statement(statement, working)
+
+        if failure_environment is None:
+            return False
+
+        selected: dict[str, _Value] | None = None
+        for handler in node.handlers:
+            match = _r62n_handler_match(
+                "ImportError",
+                handler.type,
+                failure_environment,
+            )
+            if match is None:
+                return False
+            if not match:
+                continue
+            selected = failure_environment.copy()
+            if handler.type is not None:
+                self._scan_expression(handler.type, selected)
+            if handler.name is not None:
+                selected[handler.name] = _UNKNOWN
+            self._scan_block(handler.body, selected)
+            if handler.name is not None:
+                selected.pop(handler.name, None)
+            break
+
+        if selected is None:
+            selected = failure_environment.copy()
+        if node.finalbody:
+            self._scan_block(node.finalbody, selected)
+        environment.clear()
+        environment.update(selected)
+        return True
+
     def _scan_statement(
         self,
         node: ast.stmt,
         environment: dict[str, _Value],
     ) -> None:
+        if isinstance(node, ast.Try) and self._scan_exact_failed_builtin_import_try(
+            node,
+            environment,
+        ):
+            return
         if isinstance(node, ast.Assert):
             self._scan_expression(node.test, environment)
             if _r62n_static_bool(node.test) is not True and node.msg is not None:
@@ -2016,4 +2126,77 @@ b = len
     assert _runtime_result(dangerous) == 2
     assert _r62n_dynamic_execution_markers_from_source(safe) == ()
     assert _r62n_dynamic_execution_markers_from_source(dangerous)
+
+
+
+def test_r62n_namedexpr_truthiness_skips_unreachable_assert_message() -> None:
+    source = """\\
+import builtins
+b = len
+def run():
+    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")
+assert (flag := True), (b := builtins)
+result = run()
+"""
+    assert _runtime_result(source) == 3
+    assert _r62n_dynamic_execution_markers_from_source(source) == ()
+
+
+def test_r62n_builtin_from_import_preserves_partial_failure_order() -> None:
+    missing = "definitely_missing_qore_r62n_builtin_name"
+    assert not hasattr(_py_builtins, missing)
+
+    dangerous = f"""\\
+b = len
+try:
+    from builtins import eval as b, {missing}
+except ImportError:
+    result = b("1+1")
+"""
+    safe = f"""\\
+b = len
+try:
+    from builtins import {missing}, eval as b
+except ImportError:
+    result = b("abc")
+"""
+    assert _runtime_result(dangerous) == 2
+    assert _runtime_result(safe) == 3
+    assert _r62n_dynamic_execution_markers_from_source(dangerous)
+    assert _r62n_dynamic_execution_markers_from_source(safe) == ()
+
+
+def test_r62n_with_body_exception_may_be_suppressed_by_exit() -> None:
+    source = """\\
+class Swallow:
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        return True
+
+def run():
+    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")
+
+with Swallow():
+    import builtins as b
+    raise RuntimeError("suppressed")
+result = run()
+"""
+    assert _runtime_result(source) == 2
+    assert _r62n_dynamic_execution_markers_from_source(source)
+
+
+def test_r62n_exception_handler_target_is_deleted_after_handler() -> None:
+    source = """\\
+import builtins as b
+def run():
+    return getattr(globals().get("b", len), "eval", lambda _: 3)("1+1")
+try:
+    raise ValueError("x")
+except ValueError as b:
+    pass
+result = run()
+"""
+    assert _runtime_result(source) == 3
+    assert _r62n_dynamic_execution_markers_from_source(source) == ()
 
