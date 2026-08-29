@@ -1500,6 +1500,24 @@ def _r62n_observable_authority_by_call(
     return result
 
 
+def _r62n_contains_runtime_unknown_star(node: ast.AST) -> bool:
+    if isinstance(
+        node,
+        (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef),
+    ):
+        return False
+    if (
+        isinstance(node, ast.ImportFrom)
+        and any(alias.name == "*" for alias in node.names)
+        and not (node.level == 0 and node.module == "builtins")
+    ):
+        return True
+    return any(
+        _r62n_contains_runtime_unknown_star(child)
+        for child in ast.iter_child_nodes(node)
+    )
+
+
 def _r62n_namespace_from_states(
     states: tuple[_r62l._R62LAuthorityBindings, ...],
 ) -> _Value:
@@ -1560,6 +1578,67 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
             _r62n_observable_namespace_by_call(source)
         )
         return _r62i._R62IModuleAndParameterNamespaceScanner.scan(self, source)
+
+    def _scan_flow_failed_star_exception_paths(
+        self,
+        node: ast.Try,
+        environment: dict[str, _Value],
+    ) -> None:
+        if not any(
+            _r62n_contains_runtime_unknown_star(statement)
+            for statement in node.body
+        ):
+            return
+
+        initial: _r62l._R62LState = (environment.copy(), {})
+        scratch_timeline: dict[int, list[_r62l._R62LAuthorityBindings]] = {}
+        scratch_observations: dict[
+            _r62k._R62KOwner,
+            list[_r62l._R62LAuthorityBindings],
+        ] = {}
+        precision_lost = [False]
+        body = _r62n_process_block(
+            node.body,
+            [initial],
+            top_index=0,
+            timeline=scratch_timeline,
+            observations=scratch_observations,
+            precision_lost=precision_lost,
+        )
+        unhandled = [outcome for outcome in body if outcome.kind == "raise"]
+
+        for handler in node.handlers:
+            next_unhandled: list[_r62m._R62MOutcome] = []
+            for raised_outcome in unhandled:
+                match = _r62n_handler_match(
+                    _r62n_exception_name(raised_outcome.state),
+                    handler.type,
+                    raised_outcome.state[0],
+                )
+                if match is False:
+                    next_unhandled.append(raised_outcome)
+                    continue
+
+                handler_environment = raised_outcome.state[0].copy()
+                handler_environment.pop(_R62N_EXCEPTION_TAG, None)
+                if handler.type is not None:
+                    self._scan_expression(handler.type, handler_environment)
+                if handler.name is not None:
+                    handler_environment[handler.name] = _UNKNOWN
+                self._scan_block(handler.body, handler_environment)
+                if handler.name is not None:
+                    handler_environment.pop(handler.name, None)
+                if node.finalbody:
+                    self._scan_block(node.finalbody, handler_environment)
+                if match is None:
+                    next_unhandled.append(raised_outcome)
+            unhandled = next_unhandled
+
+        if node.finalbody:
+            for raised_outcome in unhandled:
+                final_environment = raised_outcome.state[0].copy()
+                final_environment.pop(_R62N_EXCEPTION_TAG, None)
+                self._scan_block(node.finalbody, final_environment)
 
     def _scan_exact_failed_builtin_import_try(
         self,
@@ -1717,6 +1796,8 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
         node: ast.stmt,
         environment: dict[str, _Value],
     ) -> None:
+        if isinstance(node, ast.Try):
+            self._scan_flow_failed_star_exception_paths(node, environment)
         if (
             isinstance(node, ast.Try)
             and self._scan_conservative_failed_star_import_try(
@@ -2364,6 +2445,53 @@ result = b("abc")
 """
         assert _runtime_result(inverse) == 3
         assert _r62n_dynamic_execution_markers_from_source(inverse)
+    finally:
+        sys.modules.pop(module_name, None)
+
+
+def test_r62n_nested_failed_star_exception_state_crosses_finally() -> None:
+    module_name = "qore_r62n_nested_star_regression"
+    module = _R62NStarImportModule(module_name)
+    module.__all__ = ["b", "missing"]
+    module.b = _py_builtins.eval
+    sys.modules[module_name] = module
+    try:
+        handler_danger = (
+            "b = len\n"
+            "try:\n"
+            "    try:\n"
+            f"        from {module_name} import *\n"
+            "    finally:\n"
+            "        marker = 1\n"
+            "except AttributeError:\n"
+            "    result = b(\"1+1\")\n"
+        )
+        finalbody_danger = (
+            "b = len\n"
+            "try:\n"
+            f"    from {module_name} import *\n"
+            "except AttributeError:\n"
+            "    pass\n"
+            "finally:\n"
+            "    result = b(\"1+1\")\n"
+            "    b = len\n"
+        )
+        safe = (
+            "b = len\n"
+            "try:\n"
+            "    try:\n"
+            f"        from {module_name} import *\n"
+            "    finally:\n"
+            "        b = lambda _: 3\n"
+            "except AttributeError:\n"
+            "    result = b(\"abc\")\n"
+        )
+        assert _runtime_result(handler_danger) == 2
+        assert _runtime_result(finalbody_danger) == 2
+        assert _runtime_result(safe) == 3
+        assert _r62n_dynamic_execution_markers_from_source(handler_danger)
+        assert _r62n_dynamic_execution_markers_from_source(finalbody_danger)
+        assert _r62n_dynamic_execution_markers_from_source(safe) == ()
     finally:
         sys.modules.pop(module_name, None)
 
