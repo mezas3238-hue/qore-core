@@ -106,7 +106,7 @@ jobs:
               'assert_true_safe': ('import builtins\nb = len\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nassert True, (b := builtins)\nresult = run()\n', 3, False),
               'assert_true_danger': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nassert True, (b := len)\nresult = run()\nb = len\n', 2, True),
               'assert_false_safe': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    assert False, (b := len)\nexcept AssertionError:\n    result = run()\n', 3, False),
-              'assert_false_danger': ('import builtins\nb = len\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    assert False, (b := builtins)\nexcept AssertionError:\n    import builtins as b\n    result = run()\n', 2, True),
+              'assert_false_danger': ('import builtins\nb = len\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    assert False, (b := builtins)\nexcept AssertionError:\n    result = run()\nb = len\n', 2, True),
           }
           for name, (source, expected_runtime, expected_marker) in cases.items():
               namespace = {}
