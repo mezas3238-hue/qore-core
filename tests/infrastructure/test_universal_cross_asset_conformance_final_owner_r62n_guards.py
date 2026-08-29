@@ -1587,6 +1587,20 @@ def _r62n_contains_runtime_unknown_star(node: ast.AST) -> bool:
     )
 
 
+def _r62n_contains_nested_trystar(node: ast.AST) -> bool:
+    if isinstance(
+        node,
+        (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef),
+    ):
+        return False
+    if isinstance(node, ast.TryStar):
+        return True
+    return any(
+        _r62n_contains_nested_trystar(child)
+        for child in ast.iter_child_nodes(node)
+    )
+
+
 def _r62n_namespace_from_states(
     states: tuple[_r62l._R62LAuthorityBindings, ...],
 ) -> _Value:
@@ -1655,6 +1669,7 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
     ) -> None:
         if isinstance(node, ast.Try) and not any(
             _r62n_contains_runtime_unknown_star(statement)
+            or _r62n_contains_nested_trystar(statement)
             for statement in node.body
         ):
             return
@@ -1775,7 +1790,14 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
                 final_environment.pop(_R62N_EXCEPTION_TAG, None)
                 self._scan_block(node.finalbody, final_environment)
 
-        if isinstance(node, ast.TryStar):
+        has_precise_successor = isinstance(node, ast.TryStar) or (
+            isinstance(node, ast.Try)
+            and any(
+                _r62n_contains_nested_trystar(statement)
+                for statement in node.body
+            )
+        )
+        if has_precise_successor:
             completed = _r62n_process_try(
                 node,
                 initial,
@@ -1966,6 +1988,23 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
             environment.update(successor_environment)
             return
         if isinstance(node, ast.Try):
+            has_nested_trystar = any(
+                _r62n_contains_nested_trystar(statement)
+                for statement in node.body
+            )
+            if has_nested_trystar:
+                original_environment = environment.copy()
+                self._scan_flow_failed_star_exception_paths(node, environment)
+                successor_environment = environment.copy()
+
+                body_environment = original_environment.copy()
+                self._scan_block(node.body, body_environment)
+                if node.orelse:
+                    self._scan_block(node.orelse, body_environment)
+
+                environment.clear()
+                environment.update(successor_environment)
+                return
             self._scan_flow_failed_star_exception_paths(node, environment)
         if (
             isinstance(node, ast.Try)
@@ -2906,3 +2945,38 @@ result = dynamic_alias("1+1")
         assert _r62n_dynamic_execution_markers_from_source(source)
     finally:
         sys.modules.pop(module_name, None)
+
+
+def test_r62n_nested_trystar_new_handler_exception_reaches_outer_handler() -> None:
+    dangerous = """\
+b = len
+try:
+    try:
+        raise ExceptionGroup("eg", [AttributeError("a")])
+    except* AttributeError:
+        b = eval
+        raise ValueError("new")
+    except* ValueError:
+        b = len
+except ValueError:
+    result = b("1+1")
+"""
+    safe = """\
+b = eval
+try:
+    try:
+        raise ExceptionGroup("eg", [AttributeError("a")])
+    except* AttributeError:
+        b = len
+        raise ValueError("new")
+    except* ValueError:
+        b = eval
+except ValueError:
+    result = b("abc")
+"""
+    assert _runtime_result(dangerous) == 2
+    assert _runtime_result(safe) == 3
+    dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:11" in dangerous_markers
+    assert "call:11" not in safe_markers
