@@ -22,8 +22,8 @@ jobs:
           python-version: '3.12.14'
       - name: Verify exact staging ancestry
         run: |
-          test "$(git rev-parse HEAD^)" = "61a0008fd966a3f0b699941c72a1f2bf19e7cc14"
-          test "$(git rev-parse HEAD^^)" = "35d48570b93473da7bfd4ae0a50073bc253cba76"
+          test "$(git rev-parse HEAD^)" = "15c23c4ae7472b0137411f254b7a68742ef73404"
+          test "$(git rev-parse HEAD^^^)" = "35d48570b93473da7bfd4ae0a50073bc253cba76"
       - name: Install canonical development dependencies
         run: |
           python -m pip install --upgrade pip
@@ -87,17 +87,48 @@ jobs:
               raise SystemExit("unexpected failed-star handler match count")
           text = text.replace(old_match, new_match, 1)
 
-          old_unhandled = (
+          old_tail = (
               "                if match is None:\n"
               "                    next_unhandled.append(raised_outcome)\n"
+              "            unhandled = next_unhandled\n\n"
+              "        if node.finalbody:\n"
+              "            for raised_outcome in unhandled:\n"
+              "                final_environment = raised_outcome.state[0].copy()\n"
+              "                final_environment.pop(_R62N_EXCEPTION_TAG, None)\n"
+              "                self._scan_block(node.finalbody, final_environment)\n\n"
           )
-          new_unhandled = (
+          new_tail = (
               "                if match is None or not fully_handled:\n"
               "                    next_unhandled.append(raised_outcome)\n"
+              "            unhandled = next_unhandled\n\n"
+              "        if node.finalbody:\n"
+              "            for raised_outcome in unhandled:\n"
+              "                final_environment = raised_outcome.state[0].copy()\n"
+              "                final_environment.pop(_R62N_EXCEPTION_TAG, None)\n"
+              "                self._scan_block(node.finalbody, final_environment)\n\n"
+              "        if isinstance(node, ast.TryStar):\n"
+              "            completed = _r62n_process_try(\n"
+              "                node,\n"
+              "                initial,\n"
+              "                top_index=0,\n"
+              "                timeline={},\n"
+              "                observations={},\n"
+              "                precision_lost=[False],\n"
+              "            )\n"
+              "            normal_environments = [\n"
+              "                outcome.state[0]\n"
+              "                for outcome in completed\n"
+              "                if outcome.kind == \"normal\"\n"
+              "            ]\n"
+              "            if normal_environments:\n"
+              "                self._merge_environments(\n"
+              "                    environment,\n"
+              "                    *normal_environments,\n"
+              "                )\n\n"
           )
-          if text.count(old_unhandled) != 1:
-              raise SystemExit("unexpected failed-star unhandled count")
-          text = text.replace(old_unhandled, new_unhandled, 1)
+          if text.count(old_tail) != 1:
+              raise SystemExit("unexpected failed-star tail count")
+          text = text.replace(old_tail, new_tail, 1)
 
           old_scan = (
               "        if isinstance(node, ast.Try):\n"
@@ -122,14 +153,22 @@ jobs:
               "    module.b = _py_builtins.eval\n"
               "    sys.modules[module_name] = module\n"
               "    try:\n"
-              "        dangerous = (\n"
+              "        handler_danger = (\n"
               "            \"b = len\\n\"\n"
               "            \"try:\\n\"\n"
               "            f\"    from {module_name} import *\\n\"\n"
               "            \"except* AttributeError:\\n\"\n"
               "            \"    result = b(\\\"1+1\\\")\\n\"\n"
               "        )\n"
-              "        safe = (\n"
+              "        downstream_danger = (\n"
+              "            \"b = len\\n\"\n"
+              "            \"try:\\n\"\n"
+              "            f\"    from {module_name} import *\\n\"\n"
+              "            \"except* AttributeError:\\n\"\n"
+              "            \"    pass\\n\"\n"
+              "            \"result = b(\\\"1+1\\\")\\n\"\n"
+              "        )\n"
+              "        handler_safe = (\n"
               "            \"b = len\\n\"\n"
               "            \"try:\\n\"\n"
               "            \"    try:\\n\"\n"
@@ -139,10 +178,25 @@ jobs:
               "            \"except* AttributeError:\\n\"\n"
               "            \"    result = b(\\\"abc\\\")\\n\"\n"
               "        )\n"
-              "        assert _runtime_result(dangerous) == 2\n"
-              "        assert _runtime_result(safe) == 3\n"
-              "        assert _r62n_dynamic_execution_markers_from_source(dangerous)\n"
-              "        assert _r62n_dynamic_execution_markers_from_source(safe) == ()\n"
+              "        downstream_safe = (\n"
+              "            \"b = len\\n\"\n"
+              "            \"try:\\n\"\n"
+              "            \"    try:\\n\"\n"
+              "            f\"        from {module_name} import *\\n\"\n"
+              "            \"    finally:\\n\"\n"
+              "            \"        b = lambda _: 3\\n\"\n"
+              "            \"except* AttributeError:\\n\"\n"
+              "            \"    pass\\n\"\n"
+              "            \"result = b(\\\"abc\\\")\\n\"\n"
+              "        )\n"
+              "        assert _runtime_result(handler_danger) == 2\n"
+              "        assert _runtime_result(downstream_danger) == 2\n"
+              "        assert _runtime_result(handler_safe) == 3\n"
+              "        assert _runtime_result(downstream_safe) == 3\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(handler_danger)\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(downstream_danger)\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(handler_safe) == ()\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(downstream_safe) == ()\n"
               "    finally:\n"
               "        sys.modules.pop(module_name, None)\n\n"
           )
