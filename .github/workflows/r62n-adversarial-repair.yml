@@ -1,0 +1,49 @@
+name: Apply R62N adversarial flow repair
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-adversarial-repair.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Install canonical development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Apply bounded semantic repair
+        env:
+          PATCH_ZLIB_B64: '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'
+        run: |
+          python - <<'PY'
+          import base64, os, zlib
+          script = zlib.decompress(base64.b64decode(os.environ['PATCH_ZLIB_B64'])).decode('utf-8')
+          exec(compile(script, '<r62n-adversarial-repair>', 'exec'))
+          PY
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git diff --check
+      - name: Targeted R62N regression suite
+        run: pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Commit validated repair
+        run: |
+          set -euo pipefail
+          git config user.name 'qore-integration-authority'
+          git config user.email 'qore-integration-authority@users.noreply.github.com'
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git commit -m 'Harden R62N partial imports and exit suppression'
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
