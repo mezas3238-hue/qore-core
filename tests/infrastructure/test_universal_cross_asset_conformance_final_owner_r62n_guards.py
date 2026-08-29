@@ -647,8 +647,9 @@ def _r62n_process_known_trystar_handlers(
                 _r62l._R62LState,
                 frozenset[str],
                 tuple[str, ...],
+                frozenset[str],
             ]
-        ] = [(_r62n_copy_state(raised.state), group_members, ())]
+        ] = [(_r62n_copy_state(raised.state), group_members, (), frozenset())]
 
         for handler in handlers:
             next_paths: list[
@@ -656,12 +657,23 @@ def _r62n_process_known_trystar_handlers(
                     _r62l._R62LState,
                     frozenset[str],
                     tuple[str, ...],
+                    frozenset[str],
                 ]
             ] = []
-            for current_state, remaining_members, pending_exceptions in paths:
+            for (
+                current_state,
+                remaining_members,
+                pending_exceptions,
+                pending_group_members,
+            ) in paths:
                 if not remaining_members:
                     next_paths.append(
-                        (current_state, remaining_members, pending_exceptions)
+                        (
+                            current_state,
+                            remaining_members,
+                            pending_exceptions,
+                            pending_group_members,
+                        )
                     )
                     continue
 
@@ -682,13 +694,22 @@ def _r62n_process_known_trystar_handlers(
                 )
                 if not matched_members:
                     next_paths.append(
-                        (current_state, remaining_members, pending_exceptions)
+                        (
+                            current_state,
+                            remaining_members,
+                            pending_exceptions,
+                            pending_group_members,
+                        )
                     )
                     continue
 
                 remaining_after = remaining_members - matched_members
                 handler_state = _r62n_copy_state(current_state)
-                handler_state[0].pop(_R62N_EXCEPTION_TAG, None)
+                _r62n_set_exception_tag(
+                    handler_state,
+                    None,
+                    group_members=matched_members,
+                )
                 if handler.type is not None:
                     _r62n_eval(
                         handler.type,
@@ -716,13 +737,22 @@ def _r62n_process_known_trystar_handlers(
 
                 for handler_outcome in handler_outcomes:
                     next_pending = pending_exceptions
+                    next_pending_group_members = pending_group_members
                     if handler_outcome.kind == "raise":
                         exception_name = _r62n_exception_name(
                             handler_outcome.state
                         )
-                        if exception_name is None:
+                        reraised_members = _r62n_exception_group_members(
+                            handler_outcome.state
+                        )
+                        if exception_name is not None:
+                            next_pending = (*pending_exceptions, exception_name)
+                        elif reraised_members:
+                            next_pending_group_members = (
+                                pending_group_members | reraised_members
+                            )
+                        else:
                             return None
-                        next_pending = (*pending_exceptions, exception_name)
                     elif handler_outcome.kind != "normal":
                         return None
 
@@ -735,16 +765,28 @@ def _r62n_process_known_trystar_handlers(
                             group_members=remaining_after,
                         )
                     next_paths.append(
-                        (next_state, remaining_after, next_pending)
+                        (
+                            next_state,
+                            remaining_after,
+                            next_pending,
+                            next_pending_group_members,
+                        )
                     )
             paths = next_paths
 
-        for final_state, remaining_members, pending_exceptions in paths:
+        for (
+            final_state,
+            remaining_members,
+            pending_exceptions,
+            pending_group_members,
+        ) in paths:
             result_state = _r62n_copy_state(final_state)
             result_state[0].pop(_R62N_EXCEPTION_TAG, None)
-            if pending_exceptions and remaining_members:
-                return None
-            if len(pending_exceptions) == 1:
+            combined_group_members = pending_group_members | remaining_members
+            combined_exception_names = frozenset(
+                (*pending_exceptions, *combined_group_members)
+            )
+            if len(pending_exceptions) == 1 and not combined_group_members:
                 _r62n_set_exception_tag(
                     result_state,
                     pending_exceptions[0],
@@ -752,16 +794,26 @@ def _r62n_process_known_trystar_handlers(
                 completed.append(
                     _r62m._R62MOutcome("raise", result_state)
                 )
-            elif pending_exceptions:
-                _r62n_set_exception_tag(result_state, None)
-                completed.append(
-                    _r62m._R62MOutcome("raise", result_state)
+            elif combined_exception_names:
+                exception_classes = [
+                    _r62n_builtin_exception_class(name)
+                    for name in combined_exception_names
+                ]
+                if any(item is None for item in exception_classes):
+                    return None
+                group_name = (
+                    "ExceptionGroup"
+                    if all(
+                        issubclass(item, Exception)
+                        for item in exception_classes
+                        if item is not None
+                    )
+                    else "BaseExceptionGroup"
                 )
-            elif remaining_members:
                 _r62n_set_exception_tag(
                     result_state,
-                    None,
-                    group_members=remaining_members,
+                    group_name,
+                    group_members=combined_exception_names,
                 )
                 completed.append(
                     _r62m._R62MOutcome("raise", result_state)
@@ -1514,6 +1566,8 @@ def _r62n_process_statement(
         return _r62n_process_builtin_import_from(node, state)
     if isinstance(node, ast.Raise):
         working = _r62n_copy_state(state)
+        if node.exc is None:
+            return [_r62m._R62MOutcome("raise", working)]
         exception_name = _r62n_static_exception_name(node.exc, working[0])
         group_members = _r62n_static_exception_group_members(
             node.exc,
@@ -3213,3 +3267,118 @@ except TypeError:
     assert "call:11" not in safe_markers
     assert "call:11" in dangerous_markers
     assert "call:11" not in unreachable_markers
+
+
+
+def test_r62n_trystar_bare_reraise_observes_later_handler_state() -> None:
+    safe = """\
+b = eval
+try:
+    try:
+        raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+    except* AttributeError:
+        b = eval
+        raise
+    except* ValueError:
+        b = len
+except ExceptionGroup:
+    result = b("abc")
+"""
+    dangerous = """\
+b = len
+try:
+    try:
+        raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+    except* AttributeError:
+        b = len
+        raise
+    except* ValueError:
+        b = eval
+except ExceptionGroup:
+    result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
+    assert "call:11" not in safe_markers
+    assert "call:11" in dangerous_markers
+
+
+
+def test_r62n_trystar_mixed_reraise_and_new_exception_uses_final_handler_state() -> None:
+    safe = """\
+b = eval
+try:
+    try:
+        raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+    except* AttributeError:
+        b = eval
+        raise
+    except* ValueError:
+        b = len
+        raise TypeError("new")
+except BaseExceptionGroup:
+    result = b("abc")
+"""
+    dangerous = """\
+b = len
+try:
+    try:
+        raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+    except* AttributeError:
+        b = len
+        raise
+    except* ValueError:
+        b = eval
+        raise TypeError("new")
+except BaseExceptionGroup:
+    result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
+    assert "call:12" not in safe_markers
+    assert "call:12" in dangerous_markers
+
+
+def test_r62n_trystar_mixed_pending_finally_uses_completed_handler_state() -> None:
+    safe = """\
+b = eval
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = eval
+    raise
+except* ValueError:
+    b = len
+    raise TypeError("new")
+finally:
+    result = b("abc")
+"""
+    dangerous = """\
+b = len
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = len
+    raise
+except* ValueError:
+    b = eval
+    raise TypeError("new")
+finally:
+    result = b("1+1")
+"""
+    for source, expected, marker_present in (
+        (safe, 3, False),
+        (dangerous, 2, True),
+    ):
+        namespace: dict[str, object] = {}
+        try:
+            exec(compile(source, "<r62n-mixed-finally>", "exec", dont_inherit=True), namespace)
+        except BaseExceptionGroup:
+            pass
+        assert namespace["result"] == expected
+        markers = _r62n_dynamic_execution_markers_from_source(source)
+        assert ("call:11" in markers) is marker_present
