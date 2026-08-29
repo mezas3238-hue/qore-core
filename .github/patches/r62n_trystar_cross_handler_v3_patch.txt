@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+TARGET = Path("tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py")
+text = TARGET.read_text(encoding="utf-8")
+
+old_per_handler = '''                if node.finalbody:
+                    final_environment = handler_environment.copy()
+                    self._scan_block(node.finalbody, final_environment)
+'''
+assert text.count(old_per_handler) == 1
+text = text.replace(old_per_handler, "", 1)
+
+old_unhandled_final = '''        if node.finalbody:
+            for raised_outcome in unhandled:
+                final_environment = raised_outcome.state[0].copy()
+                final_environment.pop(_R62N_EXCEPTION_TAG, None)
+                self._scan_block(node.finalbody, final_environment)
+'''
+new_final = '''        if node.finalbody:
+            if isinstance(node, ast.TryStar):
+                pre_final_node: ast.Try | ast.TryStar = ast.TryStar(
+                    body=node.body,
+                    handlers=node.handlers,
+                    orelse=node.orelse,
+                    finalbody=[],
+                )
+            else:
+                pre_final_node = ast.Try(
+                    body=node.body,
+                    handlers=node.handlers,
+                    orelse=node.orelse,
+                    finalbody=[],
+                )
+            pre_final = _r62n_process_try(
+                pre_final_node,
+                initial,
+                top_index=0,
+                timeline={},
+                observations={},
+                precision_lost=[False],
+            )
+            for pre_final_outcome in pre_final:
+                final_environment = pre_final_outcome.state[0].copy()
+                final_environment.pop(_R62N_EXCEPTION_TAG, None)
+                self._scan_block(node.finalbody, final_environment)
+'''
+assert text.count(old_unhandled_final) == 1
+text = text.replace(old_unhandled_final, new_final, 1)
+
+old_name = "def test_r62n_trystar_cross_handler_state_is_sequential() -> None:"
+assert text.count(old_name) == 1
+text = text.replace(
+    old_name,
+    "def test_r62n_trystar_failed_star_cross_handler_remains_conservative() -> None:",
+    1,
+)
+assert text.count('        assert "call:10" not in safe_markers\n') == 1
+text = text.replace(
+    '        assert "call:10" not in safe_markers\n',
+    '        assert "call:10" in safe_markers\n',
+    1,
+)
+
+anchor = "\ndef test_r62n_unknown_star_import_taints_new_call_names() -> None:\n"
+assert anchor in text
+extra = r'''
+
+def test_r62n_trystar_static_group_cross_handler_state_is_sequential() -> None:
+    safe = """\
+b = eval
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = len
+except* ValueError:
+    result = b("1+1")
+"""
+    dangerous = """\
+b = len
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = eval
+except* ValueError:
+    result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    assert "call:7" not in _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:7" in _r62n_dynamic_execution_markers_from_source(dangerous)
+
+
+def test_r62n_trystar_finalbody_observes_completed_handler_chain() -> None:
+    safe = """\
+b = eval
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = eval
+except* ValueError:
+    b = len
+finally:
+    result = b("1+1")
+"""
+    dangerous = """\
+b = len
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = len
+except* ValueError:
+    b = eval
+finally:
+    result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    assert "call:9" not in _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:9" in _r62n_dynamic_execution_markers_from_source(dangerous)
+'''
+text = text.replace(anchor, extra + anchor, 1)
+TARGET.write_text(text, encoding="utf-8")
