@@ -46,8 +46,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/scripts/r62n_plain_exception_trystar_repair.py
           git rm .github/workflows/r62n-plain-exception-trystar-repair.yml
-          CHANGED="$(git diff --name-only HEAD)"
-          test "$CHANGED" = "tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py"
-          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          CHANGED="$(git diff --name-only HEAD | sort)"
+          EXPECTED="$(printf '%s\n' \
+            '.github/scripts/r62n_plain_exception_trystar_repair.py' \
+            '.github/workflows/r62n-plain-exception-trystar-repair.yml' \
+            'tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py' | sort)"
+          test "$CHANGED" = "$EXPECTED"
+          git add -A
           git commit -m "Fix plain exception flow through TryStar"
           git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
