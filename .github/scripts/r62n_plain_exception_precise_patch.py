@@ -40,7 +40,10 @@ new_helper = '''def _r62n_exception_group_members(
     if members:
         return members
     exception_name = _r62n_exception_name(state)
-    if exception_name not in {None, "ExceptionGroup", "BaseExceptionGroup"}:
+    if (
+        exception_name is not None
+        and exception_name not in {"ExceptionGroup", "BaseExceptionGroup"}
+    ):
         return frozenset({exception_name})
     return members
 '''
