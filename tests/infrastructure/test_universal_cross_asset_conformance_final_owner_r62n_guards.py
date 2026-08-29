@@ -1581,7 +1581,7 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
 
     def _scan_flow_failed_star_exception_paths(
         self,
-        node: ast.Try,
+        node: ast.Try | ast.TryStar,
         environment: dict[str, _Value],
     ) -> None:
         if not any(
@@ -1796,7 +1796,7 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
         node: ast.stmt,
         environment: dict[str, _Value],
     ) -> None:
-        if isinstance(node, ast.Try):
+        if isinstance(node, (ast.Try, ast.TryStar)):
             self._scan_flow_failed_star_exception_paths(node, environment)
         if (
             isinstance(node, ast.Try)
@@ -2492,6 +2492,37 @@ def test_r62n_nested_failed_star_exception_state_crosses_finally() -> None:
         assert _r62n_dynamic_execution_markers_from_source(handler_danger)
         assert _r62n_dynamic_execution_markers_from_source(finalbody_danger)
         assert _r62n_dynamic_execution_markers_from_source(safe) == ()
+    finally:
+        sys.modules.pop(module_name, None)
+
+
+
+def test_r62n_failed_star_trystar_handlers_preserve_partial_authority() -> None:
+    module_name = "qore_r62n_trystar_star_regression"
+    module = _R62NStarImportModule(module_name)
+    module.__all__ = ["b", "missing"]
+    module.b = _py_builtins.eval
+    sys.modules[module_name] = module
+    try:
+        handler_danger = (
+            "b = len\n"
+            "try:\n"
+            f"    from {module_name} import *\n"
+            "except* AttributeError:\n"
+            "    result = b(\"1+1\")\n"
+        )
+        downstream_danger = (
+            "b = len\n"
+            "try:\n"
+            f"    from {module_name} import *\n"
+            "except* AttributeError:\n"
+            "    pass\n"
+            "result = b(\"1+1\")\n"
+        )
+        assert _runtime_result(handler_danger) == 2
+        assert _runtime_result(downstream_danger) == 2
+        assert _r62n_dynamic_execution_markers_from_source(handler_danger)
+        assert _r62n_dynamic_execution_markers_from_source(downstream_danger)
     finally:
         sys.modules.pop(module_name, None)
 
