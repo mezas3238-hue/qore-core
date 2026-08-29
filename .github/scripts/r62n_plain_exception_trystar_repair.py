@@ -98,7 +98,7 @@ result = b("1+1")
     assert "call:6" in dangerous_markers
 
 
-def test_r62n_trystar_plain_bare_reraise_reaches_outer_handler() -> None:
+def test_r62n_trystar_plain_bare_reraise_reaches_outer_group_handler() -> None:
     dangerous = """\\
 b = len
 try:
@@ -107,7 +107,7 @@ try:
     except* ValueError:
         b = eval
         raise
-except ValueError:
+except ExceptionGroup:
     result = b("1+1")
 """
     safe = """\\
@@ -118,7 +118,7 @@ try:
     except* ValueError:
         b = len
         raise
-except ValueError:
+except ExceptionGroup:
     result = b("abc")
 """
     assert _runtime_result(dangerous) == 2
