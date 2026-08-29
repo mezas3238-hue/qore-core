@@ -22,7 +22,8 @@ jobs:
           python-version: '3.12.14'
       - name: Verify exact staging ancestry
         run: |
-          test "$(git rev-parse HEAD^)" = "35d48570b93473da7bfd4ae0a50073bc253cba76"
+          test "$(git rev-parse HEAD^)" = "61a0008fd966a3f0b699941c72a1f2bf19e7cc14"
+          test "$(git rev-parse HEAD^^)" = "35d48570b93473da7bfd4ae0a50073bc253cba76"
       - name: Install canonical development dependencies
         run: |
           python -m pip install --upgrade pip
@@ -53,53 +54,59 @@ jobs:
               raise SystemExit("unexpected failed-star flow signature count")
           text = text.replace(signature, replacement, 1)
 
-          old_match = '''                match = _r62n_handler_match(
-                    _r62n_exception_name(raised_outcome.state),
-                    handler.type,
-                    raised_outcome.state[0],
-                )
-                if match is False:
-                    next_unhandled.append(raised_outcome)
-                    continue
-'''
-          new_match = '''                if isinstance(node, ast.TryStar):
-                    may_handle, fully_handled = _r62n_trystar_handler_partition(
-                        _r62n_exception_group_members(raised_outcome.state),
-                        handler.type,
-                        raised_outcome.state[0],
-                    )
-                    match: bool | None = True if may_handle else False
-                else:
-                    match = _r62n_handler_match(
-                        _r62n_exception_name(raised_outcome.state),
-                        handler.type,
-                        raised_outcome.state[0],
-                    )
-                    fully_handled = match is True
-                if match is False:
-                    next_unhandled.append(raised_outcome)
-                    continue
-'''
+          old_match = (
+              "                match = _r62n_handler_match(\n"
+              "                    _r62n_exception_name(raised_outcome.state),\n"
+              "                    handler.type,\n"
+              "                    raised_outcome.state[0],\n"
+              "                )\n"
+              "                if match is False:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "                    continue\n"
+          )
+          new_match = (
+              "                if isinstance(node, ast.TryStar):\n"
+              "                    may_handle, fully_handled = _r62n_trystar_handler_partition(\n"
+              "                        _r62n_exception_group_members(raised_outcome.state),\n"
+              "                        handler.type,\n"
+              "                        raised_outcome.state[0],\n"
+              "                    )\n"
+              "                    match: bool | None = True if may_handle else False\n"
+              "                else:\n"
+              "                    match = _r62n_handler_match(\n"
+              "                        _r62n_exception_name(raised_outcome.state),\n"
+              "                        handler.type,\n"
+              "                        raised_outcome.state[0],\n"
+              "                    )\n"
+              "                    fully_handled = match is True\n"
+              "                if match is False:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "                    continue\n"
+          )
           if text.count(old_match) != 1:
               raise SystemExit("unexpected failed-star handler match count")
           text = text.replace(old_match, new_match, 1)
 
-          old_unhandled = '''                if match is None:
-                    next_unhandled.append(raised_outcome)
-'''
-          new_unhandled = '''                if match is None or not fully_handled:
-                    next_unhandled.append(raised_outcome)
-'''
+          old_unhandled = (
+              "                if match is None:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+          )
+          new_unhandled = (
+              "                if match is None or not fully_handled:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+          )
           if text.count(old_unhandled) != 1:
               raise SystemExit("unexpected failed-star unhandled count")
           text = text.replace(old_unhandled, new_unhandled, 1)
 
-          old_scan = '''        if isinstance(node, ast.Try):
-            self._scan_flow_failed_star_exception_paths(node, environment)
-'''
-          new_scan = '''        if isinstance(node, (ast.Try, ast.TryStar)):
-            self._scan_flow_failed_star_exception_paths(node, environment)
-'''
+          old_scan = (
+              "        if isinstance(node, ast.Try):\n"
+              "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+          )
+          new_scan = (
+              "        if isinstance(node, (ast.Try, ast.TryStar)):\n"
+              "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+          )
           if text.count(old_scan) != 1:
               raise SystemExit("unexpected scan dispatch count")
           text = text.replace(old_scan, new_scan, 1)
@@ -107,40 +114,38 @@ jobs:
           test_anchor = "\ndef test_r62n_unknown_star_import_taints_new_call_names() -> None:\n"
           if text.count(test_anchor) != 1:
               raise SystemExit("unexpected TryStar regression anchor count")
-          regression = r'''
-
-def test_r62n_failed_star_trystar_preserves_partial_binding() -> None:
-    module_name = "qore_r62n_trystar_star_regression"
-    module = _R62NStarImportModule(module_name)
-    module.__all__ = ["b", "missing"]
-    module.b = _py_builtins.eval
-    sys.modules[module_name] = module
-    try:
-        dangerous = (
-            "b = len\n"
-            "try:\n"
-            f"    from {module_name} import *\n"
-            "except* AttributeError:\n"
-            "    result = b(\"1+1\")\n"
-        )
-        safe = (
-            "b = len\n"
-            "try:\n"
-            "    try:\n"
-            f"        from {module_name} import *\n"
-            "    finally:\n"
-            "        b = lambda _: 3\n"
-            "except* AttributeError:\n"
-            "    result = b(\"abc\")\n"
-        )
-        assert _runtime_result(dangerous) == 2
-        assert _runtime_result(safe) == 3
-        assert _r62n_dynamic_execution_markers_from_source(dangerous)
-        assert _r62n_dynamic_execution_markers_from_source(safe) == ()
-    finally:
-        sys.modules.pop(module_name, None)
-
-'''
+          regression = (
+              "\ndef test_r62n_failed_star_trystar_preserves_partial_binding() -> None:\n"
+              "    module_name = \"qore_r62n_trystar_star_regression\"\n"
+              "    module = _R62NStarImportModule(module_name)\n"
+              "    module.__all__ = [\"b\", \"missing\"]\n"
+              "    module.b = _py_builtins.eval\n"
+              "    sys.modules[module_name] = module\n"
+              "    try:\n"
+              "        dangerous = (\n"
+              "            \"b = len\\n\"\n"
+              "            \"try:\\n\"\n"
+              "            f\"    from {module_name} import *\\n\"\n"
+              "            \"except* AttributeError:\\n\"\n"
+              "            \"    result = b(\\\"1+1\\\")\\n\"\n"
+              "        )\n"
+              "        safe = (\n"
+              "            \"b = len\\n\"\n"
+              "            \"try:\\n\"\n"
+              "            \"    try:\\n\"\n"
+              "            f\"        from {module_name} import *\\n\"\n"
+              "            \"    finally:\\n\"\n"
+              "            \"        b = lambda _: 3\\n\"\n"
+              "            \"except* AttributeError:\\n\"\n"
+              "            \"    result = b(\\\"abc\\\")\\n\"\n"
+              "        )\n"
+              "        assert _runtime_result(dangerous) == 2\n"
+              "        assert _runtime_result(safe) == 3\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(dangerous)\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(safe) == ()\n"
+              "    finally:\n"
+              "        sys.modules.pop(module_name, None)\n\n"
+          )
           text = text.replace(test_anchor, regression + test_anchor, 1)
           path.write_text(text)
           PY
