@@ -201,6 +201,37 @@ def _r62n_trystar_handler_partition(
     return may_handle, fully_handled
 
 
+
+def _r62n_trystar_remaining_members(
+    group_members: frozenset[str] | None,
+    handler_type: ast.AST | None,
+    authority: _r62l._R62LAuthorityBindings,
+) -> frozenset[str] | None:
+    if group_members is None:
+        return None
+    return frozenset(
+        member
+        for member in group_members
+        if _r62n_handler_match(member, handler_type, authority) is not True
+    )
+
+
+def _r62n_trystar_handler_may_skip(
+    group_members: frozenset[str] | None,
+    handler_type: ast.AST | None,
+    authority: _r62l._R62LAuthorityBindings,
+) -> bool:
+    if group_members is None:
+        return True
+    matches = [
+        _r62n_handler_match(member, handler_type, authority)
+        for member in group_members
+    ]
+    return (
+        not any(match is True for match in matches)
+        and any(match is None for match in matches)
+    )
+
 def _r62n_raise_outcomes_from_states(
     states: list[_r62l._R62LState],
     *,
@@ -642,13 +673,27 @@ def _r62n_process_try(
     for handler in node.handlers:
         next_unhandled: list[_r62m._R62MOutcome] = []
         for raised in unhandled:
+            group_members: frozenset[str] | None = None
+            remaining_members: frozenset[str] | None = None
+            may_skip_handler = False
             if isinstance(node, ast.TryStar):
+                group_members = _r62n_exception_group_members(raised.state)
                 may_handle, fully_handled = _r62n_trystar_handler_partition(
-                    _r62n_exception_group_members(raised.state),
+                    group_members,
                     handler.type,
                     raised.state[0],
                 )
                 match: bool | None = True if may_handle else False
+                remaining_members = _r62n_trystar_remaining_members(
+                    group_members,
+                    handler.type,
+                    raised.state[0],
+                )
+                may_skip_handler = _r62n_trystar_handler_may_skip(
+                    group_members,
+                    handler.type,
+                    raised.state[0],
+                )
             else:
                 match = _r62n_handler_match(
                     _r62n_exception_name(raised.state),
@@ -686,6 +731,30 @@ def _r62n_process_try(
                 for handler_outcome in handler_outcomes:
                     handler_outcome.state[0].pop(handler.name, None)
                     handler_outcome.state[1].pop(handler.name, None)
+
+            if isinstance(node, ast.TryStar):
+                if may_skip_handler:
+                    next_unhandled.append(raised)
+                for handler_outcome in handler_outcomes:
+                    if (
+                        handler_outcome.kind != "normal"
+                        or fully_handled
+                        or group_members is None
+                    ):
+                        handled.append(handler_outcome)
+                    if fully_handled:
+                        continue
+                    remainder_state = _r62n_copy_state(handler_outcome.state)
+                    _r62n_set_exception_tag(
+                        remainder_state,
+                        None,
+                        group_members=remaining_members,
+                    )
+                    next_unhandled.append(
+                        _r62m._R62MOutcome("raise", remainder_state)
+                    )
+                continue
+
             handled.extend(handler_outcomes)
             if match is None or not fully_handled:
                 next_unhandled.append(raised)
@@ -1584,7 +1653,7 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
         node: ast.Try | ast.TryStar,
         environment: dict[str, _Value],
     ) -> None:
-        if not any(
+        if isinstance(node, ast.Try) and not any(
             _r62n_contains_runtime_unknown_star(statement)
             for statement in node.body
         ):
@@ -1610,13 +1679,31 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
         for handler in node.handlers:
             next_unhandled: list[_r62m._R62MOutcome] = []
             for raised_outcome in unhandled:
+                group_members: frozenset[str] | None = None
+                remaining_members: frozenset[str] | None = None
+                may_skip_handler = False
                 if isinstance(node, ast.TryStar):
-                    may_handle, fully_handled = _r62n_trystar_handler_partition(
-                        _r62n_exception_group_members(raised_outcome.state),
+                    group_members = _r62n_exception_group_members(
+                        raised_outcome.state
+                    )
+                    may_handle, fully_handled = (
+                        _r62n_trystar_handler_partition(
+                            group_members,
+                            handler.type,
+                            raised_outcome.state[0],
+                        )
+                    )
+                    match: bool | None = True if may_handle else False
+                    remaining_members = _r62n_trystar_remaining_members(
+                        group_members,
                         handler.type,
                         raised_outcome.state[0],
                     )
-                    match: bool | None = True if may_handle else False
+                    may_skip_handler = _r62n_trystar_handler_may_skip(
+                        group_members,
+                        handler.type,
+                        raised_outcome.state[0],
+                    )
                 else:
                     match = _r62n_handler_match(
                         _r62n_exception_name(raised_outcome.state),
@@ -1637,15 +1724,54 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
                 self._scan_block(handler.body, handler_environment)
                 if handler.name is not None:
                     handler_environment.pop(handler.name, None)
-                if node.finalbody:
-                    self._scan_block(node.finalbody, handler_environment)
+
+                if isinstance(node, ast.TryStar):
+                    if may_skip_handler:
+                        next_unhandled.append(raised_outcome)
+                    if not fully_handled:
+                        remainder_state: _r62l._R62LState = (
+                            handler_environment.copy(),
+                            raised_outcome.state[1].copy(),
+                        )
+                        _r62n_set_exception_tag(
+                            remainder_state,
+                            None,
+                            group_members=remaining_members,
+                        )
+                        next_unhandled.append(
+                            _r62m._R62MOutcome("raise", remainder_state)
+                        )
+                    continue
+
                 if match is None or not fully_handled:
                     next_unhandled.append(raised_outcome)
             unhandled = next_unhandled
 
         if node.finalbody:
-            for raised_outcome in unhandled:
-                final_environment = raised_outcome.state[0].copy()
+            if isinstance(node, ast.TryStar):
+                pre_final_node: ast.Try | ast.TryStar = ast.TryStar(
+                    body=node.body,
+                    handlers=node.handlers,
+                    orelse=node.orelse,
+                    finalbody=[],
+                )
+            else:
+                pre_final_node = ast.Try(
+                    body=node.body,
+                    handlers=node.handlers,
+                    orelse=node.orelse,
+                    finalbody=[],
+                )
+            pre_final = _r62n_process_try(
+                pre_final_node,
+                initial,
+                top_index=0,
+                timeline={},
+                observations={},
+                precision_lost=[False],
+            )
+            for pre_final_outcome in pre_final:
+                final_environment = pre_final_outcome.state[0].copy()
                 final_environment.pop(_R62N_EXCEPTION_TAG, None)
                 self._scan_block(node.finalbody, final_environment)
 
@@ -1826,18 +1952,16 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
         node: ast.stmt,
         environment: dict[str, _Value],
     ) -> None:
-        if (
-            isinstance(node, ast.TryStar)
-            and any(
-                _r62n_contains_runtime_unknown_star(statement)
-                for statement in node.body
-            )
-        ):
+        if isinstance(node, ast.TryStar):
             original_environment = environment.copy()
             self._scan_flow_failed_star_exception_paths(node, environment)
             successor_environment = environment.copy()
-            generic_environment = original_environment.copy()
-            super()._scan_statement(node, generic_environment)
+
+            body_environment = original_environment.copy()
+            self._scan_block(node.body, body_environment)
+            if node.orelse:
+                self._scan_block(node.orelse, body_environment)
+
             environment.clear()
             environment.update(successor_environment)
             return
@@ -2652,6 +2776,120 @@ def test_r62n_failed_star_trystar_partial_groups_and_safe_successors() -> None:
     finally:
         sys.modules.pop(module_name, None)
 
+
+
+def test_r62n_trystar_failed_star_cross_handler_remains_conservative() -> None:
+    module_name = "qore_r62n_trystar_cross_handler_regression"
+    module = _R62NStarImportModule(module_name)
+    module.__all__ = ["b", "missing"]
+    module.b = _py_builtins.eval
+    sys.modules[module_name] = module
+    try:
+        safe_rebind = f"""\
+b = len
+try:
+    try:
+        from {module_name} import *
+    except AttributeError:
+        raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = lambda _: 3
+except* ValueError:
+    result = b("1+1")
+"""
+        unsafe_control = f"""\
+b = len
+try:
+    try:
+        from {module_name} import *
+    except AttributeError:
+        raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    pass
+except* ValueError:
+    result = b("1+1")
+"""
+        introduced_danger = """\
+b = len
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = eval
+except* ValueError:
+    result = b("1+1")
+"""
+
+        assert _runtime_result(safe_rebind) == 3
+        assert _runtime_result(unsafe_control) == 2
+        assert _runtime_result(introduced_danger) == 2
+
+        safe_markers = _r62n_dynamic_execution_markers_from_source(safe_rebind)
+        unsafe_markers = _r62n_dynamic_execution_markers_from_source(
+            unsafe_control
+        )
+        introduced_markers = _r62n_dynamic_execution_markers_from_source(
+            introduced_danger
+        )
+
+        assert "call:10" in safe_markers
+        assert "call:10" in unsafe_markers
+        assert "call:7" in introduced_markers
+    finally:
+        sys.modules.pop(module_name, None)
+
+
+def test_r62n_trystar_static_group_cross_handler_state_is_sequential() -> None:
+    safe = """\
+b = eval
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = len
+except* ValueError:
+    result = b("1+1")
+"""
+    dangerous = """\
+b = len
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = eval
+except* ValueError:
+    result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    assert "call:7" not in _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:7" in _r62n_dynamic_execution_markers_from_source(dangerous)
+
+
+def test_r62n_trystar_finalbody_observes_completed_handler_chain() -> None:
+    safe = """\
+b = eval
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = eval
+except* ValueError:
+    b = len
+finally:
+    result = b("1+1")
+"""
+    dangerous = """\
+b = len
+try:
+    raise ExceptionGroup("eg", [AttributeError("a"), ValueError("v")])
+except* AttributeError:
+    b = len
+except* ValueError:
+    b = eval
+finally:
+    result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    assert "call:9" not in _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:9" in _r62n_dynamic_execution_markers_from_source(dangerous)
 
 def test_r62n_unknown_star_import_taints_new_call_names() -> None:
     module_name = "qore_r62n_star_new_name_regression"
