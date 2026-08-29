@@ -1,0 +1,41 @@
+name: R62N nested TryStar outer repair
+
+on:
+  push:
+    branches:
+      - agent/qore-umi14-umi12-final-owner-recert-001
+    paths:
+      - .github/workflows/r62n-nested-trystar-outer-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Install test tooling
+        run: python -m pip install -e '.[dev]'
+      - name: Apply bounded repair
+        run: python .github/scripts/r62n_nested_trystar_outer_patch.py
+      - name: Validate repair
+        run: |
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Publish repair and remove staging
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git rm .github/scripts/r62n_nested_trystar_outer_patch.py
+          git rm .github/workflows/r62n-nested-trystar-outer-repair.yml
+          git commit -m 'Handle nested TryStar exceptions in outer handlers'
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
