@@ -24,61 +24,28 @@ jobs:
       - name: Verify and apply exact TryStar patch
         run: |
           python - <<'PY'
+          import base64
           from pathlib import Path
 
           path = Path('tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py')
           text = path.read_text()
-
-          old_signature = '''    def _scan_flow_failed_star_exception_paths(\n        self,\n        node: ast.Try,\n        environment: dict[str, _Value],\n    ) -> None:\n'''
-          new_signature = '''    def _scan_flow_failed_star_exception_paths(\n        self,\n        node: ast.Try | ast.TryStar,\n        environment: dict[str, _Value],\n    ) -> None:\n'''
+          old_signature = "    def _scan_flow_failed_star_exception_paths(\n        self,\n        node: ast.Try,\n        environment: dict[str, _Value],\n    ) -> None:\n"
+          new_signature = "    def _scan_flow_failed_star_exception_paths(\n        self,\n        node: ast.Try | ast.TryStar,\n        environment: dict[str, _Value],\n    ) -> None:\n"
           if text.count(old_signature) != 1:
               raise SystemExit('unexpected flow-helper signature anchor count')
           text = text.replace(old_signature, new_signature, 1)
-
-          old_dispatch = '''        if isinstance(node, ast.Try):\n            self._scan_flow_failed_star_exception_paths(node, environment)\n'''
-          new_dispatch = '''        if isinstance(node, (ast.Try, ast.TryStar)):\n            self._scan_flow_failed_star_exception_paths(node, environment)\n'''
+          old_dispatch = "        if isinstance(node, ast.Try):\n            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+          new_dispatch = "        if isinstance(node, (ast.Try, ast.TryStar)):\n            self._scan_flow_failed_star_exception_paths(node, environment)\n"
           if text.count(old_dispatch) != 1:
               raise SystemExit('unexpected scanner dispatch anchor count')
           text = text.replace(old_dispatch, new_dispatch, 1)
-
           test_name = 'test_r62n_failed_star_trystar_handlers_preserve_partial_authority'
           if test_name in text:
               raise SystemExit('TryStar regression already present')
           anchor = '\n\ndef test_r62n_unknown_star_import_taints_new_call_names() -> None:\n'
           if text.count(anchor) != 1:
               raise SystemExit('unexpected regression insertion anchor count')
-          regression = r'''
-
-
-def test_r62n_failed_star_trystar_handlers_preserve_partial_authority() -> None:
-    module_name = "qore_r62n_trystar_star_regression"
-    module = _R62NStarImportModule(module_name)
-    module.__all__ = ["b", "missing"]
-    module.b = _py_builtins.eval
-    sys.modules[module_name] = module
-    try:
-        handler_danger = (
-            "b = len\n"
-            "try:\n"
-            f"    from {module_name} import *\n"
-            "except* AttributeError:\n"
-            "    result = b(\"1+1\")\n"
-        )
-        downstream_danger = (
-            "b = len\n"
-            "try:\n"
-            f"    from {module_name} import *\n"
-            "except* AttributeError:\n"
-            "    pass\n"
-            "result = b(\"1+1\")\n"
-        )
-        assert _runtime_result(handler_danger) == 2
-        assert _runtime_result(downstream_danger) == 2
-        assert _r62n_dynamic_execution_markers_from_source(handler_danger)
-        assert _r62n_dynamic_execution_markers_from_source(downstream_danger)
-    finally:
-        sys.modules.pop(module_name, None)
-'''
+          regression = base64.b64decode('CgoKZGVmIHRlc3RfcjYybl9mYWlsZWRfc3Rhcl90cnlzdGFyX2hhbmRsZXJzX3ByZXNlcnZlX3BhcnRpYWxfYXV0aG9yaXR5KCkgLT4gTm9uZToKICAgIG1vZHVsZV9uYW1lID0gInFvcmVfcjYybl90cnlzdGFyX3N0YXJfcmVncmVzc2lvbiIKICAgIG1vZHVsZSA9IF9SNjJOU3RhckltcG9ydE1vZHVsZShtb2R1bGVfbmFtZSkKICAgIG1vZHVsZS5fX2FsbF9fID0gWyJiIiwgIm1pc3NpbmciXQogICAgbW9kdWxlLmIgPSBfcHlfYnVpbHRpbnMuZXZhbAogICAgc3lzLm1vZHVsZXNbbW9kdWxlX25hbWVdID0gbW9kdWxlCiAgICB0cnk6CiAgICAgICAgaGFuZGxlcl9kYW5nZXIgPSAoCiAgICAgICAgICAgICJiID0gbGVuXG4iCiAgICAgICAgICAgICJ0cnk6XG4iCiAgICAgICAgICAgIGYiICAgIGZyb20ge21vZHVsZV9uYW1lfSBpbXBvcnQgKlxuIgogICAgICAgICAgICAiZXhjZXB0KiBBdHRyaWJ1dGVFcnJvcjpcbiIKICAgICAgICAgICAgIiAgICByZXN1bHQgPSBiKFwiMSsxXCIpXG4iCiAgICAgICAgKQogICAgICAgIGRvd25zdHJlYW1fZGFuZ2VyID0gKAogICAgICAgICAgICAiYiA9IGxlblxuIgogICAgICAgICAgICAidHJ5OlxuIgogICAgICAgICAgICBmIiAgICBmcm9tIHttb2R1bGVfbmFtZX0gaW1wb3J0ICpcbiIKICAgICAgICAgICAgImV4Y2VwdCogQXR0cmlidXRlRXJyb3I6XG4iCiAgICAgICAgICAgICIgICAgcGFzc1xuIgogICAgICAgICAgICAicmVzdWx0ID0gYihcIjErMVwiKVxuIgogICAgICAgICkKICAgICAgICBhc3NlcnQgX3J1bnRpbWVfcmVzdWx0KGhhbmRsZXJfZGFuZ2VyKSA9PSAyCiAgICAgICAgYXNzZXJ0IF9ydW50aW1lX3Jlc3VsdChkb3duc3RyZWFtX2RhbmdlcikgPT0gMgogICAgICAgIGFzc2VydCBfcjYybl9keW5hbWljX2V4ZWN1dGlvbl9tYXJrZXJzX2Zyb21fc291cmNlKGhhbmRsZXJfZGFuZ2VyKQogICAgICAgIGFzc2VydCBfcjYybl9keW5hbWljX2V4ZWN1dGlvbl9tYXJrZXJzX2Zyb21fc291cmNlKGRvd25zdHJlYW1fZGFuZ2VyKQogICAgZmluYWxseToKICAgICAgICBzeXMubW9kdWxlcy5wb3AobW9kdWxlX25hbWUsIE5vbmUpCg==').decode()
           text = text.replace(anchor, regression + anchor, 1)
           path.write_text(text)
           PY
