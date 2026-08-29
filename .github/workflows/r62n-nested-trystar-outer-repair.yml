@@ -39,3 +39,5 @@ jobs:
           git rm .github/workflows/r62n-nested-trystar-outer-repair.yml
           git commit -m 'Handle nested TryStar exceptions in outer handlers'
           git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
+
+# retry 2: anchor corrected against exact staged HEAD
