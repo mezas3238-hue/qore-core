@@ -1,0 +1,97 @@
+name: Apply bounded R62N nested failed-star finally repair v3
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-nested-star-finally-repair-v3.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact staging ancestry
+        run: |
+          test "$(git rev-parse HEAD^)" = "2ac224bc9213a5bbaa1c93722b81d74dac547143"
+          test "$(git rev-parse HEAD^^)" = "8eb94b7cc7af89ea7e119fd48c51ec5a7dd9120e"
+          test "$(git rev-parse HEAD^^^)" = "e87778368efc8887b50c1be94bae7381842ac3a6"
+      - name: Install canonical development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Reapply v2 bounded repair with statically provable safe inverse
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow_path = Path('.github/workflows/r62n-nested-star-finally-repair-v2.yml')
+          workflow = workflow_path.read_text().splitlines()
+          start = workflow.index("          python - <<'PY'") + 1
+          end = workflow.index("          PY", start)
+          script = textwrap.dedent("\n".join(workflow[start:end])) + "\n"
+          compile(script, '<r62n-nested-star-finally-v2-reapply>', 'exec')
+          exec(compile(script, '<r62n-nested-star-finally-v2-reapply>', 'exec'))
+
+          target = Path('tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py')
+          text = target.read_text()
+          old = (
+              '        safe = (\n'
+              '            "b = len\\n"\n'
+              '            "try:\\n"\n'
+              '            "    try:\\n"\n'
+              '            f"        from {module_name} import *\\n"\n'
+              '            "    finally:\\n"\n'
+              '            "        b = len\\n"\n'
+              '            "except AttributeError:\\n"\n'
+              '            "    result = b(\\\"abc\\\")\\n"\n'
+              '        )\n'
+          )
+          new = (
+              '        safe = (\n'
+              '            "b = len\\n"\n'
+              '            "try:\\n"\n'
+              '            "    try:\\n"\n'
+              '            f"        from {module_name} import *\\n"\n'
+              '            "    finally:\\n"\n'
+              '            "        b = lambda _: 3\\n"\n'
+              '            "except AttributeError:\\n"\n'
+              '            "    result = b(\\\"abc\\\")\\n"\n'
+              '        )\n'
+          )
+          if text.count(old) != 1:
+              raise SystemExit(f'unexpected safe inverse anchor count: {text.count(old)}')
+          target.write_text(text.replace(old, new, 1))
+          PY
+      - name: Focused validation
+        run: |
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Full canonical quality gate
+        run: |
+          ruff check .
+          mypy src tests
+          pytest --cov=src/qore --cov-report=term-missing
+      - name: Commit validated repair and remove staging
+        run: |
+          git config user.name "qore-integration-authority"
+          git config user.email "qore-integration-authority@users.noreply.github.com"
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git rm .github/workflows/r62n-nested-star-finally-repair.yml
+          git rm .github/workflows/r62n-nested-star-finally-repair-v2.yml
+          git rm .github/workflows/r62n-nested-star-finally-repair-v3.yml
+          git diff --cached --check
+          git commit -m "Preserve nested failed-star exception authority"
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
