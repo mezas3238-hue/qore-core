@@ -148,11 +148,14 @@ def _r62n_exception_group_members(
             and atom.text is not None
         )
     )
-    if not members and any(
-        atom.kind == _R62N_EXCEPTION_KIND and atom.text is not None
-        for atom in value
+    if members:
+        return members
+    exception_name = _r62n_exception_name(state)
+    if (
+        exception_name is not None
+        and exception_name not in {"ExceptionGroup", "BaseExceptionGroup"}
     ):
-        return None
+        return frozenset({exception_name})
     return members
 
 
@@ -648,6 +651,20 @@ def _r62n_process_known_trystar_handlers(
         group_members = _r62n_exception_group_members(raised.state)
         if group_members is None:
             return None
+        tagged_value = raised.state[0].get(_R62N_EXCEPTION_TAG)
+        has_group_member_tag = bool(
+            tagged_value is not None
+            and tagged_value != _UNKNOWN
+            and any(
+                atom.kind == _R62N_EXCEPTION_GROUP_MEMBER_KIND
+                for atom in tagged_value
+            )
+        )
+        plain_input_name = (
+            _r62n_exception_name(raised.state)
+            if not has_group_member_tag
+            else None
+        )
         paths: list[
             tuple[
                 _r62l._R62LState,
@@ -792,6 +809,15 @@ def _r62n_process_known_trystar_handlers(
             combined_exception_names = frozenset(
                 (*pending_exceptions, *combined_group_members)
             )
+            if (
+                plain_input_name is not None
+                and remaining_members == frozenset({plain_input_name})
+                and not pending_exceptions
+                and not pending_group_members
+            ):
+                _r62n_set_exception_tag(result_state, plain_input_name)
+                completed.append(_r62m._R62MOutcome("raise", result_state))
+                continue
             if len(pending_exceptions) == 1 and not combined_group_members:
                 _r62n_set_exception_tag(
                     result_state,
@@ -3474,3 +3500,31 @@ except ExceptionGroup:
     safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
     assert "call:9" in dangerous_markers
     assert "call:9" not in safe_markers
+
+
+
+def test_r62n_trystar_plain_matching_finally_uses_handler_state() -> None:
+    safe = """\
+b = eval
+try:
+    raise ValueError("v")
+except* ValueError:
+    b = len
+finally:
+    result = b("abc")
+"""
+    dangerous = """\
+b = len
+try:
+    raise ValueError("v")
+except* ValueError:
+    b = eval
+finally:
+    result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
+    assert "call:7" not in safe_markers
+    assert "call:7" in dangerous_markers
