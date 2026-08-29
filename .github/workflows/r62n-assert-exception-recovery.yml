@@ -43,72 +43,48 @@ jobs:
           from pathlib import Path
 
           path = Path('tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py')
-          text = path.read_text()
-          old_sequence = '''    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
-        working = _r62n_copy_state(state)
-        raised: list[_r62l._R62LState] = []
-        for child in node.elts:
-            working, child_raised = _r62n_ordered_expression_raise_states(
-                child,
-                working,
-            )
-            raised.extend(child_raised)
-        raised.append(_r62n_copy_state(working))
-        return working, _r62n_unique_states(raised)
-'''
-          new_sequence = '''    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
-        working = _r62n_copy_state(state)
-        sequence_raised: list[_r62l._R62LState] = []
-        for child in node.elts:
-            working, child_raised = _r62n_ordered_expression_raise_states(
-                child,
-                working,
-            )
-            sequence_raised.extend(child_raised)
-        sequence_raised.append(_r62n_copy_state(working))
-        return working, _r62n_unique_states(sequence_raised)
-'''
-          old_dict = '''    if isinstance(node, ast.Dict):
-        working = _r62n_copy_state(state)
-        raised: list[_r62l._R62LState] = []
-        for key, value in zip(node.keys, node.values, strict=True):
-            if key is not None:
-                working, child_raised = _r62n_ordered_expression_raise_states(
-                    key,
-                    working,
-                )
-                raised.extend(child_raised)
-            working, child_raised = _r62n_ordered_expression_raise_states(
-                value,
-                working,
-            )
-            raised.extend(child_raised)
-        raised.append(_r62n_copy_state(working))
-        return working, _r62n_unique_states(raised)
-'''
-          new_dict = '''    if isinstance(node, ast.Dict):
-        working = _r62n_copy_state(state)
-        dictionary_raised: list[_r62l._R62LState] = []
-        for key, value in zip(node.keys, node.values, strict=True):
-            if key is not None:
-                working, child_raised = _r62n_ordered_expression_raise_states(
-                    key,
-                    working,
-                )
-                dictionary_raised.extend(child_raised)
-            working, child_raised = _r62n_ordered_expression_raise_states(
-                value,
-                working,
-            )
-            dictionary_raised.extend(child_raised)
-        dictionary_raised.append(_r62n_copy_state(working))
-        return working, _r62n_unique_states(dictionary_raised)
-'''
-          if text.count(old_sequence) != 1 or text.count(old_dict) != 1:
-              raise SystemExit('strict-typing repair anchors not exact')
-          text = text.replace(old_sequence, new_sequence, 1)
-          text = text.replace(old_dict, new_dict, 1)
-          path.write_text(text)
+          lines = path.read_text().splitlines()
+          in_function = False
+          branch = ''
+          replacements = 0
+          result: list[str] = []
+          for line in lines:
+              if line.startswith('def _r62n_ordered_expression_raise_states('):
+                  in_function = True
+              elif in_function and line.startswith('def '):
+                  in_function = False
+                  branch = ''
+              if in_function and line == '    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):':
+                  branch = 'sequence'
+              elif in_function and line == '    if isinstance(node, ast.Dict):':
+                  branch = 'dictionary'
+              elif in_function and line.startswith('    if isinstance(node, ast.Call):'):
+                  branch = ''
+              if branch == 'sequence':
+                  mapping = {
+                      '        raised: list[_r62l._R62LState] = []': '        sequence_raised: list[_r62l._R62LState] = []',
+                      '            raised.extend(child_raised)': '            sequence_raised.extend(child_raised)',
+                      '        raised.append(_r62n_copy_state(working))': '        sequence_raised.append(_r62n_copy_state(working))',
+                      '        return working, _r62n_unique_states(raised)': '        return working, _r62n_unique_states(sequence_raised)',
+                  }
+                  if line in mapping:
+                      line = mapping[line]
+                      replacements += 1
+              elif branch == 'dictionary':
+                  mapping = {
+                      '        raised: list[_r62l._R62LState] = []': '        dictionary_raised: list[_r62l._R62LState] = []',
+                      '                raised.extend(child_raised)': '                dictionary_raised.extend(child_raised)',
+                      '            raised.extend(child_raised)': '            dictionary_raised.extend(child_raised)',
+                      '        raised.append(_r62n_copy_state(working))': '        dictionary_raised.append(_r62n_copy_state(working))',
+                      '        return working, _r62n_unique_states(raised)': '        return working, _r62n_unique_states(dictionary_raised)',
+                  }
+                  if line in mapping:
+                      line = mapping[line]
+                      replacements += 1
+              result.append(line)
+          if replacements != 10:
+              raise SystemExit(f'strict-typing repair count mismatch: {replacements}')
+          path.write_text('\n'.join(result) + '\n')
           PY
           python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
           ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
