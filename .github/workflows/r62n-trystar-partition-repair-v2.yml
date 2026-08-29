@@ -1,0 +1,266 @@
+name: Apply bounded R62N TryStar subgroup partition repair v2
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-trystar-partition-repair-v2.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact staging ancestry
+        run: |
+          test "$(git rev-parse HEAD^)" = "4deff1ceba6d2ef4bedf5e3004c8f0991956731a"
+          test "$(git rev-parse HEAD^^^)" = "53a60570d308e108845796c0bcd7e1930e12e4b6"
+      - name: Install canonical development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Apply exact TryStar subgroup repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py")
+          text = path.read_text()
+
+          old_match = (
+              "                match = _r62n_handler_match(\n"
+              "                    _r62n_exception_name(raised_outcome.state),\n"
+              "                    handler.type,\n"
+              "                    raised_outcome.state[0],\n"
+              "                )\n"
+              "                if match is False:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "                    continue\n"
+          )
+          new_match = (
+              "                if isinstance(node, ast.TryStar):\n"
+              "                    may_handle, fully_handled = _r62n_trystar_handler_partition(\n"
+              "                        _r62n_exception_group_members(raised_outcome.state),\n"
+              "                        handler.type,\n"
+              "                        raised_outcome.state[0],\n"
+              "                    )\n"
+              "                    match: bool | None = True if may_handle else False\n"
+              "                else:\n"
+              "                    match = _r62n_handler_match(\n"
+              "                        _r62n_exception_name(raised_outcome.state),\n"
+              "                        handler.type,\n"
+              "                        raised_outcome.state[0],\n"
+              "                    )\n"
+              "                    fully_handled = match is True\n"
+              "                if match is False:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "                    continue\n"
+          )
+          if text.count(old_match) != 1:
+              raise SystemExit(f"unexpected failed-star handler match count: {text.count(old_match)}")
+          text = text.replace(old_match, new_match, 1)
+
+          old_tail = (
+              "                if match is None:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "            unhandled = next_unhandled\n\n"
+              "        if node.finalbody:\n"
+              "            for raised_outcome in unhandled:\n"
+              "                final_environment = raised_outcome.state[0].copy()\n"
+              "                final_environment.pop(_R62N_EXCEPTION_TAG, None)\n"
+              "                self._scan_block(node.finalbody, final_environment)\n\n"
+          )
+          new_tail = (
+              "                if match is None or not fully_handled:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "            unhandled = next_unhandled\n\n"
+              "        if node.finalbody:\n"
+              "            for raised_outcome in unhandled:\n"
+              "                final_environment = raised_outcome.state[0].copy()\n"
+              "                final_environment.pop(_R62N_EXCEPTION_TAG, None)\n"
+              "                self._scan_block(node.finalbody, final_environment)\n\n"
+              "        if isinstance(node, ast.TryStar):\n"
+              "            completed = _r62n_process_try(\n"
+              "                node,\n"
+              "                initial,\n"
+              "                top_index=0,\n"
+              "                timeline={},\n"
+              "                observations={},\n"
+              "                precision_lost=[False],\n"
+              "            )\n"
+              "            normal_environments = [\n"
+              "                outcome.state[0]\n"
+              "                for outcome in completed\n"
+              "                if outcome.kind == \"normal\"\n"
+              "            ]\n"
+              "            if normal_environments:\n"
+              "                environment.clear()\n"
+              "                self._merge_environments(environment, *normal_environments)\n\n"
+          )
+          if text.count(old_tail) != 1:
+              raise SystemExit(f"unexpected failed-star tail count: {text.count(old_tail)}")
+          text = text.replace(old_tail, new_tail, 1)
+
+          old_scan = (
+              "        if isinstance(node, (ast.Try, ast.TryStar)):\n"
+              "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+          )
+          new_scan = (
+              "        if (\n"
+              "            isinstance(node, ast.TryStar)\n"
+              "            and any(\n"
+              "                _r62n_contains_runtime_unknown_star(statement)\n"
+              "                for statement in node.body\n"
+              "            )\n"
+              "        ):\n"
+              "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+              "            successor_environment = environment.copy()\n"
+              "            super()._scan_statement(node, environment)\n"
+              "            environment.clear()\n"
+              "            environment.update(successor_environment)\n"
+              "            return\n"
+              "        if isinstance(node, ast.Try):\n"
+              "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+          )
+          if text.count(old_scan) != 1:
+              raise SystemExit(f"unexpected scan dispatch count: {text.count(old_scan)}")
+          text = text.replace(old_scan, new_scan, 1)
+
+          anchor = "\ndef test_r62n_unknown_star_import_taints_new_call_names() -> None:\n"
+          if text.count(anchor) != 1:
+              raise SystemExit(f"unexpected regression anchor count: {text.count(anchor)}")
+          regression = r'''
+
+def test_r62n_failed_star_trystar_partial_group_routing() -> None:
+    module_name = "qore_r62n_trystar_partition_regression"
+    module = _R62NStarImportModule(module_name)
+    module.__all__ = ["b", "missing"]
+    module.b = _py_builtins.eval
+    sys.modules[module_name] = module
+    try:
+        first_handler_danger = (
+            "b = len\n"
+            "try:\n"
+            "    try:\n"
+            f"        from {module_name} import *\n"
+            "    finally:\n"
+            "        raise ExceptionGroup(\"eg\", [AttributeError(\"a\"), ValueError(\"v\")])\n"
+            "except* AttributeError:\n"
+            "    result = b(\"1+1\")\n"
+            "except* ValueError:\n"
+            "    pass\n"
+        )
+        second_handler_danger = (
+            "b = len\n"
+            "try:\n"
+            "    try:\n"
+            f"        from {module_name} import *\n"
+            "    finally:\n"
+            "        raise ExceptionGroup(\"eg\", [AttributeError(\"a\"), ValueError(\"v\")])\n"
+            "except* AttributeError:\n"
+            "    pass\n"
+            "except* ValueError:\n"
+            "    result = b(\"1+1\")\n"
+        )
+        handler_safe = (
+            "b = len\n"
+            "try:\n"
+            "    try:\n"
+            f"        from {module_name} import *\n"
+            "    finally:\n"
+            "        b = lambda _: 3\n"
+            "except* AttributeError:\n"
+            "    result = b(\"abc\")\n"
+        )
+        downstream_safe = (
+            "b = len\n"
+            "try:\n"
+            "    try:\n"
+            f"        from {module_name} import *\n"
+            "    finally:\n"
+            "        b = lambda _: 3\n"
+            "except* AttributeError:\n"
+            "    pass\n"
+            "result = b(\"abc\")\n"
+        )
+
+        assert _runtime_result(first_handler_danger) == 2
+        assert _runtime_result(second_handler_danger) == 2
+        assert _runtime_result(handler_safe) == 3
+        assert _runtime_result(downstream_safe) == 3
+
+        first_line = next(
+            index
+            for index, line in enumerate(first_handler_danger.splitlines(), 1)
+            if "result = b(" in line
+        )
+        second_line = next(
+            index
+            for index, line in enumerate(second_handler_danger.splitlines(), 1)
+            if "result = b(" in line
+        )
+        assert f"call:{first_line}" in _r62n_dynamic_execution_markers_from_source(
+            first_handler_danger
+        )
+        assert f"call:{second_line}" in _r62n_dynamic_execution_markers_from_source(
+            second_handler_danger
+        )
+        assert _r62n_dynamic_execution_markers_from_source(handler_safe) == ()
+        assert _r62n_dynamic_execution_markers_from_source(downstream_safe) == ()
+
+        module.__all__ = ["b"]
+        module.b = len
+        body_danger = (
+            "try:\n"
+            f"    from {module_name} import *\n"
+            "    result = eval(\"1+1\")\n"
+            "except* AttributeError:\n"
+            "    result = 3\n"
+        )
+        assert _runtime_result(body_danger) == 2
+        body_line = next(
+            index
+            for index, line in enumerate(body_danger.splitlines(), 1)
+            if "result = eval(" in line
+        )
+        assert f"call:{body_line}" in _r62n_dynamic_execution_markers_from_source(
+            body_danger
+        )
+    finally:
+        sys.modules.pop(module_name, None)
+
+'''
+          text = text.replace(anchor, regression + anchor, 1)
+          path.write_text(text)
+          PY
+          git diff --check
+      - name: Focused validation
+        run: |
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py -k 'failed_star_trystar'
+      - name: Full canonical quality gate
+        run: |
+          ruff check .
+          mypy src tests
+          pytest --cov=src/qore --cov-report=term-missing
+      - name: Publish validated repair and remove all staging
+        run: |
+          git config user.name "qore-integration-authority"
+          git config user.email "qore-integration-authority@users.noreply.github.com"
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git rm .github/workflows/r62n-trystar-partition-repair.yml
+          git rm .github/workflows/r62n-trystar-partition-repair-v2.yml
+          git diff --cached --check
+          git commit -m "Partition R62N TryStar failed-star exception groups"
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
