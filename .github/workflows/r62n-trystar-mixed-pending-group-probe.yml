@@ -1,4 +1,5 @@
 name: R62N TryStar mixed pending group probe
+# retry after correcting the permanent finally call-line assertion
 
 on:
   push:
