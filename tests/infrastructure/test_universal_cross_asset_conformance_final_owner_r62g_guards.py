@@ -24,7 +24,38 @@ def _r62g_is_builtins_module(value: _Value) -> bool:
     return _r12._contains_kind(
         value,
         _R62G_BUILTINS_MODULE_KIND,
-    ) and not _r12._contains_kind(value, "container-kind", "mapping")
+    ) and not _r12._contains_kind(value, "container-kind")
+
+
+def _r62g_is_side_effect_free_expression(node: ast.AST) -> bool:
+    if isinstance(node, (ast.Name, ast.Constant)):
+        return True
+    if isinstance(node, (ast.Attribute, ast.Starred)):
+        return _r62g_is_side_effect_free_expression(node.value)
+    if isinstance(node, ast.Subscript):
+        return _r62g_is_side_effect_free_expression(
+            node.value
+        ) and _r62g_is_side_effect_free_expression(node.slice)
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        return all(_r62g_is_side_effect_free_expression(item) for item in node.elts)
+    if isinstance(node, ast.Dict):
+        return all(
+            (key is None or _r62g_is_side_effect_free_expression(key))
+            and _r62g_is_side_effect_free_expression(value)
+            for key, value in zip(node.keys, node.values, strict=True)
+        )
+    if isinstance(node, ast.IfExp):
+        return all(
+            _r62g_is_side_effect_free_expression(item)
+            for item in (node.test, node.body, node.orelse)
+        )
+    if isinstance(node, ast.BoolOp):
+        return all(_r62g_is_side_effect_free_expression(item) for item in node.values)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _r62g_is_side_effect_free_expression(
+            node.left
+        ) and _r62g_is_side_effect_free_expression(node.right)
+    return False
 
 
 class _R62GScopePreservingRetainedNamespaceScanner(
@@ -83,7 +114,7 @@ class _R62GScopePreservingRetainedNamespaceScanner(
         node: ast.Subscript,
         environment: dict[str, _Value],
     ) -> _Value:
-        if isinstance(node.value, ast.Name):
+        if _r62g_is_side_effect_free_expression(node.value):
             receiver = self._scan_expression(node.value, environment)
             if _r62g_is_builtins_module(receiver):
                 self._scan_expression(node.slice, environment)
@@ -129,7 +160,7 @@ class _R62GScopePreservingRetainedNamespaceScanner(
         if (
             isinstance(node.func, ast.Attribute)
             and node.func.attr in {"get", "__getitem__"}
-            and isinstance(node.func.value, ast.Name)
+            and _r62g_is_side_effect_free_expression(node.func.value)
         ):
             receiver = self._scan_expression(node.func.value, environment)
             if _r62g_is_builtins_module(receiver):
@@ -301,6 +332,28 @@ def test_r62g_builtins_module_mapping_operations_do_not_false_positive() -> None
     for source in sources:
         assert _r62g_runtime_mapping_error(source) in {TypeError, AttributeError}
         assert _r62g_dynamic_execution_markers_from_source(source) == ()
+
+
+def test_r62g_transported_builtins_module_mapping_misuse_stays_safe() -> None:
+    sources = (
+        'import builtins\nresult = (builtins,)[0]["eval"]("1+1")\n',
+        'import builtins\nresult = [builtins][0]["eval"]("1+1")\n',
+        (
+            'import builtins\nholder = (builtins,)\n'
+            'result = holder[0].get("eval")("1+1")\n'
+        ),
+        (
+            'import builtins\nholder = (builtins,)\n'
+            'result = holder[0].__getitem__("eval")("1+1")\n'
+        ),
+    )
+
+    for source in sources:
+        assert _r62g_runtime_mapping_error(source) in {TypeError, AttributeError}
+        assert not any(
+            marker.startswith("call:")
+            for marker in _r62g_dynamic_execution_markers_from_source(source)
+        )
 
 
 def test_r62g_real_builtins_mappings_remain_fail_closed() -> None:
