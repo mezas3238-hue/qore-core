@@ -86,6 +86,19 @@ jobs:
               raise SystemExit(f'strict-typing repair count mismatch: {replacements}')
           path.write_text('\n'.join(result) + '\n')
           PY
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py')
+          text = path.read_text()
+          anchor = '''    def _evaluate_special_call(\n        self,\n        helper: _r12._Atom,\n        arguments: list[_Value],\n    ) -> _Value:\n'''
+          override = '''    def _scan_statement(\n        self,\n        node: ast.stmt,\n        environment: dict[str, _Value],\n    ) -> None:\n        if isinstance(node, ast.Assert):\n            self._scan_expression(node.test, environment)\n            if _r62n_static_bool(node.test) is not True and node.msg is not None:\n                self._scan_expression(node.msg, environment)\n            return\n        super()._scan_statement(node, environment)\n\n'''
+          if text.count(anchor) != 1:
+              raise SystemExit('assert-scanner repair anchor not exact')
+          if '    def _scan_statement(\n' in text[text.index('class _R62NBoundedExceptionalLoopGlobalsScanner'):text.index(anchor)]:
+              raise SystemExit('assert-scanner override already present')
+          path.write_text(text.replace(anchor, override + anchor, 1))
+          PY
           python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
           ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
           mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
@@ -104,6 +117,7 @@ jobs:
               'complex_floor': ('def run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    1j // 0j\nexcept TypeError:\n    import builtins as b\n    result = run()\nexcept ZeroDivisionError:\n    b = len\n    result = run()\n', 2, True),
               'complex_mod': ('def run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    1j % 0j\nexcept TypeError:\n    import builtins as b\n    result = run()\nexcept ZeroDivisionError:\n    b = len\n    result = run()\n', 2, True),
               'assert_true_safe': ('import builtins\nb = len\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nassert True, (b := builtins)\nresult = run()\n', 3, False),
+              'assert_true_call_safe': ('result = 3\nassert True, eval("1+1")\n', 3, False),
               'assert_true_danger': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\nassert True, (b := len)\nresult = run()\nb = len\n', 2, True),
               'assert_false_safe': ('import builtins as b\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    assert False, (b := len)\nexcept AssertionError:\n    result = run()\n', 3, False),
               'assert_false_danger': ('import builtins\nb = len\ndef run():\n    return getattr(globals()["b"], "eval", lambda _: 3)("1+1")\ntry:\n    assert False, (b := builtins)\nexcept AssertionError:\n    result = run()\nb = len\n', 2, True),
