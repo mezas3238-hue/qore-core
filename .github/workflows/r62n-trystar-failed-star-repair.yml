@@ -22,8 +22,8 @@ jobs:
           python-version: '3.12.14'
       - name: Verify exact staging ancestry
         run: |
-          test "$(git rev-parse HEAD^)" = "15c23c4ae7472b0137411f254b7a68742ef73404"
-          test "$(git rev-parse HEAD^^^)" = "35d48570b93473da7bfd4ae0a50073bc253cba76"
+          test "$(git rev-parse HEAD^)" = "d7172f3ef9a951bda72e0bdd359a62e6f295cd43"
+          test "$(git rev-parse HEAD^^^^)" = "35d48570b93473da7bfd4ae0a50073bc253cba76"
       - name: Install canonical development dependencies
         run: |
           python -m pip install --upgrade pip
@@ -121,6 +121,7 @@ jobs:
               "                if outcome.kind == \"normal\"\n"
               "            ]\n"
               "            if normal_environments:\n"
+              "                environment.clear()\n"
               "                self._merge_environments(\n"
               "                    environment,\n"
               "                    *normal_environments,\n"
@@ -135,7 +136,20 @@ jobs:
               "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
           )
           new_scan = (
-              "        if isinstance(node, (ast.Try, ast.TryStar)):\n"
+              "        if (\n"
+              "            isinstance(node, ast.TryStar)\n"
+              "            and any(\n"
+              "                _r62n_contains_runtime_unknown_star(statement)\n"
+              "                for statement in node.body\n"
+              "            )\n"
+              "        ):\n"
+              "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+              "            successor_environment = environment.copy()\n"
+              "            super()._scan_statement(node, environment)\n"
+              "            environment.clear()\n"
+              "            environment.update(successor_environment)\n"
+              "            return\n"
+              "        if isinstance(node, ast.Try):\n"
               "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
           )
           if text.count(old_scan) != 1:
@@ -197,6 +211,17 @@ jobs:
               "        assert _r62n_dynamic_execution_markers_from_source(downstream_danger)\n"
               "        assert _r62n_dynamic_execution_markers_from_source(handler_safe) == ()\n"
               "        assert _r62n_dynamic_execution_markers_from_source(downstream_safe) == ()\n"
+              "        module.__all__ = [\"b\"]\n"
+              "        module.b = len\n"
+              "        body_danger = (\n"
+              "            \"try:\\n\"\n"
+              "            f\"    from {module_name} import *\\n\"\n"
+              "            \"    result = eval(\\\"1+1\\\")\\n\"\n"
+              "            \"except* AttributeError:\\n\"\n"
+              "            \"    result = 3\\n\"\n"
+              "        )\n"
+              "        assert _runtime_result(body_danger) == 2\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(body_danger)\n"
               "    finally:\n"
               "        sys.modules.pop(module_name, None)\n\n"
           )
