@@ -39,9 +39,81 @@ jobs:
           script = zlib.decompress(base64.b64decode(match.group(1))).decode('utf-8')
           exec(compile(script, '<r62n-assert-patch>', 'exec'))
           PY
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py')
+          text = path.read_text()
+          old_sequence = '''    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        working = _r62n_copy_state(state)
+        raised: list[_r62l._R62LState] = []
+        for child in node.elts:
+            working, child_raised = _r62n_ordered_expression_raise_states(
+                child,
+                working,
+            )
+            raised.extend(child_raised)
+        raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(raised)
+'''
+          new_sequence = '''    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        working = _r62n_copy_state(state)
+        sequence_raised: list[_r62l._R62LState] = []
+        for child in node.elts:
+            working, child_raised = _r62n_ordered_expression_raise_states(
+                child,
+                working,
+            )
+            sequence_raised.extend(child_raised)
+        sequence_raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(sequence_raised)
+'''
+          old_dict = '''    if isinstance(node, ast.Dict):
+        working = _r62n_copy_state(state)
+        raised: list[_r62l._R62LState] = []
+        for key, value in zip(node.keys, node.values, strict=True):
+            if key is not None:
+                working, child_raised = _r62n_ordered_expression_raise_states(
+                    key,
+                    working,
+                )
+                raised.extend(child_raised)
+            working, child_raised = _r62n_ordered_expression_raise_states(
+                value,
+                working,
+            )
+            raised.extend(child_raised)
+        raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(raised)
+'''
+          new_dict = '''    if isinstance(node, ast.Dict):
+        working = _r62n_copy_state(state)
+        dictionary_raised: list[_r62l._R62LState] = []
+        for key, value in zip(node.keys, node.values, strict=True):
+            if key is not None:
+                working, child_raised = _r62n_ordered_expression_raise_states(
+                    key,
+                    working,
+                )
+                dictionary_raised.extend(child_raised)
+            working, child_raised = _r62n_ordered_expression_raise_states(
+                value,
+                working,
+            )
+            dictionary_raised.extend(child_raised)
+        dictionary_raised.append(_r62n_copy_state(working))
+        return working, _r62n_unique_states(dictionary_raised)
+'''
+          if text.count(old_sequence) != 1 or text.count(old_dict) != 1:
+              raise SystemExit('strict-typing repair anchors not exact')
+          text = text.replace(old_sequence, new_sequence, 1)
+          text = text.replace(old_dict, new_dict, 1)
+          path.write_text(text)
+          PY
           python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
           ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
           mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git diff --check
       - name: Deterministic regression matrix
         run: |
           set -euo pipefail
