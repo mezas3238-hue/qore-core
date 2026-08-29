@@ -1,0 +1,220 @@
+name: Apply bounded R62N nested failed-star finally repair v2
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-nested-star-finally-repair-v2.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact staging ancestry
+        run: |
+          test "$(git rev-parse HEAD^)" = "8eb94b7cc7af89ea7e119fd48c51ec5a7dd9120e"
+          test "$(git rev-parse HEAD^^)" = "e87778368efc8887b50c1be94bae7381842ac3a6"
+      - name: Install canonical development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Apply bounded scanner repair and regressions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py")
+          text = path.read_text()
+
+          helper_anchor = "\ndef _r62n_namespace_from_states(\n"
+          if text.count(helper_anchor) != 1:
+              raise SystemExit("unexpected namespace helper anchor count")
+          helper = (
+              "\ndef _r62n_contains_runtime_unknown_star(node: ast.AST) -> bool:\n"
+              "    if isinstance(\n"
+              "        node,\n"
+              "        (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef),\n"
+              "    ):\n"
+              "        return False\n"
+              "    if (\n"
+              "        isinstance(node, ast.ImportFrom)\n"
+              "        and any(alias.name == \"*\" for alias in node.names)\n"
+              "        and not (node.level == 0 and node.module == \"builtins\")\n"
+              "    ):\n"
+              "        return True\n"
+              "    return any(\n"
+              "        _r62n_contains_runtime_unknown_star(child)\n"
+              "        for child in ast.iter_child_nodes(node)\n"
+              "    )\n\n"
+          )
+          text = text.replace(helper_anchor, helper + helper_anchor, 1)
+
+          method_anchor = "    def _scan_exact_failed_builtin_import_try(\n"
+          if text.count(method_anchor) != 1:
+              raise SystemExit("unexpected scanner method anchor count")
+          method = (
+              "    def _scan_flow_failed_star_exception_paths(\n"
+              "        self,\n"
+              "        node: ast.Try,\n"
+              "        environment: dict[str, _Value],\n"
+              "    ) -> None:\n"
+              "        if not any(\n"
+              "            _r62n_contains_runtime_unknown_star(statement)\n"
+              "            for statement in node.body\n"
+              "        ):\n"
+              "            return\n\n"
+              "        initial: _r62l._R62LState = (environment.copy(), {})\n"
+              "        scratch_timeline: dict[int, list[_r62l._R62LAuthorityBindings]] = {}\n"
+              "        scratch_observations: dict[\n"
+              "            _r62k._R62KOwner,\n"
+              "            list[_r62l._R62LAuthorityBindings],\n"
+              "        ] = {}\n"
+              "        precision_lost = [False]\n"
+              "        body = _r62n_process_block(\n"
+              "            node.body,\n"
+              "            [initial],\n"
+              "            top_index=0,\n"
+              "            timeline=scratch_timeline,\n"
+              "            observations=scratch_observations,\n"
+              "            precision_lost=precision_lost,\n"
+              "        )\n"
+              "        unhandled = [outcome for outcome in body if outcome.kind == \"raise\"]\n\n"
+              "        for handler in node.handlers:\n"
+              "            next_unhandled: list[_r62m._R62MOutcome] = []\n"
+              "            for raised_outcome in unhandled:\n"
+              "                match = _r62n_handler_match(\n"
+              "                    _r62n_exception_name(raised_outcome.state),\n"
+              "                    handler.type,\n"
+              "                    raised_outcome.state[0],\n"
+              "                )\n"
+              "                if match is False:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "                    continue\n\n"
+              "                handler_environment = raised_outcome.state[0].copy()\n"
+              "                handler_environment.pop(_R62N_EXCEPTION_TAG, None)\n"
+              "                if handler.type is not None:\n"
+              "                    self._scan_expression(handler.type, handler_environment)\n"
+              "                if handler.name is not None:\n"
+              "                    handler_environment[handler.name] = _UNKNOWN\n"
+              "                self._scan_block(handler.body, handler_environment)\n"
+              "                if handler.name is not None:\n"
+              "                    handler_environment.pop(handler.name, None)\n"
+              "                if node.finalbody:\n"
+              "                    self._scan_block(node.finalbody, handler_environment)\n"
+              "                if match is None:\n"
+              "                    next_unhandled.append(raised_outcome)\n"
+              "            unhandled = next_unhandled\n\n"
+              "        if node.finalbody:\n"
+              "            for raised_outcome in unhandled:\n"
+              "                final_environment = raised_outcome.state[0].copy()\n"
+              "                final_environment.pop(_R62N_EXCEPTION_TAG, None)\n"
+              "                self._scan_block(node.finalbody, final_environment)\n\n"
+          )
+          text = text.replace(method_anchor, method + method_anchor, 1)
+
+          scan_anchor = (
+              "    def _scan_statement(\n"
+              "        self,\n"
+              "        node: ast.stmt,\n"
+              "        environment: dict[str, _Value],\n"
+              "    ) -> None:\n"
+              "        if (\n"
+          )
+          replacement = (
+              "    def _scan_statement(\n"
+              "        self,\n"
+              "        node: ast.stmt,\n"
+              "        environment: dict[str, _Value],\n"
+              "    ) -> None:\n"
+              "        if isinstance(node, ast.Try):\n"
+              "            self._scan_flow_failed_star_exception_paths(node, environment)\n"
+              "        if (\n"
+          )
+          if text.count(scan_anchor) != 1:
+              raise SystemExit("unexpected scan statement anchor count")
+          text = text.replace(scan_anchor, replacement, 1)
+
+          test_anchor = "\ndef test_r62n_unknown_star_import_taints_new_call_names() -> None:\n"
+          if text.count(test_anchor) != 1:
+              raise SystemExit("unexpected star test anchor count")
+          regression = (
+              "\ndef test_r62n_nested_failed_star_exception_state_crosses_finally() -> None:\n"
+              "    module_name = \"qore_r62n_nested_star_regression\"\n"
+              "    module = _R62NStarImportModule(module_name)\n"
+              "    module.__all__ = [\"b\", \"missing\"]\n"
+              "    module.b = _py_builtins.eval\n"
+              "    sys.modules[module_name] = module\n"
+              "    try:\n"
+              "        handler_danger = (\n"
+              "            \"b = len\\n\"\n"
+              "            \"try:\\n\"\n"
+              "            \"    try:\\n\"\n"
+              "            f\"        from {module_name} import *\\n\"\n"
+              "            \"    finally:\\n\"\n"
+              "            \"        marker = 1\\n\"\n"
+              "            \"except AttributeError:\\n\"\n"
+              "            \"    result = b(\\\"1+1\\\")\\n\"\n"
+              "        )\n"
+              "        finalbody_danger = (\n"
+              "            \"b = len\\n\"\n"
+              "            \"try:\\n\"\n"
+              "            f\"    from {module_name} import *\\n\"\n"
+              "            \"except AttributeError:\\n\"\n"
+              "            \"    pass\\n\"\n"
+              "            \"finally:\\n\"\n"
+              "            \"    result = b(\\\"1+1\\\")\\n\"\n"
+              "            \"    b = len\\n\"\n"
+              "        )\n"
+              "        safe = (\n"
+              "            \"b = len\\n\"\n"
+              "            \"try:\\n\"\n"
+              "            \"    try:\\n\"\n"
+              "            f\"        from {module_name} import *\\n\"\n"
+              "            \"    finally:\\n\"\n"
+              "            \"        b = len\\n\"\n"
+              "            \"except AttributeError:\\n\"\n"
+              "            \"    result = b(\\\"abc\\\")\\n\"\n"
+              "        )\n"
+              "        assert _runtime_result(handler_danger) == 2\n"
+              "        assert _runtime_result(finalbody_danger) == 2\n"
+              "        assert _runtime_result(safe) == 3\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(handler_danger)\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(finalbody_danger)\n"
+              "        assert _r62n_dynamic_execution_markers_from_source(safe) == ()\n"
+              "    finally:\n"
+              "        sys.modules.pop(module_name, None)\n\n"
+          )
+          text = text.replace(test_anchor, regression + test_anchor, 1)
+          path.write_text(text)
+          PY
+      - name: Focused validation
+        run: |
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          ruff check tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          mypy tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Full canonical quality gate
+        run: |
+          ruff check .
+          mypy src tests
+          pytest --cov=src/qore --cov-report=term-missing
+      - name: Commit validated repair and remove staging
+        run: |
+          git config user.name "qore-integration-authority"
+          git config user.email "qore-integration-authority@users.noreply.github.com"
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git rm .github/workflows/r62n-nested-star-finally-repair.yml
+          git rm .github/workflows/r62n-nested-star-finally-repair-v2.yml
+          git diff --cached --check
+          git commit -m "Preserve nested failed-star exception authority"
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
