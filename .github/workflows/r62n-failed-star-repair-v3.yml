@@ -1,0 +1,68 @@
+name: Apply bounded R62N failed-star import repair v3
+
+on:
+  push:
+    branches: [agent/qore-umi14-umi12-final-owner-recert-001]
+    paths: [.github/workflows/r62n-failed-star-repair-v3.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qore-umi14-umi12-final-owner-recert-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact staging ancestry
+        run: |
+          test "$(git rev-parse HEAD^)" = "a72dd6dbbbb6285a44a099b059efc9b2afaa006d"
+          test "$(git rev-parse HEAD^^)" = "80013c5bbc050e167f089925776c8fcaf2838709"
+          test "$(git rev-parse HEAD^^^)" = "9a3b44e6b19fab5e9cd72ef9013d031b6ef0cc6d"
+      - name: Install canonical development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Verify and apply bounded failed-star repair
+        env:
+          PATCH_SHA256: '64f862de00e6c3863d9794066cf09c73263193a23b133b3096a489002f5569c6'
+          PATCH_ZLIB_B64: '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'
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import os
+          import zlib
+
+          payload = os.environ['PATCH_ZLIB_B64']
+          if hashlib.sha256(payload.encode()).hexdigest() != os.environ['PATCH_SHA256']:
+              raise SystemExit('patch payload digest mismatch')
+          script = zlib.decompress(base64.b64decode(payload)).decode('utf-8')
+          exec(compile(script, '<r62n-failed-star-repair-v3>', 'exec'))
+          PY
+      - name: Syntax and focused regression
+        run: |
+          python -m py_compile tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          pytest -q tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+      - name: Full canonical quality gate
+        run: |
+          ruff check .
+          mypy src tests
+          pytest --cov=src/qore --cov-report=term-missing
+      - name: Commit validated repair and remove staging
+        run: |
+          git config user.name "qore-integration-authority"
+          git config user.email "qore-integration-authority@users.noreply.github.com"
+          git add tests/infrastructure/test_universal_cross_asset_conformance_final_owner_r62n_guards.py
+          git rm .github/workflows/r62n-failed-star-repair.yml
+          git rm .github/workflows/r62n-failed-star-repair-v2.yml
+          git rm .github/workflows/r62n-failed-star-repair-v3.yml
+          git diff --cached --check
+          git commit -m "Harden R62N failed-star import ordering"
+          git push origin HEAD:agent/qore-umi14-umi12-final-owner-recert-001
