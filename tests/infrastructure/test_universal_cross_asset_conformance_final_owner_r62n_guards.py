@@ -140,7 +140,7 @@ def _r62n_exception_group_members(
     value = state[0].get(_R62N_EXCEPTION_TAG)
     if value is None or value == _UNKNOWN:
         return None
-    return frozenset(
+    members = frozenset(
         atom.text
         for atom in value
         if (
@@ -148,6 +148,12 @@ def _r62n_exception_group_members(
             and atom.text is not None
         )
     )
+    if not members and any(
+        atom.kind == _R62N_EXCEPTION_KIND and atom.text is not None
+        for atom in value
+    ):
+        return None
+    return members
 
 
 def _r62n_handler_match(
@@ -3382,3 +3388,89 @@ finally:
         assert namespace["result"] == expected
         markers = _r62n_dynamic_execution_markers_from_source(source)
         assert ("call:11" in markers) is marker_present
+
+
+
+def test_r62n_trystar_plain_unmatched_exception_reaches_outer_handler() -> None:
+    dangerous = """\
+b = eval
+try:
+    try:
+        raise ValueError("v")
+    except* TypeError:
+        pass
+except ValueError:
+    result = b("1+1")
+"""
+    safe = """\
+b = len
+try:
+    try:
+        raise ValueError("v")
+    except* TypeError:
+        pass
+except ValueError:
+    result = b("abc")
+"""
+    assert _runtime_result(dangerous) == 2
+    assert _runtime_result(safe) == 3
+    dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:8" in dangerous_markers
+    assert "call:8" not in safe_markers
+
+
+def test_r62n_trystar_plain_matching_exception_preserves_successor_state() -> None:
+    safe = """\
+b = eval
+try:
+    raise ValueError("v")
+except* ValueError:
+    b = len
+result = b("abc")
+"""
+    dangerous = """\
+b = len
+try:
+    raise ValueError("v")
+except* ValueError:
+    b = eval
+result = b("1+1")
+"""
+    assert _runtime_result(safe) == 3
+    assert _runtime_result(dangerous) == 2
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
+    assert "call:6" not in safe_markers
+    assert "call:6" in dangerous_markers
+
+
+def test_r62n_trystar_plain_bare_reraise_reaches_outer_group_handler() -> None:
+    dangerous = """\
+b = len
+try:
+    try:
+        raise ValueError("v")
+    except* ValueError:
+        b = eval
+        raise
+except ExceptionGroup:
+    result = b("1+1")
+"""
+    safe = """\
+b = eval
+try:
+    try:
+        raise ValueError("v")
+    except* ValueError:
+        b = len
+        raise
+except ExceptionGroup:
+    result = b("abc")
+"""
+    assert _runtime_result(dangerous) == 2
+    assert _runtime_result(safe) == 3
+    dangerous_markers = _r62n_dynamic_execution_markers_from_source(dangerous)
+    safe_markers = _r62n_dynamic_execution_markers_from_source(safe)
+    assert "call:9" in dangerous_markers
+    assert "call:9" not in safe_markers
