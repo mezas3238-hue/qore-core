@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import builtins as _py_builtins
+import sys
+import types
 
 import test_universal_cross_asset_conformance_final_owner_r12_guards as _r12
 import test_universal_cross_asset_conformance_final_owner_r62i_guards as _r62i
@@ -34,6 +36,20 @@ def _r62n_unique_states(
 _R62N_EXCEPTION_TAG = "\x00r62n_exception"
 _R62N_EXCEPTION_KIND = "r62n_exception"
 _R62N_EXCEPTION_GROUP_MEMBER_KIND = "r62n_exception_group_member"
+_R62N_STAR_IMPORT_TAINT = "\x00r62n_star_import_taint"
+
+
+def _r62n_taint_unknown_star_authority(
+    authority: _r62l._R62LAuthorityBindings,
+) -> None:
+    for name, value in tuple(authority.items()):
+        if name in {_R62N_EXCEPTION_TAG, _R62N_STAR_IMPORT_TAINT}:
+            continue
+        authority[name] = _r12._merge_values(
+            value,
+            _r12._DANGEROUS_CALLABLE,
+        )
+    authority[_R62N_STAR_IMPORT_TAINT] = _r12._DANGEROUS_CALLABLE
 
 
 def _r62n_builtin_exception_class(name: str) -> type[BaseException] | None:
@@ -1230,6 +1246,27 @@ def _r62n_process_statement(
 
     if (
         isinstance(node, ast.ImportFrom)
+        and any(alias.name == "*" for alias in node.names)
+        and not (node.level == 0 and node.module == "builtins")
+    ):
+        early_failed = _r62n_copy_state(state)
+        _r62n_set_exception_tag(early_failed, None)
+
+        working = _r62n_copy_state(state)
+        _r62n_taint_unknown_star_authority(working[0])
+        precision_lost[0] = True
+
+        partial_failed = _r62n_copy_state(working)
+        _r62n_set_exception_tag(partial_failed, None)
+        return _r62m._r62m_bound_outcomes(
+            [
+                _r62m._R62MOutcome("normal", working),
+                _r62m._R62MOutcome("raise", early_failed),
+                _r62m._R62MOutcome("raise", partial_failed),
+            ]
+        )
+    if (
+        isinstance(node, ast.ImportFrom)
         and node.level == 0
         and node.module == "builtins"
     ):
@@ -1470,7 +1507,7 @@ def _r62n_namespace_from_states(
         name
         for state in states
         for name in state
-        if name != _R62N_EXCEPTION_TAG
+        if name not in {_R62N_EXCEPTION_TAG, _R62N_STAR_IMPORT_TAINT}
     }
     values: dict[str, tuple[_Value, bool]] = {}
     for name in names:
@@ -1591,11 +1628,103 @@ class _R62NBoundedExceptionalLoopGlobalsScanner(
         environment.update(selected)
         return True
 
+    def _scan_conservative_failed_star_import_try(
+        self,
+        node: ast.Try,
+        environment: dict[str, _Value],
+    ) -> bool:
+        if node.orelse or node.finalbody:
+            return False
+
+        working = environment.copy()
+        failure_environments: list[dict[str, _Value]] = []
+        saw_unknown_star = False
+
+        for statement in node.body:
+            if (
+                isinstance(statement, ast.ImportFrom)
+                and any(alias.name == "*" for alias in statement.names)
+                and not (
+                    statement.level == 0
+                    and statement.module == "builtins"
+                )
+            ):
+                saw_unknown_star = True
+                failure_environments.append(working.copy())
+                partial_failure = working.copy()
+                _r62n_taint_unknown_star_authority(partial_failure)
+                failure_environments.append(partial_failure)
+                _r62n_taint_unknown_star_authority(working)
+                continue
+
+            if _r62n_simple_statement_may_raise(statement):
+                return False
+            self._scan_statement(statement, working)
+
+        if not saw_unknown_star:
+            return False
+
+        branches: list[dict[str, _Value]] = [working]
+        for handler in node.handlers:
+            for failure_environment in failure_environments:
+                handler_environment = failure_environment.copy()
+                if handler.type is not None:
+                    self._scan_expression(
+                        handler.type,
+                        handler_environment,
+                    )
+                if handler.name is not None:
+                    handler_environment[handler.name] = _UNKNOWN
+                self._scan_block(handler.body, handler_environment)
+                if handler.name is not None:
+                    handler_environment.pop(handler.name, None)
+                branches.append(handler_environment)
+
+        self._merge_environments(environment, *branches)
+        return True
+
+    def _scan_import_from(
+        self,
+        node: ast.ImportFrom,
+        environment: dict[str, _Value],
+    ) -> None:
+        if (
+            any(alias.name == "*" for alias in node.names)
+            and not (node.level == 0 and node.module == "builtins")
+        ):
+            _r62n_taint_unknown_star_authority(environment)
+            return
+        super()._scan_import_from(node, environment)
+
+    def _scan_expression(
+        self,
+        node: ast.AST,
+        environment: dict[str, _Value],
+    ) -> _Value:
+        if (
+            isinstance(node, ast.Name)
+            and node.id not in environment
+            and _R62N_STAR_IMPORT_TAINT in environment
+        ):
+            return _r12._merge_values(
+                super()._scan_expression(node, environment),
+                _r12._DANGEROUS_CALLABLE,
+            )
+        return super()._scan_expression(node, environment)
+
     def _scan_statement(
         self,
         node: ast.stmt,
         environment: dict[str, _Value],
     ) -> None:
+        if (
+            isinstance(node, ast.Try)
+            and self._scan_conservative_failed_star_import_try(
+                node,
+                environment,
+            )
+        ):
+            return
         if isinstance(node, ast.Try) and self._scan_exact_failed_builtin_import_try(
             node,
             environment,
@@ -2200,3 +2329,57 @@ result = run()
     assert _runtime_result(source) == 3
     assert _r62n_dynamic_execution_markers_from_source(source) == ()
 
+
+class _R62NStarImportModule(types.ModuleType):
+    b: object
+    __all__: list[str]
+    dynamic_alias: object
+
+def test_r62n_failed_star_import_preserves_possible_partial_authority() -> None:
+    module_name = "qore_r62n_star_import_regression"
+    module = _R62NStarImportModule(module_name)
+    module.b = _py_builtins.eval
+    sys.modules[module_name] = module
+    try:
+        module.__all__ = ["b", "missing"]
+        dangerous = f"""\
+b = len
+try:
+    from {module_name} import *
+except AttributeError:
+    pass
+result = b("1+1")
+"""
+        assert _runtime_result(dangerous) == 2
+        assert _r62n_dynamic_execution_markers_from_source(dangerous)
+
+        module.__all__ = ["missing", "b"]
+        inverse = f"""\
+b = len
+try:
+    from {module_name} import *
+except AttributeError:
+    pass
+result = b("abc")
+"""
+        assert _runtime_result(inverse) == 3
+        assert _r62n_dynamic_execution_markers_from_source(inverse)
+    finally:
+        sys.modules.pop(module_name, None)
+
+
+def test_r62n_unknown_star_import_taints_new_call_names() -> None:
+    module_name = "qore_r62n_star_new_name_regression"
+    module = _R62NStarImportModule(module_name)
+    module.__all__ = ["dynamic_alias"]
+    module.dynamic_alias = _py_builtins.eval
+    sys.modules[module_name] = module
+    try:
+        source = f"""\
+from {module_name} import *
+result = dynamic_alias("1+1")
+"""
+        assert _runtime_result(source) == 2
+        assert _r62n_dynamic_execution_markers_from_source(source)
+    finally:
+        sys.modules.pop(module_name, None)
