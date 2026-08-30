@@ -44,6 +44,12 @@ The defect is classified as a material D04 / UMI-13 canonical-evidence integrity
 defect. It is not evidence of provider, operational, execution, risk, settlement or
 Production readiness.
 
+The first published candidate exposed the same retained-state class in the three
+local `StrEnum` contracts. Exact enum type and member identity did not prove that a
+process-global singleton still retained its canonical `_name_` and `_value_` after
+reflective mutation. This follow-up closes accepted finding
+`F-UMI13-ENUM-REVALIDATION-002` without expanding the owner boundary.
+
 ## Corrected trust edges
 
 The correction revalidates before hashing, set construction, sorting, relationship
@@ -61,6 +67,10 @@ checks or output:
 5. snapshot `logical_values()` re-enters full graph validation;
 6. `entry_for_family()` revalidates both the snapshot graph and the query
    `IdentityFamilyCode` before returning a retained child.
+7. evidence-source, coverage and owner enums validate the canonical name and value
+   of every known singleton before retained-member comparisons or projection;
+   business decisions use the independently retained primitive canonical value, not
+   mutable `StrEnum` equality or hashing.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -78,6 +88,8 @@ corruption. It covers:
 - construction of new aggregates from exact children already corrupted, including an
   unhashable ref value rejected by the owner validator before hashing;
 - corrupt imported `IdentityFamilyCode` state in an entry and lookup query;
+- isolated subprocess mutation of `_value_` and `_name_` for all three local enum
+  classes, covering evidence record, entry and snapshot re-entry/projection;
 - explicit `__post_init__()` re-entry;
 - evidence content/full projections, entry projection, snapshot projection and
   snapshot lookup;

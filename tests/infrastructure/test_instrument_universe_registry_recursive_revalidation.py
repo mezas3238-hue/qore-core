@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -10,6 +13,7 @@ from qore.infrastructure.universal_instrument_identity import IdentityFamilyCode
 
 _AS_OF = date(2026, 8, 15)
 _REASON = "Bounded futures semantics retain two explicit specialization gaps."
+_ROOT = Path(__file__).resolve().parents[2]
 
 _CodeRef = (
     registry.InstrumentUniverseEvidenceRef
@@ -79,6 +83,129 @@ def _snapshot() -> registry.InstrumentUniverseRegistrySnapshot:
             ),
         ),
     )
+
+
+def _run_isolated_enum_corruption(
+    *,
+    enum_expression: str,
+    mutation_attribute: str,
+    rejected_calls: tuple[tuple[str, str], ...],
+) -> subprocess.CompletedProcess[str]:
+    script = f'''\
+from datetime import date
+
+import qore.infrastructure.instrument_universe_registry as registry
+from qore.infrastructure.universal_instrument_identity import IdentityFamilyCode
+
+as_of = date(2026, 8, 15)
+evidence_ref = registry.InstrumentUniverseEvidenceRef("qore-umi05")
+record = registry.InstrumentUniverseEvidenceRecord(
+    evidence_ref=evidence_ref,
+    source_category=registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY,
+    source_name="QORE repository",
+    locator="qore://umi-05/futures",
+    verified_on=as_of,
+)
+entry = registry.InstrumentUniverseEntry(
+    family=IdentityFamilyCode("futures"),
+    coverage_status=registry.InstrumentUniverseCoverageStatus.PARTIAL,
+    owner_status=registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
+    owner_refs=(registry.InstrumentUniverseOwnerRef("umi-05.derivatives"),),
+    unresolved_semantics=(
+        registry.InstrumentUniverseSemanticRef("deliverable-basket"),
+    ),
+    evidence_refs=(evidence_ref,),
+    reason=registry.InstrumentUniverseReason("Bounded futures semantics."),
+)
+snapshot = registry.InstrumentUniverseRegistrySnapshot(
+    as_of=as_of,
+    revision=1,
+    entries=(entry,),
+    evidence=(record,),
+)
+
+member = {enum_expression}
+object.__setattr__(member, {mutation_attribute!r}, "token=PLAINTEXT-SECRET")
+retained_objects = {{"record": record, "entry": entry, "snapshot": snapshot}}
+for object_name, method_name in {rejected_calls!r}:
+    try:
+        getattr(retained_objects[object_name], method_name)()
+    except registry.InstrumentUniverseRegistryValidationError as error:
+        assert "token=PLAINTEXT-SECRET" not in str(error)
+    else:
+        raise AssertionError(
+            f"corrupt enum state accepted by {{object_name}}.{{method_name}}"
+        )
+
+print("ISOLATED_ENUM_STATE_REJECTED")
+'''
+    environment = dict(os.environ)
+    existing_pythonpath = environment.get("PYTHONPATH")
+    source_path = str(_ROOT / "src")
+    environment["PYTHONPATH"] = (
+        source_path
+        if existing_pythonpath is None
+        else os.pathsep.join((source_path, existing_pythonpath))
+    )
+    return subprocess.run(
+        [sys.executable, "-B", "-c", script],
+        cwd=_ROOT,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+@pytest.mark.parametrize("mutation_attribute", ["_value_", "_name_"])
+@pytest.mark.parametrize(
+    ("enum_expression", "rejected_calls"),
+    [
+        (
+            "registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY",
+            (
+                ("record", "__post_init__"),
+                ("record", "content_logical_values"),
+                ("record", "logical_values"),
+                ("snapshot", "__post_init__"),
+                ("snapshot", "logical_values"),
+            ),
+        ),
+        (
+            "registry.InstrumentUniverseCoverageStatus.PARTIAL",
+            (
+                ("entry", "__post_init__"),
+                ("entry", "logical_values"),
+                ("snapshot", "__post_init__"),
+                ("snapshot", "logical_values"),
+            ),
+        ),
+        (
+            "registry.InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT",
+            (
+                ("entry", "__post_init__"),
+                ("entry", "logical_values"),
+                ("snapshot", "__post_init__"),
+                ("snapshot", "logical_values"),
+            ),
+        ),
+    ],
+)
+def test_local_str_enum_state_is_recursively_revalidated_in_isolated_process(
+    enum_expression: str,
+    rejected_calls: tuple[tuple[str, str], ...],
+    mutation_attribute: str,
+) -> None:
+    result = _run_isolated_enum_corruption(
+        enum_expression=enum_expression,
+        mutation_attribute=mutation_attribute,
+        rejected_calls=rejected_calls,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stdout == "ISOLATED_ENUM_STATE_REJECTED\n"
+    assert "token=PLAINTEXT-SECRET" not in result.stdout + result.stderr
 
 
 @pytest.mark.parametrize(

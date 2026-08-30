@@ -217,6 +217,133 @@ class InstrumentUniverseOwnerStatus(StrEnum):
     NOT_APPLICABLE = "not-applicable"
 
 
+_CanonicalStrEnumMembers = tuple[tuple[StrEnum, str, str], ...]
+
+_EVIDENCE_SOURCE_CATEGORY_MEMBERS: _CanonicalStrEnumMembers = (
+    (
+        InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY,
+        "QORE_REPOSITORY",
+        "qore-repository",
+    ),
+    (
+        InstrumentUniverseEvidenceSourceCategory.STANDARDS_INDUSTRY_BODY,
+        "STANDARDS_INDUSTRY_BODY",
+        "standards-industry-body",
+    ),
+    (
+        InstrumentUniverseEvidenceSourceCategory.REGULATORY_OFFICIAL,
+        "REGULATORY_OFFICIAL",
+        "regulatory-official",
+    ),
+    (
+        InstrumentUniverseEvidenceSourceCategory.EXCHANGE_CLEARING_VENUE,
+        "EXCHANGE_CLEARING_VENUE",
+        "exchange-clearing-venue",
+    ),
+    (
+        InstrumentUniverseEvidenceSourceCategory.CENTRAL_BANK_OFFICIAL_REFERENCE,
+        "CENTRAL_BANK_OFFICIAL_REFERENCE",
+        "central-bank-official-reference",
+    ),
+    (
+        InstrumentUniverseEvidenceSourceCategory.PROVIDER_PLATFORM_OFFICIAL,
+        "PROVIDER_PLATFORM_OFFICIAL",
+        "provider-platform-official",
+    ),
+)
+
+_COVERAGE_STATUS_MEMBERS: _CanonicalStrEnumMembers = (
+    (InstrumentUniverseCoverageStatus.COVERED, "COVERED", "covered"),
+    (InstrumentUniverseCoverageStatus.PARTIAL, "PARTIAL", "partial"),
+    (InstrumentUniverseCoverageStatus.UNRESOLVED, "UNRESOLVED", "unresolved"),
+    (InstrumentUniverseCoverageStatus.EXCLUDED, "EXCLUDED", "excluded"),
+    (InstrumentUniverseCoverageStatus.DEFERRED, "DEFERRED", "deferred"),
+)
+
+_OWNER_STATUS_MEMBERS: _CanonicalStrEnumMembers = (
+    (
+        InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
+        "CERTIFIED_CONTRACT",
+        "certified-contract",
+    ),
+    (
+        InstrumentUniverseOwnerStatus.PARTIAL_CONTRACT,
+        "PARTIAL_CONTRACT",
+        "partial-contract",
+    ),
+    (
+        InstrumentUniverseOwnerStatus.NO_CERTIFIED_OWNER,
+        "NO_CERTIFIED_OWNER",
+        "no-certified-owner",
+    ),
+    (
+        InstrumentUniverseOwnerStatus.NOT_APPLICABLE,
+        "NOT_APPLICABLE",
+        "not-applicable",
+    ),
+)
+
+
+def _revalidate_str_enum_member(
+    value: object,
+    *,
+    enum_type: type[StrEnum],
+    canonical_members: _CanonicalStrEnumMembers,
+    field_name: str,
+) -> str:
+    if type(value) is not enum_type:
+        raise InstrumentUniverseRegistryValidationError(
+            f"{field_name} must be {enum_type.__name__}"
+        )
+
+    canonical_value: str | None = None
+    for member, expected_name, expected_value in canonical_members:
+        if (
+            type(member.name) is not str
+            or member.name != expected_name
+            or type(member.value) is not str
+            or member.value != expected_value
+        ):
+            raise InstrumentUniverseRegistryValidationError(
+                f"{field_name} enum must retain canonical member state"
+            )
+        if value is member:
+            canonical_value = expected_value
+
+    if canonical_value is None:
+        raise InstrumentUniverseRegistryValidationError(
+            f"{field_name} must retain a canonical enum member identity"
+        )
+    return canonical_value
+
+
+def _revalidate_evidence_source_category(value: object) -> str:
+    return _revalidate_str_enum_member(
+        value,
+        enum_type=InstrumentUniverseEvidenceSourceCategory,
+        canonical_members=_EVIDENCE_SOURCE_CATEGORY_MEMBERS,
+        field_name="evidence record source_category",
+    )
+
+
+def _revalidate_coverage_status(value: object) -> str:
+    return _revalidate_str_enum_member(
+        value,
+        enum_type=InstrumentUniverseCoverageStatus,
+        canonical_members=_COVERAGE_STATUS_MEMBERS,
+        field_name="instrument-universe coverage_status",
+    )
+
+
+def _revalidate_owner_status(value: object) -> str:
+    return _revalidate_str_enum_member(
+        value,
+        enum_type=InstrumentUniverseOwnerStatus,
+        canonical_members=_OWNER_STATUS_MEMBERS,
+        field_name="instrument-universe owner_status",
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class InstrumentUniverseEvidenceRecord:
     """Reference metadata for retained evidence; never evidence content itself."""
@@ -233,11 +360,7 @@ class InstrumentUniverseEvidenceRecord:
                 "evidence record evidence_ref must be InstrumentUniverseEvidenceRef"
             )
         self.evidence_ref.__post_init__()
-        if type(self.source_category) is not InstrumentUniverseEvidenceSourceCategory:
-            raise InstrumentUniverseRegistryValidationError(
-                "evidence record source_category must be "
-                "InstrumentUniverseEvidenceSourceCategory"
-            )
+        _revalidate_evidence_source_category(self.source_category)
         _validate_text(
             self.source_name,
             field_name="evidence source_name",
@@ -253,7 +376,7 @@ class InstrumentUniverseEvidenceRecord:
     def content_logical_values(self) -> tuple[object, ...]:
         self.__post_init__()
         return (
-            self.source_category.value,
+            _revalidate_evidence_source_category(self.source_category),
             self.source_name,
             self.locator,
             self.verified_on.isoformat(),
@@ -263,7 +386,7 @@ class InstrumentUniverseEvidenceRecord:
         self.__post_init__()
         return (
             self.evidence_ref.logical_values(),
-            self.source_category.value,
+            _revalidate_evidence_source_category(self.source_category),
             self.source_name,
             self.locator,
             self.verified_on.isoformat(),
@@ -284,15 +407,8 @@ class InstrumentUniverseEntry:
 
     def __post_init__(self) -> None:
         _revalidate_identity_family(self.family)
-        if type(self.coverage_status) is not InstrumentUniverseCoverageStatus:
-            raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe coverage_status must be "
-                "InstrumentUniverseCoverageStatus"
-            )
-        if type(self.owner_status) is not InstrumentUniverseOwnerStatus:
-            raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe owner_status must be InstrumentUniverseOwnerStatus"
-            )
+        coverage_status = _revalidate_coverage_status(self.coverage_status)
+        owner_status = _revalidate_owner_status(self.owner_status)
         if type(self.owner_refs) is not tuple or any(
             type(item) is not InstrumentUniverseOwnerRef for item in self.owner_refs
         ):
@@ -340,10 +456,7 @@ class InstrumentUniverseEntry:
                 "instrument-universe evidence_refs must be unique"
             )
 
-        if self.owner_status in (
-            InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
-            InstrumentUniverseOwnerStatus.PARTIAL_CONTRACT,
-        ):
+        if owner_status in ("certified-contract", "partial-contract"):
             if not self.owner_refs:
                 raise InstrumentUniverseRegistryValidationError(
                     "certified/partial owner status requires explicit owner_refs"
@@ -353,11 +466,8 @@ class InstrumentUniverseEntry:
                 "no-owner/not-applicable owner status must not retain owner_refs"
             )
 
-        if self.coverage_status is InstrumentUniverseCoverageStatus.COVERED:
-            if (
-                self.owner_status
-                is not InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT
-            ):
+        if coverage_status == "covered":
+            if owner_status != "certified-contract":
                 raise InstrumentUniverseRegistryValidationError(
                     "covered family requires certified-contract owner status"
                 )
@@ -365,11 +475,8 @@ class InstrumentUniverseEntry:
                 raise InstrumentUniverseRegistryValidationError(
                     "covered family must not retain unresolved semantics"
                 )
-        elif self.coverage_status is InstrumentUniverseCoverageStatus.PARTIAL:
-            if self.owner_status not in (
-                InstrumentUniverseOwnerStatus.CERTIFIED_CONTRACT,
-                InstrumentUniverseOwnerStatus.PARTIAL_CONTRACT,
-            ):
+        elif coverage_status == "partial":
+            if owner_status not in ("certified-contract", "partial-contract"):
                 raise InstrumentUniverseRegistryValidationError(
                     "partial family requires a retained certified/partial QORE owner"
                 )
@@ -377,14 +484,8 @@ class InstrumentUniverseEntry:
                 raise InstrumentUniverseRegistryValidationError(
                     "partial family must retain unresolved semantics"
                 )
-        elif self.coverage_status in (
-            InstrumentUniverseCoverageStatus.UNRESOLVED,
-            InstrumentUniverseCoverageStatus.DEFERRED,
-        ):
-            if (
-                self.owner_status
-                is not InstrumentUniverseOwnerStatus.NO_CERTIFIED_OWNER
-            ):
+        elif coverage_status in ("unresolved", "deferred"):
+            if owner_status != "no-certified-owner":
                 raise InstrumentUniverseRegistryValidationError(
                     "unresolved/deferred family requires no-certified-owner status"
                 )
@@ -392,8 +493,8 @@ class InstrumentUniverseEntry:
                 raise InstrumentUniverseRegistryValidationError(
                     "unresolved/deferred family must retain unresolved semantics"
                 )
-        elif self.coverage_status is InstrumentUniverseCoverageStatus.EXCLUDED:
-            if self.owner_status is not InstrumentUniverseOwnerStatus.NOT_APPLICABLE:
+        elif coverage_status == "excluded":
+            if owner_status != "not-applicable":
                 raise InstrumentUniverseRegistryValidationError(
                     "excluded family requires not-applicable owner status"
                 )
@@ -422,8 +523,8 @@ class InstrumentUniverseEntry:
         self.__post_init__()
         return (
             self.family.logical_values(),
-            self.coverage_status.value,
-            self.owner_status.value,
+            _revalidate_coverage_status(self.coverage_status),
+            _revalidate_owner_status(self.owner_status),
             tuple(item.logical_values() for item in self.owner_refs),
             tuple(item.logical_values() for item in self.unresolved_semantics),
             tuple(item.logical_values() for item in self.evidence_refs),
@@ -498,18 +599,17 @@ class InstrumentUniverseRegistrySnapshot:
                     "instrument-universe entry contains dangling evidence reference"
                 )
             used_refs.update(entry_refs)
-            if entry.coverage_status in (
-                InstrumentUniverseCoverageStatus.COVERED,
-                InstrumentUniverseCoverageStatus.PARTIAL,
+            if _revalidate_coverage_status(entry.coverage_status) in (
+                "covered",
+                "partial",
             ):
                 categories = {
-                    evidence_by_ref[evidence_ref].source_category
+                    _revalidate_evidence_source_category(
+                        evidence_by_ref[evidence_ref].source_category
+                    )
                     for evidence_ref in entry_refs
                 }
-                if (
-                    InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY
-                    not in categories
-                ):
+                if "qore-repository" not in categories:
                     raise InstrumentUniverseRegistryValidationError(
                         "covered/partial family requires retained QORE repository "
                         "evidence"
