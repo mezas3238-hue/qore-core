@@ -5,7 +5,10 @@ from datetime import date
 from enum import StrEnum
 from re import fullmatch
 
-from qore.infrastructure.universal_instrument_identity import IdentityFamilyCode
+from qore.infrastructure.universal_instrument_identity import (
+    IdentityFamilyCode,
+    UniversalInstrumentIdentityValidationError,
+)
 from qore.kernel.errors import InfrastructureError
 
 
@@ -103,6 +106,35 @@ def _validate_text(
         )
 
 
+def _revalidate_identity_family(
+    value: object,
+    *,
+    lookup: bool = False,
+) -> None:
+    type_error = (
+        "family lookup requires UMI-02 IdentityFamilyCode with exact str value"
+        if lookup
+        else (
+            "instrument-universe family must be UMI-02 IdentityFamilyCode "
+            "with exact str value"
+        )
+    )
+    if type(value) is not IdentityFamilyCode or type(value.value) is not str:
+        raise InstrumentUniverseRegistryValidationError(type_error)
+    try:
+        value.__post_init__()
+    except UniversalInstrumentIdentityValidationError:
+        state_error = (
+            "family lookup requires canonical UMI-02 IdentityFamilyCode state"
+            if lookup
+            else (
+                "instrument-universe family must retain canonical UMI-02 "
+                "IdentityFamilyCode state"
+            )
+        )
+        raise InstrumentUniverseRegistryValidationError(state_error) from None
+
+
 @dataclass(frozen=True, slots=True)
 class InstrumentUniverseEvidenceRef:
     value: str
@@ -111,6 +143,7 @@ class InstrumentUniverseEvidenceRef:
         _validate_code(self.value, field_name="instrument-universe evidence ref")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -122,6 +155,7 @@ class InstrumentUniverseOwnerRef:
         _validate_code(self.value, field_name="instrument-universe owner ref")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -133,6 +167,7 @@ class InstrumentUniverseSemanticRef:
         _validate_code(self.value, field_name="instrument-universe semantic ref")
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -148,6 +183,7 @@ class InstrumentUniverseReason:
         )
 
     def logical_values(self) -> tuple[str, ...]:
+        self.__post_init__()
         return (self.value,)
 
 
@@ -196,6 +232,7 @@ class InstrumentUniverseEvidenceRecord:
             raise InstrumentUniverseRegistryValidationError(
                 "evidence record evidence_ref must be InstrumentUniverseEvidenceRef"
             )
+        self.evidence_ref.__post_init__()
         if type(self.source_category) is not InstrumentUniverseEvidenceSourceCategory:
             raise InstrumentUniverseRegistryValidationError(
                 "evidence record source_category must be "
@@ -214,6 +251,7 @@ class InstrumentUniverseEvidenceRecord:
         _validate_date(self.verified_on, field_name="evidence verified_on")
 
     def content_logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             self.source_category.value,
             self.source_name,
@@ -222,9 +260,13 @@ class InstrumentUniverseEvidenceRecord:
         )
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             self.evidence_ref.logical_values(),
-            *self.content_logical_values(),
+            self.source_category.value,
+            self.source_name,
+            self.locator,
+            self.verified_on.isoformat(),
         )
 
 
@@ -241,11 +283,7 @@ class InstrumentUniverseEntry:
     reason: InstrumentUniverseReason
 
     def __post_init__(self) -> None:
-        if type(self.family) is not IdentityFamilyCode or type(self.family.value) is not str:
-            raise InstrumentUniverseRegistryValidationError(
-                "instrument-universe family must be UMI-02 IdentityFamilyCode "
-                "with exact str value"
-            )
+        _revalidate_identity_family(self.family)
         if type(self.coverage_status) is not InstrumentUniverseCoverageStatus:
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe coverage_status must be "
@@ -280,6 +318,14 @@ class InstrumentUniverseEntry:
             raise InstrumentUniverseRegistryValidationError(
                 "instrument-universe reason must be InstrumentUniverseReason"
             )
+
+        for owner_ref in self.owner_refs:
+            owner_ref.__post_init__()
+        for semantic_ref in self.unresolved_semantics:
+            semantic_ref.__post_init__()
+        for evidence_ref in self.evidence_refs:
+            evidence_ref.__post_init__()
+        self.reason.__post_init__()
 
         if len(set(self.owner_refs)) != len(self.owner_refs):
             raise InstrumentUniverseRegistryValidationError(
@@ -373,6 +419,7 @@ class InstrumentUniverseEntry:
         )
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             self.family.logical_values(),
             self.coverage_status.value,
@@ -412,6 +459,11 @@ class InstrumentUniverseRegistrySnapshot:
                 "instrument-universe evidence must be a non-empty immutable "
                 "evidence-record tuple"
             )
+
+        for entry in self.entries:
+            entry.__post_init__()
+        for record in self.evidence:
+            record.__post_init__()
 
         families = tuple(entry.family for entry in self.entries)
         if len(set(families)) != len(families):
@@ -484,10 +536,8 @@ class InstrumentUniverseRegistrySnapshot:
         self,
         family: IdentityFamilyCode,
     ) -> InstrumentUniverseEntry:
-        if type(family) is not IdentityFamilyCode or type(family.value) is not str:
-            raise InstrumentUniverseRegistryValidationError(
-                "family lookup requires UMI-02 IdentityFamilyCode with exact str value"
-            )
+        self.__post_init__()
+        _revalidate_identity_family(family, lookup=True)
         matches = tuple(entry for entry in self.entries if entry.family == family)
         if len(matches) != 1:
             raise InstrumentUniverseRegistryValidationError(
@@ -496,6 +546,7 @@ class InstrumentUniverseRegistrySnapshot:
         return matches[0]
 
     def logical_values(self) -> tuple[object, ...]:
+        self.__post_init__()
         return (
             self.as_of.isoformat(),
             self.revision,
