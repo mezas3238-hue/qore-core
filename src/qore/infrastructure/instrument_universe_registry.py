@@ -133,6 +133,12 @@ _CREDENTIAL_DELIMITER_CONFUSABLES = (
     ("−", "-"),
 )
 
+_URL_AUTHORITY_TERMINATOR_SENTINELS = (
+    ("/", "∕"),
+    ("?", "¿"),
+    ("#", "♯"),
+)
+
 
 def _validate_date(value: date, *, field_name: str) -> None:
     if type(value) is not date:
@@ -205,13 +211,18 @@ def _contains_confusable_sensitive_assignment(value: str) -> bool:
     return False
 
 
-def _preserve_nfkc_url_slash_confusables(value: str) -> str:
-    return "".join(
-        "∕"
-        if character != "/" and normalize("NFKC", character) == "/"
-        else character
-        for character in value
-    )
+def _preserve_nfkc_url_authority_terminators(value: str) -> str:
+    protected_parts: list[str] = []
+    for character in value:
+        normalized_character = normalize("NFKC", character)
+        if character not in "/?#":
+            for terminator, sentinel in _URL_AUTHORITY_TERMINATOR_SENTINELS:
+                normalized_character = normalized_character.replace(
+                    terminator,
+                    sentinel,
+                )
+        protected_parts.append(normalized_character)
+    return "".join(protected_parts)
 
 
 def _credential_detection_skeleton(
@@ -222,7 +233,7 @@ def _credential_detection_skeleton(
     normalization_source = (
         value
         if fold_url_slash_confusables
-        else _preserve_nfkc_url_slash_confusables(value)
+        else _preserve_nfkc_url_authority_terminators(value)
     )
     normalized = normalize("NFKC", normalization_source).casefold()
     without_marks = "".join(
