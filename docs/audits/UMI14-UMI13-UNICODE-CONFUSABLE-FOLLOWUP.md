@@ -17,6 +17,8 @@ The accepted findings were:
 9. Expert R9 on HEAD `4ccb42efdda62e9b5070a805c45c4c602b6e953c` showed that folding `U+2215 DIVISION SLASH` / `U+2044 FRACTION SLASH` to ASCII `/` before URL-userinfo inspection could create a false authority terminator before the real `@`. The exact accepted witness was `https://alice:password\u2215foo@example.invalid/evidence`;
 10. Expert R10 on HEAD `7e24bc07bf74f879ffe7655fe9217db7ff6600de` showed that NFKC itself folded `U+FF0F FULLWIDTH SOLIDUS` to ASCII `/` before the R9 preservation rule could run. The exact accepted witness was `https://alice:password／foo@example.invalid/evidence`.
 
+Before freezing the R10 correction, independent Integration Authority falsification found the same mechanism in compatibility expansions that introduce an ASCII authority terminator as part of a longer NFKC result. Concrete examples were `℀` (`ACCOUNT OF` → `a/c`), fullwidth question mark `？` → `?`, and fullwidth number sign `＃` → `#`. Because `/`, `?` and `#` all terminate the userinfo scan, the correction was broadened within the same bounded class before certification.
+
 ## Correction
 
 Credential detection remains detection-only. The original retained/projected text is never rewritten.
@@ -33,8 +35,8 @@ The detector now:
 - includes Cyrillic small ghe as an ASCII `r` homoglyph for supported sensitive assignment labels;
 - includes Cyrillic small letter i `и` as a bounded ASCII `u` homoglyph for supported sensitive assignment labels;
 - scans URL-like authority starts throughout the detection skeleton instead of trusting only the first `scheme://authority`, including scheme-relative `//authority` forms at token boundaries;
-- uses a dedicated URL-userinfo detection skeleton that preserves `∕` and `⁄` inside authority text while the URL authority-start matcher accepts ASCII `/`, `∕` and `⁄` as the two slash characters introducing an authority;
-- before whole-string NFKC in that URL-specific skeleton, maps every non-ASCII character whose individual NFKC mapping is `/` to the preserved detection-only `∕` marker. Under the runtime Unicode database this closes `U+FF0F FULLWIDTH SOLIDUS` without changing ordinary credential NFKC folding or retained text;
+- uses a dedicated URL-userinfo detection skeleton that preserves explicit `∕` and `⁄` inside authority text while the URL authority-start matcher accepts ASCII `/`, `∕` and `⁄` as the two slash characters introducing an authority;
+- normalizes each non-ASCII source character independently before whole-string NFKC in that URL-specific path and replaces any newly introduced `/`, `?` or `#` with stable detection-only non-terminator sentinels (`∕`, `¿`, `♯`). Actual ASCII `/`, `?` and `#` are not replaced, so real authority terminators keep their semantics;
 - preserves ordinary printable Unicode and benign URL-like text that does not form credential-like syntax.
 
 The bounded label set remains limited to the existing sensitive families: authorization, bearer, credential, jwt, password, secret, token, api key, access token, client secret and private key. This is not a generic Unicode transliteration contract.
@@ -50,7 +52,7 @@ The bounded label set remains limited to the existing sensitive families: author
 - retained-state revalidation for source-name projections;
 - preservation of unrelated printable Greek/Cyrillic text.
 
-`tests/infrastructure/test_instrument_universe_registry_multi_authority_userinfo.py` permanently falsifies the R8/R9/R10 URL-userinfo classes across:
+`tests/infrastructure/test_instrument_universe_registry_multi_authority_userinfo.py` permanently falsifies the R8/R9/R10 URL-userinfo classes and the pre-freeze Integration Authority expansion class across:
 
 - the exact later embedded `scheme://userinfo@authority` R8 witness;
 - an embedded scheme-relative `//userinfo@authority` witness;
@@ -58,9 +60,10 @@ The bounded label set remains limited to the existing sensitive families: author
 - mixed confusable authority starts and confusable slash characters inside userinfo, including `https:∕∕...` and scheme-relative `∕∕...` forms;
 - the exact R10 `U+FF0F FULLWIDTH SOLIDUS` inside-userinfo witness;
 - fully fullwidth-slash `https:／／...` and scheme-relative `／／...` authority starts with fullwidth slash inside userinfo;
+- NFKC expansions that would otherwise manufacture `/`, `?` or `#` before the real `@`, including `℀`, `？` and `＃` witnesses;
 - reason construction, reflective corruption, `__post_init__()` re-entry and `logical_values()` projection;
 - evidence `source_name` and `locator` construction plus retained-state re-entry, `content_logical_values()` and full `logical_values()` projection;
-- benign URL-like text, including path text containing explicit or NFKC slash confusables before an email-like `@`, which remains accepted and projected unchanged when the `@` is outside the authority.
+- benign URL-like text containing explicit and compatibility punctuation after a real ASCII path slash, which remains accepted and projected unchanged when the `@` is outside the authority.
 
 ## Exact prior QG evidence
 
@@ -72,7 +75,7 @@ The R8-corrected candidate at HEAD `4ccb42efdda62e9b5070a805c45c4c602b6e953c` wa
 
 The R9-corrected candidate at HEAD `7e24bc07bf74f879ffe7655fe9217db7ff6600de` was mechanically validated by QORE CI run `33447330913` / job `99669248984`: Ruff PASS, Mypy PASS on 745 source files, Pytest 4992/4992 PASS with 7 warnings, total coverage 47645 statements / 6236 missed / 87%, and `instrument_universe_registry.py` 285 statements / 2 missed / 99%.
 
-Expert R10 was bound to that R9-corrected HEAD and returned `VALIDACIÓN NO OK`; therefore the accepted R10 correction requires a fresh exact-head FULL QG and freeze before any new semantic reviewer stage. No prior Expert result is certification evidence for the corrected candidate.
+Expert R10 was bound to that R9-corrected HEAD and returned `VALIDACIÓN NO OK`; therefore the accepted R10 correction plus pre-freeze Integration Authority closure requires a fresh exact-head FULL QG and freeze before any new semantic reviewer stage. No prior Expert result is certification evidence for the corrected candidate.
 
 ## Non-claims
 
