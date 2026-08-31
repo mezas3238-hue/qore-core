@@ -30,6 +30,15 @@ _NFKC_SCHEME_AND_USERINFO_SLASH = (
 _NFKC_SCHEME_RELATIVE_AND_USERINFO_SLASH = (
     "Evidence ／／alice:password／foo@example.invalid/evidence"
 )
+_NFKC_EXPANDED_SLASH_INSIDE_USERINFO = (
+    "https://alice:password℀foo@example.invalid/evidence"
+)
+_NFKC_QUESTION_INSIDE_USERINFO = (
+    "https://alice:password？foo@example.invalid/evidence"
+)
+_NFKC_NUMBER_SIGN_INSIDE_USERINFO = (
+    "https://alice:password＃foo@example.invalid/evidence"
+)
 
 _URL_USERINFO_WITNESSES = (
     _EMBEDDED_URL_USERINFO,
@@ -40,6 +49,9 @@ _URL_USERINFO_WITNESSES = (
     _NFKC_SLASH_INSIDE_USERINFO,
     _NFKC_SCHEME_AND_USERINFO_SLASH,
     _NFKC_SCHEME_RELATIVE_AND_USERINFO_SLASH,
+    _NFKC_EXPANDED_SLASH_INSIDE_USERINFO,
+    _NFKC_QUESTION_INSIDE_USERINFO,
+    _NFKC_NUMBER_SIGN_INSIDE_USERINFO,
 )
 
 
@@ -77,6 +89,9 @@ def test_reason_revalidation_rejects_embedded_url_userinfo(value: str) -> None:
         _CONFUSABLE_SCHEME_AND_USERINFO_SLASH,
         _NFKC_SLASH_INSIDE_USERINFO,
         _NFKC_SCHEME_AND_USERINFO_SLASH,
+        _NFKC_EXPANDED_SLASH_INSIDE_USERINFO,
+        _NFKC_QUESTION_INSIDE_USERINFO,
+        _NFKC_NUMBER_SIGN_INSIDE_USERINFO,
     ],
 )
 @pytest.mark.parametrize("field_name", ["source_name", "locator"])
@@ -110,6 +125,9 @@ def test_evidence_record_constructor_rejects_later_url_userinfo(
         _CONFUSABLE_SCHEME_AND_USERINFO_SLASH,
         _NFKC_SLASH_INSIDE_USERINFO,
         _NFKC_SCHEME_AND_USERINFO_SLASH,
+        _NFKC_EXPANDED_SLASH_INSIDE_USERINFO,
+        _NFKC_QUESTION_INSIDE_USERINFO,
+        _NFKC_NUMBER_SIGN_INSIDE_USERINFO,
     ],
 )
 @pytest.mark.parametrize("field_name", ["source_name", "locator"])
@@ -153,6 +171,9 @@ def test_evidence_record_revalidation_rejects_later_url_userinfo(
         "Evidence ∕∕nested/resource without userinfo",
         "https://safe.example/path／foo@example.invalid/evidence",
         "Evidence ／／nested/resource without userinfo",
+        "https://safe.example/path℀foo@example.invalid/evidence",
+        "https://safe.example/path？foo@example.invalid/evidence",
+        "https://safe.example/path＃foo@example.invalid/evidence",
     ],
 )
 def test_reason_preserves_benign_urlish_text(value: str) -> None:
