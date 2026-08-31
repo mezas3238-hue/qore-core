@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
-
 import qore.infrastructure.instrument_universe_registry as registry
+import pytest
 
 
 _EMBEDDED_URL_USERINFO = (
