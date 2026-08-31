@@ -108,10 +108,16 @@ Expert R10 on HEAD `7e24bc07bf74f879ffe7655fe9217db7ff6600de` then showed that
 NFKC itself could recreate the same class before the R9 protection ran. In the exact
 witness `https://alice:password／foo@example.invalid/evidence`, `U+FF0F FULLWIDTH
 SOLIDUS` normalized to ASCII `/`, manufacturing a terminator before the real `@`.
-The finding was independently reproduced and accepted as material. The URL-specific
-detection path now protects every non-ASCII character whose individual NFKC mapping
-is `/` before whole-string NFKC, using `∕` as a detection-only preserved slash marker.
-The ordinary credential skeleton continues to use full NFKC folding.
+The finding was independently reproduced and accepted as material.
+
+Before freezing the R10 correction, Integration Authority falsification widened the
+same mechanism without changing scope: some compatibility characters expand under
+NFKC to strings containing an ASCII authority terminator. Examples include `℀`
+(`ACCOUNT OF` → `a/c`), `？` → `?`, and `＃` → `#`. Because `/`, `?` and `#` all
+terminate the URL-userinfo regex, those expansions could otherwise recreate the R9
+class. The correction therefore protects all three ASCII authority terminators when
+they are introduced by a non-ASCII character's per-character NFKC expansion, while
+leaving actual ASCII `/`, `?` and `#` untouched.
 
 ## Corrected trust edges
 
@@ -141,13 +147,14 @@ checks or output:
    assignments with whitespace before delimiters and multiple space, underscore or
    hyphen separators in composite names. URL-userinfo detection scans URL-like
    authority starts throughout a dedicated URL skeleton, including later embedded
-   `scheme://authority` and scheme-relative forms. Slash confusables `∕` and `⁄`
-   remain un-folded inside that URL skeleton so they cannot manufacture an ASCII
-   authority terminator before `@`; characters such as `U+FF0F FULLWIDTH SOLIDUS`
-   that NFKC itself maps to `/` are first converted to the preserved detection-only
-   `∕` marker. The authority-start matcher accepts ASCII `/`, `∕` and `⁄` in the two
-   slash positions, closing ordinary, explicit-confusable and NFKC-confusable
-   authority starts without rewriting retained text.
+   `scheme://authority` and scheme-relative forms. Explicit slash confusables `∕`
+   and `⁄` remain un-folded inside that URL skeleton. Before whole-string NFKC,
+   non-ASCII characters are normalized individually and any newly introduced `/`,
+   `?` or `#` is replaced by a stable detection-only non-terminator sentinel (`∕`,
+   `¿`, `♯`). Real ASCII terminators remain real terminators. The authority-start
+   matcher accepts ASCII `/`, `∕` and `⁄` in the two slash positions, closing
+   ordinary, explicit-confusable and NFKC-confusable authority starts without
+   rewriting retained text.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -196,7 +203,7 @@ adds permanent falsification for printable Unicode credential obfuscation:
   and projected value.
 
 `tests/infrastructure/test_instrument_universe_registry_multi_authority_userinfo.py`
-adds permanent R8/R9/R10 coverage for:
+adds permanent R8/R9/R10 plus pre-freeze Integration Authority coverage for:
 
 - a later embedded credential-bearing `scheme://authority` after a benign first URL;
 - an embedded scheme-relative credential-bearing authority;
@@ -205,12 +212,14 @@ adds permanent R8/R9/R10 coverage for:
   confusable retained inside userinfo before `@`;
 - the exact R10 `U+FF0F FULLWIDTH SOLIDUS` inside-userinfo witness plus fully
   fullwidth-slash `https:／／...` and scheme-relative `／／...` authority starts;
+- NFKC expansions that manufacture `/`, `?` or `#` before the real `@`, including
+  `℀`, fullwidth question mark and fullwidth number sign witnesses;
 - reason construction, reflective corruption, explicit `__post_init__()` re-entry
   and logical projection;
 - evidence source-name and locator construction plus retained-state re-entry,
   content projection and full logical projection;
-- benign URL-like text, including email-like `@` content after a real ASCII path
-  slash and benign fullwidth-slash path text, which remains byte-for-byte unchanged.
+- benign URL-like text containing explicit and NFKC-derived compatibility
+  punctuation after a real ASCII path slash, which remains byte-for-byte unchanged.
 
 ## Non-claims and gate
 
