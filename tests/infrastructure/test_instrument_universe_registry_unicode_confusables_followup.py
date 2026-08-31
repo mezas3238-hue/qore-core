@@ -17,9 +17,13 @@ import qore.infrastructure.instrument_universe_registry as registry
         "pa\u0455\u0455word=PLAINTEXT-SECRET",  # Cyrillic dze
         "pa\u03c2\u03c2word=PLAINTEXT-SECRET",  # Greek final sigma -> sigma on casefold
         "authori\u0437ation=PLAINTEXT-SECRET",  # Cyrillic ze
+        "autho\u0433ization=PLAINTEXT-SECRET",  # Cyrillic ghe for r
+        "bea\u0433er=PLAINTEXT-SECRET",  # Cyrillic ghe for r
         "\u0432earer=PLAINTEXT-SECRET",  # Cyrillic ve for b
         "token\u2236PLAINTEXT-SECRET",  # ratio sign for colon
         "api\u2011key=PLAINTEXT-SECRET",  # non-breaking hyphen
+        "api\u2015key=PLAINTEXT-SECRET",  # horizontal bar
+        "private\u2015key=PLAINTEXT-SECRET",  # horizontal bar
     ],
 )
 def test_reason_constructor_rejects_cross_script_sensitive_assignments(
@@ -56,7 +60,11 @@ def test_reason_constructor_rejects_bearer_assignments(assignment: str) -> None:
         "authorizatio\u03b7=PLAINTEXT-SECRET",
         "pa\u03c2\u03c2word=PLAINTEXT-SECRET",
         "authori\u0437ation=PLAINTEXT-SECRET",
+        "autho\u0433ization=PLAINTEXT-SECRET",
+        "bea\u0433er=PLAINTEXT-SECRET",
         "bearer=PLAINTEXT-SECRET",
+        "api\u2015key=PLAINTEXT-SECRET",
+        "private\u2015key=PLAINTEXT-SECRET",
         "private\u2010key\u2236PLAINTEXT-SECRET",
     ],
 )
