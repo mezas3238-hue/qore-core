@@ -42,6 +42,10 @@ The bounded label set remains limited to the existing sensitive families: author
 - retained-state revalidation for source-name projections;
 - preservation of unrelated printable Greek/Cyrillic text.
 
+## Exact R6-corrected QG evidence
+
+The exact R6 correction was mechanically validated by QORE CI run `33434829089` / job `99628598400`: Ruff PASS, Mypy PASS on 744 source files, Pytest 4961/4961 PASS with 7 warnings, total coverage 47650 statements / 6236 missed / 87%, and `instrument_universe_registry.py` 290 statements / 2 missed / 99%.
+
 ## Non-claims
 
 This correction does not add provider support, AI-provider dependencies, execution authority, Risk bypass, Production authority, productive credentials, real-capital authority or real-money execution capability.
