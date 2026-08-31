@@ -51,22 +51,26 @@ def test_reason_revalidation_rejects_embedded_url_userinfo(value: str) -> None:
 def test_evidence_record_constructor_rejects_later_url_userinfo(
     field_name: str,
 ) -> None:
-    kwargs = {
-        "evidence_ref": registry.InstrumentUniverseEvidenceRef("qore-umi13-r8"),
-        "source_category": (
-            registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY
-        ),
-        "source_name": "QORE repository",
-        "locator": "qore://umi-13/r8",
-        "verified_on": date(2026, 8, 31),
-    }
-    kwargs[field_name] = _EMBEDDED_URL_USERINFO
+    source_name = (
+        _EMBEDDED_URL_USERINFO if field_name == "source_name" else "QORE repository"
+    )
+    locator = (
+        _EMBEDDED_URL_USERINFO if field_name == "locator" else "qore://umi-13/r8"
+    )
 
     with pytest.raises(
         registry.InstrumentUniverseRegistryValidationError,
         match="credential-like material",
     ):
-        registry.InstrumentUniverseEvidenceRecord(**kwargs)
+        registry.InstrumentUniverseEvidenceRecord(
+            evidence_ref=registry.InstrumentUniverseEvidenceRef("qore-umi13-r8"),
+            source_category=(
+                registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY
+            ),
+            source_name=source_name,
+            locator=locator,
+            verified_on=date(2026, 8, 31),
+        )
 
 
 @pytest.mark.parametrize("field_name", ["source_name", "locator"])
