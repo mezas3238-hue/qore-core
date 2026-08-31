@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from re import fullmatch, search
+from unicodedata import category, normalize
 
 from qore.infrastructure.universal_instrument_identity import (
     IdentityFamilyCode,
@@ -91,6 +92,13 @@ def _contains_url_userinfo(value: str) -> bool:
     return "@" in authority
 
 
+def _credential_detection_skeleton(value: str) -> str:
+    normalized = normalize("NFKC", value).lower()
+    return "".join(
+        character for character in normalized if category(character) not in {"Mn", "Mc", "Me"}
+    )
+
+
 def _validate_text(
     value: str,
     *,
@@ -107,11 +115,11 @@ def _validate_text(
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must be non-empty normalized text <= {max_length} chars"
         )
-    lowered = value.lower()
+    detection_value = _credential_detection_skeleton(value)
     if (
-        any(marker in lowered for marker in _SENSITIVE_TEXT_MARKERS)
-        or search(_SENSITIVE_ASSIGNMENT_PATTERN, lowered) is not None
-        or _contains_url_userinfo(lowered)
+        any(marker in detection_value for marker in _SENSITIVE_TEXT_MARKERS)
+        or search(_SENSITIVE_ASSIGNMENT_PATTERN, detection_value) is not None
+        or _contains_url_userinfo(detection_value)
     ):
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must not contain credential-like material"
