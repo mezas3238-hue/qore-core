@@ -84,6 +84,18 @@ uses a detection-only NFKC skeleton and removes Unicode mark categories (`Mn`,
 `Mc`, `Me`) before applying the existing marker, assignment and URL-userinfo gates.
 The retained original value is neither normalized nor rewritten.
 
+Later exact-head Expert rounds closed bounded Greek/Cyrillic label and punctuation
+confusables, including the accepted R7 Cyrillic small letter i `и` witness for
+`authorization`. Expert R8 on HEAD
+`9300bd9efebe053d04412e759d044711ecba81dd` then exposed a distinct URL-userinfo
+iteration defect: `_contains_url_userinfo` inspected only the first authority in a
+retained string. Thus a benign first URL could mask a later credential-bearing URL,
+for example
+`https://safe.example/https://alice:password@example.invalid/evidence`. The same
+text validator protects reasons, evidence source names and evidence locators, so the
+finding was independently reproduced and accepted as material at the retained-state
+trust boundary.
+
 ## Corrected trust edges
 
 The correction revalidates before hashing, set construction, sorting, relationship
@@ -110,8 +122,10 @@ checks or output:
    removed so compatibility delimiters and invisible printable marks cannot hide
    credential syntax. The existing detectors then reject supported sensitive
    assignments with whitespace before delimiters and multiple space, underscore or
-   hyphen separators in composite names; URL userinfo is rejected for both ordinary
-   `scheme://authority` and scheme-relative `//authority` forms.
+   hyphen separators in composite names. URL-userinfo detection scans URL-like
+   authority starts throughout the detection skeleton, including later embedded
+   `scheme://authority` forms and scheme-relative `//authority` forms at token
+   boundaries, rather than trusting the first authority only.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -158,6 +172,17 @@ adds permanent falsification for printable Unicode credential obfuscation:
   revalidation/projection boundaries;
 - preservation of legitimate printable combining Unicode in the original retained
   and projected value.
+
+`tests/infrastructure/test_instrument_universe_registry_multi_authority_userinfo.py`
+adds permanent R8 coverage for:
+
+- a later embedded credential-bearing `scheme://authority` after a benign first URL;
+- an embedded scheme-relative credential-bearing authority;
+- reason construction, reflective corruption, explicit `__post_init__()` re-entry
+  and logical projection;
+- evidence source-name and locator construction plus retained-state re-entry,
+  content projection and full logical projection;
+- benign URL-like text without userinfo, which remains byte-for-byte unchanged.
 
 ## Non-claims and gate
 
