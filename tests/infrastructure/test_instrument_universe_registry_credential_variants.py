@@ -17,9 +17,13 @@ import qore.infrastructure.instrument_universe_registry as registry
         "jwt = PLAINTEXT-SECRET",
         "authorization : PLAINTEXT-SECRET",
         "api key = PLAINTEXT-SECRET",
+        "api   key = PLAINTEXT-SECRET",
         "access token = PLAINTEXT-SECRET",
+        "access   token = PLAINTEXT-SECRET",
         "client secret = PLAINTEXT-SECRET",
+        "client   secret = PLAINTEXT-SECRET",
         "private key = PLAINTEXT-SECRET",
+        "private   key = PLAINTEXT-SECRET",
     ],
 )
 def test_reason_revalidation_rejects_spaced_sensitive_assignments(
@@ -38,6 +42,25 @@ def test_reason_revalidation_rejects_spaced_sensitive_assignments(
         match="credential-like material",
     ):
         reason.logical_values()
+
+
+@pytest.mark.parametrize(
+    "corrupted_value",
+    [
+        "api   key = PLAINTEXT-SECRET",
+        "access   token = PLAINTEXT-SECRET",
+        "client   secret = PLAINTEXT-SECRET",
+        "private   key = PLAINTEXT-SECRET",
+    ],
+)
+def test_reason_constructor_rejects_multiple_separator_sensitive_assignments(
+    corrupted_value: str,
+) -> None:
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="credential-like material",
+    ):
+        registry.InstrumentUniverseReason(corrupted_value)
 
 
 def test_reason_constructor_rejects_spaced_token_assignment() -> None:
