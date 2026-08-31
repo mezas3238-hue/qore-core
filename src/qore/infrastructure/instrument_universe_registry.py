@@ -48,8 +48,8 @@ _SENSITIVE_TEXT_MARKERS = (
 
 _SENSITIVE_ASSIGNMENT_PATTERN = (
     r"(?<![a-z0-9])(?:authorization|credential|jwt|password|secret|token|"
-    r"api(?:[ _-]?key)|access(?:[ _-]?token)|client(?:[ _-]?secret)|"
-    r"private(?:[ _-]?key))\s*[=:]"
+    r"api(?:[ _-]*key)|access(?:[ _-]*token)|client(?:[ _-]*secret)|"
+    r"private(?:[ _-]*key))\s*[=:]"
 )
 
 
