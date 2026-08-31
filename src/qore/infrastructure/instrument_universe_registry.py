@@ -166,7 +166,10 @@ def _contains_url_userinfo(value: str) -> bool:
 
 
 def _credential_character_matches(character: str, expected_ascii: str) -> bool:
-    return character == expected_ascii or (expected_ascii, character) in _CREDENTIAL_CONFUSABLE_PAIRS
+    return (
+        character == expected_ascii
+        or (expected_ascii, character) in _CREDENTIAL_CONFUSABLE_PAIRS
+    )
 
 
 def _matches_sensitive_assignment_label(prefix: str, expected_label: str) -> bool:
