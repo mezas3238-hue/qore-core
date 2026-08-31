@@ -102,7 +102,7 @@ def _validate_text(
         or not value
         or value != value.strip()
         or len(value) > max_length
-        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or any(not character.isprintable() for character in value)
     ):
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must be non-empty normalized text <= {max_length} chars"
