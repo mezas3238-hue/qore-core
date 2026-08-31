@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
-from re import fullmatch
+from re import fullmatch, search
 
 from qore.infrastructure.universal_instrument_identity import (
     IdentityFamilyCode,
@@ -46,6 +46,12 @@ _SENSITIVE_TEXT_MARKERS = (
     "token:",
 )
 
+_SENSITIVE_ASSIGNMENT_PATTERN = (
+    r"(?<![a-z0-9])(?:authorization|credential|jwt|password|secret|token|"
+    r"api(?:[ _-]?key)|access(?:[ _-]?token)|client(?:[ _-]?secret)|"
+    r"private(?:[ _-]?key))\s*[=:]"
+)
+
 
 def _validate_date(value: date, *, field_name: str) -> None:
     if type(value) is not date:
@@ -73,10 +79,14 @@ def _validate_code(value: str, *, field_name: str) -> None:
 
 
 def _contains_url_userinfo(value: str) -> bool:
-    scheme_index = value.find("://")
-    if scheme_index < 0:
-        return False
-    authority = value[scheme_index + 3 :].split("/", 1)[0]
+    if value.startswith("//"):
+        authority_start = 2
+    else:
+        scheme_index = value.find("://")
+        if scheme_index < 0:
+            return False
+        authority_start = scheme_index + 3
+    authority = value[authority_start:].split("/", 1)[0]
     authority = authority.split("?", 1)[0].split("#", 1)[0]
     return "@" in authority
 
@@ -98,8 +108,10 @@ def _validate_text(
             f"{field_name} must be non-empty normalized text <= {max_length} chars"
         )
     lowered = value.lower()
-    if any(marker in lowered for marker in _SENSITIVE_TEXT_MARKERS) or (
-        _contains_url_userinfo(lowered)
+    if (
+        any(marker in lowered for marker in _SENSITIVE_TEXT_MARKERS)
+        or search(_SENSITIVE_ASSIGNMENT_PATTERN, lowered) is not None
+        or _contains_url_userinfo(lowered)
     ):
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must not contain credential-like material"
