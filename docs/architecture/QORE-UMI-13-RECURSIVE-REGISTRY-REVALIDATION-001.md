@@ -111,13 +111,14 @@ SOLIDUS` normalized to ASCII `/`, manufacturing a terminator before the real `@`
 The finding was independently reproduced and accepted as material.
 
 Before freezing the R10 correction, Integration Authority falsification widened the
-same mechanism without changing scope: some compatibility characters expand under
-NFKC to strings containing an ASCII authority terminator. Examples include `℀`
-(`ACCOUNT OF` → `a/c`), `？` → `?`, and `＃` → `#`. Because `/`, `?` and `#` all
-terminate the URL-userinfo regex, those expansions could otherwise recreate the R9
-class. The correction therefore protects all three ASCII authority terminators when
-they are introduced by a non-ASCII character's per-character NFKC expansion, while
-leaving actual ASCII `/`, `?` and `#` untouched.
+same mechanism without changing scope. Compatibility characters can expand under
+NFKC to strings containing `/`, `?`, `#` or whitespace, each of which terminates
+the URL-userinfo regex. Concrete witnesses include `℀` (`ACCOUNT OF` → `a/c`),
+`？` → `?`, `＃` → `#`, and printable spacing diaeresis `¨` → ASCII space plus a
+combining mark; after mark removal that last case leaves an artificial space before
+`@`. The correction therefore protects every authority terminator introduced by a
+non-terminating source character's per-character NFKC expansion while leaving real
+ASCII `/`, `?`, `#` and real whitespace untouched.
 
 ## Corrected trust edges
 
@@ -149,11 +150,12 @@ checks or output:
    authority starts throughout a dedicated URL skeleton, including later embedded
    `scheme://authority` and scheme-relative forms. Explicit slash confusables `∕`
    and `⁄` remain un-folded inside that URL skeleton. Before whole-string NFKC,
-   non-ASCII characters are normalized individually and any newly introduced `/`,
-   `?` or `#` is replaced by a stable detection-only non-terminator sentinel (`∕`,
-   `¿`, `♯`). Real ASCII terminators remain real terminators. The authority-start
-   matcher accepts ASCII `/`, `∕` and `⁄` in the two slash positions, closing
-   ordinary, explicit-confusable and NFKC-confusable authority starts without
+   source characters are normalized individually; for any source character that is
+   not already a real URL terminator, newly introduced `/`, `?`, `#` or whitespace
+   is replaced by a stable detection-only non-terminator sentinel (`∕`, `¿`, `♯`,
+   `¤`). Real ASCII terminators and real whitespace remain terminators. The
+   authority-start matcher accepts ASCII `/`, `∕` and `⁄` in the two slash positions,
+   closing ordinary, explicit-confusable and NFKC-confusable authority starts without
    rewriting retained text.
 
 All boundary failures remain deterministic
@@ -212,8 +214,9 @@ adds permanent R8/R9/R10 plus pre-freeze Integration Authority coverage for:
   confusable retained inside userinfo before `@`;
 - the exact R10 `U+FF0F FULLWIDTH SOLIDUS` inside-userinfo witness plus fully
   fullwidth-slash `https:／／...` and scheme-relative `／／...` authority starts;
-- NFKC expansions that manufacture `/`, `?` or `#` before the real `@`, including
-  `℀`, fullwidth question mark and fullwidth number sign witnesses;
+- NFKC expansions that manufacture `/`, `?`, `#` or whitespace before the real
+  `@`, including `℀`, fullwidth question mark, fullwidth number sign and spacing
+  diaeresis witnesses;
 - reason construction, reflective corruption, explicit `__post_init__()` re-entry
   and logical projection;
 - evidence source-name and locator construction plus retained-state re-entry,
