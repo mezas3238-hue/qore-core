@@ -2,12 +2,13 @@
 
 ## Scope
 
-This follow-up records the bounded correction of two material findings raised by the exact-head DeepSeek Expert review of PR #466 at HEAD `273c04a1d75793ffa0b685aff669293f653d251f`.
+This follow-up records the bounded correction of material findings raised by the exact-head DeepSeek Expert reviews of PR #466.
 
-The findings were independently accepted:
+The accepted findings were:
 
 1. printable cross-script homoglyphs outside NFKC could obscure supported sensitive assignment names, for example `tok\u0435n=...` with Cyrillic small letter IE;
-2. `bearer=...` was not included in the sensitive-assignment grammar even though bearer material was already an explicit sensitive marker family.
+2. `bearer=...` was not included in the sensitive-assignment grammar even though bearer material was already an explicit sensitive marker family;
+3. Expert R3 on HEAD `e0cadfca635af00e2461e9117da1ebc1bf7f91ba` showed that the bounded homoglyph table still omitted Greek sigma for ASCII `s` and Cyrillic ze for ASCII `z`, allowing `pa\u03c2\u03c2word=...` and `authori\u0437ation=...` to escape.
 
 ## Correction
 
@@ -19,6 +20,8 @@ The detector now:
 - canonicalizes a bounded set of punctuation confusables relevant to assignment separators, composite-name separators and URL syntax;
 - treats `bearer` as a first-class sensitive assignment label;
 - performs a second fail-closed assignment-label check that compares sensitive ASCII labels against bounded Greek/Cyrillic/Latin homoglyph equivalents character-by-character;
+- includes Greek sigma as an ASCII `s` homoglyph, which also closes Greek final sigma after `casefold()`;
+- includes Cyrillic small ze as an ASCII `z` homoglyph;
 - preserves ordinary printable Unicode that does not form credential-like syntax.
 
 The bounded label set remains limited to the existing sensitive families: authorization, bearer, credential, jwt, password, secret, token, api key, access token, client secret and private key. This is not a generic Unicode transliteration contract.
@@ -27,10 +30,11 @@ The bounded label set remains limited to the existing sensitive families: author
 
 `tests/infrastructure/test_instrument_universe_registry_unicode_confusables_followup.py` covers:
 
-- Cyrillic and Greek homoglyphs inside sensitive labels;
+- Cyrillic and Greek homoglyphs inside sensitive labels, including the exact R3 witnesses for `password` and `authorization`;
 - bearer assignments with `=` and `:`;
 - confusable colon and hyphen separators;
-- retained-state revalidation for reason/source-name projections;
+- retained-state revalidation and logical projection for the R3 witnesses;
+- retained-state revalidation for source-name projections;
 - preservation of unrelated printable Greek/Cyrillic text.
 
 ## Non-claims

@@ -13,6 +13,8 @@ import qore.infrastructure.instrument_universe_registry as registry
         "tok\u0435n=PLAINTEXT-SECRET",  # Cyrillic e
         "t\u03bfken=PLAINTEXT-SECRET",  # Greek omicron
         "pa\u0455\u0455word=PLAINTEXT-SECRET",  # Cyrillic dze
+        "pa\u03c2\u03c2word=PLAINTEXT-SECRET",  # Greek final sigma -> sigma on casefold
+        "authori\u0437ation=PLAINTEXT-SECRET",  # Cyrillic ze
         "\u0432earer=PLAINTEXT-SECRET",  # Cyrillic ve for b
         "token\u2236PLAINTEXT-SECRET",  # ratio sign for colon
         "api\u2011key=PLAINTEXT-SECRET",  # non-breaking hyphen
@@ -48,6 +50,8 @@ def test_reason_constructor_rejects_bearer_assignments(assignment: str) -> None:
     "corrupted_value",
     [
         "tok\u0435n=PLAINTEXT-SECRET",
+        "pa\u03c2\u03c2word=PLAINTEXT-SECRET",
+        "authori\u0437ation=PLAINTEXT-SECRET",
         "bearer=PLAINTEXT-SECRET",
         "private\u2010key\u2236PLAINTEXT-SECRET",
     ],
