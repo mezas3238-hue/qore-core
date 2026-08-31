@@ -62,9 +62,17 @@ Both findings were independently reproduced and accepted. A later fresh Expert
 review of the corrected candidate then exposed one remaining bounded gap: composite
 credential names allowed only zero or one separator, so values such as
 `api   key = PLAINTEXT-SECRET` and `private   key = PLAINTEXT-SECRET` could still
-pass. That finding was also independently reproduced and accepted. The current
-candidate closes all three credential-hygiene witnesses without changing the
-registry's semantic authority.
+pass. That finding was also independently reproduced and accepted.
+
+The next exact-head Expert review exposed a Unicode-obfuscation variant of the same
+credential-hygiene boundary. Internal NBSP (`U+00A0`) and zero-width space
+(`U+200B`) were not rejected by the prior C0/DEL-only control check, allowing values
+such as `api\u00a0key = PLAINTEXT-SECRET` and
+`token\u200b=PLAINTEXT-SECRET` to evade the credential detector. This finding was
+accepted as material because the retained text could still be projected through the
+same logical-value trust edges. The current candidate rejects every non-printable
+Unicode character before credential analysis while preserving legitimate printable
+Unicode text.
 
 ## Corrected trust edges
 
@@ -87,11 +95,12 @@ checks or output:
    of every known singleton before retained-member comparisons or projection;
    business decisions use the independently retained primitive canonical value, not
    mutable `StrEnum` equality or hashing;
-8. `_validate_text` rejects supported sensitive-assignment families even when the
-   delimiter is preceded by whitespace and when composite names (`api key`,
-   `access token`, `client secret`, `private key`) contain multiple space,
-   underscore or hyphen separators; URL userinfo is rejected for both ordinary
-   `scheme://authority` and scheme-relative `//authority` forms.
+8. `_validate_text` rejects non-printable Unicode before semantic inspection, then
+   rejects supported sensitive-assignment families even when the delimiter is
+   preceded by whitespace and when composite names (`api key`, `access token`,
+   `client secret`, `private key`) contain multiple space, underscore or hyphen
+   separators; URL userinfo is rejected for both ordinary `scheme://authority` and
+   scheme-relative `//authority` forms.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -123,6 +132,9 @@ adds permanent adversarial coverage for the Expert follow-up findings:
   password, secret, token, API key, access token, client secret and private key;
 - multiple-space composite credential names at construction and retained-state
   revalidation/projection boundaries;
+- NBSP and zero-width Unicode credential obfuscation at construction and retained
+  revalidation/projection boundaries;
+- preservation of legitimate printable Unicode text;
 - scheme-relative authority userinfo at construction and after reflective
   corruption, including evidence content and full logical projections.
 
