@@ -70,9 +70,19 @@ credential-hygiene boundary. Internal NBSP (`U+00A0`) and zero-width space
 such as `api\u00a0key = PLAINTEXT-SECRET` and
 `token\u200b=PLAINTEXT-SECRET` to evade the credential detector. This finding was
 accepted as material because the retained text could still be projected through the
-same logical-value trust edges. The current candidate rejects every non-printable
+same logical-value trust edges. The candidate then rejected every non-printable
 Unicode character before credential analysis while preserving legitimate printable
 Unicode text.
+
+A fresh Expert review of that exact candidate found that printable Unicode could
+still obfuscate the same credential grammar. Fullwidth `=` (`U+FF1D`) and `@`
+(`U+FF20`) survived the printable-character gate while remaining compatibility
+equivalents of ASCII credential delimiters, and printable Unicode marks such as
+variation selector-16 (`U+FE0F`) could interrupt a token before an ASCII delimiter.
+The finding was independently reproduced and accepted. Credential detection now
+uses a detection-only NFKC skeleton and removes Unicode mark categories (`Mn`,
+`Mc`, `Me`) before applying the existing marker, assignment and URL-userinfo gates.
+The retained original value is neither normalized nor rewritten.
 
 ## Corrected trust edges
 
@@ -95,12 +105,13 @@ checks or output:
    of every known singleton before retained-member comparisons or projection;
    business decisions use the independently retained primitive canonical value, not
    mutable `StrEnum` equality or hashing;
-8. `_validate_text` rejects non-printable Unicode before semantic inspection, then
-   rejects supported sensitive-assignment families even when the delimiter is
-   preceded by whitespace and when composite names (`api key`, `access token`,
-   `client secret`, `private key`) contain multiple space, underscore or hyphen
-   separators; URL userinfo is rejected for both ordinary `scheme://authority` and
-   scheme-relative `//authority` forms.
+8. `_validate_text` rejects non-printable Unicode before semantic inspection. For
+   credential detection only, printable text is NFKC-folded and Unicode marks are
+   removed so compatibility delimiters and invisible printable marks cannot hide
+   credential syntax. The existing detectors then reject supported sensitive
+   assignments with whitespace before delimiters and multiple space, underscore or
+   hyphen separators in composite names; URL userinfo is rejected for both ordinary
+   `scheme://authority` and scheme-relative `//authority` forms.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -137,6 +148,16 @@ adds permanent adversarial coverage for the Expert follow-up findings:
 - preservation of legitimate printable Unicode text;
 - scheme-relative authority userinfo at construction and after reflective
   corruption, including evidence content and full logical projections.
+
+`tests/infrastructure/test_instrument_universe_registry_unicode_confusables.py`
+adds permanent falsification for printable Unicode credential obfuscation:
+
+- fullwidth `=` in sensitive assignments;
+- printable variation-selector marks interleaved into sensitive names;
+- fullwidth `@` inside URL authorities at construction and retained-state
+  revalidation/projection boundaries;
+- preservation of legitimate printable combining Unicode in the original retained
+  and projected value.
 
 ## Non-claims and gate
 
