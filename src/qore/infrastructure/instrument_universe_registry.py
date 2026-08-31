@@ -138,6 +138,7 @@ _URL_AUTHORITY_TERMINATOR_SENTINELS = (
     ("?", "¿"),
     ("#", "♯"),
 )
+_URL_AUTHORITY_WHITESPACE_SENTINEL = "¤"
 
 
 def _validate_date(value: date, *, field_name: str) -> None:
@@ -215,7 +216,13 @@ def _preserve_nfkc_url_authority_terminators(value: str) -> str:
     protected_parts: list[str] = []
     for character in value:
         normalized_character = normalize("NFKC", character)
-        if character not in "/?#":
+        if character not in "/?#" and not character.isspace():
+            normalized_character = "".join(
+                _URL_AUTHORITY_WHITESPACE_SENTINEL
+                if normalized_part.isspace()
+                else normalized_part
+                for normalized_part in normalized_character
+            )
             for terminator, sentinel in _URL_AUTHORITY_TERMINATOR_SENTINELS:
                 normalized_character = normalized_character.replace(
                     terminator,
