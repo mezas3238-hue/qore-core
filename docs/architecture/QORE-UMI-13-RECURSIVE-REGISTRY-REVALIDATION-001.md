@@ -96,6 +96,14 @@ text validator protects reasons, evidence source names and evidence locators, so
 finding was independently reproduced and accepted as material at the retained-state
 trust boundary.
 
+Expert R9 on HEAD `4ccb42efdda62e9b5070a805c45c4c602b6e953c` then exposed a
+second URL-userinfo defect in the corrected scanner. The global detection skeleton
+folded `U+2215 DIVISION SLASH` and `U+2044 FRACTION SLASH` to ASCII `/` before
+URL inspection. In `https://alice:password\u2215foo@example.invalid/evidence`, that
+folding created an artificial path terminator before the real `@`, causing the
+userinfo regex to miss a credential-bearing authority. The finding was independently
+reproduced and accepted as material.
+
 ## Corrected trust edges
 
 The correction revalidates before hashing, set construction, sorting, relationship
@@ -123,9 +131,12 @@ checks or output:
    credential syntax. The existing detectors then reject supported sensitive
    assignments with whitespace before delimiters and multiple space, underscore or
    hyphen separators in composite names. URL-userinfo detection scans URL-like
-   authority starts throughout the detection skeleton, including later embedded
-   `scheme://authority` forms and scheme-relative `//authority` forms at token
-   boundaries, rather than trusting the first authority only.
+   authority starts throughout a dedicated URL skeleton, including later embedded
+   `scheme://authority` and scheme-relative forms. Slash confusables `∕` and `⁄`
+   remain un-folded inside that URL skeleton so they cannot manufacture an ASCII
+   authority terminator before `@`; the authority-start matcher nevertheless accepts
+   ASCII `/`, `∕` and `⁄` in the two slash positions, closing both ordinary and
+   obfuscated authority starts without rewriting retained text.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -174,15 +185,19 @@ adds permanent falsification for printable Unicode credential obfuscation:
   and projected value.
 
 `tests/infrastructure/test_instrument_universe_registry_multi_authority_userinfo.py`
-adds permanent R8 coverage for:
+adds permanent R8/R9 coverage for:
 
 - a later embedded credential-bearing `scheme://authority` after a benign first URL;
 - an embedded scheme-relative credential-bearing authority;
+- the exact R9 `U+2215 DIVISION SLASH` inside-userinfo witness;
+- mixed `https:∕∕...` and scheme-relative `∕∕...` authority starts with a slash
+  confusable retained inside userinfo before `@`;
 - reason construction, reflective corruption, explicit `__post_init__()` re-entry
   and logical projection;
 - evidence source-name and locator construction plus retained-state re-entry,
   content projection and full logical projection;
-- benign URL-like text without userinfo, which remains byte-for-byte unchanged.
+- benign URL-like text, including email-like `@` content after a real ASCII path
+  slash, which remains byte-for-byte unchanged.
 
 ## Non-claims and gate
 
