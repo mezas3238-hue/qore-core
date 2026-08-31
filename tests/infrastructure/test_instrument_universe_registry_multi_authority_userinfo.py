@@ -21,6 +21,15 @@ _CONFUSABLE_SCHEME_AND_USERINFO_SLASH = (
 _CONFUSABLE_SCHEME_RELATIVE_AND_USERINFO_SLASH = (
     "Evidence ∕∕alice:password∕foo@example.invalid/evidence"
 )
+_NFKC_SLASH_INSIDE_USERINFO = (
+    "https://alice:password／foo@example.invalid/evidence"
+)
+_NFKC_SCHEME_AND_USERINFO_SLASH = (
+    "https:／／alice:password／foo@example.invalid/evidence"
+)
+_NFKC_SCHEME_RELATIVE_AND_USERINFO_SLASH = (
+    "Evidence ／／alice:password／foo@example.invalid/evidence"
+)
 
 _URL_USERINFO_WITNESSES = (
     _EMBEDDED_URL_USERINFO,
@@ -28,6 +37,9 @@ _URL_USERINFO_WITNESSES = (
     _CONFUSABLE_SLASH_INSIDE_USERINFO,
     _CONFUSABLE_SCHEME_AND_USERINFO_SLASH,
     _CONFUSABLE_SCHEME_RELATIVE_AND_USERINFO_SLASH,
+    _NFKC_SLASH_INSIDE_USERINFO,
+    _NFKC_SCHEME_AND_USERINFO_SLASH,
+    _NFKC_SCHEME_RELATIVE_AND_USERINFO_SLASH,
 )
 
 
@@ -63,6 +75,8 @@ def test_reason_revalidation_rejects_embedded_url_userinfo(value: str) -> None:
         _EMBEDDED_URL_USERINFO,
         _CONFUSABLE_SLASH_INSIDE_USERINFO,
         _CONFUSABLE_SCHEME_AND_USERINFO_SLASH,
+        _NFKC_SLASH_INSIDE_USERINFO,
+        _NFKC_SCHEME_AND_USERINFO_SLASH,
     ],
 )
 @pytest.mark.parametrize("field_name", ["source_name", "locator"])
@@ -71,14 +85,14 @@ def test_evidence_record_constructor_rejects_later_url_userinfo(
     value: str,
 ) -> None:
     source_name = value if field_name == "source_name" else "QORE repository"
-    locator = value if field_name == "locator" else "qore://umi-13/r9"
+    locator = value if field_name == "locator" else "qore://umi-13/r10"
 
     with pytest.raises(
         registry.InstrumentUniverseRegistryValidationError,
         match="credential-like material",
     ):
         registry.InstrumentUniverseEvidenceRecord(
-            evidence_ref=registry.InstrumentUniverseEvidenceRef("qore-umi13-r9"),
+            evidence_ref=registry.InstrumentUniverseEvidenceRef("qore-umi13-r10"),
             source_category=(
                 registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY
             ),
@@ -94,6 +108,8 @@ def test_evidence_record_constructor_rejects_later_url_userinfo(
         _EMBEDDED_URL_USERINFO,
         _CONFUSABLE_SLASH_INSIDE_USERINFO,
         _CONFUSABLE_SCHEME_AND_USERINFO_SLASH,
+        _NFKC_SLASH_INSIDE_USERINFO,
+        _NFKC_SCHEME_AND_USERINFO_SLASH,
     ],
 )
 @pytest.mark.parametrize("field_name", ["source_name", "locator"])
@@ -102,10 +118,10 @@ def test_evidence_record_revalidation_rejects_later_url_userinfo(
     value: str,
 ) -> None:
     record = registry.InstrumentUniverseEvidenceRecord(
-        evidence_ref=registry.InstrumentUniverseEvidenceRef("qore-umi13-r9"),
+        evidence_ref=registry.InstrumentUniverseEvidenceRef("qore-umi13-r10"),
         source_category=registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY,
         source_name="QORE repository",
-        locator="qore://umi-13/r9",
+        locator="qore://umi-13/r10",
         verified_on=date(2026, 8, 31),
     )
     object.__setattr__(record, field_name, value)
@@ -135,6 +151,8 @@ def test_evidence_record_revalidation_rejects_later_url_userinfo(
         "https://safe.example/ https://other.example/evidence",
         "https://safe.example/path∕foo@example.invalid/evidence",
         "Evidence ∕∕nested/resource without userinfo",
+        "https://safe.example/path／foo@example.invalid/evidence",
+        "Evidence ／／nested/resource without userinfo",
     ],
 )
 def test_reason_preserves_benign_urlish_text(value: str) -> None:
