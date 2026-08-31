@@ -12,6 +12,8 @@ import qore.infrastructure.instrument_universe_registry as registry
     [
         "tok\u0435n=PLAINTEXT-SECRET",  # Cyrillic e
         "t\u03bfken=PLAINTEXT-SECRET",  # Greek omicron
+        "toke\u03b7=PLAINTEXT-SECRET",  # Greek eta for n
+        "authorizatio\u03b7=PLAINTEXT-SECRET",  # Greek eta for n
         "pa\u0455\u0455word=PLAINTEXT-SECRET",  # Cyrillic dze
         "pa\u03c2\u03c2word=PLAINTEXT-SECRET",  # Greek final sigma -> sigma on casefold
         "authori\u0437ation=PLAINTEXT-SECRET",  # Cyrillic ze
@@ -50,6 +52,8 @@ def test_reason_constructor_rejects_bearer_assignments(assignment: str) -> None:
     "corrupted_value",
     [
         "tok\u0435n=PLAINTEXT-SECRET",
+        "toke\u03b7=PLAINTEXT-SECRET",
+        "authorizatio\u03b7=PLAINTEXT-SECRET",
         "pa\u03c2\u03c2word=PLAINTEXT-SECRET",
         "authori\u0437ation=PLAINTEXT-SECRET",
         "bearer=PLAINTEXT-SECRET",
