@@ -6,7 +6,6 @@ import pytest
 
 import qore.infrastructure.instrument_universe_registry as registry
 
-
 _EMBEDDED_URL_USERINFO = (
     "https://safe.example/https://alice:password@example.invalid/evidence"
 )
