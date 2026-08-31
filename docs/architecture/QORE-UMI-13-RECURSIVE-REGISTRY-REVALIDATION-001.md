@@ -104,6 +104,15 @@ folding created an artificial path terminator before the real `@`, causing the
 userinfo regex to miss a credential-bearing authority. The finding was independently
 reproduced and accepted as material.
 
+Expert R10 on HEAD `7e24bc07bf74f879ffe7655fe9217db7ff6600de` then showed that
+NFKC itself could recreate the same class before the R9 protection ran. In the exact
+witness `https://alice:password／foo@example.invalid/evidence`, `U+FF0F FULLWIDTH
+SOLIDUS` normalized to ASCII `/`, manufacturing a terminator before the real `@`.
+The finding was independently reproduced and accepted as material. The URL-specific
+detection path now protects every non-ASCII character whose individual NFKC mapping
+is `/` before whole-string NFKC, using `∕` as a detection-only preserved slash marker.
+The ordinary credential skeleton continues to use full NFKC folding.
+
 ## Corrected trust edges
 
 The correction revalidates before hashing, set construction, sorting, relationship
@@ -134,9 +143,11 @@ checks or output:
    authority starts throughout a dedicated URL skeleton, including later embedded
    `scheme://authority` and scheme-relative forms. Slash confusables `∕` and `⁄`
    remain un-folded inside that URL skeleton so they cannot manufacture an ASCII
-   authority terminator before `@`; the authority-start matcher nevertheless accepts
-   ASCII `/`, `∕` and `⁄` in the two slash positions, closing both ordinary and
-   obfuscated authority starts without rewriting retained text.
+   authority terminator before `@`; characters such as `U+FF0F FULLWIDTH SOLIDUS`
+   that NFKC itself maps to `/` are first converted to the preserved detection-only
+   `∕` marker. The authority-start matcher accepts ASCII `/`, `∕` and `⁄` in the two
+   slash positions, closing ordinary, explicit-confusable and NFKC-confusable
+   authority starts without rewriting retained text.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -185,19 +196,21 @@ adds permanent falsification for printable Unicode credential obfuscation:
   and projected value.
 
 `tests/infrastructure/test_instrument_universe_registry_multi_authority_userinfo.py`
-adds permanent R8/R9 coverage for:
+adds permanent R8/R9/R10 coverage for:
 
 - a later embedded credential-bearing `scheme://authority` after a benign first URL;
 - an embedded scheme-relative credential-bearing authority;
 - the exact R9 `U+2215 DIVISION SLASH` inside-userinfo witness;
 - mixed `https:∕∕...` and scheme-relative `∕∕...` authority starts with a slash
   confusable retained inside userinfo before `@`;
+- the exact R10 `U+FF0F FULLWIDTH SOLIDUS` inside-userinfo witness plus fully
+  fullwidth-slash `https:／／...` and scheme-relative `／／...` authority starts;
 - reason construction, reflective corruption, explicit `__post_init__()` re-entry
   and logical projection;
 - evidence source-name and locator construction plus retained-state re-entry,
   content projection and full logical projection;
 - benign URL-like text, including email-like `@` content after a real ASCII path
-  slash, which remains byte-for-byte unchanged.
+  slash and benign fullwidth-slash path text, which remains byte-for-byte unchanged.
 
 ## Non-claims and gate
 
