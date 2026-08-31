@@ -205,12 +205,26 @@ def _contains_confusable_sensitive_assignment(value: str) -> bool:
     return False
 
 
+def _preserve_nfkc_url_slash_confusables(value: str) -> str:
+    return "".join(
+        "∕"
+        if character != "/" and normalize("NFKC", character) == "/"
+        else character
+        for character in value
+    )
+
+
 def _credential_detection_skeleton(
     value: str,
     *,
     fold_url_slash_confusables: bool = True,
 ) -> str:
-    normalized = normalize("NFKC", value).casefold()
+    normalization_source = (
+        value
+        if fold_url_slash_confusables
+        else _preserve_nfkc_url_slash_confusables(value)
+    )
+    normalized = normalize("NFKC", normalization_source).casefold()
     without_marks = "".join(
         character
         for character in normalized
