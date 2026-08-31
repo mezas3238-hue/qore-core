@@ -162,7 +162,8 @@ def _validate_code(value: str, *, field_name: str) -> None:
 def _contains_url_userinfo(value: str) -> bool:
     return (
         search(
-            r"(?:[a-z][a-z0-9+.-]*://|(?<![a-z0-9/])//)[^/?#\s]*@",
+            r"(?:[a-z][a-z0-9+.-]*:[/∕⁄]{2}|(?<![a-z0-9/∕⁄])[/∕⁄]{2})"
+            r"[^/?#\s]*@",
             value,
         )
         is not None
@@ -204,7 +205,11 @@ def _contains_confusable_sensitive_assignment(value: str) -> bool:
     return False
 
 
-def _credential_detection_skeleton(value: str) -> str:
+def _credential_detection_skeleton(
+    value: str,
+    *,
+    fold_url_slash_confusables: bool = True,
+) -> str:
     normalized = normalize("NFKC", value).casefold()
     without_marks = "".join(
         character
@@ -212,6 +217,8 @@ def _credential_detection_skeleton(value: str) -> str:
         if category(character) not in {"Mn", "Mc", "Me"}
     )
     for confusable, canonical in _CREDENTIAL_DELIMITER_CONFUSABLES:
+        if not fold_url_slash_confusables and canonical == "/":
+            continue
         without_marks = without_marks.replace(confusable, canonical)
     return without_marks
 
@@ -233,11 +240,15 @@ def _validate_text(
             f"{field_name} must be non-empty normalized text <= {max_length} chars"
         )
     detection_value = _credential_detection_skeleton(value)
+    url_detection_value = _credential_detection_skeleton(
+        value,
+        fold_url_slash_confusables=False,
+    )
     if (
         any(marker in detection_value for marker in _SENSITIVE_TEXT_MARKERS)
         or search(_SENSITIVE_ASSIGNMENT_PATTERN, detection_value) is not None
         or _contains_confusable_sensitive_assignment(detection_value)
-        or _contains_url_userinfo(detection_value)
+        or _contains_url_userinfo(url_detection_value)
     ):
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must not contain credential-like material"
