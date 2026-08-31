@@ -21,6 +21,7 @@ import qore.infrastructure.instrument_universe_registry as registry
         "bea\u0433er=PLAINTEXT-SECRET",  # Cyrillic ghe for r
         "\u0432earer=PLAINTEXT-SECRET",  # Cyrillic ve for b
         "token\u2236PLAINTEXT-SECRET",  # ratio sign for colon
+        "token\u02d0PLAINTEXT-SECRET",  # modifier letter triangular colon
         "api\u2011key=PLAINTEXT-SECRET",  # non-breaking hyphen
         "api\u2015key=PLAINTEXT-SECRET",  # horizontal bar
         "private\u2015key=PLAINTEXT-SECRET",  # horizontal bar
@@ -63,6 +64,7 @@ def test_reason_constructor_rejects_bearer_assignments(assignment: str) -> None:
         "autho\u0433ization=PLAINTEXT-SECRET",
         "bea\u0433er=PLAINTEXT-SECRET",
         "bearer=PLAINTEXT-SECRET",
+        "token\u02d0PLAINTEXT-SECRET",
         "api\u2015key=PLAINTEXT-SECRET",
         "private\u2015key=PLAINTEXT-SECRET",
         "private\u2010key\u2236PLAINTEXT-SECRET",
