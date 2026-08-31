@@ -50,6 +50,22 @@ process-global singleton still retained its canonical `_name_` and `_value_` aft
 reflective mutation. This follow-up closes accepted finding
 `F-UMI13-ENUM-REVALIDATION-002` without expanding the owner boundary.
 
+Subsequent independent DeepSeek Expert review of an obsolete candidate exposed two
+credential-hygiene gaps at the same Core trust boundary:
+
+- assignments with whitespace before the delimiter, such as
+  `token = PLAINTEXT-SECRET`, were accepted;
+- scheme-relative authority userinfo, such as
+  `//alice:password@example.invalid/evidence`, was accepted.
+
+Both findings were independently reproduced and accepted. A later fresh Expert
+review of the corrected candidate then exposed one remaining bounded gap: composite
+credential names allowed only zero or one separator, so values such as
+`api   key = PLAINTEXT-SECRET` and `private   key = PLAINTEXT-SECRET` could still
+pass. That finding was also independently reproduced and accepted. The current
+candidate closes all three credential-hygiene witnesses without changing the
+registry's semantic authority.
+
 ## Corrected trust edges
 
 The correction revalidates before hashing, set construction, sorting, relationship
@@ -66,11 +82,16 @@ checks or output:
    any graph operation;
 5. snapshot `logical_values()` re-enters full graph validation;
 6. `entry_for_family()` revalidates both the snapshot graph and the query
-   `IdentityFamilyCode` before returning a retained child.
+   `IdentityFamilyCode` before returning a retained child;
 7. evidence-source, coverage and owner enums validate the canonical name and value
    of every known singleton before retained-member comparisons or projection;
    business decisions use the independently retained primitive canonical value, not
-   mutable `StrEnum` equality or hashing.
+   mutable `StrEnum` equality or hashing;
+8. `_validate_text` rejects supported sensitive-assignment families even when the
+   delimiter is preceded by whitespace and when composite names (`api key`,
+   `access token`, `client secret`, `private key`) contain multiple space,
+   underscore or hyphen separators; URL userinfo is rejected for both ordinary
+   `scheme://authority` and scheme-relative `//authority` forms.
 
 All boundary failures remain deterministic
 `InstrumentUniverseRegistryValidationError` failures. Valid tuple shapes and
@@ -94,6 +115,16 @@ corruption. It covers:
 - evidence content/full projections, entry projection, snapshot projection and
   snapshot lookup;
 - unchanged valid logical output and deterministic ordering.
+
+`tests/infrastructure/test_instrument_universe_registry_credential_variants.py`
+adds permanent adversarial coverage for the Expert follow-up findings:
+
+- whitespace-tolerant sensitive assignments across authorization, credential, JWT,
+  password, secret, token, API key, access token, client secret and private key;
+- multiple-space composite credential names at construction and retained-state
+  revalidation/projection boundaries;
+- scheme-relative authority userinfo at construction and after reflective
+  corruption, including evidence content and full logical projections.
 
 ## Non-claims and gate
 
