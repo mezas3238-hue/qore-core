@@ -160,16 +160,13 @@ def _validate_code(value: str, *, field_name: str) -> None:
 
 
 def _contains_url_userinfo(value: str) -> bool:
-    if value.startswith("//"):
-        authority_start = 2
-    else:
-        scheme_index = value.find("://")
-        if scheme_index < 0:
-            return False
-        authority_start = scheme_index + 3
-    authority = value[authority_start:].split("/", 1)[0]
-    authority = authority.split("?", 1)[0].split("#", 1)[0]
-    return "@" in authority
+    return (
+        search(
+            r"(?:[a-z][a-z0-9+.-]*://|(?<![a-z0-9/])//)[^/?#\s]*@",
+            value,
+        )
+        is not None
+    )
 
 
 def _credential_character_matches(character: str, expected_ascii: str) -> bool:
