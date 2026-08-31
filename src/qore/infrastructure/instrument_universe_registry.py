@@ -120,6 +120,7 @@ _CREDENTIAL_CONFUSABLE_PAIRS = (
 _CREDENTIAL_DELIMITER_CONFUSABLES = (
     ("∶", ":"),
     ("꞉", ":"),
+    ("ː", ":"),
     ("∕", "/"),
     ("⁄", "/"),
     ("‐", "-"),
