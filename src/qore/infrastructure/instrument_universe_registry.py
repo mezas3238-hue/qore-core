@@ -48,9 +48,82 @@ _SENSITIVE_TEXT_MARKERS = (
 )
 
 _SENSITIVE_ASSIGNMENT_PATTERN = (
-    r"(?<![a-z0-9])(?:authorization|credential|jwt|password|secret|token|"
+    r"(?<![a-z0-9])(?:authorization|bearer|credential|jwt|password|secret|token|"
     r"api(?:[ _-]*key)|access(?:[ _-]*token)|client(?:[ _-]*secret)|"
     r"private(?:[ _-]*key))\s*[=:]"
+)
+
+_SENSITIVE_ASSIGNMENT_LABELS = (
+    "authorization",
+    "bearer",
+    "credential",
+    "jwt",
+    "password",
+    "secret",
+    "token",
+    "apikey",
+    "accesstoken",
+    "clientsecret",
+    "privatekey",
+)
+
+_CREDENTIAL_CONFUSABLE_PAIRS = (
+    ("a", "а"),
+    ("a", "α"),
+    ("a", "ɑ"),
+    ("b", "в"),
+    ("b", "β"),
+    ("c", "с"),
+    ("c", "ϲ"),
+    ("d", "ԁ"),
+    ("d", "δ"),
+    ("e", "е"),
+    ("e", "ε"),
+    ("e", "ɛ"),
+    ("h", "һ"),
+    ("h", "н"),
+    ("i", "і"),
+    ("i", "ι"),
+    ("i", "ı"),
+    ("j", "ј"),
+    ("j", "ϳ"),
+    ("k", "к"),
+    ("k", "κ"),
+    ("l", "ӏ"),
+    ("l", "ι"),
+    ("m", "м"),
+    ("m", "μ"),
+    ("n", "п"),
+    ("n", "ν"),
+    ("o", "о"),
+    ("o", "ο"),
+    ("p", "р"),
+    ("p", "ρ"),
+    ("s", "ѕ"),
+    ("t", "т"),
+    ("t", "τ"),
+    ("u", "υ"),
+    ("v", "ν"),
+    ("v", "ѵ"),
+    ("w", "ω"),
+    ("x", "х"),
+    ("x", "χ"),
+    ("y", "у"),
+    ("y", "υ"),
+    ("z", "ζ"),
+)
+
+_CREDENTIAL_DELIMITER_CONFUSABLES = (
+    ("∶", ":"),
+    ("꞉", ":"),
+    ("∕", "/"),
+    ("⁄", "/"),
+    ("‐", "-"),
+    ("‑", "-"),
+    ("‒", "-"),
+    ("–", "-"),
+    ("—", "-"),
+    ("−", "-"),
 )
 
 
@@ -92,11 +165,48 @@ def _contains_url_userinfo(value: str) -> bool:
     return "@" in authority
 
 
+def _credential_character_matches(character: str, expected_ascii: str) -> bool:
+    return character == expected_ascii or (expected_ascii, character) in _CREDENTIAL_CONFUSABLE_PAIRS
+
+
+def _matches_sensitive_assignment_label(prefix: str, expected_label: str) -> bool:
+    index = len(prefix) - 1
+    expected_index = len(expected_label) - 1
+    while expected_index >= 0:
+        while index >= 0 and prefix[index] in " _-":
+            index -= 1
+        if index < 0 or not _credential_character_matches(
+            prefix[index], expected_label[expected_index]
+        ):
+            return False
+        index -= 1
+        expected_index -= 1
+    return index < 0 or not prefix[index].isalnum()
+
+
+def _contains_confusable_sensitive_assignment(value: str) -> bool:
+    for index, character in enumerate(value):
+        if character not in "=:":
+            continue
+        prefix = value[:index].rstrip()
+        if any(
+            _matches_sensitive_assignment_label(prefix, expected_label)
+            for expected_label in _SENSITIVE_ASSIGNMENT_LABELS
+        ):
+            return True
+    return False
+
+
 def _credential_detection_skeleton(value: str) -> str:
-    normalized = normalize("NFKC", value).lower()
-    return "".join(
-        character for character in normalized if category(character) not in {"Mn", "Mc", "Me"}
+    normalized = normalize("NFKC", value).casefold()
+    without_marks = "".join(
+        character
+        for character in normalized
+        if category(character) not in {"Mn", "Mc", "Me"}
     )
+    for confusable, canonical in _CREDENTIAL_DELIMITER_CONFUSABLES:
+        without_marks = without_marks.replace(confusable, canonical)
+    return without_marks
 
 
 def _validate_text(
@@ -119,6 +229,7 @@ def _validate_text(
     if (
         any(marker in detection_value for marker in _SENSITIVE_TEXT_MARKERS)
         or search(_SENSITIVE_ASSIGNMENT_PATTERN, detection_value) is not None
+        or _contains_confusable_sensitive_assignment(detection_value)
         or _contains_url_userinfo(detection_value)
     ):
         raise InstrumentUniverseRegistryValidationError(
