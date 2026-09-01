@@ -244,7 +244,10 @@ def _credential_detection_skeleton(
         if fold_url_slash_confusables
         else _preserve_nfkc_url_authority_terminators(value)
     )
-    normalized = normalize("NFKC", normalization_source).casefold()
+    normalized = normalize(
+        "NFD",
+        normalize("NFKC", normalization_source).casefold(),
+    )
     without_marks = "".join(
         character
         for character in normalized
