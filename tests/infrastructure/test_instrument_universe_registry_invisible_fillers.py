@@ -6,7 +6,6 @@ import pytest
 
 import qore.infrastructure.instrument_universe_registry as registry
 
-
 _INVISIBLE_FILLERS = (
     "\u115f",  # HANGUL CHOSEONG FILLER
     "\u1160",  # HANGUL JUNGSEONG FILLER
