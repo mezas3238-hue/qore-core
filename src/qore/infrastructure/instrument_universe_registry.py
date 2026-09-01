@@ -122,20 +122,22 @@ _CREDENTIAL_DELIMITER_CONFUSABLES = (
     ("∶", ":"),
     ("꞉", ":"),
     ("ː", ":"),
+    ("˸", ":"),
     ("∕", "/"),
     ("⁄", "/"),
-    ("‐", "-"),
-    ("‑", "-"),
-    ("‒", "-"),
-    ("–", "-"),
-    ("—", "-"),
-    ("―", "-"),
-    ("⸗", "-"),
-    ("⸺", "-"),
-    ("⸻", "-"),
-    ("⹀", "-"),
     ("−", "-"),
+    ("⁃", "-"),
+    ("·", "-"),
 )
+
+_CREDENTIAL_COMPOSITE_FAMILIES = (
+    ("api", "key"),
+    ("access", "token"),
+    ("client", "secret"),
+    ("private", "key"),
+)
+
+_CREDENTIAL_BARE_SCHEME_MARKERS = ("bearer ",)
 
 _CREDENTIAL_INVISIBLE_FILLERS = frozenset(("ᅟ", "ᅠ", "⠀"))
 
@@ -190,6 +192,47 @@ def _credential_character_matches(character: str, expected_ascii: str) -> bool:
     )
 
 
+def _matches_homoglyph_word(
+    skeleton: str,
+    start: int,
+    word: str,
+) -> int | None:
+    if start + len(word) > len(skeleton):
+        return None
+    for offset, expected_ascii in enumerate(word):
+        if not _credential_character_matches(
+            skeleton[start + offset],
+            expected_ascii,
+        ):
+            return None
+    return start + len(word)
+
+
+def _contains_composite_credential_family(skeleton: str) -> bool:
+    for first, second in _CREDENTIAL_COMPOSITE_FAMILIES:
+        index = 0
+        while index <= len(skeleton) - len(first) - len(second):
+            after_first = _matches_homoglyph_word(skeleton, index, first)
+            if after_first is not None:
+                cursor = after_first
+                while cursor < len(skeleton) and skeleton[cursor] in " _-":
+                    cursor += 1
+                if _matches_homoglyph_word(skeleton, cursor, second) is not None:
+                    return True
+            index += 1
+    return False
+
+
+def _contains_bare_scheme_homoglyph(skeleton: str) -> bool:
+    for marker in _CREDENTIAL_BARE_SCHEME_MARKERS:
+        index = 0
+        while index <= len(skeleton) - len(marker):
+            if _matches_homoglyph_word(skeleton, index, marker) is not None:
+                return True
+            index += 1
+    return False
+
+
 def _matches_sensitive_assignment_label(prefix: str, expected_label: str) -> bool:
     index = len(prefix) - 1
     expected_index = len(expected_label) - 1
@@ -218,6 +261,18 @@ def _contains_confusable_sensitive_assignment(value: str) -> bool:
     return False
 
 
+def _fold_credential_detection_root(value: str) -> str:
+    folded: list[str] = []
+    for character in value:
+        if category(character) == "Pd":
+            folded.append("-")
+        elif character in ("\u03f2", "\u03f9"):
+            folded.append("c")
+        else:
+            folded.append(character)
+    return "".join(folded)
+
+
 def _preserve_nfkc_url_authority_terminators(value: str) -> str:
     protected_parts: list[str] = []
     for character in value:
@@ -243,10 +298,11 @@ def _credential_detection_skeleton(
     *,
     fold_url_slash_confusables: bool = True,
 ) -> str:
+    root_value = _fold_credential_detection_root(value)
     normalization_source = (
-        value
+        root_value
         if fold_url_slash_confusables
-        else _preserve_nfkc_url_authority_terminators(value)
+        else _preserve_nfkc_url_authority_terminators(root_value)
     )
     normalized = normalize(
         "NFD",
@@ -288,6 +344,8 @@ def _validate_text(
     )
     if (
         any(marker in detection_value for marker in _SENSITIVE_TEXT_MARKERS)
+        or _contains_composite_credential_family(detection_value)
+        or _contains_bare_scheme_homoglyph(detection_value)
         or search(_SENSITIVE_ASSIGNMENT_PATTERN, detection_value) is not None
         or _contains_confusable_sensitive_assignment(detection_value)
         or _contains_url_userinfo(url_detection_value)
