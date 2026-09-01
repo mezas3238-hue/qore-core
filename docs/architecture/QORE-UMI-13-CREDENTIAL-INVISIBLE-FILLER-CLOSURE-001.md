@@ -20,7 +20,22 @@ After NFKC/casefold, the detection-only skeleton removes the normalized invisibl
 
 Source witnesses `U+3164 HANGUL FILLER` and `U+FFA0 HALFWIDTH HANGUL FILLER` normalize to `U+1160` and are therefore closed by the same rule. The retained original string is unchanged when it is otherwise valid.
 
-This is deliberately not a generic Unicode transliteration or blanket deletion policy. Visible punctuation and script characters are not discarded merely because their Unicode name contains words such as `FILLER` or `GAP`.
+This is deliberately not a generic Unicode transliteration or blanket character-removal policy. Visible punctuation and script characters are not discarded merely because their Unicode name contains words such as `FILLER` or `GAP`.
+
+## R12 canonical-composition follow-up
+
+DeepSeek Expert R12 on exact HEAD `6373b339ca5251cb5bdfe6eba8abc73ae707aa87` identified a second bounded normalization-order defect. The witness `token\u0301=PLAINTEXT-SECRET` uses `U+0301 COMBINING ACUTE ACCENT`. When NFKC was applied before mark filtering, `n + U+0301` composed to precomposed `ń` (`U+0144`, category `Ll`), so the subsequent `Mn/Mc/Me` filter could no longer observe the original mark.
+
+The corrected detection-only path now performs canonical decomposition after NFKC/casefold and before mark filtering:
+
+```python
+normalized = normalize(
+    "NFD",
+    normalize("NFKC", normalization_source).casefold(),
+)
+```
+
+This keeps compatibility folding needed by the existing credential detector, then exposes combining marks again before the existing mark filter runs. The retained/projected source value is still never rewritten. Detection sentinels used by the URL-userinfo path remain NFD-stable and retain their prior semantics.
 
 ## Required regression properties
 
@@ -28,9 +43,11 @@ Permanent tests prove:
 
 - construction rejects supported sensitive labels interrupted by each immediate invisible-filler source form;
 - compound labels such as `api key` cannot be split by the same fillers;
+- combining marks adjacent to sensitive labels and `=` / `:` are rejected after compatibility normalization and canonical decomposition;
 - reflective retained-state corruption fails closed in `__post_init__()` and logical projection;
 - evidence `source_name` and `locator` revalidation/projection fail closed;
-- benign printable filler text outside credential-like syntax remains accepted and projected byte-for-byte unchanged.
+- benign printable filler text outside credential-like syntax remains accepted and projected byte-for-byte unchanged;
+- benign decomposed Unicode text outside credential-like syntax remains accepted and projected byte-for-byte unchanged.
 
 ## Non-claims
 
