@@ -14,6 +14,12 @@ _INVISIBLE_FILLERS = (
     "\u2800",  # BRAILLE PATTERN BLANK
 )
 
+_COMBINING_MARKS = (
+    "\u0301",  # COMBINING ACUTE ACCENT
+    "\u0308",  # COMBINING DIAERESIS
+    "\u0327",  # COMBINING CEDILLA
+)
+
 
 @pytest.mark.parametrize("filler", _INVISIBLE_FILLERS)
 def test_reason_constructor_rejects_invisible_filler_sensitive_assignment(
@@ -89,6 +95,81 @@ def test_evidence_revalidation_rejects_invisible_filler_sensitive_assignment(
 @pytest.mark.parametrize("filler", _INVISIBLE_FILLERS)
 def test_benign_printable_filler_text_is_retained_byte_for_byte(filler: str) -> None:
     value = f"Evidence{filler}reference"
+
+    reason = registry.InstrumentUniverseReason(value)
+
+    assert reason.logical_values() == (value,)
+
+
+@pytest.mark.parametrize("mark", _COMBINING_MARKS)
+@pytest.mark.parametrize("delimiter", ("=", ":"))
+def test_reason_constructor_rejects_combining_mark_sensitive_assignment(
+    mark: str,
+    delimiter: str,
+) -> None:
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="credential-like material",
+    ):
+        registry.InstrumentUniverseReason(
+            f"token{mark}{delimiter}PLAINTEXT-SECRET"
+        )
+
+
+@pytest.mark.parametrize("mark", _COMBINING_MARKS)
+def test_reason_revalidation_rejects_combining_mark_sensitive_assignment(
+    mark: str,
+) -> None:
+    value = f"token{mark}=PLAINTEXT-SECRET"
+    reason = registry.InstrumentUniverseReason("Safe retained reason")
+    object.__setattr__(reason, "value", value)
+
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="credential-like material",
+    ):
+        reason.__post_init__()
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="credential-like material",
+    ):
+        reason.logical_values()
+
+
+@pytest.mark.parametrize("field_name", ("source_name", "locator"))
+@pytest.mark.parametrize("mark", _COMBINING_MARKS)
+def test_evidence_revalidation_rejects_combining_mark_sensitive_assignment(
+    field_name: str,
+    mark: str,
+) -> None:
+    record = registry.InstrumentUniverseEvidenceRecord(
+        evidence_ref=registry.InstrumentUniverseEvidenceRef("qore-umi05"),
+        source_category=registry.InstrumentUniverseEvidenceSourceCategory.QORE_REPOSITORY,
+        source_name="QORE repository",
+        locator="qore://umi-05/futures",
+        verified_on=date(2026, 8, 15),
+    )
+    object.__setattr__(record, field_name, f"token{mark}=PLAINTEXT-SECRET")
+
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="credential-like material",
+    ):
+        record.__post_init__()
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="credential-like material",
+    ):
+        record.content_logical_values()
+    with pytest.raises(
+        registry.InstrumentUniverseRegistryValidationError,
+        match="credential-like material",
+    ):
+        record.logical_values()
+
+
+def test_benign_combining_mark_text_is_retained_byte_for_byte() -> None:
+    value = "Cafe\u0301 evidence reference"
 
     reason = registry.InstrumentUniverseReason(value)
 
