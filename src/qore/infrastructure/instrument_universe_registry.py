@@ -297,6 +297,7 @@ def _credential_detection_skeleton(
     value: str,
     *,
     fold_url_slash_confusables: bool = True,
+    preserve_invisible_fillers: bool = False,
 ) -> str:
     root_value = _fold_credential_detection_root(value)
     normalization_source = (
@@ -312,7 +313,10 @@ def _credential_detection_skeleton(
         character
         for character in normalized
         if category(character) not in {"Mn", "Mc", "Me"}
-        and character not in _CREDENTIAL_INVISIBLE_FILLERS
+        and (
+            preserve_invisible_fillers
+            or character not in _CREDENTIAL_INVISIBLE_FILLERS
+        )
     )
     for confusable, canonical in _CREDENTIAL_DELIMITER_CONFUSABLES:
         if not fold_url_slash_confusables and canonical == "/":
@@ -342,6 +346,16 @@ def _validate_text(
         value,
         fold_url_slash_confusables=False,
     )
+    # A filler-preserving URL skeleton keeps invisible printable fillers in
+    # place so a scheme-relative "//" authority start remains at its original
+    # token boundary. The filler-removing skeleton above still catches a
+    # filler placed between the two authority slashes. Both are detection-only;
+    # retained/projected source text is never rewritten.
+    url_boundary_detection_value = _credential_detection_skeleton(
+        value,
+        fold_url_slash_confusables=False,
+        preserve_invisible_fillers=True,
+    )
     if (
         any(marker in detection_value for marker in _SENSITIVE_TEXT_MARKERS)
         or _contains_composite_credential_family(detection_value)
@@ -349,6 +363,7 @@ def _validate_text(
         or search(_SENSITIVE_ASSIGNMENT_PATTERN, detection_value) is not None
         or _contains_confusable_sensitive_assignment(detection_value)
         or _contains_url_userinfo(url_detection_value)
+        or _contains_url_userinfo(url_boundary_detection_value)
     ):
         raise InstrumentUniverseRegistryValidationError(
             f"{field_name} must not contain credential-like material"
