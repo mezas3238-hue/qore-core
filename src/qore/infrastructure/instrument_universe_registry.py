@@ -298,6 +298,7 @@ def _credential_detection_skeleton(
     *,
     fold_url_slash_confusables: bool = True,
     preserve_invisible_fillers: bool = False,
+    preserve_marks: bool = False,
 ) -> str:
     root_value = _fold_credential_detection_root(value)
     normalization_source = (
@@ -309,10 +310,13 @@ def _credential_detection_skeleton(
         "NFD",
         normalize("NFKC", normalization_source).casefold(),
     )
-    without_marks = "".join(
+    filtered = "".join(
         character
         for character in normalized
-        if category(character) not in {"Mn", "Mc", "Me"}
+        if (
+            preserve_marks
+            or category(character) not in {"Mn", "Mc", "Me"}
+        )
         and (
             preserve_invisible_fillers
             or character not in _CREDENTIAL_INVISIBLE_FILLERS
@@ -321,8 +325,8 @@ def _credential_detection_skeleton(
     for confusable, canonical in _CREDENTIAL_DELIMITER_CONFUSABLES:
         if not fold_url_slash_confusables and canonical == "/":
             continue
-        without_marks = without_marks.replace(confusable, canonical)
-    return without_marks
+        filtered = filtered.replace(confusable, canonical)
+    return filtered
 
 
 def _validate_text(
@@ -346,15 +350,20 @@ def _validate_text(
         value,
         fold_url_slash_confusables=False,
     )
-    # A filler-preserving URL skeleton keeps invisible printable fillers in
-    # place so a scheme-relative "//" authority start remains at its original
-    # token boundary. The filler-removing skeleton above still catches a
-    # filler placed between the two authority slashes. Both are detection-only;
-    # retained/projected source text is never rewritten.
+    # A boundary-preserving URL skeleton keeps invisible printable fillers and
+    # printable Mn/Mc/Me marks in place so a scheme-relative "//" authority
+    # start remains at its original token boundary. Deleting such a printable
+    # non-alphanumeric/non-slash source character would concatenate an
+    # alphanumeric prefix with the "//" and defeat the negative-lookbehind
+    # boundary guard. The mark/filler-removing skeleton above still catches a
+    # mark or filler placed between the two authority slashes, inside userinfo,
+    # inside the scheme, or inside a sensitive credential label. All skeletons
+    # are detection-only; retained/projected source text is never rewritten.
     url_boundary_detection_value = _credential_detection_skeleton(
         value,
         fold_url_slash_confusables=False,
         preserve_invisible_fillers=True,
+        preserve_marks=True,
     )
     if (
         any(marker in detection_value for marker in _SENSITIVE_TEXT_MARKERS)
