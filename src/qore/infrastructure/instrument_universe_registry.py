@@ -133,6 +133,8 @@ _CREDENTIAL_DELIMITER_CONFUSABLES = (
     ("−", "-"),
 )
 
+_CREDENTIAL_INVISIBLE_FILLERS = frozenset(("ᅟ", "ᅠ", "⠀"))
+
 _URL_AUTHORITY_TERMINATOR_SENTINELS = (
     ("/", "∕"),
     ("?", "¿"),
@@ -247,6 +249,7 @@ def _credential_detection_skeleton(
         character
         for character in normalized
         if category(character) not in {"Mn", "Mc", "Me"}
+        and character not in _CREDENTIAL_INVISIBLE_FILLERS
     )
     for confusable, canonical in _CREDENTIAL_DELIMITER_CONFUSABLES:
         if not fold_url_slash_confusables and canonical == "/":
