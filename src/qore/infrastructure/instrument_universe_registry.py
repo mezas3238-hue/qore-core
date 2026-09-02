@@ -114,8 +114,14 @@ _CREDENTIAL_CONFUSABLE_PAIRS = (
     ("x", "χ"),
     ("y", "у"),
     ("y", "υ"),
+    ("y", "γ"),
     ("z", "з"),
     ("z", "ζ"),
+    ("i", "ɪ"),
+    ("l", "ɪ"),
+    ("k", "ĸ"),
+    ("w", "ɯ"),
+    ("b", "ь"),
 )
 
 _CREDENTIAL_DELIMITER_CONFUSABLES = (
@@ -123,12 +129,46 @@ _CREDENTIAL_DELIMITER_CONFUSABLES = (
     ("꞉", ":"),
     ("ː", ":"),
     ("˸", ":"),
+    ("։", ":"),
+    ("፡", ":"),
+    ("⁝", ":"),
+    ("∷", ":"),
+    ("׃", ":"),
+    ("ˑ", ":"),
+    ("꞊", "="),
+    ("≡", "="),
+    ("≔", "="),
+    ("≕", "="),
+    ("˭", "="),
     ("∕", "/"),
     ("⁄", "/"),
+    ("⫽", "/"),
+    ("⧸", "/"),
+    ("╱", "/"),
+    ("🙼", "/"),
+    ("⟋", "/"),
+    ("⟍", "/"),
     ("−", "-"),
     ("⁃", "-"),
     ("·", "-"),
 )
+
+# Bounded authority-start delimiter class. These are the solidus/slash-family
+# characters that remain a slash under NFKC and may open a URL authority start.
+# Deliberately excluded:
+#   - U+2E17 DOUBLE OBLIQUE HYPHEN: Pd dash, folded to "-" by the root fold and
+#     covered by the dash-separator class;
+#   - U+2F03 KANGXI RADICAL SLASH: NFKC-folds to U+4E3F (a CJK ideograph, a
+#     word character), so it is not a slash after normalization.
+# This is not a glyph-shape blanket: only the solidus/diagonal operator family
+# that survives NFKC as a slash is admitted.
+_URL_AUTHORITY_SLASHES = "/∕⁄⫽⧸╱🙼⟋⟍"
+
+# Bounded composite-label separator class. Includes the ASCII separators and the
+# dot/middle-dot family used by `api.key`, `api∙key`, and `api・key`. Slash-like
+# separators are intentionally excluded (they are handled by the authority-slash
+# class, not the composite-separator class).
+_CREDENTIAL_COMPOSITE_SEPARATORS = " _-∙・."
 
 _CREDENTIAL_COMPOSITE_FAMILIES = (
     ("api", "key"),
@@ -141,12 +181,10 @@ _CREDENTIAL_BARE_SCHEME_MARKERS = ("bearer ",)
 
 _CREDENTIAL_INVISIBLE_FILLERS = frozenset(("ᅟ", "ᅠ", "⠀"))
 
-_URL_AUTHORITY_TERMINATOR_SENTINELS = (
-    ("/", "∕"),
-    ("?", "¿"),
-    ("#", "♯"),
-)
-_URL_AUTHORITY_WHITESPACE_SENTINEL = "¤"
+# Non-word, non-slash, non-terminator sentinel used to preserve a source token
+# boundary (whitespace, marks, fillers, and multi-character expansions) through
+# the URL detection skeleton.
+_URL_AUTHORITY_BOUNDARY_SENTINEL = "¤"
 
 
 def _validate_date(value: date, *, field_name: str) -> None:
@@ -175,10 +213,11 @@ def _validate_code(value: str, *, field_name: str) -> None:
 
 
 def _contains_url_userinfo(value: str) -> bool:
+    slashes = _URL_AUTHORITY_SLASHES
     return (
         search(
-            r"(?:[a-z][a-z0-9+.-]*:[/∕⁄]{2}|(?<![a-z0-9/∕⁄])[/∕⁄]{2})"
-            r"[^/?#\s]*@",
+            rf"(?:[a-z][a-z0-9+.-]*:[{slashes}]{{2}}|"
+            rf"(?<![^\W_{slashes}])[{slashes}]{{2}})[^/?#\s]*@",
             value,
         )
         is not None
@@ -215,7 +254,10 @@ def _contains_composite_credential_family(skeleton: str) -> bool:
             after_first = _matches_homoglyph_word(skeleton, index, first)
             if after_first is not None:
                 cursor = after_first
-                while cursor < len(skeleton) and skeleton[cursor] in " _-":
+                while (
+                    cursor < len(skeleton)
+                    and skeleton[cursor] in _CREDENTIAL_COMPOSITE_SEPARATORS
+                ):
                     cursor += 1
                 if _matches_homoglyph_word(skeleton, cursor, second) is not None:
                     return True
@@ -237,7 +279,9 @@ def _matches_sensitive_assignment_label(prefix: str, expected_label: str) -> boo
     index = len(prefix) - 1
     expected_index = len(expected_label) - 1
     while expected_index >= 0:
-        while index >= 0 and prefix[index] in " _-":
+        while (
+            index >= 0 and prefix[index] in _CREDENTIAL_COMPOSITE_SEPARATORS
+        ):
             index -= 1
         if index < 0 or not _credential_character_matches(
             prefix[index], expected_label[expected_index]
@@ -261,10 +305,22 @@ def _contains_confusable_sensitive_assignment(value: str) -> bool:
     return False
 
 
-def _fold_credential_detection_root(value: str) -> str:
+_MARK_CATEGORIES = frozenset(("Mn", "Mc", "Me"))
+
+
+def _fold_credential_detection_root(
+    value: str,
+    *,
+    fold_equals_confusables: bool = False,
+) -> str:
     folded: list[str] = []
     for character in value:
-        if category(character) == "Pd":
+        if fold_equals_confusables and character == "\u2e40":
+            # U+2E40 DOUBLE HYPHEN doubles as an equals-sign assignment
+            # delimiter in the assignment skeleton; in the primary skeleton it
+            # remains a Pd dash separator.
+            folded.append("=")
+        elif category(character) == "Pd":
             folded.append("-")
         elif character in ("\u03f2", "\u03f9"):
             folded.append("c")
@@ -273,24 +329,92 @@ def _fold_credential_detection_root(value: str) -> str:
     return "".join(folded)
 
 
+def _is_spacing_mark_clone(normalized: str) -> bool:
+    """True when a NFKC expansion is whitespace plus combining marks only."""
+    has_mark = False
+    for part in normalized:
+        if part.isspace():
+            continue
+        if category(part) in _MARK_CATEGORIES:
+            has_mark = True
+            continue
+        return False
+    return has_mark
+
+
 def _preserve_nfkc_url_authority_terminators(value: str) -> str:
     protected_parts: list[str] = []
     for character in value:
         normalized_character = normalize("NFKC", character)
-        if character not in "/?#" and not character.isspace():
-            normalized_character = "".join(
-                _URL_AUTHORITY_WHITESPACE_SENTINEL
-                if normalized_part.isspace()
-                else normalized_part
-                for normalized_part in normalized_character
-            )
-            for terminator, sentinel in _URL_AUTHORITY_TERMINATOR_SENTINELS:
-                normalized_character = normalized_character.replace(
-                    terminator,
-                    sentinel,
+
+        if character in "/?#" or character.isspace():
+            # Source authority slash, terminator, or whitespace: keep the
+            # canonical form so the source boundary significance is unchanged.
+            protected_parts.append(normalized_character)
+            continue
+
+        if character.isalnum() and all(
+            normalized_part.isalnum() for normalized_part in normalized_character
+        ):
+            # Source alphanumeric whose NFKC expansion stays alphanumeric.
+            protected_parts.append(normalized_character)
+            continue
+
+        if len(normalized_character) == 1:
+            # A single-character expansion keeps the source's boundary class.
+            if normalized_character == "/":
+                # A compatibility char folding to an ASCII slash becomes the
+                # non-terminator authority-slash sentinel.
+                protected_parts.append("∕")
+            elif normalized_character == "?":
+                protected_parts.append("¿")
+            elif normalized_character == "#":
+                protected_parts.append("♯")
+            elif normalized_character.isspace():
+                protected_parts.append(_URL_AUTHORITY_BOUNDARY_SENTINEL)
+            else:
+                protected_parts.append(normalized_character)
+            continue
+
+        if _is_spacing_mark_clone(normalized_character):
+            # A spacing clone of a combining mark (e.g. U+00A8 -> space +
+            # U+0308) is treated as its mark; the mark filter then removes it in
+            # mark-removing skeletons and the boundary skeleton preserves it as
+            # a printable boundary.
+            protected_parts.append(
+                "".join(
+                    part for part in normalized_character if not part.isspace()
                 )
-        protected_parts.append(normalized_character)
+            )
+            continue
+
+        # A multi-character expansion that introduces alphanumerics, slashes,
+        # terminators, or whitespace would change the source character's
+        # non-alphanumeric/non-slash boundary significance. Collapse it to a
+        # single non-alphanumeric boundary sentinel so a scheme-relative "//"
+        # authority start stays at its original token boundary.
+        protected_parts.append(_URL_AUTHORITY_BOUNDARY_SENTINEL)
+
     return "".join(protected_parts)
+
+
+def _casefold_preserving_source_marks(value: str) -> str:
+    """casefold non-mark characters while leaving source marks untouched.
+
+    Marks that casefold itself introduces (e.g. U+0130 -> "i" + U+0307) are
+    stripped so they do not become spurious lookbehind boundaries; source marks
+    are preserved so they keep acting as printable token boundaries.
+    """
+    return "".join(
+        character
+        if category(character) in _MARK_CATEGORIES
+        else "".join(
+            part
+            for part in character.casefold()
+            if category(part) not in _MARK_CATEGORIES
+        )
+        for character in value
+    )
 
 
 def _credential_detection_skeleton(
@@ -299,29 +423,57 @@ def _credential_detection_skeleton(
     fold_url_slash_confusables: bool = True,
     preserve_invisible_fillers: bool = False,
     preserve_marks: bool = False,
+    fold_equals_confusables: bool = False,
 ) -> str:
-    root_value = _fold_credential_detection_root(value)
+    root_value = _fold_credential_detection_root(
+        value,
+        fold_equals_confusables=fold_equals_confusables,
+    )
     normalization_source = (
         root_value
         if fold_url_slash_confusables
         else _preserve_nfkc_url_authority_terminators(root_value)
     )
-    normalized = normalize(
-        "NFD",
-        normalize("NFKC", normalization_source).casefold(),
-    )
-    filtered = "".join(
-        character
-        for character in normalized
-        if (
-            preserve_marks
-            or category(character) not in {"Mn", "Mc", "Me"}
+    compatibility = normalize("NFKC", normalization_source)
+
+    if preserve_marks:
+        # Boundary-preserving skeleton. Compose first (NFC) so a combining mark
+        # that is canonically part of a precomposed letter (e + U+0301 -> é)
+        # folds back into the letter instead of becoming a spurious boundary.
+        # Protect the remaining standalone marks from casefold (U+0345 would
+        # otherwise become Greek iota) so they survive as printable boundaries.
+        composed = normalize("NFC", compatibility)
+        casefolded = _casefold_preserving_source_marks(composed)
+        normalized = normalize("NFC", casefolded)
+    else:
+        # Mark-removing skeleton. Strip marks before casefold (so U+0345 is
+        # removed while still a mark) and again after casefold (so marks
+        # introduced by casefold, e.g. U+0130 -> i + U+0307, are removed too).
+        decomposed = normalize("NFD", compatibility)
+        stripped = "".join(
+            character
+            for character in decomposed
+            if category(character) not in _MARK_CATEGORIES
         )
-        and (
-            preserve_invisible_fillers
-            or character not in _CREDENTIAL_INVISIBLE_FILLERS
-        )
-    )
+        normalized = normalize("NFD", stripped.casefold())
+
+    filtered_parts: list[str] = []
+    for character in normalized:
+        is_mark = category(character) in _MARK_CATEGORIES
+        is_filler = character in _CREDENTIAL_INVISIBLE_FILLERS
+        if is_mark:
+            if preserve_marks:
+                # Preserve the printable mark as a non-word boundary sentinel so
+                # a scheme-relative "//" authority start stays at its original
+                # token boundary instead of concatenating with a preceding word.
+                filtered_parts.append(_URL_AUTHORITY_BOUNDARY_SENTINEL)
+            continue
+        if is_filler:
+            if preserve_invisible_fillers:
+                filtered_parts.append(_URL_AUTHORITY_BOUNDARY_SENTINEL)
+            continue
+        filtered_parts.append(character)
+    filtered = "".join(filtered_parts)
     for confusable, canonical in _CREDENTIAL_DELIMITER_CONFUSABLES:
         if not fold_url_slash_confusables and canonical == "/":
             continue
@@ -346,6 +498,15 @@ def _validate_text(
             f"{field_name} must be non-empty normalized text <= {max_length} chars"
         )
     detection_value = _credential_detection_skeleton(value)
+    # Assignment skeleton additionally folds the bounded equals/colon
+    # assignment-delimiter class. U+2E40 DOUBLE HYPHEN is a Pd dash (kept as "-"
+    # in the primary skeleton for the composite-separator role) but doubles as
+    # an equals sign, so the assignment checks run against a skeleton that folds
+    # it to "=".
+    assignment_detection_value = _credential_detection_skeleton(
+        value,
+        fold_equals_confusables=True,
+    )
     url_detection_value = _credential_detection_skeleton(
         value,
         fold_url_slash_confusables=False,
@@ -369,8 +530,9 @@ def _validate_text(
         any(marker in detection_value for marker in _SENSITIVE_TEXT_MARKERS)
         or _contains_composite_credential_family(detection_value)
         or _contains_bare_scheme_homoglyph(detection_value)
-        or search(_SENSITIVE_ASSIGNMENT_PATTERN, detection_value) is not None
-        or _contains_confusable_sensitive_assignment(detection_value)
+        or search(_SENSITIVE_ASSIGNMENT_PATTERN, assignment_detection_value)
+        is not None
+        or _contains_confusable_sensitive_assignment(assignment_detection_value)
         or _contains_url_userinfo(url_detection_value)
         or _contains_url_userinfo(url_boundary_detection_value)
     ):
@@ -392,19 +554,27 @@ def _revalidate_identity_family(
             "with exact str value"
         )
     )
-    if type(value) is not IdentityFamilyCode or type(value.value) is not str:
+    state_error = (
+        "family lookup requires canonical UMI-02 IdentityFamilyCode state"
+        if lookup
+        else (
+            "instrument-universe family must retain canonical UMI-02 "
+            "IdentityFamilyCode state"
+        )
+    )
+    if type(value) is not IdentityFamilyCode:
+        raise InstrumentUniverseRegistryValidationError(type_error)
+    try:
+        exact_value_type = type(value.value) is str
+    except AttributeError:
+        raise InstrumentUniverseRegistryValidationError(type_error) from None
+    if not exact_value_type:
         raise InstrumentUniverseRegistryValidationError(type_error)
     try:
         value.__post_init__()
     except UniversalInstrumentIdentityValidationError:
-        state_error = (
-            "family lookup requires canonical UMI-02 IdentityFamilyCode state"
-            if lookup
-            else (
-                "instrument-universe family must retain canonical UMI-02 "
-                "IdentityFamilyCode state"
-            )
-        )
+        raise InstrumentUniverseRegistryValidationError(state_error) from None
+    except (AttributeError, TypeError):
         raise InstrumentUniverseRegistryValidationError(state_error) from None
 
 
@@ -571,11 +741,18 @@ def _revalidate_str_enum_member(
 
     canonical_value: str | None = None
     for member, expected_name, expected_value in canonical_members:
+        try:
+            member_name = member.name
+            member_value = member.value
+        except (AttributeError, TypeError):
+            raise InstrumentUniverseRegistryValidationError(
+                f"{field_name} enum must retain canonical member state"
+            ) from None
         if (
-            type(member.name) is not str
-            or member.name != expected_name
-            or type(member.value) is not str
-            or member.value != expected_value
+            type(member_name) is not str
+            or member_name != expected_name
+            or type(member_value) is not str
+            or member_value != expected_value
         ):
             raise InstrumentUniverseRegistryValidationError(
                 f"{field_name} enum must retain canonical member state"

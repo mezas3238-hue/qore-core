@@ -22,12 +22,36 @@ _PRINTABLE_MARKS = (
     "\u20e3",  # COMBINING ENCLOSING KEYCAP (Me)
 )
 
+# R20 (F-FALSEPOS) refinement: a mark that canonically recomposes with its base
+# letter (NFC e + U+0301 -> é, e + U+0327 -> ȩ) is part of the letter, not a
+# token boundary. Such a mark immediately before "//" is therefore benign the
+# same way "é//user@host" matches "e//user@host". The remaining marks do not
+# recompose and stay genuine printable boundaries.
+_BOUNDARY_MARKS = (
+    "\ufe0f",  # VARIATION SELECTOR-16 (Mn)
+    "\u034f",  # COMBINING GRAPHEME JOINER (Mn)
+    "\u0903",  # DEVANAGARI SIGN VISARGA (Mc)
+    "\u20dd",  # COMBINING ENCLOSING CIRCLE (Me)
+    "\u20e3",  # COMBINING ENCLOSING KEYCAP (Me)
+)
+_RECOMBINING_MARKS = (
+    "\u0301",  # COMBINING ACUTE ACCENT (Mn)
+    "\u0327",  # COMBINING CEDILLA (Mn)
+)
+
 _SCHEME_RELATIVE_MARK_WITNESSES = tuple(
     f"Evidence{mark}//alice:password@example.invalid/evidence"
-    for mark in _PRINTABLE_MARKS
+    for mark in _BOUNDARY_MARKS
 )
 _ALNUM_PREFIX_MARK_WITNESSES = tuple(
-    f"abc{mark}//user@host" for mark in _PRINTABLE_MARKS
+    f"abc{mark}//user@host" for mark in _BOUNDARY_MARKS
+)
+_RECOMBINING_SCHEME_RELATIVE_WITNESSES = tuple(
+    f"Evidence{mark}//alice:password@example.invalid/evidence"
+    for mark in _RECOMBINING_MARKS
+)
+_RECOMBINING_ALNUM_PREFIX_WITNESSES = tuple(
+    f"abc{mark}//user@host" for mark in _RECOMBINING_MARKS
 )
 _MARK_BETWEEN_AUTHORITY_SLASHES = tuple(
     f"/{mark}/user@host" for mark in _PRINTABLE_MARKS
@@ -40,7 +64,7 @@ _MARK_INSIDE_SCHEME = tuple(
 )
 _MULTI_AUTHORITY_MARK = tuple(
     f"https://safe.example/Evidence{mark}//alice:password@example.invalid/evidence"
-    for mark in _PRINTABLE_MARKS
+    for mark in _BOUNDARY_MARKS
 )
 
 
@@ -62,6 +86,20 @@ def test_reason_constructor_rejects_alnum_prefix_mark_userinfo(value: str) -> No
         match="credential-like material",
     ):
         registry.InstrumentUniverseReason(value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    _RECOMBINING_SCHEME_RELATIVE_WITNESSES + _RECOMBINING_ALNUM_PREFIX_WITNESSES,
+)
+def test_reason_accepts_recombining_mark_that_is_part_of_a_letter(
+    value: str,
+) -> None:
+    # R20 (F-FALSEPOS): a canonically recombining mark (U+0301/U+0327) folds
+    # back into its base letter, so it must not become a spurious "//" boundary.
+    reason = registry.InstrumentUniverseReason(value)
+
+    assert reason.logical_values() == (value,)
 
 
 @pytest.mark.parametrize("value", _SCHEME_RELATIVE_MARK_WITNESSES)
