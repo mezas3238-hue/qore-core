@@ -399,6 +399,11 @@ by the first candidate:
 - control characters;
 - existing authorization/bearer/api-key/password/secret/token forms.
 
+A complete declared sensitive label (including homoglyph/confusable renderings) is
+detected wherever it appears before an assignment delimiter (`=`/`:`), even when a
+preceding alphanumeric prefix is present; the substring marker layer applies the same
+anywhere-before-delimiter policy to literal ASCII forms.
+
 This remains deterministic validation only. No secret scanner service, network call,
 regex credential extraction pipeline or sanitizer side effect is introduced.
 
