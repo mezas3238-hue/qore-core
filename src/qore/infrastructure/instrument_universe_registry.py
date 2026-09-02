@@ -289,7 +289,11 @@ def _matches_sensitive_assignment_label(prefix: str, expected_label: str) -> boo
             return False
         index -= 1
         expected_index -= 1
-    return index < 0 or not prefix[index].isalnum()
+    # A complete declared sensitive label was consumed, so detection succeeds
+    # regardless of a preceding alphanumeric prefix. The residual left-boundary
+    # rejection previously let homoglyph labels with a Unicode/ASCII alphanumeric
+    # prefix (e.g. `xtоken=`, `αtоken=`) escape the confusable-assignment path.
+    return True
 
 
 def _contains_confusable_sensitive_assignment(value: str) -> bool:
