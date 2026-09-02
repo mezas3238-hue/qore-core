@@ -24,7 +24,7 @@ jobs:
           BASE=9672c4d999bd5d3e6db544f349243bc6abea0363
           WF=.github/workflows/materialize-cibo-batch004-recovery.yml
           test "$(git diff --name-only "$BASE" HEAD | tr -d '\r')" = "$WF"
-          URL='https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-d44c-820e-b9d9-f80878d2e9e3/raw?se=2026-09-02T22%3A56%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=f7ab5fbe-6f1f-5338-9956-9e966de20188&skoid=db6dad9e-03ee-465b-aef6-ce0f63a161dc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-02T13%3A50%3A17Z&ske=2026-09-03T13%3A50%3A17Z&sks=b&skv=2026-02-06&sig=8LvdIyPnb%2BKYIu0dgr7SDh40VAty5T8hd%2BweYxMC/t0%3D'
+          URL='https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-fb80-820e-89a3-98bfb3135bc6/raw?se=2026-09-02T22%3A57%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=33d475f2-5f88-5c34-8f1e-a4f2f1193c49&skoid=db6dad9e-03ee-465b-aef6-ce0f63a161dc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-02T11%3A07%3A07Z&ske=2026-09-03T11%3A07%3A07Z&sks=b&skv=2026-02-06&sig=XYTwVKxaq35IRgKskNRSTWny4kfUHnRHlbc5ZopmFhc%3D'
           curl -fsSL "$URL" -o /tmp/artifact.zip
           mkdir -p /tmp/artifact
           unzip -q /tmp/artifact.zip -d /tmp/artifact
@@ -34,11 +34,11 @@ jobs:
           git apply --check "$PATCH"
           git apply "$PATCH"
           git rm "$WF"
-          git diff --check
-          test "$(git diff --name-only "$BASE" | wc -l)" = "7"
-          test "$(git diff --numstat "$BASE" | awk '{a+=$1; d+=$2} END {print a+d}')" = "2523"
+          git add -A
+          git diff --cached --check
+          test "$(git diff --cached --name-only "$BASE" | wc -l)" = "7"
+          test "$(git diff --cached --numstat "$BASE" | awk '{a+=$1; d+=$2} END {print a+d}')" = "2523"
           git config user.name 'QORE Recovery Materializer'
           git config user.email 'recovery@qore.invalid'
-          git add -A
           git commit -m 'Materialize recovered CIBO Batch 004 candidate'
           git push origin HEAD:agent/qore-cibo-trader-development-manager-001-recovery-materialize
