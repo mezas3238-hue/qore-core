@@ -1,0 +1,143 @@
+"""Trader Lab: a governed first-class qualification component.
+
+The Trader Lab binds an exact Trader candidate, enforces the mandatory
+qualification lifecycle, qualifies Fast-Forward without a parallel replay
+engine, orchestrates Stress/Monte-Carlo robustness through the existing
+deterministic research resampling machinery, and gates ``DEMO_ELIGIBLE`` on
+Risk + CIBO + independent validation plus economic evidence.
+
+It contains no concrete Trader methodology, no execution authority, and no
+Production or Risk-bypass surface.
+"""
+
+from qore.infrastructure.trader_lab.candidate import (
+    TraderLabCandidateBinding,
+    TraderLabCandidateFingerprint,
+    TraderLabCandidateId,
+    TraderLabCandidateVersion,
+    TraderLabError,
+    TraderLabValidationError,
+    build_trader_lab_candidate_binding,
+    compute_trader_lab_candidate_fingerprint,
+)
+from qore.infrastructure.trader_lab.fast_forward import (
+    TraderLabFastForwardFingerprint,
+    TraderLabFastForwardQualification,
+    TraderLabFastForwardQualificationId,
+    TraderLabFastForwardSchedule,
+    TraderLabFastForwardStep,
+    compute_trader_lab_fast_forward_fingerprint,
+    qualify_trader_lab_fast_forward,
+)
+from qore.infrastructure.trader_lab.lifecycle import (
+    MANDATORY_STAGES,
+    TraderLabLifecycle,
+    TraderLabPromotionRequest,
+    TraderLabRejectionRequest,
+    TraderLabStageQualification,
+    TraderLabState,
+    TraderLabTerminalRecord,
+    apply_trader_lab_promotion,
+    apply_trader_lab_rejection,
+    start_trader_lab_lifecycle,
+    validate_trader_lab_lifecycle,
+)
+from qore.infrastructure.trader_lab.promotion import (
+    TraderLabPromotionDecision,
+    TraderLabPromotionStatus,
+    evaluate_demo_eligibility,
+)
+from qore.infrastructure.trader_lab.robustness import (
+    TraderLabCostPerturbationSpec,
+    TraderLabExperimentFingerprint,
+    TraderLabExperimentId,
+    TraderLabExperimentRegistration,
+    TraderLabMonteCarloEvidenceId,
+    TraderLabMonteCarloExperimentEvidence,
+    TraderLabMonteCarloFingerprint,
+    TraderLabMonteCarloStatus,
+    TraderLabRobustnessFamily,
+    TraderLabThreshold,
+    build_trader_lab_experiment_registration,
+    build_trader_lab_monte_carlo_experiment_evidence,
+    compute_trader_lab_experiment_fingerprint,
+    compute_trader_lab_monte_carlo_fingerprint,
+)
+from qore.infrastructure.trader_lab.stage_evidence import (
+    TraderLabEvidenceDigest,
+    TraderLabEvidenceKind,
+    TraderLabEvidenceReference,
+    TraderLabStage,
+    TraderLabStageEvidenceFingerprint,
+    TraderLabStageEvidenceId,
+    TraderLabStageEvidenceRecord,
+    build_trader_lab_stage_evidence,
+    compute_trader_lab_stage_evidence_fingerprint,
+    make_trader_lab_evidence_reference,
+    reference_replay_chronology,
+    reference_research_block_bootstrap_distribution,
+    reference_research_frozen_oos,
+    reference_research_resampling_envelope,
+    reference_research_sampling_frame,
+)
+
+__all__ = [
+    "MANDATORY_STAGES",
+    "TraderLabCandidateBinding",
+    "TraderLabCandidateFingerprint",
+    "TraderLabCandidateId",
+    "TraderLabCandidateVersion",
+    "TraderLabCostPerturbationSpec",
+    "TraderLabError",
+    "TraderLabEvidenceDigest",
+    "TraderLabEvidenceKind",
+    "TraderLabEvidenceReference",
+    "TraderLabExperimentFingerprint",
+    "TraderLabExperimentId",
+    "TraderLabExperimentRegistration",
+    "TraderLabFastForwardFingerprint",
+    "TraderLabFastForwardQualification",
+    "TraderLabFastForwardQualificationId",
+    "TraderLabFastForwardSchedule",
+    "TraderLabFastForwardStep",
+    "TraderLabLifecycle",
+    "TraderLabMonteCarloEvidenceId",
+    "TraderLabMonteCarloExperimentEvidence",
+    "TraderLabMonteCarloFingerprint",
+    "TraderLabMonteCarloStatus",
+    "TraderLabPromotionDecision",
+    "TraderLabPromotionRequest",
+    "TraderLabPromotionStatus",
+    "TraderLabRejectionRequest",
+    "TraderLabRobustnessFamily",
+    "TraderLabStage",
+    "TraderLabStageEvidenceFingerprint",
+    "TraderLabStageEvidenceId",
+    "TraderLabStageEvidenceRecord",
+    "TraderLabStageQualification",
+    "TraderLabState",
+    "TraderLabTerminalRecord",
+    "TraderLabThreshold",
+    "TraderLabValidationError",
+    "apply_trader_lab_promotion",
+    "apply_trader_lab_rejection",
+    "build_trader_lab_candidate_binding",
+    "build_trader_lab_experiment_registration",
+    "build_trader_lab_monte_carlo_experiment_evidence",
+    "build_trader_lab_stage_evidence",
+    "compute_trader_lab_candidate_fingerprint",
+    "compute_trader_lab_experiment_fingerprint",
+    "compute_trader_lab_fast_forward_fingerprint",
+    "compute_trader_lab_monte_carlo_fingerprint",
+    "compute_trader_lab_stage_evidence_fingerprint",
+    "evaluate_demo_eligibility",
+    "make_trader_lab_evidence_reference",
+    "qualify_trader_lab_fast_forward",
+    "reference_replay_chronology",
+    "reference_research_block_bootstrap_distribution",
+    "reference_research_frozen_oos",
+    "reference_research_resampling_envelope",
+    "reference_research_sampling_frame",
+    "start_trader_lab_lifecycle",
+    "validate_trader_lab_lifecycle",
+]
