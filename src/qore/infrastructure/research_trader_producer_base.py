@@ -20,7 +20,10 @@ from qore.infrastructure.research_lineage_errors import (
 )
 from qore.infrastructure.research_run import ResearchSoftwareRevision
 from qore.infrastructure.research_schedule import ResearchStartPolicy
-from qore.infrastructure.research_strategy_freeze import ResearchRunStrategyBinding
+from qore.infrastructure.research_strategy_freeze import (
+    ResearchRunStrategyBinding,
+    ResearchStrategyParameter,
+)
 from qore.infrastructure.research_strategy_state import ResearchStrategyState
 from qore.infrastructure.research_trader_signal import (
     TraderSignalSide,
@@ -55,6 +58,11 @@ class BoundedOhlcTraderEvaluator:
         raise NotImplementedError
 
     @property
+    def strategy_parameters(self) -> tuple[ResearchStrategyParameter, ...]:
+        """Exact canonical parameter tuple the frozen strategy manifest must retain."""
+        raise NotImplementedError
+
+    @property
     def identity(self) -> ResearchDecisionEvaluatorIdentity:
         return ResearchDecisionEvaluatorIdentity(
             family=ResearchDecisionEvaluatorFamily(self._family),
@@ -76,6 +84,14 @@ class BoundedOhlcTraderEvaluator:
         if revision != self._software_revision:
             raise ResearchEvaluatorIdentityMismatchError(
                 "strategy run software revision does not match evaluator revision"
+            )
+        if strategy_binding.manifest.schema_version.value != self._schema_version:
+            raise ResearchEvaluatorIdentityMismatchError(
+                "strategy manifest schema version does not match evaluator schema"
+            )
+        if strategy_binding.manifest.parameters != self.strategy_parameters:
+            raise ResearchEvaluatorIdentityMismatchError(
+                "strategy manifest parameters do not exactly match evaluator configuration"
             )
 
     def create_initial_state(
