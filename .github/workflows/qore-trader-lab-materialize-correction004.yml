@@ -5,7 +5,7 @@ on:
     branches:
       - agent/qore-trader-lab-001-recovery-materialize
     paths:
-      - .qore-recovery/trader-lab-correction-004.patch.gz.b64
+      - .qore-recovery/trader-lab-correction-004.patch.gz.b64.part4
 
 permissions:
   contents: write
@@ -25,7 +25,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse 5d25445faf57fa83410b57faf5eaf1f437949129^{tree})" = "f9df989d7e7120d8742d4001b045fdd11cb0cb03"
-          base64 -d .qore-recovery/trader-lab-correction-004.patch.gz.b64 | gzip -d > /tmp/trader-lab-correction-004.patch
+          cat .qore-recovery/trader-lab-correction-004.patch.gz.b64.part{1,2,3,4} > /tmp/patch.b64
+          base64 -d /tmp/patch.b64 | gzip -d > /tmp/trader-lab-correction-004.patch
           echo "cd6f86489ccc85c2aadad5bb1bf0724878212505b740c2e403e5d01a64d7c3c5  /tmp/trader-lab-correction-004.patch" | sha256sum -c -
           git apply --check /tmp/trader-lab-correction-004.patch
           git apply /tmp/trader-lab-correction-004.patch
@@ -35,7 +36,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .qore-recovery/trader-lab-correction-004.patch.gz.b64
+          rm -f .qore-recovery/trader-lab-correction-004.patch.gz.b64.part{1,2,3,4}
           rm -f .github/workflows/qore-trader-lab-materialize-correction004.yml
           rmdir .qore-recovery 2>/dev/null || true
           git add -A
