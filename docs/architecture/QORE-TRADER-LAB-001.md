@@ -26,6 +26,30 @@ TRADER_LAB                != RISK_BYPASS
 DEMO_ELIGIBLE             != PROFITABLE
 ```
 
+External governed-evidence authenticity laws (Risk/CIBO/independent validation):
+
+```text
+CALLER-SUPPLIED VERIFIER   != AUTHORITY ROOT
+PRIVATE PYTHON NAME        != CAPABILITY SECURITY
+TYPED APPROVED OBJECT      != AUTHENTIC GOVERNED EVIDENCE
+LOCAL TYPED REFERENCE      != EXTERNALLY ISSUED AUTHORITY-KIND-BOUND PROOF
+RISK AUTHORITY             != CIBO AUTHORITY
+CIBO AUTHORITY             != INDEPENDENT-VALIDATION AUTHORITY
+TRADER LAB                 != RISK/CIBO/INDEPENDENT VALIDATION AUTHORITY
+NO AUTHENTIC GOVERNED RISK/CIBO/INDEPENDENT-VALIDATION EVIDENCE
+  -> NO QUALIFYING STAGE
+  -> NO DEMO_ELIGIBLE
+```
+
+Risk, CIBO, and independent validation are governed by external authorities with no in-repo
+digest/decision producer on this baseline. The Lab carries a provider-neutral
+CONSUME/VERIFY-ONLY seam (`TraderLabGovernedAuthorityKind` + sealed
+`TraderLabGovernedAuthenticityProof` + `verify_governed_gate_evidence`) and ships no function —
+public or private — able to mint a qualifying APPROVED external decision. The proof's `_issued`
+marker is `init=False` and no in-repo Lab code can set it, so a proof can only arrive from an
+owning authority OUTSIDE the Lab. With no externally issued proof, the gate is
+`EXTERNAL_EVIDENCE_DEPENDENT` and fails closed.
+
 Hard admission law:
 
 ```text
@@ -125,15 +149,40 @@ or a mutated chain fails closed.
 
 - explicit `produced_at` (timezone-aware, never a hidden clock);
 - a `source_reference` (`TraderLabEvidenceReference` = kind + reference_id + content digest +
-  schema version);
+  schema version + self-authenticating marker + strategy-binding lineage);
 - optional `supplementary` references;
 - a SHA-256 fingerprint over stage + candidate + references + time.
 
-Reference helpers digest the exact existing evidence (frozen-OOS fingerprint, sampling-frame,
-block-bootstrap distribution, resampling envelope, replay chronology) without fabricating
-their conclusions. Risk/CIBO/economic/independent-validation attach through opaque typed
-seams — the Lab invents none of their implementations. Duplicate, stale, mismatched, or
-post-hoc mutated evidence is rejected.
+Each mandatory stage has an exact fail-closed evidence-kind contract
+(`STAGE_ALLOWED_EVIDENCE_KINDS`); a semantically wrong kind is rejected on construction and at
+every trust-boundary revalidation. Evidence kinds split into two closed families:
+
+- **Self-authenticating** (in-repo producer material): RESEARCH, REPLAY, FAST_FORWARD, OOS,
+  STRESS, MONTE_CARLO, and ECONOMIC_EVALUATION. Their content digest is derived from the
+  referenced canonical object by a content-deriving helper, never accepted as an arbitrary
+  caller-supplied digest. `self_authenticating` is not a constructor argument (only the helpers
+  set it through the internal factory), so a fabricated digest cannot launder an in-repo
+  evidence object.
+- **External-authenticated** (no in-repo producer): RISK_REVIEW, CIBO_REVIEW,
+  INDEPENDENT_VALIDATION. A qualifying reference for these kinds requires a sealed authenticity
+  proof (`TraderLabGovernedAuthenticityProof`, `_issued` is `init=False`) issued by an owning
+  authority OUTSIDE the Lab, binding the exact authority kind (`TraderLabGovernedAuthorityKind`),
+  issuer, evidence fingerprint, and time. The reference's `external_authenticity_proof` is
+  `init=False` and must equal its content digest, so no public or private Trader Lab value
+  constructor can synthesize a qualifying external-gate reference.
+
+Risk/CIBO/independent validation attach through `verify_governed_gate_evidence`, which VERIFIES
+an already-issued external proof binding the exact authority kind, issuer, and time to a
+candidate-bound, `APPROVED` record; with no proof it fails closed as
+`EXTERNAL_EVIDENCE_DEPENDENT`. Economic evaluation attaches through `reference_research_economic`,
+whose digest is derived from the exact `ResearchReturnObservation`.
+
+Reference helpers digest the exact existing evidence (evaluation-freeze, frozen-OOS,
+sampling-frame, block-bootstrap distribution, resampling envelope, Monte Carlo experiment,
+stress evidence, replay chronology) and bind it to the exact candidate strategy lineage, so
+cross-candidate evidence reuse is rejected. Duplicate, stale, mismatched, or post-hoc mutated
+evidence is rejected, and trust-boundary revalidation recomputes candidate/stage fingerprints
+from retained material.
 
 ## Fast-Forward qualification
 
@@ -159,9 +208,13 @@ the experiment identity, so a prior qualification cannot be reused.
 
 `TraderLabMonteCarloExperimentEvidence` composes `ResearchBlockBootstrapPolicy`,
 `ResearchBlockBootstrapDistribution`, and `ResearchResamplingEnvelope` (existing deterministic
-machinery — no new RNG). Its status is derived fail-closed: insufficient sample or unsupported
-dependence can never yield `QUALIFIED`. Monte Carlo is a descriptive resampling envelope, not
-a calibrated probability or edge claim.
+machinery — no new RNG). Its status is derived fail-closed from the frozen thresholds:
+insufficient sample, unsupported dependence, an unsupported threshold metric, or a threshold
+violation can never yield `QUALIFIED`. The MONTE_CARLO stage is satisfied only by a
+`reference_trader_lab_monte_carlo` reference whose derived status is `QUALIFIED`, so frozen
+thresholds actually participate in the promotion decision rather than being mere identity/
+fingerprint storage. Monte Carlo is a descriptive resampling envelope, not a calibrated
+probability or edge claim.
 
 Parameter-neighborhood evidence is a separate candidate-neighbor binding and can never promote
 the original candidate (candidate fingerprint mismatch). Cost/spread/slippage perturbation is
@@ -170,9 +223,17 @@ declared specification data (`TraderLabCostPerturbationSpec`), not hidden assump
 ## Promotion gate
 
 `evaluate_demo_eligibility` requires a fully re-validated lifecycle in `DEMO_ELIGIBLE` (i.e. the
-complete chain ending in independent validation) plus, when mandated, explicit economic
-evaluation evidence. CIBO may recommend but cannot self-promote; Risk review cannot be skipped;
-independent validation is a distinct final gate.
+complete chain ending in independent validation) plus explicit economic evaluation evidence that
+carries the exact `ECONOMIC_EVALUATION` kind. There is no opt-out, and a risk/replay/CIBO
+reference cannot masquerade as economic evidence (wrong-kind evidence fails closed with
+`NOT_ELIGIBLE_INVALID_ECONOMIC_EVIDENCE`). CIBO may recommend but cannot self-promote; Risk
+review cannot be skipped; independent validation is a distinct final gate. `DEMO_ELIGIBLE`
+grants no profitability proof and no execution authority.
+
+When a lifecycle has completed every in-repo stage (RESEARCH through MONTE_CARLO) but is still
+missing any external governed gate (RISK_REVIEW/CIBO_REVIEW/INDEPENDENT_VALIDATION), promotion
+fails closed with `EXTERNAL_EVIDENCE_DEPENDENT` — the remaining material must originate from an
+owning authority outside the Lab and cannot be produced locally.
 
 ## Reuse map (imports, not reimplementation)
 
@@ -186,15 +247,20 @@ independent validation is a distinct final gate.
 | Replay chronology | `RetainedMarketEventObservation`, `order_market_event_observations`, `visible_market_event_observations`, `derive_market_event_availability_instants` |
 | Kernel idioms | `Result`/`Success`/`Failure`, timezone-aware datetime, frozen+slots dataclasses, canonical SHA-256 fingerprints |
 
-Risk and CIBO are read-only architectural context; they are attached only through typed opaque
-reference seams, never imported as promotion authority.
+Risk and CIBO are read-only architectural context; they are attached only through the
+provider-neutral governed-gate verify-only seam (`verify_governed_gate_evidence`), never imported
+as promotion authority and never treated as self-promoting. The Lab imports no concrete
+provider, credential, network client, or operational authority.
 
 ## REMAINS (integration seams after concurrent CIBO build)
 
-- Risk review and CIBO review evidence production remains owned by their existing systems; the
-  Lab only carries typed content-bound references.
+- Risk review, CIBO review, and independent-validation evidence production remains owned by
+  their existing/owning authorities; the Lab only carries typed records and VERIFIES
+  already-issued external proofs through `verify_governed_gate_evidence` +
+  `TraderLabGovernedAuthorityKind`. On this baseline no external authority issues proofs, so
+  these three gates are `EXTERNAL_EVIDENCE_DEPENDENT` and fail closed.
 - Actual cost-perturbation and start/sub-window perturbed economic evidence must come from the
   existing economic evaluation machinery; the Lab declares the spec and references the result.
-- The exact wording of issue #473's economic-evaluation mandate is represented as an optional
-  but enabled-by-default promotion-gate requirement (`require_economic_evidence=True`) without
-  fabricating metrics.
+- The exact wording of issue #473's economic-evaluation mandate is represented as a mandatory
+  promotion-gate requirement with the exact `ECONOMIC_EVALUATION` kind, without fabricating
+  metrics or granting profitability/execution authority.

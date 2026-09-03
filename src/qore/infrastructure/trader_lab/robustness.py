@@ -34,10 +34,17 @@ from qore.infrastructure.trader_lab.candidate import (
     TraderLabCandidateBinding,
     TraderLabError,
     TraderLabValidationError,
+    _canonical_decimal,
     _validate_sha256,
     _validate_token,
 )
-from qore.infrastructure.trader_lab.stage_evidence import _canonical_bytes
+from qore.infrastructure.trader_lab.stage_evidence import (
+    TraderLabEvidenceDigest,
+    TraderLabEvidenceKind,
+    TraderLabEvidenceReference,
+    _canonical_bytes,
+    _make_self_authenticating_reference,
+)
 from qore.kernel.result import Failure, Result, Success
 
 
@@ -56,6 +63,8 @@ class TraderLabMonteCarloStatus(StrEnum):
     QUALIFIED = "qualified"
     INSUFFICIENT_SAMPLE = "insufficient_sample"
     UNSUPPORTED_DEPENDENCE = "unsupported_dependence"
+    THRESHOLD_VIOLATION = "threshold_violation"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
 
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
@@ -104,8 +113,8 @@ class TraderLabThreshold:
     def logical_values(self) -> tuple[str, str | None, str | None]:
         return (
             self.name,
-            format(self.lower, "f") if self.lower is not None else None,
-            format(self.upper, "f") if self.upper is not None else None,
+            _canonical_decimal(self.lower) if self.lower is not None else None,
+            _canonical_decimal(self.upper) if self.upper is not None else None,
         )
 
 
@@ -136,6 +145,23 @@ class TraderLabExperimentFingerprint:
         return (self.value,)
 
 
+def _canonical_thresholds(
+    thresholds: tuple[TraderLabThreshold, ...],
+) -> tuple[TraderLabThreshold, ...]:
+    """Validate and return thresholds in canonical name order (unique names)."""
+
+    if not isinstance(thresholds, tuple) or any(
+        not isinstance(item, TraderLabThreshold) for item in thresholds
+    ):
+        raise TraderLabValidationError(
+            "thresholds must be an immutable TraderLabThreshold tuple"
+        )
+    names = [item.name for item in thresholds]
+    if len(set(names)) != len(names):
+        raise TraderLabValidationError("threshold names must be unique")
+    return tuple(sorted(thresholds, key=lambda item: item.name))
+
+
 def compute_trader_lab_experiment_fingerprint(
     *,
     experiment_id: TraderLabExperimentId,
@@ -160,9 +186,26 @@ def compute_trader_lab_experiment_fingerprint(
         raise TraderLabValidationError("family must be TraderLabRobustnessFamily")
     _validate_token(algorithm, field_name="experiment algorithm")
     _validate_token(algorithm_version, field_name="experiment algorithm version")
-    ordered_thresholds = tuple(
-        sorted(thresholds, key=lambda item: item.name)
-    )
+    if block_length is not None and (
+        type(block_length) is not int or block_length < 2
+    ):
+        raise TraderLabValidationError(
+            "block_length must be an integer of at least two or None"
+        )
+    if seed is not None and (type(seed) is not int or seed < 0):
+        raise TraderLabValidationError(
+            "seed must be a non-negative integer or None"
+        )
+    if type(simulation_count) is not int or simulation_count <= 0:
+        raise TraderLabValidationError(
+            "simulation_count must be a positive integer"
+        )
+    if type(min_sample_size) is not int or min_sample_size < 2:
+        raise TraderLabValidationError(
+            "min_sample_size must be an integer of at least two"
+        )
+    _validate_timestamp(registered_at, field_name="registration registered_at")
+    ordered_thresholds = _canonical_thresholds(thresholds)
     canonical = {
         "schema": "qore.trader_lab.experiment_registration.v1",
         "experiment_id": str(experiment_id.value),
@@ -231,14 +274,10 @@ class TraderLabExperimentRegistration:
                 raise TraderLabValidationError(
                     "block bootstrap registration requires block_length and seed"
                 )
-        if not isinstance(self.thresholds, tuple) or any(
-            not isinstance(item, TraderLabThreshold) for item in self.thresholds
-        ):
+        if self.thresholds != _canonical_thresholds(self.thresholds):
             raise TraderLabValidationError(
-                "thresholds must be an immutable TraderLabThreshold tuple"
+                "thresholds must use canonical name order with unique names"
             )
-        if len({item.name for item in self.thresholds}) != len(self.thresholds):
-            raise TraderLabValidationError("threshold names must be unique")
         _validate_timestamp(self.registered_at, field_name="registration registered_at")
         if not isinstance(self.fingerprint, TraderLabExperimentFingerprint):
             raise TraderLabValidationError(
@@ -273,7 +312,10 @@ class TraderLabExperimentRegistration:
             self.seed,
             self.simulation_count,
             self.min_sample_size,
-            tuple(item.logical_values() for item in self.thresholds),
+            tuple(
+                item.logical_values()
+                for item in _canonical_thresholds(self.thresholds)
+            ),
             self.registered_at.astimezone(UTC).isoformat(timespec="microseconds"),
             self.fingerprint.logical_values(),
         )
@@ -296,6 +338,7 @@ def build_trader_lab_experiment_registration(
     """Freeze experiment metadata before any outcome is inspected."""
 
     try:
+        canonical_thresholds = _canonical_thresholds(thresholds)
         fingerprint = compute_trader_lab_experiment_fingerprint(
             experiment_id=experiment_id,
             candidate=candidate,
@@ -306,7 +349,7 @@ def build_trader_lab_experiment_registration(
             seed=seed,
             simulation_count=simulation_count,
             min_sample_size=min_sample_size,
-            thresholds=thresholds,
+            thresholds=canonical_thresholds,
             registered_at=registered_at,
         )
         return Success(
@@ -320,7 +363,7 @@ def build_trader_lab_experiment_registration(
                 seed=seed,
                 simulation_count=simulation_count,
                 min_sample_size=min_sample_size,
-                thresholds=thresholds,
+                thresholds=canonical_thresholds,
                 registered_at=registered_at,
                 fingerprint=fingerprint,
             )
@@ -385,10 +428,49 @@ class TraderLabMonteCarloFingerprint:
         return (self.value,)
 
 
+def _threshold_metric_value(
+    name: str,
+    distribution: ResearchBlockBootstrapDistribution,
+    envelope: ResearchResamplingEnvelope,
+) -> Decimal | None:
+    """Resolve a registered acceptance-threshold metric to authoritative evidence.
+
+    Only these four deterministic mean-return magnitudes are evaluable; any other
+    name (profitability, edge, significance, etc.) is unsupported and fails closed.
+    """
+
+    if name == "distribution.source_mean":
+        return distribution.source_mean
+    if name == "envelope.lower_mean":
+        return envelope.lower_mean
+    if name == "envelope.median_mean":
+        return envelope.median_mean
+    if name == "envelope.upper_mean":
+        return envelope.upper_mean
+    return None
+
+
 def _derive_monte_carlo_status(
     registration: TraderLabExperimentRegistration,
     distribution: ResearchBlockBootstrapDistribution,
+    envelope: ResearchResamplingEnvelope,
 ) -> TraderLabMonteCarloStatus:
+    if not isinstance(registration, TraderLabExperimentRegistration):
+        raise TraderLabValidationError(
+            "Monte Carlo status derivation requires TraderLabExperimentRegistration"
+        )
+    if not isinstance(distribution, ResearchBlockBootstrapDistribution):
+        raise TraderLabValidationError(
+            "Monte Carlo status derivation requires ResearchBlockBootstrapDistribution"
+        )
+    if not isinstance(envelope, ResearchResamplingEnvelope):
+        raise TraderLabValidationError(
+            "Monte Carlo status derivation requires ResearchResamplingEnvelope"
+        )
+    if envelope.distribution != distribution:
+        raise TraderLabValidationError(
+            "envelope distribution must equal the supplied distribution exactly"
+        )
     if distribution.sample_size < registration.min_sample_size:
         return TraderLabMonteCarloStatus.INSUFFICIENT_SAMPLE
     diagnostic_status = distribution.diagnostic.status
@@ -396,6 +478,16 @@ def _derive_monte_carlo_status(
         return TraderLabMonteCarloStatus.UNSUPPORTED_DEPENDENCE
     if diagnostic_status is ResearchLagOneCorrelationStatus.INSUFFICIENT_SAMPLE:
         return TraderLabMonteCarloStatus.INSUFFICIENT_SAMPLE
+    if not registration.thresholds:
+        return TraderLabMonteCarloStatus.INSUFFICIENT_EVIDENCE
+    for threshold in registration.thresholds:
+        value = _threshold_metric_value(threshold.name, distribution, envelope)
+        if value is None:
+            return TraderLabMonteCarloStatus.INSUFFICIENT_EVIDENCE
+        if threshold.lower is not None and value < threshold.lower:
+            return TraderLabMonteCarloStatus.THRESHOLD_VIOLATION
+        if threshold.upper is not None and value > threshold.upper:
+            return TraderLabMonteCarloStatus.THRESHOLD_VIOLATION
     return TraderLabMonteCarloStatus.QUALIFIED
 
 
@@ -424,19 +516,100 @@ def compute_trader_lab_monte_carlo_fingerprint(
     if not isinstance(status, TraderLabMonteCarloStatus):
         raise TraderLabValidationError("status must be TraderLabMonteCarloStatus")
     canonical = {
-        "schema": "qore.trader_lab.monte_carlo.v1",
+        "schema": "qore.trader_lab.monte_carlo.v2",
         "registration_fingerprint": registration.fingerprint.value,
         "policy": list(policy.logical_values()),
         "distribution_id": str(distribution.distribution_id.value),
         "sample_size": distribution.sample_size,
-        "source_mean": format(distribution.source_mean, "f"),
+        "source_mean": _canonical_decimal(distribution.source_mean),
         "resampled_means": [
-            format(value, "f") for value in distribution.resampled_means
+            _canonical_decimal(value) for value in distribution.resampled_means
         ],
         "envelope_id": str(envelope.envelope_id.value),
+        "empirical_sample_size": envelope.empirical_sample_size,
+        "lower_mean": _canonical_decimal(envelope.lower_mean),
+        "median_mean": _canonical_decimal(envelope.median_mean),
+        "upper_mean": _canonical_decimal(envelope.upper_mean),
         "status": status.value,
     }
     return TraderLabMonteCarloFingerprint(sha256(_canonical_bytes(canonical)).hexdigest())
+
+
+def validate_trader_lab_monte_carlo_experiment_evidence(
+    evidence: TraderLabMonteCarloExperimentEvidence,
+) -> None:
+    """Re-validate Monte Carlo experiment evidence at a trust boundary."""
+
+    if not isinstance(evidence, TraderLabMonteCarloExperimentEvidence):
+        raise TraderLabValidationError(
+            "evidence must be TraderLabMonteCarloExperimentEvidence"
+        )
+    if not isinstance(evidence.evidence_id, TraderLabMonteCarloEvidenceId):
+        raise TraderLabValidationError(
+            "evidence_id must be TraderLabMonteCarloEvidenceId"
+        )
+    if not isinstance(evidence.registration, TraderLabExperimentRegistration):
+        raise TraderLabValidationError(
+            "registration must be TraderLabExperimentRegistration"
+        )
+    if evidence.registration.family is not TraderLabRobustnessFamily.BLOCK_BOOTSTRAP:
+        raise TraderLabValidationError(
+            "Monte Carlo evidence requires a block bootstrap registration"
+        )
+    if not isinstance(evidence.policy, ResearchBlockBootstrapPolicy):
+        raise TraderLabValidationError("policy must be ResearchBlockBootstrapPolicy")
+    if not isinstance(evidence.distribution, ResearchBlockBootstrapDistribution):
+        raise TraderLabValidationError(
+            "distribution must be ResearchBlockBootstrapDistribution"
+        )
+    if not isinstance(evidence.envelope, ResearchResamplingEnvelope):
+        raise TraderLabValidationError("envelope must be ResearchResamplingEnvelope")
+    if not isinstance(evidence.status, TraderLabMonteCarloStatus):
+        raise TraderLabValidationError("status must be TraderLabMonteCarloStatus")
+    if evidence.registration.block_length != evidence.policy.block_length:
+        raise TraderLabValidationError(
+            "policy block_length must match the frozen registration"
+        )
+    if evidence.registration.simulation_count != evidence.policy.resample_count:
+        raise TraderLabValidationError(
+            "policy resample_count must match the frozen simulation_count"
+        )
+    if evidence.registration.seed != evidence.policy.seed:
+        raise TraderLabValidationError(
+            "policy seed must match the frozen registration seed"
+        )
+    if evidence.distribution.policy != evidence.policy:
+        raise TraderLabValidationError(
+            "distribution policy must equal the supplied policy exactly"
+        )
+    if evidence.envelope.distribution != evidence.distribution:
+        raise TraderLabValidationError(
+            "envelope distribution must equal the supplied distribution exactly"
+        )
+    expected_status = _derive_monte_carlo_status(
+        evidence.registration,
+        evidence.distribution,
+        evidence.envelope,
+    )
+    if evidence.status is not expected_status:
+        raise TraderLabValidationError(
+            "Monte Carlo status must match the derived fail-closed status"
+        )
+    if not isinstance(evidence.fingerprint, TraderLabMonteCarloFingerprint):
+        raise TraderLabValidationError(
+            "fingerprint must be TraderLabMonteCarloFingerprint"
+        )
+    expected = compute_trader_lab_monte_carlo_fingerprint(
+        registration=evidence.registration,
+        policy=evidence.policy,
+        distribution=evidence.distribution,
+        envelope=evidence.envelope,
+        status=evidence.status,
+    )
+    if evidence.fingerprint != expected:
+        raise TraderLabValidationError(
+            "Monte Carlo fingerprint must match the exact evidence"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -457,71 +630,7 @@ class TraderLabMonteCarloExperimentEvidence:
     fingerprint: TraderLabMonteCarloFingerprint
 
     def __post_init__(self) -> None:
-        if not isinstance(self.evidence_id, TraderLabMonteCarloEvidenceId):
-            raise TraderLabValidationError(
-                "evidence_id must be TraderLabMonteCarloEvidenceId"
-            )
-        if not isinstance(self.registration, TraderLabExperimentRegistration):
-            raise TraderLabValidationError(
-                "registration must be TraderLabExperimentRegistration"
-            )
-        if self.registration.family is not TraderLabRobustnessFamily.BLOCK_BOOTSTRAP:
-            raise TraderLabValidationError(
-                "Monte Carlo evidence requires a block bootstrap registration"
-            )
-        if not isinstance(self.policy, ResearchBlockBootstrapPolicy):
-            raise TraderLabValidationError("policy must be ResearchBlockBootstrapPolicy")
-        if not isinstance(self.distribution, ResearchBlockBootstrapDistribution):
-            raise TraderLabValidationError(
-                "distribution must be ResearchBlockBootstrapDistribution"
-            )
-        if not isinstance(self.envelope, ResearchResamplingEnvelope):
-            raise TraderLabValidationError("envelope must be ResearchResamplingEnvelope")
-        if not isinstance(self.status, TraderLabMonteCarloStatus):
-            raise TraderLabValidationError("status must be TraderLabMonteCarloStatus")
-        if self.registration.block_length != self.policy.block_length:
-            raise TraderLabValidationError(
-                "policy block_length must match the frozen registration"
-            )
-        if self.registration.simulation_count != self.policy.resample_count:
-            raise TraderLabValidationError(
-                "policy resample_count must match the frozen simulation_count"
-            )
-        if self.registration.seed != self.policy.seed:
-            raise TraderLabValidationError(
-                "policy seed must match the frozen registration seed"
-            )
-        if self.distribution.policy != self.policy:
-            raise TraderLabValidationError(
-                "distribution policy must equal the supplied policy exactly"
-            )
-        if self.envelope.distribution != self.distribution:
-            raise TraderLabValidationError(
-                "envelope distribution must equal the supplied distribution exactly"
-            )
-        expected_status = _derive_monte_carlo_status(
-            self.registration,
-            self.distribution,
-        )
-        if self.status is not expected_status:
-            raise TraderLabValidationError(
-                "Monte Carlo status must match the derived fail-closed status"
-            )
-        if not isinstance(self.fingerprint, TraderLabMonteCarloFingerprint):
-            raise TraderLabValidationError(
-                "fingerprint must be TraderLabMonteCarloFingerprint"
-            )
-        expected = compute_trader_lab_monte_carlo_fingerprint(
-            registration=self.registration,
-            policy=self.policy,
-            distribution=self.distribution,
-            envelope=self.envelope,
-            status=self.status,
-        )
-        if self.fingerprint != expected:
-            raise TraderLabValidationError(
-                "Monte Carlo fingerprint must match the exact evidence"
-            )
+        validate_trader_lab_monte_carlo_experiment_evidence(self)
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -558,7 +667,7 @@ def build_trader_lab_monte_carlo_experiment_evidence(
             raise TraderLabValidationError(
                 "distribution must be ResearchBlockBootstrapDistribution"
             )
-        status = _derive_monte_carlo_status(registration, distribution)
+        status = _derive_monte_carlo_status(registration, distribution, envelope)
         fingerprint = compute_trader_lab_monte_carlo_fingerprint(
             registration=registration,
             policy=policy,
@@ -579,3 +688,280 @@ def build_trader_lab_monte_carlo_experiment_evidence(
         )
     except TraderLabError as error:
         return Failure(error)
+
+
+def reference_trader_lab_monte_carlo(
+    candidate: TraderLabCandidateBinding,
+    evidence: TraderLabMonteCarloExperimentEvidence,
+) -> TraderLabEvidenceReference:
+    """Reference exact Monte Carlo qualification evidence bound to the candidate.
+
+    The MONTE_CARLO stage requires a ``TraderLabMonteCarloExperimentEvidence``
+    whose frozen thresholds actually participated in a ``QUALIFIED`` derivation:
+    any other status (threshold violation, insufficient sample/evidence,
+    unsupported dependence) fails closed. This is the only promotion-path entry
+    point for the MONTE_CARLO stage, so the raw resampling envelope alone can
+    never satisfy it.
+    """
+
+    validate_trader_lab_monte_carlo_experiment_evidence(evidence)
+    if evidence.registration.candidate != candidate:
+        raise TraderLabValidationError(
+            "Monte Carlo evidence must bind the exact candidate registration"
+        )
+    if evidence.status is not TraderLabMonteCarloStatus.QUALIFIED:
+        raise TraderLabValidationError(
+            "only a qualified Monte Carlo status may satisfy the MONTE_CARLO stage"
+        )
+    return _make_self_authenticating_reference(
+        kind=TraderLabEvidenceKind.MONTE_CARLO_QUALIFICATION,
+        reference_id=evidence.evidence_id.value,
+        content_digest=TraderLabEvidenceDigest(evidence.fingerprint.value),
+        schema_version="trader_lab.monte-carlo.v1",
+        strategy_binding_fingerprint=candidate.strategy_binding.binding_fingerprint.value,
+    )
+
+
+_STRESS_FAMILIES: frozenset[TraderLabRobustnessFamily] = frozenset(
+    {
+        TraderLabRobustnessFamily.START_SUBWINDOW,
+        TraderLabRobustnessFamily.COST_PERTURBATION,
+        TraderLabRobustnessFamily.PARAMETER_NEIGHBORHOOD,
+    }
+)
+
+
+class TraderLabStressStatus(StrEnum):
+    """Fail-closed verdict of an adversarial stress scenario."""
+
+    QUALIFIED = "qualified"
+    FAILED = "failed"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+
+
+@dataclass(frozen=True, slots=True)
+class TraderLabStressEvidenceId:
+    """Immutable identity of one stress-evidence record."""
+
+    value: UUID
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.value, UUID):
+            raise TraderLabValidationError("stress evidence id must be a UUID")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (str(self.value),)
+
+
+@dataclass(frozen=True, slots=True)
+class TraderLabStressFingerprint:
+    """Canonical SHA-256 digest of the stress-evidence record."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_sha256(self.value, field_name="stress fingerprint")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+def _canonical_bounds(bounds: tuple[Decimal, ...]) -> tuple[Decimal, ...]:
+    if not isinstance(bounds, tuple) or any(
+        not isinstance(item, Decimal) or not item.is_finite() for item in bounds
+    ):
+        raise TraderLabValidationError(
+            "stress bounds must be an immutable finite Decimal tuple"
+        )
+    ordered = tuple(sorted(bounds, key=lambda item: _canonical_decimal(item)))
+    if len(set(ordered)) != len(ordered):
+        raise TraderLabValidationError("stress bounds must be unique")
+    return ordered
+
+
+def compute_trader_lab_stress_fingerprint(
+    *,
+    evidence_id: TraderLabStressEvidenceId,
+    candidate: TraderLabCandidateBinding,
+    family: TraderLabRobustnessFamily,
+    scenario: str,
+    bounds: tuple[Decimal, ...],
+    status: TraderLabStressStatus,
+    certified_at: datetime,
+) -> TraderLabStressFingerprint:
+    """Hash the exact stress-evidence content, distinct from Monte Carlo evidence."""
+
+    if not isinstance(evidence_id, TraderLabStressEvidenceId):
+        raise TraderLabValidationError("evidence_id must be TraderLabStressEvidenceId")
+    if not isinstance(candidate, TraderLabCandidateBinding):
+        raise TraderLabValidationError("candidate must be TraderLabCandidateBinding")
+    if not isinstance(family, TraderLabRobustnessFamily):
+        raise TraderLabValidationError("family must be TraderLabRobustnessFamily")
+    if family not in _STRESS_FAMILIES:
+        raise TraderLabValidationError(
+            "stress evidence requires a stress family, never block bootstrap"
+        )
+    _validate_token(scenario, field_name="stress scenario")
+    canonical_bounds = _canonical_bounds(bounds)
+    if not isinstance(status, TraderLabStressStatus):
+        raise TraderLabValidationError("status must be TraderLabStressStatus")
+    _validate_timestamp(certified_at, field_name="stress certified_at")
+    canonical = {
+        "schema": "qore.trader_lab.stress.v1",
+        "evidence_id": str(evidence_id.value),
+        "candidate_fingerprint": candidate.fingerprint.value,
+        "family": family.value,
+        "scenario": scenario,
+        "bounds": [_canonical_decimal(item) for item in canonical_bounds],
+        "status": status.value,
+        "certified_at": certified_at.astimezone(UTC).isoformat(
+            timespec="microseconds"
+        ),
+    }
+    return TraderLabStressFingerprint(sha256(_canonical_bytes(canonical)).hexdigest())
+
+
+def validate_trader_lab_stress_evidence(evidence: TraderLabStressEvidence) -> None:
+    """Re-validate typed stress evidence at a trust boundary."""
+
+    if not isinstance(evidence, TraderLabStressEvidence):
+        raise TraderLabValidationError("evidence must be TraderLabStressEvidence")
+    if not isinstance(evidence.evidence_id, TraderLabStressEvidenceId):
+        raise TraderLabValidationError(
+            "evidence_id must be TraderLabStressEvidenceId"
+        )
+    if not isinstance(evidence.candidate, TraderLabCandidateBinding):
+        raise TraderLabValidationError("candidate must be TraderLabCandidateBinding")
+    if not isinstance(evidence.family, TraderLabRobustnessFamily):
+        raise TraderLabValidationError("family must be TraderLabRobustnessFamily")
+    if evidence.family not in _STRESS_FAMILIES:
+        raise TraderLabValidationError(
+            "stress evidence requires a stress family, never block bootstrap"
+        )
+    _validate_token(evidence.scenario, field_name="stress scenario")
+    canonical_bounds = _canonical_bounds(evidence.bounds)
+    if evidence.bounds != canonical_bounds:
+        raise TraderLabValidationError("stress bounds must use canonical order")
+    if not isinstance(evidence.status, TraderLabStressStatus):
+        raise TraderLabValidationError("status must be TraderLabStressStatus")
+    _validate_timestamp(evidence.certified_at, field_name="stress certified_at")
+    if not isinstance(evidence.fingerprint, TraderLabStressFingerprint):
+        raise TraderLabValidationError(
+            "fingerprint must be TraderLabStressFingerprint"
+        )
+    expected = compute_trader_lab_stress_fingerprint(
+        evidence_id=evidence.evidence_id,
+        candidate=evidence.candidate,
+        family=evidence.family,
+        scenario=evidence.scenario,
+        bounds=evidence.bounds,
+        status=evidence.status,
+        certified_at=evidence.certified_at,
+    )
+    if evidence.fingerprint != expected:
+        raise TraderLabValidationError(
+            "stress fingerprint must match the exact evidence"
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class TraderLabStressEvidence:
+    """Typed, self-authenticating adversarial stress evidence.
+
+    This is a semantically distinct seam from Monte Carlo evidence: it carries a
+    declared adversarial scenario (start subwindow, cost perturbation, or
+    parameter neighborhood) with a fail-closed verdict, never a resampling
+    envelope. The scenario/verdict content is produced by an external stress
+    evaluator; the Lab only validates structure, candidate binding, and identity.
+    """
+
+    evidence_id: TraderLabStressEvidenceId
+    candidate: TraderLabCandidateBinding
+    family: TraderLabRobustnessFamily
+    scenario: str
+    bounds: tuple[Decimal, ...]
+    status: TraderLabStressStatus
+    certified_at: datetime
+    fingerprint: TraderLabStressFingerprint
+
+    def __post_init__(self) -> None:
+        validate_trader_lab_stress_evidence(self)
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.evidence_id.logical_values(),
+            self.candidate.fingerprint.logical_values(),
+            self.family.value,
+            self.scenario,
+            tuple(_canonical_decimal(item) for item in self.bounds),
+            self.status.value,
+            self.certified_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.fingerprint.logical_values(),
+        )
+
+
+def build_trader_lab_stress_evidence(
+    *,
+    evidence_id: TraderLabStressEvidenceId,
+    candidate: TraderLabCandidateBinding,
+    family: TraderLabRobustnessFamily,
+    scenario: str,
+    bounds: tuple[Decimal, ...],
+    status: TraderLabStressStatus,
+    certified_at: datetime,
+) -> Result[TraderLabStressEvidence, TraderLabError]:
+    """Build typed stress evidence without executing any stress evaluation."""
+
+    try:
+        canonical_bounds = _canonical_bounds(bounds)
+        fingerprint = compute_trader_lab_stress_fingerprint(
+            evidence_id=evidence_id,
+            candidate=candidate,
+            family=family,
+            scenario=scenario,
+            bounds=canonical_bounds,
+            status=status,
+            certified_at=certified_at,
+        )
+        return Success(
+            TraderLabStressEvidence(
+                evidence_id=evidence_id,
+                candidate=candidate,
+                family=family,
+                scenario=scenario,
+                bounds=canonical_bounds,
+                status=status,
+                certified_at=certified_at,
+                fingerprint=fingerprint,
+            )
+        )
+    except TraderLabError as error:
+        return Failure(error)
+
+
+def reference_trader_lab_stress(
+    candidate: TraderLabCandidateBinding,
+    evidence: TraderLabStressEvidence,
+) -> TraderLabEvidenceReference:
+    """Reference exact typed stress evidence bound to the candidate.
+
+    Only a ``QUALIFIED`` stress verdict may satisfy the STRESS stage; a FAILED or
+    INSUFFICIENT_EVIDENCE verdict fails closed.
+    """
+
+    validate_trader_lab_stress_evidence(evidence)
+    if evidence.candidate != candidate:
+        raise TraderLabValidationError(
+            "stress evidence must bind the exact candidate"
+        )
+    if evidence.status is not TraderLabStressStatus.QUALIFIED:
+        raise TraderLabValidationError(
+            "only a qualified stress verdict may satisfy the STRESS stage"
+        )
+    return _make_self_authenticating_reference(
+        kind=TraderLabEvidenceKind.STRESS_EVIDENCE,
+        reference_id=evidence.evidence_id.value,
+        content_digest=TraderLabEvidenceDigest(evidence.fingerprint.value),
+        schema_version="trader_lab.stress.v1",
+        strategy_binding_fingerprint=candidate.strategy_binding.binding_fingerprint.value,
+    )

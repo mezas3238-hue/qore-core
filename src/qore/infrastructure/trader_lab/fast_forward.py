@@ -18,7 +18,6 @@ from qore.infrastructure.market_event_replay import (
     MarketEventObservationId,
     RetainedMarketEventObservation,
     derive_market_event_availability_instants,
-    order_market_event_observations,
     visible_market_event_observations,
 )
 from qore.infrastructure.trader_lab.candidate import (
@@ -29,7 +28,11 @@ from qore.infrastructure.trader_lab.candidate import (
 )
 from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabEvidenceDigest,
+    TraderLabEvidenceKind,
+    TraderLabEvidenceReference,
     _canonical_bytes,
+    _make_self_authenticating_reference,
+    compute_replay_chronology_digest,
 )
 from qore.kernel.result import Failure, Result, Success
 
@@ -138,9 +141,10 @@ def compute_trader_lab_fast_forward_fingerprint(
     candidate: TraderLabCandidateBinding,
     schedule: TraderLabFastForwardSchedule,
     observations_digest: TraderLabEvidenceDigest,
+    availability_instants: tuple[datetime, ...],
     certified_at: datetime,
 ) -> TraderLabFastForwardFingerprint:
-    """Hash exact candidate, schedule, replay chronology, and certification time."""
+    """Hash exact candidate, schedule, replay chronology, instants, and time."""
 
     if not isinstance(candidate, TraderLabCandidateBinding):
         raise TraderLabValidationError("candidate must be TraderLabCandidateBinding")
@@ -152,12 +156,22 @@ def compute_trader_lab_fast_forward_fingerprint(
         raise TraderLabValidationError(
             "observations_digest must be TraderLabEvidenceDigest"
         )
+    if not isinstance(availability_instants, tuple) or not all(
+        isinstance(value, datetime) for value in availability_instants
+    ):
+        raise TraderLabValidationError(
+            "availability_instants must be an immutable datetime tuple"
+        )
     _validate_timestamp(certified_at, field_name="fast-forward certified_at")
     canonical = {
         "schema": "qore.trader_lab.fast_forward.v1",
         "candidate_fingerprint": candidate.fingerprint.value,
         "schedule": list(schedule.logical_values()),
         "observations_digest": observations_digest.value,
+        "availability_instants": [
+            value.astimezone(UTC).isoformat(timespec="microseconds")
+            for value in availability_instants
+        ],
         "certified_at": certified_at.astimezone(UTC).isoformat(
             timespec="microseconds"
         ),
@@ -244,6 +258,7 @@ class TraderLabFastForwardQualification:
             candidate=self.candidate,
             schedule=self.schedule,
             observations_digest=self.observations_digest,
+            availability_instants=self.availability_instants,
             certified_at=self.certified_at,
         )
         if self.fingerprint != expected:
@@ -293,7 +308,6 @@ def qualify_trader_lab_fast_forward(
             )
         _validate_timestamp(certified_at, field_name="fast-forward certified_at")
 
-        ordered = order_market_event_observations(observations)
         base_instants = derive_market_event_availability_instants(observations)
         if len(base_instants) < 2:
             raise TraderLabValidationError(
@@ -316,17 +330,12 @@ def qualify_trader_lab_fast_forward(
             )
         _verify_no_lookahead(observations, base_instants)
 
-        observations_digest = TraderLabEvidenceDigest(
-            sha256(
-                _canonical_bytes(
-                    {"events": [list(item.logical_values()) for item in ordered]}
-                )
-            ).hexdigest()
-        )
+        observations_digest = compute_replay_chronology_digest(observations)
         fingerprint = compute_trader_lab_fast_forward_fingerprint(
             candidate=candidate,
             schedule=schedule,
             observations_digest=observations_digest,
+            availability_instants=base_instants,
             certified_at=certified_at,
         )
         return Success(
@@ -342,3 +351,26 @@ def qualify_trader_lab_fast_forward(
         )
     except TraderLabError as error:
         return Failure(error)
+
+
+def reference_trader_lab_fast_forward(
+    candidate: TraderLabCandidateBinding,
+    qualification: TraderLabFastForwardQualification,
+) -> TraderLabEvidenceReference:
+    """Reference an exact fast-forward qualification bound to the candidate."""
+
+    if not isinstance(qualification, TraderLabFastForwardQualification):
+        raise TraderLabValidationError(
+            "fast-forward reference requires TraderLabFastForwardQualification"
+        )
+    if qualification.candidate != candidate:
+        raise TraderLabValidationError(
+            "fast-forward qualification must bind the exact candidate"
+        )
+    return _make_self_authenticating_reference(
+        kind=TraderLabEvidenceKind.FAST_FORWARD_QUALIFICATION,
+        reference_id=qualification.qualification_id.value,
+        content_digest=TraderLabEvidenceDigest(qualification.fingerprint.value),
+        schema_version="trader_lab.fast-forward.v1",
+        strategy_binding_fingerprint=candidate.strategy_binding.binding_fingerprint.value,
+    )

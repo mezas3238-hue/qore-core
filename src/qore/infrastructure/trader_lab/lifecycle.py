@@ -10,19 +10,21 @@ chain.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from qore.infrastructure.trader_lab.candidate import (
     TraderLabCandidateBinding,
     TraderLabError,
     TraderLabValidationError,
+    compute_trader_lab_candidate_fingerprint,
 )
 from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabEvidenceReference,
     TraderLabStage,
     TraderLabStageEvidenceId,
     TraderLabStageEvidenceRecord,
+    validate_trader_lab_stage_evidence_record,
 )
 from qore.kernel.result import Failure, Result, Success
 
@@ -181,7 +183,7 @@ class TraderLabTerminalRecord:
         return (
             self.outcome.value,
             self.evidence.logical_values(),
-            self.decided_at.isoformat(),
+            self.decided_at.astimezone(UTC).isoformat(timespec="microseconds"),
         )
 
 
@@ -230,18 +232,53 @@ def _validate_lifecycle(lifecycle: TraderLabLifecycle) -> None:
             "lifecycle terminal must be TraderLabTerminalRecord or None"
         )
 
+    # Recompute the exact candidate fingerprint from retained material so a
+    # reflectively corrupted binding cannot be silently reused.
+    expected_candidate_fingerprint = compute_trader_lab_candidate_fingerprint(
+        candidate_id=lifecycle.candidate.candidate_id,
+        version=lifecycle.candidate.version,
+        strategy_binding=lifecycle.candidate.strategy_binding,
+    )
+    if lifecycle.candidate.fingerprint != expected_candidate_fingerprint:
+        raise TraderLabValidationError(
+            "candidate fingerprint must match the recomputed exact binding"
+        )
+
     seen_evidence_ids: set[TraderLabStageEvidenceId] = set()
     seen_stages: set[TraderLabStage] = set()
     previous_at: datetime | None = None
     for qualification in lifecycle.qualifications:
+        if not isinstance(qualification.stage, TraderLabStage):
+            raise TraderLabValidationError(
+                "qualification stage must be TraderLabStage"
+            )
+        # Re-validate the retained stage-evidence record and its nested
+        # provenance/fingerprint/kind/lineage before trusting anything.
+        validate_trader_lab_stage_evidence_record(qualification.evidence)
+        if qualification.evidence.stage is not qualification.stage:
+            raise TraderLabValidationError(
+                "qualification stage must match its evidence stage"
+            )
         if qualification.evidence.candidate != lifecycle.candidate:
             raise TraderLabValidationError(
                 "every qualification evidence must bind the lifecycle candidate"
+            )
+        if qualification.prior_state is not _expected_prior_state(qualification.stage):
+            raise TraderLabValidationError(
+                "qualification prior state must be the exact preceding stage state"
+            )
+        if qualification.next_state is not _STAGE_TARGET_STATE[qualification.stage]:
+            raise TraderLabValidationError(
+                "qualification next state must be the exact stage target state"
             )
         if qualification.stage in seen_stages:
             raise TraderLabValidationError("duplicate stage qualification detected")
         if qualification.evidence.evidence_id in seen_evidence_ids:
             raise TraderLabValidationError("duplicate stage evidence detected")
+        _validate_timestamp(
+            qualification.qualified_at,
+            field_name="qualification produced_at",
+        )
         if previous_at is not None and qualification.qualified_at < previous_at:
             raise TraderLabValidationError(
                 "qualification evidence cannot predate the preceding qualification"
@@ -255,6 +292,26 @@ def _validate_lifecycle(lifecycle: TraderLabLifecycle) -> None:
         raise TraderLabValidationError(
             "a demo-eligible candidate cannot carry a terminal blocking record"
         )
+    if lifecycle.terminal is not None:
+        if not isinstance(lifecycle.terminal.outcome, TraderLabState) or (
+            lifecycle.terminal.outcome not in _TERMINAL_BLOCKING_STATES
+        ):
+            raise TraderLabValidationError(
+                "terminal outcome must be rejected, degraded, or suspended"
+            )
+        if not isinstance(lifecycle.terminal.evidence, TraderLabEvidenceReference):
+            raise TraderLabValidationError(
+                "terminal evidence must be TraderLabEvidenceReference"
+            )
+        _validate_timestamp(
+            lifecycle.terminal.decided_at, field_name="terminal decided_at"
+        )
+        if lifecycle.qualifications and (
+            lifecycle.terminal.decided_at < lifecycle.qualifications[-1].qualified_at
+        ):
+            raise TraderLabValidationError(
+                "terminal decision cannot predate the qualification chain"
+            )
 
 
 def validate_trader_lab_lifecycle(lifecycle: TraderLabLifecycle) -> None:

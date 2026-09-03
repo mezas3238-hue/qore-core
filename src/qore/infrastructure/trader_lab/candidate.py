@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from decimal import Decimal
 from hashlib import sha256
 from re import fullmatch
 from uuid import UUID
@@ -47,6 +48,33 @@ def _validate_sha256(value: str, *, field_name: str) -> None:
         raise TraderLabValidationError(
             f"{field_name} must be 64 lowercase hex characters"
         )
+
+
+def _canonical_decimal(value: Decimal) -> str:
+    """Deterministic, context-free, bounded canonical string for a finite Decimal.
+
+    Trailing zero digits are stripped so ``Decimal("1.0")`` and ``Decimal("1.00")``
+    share one canonical string, ``-0`` maps to ``"0"``, and the result is produced
+    via ``str`` (compact scientific notation) so a pathological exponent such as
+    ``1e-999999999`` never allocates an exponent-sized fixed string. This is the
+    single shared canonical form used by every trader-lab fingerprint/digest so
+    economically equal Decimals cannot diverge.
+    """
+
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise TraderLabValidationError("canonical value must be a finite Decimal")
+    if value == 0:
+        return "0"
+    sign, digits, exponent = value.as_tuple()
+    # ``is_finite()`` above guarantees a numeric exponent; narrow it for mypy.
+    exponent = int(exponent)
+    stripped = list(digits)
+    while stripped and stripped[-1] == 0:
+        stripped.pop()
+        exponent += 1
+    if not stripped:
+        return "0"
+    return str(Decimal((sign, tuple(stripped), exponent)))
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,9 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
-from qore.infrastructure.trader_lab.candidate import TraderLabCandidateBinding
+import pytest
+
+from qore.infrastructure.trader_lab.candidate import (
+    TraderLabCandidateBinding,
+    TraderLabCandidateFingerprint,
+    TraderLabValidationError,
+)
+from qore.infrastructure.trader_lab.governed_gate import TraderLabGovernedGate
 from qore.infrastructure.trader_lab.lifecycle import (
     MANDATORY_STAGES,
     TraderLabLifecycle,
@@ -14,6 +22,7 @@ from qore.infrastructure.trader_lab.lifecycle import (
     apply_trader_lab_promotion,
     apply_trader_lab_rejection,
     start_trader_lab_lifecycle,
+    validate_trader_lab_lifecycle,
 )
 from qore.infrastructure.trader_lab.promotion import (
     TraderLabPromotionStatus,
@@ -24,7 +33,10 @@ from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabEvidenceKind,
     TraderLabEvidenceReference,
     TraderLabStage,
+    TraderLabStageEvidenceFingerprint,
+    TraderLabStageEvidenceId,
     TraderLabStageEvidenceRecord,
+    build_trader_lab_stage_evidence,
 )
 from qore.kernel.result import Failure, Success
 
@@ -32,15 +44,6 @@ _PROCESS_TIME = datetime(2026, 8, 9, 12, 0, tzinfo=UTC)
 
 _CandidateFactory = Callable[..., TraderLabCandidateBinding]
 _EvidenceFactory = Callable[..., TraderLabStageEvidenceRecord]
-
-
-def _economic_reference() -> TraderLabEvidenceReference:
-    return TraderLabEvidenceReference(
-        kind=TraderLabEvidenceKind.ECONOMIC_EVALUATION,
-        reference_id=UUID("72000000-0000-0000-0000-00000000eeee"),
-        content_digest=TraderLabEvidenceDigest("c" * 64),
-        schema_version="economic.evaluation.v1",
-    )
 
 
 def _promote(
@@ -276,6 +279,9 @@ def test_version_mutation_invalidates_prior_chain(
 def test_rejected_suspended_degraded_require_restart(
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _EvidenceFactory,
+    economic_reference_factory: Callable[
+        [TraderLabCandidateBinding], TraderLabEvidenceReference
+    ],
 ) -> None:
     candidate = candidate_factory()
     lifecycle = start_trader_lab_lifecycle(candidate)
@@ -291,7 +297,7 @@ def test_rejected_suspended_degraded_require_restart(
         lifecycle,
         TraderLabRejectionRequest(
             outcome=TraderLabState.SUSPENDED,
-            evidence=_economic_reference(),
+            evidence=economic_reference_factory(candidate),
             decided_at=_PROCESS_TIME + timedelta(minutes=1),
         ),
     )
@@ -321,6 +327,9 @@ def test_rejected_suspended_degraded_require_restart(
 def test_cibo_review_cannot_self_promote(
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _EvidenceFactory,
+    economic_reference_factory: Callable[
+        [TraderLabCandidateBinding], TraderLabEvidenceReference
+    ],
 ) -> None:
     candidate = candidate_factory()
     lifecycle = start_trader_lab_lifecycle(candidate)
@@ -330,14 +339,17 @@ def test_cibo_review_cannot_self_promote(
     )
     assert lifecycle.state is TraderLabState.CIBO_REVIEWED
     decision = evaluate_demo_eligibility(
-        lifecycle, economic_evidence=_economic_reference()
+        lifecycle, economic_evidence=economic_reference_factory(candidate)
     )
-    assert decision.status is TraderLabPromotionStatus.NOT_ELIGIBLE_INCOMPLETE
+    assert decision.status is TraderLabPromotionStatus.EXTERNAL_EVIDENCE_DEPENDENT
 
 
 def test_missing_risk_review_blocks_promotion(
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _EvidenceFactory,
+    economic_reference_factory: Callable[
+        [TraderLabCandidateBinding], TraderLabEvidenceReference
+    ],
 ) -> None:
     candidate = candidate_factory()
     lifecycle = start_trader_lab_lifecycle(candidate)
@@ -347,14 +359,17 @@ def test_missing_risk_review_blocks_promotion(
     )
     assert lifecycle.state is TraderLabState.MONTE_CARLO_QUALIFIED
     decision = evaluate_demo_eligibility(
-        lifecycle, economic_evidence=_economic_reference()
+        lifecycle, economic_evidence=economic_reference_factory(candidate)
     )
-    assert decision.status is TraderLabPromotionStatus.NOT_ELIGIBLE_INCOMPLETE
+    assert decision.status is TraderLabPromotionStatus.EXTERNAL_EVIDENCE_DEPENDENT
 
 
 def test_demo_eligible_requires_full_chain_and_economic_evidence(
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _EvidenceFactory,
+    economic_reference_factory: Callable[
+        [TraderLabCandidateBinding], TraderLabEvidenceReference
+    ],
 ) -> None:
     candidate = candidate_factory()
     lifecycle = start_trader_lab_lifecycle(candidate)
@@ -370,7 +385,7 @@ def test_demo_eligible_requires_full_chain_and_economic_evidence(
     )
 
     with_economic = evaluate_demo_eligibility(
-        lifecycle, economic_evidence=_economic_reference()
+        lifecycle, economic_evidence=economic_reference_factory(candidate)
     )
     assert with_economic.status is TraderLabPromotionStatus.DEMO_ELIGIBLE
     assert with_economic.reasons == ()
@@ -379,6 +394,9 @@ def test_demo_eligible_requires_full_chain_and_economic_evidence(
 def test_blocked_state_reports_not_eligible_blocked(
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _EvidenceFactory,
+    economic_reference_factory: Callable[
+        [TraderLabCandidateBinding], TraderLabEvidenceReference
+    ],
 ) -> None:
     candidate = candidate_factory()
     lifecycle = start_trader_lab_lifecycle(candidate)
@@ -386,13 +404,13 @@ def test_blocked_state_reports_not_eligible_blocked(
         lifecycle,
         TraderLabRejectionRequest(
             outcome=TraderLabState.REJECTED,
-            evidence=_economic_reference(),
+            evidence=economic_reference_factory(candidate),
             decided_at=_PROCESS_TIME,
         ),
     )
     assert isinstance(blocked, Success)
     decision = evaluate_demo_eligibility(
-        blocked.value, economic_evidence=_economic_reference()
+        blocked.value, economic_evidence=economic_reference_factory(candidate)
     )
     assert decision.status is TraderLabPromotionStatus.NOT_ELIGIBLE_BLOCKED_STATE
 
@@ -418,3 +436,205 @@ def test_canonical_stage_ordering_is_deterministic(
         TraderLabStage.CIBO_REVIEW,
         TraderLabStage.INDEPENDENT_VALIDATION,
     )
+
+
+def _full_lifecycle(
+    candidate: TraderLabCandidateBinding,
+    stage_evidence_factory: _EvidenceFactory,
+) -> TraderLabLifecycle:
+    lifecycle = start_trader_lab_lifecycle(candidate)
+    return _qualify_through(
+        lifecycle, candidate, stage_evidence_factory, MANDATORY_STAGES
+    )
+
+
+def test_wrong_kind_economic_evidence_fails_closed(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+    governed_reference_factory: Callable[..., TraderLabEvidenceReference],
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    wrong_kind = governed_reference_factory(
+        candidate, gate=TraderLabGovernedGate.RISK_REVIEW
+    )
+    decision = evaluate_demo_eligibility(lifecycle, economic_evidence=wrong_kind)
+    assert (
+        decision.status
+        is TraderLabPromotionStatus.NOT_ELIGIBLE_INVALID_ECONOMIC_EVIDENCE
+    )
+
+
+def test_fabricated_stage_chain_cannot_reach_demo_eligible(
+    candidate_factory: _CandidateFactory,
+    governed_reference_factory: Callable[..., TraderLabEvidenceReference],
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = start_trader_lab_lifecycle(candidate)
+    # A self-authenticating reference cannot be minted with an arbitrary digest:
+    # the constructor rejects any self-authenticating kind without a content-
+    # deriving helper, so a fabricated chain cannot even be assembled.
+    with pytest.raises(TraderLabValidationError):
+        TraderLabEvidenceReference(
+            kind=TraderLabEvidenceKind.RISK_REVIEW,  # wrong for RESEARCH
+            reference_id=UUID("72000000-0000-0000-0000-00000000bbbb"),
+            content_digest=TraderLabEvidenceDigest("d" * 64),
+            schema_version="test.v1",
+        )
+    # Even a validly-built governed review reference is the wrong kind for the
+    # RESEARCH stage, so a fabricated chain cannot advance past DRAFT.
+    wrong_kind = governed_reference_factory(
+        candidate, gate=TraderLabGovernedGate.RISK_REVIEW
+    )
+    built = build_trader_lab_stage_evidence(
+        evidence_id=TraderLabStageEvidenceId(UUID("72000000-0000-0000-0000-00000000cccc")),
+        stage=TraderLabStage.RESEARCH,
+        candidate=candidate,
+        source_reference=wrong_kind,
+        produced_at=_PROCESS_TIME,
+    )
+    assert isinstance(built, Failure)
+    assert lifecycle.state is TraderLabState.DRAFT
+
+
+def test_reflective_corruption_of_candidate_fingerprint_fails_closed(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    object.__setattr__(
+        lifecycle.candidate, "fingerprint", TraderLabCandidateFingerprint("0" * 64)
+    )
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(lifecycle)
+
+
+def test_reflective_corruption_of_candidate_binding_fails_closed(
+    candidate_factory: _CandidateFactory,
+    strategy_binding_factory: Callable[..., Any],
+    stage_evidence_factory: _EvidenceFactory,
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    other_binding = strategy_binding_factory(configuration_id_suffix=11)
+    object.__setattr__(lifecycle.candidate, "strategy_binding", other_binding)
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(lifecycle)
+
+
+def test_reflective_corruption_of_stage_identity_fails_closed(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    object.__setattr__(lifecycle.qualifications[0], "stage", TraderLabStage.OOS)
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(lifecycle)
+
+
+def test_reflective_corruption_of_source_reference_fails_closed(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    evidence = lifecycle.qualifications[0].evidence
+    corrupted = object.__new__(TraderLabEvidenceReference)
+    object.__setattr__(corrupted, "kind", TraderLabEvidenceKind.RISK_REVIEW)
+    object.__setattr__(corrupted, "reference_id", evidence.source_reference.reference_id)
+    object.__setattr__(
+        corrupted, "content_digest", evidence.source_reference.content_digest
+    )
+    object.__setattr__(
+        corrupted, "schema_version", evidence.source_reference.schema_version
+    )
+    object.__setattr__(
+        corrupted, "self_authenticating", evidence.source_reference.self_authenticating
+    )
+    object.__setattr__(
+        corrupted,
+        "strategy_binding_fingerprint",
+        evidence.source_reference.strategy_binding_fingerprint,
+    )
+    object.__setattr__(
+        corrupted,
+        "external_authenticity_proof",
+        evidence.source_reference.external_authenticity_proof,
+    )
+    object.__setattr__(evidence, "source_reference", corrupted)
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(lifecycle)
+
+
+def test_reflective_corruption_of_evidence_fingerprint_fails_closed(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    object.__setattr__(
+        lifecycle.qualifications[0].evidence,
+        "fingerprint",
+        TraderLabStageEvidenceFingerprint("0" * 64),
+    )
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(lifecycle)
+
+
+def test_reflective_corruption_of_timestamp_fails_closed_with_typed_error(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    object.__setattr__(
+        lifecycle.qualifications[0].evidence, "produced_at", "not-a-datetime"
+    )
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(lifecycle)
+
+
+def test_reflective_corruption_of_chain_order_fails_closed(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = _full_lifecycle(candidate, stage_evidence_factory)
+    object.__setattr__(
+        lifecycle.qualifications[0], "next_state", TraderLabState.DEMO_ELIGIBLE
+    )
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(lifecycle)
+
+
+def test_reflective_corruption_of_terminal_state_fails_closed(
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _EvidenceFactory,
+    economic_reference_factory: Callable[
+        [TraderLabCandidateBinding], TraderLabEvidenceReference
+    ],
+) -> None:
+    candidate = candidate_factory()
+    lifecycle = start_trader_lab_lifecycle(candidate)
+    lifecycle = _promote(
+        lifecycle,
+        stage=TraderLabStage.RESEARCH,
+        candidate=candidate,
+        stage_evidence_factory=stage_evidence_factory,
+        evidence_suffix=990,
+        produced_at=_PROCESS_TIME,
+    )
+    blocked = apply_trader_lab_rejection(
+        lifecycle,
+        TraderLabRejectionRequest(
+            outcome=TraderLabState.SUSPENDED,
+            evidence=economic_reference_factory(candidate),
+            decided_at=_PROCESS_TIME + timedelta(minutes=1),
+        ),
+    )
+    assert isinstance(blocked, Success)
+    object.__setattr__(blocked.value.terminal, "outcome", TraderLabState.DEMO_ELIGIBLE)
+    with pytest.raises(TraderLabValidationError):
+        validate_trader_lab_lifecycle(blocked.value)
