@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
+from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 
 from qore.infrastructure.cibo_executive_journal import (
     CiboEconomicJournalLink,
@@ -16,7 +17,6 @@ from qore.infrastructure.cibo_executive_journal import (
     CiboLossDiagnosisState,
     CiboLossHypothesis,
 )
-from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.kernel.result import Failure, Success
 
 _NOW = datetime(2026, 8, 9, 0, 0, tzinfo=UTC)
