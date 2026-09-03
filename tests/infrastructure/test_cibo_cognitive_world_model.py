@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -10,9 +11,15 @@ import pytest
 from qore.infrastructure.cibo_cognitive_common import (
     CiboCognitiveFingerprint,
     CiboCognitiveValidationError,
+    TraderSubject,
     fingerprint_material,
 )
 from qore.infrastructure.cibo_cognitive_world_model import (
+    MarketContextKind,
+    MarketContextReference,
+    MarketTraderContext,
+    MarketTraderSuitability,
+    MarketTraderSuitabilityDisposition,
     WorldModelContradiction,
     WorldModelDomain,
     WorldModelReference,
@@ -20,6 +27,7 @@ from qore.infrastructure.cibo_cognitive_world_model import (
     WorldModelSnapshot,
     WorldModelSourceId,
     WorldModelSourceVersion,
+    build_market_trader_suitability,
     build_world_model_snapshot,
     project_world_state,
 )
@@ -27,6 +35,7 @@ from qore.kernel.result import Failure, Success
 
 _SNAPSHOT_ID = UUID("00000000-0000-0000-0000-0000000000a1")
 _AS_OF = datetime(2024, 6, 1, 12, 0, 0, tzinfo=UTC)
+_SUITABILITY_ID = UUID("00000000-0000-0000-0000-0000000000b1")
 
 
 def _fp(label: str) -> CiboCognitiveFingerprint:
@@ -232,3 +241,252 @@ def test_snapshot_is_frozen() -> None:
     assert isinstance(snapshot, WorldModelSnapshot)
     with pytest.raises(AttributeError):
         snapshot.as_of = _AS_OF  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# IA-F-MARKET-TRADER-001: typed Market x Regime x Instrument x exact-Trader
+# suitability family (CA-04).
+# ---------------------------------------------------------------------------
+
+
+def _trader(trader_id: str = "trader.vt-1", version: str = "v1") -> TraderSubject:
+    return TraderSubject(
+        trader_id=trader_id,
+        trader_version=version,
+        fingerprint=fingerprint_material((trader_id, version)),
+    )
+
+
+def _ctx_ref(
+    kind: MarketContextKind,
+    reference: str,
+    *,
+    status: WorldModelReferenceStatus = WorldModelReferenceStatus.CURRENT,
+    as_of: datetime = _AS_OF,
+) -> MarketContextReference:
+    return MarketContextReference(
+        kind=kind,
+        reference=reference,
+        as_of=as_of,
+        status=status,
+        evidence_fingerprint=(
+            None
+            if status is WorldModelReferenceStatus.MISSING
+            else fingerprint_material((kind.value, reference))
+        ),
+        evidence_label=f"{kind.value} evidence",
+    )
+
+
+def _context(
+    *,
+    market: str = "market.fx",
+    instrument: str = "instrument.eurusd",
+    regime: str = "regime.trending",
+) -> MarketTraderContext:
+    return MarketTraderContext(
+        market=_ctx_ref(MarketContextKind.MARKET, market),
+        instrument=_ctx_ref(MarketContextKind.INSTRUMENT, instrument),
+        regime=_ctx_ref(MarketContextKind.REGIME, regime),
+    )
+
+
+def _favorable(
+    *,
+    trader: TraderSubject | None = None,
+    context: MarketTraderContext | None = None,
+    **kwargs: object,
+) -> MarketTraderSuitability:
+    params: dict[str, Any] = {
+        "suitability_id": _SUITABILITY_ID,
+        "trader": trader if trader is not None else _trader(),
+        "context": context if context is not None else _context(),
+        "disposition": MarketTraderSuitabilityDisposition.FAVORABLE,
+        "limitations": ("not-perfect-certainty",),
+        "evidence_lineage": (fingerprint_material("evidence-1"),),
+    }
+    params.update(kwargs)
+    return build_market_trader_suitability(**params)
+
+
+def test_market_trader_suitability_favorable_builds_and_revalidates() -> None:
+    suitability = _favorable()
+    assert suitability.disposition is MarketTraderSuitabilityDisposition.FAVORABLE
+    suitability.revalidate()
+
+
+def test_cross_trader_fingerprint_laundering_rejected() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        TraderSubject(
+            trader_id="trader.vt-2",
+            trader_version="v1",
+            fingerprint=fingerprint_material(("trader.vt-1", "v1")),
+        )
+
+
+def test_same_trader_version_laundering_rejected() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        TraderSubject(
+            trader_id="trader.vt-1",
+            trader_version="v2",
+            fingerprint=fingerprint_material(("trader.vt-1", "v1")),
+        )
+
+
+def test_instrument_axis_mismatch_rejected() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        MarketTraderContext(
+            market=_ctx_ref(MarketContextKind.MARKET, "market.fx"),
+            instrument=_ctx_ref(MarketContextKind.REGIME, "regime.trending"),
+            regime=_ctx_ref(MarketContextKind.REGIME, "regime.trending"),
+        )
+
+
+def test_regime_axis_mismatch_rejected() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        MarketTraderContext(
+            market=_ctx_ref(MarketContextKind.MARKET, "market.fx"),
+            instrument=_ctx_ref(MarketContextKind.INSTRUMENT, "instrument.eurusd"),
+            regime=_ctx_ref(MarketContextKind.INSTRUMENT, "instrument.eurusd"),
+        )
+
+
+def test_stale_market_evidence_cannot_assert_favorable() -> None:
+    stale = _context(market="market.fx")
+    object.__setattr__(
+        stale.market,
+        "status",
+        WorldModelReferenceStatus.STALE,
+    )
+    with pytest.raises(CiboCognitiveValidationError):
+        _favorable(context=stale)
+
+
+def test_missing_evidence_cannot_be_treated_as_certainty() -> None:
+    missing = MarketTraderContext(
+        market=_ctx_ref(
+            MarketContextKind.MARKET,
+            "market.fx",
+            status=WorldModelReferenceStatus.MISSING,
+        ),
+        instrument=_ctx_ref(MarketContextKind.INSTRUMENT, "instrument.eurusd"),
+        regime=_ctx_ref(MarketContextKind.REGIME, "regime.trending"),
+    )
+    with pytest.raises(CiboCognitiveValidationError):
+        _favorable(context=missing)
+
+
+def test_contradictory_references_cannot_collapse_into_favorable() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        _favorable(contradictions=("regime-conflict",))
+
+
+def test_favorable_requires_explicit_limitations() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        build_market_trader_suitability(
+            suitability_id=_SUITABILITY_ID,
+            trader=_trader(),
+            context=_context(),
+            disposition=MarketTraderSuitabilityDisposition.FAVORABLE,
+            limitations=(),
+            evidence_lineage=(fingerprint_material("evidence-1"),),
+        )
+
+
+def test_suitability_exposes_no_authority_fields() -> None:
+    suitability = _favorable()
+    for forbidden in (
+        "execution",
+        "risk",
+        "promotion",
+        "demo",
+        "production",
+        "profitability",
+        "order",
+        "account",
+        "credential",
+        "quantity",
+    ):
+        assert not hasattr(suitability, forbidden)
+
+
+def test_suitability_secret_material_rejected() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        _ctx_ref(MarketContextKind.MARKET, "market.fx").__class__(
+            kind=MarketContextKind.MARKET,
+            reference="market.api_key=sk-abcdef1234567890",
+            as_of=_AS_OF,
+            status=WorldModelReferenceStatus.CURRENT,
+            evidence_fingerprint=fingerprint_material("x"),
+        )
+
+
+def test_suitability_subclass_laundering_rejected() -> None:
+    class EvilStr(str):
+        pass
+
+    class EvilDatetime(datetime):
+        pass
+
+    class EvilTraderSubject(TraderSubject):
+        def revalidate(self) -> None:
+            pass
+
+    with pytest.raises(CiboCognitiveValidationError):
+        _ctx_ref(MarketContextKind.MARKET, EvilStr("market.fx"))
+    with pytest.raises(CiboCognitiveValidationError):
+        _favorable(
+            trader=EvilTraderSubject(
+                trader_id="trader.vt-1",
+                trader_version="v1",
+                fingerprint=fingerprint_material(("trader.vt-1", "v1")),
+            )
+        )
+    with pytest.raises(CiboCognitiveValidationError):
+        MarketContextReference(
+            kind=MarketContextKind.MARKET,
+            reference="market.fx",
+            as_of=EvilDatetime(2024, 6, 1, tzinfo=UTC),
+            status=WorldModelReferenceStatus.CURRENT,
+            evidence_fingerprint=fingerprint_material("x"),
+        )
+
+
+def test_suitability_bool_int_laundering_rejected() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        MarketContextReference(
+            kind=MarketContextKind.MARKET,
+            reference="market.fx",
+            as_of=_AS_OF,
+            status=cast(WorldModelReferenceStatus, True),
+            evidence_fingerprint=fingerprint_material("x"),
+        )
+    with pytest.raises(CiboCognitiveValidationError):
+        _favorable(evidence_lineage=(True,))
+
+
+def test_suitability_reflective_corruption_rejected() -> None:
+    suitability = _favorable()
+    object.__setattr__(suitability, "contradictions", ("injected-contradiction",))
+    with pytest.raises(CiboCognitiveValidationError):
+        suitability.revalidate()
+
+
+def test_suitability_ordering_is_permutation_invariant() -> None:
+    first = _favorable(
+        limitations=("not-perfect-certainty", "bounded-evidence"),
+        evidence_lineage=(
+            fingerprint_material("a"),
+            fingerprint_material("b"),
+        ),
+    )
+    second = _favorable(
+        limitations=("bounded-evidence", "not-perfect-certainty"),
+        evidence_lineage=(
+            fingerprint_material("b"),
+            fingerprint_material("a"),
+        ),
+    )
+    assert first.limitations == second.limitations
+    assert first.evidence_lineage == second.evidence_lineage
+    assert first.fingerprint == second.fingerprint

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 import pytest
-from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 
 from qore.infrastructure.cibo_executive_journal import (
     CiboEconomicJournalLink,
@@ -18,13 +18,14 @@ from qore.infrastructure.cibo_executive_journal import (
     CiboLossHypothesis,
 )
 from qore.kernel.result import Failure, Success
+from qore.modules.cibo.cognitive_contracts import CiboCognitiveEvidenceRef
 
 _NOW = datetime(2026, 8, 9, 0, 0, tzinfo=UTC)
 _ENTRY_ID = UUID("50000000-0000-0000-0000-000000000001")
 
 
-def _ref(value: str) -> CiboEvidenceRef:
-    return CiboEvidenceRef(value)
+def _ref(value: str) -> CiboCognitiveEvidenceRef:
+    return CiboCognitiveEvidenceRef(value)
 
 
 def _entry(
@@ -115,7 +116,7 @@ class TestEconomicJournalLink:
 
     def test_link_rejects_non_ref_type(self) -> None:
         with pytest.raises(CiboExecutiveJournalValidationError):
-            CiboEconomicJournalLink(trader_ref="not-a-ref")  # type: ignore[arg-type]
+            CiboEconomicJournalLink(trader_ref=cast(CiboCognitiveEvidenceRef, "not-a-ref"))
 
 
 class TestJournalEntryAndStore:

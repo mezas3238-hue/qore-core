@@ -20,20 +20,11 @@ from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
     CiboConfidence,
+    contains_secret_material,
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
 _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
-
-_SENSITIVE_PARTS = (
-    "authorization:",
-    "bearer ",
-    "client_secret",
-    "password=",
-    "private_key",
-    "secret=",
-    "token=",
-)
 
 
 class CiboExecutiveMemoryError(InfrastructureError):
@@ -49,14 +40,14 @@ class CiboExecutiveMemoryValidationError(CiboExecutiveMemoryError):
 
 
 def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboExecutiveMemoryValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboExecutiveMemoryValidationError(f"{field_name} must be timezone-aware")
 
 
 def _validate_code(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or fullmatch(_CODE_RE, value) is None:
+    if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must use canonical lowercase code syntax"
         )
@@ -64,7 +55,7 @@ def _validate_code(value: str, *, field_name: str) -> str:
 
 
 def _validate_codes(values: tuple[str, ...], *, field_name: str) -> tuple[str, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, str) for v in values):
+    if type(values) is not tuple or any(type(v) is not str for v in values):
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must be an immutable tuple of strings"
         )
@@ -75,14 +66,13 @@ def _validate_codes(values: tuple[str, ...], *, field_name: str) -> tuple[str, .
 
 
 def _validate_safe_text(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or not value.strip():
+    if type(value) is not str or not value.strip():
         raise CiboExecutiveMemoryValidationError(f"{field_name} must be non-empty text")
     if any(ch in value for ch in "\x00\n\r\t"):
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must not contain control characters"
         )
-    lowered = value.lower()
-    if any(part in lowered for part in _SENSITIVE_PARTS):
+    if contains_secret_material(value):
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must not contain sensitive material"
         )
@@ -90,12 +80,11 @@ def _validate_safe_text(value: str, *, field_name: str) -> str:
 
 
 def _validate_opaque_ref(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or fullmatch(_OPAQUE_REF_RE, value) is None:
+    if type(value) is not str or fullmatch(_OPAQUE_REF_RE, value) is None:
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must use canonical opaque-reference syntax"
         )
-    lowered = value.lower()
-    if any(part in lowered for part in _SENSITIVE_PARTS):
+    if contains_secret_material(value):
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must not contain sensitive material"
         )
@@ -149,14 +138,14 @@ class CiboMemoryFreshness:
     as_of: datetime
 
     def __post_init__(self) -> None:
-        if not isinstance(self.state, CiboMemoryFreshnessState):
+        if type(self.state) is not CiboMemoryFreshnessState:
             raise CiboExecutiveMemoryValidationError(
                 "memory freshness requires CiboMemoryFreshnessState"
             )
         _validate_aware_datetime(self.as_of, field_name="memory freshness as_of")
 
     def revalidate(self) -> None:
-        if not isinstance(self.state, CiboMemoryFreshnessState):
+        if type(self.state) is not CiboMemoryFreshnessState:
             raise CiboExecutiveMemoryValidationError(
                 "memory freshness requires CiboMemoryFreshnessState"
             )
@@ -195,7 +184,7 @@ class CiboMemoryProvenance:
     recorded_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.source_ref, CiboMemorySourceRef):
+        if type(self.source_ref) is not CiboMemorySourceRef:
             raise CiboExecutiveMemoryValidationError(
                 "memory provenance requires CiboMemorySourceRef"
             )
@@ -206,9 +195,10 @@ class CiboMemoryProvenance:
                 raise CiboExecutiveMemoryValidationError(
                     "memory recorded_at must not predate effective_at"
                 )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.source_ref, CiboMemorySourceRef):
+        if type(self.source_ref) is not CiboMemorySourceRef:
             raise CiboExecutiveMemoryValidationError(
                 "memory provenance requires CiboMemorySourceRef"
             )
@@ -230,7 +220,7 @@ class CiboMemoryProvenance:
 
 
 def _canonical_uuid_ids(values: tuple[UUID, ...], *, field_name: str) -> tuple[UUID, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, UUID) for v in values):
+    if type(values) is not tuple or any(type(v) is not UUID for v in values):
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must be an immutable tuple of UUIDs"
         )
@@ -244,8 +234,8 @@ def _canonical_refs(
     *,
     field_name: str,
 ) -> tuple[CiboCognitiveEvidenceRef, ...]:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboCognitiveEvidenceRef) for item in values
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
@@ -272,9 +262,9 @@ class CiboMemoryItem:
     superseded_by: tuple[UUID, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.item_id, UUID):
+        if type(self.item_id) is not UUID:
             raise CiboExecutiveMemoryValidationError("memory item id must be UUID")
-        if not isinstance(self.kind, CiboMemoryKind):
+        if type(self.kind) is not CiboMemoryKind:
             raise CiboExecutiveMemoryValidationError("memory item requires CiboMemoryKind")
         object.__setattr__(
             self,
@@ -286,11 +276,11 @@ class CiboMemoryItem:
             "content",
             _validate_safe_text(self.content, field_name="memory content"),
         )
-        if not isinstance(self.provenance, CiboMemoryProvenance):
+        if type(self.provenance) is not CiboMemoryProvenance:
             raise CiboExecutiveMemoryValidationError(
                 "memory item requires CiboMemoryProvenance"
             )
-        if not isinstance(self.freshness, CiboMemoryFreshness):
+        if type(self.freshness) is not CiboMemoryFreshness:
             raise CiboExecutiveMemoryValidationError(
                 "memory item requires CiboMemoryFreshness"
             )
@@ -300,7 +290,7 @@ class CiboMemoryItem:
                 "memory item requires explicit backing evidence"
             )
         object.__setattr__(self, "evidence_refs", refs)
-        if self.confidence is not None and not isinstance(self.confidence, CiboConfidence):
+        if self.confidence is not None and type(self.confidence) is not CiboConfidence:
             raise CiboExecutiveMemoryValidationError(
                 "memory confidence must be CiboConfidence or None"
             )
@@ -327,20 +317,21 @@ class CiboMemoryItem:
             raise CiboExecutiveMemoryValidationError(
                 "memory item supersedes/superseded_by must be disjoint"
             )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.item_id, UUID):
+        if type(self.item_id) is not UUID:
             raise CiboExecutiveMemoryValidationError("memory item id must be UUID")
-        if not isinstance(self.kind, CiboMemoryKind):
+        if type(self.kind) is not CiboMemoryKind:
             raise CiboExecutiveMemoryValidationError("memory item requires CiboMemoryKind")
         _validate_code(self.subject_code, field_name="memory subject code")
         _validate_safe_text(self.content, field_name="memory content")
-        if not isinstance(self.provenance, CiboMemoryProvenance):
+        if type(self.provenance) is not CiboMemoryProvenance:
             raise CiboExecutiveMemoryValidationError(
                 "memory item requires CiboMemoryProvenance"
             )
         self.provenance.revalidate()
-        if not isinstance(self.freshness, CiboMemoryFreshness):
+        if type(self.freshness) is not CiboMemoryFreshness:
             raise CiboExecutiveMemoryValidationError(
                 "memory item requires CiboMemoryFreshness"
             )
@@ -359,7 +350,7 @@ class CiboMemoryItem:
         for ref in self.evidence_refs:
             _revalidate_ref(ref)
         if self.confidence is not None:
-            if not isinstance(self.confidence, CiboConfidence):
+            if type(self.confidence) is not CiboConfidence:
                 raise CiboExecutiveMemoryValidationError(
                     "memory confidence must be CiboConfidence or None"
                 )
@@ -410,6 +401,18 @@ class CiboMemorySummaryEntry:
     kind: CiboMemoryKind
     subject_code: str
 
+    def __post_init__(self) -> None:
+        if type(self.item_id) is not UUID:
+            raise CiboExecutiveMemoryValidationError("summary entry id must be a UUID")
+        if type(self.kind) is not CiboMemoryKind:
+            raise CiboExecutiveMemoryValidationError(
+                "summary entry kind must be a CiboMemoryKind"
+            )
+        if type(self.subject_code) is not str:
+            raise CiboExecutiveMemoryValidationError(
+                "summary entry subject code must be an exact str"
+            )
+
     def logical_values(self) -> tuple[object, ...]:
         return (str(self.item_id), self.kind.value, self.subject_code)
 
@@ -419,6 +422,14 @@ class CiboMemorySummary:
     """Deterministic index over retained items; references only, no content."""
 
     entries: tuple[CiboMemorySummaryEntry, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.entries) is not tuple or any(
+            type(entry) is not CiboMemorySummaryEntry for entry in self.entries
+        ):
+            raise CiboExecutiveMemoryValidationError(
+                "summary entries must be an immutable tuple of CiboMemorySummaryEntry"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return tuple(entry.logical_values() for entry in self.entries)
@@ -455,7 +466,7 @@ class CiboMemoryStore:
         item: CiboMemoryItem,
     ) -> Result[CiboMemoryStore, CiboExecutiveMemoryError]:
         """Retain one validated fact; reject duplicates and fabricated lineage."""
-        if not isinstance(item, CiboMemoryItem):
+        if type(item) is not CiboMemoryItem:
             return Failure(
                 CiboExecutiveMemoryValidationError("record requires CiboMemoryItem")
             )
@@ -490,7 +501,7 @@ class CiboMemoryStore:
 
     def retrieve(self, *, kind: CiboMemoryKind | None = None) -> tuple[CiboMemoryItem, ...]:
         """Deterministically return retained items, optionally filtered by kind."""
-        if kind is not None and not isinstance(kind, CiboMemoryKind):
+        if kind is not None and type(kind) is not CiboMemoryKind:
             raise CiboExecutiveMemoryValidationError("retrieve kind must be CiboMemoryKind")
         ordered = tuple(
             sorted(self.items, key=lambda entry: (entry.kind.value, str(entry.item_id)))

@@ -7,6 +7,7 @@ import ast
 import importlib
 import inspect
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -54,6 +55,35 @@ from qore.infrastructure.cibo_cognitive_world_model import (
     WorldModelSourceId,
     WorldModelSourceVersion,
     build_world_model_snapshot,
+)
+from qore.infrastructure.cibo_executive_journal import (
+    CiboExecutiveJournalValidationError,
+    CiboJournalEntry,
+    CiboJournalEntryKind,
+    CiboJournalStore,
+)
+from qore.infrastructure.cibo_executive_memory import (
+    CiboExecutiveMemoryValidationError,
+    CiboMemoryFreshness,
+    CiboMemoryFreshnessState,
+    CiboMemoryItem,
+    CiboMemoryKind,
+    CiboMemoryProvenance,
+    CiboMemorySourceRef,
+    CiboMemoryStore,
+)
+from qore.kernel.result import Failure
+from qore.modules.cibo.cognitive_contracts import (
+    CiboCognitiveEvidenceRef,
+    CiboDeliberationRole,
+    CiboEpistemicClaim,
+    CiboEpistemicState,
+    CiboReasoningMode,
+    CiboUncertainty,
+    CiboUncertaintyKind,
+)
+from qore.modules.cibo.cognitive_contracts import (
+    CiboCognitiveValidationError as CiboContractsValidationError,
 )
 
 _SEMANTIC_MODULES = (
@@ -153,6 +183,22 @@ def test_no_global_mutable_registry() -> None:
             assert not isinstance(
                 obj, (dict, list, set)
             ), f"{module_name}.{name} is a mutable module-level registry"
+
+
+def test_integration_has_no_mutable_module_state() -> None:
+    """The integration gate must expose no mutable module-level registry (law 21).
+
+    The former ``_DEPTH_TO_MODE`` dict is replaced by a total ``match`` function,
+    so there is no ``dict``/``list``/``set`` and no ``_DEPTH_TO_MODE`` attribute.
+    """
+    module = importlib.import_module("qore.infrastructure.cibo_cognitive_integration")
+    assert not hasattr(module, "_DEPTH_TO_MODE")
+    for name, obj in vars(module).items():
+        if name.startswith("__"):
+            continue
+        assert not isinstance(
+            obj, (dict, list, set)
+        ), f"integration.{name} is a mutable module-level registry"
 
 
 # ---------------------------------------------------------------------------
@@ -367,3 +413,194 @@ def test_exact_instance_versus_malicious_subclass() -> None:
             tool_version=ToolVersion("1"),
             input=_tool_input(),
         )
+
+
+# ---------------------------------------------------------------------------
+# IA-COG-FINAL-001/002: no Cognitive -> Functions/Trader-Manager implementation
+# dependency, and exact-runtime-type/subclass-laundering rejection across the
+# Batch 006 trust boundaries (UUID / datetime / enum / str / tuple / value object).
+# ---------------------------------------------------------------------------
+
+_COGNITIVE_MODULES = (
+    "qore.modules.cibo.cognitive_contracts",
+    "qore.infrastructure.cibo_executive_brain",
+    "qore.infrastructure.cibo_executive_deliberation",
+    "qore.infrastructure.cibo_executive_journal",
+    "qore.infrastructure.cibo_executive_memory",
+    "qore.infrastructure.cibo_cognitive_common",
+    "qore.infrastructure.cibo_cognitive_world_model",
+    "qore.infrastructure.cibo_cognitive_attention",
+    "qore.infrastructure.cibo_cognitive_planning",
+    "qore.infrastructure.cibo_cognitive_tools",
+    "qore.infrastructure.cibo_cognitive_replay",
+    "qore.infrastructure.cibo_cognitive_evaluation",
+    "qore.infrastructure.cibo_cognitive_integration",
+)
+
+_FORBIDDEN_COGNITIVE_DEPS = (
+    "cibo_trader_capability_profile",
+    "cibo_trader_manager",
+    "trader_manager",
+    "cibo_trader_lab",
+    "trader_lab",
+    "specialized_trader",
+    "specialized_traders",
+)
+
+
+def test_no_trader_functions_implementation_dependency_in_cognitive_paths() -> None:
+    for module_name in _COGNITIVE_MODULES:
+        for imported in _imported_module_names(_source(module_name)):
+            for forbidden in _FORBIDDEN_COGNITIVE_DEPS:
+                assert forbidden not in imported, (
+                    f"{module_name} imports forbidden {imported}"
+                )
+
+
+class _HostileStr(str):
+    pass
+
+
+class _HostileTuple(tuple[object, ...]):
+    pass
+
+
+class _HostileDatetime(datetime):
+    pass
+
+
+class _EvilJournalEntry(CiboJournalEntry):
+    def revalidate(self) -> None:
+        pass
+
+
+class _EvilMemoryItem(CiboMemoryItem):
+    def revalidate(self) -> None:
+        pass
+
+
+def _memory_item(item_id: UUID = _UUID_A) -> CiboMemoryItem:
+    return CiboMemoryItem(
+        item_id=item_id,
+        kind=CiboMemoryKind.DECISION,
+        subject_code="subject-demo",
+        content="retained observation",
+        provenance=CiboMemoryProvenance(
+            source_ref=CiboMemorySourceRef("evidence:source"),
+            effective_at=_AWARE,
+        ),
+        freshness=CiboMemoryFreshness(state=CiboMemoryFreshnessState.CURRENT, as_of=_AWARE),
+        evidence_refs=(CiboCognitiveEvidenceRef("evidence:demo"),),
+    )
+
+
+def test_batch006_uuid_subclass_rejected_at_journal_boundary() -> None:
+    with pytest.raises(CiboExecutiveJournalValidationError):
+        CiboJournalEntry(
+            entry_id=_EvilUUID(str(_UUID_A)),
+            episode_id=_UUID_B,
+            kind=CiboJournalEntryKind.DECISION,
+            subject_code="subject-demo",
+            recorded_at=_AWARE,
+            evidence_refs=(CiboCognitiveEvidenceRef("evidence:demo"),),
+        )
+
+
+def test_batch006_uuid_subclass_rejected_at_memory_boundary() -> None:
+    with pytest.raises(CiboExecutiveMemoryValidationError):
+        _memory_item(item_id=_EvilUUID(str(_UUID_A)))
+
+
+def test_batch006_str_subclass_rejected_at_evidence_ref() -> None:
+    with pytest.raises(CiboContractsValidationError):
+        CiboCognitiveEvidenceRef(_HostileStr("evidence:demo"))
+
+
+def test_batch006_strenum_member_laundered_as_str_rejected() -> None:
+    with pytest.raises(CiboContractsValidationError):
+        CiboDeliberationRole(CiboReasoningMode.FAST)
+
+
+def test_batch006_tuple_subclass_rejected_at_journal_evidence() -> None:
+    refs = cast(
+        tuple[CiboCognitiveEvidenceRef, ...],
+        _HostileTuple((CiboCognitiveEvidenceRef("evidence:demo"),)),
+    )
+    with pytest.raises(CiboExecutiveJournalValidationError):
+        CiboJournalEntry(
+            entry_id=_UUID_A,
+            episode_id=_UUID_B,
+            kind=CiboJournalEntryKind.DECISION,
+            subject_code="subject-demo",
+            recorded_at=_AWARE,
+            evidence_refs=refs,
+        )
+
+
+def test_batch006_datetime_subclass_rejected_at_journal_recorded_at() -> None:
+    hostile_dt = _HostileDatetime(2026, 8, 9, 0, 0, tzinfo=UTC)
+    with pytest.raises(CiboExecutiveJournalValidationError):
+        CiboJournalEntry(
+            entry_id=_UUID_A,
+            episode_id=_UUID_B,
+            kind=CiboJournalEntryKind.DECISION,
+            subject_code="subject-demo",
+            recorded_at=hostile_dt,
+            evidence_refs=(CiboCognitiveEvidenceRef("evidence:demo"),),
+        )
+
+
+def test_batch006_journal_store_rejects_value_object_subclass() -> None:
+    evil = _EvilJournalEntry(
+        entry_id=_UUID_A,
+        episode_id=_UUID_B,
+        kind=CiboJournalEntryKind.DECISION,
+        subject_code="subject-demo",
+        recorded_at=_AWARE,
+        evidence_refs=(CiboCognitiveEvidenceRef("evidence:demo"),),
+    )
+    result = CiboJournalStore().record(evil)
+    assert isinstance(result, Failure)
+
+
+def test_batch006_memory_store_rejects_value_object_subclass() -> None:
+    evil = _EvilMemoryItem(
+        item_id=_UUID_A,
+        kind=CiboMemoryKind.DECISION,
+        subject_code="subject-demo",
+        content="retained observation",
+        provenance=CiboMemoryProvenance(
+            source_ref=CiboMemorySourceRef("evidence:source"),
+            effective_at=_AWARE,
+        ),
+        freshness=CiboMemoryFreshness(state=CiboMemoryFreshnessState.CURRENT, as_of=_AWARE),
+        evidence_refs=(CiboCognitiveEvidenceRef("evidence:demo"),),
+    )
+    result = CiboMemoryStore().record(evil)
+    assert isinstance(result, Failure)
+
+
+def test_batch006_epistemic_claim_requires_evidence() -> None:
+    with pytest.raises(CiboContractsValidationError, match="evidence"):
+        CiboEpistemicClaim(
+            claim_id=_UUID_A,
+            epistemic_state=CiboEpistemicState.OBSERVATION,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            content_code="claim-demo",
+            evidence_refs=(),
+            uncertainty=CiboUncertainty(kind=CiboUncertaintyKind.INSUFFICIENT_EVIDENCE),
+        )
+
+
+def test_batch006_reflective_corruption_fails_store_revalidation() -> None:
+    entry = CiboJournalEntry(
+        entry_id=_UUID_A,
+        episode_id=_UUID_B,
+        kind=CiboJournalEntryKind.DECISION,
+        subject_code="subject-demo",
+        recorded_at=_AWARE,
+        evidence_refs=(CiboCognitiveEvidenceRef("evidence:demo"),),
+    )
+    object.__setattr__(entry.evidence_refs[0], "value", "secret=injected")
+    result = CiboJournalStore().record(entry)
+    assert isinstance(result, Failure)

@@ -30,6 +30,8 @@ CIBO REASONING != PROVIDER-NATIVE ORDER
 CIBO MEMORY != SILENT SELF-REWRITE
 TRADER VOICE != FORMAL SIGNAL
 IDEA != TRADE AUTHORITY
+MARKET KNOWLEDGE != CLAIM OF PERFECT CERTAINTY
+PROFIT AFTER INTERVENTION != PROOF THAT CIBO CAUSED IMPROVEMENT
 ```
 
 ## Purpose
@@ -149,7 +151,11 @@ All value objects are `@dataclass(frozen=True, slots=True)` with exact runtime-t
 hidden `datetime.now()`/`uuid4()`/RNG/sleep/scheduler/thread/network, deterministic
 canonical ordering, secret-material rejection in opaque refs/free text, recursive
 `revalidate()` and `logical_values()` trust boundaries, and typed `Result`/`Success`/
-`Failure` for operations that may fail.
+`Failure` for operations that may fail. Correction-003 adds a unified secret detector
+covering `sk-`/`AKIA`/`ghp_`/`xox`/JWT/URL-userinfo markers (fail closed, detection only,
+never a rewrite) and recursive constructor revalidation (rebuild-on-entry) so that
+reflectively corrupted nested material and hostile `logical_values()` projections fail
+construction rather than persisting.
 
 ## Validation evidence
 
@@ -158,6 +164,13 @@ canonical ordering, secret-material rejection in opaque refs/free text, recursiv
 - `tests/infrastructure/test_cibo_executive_journal.py`
 - `tests/infrastructure/test_cibo_executive_deliberation.py`
 - `tests/infrastructure/test_cibo_executive_brain.py`
+- `tests/infrastructure/test_cibo_cognitive_integration.py`
+
+Closure ledger: see
+`docs/architecture/QORE-CIBO-COGNITIVE-SUPERARCHITECTURE-001.md` "Roadmap conformance
+ledger (CA-01..CA-18)" — CA-06/CA-07/CA-09 are `INTEGRATION_GATE_CLOSED`; CA-14/CA-15
+remain open seams (the gate binds reasoning, evidence, faculty→role, calibration→
+uncertainty, plus world/synthesis/evaluation/replay/plan/tool references).
 
 Coverage includes bool/enum laundering, naive datetimes, secret-bearing refs/text, missing
 evidence vs confidence, canonical ordering under permutation, reflective nested tampering

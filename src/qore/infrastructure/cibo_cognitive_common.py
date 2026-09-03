@@ -24,31 +24,20 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
-from re import IGNORECASE, Pattern, compile
+from re import compile
 from uuid import UUID
 
 from qore.kernel.errors import DomainError
 from qore.kernel.temporal import canonical_instant, is_timezone_aware_datetime
+from qore.modules.cibo.cognitive_contracts import (
+    contains_secret_material as contains_secret_material,
+)
 
 _SHA256_HEX = compile(r"[0-9a-f]{64}")
 
-# Bounded, deterministic secret-material patterns. These are structural markers
-# that unambiguously indicate credential-like material; they are never used to
-# rewrite text, only to reject it (fail closed).
-_SECRET_PATTERNS: tuple[Pattern[str], ...] = (
-    compile(r"-----BEGIN [A-Z ]*(?:PRIVATE KEY|SECRET|ENCRYPTED PRIVATE KEY)-----"),
-    compile(r"\bsk-[A-Za-z0-9_-]{8,}"),
-    compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"),
-    compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}"),
-    compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{8,}", IGNORECASE),
-    compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
-    compile(r"//[^/@\s:]+:[^/@\s]+@"),
-    compile(
-        r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?key|secret[_-]?key|"
-        r"client[_-]?secret|private[_-]?key|credential|authorization)\s*[=:]\s*\S+"
-    ),
-)
+# Provider-neutral identity/version tokens: bounded allowlist of letters, digits,
+# dot, underscore and hyphen. Never a free-text prose field.
+_SUBJECT_TOKEN = compile(r"[0-9A-Za-z._-]{1,128}")
 
 
 class CiboCognitiveError(DomainError):
@@ -112,14 +101,22 @@ def require_aware_datetime(value: object, *, field: str) -> datetime:
 def canonical_material(value: object) -> str:
     """Serialize a bounded set of material to a deterministic canonical string.
 
-    Supported material: ``None``, exact ``str``, exact ``bool``, exact ``int``,
-    ``UUID``, timezone-aware ``datetime``, ``tuple``, ``frozenset``, and objects
-    exposing ``logical_values()``. Anything else fails closed rather than being
-    serialized ambiguously.
+    Supported material is a CLOSED allowlist of exact scalar types: ``None``,
+    exact ``str``, exact ``bool``, exact ``int``, ``UUID``, timezone-aware
+    ``datetime``, ``tuple``, and ``frozenset``. Strings are checked for
+    secret-bearing material (fail closed). Any other type — including any
+    duck-typed object exposing ``logical_values()`` — is rejected, so a hostile,
+    nondeterministic, or secret-bearing object can never inject state or secrets
+    into a fingerprint. Value objects must project themselves to scalars via
+    their own ``logical_values()`` before being fingerprinted.
     """
     if value is None:
         return "null"
     if type(value) is str:
+        if contains_secret_material(value):
+            raise CiboCognitiveValidationError(
+                "canonical material must not carry secret-bearing material"
+            )
         return json.dumps(value, ensure_ascii=True, separators=(",", ":"))
     if type(value) is bool:
         return "true" if value else "false"
@@ -133,9 +130,6 @@ def canonical_material(value: object) -> str:
         return "[" + ",".join(canonical_material(item) for item in value) + "]"
     if type(value) is frozenset:
         return "{" + ",".join(sorted(canonical_material(item) for item in value)) + "}"
-    logical = getattr(value, "logical_values", None)
-    if callable(logical):
-        return canonical_material(logical())
     raise CiboCognitiveValidationError(
         f"unsupported canonical material of type {type(value).__name__}"
     )
@@ -147,7 +141,56 @@ def fingerprint_material(*parts: object) -> CiboCognitiveFingerprint:
     return CiboCognitiveFingerprint(sha256(canonical.encode("utf-8")).hexdigest())
 
 
-def contains_secret_material(text: str) -> bool:
-    """Return whether ``text`` carries structural secret-bearing material."""
-    require_exact_str(text, field="secret detection input")
-    return any(pattern.search(text) is not None for pattern in _SECRET_PATTERNS)
+@dataclass(frozen=True, slots=True)
+class TraderSubject:
+    """Exact provider-neutral cognitive subject identity for one Trader version.
+
+    The fingerprint is deterministically derived from ``(trader_id,
+    trader_version)``, so the same identity under a different version yields a
+    different fingerprint and cannot be laundered as the same cognitive subject.
+    This value object carries no order, account, credential, execution, Risk,
+    promotion, or Production authority field.
+    """
+
+    trader_id: str
+    trader_version: str
+    fingerprint: CiboCognitiveFingerprint
+
+    def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        trader_id = require_exact_str(self.trader_id, field="trader subject id")
+        trader_version = require_exact_str(
+            self.trader_version, field="trader subject version"
+        )
+        if _SUBJECT_TOKEN.fullmatch(trader_id) is None:
+            raise CiboCognitiveValidationError(
+                "trader subject id must be a non-blank token of letters, digits, "
+                "dot, underscore or hyphen"
+            )
+        if _SUBJECT_TOKEN.fullmatch(trader_version) is None:
+            raise CiboCognitiveValidationError(
+                "trader subject version must be a non-blank token of letters, "
+                "digits, dot, underscore or hyphen"
+            )
+        if contains_secret_material(trader_id) or contains_secret_material(trader_version):
+            raise CiboCognitiveValidationError(
+                "trader subject identity must not carry secret-bearing material"
+            )
+        if type(self.fingerprint) is not CiboCognitiveFingerprint:
+            raise CiboCognitiveValidationError(
+                "trader subject fingerprint must be a CiboCognitiveFingerprint"
+            )
+        self.fingerprint.revalidate()
+        expected = fingerprint_material((trader_id, trader_version))
+        if self.fingerprint != expected:
+            raise CiboCognitiveValidationError(
+                "trader subject fingerprint does not match its identity/version"
+            )
+
+    def logical_values(self) -> tuple[str, str, str]:
+        return (self.trader_id, self.trader_version, self.fingerprint.value)
+
+    def sort_key(self) -> tuple[str, str]:
+        return (self.trader_id, self.trader_version)

@@ -203,3 +203,51 @@ class TestSynthesis:
         object.__setattr__(synthesis.recommendation, "summary", "token=leaked")
         with pytest.raises(CiboExecutiveBrainValidationError):
             synthesis.revalidate()
+
+
+class TestReflectiveCorruptionFailsAtConstruction:
+    def test_synthesize_rejects_reflectively_corrupted_uncertainty(self) -> None:
+        uncertainty = _insufficient_uncertainty()
+        object.__setattr__(uncertainty, "kind", CiboUncertaintyKind.BOUNDED_CONFIDENCE)
+        result = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-000000000011"),
+            directive=CiboExecutiveDirectiveKind.ABSTAIN,
+            reasoning_mode=CiboReasoningMode.FAST,
+            subject_code="subject-demo",
+            synthesized_at=_NOW,
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=uncertainty,
+        )
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, CiboExecutiveBrainValidationError)
+
+    def test_synthesize_rejects_corrupted_nested_recommendation(self) -> None:
+        recommendation = _recommendation()
+        object.__setattr__(recommendation, "summary", "token=leaked")
+        result = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-000000000012"),
+            directive=CiboExecutiveDirectiveKind.RECOMMEND,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            subject_code="subject-demo",
+            synthesized_at=_NOW,
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=_insufficient_uncertainty(),
+            recommendation=recommendation,
+        )
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, CiboExecutiveBrainValidationError)
+
+    def test_synthesize_rejects_corrupted_nested_evidence_ref(self) -> None:
+        ref = _ref("evidence:demo")
+        object.__setattr__(ref, "value", "evidence:ghp_abcdefghijklmnopqrstuvwxyz1234")
+        result = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-000000000013"),
+            directive=CiboExecutiveDirectiveKind.ABSTAIN,
+            reasoning_mode=CiboReasoningMode.FAST,
+            subject_code="subject-demo",
+            synthesized_at=_NOW,
+            evidence_refs=(ref,),
+            uncertainty=_insufficient_uncertainty(),
+        )
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, CiboExecutiveBrainValidationError)

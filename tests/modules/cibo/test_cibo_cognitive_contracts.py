@@ -104,6 +104,35 @@ class TestEvidenceRef:
             with pytest.raises(CiboCognitiveValidationError):
                 CiboCognitiveEvidenceRef(bad)
 
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "evidence:sk-abcdefghijklmnop",
+            "evidence:ghp_abcdefghijklmnopqrstuvwxyz1234",
+            "evidence:gho_abcdefghijklmnopqrstuvwxyz1234",
+            "evidence:ghu_abcdefghijklmnopqrstuvwxyz1234",
+            "evidence:ghs_abcdefghijklmnopqrstuvwxyz1234",
+            "evidence:ghr_abcdefghijklmnopqrstuvwxyz1234",
+            "evidence:xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "evidence:xoxp-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "evidence:xoxa-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "evidence:xoxr-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "evidence:xoxs-123456789012-abcdefghijklmnopqrstuvwxyz",
+        ),
+    )
+    def test_evidence_ref_rejects_structural_secrets(self, witness: str) -> None:
+        with pytest.raises(CiboCognitiveValidationError, match="sensitive"):
+            CiboCognitiveEvidenceRef(witness)
+
+    def test_evidence_ref_revalidate_rejects_reflective_secret(self) -> None:
+        ref = _ref("evidence:demo")
+        object.__setattr__(ref, "value", "evidence:xoxb-123456789012-abcdefghijklmnopqrstuvwxyz")
+        with pytest.raises(CiboCognitiveValidationError, match="sensitive"):
+            ref.revalidate()
+
+    def test_evidence_ref_accepts_bare_field_name_mention(self) -> None:
+        assert _ref("evidence:client_secret_demo").value == "evidence:client_secret_demo"
+
     def test_evidence_ref_rejects_non_string(self) -> None:
         with pytest.raises(CiboCognitiveValidationError):
             CiboCognitiveEvidenceRef(True)  # type: ignore[arg-type]
@@ -171,6 +200,40 @@ class TestFormalRecommendation:
     def test_recommendation_rejects_secret_summary(self) -> None:
         with pytest.raises(CiboCognitiveValidationError, match="sensitive"):
             _recommendation(summary="token=abc123 leaked")
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+            "AKIAIOSFODNN7EXAMPLE",
+            "ghp_abcdefghijklmnopqrstuvwxyz1234",
+            "gho_abcdefghijklmnopqrstuvwxyz1234",
+            "ghu_abcdefghijklmnopqrstuvwxyz1234",
+            "ghs_abcdefghijklmnopqrstuvwxyz1234",
+            "ghr_abcdefghijklmnopqrstuvwxyz1234",
+            "xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "xoxp-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "xoxa-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "xoxr-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "xoxs-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature",
+            "https://alice:correcthorsebatterystaple@example.com/x",
+            "client_secret=abcdefghijklmnopqrstuvwxyz123456",
+            "Authorization: Bearer abcdef1234567890",
+            "-----BEGIN PRIVATE KEY-----",
+        ),
+    )
+    def test_recommendation_rejects_structural_secret_summary(self, witness: str) -> None:
+        with pytest.raises(CiboCognitiveValidationError, match="sensitive"):
+            _recommendation(summary=witness)
+
+    def test_revalidate_rejects_injected_structural_secret(self) -> None:
+        recommendation = _recommendation()
+        object.__setattr__(
+            recommendation, "summary", "sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+        )
+        with pytest.raises(CiboCognitiveValidationError):
+            recommendation.revalidate()
 
     def test_recommendation_has_no_authority_fields(self) -> None:
         recommendation = _recommendation()

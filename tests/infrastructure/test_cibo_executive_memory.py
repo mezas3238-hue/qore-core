@@ -88,7 +88,10 @@ class TestMemoryItem:
 
     def test_source_ref_rejects_secret(self) -> None:
         with pytest.raises(CiboExecutiveMemoryValidationError, match="sensitive"):
-            CiboMemorySourceRef("client_secret_demo")
+            CiboMemorySourceRef("client_secret:abcdef123456")
+
+    def test_source_ref_accepts_bare_field_name_mention(self) -> None:
+        assert CiboMemorySourceRef("client_secret_demo").value == "client_secret_demo"
 
     def test_item_rejects_bool_kind_laundering(self) -> None:
         with pytest.raises(CiboExecutiveMemoryValidationError):
@@ -134,6 +137,83 @@ class TestMemoryItem:
         object.__setattr__(item.confidence, "evidence_refs", ())
         with pytest.raises(CiboExecutiveMemoryValidationError):
             item.revalidate()
+
+
+class TestStructuralSecretRejection:
+    _FREE_TEXT_WITNESSES = (
+        "sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+        "AKIAIOSFODNN7EXAMPLE",
+        "ghp_abcdefghijklmnopqrstuvwxyz1234",
+        "gho_abcdefghijklmnopqrstuvwxyz1234",
+        "ghu_abcdefghijklmnopqrstuvwxyz1234",
+        "ghs_abcdefghijklmnopqrstuvwxyz1234",
+        "ghr_abcdefghijklmnopqrstuvwxyz1234",
+        "xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxp-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxa-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxr-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxs-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature",
+        "https://alice:correcthorsebatterystaple@example.com/x",
+        "token=abc123",
+        "client_secret=abcdefghijklmnopqrstuvwxyz123456",
+        "Authorization: Bearer abcdef1234567890",
+        "-----BEGIN PRIVATE KEY-----",
+    )
+
+    _OPAQUE_REF_WITNESSES = (
+        "sk-abcdefghijklmnop",
+        "ghp_abcdefghijklmnopqrstuvwxyz1234",
+        "gho_abcdefghijklmnopqrstuvwxyz1234",
+        "ghu_abcdefghijklmnopqrstuvwxyz1234",
+        "ghs_abcdefghijklmnopqrstuvwxyz1234",
+        "ghr_abcdefghijklmnopqrstuvwxyz1234",
+        "xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxp-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxa-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxr-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxs-123456789012-abcdefghijklmnopqrstuvwxyz",
+    )
+
+    @pytest.mark.parametrize("witness", _FREE_TEXT_WITNESSES)
+    def test_content_rejects_structural_secrets(self, witness: str) -> None:
+        with pytest.raises(CiboExecutiveMemoryValidationError, match="sensitive"):
+            _item(content=witness)
+
+    @pytest.mark.parametrize("witness", _OPAQUE_REF_WITNESSES)
+    def test_source_ref_rejects_structural_secrets(self, witness: str) -> None:
+        with pytest.raises(CiboExecutiveMemoryValidationError, match="sensitive"):
+            CiboMemorySourceRef(witness)
+
+    def test_content_rejects_injected_structural_secret(self) -> None:
+        item = _item()
+        object.__setattr__(item, "content", "ghp_abcdefghijklmnopqrstuvwxyz1234")
+        with pytest.raises(CiboExecutiveMemoryValidationError):
+            item.revalidate()
+
+    def test_benign_content_still_accepted(self) -> None:
+        assert _item(content="passwords are required to rotate quarterly").content
+        assert _item(content="authentication failed and was retried").content
+        assert _item(content="the client_secret field must be configured").content
+        assert _item(content="the private_key is a field name in this document").content
+
+    def test_item_rejects_corrupted_nested_provenance(self) -> None:
+        provenance = CiboMemoryProvenance(
+            source_ref=CiboMemorySourceRef("source:demo"), effective_at=_NOW
+        )
+        object.__setattr__(provenance.source_ref, "value", "token=secret-leak")
+        with pytest.raises(CiboExecutiveMemoryValidationError):
+            CiboMemoryItem(
+                item_id=UUID("40000000-0000-0000-0000-000000000010"),
+                kind=CiboMemoryKind.SEMANTIC,
+                subject_code="subject-demo",
+                content="fact",
+                provenance=provenance,
+                freshness=CiboMemoryFreshness(
+                    state=CiboMemoryFreshnessState.CURRENT, as_of=_NOW
+                ),
+                evidence_refs=(_ref("evidence:demo"),),
+            )
 
 
 class TestMemoryStore:

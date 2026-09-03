@@ -42,14 +42,14 @@ class CiboExecutiveBrainValidationError(CiboExecutiveBrainError):
 
 
 def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboExecutiveBrainValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboExecutiveBrainValidationError(f"{field_name} must be timezone-aware")
 
 
 def _validate_code(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or fullmatch(_CODE_RE, value) is None:
+    if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveBrainValidationError(
             f"{field_name} must use canonical lowercase code syntax"
         )
@@ -62,7 +62,7 @@ def _validate_codes(
     field_name: str,
     allow_empty: bool = True,
 ) -> tuple[str, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, str) for v in values):
+    if type(values) is not tuple or any(type(v) is not str for v in values):
         raise CiboExecutiveBrainValidationError(
             f"{field_name} must be an immutable tuple of strings"
         )
@@ -79,8 +79,8 @@ def _canonical_refs(
     *,
     field_name: str,
 ) -> tuple[CiboCognitiveEvidenceRef, ...]:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboCognitiveEvidenceRef) for item in values
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboExecutiveBrainValidationError(
             f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
@@ -95,8 +95,8 @@ def _revalidate_refs(
     *,
     field_name: str,
 ) -> None:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboCognitiveEvidenceRef) for item in values
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboExecutiveBrainValidationError(
             f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
@@ -117,7 +117,7 @@ def _revalidate_refs(
 
 
 def _canonical_uuid_ids(values: tuple[UUID, ...], *, field_name: str) -> tuple[UUID, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, UUID) for v in values):
+    if type(values) is not tuple or any(type(v) is not UUID for v in values):
         raise CiboExecutiveBrainValidationError(
             f"{field_name} must be an immutable tuple of UUIDs"
         )
@@ -175,13 +175,13 @@ class CiboExecutiveSynthesis:
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.synthesis_id, UUID):
+        if type(self.synthesis_id) is not UUID:
             raise CiboExecutiveBrainValidationError("synthesis id must be UUID")
-        if not isinstance(self.directive, CiboExecutiveDirectiveKind):
+        if type(self.directive) is not CiboExecutiveDirectiveKind:
             raise CiboExecutiveBrainValidationError(
                 "synthesis requires CiboExecutiveDirectiveKind"
             )
-        if not isinstance(self.reasoning_mode, CiboReasoningMode):
+        if type(self.reasoning_mode) is not CiboReasoningMode:
             raise CiboExecutiveBrainValidationError(
                 "synthesis requires CiboReasoningMode"
             )
@@ -197,7 +197,7 @@ class CiboExecutiveSynthesis:
                 "synthesis requires explicit backing evidence"
             )
         object.__setattr__(self, "evidence_refs", refs)
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveBrainValidationError(
                 "synthesis requires CiboUncertainty"
             )
@@ -211,17 +211,13 @@ class CiboExecutiveSynthesis:
             "memory_refs",
             _canonical_uuid_ids(self.memory_refs, field_name="synthesis memory refs"),
         )
-        if self.deliberation_ref is not None and not isinstance(
-            self.deliberation_ref,
-            UUID,
-        ):
+        if self.deliberation_ref is not None and type(self.deliberation_ref) is not UUID:
             raise CiboExecutiveBrainValidationError(
                 "synthesis deliberation_ref must be UUID or None"
             )
-        if self.recommendation is not None and not isinstance(
-            self.recommendation,
-            CiboFormalRecommendation,
-        ):
+        if self.recommendation is not None and type(
+            self.recommendation
+        ) is not CiboFormalRecommendation:
             raise CiboExecutiveBrainValidationError(
                 "synthesis recommendation must be CiboFormalRecommendation or None"
             )
@@ -275,15 +271,16 @@ class CiboExecutiveSynthesis:
             raise CiboExecutiveBrainValidationError(
                 "defer/abstain directive must not carry recommendation, questions, or request"
             )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.synthesis_id, UUID):
+        if type(self.synthesis_id) is not UUID:
             raise CiboExecutiveBrainValidationError("synthesis id must be UUID")
-        if not isinstance(self.directive, CiboExecutiveDirectiveKind):
+        if type(self.directive) is not CiboExecutiveDirectiveKind:
             raise CiboExecutiveBrainValidationError(
                 "synthesis requires CiboExecutiveDirectiveKind"
             )
-        if not isinstance(self.reasoning_mode, CiboReasoningMode):
+        if type(self.reasoning_mode) is not CiboReasoningMode:
             raise CiboExecutiveBrainValidationError("synthesis requires CiboReasoningMode")
         _validate_code(self.subject_code, field_name="synthesis subject code")
         _validate_aware_datetime(self.synthesized_at, field_name="synthesis synthesized_at")
@@ -292,7 +289,7 @@ class CiboExecutiveSynthesis:
                 "synthesis requires explicit backing evidence"
             )
         _revalidate_refs(self.evidence_refs, field_name="synthesis evidence")
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveBrainValidationError("synthesis requires CiboUncertainty")
         _revalidate_uncertainty(self.uncertainty)
         if self.observations != _validate_codes(
@@ -309,15 +306,12 @@ class CiboExecutiveSynthesis:
             raise CiboExecutiveBrainValidationError(
                 "synthesis memory refs failed canonical revalidation"
             )
-        if self.deliberation_ref is not None and not isinstance(
-            self.deliberation_ref,
-            UUID,
-        ):
+        if self.deliberation_ref is not None and type(self.deliberation_ref) is not UUID:
             raise CiboExecutiveBrainValidationError(
                 "synthesis deliberation_ref must be UUID or None"
             )
         if self.recommendation is not None:
-            if not isinstance(self.recommendation, CiboFormalRecommendation):
+            if type(self.recommendation) is not CiboFormalRecommendation:
                 raise CiboExecutiveBrainValidationError(
                     "synthesis recommendation must be CiboFormalRecommendation or None"
                 )

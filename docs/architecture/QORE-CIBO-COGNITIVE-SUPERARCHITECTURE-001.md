@@ -47,6 +47,8 @@ authority.
 20. Secret-bearing strings/metadata/evidence fail closed.
 21. No global mutable registry/state.
 22. No hindsight rewriting of beliefs, goals, lessons or counterfactuals.
+23. `MARKET KNOWLEDGE != CLAIM OF PERFECT CERTAINTY`.
+24. `PROFIT AFTER INTERVENTION != PROOF THAT CIBO CAUSED IMPROVEMENT`.
 
 ### Exact-runtime-type boundary policy (Correction-001)
 
@@ -128,9 +130,12 @@ authority.
 
 ## Integration seams with Batch 006 (Cognitive Integration Gate)
 
-This package does not import or reference Batch 006 symbols (they are absent in
-this checkout by design). Integration occurs later at a dedicated gate via
-reference/fingerprint seams only. The exact remaining seams required to combine
+The recovered `src/qore/infrastructure/cibo_cognitive_integration.py` closes the
+Cognitive Integration Gate for CA-06/CA-07/CA-09 by importing Batch 006 executive
+symbols (`CiboReasoningMode`, `CiboCognitiveEvidenceRef`, `CiboDeliberationRole`,
+`CiboUncertaintyKind`, `CiboCouncilOutcome`) and binding them by reference/
+fingerprint/identity only. The CA-14 (utterance) and CA-15 (handoff → formal
+recommendation) binding seams remain open. The exact remaining seams required to combine
 certified Batch 006 with this completed Batch 008 are enumerated below; each is
 a one-way reference/fingerprint/identity binding, and **none** transfers
 authority, execution, or duplicate semantic ownership:
@@ -205,24 +210,104 @@ no Batch 008 module imports, subclasses, or duplicates a Batch 006 semantic type
 | 34 | UUID subclass laundering rejected at attention/tool/plan/world-model boundaries | `test_uuid_subclass_rejected_at_attention_boundary`, `test_uuid_subclass_rejected_at_tool_request_boundary`, `test_uuid_subclass_rejected_at_plan_boundary`, `test_uuid_subclass_rejected_at_world_model_boundary` |
 | 35 | concrete value-object subclass (bypassed `revalidate()`) rejected | `test_concrete_value_object_subclass_rejected` |
 | 36 | factory/builder exact-type parity (constructor == builder rejection) | `test_factory_rejects_signal_subclass_like_constructor`, `test_factory_rejects_contribution_subclass`, `test_factory_rejects_replay_tool_call_subclass`, `test_exact_instance_versus_malicious_subclass` |
+| 37 | unified secret detector (sk-/AKIA/ghp_/xox/JWT/userinfo) | `test_contains_secret_material_union_semantics`, `test_recommendation_rejects_structural_secret_summary`, `test_content_rejects_structural_secrets`, `test_summary_rejects_structural_secrets` |
+| 38 | reflective corruption fails construction (rebuild-on-entry) | `test_synthesize_rejects_reflectively_corrupted_uncertainty`, `test_deliberation_rejects_corrupted_participant_role`, `test_item_rejects_corrupted_nested_provenance` |
+| 39 | hostile `logical_values()` object rejected at canonical layer | `test_canonical_material_rejects_hostile_logical_values_object`, `test_canonical_material_rejects_nondeterministic_logical_values_object` |
+| 40 | dangling replay fingerprint rejected | `test_no_dangling_replay_fingerprint_field`, `test_replay_reference_requires_matching_episode_id` |
+| 41 | swapped UUID + wrong fingerprint rejected | `test_world_snapshot_reference_rejects_swapped_content`, `test_content_binding_rejects_wrong_fingerprint_type` |
+| 42 | disagreement cannot collapse to bounded confidence | `test_disagreement_forbids_bounded_confidence`, `test_disagreement_preserved_with_non_bounded_uncertainty` |
+| 43 | all six uncertainty kinds representable | `test_covers_all_six_kinds`, `test_zero_confidence_is_not_positive_bounded_confidence` |
+| 44 | no mutable module mapping; integration gate has no `_DEPTH_TO_MODE` | `test_integration_has_no_mutable_module_state`, `test_no_global_mutable_registry` |
+
+## Strategic roadmap amendment (Market Mastery / Trader Development)
+
+`CIBO MARKET MASTERY -> MARKET × REGIME × INSTRUMENT × EXACT TRADER UNDERSTANDING -> INDIVIDUAL TRADER DEVELOPMENT -> TRADER LAB EVIDENCE -> CIBO EVALUATES WHETHER THE TRADER ACTUALLY IMPROVED`
+
+Hard laws:
+
+- `MARKET KNOWLEDGE != CLAIM OF PERFECT CERTAINTY`
+- `PROFIT AFTER INTERVENTION != PROOF THAT CIBO CAUSED IMPROVEMENT`
+
+This amendment adds two typed families:
+
+- `MarketTrader` suitability (CA-04 world model): typed MARKET × REGIME ×
+  INSTRUMENT × EXACT TRADER understanding; a `FAVORABLE` disposition is the only
+  positive assertion and is admissible only with current, uncontradicted evidence
+  plus explicit limitations — it can never assert perfect certainty.
+- Trader-development intervention attribution (CA-17 evaluation): typed
+  attribution where post-intervention economic profit is retained as evidence but
+  is never, on its own, treated as proof that CIBO caused the improvement.
 
 ## Roadmap conformance ledger (CA-01..CA-18)
 
 - CA-01 Cognitive Kernel — `PREDECESSOR_BATCH006`
 - CA-02 Evidence / Provenance Fabric — `PREDECESSOR_BATCH006` (+ complementary provenance binding in Lane 1/4/5 fingerprints)
 - CA-03 Persistent Memory Fabric — `PREDECESSOR_BATCH006`
-- CA-04 Financial/Core World Model Architecture — `IMPLEMENTED_BATCH008`
+- CA-04 Financial/Core World Model Architecture — `IMPLEMENTED_BATCH008` (+ `MarketTrader` suitability family: typed MARKET × REGIME × INSTRUMENT × EXACT TRADER understanding; never a claim of perfect certainty)
 - CA-05 Attention / Priority / Context Selection — `IMPLEMENTED_BATCH008`
-- CA-06 Reasoning Modes — `INTEGRATION_GATE_REQUIRED` (enum predecessor; complementary routing seam implemented)
-- CA-07 Council of Minds / Specialist Cognition Bus — `INTEGRATION_GATE_REQUIRED` (council predecessor; faculty bus seam implemented)
+- CA-06 Reasoning Modes — `INTEGRATION_GATE_CLOSED` (`bind_reasoning_mode`; enum predecessor `CiboReasoningMode` owned by Batch 006)
+- CA-07 Council of Minds / Specialist Cognition Bus — `INTEGRATION_GATE_CLOSED` (`bind_deliberation_role` + disagreement-outcome firewall; council predecessor owned by Batch 006)
 - CA-08 Critic / Skeptic / Contradiction Engine — `PREDECESSOR_BATCH006` (+ cross-component contradiction integration in Lane 1)
-- CA-09 Uncertainty / Calibration Architecture — `INTEGRATION_GATE_REQUIRED` (primitives predecessor; calibration seam implemented)
+- CA-09 Uncertainty / Calibration Architecture — `INTEGRATION_GATE_CLOSED` (`bind_uncertainty_kind`; primitives predecessor `CiboUncertaintyKind` owned by Batch 006)
 - CA-10 Planning / Goal Graph — `IMPLEMENTED_BATCH008`
 - CA-11 Learning / Reflection / Counterfactual Architecture — `IMPLEMENTED_BATCH008`
 - CA-12 Quant / Tool Orchestration Substrate — `IMPLEMENTED_BATCH008`
 - CA-13 Specialist Faculty Interface — `IMPLEMENTED_BATCH008`
-- CA-14 Dialogue / Voice Cognitive Boundary — `INTEGRATION_GATE_REQUIRED` (boundary predecessor; typed utterance seam implemented)
-- CA-15 Authority / Action Firewall — `INTEGRATION_GATE_REQUIRED` (negative boundary predecessor; authority-free handoff envelope implemented)
+- CA-14 Dialogue / Voice Cognitive Boundary — `INTEGRATION_GATE_REQUIRED` (OPEN seam: the gate does not bind `CognitiveUtterance`; typed utterance seam implemented only)
+- CA-15 Authority / Action Firewall — `INTEGRATION_GATE_REQUIRED` (OPEN seam: the gate does not bind `CognitiveHandoff` -> formal recommendation; authority-free envelope implemented only)
 - CA-16 Cognitive Observability / Replay / Audit — `IMPLEMENTED_BATCH008`
-- CA-17 Cognitive Evaluation Framework — `IMPLEMENTED_BATCH008`
+- CA-17 Cognitive Evaluation Framework — `IMPLEMENTED_BATCH008` (+ Trader-development intervention-attribution family: `PROFIT AFTER INTERVENTION != PROOF THAT CIBO CAUSED IMPROVEMENT`)
 - CA-18 Scale / Modularity / Evolution — `IMPLEMENTED_BATCH008`
+
+## Residual Root-Family Closure (Correction-003)
+
+Four residual root families (IA-COG-FINAL-004/005/006/007) are closed by Correction-003;
+each is witnessed by dedicated adversarial tests and recorded against its hard law:
+
+- **IA-COG-FINAL-004 — Secret-hygiene unification (law 20).** A single canonical,
+  provider-neutral `_SECRET_PATTERNS` + `contains_secret_material` now lives in the
+  domain leaf `cognitive_contracts.py` (re-exported from `cibo_cognitive_common.py`)
+  and replaces the weak literal `_SENSITIVE_PARTS` on every Batch 006 free-text/
+  reference surface (`CiboFormalRecommendation.summary`, `CiboMemoryItem.content`,
+  `CiboMemorySourceRef.value`, `CiboCouncilSynthesis.summary`,
+  `CiboCognitiveEvidenceRef.value`). The union detector rejects `sk-`/`AKIA`/`gh*_`/
+  `xox*`/JWT/URL-userinfo/`client_secret`/`bearer`/auth-header/private-key-block and
+  legacy `token=`/`secret=` markers at construction and recursive revalidation.
+  Boundary semantics are structural, never naive substrings: credential labels
+  (`client_secret`, `private_key`, `api_key`, `token`, ...) are rejected only in
+  assignment form (`label[=:] value`) or as a PEM block, so a bare field-name mention
+  (e.g. "the client_secret field must be configured") is accepted and not over-rejected.
+  Witnesses: `test_recommendation_rejects_structural_secret_summary`,
+  `test_content_rejects_structural_secrets`, `test_summary_rejects_structural_secrets`,
+  `test_contains_secret_material_union_semantics`,
+  `test_contains_secret_material_re_export_is_canonical`,
+  `test_evidence_ref_accepts_bare_field_name_mention`.
+- **IA-COG-FINAL-005 — Constructor-boundary recursive revalidation (law 17).** Every
+  affected `__post_init__` now ends with `self.revalidate()` (reusing the existing
+  contract) so reflectively corrupted nested uncertainty/confidence/evidence/role/
+  recommendation/participant material fails before a `Success`/object can escape.
+  Witnesses: `test_synthesize_rejects_reflectively_corrupted_uncertainty`,
+  `test_synthesize_rejects_corrupted_nested_recommendation`,
+  `test_deliberation_rejects_corrupted_participant_role`,
+  `test_item_rejects_corrupted_nested_provenance`.
+- **IA-COG-FINAL-006 — Integration seam semantic completeness (CA-02/04/06/07/09/10/12/16/17).**
+  `replay_fingerprint` (dangling) is removed; bare `world_snapshot_id`/`synthesis_ref`/
+  `evaluation_ref` UUID links are replaced with exact `CiboIntegratedContentBinding`
+  `(id, fingerprint)` references; disagreement can no longer coexist with bounded
+  confidence; `bind_uncertainty_kind` preserves all six `CiboUncertaintyKind` states and
+  zero confidence never becomes positive bounded confidence; nested `CiboUncertainty`
+  is recursively revalidated at the gate; plan/tool/replay bindings complete the CA
+  replay surface; the double-construction builder hazard is removed (single construction
+  with a versioned fingerprint schema `cibo-integrated-episode:v2`). Witnesses:
+  `test_no_dangling_replay_fingerprint_field`, `test_world_snapshot_reference_rejects_swapped_content`,
+  `test_disagreement_forbids_bounded_confidence`, `test_covers_all_six_kinds`,
+  `test_builder_round_trips_every_field`.
+- **IA-COG-FINAL-007 — Global mutability / canonical-material trust boundary (law 21).**
+  The module-level mutable `_DEPTH_TO_MODE` dict is replaced by a total `match` function
+  `_reasoning_mode_for_hint` (no mapping attribute); `canonical_material` is now a closed
+  scalar allowlist that rejects any duck-typed `logical_values()` object and secret-bearing
+  strings before hashing. Witnesses:
+  `test_integration_has_no_mutable_module_state`,
+  `test_canonical_material_rejects_hostile_logical_values_object`,
+  `test_canonical_material_rejects_nondeterministic_logical_values_object`,
+  `test_canonical_material_rejects_secret_bearing_string`.

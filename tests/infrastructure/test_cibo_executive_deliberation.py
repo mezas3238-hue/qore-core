@@ -56,10 +56,12 @@ def _context() -> CiboDeliberationContext:
     )
 
 
-def _synthesis(synthesis_id: UUID = _SYNTHESIS_ID) -> CiboCouncilSynthesis:
+def _synthesis(
+    synthesis_id: UUID = _SYNTHESIS_ID, *, summary: str = "Executive synthesis"
+) -> CiboCouncilSynthesis:
     return CiboCouncilSynthesis(
         synthesis_id=synthesis_id,
-        summary="Executive synthesis",
+        summary=summary,
         evidence_refs=(_ref("evidence:synthesis"),),
         uncertainty=_uncertainty(),
         synthesized_at=_NOW,
@@ -218,3 +220,61 @@ class TestDeliberation:
         object.__setattr__(deliberation.participants[0], "position_code", "Position Changed")
         with pytest.raises(CiboExecutiveDeliberationValidationError):
             deliberation.revalidate()
+
+
+class TestReflectiveCorruptionFailsAtConstruction:
+    def test_deliberation_rejects_corrupted_participant_role(self) -> None:
+        participant = _contribution(UUID("60000000-0000-0000-0000-0000000000a1"), "quant")
+        object.__setattr__(participant.role, "value", "NOT A ROLE!")
+        with pytest.raises(CiboExecutiveDeliberationValidationError):
+            CiboExecutiveDeliberation(
+                context=_context(), participants=(participant,), concluded_at=_NOW
+            )
+
+    def test_deliberation_rejects_corrupted_participant_uncertainty(self) -> None:
+        participant = _contribution(UUID("60000000-0000-0000-0000-0000000000a1"), "quant")
+        object.__setattr__(participant.uncertainty, "kind", CiboUncertaintyKind.BOUNDED_CONFIDENCE)
+        with pytest.raises(CiboExecutiveDeliberationValidationError):
+            CiboExecutiveDeliberation(
+                context=_context(), participants=(participant,), concluded_at=_NOW
+            )
+
+
+class TestCouncilSynthesisSecretRejection:
+    _WITNESSES = (
+        "sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+        "AKIAIOSFODNN7EXAMPLE",
+        "ghp_abcdefghijklmnopqrstuvwxyz1234",
+        "gho_abcdefghijklmnopqrstuvwxyz1234",
+        "ghu_abcdefghijklmnopqrstuvwxyz1234",
+        "ghs_abcdefghijklmnopqrstuvwxyz1234",
+        "ghr_abcdefghijklmnopqrstuvwxyz1234",
+        "xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxp-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxa-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxr-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "xoxs-123456789012-abcdefghijklmnopqrstuvwxyz",
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature",
+        "https://alice:correcthorsebatterystaple@example.com/x",
+        "token=abc123",
+        "client_secret=abcdefghijklmnopqrstuvwxyz123456",
+        "Authorization: Bearer abcdef1234567890",
+        "-----BEGIN PRIVATE KEY-----",
+    )
+
+    @pytest.mark.parametrize("witness", _WITNESSES)
+    def test_summary_rejects_structural_secrets(self, witness: str) -> None:
+        with pytest.raises(CiboExecutiveDeliberationValidationError, match="sensitive"):
+            _synthesis(summary=witness)
+
+    def test_revalidate_rejects_injected_structural_secret(self) -> None:
+        synthesis = _synthesis()
+        object.__setattr__(
+            synthesis, "summary", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature"
+        )
+        with pytest.raises(CiboExecutiveDeliberationValidationError):
+            synthesis.revalidate()
+
+    def test_benign_summary_still_accepted(self) -> None:
+        assert _synthesis(summary="the authentication failed and was retried").summary
+        assert _synthesis(summary="the client_secret field must be configured").summary

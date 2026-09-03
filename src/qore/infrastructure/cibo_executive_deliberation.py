@@ -20,6 +20,7 @@ from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveValidationError,
     CiboDeliberationRole,
     CiboUncertainty,
+    contains_secret_material,
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
@@ -38,7 +39,7 @@ class CiboExecutiveDeliberationValidationError(CiboExecutiveDeliberationError):
 
 
 def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboExecutiveDeliberationValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboExecutiveDeliberationValidationError(
@@ -47,7 +48,7 @@ def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
 
 
 def _validate_code(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or fullmatch(_CODE_RE, value) is None:
+    if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveDeliberationValidationError(
             f"{field_name} must use canonical lowercase code syntax"
         )
@@ -60,7 +61,7 @@ def _validate_codes(
     field_name: str,
     allow_empty: bool = True,
 ) -> tuple[str, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, str) for v in values):
+    if type(values) is not tuple or any(type(v) is not str for v in values):
         raise CiboExecutiveDeliberationValidationError(
             f"{field_name} must be an immutable tuple of strings"
         )
@@ -75,15 +76,13 @@ def _validate_codes(
 
 
 def _validate_safe_text(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or not value.strip():
+    if type(value) is not str or not value.strip():
         raise CiboExecutiveDeliberationValidationError(f"{field_name} must be non-empty text")
     if any(ch in value for ch in "\x00\n\r\t"):
         raise CiboExecutiveDeliberationValidationError(
             f"{field_name} must not contain control characters"
         )
-    lowered = value.lower()
-    if any(part in lowered for part in ("authorization:", "bearer ", "client_secret",
-                                        "password=", "private_key", "secret=", "token=")):
+    if contains_secret_material(value):
         raise CiboExecutiveDeliberationValidationError(
             f"{field_name} must not contain sensitive material"
         )
@@ -95,8 +94,8 @@ def _canonical_refs(
     *,
     field_name: str,
 ) -> tuple[CiboCognitiveEvidenceRef, ...]:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboCognitiveEvidenceRef) for item in values
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboExecutiveDeliberationValidationError(
             f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
@@ -113,8 +112,8 @@ def _revalidate_refs(
     *,
     field_name: str,
 ) -> None:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboCognitiveEvidenceRef) for item in values
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboExecutiveDeliberationValidationError(
             f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
@@ -172,7 +171,7 @@ class CiboDeliberationContext:
     evidence_refs: tuple[CiboCognitiveEvidenceRef, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.deliberation_id, UUID):
+        if type(self.deliberation_id) is not UUID:
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation id must be UUID"
             )
@@ -192,9 +191,10 @@ class CiboDeliberationContext:
             "evidence_refs",
             _canonical_refs(self.evidence_refs, field_name="deliberation context evidence"),
         )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.deliberation_id, UUID):
+        if type(self.deliberation_id) is not UUID:
             raise CiboExecutiveDeliberationValidationError("deliberation id must be UUID")
         _validate_code(self.version_code, field_name="deliberation version code")
         _validate_code(self.subject_code, field_name="deliberation subject code")
@@ -225,15 +225,15 @@ class CiboDeliberationContribution:
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.contribution_id, UUID):
+        if type(self.contribution_id) is not UUID:
             raise CiboExecutiveDeliberationValidationError(
                 "contribution id must be UUID"
             )
-        if not isinstance(self.role, CiboDeliberationRole):
+        if type(self.role) is not CiboDeliberationRole:
             raise CiboExecutiveDeliberationValidationError(
                 "contribution requires CiboDeliberationRole"
             )
-        if not isinstance(self.kind, CiboContributionKind):
+        if type(self.kind) is not CiboContributionKind:
             raise CiboExecutiveDeliberationValidationError(
                 "contribution requires CiboContributionKind"
             )
@@ -248,7 +248,7 @@ class CiboDeliberationContribution:
                 "contribution requires explicit backing evidence"
             )
         object.__setattr__(self, "evidence_refs", refs)
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveDeliberationValidationError(
                 "contribution requires CiboUncertainty"
             )
@@ -258,16 +258,22 @@ class CiboDeliberationContribution:
             _validate_codes(self.limitations, field_name="contribution limitations"),
         )
         _validate_aware_datetime(self.contributed_at, field_name="contribution contributed_at")
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.contribution_id, UUID):
+        if type(self.contribution_id) is not UUID:
             raise CiboExecutiveDeliberationValidationError("contribution id must be UUID")
-        if not isinstance(self.role, CiboDeliberationRole):
+        if type(self.role) is not CiboDeliberationRole:
             raise CiboExecutiveDeliberationValidationError(
                 "contribution requires CiboDeliberationRole"
             )
-        self.role.revalidate()
-        if not isinstance(self.kind, CiboContributionKind):
+        try:
+            self.role.revalidate()
+        except CiboCognitiveValidationError as error:
+            raise CiboExecutiveDeliberationValidationError(
+                "contribution role failed nested revalidation"
+            ) from error
+        if type(self.kind) is not CiboContributionKind:
             raise CiboExecutiveDeliberationValidationError(
                 "contribution requires CiboContributionKind"
             )
@@ -277,7 +283,7 @@ class CiboDeliberationContribution:
                 "contribution requires explicit backing evidence"
             )
         _revalidate_refs(self.evidence_refs, field_name="contribution evidence")
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveDeliberationValidationError(
                 "contribution requires CiboUncertainty"
             )
@@ -314,7 +320,7 @@ class CiboDisagreement:
     evidence_refs: tuple[CiboCognitiveEvidenceRef, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.a_ref, UUID) or not isinstance(self.b_ref, UUID):
+        if type(self.a_ref) is not UUID or type(self.b_ref) is not UUID:
             raise CiboExecutiveDeliberationValidationError(
                 "disagreement references must be UUIDs"
             )
@@ -332,9 +338,10 @@ class CiboDisagreement:
             "evidence_refs",
             _canonical_refs(self.evidence_refs, field_name="disagreement evidence"),
         )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.a_ref, UUID) or not isinstance(self.b_ref, UUID):
+        if type(self.a_ref) is not UUID or type(self.b_ref) is not UUID:
             raise CiboExecutiveDeliberationValidationError(
                 "disagreement references must be UUIDs"
             )
@@ -359,7 +366,7 @@ class CiboAdversarialCritique:
     evidence_refs: tuple[CiboCognitiveEvidenceRef, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.target_ref, UUID):
+        if type(self.target_ref) is not UUID:
             raise CiboExecutiveDeliberationValidationError(
                 "critique target must be a UUID"
             )
@@ -377,9 +384,10 @@ class CiboAdversarialCritique:
             "evidence_refs",
             _canonical_refs(self.evidence_refs, field_name="critique evidence"),
         )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.target_ref, UUID):
+        if type(self.target_ref) is not UUID:
             raise CiboExecutiveDeliberationValidationError("critique target must be a UUID")
         if self.critique_reason_codes != _validate_codes(
             self.critique_reason_codes,
@@ -411,7 +419,7 @@ class CiboCouncilSynthesis:
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.synthesis_id, UUID):
+        if type(self.synthesis_id) is not UUID:
             raise CiboExecutiveDeliberationValidationError("synthesis id must be UUID")
         object.__setattr__(
             self,
@@ -424,7 +432,7 @@ class CiboCouncilSynthesis:
                 "synthesis requires explicit backing evidence"
             )
         object.__setattr__(self, "evidence_refs", refs)
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveDeliberationValidationError(
                 "synthesis requires CiboUncertainty"
             )
@@ -434,9 +442,10 @@ class CiboCouncilSynthesis:
             _validate_codes(self.limitations, field_name="synthesis limitations"),
         )
         _validate_aware_datetime(self.synthesized_at, field_name="synthesis synthesized_at")
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.synthesis_id, UUID):
+        if type(self.synthesis_id) is not UUID:
             raise CiboExecutiveDeliberationValidationError("synthesis id must be UUID")
         _validate_safe_text(self.summary, field_name="synthesis summary")
         if not self.evidence_refs:
@@ -444,7 +453,7 @@ class CiboCouncilSynthesis:
                 "synthesis requires explicit backing evidence"
             )
         _revalidate_refs(self.evidence_refs, field_name="synthesis evidence")
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveDeliberationValidationError(
                 "synthesis requires CiboUncertainty"
             )
@@ -491,16 +500,18 @@ class CiboExecutiveDeliberation:
     outcome: CiboCouncilOutcome = CiboCouncilOutcome.NO_DECISION
 
     def __post_init__(self) -> None:
-        if not isinstance(self.context, CiboDeliberationContext):
+        if type(self.context) is not CiboDeliberationContext:
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation requires CiboDeliberationContext"
             )
-        if not isinstance(self.participants, tuple) or not self.participants or any(
-            not isinstance(item, CiboDeliberationContribution) for item in self.participants
+        if type(self.participants) is not tuple or not self.participants or any(
+            type(item) is not CiboDeliberationContribution for item in self.participants
         ):
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation requires a non-empty tuple of CiboDeliberationContribution"
             )
+        for participant in self.participants:
+            participant.revalidate()
         contribution_ids = tuple(item.contribution_id for item in self.participants)
         if len(set(contribution_ids)) != len(contribution_ids):
             raise CiboExecutiveDeliberationValidationError(
@@ -516,8 +527,8 @@ class CiboExecutiveDeliberation:
             "participants",
             tuple(sorted(self.participants, key=lambda item: item.role.value)),
         )
-        if not isinstance(self.disagreements, tuple) or any(
-            not isinstance(item, CiboDisagreement) for item in self.disagreements
+        if type(self.disagreements) is not tuple or any(
+            type(item) is not CiboDisagreement for item in self.disagreements
         ):
             raise CiboExecutiveDeliberationValidationError(
                 "disagreements must be a tuple of CiboDisagreement"
@@ -531,8 +542,8 @@ class CiboExecutiveDeliberation:
             "disagreements",
             tuple(sorted(self.disagreements, key=lambda d: (str(d.a_ref), str(d.b_ref)))),
         )
-        if not isinstance(self.critiques, tuple) or any(
-            not isinstance(item, CiboAdversarialCritique) for item in self.critiques
+        if type(self.critiques) is not tuple or any(
+            type(item) is not CiboAdversarialCritique for item in self.critiques
         ):
             raise CiboExecutiveDeliberationValidationError(
                 "critiques must be a tuple of CiboAdversarialCritique"
@@ -546,7 +557,7 @@ class CiboExecutiveDeliberation:
             "critiques",
             tuple(sorted(self.critiques, key=lambda c: str(c.target_ref))),
         )
-        if not isinstance(self.outcome, CiboCouncilOutcome):
+        if type(self.outcome) is not CiboCouncilOutcome:
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation requires CiboCouncilOutcome"
             )
@@ -561,7 +572,7 @@ class CiboExecutiveDeliberation:
                 raise CiboExecutiveDeliberationValidationError(
                     "critique must reference an existing contribution"
                 )
-        if self.synthesis is not None and not isinstance(self.synthesis, CiboCouncilSynthesis):
+        if self.synthesis is not None and type(self.synthesis) is not CiboCouncilSynthesis:
             raise CiboExecutiveDeliberationValidationError(
                 "synthesis must be CiboCouncilSynthesis or None"
             )
@@ -583,15 +594,16 @@ class CiboExecutiveDeliberation:
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation conclusion cannot predate its context"
             )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.context, CiboDeliberationContext):
+        if type(self.context) is not CiboDeliberationContext:
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation requires CiboDeliberationContext"
             )
         self.context.revalidate()
-        if not isinstance(self.participants, tuple) or not self.participants or any(
-            not isinstance(item, CiboDeliberationContribution) for item in self.participants
+        if type(self.participants) is not tuple or not self.participants or any(
+            type(item) is not CiboDeliberationContribution for item in self.participants
         ):
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation requires a non-empty tuple of CiboDeliberationContribution"
@@ -604,8 +616,8 @@ class CiboExecutiveDeliberation:
             )
         for participant in self.participants:
             participant.revalidate()
-        if not isinstance(self.disagreements, tuple) or any(
-            not isinstance(item, CiboDisagreement) for item in self.disagreements
+        if type(self.disagreements) is not tuple or any(
+            type(item) is not CiboDisagreement for item in self.disagreements
         ):
             raise CiboExecutiveDeliberationValidationError(
                 "disagreements must be a tuple of CiboDisagreement"
@@ -618,8 +630,8 @@ class CiboExecutiveDeliberation:
             )
         for disagreement in self.disagreements:
             disagreement.revalidate()
-        if not isinstance(self.critiques, tuple) or any(
-            not isinstance(item, CiboAdversarialCritique) for item in self.critiques
+        if type(self.critiques) is not tuple or any(
+            type(item) is not CiboAdversarialCritique for item in self.critiques
         ):
             raise CiboExecutiveDeliberationValidationError(
                 "critiques must be a tuple of CiboAdversarialCritique"
@@ -630,12 +642,12 @@ class CiboExecutiveDeliberation:
             )
         for critique in self.critiques:
             critique.revalidate()
-        if not isinstance(self.outcome, CiboCouncilOutcome):
+        if type(self.outcome) is not CiboCouncilOutcome:
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation requires CiboCouncilOutcome"
             )
         if self.synthesis is not None:
-            if not isinstance(self.synthesis, CiboCouncilSynthesis):
+            if type(self.synthesis) is not CiboCouncilSynthesis:
                 raise CiboExecutiveDeliberationValidationError(
                     "synthesis must be CiboCouncilSynthesis or None"
                 )

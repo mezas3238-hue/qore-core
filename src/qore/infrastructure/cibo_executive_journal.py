@@ -15,10 +15,10 @@ from enum import StrEnum
 from re import fullmatch
 from uuid import UUID
 
-from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 from qore.modules.cibo.cognitive_contracts import (
+    CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
     CiboConfidence,
     CiboUncertainty,
@@ -40,14 +40,14 @@ class CiboExecutiveJournalValidationError(CiboExecutiveJournalError):
 
 
 def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboExecutiveJournalValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboExecutiveJournalValidationError(f"{field_name} must be timezone-aware")
 
 
 def _validate_code(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or fullmatch(_CODE_RE, value) is None:
+    if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveJournalValidationError(
             f"{field_name} must use canonical lowercase code syntax"
         )
@@ -60,7 +60,7 @@ def _validate_codes(
     field_name: str,
     allow_empty: bool = True,
 ) -> tuple[str, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, str) for v in values):
+    if type(values) is not tuple or any(type(v) is not str for v in values):
         raise CiboExecutiveJournalValidationError(
             f"{field_name} must be an immutable tuple of strings"
         )
@@ -73,16 +73,16 @@ def _validate_codes(
 
 
 def _validate_refs(
-    values: tuple[CiboEvidenceRef, ...],
+    values: tuple[CiboCognitiveEvidenceRef, ...],
     *,
     field_name: str,
     allow_empty: bool = True,
-) -> tuple[CiboEvidenceRef, ...]:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboEvidenceRef) for item in values
+) -> tuple[CiboCognitiveEvidenceRef, ...]:
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboExecutiveJournalValidationError(
-            f"{field_name} must be an immutable tuple of CiboEvidenceRef"
+            f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
         )
     if len(set(values)) != len(values):
         raise CiboExecutiveJournalValidationError(f"{field_name} must not contain duplicates")
@@ -91,12 +91,12 @@ def _validate_refs(
     return tuple(sorted(values, key=lambda item: item.value))
 
 
-def _revalidate_refs(values: tuple[CiboEvidenceRef, ...], *, field_name: str) -> None:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboEvidenceRef) for item in values
+def _revalidate_refs(values: tuple[CiboCognitiveEvidenceRef, ...], *, field_name: str) -> None:
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboExecutiveJournalValidationError(
-            f"{field_name} must be an immutable tuple of CiboEvidenceRef"
+            f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
         )
     if len(set(values)) != len(values):
         raise CiboExecutiveJournalValidationError(f"{field_name} must not contain duplicates")
@@ -108,17 +108,12 @@ def _revalidate_refs(values: tuple[CiboEvidenceRef, ...], *, field_name: str) ->
         _revalidate_ref(ref, field_name=field_name)
 
 
-def _revalidate_ref(ref: CiboEvidenceRef, *, field_name: str) -> None:
-    if not isinstance(ref, CiboEvidenceRef):
-        raise CiboExecutiveJournalValidationError(f"{field_name} must be CiboEvidenceRef")
+def _revalidate_ref(ref: CiboCognitiveEvidenceRef, *, field_name: str) -> None:
+    if type(ref) is not CiboCognitiveEvidenceRef:
+        raise CiboExecutiveJournalValidationError(f"{field_name} must be CiboCognitiveEvidenceRef")
     try:
-        if CiboEvidenceRef(ref.value) != ref:
-            raise CiboExecutiveJournalValidationError(
-                f"{field_name} failed nested revalidation"
-            )
-    except CiboExecutiveJournalValidationError:
-        raise
-    except InfrastructureError as error:
+        ref.revalidate()
+    except CiboCognitiveValidationError as error:
         raise CiboExecutiveJournalValidationError(
             f"{field_name} failed nested revalidation"
         ) from error
@@ -143,7 +138,7 @@ def _revalidate_uncertainty(uncertainty: CiboUncertainty) -> None:
 
 
 def _canonical_uuid_ids(values: tuple[UUID, ...], *, field_name: str) -> tuple[UUID, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, UUID) for v in values):
+    if type(values) is not tuple or any(type(v) is not UUID for v in values):
         raise CiboExecutiveJournalValidationError(
             f"{field_name} must be an immutable tuple of UUIDs"
         )
@@ -217,57 +212,58 @@ _ECONOMIC_LINK_FIELDS = (
 class CiboEconomicJournalLink:
     """Link-only semantics to exact economic evidence; it invents no PnL or cause.
 
-    Every field is an optional opaque ``CiboEvidenceRef``. A missing field simply
+    Every field is an optional opaque ``CiboCognitiveEvidenceRef``. A missing field simply
     means that evidence was not supplied; nothing is fabricated to fill a slot.
     """
 
-    trader_ref: CiboEvidenceRef | None = None
-    instrument_ref: CiboEvidenceRef | None = None
-    market_ref: CiboEvidenceRef | None = None
-    regime_ref: CiboEvidenceRef | None = None
-    signal_ref: CiboEvidenceRef | None = None
-    decision_ref: CiboEvidenceRef | None = None
-    management_ref: CiboEvidenceRef | None = None
-    risk_decision_ref: CiboEvidenceRef | None = None
-    receipt_ref: CiboEvidenceRef | None = None
-    fill_ref: CiboEvidenceRef | None = None
-    reconciliation_ref: CiboEvidenceRef | None = None
-    pnl_ref: CiboEvidenceRef | None = None
-    cost_ref: CiboEvidenceRef | None = None
-    slippage_ref: CiboEvidenceRef | None = None
-    carry_ref: CiboEvidenceRef | None = None
-    stop_ref: CiboEvidenceRef | None = None
-    target_ref: CiboEvidenceRef | None = None
-    mfe_ref: CiboEvidenceRef | None = None
-    mae_ref: CiboEvidenceRef | None = None
-    drawdown_ref: CiboEvidenceRef | None = None
-    exposure_ref: CiboEvidenceRef | None = None
-    trader_attribution_ref: CiboEvidenceRef | None = None
-    cibo_attribution_ref: CiboEvidenceRef | None = None
+    trader_ref: CiboCognitiveEvidenceRef | None = None
+    instrument_ref: CiboCognitiveEvidenceRef | None = None
+    market_ref: CiboCognitiveEvidenceRef | None = None
+    regime_ref: CiboCognitiveEvidenceRef | None = None
+    signal_ref: CiboCognitiveEvidenceRef | None = None
+    decision_ref: CiboCognitiveEvidenceRef | None = None
+    management_ref: CiboCognitiveEvidenceRef | None = None
+    risk_decision_ref: CiboCognitiveEvidenceRef | None = None
+    receipt_ref: CiboCognitiveEvidenceRef | None = None
+    fill_ref: CiboCognitiveEvidenceRef | None = None
+    reconciliation_ref: CiboCognitiveEvidenceRef | None = None
+    pnl_ref: CiboCognitiveEvidenceRef | None = None
+    cost_ref: CiboCognitiveEvidenceRef | None = None
+    slippage_ref: CiboCognitiveEvidenceRef | None = None
+    carry_ref: CiboCognitiveEvidenceRef | None = None
+    stop_ref: CiboCognitiveEvidenceRef | None = None
+    target_ref: CiboCognitiveEvidenceRef | None = None
+    mfe_ref: CiboCognitiveEvidenceRef | None = None
+    mae_ref: CiboCognitiveEvidenceRef | None = None
+    drawdown_ref: CiboCognitiveEvidenceRef | None = None
+    exposure_ref: CiboCognitiveEvidenceRef | None = None
+    trader_attribution_ref: CiboCognitiveEvidenceRef | None = None
+    cibo_attribution_ref: CiboCognitiveEvidenceRef | None = None
     evidence_sufficiency: CiboEvidenceSufficiency = CiboEvidenceSufficiency.UNKNOWN
 
     def __post_init__(self) -> None:
         for field_name in _ECONOMIC_LINK_FIELDS:
             value = getattr(self, field_name)
-            if value is not None and not isinstance(value, CiboEvidenceRef):
+            if value is not None and type(value) is not CiboCognitiveEvidenceRef:
                 raise CiboExecutiveJournalValidationError(
-                    f"{field_name} must be CiboEvidenceRef or None"
+                    f"{field_name} must be CiboCognitiveEvidenceRef or None"
                 )
-        if not isinstance(self.evidence_sufficiency, CiboEvidenceSufficiency):
+        if type(self.evidence_sufficiency) is not CiboEvidenceSufficiency:
             raise CiboExecutiveJournalValidationError(
                 "economic link requires CiboEvidenceSufficiency"
             )
+        self.revalidate()
 
     def revalidate(self) -> None:
         for field_name in _ECONOMIC_LINK_FIELDS:
             value = getattr(self, field_name)
-            if value is not None and not isinstance(value, CiboEvidenceRef):
+            if value is not None and type(value) is not CiboCognitiveEvidenceRef:
                 raise CiboExecutiveJournalValidationError(
-                    f"{field_name} must be CiboEvidenceRef or None"
+                    f"{field_name} must be CiboCognitiveEvidenceRef or None"
                 )
             if value is not None:
                 _revalidate_ref(value, field_name=field_name)
-        if not isinstance(self.evidence_sufficiency, CiboEvidenceSufficiency):
+        if type(self.evidence_sufficiency) is not CiboEvidenceSufficiency:
             raise CiboExecutiveJournalValidationError(
                 "economic link requires CiboEvidenceSufficiency"
             )
@@ -286,15 +282,15 @@ class CiboLossDiagnosis:
 
     state: CiboLossDiagnosisState
     hypotheses: tuple[CiboLossHypothesis, ...] = ()
-    evidence_refs: tuple[CiboEvidenceRef, ...] = ()
+    evidence_refs: tuple[CiboCognitiveEvidenceRef, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.state, CiboLossDiagnosisState):
+        if type(self.state) is not CiboLossDiagnosisState:
             raise CiboExecutiveJournalValidationError(
                 "loss diagnosis requires CiboLossDiagnosisState"
             )
-        if not isinstance(self.hypotheses, tuple) or any(
-            not isinstance(h, CiboLossHypothesis) for h in self.hypotheses
+        if type(self.hypotheses) is not tuple or any(
+            type(h) is not CiboLossHypothesis for h in self.hypotheses
         ):
             raise CiboExecutiveJournalValidationError(
                 "loss hypotheses must be a tuple of CiboLossHypothesis"
@@ -322,14 +318,15 @@ class CiboLossDiagnosis:
             raise CiboExecutiveJournalValidationError(
                 "hypothesized diagnosis requires at least one hypothesis"
             )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.state, CiboLossDiagnosisState):
+        if type(self.state) is not CiboLossDiagnosisState:
             raise CiboExecutiveJournalValidationError(
                 "loss diagnosis requires CiboLossDiagnosisState"
             )
-        if not isinstance(self.hypotheses, tuple) or any(
-            not isinstance(h, CiboLossHypothesis) for h in self.hypotheses
+        if type(self.hypotheses) is not tuple or any(
+            type(h) is not CiboLossHypothesis for h in self.hypotheses
         ):
             raise CiboExecutiveJournalValidationError(
                 "loss hypotheses must be a tuple of CiboLossHypothesis"
@@ -357,8 +354,8 @@ class CiboJournalEntry:
     kind: CiboJournalEntryKind
     subject_code: str
     recorded_at: datetime
-    evidence_refs: tuple[CiboEvidenceRef, ...]
-    rationale_ref: CiboEvidenceRef | None = None
+    evidence_refs: tuple[CiboCognitiveEvidenceRef, ...]
+    rationale_ref: CiboCognitiveEvidenceRef | None = None
     alternatives: tuple[str, ...] = ()
     questions: tuple[str, ...] = ()
     consulted_roles: tuple[str, ...] = ()
@@ -367,19 +364,19 @@ class CiboJournalEntry:
     economic_link: CiboEconomicJournalLink | None = None
     expected_result_code: str | None = None
     risk_assumptions: tuple[str, ...] = ()
-    counterfactual_ref: CiboEvidenceRef | None = None
-    lesson_ref: CiboEvidenceRef | None = None
+    counterfactual_ref: CiboCognitiveEvidenceRef | None = None
+    lesson_ref: CiboCognitiveEvidenceRef | None = None
     confidence_before: CiboConfidence | None = None
     confidence_after: CiboConfidence | None = None
     supersedes: tuple[UUID, ...] = ()
     superseded_by: tuple[UUID, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.entry_id, UUID):
+        if type(self.entry_id) is not UUID:
             raise CiboExecutiveJournalValidationError("journal entry id must be UUID")
-        if not isinstance(self.episode_id, UUID):
+        if type(self.episode_id) is not UUID:
             raise CiboExecutiveJournalValidationError("journal episode id must be UUID")
-        if not isinstance(self.kind, CiboJournalEntryKind):
+        if type(self.kind) is not CiboJournalEntryKind:
             raise CiboExecutiveJournalValidationError(
                 "journal entry requires CiboJournalEntryKind"
             )
@@ -391,12 +388,11 @@ class CiboJournalEntry:
         _validate_aware_datetime(self.recorded_at, field_name="journal recorded_at")
         refs = _validate_refs(self.evidence_refs, field_name="journal evidence", allow_empty=False)
         object.__setattr__(self, "evidence_refs", refs)
-        if self.rationale_ref is not None and not isinstance(
-            self.rationale_ref,
-            CiboEvidenceRef,
-        ):
+        if self.rationale_ref is not None and type(
+            self.rationale_ref
+        ) is not CiboCognitiveEvidenceRef:
             raise CiboExecutiveJournalValidationError(
-                "journal rationale_ref must be CiboEvidenceRef or None"
+                "journal rationale_ref must be CiboCognitiveEvidenceRef or None"
             )
         object.__setattr__(
             self,
@@ -413,24 +409,17 @@ class CiboJournalEntry:
             "consulted_roles",
             _validate_codes(self.consulted_roles, field_name="journal consulted roles"),
         )
-        if self.uncertainty is not None and not isinstance(
-            self.uncertainty,
-            CiboUncertainty,
-        ):
+        if self.uncertainty is not None and type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveJournalValidationError(
                 "journal uncertainty must be CiboUncertainty or None"
             )
-        if self.loss_diagnosis is not None and not isinstance(
-            self.loss_diagnosis,
-            CiboLossDiagnosis,
-        ):
+        if self.loss_diagnosis is not None and type(self.loss_diagnosis) is not CiboLossDiagnosis:
             raise CiboExecutiveJournalValidationError(
                 "journal loss_diagnosis must be CiboLossDiagnosis or None"
             )
-        if self.economic_link is not None and not isinstance(
-            self.economic_link,
-            CiboEconomicJournalLink,
-        ):
+        if self.economic_link is not None and type(
+            self.economic_link
+        ) is not CiboEconomicJournalLink:
             raise CiboExecutiveJournalValidationError(
                 "journal economic_link must be CiboEconomicJournalLink or None"
             )
@@ -452,21 +441,17 @@ class CiboJournalEntry:
             ("counterfactual_ref", self.counterfactual_ref),
             ("lesson_ref", self.lesson_ref),
         ):
-            if value is not None and not isinstance(value, CiboEvidenceRef):
+            if value is not None and type(value) is not CiboCognitiveEvidenceRef:
                 raise CiboExecutiveJournalValidationError(
-                    f"journal {field_name} must be CiboEvidenceRef or None"
+                    f"journal {field_name} must be CiboCognitiveEvidenceRef or None"
                 )
-        if self.confidence_before is not None and not isinstance(
-            self.confidence_before,
-            CiboConfidence,
-        ):
+        if self.confidence_before is not None and type(
+            self.confidence_before
+        ) is not CiboConfidence:
             raise CiboExecutiveJournalValidationError(
                 "journal confidence_before must be CiboConfidence or None"
             )
-        if self.confidence_after is not None and not isinstance(
-            self.confidence_after,
-            CiboConfidence,
-        ):
+        if self.confidence_after is not None and type(self.confidence_after) is not CiboConfidence:
             raise CiboExecutiveJournalValidationError(
                 "journal confidence_after must be CiboConfidence or None"
             )
@@ -484,13 +469,14 @@ class CiboJournalEntry:
             raise CiboExecutiveJournalValidationError(
                 "journal entry must not supersede or be superseded by itself"
             )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.entry_id, UUID):
+        if type(self.entry_id) is not UUID:
             raise CiboExecutiveJournalValidationError("journal entry id must be UUID")
-        if not isinstance(self.episode_id, UUID):
+        if type(self.episode_id) is not UUID:
             raise CiboExecutiveJournalValidationError("journal episode id must be UUID")
-        if not isinstance(self.kind, CiboJournalEntryKind):
+        if type(self.kind) is not CiboJournalEntryKind:
             raise CiboExecutiveJournalValidationError(
                 "journal entry requires CiboJournalEntryKind"
             )
@@ -500,9 +486,9 @@ class CiboJournalEntry:
             raise CiboExecutiveJournalValidationError("journal evidence must be non-empty")
         _revalidate_refs(self.evidence_refs, field_name="journal evidence")
         if self.rationale_ref is not None:
-            if not isinstance(self.rationale_ref, CiboEvidenceRef):
+            if type(self.rationale_ref) is not CiboCognitiveEvidenceRef:
                 raise CiboExecutiveJournalValidationError(
-                    "journal rationale_ref must be CiboEvidenceRef or None"
+                    "journal rationale_ref must be CiboCognitiveEvidenceRef or None"
                 )
             _revalidate_ref(self.rationale_ref, field_name="journal rationale_ref")
         for field_name, value in (
@@ -516,19 +502,19 @@ class CiboJournalEntry:
                     f"journal {field_name} failed canonical revalidation"
                 )
         if self.uncertainty is not None:
-            if not isinstance(self.uncertainty, CiboUncertainty):
+            if type(self.uncertainty) is not CiboUncertainty:
                 raise CiboExecutiveJournalValidationError(
                     "journal uncertainty must be CiboUncertainty or None"
                 )
             _revalidate_uncertainty(self.uncertainty)
         if self.loss_diagnosis is not None:
-            if not isinstance(self.loss_diagnosis, CiboLossDiagnosis):
+            if type(self.loss_diagnosis) is not CiboLossDiagnosis:
                 raise CiboExecutiveJournalValidationError(
                     "journal loss_diagnosis must be CiboLossDiagnosis or None"
                 )
             self.loss_diagnosis.revalidate()
         if self.economic_link is not None:
-            if not isinstance(self.economic_link, CiboEconomicJournalLink):
+            if type(self.economic_link) is not CiboEconomicJournalLink:
                 raise CiboExecutiveJournalValidationError(
                     "journal economic_link must be CiboEconomicJournalLink or None"
                 )
@@ -540,19 +526,19 @@ class CiboJournalEntry:
             ("lesson_ref", self.lesson_ref),
         ):
             if ref is not None:
-                if not isinstance(ref, CiboEvidenceRef):
+                if type(ref) is not CiboCognitiveEvidenceRef:
                     raise CiboExecutiveJournalValidationError(
-                        f"journal {field_name} must be CiboEvidenceRef or None"
+                        f"journal {field_name} must be CiboCognitiveEvidenceRef or None"
                     )
                 _revalidate_ref(ref, field_name=f"journal {field_name}")
         if self.confidence_before is not None:
-            if not isinstance(self.confidence_before, CiboConfidence):
+            if type(self.confidence_before) is not CiboConfidence:
                 raise CiboExecutiveJournalValidationError(
                     "journal confidence_before must be CiboConfidence or None"
                 )
             _revalidate_confidence(self.confidence_before)
         if self.confidence_after is not None:
-            if not isinstance(self.confidence_after, CiboConfidence):
+            if type(self.confidence_after) is not CiboConfidence:
                 raise CiboExecutiveJournalValidationError(
                     "journal confidence_after must be CiboConfidence or None"
                 )
@@ -639,7 +625,7 @@ class CiboJournalStore:
         entry: CiboJournalEntry,
     ) -> Result[CiboJournalStore, CiboExecutiveJournalError]:
         """Append one validated entry; reject duplicates and fabricated lineage."""
-        if not isinstance(entry, CiboJournalEntry):
+        if type(entry) is not CiboJournalEntry:
             return Failure(
                 CiboExecutiveJournalValidationError("record requires CiboJournalEntry")
             )
@@ -674,7 +660,7 @@ class CiboJournalStore:
 
     def retrieve(self, *, kind: CiboJournalEntryKind | None = None) -> tuple[CiboJournalEntry, ...]:
         """Deterministically return recorded entries, optionally by kind."""
-        if kind is not None and not isinstance(kind, CiboJournalEntryKind):
+        if kind is not None and type(kind) is not CiboJournalEntryKind:
             raise CiboExecutiveJournalValidationError(
                 "retrieve kind must be CiboJournalEntryKind"
             )

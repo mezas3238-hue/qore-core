@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from re import fullmatch
+from re import IGNORECASE, Pattern, compile, fullmatch
 from uuid import UUID
 
 from qore.kernel.errors import DomainError
@@ -30,14 +30,32 @@ from qore.kernel.errors import DomainError
 _CODE_RE = r"[a-z][a-z0-9._-]*"
 _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 
-_SENSITIVE_PARTS = (
-    "authorization:",
-    "bearer ",
-    "client_secret",
-    "password=",
-    "private_key",
-    "secret=",
-    "token=",
+# Structural, low-false-positive secret-material patterns. Detection-only:
+# never rewrite text, only reject it (fail closed).
+#
+# Boundary semantics (law 20 + "no naive substring false positives"):
+#   - provider tokens (sk-/AKIA/gh*_/xox/JWT) and URL userinfo are matched by
+#     their own structural shape with word/length/character-class bounds;
+#   - credential labels (client_secret, private_key, api_key, token, password,
+#     authorization, ...) are matched ONLY in assignment form `label[=:] value`
+#     (the key/value pattern below) — never as a bare field-name mention. A bare
+#     identifier such as ``client_secret_demo`` or prose like "the client_secret
+#     field must be configured" is not itself secret material and is accepted.
+#   - private-key material is matched structurally via the PEM block marker.
+_SECRET_PATTERNS: tuple[Pattern[str], ...] = (
+    compile(r"-----BEGIN [A-Z ]*(?:PRIVATE KEY|SECRET|ENCRYPTED PRIVATE KEY)-----"),
+    compile(r"\bsk-[A-Za-z0-9_-]{8,}"),
+    compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"),
+    compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}"),
+    compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{8,}", IGNORECASE),
+    compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
+    compile(r"//[^/@\s:]+:[^/@\s]+@"),
+    compile(
+        r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?key|secret[_-]?key|"
+        r"client[_-]?secret|private[_-]?key|credential|authorization|token|secret)"
+        r"\s*[=:]\s*\S+"
+    ),
 )
 
 _CONTROL_CHARS = "\x00\n\r\t"
@@ -55,15 +73,28 @@ class CiboCognitiveValidationError(CiboCognitiveError):
     __slots__ = ()
 
 
+def contains_secret_material(text: str) -> bool:
+    """Return whether ``text`` carries structural secret-bearing material.
+
+    Requires an exact ``str`` (``str`` subclasses are rejected fail-closed).
+    Detection-only: never rewrites the input; callers decide to reject.
+    """
+    if type(text) is not str:
+        raise CiboCognitiveValidationError(
+            f"secret detection input must be an exact str, not {type(text).__name__}"
+        )
+    return any(pattern.search(text) is not None for pattern in _SECRET_PATTERNS)
+
+
 def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboCognitiveValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboCognitiveValidationError(f"{field_name} must be timezone-aware")
 
 
 def _validate_code(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or fullmatch(_CODE_RE, value) is None:
+    if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboCognitiveValidationError(
             f"{field_name} must use canonical lowercase code syntax"
         )
@@ -76,7 +107,7 @@ def _validate_codes(
     field_name: str,
     allow_empty: bool = True,
 ) -> tuple[str, ...]:
-    if not isinstance(values, tuple) or any(not isinstance(v, str) for v in values):
+    if type(values) is not tuple or any(type(v) is not str for v in values):
         raise CiboCognitiveValidationError(
             f"{field_name} must be an immutable tuple of strings"
         )
@@ -89,23 +120,21 @@ def _validate_codes(
 
 
 def _validate_opaque_ref(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or fullmatch(_OPAQUE_REF_RE, value) is None:
+    if type(value) is not str or fullmatch(_OPAQUE_REF_RE, value) is None:
         raise CiboCognitiveValidationError(
             f"{field_name} must use canonical opaque-reference syntax"
         )
-    lowered = value.lower()
-    if any(part in lowered for part in _SENSITIVE_PARTS):
+    if contains_secret_material(value):
         raise CiboCognitiveValidationError(f"{field_name} must not contain sensitive material")
     return value
 
 
 def _validate_safe_text(value: str, *, field_name: str) -> str:
-    if not isinstance(value, str) or not value.strip():
+    if type(value) is not str or not value.strip():
         raise CiboCognitiveValidationError(f"{field_name} must be non-empty text")
     if any(ch in value for ch in _CONTROL_CHARS):
         raise CiboCognitiveValidationError(f"{field_name} must not contain control characters")
-    lowered = value.lower()
-    if any(part in lowered for part in _SENSITIVE_PARTS):
+    if contains_secret_material(value):
         raise CiboCognitiveValidationError(f"{field_name} must not contain sensitive material")
     return value
 
@@ -115,8 +144,8 @@ def _canonical_evidence_refs(
     *,
     field_name: str,
 ) -> tuple[CiboCognitiveEvidenceRef, ...]:
-    if not isinstance(values, tuple) or any(
-        not isinstance(item, CiboCognitiveEvidenceRef) for item in values
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
     ):
         raise CiboCognitiveValidationError(
             f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
@@ -216,7 +245,7 @@ class CiboConfidence:
     evidence_refs: tuple[CiboCognitiveEvidenceRef, ...]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.level, CiboConfidenceLevel):
+        if type(self.level) is not CiboConfidenceLevel:
             raise CiboCognitiveValidationError(
                 "CIBO confidence requires CiboConfidenceLevel"
             )
@@ -229,9 +258,10 @@ class CiboConfidence:
                 "bounded confidence requires explicit backing evidence"
             )
         object.__setattr__(self, "evidence_refs", refs)
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.level, CiboConfidenceLevel):
+        if type(self.level) is not CiboConfidenceLevel:
             raise CiboCognitiveValidationError(
                 "CIBO confidence requires CiboConfidenceLevel"
             )
@@ -270,7 +300,7 @@ class CiboUncertainty:
     confidence: CiboConfidence | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.kind, CiboUncertaintyKind):
+        if type(self.kind) is not CiboUncertaintyKind:
             raise CiboCognitiveValidationError(
                 "CIBO uncertainty requires CiboUncertaintyKind"
             )
@@ -280,7 +310,7 @@ class CiboUncertainty:
             _validate_codes(self.detail_codes, field_name="CIBO uncertainty detail"),
         )
         if self.kind is CiboUncertaintyKind.BOUNDED_CONFIDENCE:
-            if not isinstance(self.confidence, CiboConfidence):
+            if type(self.confidence) is not CiboConfidence:
                 raise CiboCognitiveValidationError(
                     "bounded confidence uncertainty requires CiboConfidence"
                 )
@@ -300,9 +330,10 @@ class CiboUncertainty:
                 raise CiboCognitiveValidationError(
                     f"{self.kind.value} uncertainty requires detail codes"
                 )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.kind, CiboUncertaintyKind):
+        if type(self.kind) is not CiboUncertaintyKind:
             raise CiboCognitiveValidationError(
                 "CIBO uncertainty requires CiboUncertaintyKind"
             )
@@ -314,7 +345,7 @@ class CiboUncertainty:
                 "CIBO uncertainty detail failed canonical revalidation"
             )
         if self.kind is CiboUncertaintyKind.BOUNDED_CONFIDENCE:
-            if not isinstance(self.confidence, CiboConfidence):
+            if type(self.confidence) is not CiboConfidence:
                 raise CiboCognitiveValidationError(
                     "bounded confidence uncertainty requires CiboConfidence"
                 )
@@ -326,6 +357,13 @@ class CiboUncertainty:
         elif self.confidence is not None:
             raise CiboCognitiveValidationError(
                 "non-bounded uncertainty must not carry confidence"
+            )
+        if self.kind in (
+            CiboUncertaintyKind.COMPETING_HYPOTHESES,
+            CiboUncertaintyKind.UNRESOLVED_CONTRADICTION,
+        ) and not self.detail_codes:
+            raise CiboCognitiveValidationError(
+                f"{self.kind.value} uncertainty requires detail codes"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -349,9 +387,9 @@ class CiboEpistemicClaim:
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.claim_id, UUID):
+        if type(self.claim_id) is not UUID:
             raise CiboCognitiveValidationError("CIBO epistemic claim id must be UUID")
-        if not isinstance(self.epistemic_state, CiboEpistemicState):
+        if type(self.epistemic_state) is not CiboEpistemicState:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboEpistemicState"
             )
@@ -359,7 +397,7 @@ class CiboEpistemicClaim:
             raise CiboCognitiveValidationError(
                 "formal recommendations must use CiboFormalRecommendation"
             )
-        if not isinstance(self.reasoning_mode, CiboReasoningMode):
+        if type(self.reasoning_mode) is not CiboReasoningMode:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboReasoningMode"
             )
@@ -368,12 +406,13 @@ class CiboEpistemicClaim:
             "content_code",
             _validate_code(self.content_code, field_name="CIBO claim content code"),
         )
-        object.__setattr__(
-            self,
-            "evidence_refs",
-            _canonical_evidence_refs(self.evidence_refs, field_name="CIBO claim evidence"),
-        )
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        refs = _canonical_evidence_refs(self.evidence_refs, field_name="CIBO claim evidence")
+        if not refs:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires explicit backing evidence"
+            )
+        object.__setattr__(self, "evidence_refs", refs)
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboUncertainty"
             )
@@ -382,19 +421,24 @@ class CiboEpistemicClaim:
             "limitations",
             _validate_codes(self.limitations, field_name="CIBO claim limitations"),
         )
+        self.revalidate()
 
     def revalidate(self) -> None:
-        if not isinstance(self.claim_id, UUID):
+        if type(self.claim_id) is not UUID:
             raise CiboCognitiveValidationError("CIBO epistemic claim id must be UUID")
-        if not isinstance(self.epistemic_state, CiboEpistemicState):
+        if type(self.epistemic_state) is not CiboEpistemicState:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboEpistemicState"
             )
-        if not isinstance(self.reasoning_mode, CiboReasoningMode):
+        if type(self.reasoning_mode) is not CiboReasoningMode:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboReasoningMode"
             )
         _validate_code(self.content_code, field_name="CIBO claim content code")
+        if not self.evidence_refs:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires explicit backing evidence"
+            )
         if self.evidence_refs != _canonical_evidence_refs(
             self.evidence_refs,
             field_name="CIBO claim evidence",
@@ -404,7 +448,7 @@ class CiboEpistemicClaim:
             )
         for ref in self.evidence_refs:
             ref.revalidate()
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboUncertainty"
             )
@@ -449,7 +493,7 @@ class CiboFormalRecommendation:
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.recommendation_id, UUID):
+        if type(self.recommendation_id) is not UUID:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation id must be UUID"
             )
@@ -458,7 +502,7 @@ class CiboFormalRecommendation:
             "recommendation_code",
             _validate_code(self.recommendation_code, field_name="CIBO recommendation code"),
         )
-        if not isinstance(self.reasoning_mode, CiboReasoningMode):
+        if type(self.reasoning_mode) is not CiboReasoningMode:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboReasoningMode"
             )
@@ -476,7 +520,7 @@ class CiboFormalRecommendation:
                 "a formal recommendation requires explicit backing evidence"
             )
         object.__setattr__(self, "evidence_refs", refs)
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
             )
@@ -486,6 +530,7 @@ class CiboFormalRecommendation:
             _validate_codes(self.limitations, field_name="CIBO recommendation limitations"),
         )
         _validate_aware_datetime(self.issued_at, field_name="CIBO recommendation issued_at")
+        self.revalidate()
 
     @property
     def epistemic_state(self) -> CiboEpistemicState:
@@ -493,10 +538,10 @@ class CiboFormalRecommendation:
         return CiboEpistemicState.FORMAL_RECOMMENDATION
 
     def revalidate(self) -> None:
-        if not isinstance(self.recommendation_id, UUID):
+        if type(self.recommendation_id) is not UUID:
             raise CiboCognitiveValidationError("CIBO recommendation id must be UUID")
         _validate_code(self.recommendation_code, field_name="CIBO recommendation code")
-        if not isinstance(self.reasoning_mode, CiboReasoningMode):
+        if type(self.reasoning_mode) is not CiboReasoningMode:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboReasoningMode"
             )
@@ -514,7 +559,7 @@ class CiboFormalRecommendation:
             )
         for ref in self.evidence_refs:
             ref.revalidate()
-        if not isinstance(self.uncertainty, CiboUncertainty):
+        if type(self.uncertainty) is not CiboUncertainty:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
             )

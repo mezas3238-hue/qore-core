@@ -38,6 +38,23 @@ from qore.infrastructure.cibo_cognitive_common import (
 
 _DEPTH_HINTS = frozenset({"fast", "high", "max", "council_adversarial"})
 
+# Substrate-native calibration kind tokens (underscore convention, mirroring
+# _DEPTH_HINTS); the integration gate maps these to the Batch 006
+# CiboUncertaintyKind enum. An empty token means "derive from abstention_required
+# and confidence_band". This is a separate substrate vocabulary and does not
+# redefine the Batch 006 enum.
+_CALIBRATION_KINDS = frozenset(
+    {
+        "",
+        "insufficient_evidence",
+        "unresolved_contradiction",
+        "competing_hypotheses",
+        "more_evidence_requested",
+        "abstain_defer",
+        "bounded_confidence",
+    }
+)
+
 
 class AttentionError(CiboCognitiveError):
     """Base error for the CIBO cognitive attention substrate."""
@@ -360,11 +377,17 @@ def route_reasoning(request: ReasoningRequest) -> ReasoningRoutingOutcome:
 
 @dataclass(frozen=True, slots=True)
 class CalibrationNote:
-    """Bounded calibration/abstention seam (does not redefine uncertainty enums)."""
+    """Bounded calibration/abstention seam (does not redefine uncertainty enums).
+
+    ``kind`` is an optional substrate-native token carrying the explicit
+    uncertainty signal; an empty token means "derive from abstention_required +
+    confidence_band".
+    """
 
     confidence_band: int
     note: str
     abstention_required: bool
+    kind: str = ""
 
     def __post_init__(self) -> None:
         self.revalidate()
@@ -383,6 +406,11 @@ class CalibrationNote:
         if type(self.abstention_required) is not bool:
             raise AttentionValidationError(
                 "calibration abstention flag must be an exact bool"
+            )
+        require_exact_str(self.kind, field="calibration kind")
+        if self.kind not in _CALIBRATION_KINDS:
+            raise AttentionValidationError(
+                "calibration kind must be one of the bounded substrate tokens"
             )
 
 
