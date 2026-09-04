@@ -133,7 +133,6 @@ def test_learning_separates_contemporaneous_and_later_evidence() -> None:
         contemporaneous_evidence=(contemporaneous,),
         later_evidence=(later,),
         error_attribution="hypothesis: signal lag",
-        proven=False,
         counterfactuals=("had we used more data",),
         reflection_note="revisit sampling window",
         supersedes=None,
@@ -155,8 +154,7 @@ def test_later_evidence_cannot_rewrite_contemporaneous() -> None:
             contemporaneous_evidence=(later,),
             later_evidence=(),
             error_attribution="hypothesis",
-            proven=False,
-            counterfactuals=(),
+                counterfactuals=(),
             reflection_note="r",
             supersedes=None,
         )
@@ -172,8 +170,7 @@ def test_counterfactual_cannot_be_asserted_as_actual_outcome() -> None:
             contemporaneous_evidence=(),
             later_evidence=(),
             error_attribution="hypothesis",
-            proven=False,
-            counterfactuals=("counterfactual narrative",),
+                counterfactuals=("counterfactual narrative",),
             reflection_note="r",
             supersedes=None,
         )
@@ -254,6 +251,7 @@ class TestGoalCompletionEvidence:
             description="analyze regime",
             dependencies=(_TASK_A,),
             required_evidence=(EvidenceRequirement(reference="ev-1"),),
+            satisfied_evidence=(EvidenceRequirement(reference="ev-1"),),
             status=CognitiveTaskStatus.COMPLETED,
         )
         with pytest.raises(CiboCognitiveValidationError):

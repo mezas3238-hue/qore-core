@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from hashlib import sha256
 from re import compile
 from uuid import UUID
@@ -96,6 +96,17 @@ def require_aware_datetime(value: object, *, field: str) -> datetime:
             f"{field} must be a timezone-aware datetime"
         )
     return value
+
+
+def utc_instant(value: object, *, field: str = "instant") -> datetime:
+    """Return the UTC-normalized instant of a timezone-aware ``datetime``.
+
+    ``astimezone(UTC)`` resolves DST fold=0/fold=1 to distinct UTC instants, so
+    every material datetime identity/dedup/order/no-postdate comparison must use
+    this helper (or ``canonical_instant``) rather than fold-blind wall-clock
+    ``<``/``>``/``==``/``-`` operators.
+    """
+    return require_aware_datetime(value, field=field).astimezone(UTC)
 
 
 def canonical_material(value: object) -> str:

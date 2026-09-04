@@ -14,6 +14,7 @@ from enum import StrEnum
 from re import fullmatch
 from uuid import UUID
 
+from qore.infrastructure.cibo_cognitive_common import utc_instant
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 from qore.kernel.temporal import canonical_instant
@@ -196,7 +197,9 @@ class CiboMemoryProvenance:
         _validate_aware_datetime(self.effective_at, field_name="memory effective_at")
         if self.recorded_at is not None:
             _validate_aware_datetime(self.recorded_at, field_name="memory recorded_at")
-            if self.recorded_at < self.effective_at:
+            if utc_instant(self.recorded_at, field="memory recorded_at") < utc_instant(
+                self.effective_at, field="memory effective_at"
+            ):
                 raise CiboExecutiveMemoryValidationError(
                     "memory recorded_at must not predate effective_at"
                 )
@@ -211,7 +214,9 @@ class CiboMemoryProvenance:
         _validate_aware_datetime(self.effective_at, field_name="memory effective_at")
         if self.recorded_at is not None:
             _validate_aware_datetime(self.recorded_at, field_name="memory recorded_at")
-            if self.recorded_at < self.effective_at:
+            if utc_instant(self.recorded_at, field="memory recorded_at") < utc_instant(
+                self.effective_at, field="memory effective_at"
+            ):
                 raise CiboExecutiveMemoryValidationError(
                     "memory recorded_at must not predate effective_at"
                 )

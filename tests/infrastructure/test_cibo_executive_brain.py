@@ -69,7 +69,7 @@ def _synthesize(
         subject_code="subject-demo",
         synthesized_at=_NOW,
         evidence_refs=(_ref("evidence:demo"),),
-        uncertainty=_insufficient_uncertainty(),
+        uncertainty=_bounded_uncertainty(),
         recommendation=_recommendation(),
         memory_refs=memory_refs,
         deliberation_ref=deliberation_ref,
@@ -87,7 +87,7 @@ class TestDirectiveKinds:
             subject_code="subject-demo",
             synthesized_at=_NOW,
             evidence_refs=(_ref("evidence:demo"),),
-            uncertainty=_insufficient_uncertainty(),
+            uncertainty=_bounded_uncertainty(),
         )
         assert isinstance(result, Failure)
         assert isinstance(result.error, CiboExecutiveBrainValidationError)
@@ -231,7 +231,7 @@ class TestReflectiveCorruptionFailsAtConstruction:
             subject_code="subject-demo",
             synthesized_at=_NOW,
             evidence_refs=(_ref("evidence:demo"),),
-            uncertainty=_insufficient_uncertainty(),
+            uncertainty=_bounded_uncertainty(),
             recommendation=recommendation,
         )
         assert isinstance(result, Failure)

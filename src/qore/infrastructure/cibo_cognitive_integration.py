@@ -32,15 +32,42 @@ from datetime import datetime
 from uuid import UUID
 
 from qore.infrastructure.cibo_cognitive_attention import CalibrationNote, ReasoningDepthHint
+from qore.infrastructure.cibo_cognitive_causality import (
+    CausalClaim,
+    CausalityValidationError,
+)
 from qore.infrastructure.cibo_cognitive_common import (
     CiboCognitiveFingerprint,
     fingerprint_material,
 )
-from qore.infrastructure.cibo_cognitive_evaluation import CognitiveEvaluation
-from qore.infrastructure.cibo_cognitive_planning import CognitivePlan
+from qore.infrastructure.cibo_cognitive_common import (
+    CiboCognitiveValidationError as CiboCommonValidationError,
+)
+from qore.infrastructure.cibo_cognitive_evaluation import (
+    CognitiveEvaluation,
+    TraderDevelopmentAttribution,
+)
+from qore.infrastructure.cibo_cognitive_hypotheses import (
+    Hypothesis,
+    HypothesisValidationError,
+)
+from qore.infrastructure.cibo_cognitive_metacognition import (
+    MetacognitionValidationError,
+    MetacognitiveAudit,
+    ReasoningTransition,
+)
+from qore.infrastructure.cibo_cognitive_planning import (
+    CognitiveLearningRecord,
+    CognitivePlan,
+)
 from qore.infrastructure.cibo_cognitive_replay import ReplayEpisode, ReplayToolCall
+from qore.infrastructure.cibo_cognitive_scenarios import (
+    Scenario,
+    ScenarioValidationError,
+)
 from qore.infrastructure.cibo_cognitive_tools import FacultyId
 from qore.infrastructure.cibo_cognitive_world_model import (
+    MarketTraderSuitability,
     WorldModelSnapshot,
     build_world_model_snapshot,
 )
@@ -63,7 +90,7 @@ _FINGERPRINT_REF_PREFIX = "sha256:"
 
 # Fingerprint schema boundary: bump when logical_values() shape changes so an
 # old fingerprint can never silently validate against a new shape.
-_EPISODE_SCHEMA_VERSION = "cibo-integrated-episode:v2"
+_EPISODE_SCHEMA_VERSION = "cibo-integrated-episode:v3"
 
 
 def _reasoning_mode_for_hint(value: str) -> CiboReasoningMode:
@@ -93,6 +120,7 @@ def _reasoning_mode_for_hint(value: str) -> CiboReasoningMode:
 # council law without re-declaring its ownership).
 _DISAGREEMENT_OUTCOMES = frozenset(
     {
+        CiboCouncilOutcome.INSUFFICIENT_EVIDENCE,
         CiboCouncilOutcome.DISAGREEMENT,
         CiboCouncilOutcome.NO_DECISION,
         CiboCouncilOutcome.BLOCKED,
@@ -225,64 +253,58 @@ def bind_evidence_fingerprint(
     )
 
 
-@dataclass(frozen=True, slots=True)
-class CiboIntegratedSuitabilityBinding:
-    """An exact (suitability id, fingerprint) reference into the world model.
+def bind_suitability_reference(
+    suitability: MarketTraderSuitability,
+) -> CiboIntegratedContentBinding:
+    """Bind a suitability assertion by its re-verified self-fingerprint.
 
-    The binding references a ``MarketTraderSuitability`` by identity and its
-    self-fingerprint only; it never inlines the disposition, trader identity, or
-    any market/instrument/regime content, and therefore creates no authority.
+    The source object is revalidated (``MarketTraderSuitability.revalidate``
+    proves ``fingerprint == canonical content``), so swapped content under a kept
+    ``suitability_id`` or a forged fingerprint fails closed. Only the
+    ``(id, fingerprint)`` reference is projected: no disposition, trader identity,
+    or market/instrument/regime content is inlined, so no authority is created.
     """
-
-    suitability_id: UUID
-    fingerprint: CiboCognitiveFingerprint
-
-    def __post_init__(self) -> None:
-        self.revalidate()
-
-    def revalidate(self) -> None:
-        if type(self.suitability_id) is not UUID:
-            raise CiboCognitiveIntegrationValidationError(
-                "suitability binding id must be a UUID"
-            )
-        if type(self.fingerprint) is not CiboCognitiveFingerprint:
-            raise CiboCognitiveIntegrationValidationError(
-                "suitability binding fingerprint must be a CiboCognitiveFingerprint"
-            )
-        self.fingerprint.revalidate()
-
-    def logical_values(self) -> tuple[str, str]:
-        return (str(self.suitability_id), self.fingerprint.value)
+    if type(suitability) is not MarketTraderSuitability:
+        raise CiboCognitiveIntegrationValidationError(
+            "suitability reference requires a MarketTraderSuitability source"
+        )
+    try:
+        suitability.revalidate()
+    except CiboCommonValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "suitability source failed revalidation"
+        ) from error
+    return CiboIntegratedContentBinding(
+        id=suitability.suitability_id,
+        fingerprint=suitability.fingerprint,
+    )
 
 
-@dataclass(frozen=True, slots=True)
-class CiboIntegratedAttributionBinding:
-    """An exact (attribution id, fingerprint) reference into the evaluation layer.
+def bind_attribution_reference(
+    attribution: TraderDevelopmentAttribution,
+) -> CiboIntegratedContentBinding:
+    """Bind a development attribution by its re-verified self-fingerprint.
 
-    The binding references a ``TraderDevelopmentAttribution`` by identity and
-    self-fingerprint only; it never inlines the intervention, disposition,
-    hypothesis, or evidence, and therefore creates no authority.
+    The source object is revalidated (``TraderDevelopmentAttribution.revalidate``
+    proves ``fingerprint == canonical content``), so swapped content under a kept
+    ``attribution_id`` or a forged fingerprint fails closed. Only the
+    ``(id, fingerprint)`` reference is projected: no intervention, disposition,
+    hypothesis, or evidence is inlined, so no authority is created.
     """
-
-    attribution_id: UUID
-    fingerprint: CiboCognitiveFingerprint
-
-    def __post_init__(self) -> None:
-        self.revalidate()
-
-    def revalidate(self) -> None:
-        if type(self.attribution_id) is not UUID:
-            raise CiboCognitiveIntegrationValidationError(
-                "attribution binding id must be a UUID"
-            )
-        if type(self.fingerprint) is not CiboCognitiveFingerprint:
-            raise CiboCognitiveIntegrationValidationError(
-                "attribution binding fingerprint must be a CiboCognitiveFingerprint"
-            )
-        self.fingerprint.revalidate()
-
-    def logical_values(self) -> tuple[str, str]:
-        return (str(self.attribution_id), self.fingerprint.value)
+    if type(attribution) is not TraderDevelopmentAttribution:
+        raise CiboCognitiveIntegrationValidationError(
+            "attribution reference requires a TraderDevelopmentAttribution source"
+        )
+    try:
+        attribution.revalidate()
+    except CiboCommonValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "attribution source failed revalidation"
+        ) from error
+    return CiboIntegratedContentBinding(
+        id=attribution.attribution_id,
+        fingerprint=attribution.fingerprint,
+    )
 
 
 def bind_deliberation_role(faculty_id: FacultyId) -> CiboDeliberationRole:
@@ -443,6 +465,177 @@ def bind_replay_reference(
     return CiboIntegratedContentBinding(id=replay.episode_id, fingerprint=replay.fingerprint)
 
 
+def bind_causal_claim_reference(claim: CausalClaim) -> CiboIntegratedContentBinding:
+    """Bind a causal claim by its re-verified self-fingerprint (CA strengthening 3.1).
+
+    The source ``CausalClaim`` is revalidated (its own ``revalidate`` proves
+    ``fingerprint == canonical content``), so swapped content under a kept
+    ``claim_id`` or a forged fingerprint fails closed. Only the ``(id,
+    fingerprint)`` reference is projected; no cause/effect/confounder content or
+    authority is inlined.
+    """
+    if type(claim) is not CausalClaim:
+        raise CiboCognitiveIntegrationValidationError(
+            "causal claim reference requires a CausalClaim source"
+        )
+    try:
+        claim.revalidate()
+    except CausalityValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "causal claim source failed revalidation"
+        ) from error
+    return CiboIntegratedContentBinding(id=claim.claim_id, fingerprint=claim.fingerprint)
+
+
+def bind_scenario_reference(scenario: Scenario) -> CiboIntegratedContentBinding:
+    """Bind a scenario by its re-verified self-fingerprint (CA strengthening 3.2).
+
+    The source ``Scenario`` is revalidated, so swapped content under a kept
+    ``scenario_id`` or a forged fingerprint fails closed. Only the ``(id,
+    fingerprint)`` reference is projected; scenario output is advisory cognition
+    only and creates no execution authority.
+    """
+    if type(scenario) is not Scenario:
+        raise CiboCognitiveIntegrationValidationError(
+            "scenario reference requires a Scenario source"
+        )
+    try:
+        scenario.revalidate()
+    except ScenarioValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "scenario source failed revalidation"
+        ) from error
+    return CiboIntegratedContentBinding(id=scenario.scenario_id, fingerprint=scenario.fingerprint)
+
+
+def bind_metacognitive_audit_reference(
+    audit: MetacognitiveAudit,
+) -> CiboIntegratedContentBinding:
+    """Bind a metacognitive audit by its re-verified self-fingerprint (CA 3.3).
+
+    The audit is revalidated, so swapped reason codes, suppressed missing
+    specialists, or a forged fingerprint fails closed. Only the ``(id,
+    fingerprint)`` reference is projected; the audit never self-certifies
+    authority.
+    """
+    if type(audit) is not MetacognitiveAudit:
+        raise CiboCognitiveIntegrationValidationError(
+            "metacognitive audit reference requires a MetacognitiveAudit source"
+        )
+    try:
+        audit.revalidate()
+    except MetacognitionValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "metacognitive audit source failed revalidation"
+        ) from error
+    return CiboIntegratedContentBinding(id=audit.audit_id, fingerprint=audit.fingerprint)
+
+
+def bind_hypothesis_reference(hypothesis: Hypothesis) -> CiboIntegratedContentBinding:
+    """Bind a hypothesis by its re-verified self-fingerprint (CA strengthening 3.4).
+
+    The source ``Hypothesis`` is revalidated, so a forged ``CONFIRMED`` status, a
+    swapped ``(id, content)`` pair, or a forged fingerprint fails closed. Only the
+    ``(id, fingerprint)`` reference is projected; hypotheses confer no authority.
+    """
+    if type(hypothesis) is not Hypothesis:
+        raise CiboCognitiveIntegrationValidationError(
+            "hypothesis reference requires a Hypothesis source"
+        )
+    try:
+        hypothesis.revalidate()
+    except HypothesisValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "hypothesis source failed revalidation"
+        ) from error
+    return CiboIntegratedContentBinding(
+        id=hypothesis.hypothesis_id, fingerprint=hypothesis.fingerprint
+    )
+
+
+def _learning_record_fingerprint(record: CognitiveLearningRecord) -> CiboCognitiveFingerprint:
+    """Derive a deterministic content fingerprint for a learning record.
+
+    ``CognitiveLearningRecord`` retains no self-fingerprint, so the integration
+    projects its retained content (decision time, expected result, evidence
+    bundles, attribution, counterfactuals, reflection, supersession) to canonical
+    material. Evidence bundles are canonically ordered so the fingerprint is stable
+    under permutation.
+    """
+    return fingerprint_material(
+        (
+            str(record.record_id),
+            canonical_instant(record.decision_time),
+            record.expected_result,
+            None
+            if record.actual_result_reference is None
+            else record.actual_result_reference.logical_values(),
+            tuple(
+                bundle.logical_values()
+                for bundle in sorted(
+                    record.contemporaneous_evidence,
+                    key=lambda item: (item.reference, item.observed_at),
+                )
+            ),
+            tuple(
+                bundle.logical_values()
+                for bundle in sorted(
+                    record.later_evidence,
+                    key=lambda item: (item.reference, item.observed_at),
+                )
+            ),
+            record.error_attribution,
+            record.counterfactuals,
+            record.reflection_note,
+            None if record.supersedes is None else str(record.supersedes),
+        )
+    )
+
+
+def bind_learning_record_reference(
+    record: CognitiveLearningRecord,
+) -> CiboIntegratedContentBinding:
+    """Bind a learning record by its derived content fingerprint (CA 3.4 / step 12).
+
+    The source ``CognitiveLearningRecord`` is revalidated (its own ``revalidate``
+    enforces expected-vs-realized evidence ordering and secret hygiene) and its
+    content is fingerprinted, so hindsight-corrupted or swapped content fails
+    closed. Only the ``(id, fingerprint)`` reference is projected; learning is
+    advisory reflection only.
+    """
+    if type(record) is not CognitiveLearningRecord:
+        raise CiboCognitiveIntegrationValidationError(
+            "learning record reference requires a CognitiveLearningRecord source"
+        )
+    record.revalidate()
+    return CiboIntegratedContentBinding(
+        id=record.record_id, fingerprint=_learning_record_fingerprint(record)
+    )
+
+
+def bind_metacognitive_reasoning_mode(
+    transition: ReasoningTransition,
+) -> CiboReasoningMode:
+    """Return the metacognition-selected reasoning mode (CA strengthening 3.3).
+
+    The ``ReasoningTransition`` is revalidated (evidence-gated escalation, no
+    self-loop), and its ``to_mode`` is the bounded reasoning mode the Router must
+    adopt. This is advisory cognition only: it selects a reasoning policy and
+    creates no order/execution/Risk/Production authority.
+    """
+    if type(transition) is not ReasoningTransition:
+        raise CiboCognitiveIntegrationValidationError(
+            "metacognitive reasoning mode requires a ReasoningTransition"
+        )
+    try:
+        transition.revalidate()
+    except MetacognitionValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "reasoning transition failed revalidation"
+        ) from error
+    return transition.to_mode
+
+
 def _canonical_bindings(
     values: tuple[CiboIntegratedEvidenceBinding, ...],
     *,
@@ -483,6 +676,87 @@ def _canonical_tool_calls(
     return tuple(sorted(values, key=lambda item: item.sort_key()))
 
 
+def _canonical_causal_claims(
+    values: tuple[CausalClaim, ...], *, field_name: str
+) -> tuple[CausalClaim, ...]:
+    if type(values) is not tuple or any(type(item) is not CausalClaim for item in values):
+        raise CiboCognitiveIntegrationValidationError(
+            f"{field_name} must be an immutable tuple of CausalClaim"
+        )
+    for claim in values:
+        try:
+            claim.revalidate()
+        except CiboCommonValidationError as error:
+            raise CiboCognitiveIntegrationValidationError(
+                f"{field_name} contains a causal claim that failed revalidation"
+            ) from error
+    if len({claim.claim_id for claim in values}) != len(values):
+        raise CiboCognitiveIntegrationValidationError(f"{field_name} must not contain duplicates")
+    return tuple(sorted(values, key=lambda claim: str(claim.claim_id)))
+
+
+def _canonical_scenarios(
+    values: tuple[Scenario, ...], *, field_name: str
+) -> tuple[Scenario, ...]:
+    if type(values) is not tuple or any(type(item) is not Scenario for item in values):
+        raise CiboCognitiveIntegrationValidationError(
+            f"{field_name} must be an immutable tuple of Scenario"
+        )
+    for scenario in values:
+        try:
+            scenario.revalidate()
+        except CiboCommonValidationError as error:
+            raise CiboCognitiveIntegrationValidationError(
+                f"{field_name} contains a scenario that failed revalidation"
+            ) from error
+    if len({scenario.scenario_id for scenario in values}) != len(values):
+        raise CiboCognitiveIntegrationValidationError(f"{field_name} must not contain duplicates")
+    return tuple(sorted(values, key=lambda scenario: str(scenario.scenario_id)))
+
+
+def _canonical_hypotheses(
+    values: tuple[Hypothesis, ...], *, field_name: str
+) -> tuple[Hypothesis, ...]:
+    if type(values) is not tuple or any(type(item) is not Hypothesis for item in values):
+        raise CiboCognitiveIntegrationValidationError(
+            f"{field_name} must be an immutable tuple of Hypothesis"
+        )
+    for hypothesis in values:
+        try:
+            hypothesis.revalidate()
+        except CiboCommonValidationError as error:
+            raise CiboCognitiveIntegrationValidationError(
+                f"{field_name} contains a hypothesis that failed revalidation"
+            ) from error
+    keys = {(hypothesis.hypothesis_id, hypothesis.revision) for hypothesis in values}
+    if len(keys) != len(values):
+        raise CiboCognitiveIntegrationValidationError(f"{field_name} must not contain duplicates")
+    return tuple(
+        sorted(values, key=lambda hypothesis: (str(hypothesis.hypothesis_id), hypothesis.revision))
+    )
+
+
+def _canonical_learning_records(
+    values: tuple[CognitiveLearningRecord, ...], *, field_name: str
+) -> tuple[CognitiveLearningRecord, ...]:
+    if type(values) is not tuple or any(
+        type(item) is not CognitiveLearningRecord for item in values
+    ):
+        raise CiboCognitiveIntegrationValidationError(
+            f"{field_name} must be an immutable tuple of CognitiveLearningRecord"
+        )
+    for record in values:
+        try:
+            record.revalidate()
+        except CiboCommonValidationError as error:
+            raise CiboCognitiveIntegrationValidationError(
+                f"{field_name} contains a learning record that failed revalidation"
+            ) from error
+    if len({record.record_id for record in values}) != len(values):
+        raise CiboCognitiveIntegrationValidationError(f"{field_name} must not contain duplicates")
+    return tuple(sorted(values, key=lambda record: str(record.record_id)))
+
+
 @dataclass(frozen=True, slots=True)
 class CiboIntegratedCognitiveEpisode:
     """An authority-free, fingerprint-bound composition of both substrates.
@@ -510,14 +784,20 @@ class CiboIntegratedCognitiveEpisode:
     plan_reference: CognitivePlan | None = None
     tool_calls: tuple[ReplayToolCall, ...] = ()
     uncertainty: CiboUncertainty | None = None
-    trader_suitability: CiboIntegratedSuitabilityBinding | None = None
-    intervention_attribution: CiboIntegratedAttributionBinding | None = None
+    trader_suitability: MarketTraderSuitability | None = None
+    intervention_attribution: TraderDevelopmentAttribution | None = None
+    causal_claims: tuple[CausalClaim, ...] = ()
+    scenarios: tuple[Scenario, ...] = ()
+    metacognitive_audit: MetacognitiveAudit | None = None
+    reasoning_transition: ReasoningTransition | None = None
+    hypotheses: tuple[Hypothesis, ...] = ()
+    learning_records: tuple[CognitiveLearningRecord, ...] = ()
     fingerprint: CiboCognitiveFingerprint | None = None
 
     def __post_init__(self) -> None:
-        self._validate()
+        self._validate(deriving=True)
 
-    def _validate(self) -> None:
+    def _validate(self, *, deriving: bool) -> None:
         if type(self.integration_id) is not UUID:
             raise CiboCognitiveIntegrationValidationError("integration id must be a UUID")
         if type(self.reasoning_mode) is not CiboReasoningMode:
@@ -546,14 +826,68 @@ class CiboIntegratedCognitiveEpisode:
             raise CiboCognitiveIntegrationValidationError(
                 "deliberation outcome must be a CiboCouncilOutcome or None"
             )
-        world_ref, synthesis_ref, replay_ref, evaluation_ref, plan_ref = (
-            self._content_references()
-        )
+        (
+            world_ref,
+            synthesis_ref,
+            replay_ref,
+            evaluation_ref,
+            plan_ref,
+            suitability_ref,
+            attribution_ref,
+        ) = self._content_references()
         object.__setattr__(
             self,
             "tool_calls",
             _canonical_tool_calls(self.tool_calls, field_name="integrated tool calls"),
         )
+        object.__setattr__(
+            self,
+            "causal_claims",
+            _canonical_causal_claims(self.causal_claims, field_name="integrated causal claims"),
+        )
+        object.__setattr__(
+            self,
+            "scenarios",
+            _canonical_scenarios(self.scenarios, field_name="integrated scenarios"),
+        )
+        object.__setattr__(
+            self,
+            "hypotheses",
+            _canonical_hypotheses(self.hypotheses, field_name="integrated hypotheses"),
+        )
+        object.__setattr__(
+            self,
+            "learning_records",
+            _canonical_learning_records(
+                self.learning_records, field_name="integrated learning records"
+            ),
+        )
+        if self.metacognitive_audit is not None:
+            if type(self.metacognitive_audit) is not MetacognitiveAudit:
+                raise CiboCognitiveIntegrationValidationError(
+                    "metacognitive audit must be a MetacognitiveAudit or None"
+                )
+            try:
+                self.metacognitive_audit.revalidate()
+            except MetacognitionValidationError as error:
+                raise CiboCognitiveIntegrationValidationError(
+                    "metacognitive audit failed revalidation"
+                ) from error
+        if self.reasoning_transition is not None:
+            if type(self.reasoning_transition) is not ReasoningTransition:
+                raise CiboCognitiveIntegrationValidationError(
+                    "reasoning transition must be a ReasoningTransition or None"
+                )
+            try:
+                self.reasoning_transition.revalidate()
+            except MetacognitionValidationError as error:
+                raise CiboCognitiveIntegrationValidationError(
+                    "reasoning transition failed revalidation"
+                ) from error
+            if self.reasoning_transition.to_mode is not self.reasoning_mode:
+                raise CiboCognitiveIntegrationValidationError(
+                    "episode reasoning mode must equal the metacognition-selected mode"
+                )
         if self.uncertainty is not None:
             if type(self.uncertainty) is not CiboUncertainty:
                 raise CiboCognitiveIntegrationValidationError(
@@ -565,19 +899,8 @@ class CiboIntegratedCognitiveEpisode:
                 raise CiboCognitiveIntegrationValidationError(
                     "uncertainty failed nested revalidation"
                 ) from error
-        if self.trader_suitability is not None:
-            if type(self.trader_suitability) is not CiboIntegratedSuitabilityBinding:
-                raise CiboCognitiveIntegrationValidationError(
-                    "trader suitability must be a CiboIntegratedSuitabilityBinding or None"
-                )
-            self.trader_suitability.revalidate()
-        if self.intervention_attribution is not None:
-            if type(self.intervention_attribution) is not CiboIntegratedAttributionBinding:
-                raise CiboCognitiveIntegrationValidationError(
-                    "intervention attribution must be a "
-                    "CiboIntegratedAttributionBinding or None"
-                )
-            self.intervention_attribution.revalidate()
+        # trader_suitability and intervention_attribution are source objects; they
+        # are re-derived to (id, fingerprint) references inside _content_references.
         if self.deliberation_outcome in _DISAGREEMENT_OUTCOMES:
             if self.synthesis is not None:
                 raise CiboCognitiveIntegrationValidationError(
@@ -596,10 +919,25 @@ class CiboIntegratedCognitiveEpisode:
                     "a synthesis reference requires a decision outcome"
                 )
         expected = fingerprint_material(
-            self._logical_values(world_ref, synthesis_ref, replay_ref, evaluation_ref, plan_ref)
+            self._logical_values(
+                world_ref,
+                synthesis_ref,
+                replay_ref,
+                evaluation_ref,
+                plan_ref,
+                suitability_ref,
+                attribution_ref,
+            )
         )
         if self.fingerprint is None:
-            object.__setattr__(self, "fingerprint", expected)
+            if deriving:
+                # Construction derives the immutable self-fingerprint exactly once.
+                object.__setattr__(self, "fingerprint", expected)
+            else:
+                raise CiboCognitiveIntegrationValidationError(
+                    "integrated fingerprint is missing; revalidation must not re-certify "
+                    "a frozen episode"
+                )
         else:
             if type(self.fingerprint) is not CiboCognitiveFingerprint:
                 raise CiboCognitiveIntegrationValidationError(
@@ -611,11 +949,13 @@ class CiboIntegratedCognitiveEpisode:
                 )
 
     def revalidate(self) -> None:
-        self._validate()
+        self._validate(deriving=False)
 
     def _content_references(
         self,
     ) -> tuple[
+        CiboIntegratedContentBinding | None,
+        CiboIntegratedContentBinding | None,
         CiboIntegratedContentBinding | None,
         CiboIntegratedContentBinding | None,
         CiboIntegratedContentBinding | None,
@@ -639,6 +979,40 @@ class CiboIntegratedCognitiveEpisode:
             else bind_replay_reference(self.replay, integration_id=self.integration_id),
             None if self.evaluation is None else bind_evaluation_reference(self.evaluation),
             None if self.plan_reference is None else bind_plan_reference(self.plan_reference),
+            None
+            if self.trader_suitability is None
+            else bind_suitability_reference(self.trader_suitability),
+            None
+            if self.intervention_attribution is None
+            else bind_attribution_reference(self.intervention_attribution),
+        )
+
+    def _capability_references(
+        self,
+    ) -> tuple[
+        tuple[CiboIntegratedContentBinding, ...],
+        tuple[CiboIntegratedContentBinding, ...],
+        CiboIntegratedContentBinding | None,
+        tuple[CiboIntegratedContentBinding, ...],
+        tuple[CiboIntegratedContentBinding, ...],
+    ]:
+        """Re-derive trusted references for the four strengthened capabilities.
+
+        Causal claims, scenarios, hypotheses and learning records are retained as
+        source objects; each is revalidated and re-derived to an ``(id,
+        fingerprint)`` reference so forged, swapped, stale or reflectively
+        corrupted source fails closed at the replay boundary. The metacognitive
+        audit is re-derived the same way. No caller-supplied binding object is
+        trusted.
+        """
+        return (
+            tuple(bind_causal_claim_reference(claim) for claim in self.causal_claims),
+            tuple(bind_scenario_reference(scenario) for scenario in self.scenarios),
+            None
+            if self.metacognitive_audit is None
+            else bind_metacognitive_audit_reference(self.metacognitive_audit),
+            tuple(bind_hypothesis_reference(hypothesis) for hypothesis in self.hypotheses),
+            tuple(bind_learning_record_reference(record) for record in self.learning_records),
         )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -657,7 +1031,16 @@ class CiboIntegratedCognitiveEpisode:
         replay_ref: CiboIntegratedContentBinding | None,
         evaluation_ref: CiboIntegratedContentBinding | None,
         plan_ref: CiboIntegratedContentBinding | None,
+        suitability_ref: CiboIntegratedContentBinding | None,
+        attribution_ref: CiboIntegratedContentBinding | None,
     ) -> tuple[object, ...]:
+        (
+            causal_refs,
+            scenario_refs,
+            metacog_ref,
+            hypothesis_refs,
+            learning_refs,
+        ) = self._capability_references()
         return (
             _EPISODE_SCHEMA_VERSION,
             str(self.integration_id),
@@ -672,11 +1055,17 @@ class CiboIntegratedCognitiveEpisode:
             None if evaluation_ref is None else evaluation_ref.logical_values(),
             None if plan_ref is None else plan_ref.logical_values(),
             tuple(item.logical_values() for item in self.tool_calls),
-            None if self.trader_suitability is None else self.trader_suitability.logical_values(),
-            None
-            if self.intervention_attribution is None
-            else self.intervention_attribution.logical_values(),
+            None if suitability_ref is None else suitability_ref.logical_values(),
+            None if attribution_ref is None else attribution_ref.logical_values(),
             None if self.uncertainty is None else self.uncertainty.logical_values(),
+            tuple(item.logical_values() for item in causal_refs),
+            tuple(item.logical_values() for item in scenario_refs),
+            None if metacog_ref is None else metacog_ref.logical_values(),
+            None
+            if self.reasoning_transition is None
+            else self.reasoning_transition.logical_values(),
+            tuple(item.logical_values() for item in hypothesis_refs),
+            tuple(item.logical_values() for item in learning_refs),
         )
 
 
@@ -721,18 +1110,26 @@ def build_integrated_episode(
     plan_reference: CognitivePlan | None = None,
     tool_calls: Sequence[ReplayToolCall] = (),
     uncertainty: CiboUncertainty | None = None,
-    trader_suitability: CiboIntegratedSuitabilityBinding | None = None,
-    intervention_attribution: CiboIntegratedAttributionBinding | None = None,
+    trader_suitability: MarketTraderSuitability | None = None,
+    intervention_attribution: TraderDevelopmentAttribution | None = None,
+    causal_claims: Sequence[CausalClaim] = (),
+    scenarios: Sequence[Scenario] = (),
+    metacognitive_audit: MetacognitiveAudit | None = None,
+    reasoning_transition: ReasoningTransition | None = None,
+    hypotheses: Sequence[Hypothesis] = (),
+    learning_records: Sequence[CognitiveLearningRecord] = (),
 ) -> CiboIntegratedCognitiveEpisode:
     """Build a validated, canonically ordered, self-fingerprinted episode.
 
     Sequence inputs are validated at the factory boundary, and content references
     are supplied as their verified source objects (world snapshot, synthesis,
-    replay, evaluation, plan); the episode re-derives each ``(id, fingerprint)``
-    binding from that source content at the admission boundary, so no caller
-    supplied binding object can self-assert trusted status. The episode is
-    constructed exactly once (its ``__post_init__`` canonicalizes and fingerprints
-    every field), so no field can be silently dropped between two constructions.
+    replay, evaluation, plan, causal claims, scenarios, metacognitive audit,
+    hypotheses, learning records); the episode re-derives each ``(id,
+    fingerprint)`` binding from that source content at the admission boundary, so
+    no caller supplied binding object can self-assert trusted status. The episode
+    is constructed exactly once (its ``__post_init__`` canonicalizes and
+    fingerprints every field), so no field can be silently dropped between two
+    constructions.
     """
     if type(integration_id) is not UUID:
         raise CiboCognitiveIntegrationValidationError("integration id must be a UUID")
@@ -742,6 +1139,14 @@ def build_integrated_episode(
         raise CiboCognitiveIntegrationValidationError("memory refs must be a sequence")
     if not isinstance(tool_calls, Sequence):
         raise CiboCognitiveIntegrationValidationError("tool calls must be a sequence")
+    if not isinstance(causal_claims, Sequence):
+        raise CiboCognitiveIntegrationValidationError("causal claims must be a sequence")
+    if not isinstance(scenarios, Sequence):
+        raise CiboCognitiveIntegrationValidationError("scenarios must be a sequence")
+    if not isinstance(hypotheses, Sequence):
+        raise CiboCognitiveIntegrationValidationError("hypotheses must be a sequence")
+    if not isinstance(learning_records, Sequence):
+        raise CiboCognitiveIntegrationValidationError("learning records must be a sequence")
     bindings = tuple(evidence_bindings)
     for binding in bindings:
         if type(binding) is not CiboIntegratedEvidenceBinding:
@@ -772,6 +1177,12 @@ def build_integrated_episode(
         uncertainty=uncertainty,
         trader_suitability=trader_suitability,
         intervention_attribution=intervention_attribution,
+        causal_claims=tuple(causal_claims),
+        scenarios=tuple(scenarios),
+        metacognitive_audit=metacognitive_audit,
+        reasoning_transition=reasoning_transition,
+        hypotheses=tuple(hypotheses),
+        learning_records=tuple(learning_records),
     )
 
 
@@ -797,18 +1208,24 @@ def replay_integrated_episode(episode: CiboIntegratedCognitiveEpisode) -> CiboIn
 __all__ = [
     "CiboCognitiveIntegrationError",
     "CiboCognitiveIntegrationValidationError",
-    "CiboIntegratedAttributionBinding",
     "CiboIntegratedCognitiveEpisode",
     "CiboIntegratedContentBinding",
     "CiboIntegratedEvidenceBinding",
     "CiboIntegratedReplay",
-    "CiboIntegratedSuitabilityBinding",
+    "bind_attribution_reference",
+    "bind_causal_claim_reference",
     "bind_deliberation_role",
-    "bind_evidence_fingerprint",
     "bind_evaluation_reference",
+    "bind_evidence_fingerprint",
+    "bind_hypothesis_reference",
+    "bind_learning_record_reference",
+    "bind_metacognitive_audit_reference",
+    "bind_metacognitive_reasoning_mode",
     "bind_plan_reference",
     "bind_reasoning_mode",
     "bind_replay_reference",
+    "bind_scenario_reference",
+    "bind_suitability_reference",
     "bind_synthesis_reference",
     "bind_uncertainty_kind",
     "bind_world_snapshot_reference",

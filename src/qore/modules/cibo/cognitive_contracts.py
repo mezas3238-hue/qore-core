@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from re import IGNORECASE, Pattern, compile, fullmatch
+from unicodedata import normalize as _unicodedata_normalize
 from uuid import UUID
 
 from qore.kernel.errors import DomainError
@@ -39,10 +40,84 @@ _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 #     their own structural shape with word/length/character-class bounds;
 #   - credential labels (client_secret, private_key, api_key, token, password,
 #     authorization, ...) are matched ONLY in assignment form `label[=:] value`
-#     (the key/value pattern below) — never as a bare field-name mention. A bare
+#     (the key/value patterns below) — never as a bare field-name mention. A bare
 #     identifier such as ``client_secret_demo`` or prose like "the client_secret
 #     field must be configured" is not itself secret material and is accepted.
 #   - private-key material is matched structurally via the PEM block marker.
+#
+# Assignment value credibility (law "no naive benign-prose false positives"):
+#   - a quoted value (single or double, non-empty) is always credible, since an
+#     explicit quote signals a deliberate value assignment;
+#   - a bare value after ``=`` (equals) is credible for any non-empty token, as
+#     ``=`` is essentially never natural-language prose punctuation;
+#   - a bare value after ``:`` (colon) is credible only when it carries a digit,
+#     because ``label:`` followed by a bare lowercase English word is ordinary
+#     prose (e.g. "authorization: delegated", "password:less"). Callers carrying
+#     a low-entropy colon-separated secret must quote it (``password: "secret"``).
+_CRED_LABEL = (
+    r"(?:password|passwd|api[_-]?key|access[_-]?key|secret[_-]?key|"
+    r"client[_-]?secret|private[_-]?key|credential|authorization|token|secret)"
+)
+_QUOTED_VALUE = r"[\"'][^\"'\n]+[\"']"
+_BARE_ANY_VALUE = r"[^\s\"']+"
+_BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
+
+# Unicode colon-confusables that fold to STRONG ``=`` before NFKC. NFKC itself
+# collapses ``：`` (U+FF1A) to ASCII ``:`` and ``︰`` (U+FE30) to ``..``, which would
+# lose the adversarial-delimiter signal; a full-width/confusable colon never
+# appears in natural prose, so it is treated as an explicit value assignment.
+# Detection-only: applied to a transient skeleton, never to persisted/user text.
+_DELIMITER_CONFUSABLE_MAP = str.maketrans(
+    {
+        "\u02d0": "=",  # MODIFIER LETTER TRIANGULAR COLON
+        "\u02f8": "=",  # MODIFIER LETTER RAISED COLON
+        "\u0589": "=",  # ARMENIAN FULL STOP
+        "\u05c3": "=",  # HEBREW PUNCTUATION SOF PASUQ
+        "\u2236": "=",  # RATIO
+        "\ua789": "=",  # MODIFIER LETTER COLON
+        "\ufe13": "=",  # PRESENTATION FORM FOR VERTICAL COLON
+        "\ufe30": "=",  # PRESENTATION FORM FOR VERTICAL TWO DOT LEADER
+        "\ufe55": "=",  # SMALL COLON
+        "\uff1a": "=",  # FULLWIDTH COLON
+    }
+)
+
+# Confusable label characters (Cyrillic/Greek homoglyphs of the Latin letters
+# used by credential labels). Detection-only: applied to a transient skeleton,
+# never to persisted/user text.
+_CONFUSABLE_MAP = str.maketrans(
+    {
+        "\u0430": "a",  # CYRILLIC SMALL A
+        "\u0432": "b",  # CYRILLIC SMALL VE
+        "\u0441": "c",  # CYRILLIC SMALL ES
+        "\u0435": "e",  # CYRILLIC SMALL IE
+        "\u0455": "s",  # CYRILLIC SMALL DZE
+        "\u0456": "i",  # CYRILLIC SMALL BYELORUSSIAN-UKRAINIAN I
+        "\u0458": "j",  # CYRILLIC SMALL JE
+        "\u043a": "k",  # CYRILLIC SMALL KA
+        "\u043c": "m",  # CYRILLIC SMALL EM
+        "\u043d": "n",  # CYRILLIC SMALL EN
+        "\u043e": "o",  # CYRILLIC SMALL O
+        "\u0440": "p",  # CYRILLIC SMALL ER
+        "\u0442": "t",  # CYRILLIC SMALL TE
+        "\u0443": "y",  # CYRILLIC SMALL U
+        "\u0445": "x",  # CYRILLIC SMALL HA
+        "\u0437": "z",  # CYRILLIC SMALL ZE
+        "\u03b1": "a",  # GREEK SMALL LETTER ALPHA
+        "\u03b5": "e",  # GREEK SMALL LETTER EPSILON
+        "\u03b9": "i",  # GREEK SMALL LETTER IOTA
+        "\u03ba": "k",  # GREEK SMALL LETTER KAPPA
+        "\u03bd": "n",  # GREEK SMALL LETTER NU
+        "\u03bf": "o",  # GREEK SMALL LETTER OMICRON
+        "\u03c1": "p",  # GREEK SMALL LETTER RHO
+        "\u03c2": "s",  # GREEK SMALL LETTER FINAL SIGMA
+        "\u03c3": "s",  # GREEK SMALL LETTER SIGMA
+        "\u03c4": "t",  # GREEK SMALL LETTER TAU
+        "\u03c5": "u",  # GREEK SMALL LETTER UPSILON
+        "\u03c7": "x",  # GREEK SMALL LETTER CHI
+    }
+)
+
 _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
     compile(r"-----BEGIN [A-Z ]*(?:PRIVATE KEY|SECRET|ENCRYPTED PRIVATE KEY)-----"),
     compile(r"\bsk-[A-Za-z0-9_-]{8,}"),
@@ -68,14 +143,33 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
     ),
     compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
     compile(r"//[^/@\s:]+:[^/@\s]+@"),
+    # Equals assignment: strong. Any non-empty bare token or quoted value.
     compile(
-        r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?key|secret[_-]?key|"
-        r"client[_-]?secret|private[_-]?key|credential|authorization|token|secret)"
-        r"[\"']?\s*[=:]\s*[\"']?\S+"
+        rf"(?i)\b{_CRED_LABEL}\b[\"']?\s*=\s*(?:{_QUOTED_VALUE}|{_BARE_ANY_VALUE})"
+    ),
+    # Colon assignment: weak (prose-ambiguous). Quoted or digit-bearing only.
+    compile(
+        rf"(?i)\b{_CRED_LABEL}\b[\"']?\s*:\s*(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE})"
     ),
 )
 
 _CONTROL_CHARS = "\x00\n\r\t"
+
+
+def _secret_skeleton(text: str) -> str:
+    """Return a detection-only normalized view of ``text``.
+
+    Unicode colon-confusables fold to a strong ``=`` first (before NFKC, which
+    would otherwise collapse them to a weak ``:``); NFKC then folds remaining
+    full-width delimiters/alphanumerics; finally the bounded confusable map folds
+    common Cyrillic/Greek homoglyphs of credential-label letters. The original
+    text is never rewritten: this view is used only to run the fail-closed
+    detection patterns.
+    """
+    return (
+        _unicodedata_normalize("NFKC", text.translate(_DELIMITER_CONFUSABLE_MAP))
+        .translate(_CONFUSABLE_MAP)
+    )
 
 
 class CiboCognitiveError(DomainError):
@@ -100,7 +194,8 @@ def contains_secret_material(text: str) -> bool:
         raise CiboCognitiveValidationError(
             f"secret detection input must be an exact str, not {type(text).__name__}"
         )
-    return any(pattern.search(text) is not None for pattern in _SECRET_PATTERNS)
+    skeleton = _secret_skeleton(text)
+    return any(pattern.search(skeleton) is not None for pattern in _SECRET_PATTERNS)
 
 
 def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
@@ -212,6 +307,20 @@ class CiboConfidenceLevel(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+# Uncertainty kinds that semantically abstain/request more evidence rather than
+# assert an actionable conclusion. An action/decision carrier (formal
+# recommendation, recommend directive, decision synthesis) must never carry one
+# of these, and an abstain/defer/non-decision carrier must never carry
+# BOUNDED_CONFIDENCE.
+_ABSTENTION_UNCERTAINTY_KINDS = frozenset(
+    {
+        CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
+        CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
+        CiboUncertaintyKind.ABSTAIN_DEFER,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -549,6 +658,10 @@ class CiboFormalRecommendation:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
             )
+        if self.uncertainty.kind in _ABSTENTION_UNCERTAINTY_KINDS:
+            raise CiboCognitiveValidationError(
+                "a formal recommendation must not carry abstention-kind uncertainty"
+            )
         object.__setattr__(
             self,
             "limitations",
@@ -587,6 +700,10 @@ class CiboFormalRecommendation:
         if type(self.uncertainty) is not CiboUncertainty:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
+            )
+        if self.uncertainty.kind in _ABSTENTION_UNCERTAINTY_KINDS:
+            raise CiboCognitiveValidationError(
+                "a formal recommendation must not carry abstention-kind uncertainty"
             )
         self.uncertainty.revalidate()
         if self.limitations != _validate_codes(

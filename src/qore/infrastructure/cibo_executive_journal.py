@@ -764,7 +764,10 @@ class CiboJournalStore:
                 "retrieve kind must be CiboJournalEntryKind"
             )
         ordered = tuple(
-            sorted(self.entries, key=lambda e: (e.recorded_at, str(e.entry_id)))
+            sorted(
+                self.entries,
+                key=lambda e: (canonical_instant(e.recorded_at), str(e.entry_id)),
+            )
         )
         if kind is None:
             return ordered

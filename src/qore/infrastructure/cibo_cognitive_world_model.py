@@ -36,6 +36,7 @@ from qore.infrastructure.cibo_cognitive_common import (
     fingerprint_material,
     require_aware_datetime,
     require_exact_str,
+    utc_instant,
 )
 from qore.kernel.result import Failure, Result, Success
 from qore.kernel.temporal import canonical_instant
@@ -442,13 +443,19 @@ def _canonicalize_snapshot(
 
     rebuilt_refs = _rebuild_references(references)
     for ref in rebuilt_refs:
-        if ref.as_of > aware_as_of:
+        if utc_instant(ref.as_of, field="reference as_of") > utc_instant(
+            aware_as_of, field="snapshot as_of"
+        ):
             raise WorldModelValidationError(
                 "reference as_of must not postdate the snapshot as_of"
             )
         if (
             ref.status is WorldModelReferenceStatus.CURRENT
-            and (aware_as_of - ref.as_of) > staleness_threshold
+            and (
+                utc_instant(aware_as_of, field="snapshot as_of")
+                - utc_instant(ref.as_of, field="reference as_of")
+            )
+            > staleness_threshold
         ):
             raise WorldModelValidationError(
                 "a current reference is stale relative to the snapshot as_of"

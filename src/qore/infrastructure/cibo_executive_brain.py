@@ -25,10 +25,21 @@ from qore.modules.cibo.cognitive_contracts import (
     CiboFormalRecommendation,
     CiboReasoningMode,
     CiboUncertainty,
+    CiboUncertaintyKind,
     contains_secret_material,
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
+
+# Abstention-kind uncertainty must never masquerade as an actionable directive,
+# and bounded confidence must never decorate an abstain/defer carrier.
+_ABSTENTION_KINDS = frozenset(
+    {
+        CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
+        CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
+        CiboUncertaintyKind.ABSTAIN_DEFER,
+    }
+)
 
 
 class CiboExecutiveBrainError(InfrastructureError):
@@ -207,6 +218,7 @@ class CiboExecutiveSynthesis:
             raise CiboExecutiveBrainValidationError(
                 "synthesis requires CiboUncertainty"
             )
+        self._validate_directive_uncertainty_coherence()
         object.__setattr__(
             self,
             "observations",
@@ -298,6 +310,7 @@ class CiboExecutiveSynthesis:
         if type(self.uncertainty) is not CiboUncertainty:
             raise CiboExecutiveBrainValidationError("synthesis requires CiboUncertainty")
         _revalidate_uncertainty(self.uncertainty)
+        self._validate_directive_uncertainty_coherence()
         if self.observations != _validate_codes(
             self.observations,
             field_name="synthesis observations",
@@ -372,6 +385,27 @@ class CiboExecutiveSynthesis:
             raise CiboExecutiveBrainValidationError(
                 "defer/abstain directive must not carry recommendation, questions, or request"
             )
+
+    def _validate_directive_uncertainty_coherence(self) -> None:
+        """Enforce cross-field coherence between directive actionability and uncertainty.
+
+        A recommend directive is an actionable carrier and must not masquerade
+        abstention-kind uncertainty; a defer/abstain directive is a non-decision
+        carrier and must not carry bounded-confidence (action-like) certainty.
+        """
+        if self.directive is CiboExecutiveDirectiveKind.RECOMMEND:
+            if self.uncertainty.kind in _ABSTENTION_KINDS:
+                raise CiboExecutiveBrainValidationError(
+                    "recommend directive must not carry abstention-kind uncertainty"
+                )
+        elif self.directive in (
+            CiboExecutiveDirectiveKind.DEFER,
+            CiboExecutiveDirectiveKind.ABSTAIN,
+        ):
+            if self.uncertainty.kind is CiboUncertaintyKind.BOUNDED_CONFIDENCE:
+                raise CiboExecutiveBrainValidationError(
+                    "defer/abstain directive must not carry bounded confidence"
+                )
 
     def logical_values(self) -> tuple[object, ...]:
         return (

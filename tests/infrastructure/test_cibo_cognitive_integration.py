@@ -18,45 +18,85 @@ from uuid import UUID
 import pytest
 
 from qore.infrastructure.cibo_cognitive_attention import CalibrationNote, ReasoningDepthHint
+from qore.infrastructure.cibo_cognitive_causality import (
+    CausalClaim,
+    CausalClaimKind,
+    CausalClaimStatus,
+    CausalClaimStrength,
+    CausalEvidence,
+    CausalEvidencePolarity,
+    CausalVariable,
+    build_causal_claim,
+)
 from qore.infrastructure.cibo_cognitive_common import (
     CiboCognitiveFingerprint,
     CiboCognitiveValidationError,
+    TraderSubject,
     fingerprint_material,
 )
 from qore.infrastructure.cibo_cognitive_evaluation import (
+    CapabilityEvidence,
+    CapabilityOutcome,
     CognitiveEvaluation,
     EvaluationDimension,
     EvaluationDimensionScore,
+    InterventionIdentity,
+    InterventionKind,
+    TraderDevelopmentAttribution,
+    build_trader_development_attribution,
     evaluate_cognition,
+)
+from qore.infrastructure.cibo_cognitive_hypotheses import (
+    Hypothesis,
+    HypothesisEvidence,
+    HypothesisEvidencePolarity,
+    HypothesisStatus,
+    build_hypothesis,
+    transition_hypothesis,
 )
 from qore.infrastructure.cibo_cognitive_integration import (
     CiboCognitiveIntegrationValidationError,
-    CiboIntegratedAttributionBinding,
     CiboIntegratedCognitiveEpisode,
     CiboIntegratedContentBinding,
     CiboIntegratedEvidenceBinding,
     CiboIntegratedReplay,
-    CiboIntegratedSuitabilityBinding,
+    bind_attribution_reference,
+    bind_causal_claim_reference,
     bind_deliberation_role,
     bind_evaluation_reference,
     bind_evidence_fingerprint,
+    bind_hypothesis_reference,
+    bind_learning_record_reference,
+    bind_metacognitive_audit_reference,
+    bind_metacognitive_reasoning_mode,
     bind_plan_reference,
     bind_reasoning_mode,
     bind_replay_reference,
+    bind_scenario_reference,
+    bind_suitability_reference,
     bind_synthesis_reference,
     bind_uncertainty_kind,
     bind_world_snapshot_reference,
     build_integrated_episode,
     replay_integrated_episode,
 )
+from qore.infrastructure.cibo_cognitive_metacognition import (
+    MetacognitiveAudit,
+    MetacognitiveFinding,
+    ReasoningTransition,
+    build_metacognitive_audit,
+    build_reasoning_transition,
+)
 from qore.infrastructure.cibo_cognitive_planning import (
     CognitiveGoal,
     CognitiveGoalId,
     CognitiveGoalStatus,
+    CognitiveLearningRecord,
     CognitivePlan,
     CognitiveTask,
     CognitiveTaskId,
     CognitiveTaskStatus,
+    EvidenceBundle,
     EvidenceRequirement,
     build_cognitive_plan,
 )
@@ -65,14 +105,28 @@ from qore.infrastructure.cibo_cognitive_replay import (
     ReplayToolCall,
     build_replay_episode,
 )
+from qore.infrastructure.cibo_cognitive_scenarios import (
+    Scenario,
+    ScenarioAlternative,
+    ScenarioAssumption,
+    ScenarioFactKind,
+    ScenarioFamily,
+    build_scenario,
+)
 from qore.infrastructure.cibo_cognitive_tools import FacultyId
 from qore.infrastructure.cibo_cognitive_world_model import (
+    MarketContextKind,
+    MarketContextReference,
+    MarketTraderContext,
+    MarketTraderSuitability,
+    MarketTraderSuitabilityDisposition,
     WorldModelDomain,
     WorldModelReference,
     WorldModelReferenceStatus,
     WorldModelSnapshot,
     WorldModelSourceId,
     WorldModelSourceVersion,
+    build_market_trader_suitability,
     build_world_model_snapshot,
 )
 from qore.infrastructure.cibo_executive_deliberation import (
@@ -94,6 +148,20 @@ _ID = UUID("60000000-0000-0000-0000-000000000001")
 _WORLD = UUID("60000000-0000-0000-0000-000000000002")
 _SYNTH = UUID("60000000-0000-0000-0000-000000000003")
 _OTHER = UUID("60000000-0000-0000-0000-000000000099")
+_T_PRE = datetime(2026, 8, 1, 0, 0, tzinfo=UTC)
+_T_INT = datetime(2026, 8, 5, 0, 0, tzinfo=UTC)
+_T_POST = datetime(2026, 8, 8, 0, 0, tzinfo=UTC)
+_CAUSAL = UUID("60000000-0000-0000-0000-000000000010")
+_CORR = UUID("60000000-0000-0000-0000-000000000011")
+_HYP = UUID("60000000-0000-0000-0000-000000000012")
+_HYP_COMPETING = UUID("60000000-0000-0000-0000-000000000013")
+_LEARN = UUID("60000000-0000-0000-0000-000000000014")
+_AUDIT_ID = UUID("60000000-0000-0000-0000-000000000015")
+_SCEN_BASE = UUID("60000000-0000-0000-0000-000000000016")
+_SCEN_ADVERSE = UUID("60000000-0000-0000-0000-000000000017")
+_SCEN_EXTREME = UUID("60000000-0000-0000-0000-000000000018")
+_SCEN_REGIME = UUID("60000000-0000-0000-0000-000000000019")
+_ALT = UUID("60000000-0000-0000-0000-000000000020")
 
 _AUTHORITY_FIELDS = frozenset(
     {
@@ -206,6 +274,81 @@ def _tool_call() -> ReplayToolCall:
     )
 
 
+def _trader_subject() -> TraderSubject:
+    trader_id = "trader.demo"
+    version = "v1"
+    return TraderSubject(
+        trader_id=trader_id,
+        trader_version=version,
+        fingerprint=fingerprint_material((trader_id, version)),
+    )
+
+
+def _ctx_ref(kind: MarketContextKind, reference: str) -> MarketContextReference:
+    return MarketContextReference(
+        kind=kind,
+        reference=reference,
+        as_of=_AWARE,
+        status=WorldModelReferenceStatus.CURRENT,
+        evidence_fingerprint=fingerprint_material((kind.value, reference)),
+        evidence_label=f"{kind.value} evidence",
+    )
+
+
+def _suitability() -> MarketTraderSuitability:
+    context = MarketTraderContext(
+        market=_ctx_ref(MarketContextKind.MARKET, "market.fx"),
+        instrument=_ctx_ref(MarketContextKind.INSTRUMENT, "instrument.eurusd"),
+        regime=_ctx_ref(MarketContextKind.REGIME, "regime.trending"),
+    )
+    return build_market_trader_suitability(
+        suitability_id=_WORLD,
+        trader=_trader_subject(),
+        context=context,
+        disposition=MarketTraderSuitabilityDisposition.DEGRADED,
+        evidence_lineage=(_fp("lineage"),),
+    )
+
+
+def _intervention(trader: TraderSubject) -> InterventionIdentity:
+    return InterventionIdentity(
+        intervention_id="cibo.dev",
+        intervention_version="v1",
+        target_trader_fingerprint=trader.fingerprint,
+        kind=InterventionKind.DEVELOPMENT,
+        fingerprint=fingerprint_material(
+            ("cibo.dev", "v1", trader.fingerprint.value, InterventionKind.DEVELOPMENT.value)
+        ),
+    )
+
+
+def _attribution() -> TraderDevelopmentAttribution:
+    trader = _trader_subject()
+    pre = CapabilityEvidence(
+        reference="ev.pre",
+        capability="discipline",
+        observed_at=_T_PRE,
+        evidence_fingerprint=fingerprint_material(("ev.pre", "discipline")),
+    )
+    post = CapabilityEvidence(
+        reference="ev.post",
+        capability="discipline",
+        observed_at=_T_POST,
+        evidence_fingerprint=fingerprint_material(("ev.post", "discipline", "improved")),
+        outcome=CapabilityOutcome.IMPROVED,
+    )
+    return build_trader_development_attribution(
+        attribution_id=_SYNTH,
+        trader=trader,
+        intervention=_intervention(trader),
+        development_hypothesis="training improves discipline",
+        target_capability="discipline",
+        applied_at=_T_INT,
+        pre_intervention_evidence=(pre,),
+        post_intervention_evidence=(post,),
+    )
+
+
 def _episode(
     *,
     evidence_bindings: tuple[CiboIntegratedEvidenceBinding, ...] | None = None,
@@ -220,8 +363,9 @@ def _episode(
     plan_reference: CognitivePlan | None = None,
     tool_calls: tuple[ReplayToolCall, ...] = (),
     uncertainty: CiboUncertainty | None = None,
-    trader_suitability: CiboIntegratedSuitabilityBinding | None = None,
-    intervention_attribution: CiboIntegratedAttributionBinding | None = None,
+    trader_suitability: MarketTraderSuitability | None = None,
+    intervention_attribution: TraderDevelopmentAttribution | None = None,
+    reasoning_transition: ReasoningTransition | None = None,
 ) -> CiboIntegratedCognitiveEpisode:
     return build_integrated_episode(
         integration_id=_ID,
@@ -239,6 +383,7 @@ def _episode(
         uncertainty=uncertainty,
         trader_suitability=trader_suitability,
         intervention_attribution=intervention_attribution,
+        reasoning_transition=reasoning_transition,
     )
 
 
@@ -604,7 +749,7 @@ class TestDisagreementAndUncertaintyPreservation:
             )
         )
         assert episode.uncertainty is not None
-        assert episode.logical_values()[-1] == episode.uncertainty.logical_values()
+        assert episode.logical_values()[15] == episode.uncertainty.logical_values()
 
     def test_episode_rejects_reflectively_corrupted_uncertainty(self) -> None:
         episode = _episode(
@@ -682,39 +827,64 @@ class TestAuthorityFreeFirewall:
 
 
 class TestMarketTraderAndAttributionBindings:
-    def test_suitability_binding_rejects_non_uuid(self) -> None:
+    def test_suitability_binding_rejects_non_suitability_source(self) -> None:
         with pytest.raises(CiboCognitiveIntegrationValidationError):
-            CiboIntegratedSuitabilityBinding(
-                suitability_id=cast(UUID, "not-a-uuid"), fingerprint=_fp("suit")
-            )
+            bind_suitability_reference(cast(MarketTraderSuitability, _world_snapshot()))
 
-    def test_attribution_binding_rejects_non_fingerprint(self) -> None:
+    def test_attribution_binding_rejects_non_attribution_source(self) -> None:
         with pytest.raises(CiboCognitiveIntegrationValidationError):
-            CiboIntegratedAttributionBinding(
-                attribution_id=_SYNTH,
-                fingerprint=cast(CiboCognitiveFingerprint, "not-a-fingerprint"),
-            )
+            bind_attribution_reference(cast(TraderDevelopmentAttribution, _evaluation()))
 
-    def test_episode_with_new_bindings_builds_and_replays(self) -> None:
-        suit = CiboIntegratedSuitabilityBinding(suitability_id=_WORLD, fingerprint=_fp("suit"))
-        attr = CiboIntegratedAttributionBinding(attribution_id=_SYNTH, fingerprint=_fp("attr"))
+    def test_suitability_binding_derives_from_source_content(self) -> None:
+        suitability = _suitability()
+        binding = bind_suitability_reference(suitability)
+        assert binding.id == suitability.suitability_id
+        assert binding.fingerprint == suitability.fingerprint
+
+    def test_attribution_binding_derives_from_source_content(self) -> None:
+        attribution = _attribution()
+        binding = bind_attribution_reference(attribution)
+        assert binding.id == attribution.attribution_id
+        assert binding.fingerprint == attribution.fingerprint
+
+    def test_episode_with_source_objects_builds_and_replays(self) -> None:
         episode = build_integrated_episode(
             integration_id=_ID,
             reasoning_mode=CiboReasoningMode.HIGH,
             evidence_bindings=(_binding("a"),),
             recorded_at=_AWARE,
-            trader_suitability=suit,
-            intervention_attribution=attr,
+            trader_suitability=_suitability(),
+            intervention_attribution=_attribution(),
         )
         replay = replay_integrated_episode(episode)
         assert replay.fingerprint == episode.fingerprint
         assert replay.view == episode.logical_values()
 
-    def test_new_bindings_are_authority_free(self) -> None:
-        suit = CiboIntegratedSuitabilityBinding(suitability_id=_WORLD, fingerprint=_fp("suit"))
-        attr = CiboIntegratedAttributionBinding(attribution_id=_SYNTH, fingerprint=_fp("attr"))
-        for binding in (suit, attr):
+    def test_source_bindings_are_authority_free(self) -> None:
+        suitability = bind_suitability_reference(_suitability())
+        attribution = bind_attribution_reference(_attribution())
+        for binding in (suitability, attribution):
+            assert isinstance(binding, CiboIntegratedContentBinding)
             assert not any(hasattr(binding, name) for name in _AUTHORITY_FIELDS)
+
+    def test_callerminted_content_binding_not_admittable_as_source(self) -> None:
+        fabricated = CiboIntegratedContentBinding(id=_WORLD, fingerprint=_fp("unverified"))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            _episode(
+                trader_suitability=cast(MarketTraderSuitability, fabricated),
+            )
+
+    def test_swapped_suitability_fingerprint_fails_closed(self) -> None:
+        suitability = _suitability()
+        object.__setattr__(suitability, "fingerprint", _fp("forged"))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            bind_suitability_reference(suitability)
+
+    def test_swapped_attribution_fingerprint_fails_closed(self) -> None:
+        attribution = _attribution()
+        object.__setattr__(attribution, "fingerprint", _fp("forged"))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            bind_attribution_reference(attribution)
 
 
 class TestProofRootClosure:
@@ -828,8 +998,8 @@ class TestProofRootClosure:
 
     def test_schema_arity_and_version_pinned(self) -> None:
         values = _episode().logical_values()
-        assert len(values) == 16
-        assert values[0] == "cibo-integrated-episode:v2"
+        assert len(values) == 22
+        assert values[0] == "cibo-integrated-episode:v3"
 
 
 class TestTimezoneMetamorphism:
@@ -851,3 +1021,257 @@ class TestTimezoneMetamorphism:
 def test_zero_confidence_band_with_abstention_maps_to_insufficient_evidence() -> None:
     note = CalibrationNote(confidence_band=0, note="none", abstention_required=True)
     assert bind_uncertainty_kind(note) is CiboUncertaintyKind.INSUFFICIENT_EVIDENCE
+
+
+# --- Strengthened superarchitecture (CA 3.1..3.4) bindings + end-to-end slice ---
+
+
+def _causal_variable(code: str) -> CausalVariable:
+    return CausalVariable(code=code, fingerprint=fingerprint_material((code,)))
+
+
+def _causal_evidence(ref: str, polarity: CausalEvidencePolarity) -> CausalEvidence:
+    return CausalEvidence(
+        ref=CiboCognitiveEvidenceRef(ref),
+        polarity=polarity,
+        observed_at=_AWARE,
+        fingerprint=fingerprint_material((ref, polarity.value, _AWARE)),
+    )
+
+
+def _correlation_claim() -> CausalClaim:
+    return build_causal_claim(
+        claim_id=_CORR,
+        kind=CausalClaimKind.CORRELATION,
+        cause=_causal_variable("activity"),
+        effect=_causal_variable("outcome"),
+        strength=CausalClaimStrength.WEAK,
+        status=CausalClaimStatus.ACTIVE,
+    )
+
+
+def _causation_claim() -> CausalClaim:
+    return build_causal_claim(
+        claim_id=_CAUSAL,
+        kind=CausalClaimKind.CAUSATION,
+        cause=_causal_variable("intervention"),
+        effect=_causal_variable("capability"),
+        confounders=(_causal_variable("selection-bias"),),
+        confounders_addressed=True,
+        evidence_for=(_causal_evidence("evidence:causal-for", CausalEvidencePolarity.SUPPORTS),),
+        strength=CausalClaimStrength.MODERATE,
+        status=CausalClaimStatus.ACTIVE,
+    )
+
+
+def _scenario(sid: UUID, family: ScenarioFamily, version: str, *, abstained: bool) -> Scenario:
+    assumptions = (
+        ScenarioAssumption(
+            code="no-fabricated-probability", fact_kind=ScenarioFactKind.HYPOTHETICAL
+        ),
+    )
+    alternatives: tuple[ScenarioAlternative, ...] = ()
+    if not abstained:
+        alternatives = (
+            ScenarioAlternative(
+                alternative_id=_ALT, action_code="research", outcome_code="undetermined"
+            ),
+        )
+    return build_scenario(
+        scenario_id=sid,
+        family=family,
+        version=version,
+        assumptions=assumptions,
+        alternatives=alternatives,
+        abstained=abstained,
+        uncertainty=CiboUncertainty(kind=CiboUncertaintyKind.INSUFFICIENT_EVIDENCE),
+        limitations=("no-calibrated-probability",),
+    )
+
+
+def _hyp_evidence(ref: str, polarity: HypothesisEvidencePolarity) -> HypothesisEvidence:
+    return HypothesisEvidence(
+        ref=CiboCognitiveEvidenceRef(ref),
+        polarity=polarity,
+        observed_at=_AWARE,
+        fingerprint=fingerprint_material((ref, polarity.value, _AWARE)),
+    )
+
+
+def _hypothesis_lineage() -> tuple[Hypothesis, ...]:
+    born = build_hypothesis(
+        hypothesis_id=_HYP, content_code="h.regime", status=HypothesisStatus.BORN
+    )
+    active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+    refuted = transition_hypothesis(
+        active,
+        HypothesisStatus.REFUTED,
+        contradictions=(
+            _hyp_evidence("evidence:against", HypothesisEvidencePolarity.CONTRADICTION),
+        ),
+    )
+    revised = transition_hypothesis(
+        refuted, HypothesisStatus.REVISED, content_code="h.regime-revised"
+    )
+    re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+    competing = build_hypothesis(
+        hypothesis_id=_HYP_COMPETING, content_code="h.competing", status=HypothesisStatus.ACTIVE
+    )
+    return (born, active, refuted, revised, re_active, competing)
+
+
+def _audit() -> MetacognitiveAudit:
+    return build_metacognitive_audit(
+        audit_id=_AUDIT_ID,
+        reasoning_mode=CiboReasoningMode.HIGH,
+        evidence_sufficiency=MetacognitiveFinding.INSUFFICIENT_EVIDENCE,
+        reason_codes=("missing-evidence",),
+    )
+
+
+def _transition() -> ReasoningTransition:
+    return build_reasoning_transition(
+        from_mode=CiboReasoningMode.HIGH,
+        to_mode=CiboReasoningMode.MAX,
+        reason_code="insufficient-evidence",
+        evidence_refs=(CiboCognitiveEvidenceRef("evidence:gap"),),
+    )
+
+
+def _decision_synthesis() -> CiboCouncilSynthesis:
+    return CiboCouncilSynthesis(
+        synthesis_id=_SYNTH,
+        summary="Decision synthesis",
+        evidence_refs=(CiboCognitiveEvidenceRef("evidence:synthesis"),),
+        uncertainty=CiboUncertainty(
+            kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE, confidence=_bounded_confidence()
+        ),
+        synthesized_at=_AWARE,
+    )
+
+
+def _learning_record() -> CognitiveLearningRecord:
+    return CognitiveLearningRecord(
+        record_id=_LEARN,
+        decision_time=_T_INT,
+        expected_result="capability improves",
+        actual_result_reference=EvidenceBundle(reference="evidence:realized", observed_at=_T_POST),
+        contemporaneous_evidence=(EvidenceBundle(reference="evidence:pre", observed_at=_T_PRE),),
+        later_evidence=(EvidenceBundle(reference="evidence:post", observed_at=_T_POST),),
+        error_attribution="no-error",
+        counterfactuals=("no-intervention",),
+        reflection_note="expected result matched realized evidence",
+        supersedes=None,
+    )
+
+
+class TestStrengthenedCapabilityBindings:
+    def test_metacognitive_reasoning_mode_binds_target_mode(self) -> None:
+        assert bind_metacognitive_reasoning_mode(_transition()) is CiboReasoningMode.MAX
+
+    def test_causal_claim_reference_binds_self_fingerprint(self) -> None:
+        claim = _causation_claim()
+        binding = bind_causal_claim_reference(claim)
+        assert binding.id == _CAUSAL
+        assert binding.fingerprint == claim.fingerprint
+
+    def test_scenario_reference_binds_self_fingerprint(self) -> None:
+        scenario = _scenario(_SCEN_BASE, ScenarioFamily.BASE, "1", abstained=True)
+        binding = bind_scenario_reference(scenario)
+        assert binding.id == _SCEN_BASE
+        assert binding.fingerprint == scenario.fingerprint
+
+    def test_hypothesis_reference_binds_self_fingerprint(self) -> None:
+        hypothesis = build_hypothesis(
+            hypothesis_id=_HYP, content_code="h.regime", status=HypothesisStatus.ACTIVE
+        )
+        binding = bind_hypothesis_reference(hypothesis)
+        assert binding.id == _HYP
+        assert binding.fingerprint == hypothesis.fingerprint
+
+    def test_metacognitive_audit_reference_binds_self_fingerprint(self) -> None:
+        audit = _audit()
+        binding = bind_metacognitive_audit_reference(audit)
+        assert binding.id == _AUDIT_ID
+        assert binding.fingerprint == audit.fingerprint
+
+    def test_learning_record_reference_binds_content_fingerprint(self) -> None:
+        record = _learning_record()
+        binding = bind_learning_record_reference(record)
+        assert binding.id == _LEARN
+
+    def test_forged_causal_claim_fingerprint_rejected(self) -> None:
+        claim = _causation_claim()
+        object.__setattr__(claim, "fingerprint", _fp("forged"))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            bind_causal_claim_reference(claim)
+
+    def test_episode_requires_reasoning_mode_to_match_transition(self) -> None:
+        with pytest.raises(CiboCognitiveIntegrationValidationError, match="metacognition-selected"):
+            _episode(reasoning_mode=CiboReasoningMode.FAST, reasoning_transition=_transition())
+
+
+class TestStrengthenedEndToEndComposition:
+    def _build(self) -> CiboIntegratedCognitiveEpisode:
+        transition = _transition()
+        selected = bind_metacognitive_reasoning_mode(transition)
+        assert selected is CiboReasoningMode.MAX
+        return build_integrated_episode(
+            integration_id=_ID,
+            reasoning_mode=selected,
+            evidence_bindings=(_binding("world"),),
+            recorded_at=_AWARE,
+            world_snapshot=_world_snapshot(),
+            deliberation_outcome=CiboCouncilOutcome.DECISION,
+            synthesis=_decision_synthesis(),
+            replay=_replay(),
+            evaluation=_evaluation(),
+            plan_reference=_plan(),
+            uncertainty=CiboUncertainty(
+                kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE, confidence=_bounded_confidence()
+            ),
+            causal_claims=(_correlation_claim(), _causation_claim()),
+            scenarios=(
+                _scenario(_SCEN_BASE, ScenarioFamily.BASE, "1", abstained=False),
+                _scenario(_SCEN_ADVERSE, ScenarioFamily.ADVERSE, "1", abstained=True),
+                _scenario(_SCEN_EXTREME, ScenarioFamily.EXTREME, "1", abstained=True),
+                _scenario(_SCEN_REGIME, ScenarioFamily.REGIME_CHANGE, "1", abstained=True),
+            ),
+            metacognitive_audit=_audit(),
+            reasoning_transition=transition,
+            hypotheses=_hypothesis_lineage(),
+            learning_records=(_learning_record(),),
+        )
+
+    def test_full_cycle_composes_deterministically(self) -> None:
+        left = self._build()
+        right = self._build()
+        assert left.fingerprint == right.fingerprint
+        assert left.logical_values() == right.logical_values()
+
+    def test_replay_reproduces_same_semantic_result(self) -> None:
+        episode = self._build()
+        replay = replay_integrated_episode(episode)
+        assert replay.view == episode.logical_values()
+        assert replay.fingerprint == episode.fingerprint
+
+    def test_capabilities_participate_in_replay_view(self) -> None:
+        episode = self._build()
+        values = episode.logical_values()
+        assert len(values) == 22
+        assert isinstance(values[16], tuple) and len(values[16]) == 2  # causal claims
+        assert isinstance(values[17], tuple) and len(values[17]) == 4  # scenarios
+        assert values[18] is not None  # metacognitive audit reference
+        assert values[19] is not None  # reasoning transition
+        assert isinstance(values[20], tuple) and len(values[20]) == 6  # hypothesis lineage
+        assert isinstance(values[21], tuple) and len(values[21]) == 1  # learning records
+
+    def test_composition_is_authority_free(self) -> None:
+        _assert_no_authority_fields(self._build())
+
+    def test_reflective_corruption_of_capability_fails_replay(self) -> None:
+        episode = self._build()
+        # correlation claim at canonical index 1 must never carry strong strength
+        object.__setattr__(episode.causal_claims[1], "strength", CausalClaimStrength.STRONG)
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            replay_integrated_episode(episode)

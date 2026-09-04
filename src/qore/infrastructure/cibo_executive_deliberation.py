@@ -14,6 +14,11 @@ from enum import StrEnum
 from re import fullmatch
 from uuid import UUID
 
+from qore.infrastructure.cibo_cognitive_common import (
+    CiboCognitiveFingerprint,
+    fingerprint_material,
+    utc_instant,
+)
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
@@ -228,6 +233,7 @@ class CiboDeliberationContribution:
     uncertainty: CiboUncertainty
     contributed_at: datetime
     limitations: tuple[str, ...] = ()
+    fingerprint: CiboCognitiveFingerprint | None = None
 
     def __post_init__(self) -> None:
         if type(self.contribution_id) is not UUID:
@@ -263,6 +269,13 @@ class CiboDeliberationContribution:
             _validate_codes(self.limitations, field_name="contribution limitations"),
         )
         _validate_aware_datetime(self.contributed_at, field_name="contribution contributed_at")
+        # Commit the participant role/content to an immutable self-fingerprint so
+        # retained-state role substitution is detectable (D-1/F-J).
+        object.__setattr__(
+            self,
+            "fingerprint",
+            fingerprint_material(self.logical_values()),
+        )
         self.revalidate()
 
     def revalidate(self) -> None:
@@ -301,6 +314,15 @@ class CiboDeliberationContribution:
                 "contribution limitations failed canonical revalidation"
             )
         _validate_aware_datetime(self.contributed_at, field_name="contribution contributed_at")
+        if type(self.fingerprint) is not CiboCognitiveFingerprint:
+            raise CiboExecutiveDeliberationValidationError(
+                "contribution fingerprint must be a CiboCognitiveFingerprint"
+            )
+        self.fingerprint.revalidate()
+        if self.fingerprint != fingerprint_material(self.logical_values()):
+            raise CiboExecutiveDeliberationValidationError(
+                "contribution fingerprint does not match its canonical content"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -489,6 +511,7 @@ class CiboCouncilSynthesis:
 
 _DISAGREEMENT_OUTCOMES = frozenset(
     {
+        CiboCouncilOutcome.INSUFFICIENT_EVIDENCE,
         CiboCouncilOutcome.DISAGREEMENT,
         CiboCouncilOutcome.NO_DECISION,
         CiboCouncilOutcome.BLOCKED,
@@ -599,7 +622,9 @@ class CiboExecutiveDeliberation:
                 "synthesis requires a decision outcome"
             )
         _validate_aware_datetime(self.concluded_at, field_name="deliberation concluded_at")
-        if self.concluded_at < self.context.as_of:
+        if utc_instant(self.concluded_at, field="deliberation concluded_at") < utc_instant(
+            self.context.as_of, field="deliberation as_of"
+        ):
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation conclusion cannot predate its context"
             )
@@ -704,7 +729,9 @@ class CiboExecutiveDeliberation:
                     "synthesis requires a decision outcome"
                 )
         _validate_aware_datetime(self.concluded_at, field_name="deliberation concluded_at")
-        if self.concluded_at < self.context.as_of:
+        if utc_instant(self.concluded_at, field="deliberation concluded_at") < utc_instant(
+            self.context.as_of, field="deliberation as_of"
+        ):
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation conclusion cannot predate its context"
             )

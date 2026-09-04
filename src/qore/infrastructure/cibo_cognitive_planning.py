@@ -34,6 +34,7 @@ from qore.infrastructure.cibo_cognitive_common import (
     require_aware_datetime,
     require_exact_int,
     require_exact_str,
+    utc_instant,
 )
 from qore.kernel.temporal import canonical_instant
 
@@ -141,6 +142,7 @@ class CognitiveTask:
     dependencies: tuple[CognitiveTaskId, ...]
     required_evidence: tuple[EvidenceRequirement, ...]
     status: CognitiveTaskStatus
+    satisfied_evidence: tuple[EvidenceRequirement, ...] = ()
 
     def __post_init__(self) -> None:
         self.revalidate()
@@ -175,8 +177,36 @@ class CognitiveTask:
                     "required evidence must contain only EvidenceRequirement values"
                 )
             req.revalidate()
+        if type(self.satisfied_evidence) is not tuple:
+            raise PlanningValidationError("satisfied evidence must be a tuple")
+        for req in self.satisfied_evidence:
+            if type(req) is not EvidenceRequirement:
+                raise PlanningValidationError(
+                    "satisfied evidence must contain only EvidenceRequirement values"
+                )
+            req.revalidate()
         if type(self.status) is not CognitiveTaskStatus:
             raise PlanningValidationError("task status must be a CognitiveTaskStatus")
+        if self.status is CognitiveTaskStatus.COMPLETED:
+            if not self.required_evidence:
+                raise PlanningValidationError(
+                    "a completed task requires explicit required evidence"
+                )
+            if not self.satisfied_evidence:
+                raise PlanningValidationError(
+                    "a completed task must retain satisfied evidence"
+                )
+            required_refs = {req.reference for req in self.required_evidence}
+            satisfied_refs = {req.reference for req in self.satisfied_evidence}
+            if not required_refs.issubset(satisfied_refs):
+                missing = sorted(required_refs - satisfied_refs)
+                raise PlanningValidationError(
+                    f"completed task missing satisfied evidence: {', '.join(missing)}"
+                )
+        elif self.satisfied_evidence:
+            raise PlanningValidationError(
+                "a non-completed task must not retain satisfied evidence"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -186,6 +216,7 @@ class CognitiveTask:
             tuple(str(dep.value) for dep in self.dependencies),
             tuple(req.logical_values() for req in self.required_evidence),
             self.status.value,
+            tuple(req.logical_values() for req in self.satisfied_evidence),
         )
 
     def sort_key(self) -> str:
@@ -419,7 +450,6 @@ class CognitiveLearningRecord:
     contemporaneous_evidence: tuple[EvidenceBundle, ...]
     later_evidence: tuple[EvidenceBundle, ...]
     error_attribution: str
-    proven: bool
     counterfactuals: tuple[str, ...]
     reflection_note: str
     supersedes: UUID | None
@@ -452,7 +482,9 @@ class CognitiveLearningRecord:
                     "contemporaneous evidence must contain only EvidenceBundle values"
                 )
             bundle.revalidate()
-            if bundle.observed_at > decision_time:
+            if utc_instant(bundle.observed_at, field="bundle observed_at") > utc_instant(
+                decision_time, field="decision time"
+            ):
                 raise PlanningValidationError(
                     "contemporaneous evidence must not postdate the decision time"
                 )
@@ -464,7 +496,9 @@ class CognitiveLearningRecord:
                     "later evidence must contain only EvidenceBundle values"
                 )
             bundle.revalidate()
-            if bundle.observed_at <= decision_time:
+            if utc_instant(bundle.observed_at, field="bundle observed_at") <= utc_instant(
+                decision_time, field="decision time"
+            ):
                 raise PlanningValidationError(
                     "later evidence must postdate the decision time"
                 )
@@ -475,8 +509,6 @@ class CognitiveLearningRecord:
             raise PlanningValidationError(
                 "error attribution must not carry secret-bearing material"
             )
-        if type(self.proven) is not bool:
-            raise PlanningValidationError("learning record proven flag must be an exact bool")
         if type(self.counterfactuals) is not tuple:
             raise PlanningValidationError("counterfactuals must be a tuple")
         for alternative in self.counterfactuals:
@@ -504,6 +536,16 @@ class CognitiveLearningRecord:
     def later_view(self) -> tuple[EvidenceBundle, ...]:
         """Return only the evidence that arrived after decision time."""
         return self.later_evidence
+
+    @property
+    def proven(self) -> bool:
+        """Return whether the record retains evidence of an actual outcome.
+
+        Proof is derived from retained evidence (the observed actual result), never
+        from a caller-supplied boolean: a record without an ``actual_result_reference``
+        cannot manufacture epistemic proof.
+        """
+        return self.actual_result_reference is not None
 
 
 def _topological_order(tasks: tuple[CognitiveTask, ...]) -> tuple[CognitiveTask, ...]:
@@ -595,11 +637,16 @@ def complete_task(
         if plan.task_by_id(dep).status is not CognitiveTaskStatus.COMPLETED:
             raise PlanningValidationError("task dependencies must be completed first")
     required = {req.reference for req in task.required_evidence}
+    if not required:
+        raise PlanningValidationError(
+            "a task without required evidence cannot be completed vacuously"
+        )
     if not required.issubset(provided):
         missing = sorted(required - provided)
         raise PlanningValidationError(
             f"task completion requires evidence references: {', '.join(missing)}"
         )
+    satisfied = tuple(req for req in task.required_evidence if req.reference in provided)
     new_tasks = tuple(
         CognitiveTask(
             task_id=item.task_id,
@@ -612,6 +659,7 @@ def complete_task(
                 if item.task_id == task_id
                 else item.status
             ),
+            satisfied_evidence=(satisfied if item.task_id == task_id else item.satisfied_evidence),
         )
         for item in plan.tasks
     )
@@ -619,6 +667,58 @@ def complete_task(
         plan_id=plan.plan_id,
         goals=plan.goals,
         tasks=new_tasks,
+        revision=plan.revision + 1,
+        parent_revision=plan.revision,
+    )
+
+
+def complete_goal(
+    plan: CognitivePlan,
+    goal_id: CognitiveGoalId,
+) -> CognitivePlan:
+    """Return a new plan with ``goal_id`` completed, governed by retained evidence.
+
+    A goal may only transition to COMPLETED when every task it owns is COMPLETED
+    with its own retained satisfied evidence. Directly marking a goal COMPLETED
+    without completed, evidence-backed tasks fails closed.
+    """
+    if type(plan) is not CognitivePlan:
+        raise PlanningValidationError("plan must be a CognitivePlan")
+    if type(goal_id) is not CognitiveGoalId:
+        raise PlanningValidationError("goal id must be a CognitiveGoalId")
+    goal = next((g for g in plan.goals if g.goal_id == goal_id), None)
+    if goal is None:
+        raise PlanningValidationError("goal id not present in plan")
+    if goal.status is CognitiveGoalStatus.COMPLETED:
+        raise PlanningValidationError("goal is already completed")
+    goal_tasks = tuple(t for t in plan.tasks if t.goal_id == goal_id)
+    if not goal_tasks:
+        raise PlanningValidationError("a goal must own at least one task")
+    for task in goal_tasks:
+        if task.status is not CognitiveTaskStatus.COMPLETED:
+            raise PlanningValidationError(
+                "a goal cannot be completed while it owns incomplete tasks"
+            )
+        if not task.satisfied_evidence:
+            raise PlanningValidationError(
+                "a goal cannot be completed without task evidence satisfaction"
+            )
+    new_goals = tuple(
+        CognitiveGoal(
+            goal_id=item.goal_id,
+            description=item.description,
+            status=(
+                CognitiveGoalStatus.COMPLETED
+                if item.goal_id == goal_id
+                else item.status
+            ),
+        )
+        for item in plan.goals
+    )
+    return CognitivePlan(
+        plan_id=plan.plan_id,
+        goals=new_goals,
+        tasks=plan.tasks,
         revision=plan.revision + 1,
         parent_revision=plan.revision,
     )
@@ -687,6 +787,7 @@ __all__ = [
     "PlanningValidationError",
     "append_plan_revision",
     "build_cognitive_plan",
+    "complete_goal",
     "complete_task",
     "emit_pending_requests",
     "topological_task_order",

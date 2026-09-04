@@ -44,6 +44,7 @@ from qore.infrastructure.cibo_cognitive_common import (
     require_aware_datetime,
     require_exact_int,
     require_exact_str,
+    utc_instant,
 )
 from qore.kernel.temporal import canonical_instant
 
@@ -165,6 +166,10 @@ class CognitiveEvaluation:
         if type(self.evaluation_id) is not UUID:
             raise EvaluationValidationError("evaluation id must be a UUID")
         require_exact_str(self.evaluated_reference, field="evaluated reference")
+        if contains_secret_material(self.evaluated_reference):
+            raise EvaluationValidationError(
+                "evaluated reference must not carry secret-bearing material"
+            )
         if type(self.dimensions) is not tuple:
             raise EvaluationValidationError("evaluation dimensions must be a tuple")
         seen: set[EvaluationDimension] = set()
@@ -209,6 +214,10 @@ def evaluate_cognition(
     if type(evaluation_id) is not UUID:
         raise EvaluationValidationError("evaluation id must be a UUID")
     require_exact_str(evaluated_reference, field="evaluated reference")
+    if contains_secret_material(evaluated_reference):
+        raise EvaluationValidationError(
+            "evaluated reference must not carry secret-bearing material"
+        )
     if not isinstance(dimensions, Sequence):
         raise EvaluationValidationError("dimensions must be a sequence")
     if not isinstance(evidence_refs, Sequence):
@@ -594,7 +603,9 @@ class TraderDevelopmentAttribution:
                 "post-intervention evidence failed canonical revalidation"
             )
         for item in pre:
-            if item.observed_at > self.applied_at:
+            if utc_instant(item.observed_at, field="capability evidence observed_at") > utc_instant(
+                self.applied_at, field="attribution applied_at"
+            ):
                 raise EvaluationValidationError(
                     "pre-intervention evidence must not postdate the intervention"
                 )
@@ -603,7 +614,8 @@ class TraderDevelopmentAttribution:
                     "pre-intervention capability evidence must not carry an outcome"
                 )
         for item in post:
-            if item.observed_at <= self.applied_at:
+            observed = utc_instant(item.observed_at, field="capability evidence observed_at")
+            if observed <= utc_instant(self.applied_at, field="attribution applied_at"):
                 raise EvaluationValidationError(
                     "post-intervention evidence must postdate the intervention"
                 )
