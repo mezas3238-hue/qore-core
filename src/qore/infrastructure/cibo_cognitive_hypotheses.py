@@ -260,6 +260,158 @@ def _canonical_evidence(
     return tuple(sorted(values, key=lambda item: item.sort_key()))
 
 
+def _falsifier_identity(evidence: HypothesisEvidence) -> tuple[str, str, datetime]:
+    """Return the canonical identity of one falsifier observation.
+
+    Identity is ``(reference value, polarity value, UTC instant)``: polarity is
+    included so an AGAINST and a CONTRADICTION sharing a (reference, instant)
+    stay distinct, while equivalent-offset representations of one instant
+    collapse to one identity (canonical-time dedup).
+    """
+    return (
+        evidence.ref.value,
+        evidence.polarity.value,
+        utc_instant(evidence.observed_at, field="hypothesis evidence observed_at"),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class FalsifierResolution:
+    """Governed linkage between one blocking falsifier and its resolving test.
+
+    ``HYPOTHESIS CONFIRMATION != FAVORABLE OUTCOME``: a hypothesis may reach
+    ``CONFIRMED`` only when every blocking falsifier it retained (contradiction /
+    against evidence) is explicitly resolved by an exact, retained, governed
+    test/prediction observation. This binding carries the falsifier's canonical
+    identity (reference + polarity + UTC instant) and the resolving evidence's
+    canonical identity (reference + UTC instant); the resolving evidence must be
+    present in the confirmed hypothesis's ``tests`` channel by exact identity, so
+    unrelated test material can never resolve a falsifier.
+    """
+
+    falsifier_ref: CiboCognitiveEvidenceRef
+    falsifier_polarity: HypothesisEvidencePolarity
+    falsifier_observed_at: datetime
+    resolving_ref: CiboCognitiveEvidenceRef
+    resolving_observed_at: datetime
+
+    def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        if type(self.falsifier_ref) is not CiboCognitiveEvidenceRef:
+            raise HypothesisValidationError(
+                "falsifier resolution ref must be a CiboCognitiveEvidenceRef"
+            )
+        self.falsifier_ref.revalidate()
+        if type(self.falsifier_polarity) is not HypothesisEvidencePolarity:
+            raise HypothesisValidationError(
+                "falsifier resolution polarity must be a HypothesisEvidencePolarity"
+            )
+        if self.falsifier_polarity not in (
+            HypothesisEvidencePolarity.AGAINST,
+            HypothesisEvidencePolarity.CONTRADICTION,
+        ):
+            raise HypothesisValidationError(
+                "falsifier resolution polarity must be against or contradiction"
+            )
+        require_aware_datetime(
+            self.falsifier_observed_at, field="falsifier resolution falsifier observed_at"
+        )
+        if type(self.resolving_ref) is not CiboCognitiveEvidenceRef:
+            raise HypothesisValidationError(
+                "falsifier resolution resolving ref must be a CiboCognitiveEvidenceRef"
+            )
+        self.resolving_ref.revalidate()
+        require_aware_datetime(
+            self.resolving_observed_at, field="falsifier resolution resolving observed_at"
+        )
+        if (
+            self.resolving_ref.value == self.falsifier_ref.value
+            and utc_instant(
+                self.resolving_observed_at,
+                field="falsifier resolution resolving observed_at",
+            )
+            == utc_instant(
+                self.falsifier_observed_at,
+                field="falsifier resolution falsifier observed_at",
+            )
+        ):
+            # R4 channel-polarity closure: relabeling a falsifier into the test
+            # channel is not new evidence, so a falsifier cannot be "resolved"
+            # by its own relabeled observation.
+            raise HypothesisValidationError(
+                "a falsifier resolution must reference genuinely new test evidence, "
+                "not the falsifier relabeled"
+            )
+
+    def falsifier_identity(self) -> tuple[str, str, datetime]:
+        """Canonical identity of the resolved falsifier (reference, polarity, UTC)."""
+        return (
+            self.falsifier_ref.value,
+            self.falsifier_polarity.value,
+            utc_instant(
+                self.falsifier_observed_at,
+                field="falsifier resolution falsifier observed_at",
+            ),
+        )
+
+    def resolving_identity(self) -> tuple[str, datetime]:
+        """Canonical identity of the resolving test (reference, UTC instant)."""
+        return (
+            self.resolving_ref.value,
+            utc_instant(
+                self.resolving_observed_at,
+                field="falsifier resolution resolving observed_at",
+            ),
+        )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.falsifier_ref.value,
+            self.falsifier_polarity.value,
+            utc_instant(
+                self.falsifier_observed_at,
+                field="falsifier resolution falsifier observed_at",
+            ),
+            self.resolving_ref.value,
+            utc_instant(
+                self.resolving_observed_at,
+                field="falsifier resolution resolving observed_at",
+            ),
+        )
+
+    def sort_key(self) -> tuple[object, ...]:
+        return self.logical_values()
+
+
+def _canonical_resolutions(
+    values: tuple[FalsifierResolution, ...], *, field: str
+) -> tuple[FalsifierResolution, ...]:
+    """Canonicalize falsifier resolutions: exact types, revalidation, and dedup.
+
+    Dedup is by falsifier identity (reference + polarity + UTC instant), so two
+    resolutions for one falsifier — including an equivalent-offset/time-ordered
+    re-representation of the same falsifier instant — are rejected as duplicates
+    rather than manufacturing an extra resolution.
+    """
+    if type(values) is not tuple or any(type(v) is not FalsifierResolution for v in values):
+        raise HypothesisValidationError(
+            f"{field} must be an immutable tuple of FalsifierResolution"
+        )
+    for resolution in values:
+        resolution.revalidate()
+    seen: set[tuple[str, str, datetime]] = set()
+    for resolution in values:
+        key = resolution.falsifier_identity()
+        if key in seen:
+            raise HypothesisValidationError(
+                f"{field} must not contain duplicate falsifier resolutions"
+            )
+        seen.add(key)
+    return tuple(sorted(values, key=lambda item: item.sort_key()))
+
+
 @dataclass(frozen=True, slots=True)
 class Hypothesis:
     """One durable, revisioned, evidence-bound hypothesis."""
@@ -278,6 +430,7 @@ class Hypothesis:
     causal_claim_ref: tuple[object, ...] | None
     fingerprint: CiboCognitiveFingerprint
     reason_code: str | None = None
+    falsifier_resolutions: tuple[FalsifierResolution, ...] = ()
 
     def __post_init__(self) -> None:
         self.revalidate()
@@ -348,6 +501,14 @@ class Hypothesis:
                 "reason_code",
                 _validate_code(self.reason_code, field="revision reason code"),
             )
+        object.__setattr__(
+            self,
+            "falsifier_resolutions",
+            _canonical_resolutions(
+                self.falsifier_resolutions,
+                field="hypothesis falsifier resolutions",
+            ),
+        )
         self._validate_status_evidence()
         if type(self.fingerprint) is not CiboCognitiveFingerprint:
             raise HypothesisValidationError(
@@ -371,6 +532,22 @@ class Hypothesis:
             if self.evidence_against or self.contradictions:
                 raise HypothesisValidationError(
                     "a confirmed hypothesis must not carry against/contradiction evidence"
+                )
+            # Governed falsifier-resolution linkage: every recorded resolution
+            # must reference a test that is actually retained (exact reference +
+            # UTC instant identity). The transition additionally enforces that
+            # the recorded resolutions cover exactly the blocking falsifiers that
+            # were cleared, so unrelated test material can never resolve one.
+            test_identities = {_evidence_identity(test) for test in self.tests}
+            for resolution in self.falsifier_resolutions:
+                if resolution.resolving_identity() not in test_identities:
+                    raise HypothesisValidationError(
+                        "a confirmed falsifier resolution must reference a retained test"
+                    )
+        else:
+            if self.falsifier_resolutions:
+                raise HypothesisValidationError(
+                    "falsifier resolutions are only admissible on a confirmed hypothesis"
                 )
         if self.status is HypothesisStatus.REFUTED:
             if not self.evidence_against and not self.contradictions:
@@ -398,6 +575,7 @@ class Hypothesis:
             None if self.supersedes is None else str(self.supersedes),
             _causal_ref_material(self.causal_claim_ref),
             self.reason_code,
+            tuple(r.logical_values() for r in self.falsifier_resolutions),
         )
 
 
@@ -415,6 +593,7 @@ def _material(
     supersedes: UUID | None,
     causal_claim_ref: tuple[object, ...] | None,
     reason_code: str | None,
+    falsifier_resolutions: tuple[FalsifierResolution, ...],
 ) -> tuple[object, ...]:
     return (
         str(hypothesis_id),
@@ -430,6 +609,7 @@ def _material(
         None if supersedes is None else str(supersedes),
         _causal_ref_material(causal_claim_ref),
         reason_code,
+        tuple(r.logical_values() for r in falsifier_resolutions),
     )
 
 
@@ -448,6 +628,7 @@ def build_hypothesis(
     supersedes: UUID | None = None,
     causal_claim_ref: tuple[object, ...] | None = None,
     reason_code: str | None = None,
+    falsifier_resolutions: Sequence[FalsifierResolution] = (),
 ) -> Hypothesis:
     """Build a validated, canonically ordered, fingerprinted hypothesis."""
     if not isinstance(evidence_for, Sequence):
@@ -458,6 +639,8 @@ def build_hypothesis(
         raise HypothesisValidationError("contradictions must be a sequence")
     if not isinstance(tests, Sequence):
         raise HypothesisValidationError("tests must be a sequence")
+    if not isinstance(falsifier_resolutions, Sequence):
+        raise HypothesisValidationError("falsifier_resolutions must be a sequence")
     _validate_causal_claim_ref(causal_claim_ref)
     # Canonicalize every semantically-unordered sequence BEFORE deriving the
     # fingerprint, so any permutation of the same semantic input produces the
@@ -482,6 +665,10 @@ def build_hypothesis(
         field="hypothesis tests",
         polarity=HypothesisEvidencePolarity.TEST_RESULT,
     )
+    canonical_resolutions = _canonical_resolutions(
+        tuple(falsifier_resolutions),
+        field="hypothesis falsifier resolutions",
+    )
     return Hypothesis(
         hypothesis_id=hypothesis_id,
         content_code=content_code,
@@ -496,6 +683,7 @@ def build_hypothesis(
         supersedes=supersedes,
         causal_claim_ref=causal_claim_ref,
         reason_code=reason_code,
+        falsifier_resolutions=canonical_resolutions,
         fingerprint=fingerprint_material(
             _material(
                 hypothesis_id,
@@ -511,6 +699,7 @@ def build_hypothesis(
                 supersedes,
                 causal_claim_ref,
                 reason_code,
+                canonical_resolutions,
             )
         ),
     )
@@ -577,6 +766,7 @@ def transition_hypothesis(
     confidence: CiboConfidence | None = None,
     supersedes: UUID | None = None,
     causal_claim_ref: tuple[object, ...] | None = None,
+    falsifier_resolutions: Sequence[FalsifierResolution] = (),
 ) -> Hypothesis:
     """Build the next revision of ``hypothesis`` with a governed status transition.
 
@@ -605,8 +795,34 @@ def transition_hypothesis(
         raise HypothesisValidationError("contradictions must be a sequence")
     if not isinstance(tests, Sequence):
         raise HypothesisValidationError("tests must be a sequence")
+    if not isinstance(falsifier_resolutions, Sequence):
+        raise HypothesisValidationError("falsifier_resolutions must be a sequence")
     if reason_code is not None:
         _validate_code(reason_code, field="revision reason code")
+    canonical_resolutions = _canonical_resolutions(
+        tuple(falsifier_resolutions),
+        field="hypothesis falsifier resolutions",
+    )
+    if new_status is HypothesisStatus.CONFIRMED:
+        # CONFIRMATION != FAVORABLE OUTCOME: entering CONFIRMED requires an
+        # explicit, evidence-bound resolution for EVERY blocking falsifier the
+        # hypothesis retained (contradictions + evidence_against). The resolution
+        # set must cover exactly that blocking set — no missing falsifier, no
+        # fabricated resolution for a non-existent falsifier.
+        blocking = {
+            _falsifier_identity(evidence)
+            for evidence in (hypothesis.evidence_against + hypothesis.contradictions)
+        }
+        resolved = {resolution.falsifier_identity() for resolution in canonical_resolutions}
+        if resolved != blocking:
+            raise HypothesisValidationError(
+                "confirming a hypothesis requires an explicit resolution for every "
+                "blocking falsifier"
+            )
+    elif canonical_resolutions:
+        raise HypothesisValidationError(
+            "falsifier resolutions are only admissible when confirming"
+        )
     if hypothesis.status is HypothesisStatus.REFUTED and new_status is HypothesisStatus.REVISED:
         # Leaving REFUTED is a governed revision, never a ceremonial transition:
         # it requires an auditable reason code plus a durable content change or
@@ -683,6 +899,7 @@ def transition_hypothesis(
         supersedes=supersedes,
         causal_claim_ref=causal_claim_ref,
         reason_code=reason_code,
+        falsifier_resolutions=canonical_resolutions,
     )
 
 
@@ -723,6 +940,7 @@ def assert_hypothesis_lineage_acyclic(hypotheses: Sequence[Hypothesis]) -> None:
 
 
 __all__ = [
+    "FalsifierResolution",
     "Hypothesis",
     "HypothesisError",
     "HypothesisEvidence",

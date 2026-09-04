@@ -26,6 +26,7 @@ from qore.infrastructure.cibo_cognitive_causality import (
     CausalEvidence,
     CausalEvidencePolarity,
     CausalVariable,
+    ConfounderResolution,
     build_causal_claim,
 )
 from qore.infrastructure.cibo_cognitive_common import (
@@ -1067,7 +1068,13 @@ def _causation_claim() -> CausalClaim:
         cause=_causal_variable("intervention"),
         effect=_causal_variable("capability"),
         confounders=(_causal_variable("selection-bias"),),
-        confounders_addressed=True,
+        mechanism_code="mechanism.randomization",
+        confounder_resolutions=(
+            ConfounderResolution(
+                confounder=_causal_variable("selection-bias"),
+                evidence=_causal_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+            ),
+        ),
         evidence_for=(_causal_evidence("evidence:causal-for", CausalEvidencePolarity.SUPPORTS),),
         strength=CausalClaimStrength.MODERATE,
         status=CausalClaimStatus.ACTIVE,
@@ -1288,3 +1295,101 @@ class TestStrengthenedEndToEndComposition:
         object.__setattr__(episode.causal_claims[1], "strength", CausalClaimStrength.STRONG)
         with pytest.raises(CiboCognitiveIntegrationValidationError):
             replay_integrated_episode(episode)
+
+
+class TestCausalBindingComposition:
+    """F3 closure: a hypothesis causal reference must resolve to an exact present
+    causal claim (identity + fingerprint coherence), and causal/hypothesis
+    supersession lineages must be acyclic at the composition boundary."""
+
+    def _episode(
+        self,
+        *,
+        claims: tuple[CausalClaim, ...] = (),
+        hypotheses: tuple[Hypothesis, ...] = (),
+    ) -> CiboIntegratedCognitiveEpisode:
+        return build_integrated_episode(
+            integration_id=_ID,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            evidence_bindings=(_binding("a"),),
+            recorded_at=_AWARE,
+            causal_claims=claims,
+            hypotheses=hypotheses,
+        )
+
+    def test_dangling_causal_claim_ref_rejected(self) -> None:
+        hypothesis = build_hypothesis(
+            hypothesis_id=_HYP,
+            content_code="h.causal",
+            status=HypothesisStatus.ACTIVE,
+            causal_claim_ref=(
+                UUID("60000000-0000-0000-0000-0000000000ff"),
+                _fp("dangling"),
+            ),
+        )
+        with pytest.raises(CiboCognitiveIntegrationValidationError, match="dangling"):
+            self._episode(hypotheses=(hypothesis,))
+
+    def test_mismatched_causal_claim_ref_fingerprint_rejected(self) -> None:
+        claim = _causation_claim()
+        hypothesis = build_hypothesis(
+            hypothesis_id=_HYP,
+            content_code="h.causal",
+            status=HypothesisStatus.ACTIVE,
+            causal_claim_ref=(claim.claim_id, _fp("forged")),
+        )
+        with pytest.raises(CiboCognitiveIntegrationValidationError, match="fingerprint"):
+            self._episode(claims=(claim,), hypotheses=(hypothesis,))
+
+    def test_valid_causal_claim_ref_resolves(self) -> None:
+        claim = _causation_claim()
+        hypothesis = build_hypothesis(
+            hypothesis_id=_HYP,
+            content_code="h.causal",
+            status=HypothesisStatus.ACTIVE,
+            causal_claim_ref=(claim.claim_id, claim.fingerprint),
+        )
+        episode = self._episode(claims=(claim,), hypotheses=(hypothesis,))
+        episode.revalidate()
+
+    def test_causal_lineage_cycle_rejected(self) -> None:
+        a_id = UUID("60000000-0000-0000-0000-000000000020")
+        b_id = UUID("60000000-0000-0000-0000-000000000021")
+        a = build_causal_claim(
+            claim_id=a_id,
+            kind=CausalClaimKind.CORRELATION,
+            cause=_causal_variable("x"),
+            effect=_causal_variable("y"),
+            strength=CausalClaimStrength.WEAK,
+            status=CausalClaimStatus.ACTIVE,
+            supersedes=b_id,
+        )
+        b = build_causal_claim(
+            claim_id=b_id,
+            kind=CausalClaimKind.CORRELATION,
+            cause=_causal_variable("p"),
+            effect=_causal_variable("q"),
+            strength=CausalClaimStrength.WEAK,
+            status=CausalClaimStatus.ACTIVE,
+            supersedes=a_id,
+        )
+        with pytest.raises(CiboCognitiveIntegrationValidationError, match="acyclic"):
+            self._episode(claims=(a, b))
+
+    def test_hypothesis_lineage_cycle_rejected(self) -> None:
+        a_id = UUID("60000000-0000-0000-0000-000000000022")
+        b_id = UUID("60000000-0000-0000-0000-000000000023")
+        a = build_hypothesis(
+            hypothesis_id=a_id,
+            content_code="h.a",
+            status=HypothesisStatus.ACTIVE,
+            supersedes=b_id,
+        )
+        b = build_hypothesis(
+            hypothesis_id=b_id,
+            content_code="h.b",
+            status=HypothesisStatus.ACTIVE,
+            supersedes=a_id,
+        )
+        with pytest.raises(CiboCognitiveIntegrationValidationError, match="acyclic"):
+            self._episode(hypotheses=(a, b))

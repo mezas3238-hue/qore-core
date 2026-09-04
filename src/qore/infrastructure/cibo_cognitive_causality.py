@@ -210,6 +210,65 @@ class CausalEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class ConfounderResolution:
+    """Evidence-bound resolution of one confounder for a CAUSATION claim.
+
+    ``CORRELATION != CAUSATION``: a causation claim must explain the mechanism
+    and resolve each declared confounder with explicit evidence, never a bare
+    caller-supplied boolean. This binding pairs one confounder variable with the
+    exact evidence observation that addresses it.
+    """
+
+    confounder: CausalVariable
+    evidence: CausalEvidence
+
+    def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        if type(self.confounder) is not CausalVariable:
+            raise CausalityValidationError(
+                "confounder resolution confounder must be a CausalVariable"
+            )
+        self.confounder.revalidate()
+        if type(self.evidence) is not CausalEvidence:
+            raise CausalityValidationError(
+                "confounder resolution evidence must be a CausalEvidence"
+            )
+        self.evidence.revalidate()
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (self.confounder.logical_values(), self.evidence.logical_values())
+
+    def sort_key(self) -> tuple[object, ...]:
+        return (self.confounder.code, self.confounder.fingerprint.value,
+                self.evidence.sort_key())
+
+
+def _canonical_confounder_resolutions(
+    values: tuple[ConfounderResolution, ...], *, field: str
+) -> tuple[ConfounderResolution, ...]:
+    """Canonicalize confounder resolutions: exact types, revalidation, dedup by
+    confounder code (a confounder is resolved once, not twice)."""
+    if type(values) is not tuple or any(
+        type(item) is not ConfounderResolution for item in values
+    ):
+        raise CausalityValidationError(
+            f"{field} must be an immutable tuple of ConfounderResolution"
+        )
+    for resolution in values:
+        resolution.revalidate()
+    seen: set[str] = set()
+    for resolution in values:
+        if resolution.confounder.code in seen:
+            raise CausalityValidationError(
+                f"{field} must not contain duplicate confounder resolutions"
+            )
+        seen.add(resolution.confounder.code)
+    return tuple(sorted(values, key=lambda item: item.sort_key()))
+
+
+@dataclass(frozen=True, slots=True)
 class CausalClaim:
     """One typed causal hypothesis/claim with evidence-bounded strength."""
 
@@ -219,7 +278,8 @@ class CausalClaim:
     effect: CausalVariable
     context: tuple[CausalVariable, ...]
     confounders: tuple[CausalVariable, ...]
-    confounders_addressed: bool
+    mechanism_code: str | None
+    confounder_resolutions: tuple[ConfounderResolution, ...]
     evidence_for: tuple[CausalEvidence, ...]
     evidence_against: tuple[CausalEvidence, ...]
     contradictions: tuple[CausalEvidence, ...]
@@ -253,10 +313,20 @@ class CausalClaim:
             "confounders",
             _canonical_variables(self.confounders, field="causal confounders"),
         )
-        if type(self.confounders_addressed) is not bool:
-            raise CausalityValidationError(
-                "confounders_addressed must be an exact bool"
+        if self.mechanism_code is not None:
+            object.__setattr__(
+                self,
+                "mechanism_code",
+                _validate_code(self.mechanism_code, field="causal mechanism"),
             )
+        object.__setattr__(
+            self,
+            "confounder_resolutions",
+            _canonical_confounder_resolutions(
+                self.confounder_resolutions,
+                field="causal confounder resolutions",
+            ),
+        )
         object.__setattr__(
             self,
             "evidence_for",
@@ -307,9 +377,30 @@ class CausalClaim:
                     "a correlation claim must not assert strong strength"
                 )
         if self.kind is CausalClaimKind.CAUSATION:
-            if not self.confounders_addressed:
+            # CORRELATION != CAUSATION: a causation claim requires a typed
+            # mechanism code and an evidence-bound resolution for EVERY declared
+            # confounder — never a bare caller-supplied boolean.
+            if self.mechanism_code is None:
                 raise CausalityValidationError(
-                    "a causation claim requires confounders to be addressed"
+                    "a causation claim requires an explicit mechanism code"
+                )
+            confounder_codes = {variable.code for variable in self.confounders}
+            resolution_codes = {
+                resolution.confounder.code for resolution in self.confounder_resolutions
+            }
+            if resolution_codes != confounder_codes:
+                raise CausalityValidationError(
+                    "a causation claim must resolve every declared confounder with "
+                    "explicit evidence"
+                )
+        else:
+            if self.mechanism_code is not None:
+                raise CausalityValidationError(
+                    "a mechanism code is only admissible on a causation claim"
+                )
+            if self.confounder_resolutions:
+                raise CausalityValidationError(
+                    "confounder resolutions are only admissible on a causation claim"
                 )
         if self.strength is CausalClaimStrength.STRONG and not self.evidence_for:
             raise CausalityValidationError(
@@ -343,7 +434,8 @@ class CausalClaim:
             self.effect.logical_values(),
             tuple(v.logical_values() for v in self.context),
             tuple(v.logical_values() for v in self.confounders),
-            self.confounders_addressed,
+            self.mechanism_code,
+            tuple(r.logical_values() for r in self.confounder_resolutions),
             tuple(e.logical_values() for e in self.evidence_for),
             tuple(e.logical_values() for e in self.evidence_against),
             tuple(e.logical_values() for e in self.contradictions),
@@ -362,7 +454,8 @@ def build_causal_claim(
     effect: CausalVariable,
     context: Sequence[CausalVariable] = (),
     confounders: Sequence[CausalVariable] = (),
-    confounders_addressed: bool = False,
+    mechanism_code: str | None = None,
+    confounder_resolutions: Sequence[ConfounderResolution] = (),
     evidence_for: Sequence[CausalEvidence] = (),
     evidence_against: Sequence[CausalEvidence] = (),
     contradictions: Sequence[CausalEvidence] = (),
@@ -378,6 +471,8 @@ def build_causal_claim(
         raise CausalityValidationError("context must be a sequence")
     if not isinstance(confounders, Sequence):
         raise CausalityValidationError("confounders must be a sequence")
+    if not isinstance(confounder_resolutions, Sequence):
+        raise CausalityValidationError("confounder_resolutions must be a sequence")
     if not isinstance(evidence_for, Sequence):
         raise CausalityValidationError("evidence_for must be a sequence")
     if not isinstance(evidence_against, Sequence):
@@ -391,6 +486,12 @@ def build_causal_claim(
     # same canonical state and fingerprint (constructor == revalidate).
     canonical_context = _canonical_variables(tuple(context), field="causal context")
     canonical_confounders = _canonical_variables(tuple(confounders), field="causal confounders")
+    canonical_mechanism = (
+        None if mechanism_code is None else _validate_code(mechanism_code, field="causal mechanism")
+    )
+    canonical_resolutions = _canonical_confounder_resolutions(
+        tuple(confounder_resolutions), field="causal confounder resolutions"
+    )
     canonical_for = _canonical_evidence(tuple(evidence_for), field="causal evidence for")
     canonical_against = _canonical_evidence(
         tuple(evidence_against), field="causal evidence against"
@@ -408,7 +509,8 @@ def build_causal_claim(
         effect=effect,
         context=canonical_context,
         confounders=canonical_confounders,
-        confounders_addressed=confounders_addressed,
+        mechanism_code=canonical_mechanism,
+        confounder_resolutions=canonical_resolutions,
         evidence_for=canonical_for,
         evidence_against=canonical_against,
         contradictions=canonical_contradictions,
@@ -424,7 +526,8 @@ def build_causal_claim(
                 effect,
                 canonical_context,
                 canonical_confounders,
-                confounders_addressed,
+                canonical_mechanism,
+                canonical_resolutions,
                 canonical_for,
                 canonical_against,
                 canonical_contradictions,
@@ -444,7 +547,8 @@ def _claim_material(
     effect: CausalVariable,
     context: tuple[CausalVariable, ...],
     confounders: tuple[CausalVariable, ...],
-    confounders_addressed: bool,
+    mechanism_code: str | None,
+    confounder_resolutions: tuple[ConfounderResolution, ...],
     evidence_for: tuple[CausalEvidence, ...],
     evidence_against: tuple[CausalEvidence, ...],
     contradictions: tuple[CausalEvidence, ...],
@@ -460,7 +564,8 @@ def _claim_material(
         effect.logical_values(),
         tuple(v.logical_values() for v in context),
         tuple(v.logical_values() for v in confounders),
-        confounders_addressed,
+        mechanism_code,
+        tuple(r.logical_values() for r in confounder_resolutions),
         tuple(e.logical_values() for e in evidence_for),
         tuple(e.logical_values() for e in evidence_against),
         tuple(e.logical_values() for e in contradictions),
@@ -511,6 +616,7 @@ __all__ = [
     "CausalEvidence",
     "CausalEvidencePolarity",
     "CausalVariable",
+    "ConfounderResolution",
     "CausalityError",
     "CausalityValidationError",
     "assert_causal_lineage_acyclic",

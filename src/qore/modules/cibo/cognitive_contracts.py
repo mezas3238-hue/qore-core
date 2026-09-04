@@ -65,11 +65,26 @@ _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 #       is credible only as an 8+ char token carrying BOTH a letter and a digit
 #       ("authorization: delegated", "authorization: OAuth2", "token: 12 units"
 #       stay admissible).
+# Compound credential labels closed under snake/kebab/space/camel separators.
+# ``[ _-]?`` matches zero (camelCase ``accessToken`` -> ``access`` + ``Token``)
+# or one snake/kebab/space separator, and ``re.IGNORECASE`` folds the casing, so
+# ``access_token`` / ``access-token`` / ``access token`` / ``accessToken`` are one
+# equivalence class. These are technical credential identifiers (token/key/id
+# fields), so they are UNEQUIVOCAL: ``label: value`` is credential material for
+# any non-prose value.
+_COMPOUND_CRED_LABEL = (
+    r"access[ _-]?token|refresh[ _-]?token|bearer[ _-]?token|auth[ _-]?token|"
+    r"id[ _-]?token|personal[ _-]?access[ _-]?token|oauth[ _-]?token|"
+    r"slack[ _-]?token|github[ _-]?token|openai[ _-]?key|client[ _-]?id|"
+    r"x[ _-]?auth[ _-]?token|api[ _-]?token|secret[ _-]?token|"
+    r"session[ _-]?token|aws[ _-]?session[ _-]?token"
+)
 _UNEQUIVOCAL_CRED_LABEL = (
     r"password|passwd|api[ _-]?key|access[ _-]?key|secret[ _-]?key|"
     r"client[ _-]?secret|private[ _-]?key|access[ _-]?key[ _-]?id|"
     r"secret[ _-]?access[ _-]?key|aws[ _-]?secret[ _-]?access[ _-]?key|"
-    r"aws[ _-]?access[ _-]?key[ _-]?id|awssecretaccesskey|awsaccesskeyid"
+    r"aws[ _-]?access[ _-]?key[ _-]?id|awssecretaccesskey|awsaccesskeyid|"
+    + _COMPOUND_CRED_LABEL
 )
 _AMBIGUOUS_CRED_LABEL = r"secret|credential"
 _WEAK_CRED_LABEL = r"authorization|token"
@@ -78,7 +93,7 @@ _CRED_LABEL = (
     r"client[ _-]?secret|private[ _-]?key|credential|authorization|token|secret|"
     r"access[ _-]?key[ _-]?id|secret[ _-]?access[ _-]?key|"
     r"aws[ _-]?secret[ _-]?access[ _-]?key|aws[ _-]?access[ _-]?key[ _-]?id|"
-    r"awssecretaccesskey|awsaccesskeyid)"
+    r"awssecretaccesskey|awsaccesskeyid|" + _COMPOUND_CRED_LABEL + r")"
 )
 _QUOTED_VALUE = r"[\"'][^\"'\n]+[\"']"
 _BARE_ANY_VALUE = r"[^\s\"']+"
@@ -91,11 +106,15 @@ _BARE_DIGIT_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
 # mixed token carrying BOTH a letter and a digit. Short tokens like "OAuth2",
 # "2FA", "12", or "2008" are ordinary prose/numbers and stay admissible.
 _BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[A-Za-z])[^\s\"']{8,}"
-# Prose function words (determiners, modals, auxiliaries, prepositions,
-# pronouns) can never be a credential value: excluding them from the
-# UNEQUIVOCAL-label bare-value shape prevents "password: must be rotated" /
-# "access key: is quarterly" prose from being flagged, without touching any
-# real all-letter secret ("password: hunter" is not a function word).
+# Prose function words (the English CLOSED class: determiners, quantifiers,
+# pronouns, modals, auxiliaries, copula, prepositions, conjunctions) can never
+# be a credential value. Excluding them from the UNEQUIVOCAL-label bare-value
+# shape prevents "password: must be rotated" / "access key: is quarterly" /
+# "password: one" / "password: each" / "password: them" / "password: all" prose
+# from being flagged, without touching any real all-letter secret ("password:
+# hunter" is not a function word). The class is closed, not witness-accumulated:
+# quantifiers/determiners/pronouns are a finite linguistic set, so this is a
+# principled structural discriminator, not an ever-growing stopword list.
 _COLON_PROSE_STOPWORDS = frozenset(
     {
         "a", "an", "the",
@@ -106,6 +125,21 @@ _COLON_PROSE_STOPWORDS = frozenset(
         "with", "from", "as", "if", "than", "then",
         "it", "its", "this", "that", "these", "those",
         "your", "my", "our", "their", "his", "her",
+        # Quantifiers / determiners / pronouns (closed-class function words).
+        "one", "each", "every", "all", "some", "any", "none", "no", "both",
+        "few", "many", "several", "most", "either", "neither", "another",
+        "other", "others", "such", "same", "enough",
+        "them", "us", "you", "me", "him", "we", "they", "he", "she",
+        # Interrogative/indefinite pronouns and prepositions/conjunctions/
+        # degree adverbs: remaining closed-class function words that can never be
+        # a credential value ("password: which"/"password: about"/"password: once").
+        "who", "whom", "whose", "which", "what",
+        "someone", "anybody", "anyone", "everybody", "everyone", "nobody",
+        "something", "anything", "everything", "nothing",
+        "about", "into", "through", "during", "before", "after", "above", "below",
+        "between", "under", "over", "against", "without", "within",
+        "but", "so", "yet", "because", "since", "unless", "although", "though",
+        "while", "whereas", "also", "only", "just", "still", "very", "too", "once",
     }
 )
 _COLON_PROSE_STOPWORD_RE = (
@@ -204,15 +238,21 @@ _CONFUSABLE_MAP = str.maketrans(
 
 _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
     compile(r"-----BEGIN [A-Z ]*(?:PRIVATE KEY|SECRET|ENCRYPTED PRIVATE KEY)-----"),
-    compile(r"\bsk-[A-Za-z0-9_-]{8,}"),
+    # OpenAI secret keys: ``sk-`` and its delimiter-equivalent ``sk_``.
+    compile(r"\bsk[-_][A-Za-z0-9_-]{8,}"),
     # AWS access key ids: permanent (AKIA) and temporary (ASIA) prefixes.
     compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
     compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"),
-    compile(r"\bxox[baprsc]-[A-Za-z0-9-]{10,}"),
+    # Slack tokens: ``xox*`` prefix with hyphen or its delimiter-equivalent
+    # underscore.
+    compile(r"\bxox[baprsc][-_][A-Za-z0-9-]{10,}"),
     # Bearer tokens are high-entropy: require a digit inside an 8+ char token so
     # prose like "Bearer certificate"/"Bearer obligations" is not a false positive.
+    # ``\s*`` (not ``\s+``) because the detection skeleton strips non-ASCII width
+    # spaces that a caller may insert between the keyword and the token; after
+    # stripping, keyword and token are re-joined and must still match.
     compile(
-        r"\bBearer\s+(?=[A-Za-z0-9._~+/=-]{8,})"
+        r"\bBearer\s*(?=[A-Za-z0-9._~+/=-]{8,})"
         r"[A-Za-z0-9._~+/=-]*[0-9][A-Za-z0-9._~+/=-]*",
         IGNORECASE,
     ),
@@ -226,18 +266,20 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
     # ``=`` padding, (b) unpadded 4+ base64 chars carrying an uppercase or
     # base64-special char at a NON-INITIAL position (a scattered/internal
     # uppercase is structural; a leading-capital English word is not), or
-    # (c) unpadded 6+ mixed letter+digit that is not a fiscal year-quarter
-    # label. A pure digit run ("2008"), a bare lowercase word ("principles"),
-    # a leading-capital word ("Authentication"), and fiscal labels ("2024q1")
-    # stay admissible.
+    # (c) unpadded 6+ mixed letter+digit token whose digit is INTERNAL (a digit
+    # followed by a letter/+//), i.e. scattered base64, not a trailing-version
+    # scheme name ("oauth2", "sha256", "kerberos5" keep their digit(s) at the
+    # tail and stay admissible). A pure digit run ("2008"), a bare lowercase
+    # word ("principles"), a leading-capital word ("Authentication"), and fiscal
+    # labels ("2024q1") stay admissible.
     compile(
-        r"\b[Bb]asic\s+"
+        r"\b[Bb]asic\s*"
         r"(?:"
         r"[A-Za-z0-9+/]{2,}={1,2}"
         r"|"
         r"(?=[A-Za-z0-9+/][A-Za-z0-9+/]*[A-Z+/])[A-Za-z0-9+/]{4,}"
         r"|"
-        r"(?=[A-Za-z0-9+/]*[A-Za-z])(?=[A-Za-z0-9+/]*\d)"
+        r"(?=[A-Za-z0-9+/]*[A-Za-z])(?=[A-Za-z0-9+/]*\d[A-Za-z+/])"
         r"(?!\d{2,4}[QqHh]\d)(?![QqHh]\d{1,4})"
         r"[A-Za-z0-9+/]{6,}"
         r")"
@@ -282,6 +324,24 @@ _CONTROL_CHARS = "\x00\n\r\t"
 _INVISIBLE_CATEGORIES = frozenset({"Cf", "Cc", "Cs", "Zl", "Zp", "Mn"})
 
 
+def _is_detection_invisible(ch: str) -> bool:
+    """Return whether ``ch`` is stripped from the detection-only skeleton.
+
+    Strips the format/control/separator/line/paragraph and nonspacing-mark
+    categories (as before) PLUS non-ASCII space separators (width spaces, NBSP,
+    …). ASCII space U+0020 is deliberately preserved: it is the ordinary word
+    separator, and collapsing it would break the whitespace semantics of the
+    Bearer/Basic/label patterns and join unrelated prose words. A non-ASCII
+    space is never natural prose punctuation, so stripping it can only re-join
+    adversarially-split credential labels or token bodies (fail closed), and is
+    never applied to persisted/caller text.
+    """
+    category = _unicodedata_category(ch)
+    if category in _INVISIBLE_CATEGORIES:
+        return True
+    return category == "Zs" and ch != " "
+
+
 def _secret_skeleton(text: str) -> str:
     """Return a detection-only normalized view of ``text``.
 
@@ -302,15 +362,11 @@ def _secret_skeleton(text: str) -> str:
     fail-closed detection patterns.
     """
     decomposed = _unicodedata_normalize("NFD", text)
-    visible = "".join(
-        ch for ch in decomposed if _unicodedata_category(ch) not in _INVISIBLE_CATEGORIES
-    )
+    visible = "".join(ch for ch in decomposed if not _is_detection_invisible(ch))
     normalized = _unicodedata_normalize(
         "NFKC", visible.translate(_DELIMITER_CONFUSABLE_MAP)
     ).translate(_CONFUSABLE_MAP)
-    return "".join(
-        ch for ch in normalized if _unicodedata_category(ch) not in _INVISIBLE_CATEGORIES
-    )
+    return "".join(ch for ch in normalized if not _is_detection_invisible(ch))
 
 
 class CiboCognitiveError(DomainError):

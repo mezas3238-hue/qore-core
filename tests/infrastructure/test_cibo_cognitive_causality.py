@@ -18,6 +18,7 @@ from qore.infrastructure.cibo_cognitive_causality import (
     CausalEvidencePolarity,
     CausalityValidationError,
     CausalVariable,
+    ConfounderResolution,
     assert_causal_lineage_acyclic,
     build_causal_claim,
 )
@@ -53,7 +54,7 @@ def _claim(**kwargs: object) -> CausalClaim:
         "kind": CausalClaimKind.CAUSATION,
         "cause": _CAUSE,
         "effect": _EFFECT,
-        "confounders_addressed": True,
+        "mechanism_code": "mechanism.randomization",
         "strength": CausalClaimStrength.MODERATE,
         "status": CausalClaimStatus.ACTIVE,
     }
@@ -72,9 +73,57 @@ def test_correlation_cannot_assert_strong() -> None:
         _claim(kind=CausalClaimKind.CORRELATION, strength=CausalClaimStrength.STRONG)
 
 
-def test_causation_requires_addressed_confounders() -> None:
-    with pytest.raises(CausalityValidationError):
-        _claim(confounders_addressed=False)
+def test_causation_requires_mechanism() -> None:
+    with pytest.raises(CausalityValidationError, match="mechanism"):
+        _claim(mechanism_code=None)
+
+
+def test_causation_requires_confounder_resolution() -> None:
+    with pytest.raises(CausalityValidationError, match="confounder"):
+        _claim(confounders=(_variable("selection-bias"),))
+
+
+def test_causation_confounder_resolution_binds_evidence() -> None:
+    confounder = _variable("selection-bias")
+    resolution = ConfounderResolution(
+        confounder=confounder,
+        evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+    )
+    claim = _claim(
+        confounders=(confounder,),
+        confounder_resolutions=(resolution,),
+    )
+    claim.revalidate()
+    assert claim.confounder_resolutions[0].confounder.code == "selection-bias"
+
+
+def test_confounder_resolution_duplicate_rejected() -> None:
+    confounder = _variable("selection-bias")
+    resolution = ConfounderResolution(
+        confounder=confounder,
+        evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+    )
+    with pytest.raises(CausalityValidationError, match="duplicate"):
+        _claim(
+            confounders=(confounder,),
+            confounder_resolutions=(resolution, resolution),
+        )
+
+
+def test_correlation_forbids_mechanism_and_resolutions() -> None:
+    with pytest.raises(CausalityValidationError, match="mechanism"):
+        _claim(kind=CausalClaimKind.CORRELATION, mechanism_code="mechanism.x")
+    confounder = _variable("selection-bias")
+    resolution = ConfounderResolution(
+        confounder=confounder,
+        evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+    )
+    with pytest.raises(CausalityValidationError, match="confounder"):
+        _claim(
+            kind=CausalClaimKind.CORRELATION,
+            mechanism_code=None,
+            confounder_resolutions=(resolution,),
+        )
 
 
 def test_strong_requires_backing_evidence() -> None:
@@ -176,7 +225,7 @@ class TestCausalClaimBuilderPermutationInvariance:
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            confounders_addressed=True,
+            mechanism_code="mechanism.randomization",
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
             evidence_for=(e_a, e_b),
@@ -186,7 +235,7 @@ class TestCausalClaimBuilderPermutationInvariance:
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            confounders_addressed=True,
+            mechanism_code="mechanism.randomization",
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
             evidence_for=(e_b, e_a),
@@ -202,7 +251,7 @@ class TestCausalClaimBuilderPermutationInvariance:
             cause=_CAUSE,
             effect=_EFFECT,
             context=(_variable("context.b"), _variable("context.a")),
-            confounders_addressed=True,
+            mechanism_code="mechanism.randomization",
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
         )
@@ -212,7 +261,7 @@ class TestCausalClaimBuilderPermutationInvariance:
             cause=_CAUSE,
             effect=_EFFECT,
             context=(_variable("context.a"), _variable("context.b")),
-            confounders_addressed=True,
+            mechanism_code="mechanism.randomization",
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
         )
@@ -229,7 +278,7 @@ class TestCausalClaimBuilderPermutationInvariance:
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            confounders_addressed=True,
+            mechanism_code="mechanism.randomization",
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
             evidence_for=(e_a, e_b),
@@ -239,7 +288,7 @@ class TestCausalClaimBuilderPermutationInvariance:
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            confounders_addressed=True,
+            mechanism_code="mechanism.randomization",
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
             evidence_for=(e_a, e_c),
@@ -254,7 +303,7 @@ class TestCausalClaimBuilderPermutationInvariance:
                 kind=CausalClaimKind.CAUSATION,
                 cause=_CAUSE,
                 effect=_EFFECT,
-                confounders_addressed=True,
+                mechanism_code="mechanism.randomization",
                 strength=CausalClaimStrength.MODERATE,
                 status=CausalClaimStatus.ACTIVE,
                 evidence_for=(e_a, e_a),

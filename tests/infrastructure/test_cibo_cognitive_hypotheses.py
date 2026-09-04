@@ -11,6 +11,7 @@ import pytest
 
 from qore.infrastructure.cibo_cognitive_common import fingerprint_material
 from qore.infrastructure.cibo_cognitive_hypotheses import (
+    FalsifierResolution,
     Hypothesis,
     HypothesisEvidence,
     HypothesisEvidencePolarity,
@@ -240,10 +241,27 @@ class TestHypothesisLifecycleGovernance:
                 HypothesisStatus.CONFIRMED,
                 evidence_for=(_evidence("evidence:e2", HypothesisEvidencePolarity.SUPPORTS),),
             )
+        # An unrelated confirming test without a governed falsifier resolution is
+        # rejected: the retained falsifier c1 must not silently disappear.
+        with pytest.raises(HypothesisValidationError, match="resolution"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            )
         confirmed = transition_hypothesis(
             active,
             HypothesisStatus.CONFIRMED,
             tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            falsifier_resolutions=(
+                FalsifierResolution(
+                    falsifier_ref=CiboCognitiveEvidenceRef("evidence:c1"),
+                    falsifier_polarity=HypothesisEvidencePolarity.CONTRADICTION,
+                    falsifier_observed_at=_T,
+                    resolving_ref=CiboCognitiveEvidenceRef("evidence:t1"),
+                    resolving_observed_at=_T,
+                ),
+            ),
         )
         assert confirmed.status is HypothesisStatus.CONFIRMED
 
@@ -581,13 +599,31 @@ class TestRefutedRevisionLineageRetention:
             reason_code="new.evidence",
         )
         active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        # A falsifier must not silently disappear: an unrelated confirming test
+        # is rejected until the falsifier is governed by an explicit resolution.
+        with pytest.raises(HypothesisValidationError, match="resolution"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            )
         confirmed = transition_hypothesis(
             active,
             HypothesisStatus.CONFIRMED,
             tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            falsifier_resolutions=(
+                FalsifierResolution(
+                    falsifier_ref=CiboCognitiveEvidenceRef("evidence:c1"),
+                    falsifier_polarity=HypothesisEvidencePolarity.CONTRADICTION,
+                    falsifier_observed_at=_T,
+                    resolving_ref=CiboCognitiveEvidenceRef("evidence:t1"),
+                    resolving_observed_at=_T,
+                ),
+            ),
         )
         assert [e.ref.value for e in confirmed.contradictions] == []
         assert [e.ref.value for e in confirmed.tests] == ["evidence:t1"]
+        assert [r.falsifier_ref.value for r in confirmed.falsifier_resolutions] == ["evidence:c1"]
 
     def test_retained_falsifier_plus_new_merges_cleanly(self) -> None:
         """Re-supplying an already-retained falsifier alongside a genuinely new
@@ -606,3 +642,98 @@ class TestRefutedRevisionLineageRetention:
             "evidence:c1",
             "evidence:c3",
         ]
+
+
+class TestFalsifierResolutionGovernance:
+    """F2 closure: HYPOTHESIS CONFIRMATION != FAVORABLE OUTCOME. A CONFIRMED
+    hypothesis must not silently erase a retained falsifier; every blocking
+    falsifier must be resolved by an exact, retained, governed test."""
+
+    def _refuted(self) -> Hypothesis:
+        return _hypothesis(
+            status=HypothesisStatus.REFUTED,
+            contradictions=(_evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),),
+        )
+
+    def _active_with_falsifier(self) -> Hypothesis:
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="new.evidence",
+        )
+        return transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+
+    def _resolution(self, resolving_ref: str = "evidence:t1") -> FalsifierResolution:
+        return FalsifierResolution(
+            falsifier_ref=CiboCognitiveEvidenceRef("evidence:c1"),
+            falsifier_polarity=HypothesisEvidencePolarity.CONTRADICTION,
+            falsifier_observed_at=_T,
+            resolving_ref=CiboCognitiveEvidenceRef(resolving_ref),
+            resolving_observed_at=_T,
+        )
+
+    def test_unrelated_test_cannot_resolve_falsifier(self) -> None:
+        active = self._active_with_falsifier()
+        with pytest.raises(HypothesisValidationError, match="retained test"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+                falsifier_resolutions=(self._resolution(resolving_ref="evidence:unrelated"),),
+            )
+
+    def test_relabeled_falsifier_cannot_resolve_itself(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="relabeled"):
+            FalsifierResolution(
+                falsifier_ref=CiboCognitiveEvidenceRef("evidence:c1"),
+                falsifier_polarity=HypothesisEvidencePolarity.CONTRADICTION,
+                falsifier_observed_at=_T,
+                resolving_ref=CiboCognitiveEvidenceRef("evidence:c1"),
+                resolving_observed_at=_T,
+            )
+
+    def test_duplicate_resolution_rejected(self) -> None:
+        active = self._active_with_falsifier()
+        resolution = self._resolution()
+        with pytest.raises(HypothesisValidationError, match="duplicate"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+                falsifier_resolutions=(resolution, resolution),
+            )
+
+    def test_resolutions_forbidden_on_non_confirmed(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="only admissible"):
+            _hypothesis(
+                status=HypothesisStatus.ACTIVE,
+                falsifier_resolutions=(self._resolution(),),
+            )
+
+    def test_direct_confirmed_fabricated_resolution_rejected(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="retained test"):
+            _hypothesis(
+                status=HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+                falsifier_resolutions=(self._resolution(resolving_ref="evidence:unrelated"),),
+            )
+
+    def test_confirmed_resolution_fingerprinted_and_revalidated(self) -> None:
+        active = self._active_with_falsifier()
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            falsifier_resolutions=(self._resolution(),),
+        )
+        # The resolution is part of the fingerprint: reflective corruption of
+        # its resolving reference fails revalidation.
+        object.__setattr__(
+            confirmed.falsifier_resolutions[0],
+            "resolving_ref",
+            CiboCognitiveEvidenceRef("evidence:other"),
+        )
+        with pytest.raises(HypothesisValidationError):
+            confirmed.revalidate()

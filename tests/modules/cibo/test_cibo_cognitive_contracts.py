@@ -688,3 +688,78 @@ class TestSecretHygieneUnicodeNormalizationExhaustion:
     )
     def test_unicode_structural_benign(self, witness: str) -> None:
         assert not contains_secret_material(witness)
+
+
+class TestCorrection009SecretClosure:
+    """F1 (Correction-009): credential-label grammar is closed under compound/
+    snake/kebab/camel equivalence, underscore token-prefix delimiters, and
+    non-ASCII width-space separators, while Basic scheme-name prose and
+    quantifier-prose stay admissible."""
+
+    @pytest.mark.parametrize(
+        "label",
+        (
+            "access_token", "refresh_token", "bearer_token", "auth_token",
+            "id_token", "personal_access_token", "oauth_token", "slack_token",
+            "github_token", "openai_key", "apiToken", "secretToken",
+            "client_id", "x_auth_token",
+            "access-token", "access token", "accessToken", "xAuthToken",
+            "session_token", "aws_session_token", "sessionToken",
+        ),
+    )
+    def test_compound_credential_label_assignment_detected(self, label: str) -> None:
+        assert contains_secret_material(f"{label} = abc123def")
+        assert contains_secret_material(f"{label}: abc123def")
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "sk_abcdefgh12345",
+            "xoxb_abcdefghijklm",
+            "sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+            "xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+        ),
+    )
+    def test_token_prefix_delimiter_equivalence_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "access\u2007token: abc123",
+            "client\u00a0id = abc123",
+            "xoxb-a\u2007bcdefghijklm",
+            "AKIA\u20071234567890ABCDEF",
+            "Basic\u2007enp6eg",
+            "Bearer\u00a0abcdef1234567890",
+        ),
+    )
+    def test_width_space_separators_rejoin(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "Basic oauth2",
+            "Basic sha256",
+            "Basic kerberos5",
+            "Basic sha512",
+        ),
+    )
+    def test_basic_scheme_name_prose_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "password: one",
+            "password: each",
+            "password: them",
+            "password: all",
+            "password: several",
+            "password: which",
+            "password: because",
+        ),
+    )
+    def test_password_quantifier_prose_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)

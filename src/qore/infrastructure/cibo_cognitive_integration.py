@@ -35,6 +35,7 @@ from qore.infrastructure.cibo_cognitive_attention import CalibrationNote, Reason
 from qore.infrastructure.cibo_cognitive_causality import (
     CausalClaim,
     CausalityValidationError,
+    assert_causal_lineage_acyclic,
 )
 from qore.infrastructure.cibo_cognitive_common import (
     CiboCognitiveFingerprint,
@@ -50,6 +51,7 @@ from qore.infrastructure.cibo_cognitive_evaluation import (
 from qore.infrastructure.cibo_cognitive_hypotheses import (
     Hypothesis,
     HypothesisValidationError,
+    assert_hypothesis_lineage_acyclic,
 )
 from qore.infrastructure.cibo_cognitive_metacognition import (
     MetacognitionValidationError,
@@ -757,6 +759,70 @@ def _canonical_learning_records(
     return tuple(sorted(values, key=lambda record: str(record.record_id)))
 
 
+def _validate_causal_bindings(
+    causal_claims: tuple[CausalClaim, ...],
+    hypotheses: tuple[Hypothesis, ...],
+) -> None:
+    """Enforce causal/hypothesis coherence at the composition boundary.
+
+    ``SUMMARY != SOURCE EVIDENCE`` and ``CORRELATION != CAUSATION``: every
+    hypothesis ``causal_claim_ref`` must resolve to an exact present causal
+    claim with identity + fingerprint coherence, and the causal/hypothesis
+    supersession lineages must be acyclic. A dangling, stale, mismatched,
+    cross-object-laundered, or reflective-corrupted reference fails closed;
+    revalidation re-runs this check on the already-canonicalized tuples, so
+    constructor == revalidate == replay all enforce it.
+    """
+    try:
+        assert_causal_lineage_acyclic(causal_claims)
+    except CiboCommonValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "integrated causal lineage must be acyclic"
+        ) from error
+    # Revisions of one hypothesis share a hypothesis_id, so the exported guard's
+    # unique-id precondition does not hold over a revision lineage. Dedup by id
+    # (latest revision) first, then enforce supersession acyclicity over distinct
+    # hypothesis identities.
+    latest_hypotheses: dict[UUID, Hypothesis] = {}
+    for hypothesis in hypotheses:
+        current = latest_hypotheses.get(hypothesis.hypothesis_id)
+        if current is None or hypothesis.revision >= current.revision:
+            latest_hypotheses[hypothesis.hypothesis_id] = hypothesis
+    try:
+        assert_hypothesis_lineage_acyclic(tuple(latest_hypotheses.values()))
+    except CiboCommonValidationError as error:
+        raise CiboCognitiveIntegrationValidationError(
+            "integrated hypothesis lineage must be acyclic"
+        ) from error
+    claims_by_id: dict[UUID, CausalClaim] = {
+        claim.claim_id: claim for claim in causal_claims
+    }
+    for hypothesis in hypotheses:
+        ref = hypothesis.causal_claim_ref
+        if ref is None:
+            continue
+        if type(ref) is not tuple or len(ref) != 2:
+            raise CiboCognitiveIntegrationValidationError(
+                "hypothesis causal claim reference is malformed"
+            )
+        claim_id = ref[0]
+        claim_fingerprint = ref[1]
+        if type(claim_id) is not UUID or type(claim_fingerprint) is not CiboCognitiveFingerprint:
+            raise CiboCognitiveIntegrationValidationError(
+                "hypothesis causal claim reference is malformed"
+            )
+        claim = claims_by_id.get(claim_id)
+        if claim is None:
+            raise CiboCognitiveIntegrationValidationError(
+                "hypothesis causal claim reference is dangling: no matching causal claim"
+            )
+        if claim.fingerprint != claim_fingerprint:
+            raise CiboCognitiveIntegrationValidationError(
+                "hypothesis causal claim reference fingerprint does not match the "
+                "composed causal claim"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class CiboIntegratedCognitiveEpisode:
     """An authority-free, fingerprint-bound composition of both substrates.
@@ -862,6 +928,7 @@ class CiboIntegratedCognitiveEpisode:
                 self.learning_records, field_name="integrated learning records"
             ),
         )
+        _validate_causal_bindings(self.causal_claims, self.hypotheses)
         if self.metacognitive_audit is not None:
             if type(self.metacognitive_audit) is not MetacognitiveAudit:
                 raise CiboCognitiveIntegrationValidationError(
