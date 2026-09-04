@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -95,7 +96,12 @@ def test_refuted_to_revised_to_active_is_valid() -> None:
         status=HypothesisStatus.REFUTED,
         contradictions=(_evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),),
     )
-    revised = transition_hypothesis(refuted, HypothesisStatus.REVISED)
+    revised = transition_hypothesis(
+        refuted,
+        HypothesisStatus.REVISED,
+        content_code="h.regime-revised",
+        reason_code="new.evidence",
+    )
     active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
     assert active.status is HypothesisStatus.ACTIVE
 
@@ -157,3 +163,191 @@ def test_authority_free() -> None:
     hypothesis = _hypothesis(status=HypothesisStatus.ACTIVE)
     for absent in ("order", "intent", "account", "quantity", "provider", "promotion", "risk"):
         assert not hasattr(hypothesis, absent)
+
+
+class TestHypothesisLifecycleGovernance:
+    def test_confirmed_requires_governed_tests_not_evidence_for(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="test"):
+            _hypothesis(
+                status=HypothesisStatus.CONFIRMED,
+                evidence_for=(_evidence("evidence:e1", HypothesisEvidencePolarity.SUPPORTS),),
+            )
+
+    def test_refuted_to_revised_requires_reason_code(self) -> None:
+        refuted = _hypothesis(
+            status=HypothesisStatus.REFUTED,
+            contradictions=(
+                _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        with pytest.raises(HypothesisValidationError, match="reason"):
+            transition_hypothesis(refuted, HypothesisStatus.REVISED, content_code="h.changed")
+
+    def test_refuted_to_revised_requires_material_change(self) -> None:
+        refuted = _hypothesis(
+            status=HypothesisStatus.REFUTED,
+            contradictions=(
+                _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        with pytest.raises(HypothesisValidationError, match="material"):
+            transition_hypothesis(
+                refuted, HypothesisStatus.REVISED, reason_code="new.evidence"
+            )
+
+    def test_refuted_to_revised_with_new_evidence_accepted(self) -> None:
+        refuted = _hypothesis(
+            status=HypothesisStatus.REFUTED,
+            contradictions=(
+                _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            reason_code="new.evidence",
+            evidence_for=(_evidence("evidence:e2", HypothesisEvidencePolarity.SUPPORTS),),
+        )
+        assert revised.status is HypothesisStatus.REVISED
+
+    def test_reason_code_is_retained_and_fingerprinted(self) -> None:
+        born = _hypothesis()
+        left = transition_hypothesis(born, HypothesisStatus.ACTIVE, reason_code="reason.a")
+        right = transition_hypothesis(born, HypothesisStatus.ACTIVE, reason_code="reason.b")
+        assert left.reason_code == "reason.a"
+        assert right.reason_code == "reason.b"
+        assert left.fingerprint != right.fingerprint
+
+    def test_resurrection_requires_revision_then_tests_for_confirmation(self) -> None:
+        refuted = _hypothesis(
+            status=HypothesisStatus.REFUTED,
+            contradictions=(
+                _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        with pytest.raises(HypothesisValidationError):
+            transition_hypothesis(refuted, HypothesisStatus.ACTIVE)
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.changed",
+            reason_code="new.evidence",
+        )
+        active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        with pytest.raises(HypothesisValidationError):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                evidence_for=(_evidence("evidence:e2", HypothesisEvidencePolarity.SUPPORTS),),
+            )
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        assert confirmed.status is HypothesisStatus.CONFIRMED
+
+    def test_transition_retains_supplied_evidence_and_preserves_prior_history(self) -> None:
+        born = _hypothesis(
+            status=HypothesisStatus.BORN,
+            evidence_for=(_evidence("evidence:e1", HypothesisEvidencePolarity.SUPPORTS),),
+        )
+        active = transition_hypothesis(
+            born,
+            HypothesisStatus.ACTIVE,
+            evidence_for=(_evidence("evidence:e2", HypothesisEvidencePolarity.SUPPORTS),),
+        )
+        # The supplied evidence is retained in the new revision, and the prior
+        # version's evidence/history is not silently erased (it stays durable).
+        assert [e.ref.value for e in active.evidence_for] == ["evidence:e2"]
+        assert [e.ref.value for e in born.evidence_for] == ["evidence:e1"]
+        assert active.revision_parent == born.hypothesis_id
+
+    def test_reason_code_reflective_mutation_fails_revalidate(self) -> None:
+        born = _hypothesis()
+        revised = transition_hypothesis(
+            born, HypothesisStatus.ACTIVE, reason_code="reason.a"
+        )
+        object.__setattr__(revised, "reason_code", "UPPER-CASE-!INVALID")
+        with pytest.raises(HypothesisValidationError):
+            revised.revalidate()
+
+
+class TestHypothesisBuilderPermutationInvariance:
+    def test_evidence_for_permutation_invariant(self) -> None:
+        e_a = _evidence("evidence:a", HypothesisEvidencePolarity.SUPPORTS)
+        e_b = _evidence("evidence:b", HypothesisEvidencePolarity.SUPPORTS)
+        e_c = _evidence("evidence:c", HypothesisEvidencePolarity.SUPPORTS)
+        hid = uuid4()
+        first = build_hypothesis(
+            hypothesis_id=hid,
+            content_code="h.content",
+            status=HypothesisStatus.ACTIVE,
+            evidence_for=(e_a, e_b, e_c),
+        )
+        second = build_hypothesis(
+            hypothesis_id=hid,
+            content_code="h.content",
+            status=HypothesisStatus.ACTIVE,
+            evidence_for=(e_c, e_a, e_b),
+        )
+        assert first.evidence_for == second.evidence_for
+        assert first.fingerprint == second.fingerprint
+
+    def test_evidence_for_different_multiset_differs(self) -> None:
+        e_a = _evidence("evidence:a", HypothesisEvidencePolarity.SUPPORTS)
+        e_b = _evidence("evidence:b", HypothesisEvidencePolarity.SUPPORTS)
+        e_c = _evidence("evidence:c", HypothesisEvidencePolarity.SUPPORTS)
+        hid = uuid4()
+        first = build_hypothesis(
+            hypothesis_id=hid,
+            content_code="h.content",
+            status=HypothesisStatus.ACTIVE,
+            evidence_for=(e_a, e_b),
+        )
+        second = build_hypothesis(
+            hypothesis_id=hid,
+            content_code="h.content",
+            status=HypothesisStatus.ACTIVE,
+            evidence_for=(e_a, e_c),
+        )
+        third = build_hypothesis(
+            hypothesis_id=hid,
+            content_code="h.content",
+            status=HypothesisStatus.ACTIVE,
+            evidence_for=(e_a, e_b, e_c),
+        )
+        assert first.fingerprint != second.fingerprint
+        assert first.fingerprint != third.fingerprint
+
+    def test_evidence_for_duplicate_rejected(self) -> None:
+        e_a = _evidence("evidence:a", HypothesisEvidencePolarity.SUPPORTS)
+        with pytest.raises(HypothesisValidationError, match="duplicate"):
+            build_hypothesis(
+                hypothesis_id=uuid4(),
+                content_code="h.content",
+                status=HypothesisStatus.ACTIVE,
+                evidence_for=(e_a, e_a),
+            )
+
+
+class TestHypothesisEvidenceTemporalSemantics:
+    def test_dst_fold_instants_remain_distinct(self) -> None:
+        tz = ZoneInfo("America/New_York")
+        f0 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=0)
+        f1 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=1)
+        ref = CiboCognitiveEvidenceRef("evidence:fold")
+        e0 = HypothesisEvidence(
+            ref=ref,
+            polarity=HypothesisEvidencePolarity.SUPPORTS,
+            observed_at=f0,
+            fingerprint=fingerprint_material((ref.value, "supports", f0)),
+        )
+        e1 = HypothesisEvidence(
+            ref=ref,
+            polarity=HypothesisEvidencePolarity.SUPPORTS,
+            observed_at=f1,
+            fingerprint=fingerprint_material((ref.value, "supports", f1)),
+        )
+        assert e0 != e1
+        assert len({e0, e1}) == 2

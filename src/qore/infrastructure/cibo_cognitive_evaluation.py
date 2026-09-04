@@ -288,6 +288,44 @@ class InterventionKind(StrEnum):
     NON_DEVELOPMENT = "non-development"
 
 
+def _capability_evidence_content(
+    reference: str,
+    capability: str,
+    observed_at: datetime,
+    kind: CapabilityEvidenceKind,
+    outcome: CapabilityOutcome | None,
+) -> tuple[object, ...]:
+    """Canonical logical content of a ``CapabilityEvidence`` (excludes its fingerprint)."""
+    return (
+        reference,
+        capability,
+        canonical_instant(observed_at),
+        kind.value,
+        None if outcome is None else outcome.value,
+    )
+
+
+def capability_evidence_fingerprint(
+    *,
+    reference: str,
+    capability: str,
+    observed_at: datetime,
+    kind: CapabilityEvidenceKind = CapabilityEvidenceKind.CAPABILITY,
+    outcome: CapabilityOutcome | None = None,
+) -> CiboCognitiveFingerprint:
+    """Derive the canonical content fingerprint for capability evidence.
+
+    The fingerprint binds the evidence's logical source content (reference,
+    capability, observed instant, kind, outcome), so reflective mutation of any
+    semantically fingerprinted field — or of the fingerprint itself — fails
+    revalidation. No-hindsight and exact runtime-type boundaries remain enforced
+    by ``CapabilityEvidence`` itself.
+    """
+    return fingerprint_material(
+        _capability_evidence_content(reference, capability, observed_at, kind, outcome)
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class CapabilityEvidence:
     """Evidence-bound capability/outcome observation at an explicit time.
@@ -343,6 +381,17 @@ class CapabilityEvidence:
         if self.kind is CapabilityEvidenceKind.ECONOMIC_OUTCOME and self.outcome is not None:
             raise EvaluationValidationError(
                 "economic-outcome evidence must not carry a capability outcome"
+            )
+        expected = capability_evidence_fingerprint(
+            reference=self.reference,
+            capability=self.capability,
+            observed_at=self.observed_at,
+            kind=self.kind,
+            outcome=self.outcome,
+        )
+        if self.evidence_fingerprint != expected:
+            raise EvaluationValidationError(
+                "capability evidence fingerprint does not match its content"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -481,8 +530,16 @@ def _canonical_evidence(
         )
     for item in values:
         item.revalidate()
-    if len(set(values)) != len(values):
-        raise EvaluationValidationError(f"{field_name} must not contain duplicates")
+    # Dedup over canonical instant semantics (logical_values normalizes every
+    # observed_at to its UTC instant), so genuinely-distinct DST-fold instants
+    # remain distinct while equivalent-offset representations of one instant
+    # dedup identically — never relying on fold-blind aware-datetime equality.
+    seen: set[tuple[object, ...]] = set()
+    for item in values:
+        key = item.logical_values()
+        if key in seen:
+            raise EvaluationValidationError(f"{field_name} must not contain duplicates")
+        seen.add(key)
     return tuple(sorted(values, key=lambda item: item.sort_key()))
 
 
@@ -767,5 +824,6 @@ __all__ = [
     "InterventionKind",
     "TraderDevelopmentAttribution",
     "build_trader_development_attribution",
+    "capability_evidence_fingerprint",
     "evaluate_cognition",
 ]

@@ -17,6 +17,7 @@ from qore.modules.cibo.cognitive_contracts import (
     CiboReasoningMode,
     CiboUncertainty,
     CiboUncertaintyKind,
+    contains_secret_material,
 )
 
 _NOW = datetime(2026, 8, 9, 0, 0, tzinfo=UTC)
@@ -316,3 +317,117 @@ class TestTimezoneMetamorphism:
             evidence_refs=(_ref("evidence:exposure"),),
         )
         assert left.logical_values() != right.logical_values()
+
+
+class TestSecretHygieneResiduals:
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "client_secret\u200b = abc123",
+            "secret\u200b_key = abcdef",
+            "secret_key\u200b= abcdef",
+            "client_secret\u200c = abc123",
+            "client_secret\u200d = abc123",
+            "client_secret\u2060 = abc123",
+            "client_secret\ufeff = abc123",
+            "AKIA\u200b1234567890ABCDEF",
+            "AKIA\u200c1234567890ABCDEF",
+        ),
+    )
+    def test_zero_width_cf_chars_cannot_split_labels_or_ids(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "client_secret\ufe0f = abc123",
+            "client\ufe0f_secret = abc123",
+            "client_secret\ufe00 = abc123",
+            "client\U000e0100_secret = abc123",
+            "client\U000e01ef_secret = abc123",
+            "client_secret\u180b = abc123",
+            "client\u180c_secret = abc123",
+            "client\u180d_secret = abc123",
+            "client\u034f_secret = abc123",
+            "AKIA\ufe0f1234567890ABCDEF",
+            "AKIA\u180b1234567890ABCDEF",
+        ),
+    )
+    def test_variation_selectors_and_fvs_cannot_split_labels_or_ids(
+        self, witness: str
+    ) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "aws_secret_access_key = wJalrXUtnFEMI7KMDENGbPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=syntheticvalue",
+            "awsSecretAccessKey = syntheticvalue",
+            '{"aws_secret_access_key":"wJalrXUtnFEMI7KMDENGbPxRfiCYEXAMPLEKEY"}',
+            "aws_access_key_id = AKIA1234567890ABCDEF",
+            "secret_access_key = syntheticvalue",
+        ),
+    )
+    def test_aws_secret_access_key_assignment_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "Basic 2008 outlook was bearish",
+            "Basic 2024 results were strong",
+            "authorization: OAuth2 flow",
+            "authorization: 2FA is required",
+            "token: 12 units were issued",
+            "Basic principles",
+            "Basic authentication",
+            "Bearer certificate",
+            "Bearer obligations",
+            "the client_secret field must be configured",
+            "the password must be at least 8 characters",
+        ),
+    )
+    def test_benign_financial_technical_prose_admissible(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "AKIA1234567890ABCDEF",
+            "ASIA1234567890ABCDEF",
+            "api_key = sk-abcdef1234567890",
+            "ghp_abcdefghijklmnopqrstuvwxyz1234",
+            "xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+        ),
+    )
+    def test_existing_key_and_token_families_preserved(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Uppercase cross-script homoglyphs of real credential labels and of
+            # the Basic literal: re.IGNORECASE does not fold Cyrillic/Greek
+            # capitals to Latin, so the map must fold them explicitly.
+            "\u0410WS_SECRET_ACCESS_KEY = wJalrXUtnFEMI/K7MDENGbPxRfiCYEXAMPLEKEY",
+            "\u0391WS_SECRET_ACCESS_KEY = syntheticvalue",
+            "\u0420ASSWORD = syntheticvalue",
+            "S\u0415CRET_ACCESS_KEY = syntheticvalue",
+            "\u0420ASSWORD: abc12345",
+            "\u0392asic dXNlcjpwYXNz",
+        ),
+    )
+    def test_uppercase_homoglyph_labels_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    def test_safe_text_boundary_rejects_split_secret(self) -> None:
+        with pytest.raises(CiboCognitiveValidationError, match="sensitive"):
+            _recommendation(summary="client_secret\u200b = abc123")
+
+    def test_safe_text_boundary_accepts_benign_prose(self) -> None:
+        recommendation = _recommendation(
+            summary="Basic 2008 outlook was bearish",
+            evidence_refs=(_ref("evidence:benign"),),
+        )
+        assert recommendation.summary == "Basic 2008 outlook was bearish"

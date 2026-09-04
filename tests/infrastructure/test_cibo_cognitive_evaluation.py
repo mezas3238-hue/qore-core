@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -26,6 +27,7 @@ from qore.infrastructure.cibo_cognitive_evaluation import (
     InterventionKind,
     TraderDevelopmentAttribution,
     build_trader_development_attribution,
+    capability_evidence_fingerprint,
     evaluate_cognition,
 )
 
@@ -233,7 +235,9 @@ def _pre(
         reference=reference,
         capability=capability,
         observed_at=observed_at,
-        evidence_fingerprint=fingerprint_material((reference, capability)),
+        evidence_fingerprint=capability_evidence_fingerprint(
+            reference=reference, capability=capability, observed_at=observed_at
+        ),
     )
 
 
@@ -248,7 +252,12 @@ def _post(
         reference=reference,
         capability=capability,
         observed_at=observed_at,
-        evidence_fingerprint=fingerprint_material((reference, capability, outcome.value)),
+        evidence_fingerprint=capability_evidence_fingerprint(
+            reference=reference,
+            capability=capability,
+            observed_at=observed_at,
+            outcome=outcome,
+        ),
         outcome=outcome,
     )
 
@@ -293,7 +302,12 @@ def test_profit_alone_is_never_causal_proof() -> None:
         reference="pnl.x",
         capability="pnl",
         observed_at=_T_POST,
-        evidence_fingerprint=fingerprint_material("pnl.x"),
+        evidence_fingerprint=capability_evidence_fingerprint(
+            reference="pnl.x",
+            capability="pnl",
+            observed_at=_T_POST,
+            kind=CapabilityEvidenceKind.ECONOMIC_OUTCOME,
+        ),
         kind=CapabilityEvidenceKind.ECONOMIC_OUTCOME,
     )
     attribution = _attribution(post=(profit,))
@@ -469,3 +483,107 @@ def test_attribution_ordering_is_permutation_invariant() -> None:
     second = _attribution(curriculum_refs=("case.regime.a", "curriculum.regime.101"))
     assert first.curriculum_refs == second.curriculum_refs
     assert first.fingerprint == second.fingerprint
+
+
+class TestCapabilityEvidenceFingerprintRevalidation:
+    def test_mutated_reference_fails_revalidate(self) -> None:
+        evidence = _pre()
+        object.__setattr__(evidence, "reference", "ev.mutated")
+        with pytest.raises(CiboCognitiveValidationError, match="fingerprint"):
+            evidence.revalidate()
+
+    def test_mutated_capability_fails_revalidate(self) -> None:
+        evidence = _pre()
+        object.__setattr__(evidence, "capability", "mutated-capability")
+        with pytest.raises(CiboCognitiveValidationError, match="fingerprint"):
+            evidence.revalidate()
+
+    def test_mutated_observed_at_fails_revalidate(self) -> None:
+        evidence = _pre()
+        object.__setattr__(evidence, "observed_at", _T_INT)
+        with pytest.raises(CiboCognitiveValidationError, match="fingerprint"):
+            evidence.revalidate()
+
+    def test_mutated_kind_fails_revalidate(self) -> None:
+        evidence = _pre()
+        object.__setattr__(evidence, "kind", CapabilityEvidenceKind.ECONOMIC_OUTCOME)
+        with pytest.raises(CiboCognitiveValidationError, match="fingerprint"):
+            evidence.revalidate()
+
+    def test_mutated_outcome_fails_revalidate(self) -> None:
+        evidence = _pre()
+        object.__setattr__(evidence, "outcome", CapabilityOutcome.IMPROVED)
+        with pytest.raises(CiboCognitiveValidationError, match="fingerprint"):
+            evidence.revalidate()
+
+    def test_mutated_fingerprint_fails_revalidate(self) -> None:
+        evidence = _pre()
+        object.__setattr__(evidence, "evidence_fingerprint", fingerprint_material("forged"))
+        with pytest.raises(CiboCognitiveValidationError, match="fingerprint"):
+            evidence.revalidate()
+
+    def test_constructor_rejects_forged_fingerprint(self) -> None:
+        # The constructor path itself (__post_init__ -> revalidate) must reject a
+        # mismatched fingerprint, making constructor == revalidate.
+        with pytest.raises(CiboCognitiveValidationError, match="fingerprint"):
+            CapabilityEvidence(
+                reference="ev.forged",
+                capability="discipline",
+                observed_at=_T_PRE,
+                evidence_fingerprint=fingerprint_material("forged"),
+            )
+
+    def test_nested_attribution_mutation_fails_revalidate(self) -> None:
+        attribution = _attribution()
+        object.__setattr__(
+            attribution.pre_intervention_evidence[0], "capability", "mutated-capability"
+        )
+        with pytest.raises(CiboCognitiveValidationError):
+            attribution.revalidate()
+
+
+class TestCapabilityEvidenceTemporalSemantics:
+    def test_dst_fold_instants_remain_distinct(self) -> None:
+        tz = ZoneInfo("America/New_York")
+        f0 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=0)
+        f1 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=1)
+        a = CapabilityEvidence(
+            reference="ev.fold",
+            capability="regime-detection",
+            observed_at=f0,
+            evidence_fingerprint=capability_evidence_fingerprint(
+                reference="ev.fold", capability="regime-detection", observed_at=f0
+            ),
+        )
+        b = CapabilityEvidence(
+            reference="ev.fold",
+            capability="regime-detection",
+            observed_at=f1,
+            evidence_fingerprint=capability_evidence_fingerprint(
+                reference="ev.fold", capability="regime-detection", observed_at=f1
+            ),
+        )
+        assert a != b
+        assert len({a, b}) == 2
+
+    def test_equivalent_offset_same_instant_dedups(self) -> None:
+        utc = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+        est = datetime(2024, 1, 1, 7, 0, tzinfo=timezone(timedelta(hours=-5)))
+        a = CapabilityEvidence(
+            reference="ev.x",
+            capability="c",
+            observed_at=utc,
+            evidence_fingerprint=capability_evidence_fingerprint(
+                reference="ev.x", capability="c", observed_at=utc
+            ),
+        )
+        b = CapabilityEvidence(
+            reference="ev.x",
+            capability="c",
+            observed_at=est,
+            evidence_fingerprint=capability_evidence_fingerprint(
+                reference="ev.x", capability="c", observed_at=est
+            ),
+        )
+        assert a == b
+        assert len({a, b}) == 1

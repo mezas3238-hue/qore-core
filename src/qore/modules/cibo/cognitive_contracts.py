@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from re import IGNORECASE, Pattern, compile, fullmatch
+from unicodedata import category as _unicodedata_category
 from unicodedata import normalize as _unicodedata_normalize
 from uuid import UUID
 
@@ -50,17 +51,27 @@ _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 #     explicit quote signals a deliberate value assignment;
 #   - a bare value after ``=`` (equals) is credible for any non-empty token, as
 #     ``=`` is essentially never natural-language prose punctuation;
-#   - a bare value after ``:`` (colon) is credible only when it carries a digit,
-#     because ``label:`` followed by a bare lowercase English word is ordinary
-#     prose (e.g. "authorization: delegated", "password:less"). Callers carrying
-#     a low-entropy colon-separated secret must quote it (``password: "secret"``).
+#   - a bare value after ``:`` (colon) is credible only when it is an 8+ char
+#     token carrying BOTH a letter and a digit, because ``label:`` followed by a
+#     bare lowercase English word or a short number is ordinary prose
+#     (e.g. "authorization: delegated", "password:less", "authorization: OAuth2").
+#     Callers carrying a low-entropy colon-separated secret must quote it
+#     (``password: "secret"``).
 _CRED_LABEL = (
     r"(?:password|passwd|api[_-]?key|access[_-]?key|secret[_-]?key|"
-    r"client[_-]?secret|private[_-]?key|credential|authorization|token|secret)"
+    r"client[_-]?secret|private[_-]?key|credential|authorization|token|secret|"
+    r"secret[_-]?access[_-]?key|aws[_-]?secret[_-]?access[_-]?key|"
+    r"aws[_-]?access[_-]?key[_-]?id|awssecretaccesskey|awsaccesskeyid)"
 )
 _QUOTED_VALUE = r"[\"'][^\"'\n]+[\"']"
 _BARE_ANY_VALUE = r"[^\s\"']+"
-_BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
+# A bare (unquoted) colon value is credible only as a mixed-character token of
+# at least 8 characters carrying BOTH a letter and a digit. Short tokens like
+# "OAuth2", "2FA", "12", or "2008" are ordinary prose/numbers and stay
+# admissible; a real low-entropy colon-separated secret must be quoted by the
+# caller, while mixed tokens long enough to be credentials (e.g. a 12-char
+# hex-ish value) are still detected bare.
+_BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[A-Za-z])[^\s\"']{8,}"
 
 # Unicode colon-confusables that fold to STRONG ``=`` before NFKC. NFKC itself
 # collapses ``：`` (U+FF1A) to ASCII ``:`` and ``︰`` (U+FE30) to ``..``, which would
@@ -83,8 +94,9 @@ _DELIMITER_CONFUSABLE_MAP = str.maketrans(
 )
 
 # Confusable label characters (Cyrillic/Greek homoglyphs of the Latin letters
-# used by credential labels). Detection-only: applied to a transient skeleton,
-# never to persisted/user text.
+# used by credential labels, both cases: re.IGNORECASE does not fold across
+# scripts, so uppercase homoglyphs must be folded explicitly). Detection-only:
+# applied to a transient skeleton, never to persisted/user text.
 _CONFUSABLE_MAP = str.maketrans(
     {
         "\u0430": "a",  # CYRILLIC SMALL A
@@ -103,6 +115,22 @@ _CONFUSABLE_MAP = str.maketrans(
         "\u0443": "y",  # CYRILLIC SMALL U
         "\u0445": "x",  # CYRILLIC SMALL HA
         "\u0437": "z",  # CYRILLIC SMALL ZE
+        "\u0410": "a",  # CYRILLIC CAPITAL A
+        "\u0412": "b",  # CYRILLIC CAPITAL VE
+        "\u0421": "c",  # CYRILLIC CAPITAL ES
+        "\u0415": "e",  # CYRILLIC CAPITAL IE
+        "\u0405": "s",  # CYRILLIC CAPITAL DZE
+        "\u0406": "i",  # CYRILLIC CAPITAL BYELORUSSIAN-UKRAINIAN I
+        "\u0408": "j",  # CYRILLIC CAPITAL JE
+        "\u041a": "k",  # CYRILLIC CAPITAL KA
+        "\u041c": "m",  # CYRILLIC CAPITAL EM
+        "\u041d": "n",  # CYRILLIC CAPITAL EN
+        "\u041e": "o",  # CYRILLIC CAPITAL O
+        "\u0420": "p",  # CYRILLIC CAPITAL ER
+        "\u0422": "t",  # CYRILLIC CAPITAL TE
+        "\u0423": "y",  # CYRILLIC CAPITAL U
+        "\u0425": "x",  # CYRILLIC CAPITAL HA
+        "\u0417": "z",  # CYRILLIC CAPITAL ZE
         "\u03b1": "a",  # GREEK SMALL LETTER ALPHA
         "\u03b5": "e",  # GREEK SMALL LETTER EPSILON
         "\u03b9": "i",  # GREEK SMALL LETTER IOTA
@@ -115,6 +143,18 @@ _CONFUSABLE_MAP = str.maketrans(
         "\u03c4": "t",  # GREEK SMALL LETTER TAU
         "\u03c5": "u",  # GREEK SMALL LETTER UPSILON
         "\u03c7": "x",  # GREEK SMALL LETTER CHI
+        "\u0391": "a",  # GREEK CAPITAL LETTER ALPHA
+        "\u0392": "b",  # GREEK CAPITAL LETTER BETA
+        "\u0395": "e",  # GREEK CAPITAL LETTER EPSILON
+        "\u0399": "i",  # GREEK CAPITAL LETTER IOTA
+        "\u039a": "k",  # GREEK CAPITAL LETTER KAPPA
+        "\u039d": "n",  # GREEK CAPITAL LETTER NU
+        "\u039f": "o",  # GREEK CAPITAL LETTER OMICRON
+        "\u03a1": "p",  # GREEK CAPITAL LETTER RHO
+        "\u03a3": "s",  # GREEK CAPITAL LETTER SIGMA
+        "\u03a4": "t",  # GREEK CAPITAL LETTER TAU
+        "\u03a5": "u",  # GREEK CAPITAL LETTER UPSILON
+        "\u03a7": "x",  # GREEK CAPITAL LETTER CHI
     }
 )
 
@@ -132,14 +172,14 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
         r"[A-Za-z0-9._~+/=-]*[0-9][A-Za-z0-9._~+/=-]*",
         IGNORECASE,
     ),
-    # Bare HTTP Basic authorization: base64 body carrying at least one
-    # uppercase/digit/base64-special character. Case-sensitive on purpose: the
-    # discriminator must not match all-lowercase prose like "Basic principles"
-    # or "Basic authentication", while still matching real base64 credentials
-    # (e.g. "Basic dXNlcjpwYXNz").
+    # Bare HTTP Basic authorization: base64 body carrying at least one uppercase
+    # or base64-special character. Case-sensitive on purpose: the discriminator
+    # must not match all-lowercase prose like "Basic principles" or all-digit
+    # prose like "Basic 2008 outlook was bearish", while still matching real
+    # base64 credentials (e.g. "Basic dXNlcjpwYXNz").
     compile(
         r"\b[Bb]asic\s+(?=[A-Za-z0-9+/]{4,}={0,2}\b)"
-        r"(?=[A-Za-z0-9+/]*[A-Z0-9+/])[A-Za-z0-9+/]+={0,2}"
+        r"(?=[A-Za-z0-9+/]*[A-Z+/])[A-Za-z0-9+/]+={0,2}"
     ),
     compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
     compile(r"//[^/@\s:]+:[^/@\s]+@"),
@@ -156,19 +196,36 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
 _CONTROL_CHARS = "\x00\n\r\t"
 
 
+# Format/control/separator categories plus nonspacing marks (Mn) that NFKC
+# leaves in place and that can split credential labels, delimiters, or key ids
+# and fail the detector open. Mn covers the combining grapheme joiner U+034F,
+# invisible variation selectors (U+FE00-U+FE0F, U+E0100-U+E01EF), Mongolian free
+# variation selectors (U+180B-U+180D), and residual combining marks — none of
+# which contribute an independent visible glyph. Stripping them from the
+# detection-only skeleton can only re-join split tokens (fail closed) — it never
+# rewrites the caller's text.
+_INVISIBLE_CATEGORIES = frozenset({"Cf", "Cc", "Cs", "Zl", "Zp", "Mn"})
+
+
 def _secret_skeleton(text: str) -> str:
     """Return a detection-only normalized view of ``text``.
 
     Unicode colon-confusables fold to a strong ``=`` first (before NFKC, which
     would otherwise collapse them to a weak ``:``); NFKC then folds remaining
-    full-width delimiters/alphanumerics; finally the bounded confusable map folds
-    common Cyrillic/Greek homoglyphs of credential-label letters. The original
-    text is never rewritten: this view is used only to run the fail-closed
-    detection patterns.
+    full-width delimiters/alphanumerics; the bounded confusable map folds common
+    Cyrillic/Greek homoglyphs of credential-label letters; finally invisible
+    format/control characters and nonspacing marks (zero-width spaces, joiners,
+    bidi marks, BOM, variation selectors, combining grapheme joiner, …) are
+    stripped so they cannot split a credential label or delimiter and fail the
+    detector open. The original text is never rewritten: this view is used only
+    to run the fail-closed detection patterns.
     """
-    return (
+    normalized = (
         _unicodedata_normalize("NFKC", text.translate(_DELIMITER_CONFUSABLE_MAP))
         .translate(_CONFUSABLE_MAP)
+    )
+    return "".join(
+        ch for ch in normalized if _unicodedata_category(ch) not in _INVISIBLE_CATEGORIES
     )
 
 
@@ -314,7 +371,7 @@ class CiboConfidenceLevel(StrEnum):
 # recommendation, recommend directive, decision synthesis) must never carry one
 # of these, and an abstain/defer/non-decision carrier must never carry
 # BOUNDED_CONFIDENCE.
-_ABSTENTION_UNCERTAINTY_KINDS = frozenset(
+ABSTENTION_UNCERTAINTY_KINDS = frozenset(
     {
         CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
         CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
@@ -658,7 +715,7 @@ class CiboFormalRecommendation:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
             )
-        if self.uncertainty.kind in _ABSTENTION_UNCERTAINTY_KINDS:
+        if self.uncertainty.kind in ABSTENTION_UNCERTAINTY_KINDS:
             raise CiboCognitiveValidationError(
                 "a formal recommendation must not carry abstention-kind uncertainty"
             )
@@ -701,7 +758,7 @@ class CiboFormalRecommendation:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
             )
-        if self.uncertainty.kind in _ABSTENTION_UNCERTAINTY_KINDS:
+        if self.uncertainty.kind in ABSTENTION_UNCERTAINTY_KINDS:
             raise CiboCognitiveValidationError(
                 "a formal recommendation must not carry abstention-kind uncertainty"
             )

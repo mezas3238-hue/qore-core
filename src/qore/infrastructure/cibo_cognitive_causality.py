@@ -119,8 +119,16 @@ def _canonical_evidence(
         )
     for item in values:
         item.revalidate()
-    if len(set(values)) != len(values):
-        raise CausalityValidationError(f"{field} must not contain duplicate evidence")
+    # Dedup over canonical instant semantics (logical_values normalizes every
+    # observed_at to its UTC instant), so genuinely-distinct DST-fold instants
+    # remain distinct while equivalent-offset representations of one instant
+    # dedup identically — never relying on fold-blind aware-datetime equality.
+    seen: set[tuple[object, ...]] = set()
+    for item in values:
+        key = item.logical_values()
+        if key in seen:
+            raise CausalityValidationError(f"{field} must not contain duplicate evidence")
+        seen.add(key)
     return tuple(sorted(values, key=lambda item: item.sort_key()))
 
 
@@ -378,18 +386,33 @@ def build_causal_claim(
         raise CausalityValidationError("contradictions must be a sequence")
     if not isinstance(limitations, Sequence):
         raise CausalityValidationError("limitations must be a sequence")
+    # Canonicalize every semantically-unordered sequence BEFORE deriving the
+    # fingerprint, so any permutation of the same semantic input produces the
+    # same canonical state and fingerprint (constructor == revalidate).
+    canonical_context = _canonical_variables(tuple(context), field="causal context")
+    canonical_confounders = _canonical_variables(tuple(confounders), field="causal confounders")
+    canonical_for = _canonical_evidence(tuple(evidence_for), field="causal evidence for")
+    canonical_against = _canonical_evidence(
+        tuple(evidence_against), field="causal evidence against"
+    )
+    canonical_contradictions = _canonical_evidence(
+        tuple(contradictions), field="causal contradictions"
+    )
+    canonical_limitations = _canonical_evidence(
+        tuple(limitations), field="causal limitations"
+    )
     return CausalClaim(
         claim_id=claim_id,
         kind=kind,
         cause=cause,
         effect=effect,
-        context=tuple(context),
-        confounders=tuple(confounders),
+        context=canonical_context,
+        confounders=canonical_confounders,
         confounders_addressed=confounders_addressed,
-        evidence_for=tuple(evidence_for),
-        evidence_against=tuple(evidence_against),
-        contradictions=tuple(contradictions),
-        limitations=tuple(limitations),
+        evidence_for=canonical_for,
+        evidence_against=canonical_against,
+        contradictions=canonical_contradictions,
+        limitations=canonical_limitations,
         strength=strength,
         status=status,
         supersedes=supersedes,
@@ -399,13 +422,13 @@ def build_causal_claim(
                 kind,
                 cause,
                 effect,
-                tuple(context),
-                tuple(confounders),
+                canonical_context,
+                canonical_confounders,
                 confounders_addressed,
-                tuple(evidence_for),
-                tuple(evidence_against),
-                tuple(contradictions),
-                tuple(limitations),
+                canonical_for,
+                canonical_against,
+                canonical_contradictions,
+                canonical_limitations,
                 strength,
                 status,
                 supersedes,

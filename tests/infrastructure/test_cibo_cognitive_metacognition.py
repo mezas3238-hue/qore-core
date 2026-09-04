@@ -142,3 +142,66 @@ def test_authority_free() -> None:
     )
     for absent in ("order", "intent", "account", "quantity", "provider", "promotion", "authority"):
         assert not hasattr(audit, absent)
+
+
+class TestMetacognitiveAuditBuilderPermutationInvariance:
+    def test_reason_codes_permutation_invariant(self) -> None:
+        aid = uuid4()
+        first = build_metacognitive_audit(
+            audit_id=aid,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            evidence_sufficiency=MetacognitiveFinding.INSUFFICIENT_EVIDENCE,
+            reason_codes=("missing-evidence", "missing-specialist"),
+        )
+        second = build_metacognitive_audit(
+            audit_id=aid,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            evidence_sufficiency=MetacognitiveFinding.INSUFFICIENT_EVIDENCE,
+            reason_codes=("missing-specialist", "missing-evidence"),
+        )
+        assert first.reason_codes == second.reason_codes
+        assert first.fingerprint == second.fingerprint
+
+    def test_missing_roles_permutation_invariant(self) -> None:
+        aid = uuid4()
+        first = build_metacognitive_audit(
+            audit_id=aid,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            evidence_sufficiency=MetacognitiveFinding.MISSING_SPECIALIST,
+            missing_roles=(CiboDeliberationRole("role-b"), CiboDeliberationRole("role-a")),
+            reason_codes=("missing-specialist",),
+        )
+        second = build_metacognitive_audit(
+            audit_id=aid,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            evidence_sufficiency=MetacognitiveFinding.MISSING_SPECIALIST,
+            missing_roles=(CiboDeliberationRole("role-a"), CiboDeliberationRole("role-b")),
+            reason_codes=("missing-specialist",),
+        )
+        assert first.missing_roles == second.missing_roles
+        assert first.fingerprint == second.fingerprint
+
+    def test_reason_codes_different_multiset_differs(self) -> None:
+        aid = uuid4()
+        first = build_metacognitive_audit(
+            audit_id=aid,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            evidence_sufficiency=MetacognitiveFinding.INSUFFICIENT_EVIDENCE,
+            reason_codes=("missing-evidence",),
+        )
+        second = build_metacognitive_audit(
+            audit_id=aid,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            evidence_sufficiency=MetacognitiveFinding.INSUFFICIENT_EVIDENCE,
+            reason_codes=("missing-specialist",),
+        )
+        assert first.fingerprint != second.fingerprint
+
+    def test_reason_codes_duplicate_rejected(self) -> None:
+        with pytest.raises(MetacognitionValidationError, match="duplicate"):
+            build_metacognitive_audit(
+                audit_id=uuid4(),
+                reasoning_mode=CiboReasoningMode.HIGH,
+                evidence_sufficiency=MetacognitiveFinding.INSUFFICIENT_EVIDENCE,
+                reason_codes=("missing-evidence", "missing-evidence"),
+            )

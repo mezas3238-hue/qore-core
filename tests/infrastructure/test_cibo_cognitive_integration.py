@@ -44,6 +44,7 @@ from qore.infrastructure.cibo_cognitive_evaluation import (
     InterventionKind,
     TraderDevelopmentAttribution,
     build_trader_development_attribution,
+    capability_evidence_fingerprint,
     evaluate_cognition,
 )
 from qore.infrastructure.cibo_cognitive_hypotheses import (
@@ -223,7 +224,9 @@ def _synthesis() -> CiboCouncilSynthesis:
         synthesis_id=_SYNTH,
         summary="Executive synthesis",
         evidence_refs=(CiboCognitiveEvidenceRef("evidence:synthesis"),),
-        uncertainty=CiboUncertainty(kind=CiboUncertaintyKind.INSUFFICIENT_EVIDENCE),
+        uncertainty=CiboUncertainty(
+            kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE, confidence=_bounded_confidence()
+        ),
         synthesized_at=_AWARE,
     )
 
@@ -328,13 +331,20 @@ def _attribution() -> TraderDevelopmentAttribution:
         reference="ev.pre",
         capability="discipline",
         observed_at=_T_PRE,
-        evidence_fingerprint=fingerprint_material(("ev.pre", "discipline")),
+        evidence_fingerprint=capability_evidence_fingerprint(
+            reference="ev.pre", capability="discipline", observed_at=_T_PRE
+        ),
     )
     post = CapabilityEvidence(
         reference="ev.post",
         capability="discipline",
         observed_at=_T_POST,
-        evidence_fingerprint=fingerprint_material(("ev.post", "discipline", "improved")),
+        evidence_fingerprint=capability_evidence_fingerprint(
+            reference="ev.post",
+            capability="discipline",
+            observed_at=_T_POST,
+            outcome=CapabilityOutcome.IMPROVED,
+        ),
         outcome=CapabilityOutcome.IMPROVED,
     )
     return build_trader_development_attribution(
@@ -1111,7 +1121,10 @@ def _hypothesis_lineage() -> tuple[Hypothesis, ...]:
         ),
     )
     revised = transition_hypothesis(
-        refuted, HypothesisStatus.REVISED, content_code="h.regime-revised"
+        refuted,
+        HypothesisStatus.REVISED,
+        content_code="h.regime-revised",
+        reason_code="new.evidence",
     )
     re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
     competing = build_hypothesis(

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -529,3 +530,22 @@ def test_source_id_rejects_secret_material() -> None:
 def test_source_version_rejects_secret_material() -> None:
     with pytest.raises(CiboCognitiveValidationError):
         WorldModelSourceVersion("ghp_abcdefghijklmnopqrstuvwxyz1234")
+
+
+class TestWorldModelContradictionTemporalSemantics:
+    def test_dst_fold_instants_are_distinct_references(self) -> None:
+        tz = ZoneInfo("America/New_York")
+        f0 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=0)
+        f1 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=1)
+        left = _reference(as_of=f0)
+        right = _reference(as_of=f1)
+        contradiction = WorldModelContradiction(left=left, right=right, reason="fold disagreement")
+        contradiction.revalidate()
+
+    def test_same_reference_across_offsets_still_rejected(self) -> None:
+        utc = datetime(2024, 6, 1, 12, 0, tzinfo=UTC)
+        est = datetime(2024, 6, 1, 7, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = _reference(as_of=utc)
+        right = _reference(as_of=est)
+        with pytest.raises(CiboCognitiveValidationError):
+            WorldModelContradiction(left=left, right=right, reason="not distinct")

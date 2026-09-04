@@ -298,30 +298,36 @@ def build_scenario(
         raise ScenarioValidationError("alternatives must be a sequence")
     if not isinstance(limitations, Sequence):
         raise ScenarioValidationError("limitations must be a sequence")
+    # Canonicalize every semantically-unordered sequence BEFORE deriving the
+    # fingerprint, so any permutation of the same semantic input produces the
+    # same canonical state and fingerprint (constructor == revalidate).
+    canonical_assumptions = _canonical_assumptions(tuple(assumptions), field="assumptions")
+    canonical_alternatives = _canonical_alternatives(tuple(alternatives), field="alternatives")
+    canonical_limitations = _canonical_codes(tuple(limitations), field="limitations")
     return Scenario(
         scenario_id=scenario_id,
         family=family,
         version=version,
-        assumptions=tuple(assumptions),
+        assumptions=canonical_assumptions,
         world_snapshot_id=world_snapshot_id,
         world_fingerprint=world_fingerprint,
-        alternatives=tuple(alternatives),
+        alternatives=canonical_alternatives,
         abstained=abstained,
         uncertainty=uncertainty,
-        limitations=tuple(limitations),
+        limitations=canonical_limitations,
         supersedes=supersedes,
         fingerprint=fingerprint_material(
             _scenario_material(
                 scenario_id,
                 family,
                 version,
-                tuple(assumptions),
+                canonical_assumptions,
                 world_snapshot_id,
                 world_fingerprint,
-                tuple(alternatives),
+                canonical_alternatives,
                 abstained,
                 uncertainty,
-                tuple(limitations),
+                canonical_limitations,
                 supersedes,
             )
         ),

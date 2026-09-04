@@ -276,21 +276,24 @@ def build_metacognitive_audit(
         raise MetacognitionValidationError("missing roles must be a sequence")
     if not isinstance(reason_codes, Sequence):
         raise MetacognitionValidationError("reason codes must be a sequence")
-    roles = tuple(missing_roles)
-    codes = tuple(reason_codes)
+    # Canonicalize every semantically-unordered sequence BEFORE deriving the
+    # fingerprint, so any permutation of the same semantic input produces the
+    # same canonical state and fingerprint (constructor == revalidate).
+    canonical_roles = _canonical_roles(tuple(missing_roles), field="audit missing roles")
+    canonical_codes = _canonical_codes(tuple(reason_codes), field="audit reason codes")
     return MetacognitiveAudit(
         audit_id=audit_id,
         reasoning_mode=reasoning_mode,
         evidence_sufficiency=evidence_sufficiency,
-        missing_roles=roles,
-        reason_codes=codes,
+        missing_roles=canonical_roles,
+        reason_codes=canonical_codes,
         fingerprint=fingerprint_material(
             (
                 str(audit_id),
                 reasoning_mode.value,
                 evidence_sufficiency.value,
-                tuple(role.value for role in roles),
-                codes,
+                tuple(role.value for role in canonical_roles),
+                canonical_codes,
             )
         ),
     )

@@ -18,6 +18,8 @@ from qore.infrastructure.cibo_executive_deliberation import (
 )
 from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
+    CiboConfidence,
+    CiboConfidenceLevel,
     CiboDeliberationRole,
     CiboUncertainty,
     CiboUncertaintyKind,
@@ -33,6 +35,16 @@ def _ref(value: str) -> CiboCognitiveEvidenceRef:
 
 def _uncertainty() -> CiboUncertainty:
     return CiboUncertainty(kind=CiboUncertaintyKind.INSUFFICIENT_EVIDENCE)
+
+
+def _decision_uncertainty() -> CiboUncertainty:
+    return CiboUncertainty(
+        kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE,
+        confidence=CiboConfidence(
+            level=CiboConfidenceLevel.MEDIUM,
+            evidence_refs=(_ref("evidence:bounded"),),
+        ),
+    )
 
 
 def _contribution(cid: UUID, role: str) -> CiboDeliberationContribution:
@@ -63,7 +75,7 @@ def _synthesis(
         synthesis_id=synthesis_id,
         summary=summary,
         evidence_refs=(_ref("evidence:synthesis"),),
-        uncertainty=_uncertainty(),
+        uncertainty=_decision_uncertainty(),
         synthesized_at=_NOW,
     )
 
@@ -347,3 +359,80 @@ class TestTimezoneMetamorphism:
             as_of=datetime(2026, 8, 9, 5, 1, tzinfo=UTC),
         )
         assert left.logical_values() != right.logical_values()
+
+
+class TestCouncilDecisionCoherence:
+    def _synthesis_with(self, uncertainty: CiboUncertainty) -> CiboCouncilSynthesis:
+        return CiboCouncilSynthesis(
+            synthesis_id=_SYNTHESIS_ID,
+            summary="Executive synthesis",
+            evidence_refs=(_ref("evidence:synthesis"),),
+            uncertainty=uncertainty,
+            synthesized_at=_NOW,
+        )
+
+    @pytest.mark.parametrize(
+        "kind",
+        (
+            CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
+            CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
+            CiboUncertaintyKind.ABSTAIN_DEFER,
+        ),
+    )
+    def test_decision_synthesis_rejects_abstention_kinds(
+        self, kind: CiboUncertaintyKind
+    ) -> None:
+        with pytest.raises(CiboExecutiveDeliberationValidationError, match="decision synthesis"):
+            self._synthesis_with(CiboUncertainty(kind=kind))
+
+    def test_decision_synthesis_rejects_unresolved_contradiction(self) -> None:
+        uncertainty = CiboUncertainty(
+            kind=CiboUncertaintyKind.UNRESOLVED_CONTRADICTION, detail_codes=("conflict",)
+        )
+        with pytest.raises(CiboExecutiveDeliberationValidationError, match="decision synthesis"):
+            self._synthesis_with(uncertainty)
+
+    def test_decision_synthesis_accepts_bounded_confidence(self) -> None:
+        _synthesis().revalidate()
+
+    def test_decision_synthesis_accepts_competing_hypotheses(self) -> None:
+        uncertainty = CiboUncertainty(
+            kind=CiboUncertaintyKind.COMPETING_HYPOTHESES, detail_codes=("h1", "h2")
+        )
+        self._synthesis_with(uncertainty).revalidate()
+
+    def test_revalidate_rejects_reflective_abstention_kind(self) -> None:
+        synthesis = _synthesis()
+        object.__setattr__(
+            synthesis,
+            "uncertainty",
+            CiboUncertainty(kind=CiboUncertaintyKind.INSUFFICIENT_EVIDENCE),
+        )
+        with pytest.raises(CiboExecutiveDeliberationValidationError, match="decision synthesis"):
+            synthesis.revalidate()
+
+    def test_deliberation_decision_rejects_abstention_synthesis(self) -> None:
+        synthesis = _synthesis()
+        object.__setattr__(
+            synthesis,
+            "uncertainty",
+            CiboUncertainty(kind=CiboUncertaintyKind.INSUFFICIENT_EVIDENCE),
+        )
+        with pytest.raises(CiboExecutiveDeliberationValidationError, match="decision synthesis"):
+            _deliberation(synthesis=synthesis, outcome=CiboCouncilOutcome.DECISION)
+
+    @pytest.mark.parametrize(
+        "outcome",
+        (
+            CiboCouncilOutcome.NO_DECISION,
+            CiboCouncilOutcome.INSUFFICIENT_EVIDENCE,
+            CiboCouncilOutcome.BLOCKED,
+        ),
+    )
+    def test_non_decision_outcome_rejects_decision_synthesis(
+        self, outcome: CiboCouncilOutcome
+    ) -> None:
+        # A non-decision outcome must not carry a synthesis whose bounded-
+        # confidence carries decision semantics.
+        with pytest.raises(CiboExecutiveDeliberationValidationError, match="decision outcome"):
+            _deliberation(synthesis=_synthesis(), outcome=outcome)

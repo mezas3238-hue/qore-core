@@ -193,3 +193,71 @@ def test_authority_free() -> None:
         "execute",
     ):
         assert not hasattr(scenario, absent)
+
+
+class TestScenarioBuilderPermutationInvariance:
+    def test_assumptions_permutation_invariant(self) -> None:
+        sid = uuid4()
+
+        def assumptions() -> tuple[ScenarioAssumption, ...]:
+            return (
+                ScenarioAssumption(
+                    code="no-fabricated-probability", fact_kind=ScenarioFactKind.HYPOTHETICAL
+                ),
+                ScenarioAssumption(
+                    code="stress-liquidity", fact_kind=ScenarioFactKind.HYPOTHETICAL
+                ),
+            )
+
+        first = build_scenario(
+            scenario_id=sid,
+            family=ScenarioFamily.ADVERSE,
+            version="v1",
+            assumptions=assumptions(),
+            uncertainty=_uncertainty(),
+        )
+        second = build_scenario(
+            scenario_id=sid,
+            family=ScenarioFamily.ADVERSE,
+            version="v1",
+            assumptions=tuple(reversed(assumptions())),
+            uncertainty=_uncertainty(),
+        )
+        assert first.assumptions == second.assumptions
+        assert first.fingerprint == second.fingerprint
+
+    def test_assumptions_different_multiset_differs(self) -> None:
+        def assumptions(code: str) -> tuple[ScenarioAssumption, ...]:
+            return (
+                ScenarioAssumption(code=code, fact_kind=ScenarioFactKind.HYPOTHETICAL),
+            )
+
+        sid = uuid4()
+        first = build_scenario(
+            scenario_id=sid,
+            family=ScenarioFamily.ADVERSE,
+            version="v1",
+            assumptions=assumptions("no-fabricated-probability"),
+            uncertainty=_uncertainty(),
+        )
+        second = build_scenario(
+            scenario_id=sid,
+            family=ScenarioFamily.ADVERSE,
+            version="v1",
+            assumptions=assumptions("stress-liquidity"),
+            uncertainty=_uncertainty(),
+        )
+        assert first.fingerprint != second.fingerprint
+
+    def test_assumptions_duplicate_rejected(self) -> None:
+        duplicate = ScenarioAssumption(
+            code="no-fabricated-probability", fact_kind=ScenarioFactKind.HYPOTHETICAL
+        )
+        with pytest.raises(ScenarioValidationError, match="duplicate"):
+            build_scenario(
+                scenario_id=uuid4(),
+                family=ScenarioFamily.ADVERSE,
+                version="v1",
+                assumptions=(duplicate, duplicate),
+                uncertainty=_uncertainty(),
+            )

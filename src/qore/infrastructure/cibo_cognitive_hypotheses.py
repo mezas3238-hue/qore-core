@@ -237,8 +237,16 @@ def _canonical_evidence(
         )
     for item in values:
         item.revalidate()
-    if len(set(values)) != len(values):
-        raise HypothesisValidationError(f"{field} must not contain duplicate evidence")
+    # Dedup over canonical instant semantics (logical_values normalizes every
+    # observed_at to its UTC instant), so genuinely-distinct DST-fold instants
+    # remain distinct while equivalent-offset representations of one instant
+    # dedup identically — never relying on fold-blind aware-datetime equality.
+    seen: set[tuple[object, ...]] = set()
+    for item in values:
+        key = item.logical_values()
+        if key in seen:
+            raise HypothesisValidationError(f"{field} must not contain duplicate evidence")
+        seen.add(key)
     return tuple(sorted(values, key=lambda item: item.sort_key()))
 
 
@@ -259,6 +267,7 @@ class Hypothesis:
     supersedes: UUID | None
     causal_claim_ref: tuple[object, ...] | None
     fingerprint: CiboCognitiveFingerprint
+    reason_code: str | None = None
 
     def __post_init__(self) -> None:
         self.revalidate()
@@ -305,6 +314,12 @@ class Hypothesis:
         if self.supersedes == self.hypothesis_id:
             raise HypothesisValidationError("a hypothesis must not supersede itself")
         _validate_causal_claim_ref(self.causal_claim_ref)
+        if self.reason_code is not None:
+            object.__setattr__(
+                self,
+                "reason_code",
+                _validate_code(self.reason_code, field="revision reason code"),
+            )
         self._validate_status_evidence()
         if type(self.fingerprint) is not CiboCognitiveFingerprint:
             raise HypothesisValidationError(
@@ -318,9 +333,12 @@ class Hypothesis:
 
     def _validate_status_evidence(self) -> None:
         if self.status is HypothesisStatus.CONFIRMED:
-            if not self.evidence_for and not self.tests:
+            # CONFIRMATION != FAVORABLE OUTCOME: a confirmed hypothesis requires
+            # governed test/prediction evidence, never a mere favorable support
+            # observation (evidence_for) on its own.
+            if not self.tests:
                 raise HypothesisValidationError(
-                    "a confirmed hypothesis requires backing evidence or tests"
+                    "a confirmed hypothesis requires governed test/prediction evidence"
                 )
             if self.evidence_against or self.contradictions:
                 raise HypothesisValidationError(
@@ -351,6 +369,7 @@ class Hypothesis:
             None if self.confidence is None else self.confidence.logical_values(),
             None if self.supersedes is None else str(self.supersedes),
             _causal_ref_material(self.causal_claim_ref),
+            self.reason_code,
         )
 
 
@@ -367,6 +386,7 @@ def _material(
     confidence: CiboConfidence | None,
     supersedes: UUID | None,
     causal_claim_ref: tuple[object, ...] | None,
+    reason_code: str | None,
 ) -> tuple[object, ...]:
     return (
         str(hypothesis_id),
@@ -381,6 +401,7 @@ def _material(
         None if confidence is None else confidence.logical_values(),
         None if supersedes is None else str(supersedes),
         _causal_ref_material(causal_claim_ref),
+        reason_code,
     )
 
 
@@ -398,6 +419,7 @@ def build_hypothesis(
     confidence: CiboConfidence | None = None,
     supersedes: UUID | None = None,
     causal_claim_ref: tuple[object, ...] | None = None,
+    reason_code: str | None = None,
 ) -> Hypothesis:
     """Build a validated, canonically ordered, fingerprinted hypothesis."""
     if not isinstance(evidence_for, Sequence):
@@ -409,19 +431,31 @@ def build_hypothesis(
     if not isinstance(tests, Sequence):
         raise HypothesisValidationError("tests must be a sequence")
     _validate_causal_claim_ref(causal_claim_ref)
+    # Canonicalize every semantically-unordered sequence BEFORE deriving the
+    # fingerprint, so any permutation of the same semantic input produces the
+    # same canonical state and fingerprint (constructor == revalidate).
+    canonical_for = _canonical_evidence(tuple(evidence_for), field="hypothesis evidence for")
+    canonical_against = _canonical_evidence(
+        tuple(evidence_against), field="hypothesis evidence against"
+    )
+    canonical_contradictions = _canonical_evidence(
+        tuple(contradictions), field="hypothesis contradictions"
+    )
+    canonical_tests = _canonical_evidence(tuple(tests), field="hypothesis tests")
     return Hypothesis(
         hypothesis_id=hypothesis_id,
         content_code=content_code,
         revision=revision,
         revision_parent=revision_parent,
         status=status,
-        evidence_for=tuple(evidence_for),
-        evidence_against=tuple(evidence_against),
-        contradictions=tuple(contradictions),
-        tests=tuple(tests),
+        evidence_for=canonical_for,
+        evidence_against=canonical_against,
+        contradictions=canonical_contradictions,
+        tests=canonical_tests,
         confidence=confidence,
         supersedes=supersedes,
         causal_claim_ref=causal_claim_ref,
+        reason_code=reason_code,
         fingerprint=fingerprint_material(
             _material(
                 hypothesis_id,
@@ -429,13 +463,14 @@ def build_hypothesis(
                 revision,
                 revision_parent,
                 status,
-                tuple(evidence_for),
-                tuple(evidence_against),
-                tuple(contradictions),
-                tuple(tests),
+                canonical_for,
+                canonical_against,
+                canonical_contradictions,
+                canonical_tests,
                 confidence,
                 supersedes,
                 causal_claim_ref,
+                reason_code,
             )
         ),
     )
@@ -484,6 +519,25 @@ def transition_hypothesis(
         raise HypothesisValidationError("tests must be a sequence")
     if reason_code is not None:
         _validate_code(reason_code, field="revision reason code")
+    if hypothesis.status is HypothesisStatus.REFUTED and new_status is HypothesisStatus.REVISED:
+        # Leaving REFUTED is a governed revision, never a ceremonial transition:
+        # it requires an auditable reason code plus material new evidence or a
+        # content change.
+        if reason_code is None:
+            raise HypothesisValidationError(
+                "leaving refuted requires an explicit revision reason code"
+            )
+        content_changed = content_code is not None and content_code != hypothesis.content_code
+        new_evidence = bool(
+            tuple(evidence_for)
+            or tuple(evidence_against)
+            or tuple(contradictions)
+            or tuple(tests)
+        )
+        if not content_changed and not new_evidence:
+            raise HypothesisValidationError(
+                "leaving refuted requires material new evidence or a content change"
+            )
     next_code = content_code if content_code is not None else hypothesis.content_code
     return build_hypothesis(
         hypothesis_id=hypothesis.hypothesis_id,
@@ -498,6 +552,7 @@ def transition_hypothesis(
         confidence=confidence,
         supersedes=supersedes,
         causal_claim_ref=causal_claim_ref,
+        reason_code=reason_code,
     )
 
 

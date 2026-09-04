@@ -218,7 +218,11 @@ class WorldModelContradiction:
         if type(self.right) is not WorldModelReference:
             raise WorldModelValidationError("contradiction right must be a WorldModelReference")
         self.right.revalidate()
-        if self.left == self.right:
+        # Compare over canonical instant semantics (logical_values normalizes
+        # as_of to its UTC instant) so two references that differ only by a
+        # DST-fold instant are genuinely distinct, while equivalent-offset
+        # representations of one instant still collapse to "same reference".
+        if self.left.logical_values() == self.right.logical_values():
             raise WorldModelValidationError("a contradiction requires two distinct references")
         if self.left.domain is not self.right.domain:
             raise WorldModelValidationError(

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -163,3 +164,120 @@ def test_authority_free() -> None:
         "execute",
     ):
         assert not hasattr(claim, absent)
+
+
+class TestCausalClaimBuilderPermutationInvariance:
+    def test_evidence_for_permutation_invariant(self) -> None:
+        e_a = _evidence("evidence:a", CausalEvidencePolarity.SUPPORTS)
+        e_b = _evidence("evidence:b", CausalEvidencePolarity.SUPPORTS)
+        cid = uuid4()
+        first = build_causal_claim(
+            claim_id=cid,
+            kind=CausalClaimKind.CAUSATION,
+            cause=_CAUSE,
+            effect=_EFFECT,
+            confounders_addressed=True,
+            strength=CausalClaimStrength.MODERATE,
+            status=CausalClaimStatus.ACTIVE,
+            evidence_for=(e_a, e_b),
+        )
+        second = build_causal_claim(
+            claim_id=cid,
+            kind=CausalClaimKind.CAUSATION,
+            cause=_CAUSE,
+            effect=_EFFECT,
+            confounders_addressed=True,
+            strength=CausalClaimStrength.MODERATE,
+            status=CausalClaimStatus.ACTIVE,
+            evidence_for=(e_b, e_a),
+        )
+        assert first.evidence_for == second.evidence_for
+        assert first.fingerprint == second.fingerprint
+
+    def test_context_variable_permutation_invariant(self) -> None:
+        cid = uuid4()
+        first = build_causal_claim(
+            claim_id=cid,
+            kind=CausalClaimKind.CAUSATION,
+            cause=_CAUSE,
+            effect=_EFFECT,
+            context=(_variable("context.b"), _variable("context.a")),
+            confounders_addressed=True,
+            strength=CausalClaimStrength.MODERATE,
+            status=CausalClaimStatus.ACTIVE,
+        )
+        second = build_causal_claim(
+            claim_id=cid,
+            kind=CausalClaimKind.CAUSATION,
+            cause=_CAUSE,
+            effect=_EFFECT,
+            context=(_variable("context.a"), _variable("context.b")),
+            confounders_addressed=True,
+            strength=CausalClaimStrength.MODERATE,
+            status=CausalClaimStatus.ACTIVE,
+        )
+        assert first.context == second.context
+        assert first.fingerprint == second.fingerprint
+
+    def test_evidence_for_different_multiset_differs(self) -> None:
+        e_a = _evidence("evidence:a", CausalEvidencePolarity.SUPPORTS)
+        e_b = _evidence("evidence:b", CausalEvidencePolarity.SUPPORTS)
+        e_c = _evidence("evidence:c", CausalEvidencePolarity.SUPPORTS)
+        cid = uuid4()
+        first = build_causal_claim(
+            claim_id=cid,
+            kind=CausalClaimKind.CAUSATION,
+            cause=_CAUSE,
+            effect=_EFFECT,
+            confounders_addressed=True,
+            strength=CausalClaimStrength.MODERATE,
+            status=CausalClaimStatus.ACTIVE,
+            evidence_for=(e_a, e_b),
+        )
+        second = build_causal_claim(
+            claim_id=cid,
+            kind=CausalClaimKind.CAUSATION,
+            cause=_CAUSE,
+            effect=_EFFECT,
+            confounders_addressed=True,
+            strength=CausalClaimStrength.MODERATE,
+            status=CausalClaimStatus.ACTIVE,
+            evidence_for=(e_a, e_c),
+        )
+        assert first.fingerprint != second.fingerprint
+
+    def test_evidence_for_duplicate_rejected(self) -> None:
+        e_a = _evidence("evidence:a", CausalEvidencePolarity.SUPPORTS)
+        with pytest.raises(CausalityValidationError, match="duplicate"):
+            build_causal_claim(
+                claim_id=uuid4(),
+                kind=CausalClaimKind.CAUSATION,
+                cause=_CAUSE,
+                effect=_EFFECT,
+                confounders_addressed=True,
+                strength=CausalClaimStrength.MODERATE,
+                status=CausalClaimStatus.ACTIVE,
+                evidence_for=(e_a, e_a),
+            )
+
+
+class TestCausalEvidenceTemporalSemantics:
+    def test_dst_fold_instants_remain_distinct(self) -> None:
+        tz = ZoneInfo("America/New_York")
+        f0 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=0)
+        f1 = datetime(2024, 11, 3, 1, 30, tzinfo=tz, fold=1)
+        ref = CiboCognitiveEvidenceRef("evidence:fold")
+        e0 = CausalEvidence(
+            ref=ref,
+            polarity=CausalEvidencePolarity.SUPPORTS,
+            observed_at=f0,
+            fingerprint=fingerprint_material((ref.value, "supports", f0)),
+        )
+        e1 = CausalEvidence(
+            ref=ref,
+            polarity=CausalEvidencePolarity.SUPPORTS,
+            observed_at=f1,
+            fingerprint=fingerprint_material((ref.value, "supports", f1)),
+        )
+        assert e0 != e1
+        assert len({e0, e1}) == 2

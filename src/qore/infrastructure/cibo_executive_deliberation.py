@@ -22,14 +22,26 @@ from qore.infrastructure.cibo_cognitive_common import (
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
+    ABSTENTION_UNCERTAINTY_KINDS,
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
     CiboDeliberationRole,
     CiboUncertainty,
+    CiboUncertaintyKind,
     contains_secret_material,
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
+
+# Council decision carriers must never carry abstention, insufficient-evidence,
+# unresolved-contradiction, or defer-style uncertainty. The canonical abstention
+# set is reused from cognitive_contracts.py (the single source of truth for what
+# counts as abstention), extended only with UNRESOLVED_CONTRADICTION: a council
+# DECISION must not be asserted over an open contradiction. COMPETING_HYPOTHESES
+# remains admissible as substantive, detail-carrying uncertainty.
+_DECISION_REJECT_UNCERTAINTY_KINDS = frozenset(ABSTENTION_UNCERTAINTY_KINDS) | {
+    CiboUncertaintyKind.UNRESOLVED_CONTRADICTION,
+}
 
 
 class CiboExecutiveDeliberationError(InfrastructureError):
@@ -489,6 +501,11 @@ class CiboCouncilSynthesis:
                 "synthesis requires CiboUncertainty"
             )
         _revalidate_uncertainty(self.uncertainty)
+        if self.uncertainty.kind in _DECISION_REJECT_UNCERTAINTY_KINDS:
+            raise CiboExecutiveDeliberationValidationError(
+                "a council decision synthesis must not carry abstention, "
+                "insufficient-evidence, unresolved-contradiction, or defer uncertainty"
+            )
         if self.limitations != _validate_codes(
             self.limitations,
             field_name="synthesis limitations",
