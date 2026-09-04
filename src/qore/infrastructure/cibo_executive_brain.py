@@ -18,12 +18,14 @@ from uuid import UUID
 
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
+from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
     CiboFormalRecommendation,
     CiboReasoningMode,
     CiboUncertainty,
+    contains_secret_material,
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
@@ -52,6 +54,10 @@ def _validate_code(value: str, *, field_name: str) -> str:
     if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveBrainValidationError(
             f"{field_name} must use canonical lowercase code syntax"
+        )
+    if contains_secret_material(value):
+        raise CiboExecutiveBrainValidationError(
+            f"{field_name} must not contain sensitive material"
         )
     return value
 
@@ -332,6 +338,40 @@ class CiboExecutiveSynthesis:
             raise CiboExecutiveBrainValidationError(
                 "synthesis limitations failed canonical revalidation"
             )
+        if self.directive is CiboExecutiveDirectiveKind.RECOMMEND:
+            if self.recommendation is None:
+                raise CiboExecutiveBrainValidationError(
+                    "recommend directive requires a formal recommendation"
+                )
+            if self.questions or self.request_code is not None:
+                raise CiboExecutiveBrainValidationError(
+                    "recommend directive must not carry questions or a request code"
+                )
+        elif self.directive is CiboExecutiveDirectiveKind.QUESTION:
+            if not self.questions:
+                raise CiboExecutiveBrainValidationError(
+                    "question directive requires at least one question"
+                )
+            if self.recommendation is not None:
+                raise CiboExecutiveBrainValidationError(
+                    "question directive must not carry a recommendation"
+                )
+        elif self.directive in (
+            CiboExecutiveDirectiveKind.REQUEST_EVIDENCE,
+            CiboExecutiveDirectiveKind.REQUEST_RESEARCH,
+        ):
+            if self.request_code is None:
+                raise CiboExecutiveBrainValidationError(
+                    "request directive requires a request code"
+                )
+            if self.recommendation is not None:
+                raise CiboExecutiveBrainValidationError(
+                    "request directive must not carry a recommendation"
+                )
+        elif self.recommendation is not None or self.questions or self.request_code is not None:
+            raise CiboExecutiveBrainValidationError(
+                "defer/abstain directive must not carry recommendation, questions, or request"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -339,7 +379,7 @@ class CiboExecutiveSynthesis:
             self.directive.value,
             self.reasoning_mode.value,
             self.subject_code,
-            self.synthesized_at.isoformat(),
+            canonical_instant(self.synthesized_at),
             tuple(item.logical_values() for item in self.evidence_refs),
             self.uncertainty.logical_values(),
             self.observations,

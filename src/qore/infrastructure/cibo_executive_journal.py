@@ -17,11 +17,13 @@ from uuid import UUID
 
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
+from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
     CiboConfidence,
     CiboUncertainty,
+    contains_secret_material,
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
@@ -50,6 +52,10 @@ def _validate_code(value: str, *, field_name: str) -> str:
     if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveJournalValidationError(
             f"{field_name} must use canonical lowercase code syntax"
+        )
+    if contains_secret_material(value):
+        raise CiboExecutiveJournalValidationError(
+            f"{field_name} must not contain sensitive material"
         )
     return value
 
@@ -335,6 +341,19 @@ class CiboLossDiagnosis:
             raise CiboExecutiveJournalValidationError(
                 "loss hypotheses failed canonical revalidation"
             )
+        if len(set(self.hypotheses)) != len(self.hypotheses):
+            raise CiboExecutiveJournalValidationError(
+                "loss hypotheses must not contain duplicates"
+            )
+        if self.state is CiboLossDiagnosisState.INSUFFICIENT_EVIDENCE:
+            if self.hypotheses:
+                raise CiboExecutiveJournalValidationError(
+                    "insufficient-evidence diagnosis must not assert hypotheses"
+                )
+        elif not self.hypotheses:
+            raise CiboExecutiveJournalValidationError(
+                "hypothesized diagnosis requires at least one hypothesis"
+            )
         _revalidate_refs(self.evidence_refs, field_name="loss diagnosis evidence")
 
     def logical_values(self) -> tuple[object, ...]:
@@ -469,6 +488,10 @@ class CiboJournalEntry:
             raise CiboExecutiveJournalValidationError(
                 "journal entry must not supersede or be superseded by itself"
             )
+        if set(self.supersedes) & set(self.superseded_by):
+            raise CiboExecutiveJournalValidationError(
+                "journal entry supersedes/superseded_by must be disjoint"
+            )
         self.revalidate()
 
     def revalidate(self) -> None:
@@ -557,6 +580,14 @@ class CiboJournalEntry:
             raise CiboExecutiveJournalValidationError(
                 "journal superseded_by failed canonical revalidation"
             )
+        if self.entry_id in self.supersedes or self.entry_id in self.superseded_by:
+            raise CiboExecutiveJournalValidationError(
+                "journal entry must not supersede or be superseded by itself"
+            )
+        if set(self.supersedes) & set(self.superseded_by):
+            raise CiboExecutiveJournalValidationError(
+                "journal entry supersedes/superseded_by must be disjoint"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -564,7 +595,7 @@ class CiboJournalEntry:
             str(self.episode_id),
             self.kind.value,
             self.subject_code,
-            self.recorded_at.isoformat(),
+            canonical_instant(self.recorded_at),
             tuple(item.logical_values() for item in self.evidence_refs),
             None if self.rationale_ref is None else self.rationale_ref.value,
             self.alternatives,
@@ -610,6 +641,28 @@ def _link_superseded_by(entry: CiboJournalEntry, superseding_id: UUID) -> CiboJo
     )
 
 
+def _supersession_cycle(entries: tuple[CiboJournalEntry, ...]) -> bool:
+    """Return whether the supersedes graph contains a cycle (lineage corruption)."""
+    by_id = {entry.entry_id: entry for entry in entries}
+    visiting: set[UUID] = set()
+    visited: set[UUID] = set()
+
+    def visit(node: UUID) -> bool:
+        if node in visiting:
+            return True
+        if node in visited:
+            return False
+        visiting.add(node)
+        for superseded_id in by_id[node].supersedes:
+            if superseded_id in by_id and visit(superseded_id):
+                return True
+        visiting.remove(node)
+        visited.add(node)
+        return False
+
+    return any(visit(entry.entry_id) for entry in entries)
+
+
 @dataclass(frozen=True, slots=True)
 class CiboJournalStore:
     """Append-only, deterministic executive journal.
@@ -619,6 +672,46 @@ class CiboJournalStore:
     """
 
     entries: tuple[CiboJournalEntry, ...] = ()
+
+    def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        if type(self.entries) is not tuple or any(
+            type(entry) is not CiboJournalEntry for entry in self.entries
+        ):
+            raise CiboExecutiveJournalValidationError(
+                "journal store entries must be an immutable tuple of CiboJournalEntry"
+            )
+        by_id = {entry.entry_id: entry for entry in self.entries}
+        if len(by_id) != len(self.entries):
+            raise CiboExecutiveJournalValidationError(
+                "journal store entries must have unique ids"
+            )
+        for entry in self.entries:
+            entry.revalidate()
+            for superseded_id in entry.supersedes:
+                if superseded_id not in by_id:
+                    raise CiboExecutiveJournalValidationError(
+                        "journal supersedes references an unknown entry"
+                    )
+                if entry.entry_id not in by_id[superseded_id].superseded_by:
+                    raise CiboExecutiveJournalValidationError(
+                        "journal supersedes lineage is not symmetric"
+                    )
+            for superseding_id in entry.superseded_by:
+                if superseding_id not in by_id:
+                    raise CiboExecutiveJournalValidationError(
+                        "journal superseded_by references an unknown entry"
+                    )
+                if entry.entry_id not in by_id[superseding_id].supersedes:
+                    raise CiboExecutiveJournalValidationError(
+                        "journal superseded_by lineage is not symmetric"
+                    )
+        if _supersession_cycle(self.entries):
+            raise CiboExecutiveJournalValidationError(
+                "journal supersession lineage must be acyclic"
+            )
 
     def record(
         self,
@@ -641,6 +734,12 @@ class CiboJournalStore:
         if entry.entry_id in existing_ids:
             return Failure(
                 CiboExecutiveJournalValidationError("journal entry id already recorded")
+            )
+        if entry.superseded_by:
+            return Failure(
+                CiboExecutiveJournalValidationError(
+                    "journal entry must not pre-claim superseded_by lineage"
+                )
             )
         for superseded_id in entry.supersedes:
             if superseded_id not in existing_ids:

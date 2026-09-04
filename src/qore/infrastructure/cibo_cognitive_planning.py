@@ -266,6 +266,30 @@ class CognitivePlan:
             for dep in task.dependencies:
                 if dep not in task_ids:
                     raise PlanningValidationError("task dependency must reference a plan task")
+        tasks_by_id = {task.task_id: task for task in self.tasks}
+        for task in self.tasks:
+            if task.status is CognitiveTaskStatus.COMPLETED:
+                for dep in task.dependencies:
+                    if tasks_by_id[dep].status is not CognitiveTaskStatus.COMPLETED:
+                        raise PlanningValidationError(
+                            "a completed task requires all dependencies to be completed"
+                        )
+        for goal in self.goals:
+            goal_tasks = tuple(task for task in self.tasks if task.goal_id == goal.goal_id)
+            if goal.status is CognitiveGoalStatus.COMPLETED:
+                if not goal_tasks:
+                    raise PlanningValidationError(
+                        "a completed goal must own at least one task"
+                    )
+                for task in goal_tasks:
+                    if task.status is not CognitiveTaskStatus.COMPLETED:
+                        raise PlanningValidationError(
+                            "a completed goal requires all of its tasks to be completed"
+                        )
+                    if not task.required_evidence:
+                        raise PlanningValidationError(
+                            "a completed task requires explicit required evidence"
+                        )
         require_exact_int(self.revision, field="plan revision")
         if self.revision < 0:
             raise PlanningValidationError("plan revision must be non-negative")
@@ -298,6 +322,12 @@ class PlanHistory:
                     "plan history must contain only CognitivePlan values"
                 )
             plan.revalidate()
+        plan_id = self.revisions[0].plan_id
+        for plan in self.revisions:
+            if plan.plan_id != plan_id:
+                raise PlanningValidationError(
+                    "plan history must use a stable plan_id across revisions"
+                )
         first = self.revisions[0]
         if first.parent_revision is not None:
             raise PlanningValidationError("first plan revision must have no parent")
@@ -589,8 +619,8 @@ def complete_task(
         plan_id=plan.plan_id,
         goals=plan.goals,
         tasks=new_tasks,
-        revision=plan.revision,
-        parent_revision=plan.parent_revision,
+        revision=plan.revision + 1,
+        parent_revision=plan.revision,
     )
 
 

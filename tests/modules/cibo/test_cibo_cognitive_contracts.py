@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -277,3 +277,42 @@ class TestDeliberationRole:
     def test_role_rejects_non_canonical_code(self) -> None:
         with pytest.raises(CiboCognitiveValidationError):
             CiboDeliberationRole("Market Strategist")
+
+
+class TestRevalidationEquivalence:
+    def test_epistemic_claim_revalidate_rejects_formal_recommendation_state(self) -> None:
+        claim = CiboEpistemicClaim(
+            claim_id=UUID("30000000-0000-0000-0000-0000000000bb"),
+            epistemic_state=CiboEpistemicState.OBSERVATION,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            content_code="content-code",
+            evidence_refs=(_ref("evidence:claim"),),
+            uncertainty=_insufficient_uncertainty(),
+        )
+        object.__setattr__(claim, "epistemic_state", CiboEpistemicState.FORMAL_RECOMMENDATION)
+        with pytest.raises(CiboCognitiveValidationError):
+            claim.revalidate()
+
+    def test_role_rejects_secret_code(self) -> None:
+        with pytest.raises(CiboCognitiveValidationError, match="sensitive"):
+            CiboDeliberationRole("sk-abcdefghijklmnop")
+
+
+class TestTimezoneMetamorphism:
+    def test_recommendation_logical_values_identical_across_offsets(self) -> None:
+        utc = datetime(2026, 8, 9, 5, 0, tzinfo=UTC)
+        est = datetime(2026, 8, 9, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = _recommendation(issued_at=utc, evidence_refs=(_ref("evidence:exposure"),))
+        right = _recommendation(issued_at=est, evidence_refs=(_ref("evidence:exposure"),))
+        assert left.logical_values() == right.logical_values()
+
+    def test_recommendation_distinct_instants_stay_distinct(self) -> None:
+        left = _recommendation(
+            issued_at=datetime(2026, 8, 9, 5, 0, tzinfo=UTC),
+            evidence_refs=(_ref("evidence:exposure"),),
+        )
+        right = _recommendation(
+            issued_at=datetime(2026, 8, 9, 5, 1, tzinfo=UTC),
+            evidence_refs=(_ref("evidence:exposure"),),
+        )
+        assert left.logical_values() != right.logical_values()

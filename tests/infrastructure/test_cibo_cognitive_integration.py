@@ -11,7 +11,7 @@ deterministic content binding.
 from __future__ import annotations
 
 import dataclasses
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import cast
 from uuid import UUID
 
@@ -125,10 +125,6 @@ def _binding(seed: str) -> CiboIntegratedEvidenceBinding:
     return bind_evidence_fingerprint(_fp(seed))
 
 
-def _content_binding(seed: str) -> CiboIntegratedContentBinding:
-    return CiboIntegratedContentBinding(id=_WORLD, fingerprint=_fp(seed))
-
-
 def _bounded_confidence() -> CiboConfidence:
     return CiboConfidence(
         level=CiboConfidenceLevel.MEDIUM,
@@ -215,13 +211,13 @@ def _episode(
     evidence_bindings: tuple[CiboIntegratedEvidenceBinding, ...] | None = None,
     reasoning_mode: CiboReasoningMode = CiboReasoningMode.HIGH,
     recorded_at: datetime = _AWARE,
-    world_snapshot: CiboIntegratedContentBinding | None = None,
+    world_snapshot: WorldModelSnapshot | None = None,
     memory_refs: tuple[UUID, ...] = (),
     deliberation_outcome: CiboCouncilOutcome | None = None,
-    synthesis: CiboIntegratedContentBinding | None = None,
-    replay: CiboIntegratedContentBinding | None = None,
-    evaluation: CiboIntegratedContentBinding | None = None,
-    plan_reference: CiboIntegratedContentBinding | None = None,
+    synthesis: CiboCouncilSynthesis | None = None,
+    replay: ReplayEpisode | None = None,
+    evaluation: CognitiveEvaluation | None = None,
+    plan_reference: CognitivePlan | None = None,
     tool_calls: tuple[ReplayToolCall, ...] = (),
     uncertainty: CiboUncertainty | None = None,
     trader_suitability: CiboIntegratedSuitabilityBinding | None = None,
@@ -492,18 +488,25 @@ class TestIntegratedEpisodeComposition:
         with pytest.raises(CiboCognitiveIntegrationValidationError, match="timezone"):
             _episode(recorded_at=datetime(2026, 8, 9, 0, 0))
 
-    def test_world_snapshot_binding_preserved(self) -> None:
-        binding = bind_world_snapshot_reference(_world_snapshot())
-        episode = _episode(world_snapshot=binding)
-        assert episode.world_snapshot is binding
+    def test_world_snapshot_preserved(self) -> None:
+        snapshot = _world_snapshot()
+        episode = _episode(world_snapshot=snapshot)
+        assert episode.world_snapshot is snapshot
 
-    def test_non_binding_world_snapshot_rejected(self) -> None:
+    def test_non_snapshot_world_snapshot_rejected(self) -> None:
         with pytest.raises(CiboCognitiveIntegrationValidationError):
-            _episode(world_snapshot=cast(CiboIntegratedContentBinding, "not-a-binding"))
+            _episode(world_snapshot=cast(WorldModelSnapshot, "not-a-snapshot"))
 
-    def test_replay_binding_requires_matching_integration_id(self) -> None:
+    def test_replay_requires_matching_integration_id(self) -> None:
+        foreign = build_replay_episode(
+            episode_id=_OTHER,
+            recorded_at=_AWARE,
+            world_snapshot_id=_WORLD,
+            goal_plan_state="planning",
+            evidence_refs=("evidence:demo",),
+        )
         with pytest.raises(CiboCognitiveIntegrationValidationError, match="replay"):
-            _episode(replay=CiboIntegratedContentBinding(id=_OTHER, fingerprint=_fp("r")))
+            _episode(replay=foreign)
 
     def test_builder_rejects_non_binding_item(self) -> None:
         with pytest.raises(CiboCognitiveIntegrationValidationError):
@@ -518,11 +521,11 @@ class TestIntegratedEpisodeComposition:
             )
 
     def test_builder_round_trips_every_field(self) -> None:
-        world = bind_world_snapshot_reference(_world_snapshot())
-        synthesis = bind_synthesis_reference(_synthesis())
-        replay = bind_replay_reference(_replay(), integration_id=_ID)
-        evaluation = bind_evaluation_reference(_evaluation())
-        plan_ref = bind_plan_reference(_plan())
+        world = _world_snapshot()
+        synthesis = _synthesis()
+        replay = _replay()
+        evaluation = _evaluation()
+        plan_ref = _plan()
         episode = _episode(
             world_snapshot=world,
             deliberation_outcome=CiboCouncilOutcome.DECISION,
@@ -551,15 +554,15 @@ class TestDisagreementAndUncertaintyPreservation:
         with pytest.raises(CiboCognitiveIntegrationValidationError, match="disagreement"):
             _episode(
                 deliberation_outcome=CiboCouncilOutcome.DISAGREEMENT,
-                synthesis=_content_binding("s"),
+                synthesis=_synthesis(),
             )
 
     def test_synthesis_requires_decision_outcome(self) -> None:
         with pytest.raises(CiboCognitiveIntegrationValidationError, match="decision"):
-            _episode(synthesis=_content_binding("s"))
+            _episode(synthesis=_synthesis())
 
     def test_decision_outcome_with_synthesis_is_preserved(self) -> None:
-        binding = _content_binding("s")
+        binding = _synthesis()
         episode = _episode(
             deliberation_outcome=CiboCouncilOutcome.DECISION,
             synthesis=binding,
@@ -632,8 +635,21 @@ class TestReplayEquivalence:
         assert not hasattr(_episode(), "replay_fingerprint")
 
     def test_changed_referenced_content_invalidates_fingerprint(self) -> None:
-        a = _episode(world_snapshot=CiboIntegratedContentBinding(id=_WORLD, fingerprint=_fp("w1")))
-        b = _episode(world_snapshot=CiboIntegratedContentBinding(id=_WORLD, fingerprint=_fp("w2")))
+        first = _world_snapshot()
+        second_reference = WorldModelReference(
+            domain=WorldModelDomain.MARKET,
+            source_id=WorldModelSourceId("source-a"),
+            source_version=WorldModelSourceVersion("2"),
+            as_of=_AWARE,
+            status=WorldModelReferenceStatus.CURRENT,
+            evidence_fingerprint=fingerprint_material("source-a:2"),
+            evidence_label="provider-neutral market evidence v2",
+        )
+        second = build_world_model_snapshot(
+            snapshot_id=_WORLD, as_of=_AWARE, references=[second_reference]
+        )
+        a = _episode(world_snapshot=first)
+        b = _episode(world_snapshot=second)
         assert a.fingerprint != b.fingerprint
 
 
@@ -642,12 +658,14 @@ class TestAuthorityFreeFirewall:
         _assert_no_authority_fields(_episode())
 
     def test_content_binding_is_authority_free(self) -> None:
-        _assert_no_authority_fields(_content_binding("a"))
+        _assert_no_authority_fields(
+            CiboIntegratedContentBinding(id=_WORLD, fingerprint=_fp("content"))
+        )
 
     def test_no_authority_bearing_output_created_by_integrated_cognition(self) -> None:
         episode = _episode(
             deliberation_outcome=CiboCouncilOutcome.DECISION,
-            synthesis=_content_binding("s"),
+            synthesis=_synthesis(),
             uncertainty=CiboUncertainty(
                 kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE,
                 confidence=_bounded_confidence(),
@@ -697,3 +715,139 @@ class TestMarketTraderAndAttributionBindings:
         attr = CiboIntegratedAttributionBinding(attribution_id=_SYNTH, fingerprint=_fp("attr"))
         for binding in (suit, attr):
             assert not any(hasattr(binding, name) for name in _AUTHORITY_FIELDS)
+
+
+class TestProofRootClosure:
+    """I-1b: trusted admission re-derives ``(id, fingerprint)`` from source content.
+
+    No caller-supplied binding object may self-assert trusted status through direct
+    construction, helper call, reflective mutation, subclassing, copy/replace/
+    pickle-style reconstruction, swapped id/fingerprint, stale/wrong content, or
+    replayed fabrication.
+    """
+
+    def test_w1_direct_arbitrary_binding_is_not_admittable(self) -> None:
+        fabricated = CiboIntegratedContentBinding(id=_WORLD, fingerprint=_fp("unverified"))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            _episode(world_snapshot=cast(WorldModelSnapshot, fabricated))
+
+    def test_w2_no_proven_marker_exists_to_set(self) -> None:
+        binding = bind_synthesis_reference(_synthesis())
+        assert not hasattr(binding, "_proven")
+        with pytest.raises(AttributeError):
+            object.__setattr__(binding, "_proven", True)
+
+    def test_w3_proven_helper_is_removed(self) -> None:
+        import qore.infrastructure.cibo_cognitive_integration as integration
+
+        assert not hasattr(integration, "_proven_content_binding")
+        assert not hasattr(integration, "require_proven")
+
+    def test_w4_swapped_id_cannot_keep_original_fingerprint(self) -> None:
+        snapshot = _world_snapshot()
+        object.__setattr__(snapshot, "snapshot_id", _OTHER)
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            _episode(world_snapshot=snapshot)
+
+    def test_w5_fabricated_fingerprints_rejected(self) -> None:
+        for hex_value in ("0" * 64, "f" * 64):
+            snapshot = _world_snapshot()
+            object.__setattr__(snapshot, "fingerprint", CiboCognitiveFingerprint(hex_value))
+            with pytest.raises(CiboCognitiveIntegrationValidationError):
+                _episode(world_snapshot=snapshot)
+
+    def test_w6_stale_swapped_content_rejected_at_admission(self) -> None:
+        snapshot = _world_snapshot()
+        swapped = WorldModelReference(
+            domain=WorldModelDomain.MARKET,
+            source_id=WorldModelSourceId("source-b"),
+            source_version=WorldModelSourceVersion("2"),
+            as_of=_AWARE,
+            status=WorldModelReferenceStatus.CURRENT,
+            evidence_fingerprint=fingerprint_material("source-b:2"),
+            evidence_label="swapped",
+        )
+        object.__setattr__(snapshot, "references", (swapped,))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            _episode(world_snapshot=snapshot)
+
+    def test_w7_exact_runtime_type_subclass_rejected(self) -> None:
+        class EvilSnapshot(WorldModelSnapshot):
+            pass
+
+        good = _world_snapshot()
+        evil = EvilSnapshot(
+            snapshot_id=good.snapshot_id,
+            as_of=good.as_of,
+            staleness_threshold=good.staleness_threshold,
+            references=good.references,
+            contradictions=good.contradictions,
+            fingerprint=good.fingerprint,
+        )
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            _episode(world_snapshot=evil)
+
+    def test_w8_reflective_corruption_after_valid_bind_rejected(self) -> None:
+        episode = _episode(world_snapshot=_world_snapshot())
+        swapped = WorldModelReference(
+            domain=WorldModelDomain.MARKET,
+            source_id=WorldModelSourceId("source-b"),
+            source_version=WorldModelSourceVersion("2"),
+            as_of=_AWARE,
+            status=WorldModelReferenceStatus.CURRENT,
+            evidence_fingerprint=fingerprint_material("source-b:2"),
+            evidence_label="swapped",
+        )
+        object.__setattr__(episode.world_snapshot, "references", (swapped,))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            replay_integrated_episode(episode)
+
+    def test_w9_fabricated_replay_round_trip_rejected(self) -> None:
+        fabricated = CiboIntegratedContentBinding(id=_ID, fingerprint=_fp("fabricated"))
+        with pytest.raises(CiboCognitiveIntegrationValidationError):
+            _episode(replay=cast(ReplayEpisode, fabricated))
+
+    def test_w10_valid_source_bindings_remain_deterministic(self) -> None:
+        def build() -> CiboIntegratedCognitiveEpisode:
+            return _episode(
+                world_snapshot=_world_snapshot(),
+                deliberation_outcome=CiboCouncilOutcome.DECISION,
+                synthesis=_synthesis(),
+                replay=_replay(),
+                evaluation=_evaluation(),
+                plan_reference=_plan(),
+            )
+
+        left = build()
+        right = build()
+        assert left.fingerprint == right.fingerprint
+        assert left.logical_values() == right.logical_values()
+        replay = replay_integrated_episode(left)
+        assert replay.view == left.logical_values()
+        assert replay.fingerprint == left.fingerprint
+
+    def test_schema_arity_and_version_pinned(self) -> None:
+        values = _episode().logical_values()
+        assert len(values) == 16
+        assert values[0] == "cibo-integrated-episode:v2"
+
+
+class TestTimezoneMetamorphism:
+    def test_episode_logical_values_identical_across_offsets(self) -> None:
+        utc = datetime(2026, 8, 9, 5, 0, tzinfo=UTC)
+        est = datetime(2026, 8, 9, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = _episode(recorded_at=utc)
+        right = _episode(recorded_at=est)
+        assert left.logical_values() == right.logical_values()
+        assert left.fingerprint == right.fingerprint
+
+    def test_episode_distinct_instants_stay_distinct(self) -> None:
+        left = _episode(recorded_at=datetime(2026, 8, 9, 5, 0, tzinfo=UTC))
+        right = _episode(recorded_at=datetime(2026, 8, 9, 5, 1, tzinfo=UTC))
+        assert left.logical_values() != right.logical_values()
+        assert left.fingerprint != right.fingerprint
+
+
+def test_zero_confidence_band_with_abstention_maps_to_insufficient_evidence() -> None:
+    note = CalibrationNote(confidence_band=0, note="none", abstention_required=True)
+    assert bind_uncertainty_kind(note) is CiboUncertaintyKind.INSUFFICIENT_EVIDENCE

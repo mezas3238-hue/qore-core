@@ -490,3 +490,42 @@ def test_suitability_ordering_is_permutation_invariant() -> None:
     assert first.limitations == second.limitations
     assert first.evidence_lineage == second.evidence_lineage
     assert first.fingerprint == second.fingerprint
+
+
+def _snapshot() -> WorldModelSnapshot:
+    return build_world_model_snapshot(
+        snapshot_id=_SNAPSHOT_ID,
+        as_of=_AS_OF,
+        references=[_reference()],
+        staleness_threshold=timedelta(days=1),
+    )
+
+
+class TestSnapshotReadPathRevalidation:
+    def test_references_for_revalidates_nested_reference(self) -> None:
+        snapshot = _snapshot()
+        object.__setattr__(snapshot.references[0].source_id, "value", "bad value with space")
+        with pytest.raises(CiboCognitiveValidationError):
+            snapshot.references_for(WorldModelDomain.MARKET)
+
+    def test_resolved_reference_revalidates_nested_reference(self) -> None:
+        snapshot = _snapshot()
+        object.__setattr__(snapshot.references[0].source_id, "value", "bad value with space")
+        with pytest.raises(CiboCognitiveValidationError):
+            snapshot.resolved_reference(WorldModelDomain.MARKET)
+
+    def test_snapshot_revalidate_rejects_corrupted_reference(self) -> None:
+        snapshot = _snapshot()
+        object.__setattr__(snapshot.references[0].source_id, "value", "bad value with space")
+        with pytest.raises(CiboCognitiveValidationError):
+            snapshot.revalidate()
+
+
+def test_source_id_rejects_secret_material() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        WorldModelSourceId("sk-abcdefghijklmnop")
+
+
+def test_source_version_rejects_secret_material() -> None:
+    with pytest.raises(CiboCognitiveValidationError):
+        WorldModelSourceVersion("ghp_abcdefghijklmnopqrstuvwxyz1234")

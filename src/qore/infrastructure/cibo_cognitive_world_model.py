@@ -88,6 +88,10 @@ class WorldModelSourceId:
             raise WorldModelValidationError(
                 "world model source id must be a non-blank token without whitespace"
             )
+        if contains_secret_material(self.value):
+            raise WorldModelValidationError(
+                "world model source id must not carry secret-bearing material"
+            )
 
     def logical_values(self) -> tuple[str]:
         return (self.value,)
@@ -107,6 +111,10 @@ class WorldModelSourceVersion:
         if _TOKEN.fullmatch(self.value) is None:
             raise WorldModelValidationError(
                 "world model source version must be a non-blank token without whitespace"
+            )
+        if contains_secret_material(self.value):
+            raise WorldModelValidationError(
+                "world model source version must not carry secret-bearing material"
             )
 
     def logical_values(self) -> tuple[str]:
@@ -246,6 +254,9 @@ class WorldModelSnapshot:
     fingerprint: CiboCognitiveFingerprint
 
     def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
         canonical = _canonicalize_snapshot(
             self.snapshot_id,
             self.as_of,
@@ -276,6 +287,7 @@ class WorldModelSnapshot:
         """Return the non-missing references for ``domain`` in canonical order."""
         if type(domain) is not WorldModelDomain:
             raise WorldModelValidationError("domain must be a WorldModelDomain")
+        self.revalidate()
         return tuple(
             r
             for r in self.references
@@ -293,6 +305,7 @@ class WorldModelSnapshot:
         """
         if type(domain) is not WorldModelDomain:
             return Failure(WorldModelValidationError("domain must be a WorldModelDomain"))
+        self.revalidate()
         open_contradictions = [c for c in self.contradictions if c.left.domain is domain]
         if open_contradictions:
             return Failure(
@@ -312,11 +325,13 @@ class WorldModelSnapshot:
         )
 
     def stale_references(self) -> tuple[WorldModelReference, ...]:
+        self.revalidate()
         return tuple(
             r for r in self.references if r.status is WorldModelReferenceStatus.STALE
         )
 
     def missing_domains(self) -> tuple[WorldModelDomain, ...]:
+        self.revalidate()
         present = {
             r.domain
             for r in self.references

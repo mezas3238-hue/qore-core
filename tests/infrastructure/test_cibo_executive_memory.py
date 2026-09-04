@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -14,6 +14,7 @@ from qore.infrastructure.cibo_executive_memory import (
     CiboMemoryProvenance,
     CiboMemorySourceRef,
     CiboMemoryStore,
+    CiboMemorySummaryEntry,
 )
 from qore.kernel.result import Failure, Success
 from qore.modules.cibo.cognitive_contracts import (
@@ -285,3 +286,78 @@ class TestMemoryStore:
         store = CiboMemoryStore()
         assert not hasattr(store, "set_config")
         assert not hasattr(store, "mutate_trader")
+
+
+class TestRevalidationEquivalence:
+    def test_revalidate_rejects_self_supersession_injected(self) -> None:
+        item = _item()
+        object.__setattr__(item, "supersedes", (item.item_id,))
+        with pytest.raises(CiboExecutiveMemoryValidationError):
+            item.revalidate()
+
+    def test_revalidate_rejects_overlapping_supersedes_superseded_by(self) -> None:
+        other = UUID("40000000-0000-0000-0000-000000000009")
+        item = _item(supersedes=(other,))
+        object.__setattr__(item, "superseded_by", (other,))
+        with pytest.raises(CiboExecutiveMemoryValidationError):
+            item.revalidate()
+
+    def test_store_rejects_mutual_supersession_cycle(self) -> None:
+        first = UUID("40000000-0000-0000-0000-0000000000aa")
+        second = UUID("40000000-0000-0000-0000-0000000000bb")
+        with pytest.raises(CiboExecutiveMemoryValidationError):
+            CiboMemoryStore(
+                items=(
+                    _item(item_id=first, supersedes=(second,)),
+                    _item(item_id=second, supersedes=(first,)),
+                )
+            )
+
+    def test_summary_entry_rejects_secret_subject_code(self) -> None:
+        with pytest.raises(CiboExecutiveMemoryValidationError, match="sensitive"):
+            CiboMemorySummaryEntry(
+                item_id=UUID("40000000-0000-0000-0000-0000000000cc"),
+                kind=CiboMemoryKind.SEMANTIC,
+                subject_code="sk-abcdefghijklmnop",
+            )
+
+    def test_item_rejects_secret_subject_code(self) -> None:
+        with pytest.raises(CiboExecutiveMemoryValidationError, match="sensitive"):
+            CiboMemoryItem(
+                item_id=UUID("40000000-0000-0000-0000-0000000000dd"),
+                kind=CiboMemoryKind.SEMANTIC,
+                subject_code="sk-abcdefghijklmnop",
+                content="fact",
+                provenance=CiboMemoryProvenance(
+                    source_ref=CiboMemorySourceRef("source:demo"),
+                    effective_at=_NOW,
+                ),
+                freshness=CiboMemoryFreshness(
+                    state=CiboMemoryFreshnessState.CURRENT, as_of=_NOW
+                ),
+                evidence_refs=(_ref("evidence:demo"),),
+            )
+
+
+class TestTimezoneMetamorphism:
+    def test_freshness_logical_values_identical_across_offsets(self) -> None:
+        utc = datetime(2026, 8, 9, 5, 0, tzinfo=UTC)
+        est = datetime(2026, 8, 9, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = CiboMemoryFreshness(state=CiboMemoryFreshnessState.CURRENT, as_of=utc)
+        right = CiboMemoryFreshness(state=CiboMemoryFreshnessState.CURRENT, as_of=est)
+        assert left.logical_values() == right.logical_values()
+
+    def test_provenance_logical_values_identical_across_offsets(self) -> None:
+        utc = datetime(2026, 8, 9, 5, 0, tzinfo=UTC)
+        est = datetime(2026, 8, 9, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = CiboMemoryProvenance(
+            source_ref=CiboMemorySourceRef("source:demo"),
+            effective_at=utc,
+            recorded_at=utc,
+        )
+        right = CiboMemoryProvenance(
+            source_ref=CiboMemorySourceRef("source:demo"),
+            effective_at=est,
+            recorded_at=est,
+        )
+        assert left.logical_values() == right.logical_values()

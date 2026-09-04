@@ -214,3 +214,61 @@ def test_build_plan_rejects_non_task_items_without_leaking_exception() -> None:
     bad_items: Any = ["not-a-task"]
     with pytest.raises(CiboCognitiveValidationError):
         build_cognitive_plan(plan_id=_PLAN, goals=[_goal()], tasks=bad_items)
+
+
+class TestGoalCompletionEvidence:
+    def test_complete_task_bumps_revision_and_parent(self) -> None:
+        plan = _plan((_task(_TASK_A),))
+        updated = complete_task(plan, _TASK_A, ["ev-1"])
+        assert updated.revision == plan.revision + 1
+        assert updated.parent_revision == plan.revision
+
+    def test_completed_goal_with_pending_task_rejected(self) -> None:
+        goal = CognitiveGoal(
+            goal_id=_GOAL, description="done", status=CognitiveGoalStatus.COMPLETED
+        )
+        with pytest.raises(CiboCognitiveValidationError):
+            CognitivePlan(
+                plan_id=_PLAN,
+                goals=(goal,),
+                tasks=(_task(_TASK_A),),
+                revision=0,
+                parent_revision=None,
+            )
+
+    def test_completed_goal_with_zero_tasks_rejected(self) -> None:
+        orphan_id = CognitiveGoalId(UUID("00000000-0000-0000-0000-000000000002"))
+        orphan = CognitiveGoal(
+            goal_id=orphan_id, description="orphan", status=CognitiveGoalStatus.COMPLETED
+        )
+        with pytest.raises(CiboCognitiveValidationError):
+            build_cognitive_plan(
+                plan_id=_PLAN, goals=[_goal(), orphan], tasks=[_task(_TASK_A)]
+            )
+
+    def test_completed_task_with_pending_dependency_rejected(self) -> None:
+        first = _task(_TASK_A)
+        second = CognitiveTask(
+            task_id=_TASK_B,
+            goal_id=_GOAL,
+            description="analyze regime",
+            dependencies=(_TASK_A,),
+            required_evidence=(EvidenceRequirement(reference="ev-1"),),
+            status=CognitiveTaskStatus.COMPLETED,
+        )
+        with pytest.raises(CiboCognitiveValidationError):
+            build_cognitive_plan(plan_id=_PLAN, goals=[_goal()], tasks=[first, second])
+
+    def test_plan_history_rejects_plan_id_instability(self) -> None:
+        first = build_cognitive_plan(
+            plan_id=_PLAN, goals=[_goal()], tasks=[_task(_TASK_A)], revision=0
+        )
+        second = build_cognitive_plan(
+            plan_id=UUID("00000000-0000-0000-0000-000000000022"),
+            goals=[_goal()],
+            tasks=[_task(_TASK_A)],
+            revision=1,
+            parent_revision=0,
+        )
+        with pytest.raises(CiboCognitiveValidationError):
+            PlanHistory(revisions=(first, second))

@@ -26,6 +26,7 @@ from re import IGNORECASE, Pattern, compile, fullmatch
 from uuid import UUID
 
 from qore.kernel.errors import DomainError
+from qore.kernel.temporal import canonical_instant
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
 _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
@@ -45,16 +46,32 @@ _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
     compile(r"-----BEGIN [A-Z ]*(?:PRIVATE KEY|SECRET|ENCRYPTED PRIVATE KEY)-----"),
     compile(r"\bsk-[A-Za-z0-9_-]{8,}"),
-    compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    # AWS access key ids: permanent (AKIA) and temporary (ASIA) prefixes.
+    compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
     compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"),
-    compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}"),
-    compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{8,}", IGNORECASE),
+    compile(r"\bxox[baprsc]-[A-Za-z0-9-]{10,}"),
+    # Bearer tokens are high-entropy: require a digit inside an 8+ char token so
+    # prose like "Bearer certificate"/"Bearer obligations" is not a false positive.
+    compile(
+        r"\bBearer\s+(?=[A-Za-z0-9._~+/=-]{8,})"
+        r"[A-Za-z0-9._~+/=-]*[0-9][A-Za-z0-9._~+/=-]*",
+        IGNORECASE,
+    ),
+    # Bare HTTP Basic authorization: base64 body carrying at least one
+    # uppercase/digit/base64-special character. Case-sensitive on purpose: the
+    # discriminator must not match all-lowercase prose like "Basic principles"
+    # or "Basic authentication", while still matching real base64 credentials
+    # (e.g. "Basic dXNlcjpwYXNz").
+    compile(
+        r"\b[Bb]asic\s+(?=[A-Za-z0-9+/]{4,}={0,2}\b)"
+        r"(?=[A-Za-z0-9+/]*[A-Z0-9+/])[A-Za-z0-9+/]+={0,2}"
+    ),
     compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
     compile(r"//[^/@\s:]+:[^/@\s]+@"),
     compile(
         r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?key|secret[_-]?key|"
         r"client[_-]?secret|private[_-]?key|credential|authorization|token|secret)"
-        r"\s*[=:]\s*\S+"
+        r"[\"']?\s*[=:]\s*[\"']?\S+"
     ),
 )
 
@@ -97,6 +114,10 @@ def _validate_code(value: str, *, field_name: str) -> str:
     if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboCognitiveValidationError(
             f"{field_name} must use canonical lowercase code syntax"
+        )
+    if contains_secret_material(value):
+        raise CiboCognitiveValidationError(
+            f"{field_name} must not contain sensitive material"
         )
     return value
 
@@ -430,6 +451,10 @@ class CiboEpistemicClaim:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboEpistemicState"
             )
+        if self.epistemic_state is CiboEpistemicState.FORMAL_RECOMMENDATION:
+            raise CiboCognitiveValidationError(
+                "formal recommendations must use CiboFormalRecommendation"
+            )
         if type(self.reasoning_mode) is not CiboReasoningMode:
             raise CiboCognitiveValidationError(
                 "CIBO epistemic claim requires CiboReasoningMode"
@@ -582,5 +607,5 @@ class CiboFormalRecommendation:
             tuple(item.logical_values() for item in self.evidence_refs),
             self.uncertainty.logical_values(),
             self.limitations,
-            self.issued_at.isoformat(),
+            canonical_instant(self.issued_at),
         )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import cast
 from uuid import UUID
 
@@ -185,3 +185,56 @@ class TestJournalEntryAndStore:
         object.__setattr__(entry.evidence_refs[0], "value", "secret=injected")
         with pytest.raises(CiboExecutiveJournalValidationError):
             entry.revalidate()
+
+
+class TestRevalidationEquivalence:
+    def test_revalidate_rejects_self_supersession_injected(self) -> None:
+        entry = _entry()
+        object.__setattr__(entry, "supersedes", (entry.entry_id,))
+        with pytest.raises(CiboExecutiveJournalValidationError):
+            entry.revalidate()
+
+    def test_entry_rejects_overlapping_supersedes_superseded_by(self) -> None:
+        other = UUID("50000000-0000-0000-0000-000000000009")
+        with pytest.raises(CiboExecutiveJournalValidationError):
+            CiboJournalEntry(
+                entry_id=UUID("50000000-0000-0000-0000-0000000000c2"),
+                episode_id=UUID("50000000-0000-0000-0000-0000000000aa"),
+                kind=CiboJournalEntryKind.DECISION,
+                subject_code="subject-demo",
+                recorded_at=_NOW,
+                evidence_refs=(_ref("evidence:demo"),),
+                supersedes=(other,),
+                superseded_by=(other,),
+            )
+
+    def test_revalidate_rejects_insufficient_state_with_hypotheses(self) -> None:
+        diagnosis = CiboLossDiagnosis(
+            state=CiboLossDiagnosisState.HYPOTHESIZED,
+            hypotheses=(CiboLossHypothesis.REGIME_CHANGE,),
+        )
+        object.__setattr__(diagnosis, "state", CiboLossDiagnosisState.INSUFFICIENT_EVIDENCE)
+        with pytest.raises(CiboExecutiveJournalValidationError):
+            diagnosis.revalidate()
+
+    def test_store_rejects_mutual_supersession_cycle(self) -> None:
+        first = UUID("50000000-0000-0000-0000-0000000000aa")
+        second = UUID("50000000-0000-0000-0000-0000000000bb")
+        with pytest.raises(CiboExecutiveJournalValidationError):
+            CiboJournalStore(
+                entries=(
+                    _entry(entry_id=first, supersedes=(second,)),
+                    _entry(entry_id=second, supersedes=(first,)),
+                )
+            )
+
+
+class TestTimezoneMetamorphism:
+    def test_entry_logical_values_identical_across_offsets(self) -> None:
+        utc = datetime(2026, 8, 9, 5, 0, tzinfo=UTC)
+        est = datetime(2026, 8, 9, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = _entry(entry_id=UUID("50000000-0000-0000-0000-0000000000c1"))
+        right = _entry(entry_id=left.entry_id)
+        object.__setattr__(left, "recorded_at", utc)
+        object.__setattr__(right, "recorded_at", est)
+        assert left.logical_values() == right.logical_values()

@@ -15,6 +15,7 @@ from re import fullmatch
 from uuid import UUID
 
 from qore.kernel.errors import InfrastructureError
+from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
@@ -51,6 +52,10 @@ def _validate_code(value: str, *, field_name: str) -> str:
     if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveDeliberationValidationError(
             f"{field_name} must use canonical lowercase code syntax"
+        )
+    if contains_secret_material(value):
+        raise CiboExecutiveDeliberationValidationError(
+            f"{field_name} must not contain sensitive material"
         )
     return value
 
@@ -206,7 +211,7 @@ class CiboDeliberationContext:
             str(self.deliberation_id),
             self.version_code,
             self.subject_code,
-            self.as_of.isoformat(),
+            canonical_instant(self.as_of),
             tuple(item.logical_values() for item in self.evidence_refs),
         )
 
@@ -306,7 +311,7 @@ class CiboDeliberationContribution:
             tuple(item.logical_values() for item in self.evidence_refs),
             self.uncertainty.logical_values(),
             self.limitations,
-            self.contributed_at.isoformat(),
+            canonical_instant(self.contributed_at),
         )
 
 
@@ -344,6 +349,10 @@ class CiboDisagreement:
         if type(self.a_ref) is not UUID or type(self.b_ref) is not UUID:
             raise CiboExecutiveDeliberationValidationError(
                 "disagreement references must be UUIDs"
+            )
+        if self.a_ref == self.b_ref:
+            raise CiboExecutiveDeliberationValidationError(
+                "disagreement must reference two distinct contributions"
             )
         _validate_code(self.reason_code, field_name="disagreement reason code")
         _revalidate_refs(self.evidence_refs, field_name="disagreement evidence")
@@ -474,7 +483,7 @@ class CiboCouncilSynthesis:
             tuple(item.logical_values() for item in self.evidence_refs),
             self.uncertainty.logical_values(),
             self.limitations,
-            self.synthesized_at.isoformat(),
+            canonical_instant(self.synthesized_at),
         )
 
 
@@ -628,6 +637,10 @@ class CiboExecutiveDeliberation:
             raise CiboExecutiveDeliberationValidationError(
                 "disagreements failed canonical revalidation"
             )
+        if len(set(self.disagreements)) != len(self.disagreements):
+            raise CiboExecutiveDeliberationValidationError(
+                "deliberation disagreements must not contain duplicates"
+            )
         for disagreement in self.disagreements:
             disagreement.revalidate()
         if type(self.critiques) is not tuple or any(
@@ -640,19 +653,61 @@ class CiboExecutiveDeliberation:
             raise CiboExecutiveDeliberationValidationError(
                 "critiques failed canonical revalidation"
             )
+        if len({item.target_ref for item in self.critiques}) != len(self.critiques):
+            raise CiboExecutiveDeliberationValidationError(
+                "deliberation critiques must not duplicate targets"
+            )
         for critique in self.critiques:
             critique.revalidate()
         if type(self.outcome) is not CiboCouncilOutcome:
             raise CiboExecutiveDeliberationValidationError(
                 "deliberation requires CiboCouncilOutcome"
             )
+        contribution_ids = tuple(item.contribution_id for item in self.participants)
+        if len(set(contribution_ids)) != len(contribution_ids):
+            raise CiboExecutiveDeliberationValidationError(
+                "deliberation contributions must have unique ids"
+            )
+        roles = tuple(item.role.value for item in self.participants)
+        if len(set(roles)) != len(roles):
+            raise CiboExecutiveDeliberationValidationError(
+                "deliberation contributions must have unique roles"
+            )
+        known_ids = set(contribution_ids)
+        for disagreement in self.disagreements:
+            if disagreement.a_ref not in known_ids or disagreement.b_ref not in known_ids:
+                raise CiboExecutiveDeliberationValidationError(
+                    "disagreement must reference existing contributions"
+                )
+        for critique in self.critiques:
+            if critique.target_ref not in known_ids:
+                raise CiboExecutiveDeliberationValidationError(
+                    "critique must reference an existing contribution"
+                )
+        if self.disagreements:
+            if self.outcome not in _DISAGREEMENT_OUTCOMES:
+                raise CiboExecutiveDeliberationValidationError(
+                    "disagreements must not be collapsed into a decision"
+                )
+            if self.synthesis is not None:
+                raise CiboExecutiveDeliberationValidationError(
+                    "synthesis is forbidden while disagreements remain"
+                )
         if self.synthesis is not None:
             if type(self.synthesis) is not CiboCouncilSynthesis:
                 raise CiboExecutiveDeliberationValidationError(
                     "synthesis must be CiboCouncilSynthesis or None"
                 )
             self.synthesis.revalidate()
+            if self.outcome is not CiboCouncilOutcome.DECISION:
+                raise CiboExecutiveDeliberationValidationError(
+                    "synthesis requires a decision outcome"
+                )
         _validate_aware_datetime(self.concluded_at, field_name="deliberation concluded_at")
+        if self.concluded_at < self.context.as_of:
+            raise CiboExecutiveDeliberationValidationError(
+                "deliberation conclusion cannot predate its context"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -662,5 +717,5 @@ class CiboExecutiveDeliberation:
             tuple(item.logical_values() for item in self.critiques),
             None if self.synthesis is None else self.synthesis.logical_values(),
             self.outcome.value,
-            self.concluded_at.isoformat(),
+            canonical_instant(self.concluded_at),
         )

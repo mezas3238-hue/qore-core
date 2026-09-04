@@ -49,6 +49,7 @@ from qore.infrastructure.cibo_executive_deliberation import (
     CiboCouncilSynthesis,
 )
 from qore.kernel.errors import InfrastructureError
+from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
@@ -151,10 +152,11 @@ def bind_uncertainty_kind(note: CalibrationNote) -> CiboUncertaintyKind:
     """Deterministically bind a Batch 008 calibration note to a Batch 006 kind.
 
     An explicit substrate-native ``kind`` token is carried verbatim (total map);
-    otherwise ``abstention_required`` -> ``ABSTAIN_DEFER``, a zero ``confidence_band``
-    -> ``INSUFFICIENT_EVIDENCE`` (zero confidence is never manufactured into positive
-    bounded confidence), else ``BOUNDED_CONFIDENCE``. No confidence value is
-    fabricated: the bound kind preserves uncertainty without inventing evidence.
+    otherwise a zero ``confidence_band`` -> ``INSUFFICIENT_EVIDENCE`` (zero
+    confidence is never manufactured into positive bounded confidence, and takes
+    precedence over abstention), else ``abstention_required`` -> ``ABSTAIN_DEFER``,
+    else ``BOUNDED_CONFIDENCE``. No confidence value is fabricated: the bound kind
+    preserves uncertainty without inventing evidence.
     """
     if type(note) is not CalibrationNote:
         raise CiboCognitiveIntegrationValidationError("note must be a CalibrationNote")
@@ -162,10 +164,10 @@ def bind_uncertainty_kind(note: CalibrationNote) -> CiboUncertaintyKind:
     kind = _uncertainty_kind_for_token(note.kind)
     if kind is not None:
         return kind
-    if note.abstention_required:
-        return CiboUncertaintyKind.ABSTAIN_DEFER
     if note.confidence_band <= 0:
         return CiboUncertaintyKind.INSUFFICIENT_EVIDENCE
+    if note.abstention_required:
+        return CiboUncertaintyKind.ABSTAIN_DEFER
     return CiboUncertaintyKind.BOUNDED_CONFIDENCE
 
 
@@ -305,9 +307,11 @@ class CiboIntegratedContentBinding:
     """An exact immutable ``(id, fingerprint)`` reference into another record.
 
     The fingerprint is the referenced record's own content/version self-fingerprint.
-    The verified entry points (``bind_*_reference``) revalidate the referenced record
-    before constructing the binding, so an unproven fingerprint cannot enter the
-    episode fingerprint.
+    The reference carries no caller-assertable proof state: it is admissible into an
+    integrated episode/replay only when the episode re-derives it from verified
+    source content at the admission boundary (``bind_*_reference``), never from a
+    directly constructed, mutated, copied, or otherwise caller-supplied binding
+    object.
     """
 
     id: UUID
@@ -350,9 +354,7 @@ def bind_world_snapshot_reference(snapshot: WorldModelSnapshot) -> CiboIntegrate
         raise CiboCognitiveIntegrationValidationError(
             "world snapshot fingerprint does not match its canonical content"
         )
-    return CiboIntegratedContentBinding(
-        id=snapshot.snapshot_id, fingerprint=snapshot.fingerprint
-    )
+    return CiboIntegratedContentBinding(id=snapshot.snapshot_id, fingerprint=snapshot.fingerprint)
 
 
 def bind_synthesis_reference(synthesis: CiboCouncilSynthesis) -> CiboIntegratedContentBinding:
@@ -485,8 +487,11 @@ def _canonical_tool_calls(
 class CiboIntegratedCognitiveEpisode:
     """An authority-free, fingerprint-bound composition of both substrates.
 
-    Every cross-substrate link is a UUID/fingerprint reference; no authority,
-    content, credential, order, or business semantic is inlined. Disagreement is
+    Content fields retain their verified source objects (world snapshot, synthesis,
+    replay, evaluation, plan) so trust can be re-derived from source content at the
+    admission and replay boundaries; the episode fingerprint and ``logical_values()``
+    project those sources down to ``(id, fingerprint)`` references only, so no
+    authority, credential, order, or business semantic is inlined. Disagreement is
     preserved (a disagreement outcome forbids a synthesis reference and bounded
     confidence), uncertainty is preserved and recursively revalidated, and the whole
     episode is deterministically self-fingerprinted.
@@ -496,13 +501,13 @@ class CiboIntegratedCognitiveEpisode:
     reasoning_mode: CiboReasoningMode
     evidence_bindings: tuple[CiboIntegratedEvidenceBinding, ...]
     recorded_at: datetime
-    world_snapshot: CiboIntegratedContentBinding | None = None
+    world_snapshot: WorldModelSnapshot | None = None
     memory_refs: tuple[UUID, ...] = ()
     deliberation_outcome: CiboCouncilOutcome | None = None
-    synthesis: CiboIntegratedContentBinding | None = None
-    replay: CiboIntegratedContentBinding | None = None
-    evaluation: CiboIntegratedContentBinding | None = None
-    plan_reference: CiboIntegratedContentBinding | None = None
+    synthesis: CiboCouncilSynthesis | None = None
+    replay: ReplayEpisode | None = None
+    evaluation: CognitiveEvaluation | None = None
+    plan_reference: CognitivePlan | None = None
     tool_calls: tuple[ReplayToolCall, ...] = ()
     uncertainty: CiboUncertainty | None = None
     trader_suitability: CiboIntegratedSuitabilityBinding | None = None
@@ -541,23 +546,9 @@ class CiboIntegratedCognitiveEpisode:
             raise CiboCognitiveIntegrationValidationError(
                 "deliberation outcome must be a CiboCouncilOutcome or None"
             )
-        for field_name, value in (
-            ("world snapshot", self.world_snapshot),
-            ("synthesis", self.synthesis),
-            ("replay", self.replay),
-            ("evaluation", self.evaluation),
-            ("plan reference", self.plan_reference),
-        ):
-            if value is not None:
-                if type(value) is not CiboIntegratedContentBinding:
-                    raise CiboCognitiveIntegrationValidationError(
-                        f"{field_name} must be a CiboIntegratedContentBinding or None"
-                    )
-                value.revalidate()
-        if self.replay is not None and self.replay.id != self.integration_id:
-            raise CiboCognitiveIntegrationValidationError(
-                "replay binding id must equal the integrated episode id"
-            )
+        world_ref, synthesis_ref, replay_ref, evaluation_ref, plan_ref = (
+            self._content_references()
+        )
         object.__setattr__(
             self,
             "tool_calls",
@@ -604,7 +595,9 @@ class CiboIntegratedCognitiveEpisode:
                 raise CiboCognitiveIntegrationValidationError(
                     "a synthesis reference requires a decision outcome"
                 )
-        expected = fingerprint_material(self.logical_values())
+        expected = fingerprint_material(
+            self._logical_values(world_ref, synthesis_ref, replay_ref, evaluation_ref, plan_ref)
+        )
         if self.fingerprint is None:
             object.__setattr__(self, "fingerprint", expected)
         else:
@@ -620,20 +613,64 @@ class CiboIntegratedCognitiveEpisode:
     def revalidate(self) -> None:
         self._validate()
 
+    def _content_references(
+        self,
+    ) -> tuple[
+        CiboIntegratedContentBinding | None,
+        CiboIntegratedContentBinding | None,
+        CiboIntegratedContentBinding | None,
+        CiboIntegratedContentBinding | None,
+        CiboIntegratedContentBinding | None,
+    ]:
+        """Re-derive trusted ``(id, fingerprint)`` references from source content.
+
+        Each ``bind_*_reference`` revalidates its source and re-derives the
+        fingerprint from that source's content, so forged, swapped, stale, or
+        reflectively corrupted source fails closed here. No caller-supplied binding
+        object is ever trusted.
+        """
+        return (
+            None
+            if self.world_snapshot is None
+            else bind_world_snapshot_reference(self.world_snapshot),
+            None if self.synthesis is None else bind_synthesis_reference(self.synthesis),
+            None
+            if self.replay is None
+            else bind_replay_reference(self.replay, integration_id=self.integration_id),
+            None if self.evaluation is None else bind_evaluation_reference(self.evaluation),
+            None if self.plan_reference is None else bind_plan_reference(self.plan_reference),
+        )
+
     def logical_values(self) -> tuple[object, ...]:
+        """Project the episode to reference-only logical material.
+
+        Content fields are reduced to their ``(id, fingerprint)`` references by
+        re-deriving from retained source content, so the fingerprint never inlines
+        source content and any forged content fails closed.
+        """
+        return self._logical_values(*self._content_references())
+
+    def _logical_values(
+        self,
+        world_ref: CiboIntegratedContentBinding | None,
+        synthesis_ref: CiboIntegratedContentBinding | None,
+        replay_ref: CiboIntegratedContentBinding | None,
+        evaluation_ref: CiboIntegratedContentBinding | None,
+        plan_ref: CiboIntegratedContentBinding | None,
+    ) -> tuple[object, ...]:
         return (
             _EPISODE_SCHEMA_VERSION,
             str(self.integration_id),
             self.reasoning_mode.value,
             tuple(item.logical_values() for item in self.evidence_bindings),
-            self.recorded_at.isoformat(),
-            None if self.world_snapshot is None else self.world_snapshot.logical_values(),
+            canonical_instant(self.recorded_at),
+            None if world_ref is None else world_ref.logical_values(),
             tuple(str(v) for v in self.memory_refs),
             None if self.deliberation_outcome is None else self.deliberation_outcome.value,
-            None if self.synthesis is None else self.synthesis.logical_values(),
-            None if self.replay is None else self.replay.logical_values(),
-            None if self.evaluation is None else self.evaluation.logical_values(),
-            None if self.plan_reference is None else self.plan_reference.logical_values(),
+            None if synthesis_ref is None else synthesis_ref.logical_values(),
+            None if replay_ref is None else replay_ref.logical_values(),
+            None if evaluation_ref is None else evaluation_ref.logical_values(),
+            None if plan_ref is None else plan_ref.logical_values(),
             tuple(item.logical_values() for item in self.tool_calls),
             None if self.trader_suitability is None else self.trader_suitability.logical_values(),
             None
@@ -675,13 +712,13 @@ def build_integrated_episode(
     reasoning_mode: CiboReasoningMode,
     evidence_bindings: Sequence[CiboIntegratedEvidenceBinding],
     recorded_at: datetime,
-    world_snapshot: CiboIntegratedContentBinding | None = None,
+    world_snapshot: WorldModelSnapshot | None = None,
     memory_refs: Sequence[UUID] = (),
     deliberation_outcome: CiboCouncilOutcome | None = None,
-    synthesis: CiboIntegratedContentBinding | None = None,
-    replay: CiboIntegratedContentBinding | None = None,
-    evaluation: CiboIntegratedContentBinding | None = None,
-    plan_reference: CiboIntegratedContentBinding | None = None,
+    synthesis: CiboCouncilSynthesis | None = None,
+    replay: ReplayEpisode | None = None,
+    evaluation: CognitiveEvaluation | None = None,
+    plan_reference: CognitivePlan | None = None,
     tool_calls: Sequence[ReplayToolCall] = (),
     uncertainty: CiboUncertainty | None = None,
     trader_suitability: CiboIntegratedSuitabilityBinding | None = None,
@@ -689,7 +726,11 @@ def build_integrated_episode(
 ) -> CiboIntegratedCognitiveEpisode:
     """Build a validated, canonically ordered, self-fingerprinted episode.
 
-    Sequence inputs are validated at the factory boundary; the episode is
+    Sequence inputs are validated at the factory boundary, and content references
+    are supplied as their verified source objects (world snapshot, synthesis,
+    replay, evaluation, plan); the episode re-derives each ``(id, fingerprint)``
+    binding from that source content at the admission boundary, so no caller
+    supplied binding object can self-assert trusted status. The episode is
     constructed exactly once (its ``__post_init__`` canonicalizes and fingerprints
     every field), so no field can be silently dropped between two constructions.
     """

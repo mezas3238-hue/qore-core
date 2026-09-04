@@ -180,3 +180,30 @@ def test_contains_secret_material_requires_exact_str() -> None:
 
     with pytest.raises(DomainValidationError):
         contains_secret_material(Sneaky("sk-abcdefghijklmnop"))
+
+
+def test_secret_detector_covers_aws_asia_basic_and_json_labels() -> None:
+    for witness in (
+        "ASIAIOSFODNN7EXAMPLE",
+        "Basic dXNlcjpwYXNz",
+        "Basic YWxpY2U6cGFzc3dvcmQ=",
+        '"client_secret": "abcdefghijklmnopqrstuvwxyz123456"',
+        '{"client_secret": "abcdefghijklmnopqrstuvwxyz123456"}',
+        '"api_key": "abcdefghijklmnopqrstuvwxyz123456"',
+        "xoxc-123456789012-abcdefghijklmnopqrstuvwxyz",
+    ):
+        assert contains_secret_material(witness), witness
+
+
+def test_secret_detector_rejects_bearer_and_basic_prose() -> None:
+    for benign in (
+        "Bearer certificate",
+        "Bearer obligations",
+        "Bearer instruments",
+        "Basic principles",
+        "Basic authentication",
+        "basic authentication is the http scheme",
+        "Basic method",
+        "Basic assumption",
+    ):
+        assert not contains_secret_material(benign), benign

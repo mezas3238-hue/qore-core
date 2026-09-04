@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -251,3 +251,78 @@ class TestReflectiveCorruptionFailsAtConstruction:
         )
         assert isinstance(result, Failure)
         assert isinstance(result.error, CiboExecutiveBrainValidationError)
+
+
+class TestSynthesisRevalidationEquivalence:
+    def test_revalidate_rejects_directive_mutated_to_question(self) -> None:
+        synthesis = _synthesize()
+        object.__setattr__(synthesis, "directive", CiboExecutiveDirectiveKind.QUESTION)
+        with pytest.raises(CiboExecutiveBrainValidationError):
+            synthesis.revalidate()
+
+    def test_revalidate_rejects_recommend_without_recommendation(self) -> None:
+        synthesis = _synthesize()
+        object.__setattr__(synthesis, "recommendation", None)
+        with pytest.raises(CiboExecutiveBrainValidationError):
+            synthesis.revalidate()
+
+    def test_secret_subject_code_rejected(self) -> None:
+        result = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-0000000000cc"),
+            directive=CiboExecutiveDirectiveKind.DEFER,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            subject_code="sk-abcdefghijklmnop",
+            synthesized_at=_NOW,
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=_insufficient_uncertainty(),
+        )
+        assert isinstance(result, Failure)
+        assert isinstance(result.error, CiboExecutiveBrainValidationError)
+
+
+class TestTimezoneMetamorphism:
+    def test_synthesis_logical_values_identical_across_offsets(self) -> None:
+        utc = datetime(2026, 8, 9, 5, 0, tzinfo=UTC)
+        est = datetime(2026, 8, 9, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-0000000000dd"),
+            directive=CiboExecutiveDirectiveKind.DEFER,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            subject_code="subject-demo",
+            synthesized_at=utc,
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=_insufficient_uncertainty(),
+        )
+        right = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-0000000000dd"),
+            directive=CiboExecutiveDirectiveKind.DEFER,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            subject_code="subject-demo",
+            synthesized_at=est,
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=_insufficient_uncertainty(),
+        )
+        assert isinstance(left, Success) and isinstance(right, Success)
+        assert left.value.logical_values() == right.value.logical_values()
+
+    def test_synthesis_distinct_instants_stay_distinct(self) -> None:
+        left = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-0000000000ee"),
+            directive=CiboExecutiveDirectiveKind.DEFER,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            subject_code="subject-demo",
+            synthesized_at=datetime(2026, 8, 9, 5, 0, tzinfo=UTC),
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=_insufficient_uncertainty(),
+        )
+        right = _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-0000000000ee"),
+            directive=CiboExecutiveDirectiveKind.DEFER,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            subject_code="subject-demo",
+            synthesized_at=datetime(2026, 8, 9, 5, 1, tzinfo=UTC),
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=_insufficient_uncertainty(),
+        )
+        assert isinstance(left, Success) and isinstance(right, Success)
+        assert left.value.logical_values() != right.value.logical_values()

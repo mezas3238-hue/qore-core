@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -278,3 +278,72 @@ class TestCouncilSynthesisSecretRejection:
     def test_benign_summary_still_accepted(self) -> None:
         assert _synthesis(summary="the authentication failed and was retried").summary
         assert _synthesis(summary="the client_secret field must be configured").summary
+
+
+class TestRevalidationEquivalence:
+    def test_revalidate_rejects_synthesis_under_disagreement(self) -> None:
+        deliberation = _deliberation(
+            synthesis=_synthesis(), outcome=CiboCouncilOutcome.DECISION
+        )
+        object.__setattr__(deliberation, "outcome", CiboCouncilOutcome.DISAGREEMENT)
+        with pytest.raises(CiboExecutiveDeliberationValidationError):
+            deliberation.revalidate()
+
+    def test_revalidate_rejects_synthesis_without_decision(self) -> None:
+        deliberation = _deliberation(
+            synthesis=_synthesis(), outcome=CiboCouncilOutcome.DECISION
+        )
+        object.__setattr__(deliberation, "outcome", CiboCouncilOutcome.NO_DECISION)
+        with pytest.raises(CiboExecutiveDeliberationValidationError):
+            deliberation.revalidate()
+
+    def test_revalidate_rejects_concluded_before_context(self) -> None:
+        deliberation = _deliberation(outcome=CiboCouncilOutcome.DECISION)
+        object.__setattr__(
+            deliberation, "concluded_at", datetime(2026, 8, 8, 0, 0, tzinfo=UTC)
+        )
+        with pytest.raises(CiboExecutiveDeliberationValidationError):
+            deliberation.revalidate()
+
+    def test_secret_subject_code_rejected(self) -> None:
+        with pytest.raises(CiboExecutiveDeliberationValidationError, match="sensitive"):
+            CiboDeliberationContext(
+                deliberation_id=UUID("60000000-0000-0000-0000-0000000000ff"),
+                version_code="v1",
+                subject_code="sk-abcdefghijklmnop",
+                as_of=_NOW,
+            )
+
+
+class TestTimezoneMetamorphism:
+    def test_context_logical_values_identical_across_offsets(self) -> None:
+        utc = datetime(2026, 8, 9, 5, 0, tzinfo=UTC)
+        est = datetime(2026, 8, 9, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+        left = CiboDeliberationContext(
+            deliberation_id=UUID("60000000-0000-0000-0000-0000000000f1"),
+            version_code="v1",
+            subject_code="subject-demo",
+            as_of=utc,
+        )
+        right = CiboDeliberationContext(
+            deliberation_id=left.deliberation_id,
+            version_code="v1",
+            subject_code="subject-demo",
+            as_of=est,
+        )
+        assert left.logical_values() == right.logical_values()
+
+    def test_context_distinct_instants_stay_distinct(self) -> None:
+        left = CiboDeliberationContext(
+            deliberation_id=UUID("60000000-0000-0000-0000-0000000000f2"),
+            version_code="v1",
+            subject_code="subject-demo",
+            as_of=datetime(2026, 8, 9, 5, 0, tzinfo=UTC),
+        )
+        right = CiboDeliberationContext(
+            deliberation_id=left.deliberation_id,
+            version_code="v1",
+            subject_code="subject-demo",
+            as_of=datetime(2026, 8, 9, 5, 1, tzinfo=UTC),
+        )
+        assert left.logical_values() != right.logical_values()

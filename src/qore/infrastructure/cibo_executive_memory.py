@@ -16,6 +16,7 @@ from uuid import UUID
 
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
+from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
@@ -50,6 +51,10 @@ def _validate_code(value: str, *, field_name: str) -> str:
     if type(value) is not str or fullmatch(_CODE_RE, value) is None:
         raise CiboExecutiveMemoryValidationError(
             f"{field_name} must use canonical lowercase code syntax"
+        )
+    if contains_secret_material(value):
+        raise CiboExecutiveMemoryValidationError(
+            f"{field_name} must not contain sensitive material"
         )
     return value
 
@@ -152,7 +157,7 @@ class CiboMemoryFreshness:
         _validate_aware_datetime(self.as_of, field_name="memory freshness as_of")
 
     def logical_values(self) -> tuple[object, ...]:
-        return (self.state.value, self.as_of.isoformat())
+        return (self.state.value, canonical_instant(self.as_of))
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,8 +219,8 @@ class CiboMemoryProvenance:
     def logical_values(self) -> tuple[object, ...]:
         return (
             self.source_ref.logical_values(),
-            self.effective_at.isoformat(),
-            None if self.recorded_at is None else self.recorded_at.isoformat(),
+            canonical_instant(self.effective_at),
+            None if self.recorded_at is None else canonical_instant(self.recorded_at),
         )
 
 
@@ -376,6 +381,14 @@ class CiboMemoryItem:
             raise CiboExecutiveMemoryValidationError(
                 "memory superseded_by failed canonical revalidation"
             )
+        if self.item_id in self.supersedes or self.item_id in self.superseded_by:
+            raise CiboExecutiveMemoryValidationError(
+                "memory item must not supersede or be superseded by itself"
+            )
+        if set(self.supersedes) & set(self.superseded_by):
+            raise CiboExecutiveMemoryValidationError(
+                "memory item supersedes/superseded_by must be disjoint"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -402,16 +415,16 @@ class CiboMemorySummaryEntry:
     subject_code: str
 
     def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
         if type(self.item_id) is not UUID:
             raise CiboExecutiveMemoryValidationError("summary entry id must be a UUID")
         if type(self.kind) is not CiboMemoryKind:
             raise CiboExecutiveMemoryValidationError(
                 "summary entry kind must be a CiboMemoryKind"
             )
-        if type(self.subject_code) is not str:
-            raise CiboExecutiveMemoryValidationError(
-                "summary entry subject code must be an exact str"
-            )
+        _validate_code(self.subject_code, field_name="summary entry subject code")
 
     def logical_values(self) -> tuple[object, ...]:
         return (str(self.item_id), self.kind.value, self.subject_code)
@@ -424,12 +437,17 @@ class CiboMemorySummary:
     entries: tuple[CiboMemorySummaryEntry, ...] = ()
 
     def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
         if type(self.entries) is not tuple or any(
             type(entry) is not CiboMemorySummaryEntry for entry in self.entries
         ):
             raise CiboExecutiveMemoryValidationError(
                 "summary entries must be an immutable tuple of CiboMemorySummaryEntry"
             )
+        for entry in self.entries:
+            entry.revalidate()
 
     def logical_values(self) -> tuple[object, ...]:
         return tuple(entry.logical_values() for entry in self.entries)
@@ -451,6 +469,28 @@ def _link_superseded_by(item: CiboMemoryItem, superseding_id: UUID) -> CiboMemor
     )
 
 
+def _supersession_cycle(items: tuple[CiboMemoryItem, ...]) -> bool:
+    """Return whether the supersedes graph contains a cycle (lineage corruption)."""
+    by_id = {item.item_id: item for item in items}
+    visiting: set[UUID] = set()
+    visited: set[UUID] = set()
+
+    def visit(node: UUID) -> bool:
+        if node in visiting:
+            return True
+        if node in visited:
+            return False
+        visiting.add(node)
+        for superseded_id in by_id[node].supersedes:
+            if superseded_id in by_id and visit(superseded_id):
+                return True
+        visiting.remove(node)
+        visited.add(node)
+        return False
+
+    return any(visit(item.item_id) for item in items)
+
+
 @dataclass(frozen=True, slots=True)
 class CiboMemoryStore:
     """Pure, deterministic in-memory seam for governed executive memory.
@@ -460,6 +500,46 @@ class CiboMemoryStore:
     """
 
     items: tuple[CiboMemoryItem, ...] = ()
+
+    def __post_init__(self) -> None:
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        if type(self.items) is not tuple or any(
+            type(item) is not CiboMemoryItem for item in self.items
+        ):
+            raise CiboExecutiveMemoryValidationError(
+                "memory store items must be an immutable tuple of CiboMemoryItem"
+            )
+        by_id = {item.item_id: item for item in self.items}
+        if len(by_id) != len(self.items):
+            raise CiboExecutiveMemoryValidationError(
+                "memory store items must have unique ids"
+            )
+        for item in self.items:
+            item.revalidate()
+            for superseded_id in item.supersedes:
+                if superseded_id not in by_id:
+                    raise CiboExecutiveMemoryValidationError(
+                        "memory supersedes references an unknown item"
+                    )
+                if item.item_id not in by_id[superseded_id].superseded_by:
+                    raise CiboExecutiveMemoryValidationError(
+                        "memory supersedes lineage is not symmetric"
+                    )
+            for superseding_id in item.superseded_by:
+                if superseding_id not in by_id:
+                    raise CiboExecutiveMemoryValidationError(
+                        "memory superseded_by references an unknown item"
+                    )
+                if item.item_id not in by_id[superseding_id].supersedes:
+                    raise CiboExecutiveMemoryValidationError(
+                        "memory superseded_by lineage is not symmetric"
+                    )
+        if _supersession_cycle(self.items):
+            raise CiboExecutiveMemoryValidationError(
+                "memory supersession lineage must be acyclic"
+            )
 
     def record(
         self,
@@ -482,6 +562,12 @@ class CiboMemoryStore:
         if item.item_id in existing_ids:
             return Failure(
                 CiboExecutiveMemoryValidationError("memory item id already retained")
+            )
+        if item.superseded_by:
+            return Failure(
+                CiboExecutiveMemoryValidationError(
+                    "memory item must not pre-claim superseded_by lineage"
+                )
             )
         for superseded_id in item.supersedes:
             if superseded_id not in existing_ids:
