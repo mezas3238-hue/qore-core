@@ -229,7 +229,10 @@ def _causal_ref_material(
 
 
 def _canonical_evidence(
-    values: tuple[HypothesisEvidence, ...], *, field: str
+    values: tuple[HypothesisEvidence, ...],
+    *,
+    field: str,
+    polarity: HypothesisEvidencePolarity | None = None,
 ) -> tuple[HypothesisEvidence, ...]:
     if type(values) is not tuple or any(type(v) is not HypothesisEvidence for v in values):
         raise HypothesisValidationError(
@@ -237,6 +240,13 @@ def _canonical_evidence(
         )
     for item in values:
         item.revalidate()
+        if polarity is not None and item.polarity is not polarity:
+            # A channel is typed by its polarity: evidence_for/against/
+            # contradictions/tests must carry only their own polarity, so a
+            # caller cannot relabel generic evidence into a governed channel.
+            raise HypothesisValidationError(
+                f"{field} must carry only {polarity.value} evidence"
+            )
     # Dedup over canonical instant semantics (logical_values normalizes every
     # observed_at to its UTC instant), so genuinely-distinct DST-fold instants
     # remain distinct while equivalent-offset representations of one instant
@@ -288,20 +298,38 @@ class Hypothesis:
         object.__setattr__(
             self,
             "evidence_for",
-            _canonical_evidence(self.evidence_for, field="hypothesis evidence for"),
+            _canonical_evidence(
+                self.evidence_for,
+                field="hypothesis evidence for",
+                polarity=HypothesisEvidencePolarity.SUPPORTS,
+            ),
         )
         object.__setattr__(
             self,
             "evidence_against",
-            _canonical_evidence(self.evidence_against, field="hypothesis evidence against"),
+            _canonical_evidence(
+                self.evidence_against,
+                field="hypothesis evidence against",
+                polarity=HypothesisEvidencePolarity.AGAINST,
+            ),
         )
         object.__setattr__(
             self,
             "contradictions",
-            _canonical_evidence(self.contradictions, field="hypothesis contradictions"),
+            _canonical_evidence(
+                self.contradictions,
+                field="hypothesis contradictions",
+                polarity=HypothesisEvidencePolarity.CONTRADICTION,
+            ),
         )
         object.__setattr__(
-            self, "tests", _canonical_evidence(self.tests, field="hypothesis tests")
+            self,
+            "tests",
+            _canonical_evidence(
+                self.tests,
+                field="hypothesis tests",
+                polarity=HypothesisEvidencePolarity.TEST_RESULT,
+            ),
         )
         if self.confidence is not None:
             if type(self.confidence) is not CiboConfidence:
@@ -434,14 +462,26 @@ def build_hypothesis(
     # Canonicalize every semantically-unordered sequence BEFORE deriving the
     # fingerprint, so any permutation of the same semantic input produces the
     # same canonical state and fingerprint (constructor == revalidate).
-    canonical_for = _canonical_evidence(tuple(evidence_for), field="hypothesis evidence for")
+    canonical_for = _canonical_evidence(
+        tuple(evidence_for),
+        field="hypothesis evidence for",
+        polarity=HypothesisEvidencePolarity.SUPPORTS,
+    )
     canonical_against = _canonical_evidence(
-        tuple(evidence_against), field="hypothesis evidence against"
+        tuple(evidence_against),
+        field="hypothesis evidence against",
+        polarity=HypothesisEvidencePolarity.AGAINST,
     )
     canonical_contradictions = _canonical_evidence(
-        tuple(contradictions), field="hypothesis contradictions"
+        tuple(contradictions),
+        field="hypothesis contradictions",
+        polarity=HypothesisEvidencePolarity.CONTRADICTION,
     )
-    canonical_tests = _canonical_evidence(tuple(tests), field="hypothesis tests")
+    canonical_tests = _canonical_evidence(
+        tuple(tests),
+        field="hypothesis tests",
+        polarity=HypothesisEvidencePolarity.TEST_RESULT,
+    )
     return Hypothesis(
         hypothesis_id=hypothesis_id,
         content_code=content_code,
@@ -474,6 +514,54 @@ def build_hypothesis(
             )
         ),
     )
+
+
+def _evidence_identity(evidence: HypothesisEvidence) -> tuple[str, datetime]:
+    """Return the canonical identity of one evidence observation.
+
+    Identity is ``(reference value, UTC instant)``: a genuinely new observation
+    of the same reference at a different instant is new material, while the same
+    observation re-represented under an equivalent timezone/order, re-supplied
+    verbatim, or relabeled across channels/polarities is not new.
+    """
+    return (
+        evidence.ref.value,
+        utc_instant(evidence.observed_at, field="hypothesis evidence observed_at"),
+    )
+
+
+def _retained_evidence_identity(hypothesis: Hypothesis) -> frozenset[tuple[str, datetime]]:
+    """Return the canonical identity of every evidence a hypothesis retains."""
+    return frozenset(
+        _evidence_identity(evidence)
+        for evidence in (
+            hypothesis.evidence_for
+            + hypothesis.evidence_against
+            + hypothesis.contradictions
+            + hypothesis.tests
+        )
+    )
+
+
+def _union_evidence(
+    retained: tuple[HypothesisEvidence, ...],
+    supplied: tuple[HypothesisEvidence, ...],
+) -> tuple[HypothesisEvidence, ...]:
+    """Merge retained and supplied evidence, deduping by canonical identity.
+
+    Identity is ``(reference value, UTC instant)``; re-supplying evidence that
+    is already retained is ignored (it is not new material), so a transition
+    that re-supplies a retained falsifier alongside a genuinely new one merges
+    cleanly instead of tripping the channel's duplicate-evidence check.
+    """
+    seen: set[tuple[str, datetime]] = set()
+    merged: list[HypothesisEvidence] = []
+    for evidence in (*retained, *supplied):
+        identity = _evidence_identity(evidence)
+        if identity not in seen:
+            seen.add(identity)
+            merged.append(evidence)
+    return tuple(merged)
 
 
 def transition_hypothesis(
@@ -521,24 +609,66 @@ def transition_hypothesis(
         _validate_code(reason_code, field="revision reason code")
     if hypothesis.status is HypothesisStatus.REFUTED and new_status is HypothesisStatus.REVISED:
         # Leaving REFUTED is a governed revision, never a ceremonial transition:
-        # it requires an auditable reason code plus material new evidence or a
-        # content change.
+        # it requires an auditable reason code plus a durable content change or
+        # genuinely new evidence/test material. "New" is decided by canonical
+        # evidence identity (the retained evidence reference), so re-supplying
+        # the exact same evidence, the same evidence under an alternate
+        # timezone/order representation, or the same evidence relabeled into a
+        # different channel/polarity never counts as new.
         if reason_code is None:
             raise HypothesisValidationError(
                 "leaving refuted requires an explicit revision reason code"
             )
         content_changed = content_code is not None and content_code != hypothesis.content_code
-        new_evidence = bool(
-            tuple(evidence_for)
-            or tuple(evidence_against)
-            or tuple(contradictions)
-            or tuple(tests)
-        )
-        if not content_changed and not new_evidence:
-            raise HypothesisValidationError(
-                "leaving refuted requires material new evidence or a content change"
+        if not content_changed:
+            retained = _retained_evidence_identity(hypothesis)
+            supplied = (
+                _canonical_evidence(
+                    tuple(evidence_for),
+                    field="hypothesis evidence for",
+                    polarity=HypothesisEvidencePolarity.SUPPORTS,
+                )
+                + _canonical_evidence(
+                    tuple(evidence_against),
+                    field="hypothesis evidence against",
+                    polarity=HypothesisEvidencePolarity.AGAINST,
+                )
+                + _canonical_evidence(
+                    tuple(contradictions),
+                    field="hypothesis contradictions",
+                    polarity=HypothesisEvidencePolarity.CONTRADICTION,
+                )
+                + _canonical_evidence(
+                    tuple(tests),
+                    field="hypothesis tests",
+                    polarity=HypothesisEvidencePolarity.TEST_RESULT,
+                )
             )
+            if not any(_evidence_identity(evidence) not in retained for evidence in supplied):
+                raise HypothesisValidationError(
+                    "leaving refuted requires material new evidence or a content change"
+                )
     next_code = content_code if content_code is not None else hypothesis.content_code
+    # Retain falsifying evidence (contradictions + evidence_against) across
+    # revisions so a hypothesis never forgets why it was refuted, and so an old
+    # falsifier cannot be laundered back in as "new" later in the lineage. The
+    # merge is identity-deduped (canonical reference + UTC instant), so
+    # re-supplying an already-retained falsifier alongside a genuinely new one
+    # is accepted without a spurious duplicate-evidence failure. Entering
+    # CONFIRMED resolves prior falsification, so those channels are cleared
+    # there (a confirmed hypothesis must not carry against/contradiction).
+    if new_status is HypothesisStatus.CONFIRMED:
+        next_against: tuple[HypothesisEvidence, ...] = ()
+        next_contradictions: tuple[HypothesisEvidence, ...] = ()
+    else:
+        next_against = _union_evidence(hypothesis.evidence_against, tuple(evidence_against))
+        next_contradictions = _union_evidence(hypothesis.contradictions, tuple(contradictions))
+    # Supporting/test evidence is per-revision (replaced, not accumulated): the
+    # governed new-evidence gate for leaving REFUTED scopes its canonical-identity
+    # comparison to the evidence the REFUTED hypothesis itself retains (its
+    # falsifying channels), matching "must not count as new the evidence already
+    # retained by the refuted hypothesis". Prior revisions stay durable via
+    # immutability, and their evidence is never silently erased from the lineage.
     return build_hypothesis(
         hypothesis_id=hypothesis.hypothesis_id,
         content_code=next_code,
@@ -546,8 +676,8 @@ def transition_hypothesis(
         revision_parent=hypothesis.hypothesis_id,
         status=new_status,
         evidence_for=tuple(evidence_for),
-        evidence_against=tuple(evidence_against),
-        contradictions=tuple(contradictions),
+        evidence_against=next_against,
+        contradictions=next_contradictions,
         tests=tuple(tests),
         confidence=confidence,
         supersedes=supersedes,

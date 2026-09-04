@@ -326,3 +326,54 @@ class TestTimezoneMetamorphism:
         )
         assert isinstance(left, Success) and isinstance(right, Success)
         assert left.value.logical_values() != right.value.logical_values()
+
+
+class TestRecommendDirectiveUncertaintyCoherence:
+    """R4-F4: a RECOMMEND directive must not carry unresolved-contradiction or
+    abstention uncertainty; competing hypotheses stays admissible."""
+
+    def _synthesize_with(self, uncertainty: CiboUncertainty) -> object:
+        return _BRAIN.synthesize(
+            synthesis_id=UUID("70000000-0000-0000-0000-0000000000cc"),
+            directive=CiboExecutiveDirectiveKind.RECOMMEND,
+            reasoning_mode=CiboReasoningMode.HIGH,
+            subject_code="subject-demo",
+            synthesized_at=_NOW,
+            evidence_refs=(_ref("evidence:demo"),),
+            uncertainty=uncertainty,
+            recommendation=_recommendation(),
+        )
+
+    def test_recommend_rejects_unresolved_contradiction(self) -> None:
+        uncertainty = CiboUncertainty(
+            kind=CiboUncertaintyKind.UNRESOLVED_CONTRADICTION, detail_codes=("conflict",)
+        )
+        assert isinstance(self._synthesize_with(uncertainty), Failure)
+
+    def test_recommend_rejects_abstention_kinds(self) -> None:
+        for kind in (
+            CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
+            CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
+            CiboUncertaintyKind.ABSTAIN_DEFER,
+        ):
+            assert isinstance(self._synthesize_with(CiboUncertainty(kind=kind)), Failure)
+
+    def test_recommend_accepts_competing_hypotheses(self) -> None:
+        uncertainty = CiboUncertainty(
+            kind=CiboUncertaintyKind.COMPETING_HYPOTHESES, detail_codes=("h1", "h2")
+        )
+        result = self._synthesize_with(uncertainty)
+        assert isinstance(result, Success)
+        assert result.value.uncertainty.kind is CiboUncertaintyKind.COMPETING_HYPOTHESES
+
+    def test_revalidate_rejects_reflective_unresolved_contradiction(self) -> None:
+        synthesis = _synthesize()
+        object.__setattr__(
+            synthesis,
+            "uncertainty",
+            CiboUncertainty(
+                kind=CiboUncertaintyKind.UNRESOLVED_CONTRADICTION, detail_codes=("conflict",)
+            ),
+        )
+        with pytest.raises(CiboExecutiveBrainValidationError, match="non-actionable"):
+            synthesis.revalidate()

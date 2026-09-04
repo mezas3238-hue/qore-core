@@ -351,3 +351,258 @@ class TestHypothesisEvidenceTemporalSemantics:
         )
         assert e0 != e1
         assert len({e0, e1}) == 2
+
+
+class TestHypothesisEvidenceChannelPolarity:
+    """R4-F2: evidence channels are typed by polarity so generic evidence cannot
+    be relabeled across channels or laundered into governed test evidence."""
+
+    @pytest.mark.parametrize(
+        "polarity",
+        (
+            HypothesisEvidencePolarity.SUPPORTS,
+            HypothesisEvidencePolarity.AGAINST,
+            HypothesisEvidencePolarity.CONTRADICTION,
+        ),
+    )
+    def test_confirmed_rejects_non_test_result_in_tests(
+        self, polarity: HypothesisEvidencePolarity
+    ) -> None:
+        with pytest.raises(HypothesisValidationError):
+            _hypothesis(
+                status=HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t", polarity),),
+            )
+
+    def test_evidence_for_rejects_against_polarity(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="supports"):
+            _hypothesis(
+                status=HypothesisStatus.ACTIVE,
+                evidence_for=(_evidence("evidence:e", HypothesisEvidencePolarity.AGAINST),),
+            )
+
+    def test_evidence_against_rejects_supports_polarity(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="against"):
+            _hypothesis(
+                status=HypothesisStatus.ACTIVE,
+                evidence_against=(_evidence("evidence:e", HypothesisEvidencePolarity.SUPPORTS),),
+            )
+
+    def test_contradictions_reject_test_result_polarity(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="contradiction"):
+            _hypothesis(
+                status=HypothesisStatus.ACTIVE,
+                contradictions=(_evidence("evidence:e", HypothesisEvidencePolarity.TEST_RESULT),),
+            )
+
+    def test_tests_reject_supports_polarity(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="test-result"):
+            _hypothesis(
+                status=HypothesisStatus.ACTIVE,
+                tests=(_evidence("evidence:e", HypothesisEvidencePolarity.SUPPORTS),),
+            )
+
+    def test_revalidate_rejects_reflective_polarity_relabel(self) -> None:
+        hypothesis = _hypothesis(
+            status=HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        object.__setattr__(hypothesis.tests[0], "polarity", HypothesisEvidencePolarity.SUPPORTS)
+        with pytest.raises(HypothesisValidationError):
+            hypothesis.revalidate()
+
+
+class TestRefutedRevisionNewEvidenceIdentity:
+    """R4-F3: leaving REFUTED requires durable new evidence under canonical
+    identity; reusing, re-representing, or relabeling retained evidence is not new."""
+
+    def _refuted(self) -> Hypothesis:
+        return _hypothesis(
+            status=HypothesisStatus.REFUTED,
+            contradictions=(_evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),),
+        )
+
+    def test_same_evidence_object_rejected(self) -> None:
+        refuted = self._refuted()
+        with pytest.raises(HypothesisValidationError, match="material"):
+            transition_hypothesis(
+                refuted,
+                HypothesisStatus.REVISED,
+                reason_code="new.evidence",
+                contradictions=(
+                    _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+                ),
+            )
+
+    def test_relabeled_same_ref_rejected(self) -> None:
+        refuted = self._refuted()
+        with pytest.raises(HypothesisValidationError, match="material"):
+            transition_hypothesis(
+                refuted,
+                HypothesisStatus.REVISED,
+                reason_code="new.evidence",
+                evidence_for=(_evidence("evidence:c1", HypothesisEvidencePolarity.SUPPORTS),),
+            )
+
+    def test_canonical_time_equivalent_reuse_rejected(self) -> None:
+        refuted = self._refuted()
+        tz = ZoneInfo("America/New_York")
+        same_instant = datetime(2025, 12, 31, 19, 0, tzinfo=tz)  # == _T in UTC
+        equivalent = HypothesisEvidence(
+            ref=CiboCognitiveEvidenceRef("evidence:c1"),
+            polarity=HypothesisEvidencePolarity.CONTRADICTION,
+            observed_at=same_instant,
+            fingerprint=fingerprint_material(
+                ("evidence:c1", "contradiction", same_instant)
+            ),
+        )
+        with pytest.raises(HypothesisValidationError, match="material"):
+            transition_hypothesis(
+                refuted,
+                HypothesisStatus.REVISED,
+                reason_code="new.evidence",
+                contradictions=(equivalent,),
+            )
+
+    def test_new_test_result_accepted(self) -> None:
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            reason_code="new.evidence",
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        assert revised.status is HypothesisStatus.REVISED
+
+    def test_content_change_without_new_evidence_accepted(self) -> None:
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="new.evidence",
+        )
+        assert revised.status is HypothesisStatus.REVISED
+
+
+class TestRefutedRevisionLineageRetention:
+    """R4-F3 root-family exhaustion: leaving REFUTED honors canonical
+    ``(reference, UTC instant)`` identity, and falsifying evidence is retained
+    across revisions so an old falsifier cannot be relaundered as new material."""
+
+    def _refuted(self) -> Hypothesis:
+        return _hypothesis(
+            status=HypothesisStatus.REFUTED,
+            contradictions=(_evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),),
+        )
+
+    def _evidence_at(
+        self, ref: str, polarity: HypothesisEvidencePolarity, observed_at: datetime
+    ) -> HypothesisEvidence:
+        return HypothesisEvidence(
+            ref=CiboCognitiveEvidenceRef(ref),
+            polarity=polarity,
+            observed_at=observed_at,
+            fingerprint=fingerprint_material((ref, polarity.value, observed_at)),
+        )
+
+    def test_same_ref_at_new_instant_is_new_evidence(self) -> None:
+        refuted = self._refuted()
+        later = datetime(2026, 1, 1, 1, 0, tzinfo=UTC)
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            reason_code="new.evidence",
+            contradictions=(
+                self._evidence_at(
+                    "evidence:c1", HypothesisEvidencePolarity.CONTRADICTION, later
+                ),
+            ),
+        )
+        assert revised.status is HypothesisStatus.REVISED
+
+    def test_revised_retains_prior_falsifying_evidence(self) -> None:
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="new.evidence",
+        )
+        assert [e.ref.value for e in revised.contradictions] == ["evidence:c1"]
+
+    def test_active_retains_prior_falsifying_evidence(self) -> None:
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="new.evidence",
+        )
+        active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        assert [e.ref.value for e in active.contradictions] == ["evidence:c1"]
+
+    def test_old_falsifier_cannot_be_relaundered_as_new(self) -> None:
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="new.evidence",
+        )
+        active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        refuted_again = transition_hypothesis(
+            active,
+            HypothesisStatus.REFUTED,
+            contradictions=(
+                _evidence("evidence:c2", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        assert sorted(e.ref.value for e in refuted_again.contradictions) == [
+            "evidence:c1",
+            "evidence:c2",
+        ]
+        with pytest.raises(HypothesisValidationError, match="material"):
+            transition_hypothesis(
+                refuted_again,
+                HypothesisStatus.REVISED,
+                reason_code="new.evidence",
+                contradictions=(
+                    _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+                ),
+            )
+
+    def test_confirmed_resolves_prior_falsifying_evidence(self) -> None:
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="new.evidence",
+        )
+        active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        assert [e.ref.value for e in confirmed.contradictions] == []
+        assert [e.ref.value for e in confirmed.tests] == ["evidence:t1"]
+
+    def test_retained_falsifier_plus_new_merges_cleanly(self) -> None:
+        """Re-supplying an already-retained falsifier alongside a genuinely new
+        one is identity-deduped, not rejected as a duplicate (R4-F3 D1)."""
+        refuted = self._refuted()
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            reason_code="new.evidence",
+            contradictions=(
+                _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+                _evidence("evidence:c3", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        assert [e.ref.value for e in revised.contradictions] == [
+            "evidence:c1",
+            "evidence:c3",
+        ]

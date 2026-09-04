@@ -51,27 +51,67 @@ _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 #     explicit quote signals a deliberate value assignment;
 #   - a bare value after ``=`` (equals) is credible for any non-empty token, as
 #     ``=`` is essentially never natural-language prose punctuation;
-#   - a bare value after ``:`` (colon) is credible only when it is an 8+ char
-#     token carrying BOTH a letter and a digit, because ``label:`` followed by a
-#     bare lowercase English word or a short number is ordinary prose
-#     (e.g. "authorization: delegated", "password:less", "authorization: OAuth2").
-#     Callers carrying a low-entropy colon-separated secret must quote it
-#     (``password: "secret"``).
+#   - a bare value after ``:`` (colon) is tiered by label ambiguity:
+#     * UNEQUIVOCAL labels (password, api_key, client_secret, private_key,
+#       access/secret key, AWS labels) are technical identifiers, so
+#       ``label: value`` is credential material for any non-empty bare or quoted
+#       value (short/all-digit/all-letter/mixed), EXCEPT a bounded set of prose
+#       function words that can never be a value ("password: must be rotated",
+#       "access key: is quarterly" stay prose).
+#     * AMBIGUOUS labels (secret, credential) are common English words, so a
+#       bare value is credible only when digit-bearing or quoted ("secret:
+#       abc123" is a credential, "secret: the recipe" is prose).
+#     * WEAK labels (authorization, token) are prose-ambiguous, so a bare value
+#       is credible only as an 8+ char token carrying BOTH a letter and a digit
+#       ("authorization: delegated", "authorization: OAuth2", "token: 12 units"
+#       stay admissible).
+_UNEQUIVOCAL_CRED_LABEL = (
+    r"password|passwd|api[ _-]?key|access[ _-]?key|secret[ _-]?key|"
+    r"client[ _-]?secret|private[ _-]?key|access[ _-]?key[ _-]?id|"
+    r"secret[ _-]?access[ _-]?key|aws[ _-]?secret[ _-]?access[ _-]?key|"
+    r"aws[ _-]?access[ _-]?key[ _-]?id|awssecretaccesskey|awsaccesskeyid"
+)
+_AMBIGUOUS_CRED_LABEL = r"secret|credential"
+_WEAK_CRED_LABEL = r"authorization|token"
 _CRED_LABEL = (
-    r"(?:password|passwd|api[_-]?key|access[_-]?key|secret[_-]?key|"
-    r"client[_-]?secret|private[_-]?key|credential|authorization|token|secret|"
-    r"secret[_-]?access[_-]?key|aws[_-]?secret[_-]?access[_-]?key|"
-    r"aws[_-]?access[_-]?key[_-]?id|awssecretaccesskey|awsaccesskeyid)"
+    r"(?:password|passwd|api[ _-]?key|access[ _-]?key|secret[ _-]?key|"
+    r"client[ _-]?secret|private[ _-]?key|credential|authorization|token|secret|"
+    r"access[ _-]?key[ _-]?id|secret[ _-]?access[ _-]?key|"
+    r"aws[ _-]?secret[ _-]?access[ _-]?key|aws[ _-]?access[ _-]?key[ _-]?id|"
+    r"awssecretaccesskey|awsaccesskeyid)"
 )
 _QUOTED_VALUE = r"[\"'][^\"'\n]+[\"']"
 _BARE_ANY_VALUE = r"[^\s\"']+"
-# A bare (unquoted) colon value is credible only as a mixed-character token of
-# at least 8 characters carrying BOTH a letter and a digit. Short tokens like
-# "OAuth2", "2FA", "12", or "2008" are ordinary prose/numbers and stay
-# admissible; a real low-entropy colon-separated secret must be quoted by the
-# caller, while mixed tokens long enough to be credentials (e.g. a 12-char
-# hex-ish value) are still detected bare.
+# A bare (unquoted) colon value for an AMBIGUOUS label is credible when it
+# carries a digit (any length): "secret: abc123" is a credential while
+# "secret: the recipe" is prose. (This is the pre-regression digit-bearing
+# shape, retained for the prose-ambiguous bare-word labels only.)
+_BARE_DIGIT_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
+# A bare (unquoted) colon value for a WEAK label is credible only as an 8+ char
+# mixed token carrying BOTH a letter and a digit. Short tokens like "OAuth2",
+# "2FA", "12", or "2008" are ordinary prose/numbers and stay admissible.
 _BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[A-Za-z])[^\s\"']{8,}"
+# Prose function words (determiners, modals, auxiliaries, prepositions,
+# pronouns) can never be a credential value: excluding them from the
+# UNEQUIVOCAL-label bare-value shape prevents "password: must be rotated" /
+# "access key: is quarterly" prose from being flagged, without touching any
+# real all-letter secret ("password: hunter" is not a function word).
+_COLON_PROSE_STOPWORDS = frozenset(
+    {
+        "a", "an", "the",
+        "am", "is", "are", "was", "were", "be", "been", "being",
+        "has", "have", "had", "do", "does", "did",
+        "must", "should", "shall", "will", "would", "can", "could", "may", "might",
+        "to", "of", "for", "and", "or", "nor", "not", "in", "on", "at", "by",
+        "with", "from", "as", "if", "than", "then",
+        "it", "its", "this", "that", "these", "those",
+        "your", "my", "our", "their", "his", "her",
+    }
+)
+_COLON_PROSE_STOPWORD_RE = (
+    r"(?:" + "|".join(sorted(_COLON_PROSE_STOPWORDS, key=len, reverse=True)) + r")\b"
+)
+_UNEQUIVOCAL_BARE_VALUE = rf"(?!{_COLON_PROSE_STOPWORD_RE}){_BARE_ANY_VALUE}"
 
 # Unicode colon-confusables that fold to STRONG ``=`` before NFKC. NFKC itself
 # collapses ``：`` (U+FF1A) to ASCII ``:`` and ``︰`` (U+FE30) to ``..``, which would
@@ -155,6 +195,10 @@ _CONFUSABLE_MAP = str.maketrans(
         "\u03a4": "t",  # GREEK CAPITAL LETTER TAU
         "\u03a5": "u",  # GREEK CAPITAL LETTER UPSILON
         "\u03a7": "x",  # GREEK CAPITAL LETTER CHI
+        "\u03b6": "z",  # GREEK SMALL LETTER ZETA
+        "\u03b7": "n",  # GREEK SMALL LETTER ETA
+        "\u0396": "z",  # GREEK CAPITAL LETTER ZETA
+        "\u0397": "h",  # GREEK CAPITAL LETTER ETA
     }
 )
 
@@ -172,58 +216,98 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
         r"[A-Za-z0-9._~+/=-]*[0-9][A-Za-z0-9._~+/=-]*",
         IGNORECASE,
     ),
-    # Bare HTTP Basic authorization: base64 body carrying at least one uppercase
-    # or base64-special character. Case-sensitive on purpose: the discriminator
-    # must not match all-lowercase prose like "Basic principles" or all-digit
-    # prose like "Basic 2008 outlook was bearish", while still matching real
-    # base64 credentials (e.g. "Basic dXNlcjpwYXNz").
+    # Bare HTTP Basic authorization: base64 material, discriminated structurally
+    # rather than by requiring uppercase as a proxy for credential-ness. The
+    # scheme keyword stays ``[Bb]asic`` (the original, prose-safe shape): the
+    # all-caps "BASIC" keyword is far more often the BASIC programming language
+    # or an acronym than a credential, so case-insensitive matching was dropped
+    # to avoid new prose false positives ("BASIC Authentication", "BASIC HTML").
+    # A Basic credential is detected when the token is (a) base64 with explicit
+    # ``=`` padding, (b) unpadded 4+ base64 chars carrying an uppercase or
+    # base64-special char at a NON-INITIAL position (a scattered/internal
+    # uppercase is structural; a leading-capital English word is not), or
+    # (c) unpadded 6+ mixed letter+digit that is not a fiscal year-quarter
+    # label. A pure digit run ("2008"), a bare lowercase word ("principles"),
+    # a leading-capital word ("Authentication"), and fiscal labels ("2024q1")
+    # stay admissible.
     compile(
-        r"\b[Bb]asic\s+(?=[A-Za-z0-9+/]{4,}={0,2}\b)"
-        r"(?=[A-Za-z0-9+/]*[A-Z+/])[A-Za-z0-9+/]+={0,2}"
+        r"\b[Bb]asic\s+"
+        r"(?:"
+        r"[A-Za-z0-9+/]{2,}={1,2}"
+        r"|"
+        r"(?=[A-Za-z0-9+/][A-Za-z0-9+/]*[A-Z+/])[A-Za-z0-9+/]{4,}"
+        r"|"
+        r"(?=[A-Za-z0-9+/]*[A-Za-z])(?=[A-Za-z0-9+/]*\d)"
+        r"(?!\d{2,4}[QqHh]\d)(?![QqHh]\d{1,4})"
+        r"[A-Za-z0-9+/]{6,}"
+        r")"
+        r"(?![A-Za-z0-9+/=])"
     ),
     compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
     compile(r"//[^/@\s:]+:[^/@\s]+@"),
-    # Equals assignment: strong. Any non-empty bare token or quoted value.
+    # Equals assignment: strong for every label. Any non-empty bare or quoted value.
     compile(
         rf"(?i)\b{_CRED_LABEL}\b[\"']?\s*=\s*(?:{_QUOTED_VALUE}|{_BARE_ANY_VALUE})"
     ),
-    # Colon assignment: weak (prose-ambiguous). Quoted or digit-bearing only.
+    # Unequivocal-label colon assignment: credential for any non-stopword bare or
+    # quoted value (short/all-digit/all-letter/mixed values alike).
     compile(
-        rf"(?i)\b{_CRED_LABEL}\b[\"']?\s*:\s*(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE})"
+        rf"(?i)\b(?:{_UNEQUIVOCAL_CRED_LABEL})\b[\"']?\s*:\s*"
+        rf"(?:{_QUOTED_VALUE}|{_UNEQUIVOCAL_BARE_VALUE})"
+    ),
+    # Ambiguous-label colon assignment: prose-ambiguous. Quoted or digit-bearing.
+    compile(
+        rf"(?i)\b(?:{_AMBIGUOUS_CRED_LABEL})\b[\"']?\s*:\s*"
+        rf"(?:{_QUOTED_VALUE}|{_BARE_DIGIT_VALUE})"
+    ),
+    # Weak-label colon assignment: prose-ambiguous. Quoted or 8+ mixed only.
+    compile(
+        rf"(?i)\b(?:{_WEAK_CRED_LABEL})\b[\"']?\s*:\s*(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE})"
     ),
 )
 
 _CONTROL_CHARS = "\x00\n\r\t"
 
 
-# Format/control/separator categories plus nonspacing marks (Mn) that NFKC
-# leaves in place and that can split credential labels, delimiters, or key ids
-# and fail the detector open. Mn covers the combining grapheme joiner U+034F,
-# invisible variation selectors (U+FE00-U+FE0F, U+E0100-U+E01EF), Mongolian free
-# variation selectors (U+180B-U+180D), and residual combining marks — none of
-# which contribute an independent visible glyph. Stripping them from the
-# detection-only skeleton can only re-join split tokens (fail closed) — it never
-# rewrites the caller's text.
+# Format/control/separator categories plus nonspacing marks (Mn) that can split
+# credential labels, delimiters, or key ids and fail the detector open. Mn covers
+# the combining grapheme joiner U+034F, invisible variation selectors
+# (U+FE00-U+FE0F, U+E0100-U+E01EF), Mongolian free variation selectors
+# (U+180B-U+180D), and combining diacritics (U+0300-U+036F). Combining marks are
+# stripped from the RAW text BEFORE NFKC, because NFKC would compose a base
+# letter + mark into a single precomposed letter (``o + U+0301 -> ó``) and
+# thereby reshape the label ("passwórd") instead of re-joining it. Stripping
+# these from the detection-only skeleton can only re-join split tokens (fail
+# closed) — it never rewrites the caller's text.
 _INVISIBLE_CATEGORIES = frozenset({"Cf", "Cc", "Cs", "Zl", "Zp", "Mn"})
 
 
 def _secret_skeleton(text: str) -> str:
     """Return a detection-only normalized view of ``text``.
 
-    Unicode colon-confusables fold to a strong ``=`` first (before NFKC, which
-    would otherwise collapse them to a weak ``:``); NFKC then folds remaining
-    full-width delimiters/alphanumerics; the bounded confusable map folds common
-    Cyrillic/Greek homoglyphs of credential-label letters; finally invisible
-    format/control characters and nonspacing marks (zero-width spaces, joiners,
-    bidi marks, BOM, variation selectors, combining grapheme joiner, …) are
-    stripped so they cannot split a credential label or delimiter and fail the
-    detector open. The original text is never rewritten: this view is used only
-    to run the fail-closed detection patterns.
+    Canonical decomposition (NFD) is applied FIRST so a precomposed accented
+    letter (``ó``, category Ll) decomposes to ``o + U+0301`` (Mn): then the
+    invisible-category strip removes the combining mark and re-joins the label,
+    symmetric with the already-handled decomposed form. Next invisible
+    format/control/separator characters and nonspacing marks (zero-width
+    spaces, joiners, bidi marks, BOM, variation selectors, combining grapheme
+    joiner, combining diacritics, …) are stripped: combining marks must be
+    removed before NFKC, which would otherwise compose ``o + U+0301`` into a
+    single ``ó`` and reshape the label. Then Unicode colon-confusables fold to a
+    strong ``=`` (before NFKC, which would collapse them to a weak ``:``); NFKC
+    folds remaining full-width delimiters/alphanumerics; the bounded confusable
+    map folds common Cyrillic/Greek homoglyphs of credential-label letters;
+    finally any residual invisible category is stripped again for safety. The
+    original text is never rewritten: this view is used only to run the
+    fail-closed detection patterns.
     """
-    normalized = (
-        _unicodedata_normalize("NFKC", text.translate(_DELIMITER_CONFUSABLE_MAP))
-        .translate(_CONFUSABLE_MAP)
+    decomposed = _unicodedata_normalize("NFD", text)
+    visible = "".join(
+        ch for ch in decomposed if _unicodedata_category(ch) not in _INVISIBLE_CATEGORIES
     )
+    normalized = _unicodedata_normalize(
+        "NFKC", visible.translate(_DELIMITER_CONFUSABLE_MAP)
+    ).translate(_CONFUSABLE_MAP)
     return "".join(
         ch for ch in normalized if _unicodedata_category(ch) not in _INVISIBLE_CATEGORIES
     )
@@ -378,6 +462,16 @@ ABSTENTION_UNCERTAINTY_KINDS = frozenset(
         CiboUncertaintyKind.ABSTAIN_DEFER,
     }
 )
+
+# Uncertainty kinds that must never be laundered into an actionable carrier
+# (formal recommendation, brain RECOMMEND directive, council DECISION synthesis):
+# the abstain/request/defer kinds plus UNRESOLVED_CONTRADICTION, an open
+# epistemic contradiction that cannot be asserted as an advisory action.
+# COMPETING_HYPOTHESES stays admissible because it is substantive,
+# detail-carrying uncertainty rather than an abstention or an open contradiction.
+NON_ACTIONABLE_UNCERTAINTY_KINDS = frozenset(ABSTENTION_UNCERTAINTY_KINDS) | {
+    CiboUncertaintyKind.UNRESOLVED_CONTRADICTION,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -715,9 +809,9 @@ class CiboFormalRecommendation:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
             )
-        if self.uncertainty.kind in ABSTENTION_UNCERTAINTY_KINDS:
+        if self.uncertainty.kind in NON_ACTIONABLE_UNCERTAINTY_KINDS:
             raise CiboCognitiveValidationError(
-                "a formal recommendation must not carry abstention-kind uncertainty"
+                "a formal recommendation must not carry non-actionable uncertainty"
             )
         object.__setattr__(
             self,
@@ -758,9 +852,9 @@ class CiboFormalRecommendation:
             raise CiboCognitiveValidationError(
                 "CIBO recommendation requires CiboUncertainty"
             )
-        if self.uncertainty.kind in ABSTENTION_UNCERTAINTY_KINDS:
+        if self.uncertainty.kind in NON_ACTIONABLE_UNCERTAINTY_KINDS:
             raise CiboCognitiveValidationError(
-                "a formal recommendation must not carry abstention-kind uncertainty"
+                "a formal recommendation must not carry non-actionable uncertainty"
             )
         self.uncertainty.revalidate()
         if self.limitations != _validate_codes(

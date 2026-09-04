@@ -431,3 +431,260 @@ class TestSecretHygieneResiduals:
             evidence_refs=(_ref("evidence:benign"),),
         )
         assert recommendation.summary == "Basic 2008 outlook was bearish"
+
+
+class TestSecretHygieneBasicAndAssignmentRegression:
+    """R4-F1: Basic/base64 and assignment discriminators fail closed without the
+    uppercase proxy and the 8+ mixed colon rule that regressed short/all-digit/
+    all-letter/mixed secrets."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Basic/base64 discriminator classes (padding, uppercase/special,
+            # unpadded mixed — never requiring uppercase as a proxy).
+            "Basic enp6eg==",
+            "Basic dXNlcg==",
+            "Basic cGFzcw==",
+            "Basic cGFzc3dvcmQ=",
+            "Basic dXNlcjpwYXNz",
+            "Basic enp6eg",
+            "Basic ZW5wNmVn",
+            "Basic AAAA",
+            # Strong-label colon assignment: short/all-digit/all-letter/mixed.
+            "password: a1b2c3",
+            "password: 12345678",
+            "password: hunter",
+            "password: correcthorsebatterystaple",
+            "password: 2008",
+            "api_key: abc123",
+            "api_key: 123456",
+            "secret: abc123",
+            "client_secret: abc123",
+            "private_key: abc123",
+            "credential: abc123",
+            # Strong-label equals assignment remains strong for any value.
+            "password = 123",
+            "api_key = abc",
+        ),
+    )
+    def test_credential_basic_and_assignment_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Basic prose: pure-digit runs, bare lowercase English words,
+            # leading-capital words, all-caps acronym keywords, and fiscal
+            # year-quarter labels stay admissible; only structurally
+            # base64-like tokens are flagged.
+            "Basic 2008 outlook was bearish",
+            "Basic 2024 results were strong",
+            "Basic principles",
+            "Basic authentication",
+            "Basic Authentication",
+            "BASIC Authentication",
+            "BASIC HTML",
+            "Basic 2008",
+            "Basic 2FA",
+            "Basic 2024q1 results were strong",
+            "Basic 2024h1 results",
+            "Basic q12024 results",
+            # Weak (prose-ambiguous) labels keep the credible-value colon shape.
+            "authorization: OAuth2 flow",
+            "authorization: 2FA is required",
+            "authorization: delegated",
+            "authorization: OAuth2",
+            "token: 12 units were issued",
+            "token: the gateway issued one",
+            # Ambiguous bare-word labels (secret/credential) are prose unless the
+            # value is digit-bearing or quoted.
+            "secret: the recipe is a family tradition",
+            "secret: to happiness",
+            "the secret: a simple algorithm",
+            "my secret: the password is stored here",
+            "credential: management is quarterly",
+            # Unequivocal labels ignore prose function words as bare values.
+            "password: must be rotated quarterly",
+            "access key: is rotated quarterly",
+            # Bare field-name mentions are not secret material.
+            "the client_secret field must be configured",
+            "the password must be at least 8 characters",
+            "the api_key must be rotated",
+        ),
+    )
+    def test_benign_prose_stays_admissible(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Preserved families must stay detected after the discriminator change.
+            "AKIA1234567890ABCDEF",
+            "ASIA1234567890ABCDEF",
+            "api_key = sk-abcdef1234567890",
+            "ghp_abcdefghijklmnopqrstuvwxyz1234",
+            "xoxb-123456789012-abcdefghijklmnopqrstuvwxyz",
+            "Bearer abcdef1234567890",
+            "authorization: Bearer abcdef1234567890",
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig-abcdef",
+            "-----BEGIN PRIVATE KEY-----",
+            "https://user:pass@example.com",
+            "aws_secret_access_key = wJalrXUtnFEMI7KMDENGbPxRfiCYEXAMPLEKEY",
+        ),
+    )
+    def test_preserved_key_token_and_userinfo_families(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+
+class TestConfusableLabelEquivalence:
+    """R4-F1 residual: Greek ETA/ZETA/small-eta confusables in credential labels
+    are folded via bounded Unicode equivalence classes (not ad-hoc witnesses)."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "toke\u03b7 = abc",  # GREEK SMALL ETA -> n in "token"
+            "crede\u03b7tial = abc",  # small ETA -> n in "credential"
+            "authorizatio\u03b7 = abc",  # small ETA -> n in "authorization"
+            "aut\u0397orization = abc",  # capital ETA -> h in "authorization"
+            "authori\u0396ation = abc",  # capital ZETA -> z in "authorization"
+            "authori\u03b6ation = abc",  # small zeta -> z in "authorization"
+        ),
+    )
+    def test_greek_eta_zeta_confusables_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Non-label confusable letters do not manufacture a secret.
+            "the \u03b7eta function converges",
+            "a \u03b6eta distribution",
+        ),
+    )
+    def test_confusable_outside_labels_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+
+class TestFormalRecommendationUncertaintyCoherence:
+    """R4-F4: an unresolved contradiction must not be laundered into a formal
+    recommendation; competing hypotheses stays admissible when detail-carrying."""
+
+    def _recommendation_with(self, uncertainty: CiboUncertainty) -> CiboFormalRecommendation:
+        return CiboFormalRecommendation(
+            recommendation_id=UUID("30000000-0000-0000-0000-0000000000ff"),
+            recommendation_code="cibo.uncertainty",
+            reasoning_mode=CiboReasoningMode.HIGH,
+            summary="Review exposure",
+            evidence_refs=(_ref("evidence:exposure"),),
+            uncertainty=uncertainty,
+            issued_at=_NOW,
+        )
+
+    def test_recommendation_rejects_unresolved_contradiction(self) -> None:
+        uncertainty = CiboUncertainty(
+            kind=CiboUncertaintyKind.UNRESOLVED_CONTRADICTION, detail_codes=("conflict",)
+        )
+        with pytest.raises(CiboCognitiveValidationError, match="non-actionable"):
+            self._recommendation_with(uncertainty)
+
+    def test_recommendation_rejects_abstain_defer_kinds(self) -> None:
+        for kind in (
+            CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
+            CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
+            CiboUncertaintyKind.ABSTAIN_DEFER,
+        ):
+            with pytest.raises(CiboCognitiveValidationError, match="non-actionable"):
+                self._recommendation_with(CiboUncertainty(kind=kind))
+
+    def test_recommendation_accepts_competing_hypotheses(self) -> None:
+        uncertainty = CiboUncertainty(
+            kind=CiboUncertaintyKind.COMPETING_HYPOTHESES, detail_codes=("h1", "h2")
+        )
+        recommendation = self._recommendation_with(uncertainty)
+        recommendation.revalidate()
+        assert recommendation.uncertainty.kind is CiboUncertaintyKind.COMPETING_HYPOTHESES
+
+    def test_revalidate_rejects_reflective_unresolved_contradiction(self) -> None:
+        recommendation = _recommendation(evidence_refs=(_ref("evidence:exposure"),))
+        object.__setattr__(
+            recommendation,
+            "uncertainty",
+            CiboUncertainty(
+                kind=CiboUncertaintyKind.UNRESOLVED_CONTRADICTION, detail_codes=("conflict",)
+            ),
+        )
+        with pytest.raises(CiboCognitiveValidationError, match="non-actionable"):
+            recommendation.revalidate()
+
+
+class TestSecretHygieneUnicodeNormalizationExhaustion:
+    """R4-F1 root-family exhaustion: precomposed and combining diacritics are
+    normalized, space-separated strong labels and fullwidth Basic homoglyphs are
+    detected, and the Basic base64 discriminator is structural (non-initial
+    uppercase/special, explicit padding, or unpadded mixed non-fiscal tokens)."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Mn combining marks: NFKC would compose o+U+0301 -> ó and reshape the
+            # label; stripping before NFKC re-joins "password"/"Basic".
+            "passwo\u0301rd: abc123",
+            "passwo\u0300rd: abc123",
+            "passwo\u0308rd: abc123",
+            "Basic\u0301 dXNlcjpwYXNz",
+            # Precomposed accented homoglyphs: NFD decomposes then Mn-strips,
+            # so "passwórd"/"sécret" re-join to their ASCII labels.
+            "passw\u00f3rd: abc123",
+            "passw\u00f3rd = abc123",
+            "s\u00e9cret: abc123",
+            "cl\u00edent_secret: abc123",
+            # Space-separated strong labels (delimiter partition).
+            "api key: abc123",
+            "api key = abc123",
+            "access key: abc123",
+            "secret key: abc123",
+            "client secret: abc123",
+            "private key: abc123",
+            "secret access key: abc123",
+            "aws secret access key = abc123",
+            "aws access key id = abc123",
+            "access_key_id: abc123",
+            # Fullwidth confusables that fold into the Basic scheme keyword
+            # (a fullwidth B folds to ASCII "B", matching [Bb]asic).
+            "\uff22asic dXNlcjpwYXNz",
+            # Basic branch (b): uppercase/+// at a NON-INITIAL position in a 4+
+            # base64 token (scattered uppercase is structural, not a capital word).
+            "Basic aBcd",
+            "Basic abCd",
+            "Basic abcD",
+            "Basic ab+c",
+            "Basic a/bc",
+            "Basic abcdefgH",
+        ),
+    )
+    def test_unicode_and_structural_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Space-separated label WITHOUT an assignment delimiter is prose.
+            "api key rotation is quarterly",
+            "the access key must be rotated",
+            "private key management",
+            # Combining marks outside a credential label stay benign.
+            "a\u0301 b\u0301 c\u0301",
+            "the \u0301 accent is decorative",
+            # All-caps / fullwidth-mixed Basic keyword stays prose-safe.
+            "BASIC principles",
+            "BASIC 2008 outlook was bearish",
+            "BASIC Authentication",
+            # A fullwidth A in the keyword yields "BAsic", which [Bb]asic does
+            # not match, keeping the keyword prose-safe.
+            "B\uff21sic Authentication",
+        ),
+    )
+    def test_unicode_structural_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)

@@ -20,6 +20,7 @@ from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 from qore.kernel.temporal import canonical_instant
 from qore.modules.cibo.cognitive_contracts import (
+    NON_ACTIONABLE_UNCERTAINTY_KINDS,
     CiboCognitiveEvidenceRef,
     CiboCognitiveValidationError,
     CiboFormalRecommendation,
@@ -30,16 +31,6 @@ from qore.modules.cibo.cognitive_contracts import (
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
-
-# Abstention-kind uncertainty must never masquerade as an actionable directive,
-# and bounded confidence must never decorate an abstain/defer carrier.
-_ABSTENTION_KINDS = frozenset(
-    {
-        CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
-        CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
-        CiboUncertaintyKind.ABSTAIN_DEFER,
-    }
-)
 
 
 class CiboExecutiveBrainError(InfrastructureError):
@@ -390,13 +381,14 @@ class CiboExecutiveSynthesis:
         """Enforce cross-field coherence between directive actionability and uncertainty.
 
         A recommend directive is an actionable carrier and must not masquerade
-        abstention-kind uncertainty; a defer/abstain directive is a non-decision
+        non-actionable uncertainty (abstention/request/defer kinds or an
+        unresolved contradiction); a defer/abstain directive is a non-decision
         carrier and must not carry bounded-confidence (action-like) certainty.
         """
         if self.directive is CiboExecutiveDirectiveKind.RECOMMEND:
-            if self.uncertainty.kind in _ABSTENTION_KINDS:
+            if self.uncertainty.kind in NON_ACTIONABLE_UNCERTAINTY_KINDS:
                 raise CiboExecutiveBrainValidationError(
-                    "recommend directive must not carry abstention-kind uncertainty"
+                    "recommend directive must not carry non-actionable uncertainty"
                 )
         elif self.directive in (
             CiboExecutiveDirectiveKind.DEFER,
