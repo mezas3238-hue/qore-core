@@ -236,6 +236,15 @@ class ConfounderResolution:
                 "confounder resolution evidence must be a CausalEvidence"
             )
         self.evidence.revalidate()
+        if self.evidence.polarity is not CausalEvidencePolarity.SUPPORTS:
+            # CORRELATION != CAUSATION: evidence used to justify a causal
+            # attribution must be positively supporting. AGAINST/CONTRADICTION/
+            # LIMITATION evidence cannot count as confounder resolution; a
+            # caller cannot relabel a contradictory observation into a
+            # supporting resolution.
+            raise CausalityValidationError(
+                "confounder resolution evidence must carry SUPPORTS polarity"
+            )
 
     def logical_values(self) -> tuple[object, ...]:
         return (self.confounder.logical_values(), self.evidence.logical_values())
@@ -393,6 +402,21 @@ class CausalClaim:
                     "a causation claim must resolve every declared confounder with "
                     "explicit evidence"
                 )
+            # R6 F3 closure: confounder-resolution evidence must be provenance-
+            # retained by exact canonical identity (reference + polarity + UTC
+            # instant) in the claim's governed evidence material. This keeps a
+            # confirmed causal claim from semantically depending on contradictory
+            # or unretained material sitting outside the claim-evidence
+            # accounting boundary.
+            evidence_for_identity = {
+                evidence.logical_values() for evidence in self.evidence_for
+            }
+            for resolution in self.confounder_resolutions:
+                if resolution.evidence.logical_values() not in evidence_for_identity:
+                    raise CausalityValidationError(
+                        "confounder resolution evidence must be retained in the "
+                        "claim's evidence_for"
+                    )
         else:
             if self.mechanism_code is not None:
                 raise CausalityValidationError(

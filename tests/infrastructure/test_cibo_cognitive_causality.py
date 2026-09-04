@@ -92,6 +92,7 @@ def test_causation_confounder_resolution_binds_evidence() -> None:
     claim = _claim(
         confounders=(confounder,),
         confounder_resolutions=(resolution,),
+        evidence_for=(_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),),
     )
     claim.revalidate()
     assert claim.confounder_resolutions[0].confounder.code == "selection-bias"
@@ -330,3 +331,113 @@ class TestCausalEvidenceTemporalSemantics:
         )
         assert e0 != e1
         assert len({e0, e1}) == 2
+
+
+class TestCorrection010ConfounderResolutionProvenance:
+    """R6 F3 closure: confounder-resolution evidence must be SUPPORTS polarity
+    AND provenance-retained by exact canonical identity in ``evidence_for``."""
+
+    def _resolution(self, polarity: CausalEvidencePolarity) -> ConfounderResolution:
+        return ConfounderResolution(
+            confounder=_variable("selection-bias"),
+            evidence=_evidence("evidence:conf", polarity),
+        )
+
+    def test_contradiction_polarity_resolution_rejected(self) -> None:
+        with pytest.raises(CausalityValidationError, match="SUPPORTS"):
+            _claim(
+                confounders=(_variable("selection-bias"),),
+                confounder_resolutions=(
+                    self._resolution(CausalEvidencePolarity.CONTRADICTION),
+                ),
+            )
+
+    @pytest.mark.parametrize(
+        "polarity",
+        (
+            CausalEvidencePolarity.AGAINST,
+            CausalEvidencePolarity.LIMITATION,
+        ),
+    )
+    def test_non_supports_polarity_resolution_rejected(
+        self, polarity: CausalEvidencePolarity
+    ) -> None:
+        with pytest.raises(CausalityValidationError, match="SUPPORTS"):
+            _claim(
+                confounders=(_variable("selection-bias"),),
+                confounder_resolutions=(self._resolution(polarity),),
+            )
+
+    def test_supports_but_unretained_resolution_rejected(self) -> None:
+        with pytest.raises(CausalityValidationError, match="retained"):
+            _claim(
+                confounders=(_variable("selection-bias"),),
+                confounder_resolutions=(self._resolution(CausalEvidencePolarity.SUPPORTS),),
+                evidence_for=(_evidence("evidence:other", CausalEvidencePolarity.SUPPORTS),),
+            )
+
+    def test_mismatched_identity_resolution_rejected(self) -> None:
+        # Same reference at a different instant is a different evidence identity
+        # and must not satisfy provenance.
+        later = datetime(2026, 1, 1, 1, 0, tzinfo=UTC)
+        resolution = ConfounderResolution(
+            confounder=_variable("selection-bias"),
+            evidence=CausalEvidence(
+                ref=CiboCognitiveEvidenceRef("evidence:conf"),
+                polarity=CausalEvidencePolarity.SUPPORTS,
+                observed_at=_T,
+                fingerprint=fingerprint_material(("evidence:conf", "supports", _T)),
+            ),
+        )
+        with pytest.raises(CausalityValidationError, match="retained"):
+            _claim(
+                confounders=(_variable("selection-bias"),),
+                confounder_resolutions=(resolution,),
+                evidence_for=(
+                    CausalEvidence(
+                        ref=CiboCognitiveEvidenceRef("evidence:conf"),
+                        polarity=CausalEvidencePolarity.SUPPORTS,
+                        observed_at=later,
+                        fingerprint=fingerprint_material(
+                            ("evidence:conf", "supports", later)
+                        ),
+                    ),
+                ),
+            )
+
+    def test_supports_retained_resolution_accepted(self) -> None:
+        confounder = _variable("selection-bias")
+        resolution = ConfounderResolution(
+            confounder=confounder,
+            evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+        )
+        claim = _claim(
+            confounders=(confounder,),
+            confounder_resolutions=(resolution,),
+            evidence_for=(_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),),
+            status=CausalClaimStatus.CONFIRMED,
+        )
+        claim.revalidate()
+        assert claim.status is CausalClaimStatus.CONFIRMED
+
+    def test_reflective_polarity_corruption_fails_revalidate(self) -> None:
+        confounder = _variable("selection-bias")
+        resolution = ConfounderResolution(
+            confounder=confounder,
+            evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+        )
+        claim = _claim(
+            confounders=(confounder,),
+            confounder_resolutions=(resolution,),
+            evidence_for=(_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),),
+        )
+        object.__setattr__(
+            claim.confounder_resolutions[0].evidence,
+            "polarity",
+            CausalEvidencePolarity.CONTRADICTION,
+        )
+        # Any reflective corruption of retained resolution evidence must fail
+        # closed: either the polarity invariant or the fingerprint integrity
+        # check fires (the fingerprint check fires first for a polarity flip).
+        with pytest.raises(CausalityValidationError):
+            claim.revalidate()

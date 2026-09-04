@@ -55,12 +55,15 @@ _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 #     * UNEQUIVOCAL labels (password, api_key, client_secret, private_key,
 #       access/secret key, AWS labels) are technical identifiers, so
 #       ``label: value`` is credential material for any non-empty bare or quoted
-#       value (short/all-digit/all-letter/mixed), EXCEPT a bounded set of prose
-#       function words that can never be a value ("password: must be rotated",
-#       "access key: is quarterly" stay prose).
-#     * AMBIGUOUS labels (secret, credential) are common English words, so a
-#       bare value is credible only when digit-bearing or quoted ("secret:
-#       abc123" is a credential, "secret: the recipe" is prose).
+#       value (short/all-digit/all-letter/mixed), EXCEPT the closed English
+#       auxiliary/modal/copula verb class — the value position of a verb phrase
+#       is never a value ("password: must be rotated", "access key: is rotated"
+#       stay prose). Ordinary pronouns/quantifiers such as one/them/some/another
+#       ARE values and fail closed ("password: one" is a credential).
+#     * AMBIGUOUS labels (secret, credential, and the compound token/key/id
+#       labels below) are common English words/phrases, so a bare value is
+#       credible only when digit-bearing or quoted ("access token: abc123" is a
+#       credential, "access token: expires daily" is prose).
 #     * WEAK labels (authorization, token) are prose-ambiguous, so a bare value
 #       is credible only as an 8+ char token carrying BOTH a letter and a digit
 #       ("authorization: delegated", "authorization: OAuth2", "token: 12 units"
@@ -69,9 +72,9 @@ _OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
 # ``[ _-]?`` matches zero (camelCase ``accessToken`` -> ``access`` + ``Token``)
 # or one snake/kebab/space separator, and ``re.IGNORECASE`` folds the casing, so
 # ``access_token`` / ``access-token`` / ``access token`` / ``accessToken`` are one
-# equivalence class. These are technical credential identifiers (token/key/id
-# fields), so they are UNEQUIVOCAL: ``label: value`` is credential material for
-# any non-prose value.
+# equivalence class. These token/key/id phrases are prose-ambiguous, so they
+# belong to the AMBIGUOUS tier: ``label: value`` is credential material only for
+# a digit-bearing or quoted value, never by label alone.
 _COMPOUND_CRED_LABEL = (
     r"access[ _-]?token|refresh[ _-]?token|bearer[ _-]?token|auth[ _-]?token|"
     r"id[ _-]?token|personal[ _-]?access[ _-]?token|oauth[ _-]?token|"
@@ -83,17 +86,13 @@ _UNEQUIVOCAL_CRED_LABEL = (
     r"password|passwd|api[ _-]?key|access[ _-]?key|secret[ _-]?key|"
     r"client[ _-]?secret|private[ _-]?key|access[ _-]?key[ _-]?id|"
     r"secret[ _-]?access[ _-]?key|aws[ _-]?secret[ _-]?access[ _-]?key|"
-    r"aws[ _-]?access[ _-]?key[ _-]?id|awssecretaccesskey|awsaccesskeyid|"
-    + _COMPOUND_CRED_LABEL
+    r"aws[ _-]?access[ _-]?key[ _-]?id|awssecretaccesskey|awsaccesskeyid"
 )
-_AMBIGUOUS_CRED_LABEL = r"secret|credential"
+_AMBIGUOUS_CRED_LABEL = r"credential|" + _COMPOUND_CRED_LABEL + r"|secret"
 _WEAK_CRED_LABEL = r"authorization|token"
 _CRED_LABEL = (
-    r"(?:password|passwd|api[ _-]?key|access[ _-]?key|secret[ _-]?key|"
-    r"client[ _-]?secret|private[ _-]?key|credential|authorization|token|secret|"
-    r"access[ _-]?key[ _-]?id|secret[ _-]?access[ _-]?key|"
-    r"aws[ _-]?secret[ _-]?access[ _-]?key|aws[ _-]?access[ _-]?key[ _-]?id|"
-    r"awssecretaccesskey|awsaccesskeyid|" + _COMPOUND_CRED_LABEL + r")"
+    r"(?:" + _UNEQUIVOCAL_CRED_LABEL + r"|"
+    + _AMBIGUOUS_CRED_LABEL + r"|" + _WEAK_CRED_LABEL + r")"
 )
 _QUOTED_VALUE = r"[\"'][^\"'\n]+[\"']"
 _BARE_ANY_VALUE = r"[^\s\"']+"
@@ -106,46 +105,26 @@ _BARE_DIGIT_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
 # mixed token carrying BOTH a letter and a digit. Short tokens like "OAuth2",
 # "2FA", "12", or "2008" are ordinary prose/numbers and stay admissible.
 _BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[A-Za-z])[^\s\"']{8,}"
-# Prose function words (the English CLOSED class: determiners, quantifiers,
-# pronouns, modals, auxiliaries, copula, prepositions, conjunctions) can never
-# be a credential value. Excluding them from the UNEQUIVOCAL-label bare-value
-# shape prevents "password: must be rotated" / "access key: is quarterly" /
-# "password: one" / "password: each" / "password: them" / "password: all" prose
-# from being flagged, without touching any real all-letter secret ("password:
-# hunter" is not a function word). The class is closed, not witness-accumulated:
-# quantifiers/determiners/pronouns are a finite linguistic set, so this is a
-# principled structural discriminator, not an ever-growing stopword list.
-_COLON_PROSE_STOPWORDS = frozenset(
+# The English auxiliary/modal/copula verb CLOSED class. Only this class can
+# never be a credential value, because it marks the START of a verb phrase
+# (predicate), not a value assignment: "password: must be rotated" and
+# "access key: is rotated" are prose about the credential, not a credential.
+# Ordinary pronouns/quantifiers/determiners/prepositions/conjunctions are NOT
+# verbs and therefore remain candidate values that must fail closed
+# ("password: one", "password: them", "client_secret: some", "api key: another"
+# are credentials). This is a principled structural discriminator (a fixed
+# closed linguistic class), NOT an ever-growing stopword list.
+_COLON_PREDICATE_VERBS = frozenset(
     {
-        "a", "an", "the",
         "am", "is", "are", "was", "were", "be", "been", "being",
         "has", "have", "had", "do", "does", "did",
         "must", "should", "shall", "will", "would", "can", "could", "may", "might",
-        "to", "of", "for", "and", "or", "nor", "not", "in", "on", "at", "by",
-        "with", "from", "as", "if", "than", "then",
-        "it", "its", "this", "that", "these", "those",
-        "your", "my", "our", "their", "his", "her",
-        # Quantifiers / determiners / pronouns (closed-class function words).
-        "one", "each", "every", "all", "some", "any", "none", "no", "both",
-        "few", "many", "several", "most", "either", "neither", "another",
-        "other", "others", "such", "same", "enough",
-        "them", "us", "you", "me", "him", "we", "they", "he", "she",
-        # Interrogative/indefinite pronouns and prepositions/conjunctions/
-        # degree adverbs: remaining closed-class function words that can never be
-        # a credential value ("password: which"/"password: about"/"password: once").
-        "who", "whom", "whose", "which", "what",
-        "someone", "anybody", "anyone", "everybody", "everyone", "nobody",
-        "something", "anything", "everything", "nothing",
-        "about", "into", "through", "during", "before", "after", "above", "below",
-        "between", "under", "over", "against", "without", "within",
-        "but", "so", "yet", "because", "since", "unless", "although", "though",
-        "while", "whereas", "also", "only", "just", "still", "very", "too", "once",
     }
 )
-_COLON_PROSE_STOPWORD_RE = (
-    r"(?:" + "|".join(sorted(_COLON_PROSE_STOPWORDS, key=len, reverse=True)) + r")\b"
+_COLON_PREDICATE_VERB_RE = (
+    r"(?:" + "|".join(sorted(_COLON_PREDICATE_VERBS, key=len, reverse=True)) + r")\b"
 )
-_UNEQUIVOCAL_BARE_VALUE = rf"(?!{_COLON_PROSE_STOPWORD_RE}){_BARE_ANY_VALUE}"
+_UNEQUIVOCAL_BARE_VALUE = rf"(?!{_COLON_PREDICATE_VERB_RE}){_BARE_ANY_VALUE}"
 
 # Unicode colon-confusables that fold to STRONG ``=`` before NFKC. NFKC itself
 # collapses ``：`` (U+FF1A) to ASCII ``:`` and ``︰`` (U+FE30) to ``..``, which would

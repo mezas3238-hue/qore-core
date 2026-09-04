@@ -752,14 +752,129 @@ class TestCorrection009SecretClosure:
     @pytest.mark.parametrize(
         "witness",
         (
+            # Only the closed English auxiliary/modal/copula verb class marks a
+            # verb-phrase (predicate) after an UNEQUIVOCAL label, so these prose
+            # statements stay admissible ("password: must be rotated" is prose).
+            "password: must be rotated",
+            "password: is rotated quarterly",
+            "password: are rotated",
+            "password: was reset",
+            "password: should be rotated",
+            "password: can be rotated",
+            "password: will expire",
+            "password: has expired",
+        ),
+    )
+    def test_password_auxiliary_verb_prose_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Ordinary pronouns/quantifiers/determiners/conjunctions are VALUES,
+            # not prose markers: an unequivocal credential label used as an
+            # assignment fails closed even when the value is a prose word
+            # (R6 F1 fail-open closure). They must never be exempted merely
+            # because they are "prose words".
             "password: one",
-            "password: each",
             "password: them",
+            "password: each",
             "password: all",
             "password: several",
             "password: which",
             "password: because",
+            "client_secret: some",
+            "api key: another",
         ),
     )
-    def test_password_quantifier_prose_stays_benign(self, witness: str) -> None:
+    def test_unequivocal_label_pronoun_values_fail_closed(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+
+class TestCorrection010CredentialTwoSidedContract:
+    """R6 F1 closure: a two-sided detection contract — UNEQUIVOCAL labels fail
+    closed for any non-predicate value, while COMPOUND/ambiguous labels require a
+    credential-value signal (quoting or digit-bearing) rather than rejecting
+    benign prose by label alone."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # R6 greedy false-positive witnesses: compound labels with plain-word
+            # values are prose, not credentials.
+            "access token: expires daily",
+            "client id: unique",
+            "openai key: billing",
+            "personal access token: revoked",
+            # Neighboring compound-label prose (same equivalence class).
+            "refresh token: rotates daily",
+            "bearer token: is short-lived",
+            "auth token: expires hourly",
+            "id token: revoked",
+            "oauth token: scoped",
+            "slack token: revoked",
+            "github token: expired",
+            "x auth token: rotated",
+            "session token: reused",
+            "aws session token: expires",
+        ),
+    )
+    def test_compound_label_prose_stays_benign(self, witness: str) -> None:
         assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # The SAME compound labels with a credential-value signal (digit-
+            # bearing or quoted) ARE credentials.
+            "access token: abc123def",
+            "client id: 42ab",
+            "openai key: sk-abcdef1234567890",
+            "personal access token: 9f8e7d6c5b",
+            "refresh token: abc123",
+            "github token: ghp_abcdefghijklmnopqrstuvwxyz1234",
+            'access token: "expires-daily-token"',
+        ),
+    )
+    def test_compound_label_credential_signal_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Quoted value is always a deliberate assignment for every label.
+            'password: "one"',
+            'client_secret: "some"',
+            'access token: "expires daily"',
+            'secret: "the recipe"',
+        ),
+    )
+    def test_quoted_values_always_credential(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # NBSP/width-space between an UNEQUIVOCAL label and a predicate verb
+            # still yields prose (the verb class is the discriminator, not the
+            # separator), while an NBSP inside a split token still re-joins
+            # fail-closed.
+            "password:\u00a0must be rotated",
+            "access key:\u2007is rotated",
+        ),
+    )
+    def test_unicode_separator_predicate_prose_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # NBSP/width-space inside an intentionally split credential token
+            # re-joins and is still detected (fail closed).
+            "access\u00a0token: abc123",
+            "client\u2007id = abc123",
+            "openai\u00a0key: abc123",
+        ),
+    )
+    def test_unicode_separator_split_token_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)

@@ -1075,7 +1075,10 @@ def _causation_claim() -> CausalClaim:
                 evidence=_causal_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
             ),
         ),
-        evidence_for=(_causal_evidence("evidence:causal-for", CausalEvidencePolarity.SUPPORTS),),
+        evidence_for=(
+            _causal_evidence("evidence:causal-for", CausalEvidencePolarity.SUPPORTS),
+            _causal_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+        ),
         strength=CausalClaimStrength.MODERATE,
         status=CausalClaimStatus.ACTIVE,
     )

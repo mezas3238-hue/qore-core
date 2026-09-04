@@ -737,3 +737,134 @@ class TestFalsifierResolutionGovernance:
         )
         with pytest.raises(HypothesisValidationError):
             confirmed.revalidate()
+
+
+class TestCorrection010ConfirmationAdmissionClosure:
+    """R6 F2 closure: the CONFIRMED path must validate every supplied evidence
+    channel BEFORE clearing/projecting, and falsifier freshness is a GLOBAL
+    identity-set invariant (cross-relabel laundering is rejected)."""
+
+    def _clean_active(self) -> Hypothesis:
+        born = _hypothesis()
+        return transition_hypothesis(born, HypothesisStatus.ACTIVE)
+
+    def _two_falsifier_active(self) -> Hypothesis:
+        born = _hypothesis()
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        refuted = transition_hypothesis(
+            active,
+            HypothesisStatus.REFUTED,
+            contradictions=(
+                _evidence("evidence:f1", HypothesisEvidencePolarity.CONTRADICTION),
+                _evidence("evidence:f2", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        revised = transition_hypothesis(
+            refuted,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="new.evidence",
+        )
+        return transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+
+    def _resolution(
+        self,
+        falsifier_ref: str,
+        resolving_ref: str,
+        resolving_at: datetime = _T,
+    ) -> FalsifierResolution:
+        return FalsifierResolution(
+            falsifier_ref=CiboCognitiveEvidenceRef(falsifier_ref),
+            falsifier_polarity=HypothesisEvidencePolarity.CONTRADICTION,
+            falsifier_observed_at=_T,
+            resolving_ref=CiboCognitiveEvidenceRef(resolving_ref),
+            resolving_observed_at=resolving_at,
+        )
+
+    def test_confirmed_rejects_supplied_contradiction(self) -> None:
+        active = self._clean_active()
+        with pytest.raises(HypothesisValidationError, match="contradiction"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+                contradictions=(
+                    _evidence("evidence:fresh", HypothesisEvidencePolarity.CONTRADICTION),
+                ),
+            )
+
+    def test_confirmed_rejects_supplied_against(self) -> None:
+        active = self._clean_active()
+        with pytest.raises(HypothesisValidationError, match="against"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+                evidence_against=(
+                    _evidence("evidence:fresh", HypothesisEvidencePolarity.AGAINST),
+                ),
+            )
+
+    def test_confirmed_rejects_wrong_polarity_in_against(self) -> None:
+        active = self._clean_active()
+        with pytest.raises(HypothesisValidationError, match="against"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+                evidence_against=(
+                    _evidence("evidence:wrong", HypothesisEvidencePolarity.SUPPORTS),
+                ),
+            )
+
+    def test_cross_relabel_two_falsifier_cycle_rejected(self) -> None:
+        active = self._two_falsifier_active()
+        with pytest.raises(HypothesisValidationError, match="relabeled"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(
+                    _evidence("evidence:f1", HypothesisEvidencePolarity.TEST_RESULT),
+                    _evidence("evidence:f2", HypothesisEvidencePolarity.TEST_RESULT),
+                ),
+                falsifier_resolutions=(
+                    self._resolution("evidence:f1", "evidence:f2"),
+                    self._resolution("evidence:f2", "evidence:f1"),
+                ),
+            )
+
+    def test_cross_relabel_cycle_rejected_on_direct_construction(self) -> None:
+        # The invariant must also hold for a directly-constructed confirmed
+        # hypothesis (constructor == revalidate), not only through transition.
+        with pytest.raises(HypothesisValidationError, match="relabeled"):
+            _hypothesis(
+                status=HypothesisStatus.CONFIRMED,
+                tests=(
+                    _evidence("evidence:f1", HypothesisEvidencePolarity.TEST_RESULT),
+                    _evidence("evidence:f2", HypothesisEvidencePolarity.TEST_RESULT),
+                ),
+                falsifier_resolutions=(
+                    self._resolution("evidence:f1", "evidence:f2"),
+                    self._resolution("evidence:f2", "evidence:f1"),
+                ),
+            )
+
+    def test_genuine_distinct_resolving_tests_accepted(self) -> None:
+        active = self._two_falsifier_active()
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(
+                _evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),
+                _evidence("evidence:t2", HypothesisEvidencePolarity.TEST_RESULT),
+            ),
+            falsifier_resolutions=(
+                self._resolution("evidence:f1", "evidence:t1"),
+                self._resolution("evidence:f2", "evidence:t2"),
+            ),
+        )
+        assert confirmed.status is HypothesisStatus.CONFIRMED
+        assert sorted(r.falsifier_ref.value for r in confirmed.falsifier_resolutions) == [
+            "evidence:f1",
+            "evidence:f2",
+        ]

@@ -409,6 +409,28 @@ def _canonical_resolutions(
                 f"{field} must not contain duplicate falsifier resolutions"
             )
         seen.add(key)
+    # Global cross-relabel guard (R6 F2 closure): a resolving test's canonical
+    # (reference, UTC instant) must be disjoint from the canonical (reference,
+    # UTC instant) of EVERY blocking falsifier in this resolution set, not just
+    # from its own falsifier. Otherwise two or more blocking falsifiers can be
+    # cross-relabeled as one another's resolving TEST_RESULT observation and
+    # manufacture a confirmation without genuinely new evidence.
+    falsifier_ref_instants = {
+        (
+            resolution.falsifier_ref.value,
+            utc_instant(
+                resolution.falsifier_observed_at,
+                field="falsifier resolution falsifier observed_at",
+            ),
+        )
+        for resolution in values
+    }
+    for resolution in values:
+        if resolution.resolving_identity() in falsifier_ref_instants:
+            raise HypothesisValidationError(
+                "a falsifier resolution must reference genuinely new test evidence, "
+                "not a blocking falsifier relabeled"
+            )
     return tuple(sorted(values, key=lambda item: item.sort_key()))
 
 
@@ -799,11 +821,44 @@ def transition_hypothesis(
         raise HypothesisValidationError("falsifier_resolutions must be a sequence")
     if reason_code is not None:
         _validate_code(reason_code, field="revision reason code")
+    # Canonicalize (exact-type check + polarity check + recursive revalidation)
+    # every supplied evidence channel BEFORE any target-status projection or
+    # clearing. This closes the R6 F2 fail-open where the CONFIRMED path cleared
+    # the supplied against/contradiction channels before those inputs were
+    # validated, silently dropping caller-supplied falsifying material.
+    canonical_for = _canonical_evidence(
+        tuple(evidence_for),
+        field="hypothesis evidence for",
+        polarity=HypothesisEvidencePolarity.SUPPORTS,
+    )
+    canonical_against = _canonical_evidence(
+        tuple(evidence_against),
+        field="hypothesis evidence against",
+        polarity=HypothesisEvidencePolarity.AGAINST,
+    )
+    canonical_contradictions = _canonical_evidence(
+        tuple(contradictions),
+        field="hypothesis contradictions",
+        polarity=HypothesisEvidencePolarity.CONTRADICTION,
+    )
+    canonical_tests = _canonical_evidence(
+        tuple(tests),
+        field="hypothesis tests",
+        polarity=HypothesisEvidencePolarity.TEST_RESULT,
+    )
     canonical_resolutions = _canonical_resolutions(
         tuple(falsifier_resolutions),
         field="hypothesis falsifier resolutions",
     )
     if new_status is HypothesisStatus.CONFIRMED:
+        # CONFIRMED must never silently drop caller-supplied falsifying material:
+        # a non-empty AGAINST or CONTRADICTION channel on the confirming
+        # transition is rejected up front (already validated above).
+        if canonical_against or canonical_contradictions:
+            raise HypothesisValidationError(
+                "a confirmed hypothesis must not be supplied against/contradiction "
+                "evidence"
+            )
         # CONFIRMATION != FAVORABLE OUTCOME: entering CONFIRMED requires an
         # explicit, evidence-bound resolution for EVERY blocking falsifier the
         # hypothesis retained (contradictions + evidence_against). The resolution
@@ -839,26 +894,10 @@ def transition_hypothesis(
         if not content_changed:
             retained = _retained_evidence_identity(hypothesis)
             supplied = (
-                _canonical_evidence(
-                    tuple(evidence_for),
-                    field="hypothesis evidence for",
-                    polarity=HypothesisEvidencePolarity.SUPPORTS,
-                )
-                + _canonical_evidence(
-                    tuple(evidence_against),
-                    field="hypothesis evidence against",
-                    polarity=HypothesisEvidencePolarity.AGAINST,
-                )
-                + _canonical_evidence(
-                    tuple(contradictions),
-                    field="hypothesis contradictions",
-                    polarity=HypothesisEvidencePolarity.CONTRADICTION,
-                )
-                + _canonical_evidence(
-                    tuple(tests),
-                    field="hypothesis tests",
-                    polarity=HypothesisEvidencePolarity.TEST_RESULT,
-                )
+                canonical_for
+                + canonical_against
+                + canonical_contradictions
+                + canonical_tests
             )
             if not any(_evidence_identity(evidence) not in retained for evidence in supplied):
                 raise HypothesisValidationError(
@@ -877,8 +916,8 @@ def transition_hypothesis(
         next_against: tuple[HypothesisEvidence, ...] = ()
         next_contradictions: tuple[HypothesisEvidence, ...] = ()
     else:
-        next_against = _union_evidence(hypothesis.evidence_against, tuple(evidence_against))
-        next_contradictions = _union_evidence(hypothesis.contradictions, tuple(contradictions))
+        next_against = _union_evidence(hypothesis.evidence_against, canonical_against)
+        next_contradictions = _union_evidence(hypothesis.contradictions, canonical_contradictions)
     # Supporting/test evidence is per-revision (replaced, not accumulated): the
     # governed new-evidence gate for leaving REFUTED scopes its canonical-identity
     # comparison to the evidence the REFUTED hypothesis itself retains (its
@@ -891,10 +930,10 @@ def transition_hypothesis(
         revision=hypothesis.revision + 1,
         revision_parent=hypothesis.hypothesis_id,
         status=new_status,
-        evidence_for=tuple(evidence_for),
+        evidence_for=canonical_for,
         evidence_against=next_against,
         contradictions=next_contradictions,
-        tests=tuple(tests),
+        tests=canonical_tests,
         confidence=confidence,
         supersedes=supersedes,
         causal_claim_ref=causal_claim_ref,
