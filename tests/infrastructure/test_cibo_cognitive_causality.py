@@ -467,6 +467,44 @@ class TestCorrection010ConfounderResolutionProvenance:
             claim.revalidate()
 
 
+class TestIAR9CausalEvidenceChannelPolarity:
+    """IA closure: evidence channel != caller-selected polarity."""
+
+    @pytest.mark.parametrize(
+        ("field", "wrong_polarity"),
+        (
+            ("evidence_for", CausalEvidencePolarity.CONTRADICTION),
+            ("evidence_against", CausalEvidencePolarity.SUPPORTS),
+            ("contradictions", CausalEvidencePolarity.SUPPORTS),
+            ("limitations", CausalEvidencePolarity.SUPPORTS),
+        ),
+    )
+    def test_builder_rejects_cross_channel_polarity_laundering(
+        self, field: str, wrong_polarity: CausalEvidencePolarity
+    ) -> None:
+        evidence = _evidence(f"evidence:ia-r9-{field}", wrong_polarity)
+        with pytest.raises(CausalityValidationError, match="must carry only"):
+            _claim(**{field: (evidence,)})
+
+    @pytest.mark.parametrize(
+        ("field", "wrong_polarity"),
+        (
+            ("evidence_for", CausalEvidencePolarity.CONTRADICTION),
+            ("evidence_against", CausalEvidencePolarity.SUPPORTS),
+            ("contradictions", CausalEvidencePolarity.SUPPORTS),
+            ("limitations", CausalEvidencePolarity.SUPPORTS),
+        ),
+    )
+    def test_revalidate_rejects_reflective_cross_channel_replacement(
+        self, field: str, wrong_polarity: CausalEvidencePolarity
+    ) -> None:
+        claim = _claim()
+        evidence = _evidence(f"evidence:ia-r9-reflect-{field}", wrong_polarity)
+        object.__setattr__(claim, field, (evidence,))
+        with pytest.raises(CausalityValidationError, match="must carry only"):
+            claim.revalidate()
+
+
 class TestCorrection011MechanismBindingAuthority:
     """RF-3 FULL-FAMILY recertification: CORRELATION != CAUSATION. A caller
     label is not an authority root for CAUSATION/STRONG/CONFIRMED — the mechanism

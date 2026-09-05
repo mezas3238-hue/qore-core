@@ -111,7 +111,10 @@ def _canonical_variables(
 
 
 def _canonical_evidence(
-    values: tuple[CausalEvidence, ...], *, field: str
+    values: tuple[CausalEvidence, ...],
+    *,
+    field: str,
+    polarity: CausalEvidencePolarity | None = None,
 ) -> tuple[CausalEvidence, ...]:
     if type(values) is not tuple or any(type(v) is not CausalEvidence for v in values):
         raise CausalityValidationError(
@@ -119,6 +122,10 @@ def _canonical_evidence(
         )
     for item in values:
         item.revalidate()
+        if polarity is not None and item.polarity is not polarity:
+            raise CausalityValidationError(
+                f"{field} must carry only {polarity.value} evidence"
+            )
     # Dedup over canonical instant semantics (logical_values normalizes every
     # observed_at to its UTC instant), so genuinely-distinct DST-fold instants
     # remain distinct while equivalent-offset representations of one instant
@@ -382,22 +389,38 @@ class CausalClaim:
         object.__setattr__(
             self,
             "evidence_for",
-            _canonical_evidence(self.evidence_for, field="causal evidence for"),
+            _canonical_evidence(
+                self.evidence_for,
+                field="causal evidence for",
+                polarity=CausalEvidencePolarity.SUPPORTS,
+            ),
         )
         object.__setattr__(
             self,
             "evidence_against",
-            _canonical_evidence(self.evidence_against, field="causal evidence against"),
+            _canonical_evidence(
+                self.evidence_against,
+                field="causal evidence against",
+                polarity=CausalEvidencePolarity.AGAINST,
+            ),
         )
         object.__setattr__(
             self,
             "contradictions",
-            _canonical_evidence(self.contradictions, field="causal contradictions"),
+            _canonical_evidence(
+                self.contradictions,
+                field="causal contradictions",
+                polarity=CausalEvidencePolarity.CONTRADICTION,
+            ),
         )
         object.__setattr__(
             self,
             "limitations",
-            _canonical_evidence(self.limitations, field="causal limitations"),
+            _canonical_evidence(
+                self.limitations,
+                field="causal limitations",
+                polarity=CausalEvidencePolarity.LIMITATION,
+            ),
         )
         if type(self.strength) is not CausalClaimStrength:
             raise CausalityValidationError(
@@ -583,15 +606,25 @@ def build_causal_claim(
     canonical_resolutions = _canonical_confounder_resolutions(
         tuple(confounder_resolutions), field="causal confounder resolutions"
     )
-    canonical_for = _canonical_evidence(tuple(evidence_for), field="causal evidence for")
+    canonical_for = _canonical_evidence(
+        tuple(evidence_for),
+        field="causal evidence for",
+        polarity=CausalEvidencePolarity.SUPPORTS,
+    )
     canonical_against = _canonical_evidence(
-        tuple(evidence_against), field="causal evidence against"
+        tuple(evidence_against),
+        field="causal evidence against",
+        polarity=CausalEvidencePolarity.AGAINST,
     )
     canonical_contradictions = _canonical_evidence(
-        tuple(contradictions), field="causal contradictions"
+        tuple(contradictions),
+        field="causal contradictions",
+        polarity=CausalEvidencePolarity.CONTRADICTION,
     )
     canonical_limitations = _canonical_evidence(
-        tuple(limitations), field="causal limitations"
+        tuple(limitations),
+        field="causal limitations",
+        polarity=CausalEvidencePolarity.LIMITATION,
     )
     return CausalClaim(
         claim_id=claim_id,
