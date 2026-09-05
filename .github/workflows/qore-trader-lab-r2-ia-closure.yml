@@ -50,29 +50,31 @@ jobs:
 
           path = Path("src/qore/infrastructure/trader_lab/stage_evidence.py")
           text = path.read_text()
-          old = '''    if reference.candidate_binding_fingerprint is not None:
-              _validate_sha256(
-                  reference.candidate_binding_fingerprint,
-                  field_name=f"{field_name} candidate binding fingerprint",
-              )
-          '''
-          new = '''    candidate_binding_fingerprint = getattr(
-              reference, "candidate_binding_fingerprint", None
+          old = (
+              "    if reference.candidate_binding_fingerprint is not None:\n"
+              "        _validate_sha256(\n"
+              "            reference.candidate_binding_fingerprint,\n"
+              "            field_name=f\"{field_name} candidate binding fingerprint\",\n"
+              "        )\n"
           )
-          if candidate_binding_fingerprint is not None:
-              _validate_sha256(
-                  candidate_binding_fingerprint,
-                  field_name=f"{field_name} candidate binding fingerprint",
-              )
-          '''
+          new = (
+              "    candidate_binding_fingerprint = getattr(\n"
+              "        reference, \"candidate_binding_fingerprint\", None\n"
+              "    )\n"
+              "    if candidate_binding_fingerprint is not None:\n"
+              "        _validate_sha256(\n"
+              "            candidate_binding_fingerprint,\n"
+              "            field_name=f\"{field_name} candidate binding fingerprint\",\n"
+              "        )\n"
+          )
           if text.count(old) != 1:
               raise SystemExit("candidate binding validation shape changed")
           text = text.replace(old, new, 1)
-          old = "        if reference.candidate_binding_fingerprint is None:\n"
-          new = "        if candidate_binding_fingerprint is None:\n"
-          if text.count(old) != 1:
+          old_guard = "        if reference.candidate_binding_fingerprint is None:\n"
+          new_guard = "        if candidate_binding_fingerprint is None:\n"
+          if text.count(old_guard) != 1:
               raise SystemExit("external candidate binding guard shape changed")
-          text = text.replace(old, new, 1)
+          text = text.replace(old_guard, new_guard, 1)
           path.write_text(text)
           PY
           git diff --check
