@@ -881,9 +881,9 @@ class TestCorrection010CredentialTwoSidedContract:
 
 
 class TestCorrection011SecretFamilyRecertification:
-    """RF-1 FULL-FAMILY recertification: Unicode dash-homoglyph delimiter class,
-    all-letter credential-value class, and the case-sensitive provider-prefix /
-    Cyrillic-Greek-Armenian label confusable classes."""
+    """RF-1 recertification (R8): Unicode dash-homoglyph delimiter class,
+    script-neutral credential-value class, and the case-sensitive provider-prefix
+    / Cyrillic-Greek-Armenian label confusable classes."""
 
     @pytest.mark.parametrize(
         "witness",
@@ -912,17 +912,21 @@ class TestCorrection011SecretFamilyRecertification:
     @pytest.mark.parametrize(
         "witness",
         (
-            # Long all-letter credential/token values under AMBIGUOUS/WEAK labels.
-            "secret: abcdefghijklmnop",
-            "access_token: abcdefghijklmnop",
-            "token: abcdefghijklmnop",
-            "credential: abcdefghijklmnop",
-            "authorization: abcdefghijklmnop",
-            "secret: correcthorsebatterystaple",
-            "token: AbCdEfGhIjKlMn",
+            # Non-Latin all-letter credential/token values under AMBIGUOUS/WEAK
+            # labels (script-neutral: the alphabetic credential class is NOT
+            # ASCII-script authority — Greek/Cyrillic/CJK letter runs are
+            # credential-shaped too).
+            "secret: αβγδεζηθικλμν",
+            "token: абвгдежзиклмн",
+            "secret: 密码密码密码密码密码",
+            "credential: αβγδεζηθικλμν",
+            "authorization: абвгдежзиклмн",
+            "access_token: 密码密码密码密码密码",
+            "token: αβγδεζηθικλμν",
+            "openai key: абвгдежзиклмн",
         ),
     )
-    def test_all_letter_token_values_detected(self, witness: str) -> None:
+    def test_non_latin_all_letter_token_values_detected(self, witness: str) -> None:
         assert contains_secret_material(witness)
 
     @pytest.mark.parametrize(
@@ -990,3 +994,599 @@ class TestCorrection011SecretFamilyRecertification:
     )
     def test_confusable_outside_labels_stays_benign(self, witness: str) -> None:
         assert not contains_secret_material(witness)
+
+
+class TestRF1PrefixDelimiterEquivalence:
+    """R8 RF-1 QF-R8-1 closure: the provider-prefix delimiter slot is a full
+    equivalence class — literal ``-``/``_``, dash homoglyph, visible Po/Sm/So
+    separator, and invisible delimiter — never an allowlisted dash set."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # U+180A MONGOLIAN NIRUGU (Po) occupies the literal prefix delimiter.
+            "sk\u180aabcdefghijklmnop",
+            "sk\u180a-Pro-abcdefghijklmnop",
+            "xoxb\u180aabcdefghijklm",
+            "Bearer\u180aabc123def",
+            "Basic\u180aYWJjZA==",
+            # The compound-label delimiter slot folds equivalently: the SAME
+            # label with a digit-bearing value is detected (the short all-letter
+            # value "abc" stays benign symmetric with ``access-token: abc``).
+            "access\u180atoken: abc123",
+            # Further Po/Sm/So separators (property-generated over the Po/Sm/So
+            # categories, not witness-specific): middle dot, bullet, times sign,
+            # hyphen bullet, minus sign.
+            "sk\u00b7abcdefghijklmnop",
+            "xoxb\u2022abcdefghijklm",
+            "ghp\u00d7abcdefghijklmnopqrstuvwxyz1234",
+            "sk\u2043abcdefghijklmnop",
+            "Bearer\u2212abc123def",
+            "Basic\u00b7YWJjZA==",
+        ),
+    )
+    def test_po_sm_so_delimiter_equivalence_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # An invisible (Cf/Zs) character REPLACING the required delimiter is
+            # folded to the delimiter, not stripped into a joined string that
+            # evades the literal prefix grammar.
+            "sk\u200babcdefghijklmnop",
+            "sk\u2060abcdefghijklmnop",
+            "xoxb\ufeffabcdefghijklm",
+            "ghp\u200babcdefghijklmnopqrstuvwxyz1234",
+            "gho\u00a0abcdefghijklmnopqrstuvwxyz1234",
+        ),
+    )
+    def test_invisible_delimiter_replacement_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # An invisible ADJACENT to a real delimiter remains fail-closed: the
+            # real delimiter survives and the invisible is stripped.
+            "sk-\u200babcdefghijklmnop",
+            "xoxb-\u200babcdefghijklm",
+            "ghp_\u200babcdefghijklmnopqrstuvwxyz1234",
+        ),
+    )
+    def test_invisible_adjacent_to_real_delimiter_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # An invisible char INSERTED BEFORE a real delimiter must re-join the
+            # prefix to that delimiter (strip), not fold to ``-`` and double the
+            # delimiter. ``gh*_``'s token class excludes ``-``/``_``, so the
+            # doubling (``ghp-_…``) would fail the detector open. Regression fix.
+            "ghp\u200b_abcdefghijklmnopqrstuvwxyz1234",
+            "gho\u200b_abcdefghijklmnopqrstuvwxyz1234",
+            "ghu\u200b_abcdefghijklmnopqrstuvwxyz1234",
+            "ghs\u200b_abcdefghijklmnopqrstuvwxyz1234",
+            "ghr\u200b_abcdefghijklmnopqrstuvwxyz1234",
+            "ghp\ufeff_abcdefghijklmnopqrstuvwxyz1234",
+            "ghp\u200c\u200d_abcdefghijklmnopqrstuvwxyz1234",
+            "sk\u200b-abcdefghijklmnop",
+            "s\u200bk\u200d_abcdefghijklmnop",  # split prefix + invisible + real delim
+            # Invisible before a colon-confusable delimiter folds equivalently.
+            "sk\u200b\u2236abcdefghijklmnop",  # ZWSP + RATIO -> sk=...
+        ),
+    )
+    def test_invisible_before_real_delimiter_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # The confusable-folded homoglyph provider prefix + invisible
+            # delimiter cross-product fails closed (the confusable fold runs
+            # before the delimiter-slot inspection).
+            "\u0455\u043a\u200babcdefghijklmnop",  # Cyrillic sk + ZWSP
+            "\u0445\u043e\u0445b\u200babcdefghijklm",  # Cyrillic xoxb + ZWSP
+        ),
+    )
+    def test_confusable_prefix_invisible_delimiter_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+
+class TestRF1CredentialValueScriptClosure:
+    """R8 RF-1 QF-R8-2/QF-R8-3 closure: credential-value detection is not
+    ASCII-script authority, and benign Latin prose (terminal single word, comma
+    list, hyphenated compound, multi-word prose) stays admissible."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # The accepted R8 English-prose false positives must stay benign.
+            "secret: authentication, authorization, and accounting",
+            "token: authentication.",
+            "access token: reconnaissance, exploitation, persistence",
+            "authorization: compartmentalization",
+            "credential: interoperability",
+            "openai key: interoperability",
+            "secret: authentication",
+            "token: confidentiality, integrity, availability",
+            "access token: authentication-based flows are common",
+            "token: authentication-based",
+            # Neighboring single-word / hyphenated Latin prose (same class).
+            "secret: characterization",
+            "credential: reinterpretation",
+            "secret: interoperability-based",
+            "token: implementation",
+            "authorization: infrastructure",
+        ),
+    )
+    def test_latin_all_letter_prose_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Non-Latin all-letter values under credential-bearing labels are
+            # credential-shaped (not ASCII-script authority): Greek, Cyrillic,
+            # CJK, and a further representative script partition.
+            "secret: αβγδεζηθικλμν",
+            "token: абвгдежзиклмн",
+            "secret: 密码密码密码密码密码",
+            "credential: αβγδεζηθικλμν",
+            "authorization: абвгдежзиклмн",
+        ),
+    )
+    def test_non_latin_all_letter_values_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Benign multilingual prose controls: short non-Latin words and
+            # multi-word non-Latin prose stay admissible.
+            "token: 密码",
+            "secret: 安全",
+            "token: 密码安全",
+            "secret: αυθεντικοποίηση και εξουσιοδότηση",
+            "token: авторизация учетной записи",
+            # Non-ASCII LATIN-script prose is still prose (the script check is
+            # Latin-vs-non-Latin, NOT ASCII-vs-non-ASCII): Danish/Norwegian/
+            # Polish/Turkish/Swedish single words stay admissible even when 8+.
+            "token: økonomistyring",
+            "secret: økonomistyring",
+            "token: æstetikklære",
+            "secret: specjalistyczne",
+            "authorization: özgürleştirme",
+            "credential: pålitelighet",
+        ),
+    )
+    def test_benign_multilingual_prose_stays_admissible(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # The Basic/Bearer delimiter fold to ``-`` must not manufacture a
+            # credential from prose where a dash-equivalent sits between the
+            # scheme keyword and a non-credential word.
+            "Basic-principles",
+            "Basic-authentication",
+            "Bearer-certificate",
+            "Bearer-obligations",
+            "Basic-2008 outlook was bearish",
+            "Bearer-certificate obligations",
+        ),
+    )
+    def test_scheme_keyword_dash_separator_prose_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+
+class TestRF1AllLetterCredentialClosure:
+    """R8 RF-1 L5/L4 closure: the all-letter credential-value class is not
+    ASCII-script authority and not uniform-case-only. An internal Latin
+    lower->upper case transition is a token/passphrase signal, and the
+    confusable fold must not erase the script of a non-Latin value."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Mixed-case Latin all-letter values (internal lower->upper capital)
+            # are credential-shaped: an English word never carries an internal
+            # case transition. These were R7-accepted and the predecessor
+            # accidentally dropped them.
+            "token: AbCdEfGhIjKlMn",
+            "secret: aBcDeFgHiJkLmN",
+            "secret: abCdefgh",
+            "secret: correctHorseBatteryStaple",
+            "token: qwertYuiop",
+            "token: aBcDeFgH",
+            "credential: AbCdEfGhIj",
+            "authorization: AbCdEfGhIjKl",
+            "token: accessTokenValue",
+        ),
+    )
+    def test_mixed_case_latin_all_letter_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # A non-Latin value composed ENTIRELY of Cyrillic/Greek confusable
+            # homoglyphs must keep its script: the confusable fold re-joins
+            # homoglyph LABELS but must not ASCII-ify a non-Latin VALUE.
+            "secret: αεικινητος",
+            "secret: οοοοοοοο",
+            "secret: αααααααα",
+            "secret: сонетсонетсонет",
+            "secret: соснасоснасосна",
+        ),
+    )
+    def test_confusable_only_non_latin_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Mc-mark (Indic/Brahmic) scripts: vowel signs are spacing combining
+            # marks (Mc) and must not split the word into sub-8-letter runs.
+            "secret: हिन्दीभाषाशब्द",
+            "token: বাংলাভাষাবিজ্ঞান",
+            "secret: தமிழ்மொழிச்சொல்",
+            "secret: కన్నడభాషాపదం",
+            "secret: ਪੰਜਾਬੀਭਾਸ਼ਾਵਿਗਿਆਨ",
+            "secret: ગુજરાતીભાષાવિજ્ઞાન",
+            "secret: ಕನ್ನಡಭಾಷಾವಿಜ್ಞಾನ",
+            "secret: മലയാളഭാഷാവിജ്ഞാനം",
+            "secret: සිංහලභාෂාවිද්යාව",
+            "secret: ភាសាខ្មែរវិទ្យាសាស្ត្រ",
+            "secret: ภาษาไทยวิทยา",
+        ),
+    )
+    def test_mc_mark_script_all_letter_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Uniform-case Latin all-letter tokens are prose: a bare lowercase
+            # run is indistinguishable from an English word without a wordlist,
+            # and a Title/all-caps run is ordinary prose. This pins the QF-R8-2
+            # re-adjudication of the former 12+ ASCII length rule.
+            "secret: abcdefghijklmnop",
+            "access_token: abcdefghijklmnop",
+            "token: abcdefghijklmnop",
+            "credential: abcdefghijklmnop",
+            "authorization: abcdefghijklmnop",
+            "secret: correcthorsebatterystaple",
+            "secret: Authentication",
+            "token: AUTHENTICATION",
+            "secret: ABCDEFGHIJKL",
+            # Non-ASCII Latin prose and non-cased scripts stay benign when short.
+            "token: økonomistyring",
+            "secret: økonomistyring",
+            "token: macOS",
+            "token: iPhone",
+        ),
+    )
+    def test_uniform_case_latin_all_letter_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+
+class TestRF1UnicodeDelimiterAndScriptClosure:
+    """R8 RF-1 L3 closure: colon-confusable delimiters, Pc connector punctuation,
+    and empty-name (Tangut) letters cannot fail the detector open."""
+
+    @pytest.mark.parametrize(
+        "delimiter",
+        (
+            "\uff1a",  # FULLWIDTH COLON
+            "\u2236",  # RATIO
+            "\u0589",  # ARMENIAN FULL STOP
+            "\u05c3",  # HEBREW PUNCTUATION SOF PASUQ
+            "\ufe13",  # PRESENTATION FORM FOR VERTICAL COLON
+            "\ufe30",  # PRESENTATION FORM FOR VERTICAL TWO DOT LEADER
+            "\ufe55",  # SMALL COLON
+        ),
+    )
+    def test_colon_confusable_prefix_delimiter_detected(self, delimiter: str) -> None:
+        assert contains_secret_material(f"sk{delimiter}abcdefghijklmnop")
+        assert contains_secret_material(f"xoxb{delimiter}abcdefghijklm")
+        assert contains_secret_material(f"ghp{delimiter}abcdefghijklmnopqrstuvwxyz1234")
+
+    @pytest.mark.parametrize(
+        "delimiter",
+        (
+            "\u203f",  # UNDERTIE (Pc underscore homoglyph)
+            "\u2040",  # CHARACTER TIE
+            "\u2054",  # INVERTED UNDERTIE
+        ),
+    )
+    def test_pc_connector_prefix_delimiter_detected(self, delimiter: str) -> None:
+        assert contains_secret_material(f"sk{delimiter}abcdefghijklmnop")
+
+    def test_equals_and_decomposed_prefix_delimiter_detected(self) -> None:
+        # The widened prefix class also covers ASCII ``=`` and a Sm char whose
+        # NFD decomposition (``=`` + combining mark) leaves an ``=`` residue.
+        assert contains_secret_material("sk=abcdefghijklmnop")
+        assert contains_secret_material("sk\u2260abcdefghijklmnop")  # NOT EQUAL TO
+
+    def test_tangut_empty_name_letters_are_non_latin(self) -> None:
+        # Tangut letters have an empty unicodedata.name in the stdlib database;
+        # they must not be misread as Latin prose.
+        assert contains_secret_material("secret: " + "\U00017000" * 8)
+        assert contains_secret_material("token: " + "\U000187f7" * 8)
+
+    def test_fullwidth_colon_assignment_still_detected(self) -> None:
+        # The colon-confusable ``=`` fold for label assignment must be preserved.
+        assert contains_secret_material("client_secret\uff1aabc123")
+        assert contains_secret_material("secret_key\uff1aabcdef")
+
+
+class TestRF1InternalExpertClosure:
+    """R8 RF-1 Internal Expert repair closure: URL-userinfo colon-confusables,
+    invisible-split provider prefixes, and SCREAMING-prefix mixed-case values."""
+
+    # L6 Finding 1: URL userinfo colon-confusable delimiter must not escape.
+    @pytest.mark.parametrize(
+        "delimiter",
+        (
+            "\uff1a",  # FULLWIDTH COLON
+            "\u2236",  # RATIO
+            "\u0589",  # ARMENIAN FULL STOP
+            "\u02d0",  # MODIFIER LETTER TRIANGULAR COLON
+            "\u05c3",  # HEBREW PUNCTUATION SOF PASUQ
+            "\ufe13",  # PRESENTATION FORM FOR VERTICAL COLON
+        ),
+    )
+    def test_url_userinfo_colon_confusable_detected(self, delimiter: str) -> None:
+        assert contains_secret_material(f"//alice{delimiter}secret@example.com")
+
+    def test_url_userinfo_ascii_baseline_detected(self) -> None:
+        assert contains_secret_material("//alice:secret@example.com")
+
+    # L6 Finding 2: invisible split prefix + invisible delimiter must not escape.
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "s\u0301k\u200dabcdefghijklmnop",  # Mn inside prefix + ZWJ delimiter
+            "s\u200bk\u200dabcdefghijklmnop",  # ZWSP inside prefix + ZWJ delimiter
+            "s\u0301k\u200babcdefghijklmnop",  # Mn inside prefix + ZWSP delimiter
+            "xox\u200db\u200dabcdefghijklm",
+            "gh\u200dp\u200dabcdefghijklmnopqrstuvwxyz1234",
+        ),
+    )
+    def test_invisible_split_prefix_with_invisible_delimiter_detected(
+        self, witness: str
+    ) -> None:
+        assert contains_secret_material(witness)
+
+    def test_invisible_split_prefix_with_literal_delimiter_detected(self) -> None:
+        # The inside-prefix invisible is stripped; the literal delimiter survives.
+        assert contains_secret_material("s\u0301k-abcdefghijklmnop")
+        assert contains_secret_material("s\u200bk-abcdefghijklmnop")
+
+    # Internal Expert Finding 3: leading all-caps run + lowercase tail (an
+    # internal capital with no lower->upper transition) is credential-shaped.
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "token: AUTHtoken",
+            "token: TOKENValue",
+            "secret: ABcdefgh",
+            "token: SSHtunneling",
+            "token: HTMLparser",
+            "authorization: AUTHtoken",
+            "credential: TOKENValue",
+            "secret: ABCDEFGh",
+        ),
+    )
+    def test_leading_caps_lowercase_tail_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Title-case / all-caps / all-lower stay prose (no internal capital).
+            "token: Authentication",
+            "token: AUTHENTICATION",
+            "token: authentication",
+            "secret: Compartmentalization",
+            "authorization: INTEROPERABILITY",
+            "credential: interoperability",
+        ),
+    )
+    def test_uniform_and_title_case_stay_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+
+class TestAuditRepairNFKCCompatClosure:
+    """Audit repair: NFKC-compatibility forms must not fail the detector open.
+
+    The Po/Sm/So/Pc separator fold and the provider-prefix recognition ran BEFORE
+    NFKC, so (a) a compatibility form of grammar-significant punctuation
+    (fullwidth/small/superscript/subscript ``=``/``.``/``@``/``+``/``"``/``'``/
+    ``_``/``/``) was erased to ``-`` instead of NFKC-folding to its canonical
+    delimiter, and (b) a compatibility form of a provider-prefix letter (fullwidth
+    ``ｓ``, long ``ſ``, circled ``ⓢ``, mathematical-bold ``𝐬``) was not recognized,
+    so an invisible delimiter in the delimiter slot was stripped into a
+    delimiter-less join. Both fail the detector open (regression vs HEAD, which
+    ran NFKC over the raw text). The repair makes both transforms NFKC-aware."""
+
+    @pytest.mark.parametrize("delimiter", ("\uff1d", "\ufe66", "\u207c", "\u208c"))
+    def test_equals_compat_forms_detected(self, delimiter: str) -> None:
+        assert contains_secret_material(f"client_secret{delimiter}abc123")
+        assert contains_secret_material(f"password{delimiter}secret")
+        assert contains_secret_material(f"api_key{delimiter}abc123")
+
+    @pytest.mark.parametrize("delimiter", ("\uff0e", "\ufe52", "\u2024"))
+    def test_jwt_fullstop_compat_forms_detected(self, delimiter: str) -> None:
+        jwt = f"eyJhbGciOiJIUzI1NiJ9{delimiter}eyJzdWIiOiIxIn0{delimiter}signature"
+        assert contains_secret_material(jwt)
+
+    @pytest.mark.parametrize("delimiter", ("\uff20", "\ufe6b"))
+    def test_url_userinfo_at_compat_forms_detected(self, delimiter: str) -> None:
+        assert contains_secret_material(f"//alice:secret{delimiter}example.com")
+
+    @pytest.mark.parametrize("delimiter", ("\uff0b", "\ufe62", "\u207a", "\u208a", "\ufb29"))
+    def test_basic_base64_plus_compat_forms_detected(self, delimiter: str) -> None:
+        assert contains_secret_material(f"Basic a{delimiter}bcd")
+        assert contains_secret_material(f"Basic YWJj{delimiter}ZA==")
+
+    def test_fullwidth_solidus_quote_and_lowline_detected(self) -> None:
+        assert contains_secret_material("http:\uff0f\uff0falice:secret@example.com")
+        assert contains_secret_material("secret: \uff02the recipe\uff02")
+        assert contains_secret_material("secret: \uff07the recipe\uff07")
+        assert contains_secret_material("sk\uff3fabcdefghijklmnop")
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "\uff53\uff4b\u200babcdefghijklmnop",  # fullwidth sk + ZWSP
+            "\uff58\uff4f\uff58\uff42\u200babcdefghijklm",  # fullwidth xoxb + ZWSP
+            "\uff47\uff48\uff50\u200babcdefghijklmnopqrstuvwxyz1234",  # fullwidth ghp
+            "\u017fk\u200babcdefghijklmnop",  # long s + k + ZWSP
+            "\u24e2\u24da\u200babcdefghijklmnop",  # circled sk + ZWSP
+            "\U0001d42c\U0001d424\u200babcdefghijklmnop",  # math-bold sk + ZWSP
+            "\uff53\u200b\uff4b\u200babcdefghijklmnop",  # fullwidth s<ZWSP>k<ZWSP>
+            "\uff53\uff4b\u00a0abcdefghijklmnop",  # fullwidth sk + NBSP
+            "\uff53\uff4b\ufeffabcdefghijklmnop",  # fullwidth sk + BOM
+            "\uff53\uff4b\u200dabcdefghijklmnop",  # fullwidth sk + ZWJ
+        ),
+    )
+    def test_nfkc_compat_prefix_invisible_delimiter_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "token: 12 units were issued",
+            "secret: the recipe is a family tradition",
+            "Basic principles",
+            "Basic 2008 outlook was bearish",
+            "the client_secret field must be configured",
+            "authorization: delegated",
+        ),
+    )
+    def test_benign_prose_still_admissible(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            "sk\u00b7abcdefghijklmnop",  # middle dot still folds to the delimiter
+            "sk\u180aabcdefghijklmnop",  # nirugu still folds to the delimiter
+            "sk\u203fabcdefghijklmnop",  # undertie still folds to the delimiter
+            "xoxb\u2022abcdefghijklm",  # bullet still folds to the delimiter
+        ),
+    )
+    def test_true_separators_still_fold_to_delimiter(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Invisible Cf dashes (soft hyphen U+00AD / tag hyphen U+E002D) must
+            # re-join inside a token/label, not split it to a visible ``-``.
+            "s\u00adk-abcdefghijklmnop",  # soft hyphen inside the sk prefix
+            "s\U000e002dk-abcdefghijklmnop",  # tag hyphen inside the sk prefix
+            "p\u00adassword: abc123",  # soft hyphen inside the password label
+            "c\u00adlient_secret=abc123",  # soft hyphen inside the client label
+            "/\u00ad/alice:secret@example.com",  # soft hyphen inside the URL ``//``
+            "sk\u00adabcdefghijklmnop",  # soft hyphen in the delimiter slot folds
+            "sk\U000e002dabcdefghijklmnop",  # tag hyphen in the delimiter slot folds
+            "access\u00adtoken: abc123",  # soft hyphen inside a compound label
+        ),
+    )
+    def test_invisible_cf_dash_rejoins_token(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Unmapped colon-lookalikes (siblings of the mapped RATIO U+2236) fold
+            # to the STRONG ``=`` too, so they cannot fail the detector open.
+            "password\u2237secret",  # PROPORTION
+            "password\u205asecret",  # TWO DOT PUNCTUATION
+            "client_secret\u2237abc123",
+            "client_secret\u205aabc123",
+            "sk\u2237abcdefghijklmnop",
+            "sk\u205aabcdefghijklmnop",
+        ),
+    )
+    def test_unmapped_colon_confusables_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+
+class TestAuditRepairHomoglyphLabelScriptClosure:
+    """Audit repair: a homoglyph-normalized credential LABEL plus a non-Latin
+    VALUE composed entirely of confusable homoglyph letters must not escape.
+
+    The confusable-FOLDED skeleton ASCII-ifies the value (hiding its script, so
+    it reads as uniform Latin prose) while the script-preserving skeleton must
+    still see the homoglyph label through a confusable-insensitive label
+    spelling. The two transforms must not fail open in their cross-product."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Homoglyph label + confusable-only non-Latin value (the exact gap).
+            "sеcret: αεικινητος",  # CYRILLIC SMALL IE for e
+            "sеcret: οοοοοοοο",  # Cyrillic e + Greek omicron-only value
+            "sеcret: αααααααα",
+            "sεcret: αεικινητος",  # GREEK SMALL EPSILON for e
+            "σecret: αεικινητος",  # GREEK SMALL SIGMA for s
+            "ѕecret: αεικινητος",  # CYRILLIC SMALL DZE for s
+            "seсret: αεικινητος",  # CYRILLIC SMALL ES for c
+            "secгet: αεικινητος",  # CYRILLIC SMALL GHE for r
+            "secreτ: αεικινητος",  # GREEK SMALL TAU for t
+            "tоken: αεικινητος",  # CYRILLIC SMALL O for o
+            "tοken: αεικινητος",  # GREEK SMALL OMICRON for o
+            "tоκen: αεικινητος",  # Cyrillic o + Greek kappa
+            "credentіal: αεικινητος",  # CYRILLIC BYELORUSSIAN-UKRAINIAN I for i
+            "authorizatiоn: αεικινητος",  # Cyrillic o in authorization
+            "access_tоken: αεικινητος",  # Cyrillic o in compound label
+            "оpenai_key: αεικινητος",  # Cyrillic o in openai_key
+        ),
+    )
+    def test_homoglyph_label_confusable_value_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # A homoglyph label with a uniform-case LATIN value is still prose:
+            # the label spelling must not manufacture a credential from prose.
+            "sеcret: authentication",
+            "sеcret: abcdefghijklmnop",
+            "tоken: authentication",
+            "σecret: compartmentalization",
+        ),
+    )
+    def test_homoglyph_label_uniform_latin_value_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    def test_homoglyph_label_detection_is_invariant(self) -> None:
+        # Metamorphic: replacing any ASCII letter of a credential label with its
+        # confusable homoglyph must not change the all-letter-value verdict for
+        # ANY value class (non-Latin, confusable-only, mixed-case, uniform Latin).
+        homoglyph_variants = {
+            "secret": ("sеcret", "sεcret", "σecret", "ѕecret", "seсret", "secгet", "secreτ"),
+            "token": ("tоken", "tοken", "tоκen"),
+            "authorization": ("authorizatiоn",),
+            "credential": ("credentіal",),
+        }
+        values = (
+            "αεικινητος",  # confusable-only non-Latin
+            "οοοοοοοο",  # confusable-only non-Latin (omicron)
+            "αβγδεζηθικλμν",  # non-confusable non-Latin
+            "AbCdEfGhIj",  # mixed-case Latin
+            "abcdefghijklmnop",  # uniform Latin prose
+        )
+        for label, variants in homoglyph_variants.items():
+            for value in values:
+                expected = contains_secret_material(f"{label}: {value}")
+                for variant in variants:
+                    assert (
+                        contains_secret_material(f"{variant}: {value}") == expected
+                    ), f"{variant}: {value} diverged from {label}: {value}"

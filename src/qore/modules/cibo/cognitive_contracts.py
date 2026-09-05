@@ -24,6 +24,7 @@ from datetime import datetime
 from enum import StrEnum
 from re import IGNORECASE, Pattern, compile, fullmatch
 from unicodedata import category as _unicodedata_category
+from unicodedata import name as _unicodedata_name
 from unicodedata import normalize as _unicodedata_normalize
 from uuid import UUID
 
@@ -104,21 +105,91 @@ _BARE_DIGIT_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
 # A bare (unquoted) colon value for a WEAK label is credible only as an 8+ char
 # mixed token carrying BOTH a letter and a digit. Short tokens like "OAuth2",
 # "2FA", "12", or "2008" are ordinary prose/numbers and stay admissible.
-_BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[A-Za-z])[^\s\"']{8,}"
-# A bare (unquoted) ALL-LETTER colon value is credential-shaped when it is a
-# LONG contiguous alphabetic token (>= 12 chars): such a run is token-shaped or
-# passphrase-like, not a natural-language predicate word. Short all-letter
-# values ("the", "expires", "revoked", "management") remain prose under the
-# two-sided contract. This is a fixed structural length boundary over the whole
-# all-letter value class — not a word list and not a witness-specific branch.
-# The trailing negative lookahead keeps the value a SINGLE COMPLETE token: a
-# long word that merely HEADS a multi-word prose phrase ("secret: authentication
-# is required", "token: authentication happens at the edge") is prose, not a
-# credential, and must stay accepted under the two-sided contract. The
-# ``(?![A-Za-z]|\s+[A-Za-z])`` guard also stops the engine from backtracking the
-# 12+ run into a shorter prefix of a longer word, which would otherwise re-open
-# the head-of-prose match.
-_BARE_ALPHA_TOKEN_VALUE = r"[A-Za-z]{12,}(?![A-Za-z]|\s+[A-Za-z])"
+_BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[^\W\d_])[^\s\"']{8,}"
+# A bare (unquoted) ALL-LETTER colon value for an AMBIGUOUS/WEAK label is
+# credential-shaped when it is a SINGLE COMPLETE token of >= 8 Unicode letters
+# that is EITHER non-Latin-script OR mixed-case Latin (an internal capital).
+# The prose domain of the cognitive system is LATIN-script English, so a
+# non-Latin letter run under a credential-bearing label is out-of-domain, and a
+# Latin token with an internal capital is a token/passphrase — while a
+# uniform-case Latin value is prose (an English word "authentication",
+# "compartmentalization", "interoperability", a non-ASCII Latin word
+# "økonomistyring"/"specjalistyczne", an acronym "AUTH", or a Title-case word
+# "Authentication"). This is a fixed structural/script discriminator, not a
+# word list and not a witness-specific branch.
+#
+# Two-stage shape + script/case grammar (``re`` exposes no Script property):
+#   - The structural regex below matches the SHAPE only: an 8+ Unicode-letter
+#     single complete token. It is a superset gate over every script.
+#   - ``_is_credential_all_letter_token`` refines the gate with the Unicode
+#     Script property (via the character name's script prefix) plus a case
+#     transition test: a letter whose name does NOT start with ``LATIN`` is
+#     non-Latin-script (``β`` GREEK, ``б`` CYRILLIC, ``密`` CJK are
+#     credential-shaped; ``ø``/``æ``/``ł`` are LATIN prose), and a Latin token
+#     with an internal (non-initial) capital (``AbCdEfGh``, ``accessToken``,
+#     ``CorrectHorseBattery``) is credential-shaped while a uniform-case word
+#     ("authentication", "Authentication", "AUTHENTICATION") stays prose. This
+#     is a Unicode-property rule, not a per-script witness list, and not
+#     ASCII-script authority.
+#   - The trailing negative lookahead keeps the value a SINGLE COMPLETE token: a
+#     run that merely HEADS a multi-word prose phrase stays prose, and it stops
+#     the engine from backtracking into a shorter prefix of a longer run
+#     (re-opening the head-of-prose match).
+_BARE_ALL_LETTER_TOKEN_VALUE = (
+    r"(?=[^\W\d_]{8,})"
+    r"[^\W\d_]+"
+    r"(?![^\W\d_]|\s+[^\W\d_])"
+)
+_ALL_LETTER_VALUE_PATTERN = compile(
+    rf"(?i)\b(?:{_AMBIGUOUS_CRED_LABEL}|{_WEAK_CRED_LABEL})\b[\"']?\s*:\s*"
+    rf"(?P<value>{_BARE_ALL_LETTER_TOKEN_VALUE})"
+)
+
+
+def _is_non_latin_letter(ch: str) -> bool:
+    """Return whether ``ch`` is a Unicode letter NOT in the Latin script.
+
+    The cognitive system's benign prose domain is Latin-script English, so a
+    non-Latin-script letter (Greek/Cyrillic/CJK/Arabic/Hebrew/Devanagari/…)
+    under a credential-bearing label is credential-shaped. Non-ASCII
+    Latin-script letters (``ø``, ``æ``, ``ł``, ``ż``, ``č``, …) remain prose:
+    their Unicode names start with ``LATIN``, so this is a script check, not an
+    ASCII check. Modifier letters (category Lm) are rare and are treated as
+    non-Latin (fail-closed); they never form 8+ character prose words. A
+    category-L code point with an EMPTY name (Tangut U+17000-U+187F7 and
+    U+18D00-U+18D08 in the stdlib Unicode database) is by definition not
+    ``LATIN``-prefixed, so it is treated as non-Latin (fail-closed).
+    """
+    if not _unicodedata_category(ch).startswith("L"):
+        return False
+    script_name = _unicodedata_name(ch, "")
+    return not script_name.startswith("LATIN")
+
+
+def _is_credential_all_letter_token(value: str) -> bool:
+    """Return whether an all-letter value is credential-shaped.
+
+    Credential-shaped when it carries a non-Latin-script letter, or (Latin
+    script) when it carries an internal (non-initial) capital together with a
+    lowercase letter — the structural signal of a camelCase/PascalCase token, a
+    SCREAMING-prefix token ("AUTHtoken", "TOKENValue"), or a passphrase. A
+    uniform-case English word ("authentication"), a Title-case word
+    ("Authentication": its only capital is initial), an all-caps
+    acronym/emphasis ("AUTHENTICATION"), and non-ASCII Latin prose
+    ("økonomistyring") have no internal capital and stay prose.
+    """
+    if any(_is_non_latin_letter(ch) for ch in value):
+        return True
+    # Latin-script: an internal capital is any uppercase at a non-initial
+    # position. Requiring a lowercase letter keeps pure all-caps acronyms
+    # ("AUTHENTICATION") prose, and requiring the capital to be NON-initial
+    # keeps Title-case words ("Authentication") prose, while catching every
+    # internal-case token ("accessToken", "AbCdEfGh", "AUTHtoken", "TOKENValue").
+    if not any(ch.islower() for ch in value):
+        return False
+    return any(ch.isupper() for ch in value[1:])
+
+
 # The English auxiliary/modal/copula verb CLOSED class. Only this class can
 # never be a credential value, because it marks the START of a verb phrase
 # (predicate), not a value assignment: "password: must be rotated" and
@@ -152,6 +223,8 @@ _DELIMITER_CONFUSABLE_MAP = str.maketrans(
         "\u0589": "=",  # ARMENIAN FULL STOP
         "\u05c3": "=",  # HEBREW PUNCTUATION SOF PASUQ
         "\u2236": "=",  # RATIO
+        "\u2237": "=",  # PROPORTION
+        "\u205a": "=",  # TWO DOT PUNCTUATION
         "\ua789": "=",  # MODIFIER LETTER COLON
         "\ufe13": "=",  # PRESENTATION FORM FOR VERTICAL COLON
         "\ufe30": "=",  # PRESENTATION FORM FOR VERTICAL TWO DOT LEADER
@@ -169,9 +242,17 @@ _DELIMITER_CONFUSABLE_MAP = str.maketrans(
 # credential (fail closed). Applied AFTER NFKC so the compatibility-folded forms
 # (U+FE58→U+2014, U+FE63→U+2010, U+FF0D→U+002D) are covered too. Detection-only:
 # applied to a transient skeleton, never to persisted/user text.
+#
+# The two INVISIBLE Cf dashes — SOFT HYPHEN U+00AD and TAG HYPHEN-MINUS U+E002D —
+# are deliberately NOT folded here: they are invisible, so folding them to a
+# visible ``-`` would SPLIT a token they were inserted into (``s<SHY>k`` →
+# ``s-k``, ``p<SHY>assword`` → ``p-assword``) and fail the detector open. They
+# are instead handled as invisible characters: re-joined inside labels/ids/
+# tokens by the invisible strip, skipped inside a provider prefix by the prefix
+# matcher, and folded to the delimiter only in the actual prefix delimiter slot
+# by ``_fold_prefix_invisible_delimiter``.
 _DASH_CONFUSABLE_MAP = str.maketrans(
     {
-        "\u00ad": "-",  # SOFT HYPHEN (Cf; stripped before NFKC, so also pre-folded)
         "\u058a": "-",  # ARMENIAN HYPHEN
         "\u05be": "-",  # HEBREW PUNCTUATION MAQAF
         "\u1400": "-",  # CANADIAN SYLLABICS HYPHEN
@@ -201,7 +282,6 @@ _DASH_CONFUSABLE_MAP = str.maketrans(
         "\ufe58": "-",  # SMALL EM DASH
         "\ufe63": "-",  # SMALL HYPHEN-MINUS
         "\uff0d": "-",  # FULLWIDTH HYPHEN-MINUS
-        "\U000e002d": "-",  # TAG HYPHEN-MINUS (Cf; stripped before NFKC, so also pre-folded)
     }
 )
 
@@ -286,16 +366,104 @@ _CONFUSABLE_MAP = str.maketrans(
     }
 )
 
+# Confusable-insensitive LABEL spelling. The structural patterns run on the
+# confusable-FOLDED skeleton, so their ASCII label regexes already match
+# homoglyph labels there. The script-preserving skeleton (used to classify the
+# ORIGINAL script of an all-letter VALUE) does NOT fold confusables, so its
+# label regex must itself accept the homoglyph spellings — the Cyrillic/Greek/
+# Armenian letters that ``_CONFUSABLE_MAP`` folds to a label's ASCII letters.
+# Without this, a homoglyph label plus a non-Latin value composed ENTIRELY of
+# confusable homoglyph letters escapes: the folded skeleton ASCII-ifies the
+# value (hiding its script, so it reads as uniform Latin prose) while the
+# script-preserving skeleton cannot see the homoglyph label at all. Each ASCII
+# label letter is spelled as a class of itself plus every homoglyph that folds
+# to it (both cases, keyed by the folded target's lowercase), evaluated under
+# the pattern's IGNORECASE flag.
+_CONFUSABLE_HOMOGLYPHS: dict[str, set[str]] = {}
+for _source_ord, _target in _CONFUSABLE_MAP.items():
+    _CONFUSABLE_HOMOGLYPHS.setdefault(_target.lower(), set()).add(chr(_source_ord))
+
+
+def _confusable_insensitive_label(label_regex: str) -> str:
+    """Return ``label_regex`` with each ASCII letter spelled confusable-insensitively.
+
+    Non-letter and non-ASCII characters (regex structure) pass through untouched,
+    so the label alternation's ``[ _-]?`` separators, ``|`` and ``?`` are preserved.
+    """
+    out: list[str] = []
+    for ch in label_regex:
+        if ch.isascii() and ch.isalpha():
+            homoglyphs = _CONFUSABLE_HOMOGLYPHS.get(ch.lower(), set())
+            if homoglyphs:
+                out.append("[" + ch + "".join(sorted(homoglyphs)) + "]")
+                continue
+        out.append(ch)
+    return "".join(out)
+
+
+_SCRIPT_ALL_LETTER_VALUE_PATTERN = compile(
+    rf"(?i)\b(?:{_confusable_insensitive_label(_AMBIGUOUS_CRED_LABEL)}|"
+    rf"{_confusable_insensitive_label(_WEAK_CRED_LABEL)})\b[\"']?\s*:\s*"
+    rf"(?P<value>{_BARE_ALL_LETTER_TOKEN_VALUE})"
+)
+
+# Grammar-significant punctuation that MUST NOT fold to the canonical provider
+# delimiter ``-``: each carries structural meaning in an existing pattern (JWT
+# ``.``, URL userinfo ``:/@``, equals assignment and base64 padding ``=``,
+# base64 alphabet ``+``, quoted-value delimiters ``"``/``'``, and the literal
+# delimiters ``-``/``_``/space). The colon-confusable source characters are also
+# preserved so they keep folding to the STRONG ``=`` rather than ``-``.
+_GRAMMAR_SIGNIFICANT_PUNCTUATION = frozenset(".:@/=+\"'_- ")
+_COLON_CONFUSABLE_SOURCE = frozenset(
+    chr(ordinal) for ordinal in _DELIMITER_CONFUSABLE_MAP.keys()
+)
+
+
+def _is_prefix_separator(ch: str) -> bool:
+    """Return whether ``ch`` is a separator that folds to ``-``.
+
+    The provider-prefix delimiter slot (``sk-``, ``xoxb-``, ``ghp_``) is an
+    equivalence class: a dash homoglyph (folded earlier by the dash map) or any
+    punctuation/symbol separator (Unicode categories Po/Sm/So, plus Pc connector
+    punctuation such as the underscore homoglyphs U+203F/U+2040/U+2054) can
+    occupy it. Grammar-significant punctuation and colon-confusable source
+    characters are excluded so they keep their structural meaning, as are
+    NFKC-compatibility forms of alphanumerics and of grammar-significant
+    punctuation (so the later NFKC fold canonicalizes them). This is a
+    Unicode-property rule (exhaustive over the Po/Sm/So/Pc categories), not a
+    per-witness list.
+    """
+    if ch in _GRAMMAR_SIGNIFICANT_PUNCTUATION or ch in _COLON_CONFUSABLE_SOURCE:
+        return False
+    # Preserve NFKC-compatibility forms of alphanumerics and of grammar-
+    # significant punctuation (fullwidth ``＝`` -> ``=``, ``．`` -> ``.``,
+    # ``＠`` -> ``@``, ``＋`` -> ``+``, circled ``ⓢ`` -> ``s``, ...) so the later
+    # NFKC fold canonicalizes them instead of this separator fold erasing them
+    # to ``-``. Folding them early would destroy the structural meaning of the
+    # equals/JWT-dot/URL-@/base64-plus/prefix-letter they represent and fail the
+    # detector open. A true separator (middle dot, bullet, times sign, nirugu,
+    # …) has no NFKC alphanumeric/grammar target and still folds to ``-``.
+    normalized = _unicodedata_normalize("NFKC", ch)
+    if normalized.isalnum() or normalized in _GRAMMAR_SIGNIFICANT_PUNCTUATION:
+        return False
+    return _unicodedata_category(ch) in {"Po", "Sm", "So", "Pc"}
+
+
 _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
     compile(r"-----BEGIN [A-Z ]*(?:PRIVATE KEY|SECRET|ENCRYPTED PRIVATE KEY)-----"),
-    # OpenAI secret keys: ``sk-`` and its delimiter-equivalent ``sk_``.
-    compile(r"\bsk[-_][A-Za-z0-9_-]{8,}"),
+    # OpenAI secret keys: ``sk-`` and its delimiter-equivalent ``sk_``. The ``=``
+    # alternative covers the Unicode colon-confusable delimiters that fold to the
+    # STRONG ``=`` (``sk：…``/``sk∶…``), keeping the prefix slot fail-closed.
+    compile(r"\bsk[-_=][A-Za-z0-9_-]{8,}"),
     # AWS access key ids: permanent (AKIA) and temporary (ASIA) prefixes.
     compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
-    compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"),
+    # GitHub tokens: ``gh*_`` prefix. The ``-`` alternative covers delimiter
+    # confusables (dash homoglyphs and Po/Sm/So separators) folded to ``-`` by
+    # the detection skeleton, and ``=`` covers colon-confusable delimiters.
+    compile(r"\bgh[pousr][-_=][A-Za-z0-9]{20,}"),
     # Slack tokens: ``xox*`` prefix with hyphen or its delimiter-equivalent
-    # underscore.
-    compile(r"\bxox[baprsc][-_][A-Za-z0-9-]{10,}"),
+    # underscore; ``=`` covers colon-confusable delimiters.
+    compile(r"\bxox[baprsc][-_=][A-Za-z0-9-]{10,}"),
     # Bearer tokens are high-entropy: require a digit inside an 8+ char token so
     # prose like "Bearer certificate"/"Bearer obligations" is not a false positive.
     # ``\s*`` (not ``\s+``) because the detection skeleton strips non-ASCII width
@@ -323,7 +491,7 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
     # word ("principles"), a leading-capital word ("Authentication"), and fiscal
     # labels ("2024q1") stay admissible.
     compile(
-        r"\b[Bb]asic\s*"
+        r"\b[Bb]asic[-\s]*"
         r"(?:"
         r"[A-Za-z0-9+/]{2,}={1,2}"
         r"|"
@@ -336,7 +504,11 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
         r"(?![A-Za-z0-9+/=])"
     ),
     compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
-    compile(r"//[^/@\s:]+:[^/@\s]+@"),
+    # URL userinfo (``scheme://user:pass@host``). The ``=`` alternative covers
+    # Unicode colon-confusable delimiters (fullwidth colon, ratio, …) that the
+    # detection skeleton folds to the STRONG ``=``, keeping the userinfo
+    # separator fail-closed.
+    compile(r"//[^/@\s:=]+[:=][^/@\s]+@"),
     # Equals assignment: strong for every label. Any non-empty bare or quoted value.
     compile(
         rf"(?i)\b{_CRED_LABEL}\b[\"']?\s*=\s*(?:{_QUOTED_VALUE}|{_BARE_ANY_VALUE})"
@@ -347,34 +519,41 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
         rf"(?i)\b(?:{_UNEQUIVOCAL_CRED_LABEL})\b[\"']?\s*:\s*"
         rf"(?:{_QUOTED_VALUE}|{_UNEQUIVOCAL_BARE_VALUE})"
     ),
-    # Ambiguous-label colon assignment: prose-ambiguous. Quoted, digit-bearing,
-    # or a long all-letter token (>= 12 chars) is credential-shaped.
+    # Ambiguous-label colon assignment: prose-ambiguous. Quoted or digit-bearing
+    # is credential-shaped. A bare Latin all-letter value is prose. (The
+    # non-Latin-script all-letter value shape is handled separately by the
+    # script-refined _NON_LATIN_VALUE_PATTERN, not in this regex tuple.)
     compile(
         rf"(?i)\b(?:{_AMBIGUOUS_CRED_LABEL})\b[\"']?\s*:\s*"
-        rf"(?:{_QUOTED_VALUE}|{_BARE_DIGIT_VALUE}|{_BARE_ALPHA_TOKEN_VALUE})"
+        rf"(?:{_QUOTED_VALUE}|{_BARE_DIGIT_VALUE})"
     ),
-    # Weak-label colon assignment: prose-ambiguous. Quoted, 8+ mixed, or a long
-    # all-letter token (>= 12 chars) is credential-shaped.
+    # Weak-label colon assignment: prose-ambiguous. Quoted or 8+ mixed is
+    # credential-shaped. A bare Latin all-letter value is prose. (The
+    # non-Latin-script all-letter value shape is handled separately.)
     compile(
         rf"(?i)\b(?:{_WEAK_CRED_LABEL})\b[\"']?\s*:\s*"
-        rf"(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE}|{_BARE_ALPHA_TOKEN_VALUE})"
+        rf"(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE})"
     ),
 )
 
 _CONTROL_CHARS = "\x00\n\r\t"
 
 
-# Format/control/separator categories plus nonspacing marks (Mn) that can split
-# credential labels, delimiters, or key ids and fail the detector open. Mn covers
-# the combining grapheme joiner U+034F, invisible variation selectors
-# (U+FE00-U+FE0F, U+E0100-U+E01EF), Mongolian free variation selectors
-# (U+180B-U+180D), and combining diacritics (U+0300-U+036F). Combining marks are
-# stripped from the RAW text BEFORE NFKC, because NFKC would compose a base
-# letter + mark into a single precomposed letter (``o + U+0301 -> ó``) and
+# Format/control/separator categories plus combining marks (Mn/Mc/Me) that can
+# split credential labels, delimiters, key ids, or Indic-script words and fail
+# the detector open. Mn covers the combining grapheme joiner U+034F, invisible
+# variation selectors (U+FE00-U+FE0F, U+E0100-U+E01EF), Mongolian free variation
+# selectors (U+180B-U+180D), and combining diacritics (U+0300-U+036F). Mc
+# (spacing combining marks) covers Indic/Brahmic vowel signs (Devanagari ``ि``,
+# Bengali ``ি``, Tamil ``ி``, …) that split a non-Latin word into sub-8-char
+# letter runs and would otherwise hide its script from the all-letter value
+# gate; Me (enclosing marks) is the remaining combining-mark class. Combining
+# marks are stripped from the RAW text BEFORE NFKC, because NFKC would compose a
+# base letter + mark into a single precomposed letter (``o + U+0301 -> ó``) and
 # thereby reshape the label ("passwórd") instead of re-joining it. Stripping
-# these from the detection-only skeleton can only re-join split tokens (fail
-# closed) — it never rewrites the caller's text.
-_INVISIBLE_CATEGORIES = frozenset({"Cf", "Cc", "Cs", "Zl", "Zp", "Mn"})
+# these from the detection-only skeleton can only re-join split tokens/words
+# (fail closed) — it never rewrites the caller's text.
+_INVISIBLE_CATEGORIES = frozenset({"Cf", "Cc", "Cs", "Zl", "Zp", "Mn", "Mc", "Me"})
 
 
 def _is_detection_invisible(ch: str) -> bool:
@@ -395,35 +574,173 @@ def _is_detection_invisible(ch: str) -> bool:
     return category == "Zs" and ch != " "
 
 
+# Provider prefixes that REQUIRE a delimiter in the real credential format. When
+# an invisible character occupies the delimiter slot (``sk<ZWSP>token``), the
+# global invisible strip would otherwise erase the delimiter and produce a joined
+# ``sktoken`` that evades the literal ``[-_=]``/``[_]`` prefix grammar. Folding
+# the invisible run to ``-`` instead re-joins the credential fail-closed. An
+# invisible character may also be interleaved INSIDE the prefix letters
+# (``s<ZWSP>k``, ``xox<ZWSP>b``): the prefix must still be recognized so its
+# delimiter slot is folded, rather than the whole run being stripped into a
+# delimiter-less joined token. Prefixes with NO delimiter (``AKIA``/``ASIA``)
+# keep the strip-to-rejoin behavior for an inserted invisible joiner
+# (``AKIA<ZWSP>123…`` -> ``AKIA123…``).
+_PROVIDER_PREFIXES: tuple[str, ...] = (
+    "sk",
+    "xoxb", "xoxa", "xoxp", "xoxr", "xoxs", "xoxc",
+    "ghp", "gho", "ghu", "ghs", "ghr",
+)
+
+
+def _match_provider_prefix(text: str, start: int, prefix: str) -> int | None:
+    """Match ``prefix`` at ``start``, allowing invisible chars between letters.
+
+    Invisible characters between consecutive prefix letters are skipped (they
+    are re-joined later), so a split prefix (``s<ZWSP>k``) is still recognized.
+    Returns the index just past the last prefix letter, or ``None`` if the
+    prefix letters do not match.
+    """
+    pos = start
+    for index, letter in enumerate(prefix):
+        if index:
+            while pos < len(text) and _is_detection_invisible(text[pos]):
+                pos += 1
+        if pos >= len(text):
+            return None
+        # NFKC-fold the candidate character so a compatibility form of the
+        # prefix letter (fullwidth ``ｓ``, long ``ſ``, circled ``ⓢ``,
+        # mathematical-bold ``𝐬``, …) is recognized as the prefix BEFORE the
+        # global NFKC (which runs only after the invisible-delimiter fold).
+        if _unicodedata_normalize("NFKC", text[pos]) != letter:
+            return None
+        pos += 1
+    return pos
+
+
+def _is_word_character(ch: str) -> bool:
+    """Return whether ``ch`` is a regex ``\\w`` word character (boundary helper)."""
+    return ch.isalnum() or ch == "_"
+
+
+def _is_prefix_delimiter(ch: str) -> bool:
+    """Return whether ``ch`` is (or normalizes to) a provider-prefix delimiter.
+
+    At the point this runs, dash homoglyphs and Po/Sm/So/Pc separators are already
+    folded to ``-``, so the only non-canonical delimiter forms left are the colon
+    confusables (which the delimiter map folds to ``=``) and NFKC-compatibility
+    forms of ``-``/``_``/``=`` (fullwidth, small, superscript/subscript).
+    """
+    if ch in "-_=":
+        return True
+    if ch in _COLON_CONFUSABLE_SOURCE:
+        return True
+    return _unicodedata_normalize("NFKC", ch) in "-_="
+
+
+def _fold_prefix_invisible_delimiter(text: str) -> str:
+    """Fold an invisible run occupying a provider-prefix delimiter slot to ``-``.
+
+    Only the delimiter slot immediately after a provider prefix is folded; every
+    other invisible character keeps the strip-to-rejoin behavior (split labels,
+    key ids and token bodies are re-joined, not delimiter-ified). Prefix letters
+    may themselves be split by invisible characters (``s<ZWSP>k``): they are
+    re-joined so the prefix is recognized and its delimiter slot is folded.
+
+    The invisible run is folded to ``-`` ONLY when it actually REPLACES the
+    delimiter (the next non-invisible character is not a delimiter). When a real
+    delimiter follows the invisible run (``ghp<ZWSP>_…``), the invisible is
+    stripped so the prefix re-joins the real delimiter — folding it to ``-``
+    would produce a spurious double delimiter (``ghp-_…``) that the token-body
+    class of the ``gh*_`` prefix rejects, failing the detector open.
+    """
+    out: list[str] = []
+    pos = 0
+    length = len(text)
+    while pos < length:
+        prefix_end: int | None = None
+        if pos == 0 or not _is_word_character(text[pos - 1]):
+            for prefix in _PROVIDER_PREFIXES:
+                prefix_end = _match_provider_prefix(text, pos, prefix)
+                if prefix_end is not None:
+                    break
+        if prefix_end is not None:
+            out.append(prefix)
+            end = prefix_end
+            while end < length and _is_detection_invisible(text[end]):
+                end += 1
+            if end > prefix_end and (end >= length or not _is_prefix_delimiter(text[end])):
+                out.append("-")
+            pos = end
+        else:
+            out.append(text[pos])
+            pos += 1
+    return "".join(out)
+
+
 def _secret_skeleton(text: str) -> str:
     """Return a detection-only normalized view of ``text``.
 
     Canonical decomposition (NFD) is applied FIRST so a precomposed accented
     letter (``ó``, category Ll) decomposes to ``o + U+0301`` (Mn): then the
     invisible-category strip removes the combining mark and re-joins the label,
-    symmetric with the already-handled decomposed form. Next invisible
-    format/control/separator characters and nonspacing marks (zero-width
-    spaces, joiners, bidi marks, BOM, variation selectors, combining grapheme
-    joiner, combining diacritics, …) are stripped: combining marks must be
-    removed before NFKC, which would otherwise compose ``o + U+0301`` into a
-    single ``ó`` and reshape the label. Then Unicode colon-confusables fold to a
-    strong ``=`` (before NFKC, which would collapse them to a weak ``:``); NFKC
-    folds remaining full-width delimiters/alphanumerics; the bounded confusable
-    map folds common Cyrillic/Greek homoglyphs of credential-label letters;
-    finally any residual invisible category is stripped again for safety. The
-    original text is never rewritten: this view is used only to run the
-    fail-closed detection patterns.
+    symmetric with the already-handled decomposed form. Next the bounded
+    Cyrillic/Greek homoglyph map folds credential-label letters (applied early so
+    a homoglyph provider prefix is seen as ASCII when its delimiter slot is
+    inspected), and Po/Sm/So separator-like characters fold to the canonical
+    prefix delimiter ``-``. An invisible run occupying a provider-prefix
+    delimiter slot folds to ``-`` (instead of being stripped). Then invisible
+    format/control/separator characters and nonspacing marks (zero-width spaces,
+    joiners, bidi marks, BOM, variation selectors, combining grapheme joiner,
+    combining diacritics, …) are stripped: combining marks must be removed before
+    NFKC, which would otherwise compose ``o + U+0301`` into a single ``ó`` and
+    reshape the label. Then Unicode colon-confusables fold to a strong ``=``
+    (before NFKC, which would collapse them to a weak ``:``); NFKC folds
+    remaining full-width delimiters/alphanumerics; the dash map re-folds any
+    dash that NFKC surfaced. Finally any residual invisible category is stripped
+    again for safety. The original text is never rewritten: this view is used
+    only to run the fail-closed detection patterns.
     """
-    # Pre-fold dash homoglyphs (including the Cf soft/tag hyphens) BEFORE the
-    # invisible strip: U+00AD/U+E002D are category Cf and would otherwise be
-    # removed as "invisible", which would erase the delimiter and fail the
-    # detector open for ``sk<soft-hyphen>…``.
+    return _normalized_skeleton(text, fold_confusables=True)
+
+
+def _script_skeleton(text: str) -> str:
+    """Return a confusable-preserving detection-only view of ``text``.
+
+    Identical to ``_secret_skeleton`` except the Cyrillic/Greek/Armenian
+    homoglyph map is NOT applied, so the ORIGINAL Unicode script of a credential
+    VALUE survives. The confusable fold exists to re-join homoglyph LABELS
+    (``passwοrd`` -> ``password``); applied to a VALUE it would ASCII-ify a
+    non-Latin run composed entirely of homoglyph letters and hide its script.
+    This view is used ONLY to classify the script/case of an all-letter value,
+    never to run the structural label/prefix patterns.
+    """
+    return _normalized_skeleton(text, fold_confusables=False)
+
+
+def _normalized_skeleton(text: str, *, fold_confusables: bool) -> str:
+    # Pre-fold VISIBLE dash homoglyphs BEFORE the invisible strip. (The invisible
+    # Cf soft/tag hyphens are NOT dash-mapped — see the map comment — so they are
+    # re-joined inside tokens by the strip and folded to the delimiter only in a
+    # provider-prefix delimiter slot, keeping ``sk<soft-hyphen>…`` and
+    # ``s<soft-hyphen>k-…`` both fail-closed.)
     prefolded = text.translate(_DASH_CONFUSABLE_MAP)
     decomposed = _unicodedata_normalize("NFD", prefolded)
-    visible = "".join(ch for ch in decomposed if not _is_detection_invisible(ch))
+    if fold_confusables:
+        # Fold Cyrillic/Greek/Armenian label homoglyphs to ASCII EARLY so a
+        # homoglyph provider prefix is visible as ASCII before its delimiter slot
+        # is inspected.
+        decomposed = decomposed.translate(_CONFUSABLE_MAP)
+    # Fold Po/Sm/So separator-like characters to the canonical prefix delimiter.
+    folded = "".join(
+        "-" if _is_prefix_separator(ch) else ch for ch in decomposed
+    )
+    # Fold an invisible run occupying a provider-prefix delimiter slot to ``-``.
+    prefixed = _fold_prefix_invisible_delimiter(folded)
+    # Strip the remaining invisible characters (re-join split labels/ids/tokens).
+    visible = "".join(ch for ch in prefixed if not _is_detection_invisible(ch))
     normalized = _unicodedata_normalize(
         "NFKC", visible.translate(_DELIMITER_CONFUSABLE_MAP)
-    ).translate(_CONFUSABLE_MAP).translate(_DASH_CONFUSABLE_MAP)
+    ).translate(_DASH_CONFUSABLE_MAP)
     return "".join(ch for ch in normalized if not _is_detection_invisible(ch))
 
 
@@ -450,7 +767,23 @@ def contains_secret_material(text: str) -> bool:
             f"secret detection input must be an exact str, not {type(text).__name__}"
         )
     skeleton = _secret_skeleton(text)
-    return any(pattern.search(skeleton) is not None for pattern in _SECRET_PATTERNS)
+    if any(pattern.search(skeleton) is not None for pattern in _SECRET_PATTERNS):
+        return True
+    # All-letter credential-value detection runs on BOTH the confusable-folded
+    # skeleton (so homoglyph LABELS re-join) and the confusable-preserving
+    # skeleton (so a non-Latin VALUE composed entirely of homoglyph letters keeps
+    # its script and is not misread as Latin prose). The script-preserving pass
+    # uses a confusable-INSENSITIVE label spelling so a homoglyph label plus a
+    # confusable-only non-Latin value does not escape: the folded skeleton would
+    # ASCII-ify the value (uniform Latin prose) while an ASCII-only label regex
+    # on the script skeleton would fail to see the homoglyph label.
+    match = _ALL_LETTER_VALUE_PATTERN.search(skeleton)
+    if match is not None and _is_credential_all_letter_token(match.group("value")):
+        return True
+    match = _SCRIPT_ALL_LETTER_VALUE_PATTERN.search(_script_skeleton(text))
+    if match is not None and _is_credential_all_letter_token(match.group("value")):
+        return True
+    return False
 
 
 def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
