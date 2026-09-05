@@ -19,6 +19,7 @@ from qore.infrastructure.cibo_cognitive_causality import (
     CausalityValidationError,
     CausalVariable,
     ConfounderResolution,
+    MechanismBinding,
     assert_causal_lineage_acyclic,
     build_causal_claim,
 )
@@ -46,6 +47,15 @@ def _evidence(ref: str, polarity: CausalEvidencePolarity) -> CausalEvidence:
 
 _CAUSE = _variable("market.shock")
 _EFFECT = _variable("volatility.spike")
+_MECHANISM_REF = "evidence:mechanism"
+
+
+def _mechanism_evidence() -> CausalEvidence:
+    return _evidence(_MECHANISM_REF, CausalEvidencePolarity.SUPPORTS)
+
+
+def _mechanism(code: str = "mechanism.randomization") -> MechanismBinding:
+    return MechanismBinding(code=code, evidence=_mechanism_evidence())
 
 
 def _claim(**kwargs: object) -> CausalClaim:
@@ -54,11 +64,19 @@ def _claim(**kwargs: object) -> CausalClaim:
         "kind": CausalClaimKind.CAUSATION,
         "cause": _CAUSE,
         "effect": _EFFECT,
-        "mechanism_code": "mechanism.randomization",
         "strength": CausalClaimStrength.MODERATE,
         "status": CausalClaimStatus.ACTIVE,
     }
     params.update(kwargs)
+    # A CAUSATION claim must carry an evidence-bound mechanism whose evidence is
+    # retained in evidence_for. Supply a default one (merged with any caller
+    # evidence_for) so valid-claim tests stay concise; tests that exercise the
+    # mechanism gate override ``mechanism`` explicitly.
+    if params.get("kind") is CausalClaimKind.CAUSATION and "mechanism" not in params:
+        mechanism = _mechanism()
+        params["mechanism"] = mechanism
+        supplied = params.get("evidence_for", ())
+        params["evidence_for"] = tuple(supplied) + (mechanism.evidence,)
     return build_causal_claim(**params)
 
 
@@ -75,7 +93,7 @@ def test_correlation_cannot_assert_strong() -> None:
 
 def test_causation_requires_mechanism() -> None:
     with pytest.raises(CausalityValidationError, match="mechanism"):
-        _claim(mechanism_code=None)
+        _claim(mechanism=None)
 
 
 def test_causation_requires_confounder_resolution() -> None:
@@ -113,7 +131,7 @@ def test_confounder_resolution_duplicate_rejected() -> None:
 
 def test_correlation_forbids_mechanism_and_resolutions() -> None:
     with pytest.raises(CausalityValidationError, match="mechanism"):
-        _claim(kind=CausalClaimKind.CORRELATION, mechanism_code="mechanism.x")
+        _claim(kind=CausalClaimKind.CORRELATION, mechanism=_mechanism())
     confounder = _variable("selection-bias")
     resolution = ConfounderResolution(
         confounder=confounder,
@@ -122,19 +140,19 @@ def test_correlation_forbids_mechanism_and_resolutions() -> None:
     with pytest.raises(CausalityValidationError, match="confounder"):
         _claim(
             kind=CausalClaimKind.CORRELATION,
-            mechanism_code=None,
+            mechanism=None,
             confounder_resolutions=(resolution,),
         )
 
 
 def test_strong_requires_backing_evidence() -> None:
     with pytest.raises(CausalityValidationError):
-        _claim(strength=CausalClaimStrength.STRONG)
+        _claim(kind=CausalClaimKind.NON_CAUSAL, strength=CausalClaimStrength.STRONG)
 
 
 def test_confirmed_requires_supporting_evidence() -> None:
     with pytest.raises(CausalityValidationError):
-        _claim(status=CausalClaimStatus.CONFIRMED)
+        _claim(kind=CausalClaimKind.NON_CAUSAL, status=CausalClaimStatus.CONFIRMED)
 
 
 def test_confirmed_rejects_contradiction() -> None:
@@ -221,40 +239,43 @@ class TestCausalClaimBuilderPermutationInvariance:
         e_a = _evidence("evidence:a", CausalEvidencePolarity.SUPPORTS)
         e_b = _evidence("evidence:b", CausalEvidencePolarity.SUPPORTS)
         cid = uuid4()
+        mechanism = _mechanism()
         first = build_causal_claim(
             claim_id=cid,
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            mechanism_code="mechanism.randomization",
+            mechanism=mechanism,
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
-            evidence_for=(e_a, e_b),
+            evidence_for=(e_a, e_b, mechanism.evidence),
         )
         second = build_causal_claim(
             claim_id=cid,
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            mechanism_code="mechanism.randomization",
+            mechanism=mechanism,
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
-            evidence_for=(e_b, e_a),
+            evidence_for=(e_b, e_a, mechanism.evidence),
         )
         assert first.evidence_for == second.evidence_for
         assert first.fingerprint == second.fingerprint
 
     def test_context_variable_permutation_invariant(self) -> None:
         cid = uuid4()
+        mechanism = _mechanism()
         first = build_causal_claim(
             claim_id=cid,
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
             context=(_variable("context.b"), _variable("context.a")),
-            mechanism_code="mechanism.randomization",
+            mechanism=mechanism,
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
+            evidence_for=(mechanism.evidence,),
         )
         second = build_causal_claim(
             claim_id=cid,
@@ -262,9 +283,10 @@ class TestCausalClaimBuilderPermutationInvariance:
             cause=_CAUSE,
             effect=_EFFECT,
             context=(_variable("context.a"), _variable("context.b")),
-            mechanism_code="mechanism.randomization",
+            mechanism=mechanism,
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
+            evidence_for=(mechanism.evidence,),
         )
         assert first.context == second.context
         assert first.fingerprint == second.fingerprint
@@ -274,40 +296,42 @@ class TestCausalClaimBuilderPermutationInvariance:
         e_b = _evidence("evidence:b", CausalEvidencePolarity.SUPPORTS)
         e_c = _evidence("evidence:c", CausalEvidencePolarity.SUPPORTS)
         cid = uuid4()
+        mechanism = _mechanism()
         first = build_causal_claim(
             claim_id=cid,
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            mechanism_code="mechanism.randomization",
+            mechanism=mechanism,
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
-            evidence_for=(e_a, e_b),
+            evidence_for=(e_a, e_b, mechanism.evidence),
         )
         second = build_causal_claim(
             claim_id=cid,
             kind=CausalClaimKind.CAUSATION,
             cause=_CAUSE,
             effect=_EFFECT,
-            mechanism_code="mechanism.randomization",
+            mechanism=mechanism,
             strength=CausalClaimStrength.MODERATE,
             status=CausalClaimStatus.ACTIVE,
-            evidence_for=(e_a, e_c),
+            evidence_for=(e_a, e_c, mechanism.evidence),
         )
         assert first.fingerprint != second.fingerprint
 
     def test_evidence_for_duplicate_rejected(self) -> None:
         e_a = _evidence("evidence:a", CausalEvidencePolarity.SUPPORTS)
+        mechanism = _mechanism()
         with pytest.raises(CausalityValidationError, match="duplicate"):
             build_causal_claim(
                 claim_id=uuid4(),
                 kind=CausalClaimKind.CAUSATION,
                 cause=_CAUSE,
                 effect=_EFFECT,
-                mechanism_code="mechanism.randomization",
+                mechanism=mechanism,
                 strength=CausalClaimStrength.MODERATE,
                 status=CausalClaimStatus.ACTIVE,
-                evidence_for=(e_a, e_a),
+                evidence_for=(e_a, e_a, mechanism.evidence),
             )
 
 
@@ -439,5 +463,103 @@ class TestCorrection010ConfounderResolutionProvenance:
         # Any reflective corruption of retained resolution evidence must fail
         # closed: either the polarity invariant or the fingerprint integrity
         # check fires (the fingerprint check fires first for a polarity flip).
+        with pytest.raises(CausalityValidationError):
+            claim.revalidate()
+
+
+class TestCorrection011MechanismBindingAuthority:
+    """RF-3 FULL-FAMILY recertification: CORRELATION != CAUSATION. A caller
+    label is not an authority root for CAUSATION/STRONG/CONFIRMED — the mechanism
+    must be a typed, evidence-bound binding whose evidence is SUPPORTS-polarity
+    and provenance-retained in the claim's evidence_for, distinct from every
+    confounder-resolution observation."""
+
+    def test_causation_requires_evidence_bound_mechanism_not_label(self) -> None:
+        # The bare-label API no longer exists; a missing mechanism fails closed.
+        with pytest.raises(CausalityValidationError, match="mechanism"):
+            _claim(mechanism=None)
+
+    def test_mechanism_evidence_must_be_retained_in_evidence_for(self) -> None:
+        confounder = _variable("selection-bias")
+        mechanism = MechanismBinding(
+            code="mechanism.randomization",
+            evidence=_evidence("evidence:unretained", CausalEvidencePolarity.SUPPORTS),
+        )
+        resolution = ConfounderResolution(
+            confounder=confounder,
+            evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+        )
+        with pytest.raises(CausalityValidationError, match="mechanism binding evidence"):
+            _claim(
+                confounders=(confounder,),
+                mechanism=mechanism,
+                confounder_resolutions=(resolution,),
+                evidence_for=(_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),),
+            )
+
+    def test_mechanism_evidence_reused_as_confounder_resolution_rejected(self) -> None:
+        confounder = _variable("selection-bias")
+        shared = _evidence("evidence:shared", CausalEvidencePolarity.SUPPORTS)
+        mechanism = MechanismBinding(code="mechanism.randomization", evidence=shared)
+        resolution = ConfounderResolution(confounder=confounder, evidence=shared)
+        with pytest.raises(CausalityValidationError, match="distinct"):
+            _claim(
+                confounders=(confounder,),
+                mechanism=mechanism,
+                confounder_resolutions=(resolution,),
+                evidence_for=(shared,),
+            )
+
+    def test_mechanism_evidence_must_be_supports_polarity(self) -> None:
+        with pytest.raises(CausalityValidationError, match="SUPPORTS"):
+            MechanismBinding(
+                code="mechanism.randomization",
+                evidence=_evidence("evidence:against", CausalEvidencePolarity.AGAINST),
+            )
+
+    def test_evidence_bound_mechanism_accepted(self) -> None:
+        confounder = _variable("selection-bias")
+        mechanism = _mechanism()
+        resolution = ConfounderResolution(
+            confounder=confounder,
+            evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+        )
+        claim = _claim(
+            confounders=(confounder,),
+            mechanism=mechanism,
+            confounder_resolutions=(resolution,),
+            evidence_for=(
+                mechanism.evidence,
+                _evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+            ),
+            strength=CausalClaimStrength.STRONG,
+            status=CausalClaimStatus.CONFIRMED,
+        )
+        claim.revalidate()
+        assert claim.mechanism is not None
+        assert claim.mechanism.code == "mechanism.randomization"
+
+    def test_reflective_mechanism_polarity_corruption_fails_revalidate(self) -> None:
+        confounder = _variable("selection-bias")
+        mechanism = _mechanism()
+        resolution = ConfounderResolution(
+            confounder=confounder,
+            evidence=_evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+        )
+        claim = _claim(
+            confounders=(confounder,),
+            mechanism=mechanism,
+            confounder_resolutions=(resolution,),
+            evidence_for=(
+                mechanism.evidence,
+                _evidence("evidence:conf", CausalEvidencePolarity.SUPPORTS),
+            ),
+        )
+        assert claim.mechanism is not None
+        object.__setattr__(
+            claim.mechanism.evidence,
+            "polarity",
+            CausalEvidencePolarity.CONTRADICTION,
+        )
         with pytest.raises(CausalityValidationError):
             claim.revalidate()

@@ -275,9 +275,14 @@ class TestHypothesisLifecycleGovernance:
             HypothesisStatus.ACTIVE,
             evidence_for=(_evidence("evidence:e2", HypothesisEvidencePolarity.SUPPORTS),),
         )
-        # The supplied evidence is retained in the new revision, and the prior
-        # version's evidence/history is not silently erased (it stays durable).
-        assert [e.ref.value for e in active.evidence_for] == ["evidence:e2"]
+        # Supporting evidence is accumulated (identity-deduped) across revisions
+        # so a relabeled/reused observation can never re-gain authority later in
+        # the lineage, and the prior version's own evidence/history is not
+        # silently erased (it stays durable via immutability).
+        assert [e.ref.value for e in active.evidence_for] == [
+            "evidence:e1",
+            "evidence:e2",
+        ]
         assert [e.ref.value for e in born.evidence_for] == ["evidence:e1"]
         assert active.revision_parent == born.hypothesis_id
 
@@ -868,3 +873,335 @@ class TestCorrection010ConfirmationAdmissionClosure:
             "evidence:f1",
             "evidence:f2",
         ]
+
+
+class TestCorrection011ConfirmationRevisitGovernance:
+    """RF-2 FULL-FAMILY recertification: CONFIRMED must be reached and revisited
+    only through governed, genuinely new, correctly polarized evidence. A
+    SUPPORTS observation cannot gain test authority by relabeling (F2A), and a
+    test observation cannot be recycled across a CONFIRMED->REVISED->ACTIVE->
+    CONFIRMED lifecycle cycle (F2B) or by relabeling a prior revision's evidence
+    (lineage-level reuse)."""
+
+    def test_supports_to_test_result_relabel_direct_rejected(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="relabel"):
+            _hypothesis(
+                status=HypothesisStatus.CONFIRMED,
+                evidence_for=(
+                    _evidence("evidence:s1", HypothesisEvidencePolarity.SUPPORTS),
+                ),
+                tests=(
+                    _evidence("evidence:s1", HypothesisEvidencePolarity.TEST_RESULT),
+                ),
+            )
+
+    def test_supports_to_test_result_relabel_transition_rejected(self) -> None:
+        active = _hypothesis(
+            status=HypothesisStatus.ACTIVE,
+            evidence_for=(
+                _evidence("evidence:s1", HypothesisEvidencePolarity.SUPPORTS),
+            ),
+        )
+        with pytest.raises(HypothesisValidationError, match="new test evidence"):
+            transition_hypothesis(
+                active,
+                HypothesisStatus.CONFIRMED,
+                tests=(
+                    _evidence("evidence:s1", HypothesisEvidencePolarity.TEST_RESULT),
+                ),
+            )
+
+    def test_lifecycle_cycle_reusing_same_test_rejected(self) -> None:
+        born = _hypothesis()
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="reason.x",
+        )
+        re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        with pytest.raises(HypothesisValidationError, match="new test evidence"):
+            transition_hypothesis(
+                re_active,
+                HypothesisStatus.CONFIRMED,
+                tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            )
+
+    def test_lineage_relabeled_support_as_test_rejected(self) -> None:
+        # A SUPPORTS observation from an earlier revision, relabeled TEST_RESULT
+        # in a later revision, is not genuinely new material.
+        born = _hypothesis(
+            status=HypothesisStatus.BORN,
+            evidence_for=(
+                _evidence("evidence:s1", HypothesisEvidencePolarity.SUPPORTS),
+            ),
+        )
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="reason.x",
+        )
+        re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        with pytest.raises(HypothesisValidationError, match="new test evidence"):
+            transition_hypothesis(
+                re_active,
+                HypothesisStatus.CONFIRMED,
+                tests=(
+                    _evidence("evidence:s1", HypothesisEvidencePolarity.TEST_RESULT),
+                ),
+            )
+
+    def test_reconfirm_with_genuinely_new_test_accepted(self) -> None:
+        born = _hypothesis()
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="reason.x",
+        )
+        re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        reconfirmed = transition_hypothesis(
+            re_active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t2", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        assert reconfirmed.status is HypothesisStatus.CONFIRMED
+
+    def test_leaving_confirmed_requires_reason_code(self) -> None:
+        born = _hypothesis()
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        with pytest.raises(HypothesisValidationError, match="reason code"):
+            transition_hypothesis(confirmed, HypothesisStatus.REVISED)
+
+    def test_leaving_confirmed_requires_content_or_new_evidence(self) -> None:
+        born = _hypothesis()
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        # A reason code alone (no content change, no new evidence) is ceremonial.
+        with pytest.raises(HypothesisValidationError, match="new evidence or a content change"):
+            transition_hypothesis(
+                confirmed,
+                HypothesisStatus.REVISED,
+                reason_code="reason.x",
+            )
+
+    def test_leaving_confirmed_with_content_change_accepted(self) -> None:
+        born = _hypothesis()
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="reason.x",
+        )
+        assert revised.status is HypothesisStatus.REVISED
+
+    def test_leaving_confirmed_with_new_evidence_accepted(self) -> None:
+        born = _hypothesis()
+        active = transition_hypothesis(born, HypothesisStatus.ACTIVE)
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            reason_code="reason.x",
+            evidence_for=(
+                _evidence("evidence:fresh", HypothesisEvidencePolarity.SUPPORTS),
+            ),
+        )
+        assert revised.status is HypothesisStatus.REVISED
+        assert any(e.ref.value == "evidence:fresh" for e in revised.evidence_for)
+
+    def _confirmed_with_resolved_falsifier(self) -> Hypothesis:
+        """A CONFIRMED hypothesis whose retained AGAINST falsifier was resolved."""
+        born = _hypothesis()
+        active = transition_hypothesis(
+            born,
+            HypothesisStatus.ACTIVE,
+            evidence_against=(
+                _evidence("evidence:f1", HypothesisEvidencePolarity.AGAINST),
+            ),
+        )
+        return transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            falsifier_resolutions=(
+                FalsifierResolution(
+                    falsifier_ref=CiboCognitiveEvidenceRef("evidence:f1"),
+                    falsifier_polarity=HypothesisEvidencePolarity.AGAINST,
+                    falsifier_observed_at=_T,
+                    resolving_ref=CiboCognitiveEvidenceRef("evidence:t1"),
+                    resolving_observed_at=_T,
+                ),
+            ),
+        )
+
+    def test_resolved_falsifier_relabeled_as_test_rejected(self) -> None:
+        # A resolved-and-cleared AGAINST falsifier must not re-gain confirmation
+        # authority by being relabeled TEST_RESULT in a later lifecycle cycle.
+        confirmed = self._confirmed_with_resolved_falsifier()
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="reason.x",
+        )
+        re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        with pytest.raises(HypothesisValidationError, match="new test evidence"):
+            transition_hypothesis(
+                re_active,
+                HypothesisStatus.CONFIRMED,
+                tests=(
+                    _evidence("evidence:f1", HypothesisEvidencePolarity.TEST_RESULT),
+                ),
+            )
+
+    def test_resolved_contradiction_relabeled_as_test_rejected(self) -> None:
+        # Same class for a resolved-and-cleared CONTRADICTION falsifier.
+        born = _hypothesis()
+        active = transition_hypothesis(
+            born,
+            HypothesisStatus.ACTIVE,
+            contradictions=(
+                _evidence("evidence:c1", HypothesisEvidencePolarity.CONTRADICTION),
+            ),
+        )
+        confirmed = transition_hypothesis(
+            active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t1", HypothesisEvidencePolarity.TEST_RESULT),),
+            falsifier_resolutions=(
+                FalsifierResolution(
+                    falsifier_ref=CiboCognitiveEvidenceRef("evidence:c1"),
+                    falsifier_polarity=HypothesisEvidencePolarity.CONTRADICTION,
+                    falsifier_observed_at=_T,
+                    resolving_ref=CiboCognitiveEvidenceRef("evidence:t1"),
+                    resolving_observed_at=_T,
+                ),
+            ),
+        )
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="reason.x",
+        )
+        re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        with pytest.raises(HypothesisValidationError, match="new test evidence"):
+            transition_hypothesis(
+                re_active,
+                HypothesisStatus.CONFIRMED,
+                tests=(
+                    _evidence("evidence:c1", HypothesisEvidencePolarity.TEST_RESULT),
+                ),
+            )
+
+    def test_resolved_falsifier_relabeled_as_support_rejected(self) -> None:
+        # A resolved-and-cleared falsifier must not be laundered into the
+        # SUPPORTS channel (favorable-outcome laundering / channel movement).
+        confirmed = self._confirmed_with_resolved_falsifier()
+        with pytest.raises(HypothesisValidationError, match="relabeled as supporting"):
+            transition_hypothesis(
+                confirmed,
+                HypothesisStatus.REVISED,
+                content_code="h.regime-revised",
+                reason_code="reason.x",
+                evidence_for=(
+                    _evidence("evidence:f1", HypothesisEvidencePolarity.SUPPORTS),
+                ),
+            )
+
+    def test_resolved_falsifier_reconfirm_with_new_test_accepted(self) -> None:
+        # Positive control: a genuinely new test still re-confirms after a
+        # falsifier was resolved in a prior cycle.
+        confirmed = self._confirmed_with_resolved_falsifier()
+        revised = transition_hypothesis(
+            confirmed,
+            HypothesisStatus.REVISED,
+            content_code="h.regime-revised",
+            reason_code="reason.x",
+        )
+        re_active = transition_hypothesis(revised, HypothesisStatus.ACTIVE)
+        reconfirmed = transition_hypothesis(
+            re_active,
+            HypothesisStatus.CONFIRMED,
+            tests=(_evidence("evidence:t2", HypothesisEvidencePolarity.TEST_RESULT),),
+        )
+        assert reconfirmed.status is HypothesisStatus.CONFIRMED
+
+
+class TestCorrection011ResolvedFalsifierIdentityCanonicalization:
+    """RF-2 malformed-input closure: the retained resolved-falsifier lineage
+    identity is a canonical evidence reference exactly like every other evidence
+    ref — a non-canonical or secret-bearing reference string must fail closed at
+    construction, not enter retained/projection state."""
+
+    def test_non_canonical_reference_rejected(self) -> None:
+        with pytest.raises(HypothesisValidationError, match="canonical evidence reference"):
+            _hypothesis(
+                status=HypothesisStatus.ACTIVE,
+                evidence_for=(
+                    _evidence("evidence:e1", HypothesisEvidencePolarity.SUPPORTS),
+                ),
+                resolved_falsifier_identities=(("NOT A CANONICAL REF!!", _T),),
+            )
+
+    def test_secret_bearing_reference_rejected(self) -> None:
+        with pytest.raises(HypothesisValidationError):
+            _hypothesis(
+                status=HypothesisStatus.ACTIVE,
+                evidence_for=(
+                    _evidence("evidence:e1", HypothesisEvidencePolarity.SUPPORTS),
+                ),
+                resolved_falsifier_identities=(("sk-abcdefghijklmnop", _T),),
+            )
+
+    def test_canonical_reference_accepted_and_deduped(self) -> None:
+        hypothesis = _hypothesis(
+            status=HypothesisStatus.ACTIVE,
+            evidence_for=(
+                _evidence("evidence:e1", HypothesisEvidencePolarity.SUPPORTS),
+            ),
+            resolved_falsifier_identities=(
+                ("evidence:f1", _T),
+                ("evidence:f1", _T),
+            ),
+        )
+        assert hypothesis.resolved_falsifier_identities == (("evidence:f1", _T),)

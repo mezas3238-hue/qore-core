@@ -43,6 +43,9 @@ from qore.modules.cibo.cognitive_contracts import (
     CiboCognitiveEvidenceRef,
     CiboConfidence,
 )
+from qore.modules.cibo.cognitive_contracts import (
+    CiboCognitiveValidationError as ContractsValidationError,
+)
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
 
@@ -453,6 +456,7 @@ class Hypothesis:
     fingerprint: CiboCognitiveFingerprint
     reason_code: str | None = None
     falsifier_resolutions: tuple[FalsifierResolution, ...] = ()
+    resolved_falsifier_identities: tuple[tuple[str, datetime], ...] = ()
 
     def __post_init__(self) -> None:
         self.revalidate()
@@ -531,6 +535,26 @@ class Hypothesis:
                 field="hypothesis falsifier resolutions",
             ),
         )
+        object.__setattr__(
+            self,
+            "resolved_falsifier_identities",
+            _canonical_resolved_falsifier_identities(
+                self.resolved_falsifier_identities,
+                field="hypothesis resolved falsifier identities",
+            ),
+        )
+        # A resolved falsifier is spent: its (reference, UTC instant) identity
+        # must never re-enter a favorable channel (SUPPORTS or TEST_RESULT) —
+        # that would be a relabel/channel-movement laundering of a falsifier into
+        # favorable material. (Re-supplying it in its original falsifying channel
+        # is separately governed by the blocking-falsifier rules at CONFIRMED.)
+        resolved_identities = frozenset(self.resolved_falsifier_identities)
+        for evidence in (*self.evidence_for, *self.tests):
+            if _evidence_identity(evidence) in resolved_identities:
+                raise HypothesisValidationError(
+                    "a resolved falsifier cannot be relabeled as supporting or "
+                    "test evidence"
+                )
         self._validate_status_evidence()
         if type(self.fingerprint) is not CiboCognitiveFingerprint:
             raise HypothesisValidationError(
@@ -555,6 +579,20 @@ class Hypothesis:
                 raise HypothesisValidationError(
                     "a confirmed hypothesis must not carry against/contradiction evidence"
                 )
+            # R7 F2 closure: a confirmed hypothesis's governed test evidence must
+            # be genuinely new — a SUPPORTS observation cannot gain test authority
+            # merely by being re-labeled TEST_RESULT. A test whose canonical
+            # (reference, UTC instant) identity already appears in evidence_for
+            # is the same observation relabeled across channels, not new material.
+            support_identities = {
+                _evidence_identity(evidence) for evidence in self.evidence_for
+            }
+            for test in self.tests:
+                if _evidence_identity(test) in support_identities:
+                    raise HypothesisValidationError(
+                        "a confirmed hypothesis's test evidence must be genuinely "
+                        "new, not a relabel of retained supporting evidence"
+                    )
             # Governed falsifier-resolution linkage: every recorded resolution
             # must reference a test that is actually retained (exact reference +
             # UTC instant identity). The transition additionally enforces that
@@ -598,6 +636,7 @@ class Hypothesis:
             _causal_ref_material(self.causal_claim_ref),
             self.reason_code,
             tuple(r.logical_values() for r in self.falsifier_resolutions),
+            self.resolved_falsifier_identities,
         )
 
 
@@ -616,6 +655,7 @@ def _material(
     causal_claim_ref: tuple[object, ...] | None,
     reason_code: str | None,
     falsifier_resolutions: tuple[FalsifierResolution, ...],
+    resolved_falsifier_identities: tuple[tuple[str, datetime], ...],
 ) -> tuple[object, ...]:
     return (
         str(hypothesis_id),
@@ -632,6 +672,7 @@ def _material(
         _causal_ref_material(causal_claim_ref),
         reason_code,
         tuple(r.logical_values() for r in falsifier_resolutions),
+        resolved_falsifier_identities,
     )
 
 
@@ -651,6 +692,7 @@ def build_hypothesis(
     causal_claim_ref: tuple[object, ...] | None = None,
     reason_code: str | None = None,
     falsifier_resolutions: Sequence[FalsifierResolution] = (),
+    resolved_falsifier_identities: Sequence[tuple[str, datetime]] = (),
 ) -> Hypothesis:
     """Build a validated, canonically ordered, fingerprinted hypothesis."""
     if not isinstance(evidence_for, Sequence):
@@ -663,6 +705,8 @@ def build_hypothesis(
         raise HypothesisValidationError("tests must be a sequence")
     if not isinstance(falsifier_resolutions, Sequence):
         raise HypothesisValidationError("falsifier_resolutions must be a sequence")
+    if not isinstance(resolved_falsifier_identities, Sequence):
+        raise HypothesisValidationError("resolved_falsifier_identities must be a sequence")
     _validate_causal_claim_ref(causal_claim_ref)
     # Canonicalize every semantically-unordered sequence BEFORE deriving the
     # fingerprint, so any permutation of the same semantic input produces the
@@ -691,6 +735,10 @@ def build_hypothesis(
         tuple(falsifier_resolutions),
         field="hypothesis falsifier resolutions",
     )
+    canonical_resolved = _canonical_resolved_falsifier_identities(
+        tuple(resolved_falsifier_identities),
+        field="hypothesis resolved falsifier identities",
+    )
     return Hypothesis(
         hypothesis_id=hypothesis_id,
         content_code=content_code,
@@ -706,6 +754,7 @@ def build_hypothesis(
         causal_claim_ref=causal_claim_ref,
         reason_code=reason_code,
         falsifier_resolutions=canonical_resolutions,
+        resolved_falsifier_identities=canonical_resolved,
         fingerprint=fingerprint_material(
             _material(
                 hypothesis_id,
@@ -722,6 +771,7 @@ def build_hypothesis(
                 causal_claim_ref,
                 reason_code,
                 canonical_resolutions,
+                canonical_resolved,
             )
         ),
     )
@@ -741,8 +791,66 @@ def _evidence_identity(evidence: HypothesisEvidence) -> tuple[str, datetime]:
     )
 
 
+def _canonical_resolved_falsifier_identities(
+    values: tuple[tuple[str, datetime], ...], *, field: str
+) -> tuple[tuple[str, datetime], ...]:
+    """Canonicalize resolved-falsifier lineage identities: exact types, UTC
+    normalization, dedup, and deterministic order.
+
+    When a blocking falsifier is resolved at CONFIRMED, its against/contradiction
+    channel is cleared (a confirmed hypothesis must not carry falsifying
+    evidence), but its canonical ``(reference, UTC instant)`` identity must stay
+    retained in the lineage so the observation cannot later be relabeled across a
+    channel/polarity (e.g. AGAINST -> TEST_RESULT) to re-gain authority.
+    """
+    if type(values) is not tuple:
+        raise HypothesisValidationError(f"{field} must be an immutable tuple")
+    validated: list[tuple[str, datetime]] = []
+    seen: set[tuple[str, datetime]] = set()
+    for identity in values:
+        if type(identity) is not tuple or len(identity) != 2:
+            raise HypothesisValidationError(
+                f"{field} entries must be (reference, UTC instant) pairs"
+            )
+        ref, instant = identity
+        if type(ref) is not str:
+            raise HypothesisValidationError(f"{field} reference must be a str")
+        # The reference is a canonical opaque evidence reference, exactly like
+        # every other evidence ref the model retains: enforce the canonical
+        # syntax and secret-material hygiene at construction (not only later at
+        # fingerprint) so a malformed or non-canonical reference can never enter
+        # the retained lineage state.
+        try:
+            canonical_ref = CiboCognitiveEvidenceRef(ref).value
+        except ContractsValidationError as error:
+            raise HypothesisValidationError(
+                f"{field} reference must be a canonical evidence reference"
+            ) from error
+        utc = utc_instant(instant, field=field)
+        key = (canonical_ref, utc)
+        if key not in seen:
+            seen.add(key)
+            validated.append(key)
+    return tuple(sorted(validated))
+
+
+def _resolved_falsifier_identity(
+    resolution: FalsifierResolution,
+) -> tuple[str, datetime]:
+    """Return the (reference, UTC instant) identity of a resolution's falsifier."""
+    return (
+        resolution.falsifier_ref.value,
+        utc_instant(
+            resolution.falsifier_observed_at,
+            field="falsifier resolution falsifier observed_at",
+        ),
+    )
+
+
 def _retained_evidence_identity(hypothesis: Hypothesis) -> frozenset[tuple[str, datetime]]:
-    """Return the canonical identity of every evidence a hypothesis retains."""
+    """Return the canonical identity of every evidence a hypothesis retains,
+    including falsifiers resolved and cleared at a prior CONFIRMED (their
+    identity survives in ``resolved_falsifier_identities``)."""
     return frozenset(
         _evidence_identity(evidence)
         for evidence in (
@@ -751,7 +859,7 @@ def _retained_evidence_identity(hypothesis: Hypothesis) -> frozenset[tuple[str, 
             + hypothesis.contradictions
             + hypothesis.tests
         )
-    )
+    ) | frozenset(hypothesis.resolved_falsifier_identities)
 
 
 def _union_evidence(
@@ -874,6 +982,20 @@ def transition_hypothesis(
                 "confirming a hypothesis requires an explicit resolution for every "
                 "blocking falsifier"
             )
+        # R7 F2 closure (revisit governance): confirming requires GENUINELY NEW
+        # test evidence. A test whose canonical (reference, UTC instant) identity
+        # is already retained by the hypothesis — in any channel, including
+        # prior revisions' retained tests — is a relabel/reuse and cannot
+        # re-confirm. This closes both the SUPPORTS->TEST_RESULT relabel (F2A)
+        # and the CONFIRMED->REVISED->ACTIVE->CONFIRMED lifecycle cycle (F2B).
+        retained_identities = _retained_evidence_identity(hypothesis)
+        for test in canonical_tests:
+            if _evidence_identity(test) in retained_identities:
+                raise HypothesisValidationError(
+                    "confirming a hypothesis requires genuinely new test evidence; "
+                    "an already-retained observation cannot be relabeled or reused "
+                    "to re-confirm"
+                )
     elif canonical_resolutions:
         raise HypothesisValidationError(
             "falsifier resolutions are only admissible when confirming"
@@ -903,6 +1025,33 @@ def transition_hypothesis(
                 raise HypothesisValidationError(
                     "leaving refuted requires material new evidence or a content change"
                 )
+    if hypothesis.status is HypothesisStatus.CONFIRMED and new_status is HypothesisStatus.REVISED:
+        # R7 F2B closure: leaving CONFIRMED is a governed revision symmetric with
+        # leaving REFUTED, never a ceremonial transition. It requires an auditable
+        # reason code plus a durable content change or genuinely new evidence/test
+        # material. Without this gate a CONFIRMED hypothesis could be vacuous
+        # REVISED -> ACTIVE -> CONFIRMED cyclically to inflate revision lineage;
+        # the symmetric basis here, together with the retained-test revisit gate,
+        # closes that lifecycle reuse. "New" is decided by canonical evidence
+        # identity (reference + UTC instant), so re-supplying retained evidence
+        # under an alternate timezone/order/relabeled polarity never counts as new.
+        if reason_code is None:
+            raise HypothesisValidationError(
+                "leaving confirmed requires an explicit revision reason code"
+            )
+        content_changed = content_code is not None and content_code != hypothesis.content_code
+        if not content_changed:
+            retained = _retained_evidence_identity(hypothesis)
+            supplied = (
+                canonical_for
+                + canonical_against
+                + canonical_contradictions
+                + canonical_tests
+            )
+            if not any(_evidence_identity(evidence) not in retained for evidence in supplied):
+                raise HypothesisValidationError(
+                    "leaving confirmed requires material new evidence or a content change"
+                )
     next_code = content_code if content_code is not None else hypothesis.content_code
     # Retain falsifying evidence (contradictions + evidence_against) across
     # revisions so a hypothesis never forgets why it was refuted, and so an old
@@ -918,27 +1067,44 @@ def transition_hypothesis(
     else:
         next_against = _union_evidence(hypothesis.evidence_against, canonical_against)
         next_contradictions = _union_evidence(hypothesis.contradictions, canonical_contradictions)
-    # Supporting/test evidence is per-revision (replaced, not accumulated): the
-    # governed new-evidence gate for leaving REFUTED scopes its canonical-identity
-    # comparison to the evidence the REFUTED hypothesis itself retains (its
-    # falsifying channels), matching "must not count as new the evidence already
-    # retained by the refuted hypothesis". Prior revisions stay durable via
-    # immutability, and their evidence is never silently erased from the lineage.
+    # Both supporting and test evidence are retained across revisions
+    # (identity-deduped by canonical reference + UTC instant). Retention is what
+    # lets a later CONFIRMED transition detect that a re-supplied test or a
+    # relabeled SUPPORTS observation is a lifecycle-cycle reuse rather than
+    # genuinely new material — otherwise CONFIRMED -> REVISED -> ACTIVE ->
+    # CONFIRMED could re-confirm forever by reusing the same observation, or by
+    # relabeling a SUPPORTS observation dropped by an earlier revision into a
+    # fresh-looking TEST_RESULT. Entering CONFIRMED resolves prior falsification,
+    # so the against/contradiction channels are cleared there (a confirmed
+    # hypothesis must not carry against/contradiction); supporting/test evidence
+    # is kept so the revisit gate above can see every previously-seen identity.
+    # Resolved falsifiers' canonical (reference, UTC instant) identities are ALSO
+    # retained separately: clearing the against/contradiction channels must not
+    # let a resolved AGAINST/CONTRADICTION observation be relabeled TEST_RESULT
+    # (or SUPPORTS) later in the lineage to re-gain confirmation authority.
+    next_resolved = _canonical_resolved_falsifier_identities(
+        tuple(sorted(
+            set(hypothesis.resolved_falsifier_identities)
+            | {_resolved_falsifier_identity(resolution) for resolution in canonical_resolutions}
+        )),
+        field="hypothesis resolved falsifier identities",
+    )
     return build_hypothesis(
         hypothesis_id=hypothesis.hypothesis_id,
         content_code=next_code,
         revision=hypothesis.revision + 1,
         revision_parent=hypothesis.hypothesis_id,
         status=new_status,
-        evidence_for=canonical_for,
+        evidence_for=_union_evidence(hypothesis.evidence_for, canonical_for),
         evidence_against=next_against,
         contradictions=next_contradictions,
-        tests=canonical_tests,
+        tests=_union_evidence(hypothesis.tests, canonical_tests),
         confidence=confidence,
         supersedes=supersedes,
         causal_claim_ref=causal_claim_ref,
         reason_code=reason_code,
         falsifier_resolutions=canonical_resolutions,
+        resolved_falsifier_identities=next_resolved,
     )
 
 

@@ -878,3 +878,115 @@ class TestCorrection010CredentialTwoSidedContract:
     )
     def test_unicode_separator_split_token_detected(self, witness: str) -> None:
         assert contains_secret_material(witness)
+
+
+class TestCorrection011SecretFamilyRecertification:
+    """RF-1 FULL-FAMILY recertification: Unicode dash-homoglyph delimiter class,
+    all-letter credential-value class, and the case-sensitive provider-prefix /
+    Cyrillic-Greek-Armenian label confusable classes."""
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Unicode dash/hyphen/minus homoglyphs in the ``sk-`` provider prefix.
+            "sk\u2013abcdefghijklmnopqrstuvwxyz",  # EN DASH
+            "sk\u2014abcdefghijklmnopqrstuvwxyz",  # EM DASH
+            "sk\u2010abcdefghijklmnopqrstuvwxyz",  # HYPHEN
+            "sk\u2011abcdefghijklmnopqrstuvwxyz",  # NON-BREAKING HYPHEN
+            "sk\u2012abcdefghijklmnopqrstuvwxyz",  # FIGURE DASH
+            "sk\u2015abcdefghijklmnopqrstuvwxyz",  # HORIZONTAL BAR
+            "sk\u2212abcdefghijklmnopqrstuvwxyz",  # MINUS SIGN
+            "sk\u058aabcdefghijklmnopqrstuvwxyz",  # ARMENIAN HYPHEN
+            "sk\u00adabcdefghijklmnopqrstuvwxyz",  # SOFT HYPHEN (Cf)
+            "sk\U000e002dabcdefghijklmnopqrstuvwxyz",  # TAG HYPHEN-MINUS (Cf)
+            "sk\u301cabcdefghijklmnopqrstuvwxyz",  # WAVE DASH
+            "sk\U00010eadabcdefghijklmnopqrstuvwxyz",  # YEZIDI HYPHENATION MARK
+            # Dash homoglyph in a compound credential label and Slack prefix.
+            "access\u2013token: abc123def",
+            "xoxb\u2013abcdefghijklm",
+        ),
+    )
+    def test_dash_homoglyph_delimiters_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Long all-letter credential/token values under AMBIGUOUS/WEAK labels.
+            "secret: abcdefghijklmnop",
+            "access_token: abcdefghijklmnop",
+            "token: abcdefghijklmnop",
+            "credential: abcdefghijklmnop",
+            "authorization: abcdefghijklmnop",
+            "secret: correcthorsebatterystaple",
+            "token: AbCdEfGhIjKlMn",
+        ),
+    )
+    def test_all_letter_token_values_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Short all-letter prose values stay benign under the two-sided contract.
+            "secret: the recipe is a family tradition",
+            "credential: management is quarterly",
+            "access token: expires daily",
+            "token: 12 units were issued",
+            "authorization: delegated",
+            "openai key: billing",
+        ),
+    )
+    def test_short_all_letter_prose_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # A long all-letter word that merely HEADS a multi-word prose phrase
+            # is prose, not a credential: the all-letter token value must be a
+            # SINGLE complete token, never a prefix of a prose sentence.
+            "secret: authentication is required",
+            "token: authentication happens at the edge",
+            "credential: authentication is handled by the broker",
+            "authorization: authentication precedes it",
+            "access token: authentication flow",
+            "token: confidentiality is preserved",
+            "secret: implementation is deferred",
+            "credential: infrastructure is shared",
+        ),
+    )
+    def test_long_word_headed_prose_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Cyrillic GHE as an r homoglyph and Greek GAMMA as a g homoglyph.
+            "passwo\u0433d = 123",
+            "p\u0433ivate_key: abc123",
+            "ref\u0433esh_token = abc123",
+            "beare\u0433_token: abc123",
+            "\u03b3ithub_token = abc123",
+            # Homoglyph capitals re-join the case-sensitive AKIA/ASIA prefix.
+            "\u0410KIA1234567890ABCDEF",
+            "\u0391SIA1234567890ABCDEF",
+            # Armenian OH/VO homoglyphs in credential labels.
+            "t\u0585ken = abc123",
+            "T\u0555KEN = abc123",
+            "toke\u0578 = abc123",
+        ),
+    )
+    def test_confusable_label_letters_detected(self, witness: str) -> None:
+        assert contains_secret_material(witness)
+
+    @pytest.mark.parametrize(
+        "witness",
+        (
+            # Non-label confusable letters stay benign.
+            "the \u03b7eta function converges",
+            "a \u03b6eta distribution",
+        ),
+    )
+    def test_confusable_outside_labels_stays_benign(self, witness: str) -> None:
+        assert not contains_secret_material(witness)

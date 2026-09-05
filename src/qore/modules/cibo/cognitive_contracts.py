@@ -105,6 +105,20 @@ _BARE_DIGIT_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
 # mixed token carrying BOTH a letter and a digit. Short tokens like "OAuth2",
 # "2FA", "12", or "2008" are ordinary prose/numbers and stay admissible.
 _BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[A-Za-z])[^\s\"']{8,}"
+# A bare (unquoted) ALL-LETTER colon value is credential-shaped when it is a
+# LONG contiguous alphabetic token (>= 12 chars): such a run is token-shaped or
+# passphrase-like, not a natural-language predicate word. Short all-letter
+# values ("the", "expires", "revoked", "management") remain prose under the
+# two-sided contract. This is a fixed structural length boundary over the whole
+# all-letter value class — not a word list and not a witness-specific branch.
+# The trailing negative lookahead keeps the value a SINGLE COMPLETE token: a
+# long word that merely HEADS a multi-word prose phrase ("secret: authentication
+# is required", "token: authentication happens at the edge") is prose, not a
+# credential, and must stay accepted under the two-sided contract. The
+# ``(?![A-Za-z]|\s+[A-Za-z])`` guard also stops the engine from backtracking the
+# 12+ run into a shorter prefix of a longer word, which would otherwise re-open
+# the head-of-prose match.
+_BARE_ALPHA_TOKEN_VALUE = r"[A-Za-z]{12,}(?![A-Za-z]|\s+[A-Za-z])"
 # The English auxiliary/modal/copula verb CLOSED class. Only this class can
 # never be a credential value, because it marks the START of a verb phrase
 # (predicate), not a value assignment: "password: must be rotated" and
@@ -146,16 +160,67 @@ _DELIMITER_CONFUSABLE_MAP = str.maketrans(
     }
 )
 
+# Unicode dash/hyphen/minus homoglyphs fold to ASCII ``-``. NFKC does NOT fold
+# the Pd dash family (EN DASH, EM DASH, HYPHEN, FIGURE DASH, HORIZONTAL BAR, …)
+# to ASCII ``-``, so ``sk–…``/``access–token``/``xoxb–…`` would otherwise split a
+# credential prefix/label/token and fail the detector open. A dash homoglyph is
+# never natural-language prose punctuation when it sits inside a credential
+# prefix/label/token, so folding it can only re-join an adversarially-split
+# credential (fail closed). Applied AFTER NFKC so the compatibility-folded forms
+# (U+FE58→U+2014, U+FE63→U+2010, U+FF0D→U+002D) are covered too. Detection-only:
+# applied to a transient skeleton, never to persisted/user text.
+_DASH_CONFUSABLE_MAP = str.maketrans(
+    {
+        "\u00ad": "-",  # SOFT HYPHEN (Cf; stripped before NFKC, so also pre-folded)
+        "\u058a": "-",  # ARMENIAN HYPHEN
+        "\u05be": "-",  # HEBREW PUNCTUATION MAQAF
+        "\u1400": "-",  # CANADIAN SYLLABICS HYPHEN
+        "\u1806": "-",  # MONGOLIAN TODO SOFT HYPHEN
+        "\u2010": "-",  # HYPHEN
+        "\u2011": "-",  # NON-BREAKING HYPHEN
+        "\u2012": "-",  # FIGURE DASH
+        "\u2013": "-",  # EN DASH
+        "\u2014": "-",  # EM DASH
+        "\u2015": "-",  # HORIZONTAL BAR
+        "\u2027": "-",  # HYPHENATION POINT
+        "\u2043": "-",  # HYPHEN BULLET
+        "\u2052": "-",  # COMMERCIAL MINUS SIGN
+        "\u2053": "-",  # SWUNG DASH
+        "\u2212": "-",  # MINUS SIGN
+        "\u02d7": "-",  # MODIFIER LETTER MINUS SIGN
+        "\u2e17": "-",  # DOUBLE OBLIQUE HYPHEN
+        "\u2e1a": "-",  # HYPHEN WITH DIAERESIS
+        "\u2e3a": "-",  # TWO-EM DASH
+        "\u2e3b": "-",  # THREE-EM DASH
+        "\u2e40": "-",  # DOUBLE HYPHEN
+        "\u2e5d": "-",  # OBLIQUE HYPHEN
+        "\u301c": "-",  # WAVE DASH
+        "\u3030": "-",  # WAVY DASH
+        "\u30a0": "-",  # KATAKANA-HIRAGANA DOUBLE HYPHEN
+        "\U00010ead": "-",  # YEZIDI HYPHENATION MARK
+        "\ufe58": "-",  # SMALL EM DASH
+        "\ufe63": "-",  # SMALL HYPHEN-MINUS
+        "\uff0d": "-",  # FULLWIDTH HYPHEN-MINUS
+        "\U000e002d": "-",  # TAG HYPHEN-MINUS (Cf; stripped before NFKC, so also pre-folded)
+    }
+)
+
 # Confusable label characters (Cyrillic/Greek homoglyphs of the Latin letters
 # used by credential labels, both cases: re.IGNORECASE does not fold across
 # scripts, so uppercase homoglyphs must be folded explicitly). Detection-only:
 # applied to a transient skeleton, never to persisted/user text.
+# Homoglyph capitals fold to CAPITAL Latin letters (not lowercase): the AWS
+# ``AKIA``/``ASIA`` prefix pattern is case-sensitive, so a Cyrillic/Greek ``A``
+# homoglyph must re-join as ``A`` or it escapes the prefix match. Lowercase
+# homoglyphs fold to lowercase Latin. Detection-only: applied to a transient
+# skeleton, never to persisted/user text.
 _CONFUSABLE_MAP = str.maketrans(
     {
         "\u0430": "a",  # CYRILLIC SMALL A
         "\u0432": "b",  # CYRILLIC SMALL VE
         "\u0441": "c",  # CYRILLIC SMALL ES
         "\u0435": "e",  # CYRILLIC SMALL IE
+        "\u0433": "r",  # CYRILLIC SMALL GHE (r homoglyph)
         "\u0455": "s",  # CYRILLIC SMALL DZE
         "\u0456": "i",  # CYRILLIC SMALL BYELORUSSIAN-UKRAINIAN I
         "\u0458": "j",  # CYRILLIC SMALL JE
@@ -168,23 +233,25 @@ _CONFUSABLE_MAP = str.maketrans(
         "\u0443": "y",  # CYRILLIC SMALL U
         "\u0445": "x",  # CYRILLIC SMALL HA
         "\u0437": "z",  # CYRILLIC SMALL ZE
-        "\u0410": "a",  # CYRILLIC CAPITAL A
-        "\u0412": "b",  # CYRILLIC CAPITAL VE
-        "\u0421": "c",  # CYRILLIC CAPITAL ES
-        "\u0415": "e",  # CYRILLIC CAPITAL IE
-        "\u0405": "s",  # CYRILLIC CAPITAL DZE
-        "\u0406": "i",  # CYRILLIC CAPITAL BYELORUSSIAN-UKRAINIAN I
-        "\u0408": "j",  # CYRILLIC CAPITAL JE
-        "\u041a": "k",  # CYRILLIC CAPITAL KA
-        "\u041c": "m",  # CYRILLIC CAPITAL EM
-        "\u041d": "n",  # CYRILLIC CAPITAL EN
-        "\u041e": "o",  # CYRILLIC CAPITAL O
-        "\u0420": "p",  # CYRILLIC CAPITAL ER
-        "\u0422": "t",  # CYRILLIC CAPITAL TE
-        "\u0423": "y",  # CYRILLIC CAPITAL U
-        "\u0425": "x",  # CYRILLIC CAPITAL HA
-        "\u0417": "z",  # CYRILLIC CAPITAL ZE
+        "\u0410": "A",  # CYRILLIC CAPITAL A
+        "\u0412": "B",  # CYRILLIC CAPITAL VE
+        "\u0421": "C",  # CYRILLIC CAPITAL ES
+        "\u0415": "E",  # CYRILLIC CAPITAL IE
+        "\u0413": "R",  # CYRILLIC CAPITAL GHE (R homoglyph)
+        "\u0405": "S",  # CYRILLIC CAPITAL DZE
+        "\u0406": "I",  # CYRILLIC CAPITAL BYELORUSSIAN-UKRAINIAN I
+        "\u0408": "J",  # CYRILLIC CAPITAL JE
+        "\u041a": "K",  # CYRILLIC CAPITAL KA
+        "\u041c": "M",  # CYRILLIC CAPITAL EM
+        "\u041d": "N",  # CYRILLIC CAPITAL EN
+        "\u041e": "O",  # CYRILLIC CAPITAL O
+        "\u0420": "P",  # CYRILLIC CAPITAL ER
+        "\u0422": "T",  # CYRILLIC CAPITAL TE
+        "\u0423": "Y",  # CYRILLIC CAPITAL U
+        "\u0425": "X",  # CYRILLIC CAPITAL HA
+        "\u0417": "Z",  # CYRILLIC CAPITAL ZE
         "\u03b1": "a",  # GREEK SMALL LETTER ALPHA
+        "\u03b3": "g",  # GREEK SMALL LETTER GAMMA (g homoglyph)
         "\u03b5": "e",  # GREEK SMALL LETTER EPSILON
         "\u03b9": "i",  # GREEK SMALL LETTER IOTA
         "\u03ba": "k",  # GREEK SMALL LETTER KAPPA
@@ -196,22 +263,26 @@ _CONFUSABLE_MAP = str.maketrans(
         "\u03c4": "t",  # GREEK SMALL LETTER TAU
         "\u03c5": "u",  # GREEK SMALL LETTER UPSILON
         "\u03c7": "x",  # GREEK SMALL LETTER CHI
-        "\u0391": "a",  # GREEK CAPITAL LETTER ALPHA
-        "\u0392": "b",  # GREEK CAPITAL LETTER BETA
-        "\u0395": "e",  # GREEK CAPITAL LETTER EPSILON
-        "\u0399": "i",  # GREEK CAPITAL LETTER IOTA
-        "\u039a": "k",  # GREEK CAPITAL LETTER KAPPA
-        "\u039d": "n",  # GREEK CAPITAL LETTER NU
-        "\u039f": "o",  # GREEK CAPITAL LETTER OMICRON
-        "\u03a1": "p",  # GREEK CAPITAL LETTER RHO
-        "\u03a3": "s",  # GREEK CAPITAL LETTER SIGMA
-        "\u03a4": "t",  # GREEK CAPITAL LETTER TAU
-        "\u03a5": "u",  # GREEK CAPITAL LETTER UPSILON
-        "\u03a7": "x",  # GREEK CAPITAL LETTER CHI
+        "\u0391": "A",  # GREEK CAPITAL LETTER ALPHA
+        "\u0392": "B",  # GREEK CAPITAL LETTER BETA
+        "\u0393": "G",  # GREEK CAPITAL LETTER GAMMA (G homoglyph)
+        "\u0395": "E",  # GREEK CAPITAL LETTER EPSILON
+        "\u0399": "I",  # GREEK CAPITAL LETTER IOTA
+        "\u039a": "K",  # GREEK CAPITAL LETTER KAPPA
+        "\u039d": "N",  # GREEK CAPITAL LETTER NU
+        "\u039f": "O",  # GREEK CAPITAL LETTER OMICRON
+        "\u03a1": "P",  # GREEK CAPITAL LETTER RHO
+        "\u03a3": "S",  # GREEK CAPITAL LETTER SIGMA
+        "\u03a4": "T",  # GREEK CAPITAL LETTER TAU
+        "\u03a5": "U",  # GREEK CAPITAL LETTER UPSILON
+        "\u03a7": "X",  # GREEK CAPITAL LETTER CHI
         "\u03b6": "z",  # GREEK SMALL LETTER ZETA
         "\u03b7": "n",  # GREEK SMALL LETTER ETA
-        "\u0396": "z",  # GREEK CAPITAL LETTER ZETA
-        "\u0397": "h",  # GREEK CAPITAL LETTER ETA
+        "\u0396": "Z",  # GREEK CAPITAL LETTER ZETA
+        "\u0397": "H",  # GREEK CAPITAL LETTER ETA
+        "\u0555": "O",  # ARMENIAN CAPITAL OH
+        "\u0585": "o",  # ARMENIAN SMALL OH
+        "\u0578": "n",  # ARMENIAN SMALL VO (n homoglyph)
     }
 )
 
@@ -276,14 +347,17 @@ _SECRET_PATTERNS: tuple[Pattern[str], ...] = (
         rf"(?i)\b(?:{_UNEQUIVOCAL_CRED_LABEL})\b[\"']?\s*:\s*"
         rf"(?:{_QUOTED_VALUE}|{_UNEQUIVOCAL_BARE_VALUE})"
     ),
-    # Ambiguous-label colon assignment: prose-ambiguous. Quoted or digit-bearing.
+    # Ambiguous-label colon assignment: prose-ambiguous. Quoted, digit-bearing,
+    # or a long all-letter token (>= 12 chars) is credential-shaped.
     compile(
         rf"(?i)\b(?:{_AMBIGUOUS_CRED_LABEL})\b[\"']?\s*:\s*"
-        rf"(?:{_QUOTED_VALUE}|{_BARE_DIGIT_VALUE})"
+        rf"(?:{_QUOTED_VALUE}|{_BARE_DIGIT_VALUE}|{_BARE_ALPHA_TOKEN_VALUE})"
     ),
-    # Weak-label colon assignment: prose-ambiguous. Quoted or 8+ mixed only.
+    # Weak-label colon assignment: prose-ambiguous. Quoted, 8+ mixed, or a long
+    # all-letter token (>= 12 chars) is credential-shaped.
     compile(
-        rf"(?i)\b(?:{_WEAK_CRED_LABEL})\b[\"']?\s*:\s*(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE})"
+        rf"(?i)\b(?:{_WEAK_CRED_LABEL})\b[\"']?\s*:\s*"
+        rf"(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE}|{_BARE_ALPHA_TOKEN_VALUE})"
     ),
 )
 
@@ -340,11 +414,16 @@ def _secret_skeleton(text: str) -> str:
     original text is never rewritten: this view is used only to run the
     fail-closed detection patterns.
     """
-    decomposed = _unicodedata_normalize("NFD", text)
+    # Pre-fold dash homoglyphs (including the Cf soft/tag hyphens) BEFORE the
+    # invisible strip: U+00AD/U+E002D are category Cf and would otherwise be
+    # removed as "invisible", which would erase the delimiter and fail the
+    # detector open for ``sk<soft-hyphen>…``.
+    prefolded = text.translate(_DASH_CONFUSABLE_MAP)
+    decomposed = _unicodedata_normalize("NFD", prefolded)
     visible = "".join(ch for ch in decomposed if not _is_detection_invisible(ch))
     normalized = _unicodedata_normalize(
         "NFKC", visible.translate(_DELIMITER_CONFUSABLE_MAP)
-    ).translate(_CONFUSABLE_MAP)
+    ).translate(_CONFUSABLE_MAP).translate(_DASH_CONFUSABLE_MAP)
     return "".join(ch for ch in normalized if not _is_detection_invisible(ch))
 
 

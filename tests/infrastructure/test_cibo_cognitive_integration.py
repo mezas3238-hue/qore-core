@@ -27,6 +27,7 @@ from qore.infrastructure.cibo_cognitive_causality import (
     CausalEvidencePolarity,
     CausalVariable,
     ConfounderResolution,
+    MechanismBinding,
     build_causal_claim,
 )
 from qore.infrastructure.cibo_cognitive_common import (
@@ -1062,13 +1063,17 @@ def _correlation_claim() -> CausalClaim:
 
 
 def _causation_claim() -> CausalClaim:
+    mechanism = MechanismBinding(
+        code="mechanism.randomization",
+        evidence=_causal_evidence("evidence:causal-for", CausalEvidencePolarity.SUPPORTS),
+    )
     return build_causal_claim(
         claim_id=_CAUSAL,
         kind=CausalClaimKind.CAUSATION,
         cause=_causal_variable("intervention"),
         effect=_causal_variable("capability"),
         confounders=(_causal_variable("selection-bias"),),
-        mechanism_code="mechanism.randomization",
+        mechanism=mechanism,
         confounder_resolutions=(
             ConfounderResolution(
                 confounder=_causal_variable("selection-bias"),
