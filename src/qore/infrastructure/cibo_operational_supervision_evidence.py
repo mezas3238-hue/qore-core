@@ -59,7 +59,7 @@ class CiboOperationalSupervisionReason(StrEnum):
 
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboOperationalSupervisionEvidenceValidationError(
             f"{field_name} must be datetime"
         )
@@ -78,9 +78,9 @@ def _attempt_ref(
     *,
     correlation_id: str,
     snapshot_id: str,
-    decided_at: datetime,
+    decided_at_iso: str,
 ) -> str:
-    raw = f"{correlation_id}|{snapshot_id}|{decided_at.isoformat()}"
+    raw = f"{correlation_id}|{snapshot_id}|{decided_at_iso}"
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     return f"sha256:{digest[:24]}"
 
@@ -261,14 +261,22 @@ def _build_record(
     reason: CiboOperationalSupervisionReason,
     intent: OrderIntent | None = None,
 ) -> CiboOperationalSupervisionRecord:
+    try:
+        CiboSupervisionAuthorization.__post_init__(supervision)
+        RealMarketDecisionContext.__post_init__(context)
+    except ExternalPortError as error:
+        raise CiboOperationalSupervisionEvidenceValidationError(
+            "supervision evidence inputs failed revalidation"
+        ) from error
     account = supervision.environment_authorization.account
     correlation_id = str(metadata.correlation_id.value)
     snapshot_id = str(context.quote.snapshot_id.value)
+    decided_at_iso = context.decided_at.isoformat()
     return CiboOperationalSupervisionRecord(
         attempt_ref=_attempt_ref(
             correlation_id=correlation_id,
             snapshot_id=snapshot_id,
-            decided_at=context.decided_at,
+            decided_at_iso=decided_at_iso,
         ),
         supervisor_id=supervision.supervisor_id.value,
         provider_key=account.provider_key,
@@ -300,6 +308,12 @@ class ObservedSupervisedCiboDecisionBoundary:
             raise CiboOperationalSupervisionEvidenceValidationError(
                 "observed CIBO boundary requires CiboSupervisionAuthorization"
             )
+        try:
+            CiboSupervisionAuthorization.__post_init__(supervision)
+        except ExternalPortError as error:
+            raise CiboOperationalSupervisionEvidenceValidationError(
+                "observed CIBO supervision failed revalidation"
+            ) from error
         if not callable(getattr(delegate, "decide", None)):
             raise CiboOperationalSupervisionEvidenceValidationError(
                 "observed CIBO boundary requires RealMarketDecisionBoundary"
