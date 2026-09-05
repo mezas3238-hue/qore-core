@@ -89,7 +89,8 @@ immutable `CiboDevelopmentReview` with a non-authoritative recommendation:
 The review never mutates the candidate and creates no promotion authority. Fail-closed cases:
 
 - identity/version or config-fingerprint mismatch (optional expected bindings) — blocked;
-- contradictory suspend/promotion evidence — blocked;
+- contradictory operating evidence (a `SUSPEND` or `RETURN_TO_LAB` operating condition) against a
+  promotion recommendation — blocked;
 - unsupported quantitative claims (revalidated defensively after reflective corruption) — blocked;
 - stale/incomplete evidence is never treated as current certainty (stale → return-to-Lab,
   insufficient → more-evidence-required);
@@ -103,9 +104,18 @@ with states `ELIGIBLE`, `SELECTED`, `REDUCED`, `SUSPENDED`, `BLOCKED`:
 
 - only an exact version with valid `DEMO_ELIGIBLE` evidence is selectable;
 - suspended/blocked/ineligible (rejected/suspended/degraded/stale) traders cannot be selected;
+- a profile carrying a blocking operating condition (`SUSPEND` or `RETURN_TO_LAB`) cannot be
+  selected; `REDUCE`/`ABSTAIN` conditions constrain operation but do not remove selectability;
 - selection/reduction/suspension retain exact reasons and evidence references;
 - the decision binds exact experiment arm and risk mode (`TRADERS_RISK_ONLY` vs
   `CIBO_MANAGED_TRADERS_RISK`) and rejects version/config mismatch between arms;
+- `REDUCE`/`SUSPEND`/`BLOCK` exact-type validate and bind any retained eligibility to the same
+  Trader identity + config fingerprint, and never fabricate an arm/risk mode without validated
+  eligibility;
+- a decision may not predate the profile evidence it acts on (`decided_at >= freshness.as_of`) nor
+  the retained eligibility certification (`decided_at >= certified_at`); equality is allowed;
+- wrong-runtime-type `eligibility`/`concentration` fail closed as a typed
+  `Failure(CiboManagerValidationError)`, never an uncaught exception;
 - `CIBO_MANAGED_TRADERS_RISK` requires Risk-envelope evidence (no Risk bypass);
 - the output has no provider-native order/execution fields;
 - concentration conclusions are produced only from explicit certified correlation evidence —

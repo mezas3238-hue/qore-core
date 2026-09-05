@@ -9,6 +9,7 @@ from qore.infrastructure.cibo_trader_capability_profile import (
     CiboCertificationState,
     CiboEvidenceFreshnessState,
     CiboEvidenceRef,
+    CiboOperatingAction,
     CiboTraderCapabilityProfile,
     CiboTraderConfigFingerprint,
 )
@@ -283,6 +284,58 @@ _INELIGIBLE_FRESHNESS = frozenset(
     }
 )
 
+# Operating actions that block or return a Trader to Lab. A profile carrying any
+# of these is not a selectable DEMO management state; REDUCE/ABSTAIN constrain
+# operation but do not remove selection eligibility.
+_BLOCKING_OPERATING_ACTIONS = frozenset(
+    {
+        CiboOperatingAction.SUSPEND,
+        CiboOperatingAction.RETURN_TO_LAB,
+    }
+)
+
+
+def _revalidate_eligibility(
+    eligibility: CiboDemoEligibilityEvidence,
+) -> Result[None, CiboManagerError]:
+    """Re-enter DEMO eligibility invariants at the decision trust boundary.
+
+    Successful construction is not permanent validity: a frozen/slots value can be
+    reflectively corrupted, so exact field types and the certified timestamp are
+    re-validated before the value is bound or retained as attribution evidence.
+    """
+    try:
+        CiboDemoEligibilityEvidence.__post_init__(eligibility)
+    except CiboManagerError as error:
+        return Failure(error)
+    return Success(None)
+
+
+def _resolve_retained_attribution(
+    profile: CiboTraderCapabilityProfile,
+    eligibility: CiboDemoEligibilityEvidence | None,
+    *,
+    decided_at: datetime,
+) -> Result[tuple[CiboExperimentArm | None, CiboRiskMode | None], CiboManagerError]:
+    """Resolve the arm/risk mode a non-SELECT action may retain from eligibility.
+
+    Absence of eligibility yields no attribution; a present eligibility must be
+    exact-type validated and bound to the same identity/config fingerprint, and the
+    decision may not predate its certification.
+    """
+    if eligibility is None:
+        return Success((None, None))
+    binding = _bind_eligibility(profile, eligibility)
+    if isinstance(binding, Failure):
+        return binding
+    if decided_at < eligibility.certified_at:
+        return Failure(
+            CiboManagerBlockedError(
+                "management decision cannot predate DEMO_ELIGIBLE certification"
+            )
+        )
+    return Success((eligibility.experiment_arm, eligibility.risk_mode))
+
 
 def _bind_eligibility(
     profile: CiboTraderCapabilityProfile,
@@ -343,6 +396,37 @@ class CiboTraderManager:
         except CiboManagerError as error:
             return Failure(error)
 
+        # Fail closed: any retained eligibility must be an exact, uncorrupted value.
+        if eligibility is not None:
+            if not isinstance(eligibility, CiboDemoEligibilityEvidence):
+                return Failure(
+                    CiboManagerValidationError(
+                        "eligibility must be CiboDemoEligibilityEvidence"
+                    )
+                )
+            revalidated = _revalidate_eligibility(eligibility)
+            if isinstance(revalidated, Failure):
+                return revalidated
+
+        # Fail closed: concentration is only ever consumed as a CiboConcentrationRecord.
+        if concentration is not None and not isinstance(
+            concentration,
+            CiboConcentrationRecord,
+        ):
+            return Failure(
+                CiboManagerValidationError(
+                    "concentration must be CiboConcentrationRecord"
+                )
+            )
+
+        # Fail closed: a decision may not predate the profile evidence it acts on.
+        if decided_at < profile.freshness.as_of:
+            return Failure(
+                CiboManagerValidationError(
+                    "management decision cannot predate profile evidence"
+                )
+            )
+
         state: CiboDemoManagementState
         arm: CiboExperimentArm | None
         risk_mode: CiboRiskMode | None
@@ -355,12 +439,6 @@ class CiboTraderManager:
                         "selection requires valid DEMO_ELIGIBLE evidence"
                     )
                 )
-            if not isinstance(eligibility, CiboDemoEligibilityEvidence):
-                return Failure(
-                    CiboManagerValidationError(
-                        "eligibility must be CiboDemoEligibilityEvidence"
-                    )
-                )
             binding = _bind_eligibility(profile, eligibility)
             if isinstance(binding, Failure):
                 return binding
@@ -368,6 +446,15 @@ class CiboTraderManager:
                 return Failure(
                     CiboManagerBlockedError(
                         "selection cannot predate DEMO_ELIGIBLE certification"
+                    )
+                )
+            if any(
+                condition.action in _BLOCKING_OPERATING_ACTIONS
+                for condition in profile.operating_conditions
+            ):
+                return Failure(
+                    CiboManagerBlockedError(
+                        "blocking operating condition prevents selection"
                     )
                 )
             if profile.certification_state in _INELIGIBLE_STATES:
@@ -398,33 +485,41 @@ class CiboTraderManager:
             if concentration is None:
                 decision_refs = normalized_refs
             else:
+                try:
+                    concentration_refs = _validate_evidence_refs(
+                        concentration.evidence_refs,
+                        field_name="concentration evidence refs",
+                    )
+                except CiboManagerError as error:
+                    return Failure(error)
                 decision_refs = tuple(
                     sorted(
                         {
                             *normalized_refs,
-                            *concentration.evidence_refs,
+                            *concentration_refs,
                         },
                         key=lambda item: item.value,
                     )
                 )
-        elif action is CiboManagementAction.REDUCE:
-            state = CiboDemoManagementState.REDUCED
-            arm = eligibility.experiment_arm if eligibility is not None else None
-            risk_mode = eligibility.risk_mode if eligibility is not None else None
-            if eligibility is not None:
-                binding = _bind_eligibility(profile, eligibility)
-                if isinstance(binding, Failure):
-                    return binding
-            decision_refs = normalized_refs
-        elif action is CiboManagementAction.SUSPEND:
-            state = CiboDemoManagementState.SUSPENDED
-            arm = eligibility.experiment_arm if eligibility is not None else None
-            risk_mode = eligibility.risk_mode if eligibility is not None else None
-            decision_refs = normalized_refs
-        elif action is CiboManagementAction.BLOCK:
-            state = CiboDemoManagementState.BLOCKED
-            arm = eligibility.experiment_arm if eligibility is not None else None
-            risk_mode = eligibility.risk_mode if eligibility is not None else None
+        elif action in (
+            CiboManagementAction.REDUCE,
+            CiboManagementAction.SUSPEND,
+            CiboManagementAction.BLOCK,
+        ):
+            attribution = _resolve_retained_attribution(
+                profile,
+                eligibility,
+                decided_at=decided_at,
+            )
+            if isinstance(attribution, Failure):
+                return attribution
+            arm, risk_mode = attribution.value
+            if action is CiboManagementAction.REDUCE:
+                state = CiboDemoManagementState.REDUCED
+            elif action is CiboManagementAction.SUSPEND:
+                state = CiboDemoManagementState.SUSPENDED
+            else:
+                state = CiboDemoManagementState.BLOCKED
             decision_refs = normalized_refs
         else:
             return Failure(

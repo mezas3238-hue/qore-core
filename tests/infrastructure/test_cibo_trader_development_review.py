@@ -239,3 +239,52 @@ def test_review_cannot_predate_evidence() -> None:
         reviewed_at=datetime(2026, 8, 8, 0, 0, tzinfo=UTC),
     )
     assert isinstance(result, Failure)
+
+
+# --- Secondary audit item 1: contradictory operating evidence beyond SUSPEND ---
+
+def test_contradictory_return_to_lab_promotion_blocked() -> None:
+    profile = _profile(
+        state=CiboCertificationState.PROMOTION_RECOMMENDED,
+        operating_conditions=(
+            CiboOperatingCondition(
+                action=CiboOperatingAction.RETURN_TO_LAB,
+                reason_code="retrain",
+            ),
+        ),
+    )
+    result = review_capability_profile(profile, reviewed_at=_NOW)
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboDevelopmentReviewBlockedError)
+
+
+def test_contradictory_suspend_evidence_collected_blocked() -> None:
+    # RECOMMEND_PROMOTION is also reachable from EVIDENCE_COLLECTED + complete stages,
+    # so a blocking operating condition must block that path too.
+    profile = _profile(
+        state=CiboCertificationState.EVIDENCE_COLLECTED,
+        operating_conditions=(
+            CiboOperatingCondition(
+                action=CiboOperatingAction.SUSPEND,
+                reason_code="evidence-degraded",
+            ),
+        ),
+    )
+    result = review_capability_profile(profile, reviewed_at=_NOW)
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboDevelopmentReviewBlockedError)
+
+
+def test_non_blocking_operating_condition_does_not_block_promotion() -> None:
+    profile = _profile(
+        state=CiboCertificationState.EVIDENCE_COLLECTED,
+        operating_conditions=(
+            CiboOperatingCondition(
+                action=CiboOperatingAction.REDUCE,
+                reason_code="concentration",
+            ),
+        ),
+    )
+    result = review_capability_profile(profile, reviewed_at=_NOW)
+    assert isinstance(result, Success)
+    assert result.value.recommendation is CiboDevelopmentRecommendation.RECOMMEND_PROMOTION

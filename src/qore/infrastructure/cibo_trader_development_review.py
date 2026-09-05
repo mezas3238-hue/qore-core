@@ -73,6 +73,15 @@ _REQUIRED_PROMOTION_STAGES = frozenset(
     }
 )
 
+# Operating actions that block or return a Trader to Lab. A profile carrying any
+# of these cannot coherently receive a promotion recommendation.
+_BLOCKING_OPERATING_ACTIONS = frozenset(
+    {
+        CiboOperatingAction.SUSPEND,
+        CiboOperatingAction.RETURN_TO_LAB,
+    }
+)
+
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
     if not isinstance(value, datetime):
@@ -231,21 +240,6 @@ def review_capability_profile(
                 )
             )
 
-    # Fail closed: contradictory evidence.
-    has_suspend = any(
-        condition.action is CiboOperatingAction.SUSPEND
-        for condition in profile.operating_conditions
-    )
-    if (
-        has_suspend
-        and profile.certification_state is CiboCertificationState.PROMOTION_RECOMMENDED
-    ):
-        return Failure(
-            CiboDevelopmentReviewBlockedError(
-                "contradictory suspend/promotion evidence; review blocked"
-            )
-        )
-
     state = profile.certification_state
     recommendation: CiboDevelopmentRecommendation
     reasons: tuple[CiboDevelopmentReason, ...]
@@ -298,6 +292,20 @@ def review_capability_profile(
         else:
             recommendation = CiboDevelopmentRecommendation.MORE_EVIDENCE_REQUIRED
             reasons = (CiboDevelopmentReason.EVIDENCE_INSUFFICIENT,)
+
+    # Fail closed: a blocking operating condition cannot coherently recommend promotion.
+    if (
+        recommendation is CiboDevelopmentRecommendation.RECOMMEND_PROMOTION
+        and any(
+            condition.action in _BLOCKING_OPERATING_ACTIONS
+            for condition in profile.operating_conditions
+        )
+    ):
+        return Failure(
+            CiboDevelopmentReviewBlockedError(
+                "contradictory operating/promotion evidence; review blocked"
+            )
+        )
 
     evidence_refs = tuple(
         sorted({item.ref for item in profile.certified_lab_evidence}, key=lambda r: r.value)
