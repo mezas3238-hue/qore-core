@@ -33,6 +33,7 @@ from qore.infrastructure.market_event_replay import (
     MarketEventObservationId,
     MarketIngressSequence,
     RetainedMarketEventObservation,
+    derive_market_event_availability_instants,
 )
 from qore.infrastructure.market_observation import (
     MarketObservationEvidenceReference,
@@ -108,9 +109,11 @@ from qore.infrastructure.trader_lab.candidate import (
     build_trader_lab_candidate_binding,
 )
 from qore.infrastructure.trader_lab.fast_forward import (
-    TraderLabFastForwardFingerprint,
     TraderLabFastForwardQualification,
     TraderLabFastForwardQualificationId,
+    TraderLabFastForwardSchedule,
+    TraderLabFastForwardStep,
+    qualify_trader_lab_fast_forward,
     reference_trader_lab_fast_forward,
 )
 from qore.infrastructure.trader_lab.governed_gate import (
@@ -137,7 +140,6 @@ from qore.infrastructure.trader_lab.robustness import (
     build_trader_lab_monte_carlo_experiment_evidence,
     build_trader_lab_stress_evidence,
     reference_trader_lab_monte_carlo,
-    reference_trader_lab_stress,
 )
 from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabEvidenceDigest,
@@ -351,6 +353,7 @@ def _stress_evidence(
 _GATE_AUTHORITY_KIND: dict[
     TraderLabGovernedGate, TraderLabGovernedAuthorityKind
 ] = {
+    TraderLabGovernedGate.STRESS_REVIEW: TraderLabGovernedAuthorityKind.ROBUSTNESS,
     TraderLabGovernedGate.RISK_REVIEW: TraderLabGovernedAuthorityKind.RISK,
     TraderLabGovernedGate.CIBO_REVIEW: TraderLabGovernedAuthorityKind.CIBO,
     TraderLabGovernedGate.INDEPENDENT_VALIDATION: (
@@ -551,19 +554,34 @@ def _fast_forward_qualification(
     *,
     suffix: int,
 ) -> TraderLabFastForwardQualification:
-    """Build a fast-forward qualification object bound to the candidate."""
+    """Build a real qualification whose chronology proofs can be re-entered."""
 
-    qualification = object.__new__(TraderLabFastForwardQualification)
-    object.__setattr__(
-        qualification,
-        "qualification_id",
-        TraderLabFastForwardQualificationId(_uuid(suffix)),
+    observations = _replay_observations()
+    instants = derive_market_event_availability_instants(observations)
+    base_wall = instants[-1] - instants[0]
+    factor = 2
+    per_step = base_wall // (factor * (len(instants) - 1))
+    schedule = TraderLabFastForwardSchedule(
+        steps=tuple(
+            TraderLabFastForwardStep(
+                simulated_now=instant,
+                wall_clock_advance=(
+                    per_step if index < len(instants) - 1 else timedelta(0)
+                ),
+            )
+            for index, instant in enumerate(instants)
+        ),
+        acceleration_factor=factor,
     )
-    object.__setattr__(qualification, "candidate", candidate)
-    object.__setattr__(
-        qualification, "fingerprint", TraderLabFastForwardFingerprint("a" * 64)
+    built = qualify_trader_lab_fast_forward(
+        qualification_id=TraderLabFastForwardQualificationId(_uuid(suffix)),
+        candidate=candidate,
+        schedule=schedule,
+        observations=observations,
+        certified_at=_PROCESS_TIME,
     )
-    return qualification
+    assert isinstance(built, Success), built
+    return built.value
 
 
 def _replay_price(value: str) -> MarketPrice:
@@ -693,16 +711,19 @@ def _stage_reference(
     if stage is TraderLabStage.REPLAY:
         return reference_replay_chronology(_replay_observations())
     if stage is TraderLabStage.FAST_FORWARD:
+        observations = _replay_observations()
         return reference_trader_lab_fast_forward(
-            candidate, _fast_forward_qualification(candidate, suffix=suffix)
+            candidate,
+            _fast_forward_qualification(candidate, suffix=suffix),
+            observations=observations,
         )
     if stage is TraderLabStage.OOS:
         return reference_research_frozen_oos(
             candidate, _frozen_oos(candidate, suffix=suffix + 1000)
         )
     if stage is TraderLabStage.STRESS:
-        return reference_trader_lab_stress(
-            candidate, _stress_evidence(candidate, suffix=suffix)
+        return _governed_reference(
+            candidate, gate=TraderLabGovernedGate.STRESS_REVIEW, suffix=suffix
         )
     if stage is TraderLabStage.MONTE_CARLO:
         return reference_trader_lab_monte_carlo(

@@ -116,7 +116,6 @@ _SELF_AUTHENTICATING_KINDS: frozenset[TraderLabEvidenceKind] = frozenset(
         TraderLabEvidenceKind.BLOCK_BOOTSTRAP_DISTRIBUTION,
         TraderLabEvidenceKind.RESAMPLING_ENVELOPE,
         TraderLabEvidenceKind.MONTE_CARLO_QUALIFICATION,
-        TraderLabEvidenceKind.STRESS_EVIDENCE,
         TraderLabEvidenceKind.ECONOMIC_EVALUATION,
     }
 )
@@ -130,6 +129,7 @@ _EXTERNAL_AUTHENTICATED_KINDS: frozenset[TraderLabEvidenceKind] = frozenset(
         TraderLabEvidenceKind.RISK_REVIEW,
         TraderLabEvidenceKind.CIBO_REVIEW,
         TraderLabEvidenceKind.INDEPENDENT_VALIDATION,
+        TraderLabEvidenceKind.STRESS_EVIDENCE,
     }
 )
 
@@ -211,12 +211,13 @@ class TraderLabEvidenceReference:
     schema_version: str
     self_authenticating: bool = field(default=False, init=False)
     strategy_binding_fingerprint: str | None = None
+    candidate_binding_fingerprint: str | None = None
     external_authenticity_proof: str | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         _validate_evidence_reference_invariants(self)
 
-    def canonical_sort_key(self) -> tuple[str, str, str, str, bool, str, str]:
+    def canonical_sort_key(self) -> tuple[str, str, str, str, bool, str, str, str]:
         """Deterministic total order for canonical unordered-set comparisons."""
         return (
             self.kind.value,
@@ -227,6 +228,11 @@ class TraderLabEvidenceReference:
             (
                 self.strategy_binding_fingerprint
                 if self.strategy_binding_fingerprint is not None
+                else ""
+            ),
+            (
+                self.candidate_binding_fingerprint
+                if self.candidate_binding_fingerprint is not None
                 else ""
             ),
             (
@@ -244,6 +250,7 @@ class TraderLabEvidenceReference:
             self.schema_version,
             self.self_authenticating,
             self.strategy_binding_fingerprint,
+            self.candidate_binding_fingerprint,
             self.external_authenticity_proof,
         )
 
@@ -260,9 +267,13 @@ def _validate_evidence_reference_invariants(
     reflectively-injected raw string cannot launder past ``kind in allowed_kinds``.
     """
 
-    if not isinstance(reference.kind, TraderLabEvidenceKind):
+    if type(reference) is not TraderLabEvidenceReference:
         raise TraderLabValidationError(
-            f"{field_name} kind must be TraderLabEvidenceKind"
+            f"{field_name} must be exact TraderLabEvidenceReference"
+        )
+    if type(reference.kind) is not TraderLabEvidenceKind:
+        raise TraderLabValidationError(
+            f"{field_name} kind must be exact TraderLabEvidenceKind"
         )
     if not isinstance(reference.reference_id, UUID):
         raise TraderLabValidationError(f"{field_name} reference_id must be a UUID")
@@ -283,6 +294,14 @@ def _validate_evidence_reference_invariants(
         _validate_sha256(
             reference.strategy_binding_fingerprint,
             field_name=f"{field_name} strategy binding fingerprint",
+        )
+    candidate_binding_fingerprint = getattr(
+        reference, "candidate_binding_fingerprint", None
+    )
+    if candidate_binding_fingerprint is not None:
+        _validate_sha256(
+            candidate_binding_fingerprint,
+            field_name=f"{field_name} candidate binding fingerprint",
         )
     if reference.external_authenticity_proof is not None:
         _validate_sha256(
@@ -307,6 +326,11 @@ def _validate_evidence_reference_invariants(
                 f"{field_name} external-authenticated evidence kind requires a "
                 "sealed authenticity proof issued by an owning authority"
             )
+        if candidate_binding_fingerprint is None:
+            raise TraderLabValidationError(
+                f"{field_name} external-authenticated evidence kind requires exact "
+                "candidate binding"
+            )
         if reference.content_digest.value != reference.external_authenticity_proof:
             raise TraderLabValidationError(
                 f"{field_name} external authenticity proof must equal the "
@@ -326,9 +350,9 @@ def validate_trader_lab_evidence_reference(
 ) -> None:
     """Re-validate a nested evidence reference at a trust boundary."""
 
-    if not isinstance(reference, TraderLabEvidenceReference):
+    if type(reference) is not TraderLabEvidenceReference:
         raise TraderLabValidationError(
-            f"{field_name} must be TraderLabEvidenceReference"
+            f"{field_name} must be exact TraderLabEvidenceReference"
         )
     _validate_evidence_reference_invariants(reference, field_name=field_name)
 
@@ -359,6 +383,7 @@ def _make_self_authenticating_reference(
     object.__setattr__(
         reference, "strategy_binding_fingerprint", strategy_binding_fingerprint
     )
+    object.__setattr__(reference, "candidate_binding_fingerprint", None)
     object.__setattr__(reference, "external_authenticity_proof", None)
     _validate_evidence_reference_invariants(reference)
     return reference
@@ -371,6 +396,7 @@ def _make_external_authenticated_reference(
     content_digest: TraderLabEvidenceDigest,
     schema_version: str,
     strategy_binding_fingerprint: str | None,
+    candidate_binding_fingerprint: str,
     authenticity_proof_fingerprint: str,
 ) -> TraderLabEvidenceReference:
     """Construct an external-authenticated reference through the only internal path.
@@ -390,6 +416,9 @@ def _make_external_authenticated_reference(
     object.__setattr__(reference, "self_authenticating", False)
     object.__setattr__(
         reference, "strategy_binding_fingerprint", strategy_binding_fingerprint
+    )
+    object.__setattr__(
+        reference, "candidate_binding_fingerprint", candidate_binding_fingerprint
     )
     object.__setattr__(
         reference, "external_authenticity_proof", authenticity_proof_fingerprint
@@ -868,6 +897,12 @@ def _validate_reference_lineage(
         raise TraderLabValidationError(
             f"{field_name} strategy lineage does not match the candidate"
         )
+    if evidence_kind_is_external_authenticated(reference.kind):
+        if reference.candidate_binding_fingerprint != candidate.fingerprint.value:
+            raise TraderLabValidationError(
+                f"{field_name} external evidence candidate binding does not match "
+                "the exact candidate"
+            )
 
 
 def _validate_stage_evidence_record_invariants(

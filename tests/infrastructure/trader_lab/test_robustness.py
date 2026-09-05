@@ -572,3 +572,20 @@ def test_stress_reference_rejects_failed(
     assert isinstance(failed, Success)
     with pytest.raises(TraderLabValidationError):
         reference_trader_lab_stress(candidate, failed.value)
+
+def test_external_r2_qualified_stress_cannot_self_certify(
+    candidate_factory: _CandidateFactory,
+) -> None:
+    candidate = candidate_factory()
+    built = build_trader_lab_stress_evidence(
+        evidence_id=TraderLabStressEvidenceId(_uuid(131)),
+        candidate=candidate,
+        family=TraderLabRobustnessFamily.COST_PERTURBATION,
+        scenario="totally-fabricated-no-evaluation-run",
+        bounds=(Decimal("0.0"), Decimal("0.01")),
+        status=TraderLabStressStatus.QUALIFIED,
+        certified_at=_PROCESS_TIME,
+    )
+    assert isinstance(built, Success)
+    with pytest.raises(TraderLabValidationError, match="external-governance dependency"):
+        reference_trader_lab_stress(candidate, built.value)

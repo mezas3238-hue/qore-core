@@ -37,11 +37,15 @@ from qore.infrastructure.trader_lab.candidate import (
     TraderLabValidationError,
 )
 from qore.infrastructure.trader_lab.fast_forward import (
+    TraderLabFastForwardQualification,
     TraderLabFastForwardQualificationId,
     TraderLabFastForwardSchedule,
     TraderLabFastForwardStep,
+    compute_trader_lab_fast_forward_fingerprint,
     qualify_trader_lab_fast_forward,
+    reference_trader_lab_fast_forward,
 )
+from qore.infrastructure.trader_lab.stage_evidence import TraderLabEvidenceDigest
 from qore.kernel.result import Failure, Success
 
 _BASE = datetime(2026, 8, 12, 12, 0, tzinfo=UTC)
@@ -282,3 +286,61 @@ def test_single_availability_instant_cannot_qualify(candidate_factory: _Candidat
     )
     assert isinstance(built, Failure)
     assert "insufficient availability instants" in str(built.error)
+
+def test_external_r2_public_constructor_cannot_bypass_reference_revalidation(
+    candidate_factory: _CandidateFactory,
+) -> None:
+    candidate = candidate_factory()
+    observations = _observations()
+    real_instants = derive_market_event_availability_instants(observations)
+    forged_instants = (
+        real_instants[0],
+        real_instants[1] + timedelta(seconds=30),
+        real_instants[2],
+    )
+    forged_schedule = _schedule(forged_instants)
+    forged_digest = TraderLabEvidenceDigest("a" * 64)
+    certified_at = _BASE + timedelta(minutes=10)
+    fingerprint = compute_trader_lab_fast_forward_fingerprint(
+        candidate=candidate,
+        schedule=forged_schedule,
+        observations_digest=forged_digest,
+        availability_instants=forged_instants,
+        certified_at=certified_at,
+    )
+    forged = TraderLabFastForwardQualification(
+        qualification_id=TraderLabFastForwardQualificationId(_uuid(799)),
+        candidate=candidate,
+        schedule=forged_schedule,
+        observations_digest=forged_digest,
+        availability_instants=forged_instants,
+        certified_at=certified_at,
+        fingerprint=fingerprint,
+    )
+    with pytest.raises(
+        TraderLabValidationError,
+        match="does not match the exact replay chronology",
+    ):
+        reference_trader_lab_fast_forward(
+            candidate, forged, observations=observations
+        )
+
+
+def test_fast_forward_reference_revalidates_legitimate_qualification(
+    candidate_factory: _CandidateFactory,
+) -> None:
+    candidate = candidate_factory()
+    observations = _observations()
+    instants = derive_market_event_availability_instants(observations)
+    built = qualify_trader_lab_fast_forward(
+        qualification_id=TraderLabFastForwardQualificationId(_uuid(798)),
+        candidate=candidate,
+        schedule=_schedule(instants),
+        observations=observations,
+        certified_at=_BASE + timedelta(minutes=10),
+    )
+    assert isinstance(built, Success)
+    reference = reference_trader_lab_fast_forward(
+        candidate, built.value, observations=observations
+    )
+    assert reference.kind.value == "trader_lab.fast_forward"

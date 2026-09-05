@@ -958,10 +958,8 @@ def reference_trader_lab_stress(
         raise TraderLabValidationError(
             "only a qualified stress verdict may satisfy the STRESS stage"
         )
-    return _make_self_authenticating_reference(
-        kind=TraderLabEvidenceKind.STRESS_EVIDENCE,
-        reference_id=evidence.evidence_id.value,
-        content_digest=TraderLabEvidenceDigest(evidence.fingerprint.value),
-        schema_version="trader_lab.stress.v1",
-        strategy_binding_fingerprint=candidate.strategy_binding.binding_fingerprint.value,
+    raise TraderLabValidationError(
+        "qualified stress evidence is an external-governance dependency: use "
+        "TraderLabGovernedGate.STRESS_REVIEW with an externally issued "
+        "robustness-authority authenticity proof"
     )

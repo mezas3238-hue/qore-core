@@ -353,16 +353,63 @@ def qualify_trader_lab_fast_forward(
         return Failure(error)
 
 
+def validate_trader_lab_fast_forward_qualification(
+    qualification: TraderLabFastForwardQualification,
+    *,
+    observations: tuple[RetainedMarketEventObservation, ...],
+) -> None:
+    """Re-run chronology and no-lookahead proofs at the reference trust boundary."""
+
+    if type(qualification) is not TraderLabFastForwardQualification:
+        raise TraderLabValidationError(
+            "fast-forward qualification must be exact TraderLabFastForwardQualification"
+        )
+    # Re-enter retained structural/fingerprint invariants first.
+    TraderLabFastForwardQualification.__post_init__(qualification)
+    base_instants = derive_market_event_availability_instants(observations)
+    if len(base_instants) < 2:
+        raise TraderLabValidationError(
+            "insufficient availability instants to validate fast-forward"
+        )
+    if tuple(step.simulated_now for step in qualification.schedule.steps) != base_instants:
+        raise TraderLabValidationError(
+            "fast-forward qualification schedule does not match the exact replay chronology"
+        )
+    base_wall_clock = base_instants[-1] - base_instants[0]
+    accelerated_wall_clock = sum(
+        (step.wall_clock_advance for step in qualification.schedule.steps),
+        timedelta(0),
+    )
+    if (
+        base_wall_clock
+        != accelerated_wall_clock * qualification.schedule.acceleration_factor
+    ):
+        raise TraderLabValidationError(
+            "fast-forward qualification acceleration no longer matches replay chronology"
+        )
+    _verify_no_lookahead(observations, base_instants)
+    observations_digest = compute_replay_chronology_digest(observations)
+    if qualification.observations_digest != observations_digest:
+        raise TraderLabValidationError(
+            "fast-forward qualification observations digest does not match replay evidence"
+        )
+    if qualification.availability_instants != base_instants:
+        raise TraderLabValidationError(
+            "fast-forward qualification availability instants do not match replay evidence"
+        )
+
+
 def reference_trader_lab_fast_forward(
     candidate: TraderLabCandidateBinding,
     qualification: TraderLabFastForwardQualification,
+    *,
+    observations: tuple[RetainedMarketEventObservation, ...],
 ) -> TraderLabEvidenceReference:
-    """Reference an exact fast-forward qualification bound to the candidate."""
+    """Reference a revalidated fast-forward qualification bound to exact replay."""
 
-    if not isinstance(qualification, TraderLabFastForwardQualification):
-        raise TraderLabValidationError(
-            "fast-forward reference requires TraderLabFastForwardQualification"
-        )
+    validate_trader_lab_fast_forward_qualification(
+        qualification, observations=observations
+    )
     if qualification.candidate != candidate:
         raise TraderLabValidationError(
             "fast-forward qualification must bind the exact candidate"

@@ -71,6 +71,7 @@ _GovernedRefFactory = Callable[..., TraderLabEvidenceReference]
 _GATE_AUTHORITY_KIND: dict[
     TraderLabGovernedGate, TraderLabGovernedAuthorityKind
 ] = {
+    TraderLabGovernedGate.STRESS_REVIEW: TraderLabGovernedAuthorityKind.ROBUSTNESS,
     TraderLabGovernedGate.RISK_REVIEW: TraderLabGovernedAuthorityKind.RISK,
     TraderLabGovernedGate.CIBO_REVIEW: TraderLabGovernedAuthorityKind.CIBO,
     TraderLabGovernedGate.INDEPENDENT_VALIDATION: (
@@ -711,3 +712,74 @@ def test_governed_verification_seam_is_verify_only_and_provider_neutral() -> Non
         "from socket",
     ):
         assert forbidden not in source
+
+def test_external_r2_reference_subclass_mint_is_rejected(
+    candidate_factory: _CandidateFactory,
+) -> None:
+    candidate = candidate_factory()
+
+    @dataclass(frozen=True, slots=True)
+    class _ForgedReference(TraderLabEvidenceReference):
+        external_authenticity_proof: str | None = "a" * 64
+        candidate_binding_fingerprint: str | None = candidate.fingerprint.value
+
+    with pytest.raises(TraderLabValidationError, match="exact TraderLabEvidenceReference"):
+        _ForgedReference(
+            kind=TraderLabEvidenceKind.RISK_REVIEW,
+            reference_id=_uuid(9901),
+            content_digest=TraderLabEvidenceDigest("a" * 64),
+            schema_version="forged.v1",
+            strategy_binding_fingerprint=(
+                candidate.strategy_binding.binding_fingerprint.value
+            ),
+        )
+
+
+def test_external_r2_governed_reference_cannot_launder_across_candidates(
+    candidate_factory: _CandidateFactory,
+) -> None:
+    candidate_a = candidate_factory(candidate_suffix=91)
+    candidate_b = candidate_factory(
+        candidate_suffix=92,
+        binding=candidate_a.strategy_binding,
+    )
+    carrier = _mint_carrier(
+        candidate_a, gate=TraderLabGovernedGate.RISK_REVIEW, suffix=9902
+    )
+    proof = _issue_proof(evidence=carrier, candidate=candidate_a)
+    verified = verify_governed_gate_evidence(candidate_a, carrier, proof)
+    assert isinstance(verified, Success)
+    built = build_trader_lab_stage_evidence(
+        evidence_id=TraderLabStageEvidenceId(_uuid(9903)),
+        stage=TraderLabStage.RISK_REVIEW,
+        candidate=candidate_b,
+        source_reference=verified.value,
+        produced_at=_PROCESS_TIME,
+    )
+    assert isinstance(built, Failure)
+    assert "candidate binding does not match" in str(built.error)
+
+
+def test_external_r2_stress_requires_external_robustness_authority(
+    candidate_factory: _CandidateFactory,
+) -> None:
+    candidate = candidate_factory(candidate_suffix=93)
+    carrier = _mint_carrier(
+        candidate, gate=TraderLabGovernedGate.STRESS_REVIEW, suffix=9904
+    )
+    without_proof = verify_governed_gate_evidence(candidate, carrier, None)
+    assert isinstance(without_proof, Failure)
+    assert isinstance(without_proof.error, TraderLabExternalEvidenceDependencyError)
+
+    proof = _issue_proof(evidence=carrier, candidate=candidate)
+    verified = verify_governed_gate_evidence(candidate, carrier, proof)
+    assert isinstance(verified, Success)
+    assert verified.value.kind is TraderLabEvidenceKind.STRESS_EVIDENCE
+    built = build_trader_lab_stage_evidence(
+        evidence_id=TraderLabStageEvidenceId(_uuid(9905)),
+        stage=TraderLabStage.STRESS,
+        candidate=candidate,
+        source_reference=verified.value,
+        produced_at=_PROCESS_TIME,
+    )
+    assert isinstance(built, Success)

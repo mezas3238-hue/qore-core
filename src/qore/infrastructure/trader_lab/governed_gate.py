@@ -58,6 +58,7 @@ from qore.kernel.result import Failure, Result, Success
 class TraderLabGovernedGate(StrEnum):
     """The three distinct external review gates the Lab may carry."""
 
+    STRESS_REVIEW = "stress_review"
     RISK_REVIEW = "risk_review"
     CIBO_REVIEW = "cibo_review"
     INDEPENDENT_VALIDATION = "independent_validation"
@@ -72,6 +73,7 @@ class TraderLabGovernedAuthorityKind(StrEnum):
     these kinds.
     """
 
+    ROBUSTNESS = "robustness"
     RISK = "risk"
     CIBO = "cibo"
     INDEPENDENT_VALIDATION = "independent_validation"
@@ -87,6 +89,7 @@ class TraderLabGovernedDecision(StrEnum):
 
 
 _GATE_KINDS: dict[TraderLabGovernedGate, TraderLabEvidenceKind] = {
+    TraderLabGovernedGate.STRESS_REVIEW: TraderLabEvidenceKind.STRESS_EVIDENCE,
     TraderLabGovernedGate.RISK_REVIEW: TraderLabEvidenceKind.RISK_REVIEW,
     TraderLabGovernedGate.CIBO_REVIEW: TraderLabEvidenceKind.CIBO_REVIEW,
     TraderLabGovernedGate.INDEPENDENT_VALIDATION: (
@@ -97,6 +100,7 @@ _GATE_KINDS: dict[TraderLabGovernedGate, TraderLabEvidenceKind] = {
 _GATE_AUTHORITY_KINDS: dict[
     TraderLabGovernedGate, TraderLabGovernedAuthorityKind
 ] = {
+    TraderLabGovernedGate.STRESS_REVIEW: TraderLabGovernedAuthorityKind.ROBUSTNESS,
     TraderLabGovernedGate.RISK_REVIEW: TraderLabGovernedAuthorityKind.RISK,
     TraderLabGovernedGate.CIBO_REVIEW: TraderLabGovernedAuthorityKind.CIBO,
     TraderLabGovernedGate.INDEPENDENT_VALIDATION: (
@@ -479,7 +483,7 @@ def verify_governed_gate_evidence(
             )
         if proof is None:
             raise TraderLabExternalEvidenceDependencyError(
-                "Risk/CIBO/independent-validation evidence requires an "
+                "Stress/Risk/CIBO/independent-validation evidence requires an "
                 "externally issued authenticity proof; none is available "
                 "(EXTERNAL_EVIDENCE_DEPENDENT)"
             )
@@ -517,6 +521,7 @@ def verify_governed_gate_evidence(
                 strategy_binding_fingerprint=(
                     candidate.strategy_binding.binding_fingerprint.value
                 ),
+                candidate_binding_fingerprint=candidate.fingerprint.value,
                 authenticity_proof_fingerprint=proof.proof_fingerprint.value,
             )
         )
