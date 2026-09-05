@@ -305,3 +305,32 @@ def test_supervision_record_exposes_no_provider_gateway_or_credentials() -> None
     assert not hasattr(record, "credential")
     assert not hasattr(record, "gateway")
     assert not hasattr(record, "provider_client")
+
+class _ExternalR1EvidenceLyingDatetime(datetime):
+    def isoformat(self, *args: object, **kwargs: object) -> str:
+        return "forged-iso-2030"
+
+
+def test_external_r1_f003_corrupted_context_cannot_forge_attempt_ref() -> None:
+    delegate = _IntentDelegate()
+    observed = ObservedSupervisedCiboDecisionBoundary(
+        delegate=delegate,
+        supervision=_supervision(),
+    )
+    context = _context()
+    object.__setattr__(
+        context,
+        "decided_at",
+        _ExternalR1EvidenceLyingDatetime(
+  2026,
+  8,
+  9,
+  0,
+  2,
+  tzinfo=UTC,
+        ),
+    )
+    result = observed.decide(context, metadata=_METADATA)
+    assert isinstance(result, Failure)
+    assert delegate.calls == 0
+    assert observed.records == ()

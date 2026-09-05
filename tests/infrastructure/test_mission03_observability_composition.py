@@ -404,3 +404,17 @@ def test_submitted_cycle_requires_exact_reconciliation_receipt() -> None:
             decision=decision,
             reconciliation=reconciliation,
         )
+
+def test_external_r1_f004_revalidates_retained_supervision_record() -> None:
+    supervision = _supervision(CiboOperationalSupervisionOutcome.DELEGATED)
+    object.__setattr__(
+        supervision,
+        "supervision_expires_at",
+        _NOW - timedelta(seconds=1),
+    )
+    with pytest.raises(Mission03ObservabilityCompositionValidationError):
+        Mission03ObservabilityCycle(
+  quote=_quote(),
+  supervision=supervision,
+  safety=_safety(),
+        )

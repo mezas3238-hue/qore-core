@@ -36,6 +36,63 @@ class CiboValidationError(CiboError):
     __slots__ = ()
 
 
+def _validate_functional_decision(
+    decision: FunctionalDecision,
+    *,
+    field_name: str,
+) -> None:
+    """Re-enter the exact-runtime and lifecycle invariants of a retained decision.
+
+    ``FunctionalDecision`` is a widely used public value record (frozen, slots),
+    so a subclass or a reflectively corrupted value can otherwise launder through
+    permissive ``isinstance`` acceptance. Every nested field is re-validated with
+    its exact runtime type and the decision's own lifecycle invariants are
+    re-checked before the value is trusted at this boundary.
+    """
+    if type(decision.decision_id) is not DecisionId:
+        raise CiboValidationError(f"{field_name} decision id must be an exact DecisionId")
+    if type(decision.timestamp) is not datetime:
+        raise CiboValidationError(f"{field_name} timestamp must be an exact datetime")
+    if decision.timestamp.tzinfo is None or decision.timestamp.utcoffset() is None:
+        raise CiboValidationError(f"{field_name} timestamp must be timezone-aware")
+    if type(decision.decision_type) is not DecisionType:
+        raise CiboValidationError(
+            f"{field_name} decision type must be an exact DecisionType"
+        )
+    if type(decision.status) is not DecisionStatus:
+        raise CiboValidationError(f"{field_name} status must be an exact DecisionStatus")
+    if type(decision.priority) is not DecisionPriority:
+        raise CiboValidationError(
+            f"{field_name} priority must be an exact DecisionPriority"
+        )
+    if type(decision.metadata) is not DecisionMetadata:
+        raise CiboValidationError(
+            f"{field_name} metadata must be an exact DecisionMetadata"
+        )
+    if type(decision.reasons) is not tuple or any(
+        type(reason) is not DecisionReason for reason in decision.reasons
+    ):
+        raise CiboValidationError(
+            f"{field_name} reasons must be an immutable tuple of exact DecisionReason"
+        )
+    if decision.outcome is not None and type(decision.outcome) is not DecisionOutcome:
+        raise CiboValidationError(
+            f"{field_name} outcome must be an exact DecisionOutcome"
+        )
+    if decision.status is DecisionStatus.PENDING and decision.outcome is not None:
+        raise CiboValidationError(
+            f"{field_name} pending decision must not have an outcome"
+        )
+    if decision.status is DecisionStatus.RESOLVED and decision.outcome is None:
+        raise CiboValidationError(
+            f"{field_name} resolved decision must have an outcome"
+        )
+    if decision.status is DecisionStatus.RESOLVED and not decision.reasons:
+        raise CiboValidationError(
+            f"{field_name} resolved decision must include a reason"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class ReviewFunctionalDecisionCommand(Command):
     """Solicitud explícita para que CIBO revise una decisión funcional previa."""
@@ -48,8 +105,26 @@ class ReviewFunctionalDecisionCommand(Command):
 
     def __post_init__(self) -> None:
         Command.__post_init__(self)
+        # Exact runtime type: a FunctionalDecision subclass or a value-equal
+        # StrEnum subclass must not launder into a review the handler projects.
+        if type(self.source_decision) is not FunctionalDecision:
+            raise CiboValidationError(
+                "source decision must be an exact FunctionalDecision"
+            )
+        _validate_functional_decision(self.source_decision, field_name="source")
+        if type(self.decision_id) is not DecisionId:
+            raise CiboValidationError("decision id must be an exact DecisionId")
+        if type(self.priority) is not DecisionPriority:
+            raise CiboValidationError("priority must be an exact DecisionPriority")
+        if (
+            self.requested_outcome is not None
+            and type(self.requested_outcome) is not DecisionOutcome
+        ):
+            raise CiboValidationError(
+                "requested outcome must be an exact DecisionOutcome"
+            )
         if not isinstance(self.reasons, tuple) or any(
-            not isinstance(reason, DecisionReason) for reason in self.reasons
+            type(reason) is not DecisionReason for reason in self.reasons
         ):
             raise CiboValidationError(
                 "reasons must be an immutable tuple of DecisionReason values"
@@ -116,6 +191,17 @@ class CiboDecisionProducedEvent(BusinessDomainEvent):
         decision: FunctionalDecision,
         source_decision_id: DecisionId,
     ) -> None:
+        # Exact runtime type at the event boundary: a subclass or value-equal
+        # StrEnum must not launder into the represented decision or its source.
+        if type(decision) is not FunctionalDecision:
+            raise CiboValidationError(
+                "event decision must be an exact FunctionalDecision"
+            )
+        _validate_functional_decision(decision, field_name="event decision")
+        if type(source_decision_id) is not DecisionId:
+            raise CiboValidationError(
+                "source decision id must be an exact DecisionId"
+            )
         expected_causation = CausationId(source_decision_id.value)
         if metadata.correlation_id != decision.metadata.correlation_id:
             raise CiboValidationError(

@@ -95,7 +95,7 @@ class CiboSupervisionAuthorization:
             ("authorized_at", self.authorized_at),
             ("expires_at", self.expires_at),
         ):
-            if not isinstance(value, datetime):
+            if type(value) is not datetime:
                 raise CiboSupervisedRuntimeValidationError(
                     f"{field_name} must be a datetime"
                 )
@@ -148,6 +148,7 @@ class SupervisedCiboDecisionBoundary(RealMarketDecisionBoundary):
             raise CiboSupervisedRuntimeValidationError(
                 "supervised CIBO boundary requires CiboSupervisionAuthorization"
             )
+        CiboSupervisionAuthorization.__post_init__(self.supervision)
 
     def decide(
         self,
@@ -167,6 +168,11 @@ class SupervisedCiboDecisionBoundary(RealMarketDecisionBoundary):
                     "CIBO decision requires explicit metadata"
                 )
             )
+        try:
+            CiboSupervisionAuthorization.__post_init__(self.supervision)
+            RealMarketDecisionContext.__post_init__(context)
+        except ExternalPortError as error:
+            return Failure(error)
         if not self.supervision.allows_decision:
             return Failure(
                 CiboSupervisionBlockedError("CIBO supervision is blocked")

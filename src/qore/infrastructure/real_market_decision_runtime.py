@@ -59,7 +59,7 @@ class RealMarketDecisionContext:
             raise RealMarketDecisionRuntimeValidationError(
                 "decision context quote must be QuoteSnapshot"
             )
-        if not isinstance(self.decided_at, datetime):
+        if type(self.decided_at) is not datetime:
             raise RealMarketDecisionRuntimeValidationError(
                 "decision context decided_at must be a datetime"
             )

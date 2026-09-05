@@ -170,3 +170,63 @@ def test_cibo_boundary_exposes_only_decision_surface() -> None:
     assert callable(boundary.decide)
     assert not hasattr(boundary, "submit")
     assert not hasattr(boundary, "cancel")
+
+class _ExternalR1SupervisionLyingDatetime(datetime):
+    pass
+
+
+def test_external_r1_f003_supervision_rejects_datetime_subclass() -> None:
+    with pytest.raises(CiboSupervisedRuntimeValidationError):
+        CiboSupervisionAuthorization(
+  supervisor_id=CiboSupervisorId("ceo.supervisor"),
+  environment_authorization=_environment_authorization(),
+  decision=CiboSupervisionDecision.APPROVED,
+  authorized_at=_ExternalR1SupervisionLyingDatetime(
+      2026,
+      8,
+      8,
+      11,
+      21,
+      tzinfo=UTC,
+  ),
+  expires_at=_NOW + timedelta(minutes=5),
+  reason="reject datetime subclass",
+        )
+
+
+def test_external_r1_f003_context_rejects_datetime_subclass() -> None:
+    with pytest.raises(ExternalPortError):
+        _context(
+  decided_at=_ExternalR1SupervisionLyingDatetime(
+      2026,
+      8,
+      8,
+      11,
+      22,
+      tzinfo=UTC,
+  )
+        )
+
+
+def test_external_r1_f003_corrupted_context_never_reaches_delegate() -> None:
+    delegate = _Delegate()
+    boundary = SupervisedCiboDecisionBoundary(
+        delegate=delegate,
+        supervision=_supervision(),
+    )
+    context = _context()
+    object.__setattr__(
+        context,
+        "decided_at",
+        _ExternalR1SupervisionLyingDatetime(
+  2026,
+  8,
+  8,
+  11,
+  22,
+  tzinfo=UTC,
+        ),
+    )
+    result = boundary.decide(context, metadata=_METADATA)
+    assert isinstance(result, Failure)
+    assert delegate.calls == 0

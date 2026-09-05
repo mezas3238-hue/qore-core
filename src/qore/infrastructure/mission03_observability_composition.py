@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from qore.infrastructure.cibo_operational_supervision_evidence import (
+    CiboOperationalSupervisionEvidenceError,
     CiboOperationalSupervisionOutcome,
     CiboOperationalSupervisionRecord,
 )
@@ -47,7 +48,7 @@ class Mission03ObservabilityCompositionValidationError(
 
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise Mission03ObservabilityCompositionValidationError(
             f"{field_name} must be datetime"
         )
@@ -76,6 +77,12 @@ class Mission03ObservabilityCycle:
             raise Mission03ObservabilityCompositionValidationError(
                 "observability cycle requires CiboOperationalSupervisionRecord"
             )
+        try:
+            CiboOperationalSupervisionRecord.__post_init__(self.supervision)
+        except CiboOperationalSupervisionEvidenceError as error:
+            raise Mission03ObservabilityCompositionValidationError(
+                "observability supervision record failed revalidation"
+            ) from error
         if not isinstance(
             self.safety,
             OperationalSafetyCertificationPreparationEvidence,
