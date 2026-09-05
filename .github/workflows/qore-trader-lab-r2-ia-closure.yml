@@ -1,0 +1,80 @@
+name: QORE Trader Lab R2 IA closure
+
+on:
+  push:
+    branches:
+      - agent/qore-trader-lab-r2-ia-closure-001
+    paths:
+      - .github/workflows/qore-trader-lab-r2-ia-closure.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout IA closure tooling
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bind exact reviewed Trader Lab candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="ba8c1e3c05e06c69b2bc39b3c3fdf6e3c4f50449"
+          remote_head="$(git ls-remote origin refs/heads/agent/qore-trader-lab-001-recovery-materialize | awk '{print $1}')"
+          test "$remote_head" = "$expected" || { echo "PR head moved: $remote_head"; exit 40; }
+          cp .github/ia/trader_lab_r2_closure.py /tmp/trader_lab_r2_closure.py
+          sed 's#ROOT = Path(__file__).resolve().parents\[2\]#ROOT = Path.cwd()#' /tmp/trader_lab_r2_closure.py > /tmp/trader_lab_r2_closure_run.py
+          git reset --hard "$expected"
+          test "$(git rev-parse HEAD)" = "$expected"
+
+      - name: Apply IA correction families C A D
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/trader_lab_r2_closure_run.py
+          git diff --check
+          git status --short
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install candidate dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Targeted Trader Lab adversarial gate
+        run: pytest -q tests/infrastructure/trader_lab
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Full Pytest coverage
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Commit exact corrected candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "ba8c1e3c05e06c69b2bc39b3c3fdf6e3c4f50449"
+          git config user.name "QORE Trader Lab IA"
+          git config user.email "qore-trader-lab-ia@users.noreply.github.com"
+          git add src/qore/infrastructure/trader_lab tests/infrastructure/trader_lab
+          git diff --cached --check
+          git commit -m "Close Trader Lab External Expert R2 material findings"
+          new_head="$(git rev-parse HEAD)"
+          remote_head="$(git ls-remote origin refs/heads/agent/qore-trader-lab-001-recovery-materialize | awk '{print $1}')"
+          test "$remote_head" = "ba8c1e3c05e06c69b2bc39b3c3fdf6e3c4f50449" || { echo "PR head moved before push: $remote_head"; exit 41; }
+          git push origin HEAD:refs/heads/agent/qore-trader-lab-001-recovery-materialize
+          echo "Corrected Trader Lab HEAD: $new_head"
