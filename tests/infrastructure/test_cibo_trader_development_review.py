@@ -4,6 +4,8 @@ import dataclasses
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.cibo_trader_capability_profile import (
     CiboCertificationState,
     CiboEconomicMetric,
@@ -26,6 +28,7 @@ from qore.infrastructure.cibo_trader_development_review import (
     CiboDevelopmentRecommendation,
     CiboDevelopmentReview,
     CiboDevelopmentReviewBlockedError,
+    CiboDevelopmentReviewValidationError,
     review_capability_profile,
 )
 from qore.infrastructure.research_evaluator_identity import (
@@ -288,3 +291,51 @@ def test_non_blocking_operating_condition_does_not_block_promotion() -> None:
     result = review_capability_profile(profile, reviewed_at=_NOW)
     assert isinstance(result, Success)
     assert result.value.recommendation is CiboDevelopmentRecommendation.RECOMMEND_PROMOTION
+
+class _ExternalR1LyingDatetime(datetime):
+    pass
+
+
+def test_external_r1_f001_required_stages_floor() -> None:
+    profile = _profile(
+        state=CiboCertificationState.PROMOTION_RECOMMENDED,
+        stages=(),
+    )
+    result = review_capability_profile(
+        profile,
+        reviewed_at=_NOW,
+        required_stages=frozenset(),
+    )
+    assert isinstance(result, Failure)
+
+
+def test_external_r1_f001_direct_review_state_recommendation_parity() -> None:
+    profile = _profile(state=CiboCertificationState.REJECTED)
+    with pytest.raises(CiboDevelopmentReviewValidationError):
+        CiboDevelopmentReview(
+  profile=profile,
+  recommendation=CiboDevelopmentRecommendation.RECOMMEND_PROMOTION,
+  reasons=(CiboDevelopmentReason.EVIDENCE_COMPLETE,),
+  evidence_refs=(),
+  reviewed_at=_NOW,
+        )
+
+
+def test_external_r1_f001_revalidates_retained_profile() -> None:
+    profile = _profile()
+    object.__setattr__(
+        profile.freshness,
+        "as_of",
+        _ExternalR1LyingDatetime(2026, 8, 9, 0, 0, tzinfo=UTC),
+    )
+    result = review_capability_profile(profile, reviewed_at=_NOW)
+    assert isinstance(result, Failure)
+
+
+def test_external_r1_f001_rejects_datetime_subclass() -> None:
+    profile = _profile()
+    result = review_capability_profile(
+        profile,
+        reviewed_at=_ExternalR1LyingDatetime(2026, 8, 9, 0, 0, tzinfo=UTC),
+    )
+    assert isinstance(result, Failure)

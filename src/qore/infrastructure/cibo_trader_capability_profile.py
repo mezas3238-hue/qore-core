@@ -41,7 +41,7 @@ class CiboCapabilityProfileValidationError(CiboCapabilityProfileError):
 
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboCapabilityProfileValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboCapabilityProfileValidationError(
@@ -604,6 +604,9 @@ class CiboTraderCapabilityProfile:
             raise CiboCapabilityProfileValidationError(
                 "freshness must be CiboEvidenceFreshness"
             )
+        # Re-enter nested retained state: reflective corruption after
+        # construction must fail closed at every profile trust boundary.
+        CiboEvidenceFreshness.__post_init__(self.freshness)
         object.__setattr__(
             self,
             "limitations",

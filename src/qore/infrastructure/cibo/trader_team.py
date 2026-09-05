@@ -497,6 +497,22 @@ class CiboTraderDisagreement:
         )
 
 
+def _disagreement_sort_key(
+    item: CiboTraderDisagreement,
+) -> tuple[
+    tuple[str, ...],
+    tuple[tuple[str, str, str], ...],
+    str,
+    str,
+]:
+    return (
+        item.hypothesis_codes,
+        tuple(_identity_sort_key(identity) for identity in item.member_identities),
+        repr(item.evidence.logical_values()),
+        item.detected_at.isoformat(),
+    )
+
+
 class CiboTeamSynthesisDisposition(StrEnum):
     """Synthesis disposition. No authority increase from convergence."""
 
@@ -561,7 +577,7 @@ class CiboTraderTeamSynthesis:
                         )
                         for item in self.disagreements
                     },
-                    key=lambda item: item.hypothesis_codes,
+                    key=_disagreement_sort_key,
                 )
             ),
         )

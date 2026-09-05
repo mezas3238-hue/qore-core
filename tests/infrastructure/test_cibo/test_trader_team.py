@@ -25,9 +25,11 @@ from qore.infrastructure.cibo.trader_team import (
     CiboTeamDisposition,
     CiboTeamNeed,
     CiboTeamSynthesisDisposition,
+    CiboTraderDisagreement,
     CiboTraderTeam,
     CiboTraderTeamOpinion,
     CiboTraderTeamSynthesis,
+    _disagreement_sort_key,
     form_trader_team,
     synthesize_trader_team,
 )
@@ -289,3 +291,55 @@ def test_no_secrets_in_team_logical_values() -> None:
     material = repr(team.value.logical_values())
     assert "token=" not in material
     assert "bearer " not in material
+
+def test_external_r1_f005_disagreement_tie_has_total_deterministic_order() -> None:
+    team = _form(
+        _profile("vt01", 1),
+        _profile("vt02", 2),
+        _profile("vt03", 3),
+    )
+    assert isinstance(team, Success)
+    base = synthesize_trader_team(
+        team.value,
+        (
+  _opinion("vt01", 1, hypothesis="long"),
+  _opinion("vt02", 2, hypothesis="short"),
+  _opinion("vt03", 3, hypothesis="long"),
+        ),
+        synthesized_at=_NOW,
+    )
+    assert isinstance(base, Success)
+    first_disagreement = CiboTraderDisagreement(
+        hypothesis_codes=("long", "short"),
+        member_identities=(_identity("vt01"), _identity("vt02")),
+        evidence=base.value.evidence,
+        detected_at=_NOW,
+    )
+    second_disagreement = CiboTraderDisagreement(
+        hypothesis_codes=("long", "short"),
+        member_identities=(_identity("vt02"), _identity("vt03")),
+        evidence=base.value.evidence,
+        detected_at=_NOW,
+    )
+    assert _disagreement_sort_key(first_disagreement) != _disagreement_sort_key(
+        second_disagreement
+    )
+    left = CiboTraderTeamSynthesis(
+        team=base.value.team,
+        opinions=base.value.opinions,
+        disagreements=(second_disagreement, first_disagreement),
+        evidence=base.value.evidence,
+        disposition=CiboTeamSynthesisDisposition.DIVERGED,
+        synthesized_at=_NOW,
+        authority=CiboFunctionalAuthority.OPINION,
+    )
+    right = CiboTraderTeamSynthesis(
+        team=base.value.team,
+        opinions=base.value.opinions,
+        disagreements=(first_disagreement, second_disagreement),
+        evidence=base.value.evidence,
+        disposition=CiboTeamSynthesisDisposition.DIVERGED,
+        synthesized_at=_NOW,
+        authority=CiboFunctionalAuthority.OPINION,
+    )
+    assert left.logical_values() == right.logical_values()

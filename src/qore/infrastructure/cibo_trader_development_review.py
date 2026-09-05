@@ -6,6 +6,7 @@ from enum import StrEnum
 from re import fullmatch
 
 from qore.infrastructure.cibo_trader_capability_profile import (
+    CiboCapabilityProfileError,
     CiboCertificationState,
     CiboEvidenceFreshnessState,
     CiboEvidenceRef,
@@ -84,7 +85,7 @@ _BLOCKING_OPERATING_ACTIONS = frozenset(
 
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboDevelopmentReviewValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboDevelopmentReviewValidationError(
@@ -111,10 +112,56 @@ class CiboDevelopmentReview:
             raise CiboDevelopmentReviewValidationError(
                 "development review requires CiboTraderCapabilityProfile"
             )
+        try:
+            CiboTraderCapabilityProfile.__post_init__(self.profile)
+        except CiboCapabilityProfileError as error:
+            raise CiboDevelopmentReviewValidationError(
+                "development review profile failed revalidation"
+            ) from error
         if not isinstance(self.recommendation, CiboDevelopmentRecommendation):
             raise CiboDevelopmentReviewValidationError(
                 "development review requires CiboDevelopmentRecommendation"
             )
+        state = self.profile.certification_state
+        if (
+            state is CiboCertificationState.REJECTED
+            and self.recommendation is not CiboDevelopmentRecommendation.RECOMMEND_REJECTION
+        ):
+            raise CiboDevelopmentReviewValidationError(
+                "rejected profile must carry rejection recommendation"
+            )
+        if (
+            state in (CiboCertificationState.SUSPENDED, CiboCertificationState.DEGRADED)
+            and self.recommendation
+            is not CiboDevelopmentRecommendation.RECOMMEND_SUSPENSION_REVIEW
+        ):
+            raise CiboDevelopmentReviewValidationError(
+                "suspended/degraded profile must carry suspension-review recommendation"
+            )
+        if self.recommendation is CiboDevelopmentRecommendation.RECOMMEND_PROMOTION:
+            if state not in (
+                CiboCertificationState.EVIDENCE_COLLECTED,
+                CiboCertificationState.PROMOTION_RECOMMENDED,
+            ):
+                raise CiboDevelopmentReviewValidationError(
+                    "promotion recommendation requires promotion-capable profile state"
+                )
+            if self.profile.freshness.state is not CiboEvidenceFreshnessState.CURRENT:
+                raise CiboDevelopmentReviewValidationError(
+                    "promotion recommendation requires current evidence"
+                )
+            available = {item.stage for item in self.profile.certified_lab_evidence}
+            if not _REQUIRED_PROMOTION_STAGES.issubset(available):
+                raise CiboDevelopmentReviewValidationError(
+                    "promotion recommendation requires the immutable promotion stage floor"
+                )
+            if any(
+                condition.action in _BLOCKING_OPERATING_ACTIONS
+                for condition in self.profile.operating_conditions
+            ):
+                raise CiboDevelopmentReviewValidationError(
+                    "promotion recommendation contradicts blocking operating evidence"
+                )
         if not isinstance(self.reasons, tuple) or not self.reasons or any(
             not isinstance(reason, CiboDevelopmentReason) for reason in self.reasons
         ):
@@ -181,6 +228,14 @@ def review_capability_profile(
             )
         )
     try:
+        CiboTraderCapabilityProfile.__post_init__(profile)
+    except CiboCapabilityProfileError:
+        return Failure(
+            CiboDevelopmentReviewBlockedError(
+                "retained trader profile failed revalidation; review blocked"
+            )
+        )
+    try:
         _validate_timestamp(reviewed_at, field_name="reviewed_at")
     except CiboDevelopmentReviewError as error:
         return Failure(error)
@@ -196,6 +251,12 @@ def review_capability_profile(
         return Failure(
             CiboDevelopmentReviewValidationError(
                 "required_stages must be a frozenset of CiboLabEvidenceStage"
+            )
+        )
+    if not _REQUIRED_PROMOTION_STAGES.issubset(required_stages):
+        return Failure(
+            CiboDevelopmentReviewValidationError(
+                "required_stages cannot weaken the immutable promotion stage floor"
             )
         )
 

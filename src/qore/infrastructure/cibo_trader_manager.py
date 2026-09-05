@@ -6,6 +6,7 @@ from enum import StrEnum
 from re import fullmatch
 
 from qore.infrastructure.cibo_trader_capability_profile import (
+    CiboCapabilityProfileError,
     CiboCertificationState,
     CiboEvidenceFreshnessState,
     CiboEvidenceRef,
@@ -69,7 +70,7 @@ class CiboConcentrationConclusion(StrEnum):
 
 
 def _validate_timestamp(value: datetime, *, field_name: str) -> None:
-    if not isinstance(value, datetime):
+    if type(value) is not datetime:
         raise CiboManagerValidationError(f"{field_name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise CiboManagerValidationError(f"{field_name} must be timezone-aware")
@@ -270,6 +271,8 @@ class CiboManagementDecision:
 
 _INELIGIBLE_STATES = frozenset(
     {
+        CiboCertificationState.UNQUALIFIED,
+        CiboCertificationState.IN_CURRICULUM,
         CiboCertificationState.REJECTED,
         CiboCertificationState.SUSPENDED,
         CiboCertificationState.DEGRADED,
@@ -387,6 +390,14 @@ class CiboTraderManager:
                 )
             )
         try:
+            CiboTraderCapabilityProfile.__post_init__(profile)
+        except CiboCapabilityProfileError:
+            return Failure(
+                CiboManagerBlockedError(
+                    "retained trader profile failed revalidation; management blocked"
+                )
+            )
+        try:
             _validate_timestamp(decided_at, field_name="decided_at")
             normalized_reasons = _validate_reasons(reasons, field_name="reasons")
             normalized_refs = _validate_evidence_refs(
@@ -398,7 +409,7 @@ class CiboTraderManager:
 
         # Fail closed: any retained eligibility must be an exact, uncorrupted value.
         if eligibility is not None:
-            if not isinstance(eligibility, CiboDemoEligibilityEvidence):
+            if type(eligibility) is not CiboDemoEligibilityEvidence:
                 return Failure(
                     CiboManagerValidationError(
                         "eligibility must be CiboDemoEligibilityEvidence"

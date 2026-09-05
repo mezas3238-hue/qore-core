@@ -687,3 +687,61 @@ def test_manager_grants_no_execution_or_promotion_authority() -> None:
     assert not hasattr(_MANAGER, "place_order")
     assert not hasattr(_MANAGER, "promote")
     assert not hasattr(_MANAGER, "authorize_risk")
+
+class _ExternalR1ManagerLyingDatetime(datetime):
+    pass
+
+
+@pytest.mark.parametrize(
+    "state",
+    [CiboCertificationState.UNQUALIFIED, CiboCertificationState.IN_CURRICULUM],
+)
+def test_external_r1_f002_unqualified_and_curriculum_are_not_selectable(
+    state: CiboCertificationState,
+) -> None:
+    profile = _profile(state=state)
+    result = _MANAGER.decide(
+        CiboManagementAction.SELECT,
+        profile,
+        decided_at=_NOW,
+        reasons=("demo-eligible",),
+        eligibility=_eligibility(profile),
+    )
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboManagerBlockedError)
+
+
+def test_external_r1_f002_revalidates_retained_profile() -> None:
+    profile = _profile()
+    object.__setattr__(
+        profile.freshness,
+        "as_of",
+        _ExternalR1ManagerLyingDatetime(2026, 8, 9, 0, 0, tzinfo=UTC),
+    )
+    result = _MANAGER.decide(
+        CiboManagementAction.SELECT,
+        profile,
+        decided_at=_NOW,
+        reasons=("demo-eligible",),
+        eligibility=_eligibility(profile),
+    )
+    assert isinstance(result, Failure)
+
+
+def test_external_r1_f002_rejects_datetime_subclass() -> None:
+    profile = _profile()
+    result = _MANAGER.decide(
+        CiboManagementAction.SELECT,
+        profile,
+        decided_at=_ExternalR1ManagerLyingDatetime(
+  2026,
+  8,
+  9,
+  0,
+  0,
+  tzinfo=UTC,
+        ),
+        reasons=("demo-eligible",),
+        eligibility=_eligibility(profile),
+    )
+    assert isinstance(result, Failure)
