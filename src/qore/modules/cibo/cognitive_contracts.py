@@ -1,0 +1,1326 @@
+"""Provider-neutral CIBO Cognitive Executive contracts.
+
+This module defines the pure, deterministic semantic foundation for CIBO as a
+Cognitive Executive Director. It is intentionally free of any concrete LLM,
+model, provider, adapter, or execution authority: it only shapes reasoning
+modes, epistemic states, uncertainty, deliberation roles, and formal
+recommendations.
+
+Canonical law enforced here:
+
+- CIBO INTELLIGENCE != UNBOUNDED AUTHORITY
+- CIBO RECOMMENDATION != RISK BYPASS
+- CIBO REASONING != PROVIDER-NATIVE ORDER
+- FORMAL_RECOMMENDATION != AUTHORIZED_ACTION
+
+No value object in this module carries an order, intent, account, credential,
+quantity, instrument, provider, or promotion field.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from enum import StrEnum
+from re import IGNORECASE, Pattern, compile, fullmatch
+from unicodedata import category as _unicodedata_category
+from unicodedata import name as _unicodedata_name
+from unicodedata import normalize as _unicodedata_normalize
+from uuid import UUID
+
+from qore.kernel.errors import DomainError
+from qore.kernel.temporal import canonical_instant
+
+_CODE_RE = r"[a-z][a-z0-9._-]*"
+_OPAQUE_REF_RE = r"[a-z][a-z0-9._:/-]*"
+
+# Structural, low-false-positive secret-material patterns. Detection-only:
+# never rewrite text, only reject it (fail closed).
+#
+# Boundary semantics (law 20 + "no naive substring false positives"):
+#   - provider tokens (sk-/AKIA/gh*_/xox/JWT) and URL userinfo are matched by
+#     their own structural shape with word/length/character-class bounds;
+#   - credential labels (client_secret, private_key, api_key, token, password,
+#     authorization, ...) are matched ONLY in assignment form `label[=:] value`
+#     (the key/value patterns below) — never as a bare field-name mention. A bare
+#     identifier such as ``client_secret_demo`` or prose like "the client_secret
+#     field must be configured" is not itself secret material and is accepted.
+#   - private-key material is matched structurally via the PEM block marker.
+#
+# Assignment value credibility (law "no naive benign-prose false positives"):
+#   - a quoted value (single or double, non-empty) is always credible, since an
+#     explicit quote signals a deliberate value assignment;
+#   - a bare value after ``=`` (equals) is credible for any non-empty token, as
+#     ``=`` is essentially never natural-language prose punctuation;
+#   - a bare value after ``:`` (colon) is tiered by label ambiguity:
+#     * UNEQUIVOCAL labels (password, api_key, client_secret, private_key,
+#       access/secret key, AWS labels) are technical identifiers, so
+#       ``label: value`` is credential material for any non-empty bare or quoted
+#       value (short/all-digit/all-letter/mixed), EXCEPT the closed English
+#       auxiliary/modal/copula verb class — the value position of a verb phrase
+#       is never a value ("password: must be rotated", "access key: is rotated"
+#       stay prose). Ordinary pronouns/quantifiers such as one/them/some/another
+#       ARE values and fail closed ("password: one" is a credential).
+#     * AMBIGUOUS labels (secret, credential, and the compound token/key/id
+#       labels below) are common English words/phrases, so a bare value is
+#       credible only when digit-bearing or quoted ("access token: abc123" is a
+#       credential, "access token: expires daily" is prose).
+#     * WEAK labels (authorization, token) are prose-ambiguous, so a bare value
+#       is credible only as an 8+ char token carrying BOTH a letter and a digit
+#       ("authorization: delegated", "authorization: OAuth2", "token: 12 units"
+#       stay admissible).
+# Compound credential labels closed under snake/kebab/space/camel separators.
+# ``[ _-]?`` matches zero (camelCase ``accessToken`` -> ``access`` + ``Token``)
+# or one snake/kebab/space separator, and ``re.IGNORECASE`` folds the casing, so
+# ``access_token`` / ``access-token`` / ``access token`` / ``accessToken`` are one
+# equivalence class. These token/key/id phrases are prose-ambiguous, so they
+# belong to the AMBIGUOUS tier: ``label: value`` is credential material only for
+# a digit-bearing or quoted value, never by label alone.
+_COMPOUND_CRED_LABEL = (
+    r"access[ _-]?token|refresh[ _-]?token|bearer[ _-]?token|auth[ _-]?token|"
+    r"id[ _-]?token|personal[ _-]?access[ _-]?token|oauth[ _-]?token|"
+    r"slack[ _-]?token|github[ _-]?token|openai[ _-]?key|client[ _-]?id|"
+    r"x[ _-]?auth[ _-]?token|api[ _-]?token|secret[ _-]?token|"
+    r"session[ _-]?token|aws[ _-]?session[ _-]?token"
+)
+_UNEQUIVOCAL_CRED_LABEL = (
+    r"password|passwd|api[ _-]?key|access[ _-]?key|secret[ _-]?key|"
+    r"client[ _-]?secret|private[ _-]?key|access[ _-]?key[ _-]?id|"
+    r"secret[ _-]?access[ _-]?key|aws[ _-]?secret[ _-]?access[ _-]?key|"
+    r"aws[ _-]?access[ _-]?key[ _-]?id|awssecretaccesskey|awsaccesskeyid"
+)
+_AMBIGUOUS_CRED_LABEL = r"credential|" + _COMPOUND_CRED_LABEL + r"|secret"
+_WEAK_CRED_LABEL = r"authorization|token"
+_CRED_LABEL = (
+    r"(?:" + _UNEQUIVOCAL_CRED_LABEL + r"|"
+    + _AMBIGUOUS_CRED_LABEL + r"|" + _WEAK_CRED_LABEL + r")"
+)
+_QUOTED_VALUE = r"[\"'][^\"'\n]+[\"']"
+_BARE_ANY_VALUE = r"[^\s\"']+"
+# A bare (unquoted) colon value for an AMBIGUOUS label is credible when it
+# carries a digit (any length): "secret: abc123" is a credential while
+# "secret: the recipe" is prose. (This is the pre-regression digit-bearing
+# shape, retained for the prose-ambiguous bare-word labels only.)
+_BARE_DIGIT_VALUE = r"(?=[^\s\"']*\d)[^\s\"']+"
+# A bare (unquoted) colon value for a WEAK label is credible only as an 8+ char
+# mixed token carrying BOTH a letter and a digit. Short tokens like "OAuth2",
+# "2FA", "12", or "2008" are ordinary prose/numbers and stay admissible.
+_BARE_CREDIBLE_VALUE = r"(?=[^\s\"']*\d)(?=[^\s\"']*[^\W\d_])[^\s\"']{8,}"
+# A bare (unquoted) ALL-LETTER colon value for an AMBIGUOUS/WEAK label is
+# credential-shaped when it is a SINGLE COMPLETE token of >= 8 Unicode letters
+# that is EITHER non-Latin-script OR mixed-case Latin (an internal capital).
+# The prose domain of the cognitive system is LATIN-script English, so a
+# non-Latin letter run under a credential-bearing label is out-of-domain, and a
+# Latin token with an internal capital is a token/passphrase — while a
+# uniform-case Latin value is prose (an English word "authentication",
+# "compartmentalization", "interoperability", a non-ASCII Latin word
+# "økonomistyring"/"specjalistyczne", an acronym "AUTH", or a Title-case word
+# "Authentication"). This is a fixed structural/script discriminator, not a
+# word list and not a witness-specific branch.
+#
+# Two-stage shape + script/case grammar (``re`` exposes no Script property):
+#   - The structural regex below matches the SHAPE only: an 8+ Unicode-letter
+#     single complete token. It is a superset gate over every script.
+#   - ``_is_credential_all_letter_token`` refines the gate with the Unicode
+#     Script property (via the character name's script prefix) plus a case
+#     transition test: a letter whose name does NOT start with ``LATIN`` is
+#     non-Latin-script (``β`` GREEK, ``б`` CYRILLIC, ``密`` CJK are
+#     credential-shaped; ``ø``/``æ``/``ł`` are LATIN prose), and a Latin token
+#     with an internal (non-initial) capital (``AbCdEfGh``, ``accessToken``,
+#     ``CorrectHorseBattery``) is credential-shaped while a uniform-case word
+#     ("authentication", "Authentication", "AUTHENTICATION") stays prose. This
+#     is a Unicode-property rule, not a per-script witness list, and not
+#     ASCII-script authority.
+#   - The trailing negative lookahead keeps the value a SINGLE COMPLETE token: a
+#     run that merely HEADS a multi-word prose phrase stays prose, and it stops
+#     the engine from backtracking into a shorter prefix of a longer run
+#     (re-opening the head-of-prose match).
+_BARE_ALL_LETTER_TOKEN_VALUE = (
+    r"(?=[^\W\d_]{8,})"
+    r"[^\W\d_]+"
+    r"(?![^\W\d_]|\s+[^\W\d_])"
+)
+_ALL_LETTER_VALUE_PATTERN = compile(
+    rf"(?i)\b(?:{_AMBIGUOUS_CRED_LABEL}|{_WEAK_CRED_LABEL})\b[\"']?\s*:\s*"
+    rf"(?P<value>{_BARE_ALL_LETTER_TOKEN_VALUE})"
+)
+
+
+def _is_non_latin_letter(ch: str) -> bool:
+    """Return whether ``ch`` is a Unicode letter NOT in the Latin script.
+
+    The cognitive system's benign prose domain is Latin-script English, so a
+    non-Latin-script letter (Greek/Cyrillic/CJK/Arabic/Hebrew/Devanagari/…)
+    under a credential-bearing label is credential-shaped. Non-ASCII
+    Latin-script letters (``ø``, ``æ``, ``ł``, ``ż``, ``č``, …) remain prose:
+    their Unicode names start with ``LATIN``, so this is a script check, not an
+    ASCII check. Modifier letters (category Lm) are rare and are treated as
+    non-Latin (fail-closed); they never form 8+ character prose words. A
+    category-L code point with an EMPTY name (Tangut U+17000-U+187F7 and
+    U+18D00-U+18D08 in the stdlib Unicode database) is by definition not
+    ``LATIN``-prefixed, so it is treated as non-Latin (fail-closed).
+    """
+    if not _unicodedata_category(ch).startswith("L"):
+        return False
+    script_name = _unicodedata_name(ch, "")
+    return not script_name.startswith("LATIN")
+
+
+def _is_credential_all_letter_token(value: str) -> bool:
+    """Return whether an all-letter value is credential-shaped.
+
+    Credential-shaped when it carries a non-Latin-script letter, or (Latin
+    script) when it carries an internal (non-initial) capital together with a
+    lowercase letter — the structural signal of a camelCase/PascalCase token, a
+    SCREAMING-prefix token ("AUTHtoken", "TOKENValue"), or a passphrase. A
+    uniform-case English word ("authentication"), a Title-case word
+    ("Authentication": its only capital is initial), an all-caps
+    acronym/emphasis ("AUTHENTICATION"), and non-ASCII Latin prose
+    ("økonomistyring") have no internal capital and stay prose.
+    """
+    if any(_is_non_latin_letter(ch) for ch in value):
+        return True
+    # Latin-script: an internal capital is any uppercase at a non-initial
+    # position. Requiring a lowercase letter keeps pure all-caps acronyms
+    # ("AUTHENTICATION") prose, and requiring the capital to be NON-initial
+    # keeps Title-case words ("Authentication") prose, while catching every
+    # internal-case token ("accessToken", "AbCdEfGh", "AUTHtoken", "TOKENValue").
+    if not any(ch.islower() for ch in value):
+        return False
+    return any(ch.isupper() for ch in value[1:])
+
+
+# The English auxiliary/modal/copula verb CLOSED class. Only this class can
+# never be a credential value, because it marks the START of a verb phrase
+# (predicate), not a value assignment: "password: must be rotated" and
+# "access key: is rotated" are prose about the credential, not a credential.
+# Ordinary pronouns/quantifiers/determiners/prepositions/conjunctions are NOT
+# verbs and therefore remain candidate values that must fail closed
+# ("password: one", "password: them", "client_secret: some", "api key: another"
+# are credentials). This is a principled structural discriminator (a fixed
+# closed linguistic class), NOT an ever-growing stopword list.
+_COLON_PREDICATE_VERBS = frozenset(
+    {
+        "am", "is", "are", "was", "were", "be", "been", "being",
+        "has", "have", "had", "do", "does", "did",
+        "must", "should", "shall", "will", "would", "can", "could", "may", "might",
+    }
+)
+_COLON_PREDICATE_VERB_RE = (
+    r"(?:" + "|".join(sorted(_COLON_PREDICATE_VERBS, key=len, reverse=True)) + r")\b"
+)
+_UNEQUIVOCAL_BARE_VALUE = rf"(?!{_COLON_PREDICATE_VERB_RE}){_BARE_ANY_VALUE}"
+
+# Unicode colon-confusables that fold to STRONG ``=`` before NFKC. NFKC itself
+# collapses ``：`` (U+FF1A) to ASCII ``:`` and ``︰`` (U+FE30) to ``..``, which would
+# lose the adversarial-delimiter signal; a full-width/confusable colon never
+# appears in natural prose, so it is treated as an explicit value assignment.
+# Detection-only: applied to a transient skeleton, never to persisted/user text.
+_DELIMITER_CONFUSABLE_MAP = str.maketrans(
+    {
+        "\u02d0": "=",  # MODIFIER LETTER TRIANGULAR COLON
+        "\u02f8": "=",  # MODIFIER LETTER RAISED COLON
+        "\u0589": "=",  # ARMENIAN FULL STOP
+        "\u05c3": "=",  # HEBREW PUNCTUATION SOF PASUQ
+        "\u2236": "=",  # RATIO
+        "\u2237": "=",  # PROPORTION
+        "\u205a": "=",  # TWO DOT PUNCTUATION
+        "\ua789": "=",  # MODIFIER LETTER COLON
+        "\ufe13": "=",  # PRESENTATION FORM FOR VERTICAL COLON
+        "\ufe30": "=",  # PRESENTATION FORM FOR VERTICAL TWO DOT LEADER
+        "\ufe55": "=",  # SMALL COLON
+        "\uff1a": "=",  # FULLWIDTH COLON
+    }
+)
+
+# Unicode dash/hyphen/minus homoglyphs fold to ASCII ``-``. NFKC does NOT fold
+# the Pd dash family (EN DASH, EM DASH, HYPHEN, FIGURE DASH, HORIZONTAL BAR, …)
+# to ASCII ``-``, so ``sk–…``/``access–token``/``xoxb–…`` would otherwise split a
+# credential prefix/label/token and fail the detector open. A dash homoglyph is
+# never natural-language prose punctuation when it sits inside a credential
+# prefix/label/token, so folding it can only re-join an adversarially-split
+# credential (fail closed). Applied AFTER NFKC so the compatibility-folded forms
+# (U+FE58→U+2014, U+FE63→U+2010, U+FF0D→U+002D) are covered too. Detection-only:
+# applied to a transient skeleton, never to persisted/user text.
+#
+# The two INVISIBLE Cf dashes — SOFT HYPHEN U+00AD and TAG HYPHEN-MINUS U+E002D —
+# are deliberately NOT folded here: they are invisible, so folding them to a
+# visible ``-`` would SPLIT a token they were inserted into (``s<SHY>k`` →
+# ``s-k``, ``p<SHY>assword`` → ``p-assword``) and fail the detector open. They
+# are instead handled as invisible characters: re-joined inside labels/ids/
+# tokens by the invisible strip, skipped inside a provider prefix by the prefix
+# matcher, and folded to the delimiter only in the actual prefix delimiter slot
+# by ``_fold_prefix_invisible_delimiter``.
+_DASH_CONFUSABLE_MAP = str.maketrans(
+    {
+        "\u058a": "-",  # ARMENIAN HYPHEN
+        "\u05be": "-",  # HEBREW PUNCTUATION MAQAF
+        "\u1400": "-",  # CANADIAN SYLLABICS HYPHEN
+        "\u1806": "-",  # MONGOLIAN TODO SOFT HYPHEN
+        "\u2010": "-",  # HYPHEN
+        "\u2011": "-",  # NON-BREAKING HYPHEN
+        "\u2012": "-",  # FIGURE DASH
+        "\u2013": "-",  # EN DASH
+        "\u2014": "-",  # EM DASH
+        "\u2015": "-",  # HORIZONTAL BAR
+        "\u2027": "-",  # HYPHENATION POINT
+        "\u2043": "-",  # HYPHEN BULLET
+        "\u2052": "-",  # COMMERCIAL MINUS SIGN
+        "\u2053": "-",  # SWUNG DASH
+        "\u2212": "-",  # MINUS SIGN
+        "\u02d7": "-",  # MODIFIER LETTER MINUS SIGN
+        "\u2e17": "-",  # DOUBLE OBLIQUE HYPHEN
+        "\u2e1a": "-",  # HYPHEN WITH DIAERESIS
+        "\u2e3a": "-",  # TWO-EM DASH
+        "\u2e3b": "-",  # THREE-EM DASH
+        "\u2e40": "-",  # DOUBLE HYPHEN
+        "\u2e5d": "-",  # OBLIQUE HYPHEN
+        "\u301c": "-",  # WAVE DASH
+        "\u3030": "-",  # WAVY DASH
+        "\u30a0": "-",  # KATAKANA-HIRAGANA DOUBLE HYPHEN
+        "\U00010ead": "-",  # YEZIDI HYPHENATION MARK
+        "\ufe58": "-",  # SMALL EM DASH
+        "\ufe63": "-",  # SMALL HYPHEN-MINUS
+        "\uff0d": "-",  # FULLWIDTH HYPHEN-MINUS
+    }
+)
+
+# Confusable label characters (Cyrillic/Greek homoglyphs of the Latin letters
+# used by credential labels, both cases: re.IGNORECASE does not fold across
+# scripts, so uppercase homoglyphs must be folded explicitly). Detection-only:
+# applied to a transient skeleton, never to persisted/user text.
+# Homoglyph capitals fold to CAPITAL Latin letters (not lowercase): the AWS
+# ``AKIA``/``ASIA`` prefix pattern is case-sensitive, so a Cyrillic/Greek ``A``
+# homoglyph must re-join as ``A`` or it escapes the prefix match. Lowercase
+# homoglyphs fold to lowercase Latin. Detection-only: applied to a transient
+# skeleton, never to persisted/user text.
+_CONFUSABLE_MAP = str.maketrans(
+    {
+        "\u0430": "a",  # CYRILLIC SMALL A
+        "\u0432": "b",  # CYRILLIC SMALL VE
+        "\u0441": "c",  # CYRILLIC SMALL ES
+        "\u0435": "e",  # CYRILLIC SMALL IE
+        "\u0433": "r",  # CYRILLIC SMALL GHE (r homoglyph)
+        "\u0455": "s",  # CYRILLIC SMALL DZE
+        "\u0456": "i",  # CYRILLIC SMALL BYELORUSSIAN-UKRAINIAN I
+        "\u0458": "j",  # CYRILLIC SMALL JE
+        "\u043a": "k",  # CYRILLIC SMALL KA
+        "\u043c": "m",  # CYRILLIC SMALL EM
+        "\u043d": "n",  # CYRILLIC SMALL EN
+        "\u043e": "o",  # CYRILLIC SMALL O
+        "\u0440": "p",  # CYRILLIC SMALL ER
+        "\u0442": "t",  # CYRILLIC SMALL TE
+        "\u0443": "y",  # CYRILLIC SMALL U
+        "\u0445": "x",  # CYRILLIC SMALL HA
+        "\u0437": "z",  # CYRILLIC SMALL ZE
+        "\u0410": "A",  # CYRILLIC CAPITAL A
+        "\u0412": "B",  # CYRILLIC CAPITAL VE
+        "\u0421": "C",  # CYRILLIC CAPITAL ES
+        "\u0415": "E",  # CYRILLIC CAPITAL IE
+        "\u0413": "R",  # CYRILLIC CAPITAL GHE (R homoglyph)
+        "\u0405": "S",  # CYRILLIC CAPITAL DZE
+        "\u0406": "I",  # CYRILLIC CAPITAL BYELORUSSIAN-UKRAINIAN I
+        "\u0408": "J",  # CYRILLIC CAPITAL JE
+        "\u041a": "K",  # CYRILLIC CAPITAL KA
+        "\u041c": "M",  # CYRILLIC CAPITAL EM
+        "\u041d": "N",  # CYRILLIC CAPITAL EN
+        "\u041e": "O",  # CYRILLIC CAPITAL O
+        "\u0420": "P",  # CYRILLIC CAPITAL ER
+        "\u0422": "T",  # CYRILLIC CAPITAL TE
+        "\u0423": "Y",  # CYRILLIC CAPITAL U
+        "\u0425": "X",  # CYRILLIC CAPITAL HA
+        "\u0417": "Z",  # CYRILLIC CAPITAL ZE
+        "\u03b1": "a",  # GREEK SMALL LETTER ALPHA
+        "\u03b3": "g",  # GREEK SMALL LETTER GAMMA (g homoglyph)
+        "\u03b5": "e",  # GREEK SMALL LETTER EPSILON
+        "\u03b9": "i",  # GREEK SMALL LETTER IOTA
+        "\u03ba": "k",  # GREEK SMALL LETTER KAPPA
+        "\u03bd": "n",  # GREEK SMALL LETTER NU
+        "\u03bf": "o",  # GREEK SMALL LETTER OMICRON
+        "\u03c1": "p",  # GREEK SMALL LETTER RHO
+        "\u03c2": "s",  # GREEK SMALL LETTER FINAL SIGMA
+        "\u03c3": "s",  # GREEK SMALL LETTER SIGMA
+        "\u03c4": "t",  # GREEK SMALL LETTER TAU
+        "\u03c5": "u",  # GREEK SMALL LETTER UPSILON
+        "\u03c7": "x",  # GREEK SMALL LETTER CHI
+        "\u0391": "A",  # GREEK CAPITAL LETTER ALPHA
+        "\u0392": "B",  # GREEK CAPITAL LETTER BETA
+        "\u0393": "G",  # GREEK CAPITAL LETTER GAMMA (G homoglyph)
+        "\u0395": "E",  # GREEK CAPITAL LETTER EPSILON
+        "\u0399": "I",  # GREEK CAPITAL LETTER IOTA
+        "\u039a": "K",  # GREEK CAPITAL LETTER KAPPA
+        "\u039d": "N",  # GREEK CAPITAL LETTER NU
+        "\u039f": "O",  # GREEK CAPITAL LETTER OMICRON
+        "\u03a1": "P",  # GREEK CAPITAL LETTER RHO
+        "\u03a3": "S",  # GREEK CAPITAL LETTER SIGMA
+        "\u03a4": "T",  # GREEK CAPITAL LETTER TAU
+        "\u03a5": "U",  # GREEK CAPITAL LETTER UPSILON
+        "\u03a7": "X",  # GREEK CAPITAL LETTER CHI
+        "\u03b6": "z",  # GREEK SMALL LETTER ZETA
+        "\u03b7": "n",  # GREEK SMALL LETTER ETA
+        "\u0396": "Z",  # GREEK CAPITAL LETTER ZETA
+        "\u0397": "H",  # GREEK CAPITAL LETTER ETA
+        "\u0555": "O",  # ARMENIAN CAPITAL OH
+        "\u0585": "o",  # ARMENIAN SMALL OH
+        "\u0578": "n",  # ARMENIAN SMALL VO (n homoglyph)
+    }
+)
+
+# Confusable-insensitive LABEL spelling. The structural patterns run on the
+# confusable-FOLDED skeleton, so their ASCII label regexes already match
+# homoglyph labels there. The script-preserving skeleton (used to classify the
+# ORIGINAL script of an all-letter VALUE) does NOT fold confusables, so its
+# label regex must itself accept the homoglyph spellings — the Cyrillic/Greek/
+# Armenian letters that ``_CONFUSABLE_MAP`` folds to a label's ASCII letters.
+# Without this, a homoglyph label plus a non-Latin value composed ENTIRELY of
+# confusable homoglyph letters escapes: the folded skeleton ASCII-ifies the
+# value (hiding its script, so it reads as uniform Latin prose) while the
+# script-preserving skeleton cannot see the homoglyph label at all. Each ASCII
+# label letter is spelled as a class of itself plus every homoglyph that folds
+# to it (both cases, keyed by the folded target's lowercase), evaluated under
+# the pattern's IGNORECASE flag.
+_CONFUSABLE_HOMOGLYPHS: dict[str, set[str]] = {}
+for _source_ord, _target in _CONFUSABLE_MAP.items():
+    _CONFUSABLE_HOMOGLYPHS.setdefault(_target.lower(), set()).add(chr(_source_ord))
+
+
+def _confusable_insensitive_label(label_regex: str) -> str:
+    """Return ``label_regex`` with each ASCII letter spelled confusable-insensitively.
+
+    Non-letter and non-ASCII characters (regex structure) pass through untouched,
+    so the label alternation's ``[ _-]?`` separators, ``|`` and ``?`` are preserved.
+    """
+    out: list[str] = []
+    for ch in label_regex:
+        if ch.isascii() and ch.isalpha():
+            homoglyphs = _CONFUSABLE_HOMOGLYPHS.get(ch.lower(), set())
+            if homoglyphs:
+                out.append("[" + ch + "".join(sorted(homoglyphs)) + "]")
+                continue
+        out.append(ch)
+    return "".join(out)
+
+
+_SCRIPT_ALL_LETTER_VALUE_PATTERN = compile(
+    rf"(?i)\b(?:{_confusable_insensitive_label(_AMBIGUOUS_CRED_LABEL)}|"
+    rf"{_confusable_insensitive_label(_WEAK_CRED_LABEL)})\b[\"']?\s*:\s*"
+    rf"(?P<value>{_BARE_ALL_LETTER_TOKEN_VALUE})"
+)
+
+# Grammar-significant punctuation that MUST NOT fold to the canonical provider
+# delimiter ``-``: each carries structural meaning in an existing pattern (JWT
+# ``.``, URL userinfo ``:/@``, equals assignment and base64 padding ``=``,
+# base64 alphabet ``+``, quoted-value delimiters ``"``/``'``, and the literal
+# delimiters ``-``/``_``/space). The colon-confusable source characters are also
+# preserved so they keep folding to the STRONG ``=`` rather than ``-``.
+_GRAMMAR_SIGNIFICANT_PUNCTUATION = frozenset(".:@/=+\"'_- ")
+_COLON_CONFUSABLE_SOURCE = frozenset(
+    chr(ordinal) for ordinal in _DELIMITER_CONFUSABLE_MAP.keys()
+)
+
+
+def _is_prefix_separator(ch: str) -> bool:
+    """Return whether ``ch`` is a separator that folds to ``-``.
+
+    The provider-prefix delimiter slot (``sk-``, ``xoxb-``, ``ghp_``) is an
+    equivalence class: a dash homoglyph (folded earlier by the dash map) or any
+    punctuation/symbol separator (Unicode categories Po/Sm/So, plus Pc connector
+    punctuation such as the underscore homoglyphs U+203F/U+2040/U+2054) can
+    occupy it. Grammar-significant punctuation and colon-confusable source
+    characters are excluded so they keep their structural meaning, as are
+    NFKC-compatibility forms of alphanumerics and of grammar-significant
+    punctuation (so the later NFKC fold canonicalizes them). This is a
+    Unicode-property rule (exhaustive over the Po/Sm/So/Pc categories), not a
+    per-witness list.
+    """
+    if ch in _GRAMMAR_SIGNIFICANT_PUNCTUATION or ch in _COLON_CONFUSABLE_SOURCE:
+        return False
+    # Preserve NFKC-compatibility forms of alphanumerics and of grammar-
+    # significant punctuation (fullwidth ``＝`` -> ``=``, ``．`` -> ``.``,
+    # ``＠`` -> ``@``, ``＋`` -> ``+``, circled ``ⓢ`` -> ``s``, ...) so the later
+    # NFKC fold canonicalizes them instead of this separator fold erasing them
+    # to ``-``. Folding them early would destroy the structural meaning of the
+    # equals/JWT-dot/URL-@/base64-plus/prefix-letter they represent and fail the
+    # detector open. A true separator (middle dot, bullet, times sign, nirugu,
+    # …) has no NFKC alphanumeric/grammar target and still folds to ``-``.
+    normalized = _unicodedata_normalize("NFKC", ch)
+    if normalized.isalnum() or normalized in _GRAMMAR_SIGNIFICANT_PUNCTUATION:
+        return False
+    return _unicodedata_category(ch) in {"Po", "Sm", "So", "Pc"}
+
+
+_SECRET_PATTERNS: tuple[Pattern[str], ...] = (
+    compile(r"-----BEGIN [A-Z ]*(?:PRIVATE KEY|SECRET|ENCRYPTED PRIVATE KEY)-----"),
+    # OpenAI secret keys: ``sk-`` and its delimiter-equivalent ``sk_``. The ``=``
+    # alternative covers the Unicode colon-confusable delimiters that fold to the
+    # STRONG ``=`` (``sk：…``/``sk∶…``), keeping the prefix slot fail-closed.
+    compile(r"\bsk[-_=][A-Za-z0-9_-]{8,}"),
+    # AWS access key ids: permanent (AKIA) and temporary (ASIA) prefixes.
+    compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
+    # GitHub tokens: ``gh*_`` prefix. The ``-`` alternative covers delimiter
+    # confusables (dash homoglyphs and Po/Sm/So separators) folded to ``-`` by
+    # the detection skeleton, and ``=`` covers colon-confusable delimiters.
+    compile(r"\bgh[pousr][-_=][A-Za-z0-9]{20,}"),
+    # Slack tokens: ``xox*`` prefix with hyphen or its delimiter-equivalent
+    # underscore; ``=`` covers colon-confusable delimiters.
+    compile(r"\bxox[baprsc][-_=][A-Za-z0-9-]{10,}"),
+    # Bearer tokens are high-entropy: require a digit inside an 8+ char token so
+    # prose like "Bearer certificate"/"Bearer obligations" is not a false positive.
+    # ``\s*`` (not ``\s+``) because the detection skeleton strips non-ASCII width
+    # spaces that a caller may insert between the keyword and the token; after
+    # stripping, keyword and token are re-joined and must still match.
+    compile(
+        r"\bBearer\s*(?=[A-Za-z0-9._~+/=-]{8,})"
+        r"[A-Za-z0-9._~+/=-]*[0-9][A-Za-z0-9._~+/=-]*",
+        IGNORECASE,
+    ),
+    # Bare HTTP Basic authorization: base64 material, discriminated structurally
+    # rather than by requiring uppercase as a proxy for credential-ness. The
+    # scheme keyword stays ``[Bb]asic`` (the original, prose-safe shape): the
+    # all-caps "BASIC" keyword is far more often the BASIC programming language
+    # or an acronym than a credential, so case-insensitive matching was dropped
+    # to avoid new prose false positives ("BASIC Authentication", "BASIC HTML").
+    # A Basic credential is detected when the token is (a) base64 with explicit
+    # ``=`` padding, (b) unpadded 4+ base64 chars carrying an uppercase or
+    # base64-special char at a NON-INITIAL position (a scattered/internal
+    # uppercase is structural; a leading-capital English word is not), or
+    # (c) unpadded 6+ mixed letter+digit token whose digit is INTERNAL (a digit
+    # followed by a letter/+//), i.e. scattered base64, not a trailing-version
+    # scheme name ("oauth2", "sha256", "kerberos5" keep their digit(s) at the
+    # tail and stay admissible). A pure digit run ("2008"), a bare lowercase
+    # word ("principles"), a leading-capital word ("Authentication"), and fiscal
+    # labels ("2024q1") stay admissible.
+    compile(
+        r"\b[Bb]asic[-\s]*"
+        r"(?:"
+        r"[A-Za-z0-9+/]{2,}={1,2}"
+        r"|"
+        r"(?=[A-Za-z0-9+/][A-Za-z0-9+/]*[A-Z+/])[A-Za-z0-9+/]{4,}"
+        r"|"
+        r"(?=[A-Za-z0-9+/]*[A-Za-z])(?=[A-Za-z0-9+/]*\d[A-Za-z+/])"
+        r"(?!\d{2,4}[QqHh]\d)(?![QqHh]\d{1,4})"
+        r"[A-Za-z0-9+/]{6,}"
+        r")"
+        r"(?![A-Za-z0-9+/=])"
+    ),
+    compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
+    # URL userinfo (``scheme://user:pass@host``). The ``=`` alternative covers
+    # Unicode colon-confusable delimiters (fullwidth colon, ratio, …) that the
+    # detection skeleton folds to the STRONG ``=``, keeping the userinfo
+    # separator fail-closed.
+    compile(r"//[^/@\s:=]+[:=][^/@\s]+@"),
+    # Equals assignment: strong for every label. Any non-empty bare or quoted value.
+    compile(
+        rf"(?i)\b{_CRED_LABEL}\b[\"']?\s*=\s*(?:{_QUOTED_VALUE}|{_BARE_ANY_VALUE})"
+    ),
+    # Unequivocal-label colon assignment: credential for any non-stopword bare or
+    # quoted value (short/all-digit/all-letter/mixed values alike).
+    compile(
+        rf"(?i)\b(?:{_UNEQUIVOCAL_CRED_LABEL})\b[\"']?\s*:\s*"
+        rf"(?:{_QUOTED_VALUE}|{_UNEQUIVOCAL_BARE_VALUE})"
+    ),
+    # Ambiguous-label colon assignment: prose-ambiguous. Quoted or digit-bearing
+    # is credential-shaped. A bare Latin all-letter value is prose. (The
+    # non-Latin-script all-letter value shape is handled separately by the
+    # script-refined _NON_LATIN_VALUE_PATTERN, not in this regex tuple.)
+    compile(
+        rf"(?i)\b(?:{_AMBIGUOUS_CRED_LABEL})\b[\"']?\s*:\s*"
+        rf"(?:{_QUOTED_VALUE}|{_BARE_DIGIT_VALUE})"
+    ),
+    # Weak-label colon assignment: prose-ambiguous. Quoted or 8+ mixed is
+    # credential-shaped. A bare Latin all-letter value is prose. (The
+    # non-Latin-script all-letter value shape is handled separately.)
+    compile(
+        rf"(?i)\b(?:{_WEAK_CRED_LABEL})\b[\"']?\s*:\s*"
+        rf"(?:{_QUOTED_VALUE}|{_BARE_CREDIBLE_VALUE})"
+    ),
+)
+
+_CONTROL_CHARS = "\x00\n\r\t"
+
+
+# Format/control/separator categories plus combining marks (Mn/Mc/Me) that can
+# split credential labels, delimiters, key ids, or Indic-script words and fail
+# the detector open. Mn covers the combining grapheme joiner U+034F, invisible
+# variation selectors (U+FE00-U+FE0F, U+E0100-U+E01EF), Mongolian free variation
+# selectors (U+180B-U+180D), and combining diacritics (U+0300-U+036F). Mc
+# (spacing combining marks) covers Indic/Brahmic vowel signs (Devanagari ``ि``,
+# Bengali ``ি``, Tamil ``ி``, …) that split a non-Latin word into sub-8-char
+# letter runs and would otherwise hide its script from the all-letter value
+# gate; Me (enclosing marks) is the remaining combining-mark class. Combining
+# marks are stripped from the RAW text BEFORE NFKC, because NFKC would compose a
+# base letter + mark into a single precomposed letter (``o + U+0301 -> ó``) and
+# thereby reshape the label ("passwórd") instead of re-joining it. Stripping
+# these from the detection-only skeleton can only re-join split tokens/words
+# (fail closed) — it never rewrites the caller's text.
+_INVISIBLE_CATEGORIES = frozenset({"Cf", "Cc", "Cs", "Zl", "Zp", "Mn", "Mc", "Me"})
+
+
+def _is_detection_invisible(ch: str) -> bool:
+    """Return whether ``ch`` is stripped from the detection-only skeleton.
+
+    Strips the format/control/separator/line/paragraph and nonspacing-mark
+    categories (as before) PLUS non-ASCII space separators (width spaces, NBSP,
+    …). ASCII space U+0020 is deliberately preserved: it is the ordinary word
+    separator, and collapsing it would break the whitespace semantics of the
+    Bearer/Basic/label patterns and join unrelated prose words. A non-ASCII
+    space is never natural prose punctuation, so stripping it can only re-join
+    adversarially-split credential labels or token bodies (fail closed), and is
+    never applied to persisted/caller text.
+    """
+    category = _unicodedata_category(ch)
+    if category in _INVISIBLE_CATEGORIES:
+        return True
+    return category == "Zs" and ch != " "
+
+
+# Provider prefixes that REQUIRE a delimiter in the real credential format. When
+# an invisible character occupies the delimiter slot (``sk<ZWSP>token``), the
+# global invisible strip would otherwise erase the delimiter and produce a joined
+# ``sktoken`` that evades the literal ``[-_=]``/``[_]`` prefix grammar. Folding
+# the invisible run to ``-`` instead re-joins the credential fail-closed. An
+# invisible character may also be interleaved INSIDE the prefix letters
+# (``s<ZWSP>k``, ``xox<ZWSP>b``): the prefix must still be recognized so its
+# delimiter slot is folded, rather than the whole run being stripped into a
+# delimiter-less joined token. Prefixes with NO delimiter (``AKIA``/``ASIA``)
+# keep the strip-to-rejoin behavior for an inserted invisible joiner
+# (``AKIA<ZWSP>123…`` -> ``AKIA123…``).
+_PROVIDER_PREFIXES: tuple[str, ...] = (
+    "sk",
+    "xoxb", "xoxa", "xoxp", "xoxr", "xoxs", "xoxc",
+    "ghp", "gho", "ghu", "ghs", "ghr",
+)
+
+
+def _match_provider_prefix(text: str, start: int, prefix: str) -> int | None:
+    """Match ``prefix`` at ``start``, allowing invisible chars between letters.
+
+    Invisible characters between consecutive prefix letters are skipped (they
+    are re-joined later), so a split prefix (``s<ZWSP>k``) is still recognized.
+    Returns the index just past the last prefix letter, or ``None`` if the
+    prefix letters do not match.
+    """
+    pos = start
+    for index, letter in enumerate(prefix):
+        if index:
+            while pos < len(text) and _is_detection_invisible(text[pos]):
+                pos += 1
+        if pos >= len(text):
+            return None
+        # NFKC-fold the candidate character so a compatibility form of the
+        # prefix letter (fullwidth ``ｓ``, long ``ſ``, circled ``ⓢ``,
+        # mathematical-bold ``𝐬``, …) is recognized as the prefix BEFORE the
+        # global NFKC (which runs only after the invisible-delimiter fold).
+        if _unicodedata_normalize("NFKC", text[pos]) != letter:
+            return None
+        pos += 1
+    return pos
+
+
+def _is_word_character(ch: str) -> bool:
+    """Return whether ``ch`` is a regex ``\\w`` word character (boundary helper)."""
+    return ch.isalnum() or ch == "_"
+
+
+def _is_prefix_delimiter(ch: str) -> bool:
+    """Return whether ``ch`` is (or normalizes to) a provider-prefix delimiter.
+
+    At the point this runs, dash homoglyphs and Po/Sm/So/Pc separators are already
+    folded to ``-``, so the only non-canonical delimiter forms left are the colon
+    confusables (which the delimiter map folds to ``=``) and NFKC-compatibility
+    forms of ``-``/``_``/``=`` (fullwidth, small, superscript/subscript).
+    """
+    if ch in "-_=":
+        return True
+    if ch in _COLON_CONFUSABLE_SOURCE:
+        return True
+    return _unicodedata_normalize("NFKC", ch) in "-_="
+
+
+def _fold_prefix_invisible_delimiter(text: str) -> str:
+    """Fold an invisible run occupying a provider-prefix delimiter slot to ``-``.
+
+    Only the delimiter slot immediately after a provider prefix is folded; every
+    other invisible character keeps the strip-to-rejoin behavior (split labels,
+    key ids and token bodies are re-joined, not delimiter-ified). Prefix letters
+    may themselves be split by invisible characters (``s<ZWSP>k``): they are
+    re-joined so the prefix is recognized and its delimiter slot is folded.
+
+    The invisible run is folded to ``-`` ONLY when it actually REPLACES the
+    delimiter (the next non-invisible character is not a delimiter). When a real
+    delimiter follows the invisible run (``ghp<ZWSP>_…``), the invisible is
+    stripped so the prefix re-joins the real delimiter — folding it to ``-``
+    would produce a spurious double delimiter (``ghp-_…``) that the token-body
+    class of the ``gh*_`` prefix rejects, failing the detector open.
+    """
+    out: list[str] = []
+    pos = 0
+    length = len(text)
+    while pos < length:
+        prefix_end: int | None = None
+        if pos == 0 or not _is_word_character(text[pos - 1]):
+            for prefix in _PROVIDER_PREFIXES:
+                prefix_end = _match_provider_prefix(text, pos, prefix)
+                if prefix_end is not None:
+                    break
+        if prefix_end is not None:
+            out.append(prefix)
+            end = prefix_end
+            while end < length and _is_detection_invisible(text[end]):
+                end += 1
+            if end > prefix_end and (end >= length or not _is_prefix_delimiter(text[end])):
+                out.append("-")
+            pos = end
+        else:
+            out.append(text[pos])
+            pos += 1
+    return "".join(out)
+
+
+def _secret_skeleton(text: str) -> str:
+    """Return a detection-only normalized view of ``text``.
+
+    Canonical decomposition (NFD) is applied FIRST so a precomposed accented
+    letter (``ó``, category Ll) decomposes to ``o + U+0301`` (Mn): then the
+    invisible-category strip removes the combining mark and re-joins the label,
+    symmetric with the already-handled decomposed form. Next the bounded
+    Cyrillic/Greek homoglyph map folds credential-label letters (applied early so
+    a homoglyph provider prefix is seen as ASCII when its delimiter slot is
+    inspected), and Po/Sm/So separator-like characters fold to the canonical
+    prefix delimiter ``-``. An invisible run occupying a provider-prefix
+    delimiter slot folds to ``-`` (instead of being stripped). Then invisible
+    format/control/separator characters and nonspacing marks (zero-width spaces,
+    joiners, bidi marks, BOM, variation selectors, combining grapheme joiner,
+    combining diacritics, …) are stripped: combining marks must be removed before
+    NFKC, which would otherwise compose ``o + U+0301`` into a single ``ó`` and
+    reshape the label. Then Unicode colon-confusables fold to a strong ``=``
+    (before NFKC, which would collapse them to a weak ``:``); NFKC folds
+    remaining full-width delimiters/alphanumerics; the dash map re-folds any
+    dash that NFKC surfaced. Finally any residual invisible category is stripped
+    again for safety. The original text is never rewritten: this view is used
+    only to run the fail-closed detection patterns.
+    """
+    return _normalized_skeleton(text, fold_confusables=True)
+
+
+def _script_skeleton(text: str) -> str:
+    """Return a confusable-preserving detection-only view of ``text``.
+
+    Identical to ``_secret_skeleton`` except the Cyrillic/Greek/Armenian
+    homoglyph map is NOT applied, so the ORIGINAL Unicode script of a credential
+    VALUE survives. The confusable fold exists to re-join homoglyph LABELS
+    (``passwοrd`` -> ``password``); applied to a VALUE it would ASCII-ify a
+    non-Latin run composed entirely of homoglyph letters and hide its script.
+    This view is used ONLY to classify the script/case of an all-letter value,
+    never to run the structural label/prefix patterns.
+    """
+    return _normalized_skeleton(text, fold_confusables=False)
+
+
+def _normalized_skeleton(text: str, *, fold_confusables: bool) -> str:
+    # Pre-fold VISIBLE dash homoglyphs BEFORE the invisible strip. (The invisible
+    # Cf soft/tag hyphens are NOT dash-mapped — see the map comment — so they are
+    # re-joined inside tokens by the strip and folded to the delimiter only in a
+    # provider-prefix delimiter slot, keeping ``sk<soft-hyphen>…`` and
+    # ``s<soft-hyphen>k-…`` both fail-closed.)
+    prefolded = text.translate(_DASH_CONFUSABLE_MAP)
+    decomposed = _unicodedata_normalize("NFD", prefolded)
+    if fold_confusables:
+        # Fold Cyrillic/Greek/Armenian label homoglyphs to ASCII EARLY so a
+        # homoglyph provider prefix is visible as ASCII before its delimiter slot
+        # is inspected.
+        decomposed = decomposed.translate(_CONFUSABLE_MAP)
+    # Fold Po/Sm/So separator-like characters to the canonical prefix delimiter.
+    folded = "".join(
+        "-" if _is_prefix_separator(ch) else ch for ch in decomposed
+    )
+    # Fold an invisible run occupying a provider-prefix delimiter slot to ``-``.
+    prefixed = _fold_prefix_invisible_delimiter(folded)
+    # Strip the remaining invisible characters (re-join split labels/ids/tokens).
+    visible = "".join(ch for ch in prefixed if not _is_detection_invisible(ch))
+    normalized = _unicodedata_normalize(
+        "NFKC", visible.translate(_DELIMITER_CONFUSABLE_MAP)
+    ).translate(_DASH_CONFUSABLE_MAP)
+    return "".join(ch for ch in normalized if not _is_detection_invisible(ch))
+
+
+class CiboCognitiveError(DomainError):
+    """Base error for CIBO Cognitive Executive provider-neutral contracts."""
+
+    __slots__ = ()
+
+
+class CiboCognitiveValidationError(CiboCognitiveError):
+    """A CIBO cognitive value violates a deterministic provider-neutral invariant."""
+
+    __slots__ = ()
+
+
+def contains_secret_material(text: str) -> bool:
+    """Return whether ``text`` carries structural secret-bearing material.
+
+    Requires an exact ``str`` (``str`` subclasses are rejected fail-closed).
+    Detection-only: never rewrites the input; callers decide to reject.
+    """
+    if type(text) is not str:
+        raise CiboCognitiveValidationError(
+            f"secret detection input must be an exact str, not {type(text).__name__}"
+        )
+    skeleton = _secret_skeleton(text)
+    if any(pattern.search(skeleton) is not None for pattern in _SECRET_PATTERNS):
+        return True
+    # All-letter credential-value detection runs on BOTH the confusable-folded
+    # skeleton (so homoglyph LABELS re-join) and the confusable-preserving
+    # skeleton (so a non-Latin VALUE composed entirely of homoglyph letters keeps
+    # its script and is not misread as Latin prose). The script-preserving pass
+    # uses a confusable-INSENSITIVE label spelling so a homoglyph label plus a
+    # confusable-only non-Latin value does not escape: the folded skeleton would
+    # ASCII-ify the value (uniform Latin prose) while an ASCII-only label regex
+    # on the script skeleton would fail to see the homoglyph label.
+    match = _ALL_LETTER_VALUE_PATTERN.search(skeleton)
+    if match is not None and _is_credential_all_letter_token(match.group("value")):
+        return True
+    match = _SCRIPT_ALL_LETTER_VALUE_PATTERN.search(_script_skeleton(text))
+    if match is not None and _is_credential_all_letter_token(match.group("value")):
+        return True
+    return False
+
+
+def _validate_aware_datetime(value: datetime, *, field_name: str) -> None:
+    if type(value) is not datetime:
+        raise CiboCognitiveValidationError(f"{field_name} must be a datetime")
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise CiboCognitiveValidationError(f"{field_name} must be timezone-aware")
+
+
+def _validate_code(value: str, *, field_name: str) -> str:
+    if type(value) is not str or fullmatch(_CODE_RE, value) is None:
+        raise CiboCognitiveValidationError(
+            f"{field_name} must use canonical lowercase code syntax"
+        )
+    if contains_secret_material(value):
+        raise CiboCognitiveValidationError(
+            f"{field_name} must not contain sensitive material"
+        )
+    return value
+
+
+def _validate_codes(
+    values: tuple[str, ...],
+    *,
+    field_name: str,
+    allow_empty: bool = True,
+) -> tuple[str, ...]:
+    if type(values) is not tuple or any(type(v) is not str for v in values):
+        raise CiboCognitiveValidationError(
+            f"{field_name} must be an immutable tuple of strings"
+        )
+    normalized = tuple(_validate_code(v, field_name=field_name) for v in values)
+    if len(set(normalized)) != len(normalized):
+        raise CiboCognitiveValidationError(f"{field_name} must not contain duplicates")
+    if not allow_empty and not normalized:
+        raise CiboCognitiveValidationError(f"{field_name} must be non-empty")
+    return tuple(sorted(normalized))
+
+
+def _validate_opaque_ref(value: str, *, field_name: str) -> str:
+    if type(value) is not str or fullmatch(_OPAQUE_REF_RE, value) is None:
+        raise CiboCognitiveValidationError(
+            f"{field_name} must use canonical opaque-reference syntax"
+        )
+    if contains_secret_material(value):
+        raise CiboCognitiveValidationError(f"{field_name} must not contain sensitive material")
+    return value
+
+
+def _validate_safe_text(value: str, *, field_name: str) -> str:
+    if type(value) is not str or not value.strip():
+        raise CiboCognitiveValidationError(f"{field_name} must be non-empty text")
+    if any(ch in value for ch in _CONTROL_CHARS):
+        raise CiboCognitiveValidationError(f"{field_name} must not contain control characters")
+    if contains_secret_material(value):
+        raise CiboCognitiveValidationError(f"{field_name} must not contain sensitive material")
+    return value
+
+
+def _canonical_evidence_refs(
+    values: tuple[CiboCognitiveEvidenceRef, ...],
+    *,
+    field_name: str,
+) -> tuple[CiboCognitiveEvidenceRef, ...]:
+    if type(values) is not tuple or any(
+        type(item) is not CiboCognitiveEvidenceRef for item in values
+    ):
+        raise CiboCognitiveValidationError(
+            f"{field_name} must be an immutable tuple of CiboCognitiveEvidenceRef"
+        )
+    if len(set(values)) != len(values):
+        raise CiboCognitiveValidationError(f"{field_name} must not contain duplicates")
+    return tuple(sorted(values, key=lambda item: item.value))
+
+
+class CiboReasoningMode(StrEnum):
+    """Reasoning-policy semantics, never a concrete model/token/API setting."""
+
+    FAST = "fast"
+    HIGH = "high"
+    MAX = "max"
+    COUNCIL_ADVERSARIAL = "council-adversarial"
+
+
+class CiboEpistemicState(StrEnum):
+    """Epistemic strength of a CIBO cognitive statement. None is an action."""
+
+    OBSERVATION = "observation"
+    INFERENCE = "inference"
+    HYPOTHESIS = "hypothesis"
+    OPINION = "opinion"
+    FORMAL_RECOMMENDATION = "formal-recommendation"
+
+
+class CiboUncertaintyKind(StrEnum):
+    """Explicit uncertainty outcomes; bounded confidence is only one possibility."""
+
+    INSUFFICIENT_EVIDENCE = "insufficient-evidence"
+    UNRESOLVED_CONTRADICTION = "unresolved-contradiction"
+    COMPETING_HYPOTHESES = "competing-hypotheses"
+    MORE_EVIDENCE_REQUESTED = "more-evidence-requested"
+    ABSTAIN_DEFER = "abstain-defer"
+    BOUNDED_CONFIDENCE = "bounded-confidence"
+
+
+class CiboConfidenceLevel(StrEnum):
+    """Bounded confidence levels; never a raw float or bool."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+# Uncertainty kinds that semantically abstain/request more evidence rather than
+# assert an actionable conclusion. An action/decision carrier (formal
+# recommendation, recommend directive, decision synthesis) must never carry one
+# of these, and an abstain/defer/non-decision carrier must never carry
+# BOUNDED_CONFIDENCE.
+ABSTENTION_UNCERTAINTY_KINDS = frozenset(
+    {
+        CiboUncertaintyKind.INSUFFICIENT_EVIDENCE,
+        CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
+        CiboUncertaintyKind.ABSTAIN_DEFER,
+    }
+)
+
+# Uncertainty kinds that must never be laundered into an actionable carrier
+# (formal recommendation, brain RECOMMEND directive, council DECISION synthesis):
+# the abstain/request/defer kinds plus UNRESOLVED_CONTRADICTION, an open
+# epistemic contradiction that cannot be asserted as an advisory action.
+# COMPETING_HYPOTHESES stays admissible because it is substantive,
+# detail-carrying uncertainty rather than an abstention or an open contradiction.
+NON_ACTIONABLE_UNCERTAINTY_KINDS = frozenset(ABSTENTION_UNCERTAINTY_KINDS) | {
+    CiboUncertaintyKind.UNRESOLVED_CONTRADICTION,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class CiboCognitiveEvidenceRef:
+    """Opaque sanitized reference to evidence stored outside the cognitive value."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "value",
+            _validate_opaque_ref(self.value, field_name="CIBO cognitive evidence ref"),
+        )
+
+    def revalidate(self) -> None:
+        _validate_opaque_ref(self.value, field_name="CIBO cognitive evidence ref")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class CiboDeliberationRole:
+    """Canonical provider-neutral deliberation faculty/role identity.
+
+    A role emits an evidence-bound argument, critique, or opinion; it carries no
+    operational privilege and no execution/promotion authority.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "value",
+            _validate_code(self.value, field_name="CIBO deliberation role"),
+        )
+
+    def revalidate(self) -> None:
+        _validate_code(self.value, field_name="CIBO deliberation role")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+@dataclass(frozen=True, slots=True)
+class CiboConfidence:
+    """Bounded confidence that is always justified by explicit evidence."""
+
+    level: CiboConfidenceLevel
+    evidence_refs: tuple[CiboCognitiveEvidenceRef, ...]
+
+    def __post_init__(self) -> None:
+        if type(self.level) is not CiboConfidenceLevel:
+            raise CiboCognitiveValidationError(
+                "CIBO confidence requires CiboConfidenceLevel"
+            )
+        refs = _canonical_evidence_refs(
+            self.evidence_refs,
+            field_name="CIBO confidence evidence",
+        )
+        if not refs:
+            raise CiboCognitiveValidationError(
+                "bounded confidence requires explicit backing evidence"
+            )
+        object.__setattr__(self, "evidence_refs", refs)
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        if type(self.level) is not CiboConfidenceLevel:
+            raise CiboCognitiveValidationError(
+                "CIBO confidence requires CiboConfidenceLevel"
+            )
+        if not self.evidence_refs:
+            raise CiboCognitiveValidationError(
+                "bounded confidence requires explicit backing evidence"
+            )
+        if self.evidence_refs != _canonical_evidence_refs(
+            self.evidence_refs,
+            field_name="CIBO confidence evidence",
+        ):
+            raise CiboCognitiveValidationError(
+                "CIBO confidence evidence failed canonical revalidation"
+            )
+        for ref in self.evidence_refs:
+            ref.revalidate()
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.level.value,
+            tuple(item.logical_values() for item in self.evidence_refs),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CiboUncertainty:
+    """Explicit uncertainty carried by a cognitive statement.
+
+    BOUNDED_CONFIDENCE requires a ``CiboConfidence``; COMPETING_HYPOTHESES and
+    UNRESOLVED_CONTRADICTION require non-empty detail codes so uncertainty is
+    never collapsed into fabricated certainty.
+    """
+
+    kind: CiboUncertaintyKind
+    detail_codes: tuple[str, ...] = ()
+    confidence: CiboConfidence | None = None
+
+    def __post_init__(self) -> None:
+        if type(self.kind) is not CiboUncertaintyKind:
+            raise CiboCognitiveValidationError(
+                "CIBO uncertainty requires CiboUncertaintyKind"
+            )
+        object.__setattr__(
+            self,
+            "detail_codes",
+            _validate_codes(self.detail_codes, field_name="CIBO uncertainty detail"),
+        )
+        if self.kind is CiboUncertaintyKind.BOUNDED_CONFIDENCE:
+            if type(self.confidence) is not CiboConfidence:
+                raise CiboCognitiveValidationError(
+                    "bounded confidence uncertainty requires CiboConfidence"
+                )
+            if self.detail_codes:
+                raise CiboCognitiveValidationError(
+                    "bounded confidence uncertainty must not carry detail codes"
+                )
+        else:
+            if self.confidence is not None:
+                raise CiboCognitiveValidationError(
+                    "non-bounded uncertainty must not carry confidence"
+                )
+            if self.kind in (
+                CiboUncertaintyKind.COMPETING_HYPOTHESES,
+                CiboUncertaintyKind.UNRESOLVED_CONTRADICTION,
+            ) and not self.detail_codes:
+                raise CiboCognitiveValidationError(
+                    f"{self.kind.value} uncertainty requires detail codes"
+                )
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        if type(self.kind) is not CiboUncertaintyKind:
+            raise CiboCognitiveValidationError(
+                "CIBO uncertainty requires CiboUncertaintyKind"
+            )
+        if self.detail_codes != _validate_codes(
+            self.detail_codes,
+            field_name="CIBO uncertainty detail",
+        ):
+            raise CiboCognitiveValidationError(
+                "CIBO uncertainty detail failed canonical revalidation"
+            )
+        if self.kind is CiboUncertaintyKind.BOUNDED_CONFIDENCE:
+            if type(self.confidence) is not CiboConfidence:
+                raise CiboCognitiveValidationError(
+                    "bounded confidence uncertainty requires CiboConfidence"
+                )
+            if self.detail_codes:
+                raise CiboCognitiveValidationError(
+                    "bounded confidence uncertainty must not carry detail codes"
+                )
+            self.confidence.revalidate()
+        elif self.confidence is not None:
+            raise CiboCognitiveValidationError(
+                "non-bounded uncertainty must not carry confidence"
+            )
+        if self.kind in (
+            CiboUncertaintyKind.COMPETING_HYPOTHESES,
+            CiboUncertaintyKind.UNRESOLVED_CONTRADICTION,
+        ) and not self.detail_codes:
+            raise CiboCognitiveValidationError(
+                f"{self.kind.value} uncertainty requires detail codes"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.kind.value,
+            self.detail_codes,
+            None if self.confidence is None else self.confidence.logical_values(),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CiboEpistemicClaim:
+    """One evidence-bound cognitive statement (observation/…/hypothesis/opinion)."""
+
+    claim_id: UUID
+    epistemic_state: CiboEpistemicState
+    reasoning_mode: CiboReasoningMode
+    content_code: str
+    evidence_refs: tuple[CiboCognitiveEvidenceRef, ...]
+    uncertainty: CiboUncertainty
+    limitations: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.claim_id) is not UUID:
+            raise CiboCognitiveValidationError("CIBO epistemic claim id must be UUID")
+        if type(self.epistemic_state) is not CiboEpistemicState:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires CiboEpistemicState"
+            )
+        if self.epistemic_state is CiboEpistemicState.FORMAL_RECOMMENDATION:
+            raise CiboCognitiveValidationError(
+                "formal recommendations must use CiboFormalRecommendation"
+            )
+        if type(self.reasoning_mode) is not CiboReasoningMode:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires CiboReasoningMode"
+            )
+        object.__setattr__(
+            self,
+            "content_code",
+            _validate_code(self.content_code, field_name="CIBO claim content code"),
+        )
+        refs = _canonical_evidence_refs(self.evidence_refs, field_name="CIBO claim evidence")
+        if not refs:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires explicit backing evidence"
+            )
+        object.__setattr__(self, "evidence_refs", refs)
+        if type(self.uncertainty) is not CiboUncertainty:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires CiboUncertainty"
+            )
+        object.__setattr__(
+            self,
+            "limitations",
+            _validate_codes(self.limitations, field_name="CIBO claim limitations"),
+        )
+        self.revalidate()
+
+    def revalidate(self) -> None:
+        if type(self.claim_id) is not UUID:
+            raise CiboCognitiveValidationError("CIBO epistemic claim id must be UUID")
+        if type(self.epistemic_state) is not CiboEpistemicState:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires CiboEpistemicState"
+            )
+        if self.epistemic_state is CiboEpistemicState.FORMAL_RECOMMENDATION:
+            raise CiboCognitiveValidationError(
+                "formal recommendations must use CiboFormalRecommendation"
+            )
+        if type(self.reasoning_mode) is not CiboReasoningMode:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires CiboReasoningMode"
+            )
+        _validate_code(self.content_code, field_name="CIBO claim content code")
+        if not self.evidence_refs:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires explicit backing evidence"
+            )
+        if self.evidence_refs != _canonical_evidence_refs(
+            self.evidence_refs,
+            field_name="CIBO claim evidence",
+        ):
+            raise CiboCognitiveValidationError(
+                "CIBO claim evidence failed canonical revalidation"
+            )
+        for ref in self.evidence_refs:
+            ref.revalidate()
+        if type(self.uncertainty) is not CiboUncertainty:
+            raise CiboCognitiveValidationError(
+                "CIBO epistemic claim requires CiboUncertainty"
+            )
+        self.uncertainty.revalidate()
+        if self.limitations != _validate_codes(
+            self.limitations,
+            field_name="CIBO claim limitations",
+        ):
+            raise CiboCognitiveValidationError(
+                "CIBO claim limitations failed canonical revalidation"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            str(self.claim_id),
+            self.epistemic_state.value,
+            self.reasoning_mode.value,
+            self.content_code,
+            tuple(item.logical_values() for item in self.evidence_refs),
+            self.uncertainty.logical_values(),
+            self.limitations,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CiboFormalRecommendation:
+    """A formal, evidence-bound recommendation. Advisory only: never an action.
+
+    This value object deliberately exposes no order, intent, account, quantity,
+    instrument, provider, promotion, or authorization field. Downstream
+    operational authority can only be created by separate Policy/Risk/Execution
+    contracts, never by this recommendation.
+    """
+
+    recommendation_id: UUID
+    recommendation_code: str
+    reasoning_mode: CiboReasoningMode
+    summary: str
+    evidence_refs: tuple[CiboCognitiveEvidenceRef, ...]
+    uncertainty: CiboUncertainty
+    issued_at: datetime
+    limitations: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.recommendation_id) is not UUID:
+            raise CiboCognitiveValidationError(
+                "CIBO recommendation id must be UUID"
+            )
+        object.__setattr__(
+            self,
+            "recommendation_code",
+            _validate_code(self.recommendation_code, field_name="CIBO recommendation code"),
+        )
+        if type(self.reasoning_mode) is not CiboReasoningMode:
+            raise CiboCognitiveValidationError(
+                "CIBO recommendation requires CiboReasoningMode"
+            )
+        object.__setattr__(
+            self,
+            "summary",
+            _validate_safe_text(self.summary, field_name="CIBO recommendation summary"),
+        )
+        refs = _canonical_evidence_refs(
+            self.evidence_refs,
+            field_name="CIBO recommendation evidence",
+        )
+        if not refs:
+            raise CiboCognitiveValidationError(
+                "a formal recommendation requires explicit backing evidence"
+            )
+        object.__setattr__(self, "evidence_refs", refs)
+        if type(self.uncertainty) is not CiboUncertainty:
+            raise CiboCognitiveValidationError(
+                "CIBO recommendation requires CiboUncertainty"
+            )
+        if self.uncertainty.kind in NON_ACTIONABLE_UNCERTAINTY_KINDS:
+            raise CiboCognitiveValidationError(
+                "a formal recommendation must not carry non-actionable uncertainty"
+            )
+        object.__setattr__(
+            self,
+            "limitations",
+            _validate_codes(self.limitations, field_name="CIBO recommendation limitations"),
+        )
+        _validate_aware_datetime(self.issued_at, field_name="CIBO recommendation issued_at")
+        self.revalidate()
+
+    @property
+    def epistemic_state(self) -> CiboEpistemicState:
+        """A formal recommendation is FORMAL_RECOMMENDATION, never an action."""
+        return CiboEpistemicState.FORMAL_RECOMMENDATION
+
+    def revalidate(self) -> None:
+        if type(self.recommendation_id) is not UUID:
+            raise CiboCognitiveValidationError("CIBO recommendation id must be UUID")
+        _validate_code(self.recommendation_code, field_name="CIBO recommendation code")
+        if type(self.reasoning_mode) is not CiboReasoningMode:
+            raise CiboCognitiveValidationError(
+                "CIBO recommendation requires CiboReasoningMode"
+            )
+        _validate_safe_text(self.summary, field_name="CIBO recommendation summary")
+        if not self.evidence_refs:
+            raise CiboCognitiveValidationError(
+                "a formal recommendation requires explicit backing evidence"
+            )
+        if self.evidence_refs != _canonical_evidence_refs(
+            self.evidence_refs,
+            field_name="CIBO recommendation evidence",
+        ):
+            raise CiboCognitiveValidationError(
+                "CIBO recommendation evidence failed canonical revalidation"
+            )
+        for ref in self.evidence_refs:
+            ref.revalidate()
+        if type(self.uncertainty) is not CiboUncertainty:
+            raise CiboCognitiveValidationError(
+                "CIBO recommendation requires CiboUncertainty"
+            )
+        if self.uncertainty.kind in NON_ACTIONABLE_UNCERTAINTY_KINDS:
+            raise CiboCognitiveValidationError(
+                "a formal recommendation must not carry non-actionable uncertainty"
+            )
+        self.uncertainty.revalidate()
+        if self.limitations != _validate_codes(
+            self.limitations,
+            field_name="CIBO recommendation limitations",
+        ):
+            raise CiboCognitiveValidationError(
+                "CIBO recommendation limitations failed canonical revalidation"
+            )
+        _validate_aware_datetime(self.issued_at, field_name="CIBO recommendation issued_at")
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            str(self.recommendation_id),
+            self.recommendation_code,
+            self.reasoning_mode.value,
+            self.summary,
+            tuple(item.logical_values() for item in self.evidence_refs),
+            self.uncertainty.logical_values(),
+            self.limitations,
+            canonical_instant(self.issued_at),
+        )
