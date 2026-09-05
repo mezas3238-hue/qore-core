@@ -79,6 +79,45 @@ jobs:
           PY
           git diff --check
 
+      - name: Normalize IA patch lint surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          init_path = Path("src/qore/infrastructure/trader_lab/__init__.py")
+          text = init_path.read_text()
+          needle = "    validate_trader_lab_fast_forward_qualification,\n"
+          if text.count(needle) != 1:
+              raise SystemExit("unexpected fast-forward export shape")
+          init_path.write_text(text.replace(needle, "", 1))
+
+          conftest = Path("tests/infrastructure/trader_lab/conftest.py")
+          text = conftest.read_text()
+          needle = "    reference_trader_lab_stress,\n"
+          if text.count(needle) != 1:
+              raise SystemExit("unexpected stress fixture import shape")
+          conftest.write_text(text.replace(needle, "", 1))
+
+          ff_test = Path("tests/infrastructure/trader_lab/test_fast_forward.py")
+          text = ff_test.read_text()
+          old = (
+              "    with pytest.raises(TraderLabValidationError, "
+              "match=\"does not match the exact replay chronology\"):\n"
+          )
+          new = (
+              "    with pytest.raises(\n"
+              "        TraderLabValidationError,\n"
+              "        match=\"does not match the exact replay chronology\",\n"
+              "    ):\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("unexpected fast-forward regression formatting shape")
+          ff_test.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
