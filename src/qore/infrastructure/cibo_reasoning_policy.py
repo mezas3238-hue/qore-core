@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from qore.kernel.errors import InfrastructureError
 from qore.modules.cibo.cognitive_contracts import CiboReasoningMode
@@ -16,7 +16,7 @@ class CiboReasoningPolicyError(InfrastructureError):
     __slots__ = ()
 
 
-class CiboReasoningMateriality(str, Enum):
+class CiboReasoningMateriality(StrEnum):
     """Economic/operational consequence of the current reasoning episode."""
 
     ROUTINE = "routine"
@@ -25,7 +25,7 @@ class CiboReasoningMateriality(str, Enum):
     CRITICAL = "critical"
 
 
-class CiboReasoningUncertainty(str, Enum):
+class CiboReasoningUncertainty(StrEnum):
     """Typed uncertainty signal used by the router instead of prompt heuristics."""
 
     LOW = "low"
@@ -33,7 +33,7 @@ class CiboReasoningUncertainty(str, Enum):
     HIGH = "high"
 
 
-class CiboReasoningEvidenceQuality(str, Enum):
+class CiboReasoningEvidenceQuality(StrEnum):
     """Quality/completeness of evidence admitted to the current episode."""
 
     STRONG = "strong"
@@ -41,7 +41,7 @@ class CiboReasoningEvidenceQuality(str, Enum):
     DEGRADED = "degraded"
 
 
-class CiboReasoningEpisodeState(str, Enum):
+class CiboReasoningEpisodeState(StrEnum):
     """Explicit lifecycle signal used to guarantee de-escalation."""
 
     NORMAL = "normal"
@@ -49,7 +49,7 @@ class CiboReasoningEpisodeState(str, Enum):
     RESOLVED = "resolved"
 
 
-class CiboReasoningRouteTier(str, Enum):
+class CiboReasoningRouteTier(StrEnum):
     """Provider/model route, separate from CIBO semantic reasoning mode."""
 
     TERRA_MEDIUM = "terra-medium"
@@ -71,15 +71,23 @@ class CiboReasoningRoute:
 
     def __post_init__(self) -> None:
         if type(self.tier) is not CiboReasoningRouteTier:
-            raise CiboReasoningPolicyError("route tier must be exact CiboReasoningRouteTier")
+            raise CiboReasoningPolicyError(
+                "route tier must be exact CiboReasoningRouteTier"
+            )
         if type(self.semantic_mode) is not CiboReasoningMode:
-            raise CiboReasoningPolicyError("semantic_mode must be exact CiboReasoningMode")
+            raise CiboReasoningPolicyError(
+                "semantic_mode must be exact CiboReasoningMode"
+            )
         if type(self.model) is not str:
             raise CiboReasoningPolicyError("model must be exact str")
         if type(self.provider_reasoning_effort) is not str:
-            raise CiboReasoningPolicyError("provider_reasoning_effort must be exact str")
+            raise CiboReasoningPolicyError(
+                "provider_reasoning_effort must be exact str"
+            )
         if type(self.routing_reason) is not str or not self.routing_reason:
-            raise CiboReasoningPolicyError("routing_reason must be non-empty exact str")
+            raise CiboReasoningPolicyError(
+                "routing_reason must be non-empty exact str"
+            )
 
         expected = {
             CiboReasoningRouteTier.TERRA_MEDIUM: (
@@ -138,9 +146,13 @@ class CiboReasoningSituation:
 
     def __post_init__(self) -> None:
         if type(self.materiality) is not CiboReasoningMateriality:
-            raise CiboReasoningPolicyError("materiality must be exact CiboReasoningMateriality")
+            raise CiboReasoningPolicyError(
+                "materiality must be exact CiboReasoningMateriality"
+            )
         if type(self.uncertainty) is not CiboReasoningUncertainty:
-            raise CiboReasoningPolicyError("uncertainty must be exact CiboReasoningUncertainty")
+            raise CiboReasoningPolicyError(
+                "uncertainty must be exact CiboReasoningUncertainty"
+            )
         if type(self.evidence_quality) is not CiboReasoningEvidenceQuality:
             raise CiboReasoningPolicyError(
                 "evidence_quality must be exact CiboReasoningEvidenceQuality"
