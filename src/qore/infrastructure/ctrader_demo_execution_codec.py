@@ -40,7 +40,7 @@ from qore.infrastructure.transport import (
 )
 from qore.kernel.result import Failure, Result, Success
 
-_CTRADER_DEMO_ORIGIN = "https://demo.ctraderapi.com:5035"
+_CTRADER_DEMO_AUTHORITY = "demo.ctraderapi.com:5035"
 _WIRE_SIDES = {OrderSide.BUY: "BUY", OrderSide.SELL: "SELL"}
 _WIRE_ORDER_TYPES = {OrderType.MARKET: "MARKET", OrderType.LIMIT: "LIMIT"}
 _WIRE_DISPOSITIONS: dict[str, CTraderDemoOrderDisposition] = {
@@ -244,7 +244,7 @@ class CTraderOrderCreatePlan:
     """Secret-free deterministic plan for one future cTrader order-create request."""
 
     account: MarketTestAccountIdentity
-    endpoint_origin: str
+    endpoint_authority: str
     client_msg_id: str
     symbol_id: int
     symbol_name: str
@@ -266,7 +266,7 @@ class CTraderOrderCreatePlan:
             )
         if self.account.environment is not MarketRuntimeEnvironment.DEMO:
             raise CTraderDemoExecutionValidationError("order-create plan environment must be demo")
-        if self.endpoint_origin != _CTRADER_DEMO_ORIGIN:
+        if self.endpoint_authority != _CTRADER_DEMO_AUTHORITY:
             raise CTraderDemoExecutionValidationError(
                 "order-create plan endpoint must be the cTrader DEMO host"
             )
@@ -341,7 +341,7 @@ class CTraderOrderCreatePlan:
     def logical_values(self) -> tuple[object, ...]:
         return (
             self.account.logical_values(),
-            self.endpoint_origin,
+            self.endpoint_authority,
             self.client_msg_id,
             self.symbol_id,
             self.symbol_name,
@@ -358,7 +358,7 @@ class CTraderOrderCreatePlan:
             self.account.provider_key,
             self.account.environment.value,
             self.account_fingerprint,
-            self.endpoint_origin,
+            self.endpoint_authority,
             self.client_msg_id,
             self.symbol_id,
             self.symbol_name,
@@ -434,7 +434,7 @@ def build_ctrader_demo_order_create_plan(
     try:
         plan = CTraderOrderCreatePlan(
             account=configuration.account,
-            endpoint_origin=configuration.endpoint.origin,
+            endpoint_authority=f"{configuration.endpoint.host}:{configuration.endpoint.port}",
             client_msg_id=str(intent.idempotency_key.value),
             symbol_id=mapping.symbol_id,
             symbol_name=mapping.symbol_name,
@@ -455,7 +455,7 @@ class CTraderOrderCancelPlan:
     """Secret-free deterministic plan for one future cTrader order cancellation."""
 
     account: MarketTestAccountIdentity
-    endpoint_origin: str
+    endpoint_authority: str
     provider_order_ref: str
     requested_at: datetime
     timeout: ExternalTransportTimeout
@@ -471,7 +471,7 @@ class CTraderOrderCancelPlan:
             )
         if self.account.environment is not MarketRuntimeEnvironment.DEMO:
             raise CTraderDemoExecutionValidationError("order-cancel plan environment must be demo")
-        if self.endpoint_origin != _CTRADER_DEMO_ORIGIN:
+        if self.endpoint_authority != _CTRADER_DEMO_AUTHORITY:
             raise CTraderDemoExecutionValidationError(
                 "order-cancel plan endpoint must be the cTrader DEMO host"
             )
@@ -503,7 +503,7 @@ class CTraderOrderCancelPlan:
     def logical_values(self) -> tuple[object, ...]:
         return (
             self.account.logical_values(),
-            self.endpoint_origin,
+            self.endpoint_authority,
             self.provider_order_ref,
             self.requested_at.isoformat(),
             self.timeout.logical_values(),
@@ -514,7 +514,7 @@ class CTraderOrderCancelPlan:
             self.account.provider_key,
             self.account.environment.value,
             self.account_fingerprint,
-            self.endpoint_origin,
+            self.endpoint_authority,
             self.provider_order_ref,
             self.requested_at.isoformat(),
             self.timeout.logical_values(),
@@ -551,7 +551,7 @@ def build_ctrader_demo_order_cancel_plan(
     try:
         plan = CTraderOrderCancelPlan(
             account=configuration.account,
-            endpoint_origin=configuration.endpoint.origin,
+            endpoint_authority=f"{configuration.endpoint.host}:{configuration.endpoint.port}",
             provider_order_ref=provider_order_ref,
             requested_at=requested_at,
             timeout=configuration.rest_timeout,
@@ -604,7 +604,7 @@ def decode_ctrader_demo_order_create_response(
     if not response.is_success:
         return Failure(
             CTraderDemoExecutionValidationError(
-                "cTrader order-create response must be an HTTP 2xx success"
+                "cTrader order-create canonical transport envelope must indicate success"
             )
         )
     root_result = _json_object(response.payload)
@@ -732,7 +732,7 @@ def decode_ctrader_demo_order_cancel_response(
     if not response.is_success:
         return Failure(
             CTraderDemoExecutionValidationError(
-                "cTrader order-cancel response must be an HTTP 2xx success"
+                "cTrader order-cancel canonical transport envelope must indicate success"
             )
         )
     root_result = _json_object(response.payload)
@@ -927,7 +927,7 @@ def decode_ctrader_demo_order_query_response(
     if not response.is_success:
         return Failure(
             CTraderDemoExecutionValidationError(
-                "cTrader order-query response must be an HTTP 2xx success"
+                "cTrader order-query canonical transport envelope must indicate success"
             )
         )
     root_result = _json_object(response.payload)
