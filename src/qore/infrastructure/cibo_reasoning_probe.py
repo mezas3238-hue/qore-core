@@ -6,30 +6,48 @@ import os
 from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+from qore.infrastructure.cibo_reasoning_policy import (
+    CiboReasoningSituation,
+    select_cibo_reasoning_mode,
+)
 from qore.infrastructure.cibo_reasoning_runtime import (
     CiboReasoningRequest,
     CiboReasoningRuntime,
 )
+from qore.infrastructure.openai_cibo_adaptive_reasoning_engine import (
+    OpenAICiboAdaptiveReasoningConfiguration,
+    OpenAICiboAdaptiveReasoningEngine,
+)
 from qore.infrastructure.openai_cibo_reasoning_engine import (
-    OpenAICiboReasoningConfiguration,
-    OpenAICiboReasoningEngine,
     StdlibOpenAIResponsesTransport,
 )
 from qore.infrastructure.secret_resolution import SecretMaterial
 from qore.kernel.result import Failure
-from qore.modules.cibo.cognitive_contracts import CiboCognitiveEvidenceRef
+from qore.modules.cibo.cognitive_contracts import (
+    CiboCognitiveEvidenceRef,
+    CiboReasoningMode,
+)
 
 
-def _request_id(*, asked_at: datetime, subject_code: str, prompt: str) -> UUID:
+def _request_id(
+    *,
+    asked_at: datetime,
+    subject_code: str,
+    prompt: str,
+    reasoning_mode: CiboReasoningMode,
+) -> UUID:
     return uuid5(
         NAMESPACE_URL,
-        f"qore:cibo-first-ignition:{asked_at.isoformat()}:{subject_code}:{prompt}",
+        (
+            "qore:cibo-first-ignition:"
+            f"{asked_at.isoformat()}:{subject_code}:{reasoning_mode.value}:{prompt}"
+        ),
     )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run one governed CIBO cognitive reasoning ignition probe."
+        description="Run one governed adaptive CIBO cognitive reasoning ignition probe."
     )
     parser.add_argument("prompt")
     parser.add_argument("--subject-code", default="cibo.self-assessment")
@@ -38,6 +56,16 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         default=[],
         help="Additional opaque evidence reference. May be supplied more than once.",
+    )
+    parser.add_argument(
+        "--serious-controversy",
+        action="store_true",
+        help="Escalate the governed reasoning route from HIGH to MAX.",
+    )
+    parser.add_argument(
+        "--council-adversarial",
+        action="store_true",
+        help="Route an explicit multi-party disagreement to COUNCIL_ADVERSARIAL/MAX.",
     )
     args = parser.parse_args(argv)
 
@@ -67,7 +95,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    model = os.environ.get("QORE_CIBO_MODEL", "gpt-5.6-sol")
+    reasoning_mode = select_cibo_reasoning_mode(
+        CiboReasoningSituation(
+            serious_controversy=args.serious_controversy,
+            adversarial_council=args.council_adversarial,
+        )
+    )
+    config = OpenAICiboAdaptiveReasoningConfiguration(
+        semantic_mode=reasoning_mode,
+    )
     asked_at = datetime.now(UTC)
     evidence_values = ("input:user-dialogue", *tuple(args.evidence_ref))
     request = CiboReasoningRequest(
@@ -75,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
             asked_at=asked_at,
             subject_code=args.subject_code,
             prompt=args.prompt,
+            reasoning_mode=reasoning_mode,
         ),
         subject_code=args.subject_code,
         asked_at=asked_at,
@@ -82,14 +119,12 @@ def main(argv: list[str] | None = None) -> int:
         evidence_refs=tuple(
             CiboCognitiveEvidenceRef(value) for value in evidence_values
         ),
+        observations=(f"runtime.reasoning-mode.{reasoning_mode.value}",),
     )
-    engine = OpenAICiboReasoningEngine(
+    engine = OpenAICiboAdaptiveReasoningEngine(
         api_key=secret,
         transport=StdlibOpenAIResponsesTransport(),
-        configuration=OpenAICiboReasoningConfiguration(
-            model=model,
-            reasoning_effort="max",
-        ),
+        configuration=config,
     )
     runtime = CiboReasoningRuntime(engine=engine)
     result = runtime.run(request, synthesized_at=datetime.now(UTC))
@@ -112,6 +147,8 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "status": "success",
                 "request_id": str(result.value.request_id),
+                "model": config.model,
+                "provider_reasoning_effort": config.provider_reasoning_effort,
                 "directive": synthesis.directive.value,
                 "reasoning_mode": synthesis.reasoning_mode.value,
                 "uncertainty_kind": synthesis.uncertainty.kind.value,
