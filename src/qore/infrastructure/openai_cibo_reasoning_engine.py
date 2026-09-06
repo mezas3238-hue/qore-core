@@ -25,6 +25,8 @@ from qore.modules.cibo.cognitive_contracts import (
 
 _OPENAI_HOST = "api.openai.com"
 _OPENAI_PATH = "/v1/responses"
+_FIRST_IGNITION_MODEL = "gpt-5.6-sol"
+_FIRST_IGNITION_REASONING_EFFORT = "max"
 
 
 class OpenAICiboReasoningError(CiboReasoningEngineError):
@@ -101,9 +103,7 @@ class StdlibOpenAIResponsesTransport:
             key = api_key.reveal_bytes().decode("ascii")
         except UnicodeDecodeError:
             return Failure(
-                OpenAICiboReasoningValidationError(
-                    "OpenAI API key must be ASCII"
-                )
+                OpenAICiboReasoningValidationError("OpenAI API key must be ASCII")
             )
         if any(ord(ch) < 33 or ord(ch) > 126 for ch in key):
             return Failure(
@@ -114,11 +114,7 @@ class StdlibOpenAIResponsesTransport:
 
         connection: HTTPSConnection | None = None
         try:
-            connection = HTTPSConnection(
-                self.host,
-                443,
-                timeout=timeout_seconds,
-            )
+            connection = HTTPSConnection(self.host, 443, timeout=timeout_seconds)
             connection.request(
                 "POST",
                 self.path,
@@ -139,9 +135,7 @@ class StdlibOpenAIResponsesTransport:
             return Success(body)
         except TimeoutError:
             return Failure(
-                OpenAICiboReasoningUnavailableError(
-                    "OpenAI Responses API timed out"
-                )
+                OpenAICiboReasoningUnavailableError("OpenAI Responses API timed out")
             )
         except (HTTPException, OSError):
             return Failure(
@@ -156,28 +150,24 @@ class StdlibOpenAIResponsesTransport:
 
 @dataclass(frozen=True, slots=True)
 class OpenAICiboReasoningConfiguration:
-    """Explicit first-ignition model configuration."""
+    """Exact GPT-5.6 Sol / MAX first-ignition configuration."""
 
-    model: str = "gpt-5.6-sol"
-    reasoning_effort: str = "max"
+    model: str = _FIRST_IGNITION_MODEL
+    reasoning_effort: str = _FIRST_IGNITION_REASONING_EFFORT
     timeout_seconds: float = 90.0
     max_output_tokens: int = 2500
 
     def __post_init__(self) -> None:
-        if type(self.model) is not str or not self.model.strip():
+        if type(self.model) is not str or self.model != _FIRST_IGNITION_MODEL:
             raise OpenAICiboReasoningValidationError(
-                "OpenAI model must be non-empty"
+                "first-ignition OpenAI model must be exactly gpt-5.6-sol"
             )
-        if self.reasoning_effort not in {
-            "none",
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max",
-        }:
+        if (
+            type(self.reasoning_effort) is not str
+            or self.reasoning_effort != _FIRST_IGNITION_REASONING_EFFORT
+        ):
             raise OpenAICiboReasoningValidationError(
-                "OpenAI reasoning_effort is unsupported"
+                "first-ignition OpenAI reasoning_effort must be exactly max"
             )
         if type(self.timeout_seconds) is not float or self.timeout_seconds <= 0:
             raise OpenAICiboReasoningValidationError(
@@ -191,6 +181,14 @@ class OpenAICiboReasoningConfiguration:
             raise OpenAICiboReasoningValidationError(
                 "OpenAI max_output_tokens must be an int in [256, 16000]"
             )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.model,
+            self.reasoning_effort,
+            self.timeout_seconds,
+            self.max_output_tokens,
+        )
 
 
 def _proposal_schema() -> dict[str, object]:
@@ -209,10 +207,7 @@ def _proposal_schema() -> dict[str, object]:
                     "abstain",
                 ],
             },
-            "reasoning_mode": {
-                "type": "string",
-                "enum": ["max"],
-            },
+            "reasoning_mode": {"type": "string", "enum": ["max"]},
             "uncertainty_kind": {
                 "type": "string",
                 "enum": [
@@ -224,9 +219,7 @@ def _proposal_schema() -> dict[str, object]:
                     "bounded-confidence",
                 ],
             },
-            "confidence_level": {
-                "enum": ["low", "medium", "high", None],
-            },
+            "confidence_level": {"enum": ["low", "medium", "high", None]},
             "used_evidence_refs": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -238,17 +231,13 @@ def _proposal_schema() -> dict[str, object]:
                 "minLength": 1,
                 "maxLength": 4000,
             },
-            "recommendation_code": {
-                "type": ["string", "null"],
-            },
+            "recommendation_code": {"type": ["string", "null"]},
             "questions": {
                 "type": "array",
                 "items": {"type": "string"},
                 "uniqueItems": True,
             },
-            "request_code": {
-                "type": ["string", "null"],
-            },
+            "request_code": {"type": ["string", "null"]},
             "limitations": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -310,11 +299,7 @@ def _request_payload(
         "reasoning": {"effort": config.reasoning_effort},
         "max_output_tokens": config.max_output_tokens,
         "instructions": _SYSTEM_INSTRUCTIONS,
-        "input": json.dumps(
-            input_payload,
-            sort_keys=True,
-            separators=(",", ":"),
-        ),
+        "input": json.dumps(input_payload, sort_keys=True, separators=(",", ":")),
         "text": {
             "format": {
                 "type": "json_schema",
@@ -423,9 +408,7 @@ def _parse_proposal(text: str) -> CiboReasoningProposal:
         )
     response_text = root.get("response_text")
     if type(response_text) is not str:
-        raise OpenAICiboReasoningValidationError(
-            "response_text must be a string"
-        )
+        raise OpenAICiboReasoningValidationError("response_text must be a string")
     used_refs_raw = _string_tuple(
         root.get("used_evidence_refs"),
         field_name="used_evidence_refs",
@@ -481,7 +464,7 @@ def _parse_proposal(text: str) -> CiboReasoningProposal:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class OpenAICiboReasoningEngine:
-    """GPT-5.6 Sol reasoning adapter. Proposal only; no execution authority."""
+    """GPT-5.6 Sol MAX reasoning adapter. Proposal only; no execution authority."""
 
     api_key: SecretMaterial
     transport: OpenAIResponsesTransportBoundary
@@ -492,10 +475,11 @@ class OpenAICiboReasoningEngine:
             raise OpenAICiboReasoningValidationError(
                 "OpenAI engine requires opaque SecretMaterial"
             )
-        if not isinstance(self.configuration, OpenAICiboReasoningConfiguration):
+        if type(self.configuration) is not OpenAICiboReasoningConfiguration:
             raise OpenAICiboReasoningValidationError(
-                "OpenAI engine requires explicit configuration"
+                "OpenAI engine requires exact OpenAICiboReasoningConfiguration"
             )
+        self.configuration.__post_init__()
 
     def __repr__(self) -> str:
         return (
@@ -517,6 +501,7 @@ class OpenAICiboReasoningEngine:
             )
         try:
             CiboReasoningRequest.__post_init__(request)
+            self.configuration.__post_init__()
             payload = _request_payload(request, self.configuration)
         except CiboReasoningRuntimeError as error:
             return Failure(error)
