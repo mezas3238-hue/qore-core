@@ -15,6 +15,7 @@ from qore.infrastructure.ctrader_demo_market_data import (
     CTraderTrendbarPeriod,
     CTraderTrendbarReadResult,
 )
+from qore.infrastructure.ingestion import ExternalQuotePayload
 from qore.infrastructure.market_data import (
     Instrument,
     MarketDataSnapshotId,
@@ -102,6 +103,7 @@ class StubCTraderClient:
     ) -> None:
         self._result = result
         self.requests: list[OhlcRequest] = []
+        self.quote_requests: list[QuoteRequest] = []
 
     @property
     def descriptor(self) -> ExternalSourceDescriptor:
@@ -132,12 +134,28 @@ class StubCTraderClient:
         self.requests.append(request)
         return self._result
 
+    def read_quote(
+        self,
+        request: QuoteRequest,
+        *,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[ExternalQuotePayload, ExternalPortError]:
+        del metadata
+        self.quote_requests.append(request)
+        return Success(
+            ExternalQuotePayload(
+                source=self.descriptor,
+                instrument=request.instrument.symbol,
+                observed_at=_CLOSED_AT,
+                bid="1.10000",
+                ask="1.10010",
+            )
+        )
+
 
 def test_ctrader_closed_m5_normalizes_into_canonical_ohlc_snapshot() -> None:
     client = StubCTraderClient(Success(_result()))
-    flow = CTraderDemoMarketDataFlow(
-        CTraderDemoMarketDataPayloadAdapter(client=client)
-    )
+    flow = CTraderDemoMarketDataFlow(CTraderDemoMarketDataPayloadAdapter(client=client))
 
     result = flow.read_ohlc(
         _request(),
@@ -162,9 +180,7 @@ def test_ctrader_closed_m5_normalizes_into_canonical_ohlc_snapshot() -> None:
 
 def test_ctrader_relative_prices_honor_symbol_digits() -> None:
     client = StubCTraderClient(Success(_result(digits=3)))
-    flow = CTraderDemoMarketDataFlow(
-        CTraderDemoMarketDataPayloadAdapter(client=client)
-    )
+    flow = CTraderDemoMarketDataFlow(CTraderDemoMarketDataPayloadAdapter(client=client))
 
     result = flow.read_ohlc(
         _request(),
@@ -245,7 +261,7 @@ def test_ctrader_rejects_malformed_relative_structure() -> None:
         )
 
 
-def test_ctrader_candle_only_adapter_fails_closed_for_quote_reads() -> None:
+def test_ctrader_adapter_delegates_quote_reads() -> None:
     client = StubCTraderClient(Success(_result()))
     adapter = CTraderDemoMarketDataPayloadAdapter(client=client)
 
@@ -254,8 +270,27 @@ def test_ctrader_candle_only_adapter_fails_closed_for_quote_reads() -> None:
         metadata=_metadata(),
     )
 
-    assert isinstance(result, Failure)
-    assert isinstance(result.error, CTraderDemoMarketDataUnsupportedError)
+    assert isinstance(result, Success)
+    assert result.value.bid == "1.10000"
+    assert result.value.ask == "1.10010"
+    assert client.quote_requests == [QuoteRequest(instrument=_INSTRUMENT)]
+
+
+def test_ctrader_flow_normalizes_quote_into_canonical_snapshot() -> None:
+    client = StubCTraderClient(Success(_result()))
+    flow = CTraderDemoMarketDataFlow(CTraderDemoMarketDataPayloadAdapter(client=client))
+
+    result = flow.read_quote(
+        QuoteRequest(instrument=_INSTRUMENT),
+        snapshot_id=_SNAPSHOT_ID,
+        metadata=_metadata(),
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.snapshot_id is _SNAPSHOT_ID
+    assert result.value.instrument == _INSTRUMENT
+    assert result.value.bid == 1.1
+    assert result.value.ask == 1.1001
 
 
 def test_ctrader_client_failure_is_preserved() -> None:
