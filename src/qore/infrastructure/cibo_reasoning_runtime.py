@@ -205,7 +205,8 @@ class CiboReasoningProposal:
             self.confidence_level is not None
         ):
             raise CiboReasoningRuntimeValidationError(
-                "bounded confidence requires a confidence level and other uncertainty kinds forbid it"
+                "bounded confidence requires a confidence level; "
+                "other uncertainty kinds forbid it"
             )
         object.__setattr__(
             self,
