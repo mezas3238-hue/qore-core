@@ -89,10 +89,10 @@ class _FakeTransport(OpenAIResponsesTransportBoundary):
         return Success(self.body)
 
 
-def test_reasoning_policy_defaults_to_high_and_escalates_only_on_explicit_signals() -> None:
+def test_reasoning_policy_projects_routine_to_fast_and_escalates_explicitly() -> None:
     assert (
         select_cibo_reasoning_mode(CiboReasoningSituation())
-        is CiboReasoningMode.HIGH
+        is CiboReasoningMode.FAST
     )
     assert (
         select_cibo_reasoning_mode(
@@ -103,7 +103,8 @@ def test_reasoning_policy_defaults_to_high_and_escalates_only_on_explicit_signal
     assert (
         select_cibo_reasoning_mode(
             CiboReasoningSituation(
-                serious_controversy=True,
+                material_trader_disagreement=True,
+                unresolved_after_ordinary_analysis=True,
                 adversarial_council=True,
             )
         )
@@ -116,7 +117,7 @@ def test_reasoning_policy_rejects_runtime_type_laundering() -> None:
         CiboReasoningSituation(serious_controversy=cast(bool, 1))
 
 
-def test_adaptive_engine_uses_high_by_default_and_binds_schema_to_high() -> None:
+def test_legacy_adaptive_engine_remains_exact_sol_high_by_default() -> None:
     transport = _FakeTransport(_body(CiboReasoningMode.HIGH))
     secret = SecretMaterial(b"sk-test-adaptive-not-real")
     config = OpenAICiboAdaptiveReasoningConfiguration()
@@ -173,7 +174,11 @@ def test_serious_controversy_routes_to_real_provider_max() -> None:
 
 def test_adversarial_council_preserves_semantic_mode_while_using_provider_max() -> None:
     mode = select_cibo_reasoning_mode(
-        CiboReasoningSituation(adversarial_council=True)
+        CiboReasoningSituation(
+            material_trader_disagreement=True,
+            unresolved_after_ordinary_analysis=True,
+            adversarial_council=True,
+        )
     )
     config = OpenAICiboAdaptiveReasoningConfiguration(semantic_mode=mode)
     transport = _FakeTransport(_body(CiboReasoningMode.COUNCIL_ADVERSARIAL))
