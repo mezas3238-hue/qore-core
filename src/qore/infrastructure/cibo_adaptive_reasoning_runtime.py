@@ -390,7 +390,7 @@ class CiboAdaptiveReasoningRuntime:
         request: CiboReasoningRequest,
         replay_record: CiboReasoningReplayRecord,
         *,
-        brain: CiboExecutiveBrain = CiboExecutiveBrain(),
+        brain: CiboExecutiveBrain | None = None,
     ) -> Result[CiboReasoningRuntimeResult, CiboReasoningRuntimeError]:
         """Replay retained admitted output without any provider/model invocation."""
         if type(request) is not CiboReasoningRequest:
@@ -418,12 +418,17 @@ class CiboAdaptiveReasoningRuntime:
                 raise CiboReasoningRuntimeValidationError(
                     "replay record request digest did not match request"
                 )
+            selected_brain = CiboExecutiveBrain() if brain is None else brain
+            if type(selected_brain) is not CiboExecutiveBrain:
+                raise CiboReasoningRuntimeValidationError(
+                    "replay brain must be exact CiboExecutiveBrain"
+                )
         except CiboReasoningRuntimeError as error:
             return Failure(error)
 
         return CiboReasoningRuntime(
             engine=_AdmittedProposalEngine(replay_record.proposal),
-            brain=brain,
+            brain=selected_brain,
         ).run(
             request,
             synthesized_at=replay_record.receipt.completed_at,
