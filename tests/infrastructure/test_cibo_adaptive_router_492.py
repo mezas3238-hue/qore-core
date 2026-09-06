@@ -9,7 +9,6 @@ import pytest
 
 from qore.infrastructure.cibo_adaptive_reasoning_runtime import (
     CiboAdaptiveReasoningRuntime,
-    CiboReasoningRuntimeValidationError,
 )
 from qore.infrastructure.cibo_reasoning_policy import (
     CiboReasoningEpisodeState,
@@ -26,6 +25,7 @@ from qore.infrastructure.cibo_reasoning_runtime import (
     CiboReasoningRuntimeError,
 )
 from qore.infrastructure.openai_cibo_reasoning_engine import (
+    OpenAICiboReasoningValidationError,
     OpenAIResponsesTransportBoundary,
 )
 from qore.infrastructure.openai_cibo_routed_reasoning_engine import (
@@ -269,7 +269,7 @@ def test_routed_engine_fails_closed_when_provider_claims_wrong_semantic_mode() -
     )
 
     assert isinstance(result, Failure)
-    assert isinstance(result.error, CiboReasoningRuntimeValidationError)
+    assert isinstance(result.error, OpenAICiboReasoningValidationError)
 
 
 def test_routed_engine_repr_redacts_secret_and_reports_route() -> None:
