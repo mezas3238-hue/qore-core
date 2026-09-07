@@ -42,6 +42,7 @@ from qore.infrastructure.execution_boundary import (
     ExecutionRequestId,
     ExecutionSubmission,
 )
+from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
     MarketTestAccountIdentity,
@@ -90,6 +91,10 @@ from qore.infrastructure.traders.contracts import (
     DemoTradingTraderVersion,
     compute_trader_output_fingerprint,
 )
+from qore.infrastructure.traders.instrument_binding import (
+    InstrumentBoundDemoTradingOutput,
+    compute_instrument_bound_output_fingerprint,
+)
 from qore.kernel.result import Failure, Result, Success
 
 _NOW = datetime(2026, 9, 7, 9, 30, tzinfo=UTC)
@@ -108,6 +113,8 @@ _CONFIG = DemoTradingConfigFingerprint("a" * 64)
 _METHOD_ID = DemoTradingMethodologyId("crt-4h-amd")
 _METHOD_VERSION = DemoTradingMethodologyVersion("v1")
 _METHOD_FP = DemoTradingMethodologyFingerprint("b" * 64)
+_INSTRUMENT = Instrument("EURUSD")
+_MARKET_EVIDENCE_DIGEST = "d" * 64
 
 
 def _configuration(
@@ -158,6 +165,7 @@ def _selection(monkeypatch: pytest.MonkeyPatch) -> FirstCohortDemoSelection:
     object.__setattr__(selected, "methodology_id", _METHOD_ID)
     object.__setattr__(selected, "methodology_version", _METHOD_VERSION)
     object.__setattr__(selected, "methodology_fingerprint", _METHOD_FP)
+    object.__setattr__(selected, "instrument", _INSTRUMENT)
     selection = object.__new__(FirstCohortDemoSelection)
     object.__setattr__(selection, "selected", selected)
     return selection
@@ -220,6 +228,33 @@ def _output(
     )
 
 
+def _bound_output(
+    *,
+    decision: DemoTradingDecision = DemoTradingDecision.SETUP,
+    trader_code: DemoTradingTraderCode = _CODE,
+    entry: Decimal = Decimal("1.10000"),
+    instrument: Instrument = _INSTRUMENT,
+) -> InstrumentBoundDemoTradingOutput:
+    trader_output = _output(
+        decision=decision,
+        trader_code=trader_code,
+        entry=entry,
+    )
+    fingerprint = compute_instrument_bound_output_fingerprint(
+        instrument=instrument,
+        market_evidence_digest=_MARKET_EVIDENCE_DIGEST,
+        trader_output=trader_output,
+    )
+    bound = object.__new__(InstrumentBoundDemoTradingOutput)
+    object.__setattr__(bound, "instrument", instrument)
+    object.__setattr__(bound, "trader_output", trader_output)
+    object.__setattr__(bound, "market_evidence_digest", _MARKET_EVIDENCE_DIGEST)
+    object.__setattr__(bound, "output_fingerprint", fingerprint)
+    object.__setattr__(bound, "_evaluated", True)
+    bound.__post_init__()
+    return bound
+
+
 def test_minimum_quantity_comes_only_from_provider_mapping() -> None:
     mapping = _configuration().symbol_mappings[0]
 
@@ -233,9 +268,8 @@ def test_selected_setup_builds_minimum_size_protected_limit(
 ) -> None:
     built = build_first_demo_execution_intent(
         _selection(monkeypatch),
-        _output(),
+        _bound_output(),
         configuration=_configuration(),
-        instrument=ExecutionInstrument("EURUSD"),
         intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000010")),
         idempotency_key=ExecutionIdempotencyKey(
             UUID("61000000-0000-0000-0000-000000000011")
@@ -246,6 +280,7 @@ def test_selected_setup_builds_minimum_size_protected_limit(
 
     assert isinstance(built, Success)
     intent = built.value
+    assert intent.instrument == ExecutionInstrument("EURUSD")
     assert intent.order_type is OrderType.LIMIT
     assert intent.side is OrderSide.BUY
     assert intent.quantity.value == Decimal("10.00")
@@ -262,7 +297,6 @@ def test_abstain_and_non_selected_output_fail_closed(
 ) -> None:
     selection = _selection(monkeypatch)
     configuration = _configuration()
-    instrument = ExecutionInstrument("EURUSD")
     intent_id = OrderIntentId(UUID("61000000-0000-0000-0000-000000000012"))
     idempotency_key = ExecutionIdempotencyKey(
         UUID("61000000-0000-0000-0000-000000000013")
@@ -270,9 +304,8 @@ def test_abstain_and_non_selected_output_fail_closed(
 
     abstain = build_first_demo_execution_intent(
         selection,
-        _output(decision=DemoTradingDecision.ABSTAIN),
+        _bound_output(decision=DemoTradingDecision.ABSTAIN),
         configuration=configuration,
-        instrument=instrument,
         intent_id=intent_id,
         idempotency_key=idempotency_key,
         created_at=_NOW,
@@ -280,9 +313,8 @@ def test_abstain_and_non_selected_output_fail_closed(
     )
     other = build_first_demo_execution_intent(
         selection,
-        _output(trader_code=DemoTradingTraderCode("vt-01")),
+        _bound_output(trader_code=DemoTradingTraderCode("vt-01")),
         configuration=configuration,
-        instrument=instrument,
         intent_id=intent_id,
         idempotency_key=idempotency_key,
         created_at=_NOW,
@@ -301,13 +333,11 @@ def test_unmapped_symbol_and_non_exact_price_fail_closed(
     idempotency_key = ExecutionIdempotencyKey(
         UUID("61000000-0000-0000-0000-000000000015")
     )
-    instrument = ExecutionInstrument("EURUSD")
 
     unmapped = build_first_demo_execution_intent(
         selection=selection,
-        output=_output(),
+        output=_bound_output(),
         configuration=_configuration(instrument="GBPUSD"),
-        instrument=instrument,
         intent_id=intent_id,
         idempotency_key=idempotency_key,
         created_at=_NOW,
@@ -315,9 +345,8 @@ def test_unmapped_symbol_and_non_exact_price_fail_closed(
     )
     inexact = build_first_demo_execution_intent(
         selection=selection,
-        output=_output(entry=Decimal("1.100001")),
+        output=_bound_output(entry=Decimal("1.100001")),
         configuration=_configuration(),
-        instrument=instrument,
         intent_id=intent_id,
         idempotency_key=idempotency_key,
         created_at=_NOW,
@@ -326,6 +355,24 @@ def test_unmapped_symbol_and_non_exact_price_fail_closed(
 
     assert isinstance(unmapped, Failure)
     assert isinstance(inexact, Failure)
+
+
+def test_post_trader_instrument_substitution_fails_closed_even_when_mapped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    built = build_first_demo_execution_intent(
+        selection=_selection(monkeypatch),
+        output=_bound_output(instrument=Instrument("GBPUSD")),
+        configuration=_configuration(instrument="GBPUSD"),
+        intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000016")),
+        idempotency_key=ExecutionIdempotencyKey(
+            UUID("61000000-0000-0000-0000-000000000017")
+        ),
+        created_at=_NOW,
+        metadata=_METADATA,
+    )
+
+    assert isinstance(built, Failure)
 
 
 class _FakeCTrader:
