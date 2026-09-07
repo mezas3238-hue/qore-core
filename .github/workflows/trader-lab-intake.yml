@@ -28,6 +28,10 @@ jobs:
       - name: Record all 31 Traders entering Trader Lab
         run: |
           mkdir -p artifacts/trader-lab-intake
+          printf 'QORE_TRADER_LAB_RECORDED_AT=%s\n' \
+            "$(date --utc +'%Y-%m-%dT%H:%M:%S.%6NZ')" >> "$GITHUB_ENV"
+      - name: Emit deterministic-time intake evidence
+        run: |
           python -m qore.infrastructure.trader_lab.operational_intake \
             > artifacts/trader-lab-intake/intake.json
           printf '%s\n' "$GITHUB_SHA" \
