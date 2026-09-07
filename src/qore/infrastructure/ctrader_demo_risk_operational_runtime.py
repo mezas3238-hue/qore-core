@@ -151,6 +151,9 @@ class CTraderDemoOperationalBoundary(Protocol):
     @property
     def configuration(self) -> CTraderDemoRuntimeConfiguration: ...
 
+    @property
+    def has_unresolved_mutations(self) -> bool: ...
+
     def connect(
         self,
         *,
@@ -162,6 +165,15 @@ class CTraderDemoOperationalBoundary(Protocol):
         self,
         submission: ExecutionSubmission,
     ) -> Result[CTraderDemoSubmissionResult, ExecutionBoundaryError]: ...
+
+    def stage_risk_fence(
+        self,
+        submission: ExecutionSubmission,
+        *,
+        risk_authorization_id: str,
+        risk_authorization_fingerprint: str,
+        risk_reservation_id: str,
+    ) -> Result[None, ExecutionBoundaryError]: ...
 
     def poll_and_reconcile(
         self,
@@ -272,6 +284,10 @@ class CTraderDemoRiskOperationalRuntime:
     def account_binding(self) -> RiskCTraderDemoAccountBinding:
         return self._binding
 
+    @property
+    def has_unresolved_mutations(self) -> bool:
+        return self._ctrader.has_unresolved_mutations
+
     def connect(
         self,
         *,
@@ -345,6 +361,14 @@ class CTraderDemoRiskOperationalRuntime:
         )
         if isinstance(prepared, Failure):
             return Failure(CTraderDemoRiskOperationalRuntimeError(str(prepared.error)))
+        fenced = self._ctrader.stage_risk_fence(
+            prepared.value.submission,
+            risk_authorization_id=str(authorization.authorization_id.value),
+            risk_authorization_fingerprint=expected_authorization_fingerprint.value,
+            risk_reservation_id=str(prepared.value.reservation.reservation_id.value),
+        )
+        if isinstance(fenced, Failure):
+            return Failure(CTraderDemoRiskOperationalRuntimeError(str(fenced.error)))
         submitted = self._ctrader.submit_authorized(prepared.value.submission)
         if isinstance(submitted, Failure):
             return Failure(CTraderDemoRiskOperationalRuntimeError(str(submitted.error)))

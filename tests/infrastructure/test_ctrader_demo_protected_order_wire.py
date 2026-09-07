@@ -227,3 +227,89 @@ def test_open_api_transport_sends_limit_protections_on_creation() -> None:
     assert client.fields["limitPrice"] == 1.1
     assert client.fields["stopLoss"] == 1.095
     assert client.fields["takeProfit"] == 1.11
+
+
+class _DiscoveryClient(_Client):
+    def __init__(self, *, orders: tuple[object, ...], has_more: bool) -> None:
+        super().__init__()
+        self.orders = orders
+        self.has_more = has_more
+        self.message_name: str | None = None
+
+    def request(
+        self,
+        message_name: str,
+        fields: Mapping[str, object],
+        *,
+        client_msg_id: str,
+        timeout_seconds: float,
+    ) -> Result[object, CTraderOpenApiClientError]:
+        del fields, client_msg_id, timeout_seconds
+        self.message_name = message_name
+        return Success(SimpleNamespace(order=self.orders, hasMore=self.has_more))
+
+
+def _discovered_order(client_order_id: str, *, order_id: int = 70001) -> object:
+    return SimpleNamespace(
+        clientOrderId=client_order_id,
+        orderId=order_id,
+        orderStatus=1,
+        orderType=2,
+        limitPrice=1.1,
+        stopLoss=1.095,
+        takeProfit=1.11,
+        utcLastUpdateTimestamp=int(_NOW.timestamp() * 1000),
+        tradeData=SimpleNamespace(
+            symbolId=1234,
+            tradeSide=1,
+            volume=1,
+            openTimestamp=int(_NOW.timestamp() * 1000),
+        ),
+    )
+
+
+def test_open_api_transport_discovers_exact_client_order_id_without_create() -> None:
+    plan = build_ctrader_demo_order_create_plan(_configuration(), _submission())
+    assert isinstance(plan, Success)
+    client = _DiscoveryClient(
+        orders=(_discovered_order(plan.value.client_msg_id),),
+        has_more=False,
+    )
+    transport = CTraderOpenApiExecutionTransport(
+        configuration=_configuration(),
+        client=client,
+        clock=lambda: _NOW + timedelta(seconds=10),
+    )
+
+    result = transport.discover_order(
+        plan.value,
+        from_timestamp=_NOW - timedelta(minutes=1),
+        to_timestamp=_NOW + timedelta(minutes=1),
+        metadata=_METADATA,
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.status_code == 200
+    assert b'"orderId":"70001"' in result.value.payload
+    assert client.message_name == "ProtoOAOrderListReq"
+
+
+def test_open_api_transport_contains_incomplete_discovery_scope() -> None:
+    plan = build_ctrader_demo_order_create_plan(_configuration(), _submission())
+    assert isinstance(plan, Success)
+    client = _DiscoveryClient(orders=(), has_more=True)
+    transport = CTraderOpenApiExecutionTransport(
+        configuration=_configuration(),
+        client=client,
+        clock=lambda: _NOW + timedelta(seconds=10),
+    )
+
+    result = transport.discover_order(
+        plan.value,
+        from_timestamp=_NOW - timedelta(minutes=1),
+        to_timestamp=_NOW + timedelta(minutes=1),
+        metadata=_METADATA,
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.status_code == 409

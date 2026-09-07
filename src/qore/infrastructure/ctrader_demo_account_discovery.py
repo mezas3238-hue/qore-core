@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterable
-from importlib import import_module
 from threading import Event, Lock, Thread
 from time import monotonic
 from typing import cast
 
+from qore.infrastructure.ctrader_open_api_client import (
+    CTraderOpenApiClientError,
+    _SdkBindings,
+    verify_ctrader_tls_server_identity,
+)
 from qore.kernel.errors import InfrastructureError
 
 
@@ -24,13 +28,14 @@ class CTraderDemoAccountDiscoveryError(InfrastructureError):
     __slots__ = ()
 
 
-def _required_env(name: str) -> str:
-    value = os.environ.get(name, "")
-    if not value:
-        raise CTraderDemoAccountDiscoveryError(
-            f"missing required environment input: {name}"
-        )
-    return value
+def _required_env(name: str, *aliases: str) -> str:
+    for candidate in (name, *aliases):
+        value = os.environ.get(candidate, "")
+        if value:
+            return value
+    raise CTraderDemoAccountDiscoveryError(
+        f"missing required environment input: {name}"
+    )
 
 
 def _set_sdk_field(value: object, name: str, field_value: object) -> None:
@@ -132,41 +137,22 @@ def discover_single_ctrader_demo_account_id(
         raise CTraderDemoAccountDiscoveryError("timeout_seconds must be positive")
 
     try:
-        package = import_module("ctrader_open_api")
-        common = import_module(
-            "ctrader_open_api.messages.OpenApiCommonMessages_pb2"
-        )
-        messages = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
-        reactor = import_module("twisted.internet.reactor")
-    except ImportError as error:
+        bindings = _SdkBindings()
+        client_type = bindings.client_type
+        tcp_protocol = bindings.tcp_protocol
+        extract = bindings.extract
+        reactor = bindings.reactor
+    except CTraderOpenApiClientError as error:
         raise CTraderDemoAccountDiscoveryError(
             "install the qore-core ctrader optional dependency"
         ) from error
 
-    client_type = getattr(package, "Client", None)
-    tcp_protocol = getattr(package, "TcpProtocol", None)
-    protobuf = getattr(package, "Protobuf", None)
-    if not callable(client_type) or not isinstance(tcp_protocol, type) or protobuf is None:
-        raise CTraderDemoAccountDiscoveryError(
-            "official cTrader SDK is missing required client bindings"
-        )
-    extract = _method(protobuf, "extract")
-
-    def message_type(name: str) -> type[object] | None:
-        common_type = getattr(common, name, None)
-        if isinstance(common_type, type):
-            return common_type
-        message_type_value = getattr(messages, name, None)
-        if isinstance(message_type_value, type):
-            return message_type_value
-        return None
-
-    app_req_type = message_type("ProtoOAApplicationAuthReq")
-    app_res_type = message_type("ProtoOAApplicationAuthRes")
-    accounts_req_type = message_type("ProtoOAGetAccountListByAccessTokenReq")
-    accounts_res_type = message_type("ProtoOAGetAccountListByAccessTokenRes")
-    refresh_req_type = message_type("ProtoOARefreshTokenReq")
-    refresh_res_type = message_type("ProtoOARefreshTokenRes")
+    app_req_type = bindings.messages.get("ProtoOAApplicationAuthReq")
+    app_res_type = bindings.messages.get("ProtoOAApplicationAuthRes")
+    accounts_req_type = bindings.messages.get("ProtoOAGetAccountListByAccessTokenReq")
+    accounts_res_type = bindings.messages.get("ProtoOAGetAccountListByAccessTokenRes")
+    refresh_req_type = bindings.messages.get("ProtoOARefreshTokenReq")
+    refresh_res_type = bindings.messages.get("ProtoOARefreshTokenRes")
     required_types = (
         app_req_type,
         app_res_type,
@@ -239,6 +225,16 @@ def discover_single_ctrader_demo_account_id(
 
     current_access_token = access_token
     try:
+        try:
+            verify_ctrader_tls_server_identity(
+                "demo.ctraderapi.com",
+                5035,
+                timeout_seconds,
+            )
+        except (CTraderOpenApiClientError, OSError) as error:
+            raise CTraderDemoAccountDiscoveryError(
+                "cTrader DEMO TLS server identity verification failed"
+            ) from error
         _ensure_reactor_running(reactor)
         _method(reactor, "callFromThread")(_method(client, "startService"))
         if not connected.wait(timeout_seconds) or disconnected.is_set():
@@ -301,10 +297,16 @@ def discover_single_ctrader_demo_account_id(
 
 def main() -> None:
     account_id = discover_single_ctrader_demo_account_id(
-        client_id=_required_env("QORE_CTRADER_CLIENT_ID"),
-        client_secret=_required_env("QORE_CTRADER_CLIENT_SECRET"),
-        access_token=_required_env("QORE_CTRADER_ACCESS_TOKEN"),
-        refresh_token=_required_env("QORE_CTRADER_REFRESH_TOKEN"),
+        client_id=_required_env("QORE_CTRADER_CLIENT_ID", "QORE_CTRADER_DEMO_CLIENT_ID"),
+        client_secret=_required_env(
+            "QORE_CTRADER_CLIENT_SECRET", "QORE_CTRADER_DEMO_CLIENT_SECRET"
+        ),
+        access_token=_required_env(
+            "QORE_CTRADER_ACCESS_TOKEN", "QORE_CTRADER_DEMO_ACCESS_TOKEN"
+        ),
+        refresh_token=_required_env(
+            "QORE_CTRADER_REFRESH_TOKEN", "QORE_CTRADER_DEMO_REFRESH_TOKEN"
+        ),
     )
     print(account_id)
 

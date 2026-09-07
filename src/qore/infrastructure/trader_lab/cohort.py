@@ -280,22 +280,28 @@ class FirstCohortDemoSelection:
             raise TraderLabValidationError(
                 "assessments must contain FirstCohortLabAssessment values"
             )
+        for assessment in self.assessments:
+            assessment.__post_init__()
         codes = tuple(item.entry.trader_code.value for item in self.assessments)
-        if tuple(sorted(codes)) != FIRST_DEMO_COHORT_CODES:
+        if codes != FIRST_DEMO_COHORT_CODES:
             raise TraderLabValidationError(
                 "first cohort must contain VT-01, VT-08, VT-09, VT-17 and VT-31 "
-                "exactly once"
+                "exactly once in canonical order"
             )
-        if self.selected is not None:
-            selectable = tuple(
-                item.entry
-                for item in self.assessments
-                if item.status is FirstCohortLabStatus.SELECTABLE
-            )
-            if self.selected not in selectable:
+        for assessment in self.assessments:
+            expected = assess_first_cohort_entry(assessment.entry, self.policy)
+            if (
+                assessment.promotion != expected.promotion
+                or assessment.status is not expected.status
+                or assessment.reasons != expected.reasons
+            ):
                 raise TraderLabValidationError(
-                    "selected Trader must be a selectable assessed cohort member"
+                    "first-cohort assessment must equal canonical re-evaluation"
                 )
+        if self.selected != _rank_selectable_assessments(self.assessments):
+            raise TraderLabValidationError(
+                "selected Trader must equal the canonical deterministic winner"
+            )
 
     @property
     def selectable(self) -> tuple[FirstCohortTraderLabEntry, ...]:
@@ -392,25 +398,29 @@ def select_first_demo_trader(
     assessments = tuple(
         assess_first_cohort_entry(item, policy) for item in ordered_entries
     )
-    selectable = [
-        item.entry
-        for item in assessments
-        if item.status is FirstCohortLabStatus.SELECTABLE
-    ]
-    selected = None
-    if selectable:
-        selectable.sort(
-            key=lambda item: (
-                -item.performance.mean_return,
-                -item.performance.win_rate,
-                item.performance.population_variance,
-                -item.performance.sample_size,
-                item.trader_code.value,
-            )
-        )
-        selected = selectable[0]
+    selected = _rank_selectable_assessments(assessments)
     return FirstCohortDemoSelection(
         policy=policy,
         assessments=assessments,
         selected=selected,
     )
+
+
+def _rank_selectable_assessments(
+    assessments: tuple[FirstCohortLabAssessment, ...],
+) -> FirstCohortTraderLabEntry | None:
+    selectable = [
+        item.entry
+        for item in assessments
+        if item.status is FirstCohortLabStatus.SELECTABLE
+    ]
+    selectable.sort(
+        key=lambda item: (
+            -item.performance.mean_return,
+            -item.performance.win_rate,
+            item.performance.population_variance,
+            -item.performance.sample_size,
+            item.trader_code.value,
+        )
+    )
+    return selectable[0] if selectable else None

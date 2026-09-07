@@ -39,6 +39,7 @@ from qore.infrastructure.ctrader_demo_risk_operational_runtime import (
     CTraderDemoRiskOperationalRuntime,
     CTraderDemoRiskOperationalRuntimeError,
     RiskCTraderDemoAccountBinding,
+    RiskCTraderDemoReconciliationResult,
     RiskCTraderDemoSubmissionResult,
 )
 from qore.infrastructure.demo_first_execution_intent import (
@@ -51,6 +52,11 @@ from qore.infrastructure.execution_boundary import (
     ExecutionReceiptId,
     ExecutionRequestId,
     ExecutionSubmission,
+)
+from qore.infrastructure.first_demo_execution_runner import (
+    FirstDemoRiskApproval,
+    FirstDemoRunnerStatus,
+    run_first_demo_execution_once,
 )
 from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.market_test_environment import (
@@ -67,9 +73,14 @@ from qore.infrastructure.order_intent import (
     OrderType,
 )
 from qore.infrastructure.ports import (
+    AdapterId,
     ExternalHealth,
     ExternalPortError,
     ExternalRequestMetadata,
+    ExternalSourceDescriptor,
+    PortAvailability,
+    PortName,
+    SourceId,
 )
 from qore.infrastructure.proprietary_accounts import CurrencyCode, MoneyAmount
 from qore.infrastructure.risk_authority import (
@@ -81,6 +92,7 @@ from qore.infrastructure.risk_authority import (
     RiskEnvironment,
     RiskError,
     RiskFingerprint,
+    RiskOutcome,
     RiskPolicyId,
     RiskPolicyVersion,
     RiskReservation,
@@ -89,18 +101,19 @@ from qore.infrastructure.risk_authority import (
     RiskTraderIdentity,
 )
 from qore.infrastructure.risk_runtime import DemoRiskRuntime, RiskAuthorizedSubmission
+from qore.infrastructure.trader_lab.catalog import enroll_complete_trader_catalog
 from qore.infrastructure.trader_lab.cohort import (
     FirstCohortDemoSelection,
     select_first_demo_trader,
 )
+from qore.infrastructure.trader_lab.first_execution_phase import (
+    FirstDemoExecutionPhaseReadiness,
+    FirstDemoExecutionPhaseStatus,
+)
 from qore.infrastructure.traders.contracts import (
     DemoTradingAbstainReason,
-    DemoTradingConfigFingerprint,
     DemoTradingDecision,
     DemoTradingEvidenceRef,
-    DemoTradingMethodologyFingerprint,
-    DemoTradingMethodologyId,
-    DemoTradingMethodologyVersion,
     DemoTradingOutput,
     DemoTradingSetupSide,
     DemoTradingSetupSpec,
@@ -108,10 +121,15 @@ from qore.infrastructure.traders.contracts import (
     DemoTradingTraderVersion,
     compute_trader_output_fingerprint,
 )
+from qore.infrastructure.traders.evaluators import Vt08Crt4hAmd
+from qore.infrastructure.traders.first_cohort_runtime import (
+    FirstCohortOperationalEvaluation,
+)
 from qore.infrastructure.traders.instrument_binding import (
     InstrumentBoundDemoTradingOutput,
     compute_instrument_bound_output_fingerprint,
 )
+from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
 _NOW = datetime(2026, 9, 7, 9, 30, tzinfo=UTC)
@@ -124,12 +142,11 @@ _RISK_ACCOUNT = TradingAccountId(UUID("61000000-0000-0000-0000-000000000001"))
 _METADATA = ExternalRequestMetadata(
     correlation_id=CorrelationId(UUID("61000000-0000-0000-0000-000000000002"))
 )
-_CODE = DemoTradingTraderCode("vt-08")
-_VERSION = DemoTradingTraderVersion("v1")
-_CONFIG = DemoTradingConfigFingerprint("a" * 64)
-_METHOD_ID = DemoTradingMethodologyId("crt-4h-amd")
-_METHOD_VERSION = DemoTradingMethodologyVersion("v1")
-_METHOD_FP = DemoTradingMethodologyFingerprint("b" * 64)
+_VT08 = Vt08Crt4hAmd()
+_CODE = DemoTradingTraderCode(str(_VT08.trader_code))
+_VERSION = DemoTradingTraderVersion(str(_VT08.version))
+_CONFIG = _VT08.config_fingerprint()
+_METHOD_ID, _METHOD_VERSION, _METHOD_FP = _VT08.methodology()
 _INSTRUMENT = Instrument("EURUSD")
 _MARKET_EVIDENCE_DIGEST = "d" * 64
 
@@ -422,6 +439,10 @@ class _FakeCTrader:
     def configuration(self) -> CTraderDemoRuntimeConfiguration:
         return self._configuration
 
+    @property
+    def has_unresolved_mutations(self) -> bool:
+        return False
+
     def connect(
         self,
         *,
@@ -453,6 +474,22 @@ class _FakeCTrader:
                 fills=(),
             )
         )
+
+    def stage_risk_fence(
+        self,
+        submission: ExecutionSubmission,
+        *,
+        risk_authorization_id: str,
+        risk_authorization_fingerprint: str,
+        risk_reservation_id: str,
+    ) -> Result[None, ExecutionBoundaryError]:
+        del (
+            submission,
+            risk_authorization_id,
+            risk_authorization_fingerprint,
+            risk_reservation_id,
+        )
+        return Success(None)
 
     def poll_and_reconcile(
         self,
@@ -671,3 +708,218 @@ def test_non_demo_risk_and_broker_failure_fail_closed(
     assert isinstance(broker_failure, Failure)
     assert calls == [intent]
     assert ctrader.submissions == [prepared.submission]
+
+
+class _OneShotRuntime:
+    def __init__(self, configuration: CTraderDemoRuntimeConfiguration) -> None:
+        self._configuration = configuration
+        self.unresolved = False
+        self.connect_calls = 0
+        self.submit_calls = 0
+        self.reconcile_calls = 0
+
+    @property
+    def configuration(self) -> CTraderDemoRuntimeConfiguration:
+        return self._configuration
+
+    @property
+    def has_unresolved_mutations(self) -> bool:
+        return self.unresolved
+
+    def connect(
+        self,
+        *,
+        checked_at: datetime,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[ExternalHealth, InfrastructureError]:
+        del metadata
+        self.connect_calls += 1
+        return Success(_available_health(checked_at))
+
+    def submit_risk_authorized(
+        self,
+        decision: RiskDecision,
+        intent: OrderIntent,
+        *,
+        scope: RiskScopeSnapshot,
+        account_policy_version: AccountPolicyVersion,
+        expected_authorization_fingerprint: RiskFingerprint,
+        request_id: ExecutionRequestId,
+        receipt_id: ExecutionReceiptId,
+        authorized_at: datetime,
+        submitted_at: datetime,
+    ) -> Result[RiskCTraderDemoSubmissionResult, InfrastructureError]:
+        del (
+            decision,
+            intent,
+            scope,
+            account_policy_version,
+            expected_authorization_fingerprint,
+            request_id,
+            receipt_id,
+            authorized_at,
+            submitted_at,
+        )
+        self.submit_calls += 1
+        return Success(
+            cast(
+                RiskCTraderDemoSubmissionResult,
+                SimpleNamespace(broker=SimpleNamespace(provider_order_ref="demo-70001")),
+            )
+        )
+
+    def poll_and_reconcile(
+        self,
+        submitted: RiskCTraderDemoSubmissionResult,
+        *,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[RiskCTraderDemoReconciliationResult, InfrastructureError]:
+        del submitted, metadata
+        self.reconcile_calls += 1
+        return Success(
+            cast(
+                RiskCTraderDemoReconciliationResult,
+                SimpleNamespace(provider_order_ref="demo-70001"),
+            )
+        )
+
+
+class _OneShotRiskAuthorizer:
+    def authorize(
+        self,
+        intent: OrderIntent,
+        *,
+        evaluated_at: datetime,
+    ) -> Result[FirstDemoRiskApproval, InfrastructureError]:
+        del intent
+        authorization = SimpleNamespace(
+            issued_at=evaluated_at,
+            valid_until=evaluated_at + timedelta(minutes=1),
+        )
+        decision = cast(
+            RiskDecision,
+            SimpleNamespace(outcome=RiskOutcome.ALLOW, authorization=authorization),
+        )
+        return Success(
+            FirstDemoRiskApproval(
+                decision=decision,
+                scope=cast(RiskScopeSnapshot, SimpleNamespace()),
+                account_policy_version=AccountPolicyVersion(1),
+                authorization_fingerprint=RiskFingerprint("f" * 64),
+                request_id=ExecutionRequestId(
+                    UUID("61000000-0000-0000-0000-000000000091")
+                ),
+                receipt_id=ExecutionReceiptId(
+                    UUID("61000000-0000-0000-0000-000000000092")
+                ),
+                authorized_at=evaluated_at,
+                submitted_at=evaluated_at,
+            )
+        )
+
+
+def _available_health(checked_at: datetime) -> ExternalHealth:
+    return ExternalHealth(
+        descriptor=ExternalSourceDescriptor(
+            adapter_id=AdapterId(UUID("61000000-0000-0000-0000-000000000093")),
+            source_id=SourceId(UUID("61000000-0000-0000-0000-000000000094")),
+            port_name=PortName("ctrader.demo.first-execution-test"),
+        ),
+        availability=PortAvailability.AVAILABLE,
+        checked_at=checked_at,
+    )
+
+
+def _ready_phase(selection: FirstCohortDemoSelection) -> FirstDemoExecutionPhaseReadiness:
+    return FirstDemoExecutionPhaseReadiness(
+        status=FirstDemoExecutionPhaseStatus.READY_FOR_FIRST_EXECUTION,
+        blockers=(),
+        catalog=enroll_complete_trader_catalog(enrolled_at=_NOW),
+        selection=selection,
+        provider_health=_available_health(_NOW),
+        configuration=_configuration(),
+        evaluated_at=_NOW,
+    )
+
+
+def test_one_shot_runner_blocks_on_unresolved_ledger_without_mutation(
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
+) -> None:
+    selection = _selection(
+        strategy_binding_factory,
+        candidate_factory,
+        stage_evidence_factory,
+    )
+    runtime = _OneShotRuntime(_configuration())
+    runtime.unresolved = True
+
+    result = run_first_demo_execution_once(
+        _ready_phase(selection),
+        snapshots=(),
+        runtime=runtime,
+        risk_authorizer=_OneShotRiskAuthorizer(),
+        intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000095")),
+        idempotency_key=ExecutionIdempotencyKey(
+            UUID("61000000-0000-0000-0000-000000000096")
+        ),
+        metadata=_METADATA,
+        operation_at=_NOW,
+        max_risk_age=timedelta(seconds=10),
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.status is FirstDemoRunnerStatus.NO_ORDER
+    assert result.value.mutation_count == 0
+    assert runtime.connect_calls == 0
+    assert runtime.submit_calls == 0
+
+
+def test_one_shot_runner_crosses_broker_boundary_exactly_once(
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selection = _selection(
+        strategy_binding_factory,
+        candidate_factory,
+        stage_evidence_factory,
+    )
+    cohort = cast(
+        FirstCohortOperationalEvaluation,
+        SimpleNamespace(selected_output=_bound_output()),
+    )
+    runner_module = __import__(
+        "qore.infrastructure.first_demo_execution_runner",
+        fromlist=["evaluate_first_demo_cohort"],
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "evaluate_first_demo_cohort",
+        lambda *args, **kwargs: Success(cohort),
+    )
+    runtime = _OneShotRuntime(_configuration())
+
+    result = run_first_demo_execution_once(
+        _ready_phase(selection),
+        snapshots=(),
+        runtime=runtime,
+        risk_authorizer=_OneShotRiskAuthorizer(),
+        intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000097")),
+        idempotency_key=ExecutionIdempotencyKey(
+            UUID("61000000-0000-0000-0000-000000000098")
+        ),
+        metadata=_METADATA,
+        operation_at=_NOW,
+        max_risk_age=timedelta(seconds=10),
+    )
+
+    assert isinstance(result, Success)
+    executed = result.value
+    assert executed.status is FirstDemoRunnerStatus.EXECUTED
+    assert executed.mutation_count == 1
+    assert runtime.connect_calls == 1
+    assert runtime.submit_calls == 1
+    assert runtime.reconcile_calls == 1

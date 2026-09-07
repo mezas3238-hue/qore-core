@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
+import hashlib
+import json
+from dataclasses import replace
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
+from uuid import UUID
 
 from qore.infrastructure.ctrader_demo_execution_codec import (
     CTraderOrderCancelPlan,
@@ -31,6 +35,12 @@ from qore.infrastructure.ctrader_demo_execution_contracts import (
     CTraderDemoOrderDisposition,
     reconcile_ctrader_demo_fills,
     transition_ctrader_demo_attempt,
+)
+from qore.infrastructure.ctrader_demo_mutation_ledger import (
+    CTraderDemoMutationLedger,
+    CTraderDemoMutationLedgerError,
+    CTraderDemoMutationLedgerRecord,
+    ctrader_submission_digest,
 )
 from qore.infrastructure.execution_boundary import (
     ExecutionBoundaryError,
@@ -72,6 +82,15 @@ def _stable_fill_identity(observation: CTraderDemoFillObservation) -> tuple[obje
         format(observation.fill_quantity, "f"),
         format(observation.fill_price, "f"),
     )
+
+
+def _stable_fill_digest(observation: CTraderDemoFillObservation) -> str:
+    canonical = json.dumps(
+        _stable_fill_identity(observation),
+        default=str,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
 
 
 class CTraderDemoExecutionGatewayError(ExecutionBoundaryError):
@@ -119,6 +138,17 @@ class CTraderDemoExecutionTransportBoundary(Protocol):
         """Perform at most one provider order-state query for reconciliation."""
         ...
 
+    def discover_order(
+        self,
+        plan: CTraderOrderCreatePlan,
+        *,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[ExternalTransportResponse, ExecutionBoundaryError]:
+        """Search one complete provider-history window by exact clientOrderId."""
+        ...
+
 
 class CTraderDemoExecutionGateway:
     """Compose canonical TEST/DEMO execution with an injected cTrader DEMO transport."""
@@ -128,14 +158,19 @@ class CTraderDemoExecutionGateway:
         "_authoritative_filled",
         "_configuration",
         "_fill_complete",
+        "_fill_identity_digests",
         "_fills_by_receipt",
         "_metadata_by_provider_ref",
+        "_mutation_ledger",
+        "_durable_records",
         "_outcomes_by_receipt",
         "_outcomes_by_provider_ref",
         "_receipt_ids",
         "_receipts",
         "_reject_errors",
         "_submissions",
+        "_submission_digests",
+        "_staged_here",
         "_transport",
     )
 
@@ -144,6 +179,7 @@ class CTraderDemoExecutionGateway:
         *,
         configuration: CTraderDemoRuntimeConfiguration,
         transport: CTraderDemoExecutionTransportBoundary,
+        mutation_ledger: CTraderDemoMutationLedger,
     ) -> None:
         if not isinstance(configuration, CTraderDemoRuntimeConfiguration):
             raise CTraderDemoExecutionGatewayValidationError(
@@ -170,19 +206,79 @@ class CTraderDemoExecutionGateway:
             raise CTraderDemoExecutionGatewayValidationError(
                 "cTrader transport requires query_order"
             )
+        if not callable(getattr(transport, "discover_order", None)):
+            raise CTraderDemoExecutionGatewayValidationError(
+                "cTrader transport requires discover_order"
+            )
+        if not callable(getattr(mutation_ledger, "records", None)) or not callable(
+            getattr(mutation_ledger, "upsert", None)
+        ):
+            raise CTraderDemoExecutionGatewayValidationError(
+                "cTrader execution gateway requires a mutation ledger"
+            )
         self._configuration = configuration
         self._transport = transport
+        self._mutation_ledger = mutation_ledger
         self._attempts: dict[ExecutionIdempotencyKey, CTraderDemoMutationAttempt] = {}
         self._receipt_ids: set[ExecutionReceiptId] = set()
         self._receipts: dict[ExecutionReceiptId, TestExecutionGatewayReceipt] = {}
         self._reject_errors: dict[ExecutionReceiptId, CTraderDemoExecutionNotAcceptedError] = {}
         self._submissions: dict[ExecutionReceiptId, ExecutionSubmission] = {}
+        self._submission_digests: dict[ExecutionIdempotencyKey, str] = {}
+        self._staged_here: set[ExecutionIdempotencyKey] = set()
+        self._durable_records: dict[
+            ExecutionIdempotencyKey, CTraderDemoMutationLedgerRecord
+        ] = {}
         self._outcomes_by_receipt: dict[ExecutionReceiptId, CTraderDemoExecutionOutcome] = {}
         self._outcomes_by_provider_ref: dict[str, CTraderDemoExecutionOutcome] = {}
         self._metadata_by_provider_ref: dict[str, ExternalRequestMetadata] = {}
         self._fills_by_receipt: dict[ExecutionReceiptId, dict[str, CTraderDemoFillObservation]] = {}
         self._authoritative_filled: dict[ExecutionReceiptId, Decimal] = {}
         self._fill_complete: dict[ExecutionReceiptId, bool] = {}
+        self._fill_identity_digests: dict[ExecutionReceiptId, dict[str, str]] = {}
+        self._restore_durable_records()
+
+    def _restore_durable_records(self) -> None:
+        try:
+            records = self._mutation_ledger.records()
+            for record in records:
+                key = ExecutionIdempotencyKey(UUID(record.idempotency_key))
+                receipt_id = ExecutionReceiptId(UUID(record.receipt_id))
+                if key in self._durable_records or receipt_id in self._receipt_ids:
+                    raise CTraderDemoExecutionGatewayValidationError(
+                        "durable mutation ledger contains duplicate identity"
+                    )
+                restored_record = record
+                if record.state is CTraderDemoAttemptState.ATTEMPT_STARTED:
+                    restored_record = replace(
+                        record,
+                        state=CTraderDemoAttemptState.OUTCOME_UNKNOWN,
+                        reason="process restarted after durable mutation fence",
+                    )
+                    self._mutation_ledger.upsert(restored_record)
+                self._durable_records[key] = restored_record
+                self._submission_digests[key] = restored_record.submission_digest
+                self._receipt_ids.add(receipt_id)
+                self._attempts[key] = CTraderDemoMutationAttempt(
+                    idempotency_key=key,
+                    receipt_id=receipt_id,
+                    submission_logical=(restored_record.submission_digest,),
+                    state=restored_record.state,
+                    transitioned_at=restored_record.transitioned_at,
+                    provider_order_ref=restored_record.provider_order_ref,
+                    reason=restored_record.reason,
+                )
+                self._authoritative_filled[receipt_id] = Decimal(
+                    restored_record.cumulative_quantity
+                )
+                self._fill_complete[receipt_id] = restored_record.is_complete
+                self._fill_identity_digests[receipt_id] = dict(
+                    restored_record.fill_identities
+                )
+        except (ValueError, CTraderDemoMutationLedgerError) as error:
+            raise CTraderDemoExecutionGatewayValidationError(
+                "durable mutation ledger could not be restored safely"
+            ) from error
 
     @property
     def configuration(self) -> CTraderDemoRuntimeConfiguration:
@@ -200,14 +296,176 @@ class CTraderDemoExecutionGateway:
             self._outcomes_by_provider_ref[key] for key in sorted(self._outcomes_by_provider_ref)
         )
 
+    @property
+    def has_unresolved_mutations(self) -> bool:
+        return any(
+            attempt.state
+            not in {
+                CTraderDemoAttemptState.DEFINITIVE_OUTCOME,
+                CTraderDemoAttemptState.RESOLVED,
+            }
+            for attempt in self._attempts.values()
+        )
+
+    def stage_risk_fence(
+        self,
+        submission: ExecutionSubmission,
+        *,
+        risk_authorization_id: str,
+        risk_authorization_fingerprint: str,
+        risk_reservation_id: str,
+    ) -> Result[None, ExecutionBoundaryError]:
+        """Persist Risk provenance before the create-attempt critical section."""
+        if not isinstance(submission, ExecutionSubmission):
+            return Failure(
+                CTraderDemoExecutionGatewayValidationError(
+                    "risk fence requires ExecutionSubmission"
+                )
+            )
+        for value, field_name in (
+            (risk_authorization_id, "risk_authorization_id"),
+            (risk_authorization_fingerprint, "risk_authorization_fingerprint"),
+            (risk_reservation_id, "risk_reservation_id"),
+        ):
+            if not isinstance(value, str) or not value:
+                return Failure(
+                    CTraderDemoExecutionGatewayValidationError(
+                        f"{field_name} must be non-empty"
+                    )
+                )
+        plan_result = build_ctrader_demo_order_create_plan(self._configuration, submission)
+        if isinstance(plan_result, Failure):
+            return Failure(plan_result.error)
+        key = submission.idempotency_key
+        digest = ctrader_submission_digest(submission)
+        known = self._durable_records.get(key)
+        if known is not None:
+            if known.submission_digest != digest:
+                return Failure(
+                    CTraderDemoExecutionConflictError(
+                        "durable idempotency key conflicts with Risk submission"
+                    )
+                )
+            return Success(None)
+        record = CTraderDemoMutationLedgerRecord(
+            idempotency_key=str(key.value),
+            receipt_id=str(submission.receipt_id.value),
+            submission_digest=digest,
+            client_order_id=plan_result.value.client_msg_id,
+            state=CTraderDemoAttemptState.ATTEMPT_STARTED,
+            transitioned_at=submission.submitted_at,
+            risk_authorization_id=risk_authorization_id,
+            risk_authorization_fingerprint=risk_authorization_fingerprint,
+            risk_reservation_id=risk_reservation_id,
+        )
+        persisted = self._persist_record(key, record)
+        if isinstance(persisted, Failure):
+            return persisted
+        self._submission_digests[key] = digest
+        self._staged_here.add(key)
+        return Success(None)
+
+    def restore_submission(
+        self, submission: ExecutionSubmission
+    ) -> Result[None, ExecutionBoundaryError]:
+        """Rehydrate an original submission for discovery, never for resubmission."""
+        if not isinstance(submission, ExecutionSubmission):
+            return Failure(
+                CTraderDemoExecutionGatewayValidationError(
+                    "restore_submission requires ExecutionSubmission"
+                )
+            )
+        key = submission.idempotency_key
+        record = self._durable_records.get(key)
+        if record is None or record.receipt_id != str(submission.receipt_id.value):
+            return Failure(
+                ExecutionBoundaryNotFoundError(
+                    "no durable mutation matches the supplied submission"
+                )
+            )
+        if record.submission_digest != ctrader_submission_digest(submission):
+            return Failure(
+                CTraderDemoExecutionConflictError(
+                    "restored submission does not match its durable digest"
+                )
+            )
+        self._submissions[submission.receipt_id] = submission
+        return Success(None)
+
+    def _persist_record(
+        self,
+        key: ExecutionIdempotencyKey,
+        record: CTraderDemoMutationLedgerRecord,
+    ) -> Result[None, ExecutionBoundaryError]:
+        try:
+            self._mutation_ledger.upsert(record)
+        except CTraderDemoMutationLedgerError as error:
+            return Failure(error)
+        self._durable_records[key] = record
+        return Success(None)
+
+    def _persist_attempt(
+        self,
+        submission: ExecutionSubmission,
+        attempt: CTraderDemoMutationAttempt,
+        *,
+        client_order_id: str,
+        outcome: str | None = None,
+    ) -> Result[None, ExecutionBoundaryError]:
+        key = submission.idempotency_key
+        prior = self._durable_records.get(key)
+        record = CTraderDemoMutationLedgerRecord(
+            idempotency_key=str(key.value),
+            receipt_id=str(submission.receipt_id.value),
+            submission_digest=ctrader_submission_digest(submission),
+            client_order_id=client_order_id,
+            state=attempt.state,
+            transitioned_at=attempt.transitioned_at,
+            provider_order_ref=attempt.provider_order_ref,
+            reason=attempt.reason,
+            outcome=outcome if outcome is not None else (prior.outcome if prior else None),
+            fill_refs=prior.fill_refs if prior else (),
+            fill_identities=prior.fill_identities if prior else (),
+            cumulative_quantity=prior.cumulative_quantity if prior else "0",
+            is_complete=prior.is_complete if prior else False,
+            risk_authorization_id=prior.risk_authorization_id if prior else None,
+            risk_authorization_fingerprint=(
+                prior.risk_authorization_fingerprint if prior else None
+            ),
+            risk_reservation_id=prior.risk_reservation_id if prior else None,
+        )
+        return self._persist_record(key, record)
+
+    def _persist_transition(
+        self,
+        submission: ExecutionSubmission,
+        attempt: CTraderDemoMutationAttempt,
+        *,
+        outcome: str | None = None,
+    ) -> Result[None, ExecutionBoundaryError]:
+        record = self._durable_records.get(submission.idempotency_key)
+        if record is None:
+            return Failure(
+                CTraderDemoExecutionGatewayValidationError(
+                    "attempt transition is missing its durable mutation fence"
+                )
+            )
+        return self._persist_attempt(
+            submission,
+            attempt,
+            client_order_id=record.client_order_id,
+            outcome=outcome,
+        )
+
     def _record_unknown(
         self,
         key: ExecutionIdempotencyKey,
         submission: ExecutionSubmission,
         *,
         reason: str,
-    ) -> None:
-        self._attempts[key] = CTraderDemoMutationAttempt(
+        client_order_id: str,
+    ) -> Result[None, ExecutionBoundaryError]:
+        attempt = CTraderDemoMutationAttempt(
             idempotency_key=key,
             receipt_id=submission.receipt_id,
             submission_logical=submission.logical_values(),
@@ -215,6 +473,47 @@ class CTraderDemoExecutionGateway:
             transitioned_at=submission.submitted_at,
             reason=reason,
         )
+        self._attempts[key] = attempt
+        return self._persist_attempt(
+            submission,
+            attempt,
+            client_order_id=client_order_id,
+        )
+
+    def _persist_fill_state(
+        self,
+        submission: ExecutionSubmission,
+    ) -> Result[None, ExecutionBoundaryError]:
+        key = submission.idempotency_key
+        prior = self._durable_records.get(key)
+        if prior is None:
+            return Failure(
+                CTraderDemoExecutionGatewayValidationError(
+                    "fill evidence is missing its durable mutation fence"
+                )
+            )
+        receipt_id = submission.receipt_id
+        identities = self._fill_identity_digests.get(receipt_id, {})
+        record = replace(
+            prior,
+            fill_refs=tuple(sorted(identities)),
+            fill_identities=tuple(sorted(identities.items())),
+            cumulative_quantity=format(
+                self._authoritative_filled.get(receipt_id, Decimal("0")), "f"
+            ),
+            is_complete=self._fill_complete.get(receipt_id, False),
+        )
+        return self._persist_record(key, record)
+
+    def _finish_fill(
+        self,
+        submission: ExecutionSubmission,
+        observation: CTraderDemoFillObservation,
+    ) -> Result[CTraderDemoFillObservation, ExecutionBoundaryError]:
+        persisted = self._persist_fill_state(submission)
+        if isinstance(persisted, Failure):
+            return Failure(persisted.error)
+        return Success(observation)
 
     def submit(
         self,
@@ -237,13 +536,18 @@ class CTraderDemoExecutionGateway:
         key = submission.idempotency_key
         prior = self._attempts.get(key)
         if prior is not None:
-            if prior.submission_logical != submission.logical_values():
+            if self._submission_digests.get(key) != ctrader_submission_digest(submission):
                 return Failure(
                     CTraderDemoExecutionConflictError(
                         "cTrader idempotency key reused with different submission"
                     )
                 )
-            if prior.state is CTraderDemoAttemptState.DEFINITIVE_OUTCOME:
+            if prior.state is CTraderDemoAttemptState.NOT_ATTEMPTED or (
+                prior.state is CTraderDemoAttemptState.ATTEMPT_STARTED
+                and key in self._staged_here
+            ):
+                pass
+            elif prior.state is CTraderDemoAttemptState.DEFINITIVE_OUTCOME:
                 receipt = self._receipts.get(prior.receipt_id)
                 if receipt is not None:
                     return Success(receipt)
@@ -255,7 +559,7 @@ class CTraderDemoExecutionGateway:
                         "definitive attempt missing its gateway receipt"
                     )
                 )
-            if prior.state is CTraderDemoAttemptState.RESOLVED:
+            elif prior.state is CTraderDemoAttemptState.RESOLVED:
                 receipt = self._receipts.get(prior.receipt_id)
                 if receipt is not None:
                     return Success(receipt)
@@ -264,13 +568,14 @@ class CTraderDemoExecutionGateway:
                         "cTrader execution already resolved; resubmission prohibited"
                     )
                 )
-            return Failure(
-                CTraderDemoExecutionUnknownOutcomeError(
-                    "cTrader execution has an unresolved mutating attempt; "
-                    "reconciliation is required before any resubmission"
+            else:
+                return Failure(
+                    CTraderDemoExecutionUnknownOutcomeError(
+                        "cTrader execution has an unresolved mutating attempt; "
+                        "reconciliation is required before any resubmission"
+                    )
                 )
-            )
-        if submission.receipt_id in self._receipt_ids:
+        if submission.receipt_id in self._receipt_ids and prior is None:
             return Failure(
                 CTraderDemoExecutionConflictError("cTrader execution receipt id already exists")
             )
@@ -285,15 +590,37 @@ class CTraderDemoExecutionGateway:
 
         self._receipt_ids.add(submission.receipt_id)
         self._submissions[submission.receipt_id] = submission
+        self._submission_digests[key] = ctrader_submission_digest(submission)
+
+        started = CTraderDemoMutationAttempt(
+            idempotency_key=key,
+            receipt_id=submission.receipt_id,
+            submission_logical=submission.logical_values(),
+            state=CTraderDemoAttemptState.ATTEMPT_STARTED,
+            transitioned_at=submission.submitted_at,
+            reason="durable fence committed before provider mutation",
+        )
+        persisted_started = self._persist_attempt(
+            submission,
+            started,
+            client_order_id=plan.client_msg_id,
+        )
+        if isinstance(persisted_started, Failure):
+            return Failure(persisted_started.error)
+        self._attempts[key] = started
+        self._staged_here.discard(key)
 
         metadata = submission.authorized_intent.intent.metadata
         response_result = self._transport.submit_order(plan, metadata=metadata)
         if isinstance(response_result, Failure):
-            self._record_unknown(
+            persisted_unknown = self._record_unknown(
                 key,
                 submission,
                 reason="provider transport failure after mutating attempt",
+                client_order_id=plan.client_msg_id,
             )
+            if isinstance(persisted_unknown, Failure):
+                return Failure(persisted_unknown.error)
             return Failure(
                 CTraderDemoExecutionUnknownOutcomeError(
                     "cTrader mutating attempt reached an indeterminate outcome; "
@@ -308,11 +635,14 @@ class CTraderDemoExecutionGateway:
             response_result.value,
         )
         if isinstance(outcome_result, Failure):
-            self._record_unknown(
+            persisted_unknown = self._record_unknown(
                 key,
                 submission,
                 reason="malformed provider response after possible effect",
+                client_order_id=plan.client_msg_id,
             )
+            if isinstance(persisted_unknown, Failure):
+                return Failure(persisted_unknown.error)
             return Failure(
                 CTraderDemoExecutionUnknownOutcomeError(
                     "cTrader provider response could not be definitively decoded; "
@@ -322,11 +652,14 @@ class CTraderDemoExecutionGateway:
 
         outcome = outcome_result.value
         if outcome.provider_order_ref in self._outcomes_by_provider_ref:
-            self._record_unknown(
+            persisted_unknown = self._record_unknown(
                 key,
                 submission,
                 reason="provider order reference already observed",
+                client_order_id=plan.client_msg_id,
             )
+            if isinstance(persisted_unknown, Failure):
+                return Failure(persisted_unknown.error)
             return Failure(
                 CTraderDemoExecutionUnknownOutcomeError(
                     "cTrader provider order reference was already observed; "
@@ -334,7 +667,7 @@ class CTraderDemoExecutionGateway:
                 )
             )
 
-        self._attempts[key] = CTraderDemoMutationAttempt(
+        definitive = CTraderDemoMutationAttempt(
             idempotency_key=key,
             receipt_id=submission.receipt_id,
             submission_logical=submission.logical_values(),
@@ -343,6 +676,20 @@ class CTraderDemoExecutionGateway:
             provider_order_ref=outcome.provider_order_ref,
             reason=outcome.disposition.value,
         )
+        persisted_definitive = self._persist_attempt(
+            submission,
+            definitive,
+            client_order_id=plan.client_msg_id,
+            outcome=outcome.disposition.value,
+        )
+        if isinstance(persisted_definitive, Failure):
+            return Failure(
+                CTraderDemoExecutionUnknownOutcomeError(
+                    "provider outcome was received but durable commit failed; "
+                    "reconciliation required"
+                )
+            )
+        self._attempts[key] = definitive
         self._outcomes_by_receipt[submission.receipt_id] = outcome
         self._outcomes_by_provider_ref[outcome.provider_order_ref] = outcome
         self._metadata_by_provider_ref[outcome.provider_order_ref] = metadata
@@ -475,6 +822,25 @@ class CTraderDemoExecutionGateway:
 
         ledger = self._fills_by_receipt.setdefault(receipt_id, {})
         existing = ledger.get(observation.fill_ref)
+        persisted_identity = self._fill_identity_digests.setdefault(receipt_id, {}).get(
+            observation.fill_ref
+        )
+        observation_digest = _stable_fill_digest(observation)
+        if existing is None and persisted_identity is not None:
+            if persisted_identity != observation_digest:
+                return Failure(
+                    CTraderDemoExecutionConflictError(
+                        "durable cTrader fill reference has different deal identity"
+                    )
+                )
+            if observation.cumulative_quantity > self._authoritative_filled.get(
+                receipt_id, Decimal("0")
+            ):
+                self._authoritative_filled[receipt_id] = observation.cumulative_quantity
+            if observation.is_complete:
+                self._fill_complete[receipt_id] = True
+            ledger[observation.fill_ref] = observation
+            return self._finish_fill(submission, observation)
         if existing is not None:
             if _stable_fill_identity(existing) != _stable_fill_identity(observation):
                 return Failure(
@@ -482,8 +848,10 @@ class CTraderDemoExecutionGateway:
                         "duplicate cTrader fill reference with different deal identity"
                     )
                 )
-            authoritative = self._authoritative_filled.get(receipt_id, Decimal("0"))
-            if observation.cumulative_quantity > authoritative:
+            duplicate_authoritative = self._authoritative_filled.get(
+                receipt_id, Decimal("0")
+            )
+            if observation.cumulative_quantity > duplicate_authoritative:
                 self._authoritative_filled[receipt_id] = observation.cumulative_quantity
             if observation.is_complete:
                 self._fill_complete[receipt_id] = True
@@ -492,8 +860,9 @@ class CTraderDemoExecutionGateway:
                 or (observation.is_complete and not existing.is_complete)
             ):
                 ledger[observation.fill_ref] = observation
-                return Success(observation)
-            return Success(existing)
+                self._fill_identity_digests[receipt_id][observation.fill_ref] = observation_digest
+                return self._finish_fill(submission, observation)
+            return self._finish_fill(submission, existing)
 
         if observation.is_complete:
             self._fill_complete[receipt_id] = True
@@ -502,10 +871,12 @@ class CTraderDemoExecutionGateway:
         if authoritative is not None and observation.cumulative_quantity < authoritative:
             # Late/out-of-order fill event: retain evidence but do not regress.
             ledger[observation.fill_ref] = observation
-            return Success(observation)
+            self._fill_identity_digests[receipt_id][observation.fill_ref] = observation_digest
+            return self._finish_fill(submission, observation)
         self._authoritative_filled[receipt_id] = observation.cumulative_quantity
         ledger[observation.fill_ref] = observation
-        return Success(observation)
+        self._fill_identity_digests[receipt_id][observation.fill_ref] = observation_digest
+        return self._finish_fill(submission, observation)
 
     def reconcile_fills(
         self,
@@ -664,6 +1035,9 @@ class CTraderDemoExecutionGateway:
             if isinstance(reconciled, Failure):
                 return Failure(reconciled.error)
             current = reconciled.value
+            persisted = self._persist_transition(submission, current)
+            if isinstance(persisted, Failure):
+                return persisted
             self._attempts[key] = current
 
         metadata = submission.authorized_intent.intent.metadata
@@ -699,6 +1073,9 @@ class CTraderDemoExecutionGateway:
             )
             if isinstance(resolved, Failure):
                 return Failure(resolved.error)
+            persisted = self._persist_transition(submission, resolved.value)
+            if isinstance(persisted, Failure):
+                return persisted
             self._attempts[key] = resolved.value
             return Success(resolved.value)
 
@@ -726,5 +1103,178 @@ class CTraderDemoExecutionGateway:
         )
         if isinstance(resolved, Failure):
             return Failure(resolved.error)
+        persisted = self._persist_transition(
+            submission,
+            resolved.value,
+            outcome=outcome.disposition.value,
+        )
+        if isinstance(persisted, Failure):
+            return persisted
         self._attempts[key] = resolved.value
         return Success(resolved.value)
+
+    def discover_unknown_outcome(
+        self,
+        *,
+        receipt_id: ExecutionReceiptId,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+        searched_at: datetime,
+    ) -> Result[CTraderDemoMutationAttempt, ExecutionBoundaryError]:
+        """Recover an unknown create by its persisted clientOrderId, never by retrying it."""
+        if not isinstance(receipt_id, ExecutionReceiptId):
+            return Failure(
+                CTraderDemoExecutionGatewayValidationError(
+                    "discover_unknown_outcome requires ExecutionReceiptId"
+                )
+            )
+        for value, field_name in (
+            (from_timestamp, "from_timestamp"),
+            (to_timestamp, "to_timestamp"),
+            (searched_at, "searched_at"),
+        ):
+            if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+                return Failure(
+                    CTraderDemoExecutionGatewayValidationError(
+                        f"{field_name} must be a timezone-aware datetime"
+                    )
+                )
+        if from_timestamp >= to_timestamp:
+            return Failure(
+                CTraderDemoExecutionGatewayValidationError(
+                    "from_timestamp must predate to_timestamp"
+                )
+            )
+        submission = self._submissions.get(receipt_id)
+        if submission is None:
+            return Failure(
+                ExecutionBoundaryNotFoundError(
+                    "gateway cannot discover an unknown execution receipt"
+                )
+            )
+        key = submission.idempotency_key
+        prior = self._attempts.get(key)
+        if prior is None or prior.state not in {
+            CTraderDemoAttemptState.OUTCOME_UNKNOWN,
+            CTraderDemoAttemptState.RECONCILIATION_REQUIRED,
+        }:
+            return Failure(
+                CTraderDemoExecutionConflictError(
+                    "attempt is not in a discoverable indeterminate state"
+                )
+            )
+        current = prior
+        if prior.state is CTraderDemoAttemptState.OUTCOME_UNKNOWN:
+            transitioned = transition_ctrader_demo_attempt(
+                prior,
+                CTraderDemoAttemptState.RECONCILIATION_REQUIRED,
+                transitioned_at=searched_at,
+                reason="clientOrderId discovery required",
+            )
+            if isinstance(transitioned, Failure):
+                return Failure(transitioned.error)
+            current = transitioned.value
+            persisted = self._persist_transition(submission, current)
+            if isinstance(persisted, Failure):
+                return persisted
+            self._attempts[key] = current
+
+        plan_result = build_ctrader_demo_order_create_plan(self._configuration, submission)
+        if isinstance(plan_result, Failure):
+            return Failure(plan_result.error)
+        metadata = submission.authorized_intent.intent.metadata
+        discovered = self._transport.discover_order(
+            plan_result.value,
+            from_timestamp=from_timestamp,
+            to_timestamp=to_timestamp,
+            metadata=metadata,
+        )
+        if isinstance(discovered, Failure):
+            return self._contain_discovery(
+                key,
+                current,
+                transitioned_at=to_timestamp,
+                reason="clientOrderId discovery failed or was incomplete",
+            )
+        response = discovered.value
+        if response.status_code == 404:
+            resolved = transition_ctrader_demo_attempt(
+                current,
+                CTraderDemoAttemptState.RESOLVED,
+                transitioned_at=response.received_at,
+                reason="complete clientOrderId search proved no external effect",
+            )
+            if isinstance(resolved, Failure):
+                return Failure(resolved.error)
+            persisted = self._persist_transition(submission, resolved.value)
+            if isinstance(persisted, Failure):
+                return persisted
+            self._attempts[key] = resolved.value
+            return Success(resolved.value)
+        if response.status_code != 200:
+            return self._contain_discovery(
+                key,
+                current,
+                transitioned_at=response.received_at,
+                reason="clientOrderId discovery was ambiguous or contradictory",
+            )
+        try:
+            payload = json.loads(response.payload.decode("utf-8"))
+            provider_order_ref = payload["orderId"]
+        except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
+            return self._contain_discovery(
+                key,
+                current,
+                transitioned_at=response.received_at,
+                reason="clientOrderId discovery returned malformed identity evidence",
+            )
+        if not isinstance(provider_order_ref, str) or not provider_order_ref:
+            return self._contain_discovery(
+                key,
+                current,
+                transitioned_at=response.received_at,
+                reason="clientOrderId discovery returned invalid order identity",
+            )
+        reconciled = self.resolve_unknown_outcome(
+            receipt_id=receipt_id,
+            provider_order_ref=provider_order_ref,
+            queried_at=response.received_at,
+        )
+        if isinstance(reconciled, Failure):
+            latest = self._attempts[key]
+            return self._contain_discovery(
+                key,
+                latest,
+                transitioned_at=response.received_at + timedelta(microseconds=1),
+                reason="discovered order could not be reconciled definitively",
+            )
+        return reconciled
+
+    def _contain_discovery(
+        self,
+        key: ExecutionIdempotencyKey,
+        current: CTraderDemoMutationAttempt,
+        *,
+        transitioned_at: datetime,
+        reason: str,
+    ) -> Result[CTraderDemoMutationAttempt, ExecutionBoundaryError]:
+        contained = transition_ctrader_demo_attempt(
+            current,
+            CTraderDemoAttemptState.CONTAINED,
+            transitioned_at=transitioned_at,
+            reason=reason,
+        )
+        if isinstance(contained, Failure):
+            return Failure(contained.error)
+        submission = self._submissions.get(current.receipt_id)
+        if submission is None:
+            return Failure(
+                CTraderDemoExecutionGatewayValidationError(
+                    "contained discovery is missing its restored submission"
+                )
+            )
+        persisted = self._persist_transition(submission, contained.value)
+        if isinstance(persisted, Failure):
+            return persisted
+        self._attempts[key] = contained.value
+        return Success(contained.value)

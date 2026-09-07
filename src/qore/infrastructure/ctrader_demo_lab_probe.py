@@ -41,6 +41,13 @@ class CTraderDemoLabProbeError(InfrastructureError):
     __slots__ = ()
 
 
+def compute_ctrader_demo_lab_account_fingerprint(account_id: int) -> str:
+    """Return the probe's stable non-secret binding for one authenticated account."""
+    if type(account_id) is not int or account_id <= 0:
+        raise CTraderDemoLabProbeError("account_id must be a positive int")
+    return sha256(f"qore:ctrader-demo-account:v1:{account_id}".encode("ascii")).hexdigest()
+
+
 def _aware(value: datetime, *, field_name: str) -> datetime:
     if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
         raise CTraderDemoLabProbeError(f"{field_name} must be timezone-aware")
@@ -330,9 +337,7 @@ def collect_ctrader_demo_lab_market_evidence(
             )
         bars.extend(period_bars)
 
-    account_fingerprint = sha256(
-        f"qore:ctrader-demo-account:v1:{account_id}".encode("ascii")
-    ).hexdigest()
+    account_fingerprint = compute_ctrader_demo_lab_account_fingerprint(account_id)
     return CTraderDemoLabMarketEvidence(
         account_fingerprint=account_fingerprint,
         symbol=symbol,
@@ -341,21 +346,30 @@ def collect_ctrader_demo_lab_market_evidence(
     )
 
 
-def _required_env(name: str) -> str:
-    value = os.environ.get(name, "")
-    if not value:
-        raise CTraderDemoLabProbeError(f"missing required environment input: {name}")
-    return value
+def _required_env(name: str, *aliases: str) -> str:
+    for candidate in (name, *aliases):
+        value = os.environ.get(candidate, "")
+        if value:
+            return value
+    raise CTraderDemoLabProbeError(f"missing required environment input: {name}")
 
 
 def main() -> None:
     """Collect a secret-free DEMO market artifact; never print credential material."""
     credentials = CTraderOpenApiCredentials(
-        client_id=_required_env("QORE_CTRADER_CLIENT_ID"),
-        client_secret=_required_env("QORE_CTRADER_CLIENT_SECRET"),
-        access_token=_required_env("QORE_CTRADER_ACCESS_TOKEN"),
-        refresh_token=_required_env("QORE_CTRADER_REFRESH_TOKEN"),
-        ctid_trader_account_id=int(_required_env("QORE_CTRADER_DEMO_ACCOUNT_ID")),
+        client_id=_required_env("QORE_CTRADER_CLIENT_ID", "QORE_CTRADER_DEMO_CLIENT_ID"),
+        client_secret=_required_env(
+            "QORE_CTRADER_CLIENT_SECRET", "QORE_CTRADER_DEMO_CLIENT_SECRET"
+        ),
+        access_token=_required_env(
+            "QORE_CTRADER_ACCESS_TOKEN", "QORE_CTRADER_DEMO_ACCESS_TOKEN"
+        ),
+        refresh_token=_required_env(
+            "QORE_CTRADER_REFRESH_TOKEN", "QORE_CTRADER_DEMO_REFRESH_TOKEN"
+        ),
+        ctid_trader_account_id=int(
+            _required_env("QORE_CTRADER_DEMO_ACCOUNT_ID", "QORE_CTRADER_ACCOUNT_ID")
+        ),
     )
     symbol_name = _required_env("QORE_DEMO_LAB_SYMBOL")
     lookback_days = int(os.environ.get("QORE_DEMO_LAB_LOOKBACK_DAYS", "30"))
