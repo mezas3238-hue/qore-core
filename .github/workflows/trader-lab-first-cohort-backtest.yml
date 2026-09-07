@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/trader-lab-first-cohort-backtest.yml
       - src/qore/infrastructure/trader_lab/first_cohort_backtest.py
+      - src/qore/infrastructure/trader_lab/first_cohort_walk_forward.py
       - src/qore/infrastructure/traders/evaluators.py
       - src/qore/infrastructure/traders/instrument_binding.py
       - src/qore/infrastructure/traders/primitives.py
@@ -101,6 +102,30 @@ jobs:
               "vt-31",
           ]
           assert all(item["sample_size"] >= 0 for item in payload["results"])
+          PY
+      - name: Walk-forward screen and untouched OOS validation
+        run: |
+          python -m qore.infrastructure.trader_lab.first_cohort_walk_forward \
+            artifacts/first-cohort-backtest/market-evidence.json \
+            > artifacts/first-cohort-backtest/walk-forward.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/first-cohort-backtest/walk-forward.json").read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["in_sample_fraction"] == "0.70"
+          assert payload["oos_fraction"] == "0.30"
+          assert [item["trader_code"] for item in payload["results"]] == [
+              "vt-01",
+              "vt-08",
+              "vt-09",
+              "vt-17",
+              "vt-31",
+          ]
           PY
       - name: Upload sanitized first-cohort backtest
         uses: actions/upload-artifact@v4
