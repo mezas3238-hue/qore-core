@@ -12,10 +12,11 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
+from qore.infrastructure.market_data import OhlcSnapshot
 from qore.infrastructure.trader_lab.first_cohort_backtest import (
     FirstCohortBacktestError,
     FirstCohortBacktestTrade,
@@ -31,7 +32,6 @@ from qore.infrastructure.trader_lab.first_cohort_walk_forward import (
     _parameters,
     _passes,
 )
-from qore.infrastructure.traders.instrument_binding import DemoTradingEvaluatorBoundary
 
 _SCHEMA = "qore.trader_lab.first_cohort_multi_pair_walk_forward.v1"
 _REQUIRED_PAIR_COUNT = 5
@@ -43,7 +43,7 @@ _STRESS_HAIRCUT = Decimal("0.0002")
 @dataclass(frozen=True, slots=True)
 class PairPartition:
     symbol: str
-    series: dict[str, tuple[object, ...]]
+    series: dict[str, tuple[OhlcSnapshot, ...]]
     account_fingerprint: str
     checked_at: datetime
     split_at: datetime
