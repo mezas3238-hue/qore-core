@@ -12,13 +12,13 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from qore.infrastructure.trader_lab.candidate import TraderLabValidationError
 from qore.infrastructure.trader_lab.catalog import (
     FIRST_DEMO_COHORT_CODES,
     TRADER_LAB_CATALOG_CODES,
     TraderLabCatalogEnrollmentSet,
     enroll_complete_trader_catalog,
 )
-from qore.infrastructure.trader_lab.candidate import TraderLabValidationError
 
 
 @dataclass(frozen=True, slots=True)
