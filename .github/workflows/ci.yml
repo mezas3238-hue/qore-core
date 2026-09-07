@@ -26,3 +26,75 @@ jobs:
         run: mypy src tests
       - name: Pytest
         run: pytest --cov=src/qore --cov-report=term-missing
+
+  ctrader-demo-preflight:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 500
+    runs-on: ubuntu-latest
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+      QORE_DEMO_LAB_SYMBOL: ${{ vars.QORE_DEMO_LAB_SYMBOL || 'EURUSD' }}
+      QORE_DEMO_LAB_LOOKBACK_DAYS: "30"
+    steps:
+      - name: Checkout exact synthetic candidate
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify historical QORE cTrader DEMO wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN \
+            QORE_CTRADER_DEMO_ACCOUNT_ID \
+            QORE_DEMO_LAB_SYMBOL
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover DEMO account and verify market constraints read-only
+        run: |
+          mkdir -p artifacts/ctrader-demo-preflight
+          python -m qore.infrastructure.ctrader_demo_lab_probe \
+            > artifacts/ctrader-demo-preflight/evidence.json
+          printf '%s\n' "$GITHUB_SHA" \
+            > artifacts/ctrader-demo-preflight/git-sha.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/ctrader-demo-preflight/evidence.json").read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["account_discovered"] is True
+          assert payload["account_is_live"] is False
+          assert payload["trading_permission_verified"] is True
+          assert set(payload["periods"]) == {"M1", "M5", "M15", "H4"}
+          assert all(payload["periods"][period] for period in payload["periods"])
+          assert payload["symbol"]["min_volume_units"] > 0
+          assert payload["symbol"]["step_volume_units"] > 0
+          assert len(payload["account_fingerprint"]) == 64
+          PY
+      - name: Upload sanitized cTrader DEMO preflight
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-ctrader-demo-preflight-${{ github.sha }}
+          path: artifacts/ctrader-demo-preflight
+          if-no-files-found: error
+          retention-days: 30
