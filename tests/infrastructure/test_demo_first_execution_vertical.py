@@ -107,11 +107,11 @@ from qore.infrastructure.traders.instrument_binding import (
 )
 from qore.kernel.result import Failure, Result, Success
 from tests.infrastructure.trader_lab.test_first_cohort_selection import (
-    _CandidateFactory,
     _POLICY,
+    _CandidateFactory,
+    _cohort,
     _StageEvidenceFactory,
     _StrategyBindingFactory,
-    _cohort,
 )
 
 _NOW = datetime(2026, 9, 7, 9, 30, tzinfo=UTC)
