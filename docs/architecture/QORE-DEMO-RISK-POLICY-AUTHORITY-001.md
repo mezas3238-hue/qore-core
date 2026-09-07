@@ -198,8 +198,17 @@ reason codes, arm
 ```
 
 `RiskAuthorization` is immutable; a `with voided status` copy is produced by
-`void_authorization(...)` on material mutation, never by mutating the original. Reuse of a
-voided/expired authorization is invalidated and requires a new decision.
+`void_authorization(...)` on material mutation, never by mutating the original. Every issued
+authorization also carries an explicit `valid_until` derived from the remaining freshness window
+of the exact market/account evidence and clamped by the resolved account-policy expiry when one
+is available. Reuse after that instant, after a scope generation change, or after a policy-version
+change is invalidated and requires a new decision.
+
+The execution bridge is `DemoRiskRuntime.prepare_execution_submission(...)`. It verifies the
+canonical digest of the original `OrderIntent`, applies only the Risk-authorized quantity, maps the
+Risk authorization into the existing `PreTradeAuthorization`/`AuthorizedOrderIntent` contracts,
+validates and commits the exact capacity reservation, and only then returns `ExecutionSubmission`.
+No caller can obtain that submission from Risk by presenting free-form CIBO/Trader output.
 
 ### Scope / degradation state machine
 

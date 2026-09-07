@@ -22,7 +22,7 @@ Responsibilities:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 from qore.infrastructure.account_policy import (
@@ -30,10 +30,22 @@ from qore.infrastructure.account_policy import (
     AccountPolicyVersion,
     AccountPropPolicySnapshot,
 )
+from qore.infrastructure.execution_boundary import (
+    ExecutionBoundaryError,
+    ExecutionReceiptId,
+    ExecutionRequestId,
+    ExecutionSubmission,
+)
+from qore.infrastructure.order_intent import OrderIntent
 from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
     ExecutionSwitchState,
+    PreTradeAuthorization,
+    PreTradeAuthorizationId,
+    PreTradeDecision,
+    PreTradePolicyId,
     PreTradeSafetyError,
+    authorize_order_intent,
 )
 from qore.infrastructure.proprietary_accounts import MoneyAmount
 from qore.infrastructure.risk_authority import (
@@ -53,10 +65,13 @@ from qore.infrastructure.risk_authority import (
     RiskPolicySnapshot,
     RiskReason,
     RiskReasonCode,
+    RiskReservation,
     RiskReservationId,
+    RiskReservationStatus,
     RiskScopeSnapshot,
     RiskScopeState,
     compute_authorization_fingerprint,
+    compute_fingerprint,
     evaluate_risk_admission,
     is_authorization_reusable,
 )
@@ -70,11 +85,13 @@ from qore.kernel.result import Failure, Result, Success
 
 __all__ = [
     "DemoRiskRuntime",
+    "RiskAuthorizedSubmission",
     "RiskPolicyResolutionError",
     "RiskRuntimeError",
     "RiskRuntimeValidationError",
     "compose_demo_risk_runtime",
     "compose_execution_safety_from_scope",
+    "compute_order_intent_risk_digest",
     "resolve_account_policy_for_evidence",
     "validate_risk_authorization",
 ]
@@ -108,6 +125,51 @@ class RiskPolicyResolutionError(RiskRuntimeError):
     def __init__(self, reason: RiskReason) -> None:
         super().__init__(reason.summary)
         self.reason = reason
+
+
+@dataclass(frozen=True, slots=True)
+class RiskAuthorizedSubmission:
+    """Execution submission plus immutable Risk evidence binding.
+
+    The cTrader runtime consumes ``submission``. The remaining fields preserve
+    the exact deterministic Risk authorization and reservation identity needed
+    to associate broker evidence back to the pre-trade decision.
+    """
+
+    submission: ExecutionSubmission
+    risk_authorization: RiskAuthorization
+    risk_authorization_fingerprint: RiskFingerprint
+    reservation: RiskReservation
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.submission, ExecutionSubmission):
+            raise RiskRuntimeValidationError("submission must be ExecutionSubmission")
+        if not isinstance(self.risk_authorization, RiskAuthorization):
+            raise RiskRuntimeValidationError(
+                "risk_authorization must be RiskAuthorization"
+            )
+        if not isinstance(self.risk_authorization_fingerprint, RiskFingerprint):
+            raise RiskRuntimeValidationError(
+                "risk_authorization_fingerprint must be RiskFingerprint"
+            )
+        if not isinstance(self.reservation, RiskReservation):
+            raise RiskRuntimeValidationError("reservation must be RiskReservation")
+        if self.reservation.status is not RiskReservationStatus.COMMITTED:
+            raise RiskRuntimeValidationError(
+                "risk-authorized execution requires committed reservation"
+            )
+        if self.reservation.reservation_id != self.risk_authorization.reservation_id:
+            raise RiskRuntimeValidationError(
+                "reservation identity must match risk authorization"
+            )
+
+
+def compute_order_intent_risk_digest(intent: OrderIntent) -> RiskFingerprint:
+    """Canonical Risk digest of the exact upstream ``OrderIntent`` logical bytes."""
+
+    if not isinstance(intent, OrderIntent):
+        raise RiskRuntimeValidationError("intent must be OrderIntent")
+    return compute_fingerprint(intent.logical_values())
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +214,7 @@ class DemoRiskRuntime:
             return Failure(
                 RiskRuntimeValidationError("internal_policy must be RiskPolicySnapshot")
             )
+        resolved_policy: AccountPropPolicySnapshot | None = None
         if account_policy_registry is not None:
             if not isinstance(account_policy_registry, AccountPolicyRegistrySnapshot):
                 return Failure(
@@ -164,7 +227,8 @@ class DemoRiskRuntime:
             )
             if isinstance(resolved, Failure):
                 return Success(_reject(evidence, decision_id, resolved.error.reason))
-        return evaluate_risk_admission(
+            resolved_policy = resolved.value
+        admitted = evaluate_risk_admission(
             evidence,
             internal_policy,
             self.budget_engine,
@@ -175,6 +239,183 @@ class DemoRiskRuntime:
             reservation_generation=reservation_generation,
             max_evidence_age_seconds=max_evidence_age_seconds,
         )
+        if not isinstance(admitted, Success) or resolved_policy is None:
+            return admitted
+        decision = admitted.value
+        auth = decision.authorization
+        if auth is None or resolved_policy.expires_at is None:
+            return admitted
+        if resolved_policy.expires_at >= auth.valid_until:
+            return admitted
+        clamped = replace(auth, valid_until=resolved_policy.expires_at)
+        return Success(replace(decision, authorization=clamped))
+
+    def prepare_execution_submission(
+        self,
+        decision: RiskDecision,
+        intent: OrderIntent,
+        *,
+        scope: RiskScopeSnapshot,
+        account_policy_version: AccountPolicyVersion,
+        expected_authorization_fingerprint: RiskFingerprint,
+        request_id: ExecutionRequestId,
+        receipt_id: ExecutionReceiptId,
+        authorized_at: datetime,
+        submitted_at: datetime,
+    ) -> Result[RiskAuthorizedSubmission, RiskError]:
+        """Turn one exact ALLOW/REDUCE decision into a non-bypassable submission.
+
+        This is the only Risk-owned bridge to ``ExecutionSubmission``. It binds
+        the exact original intent digest, applies the Risk-reduced quantity when
+        present, revalidates scope/policy/fingerprint/expiry, validates the
+        reservation, and commits that reservation before returning a submission.
+        """
+
+        if not isinstance(decision, RiskDecision):
+            return Failure(RiskRuntimeValidationError("decision must be RiskDecision"))
+        if not isinstance(intent, OrderIntent):
+            return Failure(RiskRuntimeValidationError("intent must be OrderIntent"))
+        if decision.outcome not in (RiskOutcome.ALLOW, RiskOutcome.REDUCE):
+            return Failure(
+                RiskRuntimeValidationError(
+                    "execution submission requires Risk ALLOW or REDUCE"
+                )
+            )
+        auth = decision.authorization
+        if auth is None:
+            return Failure(
+                RiskRuntimeValidationError(
+                    "admitting risk decision is missing its authorization"
+                )
+            )
+        if auth.intent_id != intent.intent_id:
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk authorization intent identity does not match order intent"
+                )
+            )
+        if auth.intent_digest != compute_order_intent_risk_digest(intent):
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk authorization intent digest does not match order intent"
+                )
+            )
+        if auth.instrument != intent.instrument or auth.side is not intent.side:
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk authorization instrument/side does not match order intent"
+                )
+            )
+        if auth.requested_quantity != intent.quantity:
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk authorization requested quantity does not match order intent"
+                )
+            )
+        validated = validate_risk_authorization(
+            auth,
+            scope=scope,
+            account_policy_version=account_policy_version,
+            expected_fingerprint=expected_authorization_fingerprint,
+            evaluated_at=authorized_at,
+        )
+        if isinstance(validated, Failure):
+            return validated
+
+        reservation_result = self.capacity.get(auth.reservation_id)
+        if isinstance(reservation_result, Failure):
+            return reservation_result
+        reservation = reservation_result.value
+        if reservation is None:
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk authorization reservation does not exist"
+                )
+            )
+        if reservation.generation != auth.reservation_generation:
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk authorization reservation generation does not match"
+                )
+            )
+        if reservation.intent_digest != auth.intent_digest:
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk reservation intent digest does not match authorization"
+                )
+            )
+        if (
+            reservation.authorized_quantity != auth.authorized_quantity
+            or reservation.notional != auth.authorized_notional
+        ):
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk reservation quantity/notional does not match authorization"
+                )
+            )
+        if reservation.status not in (
+            RiskReservationStatus.RESERVED,
+            RiskReservationStatus.COMMITTED,
+        ):
+            return Failure(
+                RiskRuntimeValidationError(
+                    "risk authorization reservation is not executable"
+                )
+            )
+
+        execution_intent = replace(intent, quantity=auth.authorized_quantity)
+        try:
+            pretrade = PreTradeAuthorization(
+                authorization_id=PreTradeAuthorizationId(auth.authorization_id.value),
+                policy_id=PreTradePolicyId(
+                    f"risk.{auth.internal_risk_policy_id.value}.v"
+                    f"{auth.internal_risk_policy_version.value}"
+                ),
+                intent_id=execution_intent.intent_id,
+                decision=PreTradeDecision.APPROVED,
+                evaluated_at=auth.issued_at,
+                expires_at=auth.valid_until,
+                reason=f"deterministic risk authority {decision.outcome.value}",
+            )
+        except PreTradeSafetyError as error:
+            return Failure(RiskRuntimeValidationError(str(error)))
+        switch_result = compose_execution_safety_from_scope(
+            scope, observed_at=authorized_at
+        )
+        if isinstance(switch_result, Failure):
+            return switch_result
+        authorized = authorize_order_intent(
+            execution_intent,
+            pretrade,
+            switch_result.value,
+            authorized_at=authorized_at,
+        )
+        if isinstance(authorized, Failure):
+            return Failure(RiskRuntimeValidationError(str(authorized.error)))
+        try:
+            submission = ExecutionSubmission(
+                request_id=request_id,
+                receipt_id=receipt_id,
+                authorized_intent=authorized.value,
+                submitted_at=submitted_at,
+            )
+        except ExecutionBoundaryError as error:
+            return Failure(RiskRuntimeValidationError(str(error)))
+
+        committed = self.capacity.commit(auth.reservation_id)
+        if isinstance(committed, Failure):
+            return committed
+        try:
+            return Success(
+                RiskAuthorizedSubmission(
+                    submission=submission,
+                    risk_authorization=auth,
+                    risk_authorization_fingerprint=expected_authorization_fingerprint,
+                    reservation=committed.value,
+                )
+            )
+        except RiskRuntimeValidationError as error:
+            return Failure(error)
 
 
 def resolve_account_policy_for_evidence(

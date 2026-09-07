@@ -551,6 +551,16 @@ def test_is_authorization_reusable() -> None:
         )
         is True
     )
+    assert auth.valid_until == _T0 + timedelta(seconds=300)
+    assert (
+        risk_authority.is_authorization_reusable(
+            auth,
+            scope=scope,
+            account_policy_version=policy_version,
+            evaluated_at=auth.valid_until + timedelta(microseconds=1),
+        )
+        is False
+    )
     assert (
         risk_authority.is_authorization_reusable(
             auth,

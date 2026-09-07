@@ -973,6 +973,7 @@ class RiskAuthorization:
     reservation_generation: int
     scope_generation: int
     issued_at: datetime
+    valid_until: datetime
     arm: RiskArm
     status: RiskAuthorizationStatus = RiskAuthorizationStatus.ISSUED
     reason_codes: tuple[RiskReasonCode, ...] = ()
@@ -1055,6 +1056,9 @@ class RiskAuthorization:
         )
         _validate_non_negative_int(self.scope_generation, field_name="scope_generation")
         _validate_timestamp(self.issued_at, field_name="issued_at")
+        _validate_timestamp(self.valid_until, field_name="valid_until")
+        if self.valid_until <= self.issued_at:
+            raise RiskValidationError("valid_until must be after issued_at")
         if not isinstance(self.arm, RiskArm):
             raise RiskValidationError("arm must be RiskArm")
         if not isinstance(self.status, RiskAuthorizationStatus):
@@ -1097,6 +1101,7 @@ class RiskAuthorization:
             self.reservation_generation,
             self.scope_generation,
             self.issued_at.isoformat(),
+            self.valid_until.isoformat(),
             self.arm.value,
             self.status.value,
             tuple(code.value for code in self.reason_codes),
@@ -1447,6 +1452,7 @@ def void_authorization(
         reservation_generation=auth.reservation_generation,
         scope_generation=auth.scope_generation,
         issued_at=auth.issued_at,
+        valid_until=auth.valid_until,
         arm=auth.arm,
         status=RiskAuthorizationStatus.VOID,
         reason_codes=auth.reason_codes + (reason.code,),
@@ -1460,12 +1466,12 @@ def is_authorization_reusable(
     account_policy_version: AccountPolicyVersion,
     evaluated_at: datetime,
 ) -> bool:
-    """Return whether an authorization remains reusable with no wall-clock TTL.
+    """Return whether an authorization remains reusable inside its evidence validity.
 
     Reuse is bound to scope-generation equality (no scope escalation since
-    issuance), account-policy-version equality, and a non-void status. The
-    ``evaluated_at`` argument is accepted for call-site uniformity but is
-    deliberately not used as a universal validity bound.
+    issuance), account-policy-version equality, a non-void status, and the
+    explicit ``valid_until`` derived at admission from evidence freshness (and
+    optionally clamped by the resolved account-policy expiry in the runtime).
     """
 
     if not isinstance(auth, RiskAuthorization):
@@ -1478,6 +1484,8 @@ def is_authorization_reusable(
         )
     _validate_timestamp(evaluated_at, field_name="evaluated_at")
     if auth.status is RiskAuthorizationStatus.VOID:
+        return False
+    if evaluated_at > auth.valid_until:
         return False
     if scope.generation != auth.scope_generation:
         return False
@@ -1652,6 +1660,22 @@ def evaluate_risk_admission(
             )
         )
 
+    valid_until = min(
+        evidence.market_evidence.observed_at + max_age,
+        evidence.account_state.observed_at + max_age,
+    )
+    if valid_until <= evaluated_at:
+        return Success(
+            _reject_decision(
+                evidence,
+                decision_id,
+                RiskReason(
+                    RiskReasonCode.evidence_stale,
+                    "risk evidence has no remaining execution-validity window",
+                ),
+            )
+        )
+
     equity_currency = evidence.account_state.equity.currency
     currency_fields = (
         evidence.requested_notional,
@@ -1806,6 +1830,7 @@ def evaluate_risk_admission(
         reservation_generation=reservation_generation,
         scope_generation=evidence.scope.generation,
         issued_at=evaluated_at,
+        valid_until=valid_until,
         arm=evidence.arm,
         status=RiskAuthorizationStatus.ISSUED,
         reason_codes=(budget.reason.code,),

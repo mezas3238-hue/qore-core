@@ -5,9 +5,12 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+import qore.domain.events as events
 import qore.infrastructure.account_policy as account_policy
 import qore.infrastructure.client_accounts as client_accounts
+import qore.infrastructure.execution_boundary as execution_boundary
 import qore.infrastructure.order_intent as order_intent
+import qore.infrastructure.ports as ports
 import qore.infrastructure.proprietary_accounts as proprietary_accounts
 import qore.infrastructure.risk_authority as risk_authority
 import qore.infrastructure.risk_budgets as risk_budgets
@@ -54,6 +57,27 @@ def _quantity(value: str) -> order_intent.OrderQuantity:
 
 def _price(value: str) -> order_intent.OrderPrice:
     return order_intent.OrderPrice(Decimal(value))
+
+
+def _order_intent(*, quantity: str = "1.0") -> order_intent.OrderIntent:
+    return order_intent.OrderIntent(
+        intent_id=order_intent.OrderIntentId(
+            UUID("52000000-0000-0000-0000-000000000030")
+        ),
+        idempotency_key=order_intent.ExecutionIdempotencyKey(
+            UUID("52000000-0000-0000-0000-000000000031")
+        ),
+        instrument=order_intent.ExecutionInstrument("EURUSD"),
+        side=order_intent.OrderSide.BUY,
+        order_type=order_intent.OrderType.MARKET,
+        quantity=_quantity(quantity),
+        created_at=_T0,
+        metadata=ports.ExternalRequestMetadata(
+            correlation_id=events.CorrelationId(
+                UUID("52000000-0000-0000-0000-000000000032")
+            )
+        ),
+    )
 
 
 def _trader() -> risk_authority.RiskTraderIdentity:
@@ -503,3 +527,150 @@ def test_runtime_rejects_reservation_generation_non_monotonic() -> None:
     )
     assert isinstance(stale, result.Success)
     assert stale.value.outcome is risk_authority.RiskOutcome.REJECT
+
+
+def test_admit_clamps_authorization_to_account_policy_expiry() -> None:
+    runtime = _runtime()
+    expires_at = _T0 + timedelta(seconds=45)
+    outcome = _admit(
+        runtime,
+        registry=_registry(_account_policy(expires_at=expires_at)),
+    )
+    assert isinstance(outcome, result.Success)
+    auth = outcome.value.authorization
+    assert auth is not None
+    assert auth.valid_until == expires_at
+
+
+def test_validate_authorization_rejects_after_evidence_validity() -> None:
+    decision = _allow()
+    auth = decision.authorization
+    assert auth is not None
+    expected = risk_authority.compute_authorization_fingerprint(auth)
+    outcome = risk_runtime.validate_risk_authorization(
+        auth,
+        scope=_scope(generation=0),
+        account_policy_version=account_policy.AccountPolicyVersion(3),
+        expected_fingerprint=expected,
+        evaluated_at=auth.valid_until + timedelta(microseconds=1),
+    )
+    assert isinstance(outcome, result.Failure)
+
+
+def _admit_for_intent(
+    runtime: risk_runtime.DemoRiskRuntime,
+    intent: order_intent.OrderIntent,
+    *,
+    requested_notional: str = "1000",
+) -> risk_authority.RiskDecision:
+    evidence = replace(
+        _evidence(requested_notional=_money(requested_notional)),
+        intent_id=intent.intent_id,
+        intent_digest=risk_runtime.compute_order_intent_risk_digest(intent),
+        instrument=intent.instrument,
+        side=intent.side,
+        requested_quantity=intent.quantity,
+    )
+    outcome = _admit(runtime, evidence=evidence, registry=_registry())
+    assert isinstance(outcome, result.Success)
+    return outcome.value
+
+
+def _prepare(
+    runtime: risk_runtime.DemoRiskRuntime,
+    decision: risk_authority.RiskDecision,
+    intent: order_intent.OrderIntent,
+    *,
+    authorized_at: datetime = _T0 + timedelta(seconds=1),
+) -> result.Result[risk_runtime.RiskAuthorizedSubmission, risk_authority.RiskError]:
+    auth = decision.authorization
+    assert auth is not None
+    return runtime.prepare_execution_submission(
+        decision,
+        intent,
+        scope=_scope(generation=0),
+        account_policy_version=account_policy.AccountPolicyVersion(3),
+        expected_authorization_fingerprint=(
+            risk_authority.compute_authorization_fingerprint(auth)
+        ),
+        request_id=execution_boundary.ExecutionRequestId(
+            UUID("52000000-0000-0000-0000-0000000000c1")
+        ),
+        receipt_id=execution_boundary.ExecutionReceiptId(
+            UUID("52000000-0000-0000-0000-0000000000c2")
+        ),
+        authorized_at=authorized_at,
+        submitted_at=authorized_at,
+    )
+
+
+def test_prepare_execution_submission_commits_capacity_and_preserves_binding() -> None:
+    runtime = _runtime()
+    intent = _order_intent()
+    decision = _admit_for_intent(runtime, intent)
+    prepared = _prepare(runtime, decision, intent)
+    assert isinstance(prepared, result.Success)
+    binding = prepared.value
+    auth = decision.authorization
+    assert auth is not None
+    assert binding.submission.authorized_intent.intent == intent
+    assert (
+        binding.submission.authorized_intent.authorization.authorization_id.value
+        == auth.authorization_id.value
+    )
+    assert binding.risk_authorization == auth
+    assert binding.reservation.status is risk_authority.RiskReservationStatus.COMMITTED
+    stored = runtime.capacity.get(auth.reservation_id)
+    assert isinstance(stored, result.Success)
+    assert stored.value is not None
+    assert stored.value.status is risk_authority.RiskReservationStatus.COMMITTED
+
+
+def test_prepare_execution_submission_applies_risk_reduced_quantity() -> None:
+    runtime = _runtime()
+    intent = _order_intent()
+    decision = _admit_for_intent(runtime, intent, requested_notional="30000")
+    assert decision.outcome is risk_authority.RiskOutcome.REDUCE
+    auth = decision.authorization
+    assert auth is not None
+    prepared = _prepare(runtime, decision, intent)
+    assert isinstance(prepared, result.Success)
+    execution_intent = prepared.value.submission.authorized_intent.intent
+    assert execution_intent.quantity == auth.authorized_quantity
+    assert execution_intent.quantity.value < intent.quantity.value
+    assert execution_intent.idempotency_key == intent.idempotency_key
+    assert execution_intent.intent_id == intent.intent_id
+
+
+def test_prepare_execution_submission_rejects_unbound_intent_without_commit() -> None:
+    runtime = _runtime()
+    intent = _order_intent()
+    decision = _admit_for_intent(runtime, intent)
+    auth = decision.authorization
+    assert auth is not None
+    changed = replace(intent, quantity=_quantity("2"))
+    prepared = _prepare(runtime, decision, changed)
+    assert isinstance(prepared, result.Failure)
+    stored = runtime.capacity.get(auth.reservation_id)
+    assert isinstance(stored, result.Success)
+    assert stored.value is not None
+    assert stored.value.status is risk_authority.RiskReservationStatus.RESERVED
+
+
+def test_prepare_execution_submission_rejects_expired_authorization_without_commit() -> None:
+    runtime = _runtime()
+    intent = _order_intent()
+    decision = _admit_for_intent(runtime, intent)
+    auth = decision.authorization
+    assert auth is not None
+    prepared = _prepare(
+        runtime,
+        decision,
+        intent,
+        authorized_at=auth.valid_until + timedelta(microseconds=1),
+    )
+    assert isinstance(prepared, result.Failure)
+    stored = runtime.capacity.get(auth.reservation_id)
+    assert isinstance(stored, result.Success)
+    assert stored.value is not None
+    assert stored.value.status is risk_authority.RiskReservationStatus.RESERVED
