@@ -31,6 +31,10 @@ from qore.infrastructure.order_intent import (
 )
 from qore.infrastructure.ports import ExternalRequestMetadata
 from qore.infrastructure.trader_lab.cohort import FirstCohortDemoSelection
+from qore.infrastructure.trader_lab.promotion import (
+    TraderLabPromotionStatus,
+    evaluate_demo_eligibility,
+)
 from qore.infrastructure.traders.contracts import (
     DemoTradingDecision,
     DemoTradingOutput,
@@ -87,6 +91,16 @@ def _validate_selected_output(
             )
         )
     selected.__post_init__()
+    eligibility = evaluate_demo_eligibility(
+        selected.lifecycle,
+        economic_evidence=selected.economic_evidence,
+    )
+    if eligibility.status is not TraderLabPromotionStatus.DEMO_ELIGIBLE:
+        return Failure(
+            DemoFirstExecutionIntentError(
+                "selected Trader no longer satisfies DEMO_ELIGIBLE at execution boundary"
+            )
+        )
     if type(output) is not InstrumentBoundDemoTradingOutput:
         return Failure(
             DemoFirstExecutionIntentError(
