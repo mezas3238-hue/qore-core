@@ -139,7 +139,9 @@ class FirstCohortTraderLabEntry:
                 "methodology_fingerprint must be DemoTradingMethodologyFingerprint"
             )
         if type(self.instrument) is not Instrument:
-            raise TraderLabValidationError("instrument must be canonical market-data Instrument")
+            raise TraderLabValidationError(
+                "instrument must be canonical market-data Instrument"
+            )
         self.instrument.__post_init__()
         if not isinstance(self.lifecycle, TraderLabLifecycle):
             raise TraderLabValidationError("lifecycle must be TraderLabLifecycle")
@@ -149,8 +151,6 @@ class FirstCohortTraderLabEntry:
             raise TraderLabValidationError(
                 "performance must be ResearchPerformanceStatisticsSnapshot"
             )
-        # Re-enter the performance trust boundary. A frozen value that was
-        # reflectively modified must not remain selectable.
         self.performance.__post_init__()
         candidate = self.lifecycle.candidate
         if candidate.version.value != self.trader_version.value:
@@ -182,7 +182,8 @@ class FirstCohortTraderLabEntry:
                 values[parameter.name] = parameter.value
         if tuple(sorted(values)) != _REQUIRED_STRATEGY_BINDING_PARAMETERS:
             raise TraderLabValidationError(
-                "strategy freeze is missing exact first-cohort Trader/instrument binding parameters"
+                "strategy freeze is missing exact first-cohort "
+                "Trader/instrument binding parameters"
             )
         expected = {
             "trader.code": self.trader_code.value,
@@ -194,7 +195,8 @@ class FirstCohortTraderLabEntry:
         }
         if values != expected:
             raise TraderLabValidationError(
-                "strategy freeze Trader identity/methodology/instrument binding does not match entry"
+                "strategy freeze Trader identity/methodology/instrument binding "
+                "does not match entry"
             )
 
     @property
@@ -225,7 +227,9 @@ class FirstCohortLabAssessment:
 
     def __post_init__(self) -> None:
         if not isinstance(self.entry, FirstCohortTraderLabEntry):
-            raise TraderLabValidationError("assessment entry must be FirstCohortTraderLabEntry")
+            raise TraderLabValidationError(
+                "assessment entry must be FirstCohortTraderLabEntry"
+            )
         if not isinstance(self.promotion, TraderLabPromotionDecision):
             raise TraderLabValidationError(
                 "assessment promotion must be TraderLabPromotionDecision"
@@ -235,9 +239,15 @@ class FirstCohortLabAssessment:
                 "assessment promotion must bind the exact candidate"
             )
         if type(self.status) is not FirstCohortLabStatus:
-            raise TraderLabValidationError("assessment status must be FirstCohortLabStatus")
-        if type(self.reasons) is not tuple or any(type(item) is not str for item in self.reasons):
-            raise TraderLabValidationError("assessment reasons must be an immutable str tuple")
+            raise TraderLabValidationError(
+                "assessment status must be FirstCohortLabStatus"
+            )
+        if type(self.reasons) is not tuple or any(
+            type(item) is not str for item in self.reasons
+        ):
+            raise TraderLabValidationError(
+                "assessment reasons must be an immutable str tuple"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,15 +262,21 @@ class FirstCohortDemoSelection:
         if not isinstance(self.policy, FirstCohortSelectionPolicy):
             raise TraderLabValidationError("policy must be FirstCohortSelectionPolicy")
         if type(self.assessments) is not tuple or len(self.assessments) != 5:
-            raise TraderLabValidationError("first cohort must contain exactly five assessments")
-        if any(not isinstance(item, FirstCohortLabAssessment) for item in self.assessments):
+            raise TraderLabValidationError(
+                "first cohort must contain exactly five assessments"
+            )
+        if any(
+            not isinstance(item, FirstCohortLabAssessment)
+            for item in self.assessments
+        ):
             raise TraderLabValidationError(
                 "assessments must contain FirstCohortLabAssessment values"
             )
         codes = tuple(item.entry.trader_code.value for item in self.assessments)
         if tuple(sorted(codes)) != FIRST_DEMO_COHORT_CODES:
             raise TraderLabValidationError(
-                "first cohort must contain VT-01, VT-08, VT-09, VT-17 and VT-31 exactly once"
+                "first cohort must contain VT-01, VT-08, VT-09, VT-17 and VT-31 "
+                "exactly once"
             )
         if self.selected is not None:
             selectable = tuple(
@@ -359,10 +375,15 @@ def select_first_demo_trader(
     codes = tuple(sorted(item.trader_code.value for item in entries))
     if codes != FIRST_DEMO_COHORT_CODES:
         raise TraderLabValidationError(
-            "first cohort must contain VT-01, VT-08, VT-09, VT-17 and VT-31 exactly once"
+            "first cohort must contain VT-01, VT-08, VT-09, VT-17 and VT-31 "
+            "exactly once"
         )
-    ordered_entries = tuple(sorted(entries, key=lambda item: item.trader_code.value))
-    assessments = tuple(assess_first_cohort_entry(item, policy) for item in ordered_entries)
+    ordered_entries = tuple(
+        sorted(entries, key=lambda item: item.trader_code.value)
+    )
+    assessments = tuple(
+        assess_first_cohort_entry(item, policy) for item in ordered_entries
+    )
     selectable = [
         item.entry
         for item in assessments
