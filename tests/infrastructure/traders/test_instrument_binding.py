@@ -21,6 +21,7 @@ from qore.infrastructure.traders.contracts import (
     DemoTradingAbstainReason,
     DemoTradingConfigFingerprint,
     DemoTradingDecision,
+    DemoTradingError,
     DemoTradingMethodologyFingerprint,
     DemoTradingMethodologyId,
     DemoTradingMethodologyVersion,
@@ -35,7 +36,7 @@ from qore.infrastructure.traders.instrument_binding import (
     build_instrument_bound_demo_trading_input,
     evaluate_instrument_bound_demo_trader,
 )
-from qore.kernel.result import Success
+from qore.kernel.result import Result, Success
 
 _NOW = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
 _SOURCE = ExternalSourceDescriptor(
@@ -75,7 +76,10 @@ def _snapshot(
 
 
 class _AbstainingEvaluator:
-    def evaluate(self, inputs: DemoTradingInput):  # type: ignore[no-untyped-def]
+    def evaluate(
+        self,
+        inputs: DemoTradingInput,
+    ) -> Result[DemoTradingOutput, DemoTradingError]:
         fingerprint = compute_trader_output_fingerprint(
             trader_code=_CODE,
             version=_VERSION,
