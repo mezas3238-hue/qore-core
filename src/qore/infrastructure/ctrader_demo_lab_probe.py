@@ -205,7 +205,10 @@ def collect_ctrader_demo_lab_market_evidence(
     timeout_seconds: float = 15.0,
 ) -> CTraderDemoLabMarketEvidence:
     """Authenticate and collect exact broker metadata plus native closed trendbars."""
-    if not isinstance(symbol_name, str) or fullmatch(r"[A-Z0-9][A-Z0-9]{1,31}", symbol_name) is None:
+    if (
+        not isinstance(symbol_name, str)
+        or fullmatch(r"[A-Z0-9][A-Z0-9]{1,31}", symbol_name) is None
+    ):
         raise CTraderDemoLabProbeError("symbol_name must use canonical uppercase syntax")
     opened = _aware(opened_at, field_name="opened_at")
     checked = _aware(checked_at, field_name="checked_at")
