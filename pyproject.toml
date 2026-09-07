@@ -33,7 +33,6 @@ select = ["E", "F", "I", "N", "W", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-mypy_path = ["tests/infrastructure", "tests/infrastructure/test_cibo"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
