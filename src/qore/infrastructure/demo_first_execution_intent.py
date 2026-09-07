@@ -2,9 +2,10 @@
 
 This module is deliberately narrow: a Trader may define setup geometry, but it
 never chooses an account, provider, instrument mapping, quantity, or execution
-authority.  The bridge consumes one already-selected first-cohort Trader and the
-actual cTrader DEMO symbol mapping, then builds the minimum broker-valid protected
-LIMIT intent.  Risk remains a mandatory downstream authority.
+authority. The bridge consumes one already-selected instrument-scoped first-
+cohort Trader plus an instrument-bound Trader evaluation, derives the execution
+instrument from that retained evaluation, and builds the minimum broker-valid
+protected LIMIT intent. Risk remains a mandatory downstream authority.
 """
 
 from __future__ import annotations
@@ -34,6 +35,9 @@ from qore.infrastructure.traders.contracts import (
     DemoTradingDecision,
     DemoTradingOutput,
     DemoTradingSetupSide,
+)
+from qore.infrastructure.traders.instrument_binding import (
+    InstrumentBoundDemoTradingOutput,
 )
 from qore.kernel.result import Failure, Result, Success
 
@@ -70,8 +74,8 @@ def _price_is_provider_exact(price: Decimal, digits: int) -> bool:
 
 def _validate_selected_output(
     selection: FirstCohortDemoSelection,
-    output: DemoTradingOutput,
-) -> Result[None, DemoFirstExecutionIntentError]:
+    output: InstrumentBoundDemoTradingOutput,
+) -> Result[DemoTradingOutput, DemoFirstExecutionIntentError]:
     if not isinstance(selection, FirstCohortDemoSelection):
         return Failure(DemoFirstExecutionIntentError("selection must be FirstCohortDemoSelection"))
     selection.__post_init__()
@@ -83,40 +87,53 @@ def _validate_selected_output(
             )
         )
     selected.__post_init__()
-    if not isinstance(output, DemoTradingOutput):
-        return Failure(DemoFirstExecutionIntentError("output must be DemoTradingOutput"))
+    if type(output) is not InstrumentBoundDemoTradingOutput:
+        return Failure(
+            DemoFirstExecutionIntentError(
+                "output must be an instrument-bound canonical Trader evaluation"
+            )
+        )
     try:
         output.__post_init__()
     except Exception as error:
         return Failure(DemoFirstExecutionIntentError(str(error)))
+    if output.instrument != selected.instrument:
+        return Failure(
+            DemoFirstExecutionIntentError(
+                "Trader evaluation instrument does not match the instrument-scoped Lab candidate"
+            )
+        )
+    trader_output = output.trader_output
     if (
-        output.trader_code != selected.trader_code
-        or output.version != selected.trader_version
-        or output.config_fingerprint != selected.config_fingerprint
-        or output.methodology_id != selected.methodology_id
-        or output.methodology_version != selected.methodology_version
-        or output.methodology_fingerprint != selected.methodology_fingerprint
+        trader_output.trader_code != selected.trader_code
+        or trader_output.version != selected.trader_version
+        or trader_output.config_fingerprint != selected.config_fingerprint
+        or trader_output.methodology_id != selected.methodology_id
+        or trader_output.methodology_version != selected.methodology_version
+        or trader_output.methodology_fingerprint != selected.methodology_fingerprint
     ):
         return Failure(
             DemoFirstExecutionIntentError(
                 "Trader output identity does not match the selected DEMO-eligible candidate"
             )
         )
-    if output.decision is not DemoTradingDecision.SETUP or output.setup is None:
+    if (
+        trader_output.decision is not DemoTradingDecision.SETUP
+        or trader_output.setup is None
+    ):
         return Failure(
             DemoFirstExecutionIntentError(
                 "selected Trader must currently produce an exact SETUP before execution"
             )
         )
-    return Success(None)
+    return Success(trader_output)
 
 
 def build_first_demo_execution_intent(
     selection: FirstCohortDemoSelection,
-    output: DemoTradingOutput,
+    output: InstrumentBoundDemoTradingOutput,
     *,
     configuration: CTraderDemoRuntimeConfiguration,
-    instrument: ExecutionInstrument,
     intent_id: OrderIntentId,
     idempotency_key: ExecutionIdempotencyKey,
     created_at: datetime,
@@ -124,14 +141,16 @@ def build_first_demo_execution_intent(
 ) -> Result[OrderIntent, DemoFirstExecutionIntentError]:
     """Build one protected minimum-size LIMIT intent from an eligible Trader setup.
 
-    This function creates no Risk or broker authority.  It fails closed unless
-    the retained Trader output belongs to the exact selected candidate and the
-    requested instrument exists in the explicit cTrader DEMO configuration.
+    This function creates no Risk or broker authority. It fails closed unless the
+    retained Trader evaluation belongs to the exact selected candidate and exact
+    Lab-certified instrument. The execution instrument is derived from the Trader
+    evaluation; callers cannot provide a second symbol after methodology output.
     """
 
     validated = _validate_selected_output(selection, output)
     if isinstance(validated, Failure):
         return validated
+    trader_output = validated.value
     if not isinstance(configuration, CTraderDemoRuntimeConfiguration):
         return Failure(
             DemoFirstExecutionIntentError(
@@ -142,18 +161,18 @@ def build_first_demo_execution_intent(
         return Failure(
             DemoFirstExecutionIntentError("first execution configuration must be DEMO")
         )
-    if not isinstance(instrument, ExecutionInstrument):
-        return Failure(
-            DemoFirstExecutionIntentError("instrument must be ExecutionInstrument")
-        )
+    try:
+        instrument = ExecutionInstrument(output.instrument.symbol)
+    except OrderIntentError as error:
+        return Failure(DemoFirstExecutionIntentError(str(error)))
     mapping = configuration.symbol_mapping(instrument)
     if mapping is None:
         return Failure(
             DemoFirstExecutionIntentError(
-                "first execution instrument is not mapped by cTrader DEMO configuration"
+                "Trader evaluation instrument is not mapped by cTrader DEMO configuration"
             )
         )
-    setup = output.setup
+    setup = trader_output.setup
     if setup is None:
         return Failure(DemoFirstExecutionIntentError("Trader SETUP is missing setup geometry"))
     for field_name, price in (
