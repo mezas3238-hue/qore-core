@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import InvalidOperation
 from typing import Protocol, runtime_checkable
 
 from qore.infrastructure.account_policy import AccountPolicyVersion
@@ -39,6 +40,7 @@ from qore.infrastructure.ports import (
     ExternalRequestMetadata,
 )
 from qore.infrastructure.risk_authority import (
+    RiskAuthorization,
     RiskAuthorizationId,
     RiskDecision,
     RiskEnvironment,
@@ -54,6 +56,68 @@ class CTraderDemoRiskOperationalRuntimeError(ExecutionBoundaryError):
     """Sanitized fail-closed Risk/cTrader composition error."""
 
     __slots__ = ()
+
+
+def validate_ctrader_authorized_quantity(
+    configuration: CTraderDemoRuntimeConfiguration,
+    authorization: RiskAuthorization,
+) -> Result[None, CTraderDemoRiskOperationalRuntimeError]:
+    """Prove Risk-authorized quantity is broker-valid before capacity commit.
+
+    Risk is provider-neutral and may REDUCE to any positive canonical quantity.
+    The cTrader composition must therefore reject a quantity that cannot be
+    represented by the exact broker volume_step/min/max/step constraints before
+    ``DemoRiskRuntime.prepare_execution_submission`` commits the reservation.
+    """
+
+    if not isinstance(configuration, CTraderDemoRuntimeConfiguration):
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "quantity validation requires CTraderDemoRuntimeConfiguration"
+            )
+        )
+    if not isinstance(authorization, RiskAuthorization):
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "quantity validation requires RiskAuthorization"
+            )
+        )
+    mapping = configuration.symbol_mapping(authorization.instrument)
+    if mapping is None:
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "Risk-authorized instrument is not mapped by cTrader DEMO"
+            )
+        )
+    quantity = authorization.authorized_quantity.value
+    try:
+        quotient, remainder = divmod(quantity, mapping.volume_step)
+    except InvalidOperation:
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "Risk-authorized quantity cannot be mapped to cTrader volume units"
+            )
+        )
+    if remainder != 0 or quotient != quotient.to_integral_value():
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "Risk-authorized quantity is not an exact cTrader volume_step multiple"
+            )
+        )
+    units = int(quotient)
+    if not mapping.min_volume_units <= units <= mapping.max_volume_units:
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "Risk-authorized quantity is outside cTrader broker volume bounds"
+            )
+        )
+    if units % mapping.step_volume_units != 0:
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "Risk-authorized quantity does not align to cTrader stepVolume"
+            )
+        )
+    return Success(None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,9 +297,10 @@ class CTraderDemoRiskOperationalRuntime:
     ) -> Result[RiskCTraderDemoSubmissionResult, CTraderDemoRiskOperationalRuntimeError]:
         """Prepare through Risk and immediately submit the exact resulting DEMO order.
 
-        Account/environment checks happen before Risk reservation commit and before
-        broker mutation.  Once Risk commits a reservation, a broker failure does
-        not release it here; ambiguous provider outcomes must be reconciled first.
+        Account/environment/provider-quantity checks happen before Risk reservation
+        commit and before broker mutation. Once Risk commits a reservation, a broker
+        failure does not release it here; ambiguous provider outcomes must be
+        reconciled first.
         """
 
         if not isinstance(decision, RiskDecision):
@@ -261,6 +326,12 @@ class CTraderDemoRiskOperationalRuntime:
                     "Risk authorization account must match explicit account binding"
                 )
             )
+        provider_quantity = validate_ctrader_authorized_quantity(
+            self.configuration,
+            authorization,
+        )
+        if isinstance(provider_quantity, Failure):
+            return provider_quantity
         prepared = self._risk.prepare_execution_submission(
             decision,
             intent,
