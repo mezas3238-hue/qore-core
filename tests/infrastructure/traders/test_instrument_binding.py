@@ -130,8 +130,14 @@ def test_market_snapshots_mint_exact_instrument_bound_trader_output() -> None:
 
     assert isinstance(result, Success)
     assert result.value.instrument == Instrument("EURUSD")
-    assert result.value.trader_output.evidence_refs == bound_input.trader_input.evidence_refs
-    assert result.value.output_fingerprint.value != result.value.trader_output.output_fingerprint.value
+    assert (
+        result.value.trader_output.evidence_refs
+        == bound_input.trader_input.evidence_refs
+    )
+    assert (
+        result.value.output_fingerprint.value
+        != result.value.trader_output.output_fingerprint.value
+    )
 
 
 def test_mixed_instrument_execution_and_context_evidence_fails_closed() -> None:
