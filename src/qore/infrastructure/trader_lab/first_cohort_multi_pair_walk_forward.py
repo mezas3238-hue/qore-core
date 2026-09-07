@@ -1,8 +1,8 @@
-"""Pooled five-pair walk-forward robustness screen for the first DEMO cohort.
+"""Pooled six-instrument walk-forward robustness screen for the first DEMO cohort.
 
 One configuration per Trader is selected using only the pooled chronological 70%
-in-sample partitions from five distinct cTrader DEMO FX pairs.  The selected
-configuration is then frozen and evaluated unchanged on each pair's untouched
+in-sample partitions from six distinct cTrader DEMO instruments.  The selected
+configuration is then frozen and evaluated unchanged on each instrument's untouched
 30% OOS partition.  This module produces research evidence only; ``robust_pass``
 is not DEMO_ELIGIBLE and grants no execution authority.
 """
@@ -34,9 +34,9 @@ from qore.infrastructure.trader_lab.first_cohort_walk_forward import (
 )
 
 _SCHEMA = "qore.trader_lab.first_cohort_multi_pair_walk_forward.v1"
-_REQUIRED_PAIR_COUNT = 5
-_MIN_PAIR_OOS_PASSES = 3
-_MIN_PAIR_STRESS_PASSES = 3
+_REQUIRED_PAIR_COUNT = 6
+_MIN_PAIR_OOS_PASSES = 4
+_MIN_PAIR_STRESS_PASSES = 4
 _STRESS_HAIRCUT = Decimal("0.0002")
 
 
@@ -210,14 +210,14 @@ def _evaluate_selected(
 
 def run_multi_pair_walk_forward(paths: tuple[Path, ...]) -> dict[str, object]:
     if len(paths) != _REQUIRED_PAIR_COUNT:
-        raise FirstCohortBacktestError("multi-pair screen requires exactly five evidence files")
+        raise FirstCohortBacktestError("multi-pair screen requires exactly six evidence files")
     partitions = tuple(sorted((_partition(path) for path in paths), key=lambda item: item.symbol))
     symbols = tuple(item.symbol for item in partitions)
     if len(set(symbols)) != _REQUIRED_PAIR_COUNT:
-        raise FirstCohortBacktestError("multi-pair screen requires five distinct symbols")
+        raise FirstCohortBacktestError("multi-pair screen requires six distinct symbols")
     fingerprints = {item.account_fingerprint for item in partitions}
     if len(fingerprints) != 1:
-        raise FirstCohortBacktestError("all five pairs must bind the same DEMO account")
+        raise FirstCohortBacktestError("all six instruments must bind the same DEMO account")
 
     results: list[MultiPairTraderResult] = []
     for trader_code, grid in _grids().items():
@@ -270,7 +270,7 @@ def run_multi_pair_walk_forward(paths: tuple[Path, ...]) -> dict[str, object]:
         "symbols": list(symbols),
         "account_fingerprint": next(iter(fingerprints)),
         "policy": {
-            "selection_scope": "pooled-five-pair-in-sample-only",
+            "selection_scope": "pooled-six-instrument-in-sample-only",
             "in_sample_fraction": "0.70",
             "oos_fraction": "0.30",
             "minimum_pair_oos_passes": _MIN_PAIR_OOS_PASSES,
@@ -287,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     if len(arguments) != _REQUIRED_PAIR_COUNT:
         print(
             "usage: python -m qore.infrastructure.trader_lab.first_cohort_multi_pair_walk_forward "
-            "PATH1 PATH2 PATH3 PATH4 PATH5"
+            "PATH1 PATH2 PATH3 PATH4 PATH5 PATH6"
         )
         return 2
     try:
