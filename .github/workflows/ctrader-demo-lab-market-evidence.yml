@@ -6,6 +6,7 @@ on:
       - agent/qore-demo-first-execution-vertical-cert-001
     paths:
       - .github/workflows/ctrader-demo-lab-market-evidence.yml
+      - src/qore/infrastructure/ctrader_demo_account_discovery.py
       - src/qore/infrastructure/ctrader_demo_lab_probe.py
       - src/qore/infrastructure/ctrader_open_api_client.py
 
@@ -35,7 +36,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[ctrader]"
-      - name: Verify required DEMO inputs are present without printing them
+      - name: Verify required DEMO secrets are present without printing them
         shell: bash
         run: |
           set -euo pipefail
@@ -44,7 +45,6 @@ jobs:
             QORE_CTRADER_CLIENT_SECRET \
             QORE_CTRADER_ACCESS_TOKEN \
             QORE_CTRADER_REFRESH_TOKEN \
-            QORE_CTRADER_DEMO_ACCOUNT_ID \
             QORE_DEMO_LAB_SYMBOL
           do
             if [ -z "${!name:-}" ]; then
@@ -52,6 +52,19 @@ jobs:
               exit 2
             fi
           done
+      - name: Discover the single authorized DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
       - name: Collect native M1 M5 M15 H4 read-only evidence
         run: |
           mkdir -p artifacts/ctrader-demo-lab-market
