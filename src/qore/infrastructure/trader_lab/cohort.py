@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
+from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.research_performance_statistics import (
     ResearchPerformanceStatisticsSnapshot,
 )
@@ -51,6 +52,7 @@ FIRST_DEMO_COHORT_CODES: tuple[str, ...] = (
 _REQUIRED_STRATEGY_BINDING_PARAMETERS: tuple[str, ...] = (
     "trader.code",
     "trader.config_fingerprint",
+    "trader.instrument",
     "trader.methodology_fingerprint",
     "trader.methodology_id",
     "trader.methodology_version",
@@ -102,7 +104,7 @@ class FirstCohortSelectionPolicy:
 
 @dataclass(frozen=True, slots=True)
 class FirstCohortTraderLabEntry:
-    """Exact Trader identity plus its already-produced Lab/economic evidence."""
+    """Exact Trader/instrument identity plus already-produced Lab/economic evidence."""
 
     trader_code: DemoTradingTraderCode
     trader_version: DemoTradingTraderVersion
@@ -110,6 +112,7 @@ class FirstCohortTraderLabEntry:
     methodology_id: DemoTradingMethodologyId
     methodology_version: DemoTradingMethodologyVersion
     methodology_fingerprint: DemoTradingMethodologyFingerprint
+    instrument: Instrument
     lifecycle: TraderLabLifecycle
     economic_evidence: TraderLabEvidenceReference
     performance: ResearchPerformanceStatisticsSnapshot
@@ -135,6 +138,9 @@ class FirstCohortTraderLabEntry:
             raise TraderLabValidationError(
                 "methodology_fingerprint must be DemoTradingMethodologyFingerprint"
             )
+        if type(self.instrument) is not Instrument:
+            raise TraderLabValidationError("instrument must be canonical market-data Instrument")
+        self.instrument.__post_init__()
         if not isinstance(self.lifecycle, TraderLabLifecycle):
             raise TraderLabValidationError("lifecycle must be TraderLabLifecycle")
         validate_trader_lab_lifecycle(self.lifecycle)
@@ -176,18 +182,19 @@ class FirstCohortTraderLabEntry:
                 values[parameter.name] = parameter.value
         if tuple(sorted(values)) != _REQUIRED_STRATEGY_BINDING_PARAMETERS:
             raise TraderLabValidationError(
-                "strategy freeze is missing exact first-cohort Trader binding parameters"
+                "strategy freeze is missing exact first-cohort Trader/instrument binding parameters"
             )
         expected = {
             "trader.code": self.trader_code.value,
             "trader.config_fingerprint": self.config_fingerprint.value,
+            "trader.instrument": self.instrument.symbol,
             "trader.methodology_fingerprint": self.methodology_fingerprint.value,
             "trader.methodology_id": self.methodology_id.value,
             "trader.methodology_version": self.methodology_version.value,
         }
         if values != expected:
             raise TraderLabValidationError(
-                "strategy freeze Trader identity/methodology binding does not match entry"
+                "strategy freeze Trader identity/methodology/instrument binding does not match entry"
             )
 
     @property
@@ -202,6 +209,7 @@ class FirstCohortTraderLabEntry:
             self.methodology_id.logical_values(),
             self.methodology_version.logical_values(),
             self.methodology_fingerprint.logical_values(),
+            self.instrument.symbol,
             self.lifecycle.logical_values(),
             self.economic_evidence.logical_values(),
             self.performance.logical_values(),
