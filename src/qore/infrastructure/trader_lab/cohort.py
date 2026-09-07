@@ -20,6 +20,9 @@ from qore.infrastructure.trader_lab.candidate import (
     TraderLabCandidateBinding,
     TraderLabValidationError,
 )
+from qore.infrastructure.trader_lab.economic_binding import (
+    validate_first_cohort_economic_binding,
+)
 from qore.infrastructure.trader_lab.lifecycle import (
     TraderLabLifecycle,
     validate_trader_lab_lifecycle,
@@ -169,6 +172,11 @@ class FirstCohortTraderLabEntry:
                 "economic evidence must match the candidate strategy lineage"
             )
         self._validate_strategy_manifest(candidate)
+        validate_first_cohort_economic_binding(
+            candidate,
+            self.performance,
+            self.economic_evidence,
+        )
 
     def _validate_strategy_manifest(self, candidate: TraderLabCandidateBinding) -> None:
         parameters = candidate.strategy_binding.manifest.parameters
