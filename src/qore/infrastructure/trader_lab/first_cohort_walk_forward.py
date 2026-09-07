@@ -21,9 +21,9 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from qore.infrastructure.trader_lab.first_cohort_backtest import (
+    FirstCohortBacktestError,
     FirstCohortBacktestResult,
     FirstCohortBacktestTrade,
-    FirstCohortBacktestError,
     _backtest,
     _load,
 )
