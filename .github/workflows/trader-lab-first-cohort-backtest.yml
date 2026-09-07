@@ -8,6 +8,7 @@ on:
       - .github/workflows/trader-lab-first-cohort-backtest.yml
       - src/qore/infrastructure/trader_lab/first_cohort_backtest.py
       - src/qore/infrastructure/trader_lab/first_cohort_walk_forward.py
+      - src/qore/infrastructure/trader_lab/first_cohort_multi_pair_walk_forward.py
       - src/qore/infrastructure/traders/evaluators.py
       - src/qore/infrastructure/traders/instrument_binding.py
       - src/qore/infrastructure/traders/primitives.py
@@ -24,12 +25,23 @@ env:
   QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
   QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
   QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
-  QORE_DEMO_LAB_SYMBOL: ${{ vars.QORE_DEMO_LAB_SYMBOL || 'EURUSD' }}
   QORE_DEMO_LAB_LOOKBACK_DAYS: "30"
 
 jobs:
   backtest:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol:
+          - EURUSD
+          - GBPUSD
+          - USDJPY
+          - AUDUSD
+          - USDCAD
+    env:
+      QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v4
@@ -72,25 +84,30 @@ jobs:
           fi
       - name: Collect fresh read-only cTrader DEMO market evidence
         run: |
-          mkdir -p artifacts/first-cohort-backtest
+          mkdir -p "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}"
           python -m qore.infrastructure.ctrader_demo_lab_probe \
-            > artifacts/first-cohort-backtest/market-evidence.json
+            > "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
       - name: Backtest VT-01 VT-08 VT-09 VT-17 VT-31
         run: |
           python -m qore.infrastructure.trader_lab.first_cohort_backtest \
-            artifacts/first-cohort-backtest/market-evidence.json \
-            > artifacts/first-cohort-backtest/backtest.json
+            "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
+            > "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/backtest.json"
           printf '%s\n' "$GITHUB_SHA" \
-            > artifacts/first-cohort-backtest/git-sha.txt
+            > "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
           payload = json.loads(
-              Path("artifacts/first-cohort-backtest/backtest.json").read_text()
+              Path(
+                  f"artifacts/first-cohort-backtest/{symbol}/backtest.json"
+              ).read_text()
           )
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
+          assert payload["symbol"] == symbol
           assert payload["execution_model"] == (
               "limit-3bar-fill-24bar-hold-stop-first-v1"
           )
@@ -106,17 +123,22 @@ jobs:
       - name: Walk-forward screen and untouched OOS validation
         run: |
           python -m qore.infrastructure.trader_lab.first_cohort_walk_forward \
-            artifacts/first-cohort-backtest/market-evidence.json \
-            > artifacts/first-cohort-backtest/walk-forward.json
+            "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
+            > "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/walk-forward.json"
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
           payload = json.loads(
-              Path("artifacts/first-cohort-backtest/walk-forward.json").read_text()
+              Path(
+                  f"artifacts/first-cohort-backtest/{symbol}/walk-forward.json"
+              ).read_text()
           )
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
+          assert payload["symbol"] == symbol
           assert payload["in_sample_fraction"] == "0.70"
           assert payload["oos_fraction"] == "0.30"
           assert [item["trader_code"] for item in payload["results"]] == [
@@ -127,10 +149,82 @@ jobs:
               "vt-31",
           ]
           PY
-      - name: Upload sanitized first-cohort backtest
+      - name: Upload sanitized per-pair research evidence
         uses: actions/upload-artifact@v4
         with:
-          name: qore-first-cohort-backtest-${{ github.sha }}
-          path: artifacts/first-cohort-backtest
+          name: qore-first-cohort-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/first-cohort-backtest/${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 30
+
+  multi-pair:
+    needs: backtest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE research runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Download all five per-pair artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-first-cohort-*-${{ github.sha }}
+          path: artifacts/multi-pair
+      - name: Run pooled five-pair walk-forward and untouched OOS screen
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t evidence < <(
+            find artifacts/multi-pair -name market-evidence.json -type f | sort
+          )
+          if [ "${#evidence[@]}" -ne 5 ]; then
+            echo "expected exactly five market-evidence files" >&2
+            exit 4
+          fi
+          mkdir -p artifacts/first-cohort-multi-pair
+          python -m qore.infrastructure.trader_lab.first_cohort_multi_pair_walk_forward \
+            "${evidence[@]}" \
+            > artifacts/first-cohort-multi-pair/multi-pair-walk-forward.json
+          printf '%s\n' "$GITHUB_SHA" \
+            > artifacts/first-cohort-multi-pair/git-sha.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "artifacts/first-cohort-multi-pair/multi-pair-walk-forward.json"
+              ).read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["pair_count"] == 5
+          assert payload["symbols"] == [
+              "AUDUSD",
+              "EURUSD",
+              "GBPUSD",
+              "USDCAD",
+              "USDJPY",
+          ]
+          assert [item["trader_code"] for item in payload["results"]] == [
+              "vt-01",
+              "vt-08",
+              "vt-09",
+              "vt-17",
+              "vt-31",
+          ]
+          assert 0 <= payload["robust_candidate_count"] <= 5
+          PY
+      - name: Upload pooled five-pair research evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-first-cohort-multi-pair-${{ github.sha }}
+          path: artifacts/first-cohort-multi-pair
           if-no-files-found: error
           retention-days: 30
