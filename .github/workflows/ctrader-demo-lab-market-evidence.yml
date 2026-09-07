@@ -13,11 +13,11 @@ permissions:
   contents: read
 
 env:
-  CTRADER_DEMO_CLIENT_ID: ${{ secrets.CTRADER_DEMO_CLIENT_ID || secrets.CTRADER_CLIENT_ID }}
-  CTRADER_DEMO_CLIENT_SECRET: ${{ secrets.CTRADER_DEMO_CLIENT_SECRET || secrets.CTRADER_CLIENT_SECRET }}
-  CTRADER_DEMO_ACCESS_TOKEN: ${{ secrets.CTRADER_DEMO_ACCESS_TOKEN || secrets.CTRADER_ACCESS_TOKEN }}
-  CTRADER_DEMO_REFRESH_TOKEN: ${{ secrets.CTRADER_DEMO_REFRESH_TOKEN || secrets.CTRADER_REFRESH_TOKEN }}
-  CTRADER_DEMO_CTID_TRADER_ACCOUNT_ID: ${{ secrets.CTRADER_DEMO_CTID_TRADER_ACCOUNT_ID || secrets.CTRADER_DEMO_ACCOUNT_ID || secrets.CTRADER_ACCOUNT_ID }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
   QORE_DEMO_LAB_SYMBOL: ${{ vars.QORE_DEMO_LAB_SYMBOL || 'EURUSD' }}
   QORE_DEMO_LAB_LOOKBACK_DAYS: "30"
 
@@ -40,11 +40,11 @@ jobs:
         run: |
           set -euo pipefail
           for name in \
-            CTRADER_DEMO_CLIENT_ID \
-            CTRADER_DEMO_CLIENT_SECRET \
-            CTRADER_DEMO_ACCESS_TOKEN \
-            CTRADER_DEMO_REFRESH_TOKEN \
-            CTRADER_DEMO_CTID_TRADER_ACCOUNT_ID \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN \
+            QORE_CTRADER_DEMO_ACCOUNT_ID \
             QORE_DEMO_LAB_SYMBOL
           do
             if [ -z "${!name:-}" ]; then
@@ -70,6 +70,9 @@ jobs:
           )
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
+          assert payload["account_discovered"] is True
+          assert payload["account_is_live"] is False
+          assert payload["trading_permission_verified"] is True
           assert set(payload["periods"]) == {"M1", "M5", "M15", "H4"}
           assert all(payload["periods"][period] for period in payload["periods"])
           assert len(payload["account_fingerprint"]) == 64
