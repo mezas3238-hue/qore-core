@@ -5,16 +5,57 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+from qore.domain.events import CorrelationId
+from qore.functional.decisions import (
+    DecisionId,
+    DecisionMetadata,
+    DecisionOutcome,
+    DecisionPriority,
+    DecisionReason,
+    DecisionReasonCode,
+    DecisionStatus,
+    DecisionType,
+    FunctionalDecision,
+)
+from qore.infrastructure.order_intent import (
+    ExecutionIdempotencyKey,
+    ExecutionInstrument,
+    OrderIntent,
+    OrderIntentId,
+    OrderPrice,
+    OrderQuantity,
+    OrderSide,
+    OrderType,
+)
+from qore.infrastructure.ports import (
+    AdapterId,
+    ExternalRequestMetadata,
+    ExternalSourceDescriptor,
+    PortName,
+    SourceId,
+)
+from qore.infrastructure.proprietary_accounts import CurrencyCode, MoneyAmount
 from qore.infrastructure.research_economic_evidence import (
+    ResearchEconomicEvidenceReference,
     ResearchEconomicResultId,
-    ResearchGrossEconomicResult,
+    ResearchExecutionIntentEvidenceId,
+    ResearchFillEvidence,
+    ResearchFillId,
     ResearchReturnObservation,
     ResearchReturnObservationId,
+    build_research_execution_intent_evidence,
+    build_research_fill_evidence,
+    build_research_gross_economic_result,
+    build_research_return_observation,
 )
 from qore.infrastructure.research_performance_statistics import (
     ResearchPerformanceSnapshotId,
     ResearchPerformanceStatisticsSnapshot,
     build_research_performance_statistics,
+)
+from qore.infrastructure.research_run import (
+    ResearchExecutionModelId,
+    build_research_run_evidence,
 )
 from qore.infrastructure.research_strategy_freeze import (
     ResearchRunStrategyBinding,
@@ -46,6 +87,15 @@ from qore.infrastructure.traders.evaluators import Vt01NyPrecisionCore
 from qore.kernel.result import Failure, Success
 
 _NOW = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
+_USD = CurrencyCode("USD")
+_EXECUTION_MODEL = ResearchExecutionModelId(
+    UUID("76800000-0000-0000-0000-000000000001")
+)
+_EXECUTION_SOURCE = ExternalSourceDescriptor(
+    adapter_id=AdapterId(UUID("76800000-0000-0000-0000-000000000002")),
+    source_id=SourceId(UUID("76800000-0000-0000-0000-000000000003")),
+    port_name=PortName("execution.trader-lab-authority-test"),
+)
 
 _StrategyBindingFactory = Callable[..., ResearchRunStrategyBinding]
 _CandidateFactory = Callable[..., TraderLabCandidateBinding]
@@ -55,14 +105,34 @@ _EconomicReferenceFactory = Callable[
 ]
 
 
+def _uuid(prefix: str, suffix: int) -> UUID:
+    return UUID(f"{prefix}-0000-0000-0000-{suffix:012d}")
+
+
 def _bound_vt01_strategy(
     strategy_binding_factory: _StrategyBindingFactory,
 ) -> ResearchRunStrategyBinding:
     evaluator = Vt01NyPrecisionCore()
     base = strategy_binding_factory(configuration_id_suffix=951)
+    rebuilt = build_research_run_evidence(
+        run_id=base.run.run_id,
+        created_at=base.run.created_at,
+        datasets=base.run.datasets,
+        replay_policy_version=base.run.replay_policy_version,
+        simulated_start=base.run.simulated_start,
+        simulated_end=base.run.simulated_end,
+        strategy_configuration_id=base.run.strategy_configuration_id,
+        software_revision=base.run.software_revision,
+        execution_model_id=_EXECUTION_MODEL,
+        transaction_cost_model_id=None,
+        randomness_mode=base.run.randomness_mode,
+        random_seed=base.run.random_seed,
+    )
+    assert isinstance(rebuilt, Success)
+    run = rebuilt.value
     methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
     manifest = build_research_strategy_configuration_manifest(
-        configuration_id=base.run.strategy_configuration_id,
+        configuration_id=run.strategy_configuration_id,
         schema_version=base.manifest.schema_version,
         parameters=(
             ResearchStrategyParameter("trader.code", evaluator.trader_code),
@@ -84,16 +154,13 @@ def _bound_vt01_strategy(
                 methodology_version.value,
             ),
         ),
-        frozen_at=base.run.created_at - timedelta(minutes=1),
+        frozen_at=run.created_at - timedelta(minutes=1),
         evidence_ref=ResearchStrategyFreezeEvidenceReference(
             UUID("76400000-0000-0000-0000-000000000001")
         ),
     )
     assert isinstance(manifest, Success)
-    bound = build_research_run_strategy_binding(
-        run=base.run,
-        manifest=manifest.value,
-    )
+    bound = build_research_run_strategy_binding(run=run, manifest=manifest.value)
     assert isinstance(bound, Success)
     return bound.value
 
@@ -123,51 +190,146 @@ def _post_monte_carlo_lifecycle(
     return lifecycle
 
 
+def _decision(candidate: TraderLabCandidateBinding, suffix: int) -> FunctionalDecision:
+    return FunctionalDecision(
+        decision_id=DecisionId(_uuid("76900000", 100 + suffix)),
+        timestamp=candidate.strategy_binding.run.simulated_start + timedelta(minutes=1),
+        decision_type=DecisionType("core.trade"),
+        status=DecisionStatus.RESOLVED,
+        priority=DecisionPriority.NORMAL,
+        metadata=DecisionMetadata(
+            correlation_id=CorrelationId(_uuid("76900000", 200 + suffix))
+        ),
+        reasons=(
+            DecisionReason(
+                code=DecisionReasonCode("research.performance"),
+                summary="Trader Lab authority-chain economic evidence",
+            ),
+        ),
+        outcome=DecisionOutcome.APPROVED,
+    )
+
+
+def _intent(
+    candidate: TraderLabCandidateBinding,
+    *,
+    side: OrderSide,
+    suffix: int,
+) -> OrderIntent:
+    created_at = candidate.strategy_binding.run.simulated_start + timedelta(
+        minutes=1,
+        seconds=1,
+    )
+    return OrderIntent(
+        intent_id=OrderIntentId(_uuid("76a00000", 100 + suffix)),
+        idempotency_key=ExecutionIdempotencyKey(_uuid("76a00000", 200 + suffix)),
+        instrument=ExecutionInstrument("EURUSD"),
+        side=side,
+        order_type=OrderType.MARKET,
+        quantity=OrderQuantity(Decimal("1")),
+        created_at=created_at,
+        metadata=ExternalRequestMetadata(
+            correlation_id=CorrelationId(_uuid("76a00000", 300 + suffix))
+        ),
+    )
+
+
+def _fill(
+    candidate: TraderLabCandidateBinding,
+    *,
+    side: OrderSide,
+    suffix: int,
+    filled_at: datetime,
+) -> ResearchFillEvidence:
+    run = candidate.strategy_binding.run
+    intent = _intent(candidate, side=side, suffix=suffix)
+    intent_evidence = build_research_execution_intent_evidence(
+        evidence_id=ResearchExecutionIntentEvidenceId(_uuid("76b00000", 100 + suffix)),
+        run=run,
+        decision=_decision(candidate, suffix),
+        intent=intent,
+        evidenced_at=intent.created_at + timedelta(seconds=1),
+    )
+    assert isinstance(intent_evidence, Success), intent_evidence
+    built = build_research_fill_evidence(
+        fill_id=ResearchFillId(_uuid("76b00000", 200 + suffix)),
+        intent_evidence=intent_evidence.value,
+        source=_EXECUTION_SOURCE,
+        price=OrderPrice(Decimal("1.10000")),
+        quantity=OrderQuantity(Decimal("1")),
+        filled_at=filled_at,
+        evidence_ref=ResearchEconomicEvidenceReference(
+            _uuid("76b00000", 300 + suffix)
+        ),
+    )
+    assert isinstance(built, Success), built
+    return built.value
+
+
+def _return_observation(
+    candidate: TraderLabCandidateBinding,
+    *,
+    index: int,
+    rate: Decimal,
+) -> ResearchReturnObservation:
+    run = candidate.strategy_binding.run
+    entry_at = run.simulated_start + timedelta(minutes=2, seconds=index * 2)
+    exit_at = entry_at + timedelta(seconds=1)
+    entry = _fill(
+        candidate,
+        side=OrderSide.BUY,
+        suffix=index * 2,
+        filled_at=entry_at,
+    )
+    exit_fill = _fill(
+        candidate,
+        side=OrderSide.SELL,
+        suffix=index * 2 + 1,
+        filled_at=exit_at,
+    )
+    capital = MoneyAmount(currency=_USD, amount=Decimal("100000"))
+    gross = build_research_gross_economic_result(
+        result_id=ResearchEconomicResultId(_uuid("76c00000", 100 + index)),
+        run=run,
+        entry_fills=(entry,),
+        exit_fills=(exit_fill,),
+        gross_pnl=MoneyAmount(currency=_USD, amount=capital.amount * rate),
+        valued_at=exit_at + timedelta(seconds=1),
+        evidence_ref=ResearchEconomicEvidenceReference(
+            _uuid("76c00000", 200 + index)
+        ),
+    )
+    assert isinstance(gross, Success), gross
+    observed = build_research_return_observation(
+        observation_id=ResearchReturnObservationId(_uuid("76c00000", 300 + index)),
+        source_result=gross.value,
+        capital_basis=capital,
+        observed_at=gross.value.valued_at + timedelta(seconds=1),
+    )
+    assert isinstance(observed, Success), observed
+    return observed.value
+
+
 def _performance(
     candidate: TraderLabCandidateBinding,
 ) -> ResearchPerformanceStatisticsSnapshot:
-    rates = ("0.01", "0.02", "-0.01", "0.03")
-    observations: list[ResearchReturnObservation] = []
-    for index, rate in enumerate(rates):
-        gross = object.__new__(ResearchGrossEconomicResult)
-        object.__setattr__(
-            gross,
-            "result_id",
-            ResearchEconomicResultId(
-                UUID(f"76500000-0000-0000-0000-{index + 1:012d}")
-            ),
-        )
-        object.__setattr__(gross, "run", candidate.strategy_binding.run)
-        object.__setattr__(gross, "entry_fills", ())
-        object.__setattr__(gross, "exit_fills", ())
-        observation = object.__new__(ResearchReturnObservation)
-        object.__setattr__(
-            observation,
-            "observation_id",
-            ResearchReturnObservationId(
-                UUID(f"76600000-0000-0000-0000-{index + 1:012d}")
-            ),
-        )
-        object.__setattr__(observation, "source_result", gross)
-        object.__setattr__(
-            observation,
-            "observed_at",
-            _NOW + timedelta(minutes=10 + index),
-        )
-        object.__setattr__(observation, "return_rate", Decimal(rate))
-        observations.append(observation)
+    rates = (Decimal("0.01"), Decimal("0.02"), Decimal("-0.01"), Decimal("0.03"))
+    observations = tuple(
+        _return_observation(candidate, index=index, rate=rate)
+        for index, rate in enumerate(rates, start=1)
+    )
     built = build_research_performance_statistics(
         snapshot_id=ResearchPerformanceSnapshotId(
             UUID("76700000-0000-0000-0000-000000000001")
         ),
-        observations=tuple(observations),
-        observed_at=_NOW + timedelta(hours=1),
+        observations=observations,
+        observed_at=max(item.observed_at for item in observations) + timedelta(seconds=1),
     )
-    assert isinstance(built, Success)
+    assert isinstance(built, Success), built
     return built.value
 
 
-def test_real_authority_chain_reaches_demo_eligible_without_lab_minting(
+def test_governed_authority_chain_reaches_demo_eligible_without_lab_minting(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
@@ -180,10 +342,7 @@ def test_real_authority_chain_reaches_demo_eligible_without_lab_minting(
         version=evaluator.version,
         binding=binding,
     )
-    lifecycle = _post_monte_carlo_lifecycle(
-        candidate,
-        stage_evidence_factory,
-    )
+    lifecycle = _post_monte_carlo_lifecycle(candidate, stage_evidence_factory)
     performance = _performance(candidate)
 
     completed = complete_first_cohort_authority_chain(
@@ -228,10 +387,7 @@ def test_risk_policy_blocks_authority_chain_before_cibo(
         version=evaluator.version,
         binding=binding,
     )
-    lifecycle = _post_monte_carlo_lifecycle(
-        candidate,
-        stage_evidence_factory,
-    )
+    lifecycle = _post_monte_carlo_lifecycle(candidate, stage_evidence_factory)
     performance = _performance(candidate)
 
     blocked = complete_first_cohort_authority_chain(
