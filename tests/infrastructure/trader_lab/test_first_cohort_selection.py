@@ -8,6 +8,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.research_economic_evidence import (
     ResearchEconomicResultId,
     ResearchGrossEconomicResult,
@@ -60,6 +61,7 @@ from qore.infrastructure.traders.evaluators import cohort_evaluators
 from qore.kernel.result import Success
 
 _NOW = datetime(2026, 9, 7, 3, 0, tzinfo=UTC)
+_INSTRUMENT = Instrument("EURUSD")
 _POLICY = FirstCohortSelectionPolicy(
     min_sample_size=4,
     min_mean_return=Decimal("0"),
@@ -103,6 +105,7 @@ def _bound_strategy(
     *,
     index: int,
     strategy_binding_factory: _StrategyBindingFactory,
+    instrument: Instrument = _INSTRUMENT,
 ) -> ResearchRunStrategyBinding:
     base = strategy_binding_factory(configuration_id_suffix=300 + index)
     trader_code = str(evaluator.trader_code)
@@ -114,6 +117,7 @@ def _bound_strategy(
         parameters=(
             ResearchStrategyParameter("trader.code", trader_code),
             ResearchStrategyParameter("trader.config_fingerprint", config.value),
+            ResearchStrategyParameter("trader.instrument", instrument.symbol),
             ResearchStrategyParameter(
                 "trader.methodology_fingerprint", methodology_fingerprint.value
             ),
@@ -207,11 +211,13 @@ def _entry(
     stage_evidence_factory: _StageEvidenceFactory,
     economic_reference_factory: _EconomicReferenceFactory,
     complete: bool = True,
+    instrument: Instrument = _INSTRUMENT,
 ) -> FirstCohortTraderLabEntry:
     binding = _bound_strategy(
         evaluator,
         index=index,
         strategy_binding_factory=strategy_binding_factory,
+        instrument=instrument,
     )
     candidate = candidate_factory(
         candidate_suffix=400 + index,
@@ -240,6 +246,7 @@ def _entry(
         methodology_fingerprint=DemoTradingMethodologyFingerprint(
             methodology_fingerprint.value
         ),
+        instrument=instrument,
         lifecycle=lifecycle,
         economic_evidence=economic_reference_factory(candidate),
         performance=_performance(candidate, index=index, rates=_RATES[code]),
@@ -289,6 +296,7 @@ def test_exact_five_full_lab_candidates_select_vt08_on_evidence(
     assert all(item.status is FirstCohortLabStatus.SELECTABLE for item in selection.assessments)
     assert selection.selected is not None
     assert selection.selected.trader_code.value == "vt-08"
+    assert selection.selected.instrument == _INSTRUMENT
 
 
 def test_best_economics_cannot_bypass_incomplete_lab_chain(
@@ -330,3 +338,43 @@ def test_missing_or_duplicate_cohort_members_fail_closed(
         select_first_demo_trader(entries[:-1], policy=_POLICY)
     with pytest.raises(TraderLabValidationError):
         select_first_demo_trader((*entries[:-1], entries[0]), policy=_POLICY)
+
+
+def test_lab_entry_rejects_instrument_not_bound_by_strategy_freeze(
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
+    economic_reference_factory: _EconomicReferenceFactory,
+) -> None:
+    evaluator = cohort_evaluators()[0]
+    binding = _bound_strategy(
+        evaluator,
+        index=0,
+        strategy_binding_factory=strategy_binding_factory,
+        instrument=Instrument("EURUSD"),
+    )
+    candidate = candidate_factory(
+        candidate_suffix=900,
+        version=str(evaluator.version),
+        binding=binding,
+    )
+    lifecycle = _complete_lifecycle(
+        candidate,
+        index=0,
+        stage_evidence_factory=stage_evidence_factory,
+    )
+    methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
+
+    with pytest.raises(TraderLabValidationError, match="instrument binding"):
+        FirstCohortTraderLabEntry(
+            trader_code=DemoTradingTraderCode(str(evaluator.trader_code)),
+            trader_version=DemoTradingTraderVersion(str(evaluator.version)),
+            config_fingerprint=evaluator.config_fingerprint(),
+            methodology_id=methodology_id,
+            methodology_version=methodology_version,
+            methodology_fingerprint=methodology_fingerprint,
+            instrument=Instrument("GBPUSD"),
+            lifecycle=lifecycle,
+            economic_evidence=economic_reference_factory(candidate),
+            performance=_performance(candidate, index=0, rates=_RATES[str(evaluator.trader_code)]),
+        )
