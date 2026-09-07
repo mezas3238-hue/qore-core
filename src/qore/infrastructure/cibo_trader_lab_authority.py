@@ -1,12 +1,12 @@
 """CIBO-owned Trader Lab review and authenticity issuance.
 
-The Trader Lab stays consume/verify-only.  This module lives outside the Lab,
+The Trader Lab stays consume/verify-only. This module lives outside the Lab,
 projects already-qualified Lab evidence into CIBO's provider-neutral capability
 profile, obtains the existing deterministic CIBO development review, and issues
 a sealed CIBO_REVIEW authenticity proof only for RECOMMEND_PROMOTION.
 
 CIBO remains advisory for trading: this authority can qualify only the CIBO Lab
-stage.  It creates no Risk authorization, execution submission, provider order,
+stage. It creates no Risk authorization, execution submission, provider order,
 Production authority, or real-capital permission.
 """
 
@@ -66,6 +66,7 @@ from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabStage,
     validate_trader_lab_evidence_reference,
 )
+from qore.infrastructure.traders.evaluators import cohort_evaluators
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
@@ -151,13 +152,45 @@ def _manifest_values(candidate: TraderLabCandidateBinding) -> dict[str, str]:
         "trader.code",
         "trader.config_fingerprint",
         "trader.instrument",
+        "trader.methodology_fingerprint",
         "trader.methodology_id",
+        "trader.methodology_version",
     }
     if not required.issubset(values):
         raise CiboTraderLabAuthorityValidationError(
             "CIBO Trader Lab projection requires exact trader manifest binding"
         )
     return values
+
+
+def _derived_qualified_timeframes(values: dict[str, str]) -> tuple[str, ...]:
+    """Derive timeframes from the exact first-cohort evaluator methodology."""
+
+    trader_code = values["trader.code"]
+    evaluator = next(
+        (item for item in cohort_evaluators() if item.trader_code == trader_code),
+        None,
+    )
+    if evaluator is None:
+        raise CiboTraderLabAuthorityValidationError(
+            "CIBO first-DEMO review requires an exact first-cohort evaluator"
+        )
+    methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
+    if methodology_id.value != values["trader.methodology_id"]:
+        raise CiboTraderLabAuthorityValidationError(
+            "CIBO methodology id does not match the frozen evaluator"
+        )
+    if methodology_version.value != values["trader.methodology_version"]:
+        raise CiboTraderLabAuthorityValidationError(
+            "CIBO methodology version does not match the frozen evaluator"
+        )
+    if methodology_fingerprint.value != values["trader.methodology_fingerprint"]:
+        raise CiboTraderLabAuthorityValidationError(
+            "CIBO methodology fingerprint does not match the frozen evaluator"
+        )
+    if trader_code == "vt-08":
+        return (evaluator.timeframe, "H4")
+    return (evaluator.timeframe,)
 
 
 def _identity(
@@ -211,6 +244,11 @@ def build_cibo_profile_from_trader_lab(
             )
         candidate = lifecycle.candidate
         values = _manifest_values(candidate)
+        expected_timeframes = _derived_qualified_timeframes(values)
+        if qualified_timeframes != expected_timeframes:
+            raise CiboTraderLabAuthorityValidationError(
+                "CIBO qualified timeframes must match the frozen Trader methodology"
+            )
         validate_trader_lab_evidence_reference(economic_evidence)
         if (
             economic_evidence.strategy_binding_fingerprint
@@ -218,14 +256,6 @@ def build_cibo_profile_from_trader_lab(
         ):
             raise CiboTraderLabAuthorityBlockedError(
                 "CIBO economic evidence must bind the exact candidate strategy"
-            )
-        if type(qualified_timeframes) is not tuple or not qualified_timeframes:
-            raise CiboTraderLabAuthorityValidationError(
-                "CIBO profile requires at least one qualified timeframe"
-            )
-        if any(type(item) is not str or not item for item in qualified_timeframes):
-            raise CiboTraderLabAuthorityValidationError(
-                "CIBO qualified timeframes must be non-empty strings"
             )
         as_of = _timestamp(evidence_as_of, field_name="CIBO evidence_as_of")
         if as_of < lifecycle.qualifications[-1].qualified_at.astimezone(UTC):
@@ -264,7 +294,7 @@ def build_cibo_profile_from_trader_lab(
                 CiboTradeableMarketRef(values["trader.instrument"]),
             ),
             qualified_timeframes=tuple(
-                CiboTimeframeCode(item.lower()) for item in qualified_timeframes
+                CiboTimeframeCode(item.lower()) for item in expected_timeframes
             ),
             certified_lab_evidence=tuple(certified),
             certification_state=CiboCertificationState.EVIDENCE_COLLECTED,
@@ -291,7 +321,7 @@ def review_trader_lab_candidate_cibo(
     qualified_timeframes: tuple[str, ...],
     reviewed_at: datetime,
 ) -> Result[CiboDevelopmentReview, CiboTraderLabAuthorityError]:
-    """Run existing deterministic CIBO review over exact post-Risk Lab evidence."""
+    """Run deterministic CIBO review over exact post-Risk Lab evidence."""
 
     profile = build_cibo_profile_from_trader_lab(
         lifecycle,
@@ -380,6 +410,10 @@ def issue_cibo_trader_lab_approval(
         review.__post_init__()
         candidate = lifecycle.candidate
         values = _manifest_values(candidate)
+        expected_timeframes = tuple(
+            CiboTimeframeCode(item.lower())
+            for item in _derived_qualified_timeframes(values)
+        )
         expected_identity = _identity(candidate, trader_code=values["trader.code"])
         if review.profile.trader_identity != expected_identity:
             raise CiboTraderLabAuthorityBlockedError(
@@ -391,6 +425,10 @@ def issue_cibo_trader_lab_approval(
         ):
             raise CiboTraderLabAuthorityBlockedError(
                 "CIBO review config does not match the exact Lab candidate"
+            )
+        if review.profile.qualified_timeframes != expected_timeframes:
+            raise CiboTraderLabAuthorityBlockedError(
+                "CIBO review timeframes do not match the frozen Trader methodology"
             )
         if review.recommendation is not (
             CiboDevelopmentRecommendation.RECOMMEND_PROMOTION
