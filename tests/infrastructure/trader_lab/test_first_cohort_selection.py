@@ -79,6 +79,9 @@ from qore.infrastructure.trader_lab.cohort import (
     FirstCohortTraderLabEntry,
     select_first_demo_trader,
 )
+from qore.infrastructure.trader_lab.economic_binding import (
+    reference_instrument_bound_research_economic,
+)
 from qore.infrastructure.trader_lab.lifecycle import (
     MANDATORY_STAGES,
     TraderLabLifecycle,
@@ -86,10 +89,7 @@ from qore.infrastructure.trader_lab.lifecycle import (
     apply_trader_lab_promotion,
     start_trader_lab_lifecycle,
 )
-from qore.infrastructure.trader_lab.stage_evidence import (
-    TraderLabEvidenceReference,
-    TraderLabStageEvidenceRecord,
-)
+from qore.infrastructure.trader_lab.stage_evidence import TraderLabStageEvidenceRecord
 from qore.infrastructure.traders.contracts import (
     DemoTradingConfigFingerprint,
     DemoTradingMethodologyFingerprint,
@@ -129,7 +129,6 @@ _RATES: dict[str, tuple[str, ...]] = {
 _StrategyBindingFactory = Callable[..., ResearchRunStrategyBinding]
 _CandidateFactory = Callable[..., TraderLabCandidateBinding]
 _StageEvidenceFactory = Callable[..., TraderLabStageEvidenceRecord]
-_EconomicReferenceFactory = Callable[[TraderLabCandidateBinding], TraderLabEvidenceReference]
 
 
 class _CohortEvaluator(Protocol):
@@ -406,7 +405,6 @@ def _entry(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
     complete: bool = True,
     instrument: Instrument = _INSTRUMENT,
 ) -> FirstCohortTraderLabEntry:
@@ -432,6 +430,11 @@ def _entry(
     )
     methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
     code = str(evaluator.trader_code)
+    performance = _performance(candidate, index=index, rates=_RATES[code])
+    economic_evidence = reference_instrument_bound_research_economic(
+        candidate,
+        performance.observations[0],
+    )
     return FirstCohortTraderLabEntry(
         trader_code=DemoTradingTraderCode(code),
         trader_version=DemoTradingTraderVersion(str(evaluator.version)),
@@ -445,8 +448,8 @@ def _entry(
         ),
         instrument=instrument,
         lifecycle=lifecycle,
-        economic_evidence=economic_reference_factory(candidate),
-        performance=_performance(candidate, index=index, rates=_RATES[code]),
+        economic_evidence=economic_evidence,
+        performance=performance,
     )
 
 
@@ -455,7 +458,6 @@ def _cohort(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
     incomplete_code: str | None = None,
 ) -> tuple[FirstCohortTraderLabEntry, ...]:
     return tuple(
@@ -465,7 +467,6 @@ def _cohort(
             strategy_binding_factory=strategy_binding_factory,
             candidate_factory=candidate_factory,
             stage_evidence_factory=stage_evidence_factory,
-            economic_reference_factory=economic_reference_factory,
             complete=str(evaluator.trader_code) != incomplete_code,
         )
         for index, evaluator in enumerate(cohort_evaluators())
@@ -476,13 +477,11 @@ def test_exact_five_full_lab_candidates_select_vt08_on_evidence(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
 ) -> None:
     entries = _cohort(
         strategy_binding_factory=strategy_binding_factory,
         candidate_factory=candidate_factory,
         stage_evidence_factory=stage_evidence_factory,
-        economic_reference_factory=economic_reference_factory,
     )
 
     selection = select_first_demo_trader(entries, policy=_POLICY)
@@ -500,13 +499,11 @@ def test_best_economics_cannot_bypass_incomplete_lab_chain(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
 ) -> None:
     entries = _cohort(
         strategy_binding_factory=strategy_binding_factory,
         candidate_factory=candidate_factory,
         stage_evidence_factory=stage_evidence_factory,
-        economic_reference_factory=economic_reference_factory,
         incomplete_code="vt-08",
     )
 
@@ -522,13 +519,11 @@ def test_missing_or_duplicate_cohort_members_fail_closed(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
 ) -> None:
     entries = _cohort(
         strategy_binding_factory=strategy_binding_factory,
         candidate_factory=candidate_factory,
         stage_evidence_factory=stage_evidence_factory,
-        economic_reference_factory=economic_reference_factory,
     )
 
     with pytest.raises(TraderLabValidationError):
@@ -541,7 +536,6 @@ def test_lab_entry_rejects_instrument_not_bound_by_strategy_freeze(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
 ) -> None:
     evaluator = cohort_evaluators()[0]
     binding = _bound_strategy(
@@ -561,6 +555,15 @@ def test_lab_entry_rejects_instrument_not_bound_by_strategy_freeze(
         stage_evidence_factory=stage_evidence_factory,
     )
     methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
+    performance = _performance(
+        candidate,
+        index=0,
+        rates=_RATES[str(evaluator.trader_code)],
+    )
+    economic_evidence = reference_instrument_bound_research_economic(
+        candidate,
+        performance.observations[0],
+    )
 
     with pytest.raises(TraderLabValidationError, match="instrument binding"):
         FirstCohortTraderLabEntry(
@@ -572,6 +575,6 @@ def test_lab_entry_rejects_instrument_not_bound_by_strategy_freeze(
             methodology_fingerprint=methodology_fingerprint,
             instrument=Instrument("GBPUSD"),
             lifecycle=lifecycle,
-            economic_evidence=economic_reference_factory(candidate),
-            performance=_performance(candidate, index=0, rates=_RATES[str(evaluator.trader_code)]),
+            economic_evidence=economic_evidence,
+            performance=performance,
         )
