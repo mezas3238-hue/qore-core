@@ -1,13 +1,14 @@
 """Long-horizon read-only cTrader DEMO evidence collector for Trader Lab.
 
-This collector is the credibility-grade counterpart to the short smoke probe.
-It requires at least 730 requested days, obtains history in bounded 30-day
-windows, paginates every cTrader trendbar response until ``hasMore`` is false,
-paces historical requests below the provider limit, verifies one exact DEMO
-account/symbol binding, and fails closed when provider history does not cover
-the requested horizon closely enough.
+The credibility gate is bound to the exact timeframes consumed by the first
+cohort: M5 and M15 execution data plus H4 structural context.  Those periods
+must cover at least the requested two-year horizon.  M1 is retained only as a
+recent auxiliary/schema-compatible series because no first-cohort evaluator
+consumes M1.
 
-It never submits, amends, cancels, or otherwise mutates an order.
+Every cTrader historical window is fully paginated using ``count``/``hasMore``
+and requests are paced below the provider historical-data rate limit.  The
+collector never submits, amends, cancels, or otherwise mutates an order.
 """
 
 from __future__ import annotations
@@ -36,6 +37,7 @@ from qore.kernel.result import Failure
 _MIN_LOOKBACK_DAYS = 730
 _MAX_LOOKBACK_DAYS = 1095
 _CHUNK_DAYS = 30
+_AUXILIARY_M1_LOOKBACK_DAYS = 30
 _COVERAGE_TOLERANCE_DAYS = 10
 _HISTORICAL_PAGE_COUNT = 5_000
 _HISTORICAL_REQUEST_PAUSE_SECONDS = 0.22
@@ -46,7 +48,7 @@ _PERIODS: tuple[tuple[str, int, int], ...] = (
     ("M15", 7, 900),
     ("H4", 10, 14_400),
 )
-_REQUIRED_PERIODS = tuple(item[0] for item in _PERIODS)
+_TWO_YEAR_REQUIRED_PERIODS = ("M5", "M15", "H4")
 
 
 def _required_env(name: str, *aliases: str) -> str:
@@ -275,21 +277,27 @@ def _merge_bars(
         retained[key] = bar
 
 
-def _validate_coverage(
+def _period_bars(
+    bars: tuple[CTraderDemoLabClosedTrendbar, ...], period: str
+) -> tuple[CTraderDemoLabClosedTrendbar, ...]:
+    return tuple(item for item in bars if item.period == period)
+
+
+def _validate_two_year_coverage(
     bars: tuple[CTraderDemoLabClosedTrendbar, ...],
     *,
     requested_opened_at: datetime,
     checked_at: datetime,
 ) -> None:
     tolerance = timedelta(days=_COVERAGE_TOLERANCE_DAYS)
-    for period in _REQUIRED_PERIODS:
-        period_bars = tuple(item for item in bars if item.period == period)
-        if not period_bars:
+    for period in _TWO_YEAR_REQUIRED_PERIODS:
+        retained = _period_bars(bars, period)
+        if not retained:
             raise CTraderDemoLabProbeError(
                 f"cTrader long-horizon evidence is missing {period}"
             )
-        first = period_bars[0].opened_at
-        last = period_bars[-1].closed_at
+        first = retained[0].opened_at
+        last = retained[-1].closed_at
         if first > requested_opened_at + tolerance:
             raise CTraderDemoLabProbeError(
                 f"cTrader {period} history does not reach the two-year boundary"
@@ -300,6 +308,34 @@ def _validate_coverage(
             )
 
 
+def _validate_auxiliary_m1(
+    bars: tuple[CTraderDemoLabClosedTrendbar, ...], *, checked_at: datetime
+) -> None:
+    retained = _period_bars(bars, "M1")
+    if not retained:
+        raise CTraderDemoLabProbeError("cTrader auxiliary M1 evidence is missing")
+    tolerance = timedelta(days=_COVERAGE_TOLERANCE_DAYS)
+    if retained[-1].closed_at < checked_at - tolerance:
+        raise CTraderDemoLabProbeError("cTrader auxiliary M1 evidence is stale")
+
+
+def _coverage_payload(
+    bars: tuple[CTraderDemoLabClosedTrendbar, ...]
+) -> dict[str, dict[str, object]]:
+    result: dict[str, dict[str, object]] = {}
+    for period, _native_period, _seconds in _PERIODS:
+        retained = _period_bars(bars, period)
+        if not retained:
+            continue
+        result[period] = {
+            "bar_count": len(retained),
+            "first_opened_at": retained[0].opened_at.isoformat(timespec="microseconds"),
+            "last_closed_at": retained[-1].closed_at.isoformat(timespec="microseconds"),
+            "span_days": (retained[-1].closed_at - retained[0].opened_at).days,
+        }
+    return result
+
+
 def collect_long_horizon_market_evidence(
     client: CTraderOpenApiMessageClientBoundary,
     *,
@@ -308,7 +344,7 @@ def collect_long_horizon_market_evidence(
     checked_at: datetime,
     timeout_seconds: float = 15.0,
 ) -> CTraderDemoLabMarketEvidence:
-    """Collect every page from bounded cTrader DEMO windows for one long horizon."""
+    """Collect two-year consumed periods plus recent auxiliary M1 evidence."""
     if requested_opened_at.tzinfo is None or requested_opened_at.utcoffset() is None:
         raise CTraderDemoLabProbeError("requested_opened_at must be timezone-aware")
     if checked_at.tzinfo is None or checked_at.utcoffset() is None:
@@ -326,11 +362,14 @@ def collect_long_horizon_market_evidence(
         timeout_seconds=timeout_seconds,
     )
     retained: dict[tuple[str, datetime], CTraderDemoLabClosedTrendbar] = {}
+
     cursor = opened
     window_index = 0
     while cursor < checked:
         window_end = min(cursor + timedelta(days=_CHUNK_DAYS), checked)
         for period_name, native_period, seconds in _PERIODS:
+            if period_name not in _TWO_YEAR_REQUIRED_PERIODS:
+                continue
             period_bars = _collect_period_window(
                 client,
                 account_id=account_id,
@@ -347,14 +386,34 @@ def collect_long_horizon_market_evidence(
         cursor = window_end
         window_index += 1
 
+    auxiliary_opened = max(
+        opened,
+        checked - timedelta(days=_AUXILIARY_M1_LOOKBACK_DAYS),
+    )
+    m1_native = next(item for item in _PERIODS if item[0] == "M1")
+    m1_bars = _collect_period_window(
+        client,
+        account_id=account_id,
+        symbol=symbol,
+        period_name=m1_native[0],
+        native_period=m1_native[1],
+        seconds=m1_native[2],
+        opened_at=auxiliary_opened,
+        checked_at=checked,
+        window_index=window_index,
+        timeout_seconds=timeout_seconds,
+    )
+    _merge_bars(retained, m1_bars)
+
     if not retained:
         raise CTraderDemoLabProbeError("cTrader long-horizon collection returned no evidence")
     bars = tuple(sorted(retained.values(), key=lambda item: (item.period, item.opened_at)))
-    _validate_coverage(
+    _validate_two_year_coverage(
         bars,
         requested_opened_at=opened,
         checked_at=checked,
     )
+    _validate_auxiliary_m1(bars, checked_at=checked)
     return CTraderDemoLabMarketEvidence(
         account_fingerprint=account_fingerprint,
         symbol=symbol,
@@ -401,6 +460,9 @@ def main() -> None:
         payload["requested_opened_at"] = requested_opened_at.isoformat(timespec="microseconds")
         payload["historical_chunk_days"] = _CHUNK_DAYS
         payload["historical_page_count"] = _HISTORICAL_PAGE_COUNT
+        payload["two_year_required_periods"] = list(_TWO_YEAR_REQUIRED_PERIODS)
+        payload["auxiliary_m1_lookback_days"] = _AUXILIARY_M1_LOOKBACK_DAYS
+        payload["coverage"] = _coverage_payload(evidence.bars)
         print(
             json.dumps(
                 payload,
