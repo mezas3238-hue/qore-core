@@ -9,6 +9,7 @@ DEMO, Risk, execution, Production, LIVE, or real-capital authority here.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -93,7 +94,24 @@ def record_operational_trader_lab_intake(
 
 def main() -> None:
     """Write only sanitized intake evidence to stdout for an operational runner."""
-    report = record_operational_trader_lab_intake(recorded_at=datetime.now(UTC))
+    encoded = os.environ.get("QORE_TRADER_LAB_RECORDED_AT", "")
+    if not encoded:
+        raise TraderLabValidationError(
+            "missing required environment input: QORE_TRADER_LAB_RECORDED_AT"
+        )
+    try:
+        recorded_at = datetime.fromisoformat(encoded)
+    except ValueError as error:
+        raise TraderLabValidationError(
+            "QORE_TRADER_LAB_RECORDED_AT must be an ISO-8601 timestamp"
+        ) from error
+    if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+        raise TraderLabValidationError(
+            "QORE_TRADER_LAB_RECORDED_AT must be timezone-aware"
+        )
+    report = record_operational_trader_lab_intake(
+        recorded_at=recorded_at.astimezone(UTC)
+    )
     print(report.sanitized_json())
 
 
