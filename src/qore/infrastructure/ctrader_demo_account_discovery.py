@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 from importlib import import_module
 from threading import Event, Lock, Thread
 from time import monotonic
-from typing import Protocol, cast
+from typing import cast
 
 from qore.kernel.errors import InfrastructureError
 
@@ -24,19 +24,6 @@ class CTraderDemoAccountDiscoveryError(InfrastructureError):
     __slots__ = ()
 
 
-class _ApplicationAuthRequest(Protocol):
-    clientId: str
-    clientSecret: str
-
-
-class _AccessTokenRequest(Protocol):
-    accessToken: str
-
-
-class _RefreshTokenRequest(Protocol):
-    refreshToken: str
-
-
 def _required_env(name: str) -> str:
     value = os.environ.get(name, "")
     if not value:
@@ -44,6 +31,17 @@ def _required_env(name: str) -> str:
             f"missing required environment input: {name}"
         )
     return value
+
+
+def _set_sdk_field(value: object, name: str, field_value: object) -> None:
+    """Assign a provider-defined Protobuf field without weakening static typing."""
+
+    try:
+        setattr(value, name, field_value)
+    except (AttributeError, TypeError, ValueError) as error:
+        raise CTraderDemoAccountDiscoveryError(
+            f"invalid cTrader discovery request field: {name}"
+        ) from error
 
 
 def _has_explicit_is_live(account: object) -> bool:
@@ -248,9 +246,9 @@ def discover_single_ctrader_demo_account_id(
                 "cTrader DEMO TLS connect timed out or disconnected"
             )
 
-        app_req = cast(_ApplicationAuthRequest, app_req_type())
-        app_req.clientId = client_id
-        app_req.clientSecret = client_secret
+        app_req = app_req_type()
+        _set_sdk_field(app_req, "clientId", client_id)
+        _set_sdk_field(app_req, "clientSecret", client_secret)
         app_response = request(app_req, "qore-demo-account-discovery-app-auth")
         if not isinstance(app_response, app_res_type):
             raise CTraderDemoAccountDiscoveryError(
@@ -258,14 +256,14 @@ def discover_single_ctrader_demo_account_id(
             )
 
         def account_list(token: str, suffix: str) -> object:
-            account_req = cast(_AccessTokenRequest, accounts_req_type())
-            account_req.accessToken = token
+            account_req = accounts_req_type()
+            _set_sdk_field(account_req, "accessToken", token)
             return request(account_req, f"qore-demo-account-discovery-{suffix}")
 
         accounts_response = account_list(current_access_token, "account-list")
         if not isinstance(accounts_response, accounts_res_type):
-            refresh_req = cast(_RefreshTokenRequest, refresh_req_type())
-            refresh_req.refreshToken = refresh_token
+            refresh_req = refresh_req_type()
+            _set_sdk_field(refresh_req, "refreshToken", refresh_token)
             refreshed = request(refresh_req, "qore-demo-account-discovery-refresh")
             if not isinstance(refreshed, refresh_res_type):
                 raise CTraderDemoAccountDiscoveryError(
