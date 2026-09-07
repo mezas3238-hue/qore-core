@@ -1,21 +1,16 @@
-"""Deterministic historical backtest for the first five cTrader DEMO Traders.
+"""Read-only historical replay for the exact first five cTrader DEMO Traders.
 
-This module consumes only sanitized, read-only cTrader DEMO Lab market evidence.
-It runs the production cohort evaluators over closed candles with no future
-leakage and applies one explicit conservative execution model.  It does not
-promote a Trader, issue Risk authority, or submit/cancel/amend broker orders.
+The engine consumes sanitized cTrader DEMO Lab OHLC, invokes the production
+methodology evaluators only with candles closed at each explicit ``as_of``, and
+uses one source-frozen conservative execution model.  It never promotes a
+Trader, issues Risk authority, or mutates a broker account.
 
-Execution-model policy (v1), frozen in source before outcomes are inspected:
-
-* evaluate only at the close of an execution-timeframe candle;
-* the LIMIT entry may fill during at most the next three contiguous candles;
-* a filled position may remain open for at most 24 contiguous candles;
-* if stop and target are both touched in one OHLC candle, stop wins;
-* a market-data gap terminates the modeled position at the last known close;
-* only one modeled position per Trader may be open at a time.
-
-The resulting closed-trade returns are research inputs for the governed Trader
-Lab chain.  They are not DEMO eligibility by themselves.
+Execution model v1:
+- LIMIT can fill in the next 3 contiguous execution candles;
+- a filled position is modeled for at most 24 contiguous candles;
+- if SL and TP are both touched in one OHLC candle, SL wins;
+- a data gap closes at the last known close;
+- modeled trades for one Trader never overlap.
 """
 
 from __future__ import annotations
@@ -24,9 +19,9 @@ import json
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Protocol, cast
+from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qore.infrastructure.market_data import (
@@ -58,14 +53,10 @@ _SCHEMA = "qore.trader_lab.first_cohort_backtest.v1"
 _EXECUTION_MODEL = "limit-3bar-fill-24bar-hold-stop-first-v1"
 _LIMIT_FILL_BARS = 3
 _MAX_HOLD_BARS = 24
-_HISTORY_LIMIT = 256
-_PERIOD_SECONDS: dict[str, int] = {
-    "M1": 60,
-    "M5": 300,
-    "M15": 900,
-    "H4": 14_400,
-}
-_EXECUTION_PERIOD: dict[str, str] = {
+_HISTORY_LIMIT = 64
+_PERIOD_SECONDS = {"M1": 60, "M5": 300, "M15": 900, "H4": 14_400}
+_CODES = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
+_EXECUTION_PERIOD = {
     "vt-01": "M5",
     "vt-08": "M5",
     "vt-09": "M15",
@@ -80,19 +71,7 @@ _SOURCE = ExternalSourceDescriptor(
 
 
 class FirstCohortBacktestError(InfrastructureError):
-    """Sanitized fail-closed backtest error."""
-
     __slots__ = ()
-
-
-class _Evaluator(Protocol):
-    @property
-    def trader_code(self) -> str: ...
-
-    @property
-    def timeframe(self) -> str: ...
-
-    def evaluate(self, inputs: object) -> object: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,26 +91,30 @@ class FirstCohortBacktestTrade:
     def __post_init__(self) -> None:
         if self.trader_code not in _EXECUTION_PERIOD:
             raise FirstCohortBacktestError("unknown first-cohort Trader code")
-        for name, value in (
+        for field_name, timestamp_value in (
             ("signal_at", self.signal_at),
             ("filled_at", self.filled_at),
             ("exited_at", self.exited_at),
         ):
-            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
-                raise FirstCohortBacktestError(f"{name} must be timezone-aware")
+            if (
+                type(timestamp_value) is not datetime
+                or timestamp_value.tzinfo is None
+                or timestamp_value.utcoffset() is None
+            ):
+                raise FirstCohortBacktestError(f"{field_name} must be timezone-aware")
         if not self.signal_at <= self.filled_at <= self.exited_at:
             raise FirstCohortBacktestError("trade timestamps must be monotonic")
         if not isinstance(self.side, DemoTradingSetupSide):
             raise FirstCohortBacktestError("trade side must be canonical")
-        for name, value in (
+        for field_name, decimal_value in (
             ("entry_price", self.entry_price),
             ("stop_loss", self.stop_loss),
             ("take_profit", self.take_profit),
             ("exit_price", self.exit_price),
             ("return_rate", self.return_rate),
         ):
-            if type(value) is not Decimal or not value.is_finite():
-                raise FirstCohortBacktestError(f"{name} must be finite Decimal")
+            if type(decimal_value) is not Decimal or not decimal_value.is_finite():
+                raise FirstCohortBacktestError(f"{field_name} must be finite Decimal")
         if min(self.entry_price, self.stop_loss, self.take_profit, self.exit_price) <= 0:
             raise FirstCohortBacktestError("trade prices must be positive")
         if self.exit_reason not in {"stop", "target", "time_exit", "gap_exit"}:
@@ -140,9 +123,9 @@ class FirstCohortBacktestTrade:
     def payload(self) -> dict[str, object]:
         return {
             "trader_code": self.trader_code,
-            "signal_at": self.signal_at.astimezone(UTC).isoformat(timespec="microseconds"),
-            "filled_at": self.filled_at.astimezone(UTC).isoformat(timespec="microseconds"),
-            "exited_at": self.exited_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            "signal_at": self.signal_at.astimezone(UTC).isoformat(),
+            "filled_at": self.filled_at.astimezone(UTC).isoformat(),
+            "exited_at": self.exited_at.astimezone(UTC).isoformat(),
             "side": self.side.value,
             "entry_price": format(self.entry_price, "f"),
             "stop_loss": format(self.stop_loss, "f"),
@@ -164,29 +147,6 @@ class FirstCohortBacktestResult:
     win_rate: Decimal
     population_variance: Decimal
 
-    def __post_init__(self) -> None:
-        if self.trader_code not in _EXECUTION_PERIOD:
-            raise FirstCohortBacktestError("unknown result Trader code")
-        if self.execution_period != _EXECUTION_PERIOD[self.trader_code]:
-            raise FirstCohortBacktestError("result timeframe does not match Trader")
-        if type(self.setup_count) is not int or self.setup_count < 0:
-            raise FirstCohortBacktestError("setup_count must be non-negative int")
-        if type(self.unfilled_setup_count) is not int or self.unfilled_setup_count < 0:
-            raise FirstCohortBacktestError("unfilled_setup_count must be non-negative int")
-        if type(self.trades) is not tuple or any(
-            type(item) is not FirstCohortBacktestTrade for item in self.trades
-        ):
-            raise FirstCohortBacktestError("trades must be canonical tuple")
-        if self.setup_count < len(self.trades) + self.unfilled_setup_count:
-            raise FirstCohortBacktestError("setup accounting is inconsistent")
-        for value in (self.mean_return, self.win_rate, self.population_variance):
-            if type(value) is not Decimal or not value.is_finite():
-                raise FirstCohortBacktestError("metrics must be finite Decimal")
-        if not Decimal("0") <= self.win_rate <= Decimal("1"):
-            raise FirstCohortBacktestError("win rate must be in [0,1]")
-        if self.population_variance < 0:
-            raise FirstCohortBacktestError("variance must be non-negative")
-
     @property
     def sample_size(self) -> int:
         return len(self.trades)
@@ -201,50 +161,27 @@ class FirstCohortBacktestResult:
             "mean_return": format(self.mean_return, "f"),
             "win_rate": format(self.win_rate, "f"),
             "population_variance": format(self.population_variance, "f"),
-            "trades": [item.payload() for item in self.trades],
+            "trades": [trade.payload() for trade in self.trades],
         }
 
 
 @dataclass(frozen=True, slots=True)
 class FirstCohortBacktestReport:
-    environment: str
-    read_only: bool
     account_fingerprint: str
     symbol: str
     checked_at: datetime
-    execution_model: str
     results: tuple[FirstCohortBacktestResult, ...]
-
-    def __post_init__(self) -> None:
-        if self.environment != "demo" or self.read_only is not True:
-            raise FirstCohortBacktestError("backtest input must be read-only DEMO evidence")
-        if len(self.account_fingerprint) != 64:
-            raise FirstCohortBacktestError("account fingerprint must be SHA-256 length")
-        if not self.symbol:
-            raise FirstCohortBacktestError("symbol must be non-empty")
-        if self.checked_at.tzinfo is None or self.checked_at.utcoffset() is None:
-            raise FirstCohortBacktestError("checked_at must be timezone-aware")
-        if self.execution_model != _EXECUTION_MODEL:
-            raise FirstCohortBacktestError("unexpected execution model")
-        if tuple(item.trader_code for item in self.results) != (
-            "vt-01",
-            "vt-08",
-            "vt-09",
-            "vt-17",
-            "vt-31",
-        ):
-            raise FirstCohortBacktestError("report requires canonical five-Trader order")
 
     def payload(self) -> dict[str, object]:
         return {
             "schema": _SCHEMA,
-            "environment": self.environment,
-            "read_only": self.read_only,
+            "environment": "demo",
+            "read_only": True,
             "account_fingerprint": self.account_fingerprint,
             "symbol": self.symbol,
-            "checked_at": self.checked_at.astimezone(UTC).isoformat(timespec="microseconds"),
-            "execution_model": self.execution_model,
-            "results": [item.payload() for item in self.results],
+            "checked_at": self.checked_at.astimezone(UTC).isoformat(),
+            "execution_model": _EXECUTION_MODEL,
+            "results": [result.payload() for result in self.results],
         }
 
     def to_json(self) -> str:
@@ -269,20 +206,20 @@ def _array(value: object, *, field_name: str) -> list[object]:
     return cast(list[object], value)
 
 
-def _string(value: object, *, field_name: str) -> str:
+def _text(value: object, *, field_name: str) -> str:
     if type(value) is not str or not value:
         raise FirstCohortBacktestError(f"{field_name} must be a non-empty string")
     return value
 
 
-def _bool(value: object, *, field_name: str) -> bool:
+def _strict_bool(value: object, *, field_name: str) -> bool:
     if type(value) is not bool:
-        raise FirstCohortBacktestError(f"{field_name} must be a bool")
+        raise FirstCohortBacktestError(f"{field_name} must be bool")
     return value
 
 
-def _parse_time(value: object, *, field_name: str) -> datetime:
-    raw = _string(value, field_name=field_name)
+def _timestamp(value: object, *, field_name: str) -> datetime:
+    raw = _text(value, field_name=field_name)
     try:
         parsed = datetime.fromisoformat(raw)
     except ValueError as error:
@@ -292,97 +229,84 @@ def _parse_time(value: object, *, field_name: str) -> datetime:
     return parsed.astimezone(UTC)
 
 
-def _parse_snapshot(
-    item: object,
-    *,
-    period: str,
-    instrument: Instrument,
-) -> OhlcSnapshot:
+def _decimal(value: object, *, field_name: str) -> Decimal:
+    raw = _text(value, field_name=field_name)
+    try:
+        parsed = Decimal(raw)
+    except InvalidOperation as error:
+        raise FirstCohortBacktestError(f"{field_name} must be decimal") from error
+    if not parsed.is_finite() or parsed <= 0:
+        raise FirstCohortBacktestError(f"{field_name} must be positive finite decimal")
+    return parsed
+
+
+def _snapshot(item: object, *, period: str, instrument: Instrument) -> OhlcSnapshot:
     payload = _object(item, field_name=f"{period} bar")
-    opened_at = _parse_time(payload.get("opened_at"), field_name="bar opened_at")
-    closed_at = _parse_time(payload.get("closed_at"), field_name="bar closed_at")
-    prices: dict[str, Decimal] = {}
-    for name in ("open", "high", "low", "close"):
-        try:
-            prices[name] = Decimal(_string(payload.get(name), field_name=f"bar {name}"))
-        except Exception as error:
-            if isinstance(error, FirstCohortBacktestError):
-                raise
-            raise FirstCohortBacktestError(f"bar {name} must be Decimal") from error
-    timeframe_seconds = _PERIOD_SECONDS[period]
+    opened_at = _timestamp(payload.get("opened_at"), field_name="bar opened_at")
+    closed_at = _timestamp(payload.get("closed_at"), field_name="bar closed_at")
     return OhlcSnapshot(
         snapshot_id=MarketDataSnapshotId(
             uuid5(
                 NAMESPACE_URL,
-                "qore:first-cohort-backtest:bar:"
-                f"{instrument.symbol}:{period}:{opened_at.isoformat()}",
+                f"qore:first-cohort:{instrument.symbol}:{period}:{opened_at.isoformat()}",
             )
         ),
         instrument=instrument,
         source=_SOURCE,
-        timeframe=Timeframe(timeframe_seconds),
+        timeframe=Timeframe(_PERIOD_SECONDS[period]),
         opened_at=opened_at,
         closed_at=closed_at,
-        open=float(prices["open"]),
-        high=float(prices["high"]),
-        low=float(prices["low"]),
-        close=float(prices["close"]),
+        open=float(_decimal(payload.get("open"), field_name="bar open")),
+        high=float(_decimal(payload.get("high"), field_name="bar high")),
+        low=float(_decimal(payload.get("low"), field_name="bar low")),
+        close=float(_decimal(payload.get("close"), field_name="bar close")),
     )
 
 
-def _load_market_evidence(
+def _load(
     path: Path,
 ) -> tuple[dict[str, tuple[OhlcSnapshot, ...]], str, str, datetime]:
     try:
         decoded: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise FirstCohortBacktestError("cannot read cTrader Lab market evidence") from error
+        raise FirstCohortBacktestError("cannot read cTrader Lab evidence") from error
     payload = _object(decoded, field_name="market evidence")
-    if _string(payload.get("environment"), field_name="environment") != "demo":
+    if _text(payload.get("environment"), field_name="environment") != "demo":
         raise FirstCohortBacktestError("market evidence must be DEMO")
-    if not _bool(payload.get("read_only"), field_name="read_only"):
+    if not _strict_bool(payload.get("read_only"), field_name="read_only"):
         raise FirstCohortBacktestError("market evidence must be read-only")
-    if _bool(payload.get("account_is_live"), field_name="account_is_live"):
+    if _strict_bool(payload.get("account_is_live"), field_name="account_is_live"):
         raise FirstCohortBacktestError("LIVE account evidence is prohibited")
-    if not _bool(
+    if not _strict_bool(
         payload.get("trading_permission_verified"),
         field_name="trading_permission_verified",
     ):
         raise FirstCohortBacktestError("DEMO trading permission must be verified")
-    account_fingerprint = _string(
-        payload.get("account_fingerprint"), field_name="account_fingerprint"
-    )
-    if len(account_fingerprint) != 64:
-        raise FirstCohortBacktestError("account fingerprint must be SHA-256 length")
+    fingerprint = _text(payload.get("account_fingerprint"), field_name="account_fingerprint")
+    if len(fingerprint) != 64:
+        raise FirstCohortBacktestError("account fingerprint must have SHA-256 length")
     symbol_payload = _object(payload.get("symbol"), field_name="symbol")
-    symbol = _string(symbol_payload.get("symbol_name"), field_name="symbol_name")
+    symbol = _text(symbol_payload.get("symbol_name"), field_name="symbol_name")
+    checked_at = _timestamp(payload.get("checked_at"), field_name="checked_at")
     instrument = Instrument(symbol)
-    checked_at = _parse_time(payload.get("checked_at"), field_name="checked_at")
-    periods_payload = _object(payload.get("periods"), field_name="periods")
-    if set(periods_payload) != set(_PERIOD_SECONDS):
-        raise FirstCohortBacktestError("market evidence must contain M1/M5/M15/H4")
+    periods = _object(payload.get("periods"), field_name="periods")
+    if set(periods) != set(_PERIOD_SECONDS):
+        raise FirstCohortBacktestError("evidence must contain M1/M5/M15/H4")
     series: dict[str, tuple[OhlcSnapshot, ...]] = {}
     for period in _PERIOD_SECONDS:
-        rows = _array(periods_payload.get(period), field_name=f"period {period}")
-        snapshots = tuple(
-            _parse_snapshot(item, period=period, instrument=instrument) for item in rows
-        )
+        rows = _array(periods.get(period), field_name=f"period {period}")
+        snapshots = tuple(_snapshot(row, period=period, instrument=instrument) for row in rows)
         if not snapshots:
-            raise FirstCohortBacktestError(f"period {period} contains no bars")
-        if snapshots != tuple(sorted(snapshots, key=lambda item: item.closed_at)):
-            raise FirstCohortBacktestError(f"period {period} bars are not chronological")
+            raise FirstCohortBacktestError(f"period {period} is empty")
+        if snapshots != tuple(sorted(snapshots, key=lambda bar: bar.closed_at)):
+            raise FirstCohortBacktestError(f"period {period} is not chronological")
         series[period] = snapshots
-    return series, account_fingerprint, symbol, checked_at
+    return series, fingerprint, symbol, checked_at
 
 
-def _contiguous_history(
-    series: tuple[OhlcSnapshot, ...],
-    end_index: int,
-    *,
-    limit: int = _HISTORY_LIMIT,
+def _history(
+    series: tuple[OhlcSnapshot, ...], end_index: int, *, limit: int = _HISTORY_LIMIT
 ) -> tuple[OhlcSnapshot, ...]:
-    if end_index < 0 or end_index >= len(series):
-        raise FirstCohortBacktestError("history end_index is out of range")
     start = end_index
     while start > 0 and end_index - start + 1 < limit:
         if series[start - 1].closed_at != series[start].opened_at:
@@ -391,27 +315,18 @@ def _contiguous_history(
     return series[start : end_index + 1]
 
 
-def _context_history(
-    h4: tuple[OhlcSnapshot, ...],
-    *,
-    as_of: datetime,
-) -> tuple[OhlcSnapshot, ...]:
-    eligible = [index for index, item in enumerate(h4) if item.closed_at <= as_of]
-    if not eligible:
-        return ()
-    return _contiguous_history(h4, eligible[-1], limit=32)
+def _h4_context(h4: tuple[OhlcSnapshot, ...], *, as_of: datetime) -> tuple[OhlcSnapshot, ...]:
+    indices = [index for index, bar in enumerate(h4) if bar.closed_at <= as_of]
+    return () if not indices else _history(h4, indices[-1], limit=32)
 
 
 def _touches(bar: OhlcSnapshot, price: Decimal) -> bool:
-    value = float(price)
-    return bar.low <= value <= bar.high
+    point = float(price)
+    return bar.low <= point <= bar.high
 
 
-def _trade_return(
-    *,
-    side: DemoTradingSetupSide,
-    entry: Decimal,
-    exit_price: Decimal,
+def _return_rate(
+    *, side: DemoTradingSetupSide, entry: Decimal, exit_price: Decimal
 ) -> Decimal:
     if side is DemoTradingSetupSide.LONG:
         return (exit_price - entry) / entry
@@ -428,49 +343,42 @@ def _model_trade(
     stop: Decimal,
     target: Decimal,
 ) -> tuple[FirstCohortBacktestTrade | None, int]:
-    last_fill_index = min(signal_index + _LIMIT_FILL_BARS, len(series) - 1)
-    previous = series[signal_index]
+    last_fill = min(signal_index + _LIMIT_FILL_BARS, len(series) - 1)
+    prior = series[signal_index]
     fill_index: int | None = None
-    for index in range(signal_index + 1, last_fill_index + 1):
+    for index in range(signal_index + 1, last_fill + 1):
         bar = series[index]
-        if bar.opened_at != previous.closed_at:
+        if bar.opened_at != prior.closed_at:
             return None, signal_index
         if _touches(bar, entry):
             fill_index = index
             break
-        previous = bar
+        prior = bar
     if fill_index is None:
-        return None, last_fill_index
+        return None, last_fill
 
-    fill_bar = series[fill_index]
     exit_index = fill_index
-    exit_price = Decimal(str(fill_bar.close))
-    exit_reason = "time_exit"
-    previous = fill_bar
-    max_exit_index = min(fill_index + _MAX_HOLD_BARS - 1, len(series) - 1)
-    for index in range(fill_index, max_exit_index + 1):
+    exit_price = Decimal(str(series[fill_index].close))
+    reason = "time_exit"
+    prior = series[fill_index]
+    last_exit = min(fill_index + _MAX_HOLD_BARS - 1, len(series) - 1)
+    for index in range(fill_index, last_exit + 1):
         bar = series[index]
-        if index > fill_index and bar.opened_at != previous.closed_at:
+        if index > fill_index and bar.opened_at != prior.closed_at:
             exit_index = index - 1
-            exit_price = Decimal(str(previous.close))
-            exit_reason = "gap_exit"
+            exit_price = Decimal(str(prior.close))
+            reason = "gap_exit"
             break
-        stop_touched = _touches(bar, stop)
-        target_touched = _touches(bar, target)
-        if stop_touched:
-            exit_index = index
-            exit_price = stop
-            exit_reason = "stop"
+        if _touches(bar, stop):
+            exit_index, exit_price, reason = index, stop, "stop"
             break
-        if target_touched:
-            exit_index = index
-            exit_price = target
-            exit_reason = "target"
+        if _touches(bar, target):
+            exit_index, exit_price, reason = index, target, "target"
             break
         exit_index = index
         exit_price = Decimal(str(bar.close))
-        exit_reason = "time_exit"
-        previous = bar
+        reason = "time_exit"
+        prior = bar
 
     trade = FirstCohortBacktestTrade(
         trader_code=trader_code,
@@ -482,8 +390,8 @@ def _model_trade(
         stop_loss=stop,
         take_profit=target,
         exit_price=exit_price,
-        return_rate=_trade_return(side=side, entry=entry, exit_price=exit_price),
-        exit_reason=exit_reason,
+        return_rate=_return_rate(side=side, entry=entry, exit_price=exit_price),
+        exit_reason=reason,
     )
     return trade, exit_index
 
@@ -492,19 +400,16 @@ def _metrics(
     trades: tuple[FirstCohortBacktestTrade, ...],
 ) -> tuple[Decimal, Decimal, Decimal]:
     if not trades:
-        return Decimal("0"), Decimal("0"), Decimal("0")
-    values = tuple(item.return_rate for item in trades)
-    denominator = Decimal(len(values))
-    mean = sum(values, Decimal("0")) / denominator
-    win_rate = Decimal(sum(value > 0 for value in values)) / denominator
-    variance = (
-        sum(((value - mean) * (value - mean) for value in values), Decimal("0"))
-        / denominator
-    )
-    return mean, win_rate, variance
+        return Decimal(0), Decimal(0), Decimal(0)
+    values = tuple(trade.return_rate for trade in trades)
+    size = Decimal(len(values))
+    mean = sum(values, Decimal(0)) / size
+    wins = Decimal(sum(value > 0 for value in values)) / size
+    variance = sum(((value - mean) ** 2 for value in values), Decimal(0)) / size
+    return mean, wins, variance
 
 
-def _backtest_trader(
+def _backtest(
     evaluator: DemoTradingEvaluatorBoundary,
     *,
     trader_code: str,
@@ -512,24 +417,22 @@ def _backtest_trader(
 ) -> FirstCohortBacktestResult:
     period = _EXECUTION_PERIOD[trader_code]
     execution = series[period]
-    h4 = series["H4"]
     trades: list[FirstCohortBacktestTrade] = []
     setup_count = 0
     unfilled = 0
     index = 0
     while index < len(execution) - 1:
-        history = _contiguous_history(execution, index)
         as_of = execution[index].closed_at
-        context = _context_history(h4, as_of=as_of) if trader_code == "vt-08" else ()
+        context = _h4_context(series["H4"], as_of=as_of) if trader_code == "vt-08" else ()
         if trader_code == "vt-08" and not context:
             index += 1
             continue
-        bound_input = build_instrument_bound_demo_trading_input(
-            execution_evidence=history,
+        bound = build_instrument_bound_demo_trading_input(
+            execution_evidence=_history(execution, index),
             context_evidence=context,
             as_of=as_of,
         )
-        evaluated = evaluate_instrument_bound_demo_trader(evaluator, bound_input)
+        evaluated = evaluate_instrument_bound_demo_trader(evaluator, bound)
         if isinstance(evaluated, Failure):
             index += 1
             continue
@@ -539,7 +442,7 @@ def _backtest_trader(
             continue
         setup_count += 1
         setup = output.setup
-        trade, consumed_index = _model_trade(
+        trade, consumed = _model_trade(
             trader_code=trader_code,
             series=execution,
             signal_index=index,
@@ -550,18 +453,18 @@ def _backtest_trader(
         )
         if trade is None:
             unfilled += 1
-            index = max(index + 1, consumed_index + 1)
-            continue
-        trades.append(trade)
-        index = consumed_index + 1
-    trade_tuple = tuple(trades)
-    mean, win_rate, variance = _metrics(trade_tuple)
+            index = max(index + 1, consumed + 1)
+        else:
+            trades.append(trade)
+            index = consumed + 1
+    retained = tuple(trades)
+    mean, win_rate, variance = _metrics(retained)
     return FirstCohortBacktestResult(
         trader_code=trader_code,
         execution_period=period,
         setup_count=setup_count,
         unfilled_setup_count=unfilled,
-        trades=trade_tuple,
+        trades=retained,
         mean_return=mean,
         win_rate=win_rate,
         population_variance=variance,
@@ -569,27 +472,23 @@ def _backtest_trader(
 
 
 def run_first_cohort_backtest(path: Path) -> FirstCohortBacktestReport:
-    """Run all five production evaluators against one sanitized cTrader DEMO artifact."""
-    series, account_fingerprint, symbol, checked_at = _load_market_evidence(path)
+    """Run all five production evaluators on one fresh sanitized DEMO evidence file."""
+    series, fingerprint, symbol, checked_at = _load(path)
     evaluators = cohort_evaluators()
-    codes = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
-    if tuple(item.trader_code for item in evaluators) != codes:
-        raise FirstCohortBacktestError("production cohort evaluator order changed")
+    if tuple(evaluator.trader_code for evaluator in evaluators) != _CODES:
+        raise FirstCohortBacktestError("production cohort identity/order changed")
     results = tuple(
-        _backtest_trader(
+        _backtest(
             cast(DemoTradingEvaluatorBoundary, evaluator),
             trader_code=code,
             series=series,
         )
-        for code, evaluator in zip(codes, evaluators, strict=True)
+        for code, evaluator in zip(_CODES, evaluators, strict=True)
     )
     return FirstCohortBacktestReport(
-        environment="demo",
-        read_only=True,
-        account_fingerprint=account_fingerprint,
+        account_fingerprint=fingerprint,
         symbol=symbol,
         checked_at=checked_at,
-        execution_model=_EXECUTION_MODEL,
         results=results,
     )
 
