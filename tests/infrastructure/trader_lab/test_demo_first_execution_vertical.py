@@ -7,6 +7,13 @@ from typing import cast
 from uuid import UUID
 
 import pytest
+from test_first_cohort_selection import (
+    _POLICY,
+    _CandidateFactory,
+    _cohort,
+    _StageEvidenceFactory,
+    _StrategyBindingFactory,
+)
 
 from qore.domain.events import CorrelationId
 from qore.infrastructure.account_policy import (
@@ -106,13 +113,6 @@ from qore.infrastructure.traders.instrument_binding import (
     compute_instrument_bound_output_fingerprint,
 )
 from qore.kernel.result import Failure, Result, Success
-from test_first_cohort_selection import (
-    _POLICY,
-    _CandidateFactory,
-    _cohort,
-    _StageEvidenceFactory,
-    _StrategyBindingFactory,
-)
 
 _NOW = datetime(2026, 9, 7, 9, 30, tzinfo=UTC)
 _ACCOUNT = MarketTestAccountIdentity(
