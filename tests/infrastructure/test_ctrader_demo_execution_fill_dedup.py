@@ -3,6 +3,17 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 
+from test_ctrader_demo_execution_gateway import (
+    _ACCOUNT,
+    _NOW,
+    _configuration,
+    _create_response,
+    _FakeExecutionTransport,
+    _fill_payload,
+    _gateway,
+    _submission,
+)
+
 from qore.infrastructure.ctrader_demo_execution_contracts import (
     CTraderDemoExecutionConflictError,
     CTraderDemoFillReconciliationStatus,
@@ -10,16 +21,6 @@ from qore.infrastructure.ctrader_demo_execution_contracts import (
 from qore.infrastructure.ctrader_demo_execution_gateway import CTraderDemoExecutionGateway
 from qore.infrastructure.execution_boundary import ExecutionSubmission
 from qore.kernel.result import Failure, Success
-from test_ctrader_demo_execution_gateway import (
-    _ACCOUNT,
-    _NOW,
-    _FakeExecutionTransport,
-    _configuration,
-    _create_response,
-    _fill_payload,
-    _gateway,
-    _submission,
-)
 
 
 def _submitted_gateway() -> tuple[CTraderDemoExecutionGateway, ExecutionSubmission]:
