@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -20,18 +19,24 @@ from qore.infrastructure.ctrader_demo_execution_configuration import (
     CTraderSymbolMapping,
     ctrader_demo_secret_requirements,
 )
+from qore.infrastructure.ctrader_demo_execution_contracts import (
+    CTraderDemoFillReconciliation,
+)
 from qore.infrastructure.ctrader_demo_operational_runtime import (
     CTraderDemoSubmissionResult,
 )
 from qore.infrastructure.ctrader_demo_risk_operational_runtime import (
     CTraderDemoRiskOperationalRuntime,
+    CTraderDemoRiskOperationalRuntimeError,
     RiskCTraderDemoAccountBinding,
+    RiskCTraderDemoSubmissionResult,
 )
 from qore.infrastructure.demo_first_execution_intent import (
     build_first_demo_execution_intent,
     minimum_broker_valid_quantity,
 )
 from qore.infrastructure.execution_boundary import (
+    ExecutionBoundaryError,
     ExecutionReceipt,
     ExecutionReceiptId,
     ExecutionRequestId,
@@ -49,12 +54,17 @@ from qore.infrastructure.order_intent import (
     OrderSide,
     OrderType,
 )
-from qore.infrastructure.ports import ExternalRequestMetadata
+from qore.infrastructure.ports import (
+    ExternalHealth,
+    ExternalPortError,
+    ExternalRequestMetadata,
+)
 from qore.infrastructure.risk_authority import (
     RiskAuthorization,
     RiskAuthorizationId,
     RiskDecision,
     RiskEnvironment,
+    RiskError,
     RiskFingerprint,
     RiskReservation,
     RiskReservationId,
@@ -159,9 +169,11 @@ def _output(
     trader_code: DemoTradingTraderCode = _CODE,
     entry: Decimal = Decimal("1.10000"),
 ) -> DemoTradingOutput:
-    setup = None
-    side = None
-    abstain_reason = DemoTradingAbstainReason.NO_STRUCTURE
+    setup: DemoTradingSetupSpec | None = None
+    side: DemoTradingSetupSide | None = None
+    abstain_reason: DemoTradingAbstainReason | None = (
+        DemoTradingAbstainReason.NO_STRUCTURE
+    )
     if decision is DemoTradingDecision.SETUP:
         side = DemoTradingSetupSide.LONG
         setup = DemoTradingSetupSpec(
@@ -249,26 +261,32 @@ def test_abstain_and_non_selected_output_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     selection = _selection(monkeypatch)
-    common = dict(
-        configuration=_configuration(),
-        instrument=ExecutionInstrument("EURUSD"),
-        intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000012")),
-        idempotency_key=ExecutionIdempotencyKey(
-            UUID("61000000-0000-0000-0000-000000000013")
-        ),
-        created_at=_NOW,
-        metadata=_METADATA,
+    configuration = _configuration()
+    instrument = ExecutionInstrument("EURUSD")
+    intent_id = OrderIntentId(UUID("61000000-0000-0000-0000-000000000012"))
+    idempotency_key = ExecutionIdempotencyKey(
+        UUID("61000000-0000-0000-0000-000000000013")
     )
 
     abstain = build_first_demo_execution_intent(
         selection,
         _output(decision=DemoTradingDecision.ABSTAIN),
-        **common,
+        configuration=configuration,
+        instrument=instrument,
+        intent_id=intent_id,
+        idempotency_key=idempotency_key,
+        created_at=_NOW,
+        metadata=_METADATA,
     )
     other = build_first_demo_execution_intent(
         selection,
         _output(trader_code=DemoTradingTraderCode("vt-01")),
-        **common,
+        configuration=configuration,
+        instrument=instrument,
+        intent_id=intent_id,
+        idempotency_key=idempotency_key,
+        created_at=_NOW,
+        metadata=_METADATA,
     )
 
     assert isinstance(abstain, Failure)
@@ -279,27 +297,31 @@ def test_unmapped_symbol_and_non_exact_price_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     selection = _selection(monkeypatch)
-    common = dict(
+    intent_id = OrderIntentId(UUID("61000000-0000-0000-0000-000000000014"))
+    idempotency_key = ExecutionIdempotencyKey(
+        UUID("61000000-0000-0000-0000-000000000015")
+    )
+    instrument = ExecutionInstrument("EURUSD")
+
+    unmapped = build_first_demo_execution_intent(
         selection=selection,
-        intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000014")),
-        idempotency_key=ExecutionIdempotencyKey(
-            UUID("61000000-0000-0000-0000-000000000015")
-        ),
+        output=_output(),
+        configuration=_configuration(instrument="GBPUSD"),
+        instrument=instrument,
+        intent_id=intent_id,
+        idempotency_key=idempotency_key,
         created_at=_NOW,
         metadata=_METADATA,
     )
-
-    unmapped = build_first_demo_execution_intent(
-        output=_output(),
-        configuration=_configuration(instrument="GBPUSD"),
-        instrument=ExecutionInstrument("EURUSD"),
-        **common,
-    )
     inexact = build_first_demo_execution_intent(
+        selection=selection,
         output=_output(entry=Decimal("1.100001")),
         configuration=_configuration(),
-        instrument=ExecutionInstrument("EURUSD"),
-        **common,
+        instrument=instrument,
+        intent_id=intent_id,
+        idempotency_key=idempotency_key,
+        created_at=_NOW,
+        metadata=_METADATA,
     )
 
     assert isinstance(unmapped, Failure)
@@ -321,17 +343,21 @@ class _FakeCTrader:
         *,
         checked_at: datetime,
         metadata: ExternalRequestMetadata,
-    ) -> Result[object, object]:
+    ) -> Result[ExternalHealth, ExternalPortError]:
         del checked_at, metadata
-        return Success(SimpleNamespace())
+        return Success(cast(ExternalHealth, SimpleNamespace()))
 
     def submit_authorized(
         self,
         submission: ExecutionSubmission,
-    ) -> Result[CTraderDemoSubmissionResult, object]:
+    ) -> Result[CTraderDemoSubmissionResult, ExecutionBoundaryError]:
         self.submissions.append(submission)
         if self.fail_submit:
-            return Failure(RuntimeError("broker outcome unavailable"))
+            return Failure(
+                CTraderDemoRiskOperationalRuntimeError(
+                    "broker outcome unavailable"
+                )
+            )
         receipt = cast(
             ExecutionReceipt,
             SimpleNamespace(receipt_id=submission.receipt_id),
@@ -350,9 +376,13 @@ class _FakeCTrader:
         *,
         provider_order_ref: str,
         metadata: ExternalRequestMetadata,
-    ) -> Result[object, object]:
+    ) -> Result[CTraderDemoFillReconciliation, ExecutionBoundaryError]:
         del submission, provider_order_ref, metadata
-        return Failure(RuntimeError("not used in this focused test"))
+        return Failure(
+            CTraderDemoRiskOperationalRuntimeError(
+                "not used in this focused test"
+            )
+        )
 
 
 def _risk_decision(
@@ -405,7 +435,7 @@ def _patch_prepare(
         decision: RiskDecision,
         intent: OrderIntent,
         **kwargs: object,
-    ) -> Result[RiskAuthorizedSubmission, object]:
+    ) -> Result[RiskAuthorizedSubmission, RiskError]:
         del self, decision, kwargs
         calls.append(intent)
         return Success(prepared)
@@ -423,25 +453,34 @@ def _composition(
     )
     return CTraderDemoRiskOperationalRuntime(
         risk=risk,
-        ctrader=cast(object, ctrader),
+        ctrader=ctrader,
         account_binding=binding,
     )
 
 
-def _submit_kwargs() -> dict[str, object]:
-    return {
-        "scope": cast(RiskScopeSnapshot, object()),
-        "account_policy_version": cast(AccountPolicyVersion, object()),
-        "expected_authorization_fingerprint": RiskFingerprint("c" * 64),
-        "request_id": ExecutionRequestId(
+def _submit(
+    runtime: CTraderDemoRiskOperationalRuntime,
+    decision: RiskDecision,
+    intent: OrderIntent,
+) -> Result[
+    RiskCTraderDemoSubmissionResult,
+    CTraderDemoRiskOperationalRuntimeError,
+]:
+    return runtime.submit_risk_authorized(
+        decision,
+        intent,
+        scope=cast(RiskScopeSnapshot, object()),
+        account_policy_version=cast(AccountPolicyVersion, object()),
+        expected_authorization_fingerprint=RiskFingerprint("c" * 64),
+        request_id=ExecutionRequestId(
             UUID("61000000-0000-0000-0000-000000000023")
         ),
-        "receipt_id": ExecutionReceiptId(
+        receipt_id=ExecutionReceiptId(
             UUID("61000000-0000-0000-0000-000000000021")
         ),
-        "authorized_at": _NOW,
-        "submitted_at": _NOW,
-    }
+        authorized_at=_NOW,
+        submitted_at=_NOW,
+    )
 
 
 def test_risk_account_mismatch_never_reaches_prepare_or_broker(
@@ -455,10 +494,10 @@ def test_risk_account_mismatch_never_reaches_prepare_or_broker(
         UUID("61000000-0000-0000-0000-000000000099")
     )
 
-    result = runtime.submit_risk_authorized(
+    result = _submit(
+        runtime,
         _risk_decision(account=other_account),
         cast(OrderIntent, object()),
-        **_submit_kwargs(),
     )
 
     assert isinstance(result, Failure)
@@ -476,11 +515,7 @@ def test_exact_risk_prepared_submission_is_the_only_broker_input(
     runtime = _composition(ctrader)
     intent = cast(OrderIntent, object())
 
-    result = runtime.submit_risk_authorized(
-        _risk_decision(),
-        intent,
-        **_submit_kwargs(),
-    )
+    result = _submit(runtime, _risk_decision(), intent)
 
     assert isinstance(result, Success)
     assert calls == [intent]
@@ -498,16 +533,12 @@ def test_non_demo_risk_and_broker_failure_fail_closed(
     runtime = _composition(ctrader)
     intent = cast(OrderIntent, object())
 
-    non_demo = runtime.submit_risk_authorized(
+    non_demo = _submit(
+        runtime,
         _risk_decision(environment=RiskEnvironment.PRODUCTION),
         intent,
-        **_submit_kwargs(),
     )
-    broker_failure = runtime.submit_risk_authorized(
-        _risk_decision(),
-        intent,
-        **_submit_kwargs(),
-    )
+    broker_failure = _submit(runtime, _risk_decision(), intent)
 
     assert isinstance(non_demo, Failure)
     assert isinstance(broker_failure, Failure)
