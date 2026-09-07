@@ -111,8 +111,13 @@ jobs:
           assert payload["symbol"]["symbol_name"] == symbol
           assert payload["requested_lookback_days"] >= 730
           assert payload["historical_chunk_days"] == 30
+          assert payload["historical_page_count"] == 5000
+          assert payload["two_year_required_periods"] == ["M5", "M15", "H4"]
+          assert payload["auxiliary_m1_lookback_days"] == 30
           assert set(payload["periods"]) == {"M1", "M5", "M15", "H4"}
           assert all(payload["periods"][period] for period in ("M1", "M5", "M15", "H4"))
+          coverage = payload["coverage"]
+          assert all(coverage[period]["span_days"] >= 720 for period in ("M5", "M15", "H4"))
           PY
       - name: Backtest VT-01 VT-08 VT-09 VT-17 VT-31
         run: |
