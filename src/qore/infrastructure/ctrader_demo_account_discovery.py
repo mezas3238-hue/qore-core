@@ -140,12 +140,22 @@ def discover_single_ctrader_demo_account_id(
             "official cTrader SDK is missing required client bindings"
         )
     extract = _method(protobuf, "extract")
-    app_req_type = getattr(messages, "ProtoOAApplicationAuthReq", None)
-    app_res_type = getattr(messages, "ProtoOAApplicationAuthRes", None)
-    accounts_req_type = getattr(messages, "ProtoOAGetAccountListByAccessTokenReq", None)
-    accounts_res_type = getattr(messages, "ProtoOAGetAccountListByAccessTokenRes", None)
-    refresh_req_type = getattr(common, "ProtoOARefreshTokenReq", None)
-    refresh_res_type = getattr(common, "ProtoOARefreshTokenRes", None)
+
+    def message_type(name: str) -> type[object] | None:
+        common_type = getattr(common, name, None)
+        if isinstance(common_type, type):
+            return common_type
+        message_type_value = getattr(messages, name, None)
+        if isinstance(message_type_value, type):
+            return message_type_value
+        return None
+
+    app_req_type = message_type("ProtoOAApplicationAuthReq")
+    app_res_type = message_type("ProtoOAApplicationAuthRes")
+    accounts_req_type = message_type("ProtoOAGetAccountListByAccessTokenReq")
+    accounts_res_type = message_type("ProtoOAGetAccountListByAccessTokenRes")
+    refresh_req_type = message_type("ProtoOARefreshTokenReq")
+    refresh_res_type = message_type("ProtoOARefreshTokenRes")
     required_types = (
         app_req_type,
         app_res_type,
@@ -154,10 +164,16 @@ def discover_single_ctrader_demo_account_id(
         refresh_req_type,
         refresh_res_type,
     )
-    if any(not isinstance(item, type) for item in required_types):
+    if any(item is None for item in required_types):
         raise CTraderDemoAccountDiscoveryError(
             "official cTrader SDK is missing required authentication messages"
         )
+    assert app_req_type is not None
+    assert app_res_type is not None
+    assert accounts_req_type is not None
+    assert accounts_res_type is not None
+    assert refresh_req_type is not None
+    assert refresh_res_type is not None
 
     client = client_type(
         "demo.ctraderapi.com",
