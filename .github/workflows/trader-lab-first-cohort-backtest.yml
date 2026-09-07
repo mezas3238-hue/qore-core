@@ -13,6 +13,7 @@ on:
       - src/qore/infrastructure/traders/instrument_binding.py
       - src/qore/infrastructure/traders/primitives.py
       - src/qore/infrastructure/ctrader_demo_lab_probe.py
+      - src/qore/infrastructure/ctrader_demo_lab_long_horizon_probe.py
       - src/qore/infrastructure/ctrader_demo_account_discovery.py
       - src/qore/infrastructure/ctrader_open_api_client.py
 
@@ -25,11 +26,12 @@ env:
   QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
   QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
   QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
-  QORE_DEMO_LAB_LOOKBACK_DAYS: "30"
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "730"
 
 jobs:
   backtest:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -70,6 +72,10 @@ jobs:
               exit 2
             fi
           done
+          if [ "${QORE_DEMO_LAB_LOOKBACK_DAYS}" -lt 730 ]; then
+            echo "Trader Lab credibility run requires at least 730 days" >&2
+            exit 2
+          fi
       - name: Discover the single authorized DEMO account when not configured
         shell: bash
         run: |
@@ -83,11 +89,31 @@ jobs:
             echo "::add-mask::$account_id"
             printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
           fi
-      - name: Collect fresh read-only cTrader DEMO market evidence
+      - name: Collect two-year read-only cTrader DEMO market evidence
         run: |
           mkdir -p "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}"
-          python -m qore.infrastructure.ctrader_demo_lab_probe \
+          python -m qore.infrastructure.ctrader_demo_lab_long_horizon_probe \
             > "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          payload = json.loads(
+              Path(
+                  f"artifacts/first-cohort-backtest/{symbol}/market-evidence.json"
+              ).read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["account_is_live"] is False
+          assert payload["symbol"]["symbol_name"] == symbol
+          assert payload["requested_lookback_days"] >= 730
+          assert payload["historical_chunk_days"] == 30
+          assert set(payload["periods"]) == {"M1", "M5", "M15", "H4"}
+          assert all(payload["periods"][period] for period in ("M1", "M5", "M15", "H4"))
+          PY
       - name: Backtest VT-01 VT-08 VT-09 VT-17 VT-31
         run: |
           python -m qore.infrastructure.trader_lab.first_cohort_backtest \
@@ -161,6 +187,7 @@ jobs:
   multi-pair:
     needs: backtest
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v4
