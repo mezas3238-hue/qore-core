@@ -162,11 +162,11 @@ def build_first_demo_execution_intent(
         ("take_profit", setup.take_profit_price),
     ):
         if not _price_is_provider_exact(price, mapping.digits):
-            return Failure(
-                DemoFirstExecutionIntentError(
-                    f"Trader {field_name} price is not exactly representable at cTrader symbol digits"
-                )
+            message = (
+                f"Trader {field_name} price is not exactly representable at "
+                "cTrader symbol digits"
             )
+            return Failure(DemoFirstExecutionIntentError(message))
     side = (
         OrderSide.BUY
         if setup.side is DemoTradingSetupSide.LONG
