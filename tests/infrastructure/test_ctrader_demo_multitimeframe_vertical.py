@@ -20,6 +20,7 @@ from qore.infrastructure.ctrader_demo_execution_configuration import (
 from qore.infrastructure.ctrader_demo_market_data import (
     CTraderDemoMarketDataPayloadAdapter,
     CTraderDemoMarketDataUnsupportedError,
+    CTraderDemoMarketDataValidationError,
     CTraderTrendbar,
     CTraderTrendbarPeriod,
     CTraderTrendbarReadResult,
@@ -153,7 +154,11 @@ class _AdapterStub:
     ) -> Result[CTraderTrendbarReadResult, ExternalPortError]:
         del metadata
         self.calls.append(request)
-        period = next(item for seconds, item, _ in _PERIODS if seconds == request.timeframe.seconds)
+        period = next(
+            item
+            for seconds, item, _ in _PERIODS
+            if seconds == request.timeframe.seconds
+        )
         self.period = period
         return Success(
             CTraderTrendbarReadResult(
@@ -217,7 +222,10 @@ def test_daily_requires_exact_utc_midnight() -> None:
     adapter = CTraderDemoMarketDataPayloadAdapter(client=client)
     opened = _OPENED + timedelta(hours=1)
 
-    result = adapter.read_external_ohlc(_request(86_400, opened_at=opened), metadata=_METADATA)
+    result = adapter.read_external_ohlc(
+        _request(86_400, opened_at=opened),
+        metadata=_METADATA,
+    )
 
     assert isinstance(result, Failure)
     assert client.calls == []
@@ -292,6 +300,7 @@ def test_open_api_client_sends_exact_native_period_code(
         descriptor=_DESCRIPTOR,
         configuration=_configuration(),
         client=client,
+        clock=lambda: _OPENED + timedelta(days=7),
     )
 
     result = boundary.read_trendbars(_request(seconds), metadata=_METADATA)
@@ -302,12 +311,45 @@ def test_open_api_client_sends_exact_native_period_code(
     assert client.requests[-1][1]["period"] == wire_value
 
 
+def test_open_api_client_rejects_still_open_bar_before_provider_call() -> None:
+    client = _OpenApiStub()
+    boundary = CTraderOpenApiMarketDataClient(
+        descriptor=_DESCRIPTOR,
+        configuration=_configuration(),
+        client=client,
+        clock=lambda: _OPENED + timedelta(minutes=4, seconds=59),
+    )
+
+    result = boundary.read_trendbars(_request(300), metadata=_METADATA)
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CTraderDemoMarketDataValidationError)
+    assert "fully closed" in str(result.error)
+    assert client.requests == []
+
+
+def test_open_api_client_accepts_bar_closed_exactly_at_observation_clock() -> None:
+    client = _OpenApiStub()
+    boundary = CTraderOpenApiMarketDataClient(
+        descriptor=_DESCRIPTOR,
+        configuration=_configuration(),
+        client=client,
+        clock=lambda: _OPENED + timedelta(minutes=5),
+    )
+
+    result = boundary.read_trendbars(_request(300), metadata=_METADATA)
+
+    assert isinstance(result, Success)
+    assert len(client.requests) == 1
+
+
 def test_vt08_required_h4_is_native_not_resampled() -> None:
     client = _OpenApiStub()
     boundary = CTraderOpenApiMarketDataClient(
         descriptor=_DESCRIPTOR,
         configuration=_configuration(),
         client=client,
+        clock=lambda: _OPENED + timedelta(days=7),
     )
 
     result = boundary.read_trendbars(_request(14_400), metadata=_METADATA)
