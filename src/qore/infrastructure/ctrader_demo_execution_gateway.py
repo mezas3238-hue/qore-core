@@ -59,6 +59,21 @@ _ACCEPTED_DISPOSITIONS = frozenset(
 )
 
 
+def _stable_fill_identity(observation: CTraderDemoFillObservation) -> tuple[object, ...]:
+    """Return immutable deal identity, excluding projection and receive-time fields."""
+    return (
+        observation.receipt_id.logical_values(),
+        observation.idempotency_key.logical_values(),
+        observation.account.logical_values(),
+        observation.instrument.value,
+        observation.side.value,
+        observation.provider_order_ref,
+        observation.fill_ref,
+        format(observation.fill_quantity, "f"),
+        format(observation.fill_price, "f"),
+    )
+
+
 class CTraderDemoExecutionGatewayError(ExecutionBoundaryError):
     """Base error for the cTrader DEMO execution gateway."""
 
@@ -450,17 +465,6 @@ class CTraderDemoExecutionGateway:
                 )
             )
 
-        ledger = self._fills_by_receipt.setdefault(receipt_id, {})
-        existing = ledger.get(observation.fill_ref)
-        if existing is not None:
-            if existing.provider_identity() != observation.provider_identity():
-                return Failure(
-                    CTraderDemoExecutionConflictError(
-                        "duplicate cTrader fill reference with different evidence"
-                    )
-                )
-            return Success(existing)
-
         requested = submission.authorized_intent.intent.quantity.value
         if observation.cumulative_quantity > requested:
             return Failure(
@@ -468,6 +472,28 @@ class CTraderDemoExecutionGateway:
                     "cTrader cumulative fill exceeds requested quantity"
                 )
             )
+
+        ledger = self._fills_by_receipt.setdefault(receipt_id, {})
+        existing = ledger.get(observation.fill_ref)
+        if existing is not None:
+            if _stable_fill_identity(existing) != _stable_fill_identity(observation):
+                return Failure(
+                    CTraderDemoExecutionConflictError(
+                        "duplicate cTrader fill reference with different deal identity"
+                    )
+                )
+            authoritative = self._authoritative_filled.get(receipt_id, Decimal("0"))
+            if observation.cumulative_quantity > authoritative:
+                self._authoritative_filled[receipt_id] = observation.cumulative_quantity
+            if observation.is_complete:
+                self._fill_complete[receipt_id] = True
+            if (
+                observation.cumulative_quantity > existing.cumulative_quantity
+                or (observation.is_complete and not existing.is_complete)
+            ):
+                ledger[observation.fill_ref] = observation
+                return Success(observation)
+            return Success(existing)
 
         if observation.is_complete:
             self._fill_complete[receipt_id] = True
