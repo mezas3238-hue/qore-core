@@ -112,6 +112,20 @@ class CTraderOpenApiMarketDataClient:
             return Failure(CTraderDemoMarketDataError(str(result.error)))
         return Success(None)
 
+    def _observation_clock(self) -> Result[datetime, ExternalPortError]:
+        observed_at = self._clock()
+        if (
+            type(observed_at) is not datetime
+            or observed_at.tzinfo is None
+            or observed_at.utcoffset() is None
+        ):
+            return Failure(
+                CTraderDemoMarketDataValidationError(
+                    "cTrader market-data clock must return a timezone-aware datetime"
+                )
+            )
+        return Success(observed_at.astimezone(UTC))
+
     def health(
         self,
         *,
@@ -230,6 +244,15 @@ class CTraderOpenApiMarketDataClient:
         metadata: ExternalRequestMetadata,
     ) -> Result[CTraderTrendbarReadResult, ExternalPortError]:
         del metadata
+        observed_at = self._observation_clock()
+        if isinstance(observed_at, Failure):
+            return observed_at
+        if request.closed_at.astimezone(UTC) > observed_at.value:
+            return Failure(
+                CTraderDemoMarketDataValidationError(
+                    "cTrader trendbar request must be fully closed at observation time"
+                )
+            )
         ready = self._ready()
         if isinstance(ready, Failure):
             return ready
@@ -345,7 +368,10 @@ class CTraderOpenApiMarketDataClient:
         if bid <= 0 or ask <= 0 or ask < bid:
             return Failure(CTraderDemoMarketDataValidationError("invalid spot bid/ask"))
         timestamp = getattr(event.value, "timestamp", None)
-        observed_at = self._clock()
+        clock_value = self._observation_clock()
+        if isinstance(clock_value, Failure):
+            return clock_value
+        observed_at = clock_value.value
         if type(timestamp) is int and timestamp > 0:
             try:
                 observed_at = datetime.fromtimestamp(timestamp / 1000, tz=UTC)
