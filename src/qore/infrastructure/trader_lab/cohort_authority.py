@@ -34,7 +34,6 @@ from qore.infrastructure.risk_trader_lab_authority import (
     issue_risk_trader_lab_approval,
     review_trader_lab_candidate_risk,
 )
-from qore.infrastructure.trader_lab.candidate import TraderLabValidationError
 from qore.infrastructure.trader_lab.cohort import (
     FIRST_DEMO_COHORT_CODES,
     FirstCohortDemoSelection,

@@ -24,6 +24,7 @@ from qore.infrastructure.research_strategy_freeze import (
     build_research_strategy_configuration_manifest,
 )
 from qore.infrastructure.risk_trader_lab_authority import RiskTraderLabPolicy
+from qore.infrastructure.trader_lab.candidate import TraderLabCandidateBinding
 from qore.infrastructure.trader_lab.cohort_authority import (
     FirstCohortAuthorityInput,
     complete_first_cohort_authority_chain,
@@ -41,7 +42,6 @@ from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabStage,
     TraderLabStageEvidenceRecord,
 )
-from qore.infrastructure.trader_lab.candidate import TraderLabCandidateBinding
 from qore.infrastructure.traders.evaluators import Vt01NyPrecisionCore
 from qore.kernel.result import Failure, Success
 
