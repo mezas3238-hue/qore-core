@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Protocol
 from uuid import UUID
 
 import pytest
@@ -79,19 +80,34 @@ _StageEvidenceFactory = Callable[..., TraderLabStageEvidenceRecord]
 _EconomicReferenceFactory = Callable[[TraderLabCandidateBinding], TraderLabEvidenceReference]
 
 
+class _CohortEvaluator(Protocol):
+    @property
+    def trader_code(self) -> str: ...
+
+    @property
+    def version(self) -> str: ...
+
+    def config_fingerprint(self) -> DemoTradingConfigFingerprint: ...
+
+    def methodology(
+        self,
+    ) -> tuple[
+        DemoTradingMethodologyId,
+        DemoTradingMethodologyVersion,
+        DemoTradingMethodologyFingerprint,
+    ]: ...
+
+
 def _bound_strategy(
-    evaluator: object,
+    evaluator: _CohortEvaluator,
     *,
     index: int,
     strategy_binding_factory: _StrategyBindingFactory,
 ) -> ResearchRunStrategyBinding:
     base = strategy_binding_factory(configuration_id_suffix=300 + index)
-    trader_code = str(getattr(evaluator, "trader_code"))
-    version = str(getattr(evaluator, "version"))
-    config = getattr(evaluator, "config_fingerprint")()
-    methodology_id, methodology_version, methodology_fingerprint = getattr(
-        evaluator, "methodology"
-    )()
+    trader_code = str(evaluator.trader_code)
+    config = evaluator.config_fingerprint()
+    methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
     manifest = build_research_strategy_configuration_manifest(
         configuration_id=base.run.strategy_configuration_id,
         schema_version=base.manifest.schema_version,
@@ -183,7 +199,7 @@ def _performance(
 
 
 def _entry(
-    evaluator: object,
+    evaluator: _CohortEvaluator,
     *,
     index: int,
     strategy_binding_factory: _StrategyBindingFactory,
@@ -199,7 +215,7 @@ def _entry(
     )
     candidate = candidate_factory(
         candidate_suffix=400 + index,
-        version=str(getattr(evaluator, "version")),
+        version=str(evaluator.version),
         binding=binding,
     )
     lifecycle = (
@@ -211,15 +227,13 @@ def _entry(
         if complete
         else start_trader_lab_lifecycle(candidate)
     )
-    methodology_id, methodology_version, methodology_fingerprint = getattr(
-        evaluator, "methodology"
-    )()
-    code = str(getattr(evaluator, "trader_code"))
+    methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
+    code = str(evaluator.trader_code)
     return FirstCohortTraderLabEntry(
         trader_code=DemoTradingTraderCode(code),
-        trader_version=DemoTradingTraderVersion(str(getattr(evaluator, "version"))),
+        trader_version=DemoTradingTraderVersion(str(evaluator.version)),
         config_fingerprint=DemoTradingConfigFingerprint(
-            getattr(evaluator, "config_fingerprint")().value
+            evaluator.config_fingerprint().value
         ),
         methodology_id=DemoTradingMethodologyId(methodology_id.value),
         methodology_version=DemoTradingMethodologyVersion(methodology_version.value),
@@ -248,7 +262,7 @@ def _cohort(
             candidate_factory=candidate_factory,
             stage_evidence_factory=stage_evidence_factory,
             economic_reference_factory=economic_reference_factory,
-            complete=str(getattr(evaluator, "trader_code")) != incomplete_code,
+            complete=str(evaluator.trader_code) != incomplete_code,
         )
         for index, evaluator in enumerate(cohort_evaluators())
     )

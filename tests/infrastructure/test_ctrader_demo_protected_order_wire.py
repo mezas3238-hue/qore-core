@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -195,6 +195,16 @@ class _Client:
                 ),
             )
         )
+
+    def wait_for_event(
+        self,
+        message_name: str,
+        *,
+        timeout_seconds: float,
+        predicate: Callable[[object], bool] | None = None,
+    ) -> Result[object, CTraderOpenApiClientError]:
+        del message_name, timeout_seconds, predicate
+        raise AssertionError("unexpected cTrader event wait")
 
     def close(self) -> None:
         return None
