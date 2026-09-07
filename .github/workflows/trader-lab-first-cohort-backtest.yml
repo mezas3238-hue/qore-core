@@ -1,0 +1,111 @@
+name: QORE Trader Lab First Cohort Backtest
+
+on:
+  push:
+    branches:
+      - agent/qore-demo-first-execution-vertical-cert-001
+    paths:
+      - .github/workflows/trader-lab-first-cohort-backtest.yml
+      - src/qore/infrastructure/trader_lab/first_cohort_backtest.py
+      - src/qore/infrastructure/traders/evaluators.py
+      - src/qore/infrastructure/traders/instrument_binding.py
+      - src/qore/infrastructure/traders/primitives.py
+      - src/qore/infrastructure/ctrader_demo_lab_probe.py
+      - src/qore/infrastructure/ctrader_demo_account_discovery.py
+      - src/qore/infrastructure/ctrader_open_api_client.py
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_DEMO_LAB_SYMBOL: ${{ vars.QORE_DEMO_LAB_SYMBOL || 'EURUSD' }}
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "30"
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE and cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify required DEMO inputs without printing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN \
+            QORE_DEMO_LAB_SYMBOL
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover the single authorized DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect fresh read-only cTrader DEMO market evidence
+        run: |
+          mkdir -p artifacts/first-cohort-backtest
+          python -m qore.infrastructure.ctrader_demo_lab_probe \
+            > artifacts/first-cohort-backtest/market-evidence.json
+      - name: Backtest VT-01 VT-08 VT-09 VT-17 VT-31
+        run: |
+          python -m qore.infrastructure.trader_lab.first_cohort_backtest \
+            artifacts/first-cohort-backtest/market-evidence.json \
+            > artifacts/first-cohort-backtest/backtest.json
+          printf '%s\n' "$GITHUB_SHA" \
+            > artifacts/first-cohort-backtest/git-sha.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/first-cohort-backtest/backtest.json").read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["execution_model"] == (
+              "limit-3bar-fill-24bar-hold-stop-first-v1"
+          )
+          assert [item["trader_code"] for item in payload["results"]] == [
+              "vt-01",
+              "vt-08",
+              "vt-09",
+              "vt-17",
+              "vt-31",
+          ]
+          assert all(item["sample_size"] >= 0 for item in payload["results"])
+          PY
+      - name: Upload sanitized first-cohort backtest
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-first-cohort-backtest-${{ github.sha }}
+          path: artifacts/first-cohort-backtest
+          if-no-files-found: error
+          retention-days: 30
