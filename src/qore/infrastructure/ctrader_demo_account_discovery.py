@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 from importlib import import_module
 from threading import Event, Lock, Thread
 from time import monotonic
-from typing import cast
+from typing import Protocol, cast
 
 from qore.kernel.errors import InfrastructureError
 
@@ -22,6 +22,19 @@ class CTraderDemoAccountDiscoveryError(InfrastructureError):
     """The DEMO account could not be discovered without ambiguity."""
 
     __slots__ = ()
+
+
+class _ApplicationAuthRequest(Protocol):
+    clientId: str
+    clientSecret: str
+
+
+class _AccessTokenRequest(Protocol):
+    accessToken: str
+
+
+class _RefreshTokenRequest(Protocol):
+    refreshToken: str
 
 
 def _required_env(name: str) -> str:
@@ -235,9 +248,9 @@ def discover_single_ctrader_demo_account_id(
                 "cTrader DEMO TLS connect timed out or disconnected"
             )
 
-        app_req = app_req_type()
-        setattr(app_req, "clientId", client_id)
-        setattr(app_req, "clientSecret", client_secret)
+        app_req = cast(_ApplicationAuthRequest, app_req_type())
+        app_req.clientId = client_id
+        app_req.clientSecret = client_secret
         app_response = request(app_req, "qore-demo-account-discovery-app-auth")
         if not isinstance(app_response, app_res_type):
             raise CTraderDemoAccountDiscoveryError(
@@ -245,14 +258,14 @@ def discover_single_ctrader_demo_account_id(
             )
 
         def account_list(token: str, suffix: str) -> object:
-            account_req = accounts_req_type()
-            setattr(account_req, "accessToken", token)
+            account_req = cast(_AccessTokenRequest, accounts_req_type())
+            account_req.accessToken = token
             return request(account_req, f"qore-demo-account-discovery-{suffix}")
 
         accounts_response = account_list(current_access_token, "account-list")
         if not isinstance(accounts_response, accounts_res_type):
-            refresh_req = refresh_req_type()
-            setattr(refresh_req, "refreshToken", refresh_token)
+            refresh_req = cast(_RefreshTokenRequest, refresh_req_type())
+            refresh_req.refreshToken = refresh_token
             refreshed = request(refresh_req, "qore-demo-account-discovery-refresh")
             if not isinstance(refreshed, refresh_res_type):
                 raise CTraderDemoAccountDiscoveryError(
