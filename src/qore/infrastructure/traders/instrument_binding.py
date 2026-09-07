@@ -1,7 +1,7 @@
 """Canonical market-evidence/instrument binding for DEMO Trader evaluation.
 
 The legacy deterministic Trader evaluators intentionally operate only on closed
-OHLC primitives.  This boundary composes them with canonical market evidence so
+OHLC primitives. This boundary composes them with canonical market evidence so
 an executable Trader output cannot acquire or replace its instrument after the
 methodology has run.
 
@@ -11,7 +11,7 @@ The admitted chain is therefore:
 InstrumentBoundDemoTradingOutput(instrument + instrument-bound fingerprint)``.
 
 Only the instrument-bound output is admissible to the first-execution intent
-bridge.  No order, Risk, provider, account, quantity, or Production authority is
+bridge. No order, Risk, provider, account, quantity, or Production authority is
 created here.
 """
 
@@ -31,7 +31,6 @@ from qore.infrastructure.traders.contracts import (
     DemoTradingError,
     DemoTradingEvidenceRef,
     DemoTradingOutput,
-    DemoTradingValidationError,
 )
 from qore.infrastructure.traders.evaluators import DemoTradingInput
 from qore.infrastructure.traders.primitives import ClosedCandle
@@ -83,8 +82,6 @@ def _snapshot_payload(snapshot: OhlcSnapshot) -> dict[str, object]:
         "timeframe_seconds": snapshot.timeframe.seconds,
         "opened_at": _utc_iso(snapshot.opened_at),
         "closed_at": _utc_iso(snapshot.closed_at),
-        # Float is the canonical market-data representation today.  hex() binds
-        # its exact binary value without introducing display-rounding ambiguity.
         "open": snapshot.open.hex(),
         "high": snapshot.high.hex(),
         "low": snapshot.low.hex(),
@@ -219,7 +216,12 @@ def build_instrument_bound_demo_trading_input(
         raise InstrumentBoundDemoTradingValidationError(
             "execution and context market evidence must bind one exact instrument"
         )
-    refs = tuple(sorted((_evidence_ref(item) for item in snapshots), key=lambda item: item.value))
+    refs = tuple(
+        sorted(
+            (_evidence_ref(item) for item in snapshots),
+            key=lambda item: item.value,
+        )
+    )
     if len(set(refs)) != len(refs):
         raise InstrumentBoundDemoTradingValidationError(
             "duplicate canonical market evidence is not admissible"
