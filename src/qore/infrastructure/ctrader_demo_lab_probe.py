@@ -181,6 +181,9 @@ class CTraderDemoLabMarketEvidence:
             "schema": "qore.ctrader_demo.lab_market_evidence.v1",
             "environment": "demo",
             "read_only": True,
+            "account_discovered": True,
+            "account_is_live": False,
+            "trading_permission_verified": True,
             "account_fingerprint": self.account_fingerprint,
             "symbol": self.symbol.payload(),
             "checked_at": self.checked_at.astimezone(UTC).isoformat(timespec="microseconds"),
@@ -348,11 +351,11 @@ def _required_env(name: str) -> str:
 def main() -> None:
     """Collect a secret-free DEMO market artifact; never print credential material."""
     credentials = CTraderOpenApiCredentials(
-        client_id=_required_env("CTRADER_DEMO_CLIENT_ID"),
-        client_secret=_required_env("CTRADER_DEMO_CLIENT_SECRET"),
-        access_token=_required_env("CTRADER_DEMO_ACCESS_TOKEN"),
-        refresh_token=_required_env("CTRADER_DEMO_REFRESH_TOKEN"),
-        ctid_trader_account_id=int(_required_env("CTRADER_DEMO_CTID_TRADER_ACCOUNT_ID")),
+        client_id=_required_env("QORE_CTRADER_CLIENT_ID"),
+        client_secret=_required_env("QORE_CTRADER_CLIENT_SECRET"),
+        access_token=_required_env("QORE_CTRADER_ACCESS_TOKEN"),
+        refresh_token=_required_env("QORE_CTRADER_REFRESH_TOKEN"),
+        ctid_trader_account_id=int(_required_env("QORE_CTRADER_DEMO_ACCOUNT_ID")),
     )
     symbol_name = _required_env("QORE_DEMO_LAB_SYMBOL")
     lookback_days = int(os.environ.get("QORE_DEMO_LAB_LOOKBACK_DAYS", "30"))
