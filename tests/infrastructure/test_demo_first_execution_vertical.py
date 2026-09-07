@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import cast
@@ -9,7 +9,10 @@ from uuid import UUID
 import pytest
 
 from qore.domain.events import CorrelationId
-from qore.infrastructure.account_policy import AccountPolicyVersion
+from qore.infrastructure.account_policy import (
+    AccountPolicySnapshotId,
+    AccountPolicyVersion,
+)
 from qore.infrastructure.client_accounts import TradingAccountId
 from qore.infrastructure.connectivity import ProviderEndpoint
 from qore.infrastructure.ctrader_demo_execution_configuration import (
@@ -52,6 +55,7 @@ from qore.infrastructure.order_intent import (
     ExecutionInstrument,
     OrderIntent,
     OrderIntentId,
+    OrderQuantity,
     OrderSide,
     OrderType,
 )
@@ -60,21 +64,27 @@ from qore.infrastructure.ports import (
     ExternalPortError,
     ExternalRequestMetadata,
 )
+from qore.infrastructure.proprietary_accounts import CurrencyCode, MoneyAmount
 from qore.infrastructure.risk_authority import (
+    RiskArm,
     RiskAuthorization,
     RiskAuthorizationId,
     RiskDecision,
+    RiskDecisionId,
     RiskEnvironment,
     RiskError,
     RiskFingerprint,
+    RiskPolicyId,
+    RiskPolicyVersion,
     RiskReservation,
     RiskReservationId,
     RiskScopeSnapshot,
+    RiskTraderIdentity,
 )
 from qore.infrastructure.risk_runtime import DemoRiskRuntime, RiskAuthorizedSubmission
 from qore.infrastructure.trader_lab.cohort import (
     FirstCohortDemoSelection,
-    FirstCohortTraderLabEntry,
+    select_first_demo_trader,
 )
 from qore.infrastructure.traders.contracts import (
     DemoTradingAbstainReason,
@@ -96,6 +106,13 @@ from qore.infrastructure.traders.instrument_binding import (
     compute_instrument_bound_output_fingerprint,
 )
 from qore.kernel.result import Failure, Result, Success
+from tests.infrastructure.trader_lab.test_first_cohort_selection import (
+    _CandidateFactory,
+    _POLICY,
+    _StageEvidenceFactory,
+    _StrategyBindingFactory,
+    _cohort,
+)
 
 _NOW = datetime(2026, 9, 7, 9, 30, tzinfo=UTC)
 _ACCOUNT = MarketTestAccountIdentity(
@@ -151,23 +168,19 @@ def _configuration(
     )
 
 
-def _noop(value: object) -> None:
-    del value
-
-
-def _selection(monkeypatch: pytest.MonkeyPatch) -> FirstCohortDemoSelection:
-    monkeypatch.setattr(FirstCohortDemoSelection, "__post_init__", _noop)
-    monkeypatch.setattr(FirstCohortTraderLabEntry, "__post_init__", _noop)
-    selected = object.__new__(FirstCohortTraderLabEntry)
-    object.__setattr__(selected, "trader_code", _CODE)
-    object.__setattr__(selected, "trader_version", _VERSION)
-    object.__setattr__(selected, "config_fingerprint", _CONFIG)
-    object.__setattr__(selected, "methodology_id", _METHOD_ID)
-    object.__setattr__(selected, "methodology_version", _METHOD_VERSION)
-    object.__setattr__(selected, "methodology_fingerprint", _METHOD_FP)
-    object.__setattr__(selected, "instrument", _INSTRUMENT)
-    selection = object.__new__(FirstCohortDemoSelection)
-    object.__setattr__(selection, "selected", selected)
+def _selection(
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
+) -> FirstCohortDemoSelection:
+    entries = _cohort(
+        strategy_binding_factory=strategy_binding_factory,
+        candidate_factory=candidate_factory,
+        stage_evidence_factory=stage_evidence_factory,
+    )
+    selection = select_first_demo_trader(entries, policy=_POLICY)
+    assert selection.selected is not None
+    assert selection.selected.trader_code == _CODE
     return selection
 
 
@@ -264,10 +277,16 @@ def test_minimum_quantity_comes_only_from_provider_mapping() -> None:
 
 
 def test_selected_setup_builds_minimum_size_protected_limit(
-    monkeypatch: pytest.MonkeyPatch,
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
 ) -> None:
     built = build_first_demo_execution_intent(
-        _selection(monkeypatch),
+        _selection(
+            strategy_binding_factory,
+            candidate_factory,
+            stage_evidence_factory,
+        ),
         _bound_output(),
         configuration=_configuration(),
         intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000010")),
@@ -293,9 +312,15 @@ def test_selected_setup_builds_minimum_size_protected_limit(
 
 
 def test_abstain_and_non_selected_output_fail_closed(
-    monkeypatch: pytest.MonkeyPatch,
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
 ) -> None:
-    selection = _selection(monkeypatch)
+    selection = _selection(
+        strategy_binding_factory,
+        candidate_factory,
+        stage_evidence_factory,
+    )
     configuration = _configuration()
     intent_id = OrderIntentId(UUID("61000000-0000-0000-0000-000000000012"))
     idempotency_key = ExecutionIdempotencyKey(
@@ -326,9 +351,15 @@ def test_abstain_and_non_selected_output_fail_closed(
 
 
 def test_unmapped_symbol_and_non_exact_price_fail_closed(
-    monkeypatch: pytest.MonkeyPatch,
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
 ) -> None:
-    selection = _selection(monkeypatch)
+    selection = _selection(
+        strategy_binding_factory,
+        candidate_factory,
+        stage_evidence_factory,
+    )
     intent_id = OrderIntentId(UUID("61000000-0000-0000-0000-000000000014"))
     idempotency_key = ExecutionIdempotencyKey(
         UUID("61000000-0000-0000-0000-000000000015")
@@ -358,10 +389,16 @@ def test_unmapped_symbol_and_non_exact_price_fail_closed(
 
 
 def test_post_trader_instrument_substitution_fails_closed_even_when_mapped(
-    monkeypatch: pytest.MonkeyPatch,
+    strategy_binding_factory: _StrategyBindingFactory,
+    candidate_factory: _CandidateFactory,
+    stage_evidence_factory: _StageEvidenceFactory,
 ) -> None:
     built = build_first_demo_execution_intent(
-        selection=_selection(monkeypatch),
+        selection=_selection(
+            strategy_binding_factory,
+            candidate_factory,
+            stage_evidence_factory,
+        ),
         output=_bound_output(instrument=Instrument("GBPUSD")),
         configuration=_configuration(instrument="GBPUSD"),
         intent_id=OrderIntentId(UUID("61000000-0000-0000-0000-000000000016")),
@@ -437,14 +474,57 @@ def _risk_decision(
     account: TradingAccountId = _RISK_ACCOUNT,
     environment: RiskEnvironment = RiskEnvironment.DEMO,
 ) -> RiskDecision:
-    authorization = object.__new__(RiskAuthorization)
-    object.__setattr__(
-        authorization,
-        "authorization_id",
-        RiskAuthorizationId(UUID("61000000-0000-0000-0000-000000000020")),
+    authorization = RiskAuthorization(
+        authorization_id=RiskAuthorizationId(
+            UUID("61000000-0000-0000-0000-000000000020")
+        ),
+        decision_id=RiskDecisionId(
+            UUID("61000000-0000-0000-0000-000000000024")
+        ),
+        account_id=account,
+        environment=environment,
+        trader=RiskTraderIdentity(
+            trader_id=UUID("61000000-0000-0000-0000-000000000025"),
+            trader_version=1,
+            config_fingerprint=RiskFingerprint("1" * 64),
+        ),
+        intent_id=OrderIntentId(
+            UUID("61000000-0000-0000-0000-000000000026")
+        ),
+        intent_digest=RiskFingerprint("2" * 64),
+        instrument=ExecutionInstrument("EURUSD"),
+        side=OrderSide.BUY,
+        requested_quantity=OrderQuantity(Decimal("10.00")),
+        authorized_quantity=OrderQuantity(Decimal("10.00")),
+        requested_notional=MoneyAmount(
+            currency=CurrencyCode("USD"),
+            amount=Decimal("11000"),
+        ),
+        authorized_notional=MoneyAmount(
+            currency=CurrencyCode("USD"),
+            amount=Decimal("11000"),
+        ),
+        stop_loss=None,
+        bounded_loss_at_stop=None,
+        account_policy_snapshot_id=AccountPolicySnapshotId(
+            UUID("61000000-0000-0000-0000-000000000027")
+        ),
+        account_policy_version=AccountPolicyVersion(1),
+        internal_risk_policy_id=RiskPolicyId(
+            UUID("61000000-0000-0000-0000-000000000028")
+        ),
+        internal_risk_policy_version=RiskPolicyVersion(1),
+        account_state_fingerprint=RiskFingerprint("3" * 64),
+        market_evidence_fingerprint=RiskFingerprint("4" * 64),
+        reservation_id=RiskReservationId(
+            UUID("61000000-0000-0000-0000-000000000022")
+        ),
+        reservation_generation=1,
+        scope_generation=1,
+        issued_at=_NOW,
+        valid_until=_NOW + timedelta(minutes=5),
+        arm=RiskArm.TRADERS_RISK_ONLY,
     )
-    object.__setattr__(authorization, "account_id", account)
-    object.__setattr__(authorization, "environment", environment)
     decision = object.__new__(RiskDecision)
     object.__setattr__(decision, "authorization", authorization)
     return decision
