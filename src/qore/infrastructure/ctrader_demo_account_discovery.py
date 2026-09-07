@@ -236,8 +236,8 @@ def discover_single_ctrader_demo_account_id(
             )
 
         app_req = app_req_type()
-        app_req.clientId = client_id
-        app_req.clientSecret = client_secret
+        setattr(app_req, "clientId", client_id)
+        setattr(app_req, "clientSecret", client_secret)
         app_response = request(app_req, "qore-demo-account-discovery-app-auth")
         if not isinstance(app_response, app_res_type):
             raise CTraderDemoAccountDiscoveryError(
@@ -246,13 +246,13 @@ def discover_single_ctrader_demo_account_id(
 
         def account_list(token: str, suffix: str) -> object:
             account_req = accounts_req_type()
-            account_req.accessToken = token
+            setattr(account_req, "accessToken", token)
             return request(account_req, f"qore-demo-account-discovery-{suffix}")
 
         accounts_response = account_list(current_access_token, "account-list")
         if not isinstance(accounts_response, accounts_res_type):
             refresh_req = refresh_req_type()
-            refresh_req.refreshToken = refresh_token
+            setattr(refresh_req, "refreshToken", refresh_token)
             refreshed = request(refresh_req, "qore-demo-account-discovery-refresh")
             if not isinstance(refreshed, refresh_res_type):
                 raise CTraderDemoAccountDiscoveryError(
