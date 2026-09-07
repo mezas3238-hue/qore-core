@@ -17,6 +17,7 @@ from qore.infrastructure.market_data import (
     OhlcRequest,
     OhlcSnapshot,
     QuoteRequest,
+    QuoteSnapshot,
 )
 from qore.infrastructure.ports import (
     ExternalHealth,
@@ -174,6 +175,13 @@ class CTraderDemoTrendbarClientBoundary(Protocol):
         metadata: ExternalRequestMetadata,
     ) -> Result[CTraderTrendbarReadResult, ExternalPortError]: ...
 
+    def read_quote(
+        self,
+        request: QuoteRequest,
+        *,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[ExternalQuotePayload, ExternalPortError]: ...
+
 
 def _price_from_relative(value: int, *, digits: int) -> Result[str, ExternalPortError]:
     if type(value) is not int or value <= 0:
@@ -184,9 +192,7 @@ def _price_from_relative(value: int, *, digits: int) -> Result[str, ExternalPort
         )
     if type(digits) is not int or digits < 0:
         return Failure(
-            CTraderDemoMarketDataValidationError(
-                "cTrader symbol digits must be a non-negative int"
-            )
+            CTraderDemoMarketDataValidationError("cTrader symbol digits must be a non-negative int")
         )
     try:
         scaled = Decimal(value) / _CTRADER_RELATIVE_PRICE_SCALE
@@ -242,13 +248,11 @@ class CTraderDemoMarketDataPayloadAdapter:
                 "cTrader client source must use market-data.ctrader namespace"
             )
         if not callable(getattr(self.client, "health", None)):
-            raise CTraderDemoMarketDataValidationError(
-                "cTrader client must expose health"
-            )
+            raise CTraderDemoMarketDataValidationError("cTrader client must expose health")
         if not callable(getattr(self.client, "read_trendbars", None)):
-            raise CTraderDemoMarketDataValidationError(
-                "cTrader client must expose read_trendbars"
-            )
+            raise CTraderDemoMarketDataValidationError("cTrader client must expose read_trendbars")
+        if not callable(getattr(self.client, "read_quote", None)):
+            raise CTraderDemoMarketDataValidationError("cTrader client must expose read_quote")
 
     @property
     def descriptor(self) -> ExternalSourceDescriptor:
@@ -268,12 +272,7 @@ class CTraderDemoMarketDataPayloadAdapter:
         *,
         metadata: ExternalRequestMetadata,
     ) -> Result[ExternalQuotePayload, ExternalPortError]:
-        del request, metadata
-        return Failure(
-            CTraderDemoMarketDataUnsupportedError(
-                "cTrader first delivery supports closed M5 OHLC reads only"
-            )
-        )
+        return self.client.read_quote(request, metadata=metadata)
 
     def read_external_ohlc(
         self,
@@ -283,9 +282,7 @@ class CTraderDemoMarketDataPayloadAdapter:
     ) -> Result[ExternalOhlcPayload, ExternalPortError]:
         if not isinstance(request, OhlcRequest):
             return Failure(
-                CTraderDemoMarketDataValidationError(
-                    "cTrader OHLC read requires OhlcRequest"
-                )
+                CTraderDemoMarketDataValidationError("cTrader OHLC read requires OhlcRequest")
             )
         if request.timeframe.seconds != _M5_SECONDS:
             return Failure(
@@ -390,6 +387,19 @@ class CTraderDemoMarketDataFlow:
     @property
     def descriptor(self) -> ExternalSourceDescriptor:
         return self.payload_adapter.descriptor
+
+    def read_quote(
+        self,
+        request: QuoteRequest,
+        *,
+        snapshot_id: MarketDataSnapshotId,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[QuoteSnapshot, ExternalPortError]:
+        return MarketDataIngestionFlow(self.payload_adapter).ingest_quote(
+            request,
+            snapshot_id=snapshot_id,
+            metadata=metadata,
+        )
 
     def read_ohlc(
         self,
