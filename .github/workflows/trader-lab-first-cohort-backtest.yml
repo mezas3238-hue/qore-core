@@ -40,6 +40,7 @@ jobs:
           - USDJPY
           - AUDUSD
           - USDCAD
+          - XAUUSD
     env:
       QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
     steps:
@@ -149,7 +150,7 @@ jobs:
               "vt-31",
           ]
           PY
-      - name: Upload sanitized per-pair research evidence
+      - name: Upload sanitized per-instrument research evidence
         uses: actions/upload-artifact@v4
         with:
           name: qore-first-cohort-${{ matrix.symbol }}-${{ github.sha }}
@@ -171,20 +172,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-      - name: Download all five per-pair artifacts
+      - name: Download all six per-instrument artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: qore-first-cohort-*-${{ github.sha }}
           path: artifacts/multi-pair
-      - name: Run pooled five-pair walk-forward and untouched OOS screen
+      - name: Run pooled six-instrument walk-forward and untouched OOS screen
         shell: bash
         run: |
           set -euo pipefail
           mapfile -t evidence < <(
             find artifacts/multi-pair -name market-evidence.json -type f | sort
           )
-          if [ "${#evidence[@]}" -ne 5 ]; then
-            echo "expected exactly five market-evidence files" >&2
+          if [ "${#evidence[@]}" -ne 6 ]; then
+            echo "expected exactly six market-evidence files" >&2
             exit 4
           fi
           mkdir -p artifacts/first-cohort-multi-pair
@@ -204,13 +205,14 @@ jobs:
           )
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
-          assert payload["pair_count"] == 5
+          assert payload["pair_count"] == 6
           assert payload["symbols"] == [
               "AUDUSD",
               "EURUSD",
               "GBPUSD",
               "USDCAD",
               "USDJPY",
+              "XAUUSD",
           ]
           assert [item["trader_code"] for item in payload["results"]] == [
               "vt-01",
@@ -221,7 +223,7 @@ jobs:
           ]
           assert 0 <= payload["robust_candidate_count"] <= 5
           PY
-      - name: Upload pooled five-pair research evidence
+      - name: Upload pooled six-instrument research evidence
         uses: actions/upload-artifact@v4
         with:
           name: qore-first-cohort-multi-pair-${{ github.sha }}
