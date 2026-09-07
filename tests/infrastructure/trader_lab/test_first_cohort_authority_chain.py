@@ -70,6 +70,9 @@ from qore.infrastructure.trader_lab.cohort_authority import (
     FirstCohortAuthorityInput,
     complete_first_cohort_authority_chain,
 )
+from qore.infrastructure.trader_lab.economic_binding import (
+    reference_instrument_bound_research_economic,
+)
 from qore.infrastructure.trader_lab.lifecycle import (
     MANDATORY_STAGES,
     TraderLabLifecycle,
@@ -79,7 +82,6 @@ from qore.infrastructure.trader_lab.lifecycle import (
     start_trader_lab_lifecycle,
 )
 from qore.infrastructure.trader_lab.stage_evidence import (
-    TraderLabEvidenceReference,
     TraderLabStage,
     TraderLabStageEvidenceRecord,
 )
@@ -100,9 +102,6 @@ _EXECUTION_SOURCE = ExternalSourceDescriptor(
 _StrategyBindingFactory = Callable[..., ResearchRunStrategyBinding]
 _CandidateFactory = Callable[..., TraderLabCandidateBinding]
 _StageEvidenceFactory = Callable[..., TraderLabStageEvidenceRecord]
-_EconomicReferenceFactory = Callable[
-    [TraderLabCandidateBinding], TraderLabEvidenceReference
-]
 
 
 def _uuid(prefix: str, suffix: int) -> UUID:
@@ -333,7 +332,6 @@ def test_governed_authority_chain_reaches_demo_eligible_without_lab_minting(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
 ) -> None:
     evaluator = Vt01NyPrecisionCore()
     binding = _bound_vt01_strategy(strategy_binding_factory)
@@ -344,12 +342,16 @@ def test_governed_authority_chain_reaches_demo_eligible_without_lab_minting(
     )
     lifecycle = _post_monte_carlo_lifecycle(candidate, stage_evidence_factory)
     performance = _performance(candidate)
+    economic_evidence = reference_instrument_bound_research_economic(
+        candidate,
+        performance.observations[0],
+    )
 
     completed = complete_first_cohort_authority_chain(
         FirstCohortAuthorityInput(
             lifecycle=lifecycle,
             performance=performance,
-            economic_evidence=economic_reference_factory(candidate),
+            economic_evidence=economic_evidence,
             qualified_timeframes=("M5",),
             risk_policy=RiskTraderLabPolicy(
                 policy_id="first-demo-v1",
@@ -378,7 +380,6 @@ def test_risk_policy_blocks_authority_chain_before_cibo(
     strategy_binding_factory: _StrategyBindingFactory,
     candidate_factory: _CandidateFactory,
     stage_evidence_factory: _StageEvidenceFactory,
-    economic_reference_factory: _EconomicReferenceFactory,
 ) -> None:
     evaluator = Vt01NyPrecisionCore()
     binding = _bound_vt01_strategy(strategy_binding_factory)
@@ -389,12 +390,16 @@ def test_risk_policy_blocks_authority_chain_before_cibo(
     )
     lifecycle = _post_monte_carlo_lifecycle(candidate, stage_evidence_factory)
     performance = _performance(candidate)
+    economic_evidence = reference_instrument_bound_research_economic(
+        candidate,
+        performance.observations[0],
+    )
 
     blocked = complete_first_cohort_authority_chain(
         FirstCohortAuthorityInput(
             lifecycle=lifecycle,
             performance=performance,
-            economic_evidence=economic_reference_factory(candidate),
+            economic_evidence=economic_evidence,
             qualified_timeframes=("M5",),
             risk_policy=RiskTraderLabPolicy(
                 policy_id="first-demo-v1",
