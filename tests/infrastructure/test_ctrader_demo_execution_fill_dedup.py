@@ -7,6 +7,8 @@ from qore.infrastructure.ctrader_demo_execution_contracts import (
     CTraderDemoExecutionConflictError,
     CTraderDemoFillReconciliationStatus,
 )
+from qore.infrastructure.ctrader_demo_execution_gateway import CTraderDemoExecutionGateway
+from qore.infrastructure.execution_boundary import ExecutionSubmission
 from qore.kernel.result import Failure, Success
 from test_ctrader_demo_execution_gateway import (
     _ACCOUNT,
@@ -20,7 +22,7 @@ from test_ctrader_demo_execution_gateway import (
 )
 
 
-def _submitted_gateway():
+def _submitted_gateway() -> tuple[CTraderDemoExecutionGateway, ExecutionSubmission]:
     submission = _submission()
     transport = _FakeExecutionTransport(
         configuration=_configuration(),
