@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from uuid import UUID
 
 from qore.infrastructure.connectivity import ProviderEndpoint
 from qore.infrastructure.ctrader_demo_execution_configuration import (
@@ -65,7 +64,11 @@ def _configuration() -> CTraderDemoRuntimeConfiguration:
 def _authorization(quantity: str) -> RiskAuthorization:
     authorization = object.__new__(RiskAuthorization)
     object.__setattr__(authorization, "instrument", ExecutionInstrument("EURUSD"))
-    object.__setattr__(authorization, "authorized_quantity", OrderQuantity(Decimal(quantity)))
+    object.__setattr__(
+        authorization,
+        "authorized_quantity",
+        OrderQuantity(Decimal(quantity)),
+    )
     return authorization
 
 
