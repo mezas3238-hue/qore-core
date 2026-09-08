@@ -203,10 +203,40 @@ def _summary(values: list[Decimal]) -> dict[str, object]:
 
 def _return_metrics(values: list[Decimal]) -> dict[str, object]:
     summary = _summary(values)
+    positive = [value for value in values if value > 0]
+    negative = [value for value in values if value < 0]
+    gross_profit = sum(positive, Decimal(0))
+    gross_loss = abs(sum(negative, Decimal(0)))
+    equity = Decimal(1)
+    peak = equity
+    max_drawdown = Decimal(0)
+    for value in values:
+        equity *= Decimal(1) + value
+        peak = max(peak, equity)
+        if peak > 0:
+            max_drawdown = max(max_drawdown, (peak - equity) / peak)
     summary["win_rate"] = (
         format(Decimal(sum(value > 0 for value in values)) / Decimal(len(values)), "f")
         if values
         else "0"
+    )
+    summary.update(
+        {
+            "gross_profit": format(gross_profit, "f"),
+            "gross_loss": format(gross_loss, "f"),
+            "profit_factor": (
+                None if gross_loss == 0 else format(gross_profit / gross_loss, "f")
+            ),
+            "mean_win": format(_mean(positive), "f"),
+            "mean_loss": format(_mean(negative), "f"),
+            "payoff_ratio": (
+                None
+                if not positive or not negative
+                else format(_mean(positive) / abs(_mean(negative)), "f")
+            ),
+            "compounded_return": format(equity - Decimal(1), "f"),
+            "maximum_drawdown": format(max_drawdown, "f"),
+        }
     )
     return summary
 
@@ -703,7 +733,7 @@ def _profile_payload(
 
 def run_characterization(market_path: Path, walk_forward_path: Path) -> dict[str, object]:
     """Build a deep methodology dossier from exact long-horizon research evidence."""
-    series, account_fingerprint, symbol, checked_at = _load(market_path)
+    series, account_fingerprint, symbol, checked_at, software_sha = _load(market_path)
     walk = _read_json(walk_forward_path, field_name="walk-forward evidence")
     if _text(walk.get("schema"), field_name="walk-forward schema") != _WALK_SCHEMA:
         raise FirstCohortCharacterizationError("characterization requires walk-forward v2")
@@ -716,6 +746,10 @@ def run_characterization(market_path: Path, walk_forward_path: Path) -> dict[str
         != account_fingerprint
     ):
         raise FirstCohortCharacterizationError("market and walk-forward accounts differ")
+    if _text(walk.get("software_sha"), field_name="walk-forward software_sha") != software_sha:
+        raise FirstCohortCharacterizationError(
+            "market and walk-forward software SHAs differ"
+        )
 
     walk_rows = _array(walk.get("results"), field_name="walk-forward results")
     walk_by_code: dict[str, dict[str, object]] = {}
@@ -828,6 +862,7 @@ def run_characterization(market_path: Path, walk_forward_path: Path) -> dict[str
         "symbol": symbol,
         "account_fingerprint": account_fingerprint,
         "checked_at": checked_at.isoformat(),
+        "software_sha": software_sha,
         "methodology": {
             "decision_funnel": True,
             "abstention_causes": True,
@@ -868,6 +903,7 @@ def run_characterization(market_path: Path, walk_forward_path: Path) -> dict[str
             "source_symbol": symbol,
             "source_account_fingerprint": account_fingerprint,
             "source_checked_at": checked_at.isoformat(),
+            "source_software_sha": software_sha,
         },
         "results": results,
     }

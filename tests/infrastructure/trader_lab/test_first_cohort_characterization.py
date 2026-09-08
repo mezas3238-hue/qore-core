@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -168,6 +169,7 @@ def _write_characterizations(tmp_path: Path) -> tuple[Path, ...]:
             "read_only": True,
             "symbol": symbol,
             "account_fingerprint": "a" * 64,
+            "software_sha": "b" * 40,
             "results": [
                 {"trader_code": code, "profiles": [_profile(code)]} for code in _CODES
             ],
@@ -191,9 +193,31 @@ def _market_bar(opened_at: datetime, *, minutes: int) -> dict[str, object]:
 
 def _write_market(tmp_path: Path, *, duplicate_m5: bool = False) -> Path:
     start = datetime(2026, 1, 1, tzinfo=UTC)
-    m5 = [_market_bar(start + timedelta(minutes=5 * index), minutes=5) for index in range(3)]
+    recent = start + timedelta(days=731)
+    m5 = [
+        _market_bar(start, minutes=5),
+        *[
+            _market_bar(recent + timedelta(minutes=5 * index), minutes=5)
+            for index in range(3)
+        ],
+    ]
     if duplicate_m5:
         m5.append(dict(m5[-1]))
+    periods: dict[str, list[dict[str, object]]] = {
+        "M1": [],
+        "M5": m5,
+        "M15": [
+            _market_bar(start, minutes=15),
+            *[
+                _market_bar(recent + timedelta(minutes=15 * index), minutes=15)
+                for index in range(3)
+            ],
+        ],
+        "H4": [
+            _market_bar(start, minutes=240),
+            _market_bar(recent, minutes=240),
+        ],
+    }
     payload = {
         "environment": "demo",
         "read_only": True,
@@ -201,19 +225,29 @@ def _write_market(tmp_path: Path, *, duplicate_m5: bool = False) -> Path:
         "trading_permission_verified": True,
         "account_fingerprint": "a" * 64,
         "symbol": {"symbol_name": "EURUSD"},
-        "checked_at": (start + timedelta(days=1)).isoformat(),
-        "periods": {
-            "M1": [],
-            "M5": m5,
-            "M15": [
-                _market_bar(start + timedelta(minutes=15 * index), minutes=15)
-                for index in range(3)
-            ],
-            "H4": [
-                _market_bar(start - timedelta(hours=4), minutes=240),
-                _market_bar(start, minutes=240),
-            ],
-        },
+        "checked_at": (recent + timedelta(hours=5)).isoformat(),
+        "software_sha": "b" * 40,
+        "required_coverage_days": 730,
+        "requested_lookback_days": 760,
+        "periods": periods,
+    }
+    payload["coverage"] = {
+        period: {
+            "bar_count": len(periods[period]),
+            "first_opened_at": periods[period][0]["opened_at"],
+            "last_closed_at": periods[period][-1]["closed_at"],
+            "span_seconds": int(
+                (
+                    datetime.fromisoformat(
+                        cast(str, periods[period][-1]["closed_at"])
+                    )
+                    - datetime.fromisoformat(
+                        cast(str, periods[period][0]["opened_at"])
+                    )
+                ).total_seconds()
+            ),
+        }
+        for period in ("M5", "M15", "H4")
     }
     path = tmp_path / "market.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
@@ -255,6 +289,7 @@ def _write_walk_forward(tmp_path: Path) -> Path:
         "environment": "demo",
         "read_only": True,
         "account_fingerprint": "a" * 64,
+        "software_sha": "b" * 40,
         "symbol": "EURUSD",
         "results": results,
     }
@@ -292,14 +327,97 @@ def test_h4_binary_lookup_is_exactly_equivalent_to_prior_linear_policy() -> None
         assert _h4_context(h4, as_of=as_of) == expected
 
 
+def _linear_h4_reference(
+    h4: tuple[OhlcSnapshot, ...], *, as_of: datetime
+) -> tuple[OhlcSnapshot, ...]:
+    indices = [index for index, bar in enumerate(h4) if bar.closed_at <= as_of]
+    return () if not indices else _history(h4, indices[-1], limit=32)
+
+
+def test_h4_equivalence_covers_empty_boundaries_future_and_large_history() -> None:
+    assert _h4_context((), as_of=datetime(2026, 1, 1, tzinfo=UTC)) == ()
+    h4 = tuple(_bar(index, 1.0 + index * 0.00001) for index in range(10_000))
+    probes = (
+        h4[0].opened_at,
+        h4[0].closed_at - timedelta(microseconds=1),
+        h4[0].closed_at,
+        h4[0].closed_at + timedelta(microseconds=1),
+        h4[-1].closed_at - timedelta(microseconds=1),
+        h4[-1].closed_at,
+        h4[-1].closed_at + timedelta(days=30),
+    )
+    for as_of in probes:
+        assert _h4_context(h4, as_of=as_of) == _linear_h4_reference(
+            h4, as_of=as_of
+        )
+
+
+def test_h4_equivalence_preserves_gaps_irregular_spacing_and_contiguous_tail() -> None:
+    indices = (0, 1, 2, 8, 9, 21, 22, 23, 24, 80, 81)
+    h4 = tuple(_bar(index, 1.0 + index * 0.001) for index in indices)
+    probes = tuple(
+        moment
+        for bar in h4
+        for moment in (
+            bar.closed_at - timedelta(microseconds=1),
+            bar.closed_at,
+            bar.closed_at + timedelta(microseconds=1),
+        )
+    )
+    for as_of in probes:
+        assert _h4_context(h4, as_of=as_of) == _linear_h4_reference(
+            h4, as_of=as_of
+        )
+    assert _h4_context(h4, as_of=h4[9].closed_at) == h4[9:10]
+    assert _h4_context(h4, as_of=h4[8].closed_at) == h4[5:9]
+
+
+def test_h4_randomized_metamorphic_equivalence_and_future_exclusion() -> None:
+    generator = random.Random(0x48434F4E54455854)
+    for _case in range(250):
+        indices = sorted(generator.sample(range(2_000), generator.randint(1, 160)))
+        h4 = tuple(_bar(index, 1.0 + index * 0.00001) for index in indices)
+        as_of = datetime(2026, 1, 1, tzinfo=UTC) + timedelta(
+            seconds=generator.randint(-1, 2_000 * 14_400 + 14_400)
+        )
+        optimized = _h4_context(h4, as_of=as_of)
+        assert optimized == _linear_h4_reference(h4, as_of=as_of)
+        assert all(bar.closed_at <= as_of for bar in optimized)
+
+        future = _bar(2_001 + _case, 2.0)
+        extended = tuple(sorted((*h4, future), key=lambda bar: bar.closed_at))
+        if future.closed_at > as_of:
+            assert _h4_context(extended, as_of=as_of) == optimized
+
+
 def test_auxiliary_m1_can_be_empty_but_duplicate_consumed_evidence_is_rejected(
     tmp_path: Path,
 ) -> None:
-    series, _fingerprint_value, _symbol, _checked_at = _load(_write_market(tmp_path))
+    series, _fingerprint_value, _symbol, _checked_at, _software_sha = _load(
+        _write_market(tmp_path)
+    )
     assert series["M1"] == ()
 
     with pytest.raises(FirstCohortBacktestError, match="duplicate bars"):
         _load(_write_market(tmp_path, duplicate_m5=True))
+
+
+def test_market_loader_requires_declared_and_actual_730_day_coverage(
+    tmp_path: Path,
+) -> None:
+    path = _write_market(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["coverage"]["M5"]["span_seconds"] -= 1
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(FirstCohortBacktestError, match="coverage span mismatch"):
+        _load(path)
+
+    path = _write_market(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["required_coverage_days"] = 729
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(FirstCohortBacktestError, match="at least 730"):
+        _load(path)
 
 
 def test_characterization_preserves_full_grid_and_decision_funnel(tmp_path: Path) -> None:
@@ -318,8 +436,8 @@ def test_characterization_preserves_full_grid_and_decision_funnel(tmp_path: Path
             _fingerprint(item) for item in grid
         ]
         funnel = cast(dict[str, object], profiles[0]["decision_funnel"])
-        assert funnel["decision_opportunities"] == 2
-        assert cast(int, funnel["setup"]) + cast(int, funnel["abstain"]) <= 2
+        assert funnel["decision_opportunities"] == 3
+        assert cast(int, funnel["setup"]) + cast(int, funnel["abstain"]) <= 3
 
 
 def test_bucket_records_fill_exit_excursion_and_outcome_metrics() -> None:
@@ -399,6 +517,7 @@ def test_hypothesis_register_marks_holdout_consumed_and_binds_software_sha(
     failure = {
         "schema": "qore.trader_lab.first_cohort_failure_analysis_aggregate.v1",
         "account_fingerprint": "a" * 64,
+        "software_sha": "b" * 40,
         "symbols": list(_SYMBOLS),
         "results": [
             {
@@ -411,6 +530,7 @@ def test_hypothesis_register_marks_holdout_consumed_and_binds_software_sha(
     multi = {
         "schema": "qore.trader_lab.first_cohort_multi_pair_walk_forward.v1",
         "account_fingerprint": "a" * 64,
+        "software_sha": "b" * 40,
         "results": [{"trader_code": code} for code in _CODES],
     }
     failure_path = tmp_path / "failure.json"
@@ -431,6 +551,11 @@ def test_hypothesis_register_marks_holdout_consumed_and_binds_software_sha(
     hypotheses = cast(list[dict[str, object]], payload["hypotheses"])
     assert hypotheses[0]["required_fresh_holdout"] is True
     assert hypotheses[0]["confidence"] == "high"
+    assert hypotheses[0]["software_sha"] == "b" * 40
+    assert "previously unseen" in cast(str, hypotheses[0]["new_evidence_required"])
+    assert cast(dict[str, object], hypotheses[0]["origin_configuration"])[
+        "config_fingerprint"
+    ]
 
     with pytest.raises(FirstCohortFailureAnalysisError, match="software_sha"):
         run_hypothesis_register(

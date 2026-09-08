@@ -14,6 +14,7 @@ on:
       - src/qore/infrastructure/trader_lab/first_cohort_failure_analysis.py
       - src/qore/infrastructure/trader_lab/first_cohort_failure_analysis_aggregate.py
       - src/qore/infrastructure/trader_lab/first_cohort_hypothesis_register.py
+      - src/qore/infrastructure/trader_lab/first_cohort_research_dossiers.py
       - src/qore/infrastructure/traders/evaluators.py
       - src/qore/infrastructure/traders/instrument_binding.py
       - src/qore/infrastructure/traders/primitives.py
@@ -35,7 +36,8 @@ env:
   QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
   QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
   QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
-  QORE_DEMO_LAB_LOOKBACK_DAYS: "730"
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
 
 jobs:
   backtest:
@@ -81,8 +83,8 @@ jobs:
               exit 2
             fi
           done
-          if [ "${QORE_DEMO_LAB_LOOKBACK_DAYS}" -lt 730 ]; then
-            echo "Trader Lab credibility run requires at least 730 days" >&2
+          if [ "${QORE_DEMO_LAB_LOOKBACK_DAYS}" -le 730 ]; then
+            echo "Trader Lab acquisition requires margin beyond 730 effective days" >&2
             exit 2
           fi
       - name: Discover the single authorized DEMO account when not configured
@@ -118,15 +120,21 @@ jobs:
           assert payload["read_only"] is True
           assert payload["account_is_live"] is False
           assert payload["symbol"]["symbol_name"] == symbol
-          assert payload["requested_lookback_days"] >= 730
-          assert payload["historical_chunk_days"] == 30
+          assert payload["requested_lookback_days"] > 730
+          assert payload["required_coverage_days"] == 730
+          assert payload["acquisition_margin_days"] >= 1
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert payload["historical_chunk_days"] == 14
           assert payload["historical_page_count"] == 5000
           assert payload["two_year_required_periods"] == ["M5", "M15", "H4"]
           assert payload["auxiliary_m1_lookback_days"] == 30
           assert set(payload["periods"]) == {"M1", "M5", "M15", "H4"}
           assert all(payload["periods"][period] for period in ("M5", "M15", "H4"))
           coverage = payload["coverage"]
-          assert all(coverage[period]["span_days"] >= 720 for period in ("M5", "M15", "H4"))
+          assert all(
+              coverage[period]["span_seconds"] >= 730 * 24 * 60 * 60
+              for period in ("M5", "M15", "H4")
+          )
           PY
       - name: Backtest VT-01 VT-08 VT-09 VT-17 VT-31
         run: |
@@ -152,6 +160,7 @@ jobs:
           assert payload["execution_model"] == (
               "limit-3bar-fill-24bar-hold-stop-first-v1"
           )
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
           assert [item["trader_code"] for item in payload["results"]] == [
               "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
           ]
@@ -177,6 +186,7 @@ jobs:
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
           assert payload["symbol"] == symbol
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
           assert payload["in_sample_fraction"] == "0.70"
           assert payload["oos_fraction"] == "0.30"
           assert [item["trader_code"] for item in payload["results"]] == [
@@ -207,6 +217,7 @@ jobs:
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
           assert payload["symbol"] == symbol
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
           assert payload["holdout_governance"]["state"] == "consumed_for_research"
           assert [item["trader_code"] for item in payload["results"]] == [
               "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
@@ -235,6 +246,7 @@ jobs:
           assert payload["read_only"] is True
           assert payload["research_only"] is True
           assert payload["symbol"] == symbol
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
           governance = payload["holdout_governance"]
           assert governance["post_change_reuse_as_independent_holdout_prohibited"] is True
           assert governance["new_previously_unseen_holdout_required_after_any_hypothesis_change"] is True
@@ -289,6 +301,7 @@ jobs:
             > artifacts/first-cohort-multi-pair/git-sha.txt
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           payload = json.loads(
@@ -297,6 +310,7 @@ jobs:
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
           assert payload["pair_count"] == 6
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
           assert payload["symbols"] == [
               "AUDUSD", "EURUSD", "GBPUSD", "USDCAD", "USDJPY", "XAUUSD"
           ]
@@ -320,6 +334,20 @@ jobs:
             qore.infrastructure.trader_lab.first_cohort_characterization_aggregate \
             "${characterizations[@]}" \
             > artifacts/first-cohort-multi-pair/characterization-aggregate.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/first-cohort-multi-pair/characterization-aggregate.json").read_text()
+          )
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert payload["instrument_count"] == 6
+          assert [item["trader_code"] for item in payload["results"]] == [
+              "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
+          ]
+          PY
       - name: Aggregate six-instrument failure analysis
         shell: bash
         run: |
@@ -337,6 +365,7 @@ jobs:
             > artifacts/first-cohort-multi-pair/failure-analysis-aggregate.json
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           payload = json.loads(
@@ -346,6 +375,7 @@ jobs:
               "qore.trader_lab.first_cohort_failure_analysis_aggregate.v1"
           )
           assert payload["instrument_count"] == 6
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
           assert [item["trader_code"] for item in payload["results"]] == [
               "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
           ]
@@ -363,6 +393,7 @@ jobs:
             > artifacts/first-cohort-multi-pair/hypothesis-register.json
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           payload = json.loads(
@@ -372,7 +403,39 @@ jobs:
           assert payload["holdout_governance"][
               "consumed_holdout_cannot_certify_modified_strategy"
           ] is True
-          assert payload["software_sha"]
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          PY
+      - name: Build five final dossiers and governed comparative registers
+        run: |
+          python -m qore.infrastructure.trader_lab.first_cohort_research_dossiers \
+            artifacts/multi-pair \
+            artifacts/first-cohort-multi-pair \
+            artifacts/first-cohort-multi-pair \
+            "$GITHUB_SHA"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path("artifacts/first-cohort-multi-pair")
+          codes = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
+          for code in codes:
+              dossier = json.loads(
+                  (root / f"{code}-deep-characterization-dossier.json").read_text()
+              )
+              assert dossier["trader_code"] == code
+              assert dossier["software_sha"] == os.environ["GITHUB_SHA"]
+              assert dossier["promotion"]["demo_eligible"] is False
+              assert dossier["holdout_governance"][
+                  "consumed_holdout_cannot_certify_modified_strategy"
+              ] is True
+          comparative = json.loads(
+              (root / "first-cohort-comparative-deep-characterization-report.json").read_text()
+          )
+          assert comparative["five_dossiers_complete"] is True
+          promotion = json.loads((root / "promotion-report.json").read_text())
+          assert promotion["demo_eligible_count"] == 0
+          assert promotion["software_sha"] == os.environ["GITHUB_SHA"]
           PY
       - name: Upload pooled six-instrument research evidence
         uses: actions/upload-artifact@v4

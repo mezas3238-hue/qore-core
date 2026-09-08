@@ -213,6 +213,14 @@ def run_hypothesis_register(
     }
     if len(accounts) != 1:
         raise FirstCohortFailureAnalysisError("aggregate evidence account mismatch")
+    software_shas = {
+        _text(payload.get("software_sha"), name="aggregate software_sha")
+        for payload in (failure, characterization, multi)
+    }
+    if software_shas != {software_sha}:
+        raise FirstCohortFailureAnalysisError(
+            "aggregate evidence must bind the requested exact software SHA"
+        )
     failure_rows = _rows(failure, name="failure aggregate")
     characterization_rows = _rows(characterization, name="characterization aggregate")
     _rows(multi, name="multi-pair evidence")
@@ -250,7 +258,13 @@ def run_hypothesis_register(
                 {
                     "hypothesis_id": f"HYP-{code.upper()}-{rank:03d}",
                     "trader": code,
+                    "software_sha": software_sha,
                     "priority_rank_within_trader": rank,
+                    "origin_methodology": methodology_identity,
+                    "origin_configuration": {
+                        "config_fingerprint": default.get("config_fingerprint"),
+                        "parameters": parent_parameters,
+                    },
                     "evidence_observed": {
                         "causal_signal": signal,
                         "instrument_occurrence_count": count,
@@ -268,6 +282,14 @@ def run_hypothesis_register(
                         "sample below the pre-registered minimum."
                     ),
                     "required_fresh_holdout": True,
+                    "new_evidence_required": (
+                        "source-controlled variant on a pre-registered, previously unseen "
+                        "dataset bound to its exact software and methodology fingerprints"
+                    ),
+                    "overfitting_risk": (
+                        "high if the observed OOS influences tuning; controlled only by "
+                        "pre-registration and a fresh unseen holdout"
+                    ),
                     "forbidden_evidence_reuse": [
                         "current per-instrument OOS",
                         "current pooled OOS",

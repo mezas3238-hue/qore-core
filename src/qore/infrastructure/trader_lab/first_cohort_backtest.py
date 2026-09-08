@@ -16,6 +16,7 @@ Execution model v1:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from bisect import bisect_right
 from dataclasses import dataclass
@@ -172,6 +173,7 @@ class FirstCohortBacktestReport:
     account_fingerprint: str
     symbol: str
     checked_at: datetime
+    software_sha: str
     results: tuple[FirstCohortBacktestResult, ...]
 
     def payload(self) -> dict[str, object]:
@@ -182,6 +184,7 @@ class FirstCohortBacktestReport:
             "account_fingerprint": self.account_fingerprint,
             "symbol": self.symbol,
             "checked_at": self.checked_at.astimezone(UTC).isoformat(),
+            "software_sha": self.software_sha,
             "execution_model": _EXECUTION_MODEL,
             "results": [result.payload() for result in self.results],
         }
@@ -217,6 +220,12 @@ def _text(value: object, *, field_name: str) -> str:
 def _strict_bool(value: object, *, field_name: str) -> bool:
     if type(value) is not bool:
         raise FirstCohortBacktestError(f"{field_name} must be bool")
+    return value
+
+
+def _strict_int(value: object, *, field_name: str) -> int:
+    if type(value) is not int:
+        raise FirstCohortBacktestError(f"{field_name} must be an int")
     return value
 
 
@@ -267,7 +276,7 @@ def _snapshot(item: object, *, period: str, instrument: Instrument) -> OhlcSnaps
 
 def _load(
     path: Path,
-) -> tuple[dict[str, tuple[OhlcSnapshot, ...]], str, str, datetime]:
+) -> tuple[dict[str, tuple[OhlcSnapshot, ...]], str, str, datetime, str]:
     try:
         decoded: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -290,6 +299,23 @@ def _load(
     symbol_payload = _object(payload.get("symbol"), field_name="symbol")
     symbol = _text(symbol_payload.get("symbol_name"), field_name="symbol_name")
     checked_at = _timestamp(payload.get("checked_at"), field_name="checked_at")
+    software_sha = _text(payload.get("software_sha"), field_name="software_sha")
+    if re.fullmatch(r"[0-9a-f]{40}", software_sha) is None:
+        raise FirstCohortBacktestError("software_sha must be a lowercase Git SHA")
+    required_coverage_days = _strict_int(
+        payload.get("required_coverage_days"), field_name="required_coverage_days"
+    )
+    if required_coverage_days < 730:
+        raise FirstCohortBacktestError(
+            "market evidence requires at least 730 effective coverage days"
+        )
+    requested_lookback_days = _strict_int(
+        payload.get("requested_lookback_days"), field_name="requested_lookback_days"
+    )
+    if requested_lookback_days < required_coverage_days:
+        raise FirstCohortBacktestError(
+            "requested lookback cannot be shorter than required effective coverage"
+        )
     instrument = Instrument(symbol)
     periods = _object(payload.get("periods"), field_name="periods")
     if set(periods) != set(_PERIOD_SECONDS):
@@ -306,7 +332,35 @@ def _load(
         if len(set(identities)) != len(identities):
             raise FirstCohortBacktestError(f"period {period} contains duplicate bars")
         series[period] = snapshots
-    return series, fingerprint, symbol, checked_at
+    coverage = _object(payload.get("coverage"), field_name="coverage")
+    minimum_seconds = required_coverage_days * 86_400
+    for period in _REQUIRED_RESEARCH_PERIODS:
+        snapshots = series[period]
+        actual_seconds = int(
+            (snapshots[-1].closed_at - snapshots[0].opened_at).total_seconds()
+        )
+        if actual_seconds < minimum_seconds:
+            raise FirstCohortBacktestError(
+                f"period {period} has less than 730 effective calendar days"
+            )
+        declared = _object(coverage.get(period), field_name=f"coverage {period}")
+        if _strict_int(declared.get("bar_count"), field_name="coverage bar_count") != len(
+            snapshots
+        ):
+            raise FirstCohortBacktestError(f"period {period} coverage count mismatch")
+        if _timestamp(
+            declared.get("first_opened_at"), field_name="coverage first_opened_at"
+        ) != snapshots[0].opened_at or _timestamp(
+            declared.get("last_closed_at"), field_name="coverage last_closed_at"
+        ) != snapshots[-1].closed_at:
+            raise FirstCohortBacktestError(
+                f"period {period} coverage boundaries mismatch"
+            )
+        if _strict_int(
+            declared.get("span_seconds"), field_name="coverage span_seconds"
+        ) != actual_seconds:
+            raise FirstCohortBacktestError(f"period {period} coverage span mismatch")
+    return series, fingerprint, symbol, checked_at, software_sha
 
 
 def _history(
@@ -487,7 +541,7 @@ def _backtest(
 
 def run_first_cohort_backtest(path: Path) -> FirstCohortBacktestReport:
     """Run all five production evaluators on one fresh sanitized DEMO evidence file."""
-    series, fingerprint, symbol, checked_at = _load(path)
+    series, fingerprint, symbol, checked_at, software_sha = _load(path)
     evaluators = cohort_evaluators()
     if tuple(evaluator.trader_code for evaluator in evaluators) != _CODES:
         raise FirstCohortBacktestError("production cohort identity/order changed")
@@ -503,6 +557,7 @@ def run_first_cohort_backtest(path: Path) -> FirstCohortBacktestReport:
         account_fingerprint=fingerprint,
         symbol=symbol,
         checked_at=checked_at,
+        software_sha=software_sha,
         results=results,
     )
 

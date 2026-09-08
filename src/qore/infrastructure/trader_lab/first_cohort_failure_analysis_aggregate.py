@@ -108,6 +108,7 @@ def run_failure_analysis_aggregate(
 
     analyses: list[tuple[str, dict[str, dict[str, object]]]] = []
     fingerprints: set[str] = set()
+    software_shas: set[str] = set()
     for path in analysis_paths:
         payload = _read(path, name="failure analysis")
         if _text(payload.get("schema"), name="failure-analysis schema") != _ANALYSIS_SCHEMA:
@@ -118,6 +119,7 @@ def run_failure_analysis_aggregate(
             raise FirstCohortFailureAnalysisError("failure analysis must be read-only")
         symbol = _text(payload.get("symbol"), name="symbol")
         fingerprints.add(_text(payload.get("account_fingerprint"), name="account fingerprint"))
+        software_shas.add(_text(payload.get("software_sha"), name="software_sha"))
         analyses.append((symbol, _rows_by_code(payload, name=f"analysis {symbol}")))
     analyses.sort(key=lambda item: item[0])
     symbols = tuple(item[0] for item in analyses)
@@ -125,6 +127,16 @@ def run_failure_analysis_aggregate(
         raise FirstCohortFailureAnalysisError("aggregate requires six distinct instruments")
     if len(fingerprints) != 1:
         raise FirstCohortFailureAnalysisError("all analyses must bind the same DEMO account")
+    multi_account = _text(multi.get("account_fingerprint"), name="multi account fingerprint")
+    if fingerprints != {multi_account}:
+        raise FirstCohortFailureAnalysisError(
+            "multi-pair and failure analyses must bind the same DEMO account"
+        )
+    multi_software_sha = _text(multi.get("software_sha"), name="multi software_sha")
+    if software_shas != {multi_software_sha}:
+        raise FirstCohortFailureAnalysisError(
+            "all aggregate evidence must bind the same exact software SHA"
+        )
 
     results: list[dict[str, object]] = []
     for code in _CODES:
@@ -183,6 +195,7 @@ def run_failure_analysis_aggregate(
         "symbols": list(symbols),
         "instrument_count": len(symbols),
         "account_fingerprint": next(iter(fingerprints)),
+        "software_sha": multi_software_sha,
         "holdout_governance": {
             "current_oos_may_be_used_for_diagnosis": True,
             "post_change_reuse_as_independent_holdout_prohibited": True,

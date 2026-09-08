@@ -82,6 +82,7 @@ from qore.infrastructure.trader_lab.lifecycle import (
     start_trader_lab_lifecycle,
 )
 from qore.infrastructure.trader_lab.stage_evidence import (
+    TraderLabEvidenceKind,
     TraderLabStage,
     TraderLabStageEvidenceRecord,
 )
@@ -368,12 +369,15 @@ def test_governed_authority_chain_reaches_demo_eligible_without_lab_minting(
     assert completed.value.trader_code.value == "vt-01"
     assert completed.value.lifecycle.state is TraderLabState.DEMO_ELIGIBLE
     assert completed.value.lifecycle.completed_stages == MANDATORY_STAGES
-    risk_ref = completed.value.lifecycle.qualifications[-3].evidence.source_reference
-    cibo_ref = completed.value.lifecycle.qualifications[-2].evidence.source_reference
-    independent_ref = completed.value.lifecycle.qualifications[-1].evidence.source_reference
+    risk_ref = completed.value.lifecycle.qualifications[-4].evidence.source_reference
+    cibo_ref = completed.value.lifecycle.qualifications[-3].evidence.source_reference
+    independent_ref = completed.value.lifecycle.qualifications[-2].evidence.source_reference
+    economic_ref = completed.value.lifecycle.qualifications[-1].evidence.source_reference
     assert risk_ref.external_authenticity_proof is not None
     assert cibo_ref.external_authenticity_proof is not None
     assert independent_ref.external_authenticity_proof is not None
+    assert economic_ref.kind is TraderLabEvidenceKind.ECONOMIC_EVALUATION
+    assert economic_ref.self_authenticating is True
 
 
 def test_risk_policy_blocks_authority_chain_before_cibo(

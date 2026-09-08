@@ -47,6 +47,7 @@ class PairPartition:
     account_fingerprint: str
     checked_at: datetime
     split_at: datetime
+    software_sha: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,7 +109,7 @@ class MultiPairTraderResult:
 
 
 def _partition(path: Path) -> PairPartition:
-    series, fingerprint, symbol, checked_at = _load(path)
+    series, fingerprint, symbol, checked_at, software_sha = _load(path)
     m5 = series["M5"]
     split_index = (len(m5) * 7) // 10
     if split_index <= 0 or split_index >= len(m5):
@@ -121,6 +122,7 @@ def _partition(path: Path) -> PairPartition:
         account_fingerprint=fingerprint,
         checked_at=checked_at,
         split_at=m5[split_index].opened_at,
+        software_sha=software_sha,
     )
 
 
@@ -218,6 +220,11 @@ def run_multi_pair_walk_forward(paths: tuple[Path, ...]) -> dict[str, object]:
     fingerprints = {item.account_fingerprint for item in partitions}
     if len(fingerprints) != 1:
         raise FirstCohortBacktestError("all six instruments must bind the same DEMO account")
+    software_shas = {item.software_sha for item in partitions}
+    if len(software_shas) != 1:
+        raise FirstCohortBacktestError(
+            "all six instruments must bind the same exact software SHA"
+        )
 
     results: list[MultiPairTraderResult] = []
     for trader_code, grid in _grids().items():
@@ -269,6 +276,7 @@ def run_multi_pair_walk_forward(paths: tuple[Path, ...]) -> dict[str, object]:
         "pair_count": _REQUIRED_PAIR_COUNT,
         "symbols": list(symbols),
         "account_fingerprint": next(iter(fingerprints)),
+        "software_sha": next(iter(software_shas)),
         "policy": {
             "selection_scope": "pooled-six-instrument-in-sample-only",
             "in_sample_fraction": "0.70",

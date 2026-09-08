@@ -115,6 +115,7 @@ def _write_inputs(tmp_path: Path) -> tuple[Path, Path]:
         "environment": "demo",
         "read_only": True,
         "account_fingerprint": "a" * 64,
+        "software_sha": "b" * 40,
         "symbol": "EURUSD",
         "checked_at": "2026-09-01T00:00:00+00:00",
         "execution_model": "limit-3bar-fill-24bar-hold-stop-first-v1",
@@ -125,6 +126,7 @@ def _write_inputs(tmp_path: Path) -> tuple[Path, Path]:
         "environment": "demo",
         "read_only": True,
         "account_fingerprint": "a" * 64,
+        "software_sha": "b" * 40,
         "symbol": "EURUSD",
         "checked_at": "2026-09-01T00:00:00+00:00",
         "split_at": "2026-05-01T00:00:00+00:00",
@@ -208,6 +210,8 @@ def test_failure_analysis_aggregate_counts_recurring_cross_market_signals(tmp_pa
 
     multi: dict[str, object] = {
         "schema": "qore.trader_lab.first_cohort_multi_pair_walk_forward.v1",
+        "account_fingerprint": "a" * 64,
+        "software_sha": "b" * 40,
         "results": [
             {
                 "trader_code": code,

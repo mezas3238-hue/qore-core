@@ -420,6 +420,9 @@ def run_failure_analysis(backtest_path: Path, walk_forward_path: Path) -> dict[s
     fingerprint = _text(backtest.get("account_fingerprint"), name="account fingerprint")
     if fingerprint != _text(walk.get("account_fingerprint"), name="walk account fingerprint"):
         raise FirstCohortFailureAnalysisError("backtest/walk-forward account mismatch")
+    software_sha = _text(backtest.get("software_sha"), name="backtest software_sha")
+    if software_sha != _text(walk.get("software_sha"), name="walk software_sha"):
+        raise FirstCohortFailureAnalysisError("backtest/walk-forward software SHA mismatch")
 
     backtest_rows = {
         _text(row.get("trader_code"), name="backtest trader_code"): row
@@ -445,6 +448,7 @@ def run_failure_analysis(backtest_path: Path, walk_forward_path: Path) -> dict[s
         "research_only": True,
         "symbol": symbol,
         "account_fingerprint": fingerprint,
+        "software_sha": software_sha,
         "source_checked_at": _text(backtest.get("checked_at"), name="checked_at"),
         "holdout_governance": {
             "oos_observed_by_failure_analysis": True,

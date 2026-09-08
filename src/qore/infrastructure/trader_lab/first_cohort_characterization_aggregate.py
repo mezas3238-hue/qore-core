@@ -376,6 +376,14 @@ def run_characterization_aggregate(paths: tuple[Path, ...]) -> dict[str, object]
         raise FirstCohortCharacterizationError(
             "characterization evidence must bind one DEMO account"
         )
+    software_shas = {
+        _text(item.get("software_sha"), field_name="software_sha")
+        for item in payloads
+    }
+    if len(software_shas) != 1:
+        raise FirstCohortCharacterizationError(
+            "characterization evidence must bind one exact software SHA"
+        )
 
     by_trader: dict[str, dict[str, list[tuple[str, dict[str, object]]]]] = {
         code: {} for code in _CODES
@@ -449,6 +457,7 @@ def run_characterization_aggregate(paths: tuple[Path, ...]) -> dict[str, object]
         "instrument_count": _REQUIRED_INSTRUMENTS,
         "symbols": sorted(symbols),
         "account_fingerprint": next(iter(fingerprints)),
+        "software_sha": next(iter(software_shas)),
         "results": results,
         "classification_policy": {
             "policy_id": "first-cohort-descriptive-classification-v1",

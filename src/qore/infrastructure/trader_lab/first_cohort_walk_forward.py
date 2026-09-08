@@ -215,7 +215,7 @@ def _rank(assessment: ConfigurationAssessment) -> tuple[Decimal, Decimal, Decima
 
 
 def run_walk_forward(path: Path) -> dict[str, object]:
-    series, fingerprint, symbol, checked_at = _load(path)
+    series, fingerprint, symbol, checked_at, software_sha = _load(path)
     m5 = series["M5"]
     split_index = (len(m5) * 7) // 10
     if split_index <= 0 or split_index >= len(m5):
@@ -247,6 +247,7 @@ def run_walk_forward(path: Path) -> dict[str, object]:
         "account_fingerprint": fingerprint,
         "symbol": symbol,
         "checked_at": checked_at.astimezone(UTC).isoformat(),
+        "software_sha": software_sha,
         "split_at": split_at.astimezone(UTC).isoformat(),
         "in_sample_fraction": "0.70",
         "oos_fraction": "0.30",

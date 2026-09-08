@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from time import sleep
@@ -36,9 +37,14 @@ from qore.kernel.result import Failure
 
 _MIN_LOOKBACK_DAYS = 730
 _MAX_LOOKBACK_DAYS = 1095
-_CHUNK_DAYS = 30
+_REQUIRED_COVERAGE_DAYS = 730
+# Fourteen calendar days contain at most 4,032 M5 bars.  This remains below
+# the provider's 5,000-bar response ceiling even if every day traded, so a
+# provider that returns ``hasMore=False`` at its hard count cap cannot silently
+# truncate the beginning of a collection window.
+_CHUNK_DAYS = 14
 _AUXILIARY_M1_LOOKBACK_DAYS = 30
-_COVERAGE_TOLERANCE_DAYS = 10
+_RECENT_BOUNDARY_TOLERANCE_DAYS = 10
 _HISTORICAL_PAGE_COUNT = 5_000
 _HISTORICAL_REQUEST_PAUSE_SECONDS = 0.22
 _PRICE_SCALE = Decimal(100_000)
@@ -289,7 +295,8 @@ def _validate_two_year_coverage(
     requested_opened_at: datetime,
     checked_at: datetime,
 ) -> None:
-    tolerance = timedelta(days=_COVERAGE_TOLERANCE_DAYS)
+    required = timedelta(days=_REQUIRED_COVERAGE_DAYS)
+    recent_tolerance = timedelta(days=_RECENT_BOUNDARY_TOLERANCE_DAYS)
     for period in _TWO_YEAR_REQUIRED_PERIODS:
         retained = _period_bars(bars, period)
         if not retained:
@@ -298,11 +305,15 @@ def _validate_two_year_coverage(
             )
         first = retained[0].opened_at
         last = retained[-1].closed_at
-        if first > requested_opened_at + tolerance:
+        if last - first < required:
             raise CTraderDemoLabProbeError(
-                f"cTrader {period} history does not reach the two-year boundary"
+                f"cTrader {period} history has less than 730 days between actual bars"
             )
-        if last < checked_at - tolerance:
+        if first < requested_opened_at:
+            raise CTraderDemoLabProbeError(
+                f"cTrader {period} history predates the requested acquisition boundary"
+            )
+        if last < checked_at - recent_tolerance:
             raise CTraderDemoLabProbeError(
                 f"cTrader {period} history is stale at the recent boundary"
             )
@@ -314,7 +325,7 @@ def _validate_auxiliary_m1(
     retained = _period_bars(bars, "M1")
     if not retained:
         raise CTraderDemoLabProbeError("cTrader auxiliary M1 evidence is missing")
-    tolerance = timedelta(days=_COVERAGE_TOLERANCE_DAYS)
+    tolerance = timedelta(days=_RECENT_BOUNDARY_TOLERANCE_DAYS)
     if retained[-1].closed_at < checked_at - tolerance:
         raise CTraderDemoLabProbeError("cTrader auxiliary M1 evidence is stale")
 
@@ -327,11 +338,26 @@ def _coverage_payload(
         retained = _period_bars(bars, period)
         if not retained:
             continue
+        gaps = [
+            int((current.opened_at - previous.closed_at).total_seconds())
+            for previous, current in zip(retained, retained[1:], strict=False)
+            if current.opened_at > previous.closed_at
+        ]
         result[period] = {
             "bar_count": len(retained),
             "first_opened_at": retained[0].opened_at.isoformat(timespec="microseconds"),
             "last_closed_at": retained[-1].closed_at.isoformat(timespec="microseconds"),
             "span_days": (retained[-1].closed_at - retained[0].opened_at).days,
+            "span_seconds": int(
+                (retained[-1].closed_at - retained[0].opened_at).total_seconds()
+            ),
+            "observed_gap_count": len(gaps),
+            "observed_gap_seconds": sum(gaps),
+            "maximum_observed_gap_seconds": max(gaps, default=0),
+            "gap_policy": (
+                "raw closed-bar discontinuities; includes legitimate market closures and "
+                "does not infer missing tradable candles"
+            ),
         }
     return result
 
@@ -440,6 +466,11 @@ def main() -> None:
         ),
     )
     symbol_name = _required_env("QORE_DEMO_LAB_SYMBOL")
+    software_sha = _required_env("QORE_SOFTWARE_SHA")
+    if re.fullmatch(r"[0-9a-f]{40}", software_sha) is None:
+        raise CTraderDemoLabProbeError(
+            "QORE_SOFTWARE_SHA must be the exact lowercase 40-character Git SHA"
+        )
     lookback_days = int(os.environ.get("QORE_DEMO_LAB_LOOKBACK_DAYS", "730"))
     if lookback_days < _MIN_LOOKBACK_DAYS or lookback_days > _MAX_LOOKBACK_DAYS:
         raise CTraderDemoLabProbeError(
@@ -457,6 +488,11 @@ def main() -> None:
         )
         payload = evidence.sanitized_payload()
         payload["requested_lookback_days"] = lookback_days
+        payload["software_sha"] = software_sha
+        payload["required_coverage_days"] = _REQUIRED_COVERAGE_DAYS
+        payload["acquisition_margin_days"] = (
+            lookback_days - _REQUIRED_COVERAGE_DAYS
+        )
         payload["requested_opened_at"] = requested_opened_at.isoformat(timespec="microseconds")
         payload["historical_chunk_days"] = _CHUNK_DAYS
         payload["historical_page_count"] = _HISTORICAL_PAGE_COUNT

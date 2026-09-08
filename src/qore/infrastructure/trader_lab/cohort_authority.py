@@ -4,7 +4,7 @@ Inputs must already have completed the in-Lab chain through MONTE_CARLO with
 real retained research/robustness evidence.  This module then runs the three
 owning authorities in order:
 
-RISK_REVIEW -> CIBO_REVIEW -> INDEPENDENT_VALIDATION
+RISK_REVIEW -> CIBO_REVIEW -> INDEPENDENT_VALIDATION -> ECONOMIC_EVIDENCE
 
 and materializes their verified references into the immutable Trader Lab
 lifecycle.  No authority is skipped and no synthetic proof is produced inside
@@ -318,6 +318,12 @@ def complete_first_cohort_authority_chain(
             lifecycle,
             stage=TraderLabStage.INDEPENDENT_VALIDATION,
             reference=independent_issuance.value.reference,
+            produced_at=authority_input.independent_validated_at,
+        )
+        lifecycle = _promote_external_stage(
+            lifecycle,
+            stage=TraderLabStage.ECONOMIC_EVIDENCE,
+            reference=authority_input.economic_evidence,
             produced_at=authority_input.independent_validated_at,
         )
 
