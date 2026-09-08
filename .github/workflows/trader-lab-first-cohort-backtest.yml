@@ -9,6 +9,8 @@ on:
       - src/qore/infrastructure/trader_lab/first_cohort_backtest.py
       - src/qore/infrastructure/trader_lab/first_cohort_walk_forward.py
       - src/qore/infrastructure/trader_lab/first_cohort_multi_pair_walk_forward.py
+      - src/qore/infrastructure/trader_lab/first_cohort_failure_analysis.py
+      - src/qore/infrastructure/trader_lab/first_cohort_failure_analysis_aggregate.py
       - src/qore/infrastructure/traders/evaluators.py
       - src/qore/infrastructure/traders/instrument_binding.py
       - src/qore/infrastructure/traders/primitives.py
@@ -144,11 +146,7 @@ jobs:
               "limit-3bar-fill-24bar-hold-stop-first-v1"
           )
           assert [item["trader_code"] for item in payload["results"]] == [
-              "vt-01",
-              "vt-08",
-              "vt-09",
-              "vt-17",
-              "vt-31",
+              "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
           ]
           assert all(item["sample_size"] >= 0 for item in payload["results"])
           PY
@@ -168,17 +166,47 @@ jobs:
                   f"artifacts/first-cohort-backtest/{symbol}/walk-forward.json"
               ).read_text()
           )
+          assert payload["schema"] == "qore.trader_lab.first_cohort_walk_forward.v2"
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
           assert payload["symbol"] == symbol
           assert payload["in_sample_fraction"] == "0.70"
           assert payload["oos_fraction"] == "0.30"
           assert [item["trader_code"] for item in payload["results"]] == [
-              "vt-01",
-              "vt-08",
-              "vt-09",
-              "vt-17",
-              "vt-31",
+              "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
+          ]
+          assert all(
+              len(item["assessments"]) == item["assessed_configurations"]
+              for item in payload["results"]
+          )
+          PY
+      - name: Generate deterministic per-Trader failure analysis
+        run: |
+          python -m qore.infrastructure.trader_lab.first_cohort_failure_analysis \
+            "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/backtest.json" \
+            "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/walk-forward.json" \
+            > "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/failure-analysis.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          payload = json.loads(
+              Path(
+                  f"artifacts/first-cohort-backtest/{symbol}/failure-analysis.json"
+              ).read_text()
+          )
+          assert payload["schema"] == "qore.trader_lab.first_cohort_failure_analysis.v1"
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["research_only"] is True
+          assert payload["symbol"] == symbol
+          governance = payload["holdout_governance"]
+          assert governance["post_change_reuse_as_independent_holdout_prohibited"] is True
+          assert governance["new_previously_unseen_holdout_required_after_any_hypothesis_change"] is True
+          assert [item["trader_code"] for item in payload["results"]] == [
+              "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
           ]
           PY
       - name: Upload sanitized per-instrument research evidence
@@ -231,29 +259,51 @@ jobs:
           from pathlib import Path
 
           payload = json.loads(
-              Path(
-                  "artifacts/first-cohort-multi-pair/multi-pair-walk-forward.json"
-              ).read_text()
+              Path("artifacts/first-cohort-multi-pair/multi-pair-walk-forward.json").read_text()
           )
           assert payload["environment"] == "demo"
           assert payload["read_only"] is True
           assert payload["pair_count"] == 6
           assert payload["symbols"] == [
-              "AUDUSD",
-              "EURUSD",
-              "GBPUSD",
-              "USDCAD",
-              "USDJPY",
-              "XAUUSD",
+              "AUDUSD", "EURUSD", "GBPUSD", "USDCAD", "USDJPY", "XAUUSD"
           ]
           assert [item["trader_code"] for item in payload["results"]] == [
-              "vt-01",
-              "vt-08",
-              "vt-09",
-              "vt-17",
-              "vt-31",
+              "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
           ]
           assert 0 <= payload["robust_candidate_count"] <= 5
+          PY
+      - name: Aggregate six-instrument failure analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t analyses < <(
+            find artifacts/multi-pair -name failure-analysis.json -type f | sort
+          )
+          if [ "${#analyses[@]}" -ne 6 ]; then
+            echo "expected exactly six failure-analysis files" >&2
+            exit 5
+          fi
+          python -m qore.infrastructure.trader_lab.first_cohort_failure_analysis_aggregate \
+            artifacts/first-cohort-multi-pair/multi-pair-walk-forward.json \
+            "${analyses[@]}" \
+            > artifacts/first-cohort-multi-pair/failure-analysis-aggregate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/first-cohort-multi-pair/failure-analysis-aggregate.json").read_text()
+          )
+          assert payload["schema"] == (
+              "qore.trader_lab.first_cohort_failure_analysis_aggregate.v1"
+          )
+          assert payload["instrument_count"] == 6
+          assert [item["trader_code"] for item in payload["results"]] == [
+              "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
+          ]
+          assert payload["holdout_governance"][
+              "new_previously_unseen_holdout_required_after_any_hypothesis_change"
+          ] is True
           PY
       - name: Upload pooled six-instrument research evidence
         uses: actions/upload-artifact@v4
