@@ -11,21 +11,44 @@ import hashlib
 import json
 import re
 import sys
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
+from qore.infrastructure.trader_lab.cohort import FirstCohortTraderLabEntry
 from qore.infrastructure.trader_lab.first_cohort_failure_analysis import (
     FirstCohortFailureAnalysisError,
+)
+from qore.infrastructure.trader_lab.lifecycle import (
+    MANDATORY_STAGES,
+    TraderLabLifecycle,
+)
+from qore.infrastructure.trader_lab.promotion import (
+    TraderLabPromotionStatus,
+    evaluate_demo_eligibility,
 )
 
 _CODES = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
 _SYMBOLS = ("AUDUSD", "EURUSD", "GBPUSD", "USDCAD", "USDJPY", "XAUUSD")
 _SHA_PATTERN = re.compile(r"[0-9a-f]{40}")
+_ACCOUNT_PATTERN = re.compile(r"[0-9a-f]{64}")
 _SCHEMA = "qore.trader_lab.first_cohort_deep_dossier.v1"
 _COMPARATIVE_SCHEMA = "qore.trader_lab.first_cohort_comparative_report.v1"
 _HOLDOUT_SCHEMA = "qore.trader_lab.first_cohort_holdout_register.v1"
 _PROMOTION_SCHEMA = "qore.trader_lab.first_cohort_promotion_report.v1"
+_MINIMUM_EFFECTIVE_SECONDS = 730 * 24 * 60 * 60
+
+#: The 10 mandatory governed Trader Lab lifecycle stages, in canonical order.
+#: These are materialized only by the governed authority chain and are distinct
+#: from the descriptive research battery recorded under ``evaluation_battery``.
+_LIFECYCLE_STAGE_ORDER: tuple[str, ...] = tuple(stage.value for stage in MANDATORY_STAGES)
+
+#: Lifecycle stages governed by an owning authority with no in-repo self-mint.
+_EXTERNAL_GOVERNED_STAGES: frozenset[str] = frozenset(
+    {"stress", "risk_review", "cibo_review", "independent_validation"}
+)
 
 
 def _object(value: object, *, name: str) -> dict[str, object]:
@@ -56,6 +79,45 @@ def _boolean(value: object, *, name: str) -> bool:
     if type(value) is not bool:
         raise FirstCohortFailureAnalysisError(f"{name} must be bool")
     return value
+
+
+def _timestamp(value: object, *, name: str) -> datetime:
+    raw = _text(value, name=name)
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError as error:
+        raise FirstCohortFailureAnalysisError(f"{name} must be RFC3339") from error
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise FirstCohortFailureAnalysisError(f"{name} must be timezone-aware")
+    return parsed.astimezone(UTC)
+
+
+def _lifecycle_stage_statuses(
+    lifecycle: TraderLabLifecycle | None,
+) -> dict[str, str]:
+    """Map the 10 mandatory lifecycle stages to their actual governed status.
+
+    A research-only dossier (no lifecycle supplied) reports every stage as
+    ``not_supplied``: the research battery never materializes lifecycle stage
+    evidence. When a governed lifecycle is supplied, stages already completed are
+    ``completed``; external-governed stages (stress/Risk/CIBO/independent
+    validation) still missing after Monte Carlo are ``blocked_external`` (they
+    require an owning authority's issued proof); everything else is
+    ``not_started``. This never fabricates a ``completed`` authority stage.
+    """
+
+    if lifecycle is None:
+        return {stage: "not_supplied" for stage in _LIFECYCLE_STAGE_ORDER}
+    completed = {stage.value for stage in lifecycle.completed_stages}
+    statuses: dict[str, str] = {}
+    for stage in _LIFECYCLE_STAGE_ORDER:
+        if stage in completed:
+            statuses[stage] = "completed"
+        elif stage in _EXTERNAL_GOVERNED_STAGES and "monte_carlo" in completed:
+            statuses[stage] = "blocked_external"
+        else:
+            statuses[stage] = "not_started"
+    return statuses
 
 
 def _read(path: Path, *, name: str) -> dict[str, object]:
@@ -281,11 +343,56 @@ def _aggregate_payloads(
 
 
 def build_research_reports(
-    evidence_root: Path, aggregate_dir: Path, *, software_sha: str
+    evidence_root: Path,
+    aggregate_dir: Path,
+    *,
+    software_sha: str,
+    lifecycle_by_trader: Mapping[str, FirstCohortTraderLabEntry] | None = None,
 ) -> dict[str, dict[str, object]]:
-    """Join the complete experiment into five dossiers and three registers."""
+    """Join the complete experiment into five dossiers and three registers.
+
+    The research dossier is descriptive and cannot grant DEMO_ELIGIBLE. When
+    ``lifecycle_by_trader`` is supplied, the governed lifecycle and the canonical
+    ``evaluate_demo_eligibility`` decision are reflected per Trader; without it
+    (the research-only CLI) every governed lifecycle stage is reported
+    ``not_supplied`` and ``demo_eligible`` stays ``False``. No authority is ever
+    inferred from a research artifact.
+    """
     if _SHA_PATTERN.fullmatch(software_sha) is None:
         raise FirstCohortFailureAnalysisError("software_sha must be a lowercase Git SHA")
+    if lifecycle_by_trader is not None:
+        if not isinstance(lifecycle_by_trader, Mapping) or any(
+            type(key) is not str for key in lifecycle_by_trader
+        ):
+            raise FirstCohortFailureAnalysisError(
+                "lifecycle_by_trader must be a string-keyed mapping"
+            )
+        if not set(lifecycle_by_trader) <= set(_CODES):
+            raise FirstCohortFailureAnalysisError(
+                "lifecycle_by_trader keys must be first-cohort Trader codes"
+            )
+        for code, candidate_entry in lifecycle_by_trader.items():
+            if not isinstance(candidate_entry, FirstCohortTraderLabEntry):
+                raise FirstCohortFailureAnalysisError(
+                    "lifecycle_by_trader values must be FirstCohortTraderLabEntry"
+                )
+            if candidate_entry.trader_code.value != code:
+                raise FirstCohortFailureAnalysisError(
+                    f"lifecycle_by_trader[{code!r}] binds a mismatched Trader code"
+                )
+            bound_codes = tuple(
+                parameter.value
+                for parameter in candidate_entry.candidate.strategy_binding.manifest.parameters
+                if parameter.name == "trader.code"
+            )
+            if (
+                len(bound_codes) != 1
+                or type(bound_codes[0]) is not str
+                or bound_codes[0] != code
+            ):
+                raise FirstCohortFailureAnalysisError(
+                    f"lifecycle_by_trader[{code!r}] binds a mismatched Trader code"
+                )
     instruments = _instrument_payloads(evidence_root, software_sha=software_sha)
     aggregates = _aggregate_payloads(aggregate_dir, software_sha=software_sha)
     multi_rows = _rows(aggregates["multi-pair-walk-forward.json"], name="multi-pair")
@@ -313,16 +420,54 @@ def build_research_reports(
     accounts: set[str] = set()
     for symbol, payloads in sorted(instruments.items()):
         market = payloads["market-evidence.json"]
+        if _text(market.get("environment"), name="environment") != "demo":
+            raise FirstCohortFailureAnalysisError(
+                f"{symbol} market evidence must be DEMO"
+            )
+        if not _boolean(market.get("read_only"), name="read_only"):
+            raise FirstCohortFailureAnalysisError(
+                f"{symbol} market evidence must be read-only"
+            )
+        if _boolean(market.get("account_is_live"), name="account_is_live"):
+            raise FirstCohortFailureAnalysisError(
+                f"{symbol} LIVE account evidence is prohibited"
+            )
+        if not _boolean(
+            market.get("trading_permission_verified"),
+            name="trading_permission_verified",
+        ):
+            raise FirstCohortFailureAnalysisError(
+                f"{symbol} DEMO trading permission must be verified"
+            )
         account = _text(market.get("account_fingerprint"), name="account_fingerprint")
+        if _ACCOUNT_PATTERN.fullmatch(account) is None:
+            raise FirstCohortFailureAnalysisError(
+                f"{symbol} account fingerprint must be 64 lowercase hex"
+            )
         accounts.add(account)
         coverage = _object(market.get("coverage"), name="coverage")
         actual: dict[str, object] = {}
         for period in ("M5", "M15", "H4"):
             item = _object(coverage.get(period), name=f"{period} coverage")
             seconds = _integer(item.get("span_seconds"), name=f"{period} span_seconds")
-            if seconds < 730 * 24 * 60 * 60:
+            first = _timestamp(
+                item.get("first_opened_at"), name=f"{period} first_opened_at"
+            )
+            last = _timestamp(
+                item.get("last_closed_at"), name=f"{period} last_closed_at"
+            )
+            if last <= first:
+                raise FirstCohortFailureAnalysisError(
+                    f"{symbol} {period} coverage boundaries inverted"
+                )
+            actual_seconds = int((last - first).total_seconds())
+            if actual_seconds < _MINIMUM_EFFECTIVE_SECONDS:
                 raise FirstCohortFailureAnalysisError(
                     f"{symbol} {period} has less than 730 effective days"
+                )
+            if actual_seconds != seconds:
+                raise FirstCohortFailureAnalysisError(
+                    f"{symbol} {period} coverage span mismatch"
                 )
             actual[period] = item
         coverages[symbol] = actual
@@ -351,7 +496,7 @@ def build_research_reports(
             raise FirstCohortFailureAnalysisError("aggregate evidence account mismatch")
 
     dossiers: dict[str, dict[str, object]] = {}
-    promotion_states: dict[str, object] = {}
+    promotion_states: dict[str, dict[str, object]] = {}
     for code in _CODES:
         aggregate = aggregate_rows[code]
         default = _profile(aggregate, default=True)
@@ -360,14 +505,48 @@ def build_research_reports(
         trader_failure = failure_rows[code]
         ordered_returns = [value for _at, value in sorted(returns[code])]
         robust = _boolean(multi.get("robust_pass"), name="robust_pass")
-        blockers = [
-            "risk_review_not_supplied",
-            "cibo_review_not_supplied",
-            "independent_validation_not_supplied",
-            "economic_evidence_authority_not_supplied",
-        ]
-        if not robust:
-            blockers.insert(0, "multi_market_research_gate_failed")
+        entry = lifecycle_by_trader.get(code) if lifecycle_by_trader is not None else None
+        lifecycle_stages = _lifecycle_stage_statuses(
+            entry.lifecycle if entry is not None else None
+        )
+        if entry is None:
+            blockers = [
+                "risk_review_not_supplied",
+                "cibo_review_not_supplied",
+                "independent_validation_not_supplied",
+                "economic_evidence_authority_not_supplied",
+            ]
+            if not robust:
+                blockers.insert(0, "multi_market_research_gate_failed")
+            promotion: dict[str, object] = {
+                "state": "research_only",
+                "robust_research_pass": robust,
+                "demo_eligible": False,
+                "blockers": blockers,
+                "recommendation": (
+                    "retain unchanged for the remaining governed authorities"
+                    if robust
+                    else "investigate registered hypotheses; require fresh holdout after change"
+                ),
+            }
+        else:
+            decision = evaluate_demo_eligibility(
+                entry.lifecycle, economic_evidence=entry.economic_evidence
+            )
+            eligible = decision.status is TraderLabPromotionStatus.DEMO_ELIGIBLE
+            blockers = list(decision.reasons)
+            if not eligible and not blockers:
+                blockers.append(f"promotion_status_{decision.status.value}")
+            promotion = {
+                "state": entry.lifecycle.state.value,
+                "promotion_status": decision.status.value,
+                "robust_research_pass": robust,
+                "demo_eligible": eligible,
+                "blockers": tuple(blockers),
+                "recommendation": (
+                    "eligible_for_demo" if eligible else "blocked_see_blockers"
+                ),
+            }
         dossiers[code] = {
             "schema": _SCHEMA,
             "trader_code": code,
@@ -413,23 +592,35 @@ def build_research_reports(
                 ),
             },
             "evaluation_battery": {
-                "replay": "completed_by_closed_bar_characterization",
+                "closed_bar_characterization": "completed",
                 "backtest": "completed",
                 "in_sample": "completed",
                 "walk_forward": "completed",
                 "untouched_oos": "completed_then_consumed_for_research",
                 "multi_market": "completed",
                 "multi_regime": "completed_past_only",
-                "stress": "completed",
+                "stressed_oos": "completed",
                 "parameter_perturbation": "completed",
                 "failure_analysis": "completed",
-                "monte_carlo": (
+                "descriptive_monte_carlo": (
                     "completed" if len(ordered_returns) >= 30 else "not_applicable_underpowered"
                 ),
-                "risk_review": "not_supplied",
-                "cibo_review": "not_supplied",
-                "independent_validation": "not_supplied",
-                "economic_evidence": "not_supplied",
+            },
+            "lifecycle_stages": lifecycle_stages,
+            "research_vs_lifecycle": {
+                "research_battery_completed": True,
+                "lifecycle_materialized": entry is not None,
+                "note": (
+                    "evaluation_battery records the descriptive research battery "
+                    "(closed-bar backtest, walk-forward, characterization, failure "
+                    "analysis, descriptive Monte Carlo). lifecycle_stages records the "
+                    "10 mandatory governed Trader Lab stages (RESEARCH -> REPLAY -> "
+                    "FAST_FORWARD -> OOS -> STRESS -> MONTE_CARLO -> RISK_REVIEW -> "
+                    "CIBO_REVIEW -> INDEPENDENT_VALIDATION -> ECONOMIC_EVIDENCE), "
+                    "materialized only by the governed authority chain. The formal "
+                    "REPLAY gate requires event-level REPLAY_CHRONOLOGY evidence and "
+                    "is distinct from the closed-bar research battery."
+                ),
             },
             "evidence_limitations": [
                 "OHLC cannot establish intrabar order; stop-first policy is conservative",
@@ -437,19 +628,9 @@ def build_research_reports(
                 "research observation consumes current OOS for any derived change",
                 "correlation is not treated as causal proof",
             ],
-            "promotion": {
-                "state": "research_only",
-                "robust_research_pass": robust,
-                "demo_eligible": False,
-                "blockers": blockers,
-                "recommendation": (
-                    "retain unchanged for the remaining governed authorities"
-                    if robust
-                    else "investigate registered hypotheses; require fresh holdout after change"
-                ),
-            },
+            "promotion": promotion,
         }
-        promotion_states[code] = dossiers[code]["promotion"]
+        promotion_states[code] = promotion
 
     comparative = {
         "schema": _COMPARATIVE_SCHEMA,
@@ -493,7 +674,11 @@ def build_research_reports(
     promotion = {
         "schema": _PROMOTION_SCHEMA,
         "software_sha": software_sha,
-        "demo_eligible_count": 0,
+        "demo_eligible_count": sum(
+            1
+            for state in promotion_states.values()
+            if state.get("demo_eligible") is True
+        ),
         "authority_rule": (
             "research artifacts cannot grant DEMO_ELIGIBLE; ECONOMIC_EVIDENCE is a distinct "
             "mandatory lifecycle stage after INDEPENDENT_VALIDATION"
