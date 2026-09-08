@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -81,7 +82,14 @@ def _write_inputs(tmp_path: Path) -> tuple[Path, Path]:
                 "trader_code": code,
                 "assessed_configurations": 2,
                 "selected": assessment,
-                "assessments": [assessment, {**assessment, "config_fingerprint": "cfg2", "in_sample_pass": False}],
+                "assessments": [
+                    assessment,
+                    {
+                        **assessment,
+                        "config_fingerprint": "cfg2",
+                        "in_sample_pass": False,
+                    },
+                ],
             }
         )
     backtest = {
@@ -111,21 +119,29 @@ def _write_inputs(tmp_path: Path) -> tuple[Path, Path]:
     return backtest_path, walk_path
 
 
+def _dict(value: object) -> dict[str, object]:
+    assert isinstance(value, dict)
+    return cast(dict[str, object], value)
+
+
+def _list(value: object) -> list[object]:
+    assert isinstance(value, list)
+    return cast(list[object], value)
+
+
 def test_failure_analysis_records_causal_signals_and_holdout_governance(tmp_path: Path) -> None:
     backtest_path, walk_path = _write_inputs(tmp_path)
 
     payload = run_failure_analysis(backtest_path, walk_path)
 
     assert payload["schema"] == "qore.trader_lab.first_cohort_failure_analysis.v1"
-    governance = payload["holdout_governance"]
-    assert isinstance(governance, dict)
+    governance = _dict(payload["holdout_governance"])
     assert governance["post_change_reuse_as_independent_holdout_prohibited"] is True
-    rows = payload["results"]
-    assert isinstance(rows, list)
-    first = rows[0]
+    first = _dict(_list(payload["results"])[0])
     assert first["trader_code"] == "vt-01"
     assert first["failure_stage"] == "oos"
-    assert set(first["diagnostic_signals"]) >= {
+    signals = set(cast(list[str], first["diagnostic_signals"]))
+    assert signals >= {
         "sparse_activity",
         "poor_fill_conversion",
         "negative_expectancy",
@@ -134,14 +150,14 @@ def test_failure_analysis_records_causal_signals_and_holdout_governance(tmp_path
         "oos_collapse",
         "exit_stop_dominance",
     }
-    default = first["default_configuration"]
+    default = _dict(first["default_configuration"])
     assert default["max_losing_streak"] == 10
     assert default["exit_reason_counts"] == {"stop": 10}
 
 
 def test_failure_analysis_requires_v2_surface(tmp_path: Path) -> None:
     backtest_path, walk_path = _write_inputs(tmp_path)
-    walk = json.loads(walk_path.read_text(encoding="utf-8"))
+    walk = cast(dict[str, object], json.loads(walk_path.read_text(encoding="utf-8")))
     walk["schema"] = "qore.trader_lab.first_cohort_walk_forward.v1"
     walk_path.write_text(json.dumps(walk), encoding="utf-8")
 
@@ -154,8 +170,10 @@ def test_failure_analysis_aggregate_counts_recurring_cross_market_signals(tmp_pa
     analyses: list[Path] = []
     symbols = ("AUDUSD", "EURUSD", "GBPUSD", "USDCAD", "USDJPY", "XAUUSD")
     for symbol in symbols:
-        backtest = json.loads(backtest_path.read_text(encoding="utf-8"))
-        walk = json.loads(walk_path.read_text(encoding="utf-8"))
+        backtest = cast(
+            dict[str, object], json.loads(backtest_path.read_text(encoding="utf-8"))
+        )
+        walk = cast(dict[str, object], json.loads(walk_path.read_text(encoding="utf-8")))
         backtest["symbol"] = symbol
         walk["symbol"] = symbol
         bp = tmp_path / f"{symbol}-backtest.json"
@@ -167,7 +185,7 @@ def test_failure_analysis_aggregate_counts_recurring_cross_market_signals(tmp_pa
         ap.write_text(json.dumps(analysis), encoding="utf-8")
         analyses.append(ap)
 
-    multi = {
+    multi: dict[str, object] = {
         "schema": "qore.trader_lab.first_cohort_multi_pair_walk_forward.v1",
         "results": [
             {
@@ -188,7 +206,8 @@ def test_failure_analysis_aggregate_counts_recurring_cross_market_signals(tmp_pa
     payload = run_failure_analysis_aggregate(multi_path, tuple(analyses))
 
     assert payload["instrument_count"] == 6
-    first = payload["results"][0]
+    first = _dict(_list(payload["results"])[0])
     assert first["research_disposition"] == "failure_analysis_required"
-    assert first["diagnostic_signal_counts"]["oos_collapse"] == 6
-    assert "oos_collapse" in first["recurring_signals"]
+    counts = _dict(first["diagnostic_signal_counts"])
+    assert counts["oos_collapse"] == 6
+    assert "oos_collapse" in cast(list[str], first["recurring_signals"])
