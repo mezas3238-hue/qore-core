@@ -104,6 +104,17 @@ def _evidence_ref(snapshot: OhlcSnapshot) -> DemoTradingEvidenceRef:
     return DemoTradingEvidenceRef(f"market:ohlc:{_snapshot_digest(snapshot)}")
 
 
+def market_snapshot_evidence_ref(snapshot: OhlcSnapshot) -> DemoTradingEvidenceRef:
+    """Expose the canonical evidence identity used by instrument-bound evaluation."""
+
+    if type(snapshot) is not OhlcSnapshot:
+        raise InstrumentBoundDemoTradingValidationError(
+            "market evidence reference requires exact OhlcSnapshot"
+        )
+    snapshot.__post_init__()
+    return _evidence_ref(snapshot)
+
+
 def _market_evidence_digest(
     *,
     instrument: Instrument,
