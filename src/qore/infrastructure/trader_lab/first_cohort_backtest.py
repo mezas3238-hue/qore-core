@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
+from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -55,6 +56,7 @@ _LIMIT_FILL_BARS = 3
 _MAX_HOLD_BARS = 24
 _HISTORY_LIMIT = 64
 _PERIOD_SECONDS = {"M1": 60, "M5": 300, "M15": 900, "H4": 14_400}
+_REQUIRED_RESEARCH_PERIODS = ("M5", "M15", "H4")
 _CODES = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
 _EXECUTION_PERIOD = {
     "vt-01": "M5",
@@ -296,10 +298,13 @@ def _load(
     for period in _PERIOD_SECONDS:
         rows = _array(periods.get(period), field_name=f"period {period}")
         snapshots = tuple(_snapshot(row, period=period, instrument=instrument) for row in rows)
-        if not snapshots:
+        if period in _REQUIRED_RESEARCH_PERIODS and not snapshots:
             raise FirstCohortBacktestError(f"period {period} is empty")
         if snapshots != tuple(sorted(snapshots, key=lambda bar: bar.closed_at)):
             raise FirstCohortBacktestError(f"period {period} is not chronological")
+        identities = tuple((bar.opened_at, bar.closed_at) for bar in snapshots)
+        if len(set(identities)) != len(identities):
+            raise FirstCohortBacktestError(f"period {period} contains duplicate bars")
         series[period] = snapshots
     return series, fingerprint, symbol, checked_at
 
@@ -316,8 +321,17 @@ def _history(
 
 
 def _h4_context(h4: tuple[OhlcSnapshot, ...], *, as_of: datetime) -> tuple[OhlcSnapshot, ...]:
-    indices = [index for index, bar in enumerate(h4) if bar.closed_at <= as_of]
-    return () if not indices else _history(h4, indices[-1], limit=32)
+    """Return the exact prior H4 context in O(log N) lookup time.
+
+    ``h4`` is validated as chronological by ``_load``.  ``bisect_right`` with
+    the closed-at key therefore finds the same final eligible index as the
+    former full linear scan, including an H4 candle closing exactly at
+    ``as_of``.  ``_history`` continues to enforce the original contiguous-tail
+    semantics, so this is a performance change only.
+    """
+
+    insertion = bisect_right(h4, as_of, key=lambda bar: bar.closed_at)
+    return () if insertion == 0 else _history(h4, insertion - 1, limit=32)
 
 
 def _touches(bar: OhlcSnapshot, price: Decimal) -> bool:

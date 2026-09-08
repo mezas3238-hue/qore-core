@@ -43,10 +43,22 @@ def _metric(sample: int, mean: str, win: str) -> dict[str, object]:
     }
 
 
-def _assessment(*, oos_pass: bool, stress_pass: bool) -> dict[str, object]:
+def _assessment(
+    code: str,
+    *,
+    value: int = 2,
+    oos_pass: bool,
+    stress_pass: bool,
+) -> dict[str, object]:
+    parameter_name = {
+        "vt-01": "sweep_strength",
+        "vt-08": "range_length",
+        "vt-09": "swing_strength",
+        "vt-31": "sweep_strength",
+    }.get(code)
     return {
-        "parameters": {"sweep_strength": 2},
-        "config_fingerprint": "cfg",
+        "parameters": {} if parameter_name is None else {parameter_name: value},
+        "config_fingerprint": f"cfg-{code}-{value}",
         "in_sample": _metric(40, "0.001", "0.60"),
         "in_sample_pass": True,
         "oos": _metric(12, "-0.001", "0.20"),
@@ -76,20 +88,26 @@ def _write_inputs(tmp_path: Path) -> tuple[Path, Path]:
                 "trades": trades,
             }
         )
-        assessment = _assessment(oos_pass=False, stress_pass=False)
+        assessment = _assessment(code, oos_pass=False, stress_pass=False)
+        assessments = [assessment]
+        if code != "vt-17":
+            assessments.append(
+                {
+                    **_assessment(
+                        code,
+                        value=3,
+                        oos_pass=False,
+                        stress_pass=False,
+                    ),
+                    "in_sample_pass": False,
+                }
+            )
         walk_results.append(
             {
                 "trader_code": code,
-                "assessed_configurations": 2,
+                "assessed_configurations": len(assessments),
                 "selected": assessment,
-                "assessments": [
-                    assessment,
-                    {
-                        **assessment,
-                        "config_fingerprint": "cfg2",
-                        "in_sample_pass": False,
-                    },
-                ],
+                "assessments": assessments,
             }
         )
     backtest = {
@@ -146,13 +164,16 @@ def test_failure_analysis_records_causal_signals_and_holdout_governance(tmp_path
         "poor_fill_conversion",
         "negative_expectancy",
         "low_hit_rate",
-        "parameter_instability",
         "oos_collapse",
         "exit_stop_dominance",
     }
+    assert "parameter_instability" in signals
     default = _dict(first["default_configuration"])
     assert default["max_losing_streak"] == 10
     assert default["exit_reason_counts"] == {"stop": 10}
+    surface = _dict(first["parameter_surface"])
+    robustness = _dict(surface["robustness"])
+    assert robustness["classification"] == "narrow_optimum"
 
 
 def test_failure_analysis_requires_v2_surface(tmp_path: Path) -> None:

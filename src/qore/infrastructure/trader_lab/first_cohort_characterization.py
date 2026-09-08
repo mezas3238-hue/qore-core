@@ -23,10 +23,10 @@ from typing import cast
 
 from qore.infrastructure.market_data import OhlcSnapshot
 from qore.infrastructure.trader_lab.first_cohort_backtest import (
-    FirstCohortBacktestError,
-    FirstCohortBacktestTrade,
     _EXECUTION_PERIOD,
     _PERIOD_SECONDS,
+    FirstCohortBacktestError,
+    FirstCohortBacktestTrade,
     _h4_context,
     _history,
     _load,
@@ -35,6 +35,7 @@ from qore.infrastructure.trader_lab.first_cohort_backtest import (
 from qore.infrastructure.trader_lab.first_cohort_walk_forward import (
     _ConfiguredEvaluator,
     _fingerprint,
+    _grids,
     _parameters,
 )
 from qore.infrastructure.traders.contracts import (
@@ -62,6 +63,72 @@ _CODES = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
 _TREND_LOOKBACK = 20
 _VOLATILITY_RECENT = 10
 _VOLATILITY_BASELINE = 40
+_METHODOLOGY_COMPONENTS: dict[str, dict[str, object]] = {
+    "vt-01": {
+        "ordered_components": [
+            "ny-session",
+            "swing-and-liquidity-sweep",
+            "false-break",
+            "fvg-confirmation",
+            "fvg-midpoint-entry",
+            "swept-level-invalidation",
+            "two-r-target",
+        ],
+        "observable_abstentions": ["no-session", "no-sweep"],
+        "resolution_limit": (
+            "production evaluator intentionally coalesces swing, false-break, FVG, and "
+            "geometry rejection into no-sweep"
+        ),
+    },
+    "vt-08": {
+        "ordered_components": [
+            "h4-context",
+            "h4-accumulation-manipulation-distribution",
+            "structural-bias",
+            "m5-fvg-confirmation",
+            "manipulation-extreme-invalidation",
+            "opposite-h4-range-target",
+        ],
+        "observable_abstentions": ["no-structure", "no-fvg"],
+    },
+    "vt-09": {
+        "ordered_components": [
+            "swing-construction",
+            "turtle-soup-false-break",
+            "reversal-entry",
+            "swing-extreme-invalidation",
+            "two-r-target",
+        ],
+        "observable_abstentions": ["insufficient-evidence", "no-false-break"],
+    },
+    "vt-17": {
+        "ordered_components": [
+            "ny-session",
+            "ninety-minute-cycle",
+            "cycle-range-sweep",
+            "reversal-entry",
+            "cycle-extreme-invalidation",
+            "two-r-target",
+        ],
+        "observable_abstentions": ["no-session", "no-cycle", "no-sweep"],
+    },
+    "vt-31": {
+        "ordered_components": [
+            "silver-bullet-window",
+            "swing-and-liquidity-sweep",
+            "false-break",
+            "fvg-confirmation",
+            "fvg-midpoint-entry",
+            "swept-level-invalidation",
+            "two-r-target",
+        ],
+        "observable_abstentions": ["window-closed", "no-sweep"],
+        "resolution_limit": (
+            "production evaluator intentionally coalesces swing, false-break, FVG, and "
+            "geometry rejection into no-sweep"
+        ),
+    },
+}
 
 
 class FirstCohortCharacterizationError(FirstCohortBacktestError):
@@ -89,6 +156,12 @@ def _text(value: object, *, field_name: str) -> str:
 def _strict_int(value: object, *, field_name: str) -> int:
     if type(value) is not int:
         raise FirstCohortCharacterizationError(f"{field_name} must be an int")
+    return value
+
+
+def _strict_bool(value: object, *, field_name: str) -> bool:
+    if type(value) is not bool:
+        raise FirstCohortCharacterizationError(f"{field_name} must be bool")
     return value
 
 
@@ -155,12 +228,24 @@ class _Bucket:
     setup_count: int = 0
     filled_count: int = 0
     returns: list[Decimal] = field(default_factory=list)
+    mfe: list[Decimal] = field(default_factory=list)
+    mae: list[Decimal] = field(default_factory=list)
+    exits: Counter[str] = field(default_factory=Counter)
 
-    def record(self, trade: FirstCohortBacktestTrade | None) -> None:
+    def record(
+        self,
+        trade: FirstCohortBacktestTrade | None,
+        *,
+        mfe: Decimal = Decimal(0),
+        mae: Decimal = Decimal(0),
+    ) -> None:
         self.setup_count += 1
         if trade is not None:
             self.filled_count += 1
             self.returns.append(trade.return_rate)
+            self.mfe.append(mfe)
+            self.mae.append(mae)
+            self.exits[trade.exit_reason] += 1
 
     def payload(self) -> dict[str, object]:
         return {
@@ -173,6 +258,9 @@ class _Bucket:
                 else "0"
             ),
             "outcomes": _return_metrics(self.returns),
+            "exit_reason_counts": dict(sorted(self.exits.items())),
+            "close_path_mfe_fraction": _summary(self.mfe),
+            "close_path_mae_fraction": _summary(self.mae),
         }
 
 
@@ -185,7 +273,10 @@ def _trend_regime(history: tuple[OhlcSnapshot, ...]) -> str:
         return "insufficient-history"
     closes = _close_values(history[-_TREND_LOOKBACK:])
     path = sum(
-        (abs(current - previous) for previous, current in zip(closes, closes[1:], strict=True)),
+        (
+            abs(current - previous)
+            for previous, current in zip(closes, closes[1:], strict=False)
+        ),
         Decimal(0),
     )
     if path == 0:
@@ -249,12 +340,16 @@ def _close_excursions(
     return max(favorable, Decimal(0)), max(adverse, Decimal(0))
 
 
-def _evaluator_from_selected(
+def _evaluator_from_configuration(
     trader_code: str,
-    selected: dict[str, object],
+    configuration: dict[str, object],
 ) -> _ConfiguredEvaluator:
-    parameters = _object(selected.get("parameters"), field_name="selected parameters")
+    parameters = _object(
+        configuration.get("parameters"), field_name="configuration parameters"
+    )
     if trader_code == "vt-01":
+        if set(parameters) != {"sweep_strength"}:
+            raise FirstCohortCharacterizationError("VT-01 parameters changed")
         return cast(
             _ConfiguredEvaluator,
             Vt01NyPrecisionCore(
@@ -264,6 +359,8 @@ def _evaluator_from_selected(
             ),
         )
     if trader_code == "vt-08":
+        if set(parameters) != {"range_length"}:
+            raise FirstCohortCharacterizationError("VT-08 parameters changed")
         return cast(
             _ConfiguredEvaluator,
             Vt08Crt4hAmd(
@@ -273,6 +370,8 @@ def _evaluator_from_selected(
             ),
         )
     if trader_code == "vt-09":
+        if set(parameters) != {"swing_strength"}:
+            raise FirstCohortCharacterizationError("VT-09 parameters changed")
         return cast(
             _ConfiguredEvaluator,
             Vt09TurtleSoup(
@@ -286,6 +385,8 @@ def _evaluator_from_selected(
             raise FirstCohortCharacterizationError("VT-17 selected parameters must be empty")
         return cast(_ConfiguredEvaluator, Vt17QtScalper())
     if trader_code == "vt-31":
+        if set(parameters) != {"sweep_strength"}:
+            raise FirstCohortCharacterizationError("VT-31 parameters changed")
         return cast(
             _ConfiguredEvaluator,
             Vt31SilverBullet(
@@ -297,12 +398,31 @@ def _evaluator_from_selected(
     raise FirstCohortCharacterizationError("unknown first-cohort Trader code")
 
 
+def _methodology_payload(evaluator: _ConfiguredEvaluator) -> dict[str, object]:
+    if not isinstance(
+        evaluator,
+        (Vt01NyPrecisionCore, Vt08Crt4hAmd, Vt09TurtleSoup, Vt17QtScalper, Vt31SilverBullet),
+    ):
+        raise FirstCohortCharacterizationError("unsupported first-cohort evaluator")
+    methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
+    return {
+        "trader_version": evaluator.version,
+        "methodology_id": methodology_id.value,
+        "methodology_version": methodology_version.value,
+        "methodology_fingerprint": methodology_fingerprint.value,
+        "timeframe": evaluator.timeframe,
+        "session": evaluator.session,
+    }
+
+
 def _profile_payload(
     *,
     label: str,
     evaluator: _ConfiguredEvaluator,
     trader_code: str,
     series: dict[str, tuple[OhlcSnapshot, ...]],
+    selected_by_in_sample: bool,
+    walk_forward_assessment: dict[str, object],
 ) -> dict[str, object]:
     execution = series[_EXECUTION_PERIOD[trader_code]]
     period_seconds = _PERIOD_SECONDS[_EXECUTION_PERIOD[trader_code]]
@@ -311,6 +431,7 @@ def _profile_payload(
     }
     decision_counts: Counter[str] = Counter()
     abstain_reasons: Counter[str] = Counter()
+    evaluation_failure_reasons: Counter[str] = Counter()
     side_counts: Counter[str] = Counter()
     setup_reasons: Counter[str] = Counter()
     exit_reasons: Counter[str] = Counter()
@@ -327,11 +448,20 @@ def _profile_payload(
     bars_to_exit: list[Decimal] = []
     close_mfe: list[Decimal] = []
     close_mae: list[Decimal] = []
+    risk_normalized_mfe: list[Decimal] = []
+    risk_normalized_mae: list[Decimal] = []
+    mfe_before_stop: list[Decimal] = []
+    mae_before_target: list[Decimal] = []
+    setup_records: list[dict[str, object]] = []
     trend_buckets: dict[str, _Bucket] = {}
     volatility_buckets: dict[str, _Bucket] = {}
     hour_buckets: dict[str, _Bucket] = {}
     weekday_buckets: dict[str, _Bucket] = {}
     quartile_buckets: dict[str, _Bucket] = {}
+    month_buckets: dict[str, _Bucket] = {}
+    year_buckets: dict[str, _Bucket] = {}
+    session_buckets: dict[str, _Bucket] = {}
+    side_buckets: dict[str, _Bucket] = {}
 
     for index in range(len(execution) - 1):
         signal_bar = execution[index]
@@ -351,6 +481,7 @@ def _profile_payload(
         )
         if isinstance(evaluated, Failure):
             evaluation_failures += 1
+            evaluation_failure_reasons[type(evaluated.error).__name__] += 1
             continue
         output = evaluated.value.trader_output
         decision_counts[output.decision.value] += 1
@@ -373,6 +504,15 @@ def _profile_payload(
             reward_risk_multiples.append(reward / risk)
         entry_offsets.append(abs(entry - Decimal(str(signal_bar.close))) / entry)
 
+        trend = _trend_regime(history)
+        volatility = _volatility_regime(history)
+        hour = f"{as_of.hour:02d}"
+        weekday = str(as_of.weekday())
+        quartile = f"q{min(4, (index * 4) // max(1, len(execution)) + 1)}"
+        month = f"{as_of.month:02d}"
+        year = str(as_of.year)
+        session = output.session
+
         trade, _consumed = _model_trade(
             trader_code=trader_code,
             series=execution,
@@ -382,6 +522,8 @@ def _profile_payload(
             stop=setup.invalidation_price,
             target=setup.take_profit_price,
         )
+        favorable = Decimal(0)
+        adverse = Decimal(0)
         if trade is not None:
             filled_count += 1
             returns.append(trade.return_rate)
@@ -400,33 +542,90 @@ def _profile_payload(
             favorable, adverse = _close_excursions(trade, execution, closed_index)
             close_mfe.append(favorable)
             close_mae.append(adverse)
+            risk_fraction = risk / entry
+            if risk_fraction > 0:
+                risk_normalized_mfe.append(favorable / risk_fraction)
+                risk_normalized_mae.append(adverse / risk_fraction)
+            if trade.exit_reason == "stop":
+                mfe_before_stop.append(favorable)
+            if trade.exit_reason == "target":
+                mae_before_target.append(adverse)
 
-        trend = _trend_regime(history)
-        volatility = _volatility_regime(history)
-        hour = f"{as_of.hour:02d}"
-        weekday = str(as_of.weekday())
-        quartile = f"q{min(4, (index * 4) // max(1, len(execution)) + 1)}"
+        setup_records.append(
+            {
+                "signal_at": as_of.isoformat(),
+                "side": setup.side.value,
+                "entry_price": format(entry, "f"),
+                "signal_close": format(Decimal(str(signal_bar.close)), "f"),
+                "entry_offset_from_signal_close_fraction": format(
+                    abs(entry - Decimal(str(signal_bar.close))) / entry, "f"
+                ),
+                "stop_distance": format(risk, "f"),
+                "target_distance": format(reward, "f"),
+                "risk_fraction": format(risk / entry, "f"),
+                "reward_fraction": format(reward / entry, "f"),
+                "reward_risk_multiple": format(reward / risk, "f"),
+                "setup_reason": setup.entry_reason,
+                "timeframe": output.timeframe,
+                "session": session,
+                "trend_regime": trend,
+                "volatility_regime": volatility,
+                "filled": trade is not None,
+                "fill_at": None if trade is None else trade.filled_at.isoformat(),
+                "exit_at": None if trade is None else trade.exited_at.isoformat(),
+                "exit_reason": None if trade is None else trade.exit_reason,
+                "return_rate": None if trade is None else format(trade.return_rate, "f"),
+                "close_path_mfe_fraction": format(favorable, "f"),
+                "close_path_mae_fraction": format(adverse, "f"),
+            }
+        )
         for buckets, key in (
             (trend_buckets, trend),
             (volatility_buckets, volatility),
             (hour_buckets, hour),
             (weekday_buckets, weekday),
             (quartile_buckets, quartile),
+            (month_buckets, month),
+            (year_buckets, year),
+            (session_buckets, session),
+            (side_buckets, setup.side.value),
         ):
-            buckets.setdefault(key, _Bucket()).record(trade)
+            buckets.setdefault(key, _Bucket()).record(
+                trade, mfe=favorable, mae=adverse
+            )
 
     evaluated_count = sum(decision_counts.values())
+    opportunity_count = max(0, len(execution) - 1)
     return {
         "profile": label,
+        "selected_by_in_sample_only": selected_by_in_sample,
         "config_fingerprint": _fingerprint(evaluator),
         "parameters": dict(_parameters(evaluator)),
+        "methodology_identity": _methodology_payload(evaluator),
+        "walk_forward_assessment": walk_forward_assessment,
         "execution_period": _EXECUTION_PERIOD[trader_code],
         "execution_bar_count": len(execution),
+        "decision_opportunity_count": opportunity_count,
+        "evaluable_bar_count": opportunity_count - context_unavailable,
         "evaluated_bar_count": evaluated_count,
         "context_unavailable_count": context_unavailable,
         "evaluation_failure_count": evaluation_failures,
+        "evaluation_failure_reason_counts": dict(
+            sorted(evaluation_failure_reasons.items())
+        ),
         "decision_counts": dict(sorted(decision_counts.items())),
         "abstain_reason_counts": dict(sorted(abstain_reasons.items())),
+        "decision_funnel": {
+            "execution_bars": len(execution),
+            "decision_opportunities": opportunity_count,
+            "context_unavailable": context_unavailable,
+            "evaluable_bars": opportunity_count - context_unavailable,
+            "evaluation_failures": evaluation_failures,
+            "abstain": decision_counts.get(DemoTradingDecision.ABSTAIN.value, 0),
+            "setup": setup_count,
+            "filled": filled_count,
+            "winner": sum(value > 0 for value in returns),
+        },
         "setup_count": setup_count,
         "filled_setup_count": filled_count,
         "unfilled_setup_count": setup_count - filled_count,
@@ -438,6 +637,17 @@ def _profile_payload(
         "side_counts": dict(sorted(side_counts.items())),
         "setup_reason_counts": dict(sorted(setup_reasons.items())),
         "exit_reason_counts": dict(sorted(exit_reasons.items())),
+        "execution_model_diagnostics": {
+            "policy_id": "limit-3bar-fill-24bar-hold-stop-first-v1",
+            "setups_exposed_to_limit_fill": setup_count,
+            "unfilled_within_three_bars": setup_count - filled_count,
+            "filled_within_three_bars": filled_count,
+            "maximum_hold_exit_count": exit_reasons.get("time_exit", 0),
+            "gap_exit_count": exit_reasons.get("gap_exit", 0),
+            "stop_exit_count": exit_reasons.get("stop", 0),
+            "target_exit_count": exit_reasons.get("target", 0),
+            "causal_alternative_requires_versioned_experiment": True,
+        },
         "outcomes": _return_metrics(returns),
         "max_losing_streak": _max_losing_streak(returns),
         "geometry": {
@@ -453,8 +663,14 @@ def _profile_payload(
         "close_path_excursions": {
             "max_favorable_excursion_fraction": _summary(close_mfe),
             "max_adverse_excursion_fraction": _summary(close_mae),
+            "mfe_before_stop_fraction": _summary(mfe_before_stop),
+            "mae_before_target_fraction": _summary(mae_before_target),
+            "risk_normalized_mfe": _summary(risk_normalized_mfe),
+            "risk_normalized_mae": _summary(risk_normalized_mae),
             "measurement": "closed-bar-path; no intrabar ordering inferred",
+            "same_bar_stop_target_policy": "stop-first-conservative",
         },
+        "setups": setup_records,
         "by_trend_regime": {
             key: bucket.payload() for key, bucket in sorted(trend_buckets.items())
         },
@@ -469,6 +685,18 @@ def _profile_payload(
         },
         "by_chronological_quartile": {
             key: bucket.payload() for key, bucket in sorted(quartile_buckets.items())
+        },
+        "by_calendar_month": {
+            key: bucket.payload() for key, bucket in sorted(month_buckets.items())
+        },
+        "by_calendar_year": {
+            key: bucket.payload() for key, bucket in sorted(year_buckets.items())
+        },
+        "by_session": {
+            key: bucket.payload() for key, bucket in sorted(session_buckets.items())
+        },
+        "by_side": {
+            key: bucket.payload() for key, bucket in sorted(side_buckets.items())
         },
     }
 
@@ -494,6 +722,8 @@ def run_characterization(market_path: Path, walk_forward_path: Path) -> dict[str
     for item in walk_rows:
         row = _object(item, field_name="walk-forward result")
         code = _text(row.get("trader_code"), field_name="trader_code")
+        if code in walk_by_code:
+            raise FirstCohortCharacterizationError("duplicate walk-forward Trader")
         walk_by_code[code] = row
     if tuple(walk_by_code) != _CODES:
         raise FirstCohortCharacterizationError("walk-forward cohort identity/order changed")
@@ -505,28 +735,91 @@ def run_characterization(market_path: Path, walk_forward_path: Path) -> dict[str
     results: list[dict[str, object]] = []
     for trader_code, default in zip(_CODES, defaults, strict=True):
         default_evaluator = cast(_ConfiguredEvaluator, default)
-        profiles = [
-            _profile_payload(
-                label="production-default",
-                evaluator=default_evaluator,
-                trader_code=trader_code,
-                series=series,
+        walk_row = walk_by_code[trader_code]
+        assessment_values = _array(
+            walk_row.get("assessments"), field_name="configuration assessments"
+        )
+        assessed_count = _strict_int(
+            walk_row.get("assessed_configurations"),
+            field_name="assessed_configurations",
+        )
+        if len(assessment_values) != assessed_count or not assessment_values:
+            raise FirstCohortCharacterizationError(
+                "configuration assessment count changed"
             )
-        ]
-        selected_value = walk_by_code[trader_code].get("selected")
+        selected_value = walk_row.get("selected")
+        selected_fingerprint = None
         if selected_value is not None:
             selected = _object(selected_value, field_name="selected configuration")
-            selected_evaluator = _evaluator_from_selected(trader_code, selected)
-            if _fingerprint(selected_evaluator) != _fingerprint(default_evaluator):
-                profiles.append(
-                    _profile_payload(
-                        label="walk-forward-selected",
-                        evaluator=selected_evaluator,
-                        trader_code=trader_code,
-                        series=series,
-                    )
+            selected_fingerprint = _text(
+                selected.get("config_fingerprint"),
+                field_name="selected config_fingerprint",
+            )
+            if not _strict_bool(
+                selected.get("in_sample_pass"), field_name="selected in_sample_pass"
+            ):
+                raise FirstCohortCharacterizationError(
+                    "selected configuration must pass in-sample"
                 )
-        results.append({"trader_code": trader_code, "profiles": profiles})
+
+        profiles: list[dict[str, object]] = []
+        seen_fingerprints: set[str] = set()
+        ordered_fingerprints: list[str] = []
+        default_seen = False
+        for assessment_value in assessment_values:
+            assessment = _object(
+                assessment_value, field_name="configuration assessment"
+            )
+            evaluator = _evaluator_from_configuration(trader_code, assessment)
+            fingerprint = _fingerprint(evaluator)
+            declared_fingerprint = _text(
+                assessment.get("config_fingerprint"),
+                field_name="assessment config_fingerprint",
+            )
+            if fingerprint != declared_fingerprint:
+                raise FirstCohortCharacterizationError(
+                    "configuration fingerprint does not match parameters"
+                )
+            if fingerprint in seen_fingerprints:
+                raise FirstCohortCharacterizationError(
+                    "duplicate configuration assessment"
+                )
+            seen_fingerprints.add(fingerprint)
+            ordered_fingerprints.append(fingerprint)
+            is_default = fingerprint == _fingerprint(default_evaluator)
+            default_seen = default_seen or is_default
+            profiles.append(
+                _profile_payload(
+                    label=("production-default" if is_default else "parameter-grid"),
+                    evaluator=evaluator,
+                    trader_code=trader_code,
+                    series=series,
+                    selected_by_in_sample=fingerprint == selected_fingerprint,
+                    walk_forward_assessment=assessment,
+                )
+            )
+        if not default_seen:
+            raise FirstCohortCharacterizationError(
+                "walk-forward surface omitted production default"
+            )
+        expected_fingerprints = tuple(
+            _fingerprint(item) for item in _grids()[trader_code]
+        )
+        if tuple(ordered_fingerprints) != expected_fingerprints:
+            raise FirstCohortCharacterizationError(
+                "walk-forward surface does not match source-controlled grid"
+            )
+        if selected_fingerprint is not None and selected_fingerprint not in seen_fingerprints:
+            raise FirstCohortCharacterizationError(
+                "selected configuration is absent from assessment surface"
+            )
+        results.append(
+            {
+                "trader_code": trader_code,
+                "methodology_component_map": _METHODOLOGY_COMPONENTS[trader_code],
+                "profiles": profiles,
+            }
+        )
 
     return {
         "schema": _SCHEMA,
@@ -543,11 +836,38 @@ def run_characterization(market_path: Path, walk_forward_path: Path) -> dict[str
             "close_path_excursions": True,
             "past_only_regime_descriptors": True,
             "parameter_surface_source": "walk-forward-v2",
+            "all_assessed_configurations_characterized": True,
+            "trend_regime_policy": {
+                "policy_id": "close-efficiency-20-v1",
+                "lookback_closed_bars": _TREND_LOOKBACK,
+                "trend_min_efficiency": "0.60",
+                "range_max_efficiency": "0.30",
+                "past_only": True,
+            },
+            "volatility_regime_policy": {
+                "policy_id": "normalized-range-ratio-40-10-v1",
+                "baseline_closed_bars": _VOLATILITY_BASELINE,
+                "recent_closed_bars": _VOLATILITY_RECENT,
+                "high_min_ratio": "1.50",
+                "low_max_ratio": "0.67",
+                "past_only": True,
+            },
+            "execution_model": {
+                "policy_id": "limit-3bar-fill-24bar-hold-stop-first-v1",
+                "limit_fill_horizon_bars": 3,
+                "maximum_hold_bars": 24,
+                "same_bar_ordering": "stop-first-conservative",
+                "alternative_model_applied": False,
+            },
         },
         "holdout_governance": {
+            "state": "consumed_for_research",
             "analysis_reads_oos": True,
             "post_change_reuse_as_independent_holdout_prohibited": True,
             "fresh_unseen_holdout_required_after_methodology_change": True,
+            "source_symbol": symbol,
+            "source_account_fingerprint": account_fingerprint,
+            "source_checked_at": checked_at.isoformat(),
         },
         "results": results,
     }

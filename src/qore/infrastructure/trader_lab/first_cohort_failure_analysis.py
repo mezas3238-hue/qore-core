@@ -202,6 +202,94 @@ def _hypothesis(signal: str) -> dict[str, str]:
     }
 
 
+def _surface_robustness(
+    code: str,
+    assessments: list[dict[str, object]],
+) -> dict[str, object]:
+    if code == "vt-17":
+        if len(assessments) != 1:
+            raise FirstCohortFailureAnalysisError(
+                "VT-17 base methodology must have exactly one assessment"
+            )
+        return {
+            "policy_id": "one-dimensional-neighbor-surface-v1",
+            "classification": "base_methodology_no_grid",
+            "parameter_name": None,
+            "positive_adjacent_pair_count": 0,
+            "in_sample_mean_sign_change_count": 0,
+            "in_sample_to_oos_sign_change_count": 0,
+        }
+
+    expected_parameter = {
+        "vt-01": "sweep_strength",
+        "vt-08": "range_length",
+        "vt-09": "swing_strength",
+        "vt-31": "sweep_strength",
+    }.get(code)
+    if expected_parameter is None:
+        raise FirstCohortFailureAnalysisError("unknown parameterized Trader")
+    points: list[tuple[int, Decimal, Decimal, bool]] = []
+    for assessment in assessments:
+        parameters = _object(assessment.get("parameters"), name="assessment parameters")
+        if set(parameters) != {expected_parameter}:
+            raise FirstCohortFailureAnalysisError("parameter surface identity changed")
+        value = _integer(
+            parameters.get(expected_parameter), name=f"parameter {expected_parameter}"
+        )
+        in_sample = _object(assessment.get("in_sample"), name="in_sample metrics")
+        oos = _object(assessment.get("oos"), name="oos metrics")
+        points.append(
+            (
+                value,
+                _decimal(in_sample.get("mean_return"), name="in_sample mean"),
+                _decimal(oos.get("mean_return"), name="oos mean"),
+                _boolean(assessment.get("in_sample_pass"), name="in_sample_pass"),
+            )
+        )
+    points.sort(key=lambda item: item[0])
+    if len({item[0] for item in points}) != len(points):
+        raise FirstCohortFailureAnalysisError("parameter surface contains duplicate points")
+    adjacent_positive = sum(
+        left[1] > 0 and right[1] > 0
+        for left, right in zip(points, points[1:], strict=False)
+    )
+    is_sign_changes = sum(
+        (left[1] < 0 < right[1]) or (right[1] < 0 < left[1])
+        for left, right in zip(points, points[1:], strict=False)
+    )
+    is_oos_sign_changes = sum(
+        (in_sample < 0 < oos) or (oos < 0 < in_sample)
+        for _value, in_sample, oos, _passed in points
+    )
+    passing = sum(item[3] for item in points)
+    if all(item[1] <= 0 for item in points):
+        classification = "universally_weak"
+    elif passing >= 2 and adjacent_positive > 0 and is_sign_changes == 0:
+        classification = "stable_plateau"
+    elif passing == 1:
+        classification = "narrow_optimum"
+    else:
+        classification = "unstable"
+    return {
+        "policy_id": "one-dimensional-neighbor-surface-v1",
+        "classification": classification,
+        "parameter_name": expected_parameter,
+        "ordered_parameter_values": [item[0] for item in points],
+        "positive_adjacent_pair_count": adjacent_positive,
+        "in_sample_mean_sign_change_count": is_sign_changes,
+        "in_sample_to_oos_sign_change_count": is_oos_sign_changes,
+        "sample_by_parameter": [
+            {
+                "value": value,
+                "in_sample_mean_return": format(in_sample, "f"),
+                "oos_mean_return": format(oos, "f"),
+                "in_sample_pass": passed,
+            }
+            for value, in_sample, oos, passed in points
+        ],
+    }
+
+
 def _analyze_trader(
     backtest: dict[str, object],
     walk: dict[str, object],
@@ -309,6 +397,7 @@ def _analyze_trader(
             "stress_pass_count": stress_passes,
             "selected": selected,
             "assessments": assessments,
+            "robustness": _surface_robustness(code, assessments),
         },
         "diagnostic_signals": list(unique_signals),
         "hypotheses_to_test": [_hypothesis(signal) for signal in unique_signals],

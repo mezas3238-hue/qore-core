@@ -9,8 +9,11 @@ on:
       - src/qore/infrastructure/trader_lab/first_cohort_backtest.py
       - src/qore/infrastructure/trader_lab/first_cohort_walk_forward.py
       - src/qore/infrastructure/trader_lab/first_cohort_multi_pair_walk_forward.py
+      - src/qore/infrastructure/trader_lab/first_cohort_characterization.py
+      - src/qore/infrastructure/trader_lab/first_cohort_characterization_aggregate.py
       - src/qore/infrastructure/trader_lab/first_cohort_failure_analysis.py
       - src/qore/infrastructure/trader_lab/first_cohort_failure_analysis_aggregate.py
+      - src/qore/infrastructure/trader_lab/first_cohort_hypothesis_register.py
       - src/qore/infrastructure/traders/evaluators.py
       - src/qore/infrastructure/traders/instrument_binding.py
       - src/qore/infrastructure/traders/primitives.py
@@ -18,6 +21,10 @@ on:
       - src/qore/infrastructure/ctrader_demo_lab_long_horizon_probe.py
       - src/qore/infrastructure/ctrader_demo_account_discovery.py
       - src/qore/infrastructure/ctrader_open_api_client.py
+
+concurrency:
+  group: qore-trader-lab-first-cohort-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -117,7 +124,7 @@ jobs:
           assert payload["two_year_required_periods"] == ["M5", "M15", "H4"]
           assert payload["auxiliary_m1_lookback_days"] == 30
           assert set(payload["periods"]) == {"M1", "M5", "M15", "H4"}
-          assert all(payload["periods"][period] for period in ("M1", "M5", "M15", "H4"))
+          assert all(payload["periods"][period] for period in ("M5", "M15", "H4"))
           coverage = payload["coverage"]
           assert all(coverage[period]["span_days"] >= 720 for period in ("M5", "M15", "H4"))
           PY
@@ -179,6 +186,32 @@ jobs:
               len(item["assessments"]) == item["assessed_configurations"]
               for item in payload["results"]
           )
+          PY
+      - name: Generate deterministic deep Trader characterization
+        run: |
+          python -m qore.infrastructure.trader_lab.first_cohort_characterization \
+            "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
+            "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/walk-forward.json" \
+            > "artifacts/first-cohort-backtest/${QORE_DEMO_LAB_SYMBOL}/characterization.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          payload = json.loads(
+              Path(
+                  f"artifacts/first-cohort-backtest/{symbol}/characterization.json"
+              ).read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["symbol"] == symbol
+          assert payload["holdout_governance"]["state"] == "consumed_for_research"
+          assert [item["trader_code"] for item in payload["results"]] == [
+              "vt-01", "vt-08", "vt-09", "vt-17", "vt-31"
+          ]
+          assert all(item["profiles"] for item in payload["results"])
           PY
       - name: Generate deterministic per-Trader failure analysis
         run: |
@@ -272,6 +305,21 @@ jobs:
           ]
           assert 0 <= payload["robust_candidate_count"] <= 5
           PY
+      - name: Aggregate six-instrument characterization
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t characterizations < <(
+            find artifacts/multi-pair -name characterization.json -type f | sort
+          )
+          if [ "${#characterizations[@]}" -ne 6 ]; then
+            echo "expected exactly six characterization files" >&2
+            exit 5
+          fi
+          python -m \
+            qore.infrastructure.trader_lab.first_cohort_characterization_aggregate \
+            "${characterizations[@]}" \
+            > artifacts/first-cohort-multi-pair/characterization-aggregate.json
       - name: Aggregate six-instrument failure analysis
         shell: bash
         run: |
@@ -304,6 +352,27 @@ jobs:
           assert payload["holdout_governance"][
               "new_previously_unseen_holdout_required_after_any_hypothesis_change"
           ] is True
+          PY
+      - name: Build governed hypothesis register
+        run: |
+          python -m qore.infrastructure.trader_lab.first_cohort_hypothesis_register \
+            artifacts/first-cohort-multi-pair/failure-analysis-aggregate.json \
+            artifacts/first-cohort-multi-pair/characterization-aggregate.json \
+            artifacts/first-cohort-multi-pair/multi-pair-walk-forward.json \
+            "$GITHUB_SHA" \
+            > artifacts/first-cohort-multi-pair/hypothesis-register.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/first-cohort-multi-pair/hypothesis-register.json").read_text()
+          )
+          assert payload["environment"] == "demo"
+          assert payload["holdout_governance"][
+              "consumed_holdout_cannot_certify_modified_strategy"
+          ] is True
+          assert payload["software_sha"]
           PY
       - name: Upload pooled six-instrument research evidence
         uses: actions/upload-artifact@v4

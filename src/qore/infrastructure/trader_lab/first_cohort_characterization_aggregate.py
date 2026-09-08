@@ -43,6 +43,12 @@ def _strict_int(value: object, *, field_name: str) -> int:
     return value
 
 
+def _strict_bool(value: object, *, field_name: str) -> bool:
+    if type(value) is not bool:
+        raise FirstCohortCharacterizationError(f"{field_name} must be bool")
+    return value
+
+
 def _decimal(value: object, *, field_name: str) -> Decimal:
     raw = _text(value, field_name=field_name)
     try:
@@ -147,11 +153,112 @@ def _aggregate_category(
     }
 
 
+def _category_signs(category: dict[str, object]) -> tuple[bool, bool]:
+    positive = False
+    negative = False
+    for value in category.values():
+        bucket = _object(value, field_name="classification bucket")
+        outcomes = _object(bucket.get("outcomes"), field_name="classification outcomes")
+        if _strict_int(outcomes.get("count"), field_name="classification count") < 4:
+            continue
+        mean = _decimal(outcomes.get("mean"), field_name="classification mean")
+        positive = positive or mean > 0
+        negative = negative or mean < 0
+    return positive, negative
+
+
+def _classification_labels(profile: dict[str, object]) -> list[str]:
+    labels: list[str] = []
+    filled = _strict_int(
+        profile.get("filled_setup_count"), field_name="filled_setup_count"
+    )
+    pooled = _object(profile.get("pooled_outcomes"), field_name="pooled_outcomes")
+    pooled_mean = _decimal(pooled.get("mean"), field_name="pooled mean")
+    positive_markets = _strict_int(
+        profile.get("positive_expectancy_instrument_count"),
+        field_name="positive expectancy instruments",
+    )
+    high_fill_markets = _strict_int(
+        profile.get("fill_rate_at_least_50pct_instrument_count"),
+        field_name="high fill instruments",
+    )
+    exits = _object(profile.get("exit_reason_counts"), field_name="exit reasons")
+    stop_count = _strict_int(exits.get("stop", 0), field_name="stop count")
+
+    if filled < 20:
+        labels.append(
+            "promising_but_underpowered" if pooled_mean > 0 else "sparse_opportunity"
+        )
+    if high_fill_markets < 3:
+        labels.append("execution_fill_problem")
+    if 0 < positive_markets < 4:
+        labels.append("instrument_dependency")
+    if positive_markets == 0 and filled >= 20:
+        labels.append("structural_methodology_failure")
+    if stop_count * 2 > filled and filled > 0:
+        labels.append("geometry_problem")
+
+    trend_signs = _category_signs(
+        _object(profile.get("by_trend_regime"), field_name="trend regimes")
+    )
+    volatility_signs = _category_signs(
+        _object(profile.get("by_volatility_regime"), field_name="volatility regimes")
+    )
+    if all(trend_signs) or all(volatility_signs):
+        labels.append("regime_dependency")
+    if all(
+        _category_signs(_object(profile.get("by_side"), field_name="side buckets"))
+    ):
+        labels.append("directional_asymmetry")
+    if (
+        filled >= 20
+        and pooled_mean > 0
+        and positive_markets >= 4
+        and high_fill_markets >= 4
+    ):
+        labels.append("robust")
+    return labels
+
+
 def _aggregate_profile(
     label: str,
     market_profiles: list[tuple[str, dict[str, object]]],
 ) -> dict[str, object]:
     profiles = [item[1] for item in market_profiles]
+    fingerprints = {
+        _text(item.get("config_fingerprint"), field_name="config_fingerprint")
+        for item in profiles
+    }
+    if len(fingerprints) != 1:
+        raise FirstCohortCharacterizationError(
+            "aggregate profile mixed configuration fingerprints"
+        )
+    parameter_payloads = {
+        json.dumps(
+            _object(item.get("parameters"), field_name="parameters"),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for item in profiles
+    }
+    if len(parameter_payloads) != 1:
+        raise FirstCohortCharacterizationError(
+            "aggregate profile mixed configuration parameters"
+        )
+    methodology_payloads = {
+        json.dumps(
+            _object(
+                item.get("methodology_identity"), field_name="methodology_identity"
+            ),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for item in profiles
+    }
+    if len(methodology_payloads) != 1:
+        raise FirstCohortCharacterizationError(
+            "aggregate profile mixed methodology identities"
+        )
     setup_count = sum(
         _strict_int(item.get("setup_count"), field_name="setup_count") for item in profiles
     )
@@ -168,6 +275,8 @@ def _aggregate_profile(
     setup_reasons = Counter[str]()
     positive_markets = 0
     high_fill_markets = 0
+    selected_market_count = 0
+    instrument_summaries: dict[str, object] = {}
     for _symbol, profile in market_profiles:
         abstain.update(_counter(profile.get("abstain_reason_counts"), field_name="abstains"))
         sides.update(_counter(profile.get("side_counts"), field_name="sides"))
@@ -180,9 +289,28 @@ def _aggregate_profile(
             positive_markets += 1
         if _decimal(profile.get("fill_rate"), field_name="fill_rate") >= Decimal("0.50"):
             high_fill_markets += 1
+        if _strict_bool(
+            profile.get("selected_by_in_sample_only"),
+            field_name="selected_by_in_sample_only",
+        ):
+            selected_market_count += 1
+        instrument_summaries[_symbol] = {
+            "setup_count": _strict_int(
+                profile.get("setup_count"), field_name="setup_count"
+            ),
+            "filled_setup_count": _strict_int(
+                profile.get("filled_setup_count"), field_name="filled_setup_count"
+            ),
+            "fill_rate": profile.get("fill_rate"),
+            "outcomes": market_outcome,
+        }
 
-    return {
+    payload: dict[str, object] = {
         "profile": label,
+        "config_fingerprint": next(iter(fingerprints)),
+        "parameters": json.loads(next(iter(parameter_payloads))),
+        "methodology_identity": json.loads(next(iter(methodology_payloads))),
+        "selected_by_in_sample_market_count": selected_market_count,
         "instrument_count": len(market_profiles),
         "symbols": sorted(symbol for symbol, _profile in market_profiles),
         "setup_count": setup_count,
@@ -200,6 +328,7 @@ def _aggregate_profile(
         "side_counts": dict(sorted(sides.items())),
         "exit_reason_counts": dict(sorted(exits.items())),
         "setup_reason_counts": dict(sorted(setup_reasons.items())),
+        "by_instrument": dict(sorted(instrument_summaries.items())),
         "by_trend_regime": _aggregate_category(
             profiles, field_name="by_trend_regime"
         ),
@@ -209,7 +338,23 @@ def _aggregate_profile(
         "by_chronological_quartile": _aggregate_category(
             profiles, field_name="by_chronological_quartile"
         ),
+        "by_signal_hour_utc": _aggregate_category(
+            profiles, field_name="by_signal_hour_utc"
+        ),
+        "by_signal_weekday_utc": _aggregate_category(
+            profiles, field_name="by_signal_weekday_utc"
+        ),
+        "by_calendar_month": _aggregate_category(
+            profiles, field_name="by_calendar_month"
+        ),
+        "by_calendar_year": _aggregate_category(
+            profiles, field_name="by_calendar_year"
+        ),
+        "by_session": _aggregate_category(profiles, field_name="by_session"),
+        "by_side": _aggregate_category(profiles, field_name="by_side"),
     }
+    payload["classification_labels"] = _classification_labels(payload)
+    return payload
 
 
 def run_characterization_aggregate(paths: tuple[Path, ...]) -> dict[str, object]:
@@ -245,11 +390,15 @@ def run_characterization_aggregate(paths: tuple[Path, ...]) -> dict[str, object]
             codes.append(code)
             if code not in by_trader:
                 raise FirstCohortCharacterizationError("unknown characterization Trader")
-            profiles = _array(row.get("profiles"), field_name="profiles")
-            for profile_value in profiles:
+            profile_values = _array(row.get("profiles"), field_name="profiles")
+            for profile_value in profile_values:
                 profile = _object(profile_value, field_name="profile")
-                label = _text(profile.get("profile"), field_name="profile label")
-                by_trader[code].setdefault(label, []).append((symbol, profile))
+                _text(profile.get("profile"), field_name="profile label")
+                fingerprint = _text(
+                    profile.get("config_fingerprint"),
+                    field_name="config_fingerprint",
+                )
+                by_trader[code].setdefault(fingerprint, []).append((symbol, profile))
         if tuple(codes) != _CODES:
             raise FirstCohortCharacterizationError(
                 "characterization cohort identity/order changed"
@@ -258,16 +407,40 @@ def run_characterization_aggregate(paths: tuple[Path, ...]) -> dict[str, object]
     results: list[dict[str, object]] = []
     for code in _CODES:
         profile_groups = by_trader[code]
-        default_rows = profile_groups.get("production-default", [])
-        if len(default_rows) != _REQUIRED_INSTRUMENTS:
+        default_groups = [
+            rows
+            for rows in profile_groups.values()
+            if all(
+                _text(profile.get("profile"), field_name="profile label")
+                == "production-default"
+                for _symbol, profile in rows
+            )
+        ]
+        if len(default_groups) != 1 or len(default_groups[0]) != _REQUIRED_INSTRUMENTS:
             raise FirstCohortCharacterizationError(
                 "each Trader requires six production-default characterizations"
             )
-        profiles = [
-            _aggregate_profile(label, rows)
-            for label, rows in sorted(profile_groups.items())
-        ]
-        results.append({"trader_code": code, "profiles": profiles})
+        aggregated_profiles: list[dict[str, object]] = []
+        for fingerprint, profile_rows in sorted(profile_groups.items()):
+            if len(profile_rows) != _REQUIRED_INSTRUMENTS:
+                raise FirstCohortCharacterizationError(
+                    "each configuration requires six instrument characterizations"
+                )
+            labels = {
+                _text(profile.get("profile"), field_name="profile label")
+                for _symbol, profile in profile_rows
+            }
+            if len(labels) != 1:
+                raise FirstCohortCharacterizationError(
+                    "configuration profile label changed across instruments"
+                )
+            profile = _aggregate_profile(next(iter(labels)), profile_rows)
+            if profile["config_fingerprint"] != fingerprint:
+                raise FirstCohortCharacterizationError(
+                    "configuration grouping fingerprint changed"
+                )
+            aggregated_profiles.append(profile)
+        results.append({"trader_code": code, "profiles": aggregated_profiles})
 
     return {
         "schema": _SCHEMA,
@@ -277,6 +450,15 @@ def run_characterization_aggregate(paths: tuple[Path, ...]) -> dict[str, object]
         "symbols": sorted(symbols),
         "account_fingerprint": next(iter(fingerprints)),
         "results": results,
+        "classification_policy": {
+            "policy_id": "first-cohort-descriptive-classification-v1",
+            "minimum_powered_fills": 20,
+            "global_instrument_threshold": 4,
+            "high_fill_rate": "0.50",
+            "regime_minimum_sample": 4,
+            "descriptive_only": True,
+            "does_not_grant_demo_eligibility": True,
+        },
         "research_rule": (
             "cross-market patterns generate hypotheses only; any methodology change "
             "requires a fresh unseen holdout"

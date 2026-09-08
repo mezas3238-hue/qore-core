@@ -62,6 +62,37 @@ def _rows_by_code(payload: dict[str, object], *, name: str) -> dict[str, dict[st
     return rows
 
 
+def _classification_labels(
+    signal_counts: Counter[str], *, robust_pass: bool
+) -> list[str]:
+    if robust_pass:
+        return ["robust"]
+    labels: list[str] = []
+    if signal_counts["negative_expectancy"] == _REQUIRED_INSTRUMENTS:
+        labels.append("structural_methodology_failure")
+    if signal_counts["poor_fill_conversion"] >= 4:
+        labels.append("execution_fill_problem")
+    if signal_counts["exit_stop_dominance"] >= 4:
+        labels.append("geometry_problem")
+    if signal_counts["direction_asymmetry"] >= 4:
+        labels.append("directional_asymmetry")
+    if signal_counts["parameter_instability"] >= 4:
+        labels.append("parameter_instability")
+    if signal_counts["stress_fragility"] >= 4:
+        labels.append("stress_fragility")
+    if signal_counts["oos_collapse"] >= 4:
+        labels.append("oos_generalization_failure")
+    if signal_counts["sparse_activity"] >= 4:
+        labels.append(
+            "promising_but_underpowered"
+            if signal_counts["negative_expectancy"] < 4
+            else "sparse_opportunity"
+        )
+    if any(0 < count < 4 for count in signal_counts.values()):
+        labels.append("instrument_dependency")
+    return labels
+
+
 def run_failure_analysis_aggregate(
     multi_pair_path: Path,
     analysis_paths: tuple[Path, ...],
@@ -132,6 +163,9 @@ def run_failure_analysis_aggregate(
                 "instrument_failure_stages": stage_by_symbol,
                 "diagnostic_signal_counts": dict(sorted(signal_counts.items())),
                 "recurring_signals": list(recurring),
+                "classification_labels": _classification_labels(
+                    signal_counts, robust_pass=robust_pass
+                ),
                 "ranked_hypotheses_to_test": ordered_hypotheses,
                 "pooled_in_sample": multi_row.get("pooled_in_sample"),
                 "pooled_oos": multi_row.get("pooled_oos"),
@@ -153,6 +187,13 @@ def run_failure_analysis_aggregate(
             "current_oos_may_be_used_for_diagnosis": True,
             "post_change_reuse_as_independent_holdout_prohibited": True,
             "new_previously_unseen_holdout_required_after_any_hypothesis_change": True,
+        },
+        "classification_policy": {
+            "policy_id": "first-cohort-cross-market-failure-v1",
+            "universal_threshold": 6,
+            "cross_market_threshold": 4,
+            "instrument_specific_maximum": 3,
+            "descriptive_only": True,
         },
         "results": results,
     }
