@@ -1,13 +1,15 @@
 """Frozen walk-forward research screen for the first DEMO cohort.
 
 The configuration grid and thresholds in this module are source-controlled
-before the workflow observes its fresh cTrader DEMO evidence.  Configuration
+before the workflow observes its fresh cTrader DEMO evidence. Configuration
 selection reads only the chronological 70% in-sample partition; the final 30%
 is retained as OOS and never participates in ranking.
 
-This screen is research evidence only.  ``oos_pass`` is not DEMO_ELIGIBLE; a
-passing candidate must still traverse canonical OOS, Stress, Monte Carlo, Risk,
-CIBO and Independent Validation authorities.
+Every assessed configuration is retained in the evidence payload so a later
+failure-analysis cycle can diagnose parameter sensitivity without re-running
+or reconstructing hidden candidates. This remains research evidence only.
+``oos_pass`` is not DEMO_ELIGIBLE; a passing candidate must still traverse
+canonical OOS, Stress, Monte Carlo, Risk, CIBO and Independent Validation.
 """
 
 from __future__ import annotations
@@ -36,7 +38,7 @@ from qore.infrastructure.traders.evaluators import (
 )
 from qore.infrastructure.traders.instrument_binding import DemoTradingEvaluatorBoundary
 
-_SCHEMA = "qore.trader_lab.first_cohort_walk_forward.v1"
+_SCHEMA = "qore.trader_lab.first_cohort_walk_forward.v2"
 _POLICY_ID = "first-demo-economic-v1"
 _MIN_SAMPLE = 4
 _MIN_MEAN = Decimal("0")
@@ -96,13 +98,18 @@ class ConfigurationAssessment:
 class TraderWalkForwardResult:
     trader_code: str
     selected: ConfigurationAssessment | None
-    assessed_configurations: int
+    assessments: tuple[ConfigurationAssessment, ...]
+
+    @property
+    def assessed_configurations(self) -> int:
+        return len(self.assessments)
 
     def payload(self) -> dict[str, object]:
         return {
             "trader_code": self.trader_code,
             "assessed_configurations": self.assessed_configurations,
             "selected": self.selected.payload() if self.selected is not None else None,
+            "assessments": [item.payload() for item in self.assessments],
         }
 
 
@@ -223,16 +230,14 @@ def run_walk_forward(path: Path) -> dict[str, object]:
                 trader_code=trader_code,
                 series=series,
             )
-            assessments.append(
-                _assessment(backtest, evaluator=evaluator, split_at=split_at)
-            )
+            assessments.append(_assessment(backtest, evaluator=evaluator, split_at=split_at))
         train_qualified = [item for item in assessments if item.in_sample_pass]
         selected = max(train_qualified, key=_rank) if train_qualified else None
         results.append(
             TraderWalkForwardResult(
                 trader_code=trader_code,
                 selected=selected,
-                assessed_configurations=len(assessments),
+                assessments=tuple(assessments),
             )
         )
     return {
