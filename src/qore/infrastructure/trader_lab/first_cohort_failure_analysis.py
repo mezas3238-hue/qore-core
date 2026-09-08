@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import sys
 from collections import Counter
-from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import cast
@@ -300,10 +299,7 @@ def _analyze_trader(
             ),
             "max_losing_streak": _max_losing_streak(trades),
             "exit_reason_counts": dict(sorted(exit_counts.items())),
-            "side_metrics": {
-                "long": long_metrics,
-                "short": short_metrics,
-            },
+            "side_metrics": {"long": long_metrics, "short": short_metrics},
             "temporal_quartiles": _temporal_quartiles(trades),
         },
         "parameter_surface": {
