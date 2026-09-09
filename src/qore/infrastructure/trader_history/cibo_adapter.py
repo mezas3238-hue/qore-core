@@ -175,6 +175,22 @@ def project_cibo_capability_profile(
         return Failure(
             CiboTraderHistoryAdapterError("adapter requires CiboEvidenceFreshness")
         )
+    if type(qualified_markets) is not tuple or any(
+        type(item) is not CiboTradeableMarketRef for item in qualified_markets
+    ):
+        return Failure(
+            CiboTraderHistoryAdapterError(
+                "qualified_markets must be an exact CiboTradeableMarketRef tuple"
+            )
+        )
+    if type(qualified_timeframes) is not tuple or any(
+        type(item) is not CiboTimeframeCode for item in qualified_timeframes
+    ):
+        return Failure(
+            CiboTraderHistoryAdapterError(
+                "qualified_timeframes must be an exact CiboTimeframeCode tuple"
+            )
+        )
     try:
         projection = project_current_capability(
             registry,
@@ -188,6 +204,56 @@ def project_cibo_capability_profile(
                 )
             )
         view = projection.value
+
+        current_records = tuple(
+            record
+            for record in registry.records
+            if record.trader_version.fingerprint == trader_version.fingerprint
+            and record.produced_at <= freshness.as_of
+        )
+        superseded_ids = {
+            target for record in current_records for target in record.supersedes
+        }
+        certified_scope_records = tuple(
+            record
+            for record in current_records
+            if record.epistemic_status is TraderHistoryEpistemicStatus.CERTIFIED
+            and record.study_id not in superseded_ids
+        )
+        supported_markets = {
+            market.value
+            for record in certified_scope_records
+            for market in record.market_scope
+        }
+        supported_timeframes = {
+            timeframe.value
+            for record in certified_scope_records
+            for timeframe in record.timeframe_scope
+        }
+        unsupported_markets = tuple(
+            sorted(
+                item.value
+                for item in qualified_markets
+                if item.value not in supported_markets
+            )
+        )
+        unsupported_timeframes = tuple(
+            sorted(
+                item.value
+                for item in qualified_timeframes
+                if item.value not in supported_timeframes
+            )
+        )
+        if unsupported_markets:
+            raise CiboTraderHistoryAdapterError(
+                "qualified markets are not backed by current certified historical "
+                f"evidence: {unsupported_markets!r}"
+            )
+        if unsupported_timeframes:
+            raise CiboTraderHistoryAdapterError(
+                "qualified timeframes are not backed by current certified historical "
+                f"evidence: {unsupported_timeframes!r}"
+            )
 
         by_code: dict[str, list[TraderHistoryMetricView]] = {}
         for metric in view.certified_metrics:

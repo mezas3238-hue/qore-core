@@ -188,9 +188,10 @@ def _check_partition_governance(
     versa).
     """
     seen_partitions: dict[object, tuple[SampleRole, str]] = {}
-    dataset_roles: dict[str, SampleRole] = {}
-    ev_owners: dict[str, TraderHistoryStudyId] = {}
+    dataset_roles: dict[tuple[str, str], SampleRole] = {}
+    ev_owners: dict[tuple[str, str], TraderHistoryStudyId] = {}
     for record in records:
+        trader_lineage = record.trader_version.trader_code.value
         for partition in record.partitions:
             previous = seen_partitions.get(partition.partition_id)
             if previous is not None and previous != (
@@ -205,20 +206,22 @@ def _check_partition_governance(
                 partition.role,
                 partition.dataset_fingerprint,
             )
-            committed_role = dataset_roles.get(partition.dataset_fingerprint)
+            dataset_key = (trader_lineage, partition.dataset_fingerprint)
+            committed_role = dataset_roles.get(dataset_key)
             if committed_role is not None and committed_role is not partition.role:
                 raise TraderHistoryValidationError(
-                    "dataset fingerprint cannot be relabeled across sample roles"
+                    "dataset fingerprint cannot be relabeled across sample roles "
+                    "within the same Trader lineage"
                 )
-            dataset_roles[partition.dataset_fingerprint] = partition.role
+            dataset_roles[dataset_key] = partition.role
             if partition.role is SampleRole.EXTERNAL_VALIDATION:
-                owner = ev_owners.get(partition.dataset_fingerprint)
+                owner = ev_owners.get(dataset_key)
                 if owner is not None and owner != record.study_id:
                     raise TraderHistoryValidationError(
                         "external-validation holdout content cannot be consumed by "
-                        "more than one study"
+                        "more than one study within the same Trader lineage"
                     )
-                ev_owners[partition.dataset_fingerprint] = record.study_id
+                ev_owners[dataset_key] = record.study_id
 
 
 def _check_hypothesis_lineage(
@@ -262,6 +265,11 @@ def _check_hypothesis_lineage(
         if parent.hypothesis_id != record.hypothesis_id:
             raise TraderHistoryValidationError(
                 "hypothesis id must match the parent hypothesis study"
+            )
+        if parent.trader_version.trader_code != record.trader_version.trader_code:
+            raise TraderHistoryValidationError(
+                "hypothesis confirmation/falsification must remain within the "
+                "same Trader lineage"
             )
         if (
             parent.trader_version.fingerprint

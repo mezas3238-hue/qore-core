@@ -688,3 +688,116 @@ def test_projection_revalidates_corrupted_record_fails_closed() -> None:
     result = project_current_capability(registry, version, derived_at=_NOW)
     assert isinstance(result, Failure)
     assert isinstance(result.error, TraderHistoryBlockedError)
+
+
+# Integrity closure: Trader-lineage-scoped evidence governance.
+def test_external_validation_holdout_can_be_shared_across_distinct_trader_lineages() -> None:
+    vt08 = _version(code="vt-08", config=201)
+    vt01 = _version(code="vt-01", config=202)
+    first_holdout = TraderHistoryPartitionIdentity(
+        uuid4(), _fp(203), SampleRole.EXTERNAL_VALIDATION
+    )
+    second_holdout = TraderHistoryPartitionIdentity(
+        uuid4(), _fp(203), SampleRole.EXTERNAL_VALIDATION
+    )
+    registry = _registry(
+        _study(
+            version=vt08,
+            kind=TraderHistoryStudyKind.OOS,
+            partitions=(first_holdout,),
+        )
+    )
+    result = registry.append_study(
+        _study(
+            version=vt01,
+            kind=TraderHistoryStudyKind.OOS,
+            partitions=(second_holdout,),
+        )
+    )
+    assert isinstance(result, Success)
+
+
+def test_external_validation_holdout_cannot_be_reused_within_trader_lineage() -> None:
+    v1 = _version(code="vt-08", version="v1", config=204)
+    v2 = _version(code="vt-08", version="v2", config=205)
+    first_holdout = TraderHistoryPartitionIdentity(
+        uuid4(), _fp(206), SampleRole.EXTERNAL_VALIDATION
+    )
+    second_holdout = TraderHistoryPartitionIdentity(
+        uuid4(), _fp(206), SampleRole.EXTERNAL_VALIDATION
+    )
+    registry = _registry(
+        _study(
+            version=v1,
+            kind=TraderHistoryStudyKind.OOS,
+            partitions=(first_holdout,),
+        )
+    )
+    result = registry.append_study(
+        _study(
+            version=v2,
+            kind=TraderHistoryStudyKind.OOS,
+            partitions=(second_holdout,),
+        )
+    )
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, TraderHistoryBlockedError)
+
+
+def test_hypothesis_confirmation_cannot_cross_trader_lineage() -> None:
+    parent_version = _version(code="vt-08", config=207)
+    foreign_version = _version(code="vt-17", config=208)
+    hypothesis_id = TraderHistoryHypothesisId("HYP-VT08-CROSS-001")
+    hypothesis = _study(
+        version=parent_version,
+        kind=TraderHistoryStudyKind.HYPOTHESIS,
+        status=TraderHistoryEpistemicStatus.HYPOTHESIS,
+        sufficiency=TraderHistorySufficiency.UNKNOWN,
+        hypothesis_id=hypothesis_id,
+        metrics=(),
+    )
+    registry = _registry(hypothesis)
+    confirmation = _study(
+        version=foreign_version,
+        kind=TraderHistoryStudyKind.HYPOTHESIS_CONFIRMATION,
+        status=TraderHistoryEpistemicStatus.CERTIFIED,
+        sufficiency=TraderHistorySufficiency.SUFFICIENT,
+        hypothesis_id=hypothesis_id,
+        parent_study=hypothesis.study_id,
+        partitions=(
+            TraderHistoryPartitionIdentity(
+                uuid4(), _fp(209), SampleRole.EXTERNAL_VALIDATION
+            ),
+        ),
+        metrics=(_metric(value="0.15", ref="evidence:cross-confirm"),),
+    )
+    result = registry.append_study(confirmation)
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, TraderHistoryBlockedError)
+
+
+def test_hypothesis_falsification_cannot_cross_trader_lineage() -> None:
+    parent_version = _version(code="vt-08", config=210)
+    foreign_version = _version(code="vt-17", config=211)
+    hypothesis_id = TraderHistoryHypothesisId("HYP-VT08-CROSS-002")
+    hypothesis = _study(
+        version=parent_version,
+        kind=TraderHistoryStudyKind.HYPOTHESIS,
+        status=TraderHistoryEpistemicStatus.HYPOTHESIS,
+        sufficiency=TraderHistorySufficiency.UNKNOWN,
+        hypothesis_id=hypothesis_id,
+        metrics=(),
+    )
+    registry = _registry(hypothesis)
+    falsification = _study(
+        version=foreign_version,
+        kind=TraderHistoryStudyKind.HYPOTHESIS_FALSIFICATION,
+        status=TraderHistoryEpistemicStatus.FALSIFIED,
+        sufficiency=TraderHistorySufficiency.SUFFICIENT,
+        hypothesis_id=hypothesis_id,
+        parent_study=hypothesis.study_id,
+        metrics=(),
+    )
+    result = registry.append_study(falsification)
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, TraderHistoryBlockedError)

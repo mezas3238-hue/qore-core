@@ -228,7 +228,7 @@ def test_adapter_maps_condition_to_regime_evidence() -> None:
     assert profile.regime_evidence[0].regime.value == "favorable"
 
 
-def test_adapter_excludes_insufficient_and_exploratory() -> None:
+def test_adapter_refuses_qualification_from_insufficient_and_exploratory() -> None:
     version = _version()
     exploratory = build_study_record(
         study_id=TraderHistoryStudyId(uuid4()),
@@ -249,8 +249,9 @@ def test_adapter_excludes_insufficient_and_exploratory() -> None:
         version,
         **_profile_kwargs(),
     )
-    assert isinstance(result, Success)
-    assert result.value.economic_metrics == ()
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboTraderHistoryAdapterError)
+    assert "not backed by current certified historical evidence" in str(result.error)
 
 
 def test_adapter_does_not_mutate_history() -> None:
@@ -498,3 +499,73 @@ def test_adapter_returns_failure_not_raise_on_sensitive_corruption() -> None:
     result = project_cibo_capability_profile(registry, version, **_profile_kwargs())
     assert isinstance(result, Failure)
     assert isinstance(result.error, CiboTraderHistoryAdapterError)
+
+
+# Integrity closure: CIBO qualification must be evidence-scoped.
+def test_adapter_rejects_market_not_backed_by_certified_history() -> None:
+    version = _version()
+    registry = TraderHistoricalIntelligenceRegistry(
+        records=(_study(version=version, metrics=(_metric("0.12"),)),)
+    )
+    result = project_cibo_capability_profile(
+        registry,
+        version,
+        **_profile_kwargs(
+            qualified_markets=(CiboTradeableMarketRef("GBP/USD"),),
+        ),
+    )
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboTraderHistoryAdapterError)
+    assert "qualified markets are not backed" in str(result.error)
+
+
+def test_adapter_rejects_timeframe_not_backed_by_certified_history() -> None:
+    version = _version()
+    registry = TraderHistoricalIntelligenceRegistry(
+        records=(_study(version=version, metrics=(_metric("0.12"),)),)
+    )
+    result = project_cibo_capability_profile(
+        registry,
+        version,
+        **_profile_kwargs(
+            qualified_timeframes=(CiboTimeframeCode("m15"),),
+        ),
+    )
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboTraderHistoryAdapterError)
+    assert "qualified timeframes are not backed" in str(result.error)
+
+
+def test_adapter_does_not_use_future_certified_scope_for_current_qualification() -> None:
+    version = _version()
+    future = build_study_record(
+        study_id=TraderHistoryStudyId(uuid4()),
+        study_version=TraderHistoryStudyVersion("v1"),
+        trader_version=version,
+        kind=TraderHistoryStudyKind.REPLAY,
+        epistemic_status=TraderHistoryEpistemicStatus.CERTIFIED,
+        sufficiency=TraderHistorySufficiency.SUFFICIENT,
+        produced_at=datetime(2026, 1, 2, 0, 0, tzinfo=UTC),
+        producer=TraderHistoryProducerId("trader-lab"),
+        market_scope=(TraderHistoryMarketRef("GBP/USD"),),
+        timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
+        partitions=(_dev_partition(301),),
+        quantitative_claims=(
+            TraderHistoryMetric(
+                "expectancy",
+                Decimal("0.11"),
+                (TraderHistoryEvidenceRef("evidence:future"),),
+            ),
+        ),
+    )
+    registry = TraderHistoricalIntelligenceRegistry(records=(future,))
+    result = project_cibo_capability_profile(
+        registry,
+        version,
+        **_profile_kwargs(
+            qualified_markets=(CiboTradeableMarketRef("GBP/USD"),),
+        ),
+    )
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboTraderHistoryAdapterError)
+    assert "qualified markets are not backed" in str(result.error)
