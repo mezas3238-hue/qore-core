@@ -1,0 +1,96 @@
+name: QORE Trader Lab Validation Vault Gate
+
+on:
+  push:
+    branches:
+      - agent/trader-lab-us30-gbpjpy-audjpy-closeout-001
+    paths:
+      - .github/workflows/trader-lab-validation-vault-gate.yml
+      - src/qore/infrastructure/trader_lab/chronological_holdout.py
+      - tests/infrastructure/trader_lab/test_chronological_holdout.py
+      - docs/evidence/trader-lab/validation-vault/closeout-001/holdout-policy.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-trader-lab-validation-vault-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE dev runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src tests
+      - name: Pytest with coverage
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  real-schema-partition-proof:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Download already-exposed GBPJPY corpus as schema fixture only
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-closeout-stage1-GBPJPY-e5c9da16ce2a1b301a39f48802fa97eef5d93ef5
+          path: artifacts/source
+          github-token: ${{ github.token }}
+          run-id: 34408479696
+      - name: Prove 28-day tail partition on real evidence schema
+        run: |
+          set -euo pipefail
+          evidence="$(find artifacts/source -name market-evidence.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.chronological_holdout \
+            "$evidence" \
+            artifacts/proof/development-market-evidence.json \
+            artifacts/proof/holdout-market-evidence.json \
+            artifacts/proof/manifest.json \
+            --holdout-days 28 \
+            --required-development-days 730
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy=json.loads(Path('docs/evidence/trader-lab/validation-vault/closeout-001/holdout-policy.json').read_text())
+          manifest=json.loads(Path('artifacts/proof/manifest.json').read_text())
+          assert policy['markets']['GBPJPY']['historical_corpus_status'].startswith('EXPOSED_')
+          assert policy['markets']['US30']['status']=='RESERVED_BEFORE_FIRST_VALID_MARKET_EVIDENCE'
+          assert manifest['reservation_mode']=='HISTORICAL_TAIL_DAYS'
+          assert manifest['holdout_days']==28
+          assert manifest['development_may_consume_holdout'] is False
+          for period in ('M5','M15','H4'):
+              boundary=manifest['boundary'][period]
+              assert boundary['development_bar_count'] > 0
+              assert boundary['holdout_bar_count'] > 0
+              assert boundary['development_last_closed_at'] < boundary['holdout_first_opened_at'] or boundary['development_last_closed_at'] <= manifest['cutoff']
+          PY
+      - name: Upload partition proof only
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-validation-vault-partition-proof-${{ github.sha }}
+          path: artifacts/proof/manifest.json
+          if-no-files-found: error
+          retention-days: 90
