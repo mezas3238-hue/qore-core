@@ -14,11 +14,14 @@ no execution/custody authority, and no Risk bypass.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from qore.infrastructure.cibo_trader_capability_profile import (
     CiboCapabilityProfileError,
     CiboCertificationState,
     CiboEconomicMetric,
     CiboEvidenceFreshness,
+    CiboEvidenceFreshnessState,
     CiboEvidenceRef,
     CiboLabEvidenceRef,
     CiboLabEvidenceStage,
@@ -40,10 +43,13 @@ from qore.infrastructure.trader_history.contracts import (
     TraderHistoryFavorableKind,
     TraderHistoryStudyKind,
     TraderVersionIdentity,
+    compute_trader_identity_family,
 )
 from qore.infrastructure.trader_history.registry import (
     TraderHistoricalIntelligenceRegistry,
     TraderHistoryMetricView,
+    _certified_superseded_ids,
+    _epistemic_moment,
     project_current_capability,
 )
 from qore.kernel.result import Failure, Result, Success
@@ -80,6 +86,8 @@ def _stages_for_evidence_ref(
     registry: TraderHistoricalIntelligenceRegistry,
     trader_version: TraderVersionIdentity,
     ref_value: str,
+    *,
+    derived_at: datetime,
 ) -> tuple[CiboLabEvidenceStage, ...]:
     """Resolve the exact CIBO lab evidence stages of one evidence ref.
 
@@ -88,14 +96,23 @@ def _stages_for_evidence_ref(
     studies of different kinds. Staging must therefore recover each ref's own
     backing study kind (never the first study of the merged view), otherwise
     out-of-sample evidence can be mislabeled as a development stage and vice
-    versa. Only studies bound to the exact requested Trader version are
-    considered. A certified study whose kind has no exact CIBO lab evidence stage
-    fails closed rather than silently dropping certified evidence.
+    versa. Only studies bound to the exact requested Trader version whose
+    epistemic moment is on or before ``derived_at`` (and which are not
+    superseded) are considered, so a future-certified or superseded study can
+    never fabricate a stage. A certified study whose kind has no exact CIBO lab
+    evidence stage fails closed rather than silently dropping certified evidence.
     """
+    records = tuple(
+        record
+        for record in registry.records
+        if record.trader_version.fingerprint == trader_version.fingerprint
+        and _epistemic_moment(record) <= derived_at
+    )
+    superseded_ids = _certified_superseded_ids(records)
     stages: list[CiboLabEvidenceStage] = []
     found = False
-    for record in registry.records:
-        if record.trader_version.fingerprint != trader_version.fingerprint:
+    for record in records:
+        if record.study_id in superseded_ids:
             continue
         if record.epistemic_status is not TraderHistoryEpistemicStatus.CERTIFIED:
             continue
@@ -126,19 +143,23 @@ def project_cibo_capability_profile(
     trader_version: TraderVersionIdentity,
     *,
     trader_identity: ResearchDecisionEvaluatorIdentity,
-    specialty: CiboSpecialtyCode,
     qualified_markets: tuple[CiboTradeableMarketRef, ...],
     qualified_timeframes: tuple[CiboTimeframeCode, ...],
-    certification_state: CiboCertificationState,
-    freshness: CiboEvidenceFreshness,
+    evidence_as_of: datetime,
     limitations: tuple[str, ...] = (),
 ) -> Result[CiboTraderCapabilityProfile, CiboTraderHistoryAdapterError]:
     """Project certified history into an immutable CIBO capability profile.
 
-    Only certified + sufficient + evidence-backed claims are projected. Metric
-    codes whose value diverges across scopes are deliberately not collapsed into
-    a single global value (evidence specificity is preserved), and the profile is
-    built through the existing validated constructor so all CIBO invariants hold.
+    Only certified + sufficient + evidence-backed claims are projected. Specialty
+    is derived from the exact Trader methodology (never caller-asserted), scopes
+    must be jointly backed by certified history, and unresolved current
+    contradictions fail closed. ``certification_state`` and ``freshness`` are
+    derived from the governed evidence at ``evidence_as_of`` (never caller
+    assertion): a projection that reaches profile construction has current
+    certified evidence, so the state is ``EVIDENCE_COLLECTED`` and the freshness
+    is ``CURRENT``. Metric codes whose value diverges across scopes are
+    deliberately not collapsed into a single global value (evidence specificity
+    is preserved).
     """
     if type(registry) is not TraderHistoricalIntelligenceRegistry:
         return Failure(
@@ -156,8 +177,8 @@ def project_cibo_capability_profile(
                 "adapter requires ResearchDecisionEvaluatorIdentity"
             )
         )
-    expected_identity_family = (
-        "virtual.trader." + trader_version.trader_code.value.replace("-", "")
+    expected_identity_family = compute_trader_identity_family(
+        trader_version.trader_code
     )
     if trader_identity.family.value != expected_identity_family:
         return Failure(
@@ -167,13 +188,21 @@ def project_cibo_capability_profile(
                 f"{trader_identity.family.value!r}"
             )
         )
-    if type(certification_state) is not CiboCertificationState:
+    if trader_identity.schema_version.value != trader_version.version.value:
         return Failure(
-            CiboTraderHistoryAdapterError("adapter requires CiboCertificationState")
+            CiboTraderHistoryAdapterError(
+                "trader identity schema version must match the exact Trader version: "
+                f"expected {trader_version.version.value!r}, got "
+                f"{trader_identity.schema_version.value!r}"
+            )
         )
-    if type(freshness) is not CiboEvidenceFreshness:
+    if type(evidence_as_of) is not datetime:
         return Failure(
-            CiboTraderHistoryAdapterError("adapter requires CiboEvidenceFreshness")
+            CiboTraderHistoryAdapterError("adapter requires evidence_as_of datetime")
+        )
+    if evidence_as_of.tzinfo is None or evidence_as_of.utcoffset() is None:
+        return Failure(
+            CiboTraderHistoryAdapterError("evidence_as_of must be timezone-aware")
         )
     if type(qualified_markets) is not tuple or any(
         type(item) is not CiboTradeableMarketRef for item in qualified_markets
@@ -195,7 +224,7 @@ def project_cibo_capability_profile(
         projection = project_current_capability(
             registry,
             trader_version,
-            derived_at=freshness.as_of,
+            derived_at=evidence_as_of,
         )
         if isinstance(projection, Failure):
             return Failure(
@@ -205,14 +234,34 @@ def project_cibo_capability_profile(
             )
         view = projection.value
 
+        # F3: unresolved current certified contradictions must never disappear at
+        # the CIBO boundary. They fail closed rather than silently vanishing.
+        if view.contradictions:
+            raise CiboTraderHistoryAdapterError(
+                "unresolved certified contradictions prevent a CIBO capability "
+                "projection; refusing to drop contradictory evidence"
+            )
+
+        # A CIBO capability is a projection of verified current certified
+        # quantitative evidence. With no certified quantitative claims to
+        # project, claiming EVIDENCE_COLLECTED/CURRENT would be fabrication (F7).
+        if not view.certified_metrics:
+            raise CiboTraderHistoryAdapterError(
+                "no current certified quantitative evidence to project; refusing "
+                "to fabricate a collected/current certification state"
+            )
+
         current_records = tuple(
             record
             for record in registry.records
             if record.trader_version.fingerprint == trader_version.fingerprint
-            and record.produced_at <= freshness.as_of
+            and _epistemic_moment(record) <= evidence_as_of
         )
         superseded_ids = {
-            target for record in current_records for target in record.supersedes
+            target
+            for record in current_records
+            if record.epistemic_status is TraderHistoryEpistemicStatus.CERTIFIED
+            for target in record.supersedes
         }
         certified_scope_records = tuple(
             record
@@ -220,39 +269,34 @@ def project_cibo_capability_profile(
             if record.epistemic_status is TraderHistoryEpistemicStatus.CERTIFIED
             and record.study_id not in superseded_ids
         )
-        supported_markets = {
-            market.value
-            for record in certified_scope_records
-            for market in record.market_scope
+        # D2: market/timeframe scope is JOINT, never Cartesian. Each requested
+        # (market, timeframe) pair must be explicitly backed by certified history.
+        # A certified study that declares both multi-market and multi-timeframe
+        # scope has no explicit joint tuples, so its Cartesian cross product is
+        # ambiguous and must fail closed rather than fabricate pairings.
+        backed_joint_scopes: set[tuple[str, str]] = set()
+        for record in certified_scope_records:
+            if len(record.market_scope) > 1 and len(record.timeframe_scope) > 1:
+                raise CiboTraderHistoryAdapterError(
+                    "certified study declares multi-market x multi-timeframe scope "
+                    "without explicit joint tuples; ambiguous joint scope refused"
+                )
+            for market in record.market_scope:
+                for timeframe in record.timeframe_scope:
+                    backed_joint_scopes.add((market.value, timeframe.value))
+        requested_joint_scopes = {
+            (market.value, timeframe.value)
+            for market in qualified_markets
+            for timeframe in qualified_timeframes
         }
-        supported_timeframes = {
-            timeframe.value
-            for record in certified_scope_records
-            for timeframe in record.timeframe_scope
-        }
-        unsupported_markets = tuple(
-            sorted(
-                item.value
-                for item in qualified_markets
-                if item.value not in supported_markets
-            )
+        unsupported_joint_scopes = tuple(
+            sorted(requested_joint_scopes - backed_joint_scopes)
         )
-        unsupported_timeframes = tuple(
-            sorted(
-                item.value
-                for item in qualified_timeframes
-                if item.value not in supported_timeframes
-            )
-        )
-        if unsupported_markets:
+        if unsupported_joint_scopes:
             raise CiboTraderHistoryAdapterError(
-                "qualified markets are not backed by current certified historical "
-                f"evidence: {unsupported_markets!r}"
-            )
-        if unsupported_timeframes:
-            raise CiboTraderHistoryAdapterError(
-                "qualified timeframes are not backed by current certified historical "
-                f"evidence: {unsupported_timeframes!r}"
+                "qualified market/timeframe combinations are not backed by current "
+                "certified historical evidence: "
+                f"{unsupported_joint_scopes!r}"
             )
 
         by_code: dict[str, list[TraderHistoryMetricView]] = {}
@@ -272,7 +316,10 @@ def project_cibo_capability_profile(
                 for ref in item.evidence_refs:
                     cibo_ref = CiboEvidenceRef(ref.value)
                     for stage in _stages_for_evidence_ref(
-                        registry, trader_version, ref.value
+                        registry,
+                        trader_version,
+                        ref.value,
+                        derived_at=evidence_as_of,
                     ):
                         lab_evidence[(stage.value, cibo_ref.value)] = CiboLabEvidenceRef(
                             stage, cibo_ref
@@ -306,7 +353,7 @@ def project_cibo_capability_profile(
             config_fingerprint=CiboTraderConfigFingerprint(
                 trader_version.config_fingerprint.value
             ),
-            specialty=specialty,
+            specialty=CiboSpecialtyCode(trader_version.methodology_id.value),
             qualified_markets=qualified_markets,
             qualified_timeframes=qualified_timeframes,
             certified_lab_evidence=tuple(
@@ -324,8 +371,11 @@ def project_cibo_capability_profile(
             economic_metrics=tuple(
                 sorted(economic_metrics, key=lambda item: item.metric_code)
             ),
-            certification_state=certification_state,
-            freshness=freshness,
+            certification_state=CiboCertificationState.EVIDENCE_COLLECTED,
+            freshness=CiboEvidenceFreshness(
+                state=CiboEvidenceFreshnessState.CURRENT,
+                as_of=evidence_as_of,
+            ),
             limitations=limitations,
         )
     except CiboCapabilityProfileError as error:

@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from hashlib import sha256
 
 from qore.infrastructure.research_sample_partition import SampleRole
 from qore.infrastructure.trader_history.contracts import (
@@ -25,6 +26,7 @@ from qore.infrastructure.trader_history.contracts import (
     TraderHistoryEpistemicStatus,
     TraderHistoryEvidenceRef,
     TraderHistoryFavorableKind,
+    TraderHistoryLedgerRoot,
     TraderHistoryMarketRef,
     TraderHistoryPartitionIdentity,
     TraderHistoryRegimeRef,
@@ -39,6 +41,7 @@ from qore.infrastructure.trader_history.contracts import (
     TraderHistoryValidationError,
     TraderVersionIdentity,
     _canonical_decimal,
+    _canonical_json,
     _utc_iso,
     _validate_timestamp,
     validate_study_record,
@@ -85,6 +88,38 @@ def _scope_key(
         None if side is None else side.value,
         None if condition is None else condition.value,
     )
+
+
+def _certified_superseded_ids(
+    records: tuple[TraderHistoryStudyRecord, ...],
+) -> set[TraderHistoryStudyId]:
+    """Return study ids suppressed by a CERTIFIED superseder only.
+
+    A non-certified (e.g. hypothesis, observed, falsified) superseder can never
+    suppress certified evidence, and a superseder produced after ``derived_at``
+    is excluded by the caller's time window. This keeps supersession epistemic
+    and temporally causal (D1).
+    """
+    return {
+        target
+        for record in records
+        if record.epistemic_status is TraderHistoryEpistemicStatus.CERTIFIED
+        for target in record.supersedes
+    }
+
+
+def _epistemic_moment(record: TraderHistoryStudyRecord) -> datetime:
+    """Return the instant a study becomes effective knowledge.
+
+    A certified study becomes knowledge only when its certification is issued
+    (``issued_at >= produced_at``); a non-certified study is available when it is
+    produced. Projection must honor this moment rather than the static
+    ``epistemic_status`` alone, so future issuance can never leak into an earlier
+    projection.
+    """
+    if record.certification is not None:
+        return record.certification.issued_at
+    return record.produced_at
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +194,10 @@ class TraderHistoricalIntelligenceRegistry:
 
     def logical_values(self) -> tuple[object, ...]:
         return tuple(record.logical_values() for record in self.records)
+
+    def ledger_root(self) -> TraderHistoryLedgerRoot:
+        """Return the externally anchorable root of this complete ledger."""
+        return compute_trader_history_ledger_root(self)
 
 
 def _check_no_duplicate_study_identity(
@@ -271,6 +310,11 @@ def _check_hypothesis_lineage(
                 "hypothesis confirmation/falsification must remain within the "
                 "same Trader lineage"
             )
+        if record.produced_at < parent.produced_at:
+            raise TraderHistoryValidationError(
+                "hypothesis confirmation/falsification cannot predate its "
+                "hypothesis parent"
+            )
         if (
             parent.trader_version.fingerprint
             == record.trader_version.fingerprint
@@ -296,20 +340,58 @@ def _check_hypothesis_lineage(
                 )
 
 
+def _reject_supersession_cycles(
+    edges: dict[TraderHistoryStudyId, set[TraderHistoryStudyId]],
+) -> None:
+    """Fail closed if the supersession graph contains a directed cycle."""
+    visiting: set[TraderHistoryStudyId] = set()
+    visited: set[TraderHistoryStudyId] = set()
+
+    def visit(node: TraderHistoryStudyId) -> None:
+        visiting.add(node)
+        for target in sorted(edges[node], key=lambda item: str(item.value)):
+            if target in visiting:
+                raise TraderHistoryValidationError(
+                    "supersession graph must be acyclic"
+                )
+            if target not in visited and target in edges:
+                visit(target)
+        visiting.remove(node)
+        visited.add(node)
+
+    for node in sorted(edges, key=lambda item: str(item.value)):
+        if node not in visited:
+            visit(node)
+
+
 def _check_supersedes(
     records: tuple[TraderHistoryStudyRecord, ...],
 ) -> None:
-    ids = {record.study_id for record in records}
+    by_id = {record.study_id: record for record in records}
+    edges: dict[TraderHistoryStudyId, set[TraderHistoryStudyId]] = {}
     for record in records:
         for target in record.supersedes:
             if target == record.study_id:
                 raise TraderHistoryValidationError(
                     "a study cannot supersede itself"
                 )
-            if target not in ids:
+            superseded = by_id.get(target)
+            if superseded is None:
                 raise TraderHistoryValidationError(
                     "supersedes must reference an existing study"
                 )
+            if record.produced_at < superseded.produced_at:
+                raise TraderHistoryValidationError(
+                    "a study cannot supersede evidence produced after it (inversion)"
+                )
+            if _epistemic_moment(record) < _epistemic_moment(superseded):
+                raise TraderHistoryValidationError(
+                    "a study cannot supersede evidence certified after it "
+                    "(certification inversion)"
+                )
+        if record.supersedes:
+            edges[record.study_id] = set(record.supersedes)
+    _reject_supersession_cycles(edges)
 
 
 def studies_for_version(
@@ -366,6 +448,36 @@ def consumed_holdouts(
         {
             partition
             for record in registry.records
+            for partition in record.partitions
+            if partition.role is SampleRole.EXTERNAL_VALIDATION
+        },
+        key=lambda item: str(item.partition_id),
+    )
+    return tuple(result)
+
+
+def _consumed_holdouts_for_lineage(
+    registry: TraderHistoricalIntelligenceRegistry,
+    trader_version: TraderVersionIdentity,
+    *,
+    derived_at: datetime,
+) -> tuple[TraderHistoryPartitionIdentity, ...]:
+    """Return consumed holdouts scoped to the exact requested Trader lineage.
+
+    The global ``consumed_holdouts`` remains the governance-wide view; the
+    current-view projection must not leak other Traders' consumed holdouts (F6)
+    nor future holdout consumption (only studies whose epistemic moment is on or
+    before ``derived_at`` count).
+    """
+    lineage = trader_version.trader_code.value
+    result = sorted(
+        {
+            partition
+            for record in registry.records
+            if (
+                record.trader_version.trader_code.value == lineage
+                and _epistemic_moment(record) <= derived_at
+            )
             for partition in record.partitions
             if partition.role is SampleRole.EXTERNAL_VALIDATION
         },
@@ -511,12 +623,14 @@ def project_current_capability(
     except TraderHistoryValidationError as error:
         return Failure(TraderHistoryBlockedError(f"projection input invalid: {error}"))
 
-    # No hindsight: only evidence produced on or before ``derived_at`` can be
-    # projected as the "current" view at that instant.
+    # No hindsight: only knowledge whose epistemic moment (produced_at for
+    # non-certified studies, certification issued_at for certified studies) is on
+    # or before ``derived_at`` can be projected as "current". Future issuance can
+    # never leak into an earlier projection.
     records = tuple(
-        record for record in records if record.produced_at <= derived_at
+        record for record in records if _epistemic_moment(record) <= derived_at
     )
-    superseded_ids = {target for record in records for target in record.supersedes}
+    superseded_ids = _certified_superseded_ids(records)
     certified = [
         record
         for record in records
@@ -680,7 +794,9 @@ def project_current_capability(
         exploratory_records=tuple(sorted(exploratory, key=_record_sort_key)),
         stale_records=tuple(sorted(stale, key=_record_sort_key)),
         insufficient_metrics=insufficient_metrics,
-        consumed_holdouts=consumed_holdouts(registry),
+        consumed_holdouts=_consumed_holdouts_for_lineage(
+            registry, trader_version, derived_at=derived_at
+        ),
         evidence_refs=evidence_refs,
     )
     return Success(view)
@@ -707,12 +823,16 @@ class TraderHistoryMarketEvidence:
 def market_evidence(
     registry: TraderHistoricalIntelligenceRegistry,
     trader_version: TraderVersionIdentity,
+    *,
+    derived_at: datetime,
 ) -> tuple[TraderHistoryMarketEvidence, ...]:
     """Return per-market certified/insufficient evidence without inventing rankings.
 
     No "best market" or relative ranking is inferred: each market is reported with
     only the evidence directly scoped to it, and insufficient samples stay
-    insufficient rather than optimistic.
+    insufficient rather than optimistic. Only knowledge whose epistemic moment is
+    on or before ``derived_at`` is reported, so future-produced or future-certified
+    evidence can never leak into a current market view (D1/F2).
     """
 
     if type(registry) is not TraderHistoricalIntelligenceRegistry:
@@ -724,9 +844,18 @@ def market_evidence(
             "trader_version must be TraderVersionIdentity"
         )
     TraderVersionIdentity.__post_init__(trader_version)
-    records = studies_for_version(registry, trader_version)
+    _validate_timestamp(derived_at, field_name="derived_at")
+    records = tuple(
+        record
+        for record in studies_for_version(registry, trader_version)
+        if _epistemic_moment(record) <= derived_at
+    )
+    superseded_ids = _certified_superseded_ids(records)
+    active_records = tuple(
+        record for record in records if record.study_id not in superseded_ids
+    )
     markets = sorted(
-        {market for record in records for market in record.market_scope},
+        {market for record in active_records for market in record.market_scope},
         key=lambda item: item.value,
     )
     result: list[TraderHistoryMarketEvidence] = []
@@ -734,7 +863,7 @@ def market_evidence(
         scoped_certified: list[TraderHistoryMetricView] = []
         scoped_insufficient: set[str] = set()
         scoped_refs: set[TraderHistoryEvidenceRef] = set()
-        for record in records:
+        for record in active_records:
             if market not in record.market_scope:
                 continue
             if record.epistemic_status is TraderHistoryEpistemicStatus.CERTIFIED:
@@ -832,13 +961,37 @@ def diff_versions(
     registry: TraderHistoricalIntelligenceRegistry,
     left: TraderVersionIdentity,
     right: TraderVersionIdentity,
+    *,
+    derived_at: datetime,
 ) -> TraderHistoryVersionDiff:
-    """Return a deterministic evidence diff between two exact Trader versions."""
+    """Return a deterministic evidence diff between two exact Trader versions.
+
+    Only knowledge whose epistemic moment is on or before ``derived_at`` is
+    diffed, so future-produced or future-certified evidence can never leak into a
+    current version diff (D1/F2).
+    """
 
     if type(left) is not TraderVersionIdentity or type(right) is not TraderVersionIdentity:
         raise TraderHistoryValidationError("diff requires two TraderVersionIdentity")
-    left_records = studies_for_version(registry, left)
-    right_records = studies_for_version(registry, right)
+    _validate_timestamp(derived_at, field_name="derived_at")
+    left_records = tuple(
+        record
+        for record in studies_for_version(registry, left)
+        if _epistemic_moment(record) <= derived_at
+    )
+    right_records = tuple(
+        record
+        for record in studies_for_version(registry, right)
+        if _epistemic_moment(record) <= derived_at
+    )
+    left_superseded = _certified_superseded_ids(left_records)
+    right_superseded = _certified_superseded_ids(right_records)
+    left_records = tuple(
+        record for record in left_records if record.study_id not in left_superseded
+    )
+    right_records = tuple(
+        record for record in right_records if record.study_id not in right_superseded
+    )
     left_kinds = {record.kind.value for record in left_records}
     right_kinds = {record.kind.value for record in right_records}
 
@@ -895,3 +1048,87 @@ def diff_versions(
         left_insufficient_metrics=_insufficient(left_records),
         right_insufficient_metrics=_insufficient(right_records),
     )
+
+
+def compute_trader_history_ledger_root(
+    registry: TraderHistoricalIntelligenceRegistry,
+) -> TraderHistoryLedgerRoot:
+    """Compute the externally anchorable root of the complete append-only ledger.
+
+    The root is a SHA-256 digest of the canonically ordered record logical
+    values, so reordered ingestion yields the identical root and any truncation,
+    insertion, or mutation of a reconstructed ledger changes the digest.
+    """
+
+    if type(registry) is not TraderHistoricalIntelligenceRegistry:
+        raise TraderHistoryValidationError(
+            "ledger root requires TraderHistoricalIntelligenceRegistry"
+        )
+    payload = {
+        "schema": "qore.trader_history.ledger_root.v1",
+        "records": [list(record.logical_values()) for record in registry.records],
+    }
+    return TraderHistoryLedgerRoot(sha256(_canonical_json(payload)).hexdigest())
+
+
+def verify_reconstructed_history(
+    registry: TraderHistoricalIntelligenceRegistry,
+    expected_root: TraderHistoryLedgerRoot,
+) -> Result[TraderHistoricalIntelligenceRegistry, TraderHistoryBlockedError]:
+    """Verify a reconstructed ledger against an authoritative expected root.
+
+    A self-consistent but truncated ledger cannot authenticate itself: the
+    reconstructed ledger's computed root must equal an authoritative external
+    anchor, otherwise the reconstruction is refused (D3/F4).
+    """
+
+    if type(registry) is not TraderHistoricalIntelligenceRegistry:
+        return Failure(
+            TraderHistoryBlockedError(
+                "reconstruction verification requires TraderHistoricalIntelligenceRegistry"
+            )
+        )
+    if type(expected_root) is not TraderHistoryLedgerRoot:
+        return Failure(
+            TraderHistoryBlockedError(
+                "reconstruction verification requires TraderHistoryLedgerRoot"
+            )
+        )
+    actual = compute_trader_history_ledger_root(registry)
+    if actual != expected_root:
+        return Failure(
+            TraderHistoryBlockedError(
+                "reconstructed ledger root does not match the authoritative anchor; "
+                "truncation or mutation refused"
+            )
+        )
+    return Success(registry)
+
+
+def reconstruct_trader_history(
+    records: tuple[TraderHistoryStudyRecord, ...],
+    expected_root: TraderHistoryLedgerRoot,
+) -> Result[TraderHistoricalIntelligenceRegistry, TraderHistoryBlockedError]:
+    """Rebuild a registry from persisted records against an authoritative root.
+
+    This is the sanctioned reconstruction seam: a (possibly truncated or mutated)
+    set of persisted records is authenticated ONLY against an authoritative
+    external ledger root. A self-consistent truncated ledger can never
+    authenticate itself (D3/F4). In-memory append-only construction should use
+    ``TraderHistoricalIntelligenceRegistry`` / ``append_study`` directly; this
+    function is for rebuilding the ledger from an external record set.
+    """
+
+    if type(records) is not tuple:
+        return Failure(
+            TraderHistoryBlockedError(
+                "reconstruction requires an immutable tuple of study records"
+            )
+        )
+    try:
+        registry = TraderHistoricalIntelligenceRegistry(records=records)
+    except TraderHistoryValidationError as error:
+        return Failure(
+            TraderHistoryBlockedError(f"reconstruction failed closed: {error}")
+        )
+    return verify_reconstructed_history(registry, expected_root)

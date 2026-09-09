@@ -44,8 +44,14 @@ FAILED GATE != END OF RESEARCH
 `trader_history` is consumed by CIBO through `project_cibo_capability_profile`, which maps the
 current view into `CiboTraderCapabilityProfile` **without** mutating history and **without**
 allowing cross-Trader identity projection: the supplied CIBO identity family must match the
-exact `TraderVersionIdentity.trader_code` (for example `vt-08` -> `virtual.trader.vt08`). It also
-operates **without**
+exact `TraderVersionIdentity.trader_code` (for example `vt-08` -> `virtual.trader.vt08`), and its
+schema version must match the exact Trader version. `compute_trader_identity_family` is the
+single canonical family convention shared by the Registry, the Trader Lab, and CIBO. Specialty
+is derived from the exact Trader methodology, `certification_state`/`freshness` are derived
+(`EVIDENCE_COLLECTED`/`CURRENT`) from governed current evidence rather than caller assertion,
+scope is joint (never Cartesian), unresolved contradictions fail closed, and a projection with
+no current certified quantitative evidence fails closed instead of fabricating a
+collected/current certification state. It also operates **without**
 constructing `CiboDemoEligibilityEvidence`.
 
 ## Append-only laws
@@ -58,6 +64,13 @@ constructing `CiboDemoEligibilityEvidence`.
   (`TraderHistoryBlockedError`).
 - Records are canonically ordered by `(produced_at_utc, trader_version_fingerprint,
   study_id, study_version)`, so reordered ingestion yields the identical registry.
+- The ledger exposes an externally anchorable root (`TraderHistoryLedgerRoot`,
+  `compute_trader_history_ledger_root`). A reconstructed (possibly truncated) ledger
+  is authenticated only through `verify_reconstructed_history(registry, expected_root)`;
+  a self-consistent truncated ledger can never authenticate itself. Rebuilding a ledger
+  from an external record set must go through `reconstruct_trader_history(records,
+  expected_root)`, which refuses any record set whose root does not match the
+  authoritative anchor.
 
 ## Epistemic and sufficiency semantics
 
@@ -74,6 +87,17 @@ Construction invariants fail closed:
 - `FAILURE_ANALYSIS` is diagnostic (`INFERRED`); `CHARACTERIZATION` is descriptive/diagnostic.
 - A quantitative claim requires non-empty evidence refs and `OBSERVED`/`INFERRED`/`CERTIFIED`
   status; it can never be `HYPOTHESIS`/`FALSIFIED`/`INSUFFICIENT_EVIDENCE`.
+- `CERTIFIED` is never caller assertion: it requires a sealed
+  `TraderHistoryCertification` envelope (exact authority kind, UUID authority id,
+  `issued_at`, and the exact `study_id`/`study_version` it certifies) whose `_issued`
+  marker no in-repo constructor can set (only an owning authority or a trusted test double
+  can mint it), whose authority kind exactly owns the study kind, whose
+  `issued_at >= produced_at`, whose subject binding exactly matches the study identity
+  (so an issued envelope can never be replayed onto a different study), and which is hashed
+  into the study fingerprint. A non-certified study must carry no certification.
+- Out-of-sample stages cannot be laundered from development/calibration data: `OOS`,
+  `WALK_FORWARD`, and `INDEPENDENT_VALIDATION` studies must consume an
+  `EXTERNAL_VALIDATION` holdout partition.
 
 ## Study and version lineage
 
@@ -94,13 +118,25 @@ function that:
 
 - selects only records whose exact version fingerprint matches the request (version/config
   mismatch is excluded, never laundered);
-- projects only `CERTIFIED`+`SUFFICIENT`+evidence-backed quantitative claims;
-- preserves market/timeframe/regime/side/condition specificity (no blind pooling);
+- projects only `CERTIFIED`+`SUFFICIENT`+evidence-backed quantitative claims, honoring each
+  record's epistemic moment (`max(produced_at, certification.issued_at)`), so future
+  certification/issuance never leaks into an earlier projection;
+- preserves market/timeframe/regime/side/condition specificity (no blind pooling), and scope
+  is joint (market x timeframe), never Cartesian;
 - retains contradictory values for the same metric scope as `TraderHistoryContradiction`
   (indeterminate) instead of choosing the favorable value;
 - surfaces sparse samples as `insufficient_metrics`, stale/superseded records separately, and
-  every consumed holdout;
+  every consumed holdout scoped to the exact Trader lineage and the derived_at instant;
+- suppresses certified evidence only via a CERTIFIED superseder (never a hypothesis/observed
+  record), with supersession cycles, produced-time inversions, and certification-time
+  inversions (a superseder certified before its target) rejected;
 - returns no ranking (`best market`) and no authority.
+
+`market_evidence(registry, trader_version, derived_at=...)` and
+`diff_versions(registry, left, right, derived_at=...)` honor the same epistemic moment:
+they report only knowledge whose `max(produced_at, certification.issued_at)` is on or before
+`derived_at`, so a future-certified or future-produced record can never leak into a current
+market view or version diff.
 
 ## Authority prohibitions
 

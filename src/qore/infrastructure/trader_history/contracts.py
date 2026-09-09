@@ -22,7 +22,7 @@ authority.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -226,6 +226,51 @@ class TraderHistoryFavorableKind(StrEnum):
     WEAK = "weak"
     DEGRADED = "degraded"
     ADVERSE = "adverse"
+
+
+class TraderHistoryAuthorityKind(StrEnum):
+    """Exact certifying authority kind for a longitudinal study.
+
+    ``CERTIFIED`` is never caller assertion: a certified study must carry a
+    certification envelope whose authority kind exactly owns the study kind, so a
+    caller cannot forge a Risk/CIBO/independent-validation certification for a
+    Lab stage (or vice versa).
+    """
+
+    TRADER_LAB = "trader-lab"
+    RISK = "risk"
+    CIBO = "cibo"
+    INDEPENDENT_VALIDATION = "independent-validation"
+    ECONOMIC = "economic"
+
+
+_KIND_AUTHORITY: dict[TraderHistoryStudyKind, TraderHistoryAuthorityKind] = {
+    TraderHistoryStudyKind.REPLAY: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.BACKTEST: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.FAST_FORWARD: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.WALK_FORWARD: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.OOS: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.STRESS: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.MONTE_CARLO: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.ECONOMIC_EVALUATION: TraderHistoryAuthorityKind.ECONOMIC,
+    TraderHistoryStudyKind.RISK_REVIEW: TraderHistoryAuthorityKind.RISK,
+    TraderHistoryStudyKind.CIBO_REVIEW: TraderHistoryAuthorityKind.CIBO,
+    TraderHistoryStudyKind.INDEPENDENT_VALIDATION: (
+        TraderHistoryAuthorityKind.INDEPENDENT_VALIDATION
+    ),
+    TraderHistoryStudyKind.DEMO: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.CHARACTERIZATION: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.FAILURE_ANALYSIS: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.HYPOTHESIS: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.HYPOTHESIS_FALSIFICATION: (
+        TraderHistoryAuthorityKind.TRADER_LAB
+    ),
+    TraderHistoryStudyKind.HYPOTHESIS_CONFIRMATION: (
+        TraderHistoryAuthorityKind.TRADER_LAB
+    ),
+    TraderHistoryStudyKind.RETURN_TO_LAB: TraderHistoryAuthorityKind.TRADER_LAB,
+    TraderHistoryStudyKind.REMEDIATION: TraderHistoryAuthorityKind.TRADER_LAB,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -675,6 +720,98 @@ class TraderHistoryStudyFingerprint:
         return (self.value,)
 
 
+@dataclass(frozen=True, slots=True)
+class TraderHistoryCertification:
+    """Sealed certification envelope: authority kind/id, subject, issuance time.
+
+    A study is ``CERTIFIED`` only when it carries exactly one certification
+    envelope whose authority kind exactly owns the study kind, whose
+    ``issued_at`` is not before ``produced_at``, and whose subject binding exactly
+    matches the study identity (``study_id`` + ``study_version``). The envelope is
+    hashed into the study fingerprint, so it can never be detached, reassigned,
+    or forged without invalidating the record.
+
+    ``CERTIFIED`` is never caller assertion: the envelope binds an exact
+    ``authority_id`` (a UUID), the exact study identity it certifies, and is
+    sealed with an ``_issued`` marker that no in-repo constructor can set. Only an
+    owning authority OUTSIDE this module (or a trusted test double) can mint a
+    certification, so a caller cannot forge an authority-backed certification for
+    a study, nor replay an issued envelope onto a different study.
+    """
+
+    authority_kind: TraderHistoryAuthorityKind
+    authority_id: UUID
+    issued_at: datetime
+    study_id: TraderHistoryStudyId
+    study_version: TraderHistoryStudyVersion
+    _issued: bool = field(default=False, init=False)
+
+    def __post_init__(self) -> None:
+        if self._issued is not True:
+            raise TraderHistoryValidationError(
+                "certification must be issued by an owning authority"
+            )
+        if type(self.authority_kind) is not TraderHistoryAuthorityKind:
+            raise TraderHistoryValidationError(
+                "certification authority kind must be TraderHistoryAuthorityKind"
+            )
+        if type(self.authority_id) is not UUID:
+            raise TraderHistoryValidationError(
+                "certification authority id must be a UUID"
+            )
+        if type(self.study_id) is not TraderHistoryStudyId:
+            raise TraderHistoryValidationError(
+                "certification study id must be TraderHistoryStudyId"
+            )
+        if type(self.study_version) is not TraderHistoryStudyVersion:
+            raise TraderHistoryValidationError(
+                "certification study version must be TraderHistoryStudyVersion"
+            )
+        _validate_timestamp(self.issued_at, field_name="certification issued_at")
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.authority_kind.value,
+            str(self.authority_id),
+            _utc_iso(self.issued_at, field_name="certification issued_at"),
+            str(self.study_id.value),
+            self.study_version.value,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class TraderHistoryLedgerRoot:
+    """Canonical SHA-256 digest of the complete append-only ledger.
+
+    A reconstructed (possibly truncated) ledger is authenticated only against an
+    authoritative external root; a self-consistent truncated ledger can never
+    authenticate itself.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        _validate_sha256(self.value, field_name="ledger root")
+
+    def logical_values(self) -> tuple[str, ...]:
+        return (self.value,)
+
+
+def compute_trader_identity_family(trader_code: DemoTradingTraderCode) -> str:
+    """Return the single canonical CIBO decision-evaluator family for a Trader code.
+
+    This is the one identity convention shared by the Registry, the Trader Lab
+    and the CIBO capability path (``vt-08`` -> ``virtual.trader.vt08``). No
+    caller may assert a divergent family (e.g. ``qore.trader.*``).
+    """
+
+    if type(trader_code) is not DemoTradingTraderCode:
+        raise TraderHistoryValidationError(
+            "trader identity family requires DemoTradingTraderCode"
+        )
+    return "virtual.trader." + trader_code.value.replace("-", "")
+
+
 def _canonical_markets(
     values: tuple[TraderHistoryMarketRef, ...],
 ) -> tuple[TraderHistoryMarketRef, ...]:
@@ -726,6 +863,11 @@ def _canonical_partitions(
         item.__post_init__()
     if len(set(values)) != len(values):
         raise TraderHistoryValidationError("partitions must not contain duplicates")
+    dataset_fingerprints = [item.dataset_fingerprint for item in values]
+    if len(set(dataset_fingerprints)) != len(dataset_fingerprints):
+        raise TraderHistoryValidationError(
+            "partitions must not contain duplicate dataset fingerprints within one study"
+        )
     return tuple(sorted(values, key=lambda item: str(item.partition_id)))
 
 
@@ -818,6 +960,7 @@ def compute_study_fingerprint(
     sufficiency: TraderHistorySufficiency,
     produced_at: datetime,
     producer: TraderHistoryProducerId,
+    certification: TraderHistoryCertification | None,
     market_scope: tuple[TraderHistoryMarketRef, ...],
     timeframe_scope: tuple[TraderHistoryTimeframeRef, ...],
     partitions: tuple[TraderHistoryPartitionIdentity, ...],
@@ -858,6 +1001,12 @@ def compute_study_fingerprint(
     _validate_timestamp(produced_at, field_name="study produced_at")
     if type(producer) is not TraderHistoryProducerId:
         raise TraderHistoryValidationError("producer must be TraderHistoryProducerId")
+    if certification is not None and type(
+        certification
+    ) is not TraderHistoryCertification:
+        raise TraderHistoryValidationError(
+            "certification must be TraderHistoryCertification or None"
+        )
     if side is not None and type(side) is not TraderHistorySide:
         raise TraderHistoryValidationError("side must be TraderHistorySide or None")
     if session is not None and type(session) is not TraderHistorySessionRef:
@@ -893,6 +1042,9 @@ def compute_study_fingerprint(
         "sufficiency": sufficiency.value,
         "produced_at": _utc_iso(produced_at, field_name="study produced_at"),
         "producer": producer.value,
+        "certification": None
+        if certification is None
+        else list(certification.logical_values()),
         "market_scope": [item.value for item in _canonical_markets(market_scope)],
         "timeframe_scope": [
             item.value for item in _canonical_timeframes(timeframe_scope)
@@ -949,6 +1101,7 @@ class TraderHistoryStudyRecord:
     market_scope: tuple[TraderHistoryMarketRef, ...]
     timeframe_scope: tuple[TraderHistoryTimeframeRef, ...]
     fingerprint: TraderHistoryStudyFingerprint
+    certification: TraderHistoryCertification | None = None
     partitions: tuple[TraderHistoryPartitionIdentity, ...] = ()
     side: TraderHistorySide | None = None
     session: TraderHistorySessionRef | None = None
@@ -975,6 +1128,7 @@ class TraderHistoryStudyRecord:
             self.sufficiency.value,
             _utc_iso(self.produced_at, field_name="study produced_at"),
             self.producer.logical_values(),
+            None if self.certification is None else self.certification.logical_values(),
             tuple(item.logical_values() for item in self.market_scope),
             tuple(item.logical_values() for item in self.timeframe_scope),
             tuple(item.logical_values() for item in self.partitions),
@@ -1024,6 +1178,21 @@ def _validate_study_record_invariants(record: TraderHistoryStudyRecord) -> None:
         raise TraderHistoryValidationError(
             "fingerprint must be TraderHistoryStudyFingerprint"
         )
+    if record.certification is not None and type(
+        record.certification
+    ) is not TraderHistoryCertification:
+        raise TraderHistoryValidationError(
+            "certification must be TraderHistoryCertification or None"
+        )
+    if record.certification is not None:
+        TraderHistoryCertification.__post_init__(record.certification)
+        if (
+            record.certification.study_id != record.study_id
+            or record.certification.study_version != record.study_version
+        ):
+            raise TraderHistoryValidationError(
+                "certification must bind the exact study identity"
+            )
 
     object.__setattr__(record, "market_scope", _canonical_markets(record.market_scope))
     object.__setattr__(
@@ -1091,6 +1260,29 @@ def _validate_study_record_invariants(record: TraderHistoryStudyRecord) -> None:
             raise TraderHistoryValidationError(
                 "certified quantitative claims require at least one partition identity"
             )
+        # CERTIFIED is never caller assertion: it requires a sealed certification
+        # envelope whose authority kind exactly owns the study kind and whose
+        # issuance is not before the study was produced.
+        if record.certification is None:
+            raise TraderHistoryValidationError(
+                "certified study requires a certification envelope"
+            )
+        if record.certification.issued_at < record.produced_at:
+            raise TraderHistoryValidationError(
+                "certification issued_at cannot predate study produced_at"
+            )
+        expected_authority = _KIND_AUTHORITY.get(record.kind)
+        if expected_authority is not None and (
+            record.certification.authority_kind is not expected_authority
+        ):
+            raise TraderHistoryValidationError(
+                f"{record.kind.value} study requires {expected_authority.value} "
+                "certification authority"
+            )
+    elif record.certification is not None:
+        raise TraderHistoryValidationError(
+            "non-certified study must not carry a certification envelope"
+        )
     # Reverse kind->status coherence: a kind-specific epistemic status can never
     # launder onto an unrelated study kind.
     if (
@@ -1138,6 +1330,23 @@ def _validate_study_record_invariants(record: TraderHistoryStudyRecord) -> None:
             raise TraderHistoryValidationError(
                 "hypothesis confirmation/falsification requires hypothesis lineage"
             )
+    # Out-of-sample stages can never be laundered from development/calibration
+    # data: a study that projects an out-of-sample CIBO stage (OOS, walk-forward,
+    # or independent validation) must consume a held-out external-validation
+    # partition, otherwise its CIBO stage label is fabricated.
+    if record.kind in (
+        TraderHistoryStudyKind.OOS,
+        TraderHistoryStudyKind.WALK_FORWARD,
+        TraderHistoryStudyKind.INDEPENDENT_VALIDATION,
+    ):
+        if not any(
+            partition.role is SampleRole.EXTERNAL_VALIDATION
+            for partition in record.partitions
+        ):
+            raise TraderHistoryValidationError(
+                f"{record.kind.value} study requires an external-validation "
+                "holdout partition"
+            )
 
     # A quantitative claim can only be an observation, diagnosis, or certified
     # fact; never a hypothesis, falsified claim, or insufficient-evidence claim.
@@ -1159,6 +1368,7 @@ def _validate_study_record_invariants(record: TraderHistoryStudyRecord) -> None:
         sufficiency=record.sufficiency,
         produced_at=record.produced_at,
         producer=record.producer,
+        certification=record.certification,
         market_scope=record.market_scope,
         timeframe_scope=record.timeframe_scope,
         partitions=record.partitions,
@@ -1200,6 +1410,7 @@ def build_study_record(
     producer: TraderHistoryProducerId,
     market_scope: tuple[TraderHistoryMarketRef, ...],
     timeframe_scope: tuple[TraderHistoryTimeframeRef, ...],
+    certification: TraderHistoryCertification | None = None,
     partitions: tuple[TraderHistoryPartitionIdentity, ...] = (),
     side: TraderHistorySide | None = None,
     session: TraderHistorySessionRef | None = None,
@@ -1224,6 +1435,7 @@ def build_study_record(
         sufficiency=sufficiency,
         produced_at=produced_at,
         producer=producer,
+        certification=certification,
         market_scope=market_scope,
         timeframe_scope=timeframe_scope,
         partitions=partitions,
@@ -1251,6 +1463,7 @@ def build_study_record(
         market_scope=market_scope,
         timeframe_scope=timeframe_scope,
         fingerprint=fingerprint,
+        certification=certification,
         partitions=partitions,
         side=side,
         session=session,

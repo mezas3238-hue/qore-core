@@ -9,6 +9,8 @@ import pytest
 
 from qore.infrastructure.research_sample_partition import SampleRole
 from qore.infrastructure.trader_history.contracts import (
+    TraderHistoryAuthorityKind,
+    TraderHistoryCertification,
     TraderHistoryEpistemicStatus,
     TraderHistoryEvidenceRef,
     TraderHistoryFinding,
@@ -58,6 +60,67 @@ def _dev_partition(n: int = 90) -> TraderHistoryPartitionIdentity:
     return TraderHistoryPartitionIdentity(_DEV_PARTITION_ID, _fp(n), SampleRole.DEVELOPMENT)
 
 
+_AUTHORITY_KIND_BY_KIND = {
+    TraderHistoryStudyKind.INDEPENDENT_VALIDATION: (
+        TraderHistoryAuthorityKind.INDEPENDENT_VALIDATION
+    ),
+    TraderHistoryStudyKind.RISK_REVIEW: TraderHistoryAuthorityKind.RISK,
+    TraderHistoryStudyKind.CIBO_REVIEW: TraderHistoryAuthorityKind.CIBO,
+    TraderHistoryStudyKind.ECONOMIC_EVALUATION: TraderHistoryAuthorityKind.ECONOMIC,
+}
+
+
+_AUTHORITY_ID = UUID("00000000-0000-4000-8000-0000000000aa")
+
+
+def _certification(
+    kind: TraderHistoryStudyKind,
+    produced_at: datetime = _NOW,
+    *,
+    study_id: TraderHistoryStudyId | None = None,
+    study_version: str = "v1",
+) -> TraderHistoryCertification:
+    authority_kind = _AUTHORITY_KIND_BY_KIND.get(
+        kind, TraderHistoryAuthorityKind.TRADER_LAB
+    )
+    certification = object.__new__(TraderHistoryCertification)
+    object.__setattr__(certification, "authority_kind", authority_kind)
+    object.__setattr__(certification, "authority_id", _AUTHORITY_ID)
+    object.__setattr__(certification, "issued_at", produced_at)
+    object.__setattr__(
+        certification,
+        "study_id",
+        study_id if study_id is not None else TraderHistoryStudyId(uuid4()),
+    )
+    object.__setattr__(
+        certification,
+        "study_version",
+        TraderHistoryStudyVersion(study_version),
+    )
+    object.__setattr__(certification, "_issued", True)
+    return certification
+
+
+def _rebind_certification(
+    certification: TraderHistoryCertification,
+    study_id: TraderHistoryStudyId,
+    study_version: TraderHistoryStudyVersion,
+) -> TraderHistoryCertification:
+    if (
+        certification.study_id == study_id
+        and certification.study_version == study_version
+    ):
+        return certification
+    rebound = object.__new__(TraderHistoryCertification)
+    object.__setattr__(rebound, "authority_kind", certification.authority_kind)
+    object.__setattr__(rebound, "authority_id", certification.authority_id)
+    object.__setattr__(rebound, "issued_at", certification.issued_at)
+    object.__setattr__(rebound, "study_id", study_id)
+    object.__setattr__(rebound, "study_version", study_version)
+    object.__setattr__(rebound, "_issued", True)
+    return rebound
+
+
 def _version(code: str = "vt-08", version: str = "v1", config: int = 1) -> TraderVersionIdentity:
     return build_trader_version_identity(
         trader_code=DemoTradingTraderCode(code),
@@ -94,6 +157,18 @@ def _study(**overrides: Any) -> TraderHistoryStudyRecord:
         "quantitative_claims": (_metric(),),
     }
     kwargs.update(overrides)
+    if kwargs["epistemic_status"] is TraderHistoryEpistemicStatus.CERTIFIED:
+        if "certification" in kwargs:
+            kwargs["certification"] = _rebind_certification(
+                kwargs["certification"], kwargs["study_id"], kwargs["study_version"]
+            )
+        else:
+            kwargs["certification"] = _certification(
+                kwargs["kind"],
+                kwargs["produced_at"],
+                study_id=kwargs["study_id"],
+                study_version=kwargs["study_version"].value,
+            )
     return build_study_record(**kwargs)
 
 
@@ -288,8 +363,9 @@ def test_reflective_corruption_of_partition_role_fails_closed() -> None:
         dataset_fingerprint=_fp(7),
         role=SampleRole.EXTERNAL_VALIDATION,
     )
+    sid = TraderHistoryStudyId(uuid4())
     study = build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=_version(),
         kind=TraderHistoryStudyKind.OOS,
@@ -297,6 +373,7 @@ def test_reflective_corruption_of_partition_role_fails_closed() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(TraderHistoryStudyKind.OOS, _NOW, study_id=sid),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(partition,),
@@ -308,8 +385,9 @@ def test_reflective_corruption_of_partition_role_fails_closed() -> None:
 
 def test_reflective_corruption_of_metric_value_fails_closed() -> None:
     metric = _metric()
+    sid = TraderHistoryStudyId(uuid4())
     study = build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=_version(),
         kind=TraderHistoryStudyKind.REPLAY,
@@ -317,6 +395,9 @@ def test_reflective_corruption_of_metric_value_fails_closed() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(
+            TraderHistoryStudyKind.REPLAY, _NOW, study_id=sid
+        ),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(_dev_partition(),),

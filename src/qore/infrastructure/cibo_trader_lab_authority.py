@@ -43,6 +43,7 @@ from qore.infrastructure.research_evaluator_identity import (
     ResearchDecisionEvaluatorIdentity,
     ResearchDecisionEvaluatorSchemaVersion,
 )
+from qore.infrastructure.trader_history.contracts import compute_trader_identity_family
 from qore.infrastructure.trader_lab.candidate import TraderLabCandidateBinding
 from qore.infrastructure.trader_lab.governed_gate import (
     TraderLabGovernedAuthenticityProof,
@@ -66,6 +67,7 @@ from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabStage,
     validate_trader_lab_evidence_reference,
 )
+from qore.infrastructure.traders.contracts import DemoTradingTraderCode
 from qore.infrastructure.traders.evaluators import cohort_evaluators
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
@@ -198,8 +200,9 @@ def _identity(
     *,
     trader_code: str,
 ) -> ResearchDecisionEvaluatorIdentity:
-    normalized_code = trader_code.replace("-", "")
-    family = ResearchDecisionEvaluatorFamily(f"qore.trader.{normalized_code}")
+    family = ResearchDecisionEvaluatorFamily(
+        compute_trader_identity_family(DemoTradingTraderCode(trader_code))
+    )
     version = candidate.version.value
     if fullmatch(r"v\d+(?:\.\d+)*", version) is None:
         raise CiboTraderLabAuthorityValidationError(

@@ -8,7 +8,9 @@ import pytest
 
 from qore.infrastructure.research_sample_partition import SampleRole
 from qore.infrastructure.trader_history.contracts import (
+    TraderHistoryAuthorityKind,
     TraderHistoryBlockedError,
+    TraderHistoryCertification,
     TraderHistoryEpistemicStatus,
     TraderHistoryEvidenceRef,
     TraderHistoryFavorableKind,
@@ -107,6 +109,47 @@ def _dev_partition(n: int = 90) -> TraderHistoryPartitionIdentity:
     )
 
 
+_AUTHORITY_KIND_BY_KIND = {
+    TraderHistoryStudyKind.INDEPENDENT_VALIDATION: (
+        TraderHistoryAuthorityKind.INDEPENDENT_VALIDATION
+    ),
+    TraderHistoryStudyKind.RISK_REVIEW: TraderHistoryAuthorityKind.RISK,
+    TraderHistoryStudyKind.CIBO_REVIEW: TraderHistoryAuthorityKind.CIBO,
+    TraderHistoryStudyKind.ECONOMIC_EVALUATION: TraderHistoryAuthorityKind.ECONOMIC,
+}
+
+
+_AUTHORITY_ID = UUID("00000000-0000-4000-8000-0000000000aa")
+
+
+def _certification(
+    kind: TraderHistoryStudyKind,
+    produced_at: datetime = _NOW,
+    *,
+    study_id: TraderHistoryStudyId | None = None,
+    study_version: str = "v1",
+) -> TraderHistoryCertification:
+    authority_kind = _AUTHORITY_KIND_BY_KIND.get(
+        kind, TraderHistoryAuthorityKind.TRADER_LAB
+    )
+    certification = object.__new__(TraderHistoryCertification)
+    object.__setattr__(certification, "authority_kind", authority_kind)
+    object.__setattr__(certification, "authority_id", _AUTHORITY_ID)
+    object.__setattr__(certification, "issued_at", produced_at)
+    object.__setattr__(
+        certification,
+        "study_id",
+        study_id if study_id is not None else TraderHistoryStudyId(uuid4()),
+    )
+    object.__setattr__(
+        certification,
+        "study_version",
+        TraderHistoryStudyVersion(study_version),
+    )
+    object.__setattr__(certification, "_issued", True)
+    return certification
+
+
 def _study(
     *,
     version: TraderVersionIdentity | None = None,
@@ -127,15 +170,22 @@ def _study(
     session: TraderHistorySessionRef | None = None,
     supersedes: tuple[TraderHistoryStudyId, ...] = (),
 ) -> TraderHistoryStudyRecord:
+    sid = study_id if study_id is not None else TraderHistoryStudyId(uuid4())
+    sver = TraderHistoryStudyVersion(study_version)
     return build_study_record(
-        study_id=study_id if study_id is not None else TraderHistoryStudyId(uuid4()),
-        study_version=TraderHistoryStudyVersion(study_version),
+        study_id=sid,
+        study_version=sver,
         trader_version=version if version is not None else _version(),
         kind=kind,
         epistemic_status=status,
         sufficiency=sufficiency,
         produced_at=produced_at,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=(
+            _certification(kind, produced_at, study_id=sid, study_version=sver.value)
+            if status is TraderHistoryEpistemicStatus.CERTIFIED
+            else None
+        ),
         market_scope=tuple(TraderHistoryMarketRef(m) for m in markets),
         timeframe_scope=tuple(TraderHistoryTimeframeRef(t) for t in timeframes),
         partitions=partitions if partitions is not None else (_dev_partition(),),
@@ -426,7 +476,7 @@ def test_market_evidence_never_ranks_best_market() -> None:
         metrics=(_metric(value="-0.05"),),
     )
     registry = _registry(eur, gbp)
-    evidence = market_evidence(registry, version)
+    evidence = market_evidence(registry, version, derived_at=_NOW)
     assert {e.market.value for e in evidence} == {"EUR/USD", "GBP/USD"}
     by_market = {e.market.value: e for e in evidence}
     assert by_market["EUR/USD"].certified_metrics[0].value == Decimal("0.10")
@@ -440,7 +490,7 @@ def test_diff_versions_reports_kind_and_metric_differences() -> None:
         _study(version=v1, kind=TraderHistoryStudyKind.REPLAY, metrics=(_metric(value="0.10"),)),
         _study(version=v2, kind=TraderHistoryStudyKind.STRESS, metrics=(_metric(value="0.30"),)),
     )
-    diff = diff_versions(registry, v1, v2)
+    diff = diff_versions(registry, v1, v2, derived_at=_NOW)
     assert diff.left_only_kinds == ("replay",)
     assert diff.right_only_kinds == ("stress",)
     assert diff.left_certified_metrics[0].value == Decimal("0.10")

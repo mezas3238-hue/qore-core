@@ -7,9 +7,6 @@ from uuid import UUID, uuid4
 
 from qore.infrastructure.cibo_trader_capability_profile import (
     CiboCertificationState,
-    CiboEvidenceFreshness,
-    CiboEvidenceFreshnessState,
-    CiboSpecialtyCode,
     CiboTimeframeCode,
     CiboTradeableMarketRef,
 )
@@ -25,6 +22,8 @@ from qore.infrastructure.trader_history.cibo_adapter import (
     project_cibo_capability_profile,
 )
 from qore.infrastructure.trader_history.contracts import (
+    TraderHistoryAuthorityKind,
+    TraderHistoryCertification,
     TraderHistoryEpistemicStatus,
     TraderHistoryEvidenceRef,
     TraderHistoryFavorableKind,
@@ -107,15 +106,58 @@ def _dev_partition(n: int = 90) -> TraderHistoryPartitionIdentity:
     )
 
 
+_AUTHORITY_KIND_BY_KIND = {
+    TraderHistoryStudyKind.INDEPENDENT_VALIDATION: (
+        TraderHistoryAuthorityKind.INDEPENDENT_VALIDATION
+    ),
+    TraderHistoryStudyKind.RISK_REVIEW: TraderHistoryAuthorityKind.RISK,
+    TraderHistoryStudyKind.CIBO_REVIEW: TraderHistoryAuthorityKind.CIBO,
+    TraderHistoryStudyKind.ECONOMIC_EVALUATION: TraderHistoryAuthorityKind.ECONOMIC,
+}
+
+
+_AUTHORITY_ID = UUID("00000000-0000-4000-8000-0000000000aa")
+
+
+def _certification(
+    kind: TraderHistoryStudyKind,
+    produced_at: datetime = _NOW,
+    *,
+    study_id: TraderHistoryStudyId | None = None,
+    study_version: str = "v1",
+) -> TraderHistoryCertification:
+    authority_kind = _AUTHORITY_KIND_BY_KIND.get(
+        kind, TraderHistoryAuthorityKind.TRADER_LAB
+    )
+    certification = object.__new__(TraderHistoryCertification)
+    object.__setattr__(certification, "authority_kind", authority_kind)
+    object.__setattr__(certification, "authority_id", _AUTHORITY_ID)
+    object.__setattr__(certification, "issued_at", produced_at)
+    object.__setattr__(
+        certification,
+        "study_id",
+        study_id if study_id is not None else TraderHistoryStudyId(uuid4()),
+    )
+    object.__setattr__(
+        certification,
+        "study_version",
+        TraderHistoryStudyVersion(study_version),
+    )
+    object.__setattr__(certification, "_issued", True)
+    return certification
+
+
 def _study(
     *,
     version: TraderVersionIdentity,
     metrics: tuple[TraderHistoryMetric, ...],
     condition: TraderHistoryFavorableKind | None = None,
     kind: TraderHistoryStudyKind = TraderHistoryStudyKind.REPLAY,
+    partitions: tuple[TraderHistoryPartitionIdentity, ...] | None = None,
 ) -> TraderHistoryStudyRecord:
+    sid = TraderHistoryStudyId(uuid4())
     return build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=version,
         kind=kind,
@@ -123,29 +165,21 @@ def _study(
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(kind, _NOW, study_id=sid),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
-        partitions=(_dev_partition(),),
+        partitions=partitions if partitions is not None else (_dev_partition(),),
         quantitative_claims=metrics,
         condition=condition,
-    )
-
-
-def _freshness() -> CiboEvidenceFreshness:
-    return CiboEvidenceFreshness(
-        state=CiboEvidenceFreshnessState.CURRENT,
-        as_of=_NOW,
     )
 
 
 def _profile_kwargs(**overrides: Any) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
         "trader_identity": _identity(),
-        "specialty": CiboSpecialtyCode("trend-following"),
         "qualified_markets": (CiboTradeableMarketRef("EUR/USD"),),
         "qualified_timeframes": (CiboTimeframeCode("h1"),),
-        "certification_state": CiboCertificationState.EVIDENCE_COLLECTED,
-        "freshness": _freshness(),
+        "evidence_as_of": _NOW,
     }
     kwargs.update(overrides)
     return kwargs
@@ -251,7 +285,7 @@ def test_adapter_refuses_qualification_from_insufficient_and_exploratory() -> No
     )
     assert isinstance(result, Failure)
     assert isinstance(result.error, CiboTraderHistoryAdapterError)
-    assert "not backed by current certified historical evidence" in str(result.error)
+    assert "no current certified quantitative evidence" in str(result.error)
 
 
 def test_adapter_does_not_mutate_history() -> None:
@@ -272,8 +306,9 @@ def test_adapter_does_not_mutate_history() -> None:
 def test_adapter_skips_divergent_scoped_values() -> None:
     version = _version()
     eur = _study(version=version, metrics=(_metric("0.12"),))
+    gbp_sid = TraderHistoryStudyId(uuid4())
     gbp = build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=gbp_sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=version,
         kind=TraderHistoryStudyKind.REPLAY,
@@ -281,6 +316,9 @@ def test_adapter_skips_divergent_scoped_values() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(
+            TraderHistoryStudyKind.REPLAY, _NOW, study_id=gbp_sid
+        ),
         market_scope=(TraderHistoryMarketRef("GBP/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(_dev_partition(),),
@@ -325,6 +363,9 @@ def test_adapter_resolves_stage_by_study_id_and_version() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(
+            TraderHistoryStudyKind.REPLAY, _NOW, study_id=study_id
+        ),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(_dev_partition(),),
@@ -341,9 +382,16 @@ def test_adapter_resolves_stage_by_study_id_and_version() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(
+            TraderHistoryStudyKind.OOS, _NOW, study_id=study_id, study_version="v2"
+        ),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
-        partitions=(_dev_partition(),),
+        partitions=(
+            TraderHistoryPartitionIdentity(
+                uuid4(), _fp(302), SampleRole.EXTERNAL_VALIDATION
+            ),
+        ),
         quantitative_claims=(
             TraderHistoryMetric("drawdown", Decimal("0.05"), (_ref("evidence:o"),)),
         ),
@@ -380,8 +428,9 @@ def test_adapter_projects_hypothesis_confirmation_as_oos() -> None:
     holdout = TraderHistoryPartitionIdentity(
         uuid4(), _fp(77), SampleRole.EXTERNAL_VALIDATION
     )
+    confirmation_sid = TraderHistoryStudyId(uuid4())
     confirmation = build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=confirmation_sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=v2,
         kind=TraderHistoryStudyKind.HYPOTHESIS_CONFIRMATION,
@@ -389,6 +438,11 @@ def test_adapter_projects_hypothesis_confirmation_as_oos() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(
+            TraderHistoryStudyKind.HYPOTHESIS_CONFIRMATION,
+            _NOW,
+            study_id=confirmation_sid,
+        ),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(holdout,),
@@ -414,8 +468,9 @@ def test_adapter_projects_hypothesis_confirmation_as_oos() -> None:
 
 def test_adapter_projects_independent_validation_as_oos() -> None:
     version = _version()
+    study_sid = TraderHistoryStudyId(uuid4())
     study = build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=study_sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=version,
         kind=TraderHistoryStudyKind.INDEPENDENT_VALIDATION,
@@ -423,6 +478,9 @@ def test_adapter_projects_independent_validation_as_oos() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(
+            TraderHistoryStudyKind.INDEPENDENT_VALIDATION, _NOW, study_id=study_sid
+        ),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(
@@ -457,6 +515,11 @@ def test_adapter_preserves_per_ref_stage_for_merged_scope() -> None:
             ),
         ),
         kind=TraderHistoryStudyKind.OOS,
+        partitions=(
+            TraderHistoryPartitionIdentity(
+                uuid4(), _fp(303), SampleRole.EXTERNAL_VALIDATION
+            ),
+        ),
     )
     registry = TraderHistoricalIntelligenceRegistry(records=(replay, oos))
     result = project_cibo_capability_profile(registry, version, **_profile_kwargs())
@@ -469,8 +532,9 @@ def test_adapter_preserves_per_ref_stage_for_merged_scope() -> None:
 
 def test_adapter_fails_closed_for_certified_unmapped_kind() -> None:
     version = _version()
+    demo_sid = TraderHistoryStudyId(uuid4())
     study = build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=demo_sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=version,
         kind=TraderHistoryStudyKind.DEMO,
@@ -478,6 +542,7 @@ def test_adapter_fails_closed_for_certified_unmapped_kind() -> None:
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=_NOW,
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(TraderHistoryStudyKind.DEMO, _NOW, study_id=demo_sid),
         market_scope=(TraderHistoryMarketRef("EUR/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(_dev_partition(),),
@@ -516,7 +581,7 @@ def test_adapter_rejects_market_not_backed_by_certified_history() -> None:
     )
     assert isinstance(result, Failure)
     assert isinstance(result.error, CiboTraderHistoryAdapterError)
-    assert "qualified markets are not backed" in str(result.error)
+    assert "not backed by current certified" in str(result.error)
 
 
 def test_adapter_rejects_timeframe_not_backed_by_certified_history() -> None:
@@ -533,13 +598,14 @@ def test_adapter_rejects_timeframe_not_backed_by_certified_history() -> None:
     )
     assert isinstance(result, Failure)
     assert isinstance(result.error, CiboTraderHistoryAdapterError)
-    assert "qualified timeframes are not backed" in str(result.error)
+    assert "not backed by current certified" in str(result.error)
 
 
 def test_adapter_does_not_use_future_certified_scope_for_current_qualification() -> None:
     version = _version()
+    future_sid = TraderHistoryStudyId(uuid4())
     future = build_study_record(
-        study_id=TraderHistoryStudyId(uuid4()),
+        study_id=future_sid,
         study_version=TraderHistoryStudyVersion("v1"),
         trader_version=version,
         kind=TraderHistoryStudyKind.REPLAY,
@@ -547,6 +613,11 @@ def test_adapter_does_not_use_future_certified_scope_for_current_qualification()
         sufficiency=TraderHistorySufficiency.SUFFICIENT,
         produced_at=datetime(2026, 1, 2, 0, 0, tzinfo=UTC),
         producer=TraderHistoryProducerId("trader-lab"),
+        certification=_certification(
+            TraderHistoryStudyKind.REPLAY,
+            datetime(2026, 1, 2, 0, 0, tzinfo=UTC),
+            study_id=future_sid,
+        ),
         market_scope=(TraderHistoryMarketRef("GBP/USD"),),
         timeframe_scope=(TraderHistoryTimeframeRef("h1"),),
         partitions=(_dev_partition(301),),
@@ -568,4 +639,4 @@ def test_adapter_does_not_use_future_certified_scope_for_current_qualification()
     )
     assert isinstance(result, Failure)
     assert isinstance(result.error, CiboTraderHistoryAdapterError)
-    assert "qualified markets are not backed" in str(result.error)
+    assert "no current certified quantitative evidence" in str(result.error)
