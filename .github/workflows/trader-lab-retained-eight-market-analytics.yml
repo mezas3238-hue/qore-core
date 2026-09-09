@@ -1,0 +1,338 @@
+name: QORE Trader Lab Retained Eight-Market Analytics
+
+on:
+  push:
+    branches:
+      - agent/trader-lab-retained-eight-market-analytics-001
+    paths:
+      - .github/workflows/trader-lab-retained-eight-market-analytics.yml
+      - src/qore/infrastructure/trader_lab/conditional_market_state_analytics.py
+      - src/qore/infrastructure/trader_lab/conditional_market_state_features.py
+      - src/qore/infrastructure/trader_lab/conditional_market_state_observations.py
+      - src/qore/infrastructure/trader_lab/conditional_market_state_surfaces.py
+      - tests/infrastructure/trader_lab/test_conditional_market_state_analytics.py
+      - tests/infrastructure/trader_lab/test_conditional_market_state_provenance.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: qore-trader-lab-retained-eight-market-analytics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE dev runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src tests
+      - name: Pytest with coverage
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  retained-analytics:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - market: EURUSD
+            run_id: 34232280277
+            primary_artifact_id: 10069216098
+            primary_artifact_name: qore-first-cohort-EURUSD-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_pattern: qore-first-cohort-EURUSD-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_digest: sha256:70a390b16d5e3e07af197fad2b185e48be854d704247aafcc2fa617f38f0c545
+            source_sha: c283c9d793ca04b7477d32f5cd0969de9a304195
+            source_family: original-six-terminal
+            scientific_terminal_at_launch: "true"
+          - market: USDJPY
+            run_id: 34232280277
+            primary_artifact_id: 10069126578
+            primary_artifact_name: qore-first-cohort-USDJPY-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_pattern: qore-first-cohort-USDJPY-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_digest: sha256:14e790c790a760f7b4b667b4a836378c94058a7ee8c9010bcbbaf99deba78593
+            source_sha: c283c9d793ca04b7477d32f5cd0969de9a304195
+            source_family: original-six-terminal
+            scientific_terminal_at_launch: "true"
+          - market: AUDUSD
+            run_id: 34232280277
+            primary_artifact_id: 10076108302
+            primary_artifact_name: qore-first-cohort-AUDUSD-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_pattern: qore-first-cohort-AUDUSD-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_digest: sha256:26695daaff16c221ef488b52d591bb39dea5309ceaf4bebcf062d475bb4d7eb2
+            source_sha: c283c9d793ca04b7477d32f5cd0969de9a304195
+            source_family: original-six-terminal
+            scientific_terminal_at_launch: "true"
+          - market: XAUUSD
+            run_id: 34232280277
+            primary_artifact_id: 10081482770
+            primary_artifact_name: qore-first-cohort-XAUUSD-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_pattern: qore-first-cohort-XAUUSD-c283c9d793ca04b7477d32f5cd0969de9a304195
+            artifact_digest: sha256:fc5c8434f8ae77b3a8fc31393439d17dd4de0347f1418a80b0a5fefd6a412cd8
+            source_sha: c283c9d793ca04b7477d32f5cd0969de9a304195
+            source_family: original-six-terminal
+            scientific_terminal_at_launch: "true"
+          - market: GBPUSD
+            run_id: 34335618938
+            primary_artifact_id: 10098022530
+            primary_artifact_name: qore-campaign-stage1-GBPUSD-8d031973b0b99ffdb1a990dd0d510bccc71a92f6
+            artifact_pattern: qore-campaign-*-GBPUSD-8d031973b0b99ffdb1a990dd0d510bccc71a92f6
+            artifact_digest: sha256:9da79326f6f170f1d73cdb538d93abc68b728a26b1362ba91e8e45d94d1ab201
+            source_sha: 8d031973b0b99ffdb1a990dd0d510bccc71a92f6
+            source_family: segmented-recovery-terminal
+            scientific_terminal_at_launch: "true"
+          - market: USDCAD
+            run_id: 34335618938
+            primary_artifact_id: 10098024065
+            primary_artifact_name: qore-campaign-stage1-USDCAD-8d031973b0b99ffdb1a990dd0d510bccc71a92f6
+            artifact_pattern: qore-campaign-*-USDCAD-8d031973b0b99ffdb1a990dd0d510bccc71a92f6
+            artifact_digest: sha256:065c5a5060756241a72b40aabe4d6829ee99b7d2ce97607f0e8c93e784a1e208
+            source_sha: 8d031973b0b99ffdb1a990dd0d510bccc71a92f6
+            source_family: segmented-recovery-terminal
+            scientific_terminal_at_launch: "true"
+          - market: NAS100
+            run_id: 34376439792
+            primary_artifact_id: 10114876893
+            primary_artifact_name: qore-campaign-stage1-NAS100-8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797
+            artifact_pattern: qore-campaign-*-NAS100-8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797
+            artifact_digest: sha256:802a8af5f4042047794092abeda3e4c09f84ec0d009318be6069e18ff72e55af
+            source_sha: 8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797
+            source_family: index-recovery
+            scientific_terminal_at_launch: "false"
+          - market: SP500
+            run_id: 34376439792
+            primary_artifact_id: 10114821158
+            primary_artifact_name: qore-campaign-stage1-SP500-8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797
+            artifact_pattern: qore-campaign-*-SP500-8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797
+            artifact_digest: sha256:93abd693abdcdfb9a1619cc35d9d48d68ed9391dde7d465f938e013670f9a942
+            source_sha: 8f60ca5d1eb732cf5a3caab5b2b1403e15c1e797
+            source_family: index-recovery
+            scientific_terminal_at_launch: "false"
+    env:
+      QORE_ANALYTICS_SOFTWARE_SHA: ${{ github.sha }}
+      QORE_RETAINED_MARKET: ${{ matrix.market }}
+      SOURCE_RUN_ID: ${{ matrix.run_id }}
+      PRIMARY_ARTIFACT_ID: ${{ matrix.primary_artifact_id }}
+      PRIMARY_ARTIFACT_NAME: ${{ matrix.primary_artifact_name }}
+      EXPECTED_ARTIFACT_DIGEST: ${{ matrix.artifact_digest }}
+      EXPECTED_SOURCE_SHA: ${{ matrix.source_sha }}
+      SOURCE_FAMILY: ${{ matrix.source_family }}
+      SCIENTIFIC_TERMINAL_AT_LAUNCH: ${{ matrix.scientific_terminal_at_launch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE
+        run: pip install -e .
+      - name: Authenticate exact source artifact metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${PRIMARY_ARTIFACT_ID}" > artifact-metadata.json
+          python - <<'PY'
+          import json, os
+          payload=json.load(open('artifact-metadata.json', encoding='utf-8'))
+          expected_id=int(os.environ['PRIMARY_ARTIFACT_ID'])
+          expected_run=int(os.environ['SOURCE_RUN_ID'])
+          assert payload['id'] == expected_id
+          assert payload['name'] == os.environ['PRIMARY_ARTIFACT_NAME']
+          assert payload['digest'] == os.environ['EXPECTED_ARTIFACT_DIGEST']
+          assert payload['expired'] is False
+          assert payload['workflow_run']['id'] == expected_run
+          assert payload['workflow_run']['head_sha'] == os.environ['EXPECTED_SOURCE_SHA']
+          PY
+      - name: Download all retained source information available for market
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ matrix.artifact_pattern }}
+          path: artifacts/source
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.run_id }}
+      - name: Verify unique retained market evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find artifacts/source -name market-evidence.json -type f -print | sort)
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "expected exactly one market-evidence.json; observed=${#files[@]}" >&2
+            exit 3
+          fi
+          printf 'path=%s\n' "${files[0]}" >> "$GITHUB_OUTPUT"
+      - name: Run causal five-Trader market-state analytics
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/derived/${QORE_RETAINED_MARKET}"
+          python -m qore.infrastructure.trader_lab.conditional_market_state_analytics \
+            "${{ steps.evidence.outputs.path }}" \
+            "artifacts/derived/${QORE_RETAINED_MARKET}/observations.ndjson" \
+            > "artifacts/derived/${QORE_RETAINED_MARKET}/report.json"
+      - name: Freeze retained-information manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - "${{ steps.evidence.outputs.path }}" "artifacts/derived/${QORE_RETAINED_MARKET}" <<'PY'
+          import hashlib, json, os, pathlib, sys
+          evidence=pathlib.Path(sys.argv[1])
+          derived=pathlib.Path(sys.argv[2])
+          source_root=pathlib.Path('artifacts/source')
+          report=derived/'report.json'
+          observations=derived/'observations.ndjson'
+          def digest(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+          source_files=[]
+          for path in sorted(p for p in source_root.rglob('*') if p.is_file()):
+              source_files.append({
+                  'path': str(path.relative_to(source_root)),
+                  'bytes': path.stat().st_size,
+                  'sha256': digest(path),
+              })
+          report_payload=json.loads(report.read_text(encoding='utf-8'))
+          evidence_payload=json.loads(evidence.read_text(encoding='utf-8'))
+          manifest={
+              'schema':'qore.trader_lab.retained_market_analytics_manifest.v1',
+              'market':os.environ['QORE_RETAINED_MARKET'],
+              'source':{
+                  'run_id':int(os.environ['SOURCE_RUN_ID']),
+                  'primary_artifact_id':int(os.environ['PRIMARY_ARTIFACT_ID']),
+                  'primary_artifact_name':os.environ['PRIMARY_ARTIFACT_NAME'],
+                  'primary_artifact_digest':os.environ['EXPECTED_ARTIFACT_DIGEST'],
+                  'source_sha':os.environ['EXPECTED_SOURCE_SHA'],
+                  'source_family':os.environ['SOURCE_FAMILY'],
+                  'scientific_terminal_at_launch':os.environ['SCIENTIFIC_TERMINAL_AT_LAUNCH']=='true',
+                  'market_evidence_sha256':digest(evidence),
+                  'evidence_declared_software_sha':evidence_payload.get('software_sha'),
+                  'retained_files':source_files,
+              },
+              'analysis':{
+                  'analytics_software_sha':os.environ['GITHUB_SHA'],
+                  'report_sha256':digest(report),
+                  'observations_sha256':digest(observations),
+                  'observation_rows':report_payload['observation_artifact']['row_count'],
+                  'reproducibility_fingerprint':report_payload['reproducibility_fingerprint'],
+                  'anti_lookahead':report_payload['anti_lookahead'],
+              },
+              'authority':{
+                  'research_only':True,
+                  'execution_authority':False,
+                  'demo_or_live_promotion':False,
+              },
+          }
+          (derived/'manifest.json').write_text(
+              json.dumps(manifest,sort_keys=True,separators=(',',':')),encoding='utf-8'
+          )
+          PY
+      - name: Upload complete retained evidence + new analytics
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-retained-analytics-full-${{ matrix.market }}-${{ github.sha }}
+          path: |
+            artifacts/source
+            artifacts/derived/${{ matrix.market }}
+            artifact-metadata.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload compact durable analytics package
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-retained-analytics-compact-${{ matrix.market }}-${{ github.sha }}
+          path: |
+            artifacts/derived/${{ matrix.market }}/report.json
+            artifacts/derived/${{ matrix.market }}/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+  retained-index:
+    needs: retained-analytics
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Download compact eight-market analytics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-retained-analytics-compact-*-${{ github.sha }}
+          path: artifacts/compact
+      - name: Build immutable eight-market evidence index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/evidence/trader-lab/retained-eight-market-analytics
+          python - <<'PY'
+          import hashlib,json,pathlib,shutil,os
+          root=pathlib.Path('artifacts/compact')
+          destination=pathlib.Path('docs/evidence/trader-lab/retained-eight-market-analytics')
+          manifests=[]
+          expected={'EURUSD','GBPUSD','USDJPY','AUDUSD','USDCAD','XAUUSD','NAS100','SP500'}
+          for manifest_path in sorted(root.rglob('manifest.json')):
+              payload=json.loads(manifest_path.read_text(encoding='utf-8'))
+              market=payload['market']
+              target=destination/market
+              target.mkdir(parents=True,exist_ok=True)
+              report_path=next(manifest_path.parent.glob('report.json'))
+              shutil.copy2(manifest_path,target/'manifest.json')
+              shutil.copy2(report_path,target/'report.json')
+              manifests.append(payload)
+          observed={item['market'] for item in manifests}
+          if observed != expected:
+              raise SystemExit(f'eight-market retained set mismatch: observed={sorted(observed)}')
+          index={
+              'schema':'qore.trader_lab.retained_eight_market_index.v1',
+              'analytics_software_sha':os.environ['GITHUB_SHA'],
+              'markets':sorted(manifests,key=lambda item:item['market']),
+              'market_count':len(manifests),
+              'cross_market_pooling_authorized':False,
+              'reason':'source campaign SHAs differ; preserve per-market provenance before any governed cross-market synthesis',
+              'research_only':True,
+              'execution_authority':False,
+          }
+          material=json.dumps(index,sort_keys=True,separators=(',',':'))
+          index['index_fingerprint']=hashlib.sha256(material.encode()).hexdigest()
+          (destination/'index.json').write_text(
+              json.dumps(index,sort_keys=True,separators=(',',':')),encoding='utf-8'
+          )
+          PY
+      - name: Persist compact knowledge and provenance in repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "QORE Trader Lab Evidence Authority"
+          git config user.email "qore-trader-lab-evidence@users.noreply.github.com"
+          git add docs/evidence/trader-lab/retained-eight-market-analytics
+          git diff --cached --quiet && exit 0
+          git commit -m "data(trader-lab): retain eight-market conditional analytics"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Upload aggregate retained index
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-retained-analytics-index-${{ github.sha }}
+          path: docs/evidence/trader-lab/retained-eight-market-analytics
+          if-no-files-found: error
+          retention-days: 90
