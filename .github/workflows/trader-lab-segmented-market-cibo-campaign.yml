@@ -1,0 +1,647 @@
+name: QORE Trader Lab Segmented Market + CIBO Campaign
+
+on:
+  push:
+    branches:
+      - agent/trader-lab-index-market-cibo-learning-001
+    paths:
+      - .github/workflows/trader-lab-segmented-market-cibo-campaign.yml
+      - src/qore/infrastructure/ctrader_demo_lab_index_identity.py
+      - src/qore/infrastructure/cibo/market_only_lab.py
+      - tests/infrastructure/test_ctrader_demo_lab_index_identity.py
+      - tests/infrastructure/cibo/test_market_only_lab.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-trader-lab-segmented-market-cibo-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE dev + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src tests
+      - name: Pytest with coverage
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  market-evidence:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        market: [GBPUSD, USDCAD, US30, NAS100, SP500]
+    env:
+      QORE_CAMPAIGN_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify required DEMO inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover the single authorized DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Resolve and certify provider identity
+        id: resolve
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/campaign/${QORE_CAMPAIGN_MARKET}"
+          mkdir -p "$root"
+          case "$QORE_CAMPAIGN_MARKET" in
+            US30|NAS100|SP500)
+              python -m qore.infrastructure.ctrader_demo_lab_index_identity \
+                "$QORE_CAMPAIGN_MARKET" > "$root/provider-identity.json"
+              provider_symbol="$(python - "$root/provider-identity.json" <<'PY'
+          import json, sys
+          payload = json.load(open(sys.argv[1], encoding='utf-8'))
+          assert payload['economic_identity_certified'] is True
+          print(payload['provider_symbol']['symbol_name'])
+          PY
+              )"
+              ;;
+            GBPUSD|USDCAD)
+              provider_symbol="$QORE_CAMPAIGN_MARKET"
+              python - "$root/provider-identity.json" "$QORE_CAMPAIGN_MARKET" <<'PY'
+          import json, sys
+          path, market = sys.argv[1:]
+          payload = {
+              'schema': 'qore.ctrader_demo.fx_economic_identity.v1',
+              'environment': 'demo',
+              'read_only': True,
+              'economic_target': market,
+              'economic_identity_certified': True,
+              'binding_basis': 'exact-six-letter-fx-provider-symbol-v1',
+              'provider_symbol_name': market,
+          }
+          with open(path, 'w', encoding='utf-8') as handle:
+              json.dump(payload, handle, sort_keys=True, separators=(',', ':'))
+          PY
+              ;;
+            *)
+              echo "unsupported campaign market" >&2
+              exit 4
+              ;;
+          esac
+          if ! [[ "$provider_symbol" =~ ^[A-Z0-9]{2,32}$ ]]; then
+            echo "provider symbol is not compatible with long-horizon collector" >&2
+            exit 5
+          fi
+          printf 'QORE_DEMO_LAB_SYMBOL=%s\n' "$provider_symbol" >> "$GITHUB_ENV"
+          printf '%s\n' "$provider_symbol" > "$root/provider-symbol.txt"
+      - name: Collect >=730-day read-only market evidence
+        id: collect
+        if: steps.resolve.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/campaign/${QORE_CAMPAIGN_MARKET}"
+          python -m qore.infrastructure.ctrader_demo_lab_long_horizon_probe \
+            > "$root/market-evidence.json"
+          python - "$root/market-evidence.json" "$QORE_DEMO_LAB_SYMBOL" <<'PY'
+          import json, os, sys
+          payload = json.load(open(sys.argv[1], encoding='utf-8'))
+          assert payload['environment'] == 'demo'
+          assert payload['read_only'] is True
+          assert payload['account_is_live'] is False
+          assert payload['symbol']['symbol_name'] == sys.argv[2]
+          assert payload['requested_lookback_days'] > 730
+          assert payload['required_coverage_days'] == 730
+          assert payload['software_sha'] == os.environ['GITHUB_SHA']
+          assert set(payload['periods']) == {'M1', 'M5', 'M15', 'H4'}
+          assert all(payload['coverage'][p]['span_seconds'] >= 730 * 86400 for p in ('M5','M15','H4'))
+          PY
+      - name: Freeze Stage 1 status and provenance
+        if: always()
+        env:
+          RESOLVE_OUTCOME: ${{ steps.resolve.outcome }}
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/campaign/${QORE_CAMPAIGN_MARKET}"
+          mkdir -p "$root"
+          python - "$root" "$QORE_CAMPAIGN_MARKET" "$RESOLVE_OUTCOME" "$COLLECT_OUTCOME" <<'PY'
+          import hashlib, json, os, pathlib, sys
+          root = pathlib.Path(sys.argv[1]); market, resolved, collected = sys.argv[2:]
+          evidence = root / 'market-evidence.json'
+          passed = resolved == 'success' and collected == 'success' and evidence.is_file()
+          def digest(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+          status = {
+              'schema': 'qore.trader_lab.segmented_stage_status.v1',
+              'stage': 'MARKET_EVIDENCE',
+              'economic_target': market,
+              'terminal_state': 'PASS' if passed else 'VALIDATION_BLOCKED',
+              'resolve_outcome': resolved,
+              'collect_outcome': collected,
+              'source_sha': os.environ['GITHUB_SHA'],
+              'market_evidence_sha256': digest(evidence),
+              'provider_identity_sha256': digest(root / 'provider-identity.json'),
+              'evaluator_source_sha256': digest(pathlib.Path('src/qore/infrastructure/traders/evaluators.py')),
+              'instrument_binding_sha256': digest(pathlib.Path('src/qore/infrastructure/traders/instrument_binding.py')),
+              'execution_primitives_sha256': digest(pathlib.Path('src/qore/infrastructure/traders/primitives.py')),
+          }
+          (root / 'stage1-status.json').write_text(json.dumps(status, sort_keys=True, separators=(',', ':')), encoding='utf-8')
+          PY
+      - name: Upload Stage 1 checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-campaign-stage1-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/campaign/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 30
+
+  backtest:
+    needs: market-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        market: [GBPUSD, USDCAD, US30, NAS100, SP500]
+    env:
+      QORE_CAMPAIGN_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage1-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/input
+      - name: Check Stage 1 gate
+        id: gate
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, pathlib
+          status = json.loads(next(pathlib.Path('artifacts/input').rglob('stage1-status.json')).read_text())
+          evidence = list(pathlib.Path('artifacts/input').rglob('market-evidence.json'))
+          print(f"can_run={'true' if status['terminal_state'] == 'PASS' and len(evidence) == 1 else 'false'}")
+          PY
+      - name: Backtest five exact Traders
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "artifacts/output/${QORE_CAMPAIGN_MARKET}"
+          evidence="$(find artifacts/input -name market-evidence.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_backtest "$evidence" \
+            > "artifacts/output/${QORE_CAMPAIGN_MARKET}/backtest.json"
+      - name: Freeze Stage 2 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        shell: bash
+        run: |
+          root="artifacts/output/${QORE_CAMPAIGN_MARKET}"; mkdir -p "$root"
+          python - "$root" "$QORE_CAMPAIGN_MARKET" "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib, json, os, pathlib, sys
+          root=pathlib.Path(sys.argv[1]); market, can_run, outcome=sys.argv[2:]
+          artifact=root/'backtest.json'; passed=can_run=='true' and outcome=='success' and artifact.is_file()
+          state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          payload={'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'BACKTEST','economic_target':market,'terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None}
+          (root/'stage2-status.json').write_text(json.dumps(payload,sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-campaign-stage2-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/output/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 30
+
+  walk-forward:
+    needs: backtest
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        market: [GBPUSD, USDCAD, US30, NAS100, SP500]
+    env:
+      QORE_CAMPAIGN_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage1-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/input
+      - name: Check evidence gate
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, pathlib
+          status=json.loads(next(pathlib.Path('artifacts/input').rglob('stage1-status.json')).read_text())
+          print(f"can_run={'true' if status['terminal_state']=='PASS' else 'false'}")
+          PY
+      - name: Walk-forward / untouched OOS
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "artifacts/output/${QORE_CAMPAIGN_MARKET}"
+          evidence="$(find artifacts/input -name market-evidence.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_walk_forward "$evidence" \
+            > "artifacts/output/${QORE_CAMPAIGN_MARKET}/walk-forward.json"
+      - name: Freeze Stage 3 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          root="artifacts/output/${QORE_CAMPAIGN_MARKET}"; mkdir -p "$root"
+          python - "$root" "$QORE_CAMPAIGN_MARKET" "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); market,can_run,outcome=sys.argv[2:]; artifact=root/'walk-forward.json'
+          passed=can_run=='true' and outcome=='success' and artifact.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          (root/'stage3-status.json').write_text(json.dumps({'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'WALK_FORWARD_OOS','economic_target':market,'terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None},sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-campaign-stage3-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/output/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 30
+
+  characterization:
+    needs: walk-forward
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        market: [GBPUSD, USDCAD, US30, NAS100, SP500]
+    env:
+      QORE_CAMPAIGN_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage1-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage1
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage3-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage3
+      - name: Check characterization inputs
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          s1=json.loads(next(pathlib.Path('artifacts/stage1').rglob('stage1-status.json')).read_text())
+          s3=json.loads(next(pathlib.Path('artifacts/stage3').rglob('stage3-status.json')).read_text())
+          print(f"can_run={'true' if s1['terminal_state']=='PASS' and s3['terminal_state']=='PASS' else 'false'}")
+          PY
+      - name: Deep five-Trader characterization
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "artifacts/output/${QORE_CAMPAIGN_MARKET}"
+          evidence="$(find artifacts/stage1 -name market-evidence.json -type f -print -quit)"
+          walk="$(find artifacts/stage3 -name walk-forward.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_characterization "$evidence" "$walk" \
+            > "artifacts/output/${QORE_CAMPAIGN_MARKET}/characterization.json"
+      - name: Freeze Stage 4 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          root="artifacts/output/${QORE_CAMPAIGN_MARKET}"; mkdir -p "$root"
+          python - "$root" "$QORE_CAMPAIGN_MARKET" "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); market,can_run,outcome=sys.argv[2:]; artifact=root/'characterization.json'
+          passed=can_run=='true' and outcome=='success' and artifact.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          (root/'stage4-status.json').write_text(json.dumps({'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'CHARACTERIZATION','economic_target':market,'terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None},sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-campaign-stage4-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/output/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 30
+
+  failure-analysis:
+    needs: [backtest, walk-forward]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        market: [GBPUSD, USDCAD, US30, NAS100, SP500]
+    env:
+      QORE_CAMPAIGN_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage2-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage2
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage3-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage3
+      - name: Check failure-analysis inputs
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          s2=json.loads(next(pathlib.Path('artifacts/stage2').rglob('stage2-status.json')).read_text())
+          s3=json.loads(next(pathlib.Path('artifacts/stage3').rglob('stage3-status.json')).read_text())
+          print(f"can_run={'true' if s2['terminal_state']=='PASS' and s3['terminal_state']=='PASS' else 'false'}")
+          PY
+      - name: Per-Trader failure analysis
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "artifacts/output/${QORE_CAMPAIGN_MARKET}"
+          backtest="$(find artifacts/stage2 -name backtest.json -type f -print -quit)"
+          walk="$(find artifacts/stage3 -name walk-forward.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_failure_analysis "$backtest" "$walk" \
+            > "artifacts/output/${QORE_CAMPAIGN_MARKET}/failure-analysis.json"
+      - name: Freeze Stage 5 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          root="artifacts/output/${QORE_CAMPAIGN_MARKET}"; mkdir -p "$root"
+          python - "$root" "$QORE_CAMPAIGN_MARKET" "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); market,can_run,outcome=sys.argv[2:]; artifact=root/'failure-analysis.json'
+          passed=can_run=='true' and outcome=='success' and artifact.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          (root/'stage5-status.json').write_text(json.dumps({'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'FAILURE_ANALYSIS','economic_target':market,'terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None},sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-campaign-stage5-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/output/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 30
+
+  final-market-manifest:
+    needs: [market-evidence, backtest, walk-forward, characterization, failure-analysis]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [GBPUSD, USDCAD, US30, NAS100, SP500]
+    env:
+      QORE_CAMPAIGN_MARKET: ${{ matrix.market }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage1-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage1
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage2-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage2
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage3-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage3
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage4-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage4
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-stage5-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/stage5
+      - name: Build terminal market manifest
+        shell: bash
+        run: |
+          mkdir -p "artifacts/final/${QORE_CAMPAIGN_MARKET}"
+          python - "artifacts/final/${QORE_CAMPAIGN_MARKET}/market-manifest.json" "$QORE_CAMPAIGN_MARKET" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          output=pathlib.Path(sys.argv[1]); market=sys.argv[2]
+          roots={f'stage{i}':pathlib.Path(f'artifacts/stage{i}') for i in range(1,6)}
+          statuses=[]
+          for i in range(1,6):
+              path=next(roots[f'stage{i}'].rglob(f'stage{i}-status.json'))
+              statuses.append(json.loads(path.read_text()))
+          passed=all(item['terminal_state']=='PASS' for item in statuses)
+          def one(name):
+              found=[]
+              for root in roots.values(): found.extend(root.rglob(name))
+              return found[0] if len(found)==1 else None
+          evidence=one('market-evidence.json'); backtest=one('backtest.json'); walk=one('walk-forward.json'); char=one('characterization.json'); failure=one('failure-analysis.json')
+          def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest() if path else None
+          market_payload=json.loads(evidence.read_text()) if evidence else {}
+          provider_identity=one('provider-identity.json')
+          manifest={
+              'schema':'qore.trader_lab.segmented_market_manifest.v1',
+              'economic_target':market,
+              'terminal_state':'PASS' if passed else 'VALIDATION_BLOCKED',
+              'source_sha':os.environ['GITHUB_SHA'],
+              'provider_symbol':market_payload.get('symbol',{}).get('symbol_name'),
+              'account_fingerprint':market_payload.get('account_fingerprint'),
+              'dataset_checked_at':market_payload.get('checked_at'),
+              'dataset_fingerprint':digest(evidence),
+              'provider_identity_fingerprint':digest(provider_identity),
+              'evaluator_source_fingerprint':statuses[0].get('evaluator_source_sha256'),
+              'instrument_binding_fingerprint':statuses[0].get('instrument_binding_sha256'),
+              'execution_primitives_fingerprint':statuses[0].get('execution_primitives_sha256'),
+              'artifacts':{
+                  'market_evidence_sha256':digest(evidence),'backtest_sha256':digest(backtest),'walk_forward_sha256':digest(walk),'characterization_sha256':digest(char),'failure_analysis_sha256':digest(failure)
+              },
+              'stage_states':[{'stage':item['stage'],'state':item['terminal_state']} for item in statuses],
+              'research_only':True,'execution_authority':False,
+          }
+          output.write_text(json.dumps(manifest,sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-campaign-final-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/final/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 30
+
+  cibo-market-only:
+    needs: market-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Download ONLY Market Evidence checkpoints
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-campaign-stage1-*-${{ github.sha }}
+          path: artifacts/cibo-input
+      - name: Verify five-market Trader-blind input gate
+        id: gate
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          root=pathlib.Path('artifacts/cibo-input')
+          statuses=[json.loads(p.read_text()) for p in root.rglob('stage1-status.json')]
+          evidence=list(root.rglob('market-evidence.json'))
+          ok=len(statuses)==5 and all(x['terminal_state']=='PASS' for x in statuses) and len(evidence)==5
+          print(f"can_run={'true' if ok else 'false'}")
+          PY
+      - name: Run CIBO Market-Only chronological study
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p artifacts/cibo-output
+          mapfile -t evidence < <(find artifacts/cibo-input -name market-evidence.json -type f | sort)
+          if [ "${#evidence[@]}" -ne 5 ]; then exit 6; fi
+          python -m qore.infrastructure.cibo.market_only_lab "${evidence[@]}" \
+            > artifacts/cibo-output/cibo-market-only.json
+      - name: Freeze CIBO Market-Only status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          mkdir -p artifacts/cibo-output
+          python - "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          can_run,outcome=sys.argv[1:]; artifact=pathlib.Path('artifacts/cibo-output/cibo-market-only.json')
+          passed=can_run=='true' and outcome=='success' and artifact.is_file()
+          state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          payload={'schema':'qore.cibo.market_only_status.v1','terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'market_count_required':5,'trader_outputs_consumed':False,'trader_history_consumed':False,'execution_authority':False,'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None}
+          pathlib.Path('artifacts/cibo-output/cibo-market-only-status.json').write_text(json.dumps(payload,sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-campaign-cibo-market-only-${{ github.sha }}
+          path: artifacts/cibo-output
+          if-no-files-found: error
+          retention-days: 30
+
+  campaign-audit:
+    needs: [final-market-manifest, cibo-market-only]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-campaign-final-*-${{ github.sha }}
+          path: artifacts/final
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-campaign-cibo-market-only-${{ github.sha }}
+          path: artifacts/cibo
+      - name: Enforce six-block terminal status
+        run: |
+          python - <<'PY'
+          import json,pathlib,sys
+          manifests=[json.loads(p.read_text()) for p in pathlib.Path('artifacts/final').rglob('market-manifest.json')]
+          cibo=json.loads(next(pathlib.Path('artifacts/cibo').rglob('cibo-market-only-status.json')).read_text())
+          expected={'GBPUSD','USDCAD','US30','NAS100','SP500'}
+          observed={item['economic_target'] for item in manifests}
+          if observed != expected:
+              raise SystemExit(f'campaign market manifest set mismatch: {observed}')
+          blocked=[item['economic_target'] for item in manifests if item['terminal_state']!='PASS']
+          if blocked or cibo['terminal_state']!='PASS':
+              raise SystemExit(f'campaign not scientifically closed; blocked_markets={blocked}; cibo={cibo["terminal_state"]}')
+          print('SIX-BLOCK CAMPAIGN TERMINAL PASS: five markets + CIBO Market-Only')
+          PY
