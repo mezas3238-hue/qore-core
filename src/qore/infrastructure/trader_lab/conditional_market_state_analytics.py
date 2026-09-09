@@ -18,7 +18,11 @@ from qore.infrastructure.trader_lab.conditional_market_state_observations import
     ConditionalMarketStateObservationError,
     analyze_trader,
 )
-from qore.infrastructure.trader_lab.first_cohort_backtest import _CODES, _load
+from qore.infrastructure.trader_lab.first_cohort_backtest import (
+    _CODES,
+    FirstCohortBacktestError,
+    _load,
+)
 from qore.infrastructure.traders.evaluators import cohort_evaluators
 from qore.infrastructure.traders.instrument_binding import DemoTradingEvaluatorBoundary
 
@@ -139,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
         report = run_conditional_market_state_analytics(
             Path(arguments[0]), observation_path
         )
-    except ConditionalMarketStateAnalyticsError as error:
+    except FirstCohortBacktestError as error:
         print(f"conditional market-state analytics failed: {error}", file=sys.stderr)
         return 1
     print(to_json(report))
