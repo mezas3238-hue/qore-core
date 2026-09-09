@@ -1,4 +1,16 @@
-"""Fail-closed cTrader DEMO economic identity binding for index research."""
+"""Fail-closed cTrader DEMO economic identity binding for index research.
+
+The existing QORE cTrader runtime admits symbol-list and exact symbol-detail
+messages.  This module therefore certifies a provider index target only when
+three independent facts agree inside that admitted read-only boundary:
+
+* one enabled provider alias resolves uniquely;
+* the provider-authored description identifies the requested economic target;
+* exact symbol details return the same provider symbol id and trading metadata.
+
+A loose alias match is never enough.  If the provider description is absent or
+ambiguous the index is VALIDATION_BLOCKED upstream rather than guessed.
+"""
 
 from __future__ import annotations
 
@@ -22,6 +34,7 @@ from qore.infrastructure.ctrader_open_api_client import (
 from qore.kernel.result import Failure
 
 _SCHEMA = "qore.ctrader_demo.index_economic_identity.v1"
+_BINDING_BASIS = "enabled-alias+provider-target-description+exact-symbol-details-v1"
 _ALIASES: dict[str, frozenset[str]] = {
     "US30": frozenset({"US30", "USA30", "DJ30", "DOW30", "WS30", "US30USD"}),
     "NAS100": frozenset(
@@ -42,7 +55,7 @@ _ALIASES: dict[str, frozenset[str]] = {
 }
 _DESCRIPTION_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
     "US30": (
-        re.compile(r"\bDOW(?:\s+JONES)?\b.*\b30\b", re.I),
+        re.compile(r"\bDOW\s+JONES\b.*\b(?:30|INDUSTRIAL\s+AVERAGE)\b", re.I),
         re.compile(r"\bDJIA\b", re.I),
         re.compile(r"\bWALL\s+STREET\b.*\b30\b", re.I),
     ),
@@ -81,22 +94,21 @@ def _text(value: object, *, field_name: str) -> str:
     return value.strip()
 
 
-def _looks_like_index(value: str) -> bool:
-    normalized = re.sub(r"[^A-Z]", "", value.upper())
-    return "INDEX" in normalized or "INDICES" in normalized
+def _description_binds_target(target: str, description: str) -> bool:
+    return any(
+        pattern.search(description) is not None
+        for pattern in _DESCRIPTION_PATTERNS[target]
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class CTraderDemoIndexEconomicIdentity:
-    """One provider symbol proven to represent one requested index target."""
+    """One exact provider symbol bound to one requested index target."""
 
     economic_target: str
     provider_symbol: CTraderDemoLabSymbolEvidence
     provider_description: str
-    symbol_category_id: int
-    symbol_category_name: str
-    asset_class_id: int
-    asset_class_name: str
+    provider_symbol_category_id: int
     account_fingerprint: str
     checked_at: datetime
 
@@ -108,11 +120,14 @@ class CTraderDemoIndexEconomicIdentity:
                 "provider_symbol must use exact symbol evidence"
             )
         self.provider_symbol.__post_init__()
-        _text(self.provider_description, field_name="provider_description")
-        _positive_int(self.symbol_category_id, field_name="symbol_category_id")
-        _text(self.symbol_category_name, field_name="symbol_category_name")
-        _positive_int(self.asset_class_id, field_name="asset_class_id")
-        _text(self.asset_class_name, field_name="asset_class_name")
+        description = _text(
+            self.provider_description,
+            field_name="provider_description",
+        )
+        _positive_int(
+            self.provider_symbol_category_id,
+            field_name="provider_symbol_category_id",
+        )
         if re.fullmatch(r"[0-9a-f]{64}", self.account_fingerprint) is None:
             raise CTraderDemoLabProbeError(
                 "account_fingerprint must be sha256 hex"
@@ -120,22 +135,16 @@ class CTraderDemoIndexEconomicIdentity:
         if self.checked_at.tzinfo is None or self.checked_at.utcoffset() is None:
             raise CTraderDemoLabProbeError("checked_at must be timezone-aware")
 
-        aliases = {_normalize_symbol(item) for item in _ALIASES[self.economic_target]}
+        aliases = {
+            _normalize_symbol(item) for item in _ALIASES[self.economic_target]
+        }
         if _normalize_symbol(self.provider_symbol.symbol_name) not in aliases:
             raise CTraderDemoLabProbeError(
                 "provider alias does not bind requested economic target"
             )
-        patterns = _DESCRIPTION_PATTERNS[self.economic_target]
-        if not any(pattern.search(self.provider_description) for pattern in patterns):
+        if not _description_binds_target(self.economic_target, description):
             raise CTraderDemoLabProbeError(
                 "provider description does not prove requested economic target"
-            )
-        if not (
-            _looks_like_index(self.symbol_category_name)
-            or _looks_like_index(self.asset_class_name)
-        ):
-            raise CTraderDemoLabProbeError(
-                "provider symbol is not classified as an index"
             )
 
     def payload(self) -> dict[str, object]:
@@ -146,19 +155,12 @@ class CTraderDemoIndexEconomicIdentity:
             "account_is_live": False,
             "economic_target": self.economic_target,
             "economic_identity_certified": True,
-            "binding_basis": (
-                "enabled-alias+target-description+index-classification-v1"
-            ),
+            "binding_basis": _BINDING_BASIS,
             "provider_symbol": self.provider_symbol.payload(),
             "provider_description": self.provider_description,
-            "symbol_category": {
-                "id": self.symbol_category_id,
-                "name": self.symbol_category_name,
-            },
-            "asset_class": {
-                "id": self.asset_class_id,
-                "name": self.asset_class_name,
-            },
+            "provider_symbol_category_id": self.provider_symbol_category_id,
+            "category_semantics_resolved": False,
+            "category_semantics_used_for_certification": False,
             "account_fingerprint": self.account_fingerprint,
             "checked_at": self.checked_at.astimezone(UTC).isoformat(
                 timespec="microseconds"
@@ -239,6 +241,7 @@ def certify_index_economic_identity(
             "index target requires exactly one enabled alias candidate; "
             f"observed={len(candidates)}"
         )
+
     light = candidates[0]
     symbol_id = _positive_int(
         getattr(light, "symbolId", None), field_name="symbolId"
@@ -253,45 +256,10 @@ def certify_index_economic_identity(
         getattr(light, "symbolCategoryId", None),
         field_name="symbolCategoryId",
     )
-
-    categories_res = _request(
-        client,
-        "ProtoOASymbolCategoryListReq",
-        {"ctidTraderAccountId": account_id},
-        message_id=f"qore-index-categories-{economic_target.lower()}",
-        timeout_seconds=timeout_seconds,
-    )
-    categories = {
-        _positive_int(getattr(item, "id", None), field_name="category id"): item
-        for item in tuple(getattr(categories_res, "symbolCategory", ()))
-    }
-    category = categories.get(category_id)
-    if category is None:
-        raise CTraderDemoLabProbeError("index symbol category is absent")
-    category_name = _text(
-        getattr(category, "name", None), field_name="category name"
-    )
-    asset_class_id = _positive_int(
-        getattr(category, "assetClassId", None), field_name="assetClassId"
-    )
-
-    classes_res = _request(
-        client,
-        "ProtoOAAssetClassListReq",
-        {"ctidTraderAccountId": account_id},
-        message_id=f"qore-index-classes-{economic_target.lower()}",
-        timeout_seconds=timeout_seconds,
-    )
-    classes = {
-        _positive_int(getattr(item, "id", None), field_name="asset class id"): item
-        for item in tuple(getattr(classes_res, "assetClass", ()))
-    }
-    asset_class = classes.get(asset_class_id)
-    if asset_class is None:
-        raise CTraderDemoLabProbeError("index asset class is absent")
-    asset_class_name = _text(
-        getattr(asset_class, "name", None), field_name="asset class name"
-    )
+    if not _description_binds_target(economic_target, description):
+        raise CTraderDemoLabProbeError(
+            "provider description does not prove requested economic target"
+        )
 
     details_res = _request(
         client,
@@ -300,6 +268,8 @@ def certify_index_economic_identity(
         message_id=f"qore-index-details-{economic_target.lower()}",
         timeout_seconds=timeout_seconds,
     )
+    if getattr(details_res, "ctidTraderAccountId", None) != account_id:
+        raise CTraderDemoLabProbeError("cTrader symbol-details account mismatch")
     details = tuple(getattr(details_res, "symbol", ()))
     if len(details) != 1:
         raise CTraderDemoLabProbeError(
@@ -331,10 +301,7 @@ def certify_index_economic_identity(
         economic_target=economic_target,
         provider_symbol=symbol,
         provider_description=description,
-        symbol_category_id=category_id,
-        symbol_category_name=category_name,
-        asset_class_id=asset_class_id,
-        asset_class_name=asset_class_name,
+        provider_symbol_category_id=category_id,
         account_fingerprint=compute_ctrader_demo_lab_account_fingerprint(account_id),
         checked_at=checked_at.astimezone(UTC),
     )
