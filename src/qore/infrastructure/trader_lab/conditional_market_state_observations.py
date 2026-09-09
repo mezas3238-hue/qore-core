@@ -358,14 +358,14 @@ def analyze_trader(
                 }
             )
 
+    configured_evaluator = cast(_ConfiguredEvaluator, evaluator)
+    methodology_identity = _methodology_payload(configured_evaluator)
     return {
         "trader_code": trader_code,
-        "trader_version": cast(_ConfiguredEvaluator, evaluator).version,
-        "config_fingerprint": _fingerprint(cast(_ConfiguredEvaluator, evaluator)),
-        "parameters": dict(_parameters(cast(_ConfiguredEvaluator, evaluator))),
-        "methodology_identity": _methodology_payload(
-            cast(_ConfiguredEvaluator, evaluator)
-        ),
+        "trader_version": str(methodology_identity["trader_version"]),
+        "config_fingerprint": _fingerprint(configured_evaluator),
+        "parameters": dict(_parameters(configured_evaluator)),
+        "methodology_identity": methodology_identity,
         "execution_period": execution_period,
         "decision_opportunity_count": max(0, len(execution) - 1),
         "context_unavailable_count": context_unavailable,
