@@ -29,17 +29,12 @@ def _identity(
     target: str,
     symbol_name: str,
     description: str,
-    category: str = "Indices",
-    asset_class: str = "Indices",
 ) -> CTraderDemoIndexEconomicIdentity:
     return CTraderDemoIndexEconomicIdentity(
         economic_target=target,
         provider_symbol=_symbol(symbol_name),
         provider_description=description,
-        symbol_category_id=7,
-        symbol_category_name=category,
-        asset_class_id=3,
-        asset_class_name=asset_class,
+        provider_symbol_category_id=7,
         account_fingerprint="a" * 64,
         checked_at=datetime(2026, 9, 9, tzinfo=UTC),
     )
@@ -49,41 +44,62 @@ def _identity(
     ("target", "symbol_name", "description"),
     [
         ("US30", "US30", "Dow Jones Industrial Average 30 Index"),
+        ("US30", "WS30", "Wall Street 30 Index"),
         ("NAS100", "US100", "Nasdaq 100 Index"),
         ("SP500", "US500", "S&P 500 Index"),
     ],
 )
-def test_exact_target_description_and_index_classification_certifies(
-    target: str, symbol_name: str, description: str
+def test_exact_alias_and_target_specific_provider_description_certify(
+    target: str,
+    symbol_name: str,
+    description: str,
 ) -> None:
-    identity = _identity(target=target, symbol_name=symbol_name, description=description)
+    identity = _identity(
+        target=target,
+        symbol_name=symbol_name,
+        description=description,
+    )
     payload = identity.payload()
     assert payload["economic_target"] == target
     assert payload["economic_identity_certified"] is True
-    assert payload["binding_basis"] == "enabled-alias+target-description+index-classification-v1"
+    assert payload["binding_basis"] == (
+        "enabled-alias+provider-target-description+exact-symbol-details-v1"
+    )
+    assert payload["category_semantics_resolved"] is False
+    assert payload["category_semantics_used_for_certification"] is False
 
 
 def test_alias_without_target_description_fails_closed() -> None:
     with pytest.raises(CTraderDemoLabProbeError, match="description"):
-        _identity(target="US30", symbol_name="US30", description="Generic equity CFD")
-
-
-def test_target_description_without_index_classification_fails_closed() -> None:
-    with pytest.raises(CTraderDemoLabProbeError, match="classified as an index"):
         _identity(
-            target="NAS100",
-            symbol_name="US100",
-            description="Nasdaq 100",
-            category="CFDs",
-            asset_class="Equities",
+            target="US30",
+            symbol_name="US30",
+            description="Generic equity CFD",
         )
 
 
 def test_cross_target_alias_fails_closed() -> None:
     with pytest.raises(CTraderDemoLabProbeError, match="alias"):
-        _identity(target="SP500", symbol_name="US30", description="S&P 500 Index")
+        _identity(
+            target="SP500",
+            symbol_name="US30",
+            description="S&P 500 Index",
+        )
 
 
 def test_target_description_cannot_launder_wrong_index() -> None:
     with pytest.raises(CTraderDemoLabProbeError, match="description"):
-        _identity(target="NAS100", symbol_name="US100", description="Dow Jones 30 Index")
+        _identity(
+            target="NAS100",
+            symbol_name="US100",
+            description="Dow Jones Industrial Average 30 Index",
+        )
+
+
+def test_generic_us_equity_description_cannot_certify_nas100() -> None:
+    with pytest.raises(CTraderDemoLabProbeError, match="description"):
+        _identity(
+            target="NAS100",
+            symbol_name="USTEC",
+            description="US technology equity CFD",
+        )
