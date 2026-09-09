@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 from qore.infrastructure.cibo.market_only_lab import run_market_only_lab
 
@@ -45,6 +46,16 @@ def _evidence(path: Path, *, future_bump: float = 0.0) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _first_record(result: dict[str, object]) -> dict[str, object]:
+    results = cast(tuple[dict[str, object], ...], result["results"])
+    records = cast(list[dict[str, object]], results[0]["records"])
+    return records[0]
+
+
+def _frozen_state(result: dict[str, object]) -> dict[str, object]:
+    return cast(dict[str, object], _first_record(result)["frozen_market_state"])
+
+
 def test_market_only_lab_is_trader_blind_and_read_only(tmp_path: Path) -> None:
     path = tmp_path / "market.json"
     _evidence(path)
@@ -55,10 +66,11 @@ def test_market_only_lab_is_trader_blind_and_read_only(tmp_path: Path) -> None:
     assert result["trader_history_consumed"] is False
     assert result["oracle_visible_at_decision_time"] is False
     assert result["unknown_is_neutral"] is False
-    first = result["results"][0]["records"][0]
-    state = first["frozen_market_state"]
-    assert len(state["market_state_fingerprint"]) == 64
-    assert first["post_freeze_evaluation"]["oracle_visible_to_state"] is False
+    first = _first_record(result)
+    state = _frozen_state(result)
+    assert len(cast(str, state["market_state_fingerprint"])) == 64
+    evaluation = cast(dict[str, object], first["post_freeze_evaluation"])
+    assert evaluation["oracle_visible_to_state"] is False
 
 
 def test_future_change_cannot_change_already_frozen_first_state(tmp_path: Path) -> None:
@@ -66,12 +78,10 @@ def test_future_change_cannot_change_already_frozen_first_state(tmp_path: Path) 
     changed = tmp_path / "changed.json"
     _evidence(original)
     _evidence(changed, future_bump=0.05)
-    original_result = run_market_only_lab((original,))
-    changed_result = run_market_only_lab((changed,))
-    original_state = original_result["results"][0]["records"][0]["frozen_market_state"]
-    changed_state = changed_result["results"][0]["records"][0]["frozen_market_state"]
-    # Evidence-file digest is provenance, so compare every causal state field except
-    # the whole-file digest/fingerprint; the market reading itself must be identical.
+    original_state = _frozen_state(run_market_only_lab((original,)))
+    changed_state = _frozen_state(run_market_only_lab((changed,)))
+    # Evidence-file digest is provenance, so compare causal state fields rather
+    # than the whole-file provenance fingerprint.
     assert original_state["direction"] == changed_state["direction"]
     assert original_state["regime_hypothesis"] == changed_state["regime_hypothesis"]
     assert original_state["volatility"] == changed_state["volatility"]
