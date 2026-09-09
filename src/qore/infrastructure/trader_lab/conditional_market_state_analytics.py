@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import re
 import sys
 from datetime import UTC
 from pathlib import Path
@@ -28,17 +30,31 @@ from qore.infrastructure.traders.instrument_binding import DemoTradingEvaluatorB
 
 _SCHEMA = "qore.trader_lab.conditional_market_state_analytics.v1"
 _ANALYSIS_VERSION = "qore-trader-lab-conditional-edge-v1"
+_SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
 class ConditionalMarketStateAnalyticsError(ConditionalMarketStateObservationError):
     __slots__ = ()
 
 
+def _analytics_software_sha() -> str | None:
+    value = os.environ.get("QORE_ANALYTICS_SOFTWARE_SHA")
+    if value is None or not value.strip():
+        return None
+    normalized = value.strip().lower()
+    if _SHA_RE.fullmatch(normalized) is None:
+        raise ConditionalMarketStateAnalyticsError(
+            "QORE_ANALYTICS_SOFTWARE_SHA must be an exact 40-character lowercase Git SHA"
+        )
+    return normalized
+
+
 def run_conditional_market_state_analytics(
     path: Path, observation_path: Path | None = None
 ) -> dict[str, object]:
     """Run causal market-state analytics for all five production cohort Traders."""
-    series, fingerprint, symbol, checked_at, software_sha = _load(path)
+    series, fingerprint, symbol, checked_at, source_software_sha = _load(path)
+    analytics_software_sha = _analytics_software_sha()
     evaluators = cohort_evaluators()
     if tuple(evaluator.trader_code for evaluator in evaluators) != _CODES:
         raise ConditionalMarketStateAnalyticsError(
@@ -51,7 +67,7 @@ def run_conditional_market_state_analytics(
                 cast(DemoTradingEvaluatorBoundary, evaluator),
                 trader_code=code,
                 symbol=symbol,
-                software_sha=software_sha,
+                software_sha=source_software_sha,
                 series=series,
                 observation_writer=writer,
             )
@@ -77,7 +93,15 @@ def run_conditional_market_state_analytics(
         "account_fingerprint": fingerprint,
         "symbol": symbol,
         "checked_at": checked_at.astimezone(UTC).isoformat(),
-        "software_sha": software_sha,
+        # Backward-compatible source evidence binding.
+        "software_sha": source_software_sha,
+        "source_evidence_software_sha": source_software_sha,
+        "analytics_software_sha": analytics_software_sha,
+        "provenance": {
+            "source_evidence_software_sha": source_software_sha,
+            "analytics_software_sha": analytics_software_sha,
+            "mixed_source_campaigns_must_not_be_silently_pooled": True,
+        },
         "classifier_version": CLASSIFIER_VERSION,
         "analysis_version": _ANALYSIS_VERSION,
         "session_policy": SESSION_POLICY,
