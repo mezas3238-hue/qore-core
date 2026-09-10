@@ -17,6 +17,7 @@ from typing import cast
 
 from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
     FirstCohortStoryForensicsError,
+    validate_story_episode_contract,
 )
 
 _STORY_SCHEMA = "qore.trader_lab.first_cohort_story_forensics.v1"
@@ -127,6 +128,8 @@ def _story_contract(story: dict[str, object]) -> None:
         raise StoryForensicsReviewError("review panel requires research-only evidence")
     if _strict_bool(story.get("execution_authority"), field_name="execution_authority"):
         raise StoryForensicsReviewError("review panel refuses execution-authoritative evidence")
+    for item in _array(story.get("episodes"), field_name="episodes"):
+        validate_story_episode_contract(_object(item, field_name="episode"))
 
 
 def _episode_subjects(story: dict[str, object]) -> list[dict[str, object]]:
