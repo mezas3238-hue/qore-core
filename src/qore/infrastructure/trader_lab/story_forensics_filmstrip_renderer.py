@@ -166,7 +166,9 @@ footer a {{ color: #a9c8ff; }}
 <body>
 <main>
 <h1>{title}</h1>
-<p class=\"lead\">Every panel is the same QORE episode frozen at one chronological evidence time.</p>
+<p class=\"lead\">
+Every panel is the same QORE episode frozen at one chronological evidence time.
+</p>
 <div class=\"actions\">
 <button id=\"saveFilmstrip\" type=\"button\" disabled>Save filmstrip PNG</button>
 </div>
