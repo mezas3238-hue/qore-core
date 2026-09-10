@@ -106,7 +106,13 @@ class OrderPrice:
 
 @dataclass(frozen=True, slots=True)
 class OrderIntent:
-    """Immutable trading intent. Construction never authorizes or executes it."""
+    """Immutable trading intent. Construction never authorizes or executes it.
+
+    ``stop_loss`` and ``take_profit`` are canonical protection prices, not
+    strategy indicators.  When supplied they are part of the logical identity
+    of the intent so Risk authorization, idempotency and provider execution are
+    bound to the exact same protection assumptions.
+    """
 
     intent_id: OrderIntentId
     idempotency_key: ExecutionIdempotencyKey
@@ -117,6 +123,8 @@ class OrderIntent:
     created_at: datetime
     metadata: ExternalRequestMetadata
     limit_price: OrderPrice | None = None
+    stop_loss: OrderPrice | None = None
+    take_profit: OrderPrice | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.intent_id, OrderIntentId):
@@ -147,6 +155,12 @@ class OrderIntent:
             self.limit_price, OrderPrice
         ):
             raise OrderIntentValidationError("limit_price must be OrderPrice or None")
+        if self.stop_loss is not None and not isinstance(self.stop_loss, OrderPrice):
+            raise OrderIntentValidationError("stop_loss must be OrderPrice or None")
+        if self.take_profit is not None and not isinstance(
+            self.take_profit, OrderPrice
+        ):
+            raise OrderIntentValidationError("take_profit must be OrderPrice or None")
         if self.order_type is OrderType.MARKET and self.limit_price is not None:
             raise OrderIntentValidationError(
                 "market order intent must not carry limit_price"
@@ -154,6 +168,14 @@ class OrderIntent:
         if self.order_type is OrderType.LIMIT and self.limit_price is None:
             raise OrderIntentValidationError(
                 "limit order intent requires limit_price"
+            )
+        if (
+            self.stop_loss is not None
+            and self.take_profit is not None
+            and self.stop_loss == self.take_profit
+        ):
+            raise OrderIntentValidationError(
+                "stop_loss and take_profit must be distinct prices"
             )
 
     def logical_values(self) -> tuple[object, ...]:
@@ -167,4 +189,6 @@ class OrderIntent:
             self.created_at.isoformat(),
             self.metadata.logical_values(),
             self.limit_price.logical_values() if self.limit_price is not None else None,
+            self.stop_loss.logical_values() if self.stop_loss is not None else None,
+            self.take_profit.logical_values() if self.take_profit is not None else None,
         )
