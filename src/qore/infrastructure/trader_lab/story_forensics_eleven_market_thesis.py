@@ -15,7 +15,7 @@ from typing import cast
 
 from qore.infrastructure.trader_lab.story_forensics_review_panel import ReviewRole
 
-_DOSSIER_SCHEMA = "qore.trader_lab.eleven_market_trader_dossier.v1"
+_DOSSIER_SCHEMA = "qore.trader_lab.eleven_market_trader_research_dossier.v1"
 _PANEL_SCHEMA = "qore.trader_lab.eleven_market_trader_thesis_panel.v1"
 _REQUIRED_MARKETS = (
     "EURUSD",
@@ -119,7 +119,7 @@ def _validate_dossier(
     dossier: dict[str, object],
 ) -> tuple[str, list[dict[str, object]]]:
     if _text(dossier.get("schema"), field_name="dossier schema") != _DOSSIER_SCHEMA:
-        raise ElevenMarketThesisError("eleven-market thesis requires dossier v1")
+        raise ElevenMarketThesisError("eleven-market thesis requires research dossier v1")
     if not _strict_bool(dossier.get("research_only"), field_name="research_only"):
         raise ElevenMarketThesisError("dossier must be research-only")
     if _strict_bool(dossier.get("execution_authority"), field_name="execution_authority"):
@@ -140,7 +140,27 @@ def _validate_dossier(
         if not _strict_bool(row.get("evidence_ready"), field_name="evidence_ready"):
             raise ElevenMarketThesisError("all eleven markets must be evidence-ready")
         _text(row.get("evidence_digest"), field_name="evidence_digest")
-        _object(row.get("summary"), field_name="market summary")
+        summary = _object(row.get("summary"), field_name="market summary")
+        _object(summary.get("story_forensics"), field_name="story_forensics")
+        characterization = _object(
+            summary.get("characterization"),
+            field_name="characterization",
+        )
+        walk_forward = _object(
+            characterization.get("walk_forward_assessment"),
+            field_name="walk_forward_assessment",
+        )
+        _strict_bool(walk_forward.get("oos_pass"), field_name="oos_pass")
+        _strict_bool(walk_forward.get("stress_pass"), field_name="stress_pass")
+        _object(summary.get("provenance"), field_name="market provenance")
+    observed_fingerprint = _text(
+        dossier.get("dossier_fingerprint"),
+        field_name="dossier_fingerprint",
+    )
+    fingerprint_material = deepcopy(dossier)
+    fingerprint_material.pop("dossier_fingerprint", None)
+    if _digest(fingerprint_material) != observed_fingerprint:
+        raise ElevenMarketThesisError("research dossier fingerprint mismatch")
     return trader_code, markets
 
 
