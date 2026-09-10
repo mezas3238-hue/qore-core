@@ -48,6 +48,7 @@ def test_exact_observed_provider_descriptor_certifies() -> None:
     [
         ("US30", "USA Dow Jones Index"),
         ("US30", "Dow Jones IA Index"),
+        ("US30", "USA Dow Jones IA 30 Index"),
         ("US30", "USA Dow Jones Industrial Average Index"),
         ("US30", "Generic Dow Jones IA Index"),
         ("DJ30", "USA Dow Jones IA Index"),
