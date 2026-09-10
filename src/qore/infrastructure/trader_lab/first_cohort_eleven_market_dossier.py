@@ -31,6 +31,7 @@ _MARKETS = (
     "US30",
 )
 _TRADERS = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
+_SESSIONS = ("ASIA", "LONDON", "NEW_YORK")
 
 
 class ElevenMarketDossierError(ValueError):
@@ -63,6 +64,12 @@ def _strict_bool(value: object, *, field_name: str) -> bool:
     return value
 
 
+def _strict_int(value: object, *, field_name: str) -> int:
+    if type(value) is not int:
+        raise ElevenMarketDossierError(f"{field_name} must be int")
+    return value
+
+
 def _canonical(value: object) -> str:
     try:
         return json.dumps(
@@ -88,43 +95,35 @@ def _read_json(path: Path) -> dict[str, object]:
     return _object(decoded, field_name="market package")
 
 
-def _index_by_trader(
-    rows: object,
-    *,
-    field_name: str,
-) -> dict[str, dict[str, object]]:
-    result: dict[str, dict[str, object]] = {}
-    for item in _array(rows, field_name=field_name):
-        row = _object(item, field_name=field_name)
-        trader_code = _text(row.get("trader_code"), field_name=f"{field_name} trader_code")
-        if trader_code not in _TRADERS:
-            raise ElevenMarketDossierError(f"{field_name} contains unknown Trader")
-        if trader_code in result:
-            raise ElevenMarketDossierError(f"{field_name} contains duplicate Trader")
-        result[trader_code] = row
-    if set(result) != set(_TRADERS):
-        raise ElevenMarketDossierError(f"{field_name} must contain all five Traders")
-    return result
-
-
 def _pack_trader_code(pack: dict[str, object]) -> str:
     binding = _object(pack.get("source_binding"), field_name="source_binding")
     return _text(binding.get("trader_code"), field_name="source_binding trader_code")
 
 
-def _index_story_packs(rows: object) -> dict[str, dict[str, object]]:
-    result: dict[str, dict[str, object]] = {}
-    for item in _array(rows, field_name="trader_story_packs"):
-        pack = _object(item, field_name="trader story pack")
-        trader_code = _pack_trader_code(pack)
-        if trader_code not in _TRADERS:
-            raise ElevenMarketDossierError("story pack contains unknown Trader")
-        if trader_code in result:
-            raise ElevenMarketDossierError("story packs contain duplicate Trader")
-        result[trader_code] = pack
-    if set(result) != set(_TRADERS):
-        raise ElevenMarketDossierError("story packs must contain all five Traders")
-    return result
+def _ordered_summaries(rows: object) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
+    ordered = [
+        _object(item, field_name="trader summary")
+        for item in _array(rows, field_name="trader_summaries")
+    ]
+    codes = [_text(row.get("trader_code"), field_name="summary trader_code") for row in ordered]
+    if codes != list(_TRADERS):
+        raise ElevenMarketDossierError("trader_summaries must preserve canonical five-Trader order")
+    return ordered, {code: row for code, row in zip(codes, ordered, strict=True)}
+
+
+def _ordered_story_packs(rows: object) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
+    ordered = [
+        _object(item, field_name="trader story pack")
+        for item in _array(rows, field_name="trader_story_packs")
+    ]
+    codes = [_pack_trader_code(pack) for pack in ordered]
+    if codes != list(_TRADERS):
+        raise ElevenMarketDossierError("trader_story_packs must preserve canonical five-Trader order")
+    return ordered, {code: pack for code, pack in zip(codes, ordered, strict=True)}
+
+
+def _string_array(value: object, *, field_name: str) -> list[str]:
+    return [_text(item, field_name=field_name) for item in _array(value, field_name=field_name)]
 
 
 def _validate_market_package(
@@ -132,22 +131,37 @@ def _validate_market_package(
 ) -> tuple[str, dict[str, dict[str, object]], dict[str, dict[str, object]]]:
     if _text(payload.get("schema"), field_name="market schema") != _MARKET_SCHEMA:
         raise ElevenMarketDossierError("unexpected market Story Forensics schema")
+    if _text(payload.get("environment"), field_name="environment") != "demo":
+        raise ElevenMarketDossierError("market package must be DEMO")
     if not _strict_bool(payload.get("research_only"), field_name="research_only"):
         raise ElevenMarketDossierError("market package must be research-only")
+    if not _strict_bool(payload.get("read_only"), field_name="read_only"):
+        raise ElevenMarketDossierError("market package must be read-only")
     if _strict_bool(payload.get("execution_authority"), field_name="execution_authority"):
         raise ElevenMarketDossierError("market package cannot have execution authority")
+
     symbol = _text(payload.get("symbol"), field_name="symbol")
     if symbol not in _MARKETS:
         raise ElevenMarketDossierError("market package is outside QORE eleven-market universe")
-    summaries = _index_by_trader(
-        payload.get("trader_summaries"),
-        field_name="trader_summaries",
+    software_sha = _text(payload.get("software_sha"), field_name="software_sha")
+    account_fingerprint = _text(
+        payload.get("account_fingerprint"),
+        field_name="account_fingerprint",
     )
-    packs = _index_story_packs(payload.get("trader_story_packs"))
+    if _strict_int(payload.get("trader_count"), field_name="trader_count") != len(_TRADERS):
+        raise ElevenMarketDossierError("market package must contain exactly five Traders")
+    if _string_array(payload.get("trader_codes"), field_name="trader_codes") != list(_TRADERS):
+        raise ElevenMarketDossierError("market trader_codes must match canonical five-Trader order")
+    if _string_array(payload.get("session_groups"), field_name="session_groups") != list(_SESSIONS):
+        raise ElevenMarketDossierError("market session_groups must match canonical session order")
+
+    ordered_summaries, summaries = _ordered_summaries(payload.get("trader_summaries"))
+    _ordered_packs, packs = _ordered_story_packs(payload.get("trader_story_packs"))
+    fingerprint_rows: list[dict[str, object]] = []
     for trader_code in _TRADERS:
-        if summaries[trader_code].get("trader_code") != trader_code:
-            raise ElevenMarketDossierError("summary Trader identity mismatch")
-        binding = _object(packs[trader_code].get("source_binding"), field_name="source_binding")
+        summary = summaries[trader_code]
+        pack = packs[trader_code]
+        binding = _object(pack.get("source_binding"), field_name="source_binding")
         if _text(binding.get("symbol"), field_name="source_binding symbol") != symbol:
             raise ElevenMarketDossierError("story pack symbol mismatch")
         if (
@@ -155,7 +169,51 @@ def _validate_market_package(
             != trader_code
         ):
             raise ElevenMarketDossierError("story pack Trader identity mismatch")
-    _text(payload.get("market_forensics_fingerprint"), field_name="market fingerprint")
+        if _text(binding.get("software_sha"), field_name="binding software_sha") != software_sha:
+            raise ElevenMarketDossierError("story pack software SHA mismatch")
+        if (
+            _text(binding.get("account_fingerprint"), field_name="binding account_fingerprint")
+            != account_fingerprint
+        ):
+            raise ElevenMarketDossierError("story pack account fingerprint mismatch")
+        summary_forensics = _text(
+            summary.get("forensics_fingerprint"),
+            field_name="summary forensics_fingerprint",
+        )
+        pack_forensics = _text(
+            pack.get("forensics_fingerprint"),
+            field_name="pack forensics_fingerprint",
+        )
+        if summary_forensics != pack_forensics:
+            raise ElevenMarketDossierError("summary/story forensics fingerprint mismatch")
+        session_fingerprint = _text(
+            summary.get("session_intelligence_fingerprint"),
+            field_name="session_intelligence_fingerprint",
+        )
+        fingerprint_rows.append(
+            {
+                "trader_code": trader_code,
+                "forensics_fingerprint": summary_forensics,
+                "session_intelligence_fingerprint": session_fingerprint,
+            }
+        )
+
+    if len(ordered_summaries) != len(_TRADERS):
+        raise ElevenMarketDossierError("market package must contain exactly five summaries")
+    expected_fingerprint = _digest(
+        {
+            "schema": _MARKET_SCHEMA,
+            "symbol": symbol,
+            "software_sha": software_sha,
+            "traders": fingerprint_rows,
+        }
+    )
+    observed_fingerprint = _text(
+        payload.get("market_forensics_fingerprint"),
+        field_name="market fingerprint",
+    )
+    if observed_fingerprint != expected_fingerprint:
+        raise ElevenMarketDossierError("market forensics fingerprint mismatch")
     return symbol, summaries, packs
 
 
