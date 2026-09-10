@@ -100,7 +100,9 @@ def _pack_trader_code(pack: dict[str, object]) -> str:
     return _text(binding.get("trader_code"), field_name="source_binding trader_code")
 
 
-def _ordered_summaries(rows: object) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
+def _ordered_summaries(
+    rows: object,
+) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
     ordered = [
         _object(item, field_name="trader summary")
         for item in _array(rows, field_name="trader_summaries")
@@ -111,14 +113,18 @@ def _ordered_summaries(rows: object) -> tuple[list[dict[str, object]], dict[str,
     return ordered, {code: row for code, row in zip(codes, ordered, strict=True)}
 
 
-def _ordered_story_packs(rows: object) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
+def _ordered_story_packs(
+    rows: object,
+) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
     ordered = [
         _object(item, field_name="trader story pack")
         for item in _array(rows, field_name="trader_story_packs")
     ]
     codes = [_pack_trader_code(pack) for pack in ordered]
     if codes != list(_TRADERS):
-        raise ElevenMarketDossierError("trader_story_packs must preserve canonical five-Trader order")
+        raise ElevenMarketDossierError(
+            "trader_story_packs must preserve canonical five-Trader order"
+        )
     return ordered, {code: pack for code, pack in zip(codes, ordered, strict=True)}
 
 
