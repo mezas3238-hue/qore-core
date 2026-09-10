@@ -1,0 +1,473 @@
+name: QORE Trader Lab US30 Solo Closeout
+
+on:
+  push:
+    branches:
+      - agent/trader-lab-us30-solo-closeout-001
+    paths:
+      - .github/workflows/trader-lab-us30-solo-closeout.yml
+      - src/qore/infrastructure/ctrader_demo_lab_us30_identity.py
+      - tests/infrastructure/test_ctrader_demo_lab_us30_identity.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-trader-lab-us30-solo-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CAMPAIGN_MARKET: US30
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE dev + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src tests
+      - name: Pytest with coverage
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  market-evidence:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify required DEMO inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover the single authorized DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Resolve exact US30 provider identity
+        id: resolve
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/campaign/US30"
+          mkdir -p "$root"
+          python -m qore.infrastructure.ctrader_demo_lab_us30_identity > "$root/provider-identity.json"
+          provider_symbol="$(python - "$root/provider-identity.json" <<'PY'
+          import json, sys
+          payload=json.load(open(sys.argv[1], encoding='utf-8'))
+          assert payload['economic_target']=='US30'
+          assert payload['economic_identity_certified'] is True
+          assert payload['execution_authority'] is False
+          assert payload['provider_description']=='USA Dow Jones IA Index'
+          print(payload['provider_symbol']['symbol_name'])
+          PY
+          )"
+          test "$provider_symbol" = "US30"
+          printf 'QORE_DEMO_LAB_SYMBOL=%s\n' "$provider_symbol" >> "$GITHUB_ENV"
+          printf '%s\n' "$provider_symbol" > "$root/provider-symbol.txt"
+      - name: Collect >=730-day read-only market evidence
+        id: collect
+        if: steps.resolve.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/campaign/US30"
+          python -m qore.infrastructure.ctrader_demo_lab_long_horizon_probe > "$root/market-evidence.json"
+          python - "$root/market-evidence.json" <<'PY'
+          import json, os, sys
+          payload=json.load(open(sys.argv[1], encoding='utf-8'))
+          assert payload['environment']=='demo'
+          assert payload['read_only'] is True
+          assert payload['account_is_live'] is False
+          assert payload['symbol']['symbol_name']=='US30'
+          assert payload['requested_lookback_days']>730
+          assert payload['required_coverage_days']==730
+          assert payload['software_sha']==os.environ['GITHUB_SHA']
+          assert set(payload['periods'])=={'M1','M5','M15','H4'}
+          assert all(payload['coverage'][p]['span_seconds'] >= 730*86400 for p in ('M5','M15','H4'))
+          PY
+      - name: Freeze Stage 1 status and provenance
+        if: always()
+        env:
+          RESOLVE_OUTCOME: ${{ steps.resolve.outcome }}
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+        shell: bash
+        run: |
+          root="artifacts/campaign/US30"; mkdir -p "$root"
+          python - "$root" "$RESOLVE_OUTCOME" "$COLLECT_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); resolved,collected=sys.argv[2:]
+          evidence=root/'market-evidence.json'
+          passed=resolved=='success' and collected=='success' and evidence.is_file()
+          digest=lambda path: hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+          payload={'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'MARKET_EVIDENCE','economic_target':'US30','terminal_state':'PASS' if passed else 'VALIDATION_BLOCKED','resolve_outcome':resolved,'collect_outcome':collected,'source_sha':os.environ['GITHUB_SHA'],'market_evidence_sha256':digest(evidence),'provider_identity_sha256':digest(root/'provider-identity.json')}
+          (root/'stage1-status.json').write_text(json.dumps(payload,sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - name: Upload Stage 1 checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-us30-solo-stage1-${{ github.sha }}
+          path: artifacts/campaign/US30
+          if-no-files-found: error
+          retention-days: 30
+
+  backtest:
+    needs: market-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: "${{ github.sha }}"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-us30-solo-stage1-${{ github.sha }}
+          path: artifacts/input
+      - name: Check Stage 1 gate
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          status=json.loads(next(pathlib.Path('artifacts/input').rglob('stage1-status.json')).read_text())
+          evidence=list(pathlib.Path('artifacts/input').rglob('market-evidence.json'))
+          print(f"can_run={'true' if status['terminal_state']=='PASS' and len(evidence)==1 else 'false'}")
+          PY
+      - name: Backtest five exact Traders
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/output/US30
+          evidence="$(find artifacts/input -name market-evidence.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_backtest "$evidence" > artifacts/output/US30/backtest.json
+      - name: Freeze Stage 2 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          mkdir -p artifacts/output/US30
+          python - artifacts/output/US30 "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); can_run,outcome=sys.argv[2:]; artifact=root/'backtest.json'
+          passed=can_run=='true' and outcome=='success' and artifact.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          (root/'stage2-status.json').write_text(json.dumps({'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'BACKTEST','economic_target':'US30','terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None},sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-us30-solo-stage2-${{ github.sha }}
+          path: artifacts/output/US30
+          if-no-files-found: error
+          retention-days: 30
+
+  conditional-analytics:
+    needs: market-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: "${{ github.sha }}"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-us30-solo-stage1-${{ github.sha }}
+          path: artifacts/input
+      - name: Check Stage 1 gate
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          status=json.loads(next(pathlib.Path('artifacts/input').rglob('stage1-status.json')).read_text())
+          print(f"can_run={'true' if status['terminal_state']=='PASS' else 'false'}")
+          PY
+      - name: Build causal Trader Market-State Atlas
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/output/US30
+          evidence="$(find artifacts/input -name market-evidence.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.conditional_market_state_analytics "$evidence" artifacts/output/US30/observations.ndjson > artifacts/output/US30/conditional-market-state-analytics.json
+      - name: Freeze analytics status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          mkdir -p artifacts/output/US30
+          python - artifacts/output/US30 "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); can_run,outcome=sys.argv[2:]; artifact=root/'conditional-market-state-analytics.json'; observations=root/'observations.ndjson'
+          passed=can_run=='true' and outcome=='success' and artifact.is_file() and observations.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          payload={'schema':'qore.trader_lab.conditional_analytics_status.v1','stage':'CONDITIONAL_MARKET_STATE_ANALYTICS','economic_target':'US30','terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None,'observations_sha256':hashlib.sha256(observations.read_bytes()).hexdigest() if observations.is_file() else None}
+          (root/'analytics-status.json').write_text(json.dumps(payload,sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-us30-solo-analytics-${{ github.sha }}
+          path: artifacts/output/US30
+          if-no-files-found: error
+          retention-days: 30
+
+  walk-forward:
+    needs: market-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: "${{ github.sha }}"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-us30-solo-stage1-${{ github.sha }}
+          path: artifacts/input
+      - name: Check evidence gate
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          status=json.loads(next(pathlib.Path('artifacts/input').rglob('stage1-status.json')).read_text())
+          print(f"can_run={'true' if status['terminal_state']=='PASS' else 'false'}")
+          PY
+      - name: Walk-forward / untouched OOS
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/output/US30
+          evidence="$(find artifacts/input -name market-evidence.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_walk_forward "$evidence" > artifacts/output/US30/walk-forward.json
+      - name: Freeze Stage 3 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          mkdir -p artifacts/output/US30
+          python - artifacts/output/US30 "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); can_run,outcome=sys.argv[2:]; artifact=root/'walk-forward.json'
+          passed=can_run=='true' and outcome=='success' and artifact.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          (root/'stage3-status.json').write_text(json.dumps({'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'WALK_FORWARD_OOS','economic_target':'US30','terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None},sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-us30-solo-stage3-${{ github.sha }}
+          path: artifacts/output/US30
+          if-no-files-found: error
+          retention-days: 30
+
+  characterization:
+    needs: walk-forward
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: "${{ github.sha }}"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-us30-solo-stage1-${{ github.sha }}
+          path: artifacts/stage1
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-us30-solo-stage3-${{ github.sha }}
+          path: artifacts/stage3
+      - name: Check characterization inputs
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          s1=json.loads(next(pathlib.Path('artifacts/stage1').rglob('stage1-status.json')).read_text())
+          s3=json.loads(next(pathlib.Path('artifacts/stage3').rglob('stage3-status.json')).read_text())
+          print(f"can_run={'true' if s1['terminal_state']=='PASS' and s3['terminal_state']=='PASS' else 'false'}")
+          PY
+      - name: Deep five-Trader characterization
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/output/US30
+          evidence="$(find artifacts/stage1 -name market-evidence.json -type f -print -quit)"
+          walk="$(find artifacts/stage3 -name walk-forward.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_characterization "$evidence" "$walk" > artifacts/output/US30/characterization.json
+      - name: Freeze Stage 4 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          mkdir -p artifacts/output/US30
+          python - artifacts/output/US30 "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); can_run,outcome=sys.argv[2:]; artifact=root/'characterization.json'; passed=can_run=='true' and outcome=='success' and artifact.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          (root/'stage4-status.json').write_text(json.dumps({'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'CHARACTERIZATION','economic_target':'US30','terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None},sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-us30-solo-stage4-${{ github.sha }}
+          path: artifacts/output/US30
+          if-no-files-found: error
+          retention-days: 30
+
+  failure-analysis:
+    needs: [backtest, walk-forward]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: "${{ github.sha }}"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-us30-solo-stage2-${{ github.sha }}
+          path: artifacts/stage2
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-us30-solo-stage3-${{ github.sha }}
+          path: artifacts/stage3
+      - name: Check failure-analysis inputs
+        id: gate
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,pathlib
+          s2=json.loads(next(pathlib.Path('artifacts/stage2').rglob('stage2-status.json')).read_text())
+          s3=json.loads(next(pathlib.Path('artifacts/stage3').rglob('stage3-status.json')).read_text())
+          print(f"can_run={'true' if s2['terminal_state']=='PASS' and s3['terminal_state']=='PASS' else 'false'}")
+          PY
+      - name: Per-Trader failure analysis
+        id: execute
+        if: steps.gate.outputs.can_run == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/output/US30
+          backtest="$(find artifacts/stage2 -name backtest.json -type f -print -quit)"
+          walk="$(find artifacts/stage3 -name walk-forward.json -type f -print -quit)"
+          python -m qore.infrastructure.trader_lab.first_cohort_failure_analysis "$backtest" "$walk" > artifacts/output/US30/failure-analysis.json
+      - name: Freeze Stage 5 status
+        if: always()
+        env:
+          CAN_RUN: ${{ steps.gate.outputs.can_run }}
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          mkdir -p artifacts/output/US30
+          python - artifacts/output/US30 "$CAN_RUN" "$EXECUTE_OUTCOME" <<'PY'
+          import hashlib,json,os,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); can_run,outcome=sys.argv[2:]; artifact=root/'failure-analysis.json'; passed=can_run=='true' and outcome=='success' and artifact.is_file(); state='PASS' if passed else ('SKIPPED_UPSTREAM_BLOCKED' if can_run!='true' else 'VALIDATION_BLOCKED')
+          (root/'stage5-status.json').write_text(json.dumps({'schema':'qore.trader_lab.segmented_stage_status.v1','stage':'FAILURE_ANALYSIS','economic_target':'US30','terminal_state':state,'source_sha':os.environ['GITHUB_SHA'],'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None},sort_keys=True,separators=(',',':')),encoding='utf-8')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-us30-solo-stage5-${{ github.sha }}
+          path: artifacts/output/US30
+          if-no-files-found: error
+          retention-days: 30
+
+  final-manifest:
+    needs:
+      - market-evidence
+      - backtest
+      - conditional-analytics
+      - walk-forward
+      - characterization
+      - failure-analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: "qore-us30-solo-stage1-${{ github.sha }}", path: artifacts/stage1}
+      - uses: actions/download-artifact@v4
+        with: {name: "qore-us30-solo-stage2-${{ github.sha }}", path: artifacts/stage2}
+      - uses: actions/download-artifact@v4
+        with: {name: "qore-us30-solo-stage3-${{ github.sha }}", path: artifacts/stage3}
+      - uses: actions/download-artifact@v4
+        with: {name: "qore-us30-solo-stage4-${{ github.sha }}", path: artifacts/stage4}
+      - uses: actions/download-artifact@v4
+        with: {name: "qore-us30-solo-stage5-${{ github.sha }}", path: artifacts/stage5}
+      - uses: actions/download-artifact@v4
+        with: {name: "qore-us30-solo-analytics-${{ github.sha }}", path: artifacts/analytics}
+      - name: Build isolated US30 terminal manifest
+        run: |
+          mkdir -p artifacts/final/US30
+          python - <<'PY'
+          import json,os,pathlib
+          statuses=[]
+          for i in range(1,6):
+              statuses.append(json.loads(next(pathlib.Path(f'artifacts/stage{i}').rglob(f'stage{i}-status.json')).read_text()))
+          analytics=json.loads(next(pathlib.Path('artifacts/analytics').rglob('analytics-status.json')).read_text())
+          statuses.append(analytics)
+          passed=all(item['terminal_state']=='PASS' for item in statuses)
+          payload={'schema':'qore.trader_lab.us30_solo_closeout_manifest.v1','economic_target':'US30','terminal_state':'PASS' if passed else 'VALIDATION_BLOCKED','source_sha':os.environ['GITHUB_SHA'],'stage_states':[{'stage':item['stage'],'state':item['terminal_state']} for item in statuses],'research_only':True,'execution_authority':False}
+          pathlib.Path('artifacts/final/US30/market-manifest.json').write_text(json.dumps(payload,sort_keys=True,separators=(',',':')),encoding='utf-8')
+          if not passed:
+              raise SystemExit('US30 isolated closeout remains validation blocked')
+          print('US30 ISOLATED CLOSEOUT TERMINAL PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-us30-solo-final-${{ github.sha }}
+          path: artifacts/final/US30
+          if-no-files-found: error
+          retention-days: 30
