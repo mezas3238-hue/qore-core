@@ -318,6 +318,16 @@ def _read_json(path: Path, *, field_name: str) -> dict[str, object]:
     return _object(decoded, field_name=field_name)
 
 
+def _artifact_sha256(path: Path, *, field_name: str) -> str:
+    """Bind the exact retained artifact bytes consumed by Story Forensics."""
+
+    try:
+        material = path.read_bytes()
+    except OSError as error:
+        raise FirstCohortStoryForensicsError(f"cannot hash {field_name}") from error
+    return sha256(material).hexdigest()
+
+
 def _side(value: object, *, field_name: str) -> DemoTradingSetupSide:
     raw = _text(value, field_name=field_name)
     try:
@@ -944,6 +954,14 @@ def run_story_forensics(
     selected_givebacks = _pick_distinct_episodes(givebacks, metric="mfe_r")
     selected_winners = _pick_distinct_episodes(canonical_winners, metric="return_rate")
     episode_payloads = [episode.payload() for episode in retained]
+    source_artifact_sha256 = {
+        "market": _artifact_sha256(market_path, field_name="market evidence"),
+        "backtest": _artifact_sha256(backtest_path, field_name="backtest evidence"),
+        "characterization": _artifact_sha256(
+            characterization_path,
+            field_name="characterization evidence",
+        ),
+    }
     source_binding = {
         "symbol": symbol,
         "account_fingerprint": account_fingerprint,
@@ -953,6 +971,7 @@ def run_story_forensics(
         "config_fingerprint": config_fingerprint,
         "methodology_fingerprint": methodology_fingerprint,
         "execution_period": execution_period,
+        "source_artifact_sha256": source_artifact_sha256,
     }
     fingerprint_material = json.dumps(
         {

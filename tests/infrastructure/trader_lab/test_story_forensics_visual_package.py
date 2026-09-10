@@ -212,3 +212,21 @@ def test_visual_package_rejects_noncanonical_episode_path_material(tmp_path: Pat
 
     with pytest.raises(StoryForensicsVisualPackageError, match="canonical episode id"):
         build_visual_package(payload, tmp_path)
+
+
+def test_visual_manifest_binds_exact_story_payload_content(tmp_path: Path) -> None:
+    first_payload = _payload()
+    first_manifest = build_visual_package(first_payload, tmp_path / "first")
+
+    second_payload = _payload()
+    second_episodes = cast(list[object], second_payload["episodes"])
+    second_episode = cast(dict[str, object], second_episodes[0])
+    second_decision = cast(dict[str, object], second_episode["decision_time"])
+    second_decision["setup_reason"] = "different-evidence-bound-reason"
+    second_manifest = build_visual_package(second_payload, tmp_path / "second")
+
+    first_digest = cast(str, first_manifest["story_payload_sha256"])
+    second_digest = cast(str, second_manifest["story_payload_sha256"])
+    assert len(first_digest) == 64
+    assert len(second_digest) == 64
+    assert first_digest != second_digest
