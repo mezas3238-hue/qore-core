@@ -95,6 +95,9 @@ def test_machine_review_packet_contains_no_peer_conclusions() -> None:
     assert packet["mode"] == "independent_first_pass"
     assert "sealed_machine_reviews" not in packet
     assert packet["dossier_digest"] == panel["dossier_digest"]
+    required = cast(dict[str, object], packet["required_output"])
+    assert "verdict_family" in required
+    assert "central_verdict" not in required
 
 
 def test_assessment_must_address_every_market() -> None:
