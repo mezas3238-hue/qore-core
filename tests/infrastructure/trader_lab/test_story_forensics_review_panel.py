@@ -25,7 +25,16 @@ def _story() -> dict[str, object]:
         "outcome": "loss",
         "decision_time": {"signal_at": "2026-01-01T00:00:00+00:00"},
         "post_outcome": {"close_path_mfe_r": "1.20"},
-        "chart": {"source_of_truth": "qore-retained-evidence"},
+        "chart": {
+            "source_of_truth": "qore-retained-evidence",
+            "frame_sequence": [
+                {
+                    "stage": "signal",
+                    "visible_through": "2026-01-01T00:00:00+00:00",
+                    "visible_through_unix": 1767225600,
+                }
+            ],
+        },
         "trajectory": [],
     }
     return {
