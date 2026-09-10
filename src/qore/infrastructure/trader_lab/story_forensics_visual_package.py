@@ -243,6 +243,24 @@ def _sha256_text(value: str) -> str:
     return sha256(value.encode("utf-8")).hexdigest()
 
 
+def _story_payload_sha256(payload: dict[str, object]) -> str:
+    """Digest the exact canonical Story payload rendered by this package."""
+
+    try:
+        material = json.dumps(
+            payload,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as error:
+        raise StoryForensicsVisualPackageError(
+            "story payload must be canonical JSON"
+        ) from error
+    return _sha256_text(material)
+
+
 def build_visual_package(payload: dict[str, object], output_dir: Path) -> dict[str, object]:
     """Materialize the exact selected visual stories plus an integrity manifest."""
     _validate(payload)
@@ -275,6 +293,7 @@ def build_visual_package(payload: dict[str, object], output_dir: Path) -> dict[s
         "execution_authority": False,
         "source_binding": payload.get("source_binding"),
         "forensics_fingerprint": payload.get("forensics_fingerprint"),
+        "story_payload_sha256": _story_payload_sha256(payload),
         "renderer": _RENDERER,
         "renderer_version": _RENDERER_VERSION,
         "selected_episode_ids": list(selected_ids),
