@@ -16,6 +16,7 @@ from typing import cast
 
 from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
     FirstCohortStoryForensicsError,
+    validate_story_episode_contract,
 )
 
 _STORY_SCHEMA = "qore.trader_lab.first_cohort_story_forensics.v1"
@@ -105,6 +106,7 @@ def _episode(payload: dict[str, object], *, episode_id: str) -> dict[str, object
     if len(matches) != 1:
         raise StoryForensicsRendererError("episode_id must identify exactly one episode")
     episode = matches[0]
+    validate_story_episode_contract(episode)
     chart = _object(episode.get("chart"), field_name="episode chart")
     if _text(chart.get("renderer"), field_name="episode renderer") != _RENDERER:
         raise StoryForensicsRendererError("episode renderer contract changed")
