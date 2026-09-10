@@ -1,0 +1,61 @@
+name: TEMP Architect Thesis Panel Integrity
+
+on:
+  push:
+    branches:
+      - agent/trader-story-forensics-architect-panel-integrity-001
+    paths:
+      - .github/architect-thesis-panel-integrity-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact panel-integrity branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply fail-closed panel-integrity patch
+        run: python .github/architect_thesis_panel_integrity_patch.py
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff focused candidate
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/story_forensics_eleven_market_thesis.py \
+            tests/infrastructure/trader_lab/test_story_forensics_eleven_market_thesis.py
+      - name: Mypy focused candidate
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/story_forensics_eleven_market_thesis.py \
+            tests/infrastructure/trader_lab/test_story_forensics_eleven_market_thesis.py
+      - name: Pytest thesis-panel regressions
+        run: |
+          pytest -q tests/infrastructure/trader_lab/test_story_forensics_eleven_market_thesis.py
+      - name: Verify mutation scope
+        run: |
+          git diff --exit-code -- .github/architect_thesis_panel_integrity_patch.py .github/workflows/architect-thesis-panel-integrity.yml .github/architect-thesis-panel-integrity-trigger
+          CHANGED="$(git diff --name-only | sort -u)"
+          EXPECTED="$(printf '%s\n' \
+            src/qore/infrastructure/trader_lab/story_forensics_eleven_market_thesis.py \
+            tests/infrastructure/trader_lab/test_story_forensics_eleven_market_thesis.py | sort)"
+          printf '%s\n' "$CHANGED"
+          test "$CHANGED" = "$EXPECTED"
+      - name: Commit verified panel-integrity candidate
+        run: |
+          git config user.name "qore-architect-bot"
+          git config user.email "qore-architect-bot@users.noreply.github.com"
+          git add \
+            src/qore/infrastructure/trader_lab/story_forensics_eleven_market_thesis.py \
+            tests/infrastructure/trader_lab/test_story_forensics_eleven_market_thesis.py
+          git commit -m "fix(trader-lab): revalidate frozen thesis panel integrity"
+          git push origin HEAD:${GITHUB_REF_NAME}
