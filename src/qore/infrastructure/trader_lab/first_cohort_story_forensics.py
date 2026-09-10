@@ -206,13 +206,15 @@ class _Episode:
                         "price": format(self.trade.take_profit, "f"),
                     },
                 ],
-                "markers": [
-                    _marker("signal", self.trade.signal_at, "SIG"),
-                    _marker("entry", self.trade.filled_at, "ENTRY"),
-                    _marker("mfe", self.mfe_at, f"MFE {format(self.mfe_r, 'f')}R"),
-                    _marker("mae", self.mae_at, f"MAE {format(self.mae_r, 'f')}R"),
-                    _marker("exit", self.trade.exited_at, self.trade.exit_reason.upper()),
-                ],
+                "markers": _sorted_markers(
+                    [
+                        _marker("signal", self.trade.signal_at, "SIG"),
+                        _marker("entry", self.trade.filled_at, "ENTRY"),
+                        _marker("mfe", self.mfe_at, f"MFE {format(self.mfe_r, 'f')}R"),
+                        _marker("mae", self.mae_at, f"MAE {format(self.mae_r, 'f')}R"),
+                        _marker("exit", self.trade.exited_at, self.trade.exit_reason.upper()),
+                    ]
+                ),
                 "frame_sequence": _frame_sequence(self),
                 "screenshot_capable": True,
             },
@@ -651,7 +653,26 @@ def _episode(
     )
 
 
+_FRAME_STAGE_ORDER = (
+    "context",
+    "signal",
+    "entry",
+    "mfe",
+    "mae",
+    "exit",
+    "post_exit",
+)
+_MARKER_KIND_ORDER = ("signal", "entry", "mfe", "mae", "exit")
+
+
 def _frame_sequence(episode: _Episode) -> list[dict[str, object]]:
+    """Emit replay frames in evidence-time order with deterministic ties.
+
+    MFE and MAE are both post-entry observations and either may occur first.
+    Therefore the timestamp is authoritative; semantic stage order is only a
+    deterministic tie-break when two observations share the same closed bar.
+    """
+
     ordered = [
         ("context", episode.bars[0].closed_at),
         ("signal", episode.trade.signal_at),
@@ -661,21 +682,39 @@ def _frame_sequence(episode: _Episode) -> list[dict[str, object]]:
         ("exit", episode.trade.exited_at),
         ("post_exit", episode.bars[-1].closed_at),
     ]
-    frames: list[dict[str, object]] = []
+    unique: list[tuple[str, datetime]] = []
     seen: set[tuple[str, datetime]] = set()
     for stage, at in ordered:
         key = (stage, at)
         if key in seen:
             continue
         seen.add(key)
-        frames.append(
-            {
-                "stage": stage,
-                "visible_through": at.isoformat(),
-                "visible_through_unix": int(at.timestamp()),
-            }
-        )
-    return frames
+        unique.append((stage, at))
+    stage_rank = {stage: index for index, stage in enumerate(_FRAME_STAGE_ORDER)}
+    unique.sort(key=lambda item: (item[1], stage_rank[item[0]]))
+    return [
+        {
+            "stage": stage,
+            "visible_through": at.isoformat(),
+            "visible_through_unix": int(at.timestamp()),
+        }
+        for stage, at in unique
+    ]
+
+
+def _sorted_markers(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Order chart markers by absolute evidence instant with stable ties."""
+
+    kind_rank = {kind: index for index, kind in enumerate(_MARKER_KIND_ORDER)}
+
+    def marker_key(row: dict[str, object]) -> tuple[datetime, int]:
+        raw_at = cast(str, row["at"])
+        parsed_at = datetime.fromisoformat(raw_at)
+        if parsed_at.tzinfo is None or parsed_at.utcoffset() is None:
+            raise FirstCohortStoryForensicsError("chart marker timestamp must be timezone-aware")
+        return parsed_at.astimezone(UTC), kind_rank[cast(str, row["kind"])]
+
+    return sorted(rows, key=marker_key)
 
 
 def _outcome_narrative(episode: _Episode) -> str:
