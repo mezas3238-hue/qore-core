@@ -43,6 +43,28 @@ _DIRECT_STOP_MAX_MFE_R = Decimal("0.25")
 _SIGNIFICANT_GIVEBACK_MIN_MFE_R = Decimal("0.50")
 _ONE_R = Decimal("1")
 _CODES = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
+_FRAME_PRIORITY = {
+    "context": 0,
+    "signal": 1,
+    "entry": 2,
+    "mfe": 3,
+    "mae": 4,
+    "exit": 5,
+    "post_exit": 6,
+}
+_POST_OUTCOME_FIELDS = {
+    "filled_at",
+    "exited_at",
+    "exit_reason",
+    "exit_price",
+    "return_rate",
+    "close_path_mfe_fraction",
+    "close_path_mfe_r",
+    "close_path_mfe_at",
+    "close_path_mae_fraction",
+    "close_path_mae_r",
+    "close_path_mae_at",
+}
 
 
 class FirstCohortStoryForensicsError(FirstCohortBacktestError):
@@ -206,13 +228,15 @@ class _Episode:
                         "price": format(self.trade.take_profit, "f"),
                     },
                 ],
-                "markers": [
-                    _marker("signal", self.trade.signal_at, "SIG"),
-                    _marker("entry", self.trade.filled_at, "ENTRY"),
-                    _marker("mfe", self.mfe_at, f"MFE {format(self.mfe_r, 'f')}R"),
-                    _marker("mae", self.mae_at, f"MAE {format(self.mae_r, 'f')}R"),
-                    _marker("exit", self.trade.exited_at, self.trade.exit_reason.upper()),
-                ],
+                "markers": _sort_markers(
+                    [
+                        _marker("signal", self.trade.signal_at, "SIG"),
+                        _marker("entry", self.trade.filled_at, "ENTRY"),
+                        _marker("mfe", self.mfe_at, f"MFE {format(self.mfe_r, 'f')}R"),
+                        _marker("mae", self.mae_at, f"MAE {format(self.mae_r, 'f')}R"),
+                        _marker("exit", self.trade.exited_at, self.trade.exit_reason.upper()),
+                    ]
+                ),
                 "frame_sequence": _frame_sequence(self),
                 "screenshot_capable": True,
             },
@@ -338,9 +362,7 @@ def _trade(item: object) -> _TradeRecord:
         side=_side(row.get("side"), field_name="trade side"),
         entry_price=_decimal(row.get("entry_price"), field_name="trade entry_price", positive=True),
         stop_loss=_decimal(row.get("stop_loss"), field_name="trade stop_loss", positive=True),
-        take_profit=_decimal(
-            row.get("take_profit"), field_name="trade take_profit", positive=True
-        ),
+        take_profit=_decimal(row.get("take_profit"), field_name="trade take_profit", positive=True),
         exit_price=_decimal(row.get("exit_price"), field_name="trade exit_price", positive=True),
         return_rate=_decimal(row.get("return_rate"), field_name="trade return_rate"),
         exit_reason=exit_reason,
@@ -401,9 +423,7 @@ def _setup_context(item: object) -> tuple[datetime, DemoTradingSetupSide, Decima
             setup_reason=_text(row.get("setup_reason"), field_name="setup reason"),
             session=_text(row.get("session"), field_name="setup session"),
             trend_regime=_text(row.get("trend_regime"), field_name="trend regime"),
-            volatility_regime=_text(
-                row.get("volatility_regime"), field_name="volatility regime"
-            ),
+            volatility_regime=_text(row.get("volatility_regime"), field_name="volatility regime"),
             timeframe=_text(row.get("timeframe"), field_name="setup timeframe"),
         ),
     )
@@ -455,17 +475,13 @@ def _load_characterization(
     defaults = [
         _object(item, field_name="profile")
         for item in profiles
-        if _text(
-            _object(item, field_name="profile").get("profile"), field_name="profile label"
-        )
+        if _text(_object(item, field_name="profile").get("profile"), field_name="profile label")
         == "production-default"
     ]
     if len(defaults) != 1:
         raise FirstCohortStoryForensicsError("exactly one production-default profile is required")
     profile = defaults[0]
-    config_fingerprint = _text(
-        profile.get("config_fingerprint"), field_name="config fingerprint"
-    )
+    config_fingerprint = _text(profile.get("config_fingerprint"), field_name="config fingerprint")
     methodology = _object(profile.get("methodology_identity"), field_name="methodology identity")
     methodology_fingerprint = _text(
         methodology.get("methodology_fingerprint"), field_name="methodology fingerprint"
@@ -504,9 +520,7 @@ def _marker(kind: str, at: datetime, label: str) -> dict[str, object]:
     }
 
 
-def _return_fraction(
-    *, side: DemoTradingSetupSide, entry: Decimal, close: Decimal
-) -> Decimal:
+def _return_fraction(*, side: DemoTradingSetupSide, entry: Decimal, close: Decimal) -> Decimal:
     if side is DemoTradingSetupSide.LONG:
         return (close - entry) / entry
     return (entry - close) / entry
@@ -652,7 +666,7 @@ def _episode(
 
 
 def _frame_sequence(episode: _Episode) -> list[dict[str, object]]:
-    ordered = [
+    candidates = [
         ("context", episode.bars[0].closed_at),
         ("signal", episode.trade.signal_at),
         ("entry", episode.trade.filled_at),
@@ -661,6 +675,7 @@ def _frame_sequence(episode: _Episode) -> list[dict[str, object]]:
         ("exit", episode.trade.exited_at),
         ("post_exit", episode.bars[-1].closed_at),
     ]
+    ordered = sorted(candidates, key=lambda row: (row[1], _FRAME_PRIORITY[row[0]]))
     frames: list[dict[str, object]] = []
     seen: set[tuple[str, datetime]] = set()
     for stage, at in ordered:
@@ -676,6 +691,62 @@ def _frame_sequence(episode: _Episode) -> list[dict[str, object]]:
             }
         )
     return frames
+
+
+def _sort_markers(markers: list[dict[str, object]]) -> list[dict[str, object]]:
+    return sorted(
+        markers,
+        key=lambda marker: (
+            cast(int, marker["time"]),
+            _FRAME_PRIORITY[cast(str, marker["kind"])],
+        ),
+    )
+
+
+def validate_story_episode_contract(episode: dict[str, object]) -> None:
+    """Fail closed when an episode could leak oracle state or narrate false time."""
+    decision = episode.get("decision_time")
+    if type(decision) is not dict:
+        raise FirstCohortStoryForensicsError("decision_time must be a JSON object")
+    decision_object = cast(dict[object, object], decision)
+    leaked = sorted(field for field in _POST_OUTCOME_FIELDS if field in decision_object)
+    if leaked:
+        raise FirstCohortStoryForensicsError(
+            "decision_time contains post-outcome/oracle fields: " + ", ".join(leaked)
+        )
+    chart = episode.get("chart")
+    if type(chart) is not dict:
+        raise FirstCohortStoryForensicsError("episode chart must be a JSON object")
+    frames = cast(dict[object, object], chart).get("frame_sequence")
+    if type(frames) is not list or not frames:
+        raise FirstCohortStoryForensicsError("frame_sequence must be a non-empty array")
+    seen: set[str] = set()
+    chronology: list[tuple[int, int, str]] = []
+    for raw in frames:
+        if type(raw) is not dict:
+            raise FirstCohortStoryForensicsError("story frame must be a JSON object")
+        frame = cast(dict[object, object], raw)
+        stage = frame.get("stage")
+        iso_value = frame.get("visible_through")
+        unix_value = frame.get("visible_through_unix")
+        if type(stage) is not str or stage not in _FRAME_PRIORITY:
+            raise FirstCohortStoryForensicsError("unknown story frame stage")
+        if stage in seen:
+            raise FirstCohortStoryForensicsError("duplicate story frame stage")
+        if type(iso_value) is not str or type(unix_value) is not int:
+            raise FirstCohortStoryForensicsError("story frame timestamp is invalid")
+        try:
+            parsed = datetime.fromisoformat(iso_value)
+        except ValueError as error:
+            raise FirstCohortStoryForensicsError("story frame timestamp is invalid") from error
+        if parsed.tzinfo is None or int(parsed.timestamp()) != unix_value:
+            raise FirstCohortStoryForensicsError("story frame ISO/unix timestamps disagree")
+        seen.add(stage)
+        chronology.append((unix_value, _FRAME_PRIORITY[stage], stage))
+    if chronology != sorted(chronology):
+        raise FirstCohortStoryForensicsError(
+            "story frame sequence is not chronologically monotonic"
+        )
 
 
 def _outcome_narrative(episode: _Episode) -> str:
@@ -983,9 +1054,7 @@ def run_story_forensics(
             "required_per_family": _REQUIRED_STORY_COUNT,
             "manual_cherry_pick_allowed": False,
             "direct_stop_max_closed_bar_mfe_r": format(_DIRECT_STOP_MAX_MFE_R, "f"),
-            "giveback_min_closed_bar_mfe_r": format(
-                _SIGNIFICANT_GIVEBACK_MIN_MFE_R, "f"
-            ),
+            "giveback_min_closed_bar_mfe_r": format(_SIGNIFICANT_GIVEBACK_MIN_MFE_R, "f"),
             "one_r_giveback_threshold": format(_ONE_R, "f"),
         },
         "epistemic_contract": {
