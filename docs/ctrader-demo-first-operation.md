@@ -42,8 +42,9 @@ command arguments, evidence JSON or logs.
    market-data policy.
 5. Obtain one already-authorized, minimal-size `ExecutionSubmission` from the
    Trader/Risk chain. The runtime accepts MARKET or LIMIT only through the
-   canonical contracts; the first canary should use the smallest broker-valid
-   MARKET quantity allowed by Risk.
+   canonical contracts; the first canary must use a protected LIMIT with fresh
+   Risk authorization, explicit stop-loss/take-profit and the smallest
+   broker-valid quantity allowed by Risk.
 6. Call `submit_authorized()` exactly once for its idempotency key. On any
    indeterminate transport outcome, do not resubmit: use the reconciliation path.
 7. Record the returned provider order reference and fill evidence. Call

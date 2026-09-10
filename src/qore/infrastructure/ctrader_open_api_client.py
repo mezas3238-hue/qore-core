@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import socket
+import ssl
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from importlib import import_module
@@ -98,6 +100,34 @@ class CTraderOpenApiMessageClientBoundary(Protocol):
     def close(self) -> None: ...
 
 
+class CTraderTlsServerIdentityVerifier(Protocol):
+    """Verify CA chain and exact DNS identity before session authentication."""
+
+    def __call__(self, host: str, port: int, timeout_seconds: float) -> None: ...
+
+
+def verify_ctrader_tls_server_identity(
+    host: str,
+    port: int,
+    timeout_seconds: float,
+) -> None:
+    """Perform a fail-closed CA + hostname handshake using platform trust roots."""
+    context = ssl.create_default_context()
+    if context.verify_mode is not ssl.CERT_REQUIRED or context.check_hostname is not True:
+        raise CTraderOpenApiConnectionError("secure TLS identity policy is unavailable")
+    with socket.create_connection((host, port), timeout=timeout_seconds) as connection:
+        with context.wrap_socket(connection, server_hostname=host) as verified:
+            if not verified.getpeercert():
+                raise CTraderOpenApiConnectionError(
+                    "cTrader DEMO TLS peer omitted certificate identity"
+                )
+
+
+def _verified_tls_endpoint_description(host: str, port: int) -> str:
+    """Twisted endpoint with mandatory DNS service-identity verification."""
+    return f"ssl:host={host}:port={port}:hostname={host}"
+
+
 def _attribute(value: object, name: str) -> object:
     try:
         return getattr(value, name)
@@ -125,12 +155,50 @@ class _SdkBindings:
             common = import_module("ctrader_open_api.messages.OpenApiCommonMessages_pb2")
             messages = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
             reactor_module = import_module("twisted.internet.reactor")
+            application_internet = import_module("twisted.application.internet")
+            endpoints = import_module("twisted.internet.endpoints")
+            sdk_factory_module = import_module("ctrader_open_api.factory")
         except ImportError as error:
             raise CTraderOpenApiDependencyError(
                 "install the qore-core ctrader optional dependency"
             ) from error
 
-        self.client_type = cast(Callable[..., object], _attribute(package, "Client"))
+        sdk_client_type = cast(type[object], _attribute(package, "Client"))
+        client_service = cast(type[object], _attribute(application_internet, "ClientService"))
+        client_from_string = _method(endpoints, "clientFromString")
+        factory_type = _attribute(sdk_factory_module, "Factory")
+
+        def verified_identity_init(
+            client: object,
+            host: str,
+            port: int,
+            protocol: type[object],
+            **options: int,
+        ) -> None:
+            send_rate = options.pop("numberOfMessagesToSendPerSecond", 5)
+            if options:
+                raise CTraderOpenApiDependencyError(
+                    "verified SDK client received unsupported options"
+                )
+            client_state = vars(client)
+            client_state["_runningReactor"] = reactor_module
+            client_state["numberOfMessagesToSendPerSecond"] = send_rate
+            endpoint = client_from_string(
+                reactor_module,
+                _verified_tls_endpoint_description(host, port),
+            )
+            factory = _method(factory_type, "forProtocol")(protocol, client=client)
+            _method(client_service, "__init__")(client, endpoint, factory)
+            client_state["_events"] = {}
+            client_state["_responseDeferreds"] = {}
+            client_state["isConnected"] = False
+
+        verified_client_type = type(
+            "VerifiedIdentityClient",
+            (sdk_client_type,),
+            {"__init__": verified_identity_init},
+        )
+        self.client_type = cast(Callable[..., object], verified_client_type)
         self.tcp_protocol = cast(type[object], _attribute(package, "TcpProtocol"))
         protobuf = _attribute(package, "Protobuf")
         self.extract = cast(Callable[[object], object], _method(protobuf, "extract"))
@@ -152,6 +220,7 @@ class _SdkBindings:
             "ProtoOASymbolByIdReq",
             "ProtoOASymbolByIdRes",
             "ProtoOACancelOrderReq",
+            "ProtoOAOrderListReq",
             "ProtoOAOrderDetailsReq",
             "ProtoOAReconcileReq",
             "ProtoOAGetTrendbarsReq",
@@ -216,6 +285,7 @@ class SpotwareCTraderOpenApiClient:
         "_access_token",
         "_refresh_token",
         "_request_timeout_seconds",
+        "_server_identity_verifier",
     )
 
     DEMO_HOST = "demo.ctraderapi.com"
@@ -226,17 +296,22 @@ class SpotwareCTraderOpenApiClient:
         *,
         credentials: CTraderOpenApiCredentials,
         request_timeout_seconds: float = 10.0,
+        server_identity_verifier: CTraderTlsServerIdentityVerifier | None = None,
+        _bindings: _SdkBindings | None = None,
     ) -> None:
         if not isinstance(credentials, CTraderOpenApiCredentials):
             raise CTraderOpenApiProtocolError("credentials must be CTraderOpenApiCredentials")
         if not isinstance(request_timeout_seconds, float) or request_timeout_seconds <= 0.0:
             raise CTraderOpenApiProtocolError("request_timeout_seconds must be a positive float")
-        bindings = _SdkBindings()
+        bindings = _bindings or _SdkBindings()
         self._bindings = bindings
         self._credentials = credentials
         self._access_token = credentials.access_token
         self._refresh_token = credentials.refresh_token
         self._request_timeout_seconds = request_timeout_seconds
+        self._server_identity_verifier = (
+            server_identity_verifier or verify_ctrader_tls_server_identity
+        )
         self._connected = Event()
         self._disconnected = Event()
         self._ready = False
@@ -403,6 +478,18 @@ class SpotwareCTraderOpenApiClient:
         if self.is_ready:
             return Success(None)
         self._disconnected.clear()
+        try:
+            self._server_identity_verifier(
+                self.DEMO_HOST,
+                self.PROTOBUF_PORT,
+                self._request_timeout_seconds,
+            )
+        except (CTraderOpenApiClientError, OSError, ssl.SSLError):
+            return Failure(
+                CTraderOpenApiConnectionError(
+                    "cTrader DEMO TLS server identity verification failed"
+                )
+            )
         try:
             _ensure_reactor_running(self._bindings.reactor)
             _method(self._bindings.reactor, "callFromThread")(_method(self._client, "startService"))
