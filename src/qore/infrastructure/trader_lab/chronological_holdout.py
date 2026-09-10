@@ -176,6 +176,7 @@ def _partition(
         }
 
     minimum_seconds = required_development_days * 86_400
+    required_dev_spans: list[int] = []
     for period in _REQUIRED_PERIODS:
         coverage = cast(dict[str, object], dev_coverage[period])
         span = coverage["span_seconds"]
@@ -184,8 +185,8 @@ def _partition(
                 f"development partition {period} has less than "
                 f"{required_development_days} calendar days"
             )
-        hold_rows = cast(list[object], hold_periods[period])
-        if not hold_rows:
+        required_dev_spans.append(span)
+        if not _rows(holdout, period):
             raise ChronologicalHoldoutError(f"holdout partition {period} is empty")
 
     development["coverage"] = dev_coverage
@@ -193,13 +194,10 @@ def _partition(
     development["holdout_cutoff"] = cutoff.isoformat(timespec="microseconds")
     development["holdout_consumption_prohibited"] = False
     development["required_coverage_days"] = required_development_days
-    dev_span = min(
-        cast(dict[str, object], dev_coverage[period])["span_seconds"]
-        for period in _REQUIRED_PERIODS
-    )
+    dev_span = min(required_dev_spans)
     development["requested_lookback_days"] = max(
         required_development_days,
-        math.ceil(cast(int, dev_span) / 86_400),
+        math.ceil(dev_span / 86_400),
     )
 
     holdout["coverage"] = hold_coverage
