@@ -141,7 +141,7 @@ def test_filmstrip_can_export_one_composite_png_from_all_chart_frames() -> None:
     assert "Save filmstrip PNG" in rendered
     assert "row.chart.takeScreenshot(true, false)" in rendered
     assert "context.drawImage(captures[index], 0, y)" in rendered
-    assert "episode.episode_id}}-filmstrip.png" in rendered
+    assert "${episode.episode_id}-filmstrip.png" in rendered
 
 
 def test_filmstrip_keeps_qore_as_authoritative_source() -> None:
