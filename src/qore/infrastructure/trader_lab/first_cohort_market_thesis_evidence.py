@@ -153,6 +153,7 @@ def _story_rows(
     if _digest(story_material) != observed_payload_digest:
         raise MarketThesisEvidenceError("market Story Forensics payload digest mismatch")
     symbol = _text(story.get("symbol"), field_name="story symbol")
+    provider_symbol = _text(story.get("provider_symbol"), field_name="story provider_symbol")
     software_sha = _text(story.get("software_sha"), field_name="story software_sha")
     account = _text(story.get("account_fingerprint"), field_name="story account_fingerprint")
     if _strict_int(story.get("trader_count"), field_name="story trader_count") != len(_TRADERS):
@@ -178,7 +179,7 @@ def _story_rows(
         code = _text(binding.get("trader_code"), field_name="binding trader_code")
         if code in packs:
             raise MarketThesisEvidenceError("duplicate Story Forensics trader pack")
-        if _text(binding.get("symbol"), field_name="binding symbol") != symbol:
+        if _text(binding.get("symbol"), field_name="binding symbol") != provider_symbol:
             raise MarketThesisEvidenceError("Story Forensics trader symbol mismatch")
         if _text(binding.get("software_sha"), field_name="binding software_sha") != software_sha:
             raise MarketThesisEvidenceError("Story Forensics trader software SHA mismatch")

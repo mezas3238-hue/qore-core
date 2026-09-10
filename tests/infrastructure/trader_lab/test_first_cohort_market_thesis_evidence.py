@@ -232,21 +232,37 @@ def test_market_thesis_evidence_binds_walk_forward_and_failure_raw_bytes(
         )
         paths.append(path)
 
-    payload = build_market_thesis_evidence(
-        _story(), _characterization(), paths[0], paths[1]
-    )
+    payload = build_market_thesis_evidence(_story(), _characterization(), paths[0], paths[1])
     source_digests = cast(dict[str, object], payload["source_digests"])
-    assert source_digests["walk_forward_sha256"] == sha256(
-        paths[0].read_bytes()
-    ).hexdigest()
-    assert source_digests["failure_analysis_sha256"] == sha256(
-        paths[1].read_bytes()
-    ).hexdigest()
+    assert source_digests["walk_forward_sha256"] == sha256(paths[0].read_bytes()).hexdigest()
+    assert source_digests["failure_analysis_sha256"] == sha256(paths[1].read_bytes()).hexdigest()
 
     decoded = json.loads(paths[0].read_text(encoding="utf-8"))
     decoded["symbol"] = "NAS100"
     paths[0].write_text(json.dumps(decoded), encoding="utf-8")
     with pytest.raises(MarketThesisEvidenceError, match="walk-forward symbol mismatch"):
-        build_market_thesis_evidence(
-            _story(), _characterization(), paths[0], paths[1]
-        )
+        build_market_thesis_evidence(_story(), _characterization(), paths[0], paths[1])
+
+
+def test_market_thesis_evidence_preserves_certified_provider_alias() -> None:
+    story = _story()
+    story["symbol"] = "NAS100"
+    story["provider_symbol"] = "USTEC"
+    story["identity_binding"] = {
+        "binding_basis": "certified-alias-v1",
+        "economic_target": "NAS100",
+        "provider_symbol": "USTEC",
+    }
+    packs = cast(list[dict[str, object]], story["trader_story_packs"])
+    for pack in packs:
+        binding = cast(dict[str, object], pack["source_binding"])
+        binding["symbol"] = "USTEC"
+    story.pop("market_forensics_payload_digest")
+    story["market_forensics_payload_digest"] = _digest(story)
+    characterization = _characterization()
+    characterization["symbol"] = "USTEC"
+
+    payload = build_market_thesis_evidence(story, characterization)
+
+    assert payload["symbol"] == "NAS100"
+    assert payload["provider_symbol"] == "USTEC"
