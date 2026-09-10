@@ -23,7 +23,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Apply fail-closed review-panel integrity patch
-        run: python .github/architect_review_panel_integrity_patch.py
+        run: |
+          python .github/architect_review_panel_integrity_patch.py
+          python .github/architect_review_panel_typing_patch.py
       - name: Install dev dependencies
         run: |
           python -m pip install --upgrade pip
@@ -48,6 +50,7 @@ jobs:
         run: |
           git diff --exit-code -- \
             .github/architect_review_panel_integrity_patch.py \
+            .github/architect_review_panel_typing_patch.py \
             .github/workflows/architect-review-panel-integrity.yml \
             .github/architect-review-panel-integrity-trigger
           CHANGED="$(git diff --name-only | sort -u)"
