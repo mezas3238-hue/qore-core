@@ -115,7 +115,9 @@ def _digest(value: object) -> str:
     return sha256(_canonical(value).encode("utf-8")).hexdigest()
 
 
-def _validate_dossier(dossier: dict[str, object]) -> tuple[str, list[dict[str, object]]]:
+def _validate_dossier(
+    dossier: dict[str, object],
+) -> tuple[str, list[dict[str, object]]]:
     if _text(dossier.get("schema"), field_name="dossier schema") != _DOSSIER_SCHEMA:
         raise ElevenMarketThesisError("eleven-market thesis requires dossier v1")
     if not _strict_bool(dossier.get("research_only"), field_name="research_only"):
@@ -180,6 +182,7 @@ def build_eleven_market_thesis_panel(
             "disagreement_retained": True,
             "exceptions_must_be_explained": True,
             "market_omission_allowed": False,
+            "market_evidence_digest_binding_required": True,
             "direct_methodology_mutation_allowed": False,
             "fresh_holdout_required_after_change": True,
         },
@@ -205,7 +208,19 @@ def _verdict(value: object) -> VerdictFamily:
         raise ElevenMarketThesisError("unknown verdict family") from error
 
 
-def _required_output_contract() -> dict[str, object]:
+def _market_evidence_index(value: object) -> dict[str, str]:
+    rows = _object(value, field_name="market_evidence_index")
+    if set(rows) != set(_REQUIRED_MARKETS):
+        raise ElevenMarketThesisError("market evidence index must cover all eleven markets")
+    return {
+        symbol: _text(rows.get(symbol), field_name=f"{symbol} evidence digest")
+        for symbol in _REQUIRED_MARKETS
+    }
+
+
+def _required_output_contract(
+    evidence_index: dict[str, str],
+) -> dict[str, object]:
     return {
         "verdict_family": [item.value for item in VerdictFamily],
         "central_conclusion": "plain-language thesis across all eleven markets",
@@ -214,7 +229,13 @@ def _required_output_contract() -> dict[str, object]:
         "material_exceptions": "contradictory markets or explicit NONE",
         "strengths_to_preserve": "one or more protected characteristics",
         "degradation_risks": "one or more behaviors/changes that may weaken the Trader",
-        "evidence_by_market": list(_REQUIRED_MARKETS),
+        "evidence_by_market": {
+            symbol: {
+                "evidence_digest": evidence_index[symbol],
+                "findings": "one or more findings grounded in this exact market evidence",
+            }
+            for symbol in _REQUIRED_MARKETS
+        },
         "causal_hypothesis": "provisional mechanism explaining the thesis",
         "counterexample_or_falsifier": "what evidence would overturn the conclusion",
         "confidence": ["low", "medium", "high"],
@@ -231,12 +252,14 @@ def reviewer_packet(
     if _text(panel.get("schema"), field_name="panel schema") != _PANEL_SCHEMA:
         raise ElevenMarketThesisError("unexpected thesis panel schema")
     lanes = _object(panel.get("review_lanes"), field_name="review_lanes")
+    evidence_index = _market_evidence_index(panel.get("market_evidence_index"))
     packet = {
         "trader_code": _text(panel.get("trader_code"), field_name="trader_code"),
         "dossier_digest": _text(panel.get("dossier_digest"), field_name="dossier_digest"),
+        "market_evidence_index": deepcopy(evidence_index),
         "frozen_dossier": deepcopy(panel.get("frozen_dossier")),
         "role": role.value,
-        "required_output": _required_output_contract(),
+        "required_output": _required_output_contract(evidence_index),
     }
     if role is ReviewRole.HUMAN_OWNER:
         sealed: dict[str, object] = {}
@@ -254,16 +277,35 @@ def reviewer_packet(
     return packet
 
 
-def _validate_evidence_by_market(value: object) -> dict[str, list[str]]:
+def _validate_evidence_by_market(
+    value: object,
+    *,
+    evidence_index: dict[str, str],
+) -> dict[str, dict[str, object]]:
     rows = _object(value, field_name="evidence_by_market")
     if set(rows) != set(_REQUIRED_MARKETS):
         raise ElevenMarketThesisError("assessment must address all eleven markets")
-    result: dict[str, list[str]] = {}
+    result: dict[str, dict[str, object]] = {}
     for symbol in _REQUIRED_MARKETS:
-        result[symbol] = _string_list(
-            rows.get(symbol),
-            field_name=f"{symbol} evidence",
+        row = _object(rows.get(symbol), field_name=f"{symbol} evidence")
+        evidence_digest = _text(
+            row.get("evidence_digest"),
+            field_name=f"{symbol} evidence_digest",
         )
+        if evidence_digest != evidence_index[symbol]:
+            raise ElevenMarketThesisError(f"{symbol} evidence digest mismatch")
+        findings = _string_list(
+            row.get("findings"),
+            field_name=f"{symbol} findings",
+        )
+        if set(row) != {"evidence_digest", "findings"}:
+            raise ElevenMarketThesisError(
+                f"{symbol} evidence must contain only evidence_digest and findings"
+            )
+        result[symbol] = {
+            "evidence_digest": evidence_digest,
+            "findings": findings,
+        }
     return result
 
 
@@ -271,6 +313,7 @@ def _validate_assessment(
     assessment: dict[str, object],
     *,
     dossier_digest: str,
+    evidence_index: dict[str, str],
 ) -> ReviewRole:
     if _text(assessment.get("dossier_digest"), field_name="dossier_digest") != dossier_digest:
         raise ElevenMarketThesisError("assessment dossier digest mismatch")
@@ -288,7 +331,10 @@ def _validate_assessment(
         field_name="strengths_to_preserve",
     )
     _string_list(assessment.get("degradation_risks"), field_name="degradation_risks")
-    _validate_evidence_by_market(assessment.get("evidence_by_market"))
+    _validate_evidence_by_market(
+        assessment.get("evidence_by_market"),
+        evidence_index=evidence_index,
+    )
     _text(assessment.get("causal_hypothesis"), field_name="causal_hypothesis")
     _text(
         assessment.get("counterexample_or_falsifier"),
@@ -313,7 +359,12 @@ def seal_assessment(
     """Seal one role exactly once while preserving first-pass independence."""
     result = deepcopy(panel)
     dossier_digest = _text(result.get("dossier_digest"), field_name="dossier_digest")
-    role = _validate_assessment(assessment, dossier_digest=dossier_digest)
+    evidence_index = _market_evidence_index(result.get("market_evidence_index"))
+    role = _validate_assessment(
+        assessment,
+        dossier_digest=dossier_digest,
+        evidence_index=evidence_index,
+    )
     lanes = _object(result.get("review_lanes"), field_name="review_lanes")
     lane = _object(lanes.get(role.value), field_name="review lane")
     if lane.get("status") != "PENDING":
