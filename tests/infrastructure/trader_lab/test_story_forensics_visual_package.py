@@ -108,6 +108,7 @@ def _payload() -> dict[str, object]:
         "selection_reason": "metric-typical",
         "classification": "WIN_CANONICAL",
     }
+    insufficient = {"required": 5, "selected": 1, "status": "INSUFFICIENT_EVIDENCE"}
     return {
         "schema": "qore.trader_lab.first_cohort_story_forensics.v1",
         "environment": "demo",
@@ -133,11 +134,11 @@ def _payload() -> dict[str, object]:
             "tradingview_has_execution_authority": False,
         },
         "family_status": {
-            "winning_streaks": {"required": 5, "selected": 1, "status": "INSUFFICIENT_EVIDENCE"},
-            "losing_streaks": {"required": 5, "selected": 1, "status": "INSUFFICIENT_EVIDENCE"},
-            "direct_stop_episodes": {"required": 5, "selected": 1, "status": "INSUFFICIENT_EVIDENCE"},
-            "giveback_episodes": {"required": 5, "selected": 1, "status": "INSUFFICIENT_EVIDENCE"},
-            "canonical_winners": {"required": 5, "selected": 1, "status": "INSUFFICIENT_EVIDENCE"},
+            "winning_streaks": dict(insufficient),
+            "losing_streaks": dict(insufficient),
+            "direct_stop_episodes": dict(insufficient),
+            "giveback_episodes": dict(insufficient),
+            "canonical_winners": dict(insufficient),
         },
         "story_families": {
             "winning_streaks": [streak],
