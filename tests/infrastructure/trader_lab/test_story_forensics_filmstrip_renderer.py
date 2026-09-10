@@ -4,6 +4,9 @@ from typing import cast
 
 import pytest
 
+from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
+    FirstCohortStoryForensicsError,
+)
 from qore.infrastructure.trader_lab.story_forensics_filmstrip_renderer import (
     StoryForensicsFilmstripError,
     render_filmstrip_html,
@@ -100,14 +103,14 @@ def _payload() -> dict[str, object]:
                     ],
                     "frame_sequence": [
                         {
-                            "stage": "mfe",
-                            "visible_through": "2026-01-01T10:15:00+00:00",
-                            "visible_through_unix": 1767262500,
-                        },
-                        {
                             "stage": "entry",
                             "visible_through": "2026-01-01T10:05:00+00:00",
                             "visible_through_unix": 1767261900,
+                        },
+                        {
+                            "stage": "mfe",
+                            "visible_through": "2026-01-01T10:15:00+00:00",
+                            "visible_through_unix": 1767262500,
                         },
                         {
                             "stage": "exit",
@@ -142,6 +145,17 @@ def test_filmstrip_can_export_one_composite_png_from_all_chart_frames() -> None:
     assert "row.chart.takeScreenshot(true, false)" in rendered
     assert "context.drawImage(captures[index], 0, y)" in rendered
     assert "${episode.episode_id}-filmstrip.png" in rendered
+
+
+def test_filmstrip_rejects_nonchronological_canonical_frames() -> None:
+    payload = _payload()
+    episodes = cast(list[dict[str, object]], payload["episodes"])
+    chart = cast(dict[str, object], episodes[0]["chart"])
+    frames = cast(list[object], chart["frame_sequence"])
+    frames.reverse()
+
+    with pytest.raises(FirstCohortStoryForensicsError, match="not chronologically"):
+        render_filmstrip_html(payload, episode_id="episode-filmstrip")
 
 
 def test_filmstrip_keeps_qore_as_authoritative_source() -> None:
