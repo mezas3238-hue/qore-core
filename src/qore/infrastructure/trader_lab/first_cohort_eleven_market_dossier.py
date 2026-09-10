@@ -150,7 +150,10 @@ def _validate_market_package(
         binding = _object(packs[trader_code].get("source_binding"), field_name="source_binding")
         if _text(binding.get("symbol"), field_name="source_binding symbol") != symbol:
             raise ElevenMarketDossierError("story pack symbol mismatch")
-        if _text(binding.get("trader_code"), field_name="source_binding trader_code") != trader_code:
+        if (
+            _text(binding.get("trader_code"), field_name="source_binding trader_code")
+            != trader_code
+        ):
             raise ElevenMarketDossierError("story pack Trader identity mismatch")
     _text(payload.get("market_forensics_fingerprint"), field_name="market fingerprint")
     return symbol, summaries, packs
