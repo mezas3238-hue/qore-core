@@ -1,0 +1,67 @@
+name: TEMP Architect Review Panel Integrity
+
+on:
+  push:
+    branches:
+      - agent/trader-story-forensics-adjudicated-integration-001
+    paths:
+      - .github/architect-review-panel-integrity-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact adjudicated branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply fail-closed review-panel integrity patch
+        run: python .github/architect_review_panel_integrity_patch.py
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff review-panel candidate
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/story_forensics_review_panel.py \
+            tests/infrastructure/trader_lab/test_story_forensics_review_panel.py
+      - name: Mypy review-panel candidate
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/story_forensics_review_panel.py \
+            tests/infrastructure/trader_lab/test_story_forensics_review_panel.py
+      - name: Pytest review-panel and thesis regressions
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_story_forensics_review_panel.py \
+            tests/infrastructure/trader_lab/test_story_forensics_eleven_market_thesis.py \
+            tests/infrastructure/trader_lab/test_first_cohort_story_forensics.py
+      - name: Verify exact mutation scope
+        run: |
+          git diff --exit-code -- \
+            .github/architect_review_panel_integrity_patch.py \
+            .github/workflows/architect-review-panel-integrity.yml \
+            .github/architect-review-panel-integrity-trigger
+          CHANGED="$(git diff --name-only | sort -u)"
+          EXPECTED="$(printf '%s\n' \
+            src/qore/infrastructure/trader_lab/story_forensics_review_panel.py \
+            tests/infrastructure/trader_lab/test_story_forensics_review_panel.py | sort)"
+          printf '%s\n' "$CHANGED"
+          test "$CHANGED" = "$EXPECTED"
+      - name: Commit verified review-panel hardening
+        run: |
+          git config user.name "qore-architect-bot"
+          git config user.email "qore-architect-bot@users.noreply.github.com"
+          git add \
+            src/qore/infrastructure/trader_lab/story_forensics_review_panel.py \
+            tests/infrastructure/trader_lab/test_story_forensics_review_panel.py
+          git commit -m "fix(trader-lab): revalidate sealed Story review subjects"
+          git push origin HEAD:${GITHUB_REF_NAME}
