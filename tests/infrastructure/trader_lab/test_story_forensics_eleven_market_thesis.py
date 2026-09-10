@@ -56,6 +56,7 @@ def _assessment(
     role: ReviewRole,
     verdict: VerdictFamily = VerdictFamily.SPECIALIST,
 ) -> dict[str, object]:
+    evidence_index = cast(dict[str, str], panel["market_evidence_index"])
     return {
         "dossier_digest": panel["dossier_digest"],
         "role": role.value,
@@ -67,7 +68,12 @@ def _assessment(
         "strengths_to_preserve": ["Preserve narrow high-quality context selection."],
         "degradation_risks": ["Broadening the operating envelope may dilute edge."],
         "evidence_by_market": {
-            symbol: [f"{symbol} was explicitly reviewed in the frozen dossier."]
+            symbol: {
+                "evidence_digest": evidence_index[symbol],
+                "findings": [
+                    f"{symbol} was explicitly reviewed in the frozen dossier."
+                ],
+            }
             for symbol in _MARKETS
         },
         "causal_hypothesis": "Edge depends on market-specific context alignment.",
@@ -95,18 +101,34 @@ def test_machine_review_packet_contains_no_peer_conclusions() -> None:
     assert packet["mode"] == "independent_first_pass"
     assert "sealed_machine_reviews" not in packet
     assert packet["dossier_digest"] == panel["dossier_digest"]
+    assert packet["market_evidence_index"] == panel["market_evidence_index"]
     required = cast(dict[str, object], packet["required_output"])
     assert "verdict_family" in required
     assert "central_verdict" not in required
+    evidence_contract = cast(
+        dict[str, dict[str, object]],
+        required["evidence_by_market"],
+    )
+    assert evidence_contract["US30"]["evidence_digest"] == "digest-us30"
 
 
 def test_assessment_must_address_every_market() -> None:
     panel = build_eleven_market_thesis_panel(_dossier())
     assessment = _assessment(panel, role=ReviewRole.HARNESS)
-    evidence = cast(dict[str, list[str]], assessment["evidence_by_market"])
+    evidence = cast(dict[str, dict[str, object]], assessment["evidence_by_market"])
     evidence.pop("US30")
 
     with pytest.raises(ElevenMarketThesisError, match="all eleven markets"):
+        seal_assessment(panel, assessment=assessment)
+
+
+def test_assessment_market_evidence_digest_must_match_frozen_panel() -> None:
+    panel = build_eleven_market_thesis_panel(_dossier())
+    assessment = _assessment(panel, role=ReviewRole.HARNESS)
+    evidence = cast(dict[str, dict[str, object]], assessment["evidence_by_market"])
+    evidence["US30"]["evidence_digest"] = "digest-from-different-evidence"
+
+    with pytest.raises(ElevenMarketThesisError, match="US30 evidence digest mismatch"):
         seal_assessment(panel, assessment=assessment)
 
 
