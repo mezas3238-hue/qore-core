@@ -207,7 +207,7 @@ def _verdict(value: object) -> VerdictFamily:
 
 def _required_output_contract() -> dict[str, object]:
     return {
-        "central_verdict": [item.value for item in VerdictFamily],
+        "verdict_family": [item.value for item in VerdictFamily],
         "central_conclusion": "plain-language thesis across all eleven markets",
         "rationale": "one or more evidence-grounded reasons",
         "common_patterns": "repeated behavior across multiple markets",
