@@ -18,6 +18,7 @@ from typing import cast
 
 from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
     FirstCohortStoryForensicsError,
+    validate_story_episode_contract,
 )
 from qore.infrastructure.trader_lab.story_forensics_filmstrip_renderer import (
     render_filmstrip_html,
@@ -84,6 +85,8 @@ def _validate(payload: dict[str, object]) -> None:
         raise StoryForensicsVisualPackageError("visual package requires research-only evidence")
     if _strict_bool(payload.get("execution_authority"), field_name="execution_authority"):
         raise StoryForensicsVisualPackageError("visual package refuses execution authority")
+    for item in _array(payload.get("episodes"), field_name="episodes"):
+        validate_story_episode_contract(_object(item, field_name="episode"))
     contract = _object(payload.get("renderer_contract"), field_name="renderer contract")
     if _text(contract.get("default_renderer"), field_name="renderer") != _RENDERER:
         raise StoryForensicsVisualPackageError("unexpected renderer")
