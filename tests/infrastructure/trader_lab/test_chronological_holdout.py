@@ -85,8 +85,14 @@ def test_tail_holdout_is_exhaustive_disjoint_and_keeps_730_day_development() -> 
         )
         assert cast(int, dev_coverage[period]["span_seconds"]) >= 730 * 86_400
         assert sealed
-        assert dev[-1]["closed_at"] <= manifest["cutoff"]
-        assert sealed[0]["closed_at"] > manifest["cutoff"]
+        dev_last_closed_at = dev[-1]["closed_at"]
+        sealed_first_closed_at = sealed[0]["closed_at"]
+        cutoff = manifest["cutoff"]
+        assert isinstance(dev_last_closed_at, str)
+        assert isinstance(sealed_first_closed_at, str)
+        assert isinstance(cutoff, str)
+        assert dev_last_closed_at <= cutoff
+        assert sealed_first_closed_at > cutoff
 
 
 def test_rejects_holdout_that_would_shrink_development_below_730_days() -> None:
