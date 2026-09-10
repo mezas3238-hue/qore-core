@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from copy import deepcopy
+from hashlib import sha256
 from typing import cast
 
 import pytest
@@ -29,25 +32,70 @@ _MARKETS = (
 )
 
 
+def _digest(value: object) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()
+
+
 def _dossier() -> dict[str, object]:
-    return {
-        "schema": "qore.trader_lab.eleven_market_trader_dossier.v1",
+    dossier: dict[str, object] = {
+        "schema": "qore.trader_lab.eleven_market_trader_research_dossier.v1",
         "research_only": True,
         "execution_authority": False,
         "trader_code": "vt-08",
+        "identity": {
+            "config_fingerprint": "c" * 64,
+            "methodology_fingerprint": "d" * 64,
+            "execution_period": "M5",
+        },
         "markets": [
             {
                 "symbol": symbol,
                 "evidence_ready": True,
                 "evidence_digest": f"digest-{symbol.lower()}",
                 "summary": {
-                    "sample_size": index + 1,
-                    "session_signal": "NEW_YORK" if symbol == "US30" else "MIXED",
+                    "story_forensics": {
+                        "episode_count": index + 1,
+                        "session_breakdown": {
+                            "NEW_YORK": {
+                                "entry_count": index + 1,
+                            }
+                        },
+                    },
+                    "characterization": {
+                        "setup_count": 100 + index,
+                        "fill_rate": "0.5",
+                        "by_side": {
+                            "long": {"sample_size": 10 + index},
+                            "short": {"sample_size": 8 + index},
+                        },
+                        "by_trend_regime": {
+                            "range": {"sample_size": 9 + index},
+                        },
+                        "walk_forward_assessment": {
+                            "oos": {"mean_return": "0.001"},
+                            "oos_pass": symbol in {"NAS100", "US30"},
+                            "stressed_oos": {"mean_return": "-0.001"},
+                            "stress_pass": False,
+                        },
+                    },
+                    "provenance": {
+                        "market_story_payload_digest": f"story-{symbol.lower()}",
+                        "characterization_digest": f"char-{symbol.lower()}",
+                    },
                 },
             }
             for index, symbol in enumerate(_MARKETS)
         ],
     }
+    dossier["dossier_fingerprint"] = _digest(dossier)
+    return dossier
 
 
 def _assessment(
@@ -71,7 +119,7 @@ def _assessment(
             symbol: {
                 "evidence_digest": evidence_index[symbol],
                 "findings": [
-                    f"{symbol} was explicitly reviewed in the frozen dossier."
+                    f"{symbol} was explicitly reviewed in the frozen research dossier."
                 ],
             }
             for symbol in _MARKETS
@@ -85,12 +133,31 @@ def _assessment(
     }
 
 
+def test_panel_rejects_shallow_dossier_schema() -> None:
+    dossier = _dossier()
+    dossier["schema"] = "qore.trader_lab.eleven_market_trader_dossier.v1"
+
+    with pytest.raises(ElevenMarketThesisError, match="research dossier v1"):
+        build_eleven_market_thesis_panel(dossier)
+
+
 def test_panel_requires_exact_eleven_market_universe() -> None:
     dossier = _dossier()
     markets = cast(list[dict[str, object]], dossier["markets"])
     markets.pop()
 
     with pytest.raises(ElevenMarketThesisError, match="exactly eleven markets"):
+        build_eleven_market_thesis_panel(dossier)
+
+
+def test_panel_rejects_tampered_research_dossier_fingerprint() -> None:
+    dossier = _dossier()
+    markets = cast(list[dict[str, object]], dossier["markets"])
+    summary = cast(dict[str, object], markets[0]["summary"])
+    characterization = cast(dict[str, object], summary["characterization"])
+    characterization["fill_rate"] = "0.999"
+
+    with pytest.raises(ElevenMarketThesisError, match="research dossier fingerprint mismatch"):
         build_eleven_market_thesis_panel(dossier)
 
 
