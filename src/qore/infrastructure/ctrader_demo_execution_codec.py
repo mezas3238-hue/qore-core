@@ -254,6 +254,8 @@ class CTraderOrderCreatePlan:
     limit_price: str | None
     timeout: ExternalTransportTimeout
     body_json: str
+    stop_loss: str | None = None
+    take_profit: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.account, MarketTestAccountIdentity):
@@ -306,6 +308,30 @@ class CTraderOrderCreatePlan:
                 raise CTraderDemoExecutionValidationError(
                     "limit order-create plan price must be positive"
                 )
+        if self.order_type is OrderType.MARKET and (
+            self.stop_loss is not None or self.take_profit is not None
+        ):
+            raise CTraderDemoExecutionValidationError(
+                "protected MARKET orders are unsupported by the absolute-price DEMO wire"
+            )
+        for field_name, protection in (
+            ("stop_loss", self.stop_loss),
+            ("take_profit", self.take_profit),
+        ):
+            if protection is not None:
+                price = _decimal_string(protection, field_name=f"planned {field_name}")
+                if isinstance(price, Failure) or price.value <= 0:
+                    raise CTraderDemoExecutionValidationError(
+                        f"order-create plan {field_name} must be a positive decimal price"
+                    )
+        if (
+            self.stop_loss is not None
+            and self.take_profit is not None
+            and self.stop_loss == self.take_profit
+        ):
+            raise CTraderDemoExecutionValidationError(
+                "order-create plan stop_loss and take_profit must be distinct"
+            )
         if not isinstance(self.timeout, ExternalTransportTimeout):
             raise CTraderDemoExecutionValidationError(
                 "order-create plan requires ExternalTransportTimeout"
@@ -319,6 +345,10 @@ class CTraderOrderCreatePlan:
         }
         if self.order_type is OrderType.LIMIT:
             expected_body["limitPrice"] = self.limit_price
+        if self.stop_loss is not None:
+            expected_body["stopLoss"] = self.stop_loss
+        if self.take_profit is not None:
+            expected_body["takeProfit"] = self.take_profit
         try:
             decoded_body: object = json.loads(self.body_json)
         except (TypeError, json.JSONDecodeError) as error:
@@ -349,6 +379,8 @@ class CTraderOrderCreatePlan:
             self.order_type.value,
             self.volume_units,
             self.limit_price,
+            self.stop_loss,
+            self.take_profit,
             self.timeout.logical_values(),
             self.body_json,
         )
@@ -366,6 +398,8 @@ class CTraderOrderCreatePlan:
             self.order_type.value,
             self.volume_units,
             self.limit_price,
+            self.stop_loss,
+            self.take_profit,
             self.timeout.logical_values(),
             self.body_json,
         )
@@ -421,6 +455,27 @@ def build_ctrader_demo_order_create_plan(
         if isinstance(price_result, Failure):
             return price_result
         limit_price = price_result.value
+    if intent.order_type is OrderType.MARKET and (
+        intent.stop_loss is not None or intent.take_profit is not None
+    ):
+        return Failure(
+            CTraderDemoExecutionValidationError(
+                "protected MARKET orders are unsupported; use a protected LIMIT "
+                "or an explicit relative-protection contract"
+            )
+        )
+    stop_loss: str | None = None
+    if intent.stop_loss is not None:
+        stop_result = _exact_price(intent.stop_loss.value, mapping.digits)
+        if isinstance(stop_result, Failure):
+            return stop_result
+        stop_loss = stop_result.value
+    take_profit: str | None = None
+    if intent.take_profit is not None:
+        take_result = _exact_price(intent.take_profit.value, mapping.digits)
+        if isinstance(take_result, Failure):
+            return take_result
+        take_profit = take_result.value
     body: dict[str, object] = {
         "clientMsgId": str(intent.idempotency_key.value),
         "symbolId": mapping.symbol_id,
@@ -430,6 +485,10 @@ def build_ctrader_demo_order_create_plan(
     }
     if limit_price is not None:
         body["limitPrice"] = limit_price
+    if stop_loss is not None:
+        body["stopLoss"] = stop_loss
+    if take_profit is not None:
+        body["takeProfit"] = take_profit
     body_json = json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False)
     try:
         plan = CTraderOrderCreatePlan(
@@ -444,6 +503,8 @@ def build_ctrader_demo_order_create_plan(
             limit_price=limit_price,
             timeout=configuration.rest_timeout,
             body_json=body_json,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
         )
     except CTraderDemoExecutionError as error:
         return Failure(error)
