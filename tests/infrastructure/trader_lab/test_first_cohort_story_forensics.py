@@ -364,3 +364,33 @@ def test_story_forensics_fails_closed_on_evidence_binding_mismatch(tmp_path: Pat
         match="market/characterization software SHA mismatch",
     ):
         run_story_forensics(market, backtest, characterization, "vt-01")
+
+
+def test_story_forensics_fingerprint_binds_exact_source_artifact_bytes(
+    tmp_path: Path,
+) -> None:
+    market, backtest, characterization = _evidence(tmp_path)
+
+    first = run_story_forensics(market, backtest, characterization, "vt-01")
+    first_binding = cast(dict[str, object], first["source_binding"])
+    first_digests = cast(dict[str, object], first_binding["source_artifact_sha256"])
+    assert set(first_digests) == {"market", "backtest", "characterization"}
+    assert all(len(cast(str, value)) == 64 for value in first_digests.values())
+
+    original = characterization.read_text(encoding="utf-8")
+    assert "canonical-test-setup" in original
+    characterization.write_text(
+        original.replace("canonical-test-setup", "changed-test-setup", 1),
+        encoding="utf-8",
+    )
+    second = run_story_forensics(market, backtest, characterization, "vt-01")
+    second_binding = cast(dict[str, object], second["source_binding"])
+    second_digests = cast(dict[str, object], second_binding["source_artifact_sha256"])
+
+    assert first_digests["market"] == second_digests["market"]
+    assert first_digests["backtest"] == second_digests["backtest"]
+    assert first_digests["characterization"] != second_digests["characterization"]
+    assert first["forensics_fingerprint"] != second["forensics_fingerprint"]
+    second_episode = cast(dict[str, object], cast(list[object], second["episodes"])[0])
+    second_decision = cast(dict[str, object], second_episode["decision_time"])
+    assert second_decision["setup_reason"] == "changed-test-setup"

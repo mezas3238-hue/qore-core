@@ -248,3 +248,54 @@ def test_synthesis_retains_disagreement_and_has_no_execution_authority() -> None
     counts = cast(dict[str, int], synthesis["verdict_counts"])
     assert counts["SPECIALIST"] == 2
     assert counts["MIXED_UNRESOLVED"] == 1
+
+
+def test_reviewer_packet_rejects_frozen_dossier_mutation_after_panel_creation() -> None:
+    panel = build_eleven_market_thesis_panel(_dossier())
+    frozen = cast(dict[str, object], panel["frozen_dossier"])
+    markets = cast(list[dict[str, object]], frozen["markets"])
+    markets[0]["evidence_digest"] = "tampered-after-freeze"
+
+    with pytest.raises(ElevenMarketThesisError, match="research dossier fingerprint mismatch"):
+        reviewer_packet(panel, role=ReviewRole.HARNESS)
+
+
+def test_seal_rejects_evidence_index_mutation_after_panel_creation() -> None:
+    panel = build_eleven_market_thesis_panel(_dossier())
+    assessment = _assessment(panel, role=ReviewRole.HARNESS)
+    evidence_index = cast(dict[str, str], panel["market_evidence_index"])
+    evidence_index["US30"] = "tampered-index"
+
+    with pytest.raises(ElevenMarketThesisError, match="evidence index diverges"):
+        seal_assessment(panel, assessment=assessment)
+
+
+def test_sealed_assessment_digest_is_revalidated_before_synthesis() -> None:
+    panel = build_eleven_market_thesis_panel(_dossier())
+    for role in (
+        ReviewRole.HARNESS,
+        ReviewRole.EXPERT,
+        ReviewRole.WORK,
+        ReviewRole.ARCHITECT,
+    ):
+        panel = seal_assessment(panel, assessment=_assessment(panel, role=role))
+    panel = seal_assessment(
+        panel,
+        assessment=_assessment(panel, role=ReviewRole.HUMAN_OWNER),
+    )
+    lanes = cast(dict[str, object], panel["review_lanes"])
+    harness_lane = cast(dict[str, object], lanes["harness"])
+    harness_assessment = cast(dict[str, object], harness_lane["assessment"])
+    harness_assessment["central_conclusion"] = "tampered after sealing"
+
+    with pytest.raises(ElevenMarketThesisError, match="sealed assessment digest mismatch"):
+        synthesize_eleven_market_thesis(panel)
+
+
+def test_machine_assessment_rejects_peer_material_outside_first_pass_contract() -> None:
+    panel = build_eleven_market_thesis_panel(_dossier())
+    assessment = _assessment(panel, role=ReviewRole.HARNESS)
+    assessment["sealed_machine_reviews"] = {"expert": "must not be embedded"}
+
+    with pytest.raises(ElevenMarketThesisError, match="assessment shape"):
+        seal_assessment(panel, assessment=assessment)
