@@ -36,6 +36,20 @@ def _episode(
             "close_path_mfe_r": mfe_r,
             "close_path_mae_r": mae_r,
         },
+        "chart": {
+            "frame_sequence": [
+                {
+                    "stage": "signal",
+                    "visible_through": signal_at.isoformat(),
+                    "visible_through_unix": int(signal_at.timestamp()),
+                },
+                {
+                    "stage": "entry",
+                    "visible_through": filled_at.isoformat(),
+                    "visible_through_unix": int(filled_at.timestamp()),
+                },
+            ]
+        },
     }
 
 

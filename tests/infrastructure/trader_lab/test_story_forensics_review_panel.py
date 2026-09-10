@@ -25,7 +25,16 @@ def _story() -> dict[str, object]:
         "outcome": "loss",
         "decision_time": {"signal_at": "2026-01-01T00:00:00+00:00"},
         "post_outcome": {"close_path_mfe_r": "1.20"},
-        "chart": {"source_of_truth": "qore-retained-evidence"},
+        "chart": {
+            "source_of_truth": "qore-retained-evidence",
+            "frame_sequence": [
+                {
+                    "stage": "signal",
+                    "visible_through": "2026-01-01T00:00:00+00:00",
+                    "visible_through_unix": 1767225600,
+                }
+            ],
+        },
         "trajectory": [],
     }
     return {
@@ -221,3 +230,72 @@ def test_trader_policy_stays_blocked_until_every_subject_has_five_reviews() -> N
     assert policy["state"] == "BLOCKED_PENDING_REVIEWS"
     assert policy["activation_authority"] is False
     assert policy["pending_subject_ids"] == ["streak-001"]
+
+
+def test_reviewer_packet_rejects_subject_descriptor_mutation_after_freeze() -> None:
+    panel = build_review_panel(_story())
+    subject = _subject(panel, "episode-001")
+    subject["classification"] = "WIN_CANONICAL"
+
+    with pytest.raises(StoryForensicsReviewError, match="descriptor digest mismatch"):
+        reviewer_packet(
+            panel,
+            subject_id="episode-001",
+            role=ReviewRole.HARNESS,
+        )
+
+
+def test_subject_synthesis_rejects_mutated_sealed_assessment() -> None:
+    panel = build_review_panel(_story())
+    for role in (
+        ReviewRole.HARNESS,
+        ReviewRole.EXPERT,
+        ReviewRole.WORK,
+        ReviewRole.ARCHITECT,
+    ):
+        panel = seal_assessment(
+            panel,
+            subject_id="episode-001",
+            assessment=_assessment(panel, subject_id="episode-001", role=role),
+        )
+    panel = seal_assessment(
+        panel,
+        subject_id="episode-001",
+        assessment=_assessment(
+            panel,
+            subject_id="episode-001",
+            role=ReviewRole.HUMAN_OWNER,
+        ),
+    )
+    subject = _subject(panel, "episode-001")
+    lanes = cast(dict[str, object], subject["review_lanes"])
+    harness_lane = cast(dict[str, object], lanes["harness"])
+    harness_assessment = cast(dict[str, object], harness_lane["assessment"])
+    harness_assessment["favorable_candidate"] = "tampered after sealing"
+
+    with pytest.raises(StoryForensicsReviewError, match="sealed assessment digest mismatch"):
+        synthesize_subject(panel, subject_id="episode-001")
+
+
+def test_review_assessment_rejects_embedded_peer_material() -> None:
+    panel = build_review_panel(_story())
+    assessment = _assessment(
+        panel,
+        subject_id="episode-001",
+        role=ReviewRole.HARNESS,
+    )
+    assessment["sealed_machine_reviews"] = {"expert": "must not be embedded"}
+
+    with pytest.raises(StoryForensicsReviewError, match="assessment shape"):
+        seal_assessment(panel, subject_id="episode-001", assessment=assessment)
+
+
+def test_policy_rejects_tampered_lane_status() -> None:
+    panel = build_review_panel(_story())
+    subject = _subject(panel, "episode-001")
+    lanes = cast(dict[str, object], subject["review_lanes"])
+    harness_lane = cast(dict[str, object], lanes["harness"])
+    harness_lane["status"] = "SEALED"
+
+    with pytest.raises(StoryForensicsReviewError, match="sealed assessment"):
+        build_trader_policy_candidate(panel)

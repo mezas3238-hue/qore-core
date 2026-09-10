@@ -175,6 +175,80 @@ def _empty_lanes() -> dict[str, object]:
     }
 
 
+def _validate_panel_integrity(
+    panel: dict[str, object],
+) -> tuple[str, dict[str, str], dict[str, object]]:
+    """Rebind every mutable panel surface to the frozen dossier before use."""
+
+    if _text(panel.get("schema"), field_name="panel schema") != _PANEL_SCHEMA:
+        raise ElevenMarketThesisError("unexpected thesis panel schema")
+    if not _strict_bool(panel.get("research_only"), field_name="research_only"):
+        raise ElevenMarketThesisError("thesis panel must remain research-only")
+    if _strict_bool(panel.get("execution_authority"), field_name="execution_authority"):
+        raise ElevenMarketThesisError("thesis panel cannot carry execution authority")
+
+    frozen_dossier = _object(panel.get("frozen_dossier"), field_name="frozen_dossier")
+    trader_code, markets = _validate_dossier(frozen_dossier)
+    dossier_digest = _text(panel.get("dossier_digest"), field_name="dossier_digest")
+    if _digest(frozen_dossier) != dossier_digest:
+        raise ElevenMarketThesisError("frozen dossier digest mismatch")
+    if _text(panel.get("trader_code"), field_name="trader_code") != trader_code:
+        raise ElevenMarketThesisError("panel Trader does not match frozen dossier")
+
+    required_markets = _string_list(panel.get("required_markets"), field_name="required_markets")
+    if required_markets != list(_REQUIRED_MARKETS):
+        raise ElevenMarketThesisError("panel required market order changed")
+    evidence_index = _market_evidence_index(panel.get("market_evidence_index"))
+    expected_index = {
+        _text(row.get("symbol"), field_name="market symbol"): _text(
+            row.get("evidence_digest"),
+            field_name="evidence_digest",
+        )
+        for row in markets
+    }
+    if evidence_index != expected_index:
+        raise ElevenMarketThesisError("panel evidence index diverges from frozen dossier")
+
+    lanes = _object(panel.get("review_lanes"), field_name="review_lanes")
+    expected_roles = {role.value for role in _REQUIRED_ROLES}
+    if set(lanes) != expected_roles:
+        raise ElevenMarketThesisError("review lane set changed")
+    all_sealed = True
+    for role in _REQUIRED_ROLES:
+        lane = _object(lanes.get(role.value), field_name="review lane")
+        if set(lane) != {"status", "assessment", "assessment_digest"}:
+            raise ElevenMarketThesisError("review lane shape changed")
+        status = lane.get("status")
+        if status == "PENDING":
+            all_sealed = False
+            if lane.get("assessment") is not None or lane.get("assessment_digest") is not None:
+                raise ElevenMarketThesisError("pending review lane contains sealed material")
+            continue
+        if status != "SEALED":
+            raise ElevenMarketThesisError("review lane status is invalid")
+        assessment = _object(lane.get("assessment"), field_name="assessment")
+        assessment_digest = _text(
+            lane.get("assessment_digest"),
+            field_name="assessment_digest",
+        )
+        if _digest(assessment) != assessment_digest:
+            raise ElevenMarketThesisError("sealed assessment digest mismatch")
+        observed_role = _validate_assessment(
+            assessment,
+            dossier_digest=dossier_digest,
+            evidence_index=evidence_index,
+        )
+        if observed_role is not role:
+            raise ElevenMarketThesisError("sealed assessment role does not match lane")
+
+    expected_status = (
+        "READY_FOR_SYNTHESIS" if all_sealed else "BLOCKED_PENDING_REVIEWS"
+    )
+    if panel.get("synthesis_status") != expected_status:
+        raise ElevenMarketThesisError("synthesis status does not match sealed review state")
+    return dossier_digest, evidence_index, lanes
+
+
 def build_eleven_market_thesis_panel(
     dossier: dict[str, object],
 ) -> dict[str, object]:
@@ -269,10 +343,7 @@ def reviewer_packet(
     role: ReviewRole,
 ) -> dict[str, object]:
     """Return a first-pass packet without peer conclusions for machine reviewers."""
-    if _text(panel.get("schema"), field_name="panel schema") != _PANEL_SCHEMA:
-        raise ElevenMarketThesisError("unexpected thesis panel schema")
-    lanes = _object(panel.get("review_lanes"), field_name="review_lanes")
-    evidence_index = _market_evidence_index(panel.get("market_evidence_index"))
+    _, evidence_index, lanes = _validate_panel_integrity(panel)
     packet = {
         "trader_code": _text(panel.get("trader_code"), field_name="trader_code"),
         "dossier_digest": _text(panel.get("dossier_digest"), field_name="dossier_digest"),
@@ -335,6 +406,24 @@ def _validate_assessment(
     dossier_digest: str,
     evidence_index: dict[str, str],
 ) -> ReviewRole:
+    allowed_fields = {
+        "dossier_digest",
+        "role",
+        "verdict_family",
+        "central_conclusion",
+        "rationale",
+        "common_patterns",
+        "material_exceptions",
+        "strengths_to_preserve",
+        "degradation_risks",
+        "evidence_by_market",
+        "causal_hypothesis",
+        "counterexample_or_falsifier",
+        "confidence",
+        "fresh_holdout_required_for_changes",
+    }
+    if set(assessment) != allowed_fields:
+        raise ElevenMarketThesisError("assessment shape does not match sealed first-pass contract")
     if _text(assessment.get("dossier_digest"), field_name="dossier_digest") != dossier_digest:
         raise ElevenMarketThesisError("assessment dossier digest mismatch")
     role = _role(assessment.get("role"))
@@ -378,14 +467,12 @@ def seal_assessment(
 ) -> dict[str, object]:
     """Seal one role exactly once while preserving first-pass independence."""
     result = deepcopy(panel)
-    dossier_digest = _text(result.get("dossier_digest"), field_name="dossier_digest")
-    evidence_index = _market_evidence_index(result.get("market_evidence_index"))
+    dossier_digest, evidence_index, lanes = _validate_panel_integrity(result)
     role = _validate_assessment(
         assessment,
         dossier_digest=dossier_digest,
         evidence_index=evidence_index,
     )
-    lanes = _object(result.get("review_lanes"), field_name="review_lanes")
     lane = _object(lanes.get(role.value), field_name="review lane")
     if lane.get("status") != "PENDING":
         raise ElevenMarketThesisError("review lane is already sealed")
@@ -413,7 +500,7 @@ def seal_assessment(
 
 def synthesize_eleven_market_thesis(panel: dict[str, object]) -> dict[str, object]:
     """Expose all sealed verdicts without converting majority opinion into truth."""
-    lanes = _object(panel.get("review_lanes"), field_name="review_lanes")
+    _, _, lanes = _validate_panel_integrity(panel)
     reviews: dict[str, object] = {}
     verdict_counts: dict[str, int] = {}
     for role in _REQUIRED_ROLES:

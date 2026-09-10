@@ -17,6 +17,7 @@ from typing import cast
 
 from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
     FirstCohortStoryForensicsError,
+    validate_story_episode_contract,
 )
 
 _STORY_SCHEMA = "qore.trader_lab.first_cohort_story_forensics.v1"
@@ -127,6 +128,8 @@ def _story_contract(story: dict[str, object]) -> None:
         raise StoryForensicsReviewError("review panel requires research-only evidence")
     if _strict_bool(story.get("execution_authority"), field_name="execution_authority"):
         raise StoryForensicsReviewError("review panel refuses execution-authoritative evidence")
+    for item in _array(story.get("episodes"), field_name="episodes"):
+        validate_story_episode_contract(_object(item, field_name="episode"))
 
 
 def _episode_subjects(story: dict[str, object]) -> list[dict[str, object]]:
@@ -195,6 +198,84 @@ def _empty_lanes() -> dict[str, object]:
     }
 
 
+def _subject_descriptor_material(subject: dict[str, object]) -> dict[str, object]:
+    subject_type = _text(subject.get("subject_type"), field_name="subject type")
+    keys: tuple[str, ...]
+    if subject_type == "episode":
+        keys = (
+            "subject_id",
+            "subject_type",
+            "subject_digest",
+            "trader_code",
+            "symbol",
+            "classification",
+        )
+    elif subject_type == "streak":
+        keys = (
+            "subject_id",
+            "subject_type",
+            "subject_digest",
+            "family",
+            "episode_ids",
+        )
+    else:
+        raise StoryForensicsReviewError("unknown review subject type")
+    return {key: deepcopy(subject.get(key)) for key in keys}
+
+
+def _subject_descriptor_digest(subject: dict[str, object]) -> str:
+    return _digest(_subject_descriptor_material(subject))
+
+
+def _validate_subject_integrity(subject: dict[str, object]) -> None:
+    observed_descriptor = _text(
+        subject.get("descriptor_digest"),
+        field_name="subject descriptor digest",
+    )
+    if _subject_descriptor_digest(subject) != observed_descriptor:
+        raise StoryForensicsReviewError("review subject descriptor digest mismatch")
+
+    lanes = _object(subject.get("review_lanes"), field_name="review lanes")
+    expected_roles = {role.value for role in _REQUIRED_ROLES}
+    if set(lanes) != expected_roles:
+        raise StoryForensicsReviewError("review lane set changed")
+
+    subject_digest = _text(subject.get("subject_digest"), field_name="subject digest")
+    all_sealed = True
+    for role in _REQUIRED_ROLES:
+        lane = _object(lanes.get(role.value), field_name="review lane")
+        if set(lane) != {"status", "assessment", "assessment_digest"}:
+            raise StoryForensicsReviewError("review lane shape changed")
+        status = lane.get("status")
+        if status == "PENDING":
+            all_sealed = False
+            if lane.get("assessment") is not None or lane.get("assessment_digest") is not None:
+                raise StoryForensicsReviewError("pending review lane contains sealed material")
+            continue
+        if status != "SEALED":
+            raise StoryForensicsReviewError("review lane status is invalid")
+        assessment = _object(lane.get("assessment"), field_name="sealed assessment")
+        assessment_digest = _text(
+            lane.get("assessment_digest"),
+            field_name="assessment digest",
+        )
+        if _digest(assessment) != assessment_digest:
+            raise StoryForensicsReviewError("sealed assessment digest mismatch")
+        observed_role = _validate_assessment(assessment, subject_digest=subject_digest)
+        if observed_role is not role:
+            raise StoryForensicsReviewError("sealed assessment role does not match lane")
+
+    expected_status = (
+        "READY_FOR_ARCHITECT_ADJUDICATION"
+        if all_sealed
+        else "BLOCKED_PENDING_REVIEWS"
+    )
+    if subject.get("synthesis_status") != expected_status:
+        raise StoryForensicsReviewError(
+            "subject synthesis status does not match sealed review state"
+        )
+
+
 def build_review_panel(story: dict[str, object]) -> dict[str, object]:
     """Create one immutable-subject review ledger for every episode and streak."""
     _story_contract(story)
@@ -202,6 +283,7 @@ def build_review_panel(story: dict[str, object]) -> dict[str, object]:
     if not subjects:
         raise StoryForensicsReviewError("review panel requires at least one subject")
     for subject in subjects:
+        subject["descriptor_digest"] = _subject_descriptor_digest(subject)
         subject["review_lanes"] = _empty_lanes()
         subject["synthesis_status"] = "BLOCKED_PENDING_REVIEWS"
     return {
@@ -246,7 +328,9 @@ def _panel_subject(
     ]
     if len(matches) != 1:
         raise StoryForensicsReviewError("subject_id must identify exactly one review subject")
-    return matches[0]
+    subject = matches[0]
+    _validate_subject_integrity(subject)
+    return subject
 
 
 def _parse_role(value: object) -> ReviewRole:
@@ -329,6 +413,22 @@ def _validate_assessment(
     *,
     subject_digest: str,
 ) -> ReviewRole:
+    allowed_fields = {
+        "subject_digest",
+        "role",
+        "favorable_candidate",
+        "degradation_risks",
+        "preserve",
+        "evidence",
+        "counterexample_or_falsifier",
+        "scope",
+        "confidence",
+        "fresh_holdout_required",
+    }
+    if set(assessment) != allowed_fields:
+        raise StoryForensicsReviewError(
+            "assessment shape does not match sealed first-pass contract"
+        )
     if _text(assessment.get("subject_digest"), field_name="subject digest") != subject_digest:
         raise StoryForensicsReviewError("assessment subject digest mismatch")
     role = _parse_role(assessment.get("role"))
@@ -471,6 +571,7 @@ def build_trader_policy_candidate(panel: dict[str, object]) -> dict[str, object]
     pending: list[str] = []
     for item in subjects:
         subject = _object(item, field_name="review subject")
+        _validate_subject_integrity(subject)
         subject_id = _text(subject.get("subject_id"), field_name="subject id")
         if subject.get("synthesis_status") != "READY_FOR_ARCHITECT_ADJUDICATION":
             pending.append(subject_id)

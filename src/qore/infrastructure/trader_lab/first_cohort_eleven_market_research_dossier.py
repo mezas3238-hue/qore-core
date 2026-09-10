@@ -31,6 +31,14 @@ _MARKETS = (
     "US30",
 )
 _TRADERS = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
+_SOURCE_DIGEST_FIELDS = {
+    "market_evidence_sha256",
+    "backtest_sha256",
+    "characterization_sha256",
+    "characterization_payload_sha256",
+    "walk_forward_sha256",
+    "failure_analysis_sha256",
+}
 
 
 class ElevenMarketResearchDossierError(ValueError):
@@ -55,6 +63,13 @@ def _text(value: object, *, field_name: str) -> str:
     if type(value) is not str or not value:
         raise ElevenMarketResearchDossierError(f"{field_name} must be non-empty text")
     return value
+
+
+def _sha256(value: object, *, field_name: str) -> str:
+    digest = _text(value, field_name=field_name)
+    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+        raise ElevenMarketResearchDossierError(f"{field_name} must be lowercase SHA-256")
+    return digest
 
 
 def _strict_bool(value: object, *, field_name: str) -> bool:
@@ -100,9 +115,7 @@ def _validate_market_package(
     if _text(payload.get("environment"), field_name="environment") != "demo":
         raise ElevenMarketResearchDossierError("market thesis evidence must be DEMO")
     if not _strict_bool(payload.get("research_only"), field_name="research_only"):
-        raise ElevenMarketResearchDossierError(
-            "market thesis evidence must be research-only"
-        )
+        raise ElevenMarketResearchDossierError("market thesis evidence must be research-only")
     if not _strict_bool(payload.get("read_only"), field_name="read_only"):
         raise ElevenMarketResearchDossierError("market thesis evidence must be read-only")
     if _strict_bool(payload.get("execution_authority"), field_name="execution_authority"):
@@ -111,9 +124,21 @@ def _validate_market_package(
         )
     symbol = _text(payload.get("symbol"), field_name="symbol")
     if symbol not in _MARKETS:
-        raise ElevenMarketResearchDossierError(
-            "market thesis evidence is outside QORE eleven"
-        )
+        raise ElevenMarketResearchDossierError("market thesis evidence is outside QORE eleven")
+    provider_symbol = _text(payload.get("provider_symbol"), field_name="provider_symbol")
+    source_digests = _object(payload.get("source_digests"), field_name="source_digests")
+    if set(source_digests) != _SOURCE_DIGEST_FIELDS:
+        raise ElevenMarketResearchDossierError("six source evidence digests are required")
+    for value in source_digests.values():
+        _sha256(value, field_name="source evidence digest")
+    identity_binding = _object(payload.get("identity_binding"), field_name="identity_binding")
+    if _text(identity_binding.get("economic_target"), field_name="economic target") != symbol:
+        raise ElevenMarketResearchDossierError("market economic identity mismatch")
+    if (
+        _text(identity_binding.get("provider_symbol"), field_name="identity provider symbol")
+        != provider_symbol
+    ):
+        raise ElevenMarketResearchDossierError("market provider identity mismatch")
     observed_market_digest = _text(
         payload.get("market_thesis_evidence_fingerprint"),
         field_name="market_thesis_evidence_fingerprint",
@@ -121,18 +146,14 @@ def _validate_market_package(
     material = deepcopy(payload)
     material.pop("market_thesis_evidence_fingerprint", None)
     if _digest(material) != observed_market_digest:
-        raise ElevenMarketResearchDossierError(
-            "market thesis evidence fingerprint mismatch"
-        )
+        raise ElevenMarketResearchDossierError("market thesis evidence fingerprint mismatch")
 
     rows: dict[str, dict[str, object]] = {}
     for item in _array(payload.get("trader_evidence"), field_name="trader_evidence"):
         row = _object(item, field_name="trader evidence")
         code = _text(row.get("trader_code"), field_name="trader_code")
         if code not in _TRADERS or code in rows:
-            raise ElevenMarketResearchDossierError(
-                "market thesis evidence Trader set is invalid"
-            )
+            raise ElevenMarketResearchDossierError("market thesis evidence Trader set is invalid")
         identity = _object(row.get("identity"), field_name="identity")
         _text(identity.get("config_fingerprint"), field_name="config_fingerprint")
         _text(
@@ -151,7 +172,26 @@ def _validate_market_package(
         )
         _strict_bool(walk_forward.get("oos_pass"), field_name="oos_pass")
         _strict_bool(walk_forward.get("stress_pass"), field_name="stress_pass")
-        _object(row.get("provenance"), field_name="provenance")
+        provenance = _object(row.get("provenance"), field_name="provenance")
+        if (
+            _object(provenance.get("source_digests"), field_name="row source_digests")
+            != source_digests
+        ):
+            raise ElevenMarketResearchDossierError("source evidence digest mismatch")
+        if (
+            _object(provenance.get("identity_binding"), field_name="row identity binding")
+            != identity_binding
+        ):
+            raise ElevenMarketResearchDossierError("market identity binding mismatch")
+        for provenance_field, package_field in (
+            ("market_story_fingerprint", "market_story_fingerprint"),
+            ("market_story_payload_digest", "market_story_payload_digest"),
+            ("characterization_digest", "characterization_digest"),
+        ):
+            if provenance.get(provenance_field) != payload.get(package_field):
+                raise ElevenMarketResearchDossierError(
+                    f"{provenance_field} provenance mismatch"
+                )
         observed_row_digest = _text(
             row.get("trader_market_evidence_digest"),
             field_name="trader_market_evidence_digest",
@@ -159,9 +199,7 @@ def _validate_market_package(
         row_material = deepcopy(row)
         row_material.pop("trader_market_evidence_digest", None)
         if _digest(row_material) != observed_row_digest:
-            raise ElevenMarketResearchDossierError(
-                f"{code} trader market evidence digest mismatch"
-            )
+            raise ElevenMarketResearchDossierError(f"{code} trader market evidence digest mismatch")
         rows[code] = row
     if set(rows) != set(_TRADERS):
         raise ElevenMarketResearchDossierError(
@@ -245,9 +283,7 @@ def build_eleven_market_research_dossiers(
             raise ElevenMarketResearchDossierError(
                 f"{code} changes config, methodology, or timeframe across eleven markets"
             )
-        config_fingerprint, methodology_fingerprint, execution_period = next(
-            iter(identities)
-        )
+        config_fingerprint, methodology_fingerprint, execution_period = next(iter(identities))
         dossier: dict[str, object] = {
             "schema": _SCHEMA,
             "research_only": True,

@@ -4,6 +4,9 @@ from typing import cast
 
 import pytest
 
+from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
+    FirstCohortStoryForensicsError,
+)
 from qore.infrastructure.trader_lab.story_forensics_lightweight_renderer import (
     StoryForensicsRendererError,
     render_story_html,
@@ -100,14 +103,14 @@ def _payload() -> dict[str, object]:
                     ],
                     "frame_sequence": [
                         {
-                            "stage": "mfe",
-                            "visible_through": "2026-01-01T10:30:00+00:00",
-                            "visible_through_unix": 1767263400,
-                        },
-                        {
                             "stage": "entry",
                             "visible_through": "2026-01-01T10:15:00+00:00",
                             "visible_through_unix": 1767262500,
+                        },
+                        {
+                            "stage": "mfe",
+                            "visible_through": "2026-01-01T10:30:00+00:00",
+                            "visible_through_unix": 1767263400,
                         },
                     ],
                     "screenshot_capable": True,
@@ -139,6 +142,27 @@ def test_renderer_sorts_replay_frames_by_evidence_timestamp() -> None:
 
     assert "a.visible_through_unix - b.visible_through_unix" in rendered
     assert "const frames = [...chartData.frame_sequence].sort" in rendered
+
+
+def test_renderer_rejects_nonchronological_canonical_frames() -> None:
+    payload = _payload()
+    episodes = cast(list[dict[str, object]], payload["episodes"])
+    chart = cast(dict[str, object], episodes[0]["chart"])
+    frames = cast(list[object], chart["frame_sequence"])
+    frames.reverse()
+
+    with pytest.raises(FirstCohortStoryForensicsError, match="not chronologically"):
+        render_story_html(payload, episode_id="episode-123")
+
+
+def test_renderer_rejects_oracle_state_in_decision_time() -> None:
+    payload = _payload()
+    episodes = cast(list[dict[str, object]], payload["episodes"])
+    decision = cast(dict[str, object], episodes[0]["decision_time"])
+    decision["exit_reason"] = "stop"
+
+    with pytest.raises(FirstCohortStoryForensicsError, match="oracle fields"):
+        render_story_html(payload, episode_id="episode-123")
 
 
 def test_renderer_separates_chronological_replay_from_full_forensic_view() -> None:

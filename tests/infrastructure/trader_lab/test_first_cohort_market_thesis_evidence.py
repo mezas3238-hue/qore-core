@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
+from hashlib import sha256
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -15,6 +18,18 @@ _CONFIG = "c" * 64
 _METHOD = "d" * 64
 _ACCOUNT = "a" * 64
 _SOFTWARE = "b" * 40
+
+
+def _digest(value: object) -> str:
+    return sha256(
+        json.dumps(
+            value,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 def _story() -> dict[str, object]:
@@ -46,21 +61,36 @@ def _story() -> dict[str, object]:
                 "forensics_fingerprint": f"{index + 1:064x}",
             }
         )
-    return {
+    payload: dict[str, object] = {
         "schema": "qore.trader_lab.first_cohort_market_story_forensics.v1",
         "environment": "demo",
         "research_only": True,
         "read_only": True,
         "execution_authority": False,
         "symbol": "US30",
+        "provider_symbol": "US30",
         "software_sha": _SOFTWARE,
         "account_fingerprint": _ACCOUNT,
+        "source_digests": {
+            "market_evidence_sha256": "1" * 64,
+            "backtest_sha256": "2" * 64,
+            "characterization_sha256": "3" * 64,
+            "walk_forward_sha256": "4" * 64,
+            "failure_analysis_sha256": "5" * 64,
+        },
+        "identity_binding": {
+            "binding_basis": "direct-market-symbol",
+            "economic_target": "US30",
+            "provider_symbol": "US30",
+        },
         "trader_codes": list(_TRADERS),
         "trader_count": 5,
         "trader_summaries": summaries,
         "trader_story_packs": packs,
         "market_forensics_fingerprint": "e" * 64,
     }
+    payload["market_forensics_payload_digest"] = _digest(payload)
+    return payload
 
 
 def _profile() -> dict[str, object]:
@@ -72,6 +102,15 @@ def _profile() -> dict[str, object]:
         },
         "execution_period": "M5",
         "parameters": {"sweep_strength": 2},
+        "selected_by_in_sample_only": True,
+        "execution_bar_count": 1000,
+        "evaluable_bar_count": 900,
+        "evaluated_bar_count": 900,
+        "context_unavailable_count": 100,
+        "evaluation_failure_count": 0,
+        "evaluation_failure_reason_counts": {},
+        "decision_opportunity_count": 900,
+        "decision_counts": {"SETUP": 100, "ABSTAIN": 800},
         "setup_count": 100,
         "filled_setup_count": 40,
         "unfilled_setup_count": 60,
@@ -84,9 +123,14 @@ def _profile() -> dict[str, object]:
         "by_trend_regime": {"range": {"sample_size": 40}},
         "by_volatility_regime": {"normal": {"sample_size": 40}},
         "by_chronological_quartile": [{"quartile": 1, "sample_size": 10}],
+        "by_signal_hour_utc": {"13": {"sample_size": 40}},
+        "by_signal_weekday_utc": {"Monday": {"sample_size": 40}},
+        "by_calendar_month": {"2026-01": {"sample_size": 40}},
+        "by_calendar_year": {"2026": {"sample_size": 40}},
         "close_path_excursions": {"mfe": {"mean": "0.001"}},
         "decision_funnel": {"SETUP": 100},
         "geometry": {"reward_risk_multiple": {"mean": "2"}},
+        "timing": {"bars_to_fill": {"mean": "1"}},
         "execution_model_diagnostics": {"model": "test"},
         "walk_forward_assessment": {
             "config_fingerprint": _CONFIG,
@@ -161,13 +205,64 @@ def test_market_thesis_evidence_fails_closed_on_identity_mismatch() -> None:
 
 def test_market_thesis_evidence_changes_when_story_payload_changes() -> None:
     story = _story()
-    first = build_market_thesis_evidence(story, _characterization())
     mutated = deepcopy(story)
     summaries = cast(list[dict[str, object]], mutated["trader_summaries"])
     summaries[0]["episode_count"] = 999
-    second = build_market_thesis_evidence(mutated, _characterization())
+    with pytest.raises(MarketThesisEvidenceError, match="payload digest mismatch"):
+        build_market_thesis_evidence(mutated, _characterization())
 
-    assert (
-        first["market_thesis_evidence_fingerprint"]
-        != second["market_thesis_evidence_fingerprint"]
-    )
+
+def test_market_thesis_evidence_binds_walk_forward_and_failure_raw_bytes(
+    tmp_path: Path,
+) -> None:
+    paths = []
+    for name in ("walk-forward", "failure-analysis"):
+        path = tmp_path / f"{name}.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "environment": "demo",
+                    "read_only": True,
+                    "symbol": "US30",
+                    "software_sha": _SOFTWARE,
+                    "account_fingerprint": _ACCOUNT,
+                }
+            ),
+            encoding="utf-8",
+        )
+        paths.append(path)
+
+    payload = build_market_thesis_evidence(_story(), _characterization(), paths[0], paths[1])
+    source_digests = cast(dict[str, object], payload["source_digests"])
+    assert source_digests["walk_forward_sha256"] == sha256(paths[0].read_bytes()).hexdigest()
+    assert source_digests["failure_analysis_sha256"] == sha256(paths[1].read_bytes()).hexdigest()
+
+    decoded = json.loads(paths[0].read_text(encoding="utf-8"))
+    decoded["symbol"] = "NAS100"
+    paths[0].write_text(json.dumps(decoded), encoding="utf-8")
+    with pytest.raises(MarketThesisEvidenceError, match="walk-forward symbol mismatch"):
+        build_market_thesis_evidence(_story(), _characterization(), paths[0], paths[1])
+
+
+def test_market_thesis_evidence_preserves_certified_provider_alias() -> None:
+    story = _story()
+    story["symbol"] = "NAS100"
+    story["provider_symbol"] = "USTEC"
+    story["identity_binding"] = {
+        "binding_basis": "certified-alias-v1",
+        "economic_target": "NAS100",
+        "provider_symbol": "USTEC",
+    }
+    packs = cast(list[dict[str, object]], story["trader_story_packs"])
+    for pack in packs:
+        binding = cast(dict[str, object], pack["source_binding"])
+        binding["symbol"] = "USTEC"
+    story.pop("market_forensics_payload_digest")
+    story["market_forensics_payload_digest"] = _digest(story)
+    characterization = _characterization()
+    characterization["symbol"] = "USTEC"
+
+    payload = build_market_thesis_evidence(story, characterization)
+
+    assert payload["symbol"] == "NAS100"
+    assert payload["provider_symbol"] == "USTEC"

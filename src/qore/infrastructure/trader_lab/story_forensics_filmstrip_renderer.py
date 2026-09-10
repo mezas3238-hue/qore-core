@@ -15,6 +15,7 @@ from typing import cast
 
 from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
     FirstCohortStoryForensicsError,
+    validate_story_episode_contract,
 )
 
 _STORY_SCHEMA = "qore.trader_lab.first_cohort_story_forensics.v1"
@@ -100,6 +101,7 @@ def _episode(payload: dict[str, object], episode_id: str) -> dict[str, object]:
             matches.append(row)
     if len(matches) != 1:
         raise StoryForensicsFilmstripError("episode_id must resolve exactly once")
+    validate_story_episode_contract(matches[0])
     chart = _object(matches[0].get("chart"), field_name="episode chart")
     if _text(chart.get("source_of_truth"), field_name="source of truth") != (
         "qore-retained-evidence"

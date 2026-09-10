@@ -21,6 +21,15 @@ _TRADERS = ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31")
 _REQUIRED_PROFILE_FIELDS = (
     "execution_period",
     "parameters",
+    "selected_by_in_sample_only",
+    "execution_bar_count",
+    "evaluable_bar_count",
+    "evaluated_bar_count",
+    "context_unavailable_count",
+    "evaluation_failure_count",
+    "evaluation_failure_reason_counts",
+    "decision_opportunity_count",
+    "decision_counts",
     "setup_count",
     "filled_setup_count",
     "unfilled_setup_count",
@@ -33,9 +42,14 @@ _REQUIRED_PROFILE_FIELDS = (
     "by_trend_regime",
     "by_volatility_regime",
     "by_chronological_quartile",
+    "by_signal_hour_utc",
+    "by_signal_weekday_utc",
+    "by_calendar_month",
+    "by_calendar_year",
     "close_path_excursions",
     "decision_funnel",
     "geometry",
+    "timing",
     "execution_model_diagnostics",
     "walk_forward_assessment",
     "setup_reason_counts",
@@ -89,9 +103,7 @@ def _canonical(value: object) -> str:
             allow_nan=False,
         )
     except (TypeError, ValueError) as error:
-        raise MarketThesisEvidenceError(
-            "market thesis evidence must be canonical JSON"
-        ) from error
+        raise MarketThesisEvidenceError("market thesis evidence must be canonical JSON") from error
 
 
 def _digest(value: object) -> str:
@@ -104,6 +116,13 @@ def _read_json(path: Path, *, field_name: str) -> dict[str, object]:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise MarketThesisEvidenceError(f"cannot read {field_name}: {path}") from error
     return _object(decoded, field_name=field_name)
+
+
+def _file_digest(path: Path) -> str:
+    try:
+        return sha256(path.read_bytes()).hexdigest()
+    except OSError as error:
+        raise MarketThesisEvidenceError(f"cannot digest retained evidence: {path}") from error
 
 
 def _story_rows(
@@ -124,10 +143,17 @@ def _story_rows(
     if not _strict_bool(story.get("read_only"), field_name="story read_only"):
         raise MarketThesisEvidenceError("market Story Forensics must be read-only")
     if _strict_bool(story.get("execution_authority"), field_name="story execution_authority"):
-        raise MarketThesisEvidenceError(
-            "market Story Forensics cannot carry execution authority"
-        )
+        raise MarketThesisEvidenceError("market Story Forensics cannot carry execution authority")
+    observed_payload_digest = _text(
+        story.get("market_forensics_payload_digest"),
+        field_name="market_forensics_payload_digest",
+    )
+    story_material = deepcopy(story)
+    story_material.pop("market_forensics_payload_digest", None)
+    if _digest(story_material) != observed_payload_digest:
+        raise MarketThesisEvidenceError("market Story Forensics payload digest mismatch")
     symbol = _text(story.get("symbol"), field_name="story symbol")
+    provider_symbol = _text(story.get("provider_symbol"), field_name="story provider_symbol")
     software_sha = _text(story.get("software_sha"), field_name="story software_sha")
     account = _text(story.get("account_fingerprint"), field_name="story account_fingerprint")
     if _strict_int(story.get("trader_count"), field_name="story trader_count") != len(_TRADERS):
@@ -153,7 +179,7 @@ def _story_rows(
         code = _text(binding.get("trader_code"), field_name="binding trader_code")
         if code in packs:
             raise MarketThesisEvidenceError("duplicate Story Forensics trader pack")
-        if _text(binding.get("symbol"), field_name="binding symbol") != symbol:
+        if _text(binding.get("symbol"), field_name="binding symbol") != provider_symbol:
             raise MarketThesisEvidenceError("Story Forensics trader symbol mismatch")
         if _text(binding.get("software_sha"), field_name="binding software_sha") != software_sha:
             raise MarketThesisEvidenceError("Story Forensics trader software SHA mismatch")
@@ -240,10 +266,7 @@ def _research_profile(profile: dict[str, object]) -> dict[str, object]:
             raise MarketThesisEvidenceError(
                 f"production-default profile missing required field: {field_name}"
             )
-    result = {
-        field_name: deepcopy(profile[field_name])
-        for field_name in _REQUIRED_PROFILE_FIELDS
-    }
+    result = {field_name: deepcopy(profile[field_name]) for field_name in _REQUIRED_PROFILE_FIELDS}
     walk_forward = _object(
         result["walk_forward_assessment"],
         field_name="walk_forward_assessment",
@@ -268,17 +291,65 @@ def _research_profile(profile: dict[str, object]) -> dict[str, object]:
 def build_market_thesis_evidence(
     story: dict[str, object],
     characterization: dict[str, object],
+    walk_forward_path: Path | None = None,
+    failure_analysis_path: Path | None = None,
 ) -> dict[str, object]:
     """Build one compact, evidence-bound five-Trader research package."""
     symbol, software_sha, account, summaries, packs = _story_rows(story)
+    provider_symbol = _text(story.get("provider_symbol"), field_name="provider_symbol")
+    story_source_digests = _object(story.get("source_digests"), field_name="story source_digests")
+    identity_binding = _object(story.get("identity_binding"), field_name="story identity_binding")
+    if _text(identity_binding.get("economic_target"), field_name="economic target") != symbol:
+        raise MarketThesisEvidenceError("Story economic identity mismatch")
+    if (
+        _text(identity_binding.get("provider_symbol"), field_name="identity provider symbol")
+        != provider_symbol
+    ):
+        raise MarketThesisEvidenceError("Story provider identity mismatch")
     profiles = _characterization_profiles(
         characterization,
-        symbol=symbol,
+        symbol=provider_symbol,
         software_sha=software_sha,
         account_fingerprint=account,
     )
     characterization_digest = _digest(characterization)
-    market_story_payload_digest = _digest(story)
+    market_story_payload_digest = _text(
+        story.get("market_forensics_payload_digest"),
+        field_name="market_forensics_payload_digest",
+    )
+    source_digests = deepcopy(story_source_digests)
+    source_digests["characterization_payload_sha256"] = characterization_digest
+    if (walk_forward_path is None) != (failure_analysis_path is None):
+        raise MarketThesisEvidenceError(
+            "walk-forward and failure analysis evidence must be supplied together"
+        )
+    if walk_forward_path is not None and failure_analysis_path is not None:
+        for path, name, digest_name in (
+            (walk_forward_path, "walk-forward", "walk_forward_sha256"),
+            (failure_analysis_path, "failure analysis", "failure_analysis_sha256"),
+        ):
+            raw = _read_json(path, field_name=name)
+            if _text(raw.get("environment"), field_name=f"{name} environment") != "demo":
+                raise MarketThesisEvidenceError(f"{name} must be DEMO")
+            if not _strict_bool(raw.get("read_only"), field_name=f"{name} read_only"):
+                raise MarketThesisEvidenceError(f"{name} must be read-only")
+            if _text(raw.get("symbol"), field_name=f"{name} symbol") != provider_symbol:
+                raise MarketThesisEvidenceError(f"{name} symbol mismatch")
+            if _text(raw.get("software_sha"), field_name=f"{name} software SHA") != software_sha:
+                raise MarketThesisEvidenceError(f"{name} software SHA mismatch")
+            if _text(raw.get("account_fingerprint"), field_name=f"{name} account") != account:
+                raise MarketThesisEvidenceError(f"{name} account mismatch")
+            source_digests[digest_name] = _file_digest(path)
+    required_source_digests = {
+        "market_evidence_sha256",
+        "backtest_sha256",
+        "characterization_sha256",
+        "characterization_payload_sha256",
+        "walk_forward_sha256",
+        "failure_analysis_sha256",
+    }
+    if set(source_digests) != required_source_digests:
+        raise MarketThesisEvidenceError("six retained source digests are required")
     market_story_fingerprint = _text(
         story.get("market_forensics_fingerprint"),
         field_name="market_forensics_fingerprint",
@@ -325,9 +396,7 @@ def build_market_thesis_evidence(
             raise MarketThesisEvidenceError(f"{code} execution period mismatch")
 
         research_profile = _research_profile(profile)
-        profile_without_setups = {
-            key: value for key, value in profile.items() if key != "setups"
-        }
+        profile_without_setups = {key: value for key, value in profile.items() if key != "setups"}
         row: dict[str, object] = {
             "trader_code": code,
             "identity": {
@@ -357,6 +426,8 @@ def build_market_thesis_evidence(
                 "market_story_payload_digest": market_story_payload_digest,
                 "characterization_digest": characterization_digest,
                 "production_default_profile_digest": _digest(profile_without_setups),
+                "source_digests": deepcopy(source_digests),
+                "identity_binding": deepcopy(identity_binding),
             },
         }
         row["trader_market_evidence_digest"] = _digest(row)
@@ -369,8 +440,11 @@ def build_market_thesis_evidence(
         "read_only": True,
         "execution_authority": False,
         "symbol": symbol,
+        "provider_symbol": provider_symbol,
         "software_sha": software_sha,
         "account_fingerprint": account,
+        "source_digests": source_digests,
+        "identity_binding": deepcopy(identity_binding),
         "market_story_fingerprint": market_story_fingerprint,
         "market_story_payload_digest": market_story_payload_digest,
         "characterization_digest": characterization_digest,
@@ -384,21 +458,25 @@ def build_market_thesis_evidence(
 def build_market_thesis_evidence_from_paths(
     story_path: Path,
     characterization_path: Path,
+    walk_forward_path: Path | None = None,
+    failure_analysis_path: Path | None = None,
 ) -> dict[str, object]:
     """Read one market Story pack and characterization artifact and bind them."""
     return build_market_thesis_evidence(
         _read_json(story_path, field_name="market Story Forensics"),
         _read_json(characterization_path, field_name="characterization"),
+        walk_forward_path,
+        failure_analysis_path,
     )
 
 
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
-    if len(arguments) != 2:
+    if len(arguments) != 4:
         print(
             "usage: python -m "
             "qore.infrastructure.trader_lab.first_cohort_market_thesis_evidence "
-            "MARKET_STORY_FORENSICS CHARACTERIZATION",
+            "MARKET_STORY_FORENSICS CHARACTERIZATION WALK_FORWARD FAILURE_ANALYSIS",
             file=sys.stderr,
         )
         return 2
@@ -406,6 +484,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = build_market_thesis_evidence_from_paths(
             Path(arguments[0]),
             Path(arguments[1]),
+            Path(arguments[2]),
+            Path(arguments[3]),
         )
     except MarketThesisEvidenceError as error:
         print(f"market thesis evidence build failed: {error}", file=sys.stderr)

@@ -42,20 +42,40 @@ def _digest(value: object) -> str:
 def _market_package(
     symbol: str,
     *,
-    changed_identity: bool = False,
+    changed_identity: str | None = None,
 ) -> dict[str, object]:
+    source_digests = {
+        name: _digest({"symbol": symbol, "source": name})
+        for name in (
+            "market_evidence_sha256",
+            "backtest_sha256",
+            "characterization_sha256",
+            "characterization_payload_sha256",
+            "walk_forward_sha256",
+            "failure_analysis_sha256",
+        )
+    }
+    identity_binding = {
+        "binding_basis": "direct-market-symbol",
+        "economic_target": symbol,
+        "provider_symbol": symbol,
+    }
     rows: list[dict[str, object]] = []
     for index, code in enumerate(_TRADERS):
-        config = "c" * 64
-        if changed_identity and code == "vt-08":
-            config = "x" * 64
+        identity = {
+            "config_fingerprint": "c" * 64,
+            "methodology_fingerprint": f"{index + 1:064x}",
+            "execution_period": "M5",
+        }
+        if changed_identity is not None and code == "vt-08":
+            identity[changed_identity] = {
+                "config_fingerprint": "x" * 64,
+                "methodology_fingerprint": "f" * 64,
+                "execution_period": "M15",
+            }[changed_identity]
         row: dict[str, object] = {
             "trader_code": code,
-            "identity": {
-                "config_fingerprint": config,
-                "methodology_fingerprint": f"{index + 1:064x}",
-                "execution_period": "M5",
-            },
+            "identity": identity,
             "story_forensics": {
                 "episode_count": 100 + index,
                 "family_status": {"direct_stop_episodes": {"status": "READY"}},
@@ -78,6 +98,8 @@ def _market_package(
                 "market_story_payload_digest": f"story-payload-{symbol.lower()}",
                 "characterization_digest": f"char-{symbol.lower()}",
                 "production_default_profile_digest": f"profile-{symbol.lower()}",
+                "source_digests": deepcopy(source_digests),
+                "identity_binding": deepcopy(identity_binding),
             },
         }
         row["trader_market_evidence_digest"] = _digest(row)
@@ -89,8 +111,11 @@ def _market_package(
         "read_only": True,
         "execution_authority": False,
         "symbol": symbol,
+        "provider_symbol": symbol,
         "software_sha": f"sha-{symbol.lower()}",
         "account_fingerprint": f"account-{symbol.lower()}",
+        "source_digests": source_digests,
+        "identity_binding": identity_binding,
         "market_story_fingerprint": f"story-{symbol.lower()}",
         "market_story_payload_digest": f"story-payload-{symbol.lower()}",
         "characterization_digest": f"char-{symbol.lower()}",
@@ -106,10 +131,7 @@ def test_research_dossiers_group_each_trader_across_exact_eleven_markets() -> No
         [_market_package(symbol) for symbol in _MARKETS]
     )
 
-    assert (
-        payload["schema"]
-        == "qore.trader_lab.eleven_market_trader_research_dossier_set.v1"
-    )
+    assert payload["schema"] == "qore.trader_lab.eleven_market_trader_research_dossier_set.v1"
     assert payload["market_count"] == 11
     assert payload["trader_count"] == 5
     dossiers = cast(list[object], payload["dossiers"])
@@ -117,9 +139,7 @@ def test_research_dossiers_group_each_trader_across_exact_eleven_markets() -> No
     vt08 = cast(dict[str, object], dossiers[1])
     assert vt08["trader_code"] == "vt-08"
     markets = cast(list[object], vt08["markets"])
-    assert [cast(dict[str, object], row)["symbol"] for row in markets] == list(
-        _MARKETS
-    )
+    assert [cast(dict[str, object], row)["symbol"] for row in markets] == list(_MARKETS)
     nas100 = cast(dict[str, object], markets[6])
     summary = cast(dict[str, object], nas100["summary"])
     characterization = cast(dict[str, object], summary["characterization"])
@@ -132,9 +152,15 @@ def test_research_dossiers_group_each_trader_across_exact_eleven_markets() -> No
     assert len(cast(str, nas100["evidence_digest"])) == 64
 
 
-def test_research_dossier_rejects_cross_market_identity_drift() -> None:
+@pytest.mark.parametrize(
+    "identity_field",
+    ("config_fingerprint", "methodology_fingerprint", "execution_period"),
+)
+def test_research_dossier_rejects_cross_market_identity_drift(
+    identity_field: str,
+) -> None:
     packages = [_market_package(symbol) for symbol in _MARKETS]
-    packages[-1] = _market_package("US30", changed_identity=True)
+    packages[-1] = _market_package("US30", changed_identity=identity_field)
 
     with pytest.raises(
         ElevenMarketResearchDossierError,
@@ -154,5 +180,57 @@ def test_research_dossier_rejects_tampered_market_evidence() -> None:
     with pytest.raises(
         ElevenMarketResearchDossierError,
         match="market thesis evidence fingerprint mismatch",
+    ):
+        build_eleven_market_research_dossiers(packages)
+
+
+def test_research_dossier_is_invariant_to_market_input_permutation() -> None:
+    packages = [_market_package(symbol) for symbol in _MARKETS]
+
+    assert build_eleven_market_research_dossiers(packages) == (
+        build_eleven_market_research_dossiers(list(reversed(packages)))
+    )
+
+
+def test_research_dossier_rejects_exactly_one_missing_market() -> None:
+    with pytest.raises(ElevenMarketResearchDossierError, match="exactly eleven"):
+        build_eleven_market_research_dossiers(
+            [_market_package(symbol) for symbol in _MARKETS[:-1]]
+        )
+
+
+def test_research_dossier_rejects_exactly_one_duplicate_market() -> None:
+    packages = [_market_package(symbol) for symbol in _MARKETS]
+    packages[-1] = _market_package("AUDJPY")
+
+    with pytest.raises(ElevenMarketResearchDossierError, match="duplicate market"):
+        build_eleven_market_research_dossiers(packages)
+
+
+def test_research_dossier_rejects_cross_market_source_digest() -> None:
+    packages = [_market_package(symbol) for symbol in _MARKETS]
+    corrupted = deepcopy(packages[0])
+    rows = cast(list[dict[str, object]], corrupted["trader_evidence"])
+    provenance = cast(dict[str, object], rows[0]["provenance"])
+    provenance["source_digests"] = deepcopy(packages[1]["source_digests"])
+    rows[0]["trader_market_evidence_digest"] = _digest(
+        {
+            key: value
+            for key, value in rows[0].items()
+            if key != "trader_market_evidence_digest"
+        }
+    )
+    corrupted["market_thesis_evidence_fingerprint"] = _digest(
+        {
+            key: value
+            for key, value in corrupted.items()
+            if key != "market_thesis_evidence_fingerprint"
+        }
+    )
+    packages[0] = corrupted
+
+    with pytest.raises(
+        ElevenMarketResearchDossierError,
+        match="source evidence digest mismatch",
     ):
         build_eleven_market_research_dossiers(packages)

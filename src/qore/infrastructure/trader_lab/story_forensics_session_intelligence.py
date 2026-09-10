@@ -16,6 +16,10 @@ from hashlib import sha256
 from typing import cast
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.trader_lab.first_cohort_story_forensics import (
+    validate_story_episode_contract,
+)
+
 _SESSION_SCHEMA = "qore.trader_lab.story_session_intelligence.v1"
 _SESSION_CALENDAR_ID = "qore-major-trading-sessions-v1"
 
@@ -351,6 +355,7 @@ def enrich_story_payload_sessions(payload: dict[str, object]) -> dict[str, objec
     enriched_episodes: list[dict[str, object]] = []
     for item in raw_episodes:
         episode = dict(_object(item, field_name="episode"))
+        validate_story_episode_contract(episode)
         decision = dict(
             _object(episode.get("decision_time"), field_name="decision_time")
         )
@@ -369,6 +374,7 @@ def enrich_story_payload_sessions(payload: dict[str, object]) -> dict[str, objec
             "signal_to_entry_session_transition": transitioned,
         }
         episode["decision_time"] = decision
+        validate_story_episode_contract(episode)
         primary = _text(entry.get("primary_session"), field_name="primary_session")
         _accumulate(accumulators[primary], episode, entry, transitioned)
         enriched_episodes.append(episode)
