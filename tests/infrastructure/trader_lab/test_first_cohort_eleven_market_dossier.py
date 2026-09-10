@@ -173,7 +173,10 @@ def test_rejects_tampered_summary_forensics_fingerprint() -> None:
     summaries = cast(list[dict[str, object]], payloads[0]["trader_summaries"])
     summaries[0]["forensics_fingerprint"] = "tampered"
 
-    with pytest.raises(ElevenMarketDossierError, match="summary/story forensics fingerprint mismatch"):
+    with pytest.raises(
+        ElevenMarketDossierError,
+        match="summary/story forensics fingerprint mismatch",
+    ):
         build_eleven_market_dossiers(payloads)
 
 
