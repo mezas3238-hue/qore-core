@@ -330,6 +330,14 @@ def test_story_forensics_keeps_decision_and_oracle_state_separate(tmp_path: Path
     chart = cast(dict[str, object], episode["chart"])
     assert chart["source_of_truth"] == "qore-retained-evidence"
     assert chart["screenshot_capable"] is True
+    frames = cast(list[dict[str, object]], chart["frame_sequence"])
+    assert [row["visible_through_unix"] for row in frames] == sorted(
+        cast(int, row["visible_through_unix"]) for row in frames
+    )
+    markers = cast(list[dict[str, object]], chart["markers"])
+    assert [row["time"] for row in markers] == sorted(
+        cast(int, row["time"]) for row in markers
+    )
 
 
 def test_story_forensics_is_deterministic_for_identical_evidence(tmp_path: Path) -> None:
