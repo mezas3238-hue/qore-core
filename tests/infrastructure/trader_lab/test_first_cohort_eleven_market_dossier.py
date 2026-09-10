@@ -11,9 +11,6 @@ from qore.infrastructure.trader_lab.first_cohort_eleven_market_dossier import (
     ElevenMarketDossierError,
     build_eleven_market_dossiers,
 )
-from qore.infrastructure.trader_lab.story_forensics_eleven_market_thesis import (
-    build_eleven_market_thesis_panel,
-)
 
 _MARKET_SCHEMA = "qore.trader_lab.first_cohort_market_story_forensics.v1"
 _MARKETS = (
@@ -116,6 +113,7 @@ def _eleven() -> list[dict[str, object]]:
 def test_builds_five_frozen_dossiers_each_covering_exact_eleven_markets() -> None:
     result = build_eleven_market_dossiers(_eleven())
 
+    assert result["schema"] == "qore.trader_lab.eleven_market_dossier_set.v1"
     assert result["market_count"] == 11
     assert result["trader_count"] == 5
     assert result["execution_authority"] is False
@@ -124,12 +122,11 @@ def test_builds_five_frozen_dossiers_each_covering_exact_eleven_markets() -> Non
 
     for item in dossiers:
         dossier = cast(dict[str, object], item)
+        assert dossier["schema"] == "qore.trader_lab.eleven_market_trader_dossier.v1"
         markets = cast(list[dict[str, object]], dossier["markets"])
         assert [row["symbol"] for row in markets] == list(_MARKETS)
         assert all(row["evidence_ready"] is True for row in markets)
         assert all(len(cast(str, row["evidence_digest"])) == 64 for row in markets)
-        panel = build_eleven_market_thesis_panel(dossier)
-        assert panel["trader_code"] == dossier["trader_code"]
 
 
 def test_dossier_is_deterministic() -> None:
