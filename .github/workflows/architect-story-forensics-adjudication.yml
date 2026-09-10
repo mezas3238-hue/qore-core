@@ -44,11 +44,12 @@ jobs:
       - name: Verify mutation scope
         run: |
           git diff --exit-code -- .github/architect_story_forensics_patch.py .github/workflows/architect-story-forensics-adjudication.yml .github/architect-adjudication-trigger
-          CHANGED="$(git diff --name-only | sort)"
+          CHANGED="$( { git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )"
           printf '%s\n' "$CHANGED"
-          test "$CHANGED" = "$(printf '%s\n' \
+          EXPECTED="$(printf '%s\n' \
             src/qore/infrastructure/trader_lab/first_cohort_story_forensics.py \
             tests/infrastructure/trader_lab/test_architect_story_forensics_adjudication.py | sort)"
+          test "$CHANGED" = "$EXPECTED"
       - name: Commit verified candidate
         run: |
           git config user.name "qore-architect-bot"
