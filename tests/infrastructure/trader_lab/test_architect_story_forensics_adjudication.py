@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import cast
 
@@ -84,6 +84,20 @@ def test_markers_use_semantic_order_only_as_same_bar_tie_break() -> None:
         [
             _marker("mae", _at(3), "MAE"),
             _marker("mfe", _at(3), "MFE"),
+        ]
+    )
+    assert [cast(str, row["kind"]) for row in rows] == ["mfe", "mae"]
+
+
+def test_markers_sort_by_absolute_instant_across_timezone_offsets() -> None:
+    earlier_same_day = datetime(
+        2026, 1, 5, 13, 0, tzinfo=timezone(timedelta(hours=1))
+    )  # 12:00 UTC
+    later_utc = datetime(2026, 1, 5, 12, 30, tzinfo=UTC)
+    rows = _sorted_markers(
+        [
+            _marker("mae", later_utc, "MAE"),
+            _marker("mfe", earlier_same_day, "MFE"),
         ]
     )
     assert [cast(str, row["kind"]) for row in rows] == ["mfe", "mae"]

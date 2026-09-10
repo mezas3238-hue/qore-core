@@ -703,16 +703,18 @@ def _frame_sequence(episode: _Episode) -> list[dict[str, object]]:
 
 
 def _sorted_markers(rows: list[dict[str, object]]) -> list[dict[str, object]]:
-    """Order chart markers by exact evidence timestamp with stable ties."""
+    """Order chart markers by absolute evidence instant with stable ties."""
 
     kind_rank = {kind: index for index, kind in enumerate(_MARKER_KIND_ORDER)}
-    return sorted(
-        rows,
-        key=lambda row: (
-            cast(str, row["at"]),
-            kind_rank[cast(str, row["kind"])],
-        ),
-    )
+
+    def marker_key(row: dict[str, object]) -> tuple[datetime, int]:
+        raw_at = cast(str, row["at"])
+        parsed_at = datetime.fromisoformat(raw_at)
+        if parsed_at.tzinfo is None or parsed_at.utcoffset() is None:
+            raise FirstCohortStoryForensicsError("chart marker timestamp must be timezone-aware")
+        return parsed_at.astimezone(UTC), kind_rank[cast(str, row["kind"])]
+
+    return sorted(rows, key=marker_key)
 
 
 def _outcome_narrative(episode: _Episode) -> str:
