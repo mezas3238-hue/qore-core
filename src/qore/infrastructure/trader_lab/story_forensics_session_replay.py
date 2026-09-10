@@ -89,21 +89,35 @@ def render_session_story_html(
         raise StoryForensicsSessionReplayError(
             "signal_to_entry_session_transition must be bool"
         )
+
+    signal_primary = html.escape(
+        _text(signal.get("primary_session"), field_name="signal primary_session")
+    )
+    entry_primary = html.escape(
+        _text(entry.get("primary_session"), field_name="entry primary_session")
+    )
+    active_text = html.escape(", ".join(cast(list[str], active)) or "none")
+    entry_phase = html.escape(_text(entry.get("phase"), field_name="entry phase"))
+    overlap = str(entry.get("overlap") is True).lower()
+    since_open = html.escape(_optional_text(entry.get("minutes_since_open")))
+    to_close = html.escape(_optional_text(entry.get("minutes_to_close")))
+    local_at = html.escape(_optional_text(entry.get("local_at")))
+    transition_text = str(transition).lower()
     panel = (
         '<section class="panel" aria-label="QORE session context">'
         '<h2>Session context</h2>'
         '<dl class="kv">'
-        f'<dt>Signal session</dt><dd>{html.escape(_text(signal.get("primary_session"), field_name="signal primary_session"))}</dd>'
-        f'<dt>Entry session</dt><dd>{html.escape(_text(entry.get("primary_session"), field_name="entry primary_session"))}</dd>'
-        f'<dt>Active at entry</dt><dd>{html.escape(", ".join(cast(list[str], active)) or "none")}</dd>'
-        f'<dt>Entry phase</dt><dd>{html.escape(_text(entry.get("phase"), field_name="entry phase"))}</dd>'
-        f'<dt>Overlap</dt><dd>{str(entry.get("overlap") is True).lower()}</dd>'
-        f'<dt>Minutes since open</dt><dd>{html.escape(_optional_text(entry.get("minutes_since_open")))}</dd>'
-        f'<dt>Minutes to close</dt><dd>{html.escape(_optional_text(entry.get("minutes_to_close")))}</dd>'
-        f'<dt>Local entry time</dt><dd>{html.escape(_optional_text(entry.get("local_at")))}</dd>'
-        f'<dt>Session transition</dt><dd>{str(transition).lower()}</dd>'
-        '</dl>'
-        '</section>'
+        f"<dt>Signal session</dt><dd>{signal_primary}</dd>"
+        f"<dt>Entry session</dt><dd>{entry_primary}</dd>"
+        f"<dt>Active at entry</dt><dd>{active_text}</dd>"
+        f"<dt>Entry phase</dt><dd>{entry_phase}</dd>"
+        f"<dt>Overlap</dt><dd>{overlap}</dd>"
+        f"<dt>Minutes since open</dt><dd>{since_open}</dd>"
+        f"<dt>Minutes to close</dt><dd>{to_close}</dd>"
+        f"<dt>Local entry time</dt><dd>{local_at}</dd>"
+        f"<dt>Session transition</dt><dd>{transition_text}</dd>"
+        "</dl>"
+        "</section>"
     )
     return base.replace(marker, panel + marker, 1)
 
