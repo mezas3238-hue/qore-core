@@ -15,27 +15,36 @@ from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
 
 def _candle(
     opened: datetime,
-    o: str,
-    h: str,
-    l: str,
-    c: str,
+    open_price: str,
+    high_price: str,
+    low_price: str,
+    close_price: str,
     *,
     minutes: int = 15,
 ) -> Vt08CrtH4AmdV2Candle:
     return Vt08CrtH4AmdV2Candle(
         opened_at=opened,
         closed_at=opened + timedelta(minutes=minutes),
-        open=Decimal(o),
-        high=Decimal(h),
-        low=Decimal(l),
-        close=Decimal(c),
+        open=Decimal(open_price),
+        high=Decimal(high_price),
+        low=Decimal(low_price),
+        close=Decimal(close_price),
     )
 
 
 def test_reconstructed_v2_supports_exact_core_11_markets() -> None:
     assert set(SUPPORTED_MARKETS) == {
-        "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "XAUUSD",
-        "NAS100", "SP500", "GBPJPY", "AUDJPY", "US30",
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "USDCAD",
+        "XAUUSD",
+        "NAS100",
+        "SP500",
+        "GBPJPY",
+        "AUDJPY",
+        "US30",
     }
 
 
@@ -61,8 +70,12 @@ def test_daily_bias_is_required_and_distinguishes_continuation_from_reversal() -
 
 def test_shallow_candle2_wick_plus_m15_cisd_produces_same_candle_setup() -> None:
     day = datetime(2026, 1, 3, tzinfo=UTC)
-    daily_reference = _candle(day - timedelta(days=2), "100", "110", "90", "100", minutes=1440)
-    daily_signal = _candle(day - timedelta(days=1), "100", "115", "95", "112", minutes=1440)
+    daily_reference = _candle(
+        day - timedelta(days=2), "100", "110", "90", "100", minutes=1440
+    )
+    daily_signal = _candle(
+        day - timedelta(days=1), "100", "115", "95", "112", minutes=1440
+    )
     h4_reference = _candle(day, "100", "105", "95", "102", minutes=240)
     c2_open = day + timedelta(hours=4)
     bars = (
@@ -89,8 +102,12 @@ def test_shallow_candle2_wick_plus_m15_cisd_produces_same_candle_setup() -> None
 
 def test_large_candle2_waits_for_candle3_and_requires_new_m15_cisd() -> None:
     day = datetime(2026, 1, 3, tzinfo=UTC)
-    daily_reference = _candle(day - timedelta(days=2), "100", "110", "90", "100", minutes=1440)
-    daily_signal = _candle(day - timedelta(days=1), "100", "115", "95", "112", minutes=1440)
+    daily_reference = _candle(
+        day - timedelta(days=2), "100", "110", "90", "100", minutes=1440
+    )
+    daily_signal = _candle(
+        day - timedelta(days=1), "100", "115", "95", "112", minutes=1440
+    )
     h4_reference = _candle(day, "100", "105", "95", "102", minutes=240)
     h4_candle2 = _candle(
         day + timedelta(hours=4), "100", "103", "90", "98", minutes=240
@@ -119,8 +136,12 @@ def test_large_candle2_waits_for_candle3_and_requires_new_m15_cisd() -> None:
 
 def test_no_daily_bias_means_no_intraday_setup_even_with_local_sweep() -> None:
     day = datetime(2026, 1, 3, tzinfo=UTC)
-    daily_reference = _candle(day - timedelta(days=2), "100", "110", "90", "100", minutes=1440)
-    daily_signal = _candle(day - timedelta(days=1), "100", "108", "92", "101", minutes=1440)
+    daily_reference = _candle(
+        day - timedelta(days=2), "100", "110", "90", "100", minutes=1440
+    )
+    daily_signal = _candle(
+        day - timedelta(days=1), "100", "108", "92", "101", minutes=1440
+    )
     h4_reference = _candle(day, "100", "105", "95", "102", minutes=240)
     c2_open = day + timedelta(hours=4)
     bars = (
