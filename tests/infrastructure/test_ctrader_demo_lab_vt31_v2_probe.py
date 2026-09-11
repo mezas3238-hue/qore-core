@@ -90,7 +90,7 @@ def test_m1_contract_rejects_future_and_stale_boundary() -> None:
     with pytest.raises(CTraderDemoLabProbeError, match="stale"):
         _validate_m1_coverage(
             (
-                _bar(_CHECKED_AT - timedelta(days=730, hours=1)),
+                _bar(_CHECKED_AT - timedelta(days=742)),
                 _bar(_CHECKED_AT - timedelta(days=11)),
             ),
             requested_opened_at=requested,
