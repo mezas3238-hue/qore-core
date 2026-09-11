@@ -9,7 +9,7 @@ from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research import (
 
 def _backtest(path: Path) -> Path:
     start = datetime(2024, 1, 1, tzinfo=UTC)
-    rows = []
+    rows: list[dict[str, object]] = []
     for index in range(30):
         outcome = "target" if index % 3 == 0 else "stop"
         r_multiple = "2" if outcome == "target" else "-1"
@@ -54,7 +54,7 @@ def _backtest(path: Path) -> Path:
                 "manipulation_fraction_of_reference": "0.4",
             }
         )
-    payload = {
+    payload: dict[str, object] = {
         "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_backtest.v2",
         "read_only": True,
         "research_only": True,
@@ -75,6 +75,7 @@ def test_positive_censored_mark_never_becomes_research_win(tmp_path: Path) -> No
     output = tmp_path / "out"
     summary = generate_full_research(_backtest(tmp_path / "backtest.json"), output)
     metrics = summary["all_history"]
+    assert isinstance(metrics, dict)
     assert metrics["setup_count"] == 35
     assert metrics["terminal_sample_size"] == 30
     assert metrics["target_count"] == 10
