@@ -5,8 +5,8 @@ language. It scans the source's stated H4 key-time anchors and records only the
 mechanically observable prerequisites (reference run, M15 CISD/protected swing,
 and completed H4 reversal closure). The primary video does not numerically
 define ``shallow`` versus ``large/deep`` wick size and does not specify one
-universal machine bias formula or take-profit. Therefore raw OHLC alone cannot
-authorize a faithful historical entry.
+universal machine bias formula, executable entry price, or take-profit.
+Therefore raw OHLC alone cannot authorize a faithful historical entry.
 
 The output is an evidence/coverage audit. Candidates are not trades, favorable
 post-signal paths are not wins, and no economic backtest is claimed.
@@ -39,6 +39,11 @@ from qore.kernel.errors import InfrastructureError
 _SCHEMA = "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3"
 _EVIDENCE_SCHEMA = "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v3"
 _NY = ZoneInfo("America/New_York")
+
+# Primary-video Timing slide (~03:35): complete repeating H4 opening families.
+# These are audit anchors, never automatic trades.
+_FOREX_H4_ANCHOR_HOURS = (1, 5, 9, 13, 17, 21)
+_FUTURES_H4_ANCHOR_HOURS = (2, 6, 10, 14, 18, 22)
 
 
 class Vt08CrtH4AmdV2BacktestError(InfrastructureError):
@@ -135,6 +140,7 @@ class Vt08CrtH4AmdV2SourceAudit:
             "source_fidelity_mode": True,
             "invalidates_prior_campaign": True,
             "prior_13468_campaign_valid_for_economics": False,
+            "prior_16351_candidate_count_final_source_fidelity": False,
             "trader_code": "vt-08",
             "trader_version": "v2",
             "methodology": "ttrades-h4-po3-source-v2.2-source-faithful",
@@ -160,11 +166,13 @@ class Vt08CrtH4AmdV2SourceAudit:
             "economic_backtest_blockers": [
                 "primary-video-does-not-quantify-shallow-vs-large-wick",
                 "primary-video-does-not-define-one-universal-machine-bias-formula",
+                "primary-video-does-not-define-one-universal-executable-entry-price",
                 "primary-video-does-not-define-one-universal-take-profit",
             ],
             "candidate_semantics": (
-                "mechanical prerequisites only; candidates are not entries and "
-                "post-signal path metrics are descriptive oracles, not PnL"
+                "mechanical prerequisites only; CISD confirmation price is an "
+                "observation, candidates are not entries, and post-signal path "
+                "metrics are descriptive oracles, not PnL"
             ),
             "candidates": [item.payload() for item in self.candidates],
         }
@@ -404,9 +412,9 @@ def run_vt08_v2_source_audit(path: Path) -> Vt08CrtH4AmdV2SourceAudit:
             (),
         )
     anchor_hours = (
-        (2, 6, 10)
+        _FUTURES_H4_ANCHOR_HOURS
         if family is Vt08CrtH4AmdV2TimingFamily.FUTURES
-        else (1, 5, 9)
+        else _FOREX_H4_ANCHOR_HOURS
     )
     by_local_open = {item.opened_at.astimezone(_NY): item for item in bars}
     local_dates = sorted({item.opened_at.astimezone(_NY).date() for item in bars})
