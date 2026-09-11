@@ -1,10 +1,17 @@
-"""Directional reporting wrapper for the VT-31 Silver Bullet V2 backtest.
+"""Directional characterization for the VT-31 Silver Bullet V2 backtest.
 
-The source-bound backtest is the behavioral source of truth.  This module does
-not change setup selection, fill modeling, exits, or methodology.  It enriches
-the canonical NAS100 backtest payload with deterministic LONG/SHORT reporting
-so Trader Lab and Story Forensics do not have to reconstruct direction counts
-from individual trade rows.
+QORE already defines directional characterization semantics in
+``first_cohort_characterization``: direction is counted at SETUP time, then
+filled/unfilled behavior and economic outcomes are segmented by side.  This
+module applies that same contract to the source-bound VT-31 V2 NAS100 research
+runner without changing methodology, fill modeling, exits, or authority.
+
+The canonical backtest remains the behavioral source of truth.  This wrapper
+replays only the deterministic decision loop against the exact same retained
+M1 evidence to recover SETUP-side counts, reconciles them against the canonical
+backtest, and emits ``side_counts`` plus ``by_side``.  Filled-trade-only counts
+are retained as convenience fields, but they are not substituted for setup
+counts.
 
 Research only.  No DEMO/LIVE/Risk/execution authority is created here.
 """
@@ -14,18 +21,31 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import cast
 
+from qore.infrastructure.market_data import Instrument, OhlcSnapshot
 from qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest import (
     Vt31SilverBulletV2BacktestError,
+    _contiguous,
+    _expected_next,
+    _load,
+    _ny_date,
+    _ny_wall,
     run_vt31_silver_bullet_v2_backtest,
+)
+from qore.infrastructure.traders.contracts import DemoTradingDecision
+from qore.infrastructure.traders.vt31_silver_bullet_v2 import (
+    Vt31SilverBulletV2Input,
+    evaluate_vt31_silver_bullet_v2,
 )
 
 _SCHEMA = "qore.trader_lab.vt31_silver_bullet_v2_backtest.v1"
 _SYMBOL = "NAS100"
-_SIDES = frozenset({"long", "short"})
+_SIDES = ("long", "short")
+_SIDE_SET = frozenset(_SIDES)
 _OUTCOMES = frozenset({"target", "stop", "gap_censored", "data_end_censored"})
 _TERMINAL_OUTCOMES = frozenset({"target", "stop"})
 
@@ -45,10 +65,11 @@ class _TradeRow:
 
 @dataclass(frozen=True, slots=True)
 class Vt31SilverBulletV2DirectionalSummary:
-    """One immutable filled-trade direction summary."""
+    """One immutable Core-style direction bucket."""
 
     side: str
-    trade_count: int
+    setup_count: int
+    filled_count: int
     terminal_sample_size: int
     target_count: int
     stop_count: int
@@ -58,9 +79,22 @@ class Vt31SilverBulletV2DirectionalSummary:
     expectancy_r: Decimal
     population_variance_r: Decimal
 
+    @property
+    def unfilled_count(self) -> int:
+        return self.setup_count - self.filled_count
+
+    @property
+    def fill_rate(self) -> Decimal:
+        if not self.setup_count:
+            return Decimal(0)
+        return Decimal(self.filled_count) / Decimal(self.setup_count)
+
     def payload(self) -> dict[str, object]:
         return {
-            "trade_count": self.trade_count,
+            "setup_count": self.setup_count,
+            "filled_count": self.filled_count,
+            "unfilled_count": self.unfilled_count,
+            "fill_rate": format(self.fill_rate, "f"),
             "terminal_sample_size": self.terminal_sample_size,
             "target_count": self.target_count,
             "stop_count": self.stop_count,
@@ -124,7 +158,7 @@ def _trade_rows(payload: dict[str, object]) -> tuple[_TradeRow, ...]:
     for index, raw in enumerate(raw_trades):
         trade = _object(raw, field_name=f"trade[{index}]")
         side = _text(trade.get("side"), field_name=f"trade[{index}] side")
-        if side not in _SIDES:
+        if side not in _SIDE_SET:
             raise Vt31SilverBulletV2BacktestReportError(
                 f"trade[{index}] side is not canonical LONG/SHORT"
             )
@@ -145,8 +179,33 @@ def _trade_rows(payload: dict[str, object]) -> tuple[_TradeRow, ...]:
     return tuple(rows)
 
 
-def _summary(rows: tuple[_TradeRow, ...], *, side: str) -> Vt31SilverBulletV2DirectionalSummary:
+def _validated_side_counts(value: dict[str, int]) -> dict[str, int]:
+    if set(value) != _SIDE_SET:
+        raise Vt31SilverBulletV2BacktestReportError(
+            "side_counts must contain exactly canonical LONG/SHORT"
+        )
+    result: dict[str, int] = {}
+    for side in _SIDES:
+        count = value[side]
+        if type(count) is not int or count < 0:
+            raise Vt31SilverBulletV2BacktestReportError(
+                f"side_counts[{side}] must be a non-negative int"
+            )
+        result[side] = count
+    return result
+
+
+def _summary(
+    rows: tuple[_TradeRow, ...],
+    *,
+    side: str,
+    setup_count: int,
+) -> Vt31SilverBulletV2DirectionalSummary:
     selected = tuple(row for row in rows if row.side == side)
+    if len(selected) > setup_count:
+        raise Vt31SilverBulletV2BacktestReportError(
+            f"filled {side} trades cannot exceed {side} setups"
+        )
     terminal = tuple(row for row in selected if row.r_multiple is not None)
     values = tuple(cast(Decimal, row.r_multiple) for row in terminal)
     target_count = sum(row.outcome == "target" for row in terminal)
@@ -165,7 +224,8 @@ def _summary(rows: tuple[_TradeRow, ...], *, side: str) -> Vt31SilverBulletV2Dir
     )
     return Vt31SilverBulletV2DirectionalSummary(
         side=side,
-        trade_count=len(selected),
+        setup_count=setup_count,
+        filled_count=len(selected),
         terminal_sample_size=len(terminal),
         target_count=target_count,
         stop_count=stop_count,
@@ -179,44 +239,119 @@ def _summary(rows: tuple[_TradeRow, ...], *, side: str) -> Vt31SilverBulletV2Dir
     )
 
 
+def _setup_side_counts(path: Path) -> dict[str, int]:
+    """Recover SETUP direction from the canonical decision loop and exact M1 evidence."""
+
+    series, _account, _evidence, _checked_at, _software_sha = _load(path)
+    day_groups: dict[date, list[OhlcSnapshot]] = {}
+    for bar in series:
+        day_groups.setdefault(_ny_date(bar.opened_at), []).append(bar)
+
+    counts = {side: 0 for side in _SIDES}
+    for local_day in sorted(day_groups):
+        bars = tuple(day_groups[local_day])
+        reference = tuple(
+            item
+            for item in bars
+            if (9, 0, 0) <= _ny_wall(item.opened_at) < (10, 0, 0)
+        )
+        session = tuple(
+            item
+            for item in bars
+            if (10, 0, 0) <= _ny_wall(item.opened_at) < (11, 0, 0)
+        )
+        if len(reference) != 60 or not _contiguous(reference) or not session:
+            continue
+        if _ny_wall(session[0].opened_at) != (10, 0, 0):
+            continue
+
+        prefix: list[OhlcSnapshot] = list(reference)
+        previous_session_bar: OhlcSnapshot | None = None
+        for bar in session:
+            if previous_session_bar is not None and not _expected_next(
+                previous_session_bar, bar
+            ):
+                break
+            prefix.append(bar)
+            evaluated = evaluate_vt31_silver_bullet_v2(
+                Vt31SilverBulletV2Input(
+                    instrument=Instrument(_SYMBOL),
+                    as_of=bar.closed_at,
+                    m1_candles=tuple(prefix),
+                )
+            )
+            if evaluated.decision is DemoTradingDecision.SETUP:
+                if evaluated.setup is None:
+                    raise Vt31SilverBulletV2BacktestReportError(
+                        "SETUP decision is missing VT-31 V2 setup geometry"
+                    )
+                side = evaluated.setup.side.value
+                if side not in _SIDE_SET:
+                    raise Vt31SilverBulletV2BacktestReportError(
+                        "VT-31 V2 setup side is not canonical LONG/SHORT"
+                    )
+                counts[side] += 1
+                break
+            previous_session_bar = bar
+    return counts
+
+
 def enrich_vt31_silver_bullet_v2_backtest_payload(
     payload: dict[str, object],
+    *,
+    setup_side_counts: dict[str, int],
 ) -> dict[str, object]:
-    """Add fail-closed LONG/SHORT metrics to one canonical VT-31 V2 backtest payload."""
+    """Attach Core-style SETUP and filled-trade LONG/SHORT characterization."""
 
     if _text(payload.get("schema"), field_name="schema") != _SCHEMA:
         raise Vt31SilverBulletV2BacktestReportError("unexpected VT-31 V2 backtest schema")
     if _text(payload.get("symbol"), field_name="symbol") != _SYMBOL:
         raise Vt31SilverBulletV2BacktestReportError("directional report is NAS100-only")
+
+    setup_count = _strict_int(payload.get("setup_count"), field_name="setup_count")
     filled_count = _strict_int(payload.get("filled_count"), field_name="filled_count")
+    side_counts = _validated_side_counts(setup_side_counts)
+    if sum(side_counts.values()) != setup_count:
+        raise Vt31SilverBulletV2BacktestReportError(
+            "LONG + SHORT setup counts must reconcile to setup_count"
+        )
+
     rows = _trade_rows(payload)
     if len(rows) != filled_count:
         raise Vt31SilverBulletV2BacktestReportError(
             "filled_count must equal the number of retained trade rows"
         )
 
-    long_summary = _summary(rows, side="long")
-    short_summary = _summary(rows, side="short")
-    if long_summary.trade_count + short_summary.trade_count != filled_count:
+    summaries = {
+        side: _summary(rows, side=side, setup_count=side_counts[side])
+        for side in _SIDES
+    }
+    if sum(item.filled_count for item in summaries.values()) != filled_count:
         raise Vt31SilverBulletV2BacktestReportError(
-            "LONG + SHORT counts must reconcile to filled_count"
+            "LONG + SHORT filled counts must reconcile to filled_count"
         )
 
     enriched = dict(payload)
-    enriched["long_trade_count"] = long_summary.trade_count
-    enriched["short_trade_count"] = short_summary.trade_count
-    enriched["directional_breakdown"] = {
-        "long": long_summary.payload(),
-        "short": short_summary.payload(),
+    enriched["side_counts"] = dict(side_counts)
+    enriched["by_side"] = {
+        side: summaries[side].payload()
+        for side in _SIDES
     }
+    enriched["long_setup_count"] = side_counts["long"]
+    enriched["short_setup_count"] = side_counts["short"]
+    enriched["long_trade_count"] = summaries["long"].filled_count
+    enriched["short_trade_count"] = summaries["short"].filled_count
     return enriched
 
 
 def run_vt31_silver_bullet_v2_backtest_report(path: Path) -> dict[str, object]:
-    """Run the canonical backtest and attach deterministic directional reporting."""
+    """Run canonical backtest and attach Core-style directional characterization."""
 
+    report = run_vt31_silver_bullet_v2_backtest(path).payload()
+    side_counts = _setup_side_counts(path)
     return enrich_vt31_silver_bullet_v2_backtest_payload(
-        run_vt31_silver_bullet_v2_backtest(path).payload()
+        report,
+        setup_side_counts=side_counts,
     )
 
 
