@@ -10,7 +10,8 @@ Human Owner-provided video corresponding to `youtube:o0v4KQxZbpU`.
 
 - exact new Trader version: `VT-31 v2`;
 - V1 remains unchanged as historical implementation evidence;
-- source-authorized candidate market: `NAS100`;
+- source-authorized candidate market: `NAS100` only;
+- no other canonical market is executed, scored, or emitted as a comparison row;
 - New York DST-aware AM entry window: 10:00-11:00;
 - 09:00-10:00 New York range derived from exact closed M1 evidence;
 - strict range-side raid;
@@ -24,9 +25,14 @@ Human Owner-provided video corresponding to `youtube:o0v4KQxZbpU`.
 ## Research infrastructure
 
 Dedicated additive NAS100 M1 long-horizon collector and V2 backtest exist so the
-legacy V1 collector/backtest contract is not silently changed. The canonical
-11-market matrix is retained, but the ten non-NAS100 markets are explicitly
-reported as unsupported-method-market rather than forced to trade.
+legacy V1 collector/backtest contract is not silently changed. This campaign is
+NAS100-only; provider aliases resolve only to the canonical NAS100 identity and
+cannot widen the research universe.
+
+The same `backtest.json` is enriched with `long_trade_count`,
+`short_trade_count`, and per-direction terminal sample size, targets, stops,
+censored outcomes, win rate, expectancy R, and population variance R. LONG and
+SHORT counts must reconcile exactly to the total filled trade count.
 
 Historical execution evidence is conservative: fills occur only after the setup
 decision and before the source window expires; stop wins same-bar SL/TP
