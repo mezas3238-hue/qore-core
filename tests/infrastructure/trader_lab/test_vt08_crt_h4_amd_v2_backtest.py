@@ -65,7 +65,7 @@ def test_mechanical_cisd_candidate_is_not_relabelled_as_trade_or_win() -> None:
     assert "loss" not in payload
 
 
-def test_source_audit_refuses_economic_backtest_without_video_judgments() -> None:
+def test_source_audit_reports_reconciled_empty_economic_replay() -> None:
     audit = Vt08CrtH4AmdV2SourceAudit(
         software_sha="a" * 40,
         symbol="EURUSD",
@@ -86,15 +86,39 @@ def test_source_audit_refuses_economic_backtest_without_video_judgments() -> Non
     assert payload["futures_operating_h4_anchors"] == [2, 6, 10]
     assert payload["automatic_setup_count"] == 0
     assert payload["filled_count"] == 0
-    assert payload["win_count"] is None
-    assert payload["loss_count"] is None
-    assert payload["economic_backtest_authorized"] is False
+    assert payload["win_count"] == 0
+    assert payload["loss_count"] == 0
+    assert payload["economic_backtest_authorized"] is True
     assert payload["prior_13468_campaign_valid_for_economics"] is False
     assert payload["prior_16351_candidate_count_final_source_fidelity"] is False
-    blockers = payload["economic_backtest_blockers"]
-    assert isinstance(blockers, list)
-    assert "primary-video-requires-contextual-point-of-interest-selection" in blockers
-    assert (
-        "primary-video-does-not-define-one-universal-executable-entry-price"
-        in blockers
+
+
+def test_c3_fvg_cisd_setup_fills_only_after_signal_and_hits_target() -> None:
+    start = datetime(2026, 1, 1, 5, tzinfo=UTC)
+    current = (
+        _bar(start, "99", "100", "98", "99.5"),
+        _bar(start + timedelta(minutes=15), "99.5", "104", "99.5", "103"),
+        _bar(start + timedelta(minutes=30), "103", "104", "103", "103.5"),
+        _bar(start + timedelta(minutes=45), "102", "102.2", "101", "101.5"),
+        _bar(start + timedelta(minutes=60), "101.5", "103", "101.2", "102.5"),
+        _bar(start + timedelta(minutes=75), "102.5", "106", "102", "105"),
     )
+    candidate = _candidate_from_protected(
+        scenario=Vt08CrtH4AmdV2Scenario.CONTINUATION_EXPANSION_C3,
+        anchor=start,
+        closes_at=start + timedelta(hours=4),
+        current=current,
+        side=DemoTradingSetupSide.LONG,
+        required_run_level=None,
+        bias_status="completed-candle2-reversal-direction",
+        prior_wick_status="source-formalized-boundary-sweep",
+        executable_c3_profile=True,
+    )
+    assert candidate is not None
+    assert candidate.automatic_setup is True
+    assert candidate.entry_price == Decimal("102.5")
+    assert candidate.stop_price == Decimal("101")
+    assert candidate.target_price == Decimal("105.5")
+    assert candidate.filled_at == start + timedelta(minutes=75)
+    assert candidate.outcome == "target"
+    assert candidate.result_r == Decimal("2")
