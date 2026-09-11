@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from time import sleep
@@ -61,8 +62,11 @@ _PRIMARY_SOURCE_SHA256 = (
 
 
 class _HistoricalBar(Protocol):
-    opened_at: datetime
-    closed_at: datetime
+    @property
+    def opened_at(self) -> datetime: ...
+
+    @property
+    def closed_at(self) -> datetime: ...
 
     def payload(self) -> dict[str, str]: ...
 
@@ -102,7 +106,7 @@ class _Vt08V3DailyBar:
 
 def _validate_period(
     name: str,
-    bars: tuple[_HistoricalBar, ...],
+    bars: Sequence[_HistoricalBar],
     *,
     opened_at: datetime,
     checked_at: datetime,
@@ -305,7 +309,7 @@ def _collect_d1_history(
     return tuple(retained[key] for key in sorted(retained))
 
 
-def _coverage_payload(bars: tuple[_HistoricalBar, ...]) -> dict[str, object]:
+def _coverage_payload(bars: Sequence[_HistoricalBar]) -> dict[str, object]:
     return {
         "bar_count": len(bars),
         "first_opened_at": bars[0].opened_at.isoformat(timespec="microseconds"),
