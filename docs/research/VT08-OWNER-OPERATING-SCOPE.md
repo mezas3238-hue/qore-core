@@ -73,3 +73,12 @@ This correction does **not** revive the old economic claims or automatically val
 the prior 16,351 candidate total. Subsequent POI, causal-context, wick-classification,
 entry, target, and lifecycle findings still apply. A fresh owner-scoped audit is
 required on the current methodology fingerprint.
+
+## Campaign launch record
+
+On 2026-09-11 the Human Owner ordered a fresh VT-08 V2 historical campaign under
+this exact operating scope. The campaign must use the current methodology
+fingerprint, at least 730 days of cTrader DEMO read-only evidence, only the ten
+authorized markets above, and only the `01/05/09` Forex and `02/06/10` Futures
+New York H4 openings. This record grants no economic, DEMO_ELIGIBLE, execution,
+LIVE, Production, or real-capital authority.
