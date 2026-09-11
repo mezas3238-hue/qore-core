@@ -123,7 +123,11 @@ def test_full_research_emits_all_trader_lab_evidence_families() -> None:
     assert funnel["setup_count"] == 60
     assert funnel["filled_count"] == 50
     assert funnel["unfilled_setup_count"] == 10
-    assert cast(dict[str, object], characterization["parameter_sensitivity"])["status"] == "not_applicable"
+    parameter_sensitivity = cast(
+        dict[str, object],
+        characterization["parameter_sensitivity"],
+    )
+    assert parameter_sensitivity["status"] == "not_applicable"
 
     stress = result["stress.json"]
     assert stress["stress_pass"] is True
