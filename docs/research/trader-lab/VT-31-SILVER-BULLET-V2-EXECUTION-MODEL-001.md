@@ -51,15 +51,21 @@ After fill:
 This separation preserves the distinction between source methodology and the
 limitations of OHLC historical execution evidence.
 
-## 11-market matrix semantics
+## Single-market campaign semantics
 
-The canonical campaign matrix remains:
+This exact VT-31 V2 research campaign is **NAS100-only**. It does not execute,
+score, or emit comparison rows for EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD,
+XAUUSD, SP500, GBPJPY, AUDJPY or US30. A provider symbol alias may resolve to
+the canonical `NAS100` instrument, but it cannot expand the methodology to a
+second market.
 
-`EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD, XAUUSD, NAS100, SP500, GBPJPY, AUDJPY, US30`
+## Directional reporting
 
-For this exact VT-31 V2 candidate, only `NAS100` is source-authorized. The other
-ten rows are reported as `unsupported-method-market`; they are not backtested as
-invented trades and they do not count as failures of the methodology.
+The canonical research artifact reports reconciled LONG and SHORT filled-trade
+counts. For each direction it also reports terminal sample size, target count,
+stop count, censored outcomes, win rate, expectancy in R, and population
+variance in R. `long_trade_count + short_trade_count` must equal
+`filled_count`; otherwise the reporting layer fails closed.
 
 ## Authority
 
