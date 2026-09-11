@@ -397,7 +397,10 @@ def _expected_next(previous: OhlcSnapshot, current: OhlcSnapshot) -> bool:
 
 
 def _contiguous(bars: tuple[OhlcSnapshot, ...]) -> bool:
-    return all(_expected_next(previous, current) for previous, current in zip(bars, bars[1:]))
+    return all(
+        _expected_next(previous, current)
+        for previous, current in zip(bars, bars[1:], strict=False)
+    )
 
 
 def _r_multiple(setup: Vt31SilverBulletV2Setup, *, win: bool) -> Decimal:
