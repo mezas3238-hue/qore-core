@@ -34,8 +34,8 @@ def test_mechanical_cisd_candidate_is_not_relabelled_as_trade_or_win() -> None:
     start = datetime(2026, 1, 1, 5, tzinfo=UTC)
     current = (
         _bar(start, "100", "100.5", "94", "96"),
-        _bar(start + timedelta(minutes=15), "96", "101", "95", "100"),
-        _bar(start + timedelta(minutes=30), "100", "104", "99", "103"),
+        _bar(start + timedelta(minutes=15), "96", "101", "95", "100.5"),
+        _bar(start + timedelta(minutes=30), "100.5", "104", "99", "103"),
     )
     candidate = _candidate_from_protected(
         scenario=Vt08CrtH4AmdV2Scenario.REVERSAL_EXPANSION_C2,
