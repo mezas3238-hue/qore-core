@@ -10,6 +10,7 @@ from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_backtest import (
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
+    METHODOLOGY_VERSION,
     Vt08CrtH4AmdV2Scenario,
     Vt08CrtH4AmdV2TimingFamily,
 )
@@ -57,6 +58,7 @@ def test_mechanical_cisd_candidate_is_not_relabelled_as_trade_or_win() -> None:
     assert candidate is not None
     payload = candidate.payload()
     assert payload["automatic_setup"] is False
+    assert payload["source_point_of_interest_status"] == "requires-source-poi-confirmation"
     assert payload["source_wick_status"] == "qualitative-unresolved-by-video"
     assert payload["post_signal_path_is_not_trade_result"] is True
     assert "win" not in payload
@@ -77,6 +79,7 @@ def test_source_audit_refuses_economic_backtest_without_video_judgments() -> Non
         candidates=(),
     )
     payload = audit.payload()
+    assert payload["methodology_version"] == METHODOLOGY_VERSION
     assert payload["automatic_setup_count"] == 0
     assert payload["filled_count"] == 0
     assert payload["win_count"] is None
@@ -86,6 +89,7 @@ def test_source_audit_refuses_economic_backtest_without_video_judgments() -> Non
     assert payload["prior_16351_candidate_count_final_source_fidelity"] is False
     blockers = payload["economic_backtest_blockers"]
     assert isinstance(blockers, list)
+    assert "primary-video-requires-contextual-point-of-interest-selection" in blockers
     assert (
         "primary-video-does-not-define-one-universal-executable-entry-price"
         in blockers
