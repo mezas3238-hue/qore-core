@@ -19,7 +19,9 @@ def _backtest(path: Path) -> Path:
                 "resolved_at": (start + timedelta(days=index, minutes=30)).isoformat(),
                 "side": "long" if index % 2 == 0 else "short",
                 "scenario": (
-                    "candle2-expansion" if index % 2 == 0 else "candle3-continuation"
+                    "candle2-expansion"
+                    if index % 2 == 0
+                    else "candle3-continuation"
                 ),
                 "entry_price": "100",
                 "stop_loss": "95",
@@ -69,7 +71,7 @@ def _backtest(path: Path) -> Path:
     return path
 
 
-def test_reconstructed_research_never_promotes_positive_censored_mark_to_win(tmp_path: Path) -> None:
+def test_positive_censored_mark_never_becomes_research_win(tmp_path: Path) -> None:
     output = tmp_path / "out"
     summary = generate_full_research(_backtest(tmp_path / "backtest.json"), output)
     metrics = summary["all_history"]
@@ -83,7 +85,9 @@ def test_reconstructed_research_never_promotes_positive_censored_mark_to_win(tmp
     assert characterization["positive_h4_close_mark_is_win"] is False
 
 
-def test_reconstructed_research_is_deterministic_and_emits_full_family(tmp_path: Path) -> None:
+def test_reconstructed_research_is_deterministic_and_emits_full_family(
+    tmp_path: Path,
+) -> None:
     backtest = _backtest(tmp_path / "backtest.json")
     first = tmp_path / "first"
     second = tmp_path / "second"
@@ -93,7 +97,12 @@ def test_reconstructed_research_is_deterministic_and_emits_full_family(tmp_path:
         second / "monte-carlo.json"
     ).read_bytes()
     assert {item.name for item in first.iterdir()} == {
-        "walk-forward.json", "characterization.json", "stress.json",
-        "monte-carlo.json", "failure-analysis.json", "story-forensics.json",
-        "hypothesis-register.json", "research-summary.json",
+        "walk-forward.json",
+        "characterization.json",
+        "stress.json",
+        "monte-carlo.json",
+        "failure-analysis.json",
+        "story-forensics.json",
+        "hypothesis-register.json",
+        "research-summary.json",
     }
