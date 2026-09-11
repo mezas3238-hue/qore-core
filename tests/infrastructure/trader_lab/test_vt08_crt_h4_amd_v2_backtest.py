@@ -119,6 +119,8 @@ def test_c3_fvg_cisd_setup_fills_only_after_signal_and_hits_target() -> None:
     assert candidate.entry_price == Decimal("102.5")
     assert candidate.stop_price == Decimal("101")
     assert candidate.target_price == Decimal("105.5")
+    assert candidate.poi_lower_bound == Decimal("100")
+    assert candidate.poi_upper_bound == Decimal("103")
     assert candidate.filled_at == start + timedelta(minutes=75)
     assert candidate.outcome == "target"
     assert candidate.result_r == Decimal("2")
