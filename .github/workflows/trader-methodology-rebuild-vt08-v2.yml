@@ -1,6 +1,20 @@
 name: QORE VT-08 CRT H4 AMD V2 Source-Executable
 
 on:
+  pull_request:
+    branches:
+      - agent/trader-methodology-rebuild-v2-001
+    paths:
+      - .github/workflows/trader-methodology-rebuild-vt08-v2.yml
+      - docs/research/trader-lab/VT-08-V2-SOURCE-AUDIT-EXECUTABLE.md
+      - src/qore/infrastructure/traders/vt08_crt_h4_amd_v2.py
+      - src/qore/infrastructure/ctrader_demo_lab_vt08_v2_probe.py
+      - src/qore/infrastructure/trader_lab/vt08_crt_h4_amd_v2_backtest.py
+      - src/qore/infrastructure/trader_lab/vt08_crt_h4_amd_v2_full_research.py
+      - tests/infrastructure/traders/test_vt08_crt_h4_amd_v2.py
+      - tests/infrastructure/test_ctrader_demo_lab_vt08_v2_probe.py
+      - tests/infrastructure/trader_lab/test_vt08_crt_h4_amd_v2_backtest.py
+      - tests/infrastructure/trader_lab/test_vt08_crt_h4_amd_v2_full_research.py
   push:
     branches:
       - agent/vt08-v2-source-completion-001
