@@ -46,7 +46,8 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/traders/test_vt31_silver_bullet_v2.py \
             tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
-            tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_backtest.py
+            tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_backtest.py \
+            tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_backtest_report.py
       - name: Pytest full quality gate
         run: pytest --cov=src/qore --cov-report=term-missing
 
@@ -99,9 +100,9 @@ jobs:
           mkdir -p artifacts/vt31-silver-bullet-v2/NAS100
           python -m qore.infrastructure.ctrader_demo_lab_vt31_v2_probe \
             > artifacts/vt31-silver-bullet-v2/NAS100/market-evidence.json
-      - name: Run source-bound VT-31 V2 NAS100 backtest
+      - name: Run source-bound VT-31 V2 NAS100 backtest with LONG/SHORT reporting
         run: |
-          python -m qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest \
+          python -m qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest_report \
             artifacts/vt31-silver-bullet-v2/NAS100/market-evidence.json \
             > artifacts/vt31-silver-bullet-v2/NAS100/backtest.json
           printf '%s\n' "$GITHUB_SHA" \
@@ -123,6 +124,11 @@ jobs:
           assert result["symbol"] == "NAS100"
           assert result["decision_timeframe"] == "M1"
           assert result["software_sha"] == os.environ["GITHUB_SHA"]
+          assert result["long_trade_count"] + result["short_trade_count"] == result["filled_count"]
+          directional = result["directional_breakdown"]
+          assert set(directional) == {"long", "short"}
+          assert directional["long"]["trade_count"] == result["long_trade_count"]
+          assert directional["short"]["trade_count"] == result["short_trade_count"]
           PY
       - name: Upload sanitized VT-31 V2 NAS100 research evidence
         uses: actions/upload-artifact@v4
