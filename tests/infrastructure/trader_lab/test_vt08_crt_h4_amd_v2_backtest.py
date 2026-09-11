@@ -33,9 +33,9 @@ def _bar(
     )
 
 
-def test_primary_video_timing_slide_is_fully_represented() -> None:
-    assert _FOREX_H4_ANCHOR_HOURS == (1, 5, 9, 13, 17, 21)
-    assert _FUTURES_H4_ANCHOR_HOURS == (2, 6, 10, 14, 18, 22)
+def test_historical_audit_uses_only_owner_three_by_three_windows() -> None:
+    assert _FOREX_H4_ANCHOR_HOURS == (1, 5, 9)
+    assert _FUTURES_H4_ANCHOR_HOURS == (2, 6, 10)
 
 
 def test_mechanical_cisd_candidate_is_not_relabelled_as_trade_or_win() -> None:
@@ -68,18 +68,22 @@ def test_mechanical_cisd_candidate_is_not_relabelled_as_trade_or_win() -> None:
 def test_source_audit_refuses_economic_backtest_without_video_judgments() -> None:
     audit = Vt08CrtH4AmdV2SourceAudit(
         software_sha="a" * 40,
-        symbol="XAUUSD",
-        provider_symbol_name="XAUUSD",
+        symbol="EURUSD",
+        provider_symbol_name="EURUSD",
         account_fingerprint="b" * 64,
         evidence_fingerprint="c" * 64,
         checked_at=datetime(2026, 1, 1, tzinfo=UTC),
-        timing_family=Vt08CrtH4AmdV2TimingFamily.SOURCE_UNRESOLVED,
+        timing_family=Vt08CrtH4AmdV2TimingFamily.FOREX,
         eligible_anchor_windows=0,
         missing_anchor_windows=0,
         candidates=(),
     )
     payload = audit.payload()
     assert payload["methodology_version"] == METHODOLOGY_VERSION
+    assert payload["human_owner_operating_scope"] is True
+    assert payload["operating_timezone"] == "America/New_York"
+    assert payload["forex_operating_h4_anchors"] == [1, 5, 9]
+    assert payload["futures_operating_h4_anchors"] == [2, 6, 10]
     assert payload["automatic_setup_count"] == 0
     assert payload["filled_count"] == 0
     assert payload["win_count"] is None
