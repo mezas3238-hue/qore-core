@@ -31,6 +31,10 @@ The videos teach a discretionary visual method. They do **not** uniquely specify
 9. The research opportunity expires at `13:00` New York, the end of the source H4 distribution candle. If neither stop nor target has resolved, the trade is censored rather than assigned an invented exit.
 10. Same-bar stop and target uses conservative stop-first resolution.
 
+## Broker evidence adapter
+
+V3 requires provider-native D1 in addition to M15. The pre-existing generic Trader Lab closed-trendbar contract intentionally supports only M1/M5/M15/H4 and is not widened by this work. Native cTrader D1 (`period=12`) is therefore parsed into a V3-private immutable daily-bar type with the same fail-closed pagination, exact symbol binding, closed-candle gate and sanitized evidence rules. This preserves the shared collector contract while retaining the source-required provider D1 context.
+
 ## Research governance
 
 - Eleven Core markets: EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD, XAUUSD, NAS100, SP500, GBPJPY, AUDJPY and US30.
