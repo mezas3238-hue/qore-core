@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -51,17 +51,28 @@ def _context(
     wick: Vt08CrtH4AmdV2WickProfile,
     *,
     observed_at: datetime,
+    point_of_interest_reached: bool | None = True,
 ) -> Vt08CrtH4AmdV2SourceContext:
+    poi_provenance = (
+        "human-owner-primary-video/source-defined-poi"
+        if point_of_interest_reached is not None
+        else None
+    )
     return Vt08CrtH4AmdV2SourceContext(
         bias_side=side,
         wick_profile=wick,
+        point_of_interest_reached=point_of_interest_reached,
+        point_of_interest_provenance=poi_provenance,
         observed_at=observed_at,
         provenance="human-owner-primary-video/source-context",
     )
 
 
-def _c2_case() -> tuple[datetime, Vt08CrtH4AmdV2Candle, tuple[Vt08CrtH4AmdV2Candle, ...]]:
-    anchor = datetime(2026, 1, 5, 1, 0, tzinfo=_NY)
+def _c2_case(
+    anchor: datetime | None = None,
+) -> tuple[datetime, Vt08CrtH4AmdV2Candle, tuple[Vt08CrtH4AmdV2Candle, ...]]:
+    if anchor is None:
+        anchor = datetime(2026, 1, 5, 1, 0, tzinfo=_NY)
     reference = _candle(
         anchor - timedelta(hours=4),
         "100",
@@ -108,6 +119,32 @@ def test_primary_video_full_h4_timing_families_are_frozen() -> None:
     assert source_anchor_hours_for_market("XAUUSD") is None
 
 
+def test_source_anchor_is_new_york_dst_aware_in_winter_and_summer() -> None:
+    for anchor_utc in (
+        datetime(2026, 1, 5, 6, 0, tzinfo=UTC),
+        datetime(2026, 7, 6, 5, 0, tzinfo=UTC),
+    ):
+        local_anchor = anchor_utc.astimezone(_NY)
+        assert local_anchor.hour == 1
+        anchor, reference, bars = _c2_case(local_anchor)
+        result = evaluate_reversal_expansion_candle2(
+            symbol="EURUSD",
+            h4_reference=reference,
+            h4_candle2_closes_at=anchor + timedelta(hours=4),
+            observed_m15=bars,
+            context=_context(
+                DemoTradingSetupSide.LONG,
+                Vt08CrtH4AmdV2WickProfile.SHALLOW,
+                observed_at=anchor,
+            ),
+        )
+        assert result.confirmed_opportunity is not None
+        assert (
+            result.abstain_reason
+            is Vt08CrtH4AmdV2AbstainReason.SOURCE_EXECUTION_CONTRACT_INCOMPLETE
+        )
+
+
 def test_xauusd_abstains_instead_of_guessing_a_timing_family() -> None:
     anchor, reference, bars = _c2_case()
     result = evaluate_reversal_expansion_candle2(
@@ -125,6 +162,45 @@ def test_xauusd_abstains_instead_of_guessing_a_timing_family() -> None:
     assert result.abstain_reason is Vt08CrtH4AmdV2AbstainReason.TIMING_FAMILY_REQUIRED
     assert result.confirmed_opportunity is None
     assert result.setup is None
+
+
+def test_source_poi_reach_is_required_before_cisd_confirmation() -> None:
+    anchor, reference, bars = _c2_case()
+    unresolved = evaluate_reversal_expansion_candle2(
+        symbol="EURUSD",
+        h4_reference=reference,
+        h4_candle2_closes_at=anchor + timedelta(hours=4),
+        observed_m15=bars,
+        context=_context(
+            DemoTradingSetupSide.LONG,
+            Vt08CrtH4AmdV2WickProfile.SHALLOW,
+            observed_at=anchor,
+            point_of_interest_reached=None,
+        ),
+    )
+    assert unresolved.decision is DemoTradingDecision.ABSTAIN
+    assert (
+        unresolved.abstain_reason
+        is Vt08CrtH4AmdV2AbstainReason.POINT_OF_INTEREST_REQUIRED
+    )
+
+    absent = evaluate_reversal_expansion_candle2(
+        symbol="EURUSD",
+        h4_reference=reference,
+        h4_candle2_closes_at=anchor + timedelta(hours=4),
+        observed_m15=bars,
+        context=_context(
+            DemoTradingSetupSide.LONG,
+            Vt08CrtH4AmdV2WickProfile.SHALLOW,
+            observed_at=anchor,
+            point_of_interest_reached=False,
+        ),
+    )
+    assert absent.decision is DemoTradingDecision.ABSTAIN
+    assert (
+        absent.abstain_reason
+        is Vt08CrtH4AmdV2AbstainReason.POINT_OF_INTEREST_NOT_REACHED
+    )
 
 
 def test_unresolved_video_wick_language_is_not_converted_to_numeric_threshold() -> None:
@@ -190,6 +266,7 @@ def test_video_shallow_candle2_plus_reference_run_and_cisd_confirms_opportunity_
     assert opportunity.side is DemoTradingSetupSide.LONG
     assert opportunity.confirmation_price == Decimal("100")
     assert opportunity.protected_swing_extreme == Decimal("94.5")
+    assert opportunity.point_of_interest_provenance.endswith("source-defined-poi")
     assert opportunity.executable_entry_price is None
     assert opportunity.take_profit is None
 
@@ -346,6 +423,7 @@ def test_universal_executable_entry_and_take_profit_are_explicitly_prohibited() 
             cisd_level=Decimal("99"),
             protected_swing_extreme=Decimal("95"),
             wick_profile=Vt08CrtH4AmdV2WickProfile.SHALLOW,
+            point_of_interest_provenance="primary-video/source-defined-poi",
             executable_entry_price=Decimal("100"),  # type: ignore[arg-type]
             take_profit=Decimal("110"),  # type: ignore[arg-type]
         )
