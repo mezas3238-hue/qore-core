@@ -30,10 +30,11 @@ No `REQUIRES_FORMALIZATION` item may be silently promoted into a mandatory metho
 - The video explicitly says it has **not** been tested on Forex in this work.
 - Therefore this exact V2 candidate must not infer multi-market authority from the generic Silver Bullet name.
 
-Operational research policy for the canonical 11-market matrix:
+Operational research policy for this exact candidate:
 
-- `NAS100`: supported research market for this source-derived candidate.
-- `EURUSD`, `GBPUSD`, `USDJPY`, `AUDUSD`, `USDCAD`, `XAUUSD`, `SP500`, `GBPJPY`, `AUDJPY`, `US30`: `UNSUPPORTED_METHOD_MARKET` for this exact source contract unless a later primary methodology source explicitly expands the allowed universe.
+- `NAS100`: the only market collected, backtested, characterized, or emitted in the VT-31 V2 research campaign.
+- `EURUSD`, `GBPUSD`, `USDJPY`, `AUDUSD`, `USDCAD`, `XAUUSD`, `SP500`, `GBPJPY`, `AUDJPY`, and `US30`: outside this campaign and not emitted as comparison rows.
+- The evaluator retains a fail-closed wrong-instrument guard as a methodology-fidelity invariant; that negative unit test is not a multi-market backtest.
 
 ### 2.2 Time and session
 
@@ -141,7 +142,7 @@ These remain `REQUIRES_FORMALIZATION`; research code must either fail closed on 
 
 | Dimension | VT-31 V1 | Source-confirmed V2 contract | Behavioral consequence |
 |---|---|---|---|
-| Market | generic | NQ/NASDAQ source scope | other 10 canonical markets abstain for this source candidate |
+| Market | generic | NQ/NASDAQ source scope | VT-31 V2 research is NAS100-only; wrong-instrument invocation fails closed |
 | Window | 10–11 + 14–15 NY | 10–11 NY AM only | PM setups removed |
 | Reference liquidity | generic detected swing | exact 09:00–10:00 H1 high/low | directional framework changes materially |
 | Execution timeframe | M5 with nominal M1 label | M1 | structure and entry chronology become materially finer |
@@ -167,7 +168,7 @@ The fidelity suite must prove at minimum:
 - target equals the opposite 09:00 H1 boundary, not fixed 2R.
 - 10:59:xx valid entry/fill may survive after 11:00; an unfilled pending entry must expire at 11:00.
 - New York DST boundaries retain 10:00–11:00 wall-clock semantics.
-- unsupported method market -> explicit `UNSUPPORTED_METHOD_MARKET`, never an invented trade.
+- wrong instrument -> fail closed as a fidelity guard; no non-NAS100 market campaign is run.
 - future/still-open candle -> rejected.
 
 ## 6. Authority
