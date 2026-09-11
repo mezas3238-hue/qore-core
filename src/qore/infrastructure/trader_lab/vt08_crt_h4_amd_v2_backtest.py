@@ -99,6 +99,9 @@ class Vt08CrtH4AmdV2Candidate:
     outcome: str | None = None
     result_r: Decimal | None = None
     same_bar_containment: bool = False
+    poi_lower_bound: Decimal | None = None
+    poi_upper_bound: Decimal | None = None
+    poi_formed_at: datetime | None = None
 
     def payload(self) -> dict[str, object]:
         return {
@@ -113,6 +116,16 @@ class Vt08CrtH4AmdV2Candidate:
             "source_bias_status": self.source_bias_status,
             "source_point_of_interest_status": (
                 "causal-m15-fvg" if self.automatic_setup else "requires-source-poi-confirmation"
+            ),
+            "poi_type": "fair-value-gap" if self.automatic_setup else None,
+            "poi_lower_bound": (
+                None if self.poi_lower_bound is None else format(self.poi_lower_bound, "f")
+            ),
+            "poi_upper_bound": (
+                None if self.poi_upper_bound is None else format(self.poi_upper_bound, "f")
+            ),
+            "poi_formed_at": (
+                None if self.poi_formed_at is None else _iso(self.poi_formed_at)
             ),
             "source_wick_status": (
                 "source-formalized-c2-reference-boundary-sweep"
@@ -348,14 +361,15 @@ def _reversal_side(
     return DemoTradingSetupSide.SHORT if swept_high else DemoTradingSetupSide.LONG
 
 
-def _causal_fvg_contains_confirmation(
+def _unique_causal_fvg_at_confirmation(
     bars: tuple[_Bar, ...],
     *,
     confirmation_index: int,
     side: DemoTradingSetupSide,
-) -> bool:
-    """SF-02/SF-03: deterministic three-candle FVG visible by confirmation."""
+) -> tuple[Decimal, Decimal, datetime] | None:
+    """Return one active FVG; multiple simultaneously valid POIs abstain."""
 
+    matches: list[tuple[Decimal, Decimal, datetime]] = []
     for index in range(2, confirmation_index):
         left = bars[index - 2]
         right = bars[index]
@@ -365,9 +379,23 @@ def _causal_fvg_contains_confirmation(
         else:
             lower, upper = right.high, left.low
             exists = lower < upper
-        if exists and lower <= bars[confirmation_index].close <= upper:
-            return True
-    return False
+        invalidated = any(
+            later.low < lower
+            if side is DemoTradingSetupSide.LONG
+            else later.high > upper
+            for later in bars[index + 1 : confirmation_index]
+        )
+        confirmation = bars[confirmation_index]
+        reached = confirmation.low <= upper and confirmation.high >= lower
+        if (
+            exists
+            and not invalidated
+            and reached
+            and lower <= confirmation.close <= upper
+        ):
+            matches.append((lower, upper, bars[index].closed_at))
+    unique = tuple(dict.fromkeys(matches))
+    return unique[0] if len(unique) == 1 else None
 
 
 def _replay_limit(
@@ -448,11 +476,16 @@ def _candidate_from_protected(
         close_r = (confirmation.close - path[-1].close) / risk
         mfe = max((confirmation.close - item.low) / risk for item in path)
         mae = max((item.high - confirmation.close) / risk for item in path)
-    automatic = executable_c3_profile and _causal_fvg_contains_confirmation(
-        current,
-        confirmation_index=signal_index,
-        side=side,
+    poi = (
+        _unique_causal_fvg_at_confirmation(
+            current,
+            confirmation_index=signal_index,
+            side=side,
+        )
+        if executable_c3_profile
+        else None
     )
+    automatic = poi is not None
     entry = confirmation.close if automatic else None
     stop = extreme if automatic else None
     target: Decimal | None = None
@@ -494,6 +527,9 @@ def _candidate_from_protected(
         outcome=outcome,
         result_r=result_r,
         same_bar_containment=contained,
+        poi_lower_bound=None if poi is None else poi[0],
+        poi_upper_bound=None if poi is None else poi[1],
+        poi_formed_at=None if poi is None else poi[2],
     )
 
 
