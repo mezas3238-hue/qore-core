@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest import (
@@ -147,6 +148,11 @@ def _write(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _first_trade(result: dict[str, object]) -> dict[str, object]:
+    trades = cast(list[object], result["trades"])
+    return cast(dict[str, object], trades[0])
+
+
 def test_video_like_winner_fills_limit_after_decision_and_hits_opposite_range_target(
     tmp_path: Path,
 ) -> None:
@@ -239,7 +245,7 @@ def test_three_r_arms_break_even_only_after_closed_bar_then_be_can_exit(
     _write(path, payload)
 
     result = run_vt31_silver_bullet_v2_backtest(path).payload()
-    trade = result["trades"][0]
+    trade = _first_trade(result)
 
     assert result["breakeven_count"] == 1
     assert result["stop_count"] == 0
@@ -342,10 +348,11 @@ def test_filled_position_is_not_closed_at_11_and_can_hit_target_after_window(
     _write(path, payload)
 
     result = run_vt31_silver_bullet_v2_backtest(path).payload()
-    trade = result["trades"][0]
+    trade = _first_trade(result)
 
     assert result["target_count"] == 1
-    assert datetime.fromisoformat(trade["resolved_at"]).astimezone(_NY).hour == 11
+    resolved_at = cast(str, trade["resolved_at"])
+    assert datetime.fromisoformat(resolved_at).astimezone(_NY).hour == 11
 
 
 def test_signal_completed_at_1059_can_fill_in_last_admissible_minute(
@@ -372,15 +379,20 @@ def test_signal_completed_at_1059_can_fill_in_last_admissible_minute(
     _write(path, payload)
 
     result = run_vt31_silver_bullet_v2_backtest(path).payload()
-    trade = result["trades"][0]
+    trade = _first_trade(result)
 
     assert result["filled_count"] == 1
-    fill_open = datetime.fromisoformat(trade["fill_interval_opened_at"]).astimezone(_NY)
-    fill_close = datetime.fromisoformat(trade["fill_interval_closed_at"]).astimezone(_NY)
+    fill_open = datetime.fromisoformat(
+        cast(str, trade["fill_interval_opened_at"])
+    ).astimezone(_NY)
+    fill_close = datetime.fromisoformat(
+        cast(str, trade["fill_interval_closed_at"])
+    ).astimezone(_NY)
     assert (fill_open.hour, fill_open.minute) == (10, 59)
     assert (fill_close.hour, fill_close.minute) == (11, 0)
     assert trade["fill_time_precision"] == "M1-half-open-interval"
-    assert datetime.fromisoformat(trade["signal_at"]).astimezone(_NY).minute == 59
+    signal_at = datetime.fromisoformat(cast(str, trade["signal_at"])).astimezone(_NY)
+    assert signal_at.minute == 59
 
 
 def test_backtester_retains_only_one_fill_per_instrument_session(tmp_path: Path) -> None:
@@ -416,10 +428,12 @@ def test_abstention_reason_counts_are_retained_for_auditing(tmp_path: Path) -> N
     _write(path, payload)
 
     result = run_vt31_silver_bullet_v2_backtest(path).payload()
+    abstain_counts = cast(dict[str, int], result["abstain_evaluation_counts"])
+    session_counts = cast(dict[str, int], result["session_abstain_counts"])
 
     assert result["setup_count"] == 0
-    assert result["abstain_evaluation_counts"]["no-raid"] >= 1
-    assert result["session_abstain_counts"]["no-raid"] == 1
+    assert abstain_counts["no-raid"] >= 1
+    assert session_counts["no-raid"] == 1
 
 
 def test_provider_alias_never_changes_canonical_nas100_identity(tmp_path: Path) -> None:
