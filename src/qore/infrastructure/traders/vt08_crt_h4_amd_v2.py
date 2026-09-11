@@ -131,23 +131,23 @@ class Vt08CrtH4AmdV2Candle:
     close: Decimal
 
     def __post_init__(self) -> None:
-        for field_name, value in (
+        for field_name, timestamp_value in (
             ("opened_at", self.opened_at),
             ("closed_at", self.closed_at),
         ):
-            if value.tzinfo is None or value.utcoffset() is None:
+            if timestamp_value.tzinfo is None or timestamp_value.utcoffset() is None:
                 raise Vt08CrtH4AmdV2ValidationError(
                     f"{field_name} must be timezone-aware"
                 )
         if self.closed_at <= self.opened_at:
             raise Vt08CrtH4AmdV2ValidationError("candle close must follow open")
-        for field_name, value in (
+        for field_name, price_value in (
             ("open", self.open),
             ("high", self.high),
             ("low", self.low),
             ("close", self.close),
         ):
-            if not value.is_finite() or value <= 0:
+            if not price_value.is_finite() or price_value <= 0:
                 raise Vt08CrtH4AmdV2ValidationError(
                     f"{field_name} must be positive finite Decimal"
                 )
