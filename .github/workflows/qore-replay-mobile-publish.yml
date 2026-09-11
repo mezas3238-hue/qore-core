@@ -1,0 +1,123 @@
+name: QORE Replay Mobile Publish
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - deploy/qore-trader-replay-mobile-001
+    paths:
+      - .github/workflows/qore-replay-mobile-publish.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MARKET_ARTIFACT_ID: "10126766969"
+      BACKTEST_ARTIFACT_ID: "10127952856"
+      CHARACTERIZATION_ARTIFACT_ID: "10133737547"
+    steps:
+      - name: Checkout isolated deployment branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install QORE
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Download exact retained GBPJPY artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/qore-replay/market /tmp/qore-replay/backtest /tmp/qore-replay/characterization
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${MARKET_ARTIFACT_ID}/zip" > /tmp/qore-replay/market.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${BACKTEST_ARTIFACT_ID}/zip" > /tmp/qore-replay/backtest.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CHARACTERIZATION_ARTIFACT_ID}/zip" > /tmp/qore-replay/characterization.zip
+          unzip -q /tmp/qore-replay/market.zip -d /tmp/qore-replay/market
+          unzip -q /tmp/qore-replay/backtest.zip -d /tmp/qore-replay/backtest
+          unzip -q /tmp/qore-replay/characterization.zip -d /tmp/qore-replay/characterization
+          test -s /tmp/qore-replay/market/market-evidence.json
+          test -s /tmp/qore-replay/backtest/backtest.json
+          test -s /tmp/qore-replay/characterization/characterization.json
+
+      - name: Generate five canonical Story Forensics packs
+        run: |
+          set -euo pipefail
+          mkdir -p replay-mobile/data
+          for trader in vt-01 vt-08 vt-09 vt-17 vt-31; do
+            python -m qore.infrastructure.trader_lab.first_cohort_story_forensics \
+              /tmp/qore-replay/market/market-evidence.json \
+              /tmp/qore-replay/backtest/backtest.json \
+              /tmp/qore-replay/characterization/characterization.json \
+              "$trader" > "replay-mobile/data/${trader}.json"
+            gzip -9 -f "replay-mobile/data/${trader}.json"
+          done
+
+      - name: Validate replay contracts and write manifest
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import gzip
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("replay-mobile/data")
+          manifest = {
+              "schema": "qore.trader_lab.mobile_replay_manifest.v1",
+              "research_only": True,
+              "execution_authority": False,
+              "market": "GBPJPY",
+              "renderer": "tradingview-lightweight-charts",
+              "renderer_version": "5.2.1",
+              "source_artifact_ids": {
+                  "market": 10126766969,
+                  "backtest": 10127952856,
+                  "characterization": 10133737547,
+              },
+              "traders": {},
+          }
+          for code in ("vt-01", "vt-08", "vt-09", "vt-17", "vt-31"):
+              path = root / f"{code}.json.gz"
+              with gzip.open(path, "rt", encoding="utf-8") as handle:
+                  pack = json.load(handle)
+              assert pack["research_only"] is True
+              assert pack["execution_authority"] is False
+              assert pack["renderer_contract"]["market_data_source"] == "qore-retained-evidence"
+              assert pack["renderer_contract"]["tradingview_is_evidence_source"] is False
+              assert pack["renderer_contract"]["tradingview_has_execution_authority"] is False
+              assert pack["source_binding"]["symbol"] == "GBPJPY"
+              manifest["traders"][code] = {
+                  "episode_count": pack["episode_count"],
+                  "forensics_fingerprint": pack["forensics_fingerprint"],
+                  "family_status": pack["family_status"],
+                  "source_binding": pack["source_binding"],
+                  "gzip_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+              }
+          Path("replay-mobile/manifest.json").write_text(
+              json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+          )
+          PY
+
+      - name: Commit generated mobile replay evidence
+        run: |
+          set -euo pipefail
+          git config user.name "qore-replay-publisher"
+          git config user.email "qore-replay-publisher@users.noreply.github.com"
+          git add replay-mobile/data replay-mobile/manifest.json
+          if git diff --cached --quiet; then
+            echo "Replay evidence unchanged."
+            exit 0
+          fi
+          git commit -m "chore(replay): publish governed GBPJPY mobile packs [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
