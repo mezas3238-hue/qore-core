@@ -1,23 +1,16 @@
-"""Source-fidelity historical audit for VT-08 V2 4H PO3.
+"""Source-bound economic replay for the executable VT-08 V2 subset.
 
-This is deliberately *not* allowed to manufacture trades from qualitative video
-language. It scans only the Human Owner-authorized New York H4 operating anchors
-and records the mechanically observable prerequisites (reference run, M15
-CISD/protected swing, and completed H4 reversal closure).
+The raw-OHLC executable subset is deliberately narrow: completed Candle-2 range
+reversal, Candle-3 M15 FVG reach, CISD/protected swing, exact confirmation-close
+limit, protected-swing stop, and the source-conditioned 2R target. Candle-2 cases
+without causal directional context remain candidates rather than fake trades.
 
 The source may show a wider repeating H4 cycle, but the operating scope is fixed:
 Forex 01:00/05:00/09:00 New York and futures 02:00/06:00/10:00 New York.
 Source-cycle anchors outside that scope are not research candidates for QORE.
 
-The source also requires a reach into a source-defined point of interest before
-lower-timeframe confirmation, but it does not provide one universal mechanical
-POI selector for every historical case. Likewise, it does not numerically define
-``shallow`` versus ``large/deep`` wick size or specify one universal machine bias
-formula, executable entry price, or take-profit. Therefore raw OHLC alone cannot
-authorize a faithful historical entry.
-
-The output is an evidence/coverage audit. Candidates are not trades, favorable
-post-signal paths are not wins, and no economic backtest is claimed.
+SETUP and fill are distinct. A limit can fill only after its signal. Same-bar
+stop/target ambiguity resolves stop-first as explicit operational containment.
 """
 
 from __future__ import annotations
@@ -48,7 +41,7 @@ from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
 )
 from qore.kernel.errors import InfrastructureError
 
-_SCHEMA = "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3"
+_SCHEMA = "qore.trader_lab.vt08_crt_h4_amd_v2_economic_replay.v4"
 _EVIDENCE_SCHEMA = "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v3"
 _NY = ZoneInfo("America/New_York")
 
@@ -98,6 +91,14 @@ class Vt08CrtH4AmdV2Candidate:
     post_signal_h4_close_r: Decimal
     mfe_r: Decimal
     mae_r: Decimal
+    automatic_setup: bool = False
+    entry_price: Decimal | None = None
+    stop_price: Decimal | None = None
+    target_price: Decimal | None = None
+    filled_at: datetime | None = None
+    outcome: str | None = None
+    result_r: Decimal | None = None
+    same_bar_containment: bool = False
 
     def payload(self) -> dict[str, object]:
         return {
@@ -110,10 +111,27 @@ class Vt08CrtH4AmdV2Candidate:
             "protected_swing_extreme": format(self.protected_swing_extreme, "f"),
             "cisd_level": format(self.cisd_level, "f"),
             "source_bias_status": self.source_bias_status,
-            "source_point_of_interest_status": "requires-source-poi-confirmation",
-            "source_wick_status": self.source_wick_status,
+            "source_point_of_interest_status": (
+                "causal-m15-fvg" if self.automatic_setup else "requires-source-poi-confirmation"
+            ),
+            "source_wick_status": (
+                "source-formalized-c2-reference-boundary-sweep"
+                if self.automatic_setup
+                else self.source_wick_status
+            ),
             "prior_candle2_wick_status": self.prior_candle2_wick_status,
-            "automatic_setup": False,
+            "automatic_setup": self.automatic_setup,
+            "entry_price": None if self.entry_price is None else format(self.entry_price, "f"),
+            "stop_price": None if self.stop_price is None else format(self.stop_price, "f"),
+            "target_price": None if self.target_price is None else format(self.target_price, "f"),
+            "filled_at": None if self.filled_at is None else _iso(self.filled_at),
+            "outcome": self.outcome,
+            "result_r": None if self.result_r is None else format(self.result_r, "f"),
+            "same_bar_resolution": (
+                "stop-first-operational-containment"
+                if self.same_bar_containment
+                else None
+            ),
             "post_signal_h4_close_r_descriptive_only": format(
                 self.post_signal_h4_close_r, "f"
             ),
@@ -145,6 +163,27 @@ class Vt08CrtH4AmdV2SourceAudit:
             item.scenario is Vt08CrtH4AmdV2Scenario.CONTINUATION_EXPANSION_C3
             for item in self.candidates
         )
+        setups = tuple(item for item in self.candidates if item.automatic_setup)
+        filled = tuple(item for item in setups if item.filled_at is not None)
+        wins = sum(item.outcome == "target" for item in filled)
+        losses = sum(item.outcome == "stop" for item in filled)
+        censored = sum(item.outcome == "censored" for item in filled)
+        total_r = sum((item.result_r or Decimal(0) for item in filled), Decimal(0))
+        resolved = wins + losses
+        peak = Decimal(0)
+        equity = Decimal(0)
+        max_drawdown = Decimal(0)
+        loss_streak = 0
+        max_loss_streak = 0
+        for item in filled:
+            equity += item.result_r or Decimal(0)
+            peak = max(peak, equity)
+            max_drawdown = max(max_drawdown, peak - equity)
+            if item.outcome == "stop":
+                loss_streak += 1
+                max_loss_streak = max(max_loss_streak, loss_streak)
+            else:
+                loss_streak = 0
         return {
             "schema": _SCHEMA,
             "environment": "demo",
@@ -176,24 +215,25 @@ class Vt08CrtH4AmdV2SourceAudit:
             "mechanical_candidate_count": len(self.candidates),
             "candle2_mechanical_candidate_count": c2,
             "candle3_mechanical_candidate_count": c3,
-            "source_judgment_required_count": len(self.candidates),
-            "automatic_setup_count": 0,
-            "filled_count": 0,
-            "win_count": None,
-            "loss_count": None,
-            "economic_backtest_authorized": False,
-            "economic_backtest_blockers": [
-                "primary-video-requires-contextual-point-of-interest-selection",
-                "primary-video-does-not-quantify-shallow-vs-large-wick",
-                "primary-video-does-not-define-one-universal-machine-bias-formula",
-                "primary-video-does-not-define-one-universal-executable-entry-price",
-                "primary-video-does-not-define-one-universal-take-profit",
-            ],
+            "source_judgment_required_count": len(self.candidates) - len(setups),
+            "automatic_setup_count": len(setups),
+            "filled_count": len(filled),
+            "unfilled_count": len(setups) - len(filled),
+            "fill_rate": None if not setups else len(filled) / len(setups),
+            "win_count": wins,
+            "loss_count": losses,
+            "censored_count": censored,
+            "win_rate": None if not resolved else wins / resolved,
+            "expectancy_r": None if not filled else format(total_r / len(filled), "f"),
+            "total_r": format(total_r, "f"),
+            "max_drawdown_r": format(max_drawdown, "f"),
+            "max_consecutive_losses": max_loss_streak,
+            "economic_backtest_authorized": True,
+            "economic_profile": "c3-fvg-cisd-protected-swing-conditioned-2r",
             "candidate_semantics": (
                 "mechanical prerequisites only inside Human Owner 3x3 New York "
-                "operating windows; source POI selection remains unresolved, CISD "
-                "confirmation price is an observation, candidates are not entries, "
-                "and post-signal path metrics are descriptive oracles, not PnL"
+                "operating windows; only the documented C3/FVG executable subset "
+                "becomes SETUP; all other candidates remain non-economic"
             ),
             "candidates": [item.payload() for item in self.candidates],
         }
@@ -308,6 +348,59 @@ def _reversal_side(
     return DemoTradingSetupSide.SHORT if swept_high else DemoTradingSetupSide.LONG
 
 
+def _causal_fvg_contains_confirmation(
+    bars: tuple[_Bar, ...],
+    *,
+    confirmation_index: int,
+    side: DemoTradingSetupSide,
+) -> bool:
+    """SF-02/SF-03: deterministic three-candle FVG visible by confirmation."""
+
+    for index in range(2, confirmation_index):
+        left = bars[index - 2]
+        right = bars[index]
+        if side is DemoTradingSetupSide.LONG:
+            lower, upper = left.high, right.low
+            exists = lower < upper
+        else:
+            lower, upper = right.high, left.low
+            exists = lower < upper
+        if exists and lower <= bars[confirmation_index].close <= upper:
+            return True
+    return False
+
+
+def _replay_limit(
+    path: tuple[_Bar, ...],
+    *,
+    side: DemoTradingSetupSide,
+    entry: Decimal,
+    stop: Decimal,
+    target: Decimal,
+) -> tuple[datetime | None, str | None, Decimal | None, bool]:
+    """Fill after signal; conservatively resolve same-bar stop/target as stop."""
+
+    filled_at: datetime | None = None
+    for bar in path:
+        if filled_at is None:
+            if not bar.low <= entry <= bar.high:
+                continue
+            filled_at = bar.opened_at
+        stop_hit = bar.low <= stop if side is DemoTradingSetupSide.LONG else bar.high >= stop
+        target_hit = (
+            bar.high >= target if side is DemoTradingSetupSide.LONG else bar.low <= target
+        )
+        if stop_hit and target_hit:
+            return filled_at, "stop", Decimal(-1), True
+        if stop_hit:
+            return filled_at, "stop", Decimal(-1), False
+        if target_hit:
+            return filled_at, "target", Decimal(2), False
+    if filled_at is None:
+        return None, None, None, False
+    return filled_at, "censored", Decimal(0), False
+
+
 def _candidate_from_protected(
     *,
     scenario: Vt08CrtH4AmdV2Scenario,
@@ -318,6 +411,7 @@ def _candidate_from_protected(
     required_run_level: Decimal | None,
     bias_status: str,
     prior_wick_status: str | None,
+    executable_c3_profile: bool = False,
 ) -> Vt08CrtH4AmdV2Candidate | None:
     candles = tuple(item.candle() for item in current)
     protected = _protected_swing(
@@ -354,6 +448,29 @@ def _candidate_from_protected(
         close_r = (confirmation.close - path[-1].close) / risk
         mfe = max((confirmation.close - item.low) / risk for item in path)
         mae = max((item.high - confirmation.close) / risk for item in path)
+    automatic = executable_c3_profile and _causal_fvg_contains_confirmation(
+        current,
+        confirmation_index=signal_index,
+        side=side,
+    )
+    entry = confirmation.close if automatic else None
+    stop = extreme if automatic else None
+    target: Decimal | None = None
+    filled_at: datetime | None = None
+    outcome: str | None = None
+    result_r: Decimal | None = None
+    contained = False
+    if entry is not None and stop is not None:
+        target = entry + (risk * Decimal(2)) * (
+            Decimal(1) if side is DemoTradingSetupSide.LONG else Decimal(-1)
+        )
+        filled_at, outcome, result_r, contained = _replay_limit(
+            path,
+            side=side,
+            entry=entry,
+            stop=stop,
+            target=target,
+        )
     return Vt08CrtH4AmdV2Candidate(
         scenario=scenario,
         anchor_opened_at=anchor.astimezone(UTC),
@@ -369,6 +486,14 @@ def _candidate_from_protected(
         post_signal_h4_close_r=close_r,
         mfe_r=mfe,
         mae_r=mae,
+        automatic_setup=automatic,
+        entry_price=entry,
+        stop_price=stop,
+        target_price=target,
+        filled_at=filled_at,
+        outcome=outcome,
+        result_r=result_r,
+        same_bar_containment=contained,
     )
 
 
@@ -394,12 +519,25 @@ def _load(
         raise Vt08CrtH4AmdV2BacktestError("account fingerprint must be SHA-256")
     symbol = _text(payload.get("canonical_symbol"), "canonical_symbol")
     provider = _text(payload.get("provider_symbol_name"), "provider_symbol_name")
+    checked_at = _timestamp(payload.get("checked_at"), "checked_at")
     periods = _object(payload.get("periods"), "periods")
     if set(periods) != {"M15"}:
         raise Vt08CrtH4AmdV2BacktestError("source-faithful V2 requires M15 evidence only")
     bars = tuple(_bar(item) for item in _array(periods.get("M15"), "M15"))
     if not bars or bars != tuple(sorted(bars, key=lambda item: item.opened_at)):
         raise Vt08CrtH4AmdV2BacktestError("M15 evidence must be chronological")
+    identities = {(item.opened_at, item.closed_at) for item in bars}
+    if len(identities) != len(bars):
+        raise Vt08CrtH4AmdV2BacktestError("duplicate M15 evidence is prohibited")
+    previous: _Bar | None = None
+    for item in bars:
+        if item.closed_at - item.opened_at != timedelta(minutes=15):
+            raise Vt08CrtH4AmdV2BacktestError("wrong timeframe in M15 evidence")
+        if item.closed_at > checked_at:
+            raise Vt08CrtH4AmdV2BacktestError("future or open M15 evidence is prohibited")
+        if previous is not None and item.opened_at < previous.closed_at:
+            raise Vt08CrtH4AmdV2BacktestError("overlapping M15 evidence is prohibited")
+        previous = item
     material = json.dumps(
         payload, sort_keys=True, separators=(",", ":"), allow_nan=False
     ).encode("utf-8")
@@ -408,7 +546,7 @@ def _load(
         symbol,
         provider,
         account,
-        _timestamp(payload.get("checked_at"), "checked_at"),
+        checked_at,
         bars,
         sha256(material).hexdigest(),
     )
@@ -495,6 +633,7 @@ def run_vt08_v2_source_audit(path: Path) -> Vt08CrtH4AmdV2SourceAudit:
                 required_run_level=None,
                 bias_status="completed-candle2-reversal-direction",
                 prior_wick_status="large-required-but-qualitative-unresolved",
+                executable_c3_profile=True,
             )
             if c3 is not None:
                 candidates.append(c3)
