@@ -166,14 +166,18 @@ class Vt31SilverBulletV2Setup:
     expires_at: datetime
 
     def __post_init__(self) -> None:
-        for field_name, value in (
+        for price_field_name, price_value in (
             ("entry_price", self.entry_price),
             ("invalidation_price", self.invalidation_price),
             ("take_profit_price", self.take_profit_price),
         ):
-            if type(value) is not Decimal or not value.is_finite() or value <= 0:
+            if (
+                type(price_value) is not Decimal
+                or not price_value.is_finite()
+                or price_value <= 0
+            ):
                 raise Vt31SilverBulletV2ValidationError(
-                    f"{field_name} must be positive finite Decimal"
+                    f"{price_field_name} must be positive finite Decimal"
                 )
         if type(self.side) is not DemoTradingSetupSide:
             raise Vt31SilverBulletV2ValidationError("setup side must be canonical")
@@ -181,12 +185,12 @@ class Vt31SilverBulletV2Setup:
             raise Vt31SilverBulletV2ValidationError("reference_range must be exact")
         if type(self.entry_model) is not Vt31SilverBulletV2EntryModel:
             raise Vt31SilverBulletV2ValidationError("entry_model must be exact")
-        for field_name, value in (
+        for timestamp_field_name, timestamp_value in (
             ("raid_at", self.raid_at),
             ("confirmation_at", self.confirmation_at),
             ("expires_at", self.expires_at),
         ):
-            _require_aware(value, field_name=field_name)
+            _require_aware(timestamp_value, field_name=timestamp_field_name)
         if self.confirmation_at < self.raid_at:
             raise Vt31SilverBulletV2ValidationError(
                 "confirmation must not precede the range raid"
@@ -361,8 +365,8 @@ def _structure_shift(
     """Operationalize the video's 'low/high that made the new extreme' close rule.
 
     For a short, every post-raid new high updates the structural anchor to that
-    candle's low.  A later close below that low confirms the shift.  Long is the
-    exact mirror.  This preserves chronological, post-raid causality and does not
+    candle's low. A later close below that low confirms the shift. Long is the
+    exact mirror. This preserves chronological, post-raid causality and does not
     reuse a pre-raid structure signal.
     """
 
