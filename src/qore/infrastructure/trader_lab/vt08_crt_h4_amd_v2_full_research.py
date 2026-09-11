@@ -3,6 +3,10 @@
 The input is a source-fidelity audit, not an economic backtest. This adapter
 therefore refuses to invent win rate, expectancy, Stress or Monte Carlo from
 mechanical candidates that the video has not yet authorized as trades.
+
+It also refuses historical or manually altered audit artifacts that do not bind
+the Human Owner operating scope exactly: Forex 01:00/05:00/09:00 and futures
+02:00/06:00/10:00, all in America/New_York.
 """
 
 from __future__ import annotations
@@ -20,6 +24,13 @@ from qore.kernel.errors import InfrastructureError
 
 _AUDIT_SCHEMA = "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3"
 _NY = ZoneInfo("America/New_York")
+_OWNER_FOREX_HOURS = (1, 5, 9)
+_OWNER_FUTURES_HOURS = (2, 6, 10)
+_OWNER_FOREX_MARKETS = frozenset(
+    {"EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "GBPJPY", "AUDJPY"}
+)
+_OWNER_FUTURES_MARKETS = frozenset({"NAS100", "SP500", "US30"})
+_OWNER_MARKETS = _OWNER_FOREX_MARKETS | _OWNER_FUTURES_MARKETS
 
 
 class Vt08CrtH4AmdV2FullResearchError(InfrastructureError):
@@ -73,6 +84,51 @@ def _timestamp(value: object, field: str) -> datetime:
     return result
 
 
+def _validate_owner_scope(
+    payload: dict[str, object],
+    rows: list[dict[str, object]],
+) -> None:
+    if payload.get("human_owner_operating_scope") is not True:
+        raise Vt08CrtH4AmdV2FullResearchError(
+            "source audit must bind Human Owner operating scope"
+        )
+    if payload.get("operating_timezone") != "America/New_York":
+        raise Vt08CrtH4AmdV2FullResearchError(
+            "VT-08 operating timezone must be America/New_York"
+        )
+    if payload.get("forex_operating_h4_anchors") != list(_OWNER_FOREX_HOURS):
+        raise Vt08CrtH4AmdV2FullResearchError(
+            "VT-08 Forex operating anchors must be 01/05/09 New York"
+        )
+    if payload.get("futures_operating_h4_anchors") != list(_OWNER_FUTURES_HOURS):
+        raise Vt08CrtH4AmdV2FullResearchError(
+            "VT-08 futures operating anchors must be 02/06/10 New York"
+        )
+    symbol = _text(payload.get("symbol"), "symbol")
+    if symbol not in _OWNER_MARKETS:
+        raise Vt08CrtH4AmdV2FullResearchError(
+            "VT-08 audit symbol is outside Human Owner Forex/futures scope"
+        )
+    allowed_hours = (
+        _OWNER_FOREX_HOURS
+        if symbol in _OWNER_FOREX_MARKETS
+        else _OWNER_FUTURES_HOURS
+    )
+    for row in rows:
+        opened = _timestamp(row.get("anchor_opened_at"), "anchor_opened_at").astimezone(
+            _NY
+        )
+        if (
+            opened.hour not in allowed_hours
+            or opened.minute != 0
+            or opened.second != 0
+            or opened.microsecond != 0
+        ):
+            raise Vt08CrtH4AmdV2FullResearchError(
+                "candidate lies outside Human Owner New York operating anchors"
+            )
+
+
 def _load(path: Path) -> tuple[dict[str, object], list[dict[str, object]]]:
     try:
         decoded: object = json.loads(path.read_text(encoding="utf-8"))
@@ -100,6 +156,7 @@ def _load(path: Path) -> tuple[dict[str, object], list[dict[str, object]]]:
         payload.get("mechanical_candidate_count"), "candidate_count"
     ):
         raise Vt08CrtH4AmdV2FullResearchError("candidate count does not reconcile")
+    _validate_owner_scope(payload, rows)
     return payload, rows
 
 
@@ -170,11 +227,17 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         split_at = len(rows)
     ins, oos = rows[:split_at], rows[split_at:]
 
+    owner_scope = {
+        "timezone": "America/New_York",
+        "forex_h4_anchors": list(_OWNER_FOREX_HOURS),
+        "futures_h4_anchors": list(_OWNER_FUTURES_HOURS),
+    }
     walk = {
         "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_walk_forward.v3",
         "research_only": True,
         "software_sha": software_sha,
         "symbol": symbol,
+        "human_owner_operating_scope": owner_scope,
         "source_frozen_configuration": True,
         "parameter_search_performed": False,
         "economic_walk_forward_status": "not-applicable-before-source-judgments",
@@ -192,6 +255,7 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "research_only": True,
         "software_sha": software_sha,
         "symbol": symbol,
+        "human_owner_operating_scope": owner_scope,
         "source_fidelity_mode": True,
         "decision_funnel": {
             "eligible_anchor_windows": _strict_int(
@@ -233,6 +297,7 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_failure_analysis.v3",
         "research_only": True,
         "failure_labels": [
+            "source-point-of-interest-selection-not-universally-machine-specified",
             "source-qualitative-wick-classification-not-machine-specified",
             "source-bias-context-not-universally-machine-specified",
             "source-universal-take-profit-not-specified",
@@ -256,6 +321,9 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
                     "protected_swing_extreme": row.get("protected_swing_extreme"),
                     "cisd_level": row.get("cisd_level"),
                     "source_bias_status": row.get("source_bias_status"),
+                    "source_point_of_interest_status": row.get(
+                        "source_point_of_interest_status"
+                    ),
                     "source_wick_status": row.get("source_wick_status"),
                     "automatic_setup": False,
                 },
@@ -272,6 +340,7 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_story_forensics.v3",
         "research_only": True,
         "decision_time_oracle_separation": True,
+        "human_owner_operating_scope": owner_scope,
         "episode_count": len(episodes),
         "episodes": episodes,
     }
@@ -295,6 +364,7 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "trader_code": "vt-08",
         "trader_version": "v2",
         "source_fidelity_mode": True,
+        "human_owner_operating_scope": owner_scope,
         "invalidates_prior_13468_campaign": True,
         "mechanical_candidate_count": len(rows),
         "automatic_setup_count": 0,
@@ -307,8 +377,8 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "governed_lifecycle_authority": False,
         "demo_eligible": False,
         "promotion_blocker": (
-            "video leaves qualitative bias/wick/target judgments; source-faithful "
-            "annotation is required before economic testing"
+            "video leaves contextual POI, bias, wick and target judgments; "
+            "source-faithful annotation is required before economic testing"
         ),
     }
     outputs: dict[str, dict[str, object]] = {
