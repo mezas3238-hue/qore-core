@@ -1,103 +1,71 @@
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research import (
     generate_full_research,
 )
 
 
-def _backtest(path: Path) -> Path:
-    start = datetime(2024, 1, 1, tzinfo=UTC)
+def _source_audit(path: Path, count: int = 12) -> Path:
+    start = datetime(2024, 1, 2, 5, tzinfo=UTC)
     rows: list[dict[str, object]] = []
-    for index in range(30):
-        outcome = "target" if index % 3 == 0 else "stop"
-        r_multiple = "2" if outcome == "target" else "-1"
+    for index in range(count):
+        signal = start + timedelta(days=index)
         rows.append(
             {
-                "signal_at": (start + timedelta(days=index)).isoformat(),
-                "resolved_at": (start + timedelta(days=index, minutes=30)).isoformat(),
-                "side": "long" if index % 2 == 0 else "short",
-                "scenario": (
-                    "candle2-expansion"
+                "scenario_candidate": (
+                    "reversal-expansion-candle2"
                     if index % 2 == 0
-                    else "candle3-continuation"
+                    else "continuation-expansion-candle3"
                 ),
-                "entry_price": "100",
-                "stop_loss": "95",
-                "take_profit": "110",
-                "outcome": outcome,
-                "r_multiple": r_multiple,
-                "mark_to_market_r_at_h4_close": r_multiple,
-                "mfe_r": "2",
-                "mae_r": "1",
-                "cisd_level": "99",
-                "manipulation_fraction_of_reference": "0.4",
-            }
-        )
-    for index in range(5):
-        rows.append(
-            {
-                "signal_at": (start + timedelta(days=40 + index)).isoformat(),
-                "resolved_at": None,
-                "side": "long",
-                "scenario": "candle2-expansion",
-                "entry_price": "100",
-                "stop_loss": "95",
-                "take_profit": "110",
-                "outcome": "h4_close_censored",
-                "r_multiple": None,
-                "mark_to_market_r_at_h4_close": "1.2",
-                "mfe_r": "1.5",
-                "mae_r": "0.5",
-                "cisd_level": "99",
-                "manipulation_fraction_of_reference": "0.4",
+                "anchor_opened_at": signal.isoformat(),
+                "h4_closes_at": (signal + timedelta(hours=4)).isoformat(),
+                "proposed_side": "long" if index % 2 == 0 else "short",
+                "signal_at": (signal + timedelta(minutes=30)).isoformat(),
+                "entry_observation": "100",
+                "protected_swing_extreme": "99",
+                "cisd_level": "99.5",
+                "source_bias_status": "requires-source-context-confirmation",
+                "source_wick_status": "qualitative-unresolved-by-video",
+                "prior_candle2_wick_status": None,
+                "automatic_setup": False,
+                "post_signal_h4_close_r_descriptive_only": "0.5",
+                "mfe_r_descriptive_only": "1.2",
+                "mae_r_descriptive_only": "0.4",
+                "post_signal_path_is_not_trade_result": True,
             }
         )
     payload: dict[str, object] = {
-        "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_backtest.v2",
+        "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3",
+        "environment": "demo",
         "read_only": True,
         "research_only": True,
+        "source_fidelity_mode": True,
         "invalidates_prior_campaign": True,
+        "prior_13468_campaign_valid_for_economics": False,
         "software_sha": "a" * 40,
         "symbol": "EURUSD",
-        "decision_days": 100,
-        "daily_bias_pass": 60,
-        "candle2_setup_count": 20,
-        "candle3_candidate_count": 40,
-        "trades": rows,
+        "eligible_anchor_windows": 100,
+        "missing_anchor_windows": 3,
+        "mechanical_candidate_count": len(rows),
+        "source_judgment_required_count": len(rows),
+        "automatic_setup_count": 0,
+        "filled_count": 0,
+        "win_count": None,
+        "loss_count": None,
+        "economic_backtest_authorized": False,
+        "candidates": rows,
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
 
 
-def test_positive_censored_mark_never_becomes_research_win(tmp_path: Path) -> None:
+def test_full_research_emits_evidence_without_fake_economics(tmp_path: Path) -> None:
     output = tmp_path / "out"
-    summary = generate_full_research(_backtest(tmp_path / "backtest.json"), output)
-    metrics = summary["all_history"]
-    assert isinstance(metrics, dict)
-    assert metrics["setup_count"] == 35
-    assert metrics["terminal_sample_size"] == 30
-    assert metrics["target_count"] == 10
-    assert metrics["stop_count"] == 20
-    assert metrics["censored_count"] == 5
-    assert summary["demo_eligible"] is False
-    characterization = json.loads((output / "characterization.json").read_text())
-    assert characterization["positive_h4_close_mark_is_win"] is False
-
-
-def test_reconstructed_research_is_deterministic_and_emits_full_family(
-    tmp_path: Path,
-) -> None:
-    backtest = _backtest(tmp_path / "backtest.json")
-    first = tmp_path / "first"
-    second = tmp_path / "second"
-    generate_full_research(backtest, first)
-    generate_full_research(backtest, second)
-    assert (first / "monte-carlo.json").read_bytes() == (
-        second / "monte-carlo.json"
-    ).read_bytes()
-    assert {item.name for item in first.iterdir()} == {
+    summary = generate_full_research(_source_audit(tmp_path / "audit.json"), output)
+    assert {item.name for item in output.iterdir()} == {
         "walk-forward.json",
         "characterization.json",
         "stress.json",
@@ -107,3 +75,36 @@ def test_reconstructed_research_is_deterministic_and_emits_full_family(
         "hypothesis-register.json",
         "research-summary.json",
     }
+    assert summary["mechanical_candidate_count"] == 12
+    assert summary["automatic_setup_count"] == 0
+    assert summary["economic_result_available"] is False
+    assert summary["win_count"] is None
+    assert summary["loss_count"] is None
+    assert summary["demo_eligible"] is False
+
+    characterization = json.loads((output / "characterization.json").read_text())
+    assert characterization["oracle_metrics_are_not_trade_results"] is True
+    assert characterization["win_rate"] is None
+    assert characterization["expectancy_r"] is None
+
+    stress = json.loads((output / "stress.json").read_text())
+    monte = json.loads((output / "monte-carlo.json").read_text())
+    assert stress["status"] == "not-run"
+    assert stress["pass"] is None
+    assert monte["status"] == "not-run"
+    assert monte["pass"] is None
+
+
+def test_story_forensics_separates_candidate_decision_data_from_oracle(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    generate_full_research(_source_audit(tmp_path / "audit.json", count=3), output)
+    story = json.loads((output / "story-forensics.json").read_text())
+    assert story["decision_time_oracle_separation"] is True
+    assert story["episode_count"] == 3
+    first = cast(dict[str, object], story["episodes"][0])
+    decision = cast(dict[str, object], first["decision_time"])
+    assert decision["automatic_setup"] is False
+    assert "h4_close_r" not in decision
+    assert "post_outcome_oracle_descriptive_only" in first
