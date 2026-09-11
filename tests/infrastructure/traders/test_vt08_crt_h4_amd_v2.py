@@ -8,6 +8,8 @@ from qore.infrastructure.traders.contracts import DemoTradingDecision, DemoTradi
 from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
     FOREX_H4_ANCHOR_HOURS,
     FUTURES_H4_ANCHOR_HOURS,
+    SOURCE_FOREX_H4_ANCHOR_HOURS,
+    SOURCE_FUTURES_H4_ANCHOR_HOURS,
     SOURCE_TIMING_AMBIGUOUS_MARKETS,
     SUPPORTED_MARKETS,
     Vt08CrtH4AmdV2AbstainReason,
@@ -88,14 +90,13 @@ def _c2_case(
     return anchor, reference, bars
 
 
-def test_v2_supports_exact_core_11_market_set_without_guessing_gold_timing() -> None:
+def test_v2_supports_only_owner_authorized_forex_and_futures_markets() -> None:
     assert set(SUPPORTED_MARKETS) == {
         "EURUSD",
         "GBPUSD",
         "USDJPY",
         "AUDUSD",
         "USDCAD",
-        "XAUUSD",
         "NAS100",
         "SP500",
         "GBPJPY",
@@ -104,18 +105,17 @@ def test_v2_supports_exact_core_11_market_set_without_guessing_gold_timing() -> 
     }
     assert timing_family_for_market("EURUSD") is Vt08CrtH4AmdV2TimingFamily.FOREX
     assert timing_family_for_market("NAS100") is Vt08CrtH4AmdV2TimingFamily.FUTURES
-    assert (
-        timing_family_for_market("XAUUSD")
-        is Vt08CrtH4AmdV2TimingFamily.SOURCE_UNRESOLVED
-    )
-    assert SOURCE_TIMING_AMBIGUOUS_MARKETS == frozenset({"XAUUSD"})
+    assert timing_family_for_market("XAUUSD") is None
+    assert SOURCE_TIMING_AMBIGUOUS_MARKETS == frozenset()
 
 
-def test_primary_video_full_h4_timing_families_are_frozen() -> None:
-    assert FOREX_H4_ANCHOR_HOURS == (1, 5, 9, 13, 17, 21)
-    assert FUTURES_H4_ANCHOR_HOURS == (2, 6, 10, 14, 18, 22)
-    assert source_anchor_hours_for_market("GBPUSD") == FOREX_H4_ANCHOR_HOURS
-    assert source_anchor_hours_for_market("NAS100") == FUTURES_H4_ANCHOR_HOURS
+def test_source_cycle_and_owner_operating_scope_are_kept_separate() -> None:
+    assert SOURCE_FOREX_H4_ANCHOR_HOURS == (1, 5, 9, 13, 17, 21)
+    assert SOURCE_FUTURES_H4_ANCHOR_HOURS == (2, 6, 10, 14, 18, 22)
+    assert FOREX_H4_ANCHOR_HOURS == (1, 5, 9)
+    assert FUTURES_H4_ANCHOR_HOURS == (2, 6, 10)
+    assert source_anchor_hours_for_market("GBPUSD") == (1, 5, 9)
+    assert source_anchor_hours_for_market("NAS100") == (2, 6, 10)
     assert source_anchor_hours_for_market("XAUUSD") is None
 
 
@@ -145,7 +145,7 @@ def test_source_anchor_is_new_york_dst_aware_in_winter_and_summer() -> None:
         )
 
 
-def test_xauusd_abstains_instead_of_guessing_a_timing_family() -> None:
+def test_xauusd_is_outside_owner_forex_and_futures_scope() -> None:
     anchor, reference, bars = _c2_case()
     result = evaluate_reversal_expansion_candle2(
         symbol="XAUUSD",
@@ -159,7 +159,7 @@ def test_xauusd_abstains_instead_of_guessing_a_timing_family() -> None:
         ),
     )
     assert result.decision is DemoTradingDecision.ABSTAIN
-    assert result.abstain_reason is Vt08CrtH4AmdV2AbstainReason.TIMING_FAMILY_REQUIRED
+    assert result.abstain_reason is Vt08CrtH4AmdV2AbstainReason.UNSUPPORTED_MARKET
     assert result.confirmed_opportunity is None
     assert result.setup is None
 
@@ -360,28 +360,18 @@ def test_post_confirmation_context_is_rejected_as_oracle_state() -> None:
     assert result.confirmed_opportunity is None
 
 
-def test_non_source_h4_open_is_rejected() -> None:
-    anchor, reference, bars = _c2_case()
-    shifted = anchor + timedelta(hours=1)
-    shifted_bars = tuple(
-        _candle(
-            shifted + timedelta(minutes=15 * index),
-            str(bar.open),
-            str(bar.high),
-            str(bar.low),
-            str(bar.close),
-        )
-        for index, bar in enumerate(bars)
-    )
+def test_source_cycle_anchor_outside_owner_operating_scope_is_rejected() -> None:
+    anchor = datetime(2026, 1, 5, 13, 0, tzinfo=_NY)
+    _, reference, bars = _c2_case(anchor)
     result = evaluate_reversal_expansion_candle2(
         symbol="EURUSD",
         h4_reference=reference,
-        h4_candle2_closes_at=shifted + timedelta(hours=4),
-        observed_m15=shifted_bars,
+        h4_candle2_closes_at=anchor + timedelta(hours=4),
+        observed_m15=bars,
         context=_context(
             DemoTradingSetupSide.LONG,
             Vt08CrtH4AmdV2WickProfile.SHALLOW,
-            observed_at=shifted,
+            observed_at=anchor,
         ),
     )
     assert result.decision is DemoTradingDecision.ABSTAIN
