@@ -5,6 +5,10 @@ Owner-provided 4H PO3 video. Source H4 candles are derived from exact M15 bars.
 No D1 rule is injected: the lesson says to use H4/candle closures for bias and
 its examples may show higher context, but it does not define a universal D1
 machine gate.
+
+The Human Owner operating scope is limited to Core Forex and futures markets,
+with Forex H4 openings 01:00/05:00/09:00 New York and futures H4 openings
+02:00/06:00/10:00 New York. XAUUSD is outside this campaign.
 """
 
 from __future__ import annotations
@@ -53,7 +57,6 @@ _PROVIDER_ROOTS: dict[str, tuple[str, ...]] = {
     "USDJPY": ("USDJPY",),
     "AUDUSD": ("AUDUSD",),
     "USDCAD": ("USDCAD",),
-    "XAUUSD": ("XAUUSD", "GOLD"),
     "GBPJPY": ("GBPJPY",),
     "AUDJPY": ("AUDJPY",),
     "NAS100": ("NAS100", "USTEC", "US100", "USTECH", "NASDAQ100"),
@@ -79,11 +82,11 @@ def select_vt08_provider_symbol_name(
     canonical_symbol: str,
     symbols: tuple[tuple[str, bool], ...],
 ) -> str:
-    """Resolve one Core canonical market to exactly one enabled provider alias."""
+    """Resolve one owner-authorized canonical market to one provider alias."""
 
     roots = _PROVIDER_ROOTS.get(canonical_symbol)
     if roots is None:
-        raise CTraderDemoLabProbeError("unsupported VT-08 V2 canonical market")
+        raise CTraderDemoLabProbeError("unsupported VT-08 V2 owner-scope market")
     if type(symbols) is not tuple or any(
         type(item) is not tuple
         or len(item) != 2
@@ -282,10 +285,12 @@ def collect_vt08_v2_evidence(
     checked_at: datetime,
     timeout_seconds: float = 15.0,
 ) -> dict[str, object]:
-    """Collect only the market data required by the source-faithful V2 contract."""
+    """Collect only market data required by the owner-scoped V2 contract."""
 
     if canonical_symbol not in _PROVIDER_ROOTS:
-        raise CTraderDemoLabProbeError("VT-08 V2 market is outside Core 11-market set")
+        raise CTraderDemoLabProbeError(
+            "VT-08 V2 market is outside Human Owner Forex/futures scope"
+        )
     if requested_opened_at.tzinfo is None or checked_at.tzinfo is None:
         raise CTraderDemoLabProbeError("VT-08 V2 acquisition timestamps must be aware")
     opened = requested_opened_at.astimezone(UTC)
@@ -328,12 +333,28 @@ def collect_vt08_v2_evidence(
         "decision_timeframe": "M15",
         "higher_timeframe": "H4-derived-from-M15",
         "d1_is_mandatory_gate": False,
+        "owner_operating_scope": {
+            "timezone": "America/New_York",
+            "forex_h4_opens": [1, 5, 9],
+            "futures_h4_opens": [2, 6, 10],
+            "forex_markets": [
+                "EURUSD",
+                "GBPUSD",
+                "USDJPY",
+                "AUDUSD",
+                "USDCAD",
+                "GBPJPY",
+                "AUDJPY",
+            ],
+            "futures_markets": ["NAS100", "SP500", "US30"],
+            "xauusd_in_scope": False,
+        },
         "source_timing": {
             "timezone": "America/New_York",
             "forex_key_h4_opens": [1, 5, 9],
             "futures_key_h4_opens": [2, 6, 10],
             "futures_markets": ["NAS100", "SP500", "US30"],
-            "source_timing_unresolved_markets": ["XAUUSD"],
+            "source_timing_unresolved_markets": [],
             "key_times_are_anchors_not_a_forced_single_daily_sequence": True,
         },
         "source_ambiguities": {
