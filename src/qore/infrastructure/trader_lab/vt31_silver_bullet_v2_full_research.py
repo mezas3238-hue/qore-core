@@ -1,20 +1,14 @@
-"""Full Trader Lab research evidence adapter for source-bound VT-31 V2.
+"""Full Trader Lab research evidence for source-bound VT-31 Silver Bullet V2.
 
-This module connects the NAS100-only Silver Bullet V2 reconstruction to the
-research evidence families already used by QORE Trader Lab without mutating V1
-or manufacturing promotion authority.
+The adapter consumes the exact NAS100 M1 market-evidence artifact plus the
+canonical VT-31 V2 backtest and emits descriptive Trader Lab evidence for
+chronological IS/OOS, characterization, stress, Monte Carlo, failure analysis,
+Story Forensics and hypothesis governance.
 
-The methodology is frozen: there is no parameter search.  A chronological
-70/30 split is retained so the last 30% is evaluated as OOS research evidence,
-but that OOS is explicitly marked consumed after this run and cannot certify a
-modified strategy.  Stress and Monte Carlo outputs are descriptive research
-screens only.  They do not satisfy governed STRESS/MONTE_CARLO lifecycle gates
-or grant DEMO/LIVE/Risk/execution authority.
-
-Monte Carlo deliberately reuses QORE's canonical deterministic circular-block
-bootstrap primitives from ``research_block_bootstrap`` and QORE's nearest-rank
-quantile rule from ``research_resampling_envelope``.  No alternate RNG or
-post-hoc resampling engine is introduced here.
+The source methodology remains frozen.  No parameter optimization is performed.
+The 30% OOS segment is consumed by this research run and therefore cannot be
+reused as an independent holdout after any strategy change.  None of the output
+objects grants DEMO/LIVE/Risk/execution or governed lifecycle authority.
 """
 
 from __future__ import annotations
@@ -45,7 +39,7 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest import (
 
 _SCHEMA = "qore.trader_lab.vt31_silver_bullet_v2_full_research.v1"
 _BACKTEST_SCHEMA = "qore.trader_lab.vt31_silver_bullet_v2_backtest.v1"
-_EVIDENCE_SCHEMA = "qore.ctrader_demo.vt31_silver_bullet_v2_m1_evidence.v1"
+_MARKET_SCHEMA = "qore.ctrader_demo.vt31_silver_bullet_v2_m1_evidence.v1"
 _SYMBOL = "NAS100"
 _METHODOLOGY = "silver-bullet-am-nq-v2"
 _MIN_TERMINAL_SAMPLE = 20
@@ -161,12 +155,9 @@ def _timestamp(value: object, *, field_name: str) -> datetime:
 
 
 def _decimal(value: object, *, field_name: str) -> Decimal:
-    if type(value) is not str or not value:
-        raise Vt31SilverBulletV2FullResearchError(
-            f"{field_name} must be decimal text"
-        )
+    raw = _text(value, field_name=field_name)
     try:
-        result = Decimal(value)
+        result = Decimal(raw)
     except InvalidOperation as error:
         raise Vt31SilverBulletV2FullResearchError(
             f"{field_name} must be decimal text"
@@ -177,47 +168,7 @@ def _decimal(value: object, *, field_name: str) -> Decimal:
 
 
 def _optional_decimal(value: object, *, field_name: str) -> Decimal | None:
-    if value is None:
-        return None
-    return _decimal(value, field_name=field_name)
-
-
-def _max_drawdown(values: tuple[Decimal, ...]) -> Decimal:
-    equity = Decimal(0)
-    peak = Decimal(0)
-    maximum = Decimal(0)
-    for value in values:
-        equity += value
-        peak = max(peak, equity)
-        maximum = max(maximum, peak - equity)
-    return maximum
-
-
-def _metrics(trades: tuple[_Trade, ...], *, haircut: Decimal = Decimal(0)) -> _Metrics:
-    terminal = tuple(item for item in trades if item.r_multiple is not None)
-    values = tuple(cast(Decimal, item.r_multiple) - haircut for item in terminal)
-    if not values:
-        return _Metrics(0, Decimal(0), Decimal(0), Decimal(0), Decimal(0), 0, 0)
-    size = Decimal(len(values))
-    expectancy = sum(values, Decimal(0)) / size
-    variance = sum(((value - expectancy) ** 2 for value in values), Decimal(0)) / size
-    targets = sum(item.outcome == "target" for item in terminal)
-    stops = sum(item.outcome == "stop" for item in terminal)
-    return _Metrics(
-        sample_size=len(values),
-        expectancy_r=expectancy,
-        win_rate=Decimal(targets) / size,
-        population_variance_r=variance,
-        max_drawdown_r=_max_drawdown(values),
-        target_count=targets,
-        stop_count=stops,
-    )
-
-
-def _screen_pass(metrics: _Metrics) -> bool:
-    """Frozen R-unit research screen for source-bound asymmetric payoff methods."""
-
-    return metrics.sample_size >= _MIN_TERMINAL_SAMPLE and metrics.expectancy_r >= 0
+    return None if value is None else _decimal(value, field_name=field_name)
 
 
 def _load_json(path: Path, *, field_name: str) -> dict[str, object]:
@@ -248,11 +199,11 @@ def _bars(market: dict[str, object]) -> tuple[_Bar, ...]:
                 low=_decimal(row.get("low"), field_name="bar low"),
             )
         )
-    if len(result) < 2:
-        raise Vt31SilverBulletV2FullResearchError("M1 evidence is too small")
     ordered = tuple(sorted(result, key=lambda item: item.opened_at))
-    if tuple(result) != ordered:
-        raise Vt31SilverBulletV2FullResearchError("M1 evidence must be chronological")
+    if len(ordered) < 2 or tuple(result) != ordered:
+        raise Vt31SilverBulletV2FullResearchError(
+            "M1 evidence must contain chronological bars"
+        )
     return ordered
 
 
@@ -283,7 +234,9 @@ def _trades(backtest: dict[str, object]) -> tuple[_Trade, ...]:
                 stop_loss=_decimal(row.get("stop_loss"), field_name="stop_loss"),
                 take_profit=_decimal(row.get("take_profit"), field_name="take_profit"),
                 outcome=outcome,
-                r_multiple=_optional_decimal(row.get("r_multiple"), field_name="r_multiple"),
+                r_multiple=_optional_decimal(
+                    row.get("r_multiple"), field_name="r_multiple"
+                ),
             )
         )
     return tuple(sorted(result, key=lambda item: (item.signal_at, item.filled_at)))
@@ -293,25 +246,29 @@ def _validate_contracts(
     market: dict[str, object],
     backtest: dict[str, object],
 ) -> tuple[str, tuple[_Bar, ...], tuple[_Trade, ...]]:
-    if _text(market.get("schema"), field_name="market schema") != _EVIDENCE_SCHEMA:
+    if _text(market.get("schema"), field_name="market schema") != _MARKET_SCHEMA:
         raise Vt31SilverBulletV2FullResearchError("unexpected market evidence schema")
     if _text(backtest.get("schema"), field_name="backtest schema") != _BACKTEST_SCHEMA:
         raise Vt31SilverBulletV2FullResearchError("unexpected backtest schema")
-    for payload, name in ((market, "market"), (backtest, "backtest")):
-        if _text(payload.get("environment"), field_name=f"{name} environment") != "demo":
+    for payload, label in ((market, "market"), (backtest, "backtest")):
+        if _text(payload.get("environment"), field_name=f"{label} environment") != "demo":
             raise Vt31SilverBulletV2FullResearchError("research evidence must be DEMO")
-        if not _strict_bool(payload.get("read_only"), field_name=f"{name} read_only"):
-            raise Vt31SilverBulletV2FullResearchError("research evidence must be read-only")
+        if not _strict_bool(payload.get("read_only"), field_name=f"{label} read_only"):
+            raise Vt31SilverBulletV2FullResearchError(
+                "research evidence must be read-only"
+            )
     if _strict_bool(market.get("account_is_live"), field_name="account_is_live"):
         raise Vt31SilverBulletV2FullResearchError("LIVE evidence is prohibited")
-    if _strict_int(
+    required_days = _strict_int(
         market.get("required_coverage_days"), field_name="required_coverage_days"
-    ) < 730:
-        raise Vt31SilverBulletV2FullResearchError("at least 730 required days are mandatory")
-    source_market = _text(
-        market.get("source_authorized_market"), field_name="source_authorized_market"
     )
-    if source_market != _SYMBOL:
+    if required_days < 730:
+        raise Vt31SilverBulletV2FullResearchError(
+            "at least 730 required days are mandatory"
+        )
+    if _text(
+        market.get("source_authorized_market"), field_name="source_authorized_market"
+    ) != _SYMBOL:
         raise Vt31SilverBulletV2FullResearchError("source contract requires NAS100")
     symbol = _object(market.get("symbol"), field_name="market symbol")
     if _text(symbol.get("symbol_name"), field_name="symbol_name") != _SYMBOL:
@@ -327,24 +284,83 @@ def _validate_contracts(
             "market/backtest software SHA must match exactly"
         )
     trades = _trades(backtest)
-    if len(trades) != _strict_int(backtest.get("filled_count"), field_name="filled_count"):
-        raise Vt31SilverBulletV2FullResearchError("filled_count must reconcile to trades")
+    filled_count = _strict_int(backtest.get("filled_count"), field_name="filled_count")
+    if len(trades) != filled_count:
+        raise Vt31SilverBulletV2FullResearchError(
+            "filled_count must reconcile to retained trades"
+        )
     return market_sha, _bars(market), trades
 
 
+def _max_drawdown(values: tuple[Decimal, ...]) -> Decimal:
+    equity = Decimal(0)
+    peak = Decimal(0)
+    maximum = Decimal(0)
+    for value in values:
+        equity += value
+        peak = max(peak, equity)
+        maximum = max(maximum, peak - equity)
+    return maximum
+
+
+def _terminal_values(
+    trades: tuple[_Trade, ...],
+    *,
+    haircut: Decimal = Decimal(0),
+) -> tuple[Decimal, ...]:
+    values: list[Decimal] = []
+    for trade in trades:
+        if trade.r_multiple is not None:
+            values.append(trade.r_multiple - haircut)
+    return tuple(values)
+
+
+def _metrics(
+    trades: tuple[_Trade, ...],
+    *,
+    haircut: Decimal = Decimal(0),
+) -> _Metrics:
+    values = _terminal_values(trades, haircut=haircut)
+    if not values:
+        return _Metrics(0, Decimal(0), Decimal(0), Decimal(0), Decimal(0), 0, 0)
+    size = Decimal(len(values))
+    expectancy = sum(values, Decimal(0)) / size
+    variance = sum(((value - expectancy) ** 2 for value in values), Decimal(0)) / size
+    terminal = tuple(item for item in trades if item.r_multiple is not None)
+    targets = sum(item.outcome == "target" for item in terminal)
+    stops = sum(item.outcome == "stop" for item in terminal)
+    return _Metrics(
+        sample_size=len(values),
+        expectancy_r=expectancy,
+        win_rate=Decimal(targets) / size,
+        population_variance_r=variance,
+        max_drawdown_r=_max_drawdown(values),
+        target_count=targets,
+        stop_count=stops,
+    )
+
+
+def _screen_pass(metrics: _Metrics) -> bool:
+    return metrics.sample_size >= _MIN_TERMINAL_SAMPLE and metrics.expectancy_r >= 0
+
+
 def _bootstrap(values: tuple[Decimal, ...]) -> dict[str, object]:
+    policy_payload: dict[str, object] = {
+        "algorithm": "qore-circular-block-bootstrap-v1",
+        "block_length": _BOOTSTRAP_POLICY.block_length,
+        "simulation_count": _BOOTSTRAP_POLICY.resample_count,
+        "seed": _BOOTSTRAP_POLICY.seed,
+        "lower_quantile_bps": _ENVELOPE_POLICY.lower_quantile_bps,
+        "upper_quantile_bps": _ENVELOPE_POLICY.upper_quantile_bps,
+        "qualification_rule": (
+            f"sample_size>={_MIN_TERMINAL_SAMPLE} and lower_mean_r>=0"
+        ),
+    }
     if len(values) < _BOOTSTRAP_POLICY.block_length:
         return {
             "status": "insufficient_sample",
             "sample_size": len(values),
-            "policy": {
-                "algorithm": "qore-circular-block-bootstrap-v1",
-                "block_length": _BOOTSTRAP_POLICY.block_length,
-                "simulation_count": _BOOTSTRAP_POLICY.resample_count,
-                "seed": _BOOTSTRAP_POLICY.seed,
-                "lower_quantile_bps": _ENVELOPE_POLICY.lower_quantile_bps,
-                "upper_quantile_bps": _ENVELOPE_POLICY.upper_quantile_bps,
-            },
+            "policy": policy_payload,
         }
     sample_size = len(values)
     blocks_per_replicate = (
@@ -385,28 +401,18 @@ def _bootstrap(values: tuple[Decimal, ...]) -> dict[str, object]:
         "median_mean_r": format(median, "f"),
         "upper_mean_r": format(upper, "f"),
         "contains_zero": lower <= 0 <= upper,
-        "policy": {
-            "algorithm": "qore-circular-block-bootstrap-v1",
-            "block_length": _BOOTSTRAP_POLICY.block_length,
-            "simulation_count": _BOOTSTRAP_POLICY.resample_count,
-            "seed": _BOOTSTRAP_POLICY.seed,
-            "lower_quantile_bps": _ENVELOPE_POLICY.lower_quantile_bps,
-            "upper_quantile_bps": _ENVELOPE_POLICY.upper_quantile_bps,
-            "qualification_rule": (
-                f"sample_size>={_MIN_TERMINAL_SAMPLE} and lower_mean_r>=0"
-            ),
-        },
+        "policy": policy_payload,
     }
 
 
 def _path_payload(trade: _Trade, bars: tuple[_Bar, ...]) -> dict[str, object]:
     risk = abs(trade.entry_price - trade.stop_loss)
     if risk <= 0:
-        raise Vt31SilverBulletV2FullResearchError("trade risk distance must be positive")
+        raise Vt31SilverBulletV2FullResearchError(
+            "trade risk distance must be positive"
+        )
     end = trade.resolved_at or bars[-1].closed_at
-    path = tuple(
-        bar for bar in bars if trade.filled_at <= bar.closed_at <= end
-    )
+    path = tuple(bar for bar in bars if trade.filled_at <= bar.closed_at <= end)
     if path:
         highest = max(item.high for item in path)
         lowest = min(item.low for item in path)
@@ -419,8 +425,7 @@ def _path_payload(trade: _Trade, bars: tuple[_Bar, ...]) -> dict[str, object]:
     else:
         mfe = Decimal(0)
         mae = Decimal(0)
-    reward_to_risk = abs(trade.take_profit - trade.entry_price) / risk
-    signal_ny = trade.signal_at.astimezone(_NY)
+    local = trade.signal_at.astimezone(_NY)
     return {
         "signal_at": trade.signal_at.isoformat(timespec="microseconds"),
         "filled_at": trade.filled_at.isoformat(timespec="microseconds"),
@@ -431,12 +436,19 @@ def _path_payload(trade: _Trade, bars: tuple[_Bar, ...]) -> dict[str, object]:
         ),
         "side": trade.side,
         "outcome": trade.outcome,
-        "r_multiple": format(trade.r_multiple, "f") if trade.r_multiple is not None else None,
+        "r_multiple": (
+            format(trade.r_multiple, "f") if trade.r_multiple is not None else None
+        ),
         "entry_price": format(trade.entry_price, "f"),
         "stop_loss": format(trade.stop_loss, "f"),
         "take_profit": format(trade.take_profit, "f"),
-        "reward_to_risk": format(reward_to_risk, "f"),
-        "bars_signal_to_fill": int((trade.filled_at - trade.signal_at).total_seconds() // 60),
+        "reward_to_risk": format(
+            abs(trade.take_profit - trade.entry_price) / risk,
+            "f",
+        ),
+        "bars_signal_to_fill": int(
+            (trade.filled_at - trade.signal_at).total_seconds() // 60
+        ),
         "bars_fill_to_resolution": (
             int((trade.resolved_at - trade.filled_at).total_seconds() // 60)
             if trade.resolved_at is not None
@@ -444,32 +456,9 @@ def _path_payload(trade: _Trade, bars: tuple[_Bar, ...]) -> dict[str, object]:
         ),
         "mfe_r": format(mfe, "f"),
         "mae_r": format(mae, "f"),
-        "new_york_date": signal_ny.date().isoformat(),
-        "new_york_minute": signal_ny.strftime("%H:%M"),
-        "weekday": signal_ny.strftime("%A").lower(),
-    }
-
-
-def _temporal_metrics(trades: tuple[_Trade, ...]) -> dict[str, object]:
-    by_year: dict[str, list[_Trade]] = defaultdict(list)
-    by_month: dict[str, list[_Trade]] = defaultdict(list)
-    by_weekday: dict[str, list[_Trade]] = defaultdict(list)
-    for trade in trades:
-        local = trade.signal_at.astimezone(_NY)
-        by_year[str(local.year)].append(trade)
-        by_month[local.strftime("%Y-%m")].append(trade)
-        by_weekday[local.strftime("%A").lower()].append(trade)
-
-    def payload(groups: dict[str, list[_Trade]]) -> dict[str, object]:
-        return {
-            key: _metrics(tuple(value)).payload()
-            for key, value in sorted(groups.items())
-        }
-
-    return {
-        "by_year": payload(by_year),
-        "by_month": payload(by_month),
-        "by_weekday": payload(by_weekday),
+        "new_york_date": local.date().isoformat(),
+        "new_york_minute": local.strftime("%H:%M"),
+        "weekday": local.strftime("%A").lower(),
     }
 
 
@@ -477,6 +466,29 @@ def _side_metrics(trades: tuple[_Trade, ...]) -> dict[str, object]:
     return {
         side: _metrics(tuple(item for item in trades if item.side == side)).payload()
         for side in ("long", "short")
+    }
+
+
+def _temporal_metrics(trades: tuple[_Trade, ...]) -> dict[str, object]:
+    years: dict[str, list[_Trade]] = defaultdict(list)
+    months: dict[str, list[_Trade]] = defaultdict(list)
+    weekdays: dict[str, list[_Trade]] = defaultdict(list)
+    for trade in trades:
+        local = trade.signal_at.astimezone(_NY)
+        years[str(local.year)].append(trade)
+        months[local.strftime("%Y-%m")].append(trade)
+        weekdays[local.strftime("%A").lower()].append(trade)
+
+    def group_payload(groups: dict[str, list[_Trade]]) -> dict[str, object]:
+        return {
+            key: _metrics(tuple(value)).payload()
+            for key, value in sorted(groups.items())
+        }
+
+    return {
+        "by_year": group_payload(years),
+        "by_month": group_payload(months),
+        "by_weekday": group_payload(weekdays),
     }
 
 
@@ -495,12 +507,14 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
     market: dict[str, object],
     backtest: dict[str, object],
 ) -> dict[str, dict[str, object]]:
-    """Build all research artifacts from exact broker evidence + canonical backtest."""
+    """Build the complete descriptive research artifact family."""
 
     software_sha, bars, trades = _validate_contracts(market, backtest)
     split_index = (len(bars) * 7) // 10
     if split_index <= 0 or split_index >= len(bars):
-        raise Vt31SilverBulletV2FullResearchError("market evidence is too small for 70/30 split")
+        raise Vt31SilverBulletV2FullResearchError(
+            "market evidence is too small for 70/30 split"
+        )
     split_at = bars[split_index].opened_at
     train = tuple(item for item in trades if item.signal_at < split_at)
     oos = tuple(item for item in trades if item.signal_at >= split_at)
@@ -508,7 +522,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
     oos_metrics = _metrics(oos)
     governance = _holdout_governance(split_at)
 
-    walk_forward = {
+    walk_forward: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_walk_forward.v1",
         "environment": "demo",
         "read_only": True,
@@ -534,14 +548,12 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "oos": oos_metrics.payload(),
         "oos_pass": _screen_pass(oos_metrics),
         "selected_configuration": (
-            "silver-bullet-am-nq-v2" if _screen_pass(train_metrics) else None
+            _METHODOLOGY if _screen_pass(train_metrics) else None
         ),
         "holdout_governance": governance,
     }
 
-    side_all = _side_metrics(trades)
-    side_oos = _side_metrics(oos)
-    characterization = {
+    characterization: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_characterization.v1",
         "environment": "demo",
         "read_only": True,
@@ -549,23 +561,32 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "software_sha": software_sha,
         "symbol": _SYMBOL,
         "decision_funnel": {
-            "decision_days": _strict_int(backtest.get("decision_days"), field_name="decision_days"),
-            "setup_count": _strict_int(backtest.get("setup_count"), field_name="setup_count"),
-            "filled_count": _strict_int(backtest.get("filled_count"), field_name="filled_count"),
+            "decision_days": _strict_int(
+                backtest.get("decision_days"), field_name="decision_days"
+            ),
+            "setup_count": _strict_int(
+                backtest.get("setup_count"), field_name="setup_count"
+            ),
+            "filled_count": _strict_int(
+                backtest.get("filled_count"), field_name="filled_count"
+            ),
             "unfilled_setup_count": _strict_int(
-                backtest.get("unfilled_setup_count"), field_name="unfilled_setup_count"
+                backtest.get("unfilled_setup_count"),
+                field_name="unfilled_setup_count",
             ),
             "pending_gap_count": _strict_int(
                 backtest.get("pending_gap_count"), field_name="pending_gap_count"
             ),
-            "terminal_sample_size": sum(item.r_multiple is not None for item in trades),
-            "censored_filled_count": sum(item.r_multiple is None for item in trades),
+            "terminal_sample_size": len(_terminal_values(trades)),
+            "censored_filled_count": sum(
+                item.r_multiple is None for item in trades
+            ),
         },
         "all_history": _metrics(trades).payload(),
         "in_sample": train_metrics.payload(),
         "oos": oos_metrics.payload(),
-        "by_side_all_history": side_all,
-        "by_side_oos": side_oos,
+        "by_side_all_history": _side_metrics(trades),
+        "by_side_oos": _side_metrics(oos),
         "temporal": _temporal_metrics(trades),
         "parameter_sensitivity": {
             "status": "not_applicable",
@@ -574,7 +595,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "holdout_governance": governance,
     }
 
-    stress_haircuts = []
+    stress_haircuts: list[dict[str, object]] = []
     for haircut in _STRESS_HAIRCUTS_R:
         stressed = _metrics(oos, haircut=haircut)
         stress_haircuts.append(
@@ -588,9 +609,10 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
     midpoint = len(terminal_oos) // 2
     first_half = _metrics(terminal_oos[:midpoint])
     second_half = _metrics(terminal_oos[midpoint:])
+    subwindow_minimum = max(5, _MIN_TERMINAL_SAMPLE // 2)
     subwindow_pass = (
-        first_half.sample_size >= max(5, _MIN_TERMINAL_SAMPLE // 2)
-        and second_half.sample_size >= max(5, _MIN_TERMINAL_SAMPLE // 2)
+        first_half.sample_size >= subwindow_minimum
+        and second_half.sample_size >= subwindow_minimum
         and first_half.expectancy_r >= 0
         and second_half.expectancy_r >= 0
     )
@@ -599,7 +621,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         and all(bool(item["pass"]) for item in stress_haircuts)
         and subwindow_pass
     )
-    stress = {
+    stress: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_stress.v1",
         "environment": "demo",
         "read_only": True,
@@ -623,12 +645,8 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "holdout_governance": governance,
     }
 
-    oos_values = tuple(
-        cast(Decimal, item.r_multiple)
-        for item in terminal_oos
-        if item.r_multiple is not None
-    )
-    monte_carlo = {
+    oos_values = _terminal_values(terminal_oos)
+    monte_carlo: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_monte_carlo.v1",
         "environment": "demo",
         "read_only": True,
@@ -641,8 +659,8 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "holdout_governance": governance,
     }
 
-    paths = [_path_payload(item, bars) for item in trades]
-    story_forensics = {
+    stories = [_path_payload(item, bars) for item in trades]
+    story_forensics: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_story_forensics.v1",
         "environment": "demo",
         "read_only": True,
@@ -650,43 +668,43 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "software_sha": software_sha,
         "symbol": _SYMBOL,
         "methodology": _METHODOLOGY,
-        "trade_story_count": len(paths),
-        "stories": paths,
+        "trade_story_count": len(stories),
+        "stories": stories,
         "holdout_governance": governance,
     }
 
     long_oos = _metrics(tuple(item for item in oos if item.side == "long"))
     short_oos = _metrics(tuple(item for item in oos if item.side == "short"))
-    observations: list[str] = []
+    labels: list[str] = []
     if not _screen_pass(oos_metrics):
-        observations.append("oos_generalization_failure")
+        labels.append("oos_generalization_failure")
     if not stress_pass:
-        observations.append("stress_fragility")
-    if str(monte_carlo.get("status")) != "qualified":
-        observations.append("monte_carlo_lower_envelope_not_positive")
+        labels.append("stress_fragility")
+    if monte_carlo.get("status") != "qualified":
+        labels.append("monte_carlo_lower_envelope_not_positive")
     if (
         long_oos.sample_size > 0
         and short_oos.sample_size > 0
         and (long_oos.expectancy_r >= 0) != (short_oos.expectancy_r >= 0)
     ):
-        observations.append("directional_asymmetry")
+        labels.append("directional_asymmetry")
     setup_count = _strict_int(backtest.get("setup_count"), field_name="setup_count")
     unfilled = _strict_int(
         backtest.get("unfilled_setup_count"), field_name="unfilled_setup_count"
     )
     if setup_count and Decimal(unfilled) / Decimal(setup_count) > Decimal("0.25"):
-        observations.append("elevated_unfilled_setup_rate")
-    if not observations:
-        observations.append("no_failure_rule_triggered_research_only")
+        labels.append("elevated_unfilled_setup_rate")
+    if not labels:
+        labels.append("no_failure_rule_triggered_research_only")
 
-    failure_analysis = {
+    failure_analysis: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_failure_analysis.v1",
         "environment": "demo",
         "read_only": True,
         "research_only": True,
         "software_sha": software_sha,
         "symbol": _SYMBOL,
-        "observations": observations,
+        "observations": labels,
         "oos": oos_metrics.payload(),
         "long_oos": long_oos.payload(),
         "short_oos": short_oos.payload(),
@@ -696,7 +714,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "holdout_governance": governance,
     }
 
-    hypothesis_register = {
+    hypothesis_register: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_hypothesis_register.v1",
         "environment": "demo",
         "read_only": True,
@@ -704,12 +722,12 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "software_sha": software_sha,
         "symbol": _SYMBOL,
         "methodology_frozen": True,
-        "observed_failure_labels": observations,
+        "observed_failure_labels": labels,
         "candidate_hypotheses": [
             {
                 "id": "vt31-v2-directional-asymmetry",
                 "enabled_for_modification": False,
-                "triggered": "directional_asymmetry" in observations,
+                "triggered": "directional_asymmetry" in labels,
                 "mechanism_to_investigate": (
                     "long/short setup geometry and post-raid structure behavior"
                 ),
@@ -720,7 +738,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
             {
                 "id": "vt31-v2-oos-regime-dependence",
                 "enabled_for_modification": False,
-                "triggered": "oos_generalization_failure" in observations,
+                "triggered": "oos_generalization_failure" in labels,
                 "mechanism_to_investigate": (
                     "temporal/regime concentration of terminal R outcomes"
                 ),
@@ -732,7 +750,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "holdout_governance": governance,
     }
 
-    summary = {
+    summary: dict[str, object] = {
         "schema": _SCHEMA,
         "environment": "demo",
         "read_only": True,
@@ -746,10 +764,12 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "walk_forward_oos_pass": walk_forward["oos_pass"],
         "stress_pass": stress_pass,
         "monte_carlo_status": monte_carlo.get("status"),
-        "story_forensics_complete": len(paths) == len(trades),
-        "failure_labels": observations,
+        "story_forensics_complete": len(stories) == len(trades),
+        "failure_labels": labels,
         "demo_eligible": False,
-        "promotion_blocker": "fresh unseen holdout and governed authority chain remain required",
+        "promotion_blocker": (
+            "fresh unseen holdout and governed authority chain remain required"
+        ),
         "holdout_governance": governance,
     }
 
@@ -770,9 +790,10 @@ def run_vt31_silver_bullet_v2_full_research(
     backtest_path: Path,
     output_directory: Path,
 ) -> dict[str, object]:
-    market = _load_json(market_path, field_name="market evidence")
-    backtest = _load_json(backtest_path, field_name="backtest evidence")
-    payloads = build_vt31_silver_bullet_v2_full_research_payloads(market, backtest)
+    payloads = build_vt31_silver_bullet_v2_full_research_payloads(
+        _load_json(market_path, field_name="market evidence"),
+        _load_json(backtest_path, field_name="backtest evidence"),
+    )
     output_directory.mkdir(parents=True, exist_ok=True)
     for filename, payload in payloads.items():
         (output_directory / filename).write_text(
