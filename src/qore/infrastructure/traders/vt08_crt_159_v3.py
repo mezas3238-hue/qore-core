@@ -26,21 +26,24 @@ Deterministic V3 freeze:
 - unresolved cases at 13:00 New York are censored, never fabricated as exits.
 
 The source teaches CRT fractality and the 1-5-9 nesting, but does not prove that
-every discretionary human selection maps uniquely to one algorithmic rule.  The
-specific deterministic choices above are therefore versioned, falsifiable
-operationalization choices.  This module grants no DEMO/LIVE/Risk authority.
+every discretionary human selection maps uniquely to one algorithmic rule. The
+specific deterministic choices above are versioned, falsifiable
+operationalization choices. This module grants no DEMO/LIVE/Risk authority.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 from hashlib import sha256
-import json
 
-from qore.infrastructure.traders.contracts import DemoTradingDecision, DemoTradingSetupSide
+from qore.infrastructure.traders.contracts import (
+    DemoTradingDecision,
+    DemoTradingSetupSide,
+)
 from qore.kernel.errors import InfrastructureError
 
 TRADER_CODE = "vt-08"
@@ -105,9 +108,18 @@ class Vt08Crt159V3Candle:
     close: Decimal
 
     def __post_init__(self) -> None:
-        for name, value in (("opened_at", self.opened_at), ("closed_at", self.closed_at)):
-            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
-                raise Vt08Crt159V3ValidationError(f"{name} must be timezone-aware")
+        for name, value in (
+            ("opened_at", self.opened_at),
+            ("closed_at", self.closed_at),
+        ):
+            if (
+                type(value) is not datetime
+                or value.tzinfo is None
+                or value.utcoffset() is None
+            ):
+                raise Vt08Crt159V3ValidationError(
+                    f"{name} must be timezone-aware"
+                )
         if self.closed_at <= self.opened_at:
             raise Vt08Crt159V3ValidationError("candle close must follow open")
         for name, value in (
@@ -117,9 +129,16 @@ class Vt08Crt159V3Candle:
             ("close", self.close),
         ):
             if type(value) is not Decimal or not value.is_finite() or value <= 0:
-                raise Vt08Crt159V3ValidationError(f"{name} must be positive Decimal")
-        if self.low > min(self.open, self.close) or self.high < max(self.open, self.close):
-            raise Vt08Crt159V3ValidationError("OHLC body must lie inside high/low")
+                raise Vt08Crt159V3ValidationError(
+                    f"{name} must be positive Decimal"
+                )
+        if (
+            self.low > min(self.open, self.close)
+            or self.high < max(self.open, self.close)
+        ):
+            raise Vt08Crt159V3ValidationError(
+                "OHLC body must lie inside high/low"
+            )
         if self.low > self.high:
             raise Vt08Crt159V3ValidationError("low must not exceed high")
 
@@ -144,14 +163,21 @@ class Vt08Crt159V3Input:
             raise Vt08Crt159V3ValidationError("symbol must be non-empty str")
         if self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
             raise Vt08Crt159V3ValidationError("as_of must be timezone-aware")
-        if self.h4_distribution_closes_at.tzinfo is None:
+        if (
+            self.h4_distribution_closes_at.tzinfo is None
+            or self.h4_distribution_closes_at.utcoffset() is None
+        ):
             raise Vt08Crt159V3ValidationError(
                 "h4_distribution_closes_at must be timezone-aware"
             )
         if self.entry_bar_1130.opened_at > self.as_of:
-            raise Vt08Crt159V3ValidationError("future entry-bar evidence is prohibited")
+            raise Vt08Crt159V3ValidationError(
+                "future entry-bar evidence is prohibited"
+            )
         if self.entry_bar_1130.opened_at >= self.h4_distribution_closes_at:
-            raise Vt08Crt159V3ValidationError("entry must precede H4 distribution close")
+            raise Vt08Crt159V3ValidationError(
+                "entry must precede H4 distribution close"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,7 +197,9 @@ class Vt08Crt159V3Setup:
         else:
             valid = self.take_profit < self.entry_price < self.stop_loss
         if not valid:
-            raise Vt08Crt159V3ValidationError("setup geometry must be strictly directional")
+            raise Vt08Crt159V3ValidationError(
+                "setup geometry must be strictly directional"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +221,11 @@ def _fingerprint() -> str:
         "supported_markets": SUPPORTED_MARKETS,
     }
     return sha256(
-        json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(
+            material,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
     ).hexdigest()
 
 
@@ -208,10 +240,16 @@ def crt_direction(
     closes_inside = reference.low < manipulation.close < reference.high
     if not closes_inside or swept_high == swept_low:
         return None
-    return DemoTradingSetupSide.SHORT if swept_high else DemoTradingSetupSide.LONG
+    return (
+        DemoTradingSetupSide.SHORT
+        if swept_high
+        else DemoTradingSetupSide.LONG
+    )
 
 
-def _abstain(reason: Vt08Crt159V3AbstainReason) -> Vt08Crt159V3Evaluation:
+def _abstain(
+    reason: Vt08Crt159V3AbstainReason,
+) -> Vt08Crt159V3Evaluation:
     return Vt08Crt159V3Evaluation(
         decision=DemoTradingDecision.ABSTAIN,
         setup=None,
@@ -220,7 +258,9 @@ def _abstain(reason: Vt08Crt159V3AbstainReason) -> Vt08Crt159V3Evaluation:
     )
 
 
-def evaluate_vt08_crt_159_v3(inputs: Vt08Crt159V3Input) -> Vt08Crt159V3Evaluation:
+def evaluate_vt08_crt_159_v3(
+    inputs: Vt08Crt159V3Input,
+) -> Vt08Crt159V3Evaluation:
     """Evaluate one fully observable nested 1-5-9 decision without lookahead."""
 
     if type(inputs) is not Vt08Crt159V3Input:
@@ -231,16 +271,28 @@ def evaluate_vt08_crt_159_v3(inputs: Vt08Crt159V3Input) -> Vt08Crt159V3Evaluatio
     if inputs.daily_reference is None or inputs.daily_manipulation is None:
         return _abstain(Vt08Crt159V3AbstainReason.DAILY_CONTEXT_MISSING)
 
-    daily_side = crt_direction(inputs.daily_reference, inputs.daily_manipulation)
+    daily_side = crt_direction(
+        inputs.daily_reference,
+        inputs.daily_manipulation,
+    )
     if daily_side is None:
         return _abstain(Vt08Crt159V3AbstainReason.DAILY_CRT_INVALID)
-    h4_side = crt_direction(inputs.h4_reference_01, inputs.h4_manipulation_05)
+    h4_side = crt_direction(
+        inputs.h4_reference_01,
+        inputs.h4_manipulation_05,
+    )
     if h4_side is None:
         return _abstain(Vt08Crt159V3AbstainReason.H4_CRT_INVALID)
-    h1_side = crt_direction(inputs.h1_reference_09, inputs.h1_manipulation_10)
+    h1_side = crt_direction(
+        inputs.h1_reference_09,
+        inputs.h1_manipulation_10,
+    )
     if h1_side is None:
         return _abstain(Vt08Crt159V3AbstainReason.H1_CRT_INVALID)
-    m15_side = crt_direction(inputs.m15_reference_1100, inputs.m15_manipulation_1115)
+    m15_side = crt_direction(
+        inputs.m15_reference_1100,
+        inputs.m15_manipulation_1115,
+    )
     if m15_side is None:
         return _abstain(Vt08Crt159V3AbstainReason.M15_CRT_INVALID)
     if len({daily_side, h4_side, h1_side, m15_side}) != 1:
