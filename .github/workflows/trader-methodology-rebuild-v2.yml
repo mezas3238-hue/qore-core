@@ -41,13 +41,14 @@ jobs:
         run: ruff check .
       - name: Mypy
         run: mypy src tests
-      - name: VT-31 V2 focused methodology fidelity gate
+      - name: VT-31 V2 focused methodology and Trader Lab evidence gate
         run: |
           pytest -q --no-cov \
             tests/infrastructure/traders/test_vt31_silver_bullet_v2.py \
             tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
             tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_backtest.py \
-            tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_backtest_report.py
+            tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_backtest_report.py \
+            tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_full_research.py
       - name: Pytest full quality gate
         run: pytest --cov=src/qore --cov-report=term-missing
 
@@ -143,7 +144,68 @@ jobs:
           assert result["long_trade_count"] == by_side["long"]["filled_count"]
           assert result["short_trade_count"] == by_side["short"]["filled_count"]
           PY
-      - name: Upload sanitized VT-31 V2 NAS100 research evidence
+      - name: Run full NAS100 Trader Lab research evidence pipeline
+        run: |
+          python -m qore.infrastructure.trader_lab.vt31_silver_bullet_v2_full_research \
+            artifacts/vt31-silver-bullet-v2/NAS100/market-evidence.json \
+            artifacts/vt31-silver-bullet-v2/NAS100/backtest.json \
+            artifacts/vt31-silver-bullet-v2/NAS100 \
+            > artifacts/vt31-silver-bullet-v2/NAS100/research-run-summary.stdout.json
+      - name: Verify complete research evidence family and governance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path("artifacts/vt31-silver-bullet-v2/NAS100")
+          required = {
+              "market-evidence.json",
+              "backtest.json",
+              "git-sha.txt",
+              "walk-forward.json",
+              "characterization.json",
+              "stress.json",
+              "monte-carlo.json",
+              "failure-analysis.json",
+              "story-forensics.json",
+              "hypothesis-register.json",
+              "research-summary.json",
+              "research-run-summary.stdout.json",
+          }
+          present = {item.name for item in root.iterdir() if item.is_file()}
+          assert required <= present, sorted(required - present)
+
+          sha = os.environ["GITHUB_SHA"]
+          summary = json.loads((root / "research-summary.json").read_text())
+          walk_forward = json.loads((root / "walk-forward.json").read_text())
+          stress = json.loads((root / "stress.json").read_text())
+          monte_carlo = json.loads((root / "monte-carlo.json").read_text())
+          story = json.loads((root / "story-forensics.json").read_text())
+          backtest = json.loads((root / "backtest.json").read_text())
+
+          assert summary["schema"] == "qore.trader_lab.vt31_silver_bullet_v2_full_research.v1"
+          assert summary["software_sha"] == sha
+          assert summary["symbol"] == "NAS100"
+          assert summary["demo_eligible"] is False
+          assert walk_forward["software_sha"] == sha
+          assert walk_forward["in_sample_fraction"] == "0.70"
+          assert walk_forward["oos_fraction"] == "0.30"
+          assert walk_forward["configuration_selection"] == "source_frozen_no_parameter_search"
+
+          governance = walk_forward["holdout_governance"]
+          assert governance["state"] == "consumed_for_research"
+          assert governance["consumed_holdout_cannot_certify_modified_strategy"] is True
+          assert governance["post_change_reuse_as_independent_holdout_prohibited"] is True
+          assert governance["new_previously_unseen_holdout_required_after_any_hypothesis_change"] is True
+          assert governance["demo_eligible_authority"] is False
+
+          assert stress["governed_stage_authority"] is False
+          assert monte_carlo["governed_stage_authority"] is False
+          assert story["trade_story_count"] == backtest["filled_count"]
+          assert summary["story_forensics_complete"] is True
+          PY
+      - name: Upload sanitized VT-31 V2 NAS100 full Trader Lab evidence
         uses: actions/upload-artifact@v4
         with:
           name: qore-vt31-silver-bullet-v2-nas100-${{ github.sha }}
