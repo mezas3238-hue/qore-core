@@ -1,15 +1,20 @@
 """Source-fidelity historical audit for VT-08 V2 4H PO3.
 
 This is deliberately *not* allowed to manufacture trades from qualitative video
-language. It scans the source's stated H4 key-time anchors and records only the
-mechanically observable prerequisites (reference run, M15 CISD/protected swing,
-and completed H4 reversal closure). The source also requires a reach into a
-source-defined point of interest before lower-timeframe confirmation, but it does
-not provide one universal mechanical POI selector for every historical case.
-Likewise, it does not numerically define ``shallow`` versus ``large/deep`` wick
-size or specify one universal machine bias formula, executable entry price, or
-take-profit. Therefore raw OHLC alone cannot authorize a faithful historical
-entry.
+language. It scans only the Human Owner-authorized New York H4 operating anchors
+and records the mechanically observable prerequisites (reference run, M15
+CISD/protected swing, and completed H4 reversal closure).
+
+The source may show a wider repeating H4 cycle, but the operating scope is fixed:
+Forex 01:00/05:00/09:00 New York and futures 02:00/06:00/10:00 New York.
+Source-cycle anchors outside that scope are not research candidates for QORE.
+
+The source also requires a reach into a source-defined point of interest before
+lower-timeframe confirmation, but it does not provide one universal mechanical
+POI selector for every historical case. Likewise, it does not numerically define
+``shallow`` versus ``large/deep`` wick size or specify one universal machine bias
+formula, executable entry price, or take-profit. Therefore raw OHLC alone cannot
+authorize a faithful historical entry.
 
 The output is an evidence/coverage audit. Candidates are not trades, favorable
 post-signal paths are not wins, and no economic backtest is claimed.
@@ -30,6 +35,8 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
+    FOREX_H4_ANCHOR_HOURS,
+    FUTURES_H4_ANCHOR_HOURS,
     METHODOLOGY_ID,
     METHODOLOGY_VERSION,
     Vt08CrtH4AmdV2Candle,
@@ -45,10 +52,10 @@ _SCHEMA = "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3"
 _EVIDENCE_SCHEMA = "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v3"
 _NY = ZoneInfo("America/New_York")
 
-# Primary-video Timing slide (~03:35): complete repeating H4 opening families.
-# These are audit anchors, never automatic trades.
-_FOREX_H4_ANCHOR_HOURS = (1, 5, 9, 13, 17, 21)
-_FUTURES_H4_ANCHOR_HOURS = (2, 6, 10, 14, 18, 22)
+# Human Owner operating scope. These are New York H4 opening anchors, never
+# automatic trades. Wider source-cycle anchors are intentionally excluded.
+_FOREX_H4_ANCHOR_HOURS = FOREX_H4_ANCHOR_HOURS
+_FUTURES_H4_ANCHOR_HOURS = FUTURES_H4_ANCHOR_HOURS
 
 
 class Vt08CrtH4AmdV2BacktestError(InfrastructureError):
@@ -144,6 +151,10 @@ class Vt08CrtH4AmdV2SourceAudit:
             "read_only": True,
             "research_only": True,
             "source_fidelity_mode": True,
+            "human_owner_operating_scope": True,
+            "operating_timezone": "America/New_York",
+            "forex_operating_h4_anchors": list(_FOREX_H4_ANCHOR_HOURS),
+            "futures_operating_h4_anchors": list(_FUTURES_H4_ANCHOR_HOURS),
             "invalidates_prior_campaign": True,
             "prior_13468_campaign_valid_for_economics": False,
             "prior_16351_candidate_count_final_source_fidelity": False,
@@ -179,10 +190,10 @@ class Vt08CrtH4AmdV2SourceAudit:
                 "primary-video-does-not-define-one-universal-take-profit",
             ],
             "candidate_semantics": (
-                "mechanical prerequisites only; source POI selection remains "
-                "unresolved, CISD confirmation price is an observation, candidates "
-                "are not entries, and post-signal path metrics are descriptive "
-                "oracles, not PnL"
+                "mechanical prerequisites only inside Human Owner 3x3 New York "
+                "operating windows; source POI selection remains unresolved, CISD "
+                "confirmation price is an observation, candidates are not entries, "
+                "and post-signal path metrics are descriptive oracles, not PnL"
             ),
             "candidates": [item.payload() for item in self.candidates],
         }
@@ -407,7 +418,7 @@ def run_vt08_v2_source_audit(path: Path) -> Vt08CrtH4AmdV2SourceAudit:
     software_sha, symbol, provider, account, checked_at, bars, evidence = _load(path)
     family = timing_family_for_market(symbol)
     if family is None:
-        raise Vt08CrtH4AmdV2BacktestError("unsupported Core market")
+        raise Vt08CrtH4AmdV2BacktestError("unsupported VT-08 owner-scope market")
     if family is Vt08CrtH4AmdV2TimingFamily.SOURCE_UNRESOLVED:
         return Vt08CrtH4AmdV2SourceAudit(
             software_sha,
