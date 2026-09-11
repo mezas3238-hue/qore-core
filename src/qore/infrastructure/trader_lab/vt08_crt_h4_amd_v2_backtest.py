@@ -3,10 +3,13 @@
 This is deliberately *not* allowed to manufacture trades from qualitative video
 language. It scans the source's stated H4 key-time anchors and records only the
 mechanically observable prerequisites (reference run, M15 CISD/protected swing,
-and completed H4 reversal closure). The primary video does not numerically
-define ``shallow`` versus ``large/deep`` wick size and does not specify one
-universal machine bias formula, executable entry price, or take-profit.
-Therefore raw OHLC alone cannot authorize a faithful historical entry.
+and completed H4 reversal closure). The source also requires a reach into a
+source-defined point of interest before lower-timeframe confirmation, but it does
+not provide one universal mechanical POI selector for every historical case.
+Likewise, it does not numerically define ``shallow`` versus ``large/deep`` wick
+size or specify one universal machine bias formula, executable entry price, or
+take-profit. Therefore raw OHLC alone cannot authorize a faithful historical
+entry.
 
 The output is an evidence/coverage audit. Candidates are not trades, favorable
 post-signal paths are not wins, and no economic backtest is claimed.
@@ -27,6 +30,8 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
+    METHODOLOGY_ID,
+    METHODOLOGY_VERSION,
     Vt08CrtH4AmdV2Candle,
     Vt08CrtH4AmdV2Scenario,
     Vt08CrtH4AmdV2TimingFamily,
@@ -98,6 +103,7 @@ class Vt08CrtH4AmdV2Candidate:
             "protected_swing_extreme": format(self.protected_swing_extreme, "f"),
             "cisd_level": format(self.cisd_level, "f"),
             "source_bias_status": self.source_bias_status,
+            "source_point_of_interest_status": "requires-source-poi-confirmation",
             "source_wick_status": self.source_wick_status,
             "prior_candle2_wick_status": self.prior_candle2_wick_status,
             "automatic_setup": False,
@@ -143,7 +149,9 @@ class Vt08CrtH4AmdV2SourceAudit:
             "prior_16351_candidate_count_final_source_fidelity": False,
             "trader_code": "vt-08",
             "trader_version": "v2",
-            "methodology": "ttrades-h4-po3-source-v2.2-source-faithful",
+            "methodology": f"{METHODOLOGY_ID}-{METHODOLOGY_VERSION}",
+            "methodology_id": METHODOLOGY_ID,
+            "methodology_version": METHODOLOGY_VERSION,
             "methodology_fingerprint": methodology_fingerprint(),
             "symbol": self.symbol,
             "provider_symbol_name": self.provider_symbol_name,
@@ -164,15 +172,17 @@ class Vt08CrtH4AmdV2SourceAudit:
             "loss_count": None,
             "economic_backtest_authorized": False,
             "economic_backtest_blockers": [
+                "primary-video-requires-contextual-point-of-interest-selection",
                 "primary-video-does-not-quantify-shallow-vs-large-wick",
                 "primary-video-does-not-define-one-universal-machine-bias-formula",
                 "primary-video-does-not-define-one-universal-executable-entry-price",
                 "primary-video-does-not-define-one-universal-take-profit",
             ],
             "candidate_semantics": (
-                "mechanical prerequisites only; CISD confirmation price is an "
-                "observation, candidates are not entries, and post-signal path "
-                "metrics are descriptive oracles, not PnL"
+                "mechanical prerequisites only; source POI selection remains "
+                "unresolved, CISD confirmation price is an observation, candidates "
+                "are not entries, and post-signal path metrics are descriptive "
+                "oracles, not PnL"
             ),
             "candidates": [item.payload() for item in self.candidates],
         }
