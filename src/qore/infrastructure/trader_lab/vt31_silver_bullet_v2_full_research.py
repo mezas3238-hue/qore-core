@@ -1,8 +1,8 @@
 """Full Trader Lab research evidence for source-bound VT-31 Silver Bullet V2.
 
-This module packages chronological IS/OOS, characterization, stress, Monte Carlo,
-failure analysis, Story Forensics and hypothesis governance. It does not mutate
-the frozen methodology and grants no DEMO/LIVE/Risk/execution authority.
+The module packages chronological IS/OOS, characterization, stress, Monte Carlo,
+failure analysis, Story Forensics, and hypothesis governance from the frozen
+NAS100 source-bound implementation. It grants no DEMO/LIVE/Risk authority.
 """
 
 from __future__ import annotations
@@ -195,8 +195,8 @@ def _bars(market: dict[str, object]) -> tuple[_Bar, ...]:
 
 def _trades(backtest: dict[str, object]) -> tuple[_Trade, ...]:
     rows = _array(backtest.get("trades"), field_name="backtest trades")
-    result: list[_Trade] = []
     allowed = {"target", "stop", "breakeven", "gap_censored", "data_end_censored"}
+    result: list[_Trade] = []
     for index, raw in enumerate(rows):
         row = _object(raw, field_name=f"trade[{index}]")
         side = _text(row.get("side"), field_name="trade side")
@@ -214,6 +214,12 @@ def _trades(backtest: dict[str, object]) -> tuple[_Trade, ...]:
             )
         if outcome == "breakeven" and r_multiple != Decimal(0):
             raise Vt31SilverBulletV2FullResearchError("breakeven must equal zero R")
+        entry_model_raw = row.get("entry_model")
+        entry_model = (
+            entry_model_raw
+            if type(entry_model_raw) is str and entry_model_raw
+            else "historical-fixture-unspecified"
+        )
         result.append(
             _Trade(
                 signal_at=_timestamp(row.get("signal_at"), field_name="signal_at"),
@@ -227,11 +233,7 @@ def _trades(backtest: dict[str, object]) -> tuple[_Trade, ...]:
                 take_profit=_decimal(row.get("take_profit"), field_name="take_profit"),
                 outcome=outcome,
                 r_multiple=r_multiple,
-                entry_model=(
-                    cast(str, row["entry_model"])
-                    if type(row.get("entry_model")) is str
-                    else "historical-fixture-unspecified"
-                ),
+                entry_model=entry_model,
                 breakeven_armed_at=_optional_timestamp(
                     row.get("breakeven_armed_at"), field_name="breakeven_armed_at"
                 ),
@@ -282,12 +284,23 @@ def _validate_contracts(
             "market/backtest software SHA must match exactly"
         )
     trades = _trades(backtest)
-    filled_count = _strict_int(backtest.get("filled_count"), field_name="filled_count")
-    if len(trades) != filled_count:
+    if len(trades) != _strict_int(backtest.get("filled_count"), field_name="filled_count"):
         raise Vt31SilverBulletV2FullResearchError(
             "filled_count must reconcile to retained trades"
         )
     return market_sha, _bars(market), trades
+
+
+def _terminal_values(
+    trades: tuple[_Trade, ...],
+    *,
+    haircut: Decimal = Decimal(0),
+) -> tuple[Decimal, ...]:
+    return tuple(
+        trade.r_multiple - haircut
+        for trade in trades
+        if trade.r_multiple is not None
+    )
 
 
 def _max_drawdown(values: tuple[Decimal, ...]) -> Decimal:
@@ -299,18 +312,6 @@ def _max_drawdown(values: tuple[Decimal, ...]) -> Decimal:
         peak = max(peak, equity)
         maximum = max(maximum, peak - equity)
     return maximum
-
-
-def _terminal_values(
-    trades: tuple[_Trade, ...],
-    *,
-    haircut: Decimal = Decimal(0),
-) -> tuple[Decimal, ...]:
-    return tuple(
-        cast(Decimal, trade.r_multiple) - haircut
-        for trade in trades
-        if trade.r_multiple is not None
-    )
 
 
 def _metrics(
@@ -344,13 +345,6 @@ def _screen_pass(metrics: _Metrics) -> bool:
     return metrics.sample_size >= _MIN_TERMINAL_SAMPLE and metrics.expectancy_r >= 0
 
 
-def _percentile(sorted_values: list[Decimal], fraction: Decimal) -> Decimal:
-    if not sorted_values:
-        return Decimal(0)
-    position = int((Decimal(len(sorted_values) - 1) * fraction).to_integral_value())
-    return sorted_values[max(0, min(position, len(sorted_values) - 1))]
-
-
 def _bootstrap(values: tuple[Decimal, ...]) -> dict[str, object]:
     policy: dict[str, object] = {
         "algorithm": "qore-circular-block-bootstrap-v1",
@@ -362,11 +356,15 @@ def _bootstrap(values: tuple[Decimal, ...]) -> dict[str, object]:
         "qualification_rule": f"sample_size>={_MIN_TERMINAL_SAMPLE} and lower_mean_r>=0",
     }
     if len(values) < _BOOTSTRAP_BLOCK:
-        return {"status": "insufficient_sample", "sample_size": len(values), "policy": policy}
+        return {
+            "status": "insufficient_sample",
+            "sample_size": len(values),
+            "policy": policy,
+        }
     rng = random.Random(_BOOTSTRAP_SEED)
     means: list[Decimal] = []
     sample_size = len(values)
-    while len(means) < _BOOTSTRAP_COUNT:
+    for _replicate in range(_BOOTSTRAP_COUNT):
         draw: list[Decimal] = []
         while len(draw) < sample_size:
             start = rng.randrange(sample_size)
@@ -376,47 +374,35 @@ def _bootstrap(values: tuple[Decimal, ...]) -> dict[str, object]:
                     break
         means.append(sum(draw, Decimal(0)) / Decimal(sample_size))
     means.sort()
-    lower = _percentile(means, Decimal("0.05"))
-    upper = _percentile(means, Decimal("0.95"))
+    lower = means[int((len(means) - 1) * 0.05)]
+    upper = means[int((len(means) - 1) * 0.95)]
     status = (
         "qualified"
-        if len(values) >= _MIN_TERMINAL_SAMPLE and lower >= 0
+        if sample_size >= _MIN_TERMINAL_SAMPLE and lower >= 0
         else "not_qualified"
     )
     return {
         "status": status,
-        "sample_size": len(values),
+        "sample_size": sample_size,
         "lower_mean_r": format(lower, "f"),
         "upper_mean_r": format(upper, "f"),
         "policy": policy,
     }
 
 
-def _path_payload(trade: _Trade, bars: tuple[_Bar, ...]) -> dict[str, object]:
+def _story(trade: _Trade, bars: tuple[_Bar, ...]) -> dict[str, object]:
     end = trade.resolved_at if trade.resolved_at is not None else trade.filled_at
-    path = tuple(bar for bar in bars if trade.filled_at <= bar.closed_at <= end)
+    path = tuple(item for item in bars if trade.filled_at <= item.closed_at <= end)
     risk = abs(trade.entry_price - trade.stop_loss)
     if risk == 0:
         mfe = Decimal(0)
         mae = Decimal(0)
     elif trade.side == "long":
-        mfe = max(
-            (bar.high - trade.entry_price for bar in path),
-            default=Decimal(0),
-        ) / risk
-        mae = max(
-            (trade.entry_price - bar.low for bar in path),
-            default=Decimal(0),
-        ) / risk
+        mfe = max((item.high - trade.entry_price for item in path), default=Decimal(0)) / risk
+        mae = max((trade.entry_price - item.low for item in path), default=Decimal(0)) / risk
     else:
-        mfe = max(
-            (trade.entry_price - bar.low for bar in path),
-            default=Decimal(0),
-        ) / risk
-        mae = max(
-            (bar.high - trade.entry_price for bar in path),
-            default=Decimal(0),
-        ) / risk
+        mfe = max((trade.entry_price - item.low for item in path), default=Decimal(0)) / risk
+        mae = max((item.high - trade.entry_price for item in path), default=Decimal(0)) / risk
     return {
         "decision_time": {
             "signal_at": trade.signal_at.isoformat(timespec="microseconds"),
@@ -428,12 +414,12 @@ def _path_payload(trade: _Trade, bars: tuple[_Bar, ...]) -> dict[str, object]:
         },
         "entry": {"filled_at": trade.filled_at.isoformat(timespec="microseconds")},
         "management": {
+            "source_rule": "3R-to-breakeven",
             "breakeven_armed_at": (
                 trade.breakeven_armed_at.isoformat(timespec="microseconds")
                 if trade.breakeven_armed_at is not None
                 else None
             ),
-            "source_rule": "3R-to-breakeven",
         },
         "post_outcome_oracle_descriptive_only": {
             "resolved_at": (
@@ -455,7 +441,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
     market: dict[str, object],
     backtest: dict[str, object],
 ) -> dict[str, dict[str, object]]:
-    """Build a deterministic full Trader Lab research evidence family."""
+    """Build deterministic Trader Lab research evidence without authority promotion."""
 
     software_sha, bars, trades = _validate_contracts(market, backtest)
     split_index = max(1, int(len(bars) * 0.70))
@@ -464,7 +450,6 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
     oos = tuple(item for item in trades if item.signal_at >= split_at)
     in_metrics = _metrics(in_sample)
     oos_metrics = _metrics(oos)
-
     governance: dict[str, object] = {
         "state": "consumed_for_research",
         "consumed_holdout_cannot_certify_modified_strategy": True,
@@ -489,13 +474,11 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "oos_pass": _screen_pass(oos_metrics),
         "holdout_governance": governance,
     }
-
     setup_count = _strict_int(backtest.get("setup_count"), field_name="setup_count")
     filled_count = _strict_int(backtest.get("filled_count"), field_name="filled_count")
     unfilled = _strict_int(
         backtest.get("unfilled_setup_count"), field_name="unfilled_setup_count"
     )
-    model_counts = Counter(item.entry_model for item in trades)
     characterization: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_characterization.v1",
         "environment": "demo",
@@ -519,11 +502,11 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "all_terminal": _metrics(trades).payload(),
         "long": _metrics(tuple(item for item in trades if item.side == "long")).payload(),
         "short": _metrics(tuple(item for item in trades if item.side == "short")).payload(),
-        "entry_model_counts": dict(sorted(model_counts.items())),
+        "entry_model_counts": dict(sorted(Counter(item.entry_model for item in trades).items())),
         "breakeven_management": {
+            "source_rule": "3R-to-breakeven",
             "armed_trade_count": sum(item.breakeven_armed_at is not None for item in trades),
             "breakeven_exit_count": sum(item.outcome == "breakeven" for item in trades),
-            "source_rule": "3R-to-breakeven",
         },
         "parameter_sensitivity": {
             "status": "not_applicable",
@@ -531,9 +514,8 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         },
         "holdout_governance": governance,
     }
-
     stress_rows: list[dict[str, object]] = []
-    stress_pass = bool(oos_metrics.sample_size >= _MIN_TERMINAL_SAMPLE)
+    stress_pass = oos_metrics.sample_size >= _MIN_TERMINAL_SAMPLE
     for haircut in _STRESS_HAIRCUTS_R:
         metrics = _metrics(oos, haircut=haircut)
         passed = _screen_pass(metrics)
@@ -557,7 +539,6 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "governed_stage_authority": False,
         "holdout_governance": governance,
     }
-
     monte_carlo: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_monte_carlo.v1",
         "environment": "demo",
@@ -570,8 +551,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "governed_stage_authority": False,
         "holdout_governance": governance,
     }
-
-    stories = [_path_payload(item, bars) for item in trades]
+    stories = [_story(item, bars) for item in trades]
     story_forensics: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_story_forensics.v1",
         "environment": "demo",
@@ -584,7 +564,6 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "stories": stories,
         "holdout_governance": governance,
     }
-
     long_oos = _metrics(tuple(item for item in oos if item.side == "long"))
     short_oos = _metrics(tuple(item for item in oos if item.side == "short"))
     labels: list[str] = []
@@ -604,7 +583,6 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         labels.append("elevated_unfilled_setup_rate")
     if not labels:
         labels.append("no_failure_rule_triggered_research_only")
-
     failure_analysis: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_failure_analysis.v1",
         "environment": "demo",
@@ -621,7 +599,6 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         "causality_claimed": False,
         "holdout_governance": governance,
     }
-
     hypothesis_register: dict[str, object] = {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_hypothesis_register.v1",
         "environment": "demo",
@@ -639,7 +616,7 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
                     "source-discretionary breaker/order-block/FVG selection"
                 ),
                 "falsification_requirement": (
-                    "pre-register any selection policy and use a fresh unseen holdout"
+                    "pre-register selection policy and use fresh unseen holdout"
                 ),
             },
             {
@@ -647,16 +624,15 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
                 "enabled_for_modification": False,
                 "triggered": "directional_asymmetry" in labels,
                 "mechanism_to_investigate": (
-                    "long/short setup geometry and post-raid structure behavior"
+                    "long/short geometry and post-raid structure behavior"
                 ),
                 "falsification_requirement": (
-                    "pre-register any change and evaluate on a fresh unseen holdout"
+                    "pre-register any change and evaluate on fresh unseen holdout"
                 ),
             },
         ],
         "holdout_governance": governance,
     }
-
     summary: dict[str, object] = {
         "schema": _SCHEMA,
         "environment": "demo",
@@ -680,7 +656,6 @@ def build_vt31_silver_bullet_v2_full_research_payloads(
         ),
         "holdout_governance": governance,
     }
-
     return {
         "walk-forward.json": walk_forward,
         "characterization.json": characterization,
