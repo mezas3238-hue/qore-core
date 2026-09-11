@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1016">
+<title>QORE · Export Human Owner Review</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:#0d1016;color:#eef2f7}main{max-width:760px;margin:auto;padding:16px}h1{font-size:20px;margin:0 0 6px}.sub{color:#9aa4b2;font-size:12px;line-height:1.45}.card{margin-top:14px;background:#141923;border:1px solid #2b3340;border-radius:12px;padding:14px}.count{font-size:30px;font-weight:700}.muted{color:#9aa4b2}.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}button,a.btn{display:flex;align-items:center;justify-content:center;background:#171c26;color:#f5f7fb;border:1px solid #343b49;border-radius:9px;padding:11px;text-decoration:none;font:inherit;cursor:pointer}.primary{background:#1f6feb!important;border-color:#388bfd!important}.warn{color:#f6c177}.good{color:#9ece6a}.list{margin-top:10px;font-size:12px;max-height:45vh;overflow:auto}.row{padding:8px 0;border-bottom:1px solid #29313d}.id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#a9c8ff;overflow-wrap:anywhere}.note{margin-top:4px;white-space:pre-wrap;line-height:1.35}.foot{font-size:10px;color:#8e98a6;line-height:1.45;margin-top:14px}@media(max-width:520px){.controls{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main>
+<h1>QORE · Export Human Owner Review</h1>
+<div class="sub">Esta página lee únicamente las notas QORE guardadas localmente en este navegador para el mismo dominio. No modifica tus comentarios ni ejecuta operaciones de trading.</div>
+<div class="card">
+<div class="muted">Notas encontradas</div>
+<div id="count" class="count">0</div>
+<div id="status" class="muted">Leyendo localStorage…</div>
+<div class="controls">
+<button id="download" class="primary">Descargar JSON</button>
+<button id="copy">Copiar JSON</button>
+<a class="btn" href="/">Volver al Replay Lab</a>
+</div>
+</div>
+<div class="card">
+<strong>Vista previa</strong>
+<div id="list" class="list"></div>
+</div>
+<div class="foot">El archivo exportado es research-only y no concede autoridad DEMO/LIVE/Production. Conserva episode_id + texto exacto del Human Owner. Después puedes adjuntar ese JSON en ChatGPT para incorporarlo al panel de revisión y a la adjudicación de hipótesis.</div>
+<script>
+const PREFIXES=['qore-owner-note:','qore-human-owner-note:'];
+function collect(){
+  const rows=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    const prefix=PREFIXES.find(p=>key&&key.startsWith(p));
+    if(!prefix)continue;
+    const text=localStorage.getItem(key)||'';
+    if(!text.trim())continue;
+    rows.push({episode_id:key.slice(prefix.length),storage_key:key,note:text});
+  }
+  rows.sort((a,b)=>a.episode_id.localeCompare(b.episode_id));
+  return rows;
+}
+async function buildPayload(){
+  const notes=collect();
+  const core={
+    schema:'qore.trader_lab.human_owner_review_export.v1',
+    environment:'demo-research',
+    research_only:true,
+    execution_authority:false,
+    source_origin:location.origin,
+    market:'GBPJPY',
+    exported_at:new Date().toISOString(),
+    note_count:notes.length,
+    notes
+  };
+  const canonical=new TextEncoder().encode(JSON.stringify(core));
+  const digest=await crypto.subtle.digest('SHA-256',canonical);
+  core.payload_sha256=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return core;
+}
+function render(){
+  const rows=collect();
+  document.getElementById('count').textContent=String(rows.length);
+  const status=document.getElementById('status');
+  status.textContent=rows.length?'Tus notas están listas para exportar.':'No se encontraron notas QORE en este navegador.';
+  status.className=rows.length?'good':'warn';
+  const list=document.getElementById('list');
+  list.innerHTML='';
+  for(const row of rows){
+    const div=document.createElement('div');div.className='row';
+    const id=document.createElement('div');id.className='id';id.textContent=row.episode_id;
+    const note=document.createElement('div');note.className='note';note.textContent=row.note;
+    div.append(id,note);list.appendChild(div);
+  }
+}
+document.getElementById('download').onclick=async()=>{
+  const payload=await buildPayload();
+  if(!payload.note_count){alert('No hay notas QORE para exportar en este navegador.');return;}
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='QORE_HUMAN_OWNER_REVIEW_GBPJPY_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+document.getElementById('copy').onclick=async()=>{
+  const payload=await buildPayload();
+  if(!payload.note_count){alert('No hay notas QORE para copiar en este navegador.');return;}
+  await navigator.clipboard.writeText(JSON.stringify(payload,null,2));
+  alert('Human Owner Review copiado al portapapeles.');
+};
+render();
+</script>
+</main></body></html>
