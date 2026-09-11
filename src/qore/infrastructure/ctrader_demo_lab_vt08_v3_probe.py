@@ -1,6 +1,6 @@
 """Two-year read-only cTrader DEMO evidence for VT-08 CRT 1-5-9 V3.
 
-V3 needs retained M15 for H4/H1/M15 nesting plus provider D1 context.  Broker
+V3 needs retained M15 for H4/H1/M15 nesting plus provider D1 context. Broker
 symbol resolution is inherited from the explicit 11-market VT-08 V2 resolver;
 no fuzzy alias inference is introduced here.
 """
@@ -18,7 +18,10 @@ from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
     _collect_period_window,
     _required_env,
 )
-from qore.infrastructure.ctrader_demo_lab_probe import CTraderDemoLabProbeError
+from qore.infrastructure.ctrader_demo_lab_probe import (
+    CTraderDemoLabClosedTrendbar,
+    CTraderDemoLabProbeError,
+)
 from qore.infrastructure.ctrader_demo_lab_vt08_v2_probe import (
     _PROVIDER_ROOTS,
     _connect_and_resolve,
@@ -47,23 +50,29 @@ _PERIODS = (
 
 def _validate_period(
     name: str,
-    bars: tuple[object, ...],
+    bars: tuple[CTraderDemoLabClosedTrendbar, ...],
     *,
     opened_at: datetime,
     checked_at: datetime,
 ) -> None:
     if not bars:
-        raise CTraderDemoLabProbeError(f"VT-08 V3 {name} evidence is empty")
-    first = getattr(bars[0], "opened_at", None)
-    last = getattr(bars[-1], "closed_at", None)
-    if type(first) is not datetime or type(last) is not datetime:
-        raise CTraderDemoLabProbeError("VT-08 V3 bar timestamps are invalid")
+        raise CTraderDemoLabProbeError(
+            f"VT-08 V3 {name} evidence is empty"
+        )
+    first = bars[0].opened_at
+    last = bars[-1].closed_at
     if last - first < timedelta(days=_REQUIRED_COVERAGE_DAYS):
-        raise CTraderDemoLabProbeError(f"VT-08 V3 {name} spans less than 730 days")
+        raise CTraderDemoLabProbeError(
+            f"VT-08 V3 {name} spans less than 730 days"
+        )
     if first < opened_at:
-        raise CTraderDemoLabProbeError(f"VT-08 V3 {name} predates requested boundary")
+        raise CTraderDemoLabProbeError(
+            f"VT-08 V3 {name} predates requested boundary"
+        )
     if last < checked_at - timedelta(days=_RECENT_TOLERANCE_DAYS):
-        raise CTraderDemoLabProbeError(f"VT-08 V3 {name} evidence is stale")
+        raise CTraderDemoLabProbeError(
+            f"VT-08 V3 {name} evidence is stale"
+        )
 
 
 def collect_vt08_v3_evidence(
@@ -75,14 +84,25 @@ def collect_vt08_v3_evidence(
     timeout_seconds: float = 15.0,
 ) -> dict[str, object]:
     if canonical_symbol not in _PROVIDER_ROOTS:
-        raise CTraderDemoLabProbeError("VT-08 V3 market is outside Core 11-market set")
+        raise CTraderDemoLabProbeError(
+            "VT-08 V3 market is outside Core 11-market set"
+        )
     if requested_opened_at.tzinfo is None or checked_at.tzinfo is None:
-        raise CTraderDemoLabProbeError("VT-08 V3 acquisition timestamps must be aware")
+        raise CTraderDemoLabProbeError(
+            "VT-08 V3 acquisition timestamps must be aware"
+        )
     opened = requested_opened_at.astimezone(UTC)
     checked = checked_at.astimezone(UTC)
     if opened >= checked:
-        raise CTraderDemoLabProbeError("VT-08 V3 acquisition start must predate end")
-    account_id, account_fingerprint, symbol, provider_symbol = _connect_and_resolve(
+        raise CTraderDemoLabProbeError(
+            "VT-08 V3 acquisition start must predate end"
+        )
+    (
+        account_id,
+        account_fingerprint,
+        symbol,
+        provider_symbol,
+    ) = _connect_and_resolve(
         client,
         canonical_symbol=canonical_symbol,
         timeout_seconds=timeout_seconds,
@@ -90,7 +110,7 @@ def collect_vt08_v3_evidence(
     period_payload: dict[str, list[dict[str, object]]] = {}
     coverage: dict[str, dict[str, object]] = {}
     for period_name, native_period, seconds in _PERIODS:
-        retained: dict[datetime, object] = {}
+        retained: dict[datetime, CTraderDemoLabClosedTrendbar] = {}
         cursor = opened
         window_index = 0
         while cursor < checked:
@@ -117,14 +137,27 @@ def collect_vt08_v3_evidence(
             cursor = window_end
             window_index += 1
         ordered = tuple(retained[key] for key in sorted(retained))
-        _validate_period(period_name, ordered, opened_at=opened, checked_at=checked)
-        period_payload[period_name] = [bar.payload() for bar in ordered]
+        _validate_period(
+            period_name,
+            ordered,
+            opened_at=opened,
+            checked_at=checked,
+        )
+        period_payload[period_name] = [
+            bar.payload() for bar in ordered
+        ]
         coverage[period_name] = {
             "bar_count": len(ordered),
-            "first_opened_at": ordered[0].opened_at.isoformat(timespec="microseconds"),
-            "last_closed_at": ordered[-1].closed_at.isoformat(timespec="microseconds"),
+            "first_opened_at": ordered[0].opened_at.isoformat(
+                timespec="microseconds"
+            ),
+            "last_closed_at": ordered[-1].closed_at.isoformat(
+                timespec="microseconds"
+            ),
             "span_seconds": int(
-                (ordered[-1].closed_at - ordered[0].opened_at).total_seconds()
+                (
+                    ordered[-1].closed_at - ordered[0].opened_at
+                ).total_seconds()
             ),
         }
     return {
@@ -144,7 +177,12 @@ def collect_vt08_v3_evidence(
         "historical_page_count": _HISTORICAL_PAGE_COUNT,
         "primary_source_sha256": list(_PRIMARY_SOURCE_SHA256),
         "decision_timeframe": "M15",
-        "context_timeframes": ["D1", "H4-derived-M15", "H1-derived-M15", "M15"],
+        "context_timeframes": [
+            "D1",
+            "H4-derived-M15",
+            "H1-derived-M15",
+            "M15",
+        ],
         "source_clock": {
             "timezone": "America/New_York",
             "h4_reference_open": "01:00",
@@ -164,27 +202,42 @@ def collect_vt08_v3_evidence(
 
 def main() -> None:
     credentials = CTraderOpenApiCredentials(
-        client_id=_required_env("QORE_CTRADER_CLIENT_ID", "QORE_CTRADER_DEMO_CLIENT_ID"),
+        client_id=_required_env(
+            "QORE_CTRADER_CLIENT_ID",
+            "QORE_CTRADER_DEMO_CLIENT_ID",
+        ),
         client_secret=_required_env(
-            "QORE_CTRADER_CLIENT_SECRET", "QORE_CTRADER_DEMO_CLIENT_SECRET"
+            "QORE_CTRADER_CLIENT_SECRET",
+            "QORE_CTRADER_DEMO_CLIENT_SECRET",
         ),
         access_token=_required_env(
-            "QORE_CTRADER_ACCESS_TOKEN", "QORE_CTRADER_DEMO_ACCESS_TOKEN"
+            "QORE_CTRADER_ACCESS_TOKEN",
+            "QORE_CTRADER_DEMO_ACCESS_TOKEN",
         ),
         refresh_token=_required_env(
-            "QORE_CTRADER_REFRESH_TOKEN", "QORE_CTRADER_DEMO_REFRESH_TOKEN"
+            "QORE_CTRADER_REFRESH_TOKEN",
+            "QORE_CTRADER_DEMO_REFRESH_TOKEN",
         ),
         ctid_trader_account_id=int(
-            _required_env("QORE_CTRADER_DEMO_ACCOUNT_ID", "QORE_CTRADER_ACCOUNT_ID")
+            _required_env(
+                "QORE_CTRADER_DEMO_ACCOUNT_ID",
+                "QORE_CTRADER_ACCOUNT_ID",
+            )
         ),
     )
     software_sha = _required_env("QORE_SOFTWARE_SHA")
     if re.fullmatch(r"[0-9a-f]{40}", software_sha) is None:
-        raise CTraderDemoLabProbeError("QORE_SOFTWARE_SHA must be exact Git SHA")
+        raise CTraderDemoLabProbeError(
+            "QORE_SOFTWARE_SHA must be exact Git SHA"
+        )
     canonical_symbol = _required_env("QORE_DEMO_LAB_SYMBOL")
-    lookback_days = int(os.environ.get("QORE_DEMO_LAB_LOOKBACK_DAYS", "760"))
+    lookback_days = int(
+        os.environ.get("QORE_DEMO_LAB_LOOKBACK_DAYS", "760")
+    )
     if not _MIN_LOOKBACK_DAYS <= lookback_days <= _MAX_LOOKBACK_DAYS:
-        raise CTraderDemoLabProbeError("VT-08 V3 lookback must be 730..1095 days")
+        raise CTraderDemoLabProbeError(
+            "VT-08 V3 lookback must be 730..1095 days"
+        )
     checked_at = datetime.now(UTC)
     opened_at = checked_at - timedelta(days=lookback_days)
     client = SpotwareCTraderOpenApiClient(credentials=credentials)
@@ -197,7 +250,14 @@ def main() -> None:
         )
         payload["requested_lookback_days"] = lookback_days
         payload["software_sha"] = software_sha
-        print(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False))
+        print(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+        )
     finally:
         client.close()
 
