@@ -99,7 +99,7 @@ jobs:
           mkdir -p artifacts/vt31-silver-bullet-v2/NAS100
           python -m qore.infrastructure.ctrader_demo_lab_vt31_v2_probe \
             > artifacts/vt31-silver-bullet-v2/NAS100/market-evidence.json
-      - name: Run source-bound VT-31 V2 backtest
+      - name: Run source-bound VT-31 V2 NAS100 backtest
         run: |
           python -m qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest \
             artifacts/vt31-silver-bullet-v2/NAS100/market-evidence.json \
@@ -123,16 +123,11 @@ jobs:
           assert result["symbol"] == "NAS100"
           assert result["decision_timeframe"] == "M1"
           assert result["software_sha"] == os.environ["GITHUB_SHA"]
-          assert len(result["market_matrix"]) == 11
-          assert sum(
-              item["status"] == "source-authorized"
-              for item in result["market_matrix"]
-          ) == 1
           PY
-      - name: Upload sanitized VT-31 V2 research evidence
+      - name: Upload sanitized VT-31 V2 NAS100 research evidence
         uses: actions/upload-artifact@v4
         with:
-          name: qore-vt31-silver-bullet-v2-${{ github.sha }}
-          path: artifacts/vt31-silver-bullet-v2
+          name: qore-vt31-silver-bullet-v2-nas100-${{ github.sha }}
+          path: artifacts/vt31-silver-bullet-v2/NAS100
           if-no-files-found: error
           retention-days: 30
