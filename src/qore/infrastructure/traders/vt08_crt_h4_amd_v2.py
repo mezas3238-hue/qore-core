@@ -10,6 +10,18 @@ This module encodes only rules demonstrated or stated by that lesson and the
 explicitly required TTrades Candle-2/Candle-3/CISD prerequisites. Qualitative
 teaching is not converted into invented numerical thresholds.
 
+Human Owner operating scope
+---------------------------
+The source may show the complete repeating H4 cycle, but QORE is explicitly
+restricted to three New York opening anchors per asset family:
+
+- Forex: 01:00 / 05:00 / 09:00 America/New_York
+- Futures: 02:00 / 06:00 / 10:00 America/New_York
+
+Only the configured Forex and futures markets are in scope. XAUUSD is outside
+this VT-08 campaign. Source-cycle anchors outside the Human Owner operating scope
+must abstain and may not be introduced by research or optimization.
+
 Critical source-fidelity boundary
 ---------------------------------
 The lesson requires a source-defined point-of-interest reach before lower-timeframe
@@ -38,7 +50,7 @@ from qore.kernel.errors import InfrastructureError
 TRADER_CODE = "vt-08"
 TRADER_VERSION = "v2"
 METHODOLOGY_ID = "ttrades-h4-po3-source"
-METHODOLOGY_VERSION = "v2.4-source-fidelity-reaudit"
+METHODOLOGY_VERSION = "v2.5-owner-operational-scope"
 PRIMARY_SOURCE = "youtube:FAKWJ-1NlLE"
 PRIMARY_SOURCE_SHA256 = (
     "bfe76fa4346ec4d7442886c21834aa26f0d82172bdb55666e8c77226cdf83271"
@@ -54,27 +66,29 @@ SUPPORTED_MARKETS = (
     "US30",
     "USDCAD",
     "USDJPY",
-    "XAUUSD",
 )
 FUTURES_MARKETS = frozenset({"NAS100", "SP500", "US30"})
 FX_MARKETS = frozenset(
     {"AUDJPY", "AUDUSD", "EURUSD", "GBPJPY", "GBPUSD", "USDCAD", "USDJPY"}
 )
-SOURCE_TIMING_AMBIGUOUS_MARKETS = frozenset({"XAUUSD"})
-FOREX_H4_ANCHOR_HOURS = (1, 5, 9, 13, 17, 21)
-FUTURES_H4_ANCHOR_HOURS = (2, 6, 10, 14, 18, 22)
+SOURCE_TIMING_AMBIGUOUS_MARKETS = frozenset()
+SOURCE_FOREX_H4_ANCHOR_HOURS = (1, 5, 9, 13, 17, 21)
+SOURCE_FUTURES_H4_ANCHOR_HOURS = (2, 6, 10, 14, 18, 22)
+FOREX_H4_ANCHOR_HOURS = (1, 5, 9)
+FUTURES_H4_ANCHOR_HOURS = (2, 6, 10)
 _NY = ZoneInfo("America/New_York")
 
 RULESET = (
     "primary-video-only-plus-explicit-prerequisites;h4-po3-amd;"
+    "human-owner-operating-scope-forex-01-05-09-new-york;"
+    "human-owner-operating-scope-futures-02-06-10-new-york;"
+    "out-of-owner-scope-h4-anchors-must-abstain;"
     "candle2-shallow-wick-reversal-to-expansion;"
     "candle2-large-opposing-run-wait-candle3-continuation;"
     "m15-lower-timeframe-confirmation;source-poi-reach-required-before-cisd;"
     "cisd-protected-swing;let-wick-form-trade-body;"
     "bias-is-explicit-causal-source-context;"
     "wick-size-is-explicit-qualitative-source-judgment;"
-    "full-forex-h4-anchors-17-21-01-05-09-13-new-york;"
-    "full-futures-h4-anchors-18-22-02-06-10-14-new-york;"
     "cisd-close-is-confirmation-not-universal-entry;"
     "protected-swing-extreme-is-invalidation-reference;"
     "no-invented-wick-threshold;no-mandatory-d1-formula;"
@@ -105,15 +119,15 @@ class Vt08CrtH4AmdV2WickProfile(StrEnum):
 
 
 class Vt08CrtH4AmdV2TimingFamily(StrEnum):
-    FUTURES = "futures-18-22-02-06-10-14-new-york"
-    FOREX = "forex-17-21-01-05-09-13-new-york"
+    FUTURES = "futures-owner-02-06-10-new-york"
+    FOREX = "forex-owner-01-05-09-new-york"
     SOURCE_UNRESOLVED = "source-unresolved"
 
 
 class Vt08CrtH4AmdV2AbstainReason(StrEnum):
     UNSUPPORTED_MARKET = "unsupported-market"
     TIMING_FAMILY_REQUIRED = "source-timing-family-required"
-    OUTSIDE_SOURCE_H4_ANCHOR = "outside-source-h4-anchor"
+    OUTSIDE_SOURCE_H4_ANCHOR = "outside-owner-operating-h4-anchor"
     INVALID_M15_EVIDENCE = "invalid-m15-evidence"
     BIAS_CONTEXT_REQUIRED = "bias-context-required-by-source"
     POINT_OF_INTEREST_REQUIRED = "source-point-of-interest-required"
@@ -289,8 +303,10 @@ def methodology_fingerprint() -> str:
         "primary_source_sha256": PRIMARY_SOURCE_SHA256,
         "ruleset": RULESET,
         "supported_markets": SUPPORTED_MARKETS,
-        "forex_h4_anchor_hours": FOREX_H4_ANCHOR_HOURS,
-        "futures_h4_anchor_hours": FUTURES_H4_ANCHOR_HOURS,
+        "source_forex_h4_anchor_hours": SOURCE_FOREX_H4_ANCHOR_HOURS,
+        "source_futures_h4_anchor_hours": SOURCE_FUTURES_H4_ANCHOR_HOURS,
+        "owner_forex_h4_anchor_hours": FOREX_H4_ANCHOR_HOURS,
+        "owner_futures_h4_anchor_hours": FUTURES_H4_ANCHOR_HOURS,
     }
     return sha256(
         json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -298,7 +314,7 @@ def methodology_fingerprint() -> str:
 
 
 def timing_family_for_market(symbol: str) -> Vt08CrtH4AmdV2TimingFamily | None:
-    """Map only source-explicit asset families; do not guess XAUUSD's family."""
+    """Map only Human Owner-authorized Forex and futures markets."""
 
     if symbol not in SUPPORTED_MARKETS:
         return None
@@ -306,10 +322,12 @@ def timing_family_for_market(symbol: str) -> Vt08CrtH4AmdV2TimingFamily | None:
         return Vt08CrtH4AmdV2TimingFamily.FUTURES
     if symbol in FX_MARKETS:
         return Vt08CrtH4AmdV2TimingFamily.FOREX
-    return Vt08CrtH4AmdV2TimingFamily.SOURCE_UNRESOLVED
+    return None
 
 
 def source_anchor_hours_for_market(symbol: str) -> tuple[int, ...] | None:
+    """Return the Human Owner-authorized operating anchors in New York time."""
+
     family = timing_family_for_market(symbol)
     if family is Vt08CrtH4AmdV2TimingFamily.FOREX:
         return FOREX_H4_ANCHOR_HOURS
