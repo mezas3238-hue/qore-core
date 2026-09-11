@@ -4,7 +4,9 @@
 
 This document re-opens VT-08 V2 against the Human Owner-provided primary video before any further economic claim is allowed.
 
-The existing `v2.2-source-faithful` implementation is **not yet certified source-faithful**. Its previous 11-market run remains useful engineering evidence, but neither the old 13,468 trades nor the newer 16,351 mechanical candidates may be treated as final evidence of the methodology.
+The earlier `v2.2-source-faithful` implementation is **not certified source-faithful**. Its previous 11-market run remains useful engineering evidence, but neither the old 13,468 trades nor the newer 16,351 mechanical candidates may be treated as final evidence of the methodology.
+
+The corrected research contract is now versioned `v2.4-source-fidelity-reaudit`. It fails closed on unresolved source judgments and MUST remain non-economic until the source execution contract is complete.
 
 ## Primary authority
 
@@ -34,53 +36,54 @@ A `REQUIRES_FORMALIZATION / SOURCE_AMBIGUOUS` item MUST NOT silently become a ma
 | Candle 2 with a large/deep opposing run should not be forced into same-candle expansion; wait for Candle 3 continuation | EXPLICITLY_STATED + VISUALLY_DEMONSTRATED | Preserve Candle-3 scenario |
 | Let the wick form, trade the body | EXPLICITLY_STATED | No pre-wick or anticipatory entry |
 | M15 is the demonstrated lower timeframe paired with H4 in this lesson | EXPLICITLY_STATED + VISUALLY_DEMONSTRATED | Preserve M15 confirmation evidence |
+| Lower-timeframe sequence includes reach into a source-defined point of interest before CISD/protected-swing continuation confirmation | EXPLICITLY_STATED in the same-author lesson companion + prerequisite-defined | POI state/provenance is mandatory; do not invent a universal POI selector |
 | CISD/protected swing confirms that the opposing run formed a swing | EXPLICITLY_STATED + prerequisite-defined | Preserve causal CISD/protected-swing confirmation |
 | Higher-timeframe bias/candle-closure context matters | EXPLICITLY_STATED | Bias must have source-bound provenance; no fabricated D1 formula |
 | Protected-swing extreme is the structural invalidation reference | VISUALLY_DEMONSTRATED + prerequisite-defined | Preserve the extreme as invalidation reference; do not invent a stop buffer |
 
 ## Finding F1 — incomplete H4 timing coverage (P0)
 
-The current V2 audit scans only:
+The previous V2 audit scanned only:
 
 - Forex: `01:00 / 05:00 / 09:00` New York
 - Futures: `02:00 / 06:00 / 10:00` New York
 
-The source timing material shows the complete repeating H4 opening families across the day:
+The primary video's Timing slide shows the complete repeating H4 opening families:
 
 - Forex: `17:00 / 21:00 / 01:00 / 05:00 / 09:00 / 13:00` New York
 - Futures: `18:00 / 22:00 / 02:00 / 06:00 / 10:00 / 14:00` New York
 
-Therefore the current historical source audit under-scans source-authorized H4 windows. The existing `16,351` mechanical-candidate total is **not a final source-fidelity count** and must be recomputed after the timing correction.
+Therefore the previous historical source audit under-scanned source-authorized H4 windows. The existing `16,351` mechanical-candidate total is **not a final source-fidelity count** and must be recomputed after the timing correction.
 
 This does not mean every H4 candle is automatically a trade. The six values are H4 opening anchors, not an instruction to force six entries per day.
 
 ## Finding F2 — CISD close was promoted to an exact entry price without sufficient source authority (P0)
 
-The current evaluator sets:
+The earlier evaluator set:
 
 `entry_price = confirmation.close`
 
 The source supports CISD/protected swing as **confirmation that the wick/swing has formed**. It does not establish a universal rule that every valid VT-08 V2 trade must execute exactly at the confirming candle close.
 
-The same-author CISD/prerequisite material distinguishes confirmation from entry refinement and discusses entries around source-defined points of interest / refined structures. Therefore the exact CISD closing price must remain an observation/confirmation price unless an exact entry model is demonstrated by the primary lesson or an explicitly required prerequisite.
+The exact CISD closing price must therefore remain an observation/confirmation price unless an exact entry model is demonstrated by the primary lesson or an explicitly required prerequisite.
 
-Until resolved, the software must not represent the CISD close as a universally source-authorized executable entry.
+The corrected evaluator no longer emits an executable `SETUP` from CISD alone.
 
 ## Finding F3 — bias provenance is insufficiently constrained (P0)
 
-The current evaluator accepts an externally supplied `bias_side` plus free-form provenance. That is safer than inventing a D1 formula, but it does not by itself prove that the supplied direction reproduces the source's H4/daily candle-closure context.
+The primary lesson explicitly uses H4/candle-closure context and expansion in line with higher-timeframe/daily context. The source does **not** provide one universal OHLC-only formula that can mechanically replace that judgment.
 
-The primary lesson explicitly says to use H4 to determine bias / candle-closure context and to trade expansion in line with the higher-timeframe/daily candle context. The source does **not** provide one universal OHLC-only formula that can mechanically replace that judgment.
+Required behavior:
 
-Required redesign:
-
-- retain `UNRESOLVED` when source context cannot be reproduced;
+- retain unresolved bias when source context cannot be reproduced;
 - provenance must identify the exact source-bound context evidence used;
-- no arbitrary human label, future information, post-outcome label, or invented D1 formula may authorize an automated historical trade.
+- no arbitrary label, future information, post-outcome label, or invented D1 formula may authorize an automated historical trade.
+
+The corrected contract timestamps source context and rejects context observed after the CISD confirmation.
 
 ## Finding F4 — shallow versus large/deep remains qualitative (blocking)
 
-The source repeatedly distinguishes small/shallow versus large/deep opposing runs, but the primary lesson does not state a universal numerical threshold.
+The source repeatedly distinguishes small/shallow versus large/deep opposing runs, but the lesson does not state a universal numerical threshold.
 
 Still prohibited:
 
@@ -90,7 +93,7 @@ Still prohibited:
 - volatility percentile;
 - optimization-selected cut-off.
 
-This remains a source judgment unless an explicitly prerequisite source supplies an unambiguous operational definition that is genuinely required by this lesson.
+This remains a source judgment unless an explicitly required source supplies an unambiguous operational definition.
 
 ## Finding F5 — target remains contextual, not universal (blocking)
 
@@ -119,24 +122,42 @@ After correction, the audit may produce a different mechanical-candidate count. 
 
 and descriptive MFE/MAE after confirmation is not a win/loss classification.
 
+## Finding F8 — point-of-interest reach was missing from the executable contract (P0)
+
+The exact H4 PO3 lesson companion states the lower-timeframe process as a reach into a point of interest, then CISD/protected-swing confirmation, then continuation entries after the wick has formed. The Candle-3 prerequisite likewise names source POIs such as FVG/high/low.
+
+The earlier V2 evaluator could accept H4 structure + wick classification + CISD without retaining proof that the source-defined POI had been reached.
+
+The correction is deliberately conservative:
+
+- `point_of_interest_reached` is an explicit tri-state source judgment (`true`, `false`, unresolved);
+- any resolved POI state requires provenance;
+- unresolved POI -> `ABSTAIN`;
+- POI not reached -> `ABSTAIN`;
+- POI reached still does **not** create a trade because exact entry/target remain unresolved;
+- QORE does not invent a universal POI-ranking or selection algorithm when multiple FVG/high/low candidates exist.
+
+Historical mechanical candidates therefore record `requires-source-poi-confirmation`; they remain research observations, not entries.
+
 ## Required V2 redesign before the next historical campaign
 
 1. Correct the full H4 timing families and add regression tests covering all six anchors per family plus DST behavior.
 2. Separate `CISD confirmation price` from `source-authorized executable entry price`.
 3. Fail closed when exact entry remains unresolved.
 4. Strengthen source-context provenance for bias and prohibit oracle/post-outcome context.
-5. Preserve qualitative wick state without inventing a threshold.
-6. Preserve protected-swing extreme as invalidation reference without inventing a buffer.
-7. Keep target/lifecycle unresolved unless the source proves a deterministic rule.
-8. Preserve XAUUSD timing as unresolved unless the source classifies it.
-9. Re-run focused fidelity tests and full QG.
-10. Only then re-run the >=730-day broker-backed source-fidelity audit.
-11. Do not run an economic backtest, Stress, Monte Carlo, or claim wins/losses unless entry + invalidation + target/lifecycle become source-authorized.
+5. Require source-defined POI reach/provenance before accepting CISD confirmation; do not invent POI selection.
+6. Preserve qualitative wick state without inventing a threshold.
+7. Preserve protected-swing extreme as invalidation reference without inventing a buffer.
+8. Keep target/lifecycle unresolved unless the source proves a deterministic rule.
+9. Preserve XAUUSD timing as unresolved unless the source classifies it.
+10. Re-run focused fidelity tests and full QG.
+11. Only then re-run the >=730-day broker-backed source-fidelity audit.
+12. Do not run an economic backtest, Stress, Monte Carlo, or claim wins/losses unless entry + invalidation + target/lifecycle + selection become source-authorized.
 
 ## Governance consequence
 
 The correct immediate state for VT-08 V2 is:
 
-`SOURCE RE-AUDIT OPEN -> IMPLEMENTATION CORRECTION REQUIRED -> ECONOMIC BACKTEST NOT AUTHORIZED`
+`SOURCE RE-AUDIT OPEN -> SOURCE-SAFE IMPLEMENTATION UNDER QG -> ECONOMIC BACKTEST NOT AUTHORIZED`
 
 No CI result, candidate count, favorable path, or green workflow may override this source-fidelity gate.
