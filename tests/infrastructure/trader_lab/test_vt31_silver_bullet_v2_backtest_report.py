@@ -34,30 +34,33 @@ def _payload() -> dict[str, object]:
     return {
         "schema": "qore.trader_lab.vt31_silver_bullet_v2_backtest.v1",
         "symbol": "NAS100",
+        "setup_count": 5,
         "filled_count": len(trades),
         "trades": trades,
     }
 
 
-def test_directional_report_reconciles_long_and_short_trade_counts() -> None:
-    result = enrich_vt31_silver_bullet_v2_backtest_payload(_payload())
+def test_directional_report_uses_core_setup_side_semantics() -> None:
+    result = enrich_vt31_silver_bullet_v2_backtest_payload(
+        _payload(),
+        setup_side_counts={"long": 3, "short": 2},
+    )
 
-    long_count = result["long_trade_count"]
-    short_count = result["short_trade_count"]
-    filled_count = result["filled_count"]
-    assert type(long_count) is int
-    assert type(short_count) is int
-    assert type(filled_count) is int
-    assert long_count == 2
-    assert short_count == 1
-    assert long_count + short_count == filled_count
+    assert result["side_counts"] == {"long": 3, "short": 2}
+    assert result["long_setup_count"] == 3
+    assert result["short_setup_count"] == 2
+    assert result["long_trade_count"] == 2
+    assert result["short_trade_count"] == 1
 
-    directional = cast(dict[str, object], result["directional_breakdown"])
-    long = cast(dict[str, object], directional["long"])
-    short = cast(dict[str, object], directional["short"])
+    by_side = cast(dict[str, object], result["by_side"])
+    long = cast(dict[str, object], by_side["long"])
+    short = cast(dict[str, object], by_side["short"])
 
     assert long == {
-        "trade_count": 2,
+        "setup_count": 3,
+        "filled_count": 2,
+        "unfilled_count": 1,
+        "fill_rate": "0.6666666666666666666666666667",
         "terminal_sample_size": 2,
         "target_count": 1,
         "stop_count": 1,
@@ -68,7 +71,10 @@ def test_directional_report_reconciles_long_and_short_trade_counts() -> None:
         "population_variance_r": "2.25",
     }
     assert short == {
-        "trade_count": 1,
+        "setup_count": 2,
+        "filled_count": 1,
+        "unfilled_count": 1,
+        "fill_rate": "0.5",
         "terminal_sample_size": 0,
         "target_count": 0,
         "stop_count": 0,
@@ -80,6 +86,17 @@ def test_directional_report_reconciles_long_and_short_trade_counts() -> None:
     }
 
 
+def test_directional_report_fails_closed_when_setup_counts_do_not_reconcile() -> None:
+    with pytest.raises(
+        Vt31SilverBulletV2BacktestReportError,
+        match="setup counts must reconcile",
+    ):
+        enrich_vt31_silver_bullet_v2_backtest_payload(
+            _payload(),
+            setup_side_counts={"long": 2, "short": 2},
+        )
+
+
 def test_directional_report_fails_closed_when_filled_count_does_not_reconcile() -> None:
     payload = _payload()
     payload["filled_count"] = 4
@@ -88,7 +105,24 @@ def test_directional_report_fails_closed_when_filled_count_does_not_reconcile() 
         Vt31SilverBulletV2BacktestReportError,
         match="filled_count must equal",
     ):
-        enrich_vt31_silver_bullet_v2_backtest_payload(payload)
+        enrich_vt31_silver_bullet_v2_backtest_payload(
+            payload,
+            setup_side_counts={"long": 3, "short": 2},
+        )
+
+
+def test_directional_report_fails_closed_when_fills_exceed_side_setups() -> None:
+    payload = _payload()
+    payload["setup_count"] = 3
+
+    with pytest.raises(
+        Vt31SilverBulletV2BacktestReportError,
+        match="filled long trades cannot exceed long setups",
+    ):
+        enrich_vt31_silver_bullet_v2_backtest_payload(
+            payload,
+            setup_side_counts={"long": 1, "short": 2},
+        )
 
 
 def test_directional_report_fails_closed_on_noncanonical_side() -> None:
@@ -101,4 +135,18 @@ def test_directional_report_fails_closed_on_noncanonical_side() -> None:
         Vt31SilverBulletV2BacktestReportError,
         match="canonical LONG/SHORT",
     ):
-        enrich_vt31_silver_bullet_v2_backtest_payload(payload)
+        enrich_vt31_silver_bullet_v2_backtest_payload(
+            payload,
+            setup_side_counts={"long": 3, "short": 2},
+        )
+
+
+def test_directional_report_requires_both_canonical_side_keys() -> None:
+    with pytest.raises(
+        Vt31SilverBulletV2BacktestReportError,
+        match="exactly canonical LONG/SHORT",
+    ):
+        enrich_vt31_silver_bullet_v2_backtest_payload(
+            _payload(),
+            setup_side_counts={"long": 5},
+        )
