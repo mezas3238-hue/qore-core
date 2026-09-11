@@ -13,7 +13,8 @@ Source-bound lifecycle semantics:
   fabricating a fill or exit;
 - if stop and target are both touched in one OHLC bar, stop wins conservatively.
 
-This is research evidence only. It grants no DEMO/LIVE/Risk/execution authority.
+This exact research candidate is NAS100-only. This is research evidence only.
+It grants no DEMO/LIVE/Risk/execution authority.
 """
 
 from __future__ import annotations
@@ -57,19 +58,6 @@ _SYMBOL = "NAS100"
 _M1_SECONDS = 60
 _REQUIRED_COVERAGE_DAYS = 730
 _NY = ZoneInfo("America/New_York")
-_MARKET_MATRIX = (
-    "EURUSD",
-    "GBPUSD",
-    "USDJPY",
-    "AUDUSD",
-    "USDCAD",
-    "XAUUSD",
-    "NAS100",
-    "SP500",
-    "GBPJPY",
-    "AUDJPY",
-    "US30",
-)
 _SOURCE = ExternalSourceDescriptor(
     adapter_id=AdapterId(uuid5(NAMESPACE_URL, "qore:vt31-v2:research-adapter")),
     source_id=SourceId(uuid5(NAMESPACE_URL, "qore:vt31-v2:research-source")),
@@ -178,21 +166,13 @@ class Vt31SilverBulletV2BacktestReport:
             "trader_version": "v2",
             "methodology": "silver-bullet-am-nq-v2",
             "symbol": _SYMBOL,
+            "source_authorized_market": _SYMBOL,
             "decision_timeframe": "M1",
             "execution_model": _EXECUTION_MODEL,
             "software_sha": self.software_sha,
             "account_fingerprint": self.account_fingerprint,
             "evidence_fingerprint": self.evidence_fingerprint,
             "checked_at": self.checked_at.astimezone(UTC).isoformat(timespec="microseconds"),
-            "market_matrix": [
-                {
-                    "symbol": symbol,
-                    "status": (
-                        "source-authorized" if symbol == _SYMBOL else "unsupported-method-market"
-                    ),
-                }
-                for symbol in _MARKET_MATRIX
-            ],
             "decision_days": self.decision_days,
             "setup_count": self.setup_count,
             "filled_count": self.filled_count,
@@ -333,10 +313,20 @@ def _load(
         payload.get("required_coverage_days"), field_name="required_coverage_days"
     ) < _REQUIRED_COVERAGE_DAYS:
         raise Vt31SilverBulletV2BacktestError("M1 evidence must require at least 730 days")
+    source_market = _text(
+        payload.get("source_authorized_market"), field_name="source_authorized_market"
+    )
+    if source_market != _SYMBOL:
+        raise Vt31SilverBulletV2BacktestError("VT-31 V2 source contract requires NAS100")
     symbol_payload = _object(payload.get("symbol"), field_name="symbol")
     symbol = _text(symbol_payload.get("symbol_name"), field_name="symbol_name")
     if symbol != _SYMBOL:
-        raise Vt31SilverBulletV2BacktestError("VT-31 V2 source contract requires NAS100")
+        raise Vt31SilverBulletV2BacktestError("VT-31 V2 canonical evidence must bind NAS100")
+    provider_symbol_name = _text(
+        payload.get("provider_symbol_name"), field_name="provider_symbol_name"
+    )
+    if not provider_symbol_name.strip():
+        raise Vt31SilverBulletV2BacktestError("provider symbol name must be retained")
     account_fingerprint = _text(
         payload.get("account_fingerprint"), field_name="account_fingerprint"
     )
@@ -542,7 +532,7 @@ def _streaks(trades: tuple[Vt31SilverBulletV2Trade, ...]) -> tuple[int, int]:
 
 
 def run_vt31_silver_bullet_v2_backtest(path: Path) -> Vt31SilverBulletV2BacktestReport:
-    """Run one source-bound, no-lookahead VT-31 V2 historical research pass."""
+    """Run one source-bound, no-lookahead NAS100 VT-31 V2 research pass."""
 
     series, account_fingerprint, evidence_fingerprint, checked_at, software_sha = _load(path)
     index_by_open = {item.opened_at: index for index, item in enumerate(series)}
