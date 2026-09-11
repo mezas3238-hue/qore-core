@@ -111,19 +111,28 @@ class Vt08CrtH4AmdV2Candle:
     close: Decimal
 
     def __post_init__(self) -> None:
-        for name, value in (("opened_at", self.opened_at), ("closed_at", self.closed_at)):
-            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
+        for name, instant in (
+            ("opened_at", self.opened_at),
+            ("closed_at", self.closed_at),
+        ):
+            if (
+                type(instant) is not datetime
+                or instant.tzinfo is None
+                or instant.utcoffset() is None
+            ):
                 raise Vt08CrtH4AmdV2ValidationError(f"{name} must be timezone-aware")
         if self.closed_at <= self.opened_at:
             raise Vt08CrtH4AmdV2ValidationError("candle close must follow open")
-        for name, value in (
+        for name, price in (
             ("open", self.open),
             ("high", self.high),
             ("low", self.low),
             ("close", self.close),
         ):
-            if type(value) is not Decimal or not value.is_finite() or value <= 0:
-                raise Vt08CrtH4AmdV2ValidationError(f"{name} must be positive finite Decimal")
+            if type(price) is not Decimal or not price.is_finite() or price <= 0:
+                raise Vt08CrtH4AmdV2ValidationError(
+                    f"{name} must be positive finite Decimal"
+                )
         if self.low > min(self.open, self.close) or self.high < max(self.open, self.close):
             raise Vt08CrtH4AmdV2ValidationError("OHLC body must lie inside high/low")
         if self.low > self.high:
@@ -156,9 +165,13 @@ class Vt08CrtH4AmdV2Setup:
         else:
             valid = self.take_profit < self.entry_price < self.stop_loss
         if not valid:
-            raise Vt08CrtH4AmdV2ValidationError("setup geometry must be strictly directional")
+            raise Vt08CrtH4AmdV2ValidationError(
+                "setup geometry must be strictly directional"
+            )
         if not Decimal(0) <= self.manipulation_fraction_of_reference:
-            raise Vt08CrtH4AmdV2ValidationError("manipulation fraction must be non-negative")
+            raise Vt08CrtH4AmdV2ValidationError(
+                "manipulation fraction must be non-negative"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -337,8 +350,16 @@ def evaluate_candle2_expansion(
     bias = daily_bias(daily_reference, daily_signal)
     if bias is None:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.DAILY_BIAS_MISSING)
-    required = h4_reference.low if bias.side is DemoTradingSetupSide.LONG else h4_reference.high
-    protected = _protected_swing(observed_m15, side=bias.side, required_sweep_level=required)
+    required = (
+        h4_reference.low
+        if bias.side is DemoTradingSetupSide.LONG
+        else h4_reference.high
+    )
+    protected = _protected_swing(
+        observed_m15,
+        side=bias.side,
+        required_sweep_level=required,
+    )
     if protected is None:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.NO_PROTECTED_SWING)
     confirmation, cisd_level, extreme = protected
@@ -404,7 +425,11 @@ def evaluate_candle3_continuation(
         return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_NOT_REVERSAL)
     if c2_side is not bias.side:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_NOT_ALIGNED)
-    c2_extreme = h4_candle2.low if bias.side is DemoTradingSetupSide.LONG else h4_candle2.high
+    c2_extreme = (
+        h4_candle2.low
+        if bias.side is DemoTradingSetupSide.LONG
+        else h4_candle2.high
+    )
     c2_fraction = _manipulation_fraction(
         h4_reference,
         candidate_open=h4_candle2.open,
@@ -413,7 +438,11 @@ def evaluate_candle3_continuation(
     )
     if c2_fraction <= Decimal("0.5"):
         return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_NOT_REVERSAL)
-    protected = _protected_swing(observed_m15, side=bias.side, required_sweep_level=None)
+    protected = _protected_swing(
+        observed_m15,
+        side=bias.side,
+        required_sweep_level=None,
+    )
     if protected is None:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.NO_PROTECTED_SWING)
     confirmation, cisd_level, extreme = protected
