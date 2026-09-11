@@ -8,13 +8,13 @@ NAS100 source-bound implementation. It grants no DEMO/LIVE/Risk authority.
 from __future__ import annotations
 
 import json
-import random
 import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from hashlib import sha256
 from pathlib import Path
 from typing import cast
 
@@ -32,6 +32,7 @@ _STRESS_HAIRCUTS_R = (Decimal("0.05"), Decimal("0.10"))
 _BOOTSTRAP_BLOCK = 3
 _BOOTSTRAP_COUNT = 5000
 _BOOTSTRAP_SEED = 310_2026
+_BOOTSTRAP_DOMAIN = b"qore-research-circular-block-bootstrap-v1"
 
 
 class Vt31SilverBulletV2FullResearchError(Vt31SilverBulletV2BacktestError):
@@ -345,6 +346,19 @@ def _screen_pass(metrics: _Metrics) -> bool:
     return metrics.sample_size >= _MIN_TERMINAL_SAMPLE and metrics.expectancy_r >= 0
 
 
+def _bootstrap_start(*, replicate: int, draw: int, sample_size: int) -> int:
+    payload = (
+        _BOOTSTRAP_DOMAIN
+        + b":"
+        + str(_BOOTSTRAP_SEED).encode("ascii")
+        + b":"
+        + str(replicate).encode("ascii")
+        + b":"
+        + str(draw).encode("ascii")
+    )
+    return int.from_bytes(sha256(payload).digest(), "big") % sample_size
+
+
 def _bootstrap(values: tuple[Decimal, ...]) -> dict[str, object]:
     policy: dict[str, object] = {
         "algorithm": "qore-circular-block-bootstrap-v1",
@@ -361,18 +375,26 @@ def _bootstrap(values: tuple[Decimal, ...]) -> dict[str, object]:
             "sample_size": len(values),
             "policy": policy,
         }
-    rng = random.Random(_BOOTSTRAP_SEED)
     means: list[Decimal] = []
     sample_size = len(values)
-    for _replicate in range(_BOOTSTRAP_COUNT):
-        draw: list[Decimal] = []
-        while len(draw) < sample_size:
-            start = rng.randrange(sample_size)
+    blocks_per_replicate = (
+        sample_size + _BOOTSTRAP_BLOCK - 1
+    ) // _BOOTSTRAP_BLOCK
+    for replicate in range(_BOOTSTRAP_COUNT):
+        draw_values: list[Decimal] = []
+        for draw in range(blocks_per_replicate):
+            start = _bootstrap_start(
+                replicate=replicate,
+                draw=draw,
+                sample_size=sample_size,
+            )
             for offset in range(_BOOTSTRAP_BLOCK):
-                draw.append(values[(start + offset) % sample_size])
-                if len(draw) == sample_size:
+                draw_values.append(values[(start + offset) % sample_size])
+                if len(draw_values) == sample_size:
                     break
-        means.append(sum(draw, Decimal(0)) / Decimal(sample_size))
+            if len(draw_values) == sample_size:
+                break
+        means.append(sum(draw_values, Decimal(0)) / Decimal(sample_size))
     means.sort()
     lower = means[int((len(means) - 1) * 0.05)]
     upper = means[int((len(means) - 1) * 0.95)]
