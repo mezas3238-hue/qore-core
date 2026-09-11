@@ -41,6 +41,12 @@ jobs:
         run: ruff check .
       - name: Mypy
         run: mypy src tests
+      - name: VT-31 V2 focused methodology fidelity gate
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/traders/test_vt31_silver_bullet_v2.py \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
+            tests/infrastructure/trader_lab/test_vt31_silver_bullet_v2_backtest.py
       - name: Pytest full quality gate
         run: pytest --cov=src/qore --cov-report=term-missing
 
