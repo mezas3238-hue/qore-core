@@ -77,6 +77,7 @@ def _payload(day: datetime, tail: list[dict[str, str]]) -> dict[str, object]:
             "max_volume_units": 100000,
             "step_volume_units": 100,
         },
+        "provider_symbol_name": "USTEC",
         "checked_at": checked_at.isoformat(timespec="microseconds"),
         "requested_opened_at": first_open.isoformat(timespec="microseconds"),
         "required_coverage_days": 730,
@@ -122,6 +123,9 @@ def test_source_setup_fills_after_decision_and_reaches_opposite_range_target(
     report = run_vt31_silver_bullet_v2_backtest(path)
     result = report.payload()
 
+    assert result["symbol"] == "NAS100"
+    assert result["source_authorized_market"] == "NAS100"
+    assert "market_matrix" not in result
     assert result["setup_count"] == 1
     assert result["filled_count"] == 1
     assert result["terminal_sample_size"] == 1
@@ -169,7 +173,7 @@ def test_stop_first_convention_is_conservative_when_terminal_levels_share_fill_b
     assert result["expectancy_r"] == "-1"
 
 
-def test_eleven_market_matrix_does_not_force_unsupported_markets_to_trade(
+def test_provider_alias_never_changes_canonical_nas100_research_identity(
     tmp_path: Path,
 ) -> None:
     day = datetime(2026, 7, 13, tzinfo=_NY)
@@ -181,16 +185,12 @@ def test_eleven_market_matrix_does_not_force_unsupported_markets_to_trade(
             _row(start + timedelta(minutes=1), high=108.0, low=99.0, close=101.0),
         ],
     )
+    payload["provider_symbol_name"] = "US100"
     path = tmp_path / "evidence.json"
     _write(path, payload)
 
-    matrix = run_vt31_silver_bullet_v2_backtest(path).payload()["market_matrix"]
+    result = run_vt31_silver_bullet_v2_backtest(path).payload()
 
-    assert isinstance(matrix, list)
-    assert len(matrix) == 11
-    supported = [item for item in matrix if item["status"] == "source-authorized"]
-    unsupported = [
-        item for item in matrix if item["status"] == "unsupported-method-market"
-    ]
-    assert supported == [{"symbol": "NAS100", "status": "source-authorized"}]
-    assert len(unsupported) == 10
+    assert result["symbol"] == "NAS100"
+    assert result["source_authorized_market"] == "NAS100"
+    assert "market_matrix" not in result
