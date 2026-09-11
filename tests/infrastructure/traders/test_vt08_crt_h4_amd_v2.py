@@ -16,25 +16,37 @@ from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
 )
 
 
-def _h4(opened: datetime, o: str, h: str, l: str, c: str) -> Vt08CrtH4AmdV2H4Candle:
+def _h4(
+    opened: datetime,
+    open_price: str,
+    high_price: str,
+    low_price: str,
+    close_price: str,
+) -> Vt08CrtH4AmdV2H4Candle:
     return Vt08CrtH4AmdV2H4Candle(
         opened_at=opened,
         closed_at=opened + timedelta(hours=4),
-        open=Decimal(o),
-        high=Decimal(h),
-        low=Decimal(l),
-        close=Decimal(c),
+        open=Decimal(open_price),
+        high=Decimal(high_price),
+        low=Decimal(low_price),
+        close=Decimal(close_price),
     )
 
 
-def _bar(opened: datetime, o: str, h: str, l: str, c: str) -> Vt08CrtH4AmdV2Bar:
+def _bar(
+    opened: datetime,
+    open_price: str,
+    high_price: str,
+    low_price: str,
+    close_price: str,
+) -> Vt08CrtH4AmdV2Bar:
     return Vt08CrtH4AmdV2Bar(
         opened_at=opened,
         closed_at=opened + timedelta(minutes=15),
-        open=Decimal(o),
-        high=Decimal(h),
-        low=Decimal(l),
-        close=Decimal(c),
+        open=Decimal(open_price),
+        high=Decimal(high_price),
+        low=Decimal(low_price),
+        close=Decimal(close_price),
     )
 
 
