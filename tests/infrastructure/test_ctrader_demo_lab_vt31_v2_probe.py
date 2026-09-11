@@ -11,6 +11,8 @@ from qore.infrastructure.ctrader_demo_lab_probe import (
 from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
     _REQUIRED_COVERAGE_DAYS,
     _coverage_payload,
+    _provider_root,
+    _select_nas100_provider_symbol_name,
     _validate_m1_coverage,
 )
 
@@ -110,3 +112,68 @@ def test_coverage_payload_records_provider_gaps_without_inventing_candles() -> N
     assert payload["observed_gap_count"] == 1
     assert payload["observed_gap_seconds"] == 60
     assert "not invented" in str(payload["gap_policy"])
+
+
+@pytest.mark.parametrize(
+    ("provider_name", "expected_root"),
+    [
+        ("NAS100", "NAS100"),
+        ("US100", "US100"),
+        ("USTEC", "USTEC"),
+        ("USTECH", "USTECH"),
+        ("NASDAQ100", "NASDAQ100"),
+        ("USTEC.cash", "USTEC"),
+        ("US100_DEMO", "US100"),
+    ],
+)
+def test_provider_alias_allowlist_is_explicit(
+    provider_name: str,
+    expected_root: str,
+) -> None:
+    assert _provider_root(provider_name) == expected_root
+
+
+@pytest.mark.parametrize(
+    "provider_name",
+    [
+        "NAS",
+        "NASDAQ",
+        "US30",
+        "SP500",
+        "TECH100",
+        "XNAS100X",
+        "US100CASH",
+    ],
+)
+def test_provider_alias_does_not_use_fuzzy_matching(provider_name: str) -> None:
+    assert _provider_root(provider_name) is None
+
+
+def test_provider_alias_selection_requires_exactly_one_enabled_binding() -> None:
+    assert (
+        _select_nas100_provider_symbol_name(
+            (
+                ("EURUSD", True),
+                ("USTEC", True),
+                ("NAS100", False),
+            )
+        )
+        == "USTEC"
+    )
+
+    with pytest.raises(CTraderDemoLabProbeError, match="no enabled explicit"):
+        _select_nas100_provider_symbol_name(
+            (
+                ("EURUSD", True),
+                ("US30", True),
+                ("NAS100", False),
+            )
+        )
+
+    with pytest.raises(CTraderDemoLabProbeError, match="ambiguous"):
+        _select_nas100_provider_symbol_name(
+            (
+                ("NAS100", True),
+                ("USTEC", True),
+            )
+        )
