@@ -84,7 +84,9 @@ def test_source_audit_refuses_economic_backtest_without_video_judgments() -> Non
     assert payload["economic_backtest_authorized"] is False
     assert payload["prior_13468_campaign_valid_for_economics"] is False
     assert payload["prior_16351_candidate_count_final_source_fidelity"] is False
+    blockers = payload["economic_backtest_blockers"]
+    assert isinstance(blockers, list)
     assert (
         "primary-video-does-not-define-one-universal-executable-entry-price"
-        in payload["economic_backtest_blockers"]
+        in blockers
     )
