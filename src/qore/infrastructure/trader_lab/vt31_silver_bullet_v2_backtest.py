@@ -1,7 +1,7 @@
 """Source-bound historical research runner for VT-31 Silver Bullet V2.
 
 The runner consumes the dedicated two-year NAS100 M1 evidence artifact and the
-actual V2 evaluator.  It does not reuse V1's M5 execution model.
+actual V2 evaluator. It does not reuse V1's M5 execution model.
 
 Source-bound lifecycle semantics:
 - a setup may be formed only during 10:00-11:00 America/New_York;
@@ -13,7 +13,7 @@ Source-bound lifecycle semantics:
   fabricating a fill or exit;
 - if stop and target are both touched in one OHLC bar, stop wins conservatively.
 
-This is research evidence only.  It grants no DEMO/LIVE/Risk/execution authority.
+This is research evidence only. It grants no DEMO/LIVE/Risk/execution authority.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from pathlib import Path
@@ -356,6 +356,9 @@ def _load(
         raise Vt31SilverBulletV2BacktestError("VT-31 V2 M1 evidence is empty")
     if snapshots != tuple(sorted(snapshots, key=lambda item: item.opened_at)):
         raise Vt31SilverBulletV2BacktestError("VT-31 V2 M1 evidence is not chronological")
+    identities = tuple((item.opened_at, item.closed_at) for item in snapshots)
+    if len(set(identities)) != len(identities):
+        raise Vt31SilverBulletV2BacktestError("VT-31 V2 M1 evidence contains duplicates")
     if any(item.closed_at > checked_at for item in snapshots):
         raise Vt31SilverBulletV2BacktestError("future M1 evidence is prohibited")
     coverage = _object(payload.get("coverage"), field_name="coverage")
@@ -363,9 +366,9 @@ def _load(
         snapshots
     ):
         raise Vt31SilverBulletV2BacktestError("M1 coverage count mismatch")
-    if snapshots[-1].closed_at - snapshots[0].opened_at < __import__(
-        "datetime"
-    ).timedelta(days=_REQUIRED_COVERAGE_DAYS):
+    if snapshots[-1].closed_at - snapshots[0].opened_at < timedelta(
+        days=_REQUIRED_COVERAGE_DAYS
+    ):
         raise Vt31SilverBulletV2BacktestError("M1 evidence span is below 730 days")
     return (
         snapshots,
@@ -391,6 +394,10 @@ def _touches(bar: OhlcSnapshot, price: Decimal) -> bool:
 
 def _expected_next(previous: OhlcSnapshot, current: OhlcSnapshot) -> bool:
     return current.opened_at == previous.closed_at
+
+
+def _contiguous(bars: tuple[OhlcSnapshot, ...]) -> bool:
+    return all(_expected_next(previous, current) for previous, current in zip(bars, bars[1:]))
 
 
 def _r_multiple(setup: Vt31SilverBulletV2Setup, *, win: bool) -> Decimal:
@@ -547,14 +554,29 @@ def run_vt31_silver_bullet_v2_backtest(path: Path) -> Vt31SilverBulletV2Backtest
     decision_days = 0
     for local_day in sorted(day_groups):
         bars = tuple(day_groups[local_day])
-        reference = tuple(item for item in bars if (9, 0, 0) <= _ny_wall(item.opened_at) < (10, 0, 0))
-        session = tuple(item for item in bars if (10, 0, 0) <= _ny_wall(item.opened_at) < (11, 0, 0))
-        if len(reference) != 60 or not session:
+        reference = tuple(
+            item
+            for item in bars
+            if (9, 0, 0) <= _ny_wall(item.opened_at) < (10, 0, 0)
+        )
+        session = tuple(
+            item
+            for item in bars
+            if (10, 0, 0) <= _ny_wall(item.opened_at) < (11, 0, 0)
+        )
+        if len(reference) != 60 or not _contiguous(reference) or not session:
+            continue
+        if _ny_wall(session[0].opened_at) != (10, 0, 0):
             continue
         decision_days += 1
         selected_setup: tuple[int, Vt31SilverBulletV2Setup] | None = None
         prefix: list[OhlcSnapshot] = list(reference)
+        previous_session_bar: OhlcSnapshot | None = None
         for bar in session:
+            if previous_session_bar is not None and not _expected_next(
+                previous_session_bar, bar
+            ):
+                break
             prefix.append(bar)
             evaluated = evaluate_vt31_silver_bullet_v2(
                 Vt31SilverBulletV2Input(
@@ -566,6 +588,7 @@ def run_vt31_silver_bullet_v2_backtest(path: Path) -> Vt31SilverBulletV2Backtest
             if evaluated.decision is DemoTradingDecision.SETUP and evaluated.setup is not None:
                 selected_setup = (index_by_open[bar.opened_at], evaluated.setup)
                 break
+            previous_session_bar = bar
         if selected_setup is None:
             continue
         setup_count += 1
@@ -598,7 +621,10 @@ def run_vt31_silver_bullet_v2_backtest(path: Path) -> Vt31SilverBulletV2Backtest
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if len(arguments) != 1:
-        print("usage: python -m qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest PATH")
+        print(
+            "usage: python -m qore.infrastructure.trader_lab."
+            "vt31_silver_bullet_v2_backtest PATH"
+        )
         return 2
     try:
         report = run_vt31_silver_bullet_v2_backtest(Path(arguments[0]))
