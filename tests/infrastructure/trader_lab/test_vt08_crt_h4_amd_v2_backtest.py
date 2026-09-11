@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_backtest import (
+    _FOREX_H4_ANCHOR_HOURS,
+    _FUTURES_H4_ANCHOR_HOURS,
     Vt08CrtH4AmdV2SourceAudit,
     _Bar,
     _candidate_from_protected,
@@ -28,6 +30,11 @@ def _bar(
         low=Decimal(low),
         close=Decimal(close),
     )
+
+
+def test_primary_video_timing_slide_is_fully_represented() -> None:
+    assert _FOREX_H4_ANCHOR_HOURS == (1, 5, 9, 13, 17, 21)
+    assert _FUTURES_H4_ANCHOR_HOURS == (2, 6, 10, 14, 18, 22)
 
 
 def test_mechanical_cisd_candidate_is_not_relabelled_as_trade_or_win() -> None:
@@ -76,3 +83,8 @@ def test_source_audit_refuses_economic_backtest_without_video_judgments() -> Non
     assert payload["loss_count"] is None
     assert payload["economic_backtest_authorized"] is False
     assert payload["prior_13468_campaign_valid_for_economics"] is False
+    assert payload["prior_16351_candidate_count_final_source_fidelity"] is False
+    assert (
+        "primary-video-does-not-define-one-universal-executable-entry-price"
+        in payload["economic_backtest_blockers"]
+    )
