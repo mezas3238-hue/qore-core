@@ -100,7 +100,7 @@ jobs:
           mkdir -p artifacts/vt31-silver-bullet-v2/NAS100
           python -m qore.infrastructure.ctrader_demo_lab_vt31_v2_probe \
             > artifacts/vt31-silver-bullet-v2/NAS100/market-evidence.json
-      - name: Run source-bound VT-31 V2 NAS100 backtest with LONG/SHORT reporting
+      - name: Run source-bound VT-31 V2 NAS100 backtest with Core side characterization
         run: |
           python -m qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest_report \
             artifacts/vt31-silver-bullet-v2/NAS100/market-evidence.json \
@@ -124,11 +124,24 @@ jobs:
           assert result["symbol"] == "NAS100"
           assert result["decision_timeframe"] == "M1"
           assert result["software_sha"] == os.environ["GITHUB_SHA"]
-          assert result["long_trade_count"] + result["short_trade_count"] == result["filled_count"]
-          directional = result["directional_breakdown"]
-          assert set(directional) == {"long", "short"}
-          assert directional["long"]["trade_count"] == result["long_trade_count"]
-          assert directional["short"]["trade_count"] == result["short_trade_count"]
+
+          side_counts = result["side_counts"]
+          assert set(side_counts) == {"long", "short"}
+          assert side_counts["long"] + side_counts["short"] == result["setup_count"]
+          assert result["long_setup_count"] == side_counts["long"]
+          assert result["short_setup_count"] == side_counts["short"]
+
+          by_side = result["by_side"]
+          assert set(by_side) == {"long", "short"}
+          assert by_side["long"]["setup_count"] == side_counts["long"]
+          assert by_side["short"]["setup_count"] == side_counts["short"]
+          assert (
+              by_side["long"]["filled_count"]
+              + by_side["short"]["filled_count"]
+              == result["filled_count"]
+          )
+          assert result["long_trade_count"] == by_side["long"]["filled_count"]
+          assert result["short_trade_count"] == by_side["short"]["filled_count"]
           PY
       - name: Upload sanitized VT-31 V2 NAS100 research evidence
         uses: actions/upload-artifact@v4
