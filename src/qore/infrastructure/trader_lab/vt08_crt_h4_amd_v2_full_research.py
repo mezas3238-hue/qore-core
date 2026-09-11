@@ -333,6 +333,10 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
                     "source_point_of_interest_status": row.get(
                         "source_point_of_interest_status"
                     ),
+                    "poi_type": row.get("poi_type"),
+                    "poi_lower_bound": row.get("poi_lower_bound"),
+                    "poi_upper_bound": row.get("poi_upper_bound"),
+                    "poi_formed_at": row.get("poi_formed_at"),
                     "source_wick_status": row.get("source_wick_status"),
                     "automatic_setup": row.get("automatic_setup"),
                     "entry_price": row.get("entry_price"),
