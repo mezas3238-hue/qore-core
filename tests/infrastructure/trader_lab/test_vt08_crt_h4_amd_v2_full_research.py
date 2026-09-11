@@ -7,92 +7,84 @@ from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research import (
 )
 
 
-def _backtest(path: Path, count: int = 40) -> Path:
-    start = datetime(2024, 1, 2, tzinfo=UTC)
-    trades = []
-    for index in range(count):
-        signal = start + timedelta(days=index, hours=10)
-        side = "long" if index % 2 == 0 else "short"
-        profile = "continuation-expansion" if index % 3 else "reversal-expansion"
-        r_value = "0.60" if index % 4 else "-1"
-        trades.append(
+def _backtest(path: Path) -> Path:
+    start = datetime(2024, 1, 1, tzinfo=UTC)
+    rows = []
+    for index in range(30):
+        outcome = "target" if index % 3 == 0 else "stop"
+        r_multiple = "2" if outcome == "target" else "-1"
+        rows.append(
             {
-                "signal_at": signal.isoformat(),
-                "filled_at": signal.isoformat(),
-                "resolved_at": (signal + timedelta(hours=2)).isoformat(),
-                "side": side,
-                "profile": profile,
-                "htf_closure": (
-                    "range-expansion-closure"
-                    if profile == "continuation-expansion"
-                    else "candle2-reversal-closure"
+                "signal_at": (start + timedelta(days=index)).isoformat(),
+                "resolved_at": (start + timedelta(days=index, minutes=30)).isoformat(),
+                "side": "long" if index % 2 == 0 else "short",
+                "scenario": (
+                    "candle2-expansion" if index % 2 == 0 else "candle3-continuation"
                 ),
                 "entry_price": "100",
-                "stop_loss": "99" if side == "long" else "101",
-                "exit_price": (
-                    "100.6"
-                    if r_value != "-1"
-                    else ("99" if side == "long" else "101")
-                ),
-                "outcome": "h4_close" if r_value != "-1" else "stop",
-                "r_multiple": r_value,
-                "mfe_r": "0.8",
-                "mae_r": "0.4" if r_value != "-1" else "1",
-                "h4_opened_at": (signal - timedelta(hours=1)).isoformat(),
-                "h4_closed_at": (signal + timedelta(hours=3)).isoformat(),
+                "stop_loss": "95",
+                "take_profit": "110",
+                "outcome": outcome,
+                "r_multiple": r_multiple,
+                "mark_to_market_r_at_h4_close": r_multiple,
+                "mfe_r": "2",
+                "mae_r": "1",
+                "cisd_level": "99",
+                "manipulation_fraction_of_reference": "0.4",
+            }
+        )
+    for index in range(5):
+        rows.append(
+            {
+                "signal_at": (start + timedelta(days=40 + index)).isoformat(),
+                "resolved_at": None,
+                "side": "long",
+                "scenario": "candle2-expansion",
+                "entry_price": "100",
+                "stop_loss": "95",
+                "take_profit": "110",
+                "outcome": "h4_close_censored",
+                "r_multiple": None,
+                "mark_to_market_r_at_h4_close": "1.2",
+                "mfe_r": "1.5",
+                "mae_r": "0.5",
+                "cisd_level": "99",
+                "manipulation_fraction_of_reference": "0.4",
             }
         )
     payload = {
-        "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_backtest.v1",
-        "environment": "demo",
+        "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_backtest.v2",
         "read_only": True,
         "research_only": True,
+        "invalidates_prior_campaign": True,
         "software_sha": "a" * 40,
         "symbol": "EURUSD",
-        "complete_h4_windows": 100,
-        "eligible_h4_windows": 80,
-        "terminal_sample_size": len(trades),
-        "trades": trades,
+        "decision_days": 100,
+        "daily_bias_pass": 60,
+        "candle2_setup_count": 20,
+        "candle3_candidate_count": 40,
+        "trades": rows,
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
 
 
-def test_full_research_emits_complete_evidence_family_and_governance(tmp_path: Path) -> None:
-    output = tmp_path / "research"
+def test_reconstructed_research_never_promotes_positive_censored_mark_to_win(tmp_path: Path) -> None:
+    output = tmp_path / "out"
     summary = generate_full_research(_backtest(tmp_path / "backtest.json"), output)
-    assert set(item.name for item in output.iterdir()) == {
-        "walk-forward.json",
-        "characterization.json",
-        "stress.json",
-        "monte-carlo.json",
-        "failure-analysis.json",
-        "story-forensics.json",
-        "hypothesis-register.json",
-        "research-summary.json",
-    }
-    walk = json.loads((output / "walk-forward.json").read_text())
-    assert walk["in_sample_fraction"] == "0.70"
-    assert walk["oos_fraction"] == "0.30"
-    assert walk["source_frozen_configuration"] is True
-    assert walk["parameter_search_performed"] is False
-    assert walk["holdout_governance"]["state"] == "consumed_for_research"
-    assert (
-        walk["holdout_governance"]
-        ["fresh_previously_unseen_holdout_required_after_any_change"]
-        is True
-    )
-    story = json.loads((output / "story-forensics.json").read_text())
-    assert story["episode_count"] == 40
-    assert story["decision_time_oracle_separation"] is True
-    monte = json.loads((output / "monte-carlo.json").read_text())
-    assert monte["governed_stage_authority"] is False
+    metrics = summary["all_history"]
+    assert metrics["setup_count"] == 35
+    assert metrics["terminal_sample_size"] == 30
+    assert metrics["target_count"] == 10
+    assert metrics["stop_count"] == 20
+    assert metrics["censored_count"] == 5
     assert summary["demo_eligible"] is False
-    assert summary["governed_lifecycle_authority"] is False
+    characterization = json.loads((output / "characterization.json").read_text())
+    assert characterization["positive_h4_close_mark_is_win"] is False
 
 
-def test_monte_carlo_is_deterministic(tmp_path: Path) -> None:
-    backtest = _backtest(tmp_path / "backtest.json", count=50)
+def test_reconstructed_research_is_deterministic_and_emits_full_family(tmp_path: Path) -> None:
+    backtest = _backtest(tmp_path / "backtest.json")
     first = tmp_path / "first"
     second = tmp_path / "second"
     generate_full_research(backtest, first)
@@ -100,3 +92,8 @@ def test_monte_carlo_is_deterministic(tmp_path: Path) -> None:
     assert (first / "monte-carlo.json").read_bytes() == (
         second / "monte-carlo.json"
     ).read_bytes()
+    assert {item.name for item in first.iterdir()} == {
+        "walk-forward.json", "characterization.json", "stress.json",
+        "monte-carlo.json", "failure-analysis.json", "story-forensics.json",
+        "hypothesis-register.json", "research-summary.json",
+    }

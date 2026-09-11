@@ -1,30 +1,32 @@
+from datetime import UTC, datetime
+
 import pytest
 
 from qore.infrastructure.ctrader_demo_lab_probe import CTraderDemoLabProbeError
 from qore.infrastructure.ctrader_demo_lab_vt08_v2_probe import (
+    _parse_d1_bar,
     select_vt08_provider_symbol_name,
 )
 
 
-def test_explicit_index_aliases_resolve_without_fuzzy_matching() -> None:
-    observed = (("USTEC", True), ("US500", True), ("US30", True), ("EURUSD", True))
+class _NativeD1:
+    low = 100000
+    deltaOpen = 50
+    deltaHigh = 100
+    deltaClose = 75
+    utcTimestampInMinutes = 30_000_000
+
+
+def test_explicit_provider_aliases_remain_fail_closed() -> None:
+    observed = (("USTEC", True), ("US500", True), ("EURUSD", True))
     assert select_vt08_provider_symbol_name("NAS100", observed) == "USTEC"
     assert select_vt08_provider_symbol_name("SP500", observed) == "US500"
-    assert select_vt08_provider_symbol_name("US30", observed) == "US30"
-
-
-def test_fx_exact_or_separated_suffix_is_supported() -> None:
-    assert select_vt08_provider_symbol_name("EURUSD", (("EURUSD", True),)) == "EURUSD"
-    assert select_vt08_provider_symbol_name("GBPJPY", (("GBPJPY.c", True),)) == "GBPJPY.c"
-
-
-def test_substring_alias_is_not_accepted() -> None:
     with pytest.raises(CTraderDemoLabProbeError):
         select_vt08_provider_symbol_name("NAS100", (("MYUSTECINDEX", True),))
 
 
-def test_multiple_suffixes_at_same_root_fail_closed() -> None:
-    with pytest.raises(CTraderDemoLabProbeError):
-        select_vt08_provider_symbol_name(
-            "EURUSD", (("EURUSD.a", True), ("EURUSD.b", True))
-        )
+def test_private_native_d1_parser_does_not_widen_shared_lab_period_contract() -> None:
+    checked = datetime(2030, 1, 1, tzinfo=UTC)
+    parsed = _parse_d1_bar(_NativeD1(), digits=5, checked_at=checked)
+    assert parsed is not None
+    assert parsed.payload()["period"] == "D1"

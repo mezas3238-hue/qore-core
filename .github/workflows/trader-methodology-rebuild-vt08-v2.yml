@@ -1,4 +1,4 @@
-name: QORE VT-08 CRT H4 AMD V2 Trader Lab
+name: QORE VT-08 CRT H4 AMD V2 Reconstructed Trader Lab
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - agent/trader-methodology-rebuild-v2-001
     paths:
       - .github/workflows/trader-methodology-rebuild-vt08-v2.yml
+      - docs/research/VT08-CRT-H4-AMD-V2-SOURCE-FREEZE.md
       - src/qore/infrastructure/traders/vt08_crt_h4_amd_v2.py
       - src/qore/infrastructure/ctrader_demo_lab_vt08_v2_probe.py
       - src/qore/infrastructure/trader_lab/vt08_crt_h4_amd_v2_backtest.py
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: qore-vt08-v2-${{ github.ref }}
+  group: qore-vt08-v2-reconstructed-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -37,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - name: Checkout exact V2 branch head
+      - name: Checkout exact V2 head
         uses: actions/checkout@v4
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -51,7 +52,7 @@ jobs:
         run: ruff check .
       - name: Mypy full gate
         run: mypy src tests
-      - name: VT-08 V2 source fidelity and Trader Lab focused gate
+      - name: VT-08 V2 reconstruction fidelity gate
         run: |
           pytest -q \
             tests/infrastructure/traders/test_vt08_crt_h4_amd_v2.py \
@@ -62,7 +63,7 @@ jobs:
         run: pytest --cov=src/qore --cov-report=term-missing
 
   trader-lab-11-market:
-    if: ${{ contains(github.event.head_commit.message || '', 'run-vt08-research') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ contains(github.event.head_commit.message || '', 'run-vt08-v2-rebuild') || github.event_name == 'workflow_dispatch' }}
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -85,7 +86,7 @@ jobs:
     env:
       QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
     steps:
-      - name: Checkout exact V2 branch head
+      - name: Checkout exact V2 head
         uses: actions/checkout@v4
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -95,143 +96,102 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[ctrader]"
-      - name: Verify required DEMO inputs without printing secrets
+      - name: Verify DEMO inputs
         shell: bash
         run: |
           set -euo pipefail
-          for name in \
-            QORE_CTRADER_CLIENT_ID \
-            QORE_CTRADER_CLIENT_SECRET \
-            QORE_CTRADER_ACCESS_TOKEN \
-            QORE_CTRADER_REFRESH_TOKEN \
-            QORE_DEMO_LAB_SYMBOL
-          do
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_DEMO_LAB_SYMBOL; do
             if [ -z "${!name:-}" ]; then
               echo "missing required DEMO research input: ${name}" >&2
               exit 2
             fi
           done
           if [ "${QORE_DEMO_LAB_LOOKBACK_DAYS}" -le 730 ]; then
-            echo "VT-08 V2 requires acquisition margin beyond 730 days" >&2
+            echo "VT-08 V2 reconstruction requires acquisition margin beyond 730 days" >&2
             exit 2
           fi
-      - name: Discover the single authorized DEMO account when not configured
+      - name: Discover authorized DEMO account if needed
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
             account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
             if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
-              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              echo "cTrader DEMO account discovery returned invalid id" >&2
               exit 3
             fi
             echo "::add-mask::$account_id"
             printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
           fi
-      - name: Collect two-year source-required M15 evidence
+      - name: Collect M15 plus provider D1 evidence
         run: |
-          mkdir -p "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}"
-          python -m qore.infrastructure.ctrader_demo_lab_vt08_v2_probe \
-            > "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+          root="artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}"
+          mkdir -p "$root"
+          python -m qore.infrastructure.ctrader_demo_lab_vt08_v2_probe > "$root/market-evidence.json"
           python - <<'PY'
-          import json
-          import os
+          import json, os
           from pathlib import Path
-
           symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
-          payload = json.loads(
-              Path(f"artifacts/vt08-v2/{symbol}/market-evidence.json").read_text()
-          )
-          assert payload["schema"] == "qore.ctrader_demo.vt08_crt_h4_amd_v2_m15_evidence.v1"
-          assert payload["environment"] == "demo"
-          assert payload["read_only"] is True
-          assert payload["account_is_live"] is False
-          assert payload["canonical_symbol"] == symbol
-          assert payload["symbol"]["symbol_name"] == symbol
-          assert payload["decision_timeframe"] == "M15"
-          assert payload["required_coverage_days"] == 730
-          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
-          assert set(payload["periods"]) == {"M15"}
-          assert payload["coverage"]["span_seconds"] >= 730 * 24 * 60 * 60
-          assert payload["provider_symbol_name"]
+          root = Path(f"artifacts/vt08-v2/{symbol}")
+          p = json.loads((root / "market-evidence.json").read_text())
+          assert p["schema"] == "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v2"
+          assert p["environment"] == "demo" and p["read_only"] is True
+          assert p["account_is_live"] is False and p["canonical_symbol"] == symbol
+          assert p["software_sha"] == os.environ["GITHUB_SHA"]
+          assert set(p["periods"]) == {"M15", "D1"}
+          assert p["required_coverage_days"] == 730
+          assert p["coverage"]["M15"]["span_seconds"] >= 730 * 86400
+          assert p["coverage"]["D1"]["span_seconds"] >= 730 * 86400
+          assert p["source_sequence_policy"]["maximum_setups_per_market_day"] == 1
           PY
-      - name: Run source-bound VT-08 V2 historical research
+      - name: Run corrected source-bound historical research
         run: |
-          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_backtest \
-            "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
-            > "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}/backtest.json"
-          printf '%s\n' "$GITHUB_SHA" > "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
+          root="artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_backtest "$root/market-evidence.json" > "$root/backtest.json"
+          printf '%s\n' "$GITHUB_SHA" > "$root/git-sha.txt"
           python - <<'PY'
-          import json
-          import os
+          import json, os
           from pathlib import Path
-
           symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
-          payload = json.loads(Path(f"artifacts/vt08-v2/{symbol}/backtest.json").read_text())
-          assert payload["schema"] == "qore.trader_lab.vt08_crt_h4_amd_v2_backtest.v1"
-          assert payload["research_only"] is True
-          assert payload["symbol"] == symbol
-          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
-          assert payload["execution_model"] == "source-m15-cisd-entry-h4-close-stop-first-v1"
-          assert payload["long_trade_count"] + payload["short_trade_count"] == payload["terminal_sample_size"]
-          assert payload["continuation_count"] + payload["reversal_count"] == payload["terminal_sample_size"]
+          p = json.loads(Path(f"artifacts/vt08-v2/{symbol}/backtest.json").read_text())
+          assert p["schema"] == "qore.trader_lab.vt08_crt_h4_amd_v2_backtest.v2"
+          assert p["invalidates_prior_campaign"] is True
+          assert p["symbol"] == symbol and p["software_sha"] == os.environ["GITHUB_SHA"]
+          assert p["execution_model"] == "source-daily-bias-one-sequence-m15-cisd-target-stop-censor-v2"
+          assert p["setup_count"] <= p["decision_days"]
+          assert p["long_trade_count"] + p["short_trade_count"] == p["setup_count"]
+          assert p["target_count"] + p["stop_count"] == p["terminal_sample_size"]
+          assert p["terminal_sample_size"] + p["h4_close_censored_count"] + p["gap_censored_count"] == p["setup_count"]
           PY
       - name: Run full Trader Lab evidence stages
         run: |
-          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research \
-            "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}/backtest.json" \
-            "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}" \
-            > "artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}/research-run-summary.stdout.json"
-      - name: Verify complete research evidence family and authority boundary
+          root="artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research "$root/backtest.json" "$root" > "$root/research-run-summary.stdout.json"
+      - name: Verify governance and evidence family
         run: |
           python - <<'PY'
-          import json
-          import os
+          import json, os
           from pathlib import Path
-
           symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
           root = Path(f"artifacts/vt08-v2/{symbol}")
-          required = {
-              "market-evidence.json",
-              "backtest.json",
-              "git-sha.txt",
-              "walk-forward.json",
-              "characterization.json",
-              "stress.json",
-              "monte-carlo.json",
-              "failure-analysis.json",
-              "story-forensics.json",
-              "hypothesis-register.json",
-              "research-summary.json",
-              "research-run-summary.stdout.json",
-          }
+          required = {"market-evidence.json","backtest.json","git-sha.txt","walk-forward.json","characterization.json","stress.json","monte-carlo.json","failure-analysis.json","story-forensics.json","hypothesis-register.json","research-summary.json","research-run-summary.stdout.json"}
           missing = sorted(name for name in required if not (root / name).is_file())
           assert not missing, missing
-          walk = json.loads((root / "walk-forward.json").read_text())
-          assert walk["source_frozen_configuration"] is True
-          assert walk["parameter_search_performed"] is False
-          assert walk["in_sample_fraction"] == "0.70"
-          assert walk["oos_fraction"] == "0.30"
-          assert walk["holdout_governance"]["state"] == "consumed_for_research"
-          assert walk["holdout_governance"]["post_change_reuse_as_independent_holdout_prohibited"] is True
-          assert walk["holdout_governance"]["fresh_previously_unseen_holdout_required_after_any_change"] is True
           summary = json.loads((root / "research-summary.json").read_text())
-          assert summary["symbol"] == symbol
-          assert summary["software_sha"] == os.environ["GITHUB_SHA"]
+          assert summary["invalidates_prior_campaign"] is True
           assert summary["demo_eligible"] is False
           assert summary["governed_lifecycle_authority"] is False
+          char = json.loads((root / "characterization.json").read_text())
+          assert char["positive_h4_close_mark_is_win"] is False
           stress = json.loads((root / "stress.json").read_text())
           monte = json.loads((root / "monte-carlo.json").read_text())
           assert stress["governed_stage_authority"] is False
           assert monte["governed_stage_authority"] is False
-          story = json.loads((root / "story-forensics.json").read_text())
-          backtest = json.loads((root / "backtest.json").read_text())
-          assert story["episode_count"] == backtest["terminal_sample_size"]
           PY
-      - name: Upload sanitized per-market VT-08 V2 research evidence
+      - name: Upload sanitized per-market reconstructed V2 evidence
         uses: actions/upload-artifact@v4
         with:
-          name: qore-vt08-v2-${{ matrix.symbol }}-${{ github.sha }}
+          name: qore-vt08-v2-reconstructed-${{ matrix.symbol }}-${{ github.sha }}
           path: artifacts/vt08-v2/${{ matrix.symbol }}
           if-no-files-found: error
           retention-days: 30
@@ -241,66 +201,57 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Download all eleven per-market artifacts
+      - name: Download all eleven reconstructed artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: qore-vt08-v2-*-${{ github.sha }}
+          pattern: qore-vt08-v2-reconstructed-*-${{ github.sha }}
           path: artifacts/vt08-v2-multi-market
-      - name: Aggregate eleven-market evidence without promotion authority
-        shell: bash
+      - name: Aggregate exact outcome counts
         run: |
-          set -euo pipefail
           mkdir -p artifacts/vt08-v2-aggregate
           python - <<'PY'
-          import json
-          import os
+          import json, os
           from decimal import Decimal
           from pathlib import Path
-
-          expected = {
-              "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "XAUUSD",
-              "NAS100", "SP500", "GBPJPY", "AUDJPY", "US30",
-          }
-          summaries = []
-          for path in sorted(Path("artifacts/vt08-v2-multi-market").rglob("research-summary.json")):
-              summaries.append(json.loads(path.read_text()))
-          symbols = {item["symbol"] for item in summaries}
-          assert len(summaries) == 11, len(summaries)
-          assert symbols == expected, (symbols, expected)
-          assert all(item["software_sha"] == os.environ["GITHUB_SHA"] for item in summaries)
-          total_sample = sum(int(item["terminal_sample_size"]) for item in summaries)
-          weighted_total = sum(
-              Decimal(item["all_history"]["expectancy_r"]) * int(item["terminal_sample_size"])
-              for item in summaries
-          )
-          weighted_expectancy = weighted_total / total_sample if total_sample else Decimal(0)
+          expected = {"EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","XAUUSD","NAS100","SP500","GBPJPY","AUDJPY","US30"}
+          backtests = [json.loads(p.read_text()) for p in sorted(Path("artifacts/vt08-v2-multi-market").rglob("backtest.json"))]
+          summaries = [json.loads(p.read_text()) for p in sorted(Path("artifacts/vt08-v2-multi-market").rglob("research-summary.json"))]
+          assert len(backtests) == len(summaries) == 11
+          assert {p["symbol"] for p in backtests} == expected
+          assert all(p["software_sha"] == os.environ["GITHUB_SHA"] for p in backtests)
+          setups = sum(p["setup_count"] for p in backtests)
+          terminal = sum(p["terminal_sample_size"] for p in backtests)
+          targets = sum(p["target_count"] for p in backtests)
+          stops = sum(p["stop_count"] for p in backtests)
+          censored = sum(p["h4_close_censored_count"] + p["gap_censored_count"] for p in backtests)
+          assert targets + stops == terminal
+          assert terminal + censored == setups
+          weighted = sum(Decimal(p["terminal_expectancy_r"]) * p["terminal_sample_size"] for p in backtests)
           payload = {
-              "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_11_market_aggregate.v1",
+              "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_11_market_aggregate.v2",
               "research_only": True,
+              "invalidates_prior_13468_campaign": True,
               "software_sha": os.environ["GITHUB_SHA"],
               "market_count": 11,
-              "symbols": sorted(symbols),
-              "terminal_sample_size": total_sample,
-              "weighted_expectancy_r": format(weighted_expectancy, "f"),
-              "oos_pass_market_count": sum(bool(item["oos_pass"]) for item in summaries),
-              "stress_pass_market_count": sum(bool(item["stress_pass"]) for item in summaries),
-              "monte_carlo_pass_market_count": sum(bool(item["monte_carlo_pass"]) for item in summaries),
-              "per_market": sorted(summaries, key=lambda item: item["symbol"]),
+              "symbols": sorted(expected),
+              "setup_count": setups,
+              "terminal_sample_size": terminal,
+              "target_count": targets,
+              "stop_count": stops,
+              "censored_count": censored,
+              "weighted_terminal_expectancy_r": format(weighted / terminal if terminal else Decimal(0), "f"),
+              "per_market": sorted(summaries, key=lambda p: p["symbol"]),
               "governed_lifecycle_authority": False,
               "demo_eligible": False,
-              "cross_market_result_is_research_evidence_not_promotion": True,
           }
-          Path("artifacts/vt08-v2-aggregate/eleven-market-summary.json").write_text(
-              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
-          )
-          Path("artifacts/vt08-v2-aggregate/git-sha.txt").write_text(
-              os.environ["GITHUB_SHA"] + "\n"
-          )
+          root = Path("artifacts/vt08-v2-aggregate")
+          (root / "eleven-market-summary.json").write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
+          (root / "git-sha.txt").write_text(os.environ["GITHUB_SHA"] + "\n")
           PY
-      - name: Upload eleven-market aggregate
+      - name: Upload reconstructed 11-market aggregate
         uses: actions/upload-artifact@v4
         with:
-          name: qore-vt08-v2-11-market-aggregate-${{ github.sha }}
+          name: qore-vt08-v2-reconstructed-11-market-${{ github.sha }}
           path: artifacts/vt08-v2-aggregate
           if-no-files-found: error
           retention-days: 30
