@@ -1,0 +1,159 @@
+import json
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import cast
+from zoneinfo import ZoneInfo
+
+import pytest
+
+from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research import (
+    Vt08CrtH4AmdV2FullResearchError,
+    generate_full_research,
+)
+
+_NY = ZoneInfo("America/New_York")
+
+
+def _source_audit(path: Path, count: int = 12) -> Path:
+    start = datetime(2024, 1, 2, 1, tzinfo=_NY)
+    rows: list[dict[str, object]] = []
+    for index in range(count):
+        signal = start + timedelta(days=index)
+        rows.append(
+            {
+                "scenario_candidate": (
+                    "reversal-expansion-candle2"
+                    if index % 2 == 0
+                    else "continuation-expansion-candle3"
+                ),
+                "anchor_opened_at": signal.isoformat(),
+                "h4_closes_at": (signal + timedelta(hours=4)).isoformat(),
+                "proposed_side": "long" if index % 2 == 0 else "short",
+                "signal_at": (signal + timedelta(minutes=30)).isoformat(),
+                "entry_observation": "100",
+                "protected_swing_extreme": "99",
+                "cisd_level": "99.5",
+                "source_bias_status": "requires-source-context-confirmation",
+                "source_point_of_interest_status": "requires-source-poi-confirmation",
+                "source_wick_status": "qualitative-unresolved-by-video",
+                "prior_candle2_wick_status": None,
+                "automatic_setup": False,
+                "post_signal_h4_close_r_descriptive_only": "0.5",
+                "mfe_r_descriptive_only": "1.2",
+                "mae_r_descriptive_only": "0.4",
+                "post_signal_path_is_not_trade_result": True,
+            }
+        )
+    payload: dict[str, object] = {
+        "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3",
+        "environment": "demo",
+        "read_only": True,
+        "research_only": True,
+        "source_fidelity_mode": True,
+        "human_owner_operating_scope": True,
+        "operating_timezone": "America/New_York",
+        "forex_operating_h4_anchors": [1, 5, 9],
+        "futures_operating_h4_anchors": [2, 6, 10],
+        "invalidates_prior_campaign": True,
+        "prior_13468_campaign_valid_for_economics": False,
+        "software_sha": "a" * 40,
+        "symbol": "EURUSD",
+        "eligible_anchor_windows": 100,
+        "missing_anchor_windows": 3,
+        "mechanical_candidate_count": len(rows),
+        "source_judgment_required_count": len(rows),
+        "automatic_setup_count": 0,
+        "filled_count": 0,
+        "win_count": None,
+        "loss_count": None,
+        "economic_backtest_authorized": False,
+        "candidates": rows,
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_full_research_emits_evidence_without_fake_economics(tmp_path: Path) -> None:
+    output = tmp_path / "out"
+    summary = generate_full_research(_source_audit(tmp_path / "audit.json"), output)
+    assert {item.name for item in output.iterdir()} == {
+        "walk-forward.json",
+        "characterization.json",
+        "stress.json",
+        "monte-carlo.json",
+        "failure-analysis.json",
+        "story-forensics.json",
+        "hypothesis-register.json",
+        "research-summary.json",
+    }
+    assert summary["mechanical_candidate_count"] == 12
+    assert summary["automatic_setup_count"] == 0
+    assert summary["economic_result_available"] is False
+    assert summary["win_count"] is None
+    assert summary["loss_count"] is None
+    assert summary["demo_eligible"] is False
+    assert summary["human_owner_operating_scope"] == {
+        "timezone": "America/New_York",
+        "forex_h4_anchors": [1, 5, 9],
+        "futures_h4_anchors": [2, 6, 10],
+    }
+
+    characterization = json.loads((output / "characterization.json").read_text())
+    assert characterization["oracle_metrics_are_not_trade_results"] is True
+    assert characterization["win_rate"] is None
+    assert characterization["expectancy_r"] is None
+    assert set(characterization["by_h4_anchor_hour_new_york"]) == {"01:00"}
+
+    stress = json.loads((output / "stress.json").read_text())
+    monte = json.loads((output / "monte-carlo.json").read_text())
+    assert stress["status"] == "not-run"
+    assert stress["pass"] is None
+    assert monte["status"] == "not-run"
+    assert monte["pass"] is None
+
+
+def test_story_forensics_separates_candidate_decision_data_from_oracle(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    generate_full_research(_source_audit(tmp_path / "audit.json", count=3), output)
+    story = json.loads((output / "story-forensics.json").read_text())
+    assert story["decision_time_oracle_separation"] is True
+    assert story["episode_count"] == 3
+    first = cast(dict[str, object], story["episodes"][0])
+    decision = cast(dict[str, object], first["decision_time"])
+    assert decision["automatic_setup"] is False
+    assert decision["source_point_of_interest_status"] == (
+        "requires-source-poi-confirmation"
+    )
+    assert "h4_close_r" not in decision
+    assert "post_outcome_oracle_descriptive_only" in first
+
+
+def test_full_research_rejects_candidate_outside_owner_new_york_hours(
+    tmp_path: Path,
+) -> None:
+    audit_path = _source_audit(tmp_path / "audit.json", count=1)
+    payload = json.loads(audit_path.read_text())
+    candidate = cast(dict[str, object], payload["candidates"][0])
+    candidate["anchor_opened_at"] = datetime(2024, 1, 2, 13, tzinfo=_NY).isoformat()
+    audit_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(
+        Vt08CrtH4AmdV2FullResearchError,
+        match="outside Human Owner New York operating anchors",
+    ):
+        generate_full_research(audit_path, tmp_path / "out")
+
+
+def test_full_research_rejects_missing_owner_scope_binding(tmp_path: Path) -> None:
+    audit_path = _source_audit(tmp_path / "audit.json", count=1)
+    payload = json.loads(audit_path.read_text())
+    payload["human_owner_operating_scope"] = False
+    audit_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(
+        Vt08CrtH4AmdV2FullResearchError,
+        match="must bind Human Owner operating scope",
+    ):
+        generate_full_research(audit_path, tmp_path / "out")
