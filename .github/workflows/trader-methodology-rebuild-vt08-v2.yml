@@ -1,4 +1,4 @@
-name: QORE VT-08 CRT H4 AMD V2 Reconstructed Trader Lab
+name: QORE VT-08 CRT H4 AMD V2 Source Fidelity
 
 on:
   push:
@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: qore-vt08-v2-reconstructed-${{ github.ref }}
+  group: qore-vt08-v2-source-fidelity-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -52,7 +52,7 @@ jobs:
         run: ruff check .
       - name: Mypy full gate
         run: mypy src tests
-      - name: VT-08 V2 reconstruction fidelity gate
+      - name: VT-08 V2 source-fidelity gate
         run: |
           pytest -q \
             tests/infrastructure/traders/test_vt08_crt_h4_amd_v2.py \
@@ -63,7 +63,7 @@ jobs:
         run: pytest --cov=src/qore --cov-report=term-missing
 
   trader-lab-11-market:
-    if: ${{ contains(github.event.head_commit.message || '', 'run-vt08-v2-rebuild') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ contains(github.event.head_commit.message || '', 'run-vt08-v2-source-audit') || github.event_name == 'workflow_dispatch' }}
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -107,7 +107,7 @@ jobs:
             fi
           done
           if [ "${QORE_DEMO_LAB_LOOKBACK_DAYS}" -le 730 ]; then
-            echo "VT-08 V2 reconstruction requires acquisition margin beyond 730 days" >&2
+            echo "VT-08 V2 requires acquisition margin beyond 730 days" >&2
             exit 2
           fi
       - name: Discover authorized DEMO account if needed
@@ -123,7 +123,7 @@ jobs:
             echo "::add-mask::$account_id"
             printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
           fi
-      - name: Collect M15 plus provider D1 evidence
+      - name: Collect video-required M15 evidence
         run: |
           root="artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}"
           mkdir -p "$root"
@@ -134,64 +134,66 @@ jobs:
           symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
           root = Path(f"artifacts/vt08-v2/{symbol}")
           p = json.loads((root / "market-evidence.json").read_text())
-          assert p["schema"] == "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v2"
+          assert p["schema"] == "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v3"
           assert p["environment"] == "demo" and p["read_only"] is True
           assert p["account_is_live"] is False and p["canonical_symbol"] == symbol
           assert p["software_sha"] == os.environ["GITHUB_SHA"]
-          assert set(p["periods"]) == {"M15", "D1"}
+          assert set(p["periods"]) == {"M15"}
+          assert p["d1_is_mandatory_gate"] is False
           assert p["required_coverage_days"] == 730
-          assert p["coverage"]["M15"]["span_seconds"] >= 730 * 86400
-          assert p["coverage"]["D1"]["span_seconds"] >= 730 * 86400
-          assert p["source_sequence_policy"]["maximum_setups_per_market_day"] == 1
+          assert p["coverage"]["span_seconds"] >= 730 * 86400
+          assert p["source_timing"]["key_times_are_anchors_not_a_forced_single_daily_sequence"] is True
+          assert p["source_ambiguities"]["shallow_vs_large_numeric_threshold"] == "not-specified-by-primary-video"
           PY
-      - name: Run corrected source-bound historical research
+      - name: Run source-fidelity historical audit
         run: |
           root="artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}"
-          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_backtest "$root/market-evidence.json" > "$root/backtest.json"
+          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_backtest "$root/market-evidence.json" > "$root/source-audit.json"
           printf '%s\n' "$GITHUB_SHA" > "$root/git-sha.txt"
           python - <<'PY'
           import json, os
           from pathlib import Path
           symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
-          p = json.loads(Path(f"artifacts/vt08-v2/{symbol}/backtest.json").read_text())
-          assert p["schema"] == "qore.trader_lab.vt08_crt_h4_amd_v2_backtest.v2"
-          assert p["invalidates_prior_campaign"] is True
+          p = json.loads(Path(f"artifacts/vt08-v2/{symbol}/source-audit.json").read_text())
+          assert p["schema"] == "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3"
+          assert p["source_fidelity_mode"] is True
+          assert p["prior_13468_campaign_valid_for_economics"] is False
           assert p["symbol"] == symbol and p["software_sha"] == os.environ["GITHUB_SHA"]
-          assert p["execution_model"] == "source-daily-bias-one-sequence-m15-cisd-target-stop-censor-v2"
-          assert p["setup_count"] <= p["decision_days"]
-          assert p["long_trade_count"] + p["short_trade_count"] == p["setup_count"]
-          assert p["target_count"] + p["stop_count"] == p["terminal_sample_size"]
-          assert p["terminal_sample_size"] + p["h4_close_censored_count"] + p["gap_censored_count"] == p["setup_count"]
+          assert p["source_judgment_required_count"] == p["mechanical_candidate_count"]
+          assert p["automatic_setup_count"] == 0
+          assert p["filled_count"] == 0
+          assert p["win_count"] is None and p["loss_count"] is None
+          assert p["economic_backtest_authorized"] is False
           PY
-      - name: Run full Trader Lab evidence stages
+      - name: Package Trader Lab source-fidelity evidence
         run: |
           root="artifacts/vt08-v2/${QORE_DEMO_LAB_SYMBOL}"
-          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research "$root/backtest.json" "$root" > "$root/research-run-summary.stdout.json"
-      - name: Verify governance and evidence family
+          python -m qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research "$root/source-audit.json" "$root" > "$root/research-run-summary.stdout.json"
+      - name: Verify no fake economic authority
         run: |
           python - <<'PY'
           import json, os
           from pathlib import Path
           symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
           root = Path(f"artifacts/vt08-v2/{symbol}")
-          required = {"market-evidence.json","backtest.json","git-sha.txt","walk-forward.json","characterization.json","stress.json","monte-carlo.json","failure-analysis.json","story-forensics.json","hypothesis-register.json","research-summary.json","research-run-summary.stdout.json"}
+          required = {"market-evidence.json","source-audit.json","git-sha.txt","walk-forward.json","characterization.json","stress.json","monte-carlo.json","failure-analysis.json","story-forensics.json","hypothesis-register.json","research-summary.json","research-run-summary.stdout.json"}
           missing = sorted(name for name in required if not (root / name).is_file())
           assert not missing, missing
           summary = json.loads((root / "research-summary.json").read_text())
-          assert summary["invalidates_prior_campaign"] is True
+          assert summary["source_fidelity_mode"] is True
+          assert summary["automatic_setup_count"] == 0
+          assert summary["economic_result_available"] is False
+          assert summary["win_count"] is None and summary["loss_count"] is None
           assert summary["demo_eligible"] is False
-          assert summary["governed_lifecycle_authority"] is False
-          char = json.loads((root / "characterization.json").read_text())
-          assert char["positive_h4_close_mark_is_win"] is False
           stress = json.loads((root / "stress.json").read_text())
           monte = json.loads((root / "monte-carlo.json").read_text())
-          assert stress["governed_stage_authority"] is False
-          assert monte["governed_stage_authority"] is False
+          assert stress["status"] == "not-run" and stress["pass"] is None
+          assert monte["status"] == "not-run" and monte["pass"] is None
           PY
-      - name: Upload sanitized per-market reconstructed V2 evidence
+      - name: Upload sanitized per-market source-fidelity evidence
         uses: actions/upload-artifact@v4
         with:
-          name: qore-vt08-v2-reconstructed-${{ matrix.symbol }}-${{ github.sha }}
+          name: qore-vt08-v2-source-fidelity-${{ matrix.symbol }}-${{ github.sha }}
           path: artifacts/vt08-v2/${{ matrix.symbol }}
           if-no-files-found: error
           retention-days: 30
@@ -201,57 +203,53 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Download all eleven reconstructed artifacts
+      - name: Download all eleven source-fidelity artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: qore-vt08-v2-reconstructed-*-${{ github.sha }}
+          pattern: qore-vt08-v2-source-fidelity-*-${{ github.sha }}
           path: artifacts/vt08-v2-multi-market
-      - name: Aggregate exact outcome counts
+      - name: Aggregate source-fidelity coverage without economics
         run: |
           mkdir -p artifacts/vt08-v2-aggregate
           python - <<'PY'
           import json, os
-          from decimal import Decimal
           from pathlib import Path
           expected = {"EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","XAUUSD","NAS100","SP500","GBPJPY","AUDJPY","US30"}
-          backtests = [json.loads(p.read_text()) for p in sorted(Path("artifacts/vt08-v2-multi-market").rglob("backtest.json"))]
+          audits = [json.loads(p.read_text()) for p in sorted(Path("artifacts/vt08-v2-multi-market").rglob("source-audit.json"))]
           summaries = [json.loads(p.read_text()) for p in sorted(Path("artifacts/vt08-v2-multi-market").rglob("research-summary.json"))]
-          assert len(backtests) == len(summaries) == 11
-          assert {p["symbol"] for p in backtests} == expected
-          assert all(p["software_sha"] == os.environ["GITHUB_SHA"] for p in backtests)
-          setups = sum(p["setup_count"] for p in backtests)
-          terminal = sum(p["terminal_sample_size"] for p in backtests)
-          targets = sum(p["target_count"] for p in backtests)
-          stops = sum(p["stop_count"] for p in backtests)
-          censored = sum(p["h4_close_censored_count"] + p["gap_censored_count"] for p in backtests)
-          assert targets + stops == terminal
-          assert terminal + censored == setups
-          weighted = sum(Decimal(p["terminal_expectancy_r"]) * p["terminal_sample_size"] for p in backtests)
+          assert len(audits) == len(summaries) == 11
+          assert {p["symbol"] for p in audits} == expected
+          assert all(p["software_sha"] == os.environ["GITHUB_SHA"] for p in audits)
+          assert all(p["automatic_setup_count"] == 0 for p in audits)
+          assert all(p["economic_backtest_authorized"] is False for p in audits)
+          candidate_count = sum(p["mechanical_candidate_count"] for p in audits)
           payload = {
-              "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_11_market_aggregate.v2",
+              "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_11_market_source_fidelity.v3",
               "research_only": True,
+              "source_fidelity_mode": True,
               "invalidates_prior_13468_campaign": True,
               "software_sha": os.environ["GITHUB_SHA"],
               "market_count": 11,
               "symbols": sorted(expected),
-              "setup_count": setups,
-              "terminal_sample_size": terminal,
-              "target_count": targets,
-              "stop_count": stops,
-              "censored_count": censored,
-              "weighted_terminal_expectancy_r": format(weighted / terminal if terminal else Decimal(0), "f"),
+              "mechanical_candidate_count": candidate_count,
+              "source_judgment_required_count": candidate_count,
+              "automatic_setup_count": 0,
+              "win_count": None,
+              "loss_count": None,
+              "economic_result_available": False,
+              "timing_unresolved_markets": sorted(p["symbol"] for p in audits if p["timing_family"] == "source-unresolved"),
               "per_market": sorted(summaries, key=lambda p: p["symbol"]),
               "governed_lifecycle_authority": False,
               "demo_eligible": False,
           }
           root = Path("artifacts/vt08-v2-aggregate")
-          (root / "eleven-market-summary.json").write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
+          (root / "eleven-market-source-fidelity.json").write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
           (root / "git-sha.txt").write_text(os.environ["GITHUB_SHA"] + "\n")
           PY
-      - name: Upload reconstructed 11-market aggregate
+      - name: Upload eleven-market source-fidelity aggregate
         uses: actions/upload-artifact@v4
         with:
-          name: qore-vt08-v2-reconstructed-11-market-${{ github.sha }}
+          name: qore-vt08-v2-source-fidelity-11-market-${{ github.sha }}
           path: artifacts/vt08-v2-aggregate
           if-no-files-found: error
           retention-days: 30
