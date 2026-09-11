@@ -1,33 +1,35 @@
-"""VT-08 V2 — source-bound TTrades 4H Power-of-Three reconstruction.
+"""VT-08 V2 — source-faithful TTrades 4H Power-of-Three research contract.
 
-This module replaces the falsified first V2 interpretation while preserving the
-Trader identity ``vt-08`` / ``v2``.  The old 13k-trade campaign remains historical
-failure evidence only.
+Primary source
+--------------
+Human Owner-provided TTrades video ``youtube:FAKWJ-1NlLE``
+(``1000854868.mp4``, SHA-256
+``bfe76fa4346ec4d7442886c21834aa26f0d82172bdb55666e8c77226cdf83271``).
 
-Primary source:
-- TTrades, "Trading The 4 Hour Power Of Three - OHLC / OLHC"
-  (youtube:FAKWJ-1NlLE, Human Owner-provided copy).
+This module intentionally encodes only rules demonstrated or stated by that
+lesson and its explicitly required TTrades Candle-2/Candle-3/CISD prerequisites.
+It does *not* turn qualitative teaching into invented numerical thresholds.
 
-Corroborating TTrades material is used only where the primary lesson explicitly
-points to prerequisite concepts: Candle 2/3 closures, CISD, protected swings and
-daily-bias alignment.
+Source-faithful boundaries
+--------------------------
+* H4 PO3 is accumulation -> manipulation -> distribution/expansion.
+* Candle 2 can reverse-to-expansion when its opposing wick/run is *shallow*.
+* A large/deep Candle-2 opposing run means wait for Candle 3 continuation.
+* M15 is the demonstrated lower-timeframe confirmation for the H4 model.
+* CISD confirms the protected swing after the opposing run; entry is after the
+  wick has formed, not while trying to catch the wick.
+* The protected-swing extreme is the source-grounded invalidation reference.
+* The lesson uses a directional bias/context, but does not specify one universal
+  machine formula for deriving it from OHLC. Bias therefore enters as explicit
+  source/context evidence instead of a fabricated D1 rule.
+* ``shallow`` versus ``large/deep`` is qualitative in the source. It therefore
+  enters as explicit source judgment; no 50%, ATR, body/wick, or other threshold
+  is invented here.
+* The lesson's targets are contextual examples. This contract does not invent a
+  universal take-profit or fixed-R target.
 
-Frozen source interpretation:
-- one institutional H4 1-5-9 sequence per New-York day for FX/spot markets;
-- one institutional H4 2-6-10 sequence per New-York day for futures-style markets;
-- Candle 1 is accumulation/reference;
-- Candle 2 must manipulate one edge of Candle 1 and agree with a one-sided daily bias;
-- a protected swing is confirmed by lower-timeframe M15 CISD;
-- if Candle 2 confirms while the opposing run remains in the shallow half of the
-  Candle-1 range, the body of Candle 2 may be traded;
-- otherwise a completed large-wick Candle 2 reversal is followed by Candle 3,
-  where a new shallow opposing wick + CISD is required before entry;
-- stop is the protected-swing manipulation extreme;
-- the primary objective is the prior completed daily candle's directional extreme;
-- unresolved trades at the source H4 close are censored, never relabelled as wins.
-
-The 50% split is the source's equilibrium concept.  It is not an optimized
-parameter.  No output grants DEMO/LIVE/Risk/execution authority.
+Outputs are research evidence only. They grant no Risk, broker, DEMO, LIVE,
+Production, or real-capital authority.
 """
 
 from __future__ import annotations
@@ -45,8 +47,11 @@ from qore.kernel.errors import InfrastructureError
 TRADER_CODE = "vt-08"
 TRADER_VERSION = "v2"
 METHODOLOGY_ID = "ttrades-h4-po3-source"
-METHODOLOGY_VERSION = "v2.1-reconstructed"
+METHODOLOGY_VERSION = "v2.2-source-faithful"
 PRIMARY_SOURCE = "youtube:FAKWJ-1NlLE"
+PRIMARY_SOURCE_SHA256 = (
+    "bfe76fa4346ec4d7442886c21834aa26f0d82172bdb55666e8c77226cdf83271"
+)
 SUPPORTED_MARKETS = (
     "AUDJPY",
     "AUDUSD",
@@ -60,14 +65,20 @@ SUPPORTED_MARKETS = (
     "USDJPY",
     "XAUUSD",
 )
-FUTURES_STYLE_MARKETS = frozenset({"NAS100", "SP500", "US30", "XAUUSD"})
+FUTURES_MARKETS = frozenset({"NAS100", "SP500", "US30"})
+FX_MARKETS = frozenset(
+    {"AUDJPY", "AUDUSD", "EURUSD", "GBPJPY", "GBPUSD", "USDCAD", "USDJPY"}
+)
+SOURCE_TIMING_AMBIGUOUS_MARKETS = frozenset({"XAUUSD"})
 RULESET = (
-    "human-owner-primary-source;daily-bias-required;one-source-sequence-per-ny-day;"
-    "fx-h4-01-05-09;futures-style-h4-02-06-10;candle1-accumulation;"
-    "candle2-manipulation;protected-swing-via-m15-cisd;equilibrium-50pct-source-filter;"
-    "shallow-c2-same-candle-expansion;large-c2-reversal-then-c3-continuation;"
-    "entry-at-confirming-m15-close;stop-protected-swing-extreme;"
-    "target-prior-daily-directional-extreme;h4-close-unresolved-censor;research-only"
+    "primary-video-only-plus-explicit-prerequisites;h4-po3-amd;"
+    "candle2-shallow-wick-reversal-to-expansion;"
+    "candle2-large-opposing-run-wait-candle3-continuation;"
+    "m15-lower-timeframe-confirmation;cisd-protected-swing;"
+    "let-wick-form-trade-body;bias-is-explicit-source-context;"
+    "wick-size-is-explicit-qualitative-source-judgment;"
+    "no-invented-wick-threshold;no-mandatory-d1-formula;"
+    "no-universal-take-profit;research-only"
 )
 
 
@@ -80,24 +91,33 @@ class Vt08CrtH4AmdV2ValidationError(Vt08CrtH4AmdV2Error):
 
 
 class Vt08CrtH4AmdV2Scenario(StrEnum):
-    CANDLE2_EXPANSION = "candle2-expansion"
-    CANDLE3_CONTINUATION = "candle3-continuation"
+    REVERSAL_EXPANSION_C2 = "reversal-expansion-candle2"
+    CONTINUATION_EXPANSION_C3 = "continuation-expansion-candle3"
 
 
-class Vt08CrtH4AmdV2DailyMode(StrEnum):
-    CONTINUATION = "continuation"
-    REVERSAL = "reversal"
+class Vt08CrtH4AmdV2WickProfile(StrEnum):
+    """Qualitative source language; deliberately not derived from a ratio."""
+
+    SHALLOW = "shallow"
+    LARGE = "large-deep-opposing-run"
+    UNRESOLVED = "unresolved"
+
+
+class Vt08CrtH4AmdV2TimingFamily(StrEnum):
+    FUTURES = "futures-02-06-10-new-york"
+    FOREX = "forex-01-05-09-new-york"
+    SOURCE_UNRESOLVED = "source-unresolved"
 
 
 class Vt08CrtH4AmdV2AbstainReason(StrEnum):
     UNSUPPORTED_MARKET = "unsupported-market"
-    DAILY_BIAS_MISSING = "daily-bias-missing"
-    CANDLE2_NOT_ALIGNED = "candle2-not-aligned"
-    CANDLE2_NOT_REVERSAL = "candle2-not-reversal"
-    NO_PROTECTED_SWING = "no-protected-swing"
-    MANIPULATION_TOO_DEEP_FOR_C2 = "manipulation-too-deep-for-candle2"
-    MANIPULATION_TOO_DEEP_FOR_C3 = "manipulation-too-deep-for-candle3"
-    INVALID_TARGET = "invalid-source-target"
+    BIAS_CONTEXT_REQUIRED = "bias-context-required-by-source"
+    WICK_CLASSIFICATION_REQUIRED = "qualitative-wick-classification-required"
+    WAIT_FOR_CANDLE3 = "large-candle2-run-wait-for-candle3"
+    CANDLE2_LARGE_RUN_REQUIRED = "candle3-requires-large-candle2-opposing-run"
+    CANDLE2_REVERSAL_REQUIRED = "candle3-requires-candle2-reversal"
+    REFERENCE_BOUNDARY_NOT_RUN = "reference-boundary-not-run"
+    NO_CISD_PROTECTED_SWING = "no-cisd-protected-swing"
     INVALID_GEOMETRY = "invalid-geometry"
 
 
@@ -111,39 +131,54 @@ class Vt08CrtH4AmdV2Candle:
     close: Decimal
 
     def __post_init__(self) -> None:
-        for name, instant in (
+        for field_name, value in (
             ("opened_at", self.opened_at),
             ("closed_at", self.closed_at),
         ):
-            if (
-                type(instant) is not datetime
-                or instant.tzinfo is None
-                or instant.utcoffset() is None
-            ):
-                raise Vt08CrtH4AmdV2ValidationError(f"{name} must be timezone-aware")
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise Vt08CrtH4AmdV2ValidationError(
+                    f"{field_name} must be timezone-aware"
+                )
         if self.closed_at <= self.opened_at:
             raise Vt08CrtH4AmdV2ValidationError("candle close must follow open")
-        for name, price in (
+        for field_name, value in (
             ("open", self.open),
             ("high", self.high),
             ("low", self.low),
             ("close", self.close),
         ):
-            if type(price) is not Decimal or not price.is_finite() or price <= 0:
+            if not value.is_finite() or value <= 0:
                 raise Vt08CrtH4AmdV2ValidationError(
-                    f"{name} must be positive finite Decimal"
+                    f"{field_name} must be positive finite Decimal"
                 )
-        if self.low > min(self.open, self.close) or self.high < max(self.open, self.close):
-            raise Vt08CrtH4AmdV2ValidationError("OHLC body must lie inside high/low")
         if self.low > self.high:
             raise Vt08CrtH4AmdV2ValidationError("low must not exceed high")
+        if self.low > min(self.open, self.close) or self.high < max(
+            self.open, self.close
+        ):
+            raise Vt08CrtH4AmdV2ValidationError("OHLC body must lie inside high/low")
 
 
 @dataclass(frozen=True, slots=True)
-class Vt08CrtH4AmdV2Bias:
-    side: DemoTradingSetupSide
-    mode: Vt08CrtH4AmdV2DailyMode
-    target: Decimal
+class Vt08CrtH4AmdV2SourceContext:
+    """Source-required discretionary evidence that the video does not quantify.
+
+    ``bias_side`` and ``wick_profile`` must come from an upstream source-faithful
+    context/annotation authority. This class exists specifically to prevent the
+    evaluator from fabricating those judgments from arbitrary numeric thresholds.
+    """
+
+    bias_side: DemoTradingSetupSide | None
+    wick_profile: Vt08CrtH4AmdV2WickProfile
+    provenance: str
+
+    def __post_init__(self) -> None:
+        if self.bias_side is not None and type(self.bias_side) is not DemoTradingSetupSide:
+            raise Vt08CrtH4AmdV2ValidationError("bias_side must be canonical or None")
+        if type(self.wick_profile) is not Vt08CrtH4AmdV2WickProfile:
+            raise Vt08CrtH4AmdV2ValidationError("wick_profile must be exact source enum")
+        if type(self.provenance) is not str or not self.provenance.strip():
+            raise Vt08CrtH4AmdV2ValidationError("source context provenance is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,25 +187,31 @@ class Vt08CrtH4AmdV2Setup:
     scenario: Vt08CrtH4AmdV2Scenario
     entry_price: Decimal
     stop_loss: Decimal
-    take_profit: Decimal
     signal_at: datetime
     expires_at: datetime
     cisd_level: Decimal
-    manipulation_extreme: Decimal
-    manipulation_fraction_of_reference: Decimal
+    protected_swing_extreme: Decimal
+    wick_profile: Vt08CrtH4AmdV2WickProfile
+    take_profit: None = None
 
     def __post_init__(self) -> None:
         if self.side is DemoTradingSetupSide.LONG:
-            valid = self.stop_loss < self.entry_price < self.take_profit
+            valid = self.stop_loss < self.entry_price
         else:
-            valid = self.take_profit < self.entry_price < self.stop_loss
+            valid = self.entry_price < self.stop_loss
         if not valid:
             raise Vt08CrtH4AmdV2ValidationError(
-                "setup geometry must be strictly directional"
+                "protected-swing stop must be strictly directional"
             )
-        if not Decimal(0) <= self.manipulation_fraction_of_reference:
+        if self.signal_at.tzinfo is None or self.signal_at.utcoffset() is None:
+            raise Vt08CrtH4AmdV2ValidationError("signal_at must be timezone-aware")
+        if self.expires_at.tzinfo is None or self.expires_at.utcoffset() is None:
+            raise Vt08CrtH4AmdV2ValidationError("expires_at must be timezone-aware")
+        if self.signal_at >= self.expires_at:
+            raise Vt08CrtH4AmdV2ValidationError("signal must precede H4 close")
+        if self.take_profit is not None:
             raise Vt08CrtH4AmdV2ValidationError(
-                "manipulation fraction must be non-negative"
+                "VT-08 V2 source does not define one universal take-profit"
             )
 
 
@@ -189,6 +230,7 @@ def methodology_fingerprint() -> str:
         "methodology_id": METHODOLOGY_ID,
         "methodology_version": METHODOLOGY_VERSION,
         "primary_source": PRIMARY_SOURCE,
+        "primary_source_sha256": PRIMARY_SOURCE_SHA256,
         "ruleset": RULESET,
         "supported_markets": SUPPORTED_MARKETS,
     }
@@ -197,97 +239,45 @@ def methodology_fingerprint() -> str:
     ).hexdigest()
 
 
-def daily_bias(
-    reference: Vt08CrtH4AmdV2Candle,
-    signal: Vt08CrtH4AmdV2Candle,
-) -> Vt08CrtH4AmdV2Bias | None:
-    """Mechanical one-sided bias from TTrades candle-closure logic."""
+def timing_family_for_market(symbol: str) -> Vt08CrtH4AmdV2TimingFamily | None:
+    """Map only source-explicit asset families; do not guess XAUUSD's family."""
 
-    swept_high = signal.high > reference.high
-    swept_low = signal.low < reference.low
-    if swept_high and swept_low:
+    if symbol not in SUPPORTED_MARKETS:
         return None
-    if signal.close > reference.high:
-        return Vt08CrtH4AmdV2Bias(
-            DemoTradingSetupSide.LONG,
-            Vt08CrtH4AmdV2DailyMode.CONTINUATION,
-            signal.high,
-        )
-    if signal.close < reference.low:
-        return Vt08CrtH4AmdV2Bias(
-            DemoTradingSetupSide.SHORT,
-            Vt08CrtH4AmdV2DailyMode.CONTINUATION,
-            signal.low,
-        )
-    if swept_low and reference.low < signal.close < reference.high:
-        return Vt08CrtH4AmdV2Bias(
-            DemoTradingSetupSide.LONG,
-            Vt08CrtH4AmdV2DailyMode.REVERSAL,
-            signal.high,
-        )
-    if swept_high and reference.low < signal.close < reference.high:
-        return Vt08CrtH4AmdV2Bias(
-            DemoTradingSetupSide.SHORT,
-            Vt08CrtH4AmdV2DailyMode.REVERSAL,
-            signal.low,
-        )
-    return None
-
-
-def h4_reversal_direction(
-    reference: Vt08CrtH4AmdV2Candle,
-    manipulation: Vt08CrtH4AmdV2Candle,
-) -> DemoTradingSetupSide | None:
-    swept_high = manipulation.high > reference.high
-    swept_low = manipulation.low < reference.low
-    closes_inside = reference.low < manipulation.close < reference.high
-    if not closes_inside or swept_high == swept_low:
-        return None
-    return DemoTradingSetupSide.SHORT if swept_high else DemoTradingSetupSide.LONG
-
-
-def _manipulation_fraction(
-    reference: Vt08CrtH4AmdV2Candle,
-    *,
-    candidate_open: Decimal,
-    extreme: Decimal,
-    side: DemoTradingSetupSide,
-) -> Decimal:
-    width = reference.high - reference.low
-    if width <= 0:
-        raise Vt08CrtH4AmdV2ValidationError("reference range must be positive")
-    leg = (
-        candidate_open - extreme
-        if side is DemoTradingSetupSide.LONG
-        else extreme - candidate_open
-    )
-    return max(Decimal(0), leg) / width
+    if symbol in FUTURES_MARKETS:
+        return Vt08CrtH4AmdV2TimingFamily.FUTURES
+    if symbol in FX_MARKETS:
+        return Vt08CrtH4AmdV2TimingFamily.FOREX
+    return Vt08CrtH4AmdV2TimingFamily.SOURCE_UNRESOLVED
 
 
 def _protected_swing(
     bars: tuple[Vt08CrtH4AmdV2Candle, ...],
     *,
     side: DemoTradingSetupSide,
-    required_sweep_level: Decimal | None,
+    required_run_level: Decimal | None,
 ) -> tuple[Vt08CrtH4AmdV2Candle, Decimal, Decimal] | None:
-    """Return first causal CISD confirmation after the required manipulation.
+    """Return first causal CISD confirmation after the opposing run.
 
-    Bullish CISD: first down-close delivery sequence that makes the protected low,
-    followed by a close above the first down-close open.  Bearish is mirrored.
+    The primary video explicitly depends on TTrades' Candle-2/Candle-3 material.
+    CISD is therefore operationalized using TTrades' definition: for bullish
+    delivery, the first down-close sequence that makes the low is protected once
+    price closes above the opening price of that sequence; bearish is mirrored.
     """
 
     sequence_open: Decimal | None = None
     extreme: Decimal | None = None
     extreme_index: int | None = None
-    sweep_observed = required_sweep_level is None
+    run_observed = required_run_level is None
     in_opposing_sequence = False
 
     for index, bar in enumerate(bars):
-        if required_sweep_level is not None:
-            if side is DemoTradingSetupSide.LONG and bar.low < required_sweep_level:
-                sweep_observed = True
-            if side is DemoTradingSetupSide.SHORT and bar.high > required_sweep_level:
-                sweep_observed = True
+        if required_run_level is not None:
+            if side is DemoTradingSetupSide.LONG and bar.low < required_run_level:
+                run_observed = True
+            elif side is DemoTradingSetupSide.SHORT and bar.high > required_run_level:
+                run_observed = True
+
         opposing = (
             bar.close < bar.open
             if side is DemoTradingSetupSide.LONG
@@ -306,8 +296,9 @@ def _protected_swing(
                 extreme_index = index
             in_opposing_sequence = True
             continue
+
         if (
-            sweep_observed
+            run_observed
             and sequence_open is not None
             and extreme is not None
             and extreme_index is not None
@@ -333,64 +324,69 @@ def _abstain(reason: Vt08CrtH4AmdV2AbstainReason) -> Vt08CrtH4AmdV2Evaluation:
     )
 
 
-def evaluate_candle2_expansion(
+def _validate_common(
     *,
     symbol: str,
-    daily_reference: Vt08CrtH4AmdV2Candle,
-    daily_signal: Vt08CrtH4AmdV2Candle,
-    h4_reference: Vt08CrtH4AmdV2Candle,
-    h4_candle2_open: Decimal,
-    h4_candle2_closes_at: datetime,
-    observed_m15: tuple[Vt08CrtH4AmdV2Candle, ...],
-) -> Vt08CrtH4AmdV2Evaluation:
-    """Causally evaluate the source's shallow-wick Candle-2 expansion case."""
-
+    context: Vt08CrtH4AmdV2SourceContext,
+) -> Vt08CrtH4AmdV2Evaluation | None:
     if symbol not in SUPPORTED_MARKETS:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.UNSUPPORTED_MARKET)
-    bias = daily_bias(daily_reference, daily_signal)
-    if bias is None:
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.DAILY_BIAS_MISSING)
-    required = (
-        h4_reference.low
-        if bias.side is DemoTradingSetupSide.LONG
-        else h4_reference.high
+    if context.bias_side is None:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.BIAS_CONTEXT_REQUIRED)
+    if context.wick_profile is Vt08CrtH4AmdV2WickProfile.UNRESOLVED:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.WICK_CLASSIFICATION_REQUIRED)
+    return None
+
+
+def evaluate_reversal_expansion_candle2(
+    *,
+    symbol: str,
+    h4_reference: Vt08CrtH4AmdV2Candle,
+    h4_candle2_closes_at: datetime,
+    observed_m15: tuple[Vt08CrtH4AmdV2Candle, ...],
+    context: Vt08CrtH4AmdV2SourceContext,
+) -> Vt08CrtH4AmdV2Evaluation:
+    """Evaluate the source's shallow-wick Candle-2 reversal-to-expansion case."""
+
+    blocked = _validate_common(symbol=symbol, context=context)
+    if blocked is not None:
+        return blocked
+    if context.wick_profile is Vt08CrtH4AmdV2WickProfile.LARGE:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.WAIT_FOR_CANDLE3)
+    side = context.bias_side
+    assert side is not None
+    required_run_level = (
+        h4_reference.low if side is DemoTradingSetupSide.LONG else h4_reference.high
     )
     protected = _protected_swing(
         observed_m15,
-        side=bias.side,
-        required_sweep_level=required,
+        side=side,
+        required_run_level=required_run_level,
     )
     if protected is None:
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.NO_PROTECTED_SWING)
+        touched = any(
+            bar.low < required_run_level
+            if side is DemoTradingSetupSide.LONG
+            else bar.high > required_run_level
+            for bar in observed_m15
+        )
+        return _abstain(
+            Vt08CrtH4AmdV2AbstainReason.NO_CISD_PROTECTED_SWING
+            if touched
+            else Vt08CrtH4AmdV2AbstainReason.REFERENCE_BOUNDARY_NOT_RUN
+        )
     confirmation, cisd_level, extreme = protected
-    fraction = _manipulation_fraction(
-        h4_reference,
-        candidate_open=h4_candle2_open,
-        extreme=extreme,
-        side=bias.side,
-    )
-    if fraction > Decimal("0.5"):
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.MANIPULATION_TOO_DEEP_FOR_C2)
-    entry = confirmation.close
-    target = bias.target
-    if (
-        bias.side is DemoTradingSetupSide.LONG and target <= entry
-    ) or (
-        bias.side is DemoTradingSetupSide.SHORT and target >= entry
-    ):
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_TARGET)
     try:
         setup = Vt08CrtH4AmdV2Setup(
-            side=bias.side,
-            scenario=Vt08CrtH4AmdV2Scenario.CANDLE2_EXPANSION,
-            entry_price=entry,
+            side=side,
+            scenario=Vt08CrtH4AmdV2Scenario.REVERSAL_EXPANSION_C2,
+            entry_price=confirmation.close,
             stop_loss=extreme,
-            take_profit=target,
             signal_at=confirmation.closed_at.astimezone(UTC),
             expires_at=h4_candle2_closes_at.astimezone(UTC),
             cisd_level=cisd_level,
-            manipulation_extreme=extreme,
-            manipulation_fraction_of_reference=fraction,
+            protected_swing_extreme=extreme,
+            wick_profile=context.wick_profile,
         )
     except Vt08CrtH4AmdV2ValidationError:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_GEOMETRY)
@@ -402,78 +398,63 @@ def evaluate_candle2_expansion(
     )
 
 
-def evaluate_candle3_continuation(
+def _candle2_reversal_side(
+    reference: Vt08CrtH4AmdV2Candle,
+    candle2: Vt08CrtH4AmdV2Candle,
+) -> DemoTradingSetupSide | None:
+    swept_high = candle2.high > reference.high
+    swept_low = candle2.low < reference.low
+    if swept_high == swept_low:
+        return None
+    closes_back_inside = reference.low < candle2.close < reference.high
+    if not closes_back_inside:
+        return None
+    return DemoTradingSetupSide.SHORT if swept_high else DemoTradingSetupSide.LONG
+
+
+def evaluate_continuation_expansion_candle3(
     *,
     symbol: str,
-    daily_reference: Vt08CrtH4AmdV2Candle,
-    daily_signal: Vt08CrtH4AmdV2Candle,
     h4_reference: Vt08CrtH4AmdV2Candle,
     h4_candle2: Vt08CrtH4AmdV2Candle,
-    h4_candle3_open: Decimal,
     h4_candle3_closes_at: datetime,
     observed_m15: tuple[Vt08CrtH4AmdV2Candle, ...],
+    candle2_wick_profile: Vt08CrtH4AmdV2WickProfile,
+    context: Vt08CrtH4AmdV2SourceContext,
 ) -> Vt08CrtH4AmdV2Evaluation:
-    """Evaluate Candle 3 only after a completed large-wick Candle 2 reversal."""
+    """Evaluate Candle 3 only after a source-classified large Candle-2 reversal."""
 
-    if symbol not in SUPPORTED_MARKETS:
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.UNSUPPORTED_MARKET)
-    bias = daily_bias(daily_reference, daily_signal)
-    if bias is None:
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.DAILY_BIAS_MISSING)
-    c2_side = h4_reversal_direction(h4_reference, h4_candle2)
-    if c2_side is None:
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_NOT_REVERSAL)
-    if c2_side is not bias.side:
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_NOT_ALIGNED)
-    c2_extreme = (
-        h4_candle2.low
-        if bias.side is DemoTradingSetupSide.LONG
-        else h4_candle2.high
-    )
-    c2_fraction = _manipulation_fraction(
-        h4_reference,
-        candidate_open=h4_candle2.open,
-        extreme=c2_extreme,
-        side=bias.side,
-    )
-    if c2_fraction <= Decimal("0.5"):
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_NOT_REVERSAL)
+    blocked = _validate_common(symbol=symbol, context=context)
+    if blocked is not None:
+        return blocked
+    if candle2_wick_profile is not Vt08CrtH4AmdV2WickProfile.LARGE:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_LARGE_RUN_REQUIRED)
+    if context.wick_profile is not Vt08CrtH4AmdV2WickProfile.SHALLOW:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.WICK_CLASSIFICATION_REQUIRED)
+    side = context.bias_side
+    assert side is not None
+    reversal_side = _candle2_reversal_side(h4_reference, h4_candle2)
+    if reversal_side is not side:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.CANDLE2_REVERSAL_REQUIRED)
     protected = _protected_swing(
         observed_m15,
-        side=bias.side,
-        required_sweep_level=None,
+        side=side,
+        required_run_level=None,
     )
     if protected is None:
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.NO_PROTECTED_SWING)
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.NO_CISD_PROTECTED_SWING)
     confirmation, cisd_level, extreme = protected
-    c3_fraction = _manipulation_fraction(
-        h4_candle2,
-        candidate_open=h4_candle3_open,
-        extreme=extreme,
-        side=bias.side,
-    )
-    if c3_fraction > Decimal("0.5"):
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.MANIPULATION_TOO_DEEP_FOR_C3)
-    entry = confirmation.close
-    target = bias.target
-    if (
-        bias.side is DemoTradingSetupSide.LONG and target <= entry
-    ) or (
-        bias.side is DemoTradingSetupSide.SHORT and target >= entry
-    ):
-        return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_TARGET)
     try:
         setup = Vt08CrtH4AmdV2Setup(
-            side=bias.side,
-            scenario=Vt08CrtH4AmdV2Scenario.CANDLE3_CONTINUATION,
-            entry_price=entry,
+            side=side,
+            scenario=Vt08CrtH4AmdV2Scenario.CONTINUATION_EXPANSION_C3,
+            entry_price=confirmation.close,
             stop_loss=extreme,
-            take_profit=target,
             signal_at=confirmation.closed_at.astimezone(UTC),
             expires_at=h4_candle3_closes_at.astimezone(UTC),
             cisd_level=cisd_level,
-            manipulation_extreme=extreme,
-            manipulation_fraction_of_reference=c3_fraction,
+            protected_swing_extreme=extreme,
+            wick_profile=context.wick_profile,
         )
     except Vt08CrtH4AmdV2ValidationError:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_GEOMETRY)
