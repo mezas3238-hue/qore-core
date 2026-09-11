@@ -4,6 +4,7 @@ from qore.infrastructure.ctrader_demo_lab_probe import CTraderDemoLabProbeError
 from qore.infrastructure.ctrader_demo_lab_vt08_v2_probe import (
     _NATIVE_M15_PERIOD,
     _PRIMARY_SOURCE_SHA256,
+    _PROVIDER_ROOTS,
     select_vt08_provider_symbol_name,
 )
 
@@ -14,6 +15,25 @@ def test_explicit_provider_aliases_remain_fail_closed() -> None:
     assert select_vt08_provider_symbol_name("SP500", observed) == "US500"
     with pytest.raises(CTraderDemoLabProbeError):
         select_vt08_provider_symbol_name("NAS100", (("MYUSTECINDEX", True),))
+
+
+def test_probe_market_roots_match_owner_forex_and_futures_scope() -> None:
+    assert set(_PROVIDER_ROOTS) == {
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "USDCAD",
+        "GBPJPY",
+        "AUDJPY",
+        "NAS100",
+        "SP500",
+        "US30",
+    }
+    with pytest.raises(CTraderDemoLabProbeError):
+        select_vt08_provider_symbol_name(
+            "XAUUSD", (("XAUUSD", True), ("GOLD", True))
+        )
 
 
 def test_source_faithful_probe_collects_m15_without_invented_d1_gate() -> None:
