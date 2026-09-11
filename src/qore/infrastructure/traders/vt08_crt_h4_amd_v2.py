@@ -12,9 +12,10 @@ teaching is not converted into invented numerical thresholds.
 
 Critical source-fidelity boundary
 ---------------------------------
-CISD/protected swing is confirmation that the wick/swing has formed. The source
-does not establish one universal executable entry price at the CISD confirming
-close, nor one universal target. Therefore a source-confirmed opportunity is
+The lesson requires a source-defined point-of-interest reach before lower-timeframe
+CISD/protected-swing confirmation. Neither the exact POI choice, a universal
+executable entry price at the CISD confirming close, nor one universal target is
+defined mechanically for every case. Therefore a source-confirmed opportunity is
 research evidence, not an executable ``SETUP``. The evaluator fails closed with
 ``ABSTAIN`` while preserving the causal confirmation evidence.
 
@@ -37,7 +38,7 @@ from qore.kernel.errors import InfrastructureError
 TRADER_CODE = "vt-08"
 TRADER_VERSION = "v2"
 METHODOLOGY_ID = "ttrades-h4-po3-source"
-METHODOLOGY_VERSION = "v2.3-source-fidelity-reaudit"
+METHODOLOGY_VERSION = "v2.4-source-fidelity-reaudit"
 PRIMARY_SOURCE = "youtube:FAKWJ-1NlLE"
 PRIMARY_SOURCE_SHA256 = (
     "bfe76fa4346ec4d7442886c21834aa26f0d82172bdb55666e8c77226cdf83271"
@@ -68,15 +69,17 @@ RULESET = (
     "primary-video-only-plus-explicit-prerequisites;h4-po3-amd;"
     "candle2-shallow-wick-reversal-to-expansion;"
     "candle2-large-opposing-run-wait-candle3-continuation;"
-    "m15-lower-timeframe-confirmation;cisd-protected-swing;"
-    "let-wick-form-trade-body;bias-is-explicit-causal-source-context;"
+    "m15-lower-timeframe-confirmation;source-poi-reach-required-before-cisd;"
+    "cisd-protected-swing;let-wick-form-trade-body;"
+    "bias-is-explicit-causal-source-context;"
     "wick-size-is-explicit-qualitative-source-judgment;"
     "full-forex-h4-anchors-17-21-01-05-09-13-new-york;"
     "full-futures-h4-anchors-18-22-02-06-10-14-new-york;"
     "cisd-close-is-confirmation-not-universal-entry;"
     "protected-swing-extreme-is-invalidation-reference;"
     "no-invented-wick-threshold;no-mandatory-d1-formula;"
-    "no-universal-executable-entry;no-universal-take-profit;research-only"
+    "no-invented-poi-selection;no-universal-executable-entry;"
+    "no-universal-take-profit;research-only"
 )
 
 
@@ -113,6 +116,8 @@ class Vt08CrtH4AmdV2AbstainReason(StrEnum):
     OUTSIDE_SOURCE_H4_ANCHOR = "outside-source-h4-anchor"
     INVALID_M15_EVIDENCE = "invalid-m15-evidence"
     BIAS_CONTEXT_REQUIRED = "bias-context-required-by-source"
+    POINT_OF_INTEREST_REQUIRED = "source-point-of-interest-required"
+    POINT_OF_INTEREST_NOT_REACHED = "source-point-of-interest-not-reached"
     NON_CAUSAL_SOURCE_CONTEXT = "source-context-observed-after-confirmation"
     WICK_CLASSIFICATION_REQUIRED = "qualitative-wick-classification-required"
     WAIT_FOR_CANDLE3 = "large-candle2-run-wait-for-candle3"
@@ -166,13 +171,16 @@ class Vt08CrtH4AmdV2Candle:
 class Vt08CrtH4AmdV2SourceContext:
     """Source-required qualitative evidence unavailable from raw OHLC alone.
 
-    The timestamp makes the context causal: a later annotation may not be used to
-    authorize an earlier confirmation. ``provenance`` must identify the retained
-    source-bound evidence/annotation; it is not itself execution authority.
+    ``observed_at`` is the latest decision-time observation used by this context,
+    so a later annotation cannot authorize an earlier confirmation. The POI fields
+    retain whether a source-defined point of interest was reached without inventing
+    which FVG/high/low should be selected when the lesson leaves that discretionary.
     """
 
     bias_side: DemoTradingSetupSide | None
     wick_profile: Vt08CrtH4AmdV2WickProfile
+    point_of_interest_reached: bool | None
+    point_of_interest_provenance: str | None
     observed_at: datetime
     provenance: str
 
@@ -181,6 +189,27 @@ class Vt08CrtH4AmdV2SourceContext:
             raise Vt08CrtH4AmdV2ValidationError("bias_side must be canonical or None")
         if type(self.wick_profile) is not Vt08CrtH4AmdV2WickProfile:
             raise Vt08CrtH4AmdV2ValidationError("wick_profile must be exact source enum")
+        if (
+            self.point_of_interest_reached is not None
+            and type(self.point_of_interest_reached) is not bool
+        ):
+            raise Vt08CrtH4AmdV2ValidationError(
+                "point_of_interest_reached must be exact bool or None"
+            )
+        if self.point_of_interest_provenance is not None and (
+            type(self.point_of_interest_provenance) is not str
+            or not self.point_of_interest_provenance.strip()
+        ):
+            raise Vt08CrtH4AmdV2ValidationError(
+                "point_of_interest_provenance must be non-empty str or None"
+            )
+        if (
+            self.point_of_interest_reached is not None
+            and self.point_of_interest_provenance is None
+        ):
+            raise Vt08CrtH4AmdV2ValidationError(
+                "resolved point-of-interest state requires provenance"
+            )
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
             raise Vt08CrtH4AmdV2ValidationError("context observed_at must be timezone-aware")
         if type(self.provenance) is not str or not self.provenance.strip():
@@ -199,6 +228,7 @@ class Vt08CrtH4AmdV2ConfirmedOpportunity:
     cisd_level: Decimal
     protected_swing_extreme: Decimal
     wick_profile: Vt08CrtH4AmdV2WickProfile
+    point_of_interest_provenance: str
     executable_entry_price: None = None
     take_profit: None = None
 
@@ -218,6 +248,13 @@ class Vt08CrtH4AmdV2ConfirmedOpportunity:
                 raise Vt08CrtH4AmdV2ValidationError(
                     f"{field_name} must be positive finite Decimal"
                 )
+        if (
+            type(self.point_of_interest_provenance) is not str
+            or not self.point_of_interest_provenance.strip()
+        ):
+            raise Vt08CrtH4AmdV2ValidationError(
+                "confirmed opportunity requires point-of-interest provenance"
+            )
         directional = (
             self.protected_swing_extreme < self.confirmation_price
             if self.side is DemoTradingSetupSide.LONG
@@ -359,6 +396,8 @@ def _valid_m15_window(
 ) -> bool:
     if h4_closes_at.tzinfo is None or h4_closes_at.utcoffset() is None:
         return False
+    if not bars:
+        return False
     h4_opened_at = h4_closes_at - timedelta(hours=4)
     previous_close: datetime | None = None
     for bar in bars:
@@ -388,7 +427,12 @@ def _validate_common(
         return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_GEOMETRY)
     local_open = (h4_closes_at - timedelta(hours=4)).astimezone(_NY)
     anchors = source_anchor_hours_for_market(symbol)
-    if anchors is None or local_open.minute != 0 or local_open.second != 0:
+    if (
+        anchors is None
+        or local_open.minute != 0
+        or local_open.second != 0
+        or local_open.microsecond != 0
+    ):
         return _abstain(Vt08CrtH4AmdV2AbstainReason.OUTSIDE_SOURCE_H4_ANCHOR)
     if local_open.hour not in anchors:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.OUTSIDE_SOURCE_H4_ANCHOR)
@@ -396,6 +440,10 @@ def _validate_common(
         return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_M15_EVIDENCE)
     if context.bias_side is None:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.BIAS_CONTEXT_REQUIRED)
+    if context.point_of_interest_reached is None:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.POINT_OF_INTEREST_REQUIRED)
+    if context.point_of_interest_reached is False:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.POINT_OF_INTEREST_NOT_REACHED)
     if context.wick_profile is Vt08CrtH4AmdV2WickProfile.UNRESOLVED:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.WICK_CLASSIFICATION_REQUIRED)
     return None
@@ -413,6 +461,8 @@ def _confirmed_opportunity(
 ) -> Vt08CrtH4AmdV2Evaluation:
     if context.observed_at.astimezone(UTC) > confirmation.closed_at.astimezone(UTC):
         return _abstain(Vt08CrtH4AmdV2AbstainReason.NON_CAUSAL_SOURCE_CONTEXT)
+    if context.point_of_interest_provenance is None:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.POINT_OF_INTEREST_REQUIRED)
     try:
         opportunity = Vt08CrtH4AmdV2ConfirmedOpportunity(
             side=side,
@@ -423,6 +473,7 @@ def _confirmed_opportunity(
             cisd_level=cisd_level,
             protected_swing_extreme=extreme,
             wick_profile=context.wick_profile,
+            point_of_interest_provenance=context.point_of_interest_provenance,
         )
     except Vt08CrtH4AmdV2ValidationError:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_GEOMETRY)
