@@ -164,7 +164,8 @@ def test_source_bias_is_explicit_context_not_an_invented_daily_formula() -> None
     assert result.abstain_reason is Vt08CrtH4AmdV2AbstainReason.BIAS_CONTEXT_REQUIRED
 
 
-def test_video_shallow_candle2_plus_reference_run_and_cisd_confirms_opportunity_but_not_entry() -> None:
+def test_video_shallow_candle2_plus_reference_run_and_cisd_confirms_opportunity_but_not_entry(
+) -> None:
     anchor, reference, bars = _c2_case()
     result = evaluate_reversal_expansion_candle2(
         symbol="EURUSD",
