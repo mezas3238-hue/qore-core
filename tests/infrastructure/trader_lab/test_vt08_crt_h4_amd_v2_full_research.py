@@ -1,15 +1,21 @@
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import cast
+from zoneinfo import ZoneInfo
+
+import pytest
 
 from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_full_research import (
+    Vt08CrtH4AmdV2FullResearchError,
     generate_full_research,
 )
 
+_NY = ZoneInfo("America/New_York")
+
 
 def _source_audit(path: Path, count: int = 12) -> Path:
-    start = datetime(2024, 1, 2, 5, tzinfo=UTC)
+    start = datetime(2024, 1, 2, 1, tzinfo=_NY)
     rows: list[dict[str, object]] = []
     for index in range(count):
         signal = start + timedelta(days=index)
@@ -28,6 +34,7 @@ def _source_audit(path: Path, count: int = 12) -> Path:
                 "protected_swing_extreme": "99",
                 "cisd_level": "99.5",
                 "source_bias_status": "requires-source-context-confirmation",
+                "source_point_of_interest_status": "requires-source-poi-confirmation",
                 "source_wick_status": "qualitative-unresolved-by-video",
                 "prior_candle2_wick_status": None,
                 "automatic_setup": False,
@@ -43,6 +50,10 @@ def _source_audit(path: Path, count: int = 12) -> Path:
         "read_only": True,
         "research_only": True,
         "source_fidelity_mode": True,
+        "human_owner_operating_scope": True,
+        "operating_timezone": "America/New_York",
+        "forex_operating_h4_anchors": [1, 5, 9],
+        "futures_operating_h4_anchors": [2, 6, 10],
         "invalidates_prior_campaign": True,
         "prior_13468_campaign_valid_for_economics": False,
         "software_sha": "a" * 40,
@@ -81,11 +92,17 @@ def test_full_research_emits_evidence_without_fake_economics(tmp_path: Path) -> 
     assert summary["win_count"] is None
     assert summary["loss_count"] is None
     assert summary["demo_eligible"] is False
+    assert summary["human_owner_operating_scope"] == {
+        "timezone": "America/New_York",
+        "forex_h4_anchors": [1, 5, 9],
+        "futures_h4_anchors": [2, 6, 10],
+    }
 
     characterization = json.loads((output / "characterization.json").read_text())
     assert characterization["oracle_metrics_are_not_trade_results"] is True
     assert characterization["win_rate"] is None
     assert characterization["expectancy_r"] is None
+    assert set(characterization["by_h4_anchor_hour_new_york"]) == {"01:00"}
 
     stress = json.loads((output / "stress.json").read_text())
     monte = json.loads((output / "monte-carlo.json").read_text())
@@ -106,5 +123,37 @@ def test_story_forensics_separates_candidate_decision_data_from_oracle(
     first = cast(dict[str, object], story["episodes"][0])
     decision = cast(dict[str, object], first["decision_time"])
     assert decision["automatic_setup"] is False
+    assert decision["source_point_of_interest_status"] == (
+        "requires-source-poi-confirmation"
+    )
     assert "h4_close_r" not in decision
     assert "post_outcome_oracle_descriptive_only" in first
+
+
+def test_full_research_rejects_candidate_outside_owner_new_york_hours(
+    tmp_path: Path,
+) -> None:
+    audit_path = _source_audit(tmp_path / "audit.json", count=1)
+    payload = json.loads(audit_path.read_text())
+    candidate = cast(dict[str, object], payload["candidates"][0])
+    candidate["anchor_opened_at"] = datetime(2024, 1, 2, 13, tzinfo=_NY).isoformat()
+    audit_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(
+        Vt08CrtH4AmdV2FullResearchError,
+        match="outside Human Owner New York operating anchors",
+    ):
+        generate_full_research(audit_path, tmp_path / "out")
+
+
+def test_full_research_rejects_missing_owner_scope_binding(tmp_path: Path) -> None:
+    audit_path = _source_audit(tmp_path / "audit.json", count=1)
+    payload = json.loads(audit_path.read_text())
+    payload["human_owner_operating_scope"] = False
+    audit_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(
+        Vt08CrtH4AmdV2FullResearchError,
+        match="must bind Human Owner operating scope",
+    ):
+        generate_full_research(audit_path, tmp_path / "out")
