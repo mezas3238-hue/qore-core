@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
 from qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest_report import (
@@ -40,16 +42,19 @@ def _payload() -> dict[str, object]:
 def test_directional_report_reconciles_long_and_short_trade_counts() -> None:
     result = enrich_vt31_silver_bullet_v2_backtest_payload(_payload())
 
-    assert result["long_trade_count"] == 2
-    assert result["short_trade_count"] == 1
-    assert result["long_trade_count"] + result["short_trade_count"] == result["filled_count"]
+    long_count = result["long_trade_count"]
+    short_count = result["short_trade_count"]
+    filled_count = result["filled_count"]
+    assert type(long_count) is int
+    assert type(short_count) is int
+    assert type(filled_count) is int
+    assert long_count == 2
+    assert short_count == 1
+    assert long_count + short_count == filled_count
 
-    directional = result["directional_breakdown"]
-    assert isinstance(directional, dict)
-    long = directional["long"]
-    short = directional["short"]
-    assert isinstance(long, dict)
-    assert isinstance(short, dict)
+    directional = cast(dict[str, object], result["directional_breakdown"])
+    long = cast(dict[str, object], directional["long"])
+    short = cast(dict[str, object], directional["short"])
 
     assert long == {
         "trade_count": 2,
@@ -88,10 +93,8 @@ def test_directional_report_fails_closed_when_filled_count_does_not_reconcile() 
 
 def test_directional_report_fails_closed_on_noncanonical_side() -> None:
     payload = _payload()
-    trades = payload["trades"]
-    assert isinstance(trades, list)
-    trade = trades[0]
-    assert isinstance(trade, dict)
+    trades = cast(list[object], payload["trades"])
+    trade = cast(dict[str, object], trades[0])
     trade["side"] = "buy"
 
     with pytest.raises(
