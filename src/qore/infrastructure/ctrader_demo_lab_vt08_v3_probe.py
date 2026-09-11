@@ -107,7 +107,7 @@ def collect_vt08_v3_evidence(
         canonical_symbol=canonical_symbol,
         timeout_seconds=timeout_seconds,
     )
-    period_payload: dict[str, list[dict[str, object]]] = {}
+    period_payload: dict[str, object] = {}
     coverage: dict[str, dict[str, object]] = {}
     for period_name, native_period, seconds in _PERIODS:
         retained: dict[datetime, CTraderDemoLabClosedTrendbar] = {}
