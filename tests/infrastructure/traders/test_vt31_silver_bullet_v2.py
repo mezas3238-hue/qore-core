@@ -21,6 +21,7 @@ from qore.infrastructure.ports import (
 from qore.infrastructure.traders.contracts import DemoTradingDecision, DemoTradingSetupSide
 from qore.infrastructure.traders.vt31_silver_bullet_v2 import (
     Vt31SilverBulletV2AbstainReason,
+    Vt31SilverBulletV2Evaluation,
     Vt31SilverBulletV2Input,
     Vt31SilverBulletV2ValidationError,
     evaluate_vt31_silver_bullet_v2,
@@ -163,7 +164,10 @@ def _long_confirmation(*, day: datetime) -> tuple[OhlcSnapshot, ...]:
     )
 
 
-def _evaluate(day: datetime, session: tuple[OhlcSnapshot, ...]):
+def _evaluate(
+    day: datetime,
+    session: tuple[OhlcSnapshot, ...],
+) -> Vt31SilverBulletV2Evaluation:
     evidence = (*_reference_hour(day=day), *session)
     return evaluate_vt31_silver_bullet_v2(
         Vt31SilverBulletV2Input(
