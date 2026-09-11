@@ -1,0 +1,250 @@
+{
+  "execution_authority": false,
+  "market": "GBPJPY",
+  "renderer": "tradingview-lightweight-charts",
+  "renderer_version": "5.2.1",
+  "research_only": true,
+  "schema": "qore.trader_lab.mobile_replay_manifest.v1",
+  "source_artifact_ids": {
+    "backtest": 10127952856,
+    "characterization": 10133737547,
+    "market": 10126766969
+  },
+  "traders": {
+    "vt-01": {
+      "episode_count": 1433,
+      "family_status": {
+        "canonical_winners": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "direct_stop_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "giveback_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "losing_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "winning_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        }
+      },
+      "forensics_fingerprint": "a6b63ae308e1ff0600ebe56e5b2539f22162b183505b34de29ccd72eb9007abe",
+      "gzip_sha256": "0f7110861a90ac2173d8c4dcd4e511052e0348ba8a120467b3366b65223b6141",
+      "source_binding": {
+        "account_fingerprint": "d9a5f41beca4584a2dc7eccc17015f40a707b99c72f74790b01ccddd7a5e8999",
+        "checked_at": "2026-09-09T21:55:33.757742+00:00",
+        "config_fingerprint": "29955332e3c7669834695dfa6b52d1ee2df44dcf20f096f934ee982b8297ff1b",
+        "execution_period": "M5",
+        "methodology_fingerprint": "681f8b304541c5455fc324e69a69beefb968e8eebc256133afcdd8763a1acc09",
+        "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+        "source_artifact_sha256": {
+          "backtest": "531f74816b7cfe260225e2659268f0143ed1f58623ddda1ca6b935eb5063494a",
+          "characterization": "3f7b86d88ede3028c31150995a53de009eb0742a181d71077dbca6a3ecd5bb00",
+          "market": "82b3801622e56da5f4ea1670cdb4604a74a34d8132b40f4c7517a7e7ac2efce1"
+        },
+        "symbol": "GBPJPY",
+        "trader_code": "vt-01"
+      }
+    },
+    "vt-08": {
+      "episode_count": 11,
+      "family_status": {
+        "canonical_winners": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "direct_stop_episodes": {
+          "required": 5,
+          "selected": 2,
+          "status": "INSUFFICIENT_EVIDENCE"
+        },
+        "giveback_episodes": {
+          "required": 5,
+          "selected": 0,
+          "status": "INSUFFICIENT_EVIDENCE"
+        },
+        "losing_streaks": {
+          "required": 5,
+          "selected": 3,
+          "status": "INSUFFICIENT_EVIDENCE"
+        },
+        "winning_streaks": {
+          "required": 5,
+          "selected": 3,
+          "status": "INSUFFICIENT_EVIDENCE"
+        }
+      },
+      "forensics_fingerprint": "e593dd51cc44a566e3d5cd11810bc8de87a138aaacda1cffdd421cdcc4bcd181",
+      "gzip_sha256": "617e80440f3d300d3b8af718ed80d1a3d805c165193430b7eed3bd1385527ae0",
+      "source_binding": {
+        "account_fingerprint": "d9a5f41beca4584a2dc7eccc17015f40a707b99c72f74790b01ccddd7a5e8999",
+        "checked_at": "2026-09-09T21:55:33.757742+00:00",
+        "config_fingerprint": "510bac1c04e740d4b9154acd9ebfb4bf83c71a1863eecc2fd609a9d03ce9a39f",
+        "execution_period": "M5",
+        "methodology_fingerprint": "0551d9caf12f16ddf288f2476def39b68452d718c89c2caff66e421e2d069025",
+        "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+        "source_artifact_sha256": {
+          "backtest": "531f74816b7cfe260225e2659268f0143ed1f58623ddda1ca6b935eb5063494a",
+          "characterization": "3f7b86d88ede3028c31150995a53de009eb0742a181d71077dbca6a3ecd5bb00",
+          "market": "82b3801622e56da5f4ea1670cdb4604a74a34d8132b40f4c7517a7e7ac2efce1"
+        },
+        "symbol": "GBPJPY",
+        "trader_code": "vt-08"
+      }
+    },
+    "vt-09": {
+      "episode_count": 10176,
+      "family_status": {
+        "canonical_winners": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "direct_stop_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "giveback_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "losing_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "winning_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        }
+      },
+      "forensics_fingerprint": "b8d565411460181c18222829f228fb86f72a661e12bf44c3866686c085618333",
+      "gzip_sha256": "8bc11f029f5bea3013b41f7f49934677464f16c78e5cd16ac80e799c0c53fb9c",
+      "source_binding": {
+        "account_fingerprint": "d9a5f41beca4584a2dc7eccc17015f40a707b99c72f74790b01ccddd7a5e8999",
+        "checked_at": "2026-09-09T21:55:33.757742+00:00",
+        "config_fingerprint": "164ae70c2fdfe9e302f864758c73af224429044e90b7ef740abfba80bdceca2b",
+        "execution_period": "M15",
+        "methodology_fingerprint": "d8ffdc4a584a83b61af6cc8f57bc349cfdb5e1fbf13aaa78881b0e35dd2b42c5",
+        "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+        "source_artifact_sha256": {
+          "backtest": "531f74816b7cfe260225e2659268f0143ed1f58623ddda1ca6b935eb5063494a",
+          "characterization": "3f7b86d88ede3028c31150995a53de009eb0742a181d71077dbca6a3ecd5bb00",
+          "market": "82b3801622e56da5f4ea1670cdb4604a74a34d8132b40f4c7517a7e7ac2efce1"
+        },
+        "symbol": "GBPJPY",
+        "trader_code": "vt-09"
+      }
+    },
+    "vt-17": {
+      "episode_count": 3174,
+      "family_status": {
+        "canonical_winners": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "direct_stop_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "giveback_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "losing_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "winning_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        }
+      },
+      "forensics_fingerprint": "08145a893f783bbf077a4f9c385d80da81f263860d1240befcb5f106a7bf2ee8",
+      "gzip_sha256": "700c280b1602da8002185c0585863cbe913ebfabaf67ba16ae816b7f2697103f",
+      "source_binding": {
+        "account_fingerprint": "d9a5f41beca4584a2dc7eccc17015f40a707b99c72f74790b01ccddd7a5e8999",
+        "checked_at": "2026-09-09T21:55:33.757742+00:00",
+        "config_fingerprint": "85f228b75899543c96d2a2f96034bc8eba231ef71094c3d05019d9f5fb874f4f",
+        "execution_period": "M5",
+        "methodology_fingerprint": "f0eaae8fc04b4c46b1c03f57af04111add903e06f5b93a02d6fc6f064ed11eca",
+        "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+        "source_artifact_sha256": {
+          "backtest": "531f74816b7cfe260225e2659268f0143ed1f58623ddda1ca6b935eb5063494a",
+          "characterization": "3f7b86d88ede3028c31150995a53de009eb0742a181d71077dbca6a3ecd5bb00",
+          "market": "82b3801622e56da5f4ea1670cdb4604a74a34d8132b40f4c7517a7e7ac2efce1"
+        },
+        "symbol": "GBPJPY",
+        "trader_code": "vt-17"
+      }
+    },
+    "vt-31": {
+      "episode_count": 764,
+      "family_status": {
+        "canonical_winners": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "direct_stop_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "giveback_episodes": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "losing_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        },
+        "winning_streaks": {
+          "required": 5,
+          "selected": 5,
+          "status": "READY"
+        }
+      },
+      "forensics_fingerprint": "be1bfb5f564b32e06bf111880c9cb5e3dc9f6a2cded0e008cdbc08cf1ded6851",
+      "gzip_sha256": "ab2e1b434536e06cb760629ff5932beb0a51aac9b6be4ce3e35d18311913184d",
+      "source_binding": {
+        "account_fingerprint": "d9a5f41beca4584a2dc7eccc17015f40a707b99c72f74790b01ccddd7a5e8999",
+        "checked_at": "2026-09-09T21:55:33.757742+00:00",
+        "config_fingerprint": "29955332e3c7669834695dfa6b52d1ee2df44dcf20f096f934ee982b8297ff1b",
+        "execution_period": "M5",
+        "methodology_fingerprint": "d801224de7966088623fefb733b753b222c0e6c6f69f605c7365b26d39282dd0",
+        "software_sha": "e5c9da16ce2a1b301a39f48802fa97eef5d93ef5",
+        "source_artifact_sha256": {
+          "backtest": "531f74816b7cfe260225e2659268f0143ed1f58623ddda1ca6b935eb5063494a",
+          "characterization": "3f7b86d88ede3028c31150995a53de009eb0742a181d71077dbca6a3ecd5bb00",
+          "market": "82b3801622e56da5f4ea1670cdb4604a74a34d8132b40f4c7517a7e7ac2efce1"
+        },
+        "symbol": "GBPJPY",
+        "trader_code": "vt-31"
+      }
+    }
+  }
+}
