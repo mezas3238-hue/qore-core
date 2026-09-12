@@ -4,20 +4,40 @@ import pytest
 
 from qore.infrastructure.traders.vt08_forex import (
     AUTHORIZED_H4_ANCHOR_HOURS_NEW_YORK as FOREX_ANCHORS,
+)
+from qore.infrastructure.traders.vt08_forex import (
     AUTHORIZED_MARKETS as FOREX_MARKETS,
+)
+from qore.infrastructure.traders.vt08_forex import (
     MAXIMUM_FILLED_TRADES_PER_MARKET_PER_NY_DATE as FOREX_DAILY_MAX,
+)
+from qore.infrastructure.traders.vt08_forex import (
     VT08ForexTrader,
     VT08ForexValidationError,
+)
+from qore.infrastructure.traders.vt08_forex import (
     config_fingerprint as forex_config_fingerprint,
+)
+from qore.infrastructure.traders.vt08_forex import (
     methodology_fingerprint as forex_methodology_fingerprint,
 )
 from qore.infrastructure.traders.vt08_futures import (
     AUTHORIZED_H4_ANCHOR_HOURS_NEW_YORK as FUTURES_ANCHORS,
+)
+from qore.infrastructure.traders.vt08_futures import (
     AUTHORIZED_MARKETS as FUTURES_MARKETS,
+)
+from qore.infrastructure.traders.vt08_futures import (
     MAXIMUM_FILLED_TRADES_PER_MARKET_PER_NY_DATE as FUTURES_DAILY_MAX,
+)
+from qore.infrastructure.traders.vt08_futures import (
     VT08FuturesTrader,
     VT08FuturesValidationError,
+)
+from qore.infrastructure.traders.vt08_futures import (
     config_fingerprint as futures_config_fingerprint,
+)
+from qore.infrastructure.traders.vt08_futures import (
     methodology_fingerprint as futures_methodology_fingerprint,
 )
 
