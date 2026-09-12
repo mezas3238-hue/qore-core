@@ -30,7 +30,7 @@ jobs:
       - name: Ruff gate
         run: ruff check tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
       - name: Mypy gate
-        run: mypy tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
+        run: mypy src tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
       - name: VT-08 mirror symmetry gate
         run: |
           pytest -q \
