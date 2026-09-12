@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from qore.infrastructure.traders.vt08_b01_source_contract_r3_9 import (
-    Authority,
     RULES,
     SOURCE_ENTRY_ANCHORS_NY,
+    Authority,
+    SourceRule,
     source_contract_fingerprint,
     source_contract_payload,
 )
 
 
-def _rules() -> dict[str, object]:
+def _rules() -> dict[str, SourceRule]:
     return {item.rule_id: item for item in RULES}
 
 
