@@ -1,0 +1,79 @@
+{
+  "schema": "qore.research.vt08_cardinality_forensics.v1",
+  "baseline_pr": 518,
+  "baseline_sha": "a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0",
+  "baseline_run_id": 34661791159,
+  "baseline_artifact_aggregate_sha256": "1c4c6038765ed024ed6a8a03d0d580a547723ff38c86b003cc4e88cff280f61c",
+  "dataset": {
+    "requested_lookback_days": 760,
+    "required_coverage_days": 730,
+    "ny_local_calendar_span_days": 761,
+    "requested_lookback_is_collection_horizon_not_eligible_days": true,
+    "baseline_eligible_day_definition": "at least one authorized anchor has exact current H4 plus prior H4 M15 evidence",
+    "strict_complete_day_definition": "all three authorized anchors have exact current H4 plus prior H4 evidence"
+  },
+  "anchor_candidate_distribution": {
+    "0": 4006,
+    "1": 8393,
+    "2": 3296,
+    "3": 398
+  },
+  "anchors_with_both_long_and_short_c2_candidates": 1068,
+  "same_signal_side_cross_scenario_candidate_collisions": 1101,
+  "exact_candidate_identity_duplicates": 0,
+  "family_summary": {
+    "forex": {
+      "markets": ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "GBPJPY", "AUDJPY"],
+      "eligible_anchor_windows": 11326,
+      "eligible_market_days_baseline_any_anchor": 3780,
+      "complete_market_days_all_three": 3773,
+      "mechanical_candidate_count": 11221,
+      "automatic_setup_count": 2,
+      "filled_count": 2,
+      "daily_fill_cardinality_violations_observed": 0
+    },
+    "futures": {
+      "markets": ["NAS100", "SP500", "US30"],
+      "eligible_anchor_windows": 4767,
+      "eligible_market_days_baseline_any_anchor": 1614,
+      "complete_market_days_all_three": 1548,
+      "mechanical_candidate_count": 4958,
+      "automatic_setup_count": 0,
+      "filled_count": 0,
+      "daily_fill_cardinality_violations_observed": 0
+    },
+    "combined": {
+      "eligible_anchor_windows": 16093,
+      "eligible_market_days_baseline_any_anchor": 5394,
+      "complete_market_days_all_three": 5321,
+      "mechanical_candidate_count": 16179,
+      "automatic_setup_count": 2,
+      "filled_count": 2,
+      "daily_fill_cardinality_violations_observed": 0
+    }
+  },
+  "per_market": {
+    "EURUSD": {"family": "forex", "observed_dates": 653, "eligible_days": 540, "all_three_complete_days": 539, "eligible_anchors": 1618, "candidates": 1616, "c2": 1208, "c3": 408, "setups": 0, "fills": 0, "max_candidates_day": 7},
+    "GBPUSD": {"family": "forex", "observed_dates": 653, "eligible_days": 540, "all_three_complete_days": 539, "eligible_anchors": 1618, "candidates": 1614, "c2": 1240, "c3": 374, "setups": 0, "fills": 0, "max_candidates_day": 7},
+    "USDJPY": {"family": "forex", "observed_dates": 653, "eligible_days": 540, "all_three_complete_days": 539, "eligible_anchors": 1618, "candidates": 1583, "c2": 1113, "c3": 470, "setups": 1, "fills": 1, "wins": 0, "losses": 1, "max_candidates_day": 7},
+    "AUDUSD": {"family": "forex", "observed_dates": 653, "eligible_days": 540, "all_three_complete_days": 539, "eligible_anchors": 1618, "candidates": 1576, "c2": 1112, "c3": 464, "setups": 0, "fills": 0, "max_candidates_day": 7},
+    "USDCAD": {"family": "forex", "observed_dates": 653, "eligible_days": 540, "all_three_complete_days": 539, "eligible_anchors": 1618, "candidates": 1672, "c2": 1269, "c3": 403, "setups": 0, "fills": 0, "max_candidates_day": 6},
+    "GBPJPY": {"family": "forex", "observed_dates": 653, "eligible_days": 540, "all_three_complete_days": 539, "eligible_anchors": 1618, "candidates": 1571, "c2": 1143, "c3": 428, "setups": 0, "fills": 0, "max_candidates_day": 7},
+    "AUDJPY": {"family": "forex", "observed_dates": 653, "eligible_days": 540, "all_three_complete_days": 539, "eligible_anchors": 1618, "candidates": 1589, "c2": 1131, "c3": 458, "setups": 1, "fills": 1, "wins": 0, "losses": 1, "max_candidates_day": 7},
+    "NAS100": {"family": "futures", "observed_dates": 652, "eligible_days": 538, "all_three_complete_days": 516, "eligible_anchors": 1589, "candidates": 1631, "c2": 1286, "c3": 345, "setups": 0, "fills": 0, "max_candidates_day": 7},
+    "SP500": {"family": "futures", "observed_dates": 652, "eligible_days": 538, "all_three_complete_days": 516, "eligible_anchors": 1589, "candidates": 1639, "c2": 1294, "c3": 345, "setups": 0, "fills": 0, "max_candidates_day": 7},
+    "US30": {"family": "futures", "observed_dates": 652, "eligible_days": 538, "all_three_complete_days": 516, "eligible_anchors": 1589, "candidates": 1688, "c2": 1356, "c3": 332, "setups": 0, "fills": 0, "max_candidates_day": 7}
+  },
+  "observed_fills": [
+    {"market": "USDJPY", "ny_date": "2025-10-27", "anchor_hour": 9, "scenario": "c3", "outcome": "stop"},
+    {"market": "AUDJPY", "ny_date": "2026-04-17", "anchor_hour": 5, "scenario": "c3", "outcome": "stop"}
+  ],
+  "forensic_verdict": {
+    "mechanical_candidates_are_trades": false,
+    "aggregate_candidate_to_trade_coercion_observed": false,
+    "daily_cardinality_authority_present_in_pr_518": false,
+    "observed_daily_fill_violations": 0,
+    "architectural_risk": "multiple automatic setups/fills on one market-day are not mechanically prevented in PR #518",
+    "required_fix": "MarketDayId plus daily selection and budget authority before economic execution"
+  }
+}
