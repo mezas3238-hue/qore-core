@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -168,19 +168,24 @@ def compile_market_holdout(path: Path) -> dict[str, object]:
 
 def compile_aggregate(paths: tuple[Path, ...]) -> dict[str, object]:
     if len(paths) != len(AUTHORIZED_FOREX_MARKETS):
-        raise Vt08B01FreshHoldoutError("aggregate requires exactly seven market reports")
+        raise Vt08B01FreshHoldoutError(
+            "aggregate requires exactly seven market reports"
+        )
     reports = [compile_market_holdout(path) for path in paths]
     by_symbol = {
-        _text(item.get("symbol"), name="symbol"): item
-        for item in reports
+        _text(item.get("symbol"), name="symbol"): item for item in reports
     }
     if set(by_symbol) != set(AUTHORIZED_FOREX_MARKETS):
-        raise Vt08B01FreshHoldoutError("aggregate must contain the frozen seven markets")
+        raise Vt08B01FreshHoldoutError(
+            "aggregate must contain the frozen seven markets"
+        )
     software_shas = {
         _text(item.get("software_sha"), name="software_sha") for item in reports
     }
     if len(software_shas) != 1:
-        raise Vt08B01FreshHoldoutError("all holdout markets must use one software SHA")
+        raise Vt08B01FreshHoldoutError(
+            "all holdout markets must use one software SHA"
+        )
 
     all_trades: list[dict[str, object]] = []
     for symbol in sorted(by_symbol):
@@ -227,16 +232,27 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args[0] == "market":
             if len(args) != 2:
-                raise Vt08B01FreshHoldoutError("market mode requires one backtest")
+                raise Vt08B01FreshHoldoutError(
+                    "market mode requires one backtest"
+                )
             payload = compile_market_holdout(Path(args[1]))
         else:
             if len(args) != 8:
-                raise Vt08B01FreshHoldoutError("aggregate mode requires seven backtests")
+                raise Vt08B01FreshHoldoutError(
+                    "aggregate mode requires seven backtests"
+                )
             payload = compile_aggregate(tuple(Path(item) for item in args[1:]))
     except Vt08B01FreshHoldoutError as error:
         print(f"VT-08 fresh holdout failed: {error}", file=sys.stderr)
         return 1
-    print(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False))
+    print(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    )
     return 0
 
 
