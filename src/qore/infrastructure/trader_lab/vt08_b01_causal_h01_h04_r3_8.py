@@ -172,7 +172,8 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
                 "after a valid setup?"
             ),
             source_boundary=(
-                "protected swing must follow important-level interaction plus causal CISD",
+                "protected swing must follow important-level interaction plus "
+                "causal CISD",
                 "R3.8 requires exactly one valid protected swing or abstention",
                 "positional historical entry reference is the new H4 open",
                 "protected-swing broker stop offset remains unresolved",
@@ -190,13 +191,15 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
                 "entry-to-PS risk distance normalized by prior-H4 range",
                 "sweep depth and post-CISD displacement known at decision time",
                 "C2/C3 identity and important-level provenance",
-                "MFE/MAE and stop-before-target path without hindsight feature selection",
+                "MFE/MAE and stop-before-target path without hindsight "
+                "feature selection",
             ),
             falsification_gate=(
                 "pre-register one source-supported discriminator before fresh evidence",
                 "run unchanged seven-market fresh holdout with identical data policy",
                 "require reduced stop concentration plus non-degraded OOS and Stress",
-                "reject causal claim if effect disappears or only survives retrospective slicing",
+                "reject causal claim if effect disappears or only survives "
+                "retrospective slicing",
             ),
             prohibited_inference=(
                 "do not widen stops because stopped trades lost",
@@ -207,12 +210,15 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
         _track(
             hypothesis=hypotheses["VT08-R3.8-FF-H02"],
             causal_question=(
-                "Is the cross-market dispersion a reproducible methodology-by-instrument "
-                "interaction, or sampling/regime variation in one consumed campaign?"
+                "Is the cross-market dispersion a reproducible "
+                "methodology-by-instrument interaction, or sampling/regime variation "
+                "in one consumed campaign?"
             ),
             source_boundary=(
-                "all seven Forex markets are authorized by the frozen Forex source family",
-                "the source rulebook does not authorize selecting EURUSD/GBPUSD from P&L",
+                "all seven Forex markets are authorized by the frozen Forex "
+                "source family",
+                "the source rulebook does not authorize selecting EURUSD/GBPUSD "
+                "from P&L",
                 "market promotion requires fresh evidence, not the frozen ranking",
             ),
             competing_mechanisms=(
@@ -230,19 +236,22 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
             falsification_gate=(
                 "repeat all seven markets on previously unseen dates",
                 "require directionally consistent separation with OOS/Stress survival",
-                "reject market specialization if the ranking is unstable on fresh evidence",
+                "reject market specialization if the ranking is unstable on "
+                "fresh evidence",
             ),
             prohibited_inference=(
                 "do not whitelist EURUSD/GBPUSD from run 34693803930",
                 "do not blacklist the five negative markets from consumed P&L",
-                "do not claim source-level instrument exclusions without primary evidence",
+                "do not claim source-level instrument exclusions without "
+                "primary evidence",
             ),
         ),
         _track(
             hypothesis=hypotheses["VT08-R3.8-FF-H03"],
             causal_question=(
-                "Does B01 have a source-coherent interaction with the 01/05/09 New-York "
-                "H4 anchors, or is the observed 05:00 advantage sampling noise?"
+                "Does B01 have a source-coherent interaction with the 01/05/09 "
+                "New-York H4 anchors, or is the observed 05:00 advantage "
+                "sampling noise?"
             ),
             source_boundary=(
                 "source-complete Forex timing is 01/05/09/13 New York",
@@ -264,12 +273,15 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
             ),
             falsification_gate=(
                 "retain all three Owner anchors in fresh evidence collection",
-                "require the 05:00 interaction to reproduce with mechanism-consistent diagnostics",
-                "reject anchor specialization if advantage is unstable or stress-fragile",
+                "require the 05:00 interaction to reproduce with "
+                "mechanism-consistent diagnostics",
+                "reject anchor specialization if advantage is unstable or "
+                "stress-fragile",
             ),
             prohibited_inference=(
                 "do not change the Trader to 05:00-only from the frozen campaign",
-                "do not merge 13:00 source-complete results into Owner-subset economics",
+                "do not merge 13:00 source-complete results into Owner-subset "
+                "economics",
                 "do not invent a session filter from weekday/hour P&L",
             ),
         ),
@@ -281,8 +293,10 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
             ),
             source_boundary=(
                 "R3.8 labels close-at-next-H4-boundary as an operational containment",
-                "source-explicit filled-position behavior across an H4 boundary remains unresolved",
-                "2R replay target and no-stop-offset are also containments, not universal source rules",
+                "source-explicit filled-position behavior across an H4 boundary "
+                "remains unresolved",
+                "2R replay target and no-stop-offset are also containments, not "
+                "universal source rules",
             ),
             competing_mechanisms=(
                 "CONTAINMENT_TRUNCATES_VALID_POST_H4_CONTINUATION",
@@ -290,18 +304,22 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
                 "CONTAINMENT_IS_ECONOMICALLY_SECONDARY_TO_ENTRY_GEOMETRY",
             ),
             fresh_diagnostics=(
-                "counterfactual path logging beyond H4 boundary without changing executed replay",
+                "counterfactual path logging beyond H4 boundary without changing "
+                "executed replay",
                 "time-to-MFE, time-to-MAE and unresolved-at-boundary state",
-                "source-adjudicated lifecycle alternative encoded before fresh outcome access",
+                "source-adjudicated lifecycle alternative encoded before fresh "
+                "outcome access",
                 "paired diagnostic comparison with identical entries and PS geometry",
             ),
             falsification_gate=(
                 "source-adjudicate lifecycle before selecting any alternative",
                 "pre-register comparison on unseen evidence",
-                "reject lifecycle causality if paired fresh results show no material robust effect",
+                "reject lifecycle causality if paired fresh results show no "
+                "material robust effect",
             ),
             prohibited_inference=(
-                "do not extend holds because containment exits were profitable in the frozen run",
+                "do not extend holds because containment exits were profitable "
+                "in the frozen run",
                 "do not pick the best lifecycle from run 34693803930",
                 "do not relabel QORE containment as TTrades source authority",
             ),
@@ -324,7 +342,9 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
         "forbidden_reuse": _FORBIDDEN_REUSE,
         "tracks": tracks,
         "global_preregistration": {
-            "fresh_holdout": "previously unseen dates collected only after source adjudication",
+            "fresh_holdout": (
+                "previously unseen dates collected only after source adjudication"
+            ),
             "markets": [
                 "AUDJPY",
                 "AUDUSD",
@@ -336,8 +356,12 @@ def compile_vt08_b01_causal_program(path: Path) -> dict[str, object]:
             ],
             "owner_anchors_ny": [1, 5, 9],
             "selection_rule": "no market/hour/weekday selection from consumed evidence",
-            "quality_gate": "ruff + mypy + focused causal tests + full pytest before economics",
-            "success_requires": "mechanism-consistent fresh OOS improvement with Stress survival",
+            "quality_gate": (
+                "ruff + mypy + focused causal tests + full pytest before economics"
+            ),
+            "success_requires": (
+                "mechanism-consistent fresh OOS improvement with Stress survival"
+            ),
         },
         "methodology_mutation_authorized": False,
         "demo_eligible": False,
