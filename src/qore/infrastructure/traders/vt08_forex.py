@@ -18,12 +18,20 @@ from qore.infrastructure.trader_lab.trader_daily_cardinality import (
 )
 from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
     METHODOLOGY_VERSION as SHARED_METHODOLOGY_VERSION,
+)
+from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
     Vt08CrtH4AmdV2Candle,
     Vt08CrtH4AmdV2Evaluation,
     Vt08CrtH4AmdV2SourceContext,
     Vt08CrtH4AmdV2WickProfile,
+)
+from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
     evaluate_continuation_expansion_candle3 as evaluate_shared_c3,
+)
+from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
     evaluate_reversal_expansion_candle2 as evaluate_shared_c2,
+)
+from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
     methodology_fingerprint as shared_methodology_fingerprint,
 )
 from qore.kernel.errors import InfrastructureError
