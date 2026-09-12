@@ -1,56 +1,49 @@
-# VT-08-FOREX Source Rulebook
+# VT-08-FOREX Revision 3.2 Source Rulebook
 
-Status: reconstruction contract; economics remain blocked pending final methodology
-adjudication.
+Status: source-first reconstruction; economics blocked until full correctness gates pass.
 
-Primary methodology source remains the Human Owner-provided TTrades H4 Power of Three /
-AMD lesson already frozen in the shared VT-08 source kernel. This rulebook separates Forex
-operational authority from futures/index authority without inventing new trading rules.
+## Market authority
 
-## Family authority
+`EURUSD`, `GBPUSD`, `USDJPY`, `AUDUSD`, `USDCAD`, `GBPJPY`, `AUDJPY` only. XAUUSD and all Futures/index markets are outside this Trader authority.
 
-Authorized markets:
+## Timing profiles
 
-`EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD, GBPJPY, AUDJPY`
+Two profiles exist and must never be conflated:
 
-Owner-authorized New York H4 evaluation anchors:
+- `SOURCE_COMPLETE`: 01:00 / 05:00 / 09:00 / 13:00 America/New_York.
+- `OWNER_OPERATIONAL_SUBSET`: 01:00 / 05:00 / 09:00 America/New_York.
 
-`01:00, 05:00, 09:00 America/New_York`
+The Owner subset is an operational policy, not the complete TTrades source timing profile.
 
-These are evaluation windows, not three daily trading permissions.
+## LTF profiles
 
-Daily ceiling:
+`M15` is the standard H4 pairing. `M5_FRACTAL` and `M3_FRACTAL` are independent alternative profiles. A research run binds exactly one LTF profile and must not use another profile as retrospective confirmation.
 
-`MAXIMUM_FILLED_TRADES_PER_MARKET_PER_NY_DATE = 1`
+## Shared R3.2 semantics
 
-Provenance of the ceiling: `HUMAN_OWNER_EXECUTION_POLICY`.
+This Trader consumes only shared primitives from `vt08_source_kernel_r3_2`: OLHC/OHLC delivery semantics, qualitative C2/C3 evidence, CISD, protected swing, EQ, six entry-family identities, five stop-family identities, contextual target families, source-coherent bundles, causality and current-H4 lifecycle.
 
-## Shared source kernel
+The Trader does not invent a numerical shallow/large threshold and does not assign a universal priority among entry families, protected swings or targets.
 
-The rebuilt Forex Trader may consume only source-proven common primitives from the
-conservative VT-08 source kernel, including H4 PO3/AMD, C2/C3 scenario primitives,
-CISD/protected-swing primitives and causal evidence validation.
+## Daily execution contract
 
-The following remain subject to final source adjudication and must not be selected from
-P&L:
+For each `VT08-FOREX + market + New-York local date`:
 
-- shallow versus large/deep wick classification;
-- exact contextual bias;
-- exact POI selection where multiple source-consistent POIs exist;
-- exact entry-family selection;
-- stop-family alternatives;
-- contextual target-family selection;
-- policy when more than one fully valid window exists on the same market-day.
+- candidates may exceed one;
+- qualified setups may exceed one before daily selection if methodology permits;
+- `selected_setup_count <= 1`;
+- `pending_selected_order_count <= 1`;
+- `filled_count <= 1`;
+- `terminal_count <= 1`.
 
-## Daily selection
+The max-one rule is Human Owner execution policy. A deterministic winner among multiple complete opportunities remains unresolved unless a separately versioned Owner policy is frozen.
 
-The cardinality layer permits multiple diagnostic candidates and multiple qualified setups,
-but it does not decide which one wins. `FIRST_FULLY_VALID_SETUP_CHRONOLOGICALLY` is not
-encoded as a source rule. If adopted later, it must be a separately versioned Human Owner
-execution policy.
+## HTF lifecycle
 
-## Economics gate
+Any selected trade is valid no later than the close of the current H4 candle. Continuing in a new H4 requires a fresh evaluation and fresh source evidence.
 
-No rebuilt Forex economic campaign is final evidence until the rule matrix and unresolved
-methodology are frozen, full Ruff/Mypy/Pytest is green and the backtest reports exact
-eligible market-days with zero daily-cardinality violations.
+## Research-only ambiguity
+
+SMT, failure swings, T-spot and expansion-met-with-expansion remain non-mandatory research concepts until their executable algorithms are source-resolved.
+
+No Risk, broker, `DEMO_ELIGIBLE`, LIVE, Production or real-capital authority is granted.
