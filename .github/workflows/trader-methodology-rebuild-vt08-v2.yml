@@ -1,5 +1,6 @@
 name: QORE VT-08 CRT H4 AMD V2 Source-Executable
 
+# CI trigger marker only; no methodology or execution semantics changed.
 on:
   pull_request:
     branches:
