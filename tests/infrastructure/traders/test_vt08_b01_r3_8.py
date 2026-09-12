@@ -13,6 +13,7 @@ from qore.infrastructure.traders.vt08_b01_r3_8 import (
     methodology_fingerprint,
     protected_swings_in_candle2,
     resolve_bias,
+    source_h4_from_m15,
 )
 
 _NY = ZoneInfo("America/New_York")
@@ -78,10 +79,22 @@ def test_bias_subset_covers_continuation_and_reversal_without_voting() -> None:
         close="100",
     )
 
-    assert resolve_bias(previous_day=previous, current_day=bullish_continuation) is DemoTradingSetupSide.LONG
-    assert resolve_bias(previous_day=previous, current_day=bearish_continuation) is DemoTradingSetupSide.SHORT
-    assert resolve_bias(previous_day=previous, current_day=bullish_reversal) is DemoTradingSetupSide.LONG
-    assert resolve_bias(previous_day=previous, current_day=bearish_reversal) is DemoTradingSetupSide.SHORT
+    assert (
+        resolve_bias(previous_day=previous, current_day=bullish_continuation)
+        is DemoTradingSetupSide.LONG
+    )
+    assert (
+        resolve_bias(previous_day=previous, current_day=bearish_continuation)
+        is DemoTradingSetupSide.SHORT
+    )
+    assert (
+        resolve_bias(previous_day=previous, current_day=bullish_reversal)
+        is DemoTradingSetupSide.LONG
+    )
+    assert (
+        resolve_bias(previous_day=previous, current_day=bearish_reversal)
+        is DemoTradingSetupSide.SHORT
+    )
     assert resolve_bias(previous_day=previous, current_day=both_sides_swept) is None
 
 
@@ -89,9 +102,27 @@ def test_protected_swing_requires_sweep_and_close_through_first_series_open() ->
     opened = datetime(2026, 1, 8, 1, tzinfo=_NY)
     bars = (
         _bar(opened, open_="103", high="103.2", low="99", close="101"),
-        _bar(opened + timedelta(minutes=15), open_="101", high="101.2", low="98.5", close="100"),
-        _bar(opened + timedelta(minutes=30), open_="100", high="103.7", low="99.8", close="103.5"),
-        _bar(opened + timedelta(minutes=45), open_="103.5", high="104", low="103", close="103.8"),
+        _bar(
+            opened + timedelta(minutes=15),
+            open_="101",
+            high="101.2",
+            low="98.5",
+            close="100",
+        ),
+        _bar(
+            opened + timedelta(minutes=30),
+            open_="100",
+            high="103.7",
+            low="99.8",
+            close="103.5",
+        ),
+        _bar(
+            opened + timedelta(minutes=45),
+            open_="103.5",
+            high="104",
+            low="103",
+            close="103.8",
+        ),
     )
     swings = protected_swings_in_candle2(
         bars,
@@ -129,8 +160,20 @@ def _synthetic_candidate_history() -> tuple[Vt08B01Bar, ...]:
     c2_open = datetime(2026, 1, 8, 1, tzinfo=_NY)
     special = (
         _bar(c2_open, open_="103", high="103.2", low="99", close="101"),
-        _bar(c2_open + timedelta(minutes=15), open_="101", high="101.2", low="98.5", close="100"),
-        _bar(c2_open + timedelta(minutes=30), open_="100", high="104", low="99.8", close="103.5"),
+        _bar(
+            c2_open + timedelta(minutes=15),
+            open_="101",
+            high="101.2",
+            low="98.5",
+            close="100",
+        ),
+        _bar(
+            c2_open + timedelta(minutes=30),
+            open_="100",
+            high="104",
+            low="99.8",
+            close="103.5",
+        ),
     )
     for item in special:
         bars[item.opened_at] = item
@@ -166,6 +209,41 @@ def test_b01_candidate_is_causal_and_uses_explicit_containments() -> None:
     assert len(candidate.methodology_fingerprint) == 64
 
 
+def test_entry_decision_does_not_read_future_body_of_entry_bar() -> None:
+    bars = list(_synthetic_candidate_history())
+    decision_at = datetime(2026, 1, 8, 5, tzinfo=_NY)
+    original = evaluate_b01_at_entry(
+        symbol="EURUSD",
+        m15_bars=tuple(bars),
+        decision_at=decision_at,
+    )
+    assert original.candidate is not None
+
+    decision_utc = decision_at.astimezone(UTC)
+    mutated = []
+    for item in bars:
+        if item.opened_at == decision_utc:
+            mutated.append(
+                Vt08B01Bar(
+                    opened_at=item.opened_at,
+                    closed_at=item.closed_at,
+                    open=item.open,
+                    high=Decimal("130"),
+                    low=Decimal("80"),
+                    close=Decimal("120"),
+                )
+            )
+        else:
+            mutated.append(item)
+    replayed = evaluate_b01_at_entry(
+        symbol="EURUSD",
+        m15_bars=tuple(mutated),
+        decision_at=decision_at,
+    )
+    assert replayed.candidate is not None
+    assert replayed.candidate.setup == original.candidate.setup
+
+
 def test_multiple_protected_swings_fail_closed() -> None:
     bars = list(_synthetic_candidate_history())
     c2_open = datetime(2026, 1, 8, 1, tzinfo=_NY).astimezone(UTC)
@@ -193,6 +271,11 @@ def test_multiple_protected_swings_fail_closed() -> None:
     )
     assert result.candidate is None
     assert result.abstain_reason is Vt08B01AbstainReason.MULTIPLE_PROTECTED_SWINGS
+
+
+def test_dst_transition_h4_is_not_silently_shortened() -> None:
+    transition_open = datetime(2026, 3, 8, 1, tzinfo=_NY)
+    assert source_h4_from_m15({}, opened_at_local=transition_open) is None
 
 
 def test_futures_proxy_is_not_silently_admitted_to_first_r38_replay() -> None:
