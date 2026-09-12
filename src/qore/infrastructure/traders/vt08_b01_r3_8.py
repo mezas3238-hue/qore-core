@@ -99,7 +99,11 @@ class Vt08B01Bar:
 
     def __post_init__(self) -> None:
         for name, value in (("opened_at", self.opened_at), ("closed_at", self.closed_at)):
-            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
+            if (
+                type(value) is not datetime
+                or value.tzinfo is None
+                or value.utcoffset() is None
+            ):
                 raise Vt08B01R38ValidationError(f"{name} must be timezone-aware")
         if self.closed_at <= self.opened_at:
             raise Vt08B01R38ValidationError("bar close must follow open")
@@ -137,10 +141,16 @@ class Vt08B01ProtectedSwing:
             ("confirmed_at", self.confirmed_at),
             ("opposing_series_opened_at", self.opposing_series_opened_at),
         ):
-            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
+            if (
+                type(value) is not datetime
+                or value.tzinfo is None
+                or value.utcoffset() is None
+            ):
                 raise Vt08B01R38ValidationError(f"{name} must be timezone-aware")
         if self.confirmed_at <= self.opposing_series_opened_at:
-            raise Vt08B01R38ValidationError("CISD must confirm after the opposing series begins")
+            raise Vt08B01R38ValidationError(
+                "CISD must confirm after the opposing series begins"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,19 +168,30 @@ class Vt08B01Candidate:
 
     def __post_init__(self) -> None:
         if self.symbol not in AUTHORIZED_FOREX_MARKETS:
-            raise Vt08B01R38ValidationError("candidate market is outside R3.8 Forex subset")
+            raise Vt08B01R38ValidationError(
+                "candidate market is outside R3.8 Forex subset"
+            )
         if type(self.side) is not DemoTradingSetupSide:
             raise Vt08B01R38ValidationError("candidate side must be canonical")
         if type(self.decision_at) is not datetime or self.decision_at.tzinfo is None:
             raise Vt08B01R38ValidationError("decision_at must be timezone-aware")
         if self.entry_anchor_hour not in OWNER_FOREX_ENTRY_ANCHORS:
-            raise Vt08B01R38ValidationError("candidate anchor is outside Owner subset")
+            raise Vt08B01R38ValidationError(
+                "candidate anchor is outside Owner subset"
+            )
         if self.protected_swing.side is not self.side or self.setup.side is not self.side:
             raise Vt08B01R38ValidationError("candidate side evidence must agree")
         if self.candle2.closed_at.astimezone(UTC) != self.decision_at.astimezone(UTC):
-            raise Vt08B01R38ValidationError("decision must occur at Candle-2 close/new H4 open")
-        if type(self.methodology_fingerprint) is not str or len(self.methodology_fingerprint) != 64:
-            raise Vt08B01R38ValidationError("methodology fingerprint must be SHA-256")
+            raise Vt08B01R38ValidationError(
+                "decision must occur at Candle-2 close/new H4 open"
+            )
+        if (
+            type(self.methodology_fingerprint) is not str
+            or len(self.methodology_fingerprint) != 64
+        ):
+            raise Vt08B01R38ValidationError(
+                "methodology fingerprint must be SHA-256"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,7 +268,10 @@ def _aggregate_window(
     cursor = opened_at
     while cursor < closed_at:
         bar = bars_by_open.get(cursor)
-        if bar is None or bar.closed_at.astimezone(UTC) != cursor + timedelta(minutes=15):
+        if (
+            bar is None
+            or bar.closed_at.astimezone(UTC) != cursor + timedelta(minutes=15)
+        ):
             return None
         expected.append(bar)
         cursor += timedelta(minutes=15)
@@ -273,10 +297,17 @@ def source_h4_from_m15(
         return None
     if local.hour not in SOURCE_FOREX_H4_ANCHORS:
         return None
+    closed_local = local + timedelta(hours=4)
+    if (
+        closed_local.astimezone(UTC) - local.astimezone(UTC)
+        != timedelta(hours=4)
+    ):
+        # DST-transition H4 construction is not silently invented.
+        return None
     return _aggregate_window(
         bars_by_open,
         opened_at_local=local,
-        closed_at_local=local + timedelta(hours=4),
+        closed_at_local=closed_local,
     )
 
 
@@ -286,12 +317,40 @@ def source_day_from_m15(
     end_date: date,
 ) -> Vt08B01Bar | None:
     end_local = datetime.combine(end_date, time(hour=17), tzinfo=_NY)
-    start_local = datetime.combine(end_date - timedelta(days=1), time(hour=17), tzinfo=_NY)
+    start_local = datetime.combine(
+        end_date - timedelta(days=1),
+        time(hour=17),
+        tzinfo=_NY,
+    )
     return _aggregate_window(
         bars_by_open,
         opened_at_local=start_local,
         closed_at_local=end_local,
     )
+
+
+def _latest_complete_source_days(
+    bars_by_open: dict[datetime, Vt08B01Bar],
+    *,
+    before_local: datetime,
+    count: int = 2,
+) -> tuple[Vt08B01Bar, ...]:
+    if count < 1:
+        raise Vt08B01R38ValidationError("source-day count must be positive")
+    if before_local.tzinfo is None or before_local.utcoffset() is None:
+        raise Vt08B01R38ValidationError("before_local must be timezone-aware")
+    end_date = before_local.astimezone(_NY).date() - timedelta(days=1)
+    retained: list[Vt08B01Bar] = []
+    for offset in range(10):
+        candidate = source_day_from_m15(
+            bars_by_open,
+            end_date=end_date - timedelta(days=offset),
+        )
+        if candidate is not None:
+            retained.append(candidate)
+            if len(retained) == count:
+                break
+    return tuple(retained)
 
 
 def resolve_bias(
@@ -304,8 +363,14 @@ def resolve_bias(
     if current_day.close < previous_day.low:
         return DemoTradingSetupSide.SHORT
 
-    bullish_reversal = current_day.low < previous_day.low and previous_day.low < current_day.close
-    bearish_reversal = current_day.high > previous_day.high and current_day.close < previous_day.high
+    bullish_reversal = (
+        current_day.low < previous_day.low
+        and previous_day.low < current_day.close
+    )
+    bearish_reversal = (
+        current_day.high > previous_day.high
+        and current_day.close < previous_day.high
+    )
     if bullish_reversal == bearish_reversal:
         return None
     return DemoTradingSetupSide.LONG if bullish_reversal else DemoTradingSetupSide.SHORT
@@ -350,7 +415,9 @@ def protected_swings_in_candle2(
             if series_open is None:
                 series_open = bar.open
                 series_opened_at = bar.opened_at
-                series_extreme = bar.low if side is DemoTradingSetupSide.LONG else bar.high
+                series_extreme = (
+                    bar.low if side is DemoTradingSetupSide.LONG else bar.high
+                )
             else:
                 assert series_extreme is not None
                 series_extreme = (
@@ -360,7 +427,11 @@ def protected_swings_in_candle2(
                 )
             continue
 
-        if series_open is not None and series_opened_at is not None and series_extreme is not None:
+        if (
+            series_open is not None
+            and series_opened_at is not None
+            and series_extreme is not None
+        ):
             swept = (
                 series_extreme < important_level
                 if side is DemoTradingSetupSide.LONG
@@ -400,17 +471,17 @@ def _window_bars(
     cursor = start
     while cursor < end:
         bar = bars_by_open.get(cursor)
-        if bar is None or bar.closed_at.astimezone(UTC) != cursor + timedelta(minutes=15):
+        if bar is None or bar.closed_at != cursor + timedelta(minutes=15):
             return None
         retained.append(bar)
         cursor += timedelta(minutes=15)
     return tuple(retained) if cursor == end else None
 
 
-def evaluate_b01_at_entry(
+def evaluate_b01_at_entry_indexed(
     *,
     symbol: str,
-    m15_bars: tuple[Vt08B01Bar, ...],
+    bars_by_open: dict[datetime, Vt08B01Bar],
     decision_at: datetime,
 ) -> Vt08B01Evaluation:
     if symbol not in AUTHORIZED_FOREX_MARKETS:
@@ -426,10 +497,6 @@ def evaluate_b01_at_entry(
     ):
         return Vt08B01Evaluation(None, Vt08B01AbstainReason.OUTSIDE_OWNER_ANCHOR)
 
-    bars_by_open = {item.opened_at.astimezone(UTC): item for item in m15_bars}
-    if len(bars_by_open) != len(m15_bars):
-        raise Vt08B01R38ValidationError("M15 evidence contains duplicate open timestamps")
-
     reference_local = decision_local - timedelta(hours=8)
     candle2_local = decision_local - timedelta(hours=4)
     reference = source_h4_from_m15(bars_by_open, opened_at_local=reference_local)
@@ -437,17 +504,14 @@ def evaluate_b01_at_entry(
     if reference is None or candle2 is None or candle2.closed_at != decision_utc:
         return Vt08B01Evaluation(None, Vt08B01AbstainReason.INCOMPLETE_SOURCE_H4)
 
-    latest_source_day_end = decision_local.date() - timedelta(days=1)
-    previous_day = source_day_from_m15(
+    source_days = _latest_complete_source_days(
         bars_by_open,
-        end_date=latest_source_day_end - timedelta(days=1),
+        before_local=decision_local,
+        count=2,
     )
-    current_day = source_day_from_m15(
-        bars_by_open,
-        end_date=latest_source_day_end,
-    )
-    if previous_day is None or current_day is None:
+    if len(source_days) != 2:
         return Vt08B01Evaluation(None, Vt08B01AbstainReason.INCOMPLETE_SOURCE_DAY)
+    current_day, previous_day = source_days
 
     side = resolve_bias(previous_day=previous_day, current_day=current_day)
     if side is None:
@@ -463,7 +527,9 @@ def evaluate_b01_at_entry(
     if candle2_m15 is None:
         return Vt08B01Evaluation(None, Vt08B01AbstainReason.INCOMPLETE_SOURCE_H4)
 
-    important_level = reference.low if side is DemoTradingSetupSide.LONG else reference.high
+    important_level = (
+        reference.low if side is DemoTradingSetupSide.LONG else reference.high
+    )
     swings = protected_swings_in_candle2(
         candle2_m15,
         side=side,
@@ -472,7 +538,10 @@ def evaluate_b01_at_entry(
     if not swings:
         return Vt08B01Evaluation(None, Vt08B01AbstainReason.NO_PROTECTED_SWING)
     if len(swings) != 1:
-        return Vt08B01Evaluation(None, Vt08B01AbstainReason.MULTIPLE_PROTECTED_SWINGS)
+        return Vt08B01Evaluation(
+            None,
+            Vt08B01AbstainReason.MULTIPLE_PROTECTED_SWINGS,
+        )
     protected = swings[0]
 
     entry_bar = bars_by_open.get(decision_utc)
@@ -521,4 +590,22 @@ def evaluate_b01_at_entry(
             methodology_fingerprint=methodology_fingerprint(),
         ),
         abstain_reason=None,
+    )
+
+
+def evaluate_b01_at_entry(
+    *,
+    symbol: str,
+    m15_bars: tuple[Vt08B01Bar, ...],
+    decision_at: datetime,
+) -> Vt08B01Evaluation:
+    bars_by_open = {item.opened_at.astimezone(UTC): item for item in m15_bars}
+    if len(bars_by_open) != len(m15_bars):
+        raise Vt08B01R38ValidationError(
+            "M15 evidence contains duplicate open timestamps"
+        )
+    return evaluate_b01_at_entry_indexed(
+        symbol=symbol,
+        bars_by_open=bars_by_open,
+        decision_at=decision_at,
     )
