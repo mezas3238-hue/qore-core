@@ -5,16 +5,20 @@ on:
   push:
     branches:
       - agent/vt31-r2-2-source-rebuild-001
+      - agent/vt31-r2-4-zero-trade-forensics-001
     paths:
       - .github/workflows/vt31-r2-4-source-exact-subset.yml
+      - src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py
       - src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
       - src/qore/infrastructure/traders/vt31_silver_bullet_r2_4.py
       - src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_4_backtest.py
+      - tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
       - tests/infrastructure/traders/test_vt31_silver_bullet_r2_4.py
       - tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_4_backtest.py
   pull_request:
     branches:
       - agent/trader-methodology-rebuild-v2-001
+      - agent/vt31-r2-2-source-rebuild-001
   workflow_dispatch:
 
 concurrency:
@@ -54,6 +58,7 @@ jobs:
       - name: VT-31 R2.4 focused source-fidelity gate
         run: |
           pytest -q --no-cov \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
             tests/infrastructure/traders/test_vt31_silver_bullet_r2_4.py \
             tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_4_backtest.py
       - name: Trader Lab regression gate
