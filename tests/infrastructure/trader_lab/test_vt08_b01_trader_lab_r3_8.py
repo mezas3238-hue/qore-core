@@ -107,5 +107,9 @@ def test_seven_market_aggregate_fails_closed_and_registers_hypotheses(
     stage = payload["trader_lab_stage_summary"]
     assert isinstance(stage, dict)
     assert stage["demo_eligible"] is False
-    assert "instrument_dependency_candidate" in payload["failure_classifications"]
-    assert payload["hypothesis_register"]
+    classifications = payload["failure_classifications"]
+    assert isinstance(classifications, list)
+    assert "instrument_dependency_candidate" in classifications
+    hypotheses = payload["hypothesis_register"]
+    assert isinstance(hypotheses, list)
+    assert hypotheses
