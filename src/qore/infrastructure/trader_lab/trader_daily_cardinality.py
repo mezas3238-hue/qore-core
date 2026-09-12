@@ -1,13 +1,8 @@
-"""Daily execution-cardinality authority for research Traders.
+"""Daily candidate-to-trade cardinality authority for research Traders.
 
-Diagnostic observations can be many-to-one with an economic opportunity.  This
-module owns the stricter market-day boundary: at most one selected setup, pending
-selected order, filled trade and terminal trade for one Trader family, canonical
-market and America/New_York local date.
-
-The one-trade ceiling is Human Owner execution policy.  It is deliberately
-separate from source methodology and grants no Risk, broker, DEMO, LIVE,
-Production or real-capital authority.
+The one-trade-per-market/New-York-date ceiling is Human Owner execution policy,
+not a TTrades source rule. This module never chooses which qualified setup wins
+and grants no broker, Risk, DEMO, LIVE or real-capital authority.
 """
 
 from __future__ import annotations
@@ -15,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, replace
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from hashlib import sha256
 from zoneinfo import ZoneInfo
@@ -23,22 +18,18 @@ from zoneinfo import ZoneInfo
 from qore.kernel.errors import InfrastructureError
 
 _NY = ZoneInfo("America/New_York")
-_SHA40_RE = re.compile(r"[0-9a-f]{40}")
-_SHA256_RE = re.compile(r"[0-9a-f]{64}")
-_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/+-]*")
-_MARKET_RE = re.compile(r"[A-Z0-9][A-Z0-9._-]*")
-_FAMILY_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
+_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/+-]*")
+_MARKET = re.compile(r"[A-Z0-9][A-Z0-9._-]*")
+_FAMILY = re.compile(r"[a-z0-9][a-z0-9._-]*")
+_SHA40 = re.compile(r"[0-9a-f]{40}")
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 class DailyCardinalityError(InfrastructureError):
-    """Base error for market-day cardinality invariants."""
-
     __slots__ = ()
 
 
 class DailyCardinalityValidationError(DailyCardinalityError):
-    """Raised when diagnostic or execution accounting violates the contract."""
-
     __slots__ = ()
 
 
@@ -53,65 +44,51 @@ class MarketDayPhase(StrEnum):
     WINDOWS_EVALUATED = "windows-evaluated"
     DAILY_SELECTION_FROZEN = "daily-selection-frozen"
     ORDER_PENDING = "order-pending"
+    ORDER_UNFILLED = "order-unfilled"
     FILLED = "filled"
     TERMINAL = "terminal"
     DAY_CLOSED = "day-closed"
 
 
-def _canonical_token(value: str, *, field: str) -> str:
-    if type(value) is not str or _ID_RE.fullmatch(value) is None:
-        raise DailyCardinalityValidationError(f"{field} must be a canonical token")
+def _token(value: str, field: str) -> str:
+    if type(value) is not str or _TOKEN.fullmatch(value) is None:
+        raise DailyCardinalityValidationError(f"invalid {field}")
     return value
 
 
-def _canonical_market(value: str) -> str:
-    if type(value) is not str or _MARKET_RE.fullmatch(value) is None:
-        raise DailyCardinalityValidationError("canonical_market must be uppercase canonical")
-    return value
-
-
-def _canonical_family(value: str) -> str:
-    if type(value) is not str or _FAMILY_RE.fullmatch(value) is None:
-        raise DailyCardinalityValidationError("trader_family must be lowercase canonical")
-    return value
-
-
-def _strict_unique_tokens(values: tuple[str, ...], *, field: str) -> tuple[str, ...]:
+def _unique(values: tuple[str, ...], field: str) -> None:
     if type(values) is not tuple:
-        raise DailyCardinalityValidationError(f"{field} must be an immutable tuple")
-    for item in values:
-        _canonical_token(item, field=field)
-    if len(set(values)) != len(values):
-        raise DailyCardinalityValidationError(f"{field} must not contain duplicates")
-    return values
+        raise DailyCardinalityValidationError(f"{field} must be tuple")
+    for value in values:
+        _token(value, field)
+    if len(values) != len(set(values)):
+        raise DailyCardinalityValidationError(f"duplicate {field}")
 
 
 @dataclass(frozen=True, slots=True, order=True)
 class MarketDayId:
-    """Economic authority boundary: Trader family + market + New York date."""
-
     trader_family: str
     canonical_market: str
     local_date: date
 
     def __post_init__(self) -> None:
-        _canonical_family(self.trader_family)
-        _canonical_market(self.canonical_market)
+        if type(self.trader_family) is not str or _FAMILY.fullmatch(self.trader_family) is None:
+            raise DailyCardinalityValidationError("invalid trader_family")
+        if (
+            type(self.canonical_market) is not str
+            or _MARKET.fullmatch(self.canonical_market) is None
+        ):
+            raise DailyCardinalityValidationError("invalid canonical_market")
         if type(self.local_date) is not date:
-            raise DailyCardinalityValidationError("local_date must be exact date")
+            raise DailyCardinalityValidationError("invalid local_date")
 
     def value(self) -> str:
         return f"{self.trader_family}:{self.canonical_market}:{self.local_date.isoformat()}"
 
 
 def market_day_id_from_timestamp(
-    *,
-    trader_family: str,
-    canonical_market: str,
-    observed_at: datetime,
+    *, trader_family: str, canonical_market: str, observed_at: datetime
 ) -> MarketDayId:
-    """Map an aware timestamp to its DST-aware America/New_York market day."""
-
     if (
         type(observed_at) is not datetime
         or observed_at.tzinfo is None
@@ -119,9 +96,9 @@ def market_day_id_from_timestamp(
     ):
         raise DailyCardinalityValidationError("observed_at must be timezone-aware")
     return MarketDayId(
-        trader_family=trader_family,
-        canonical_market=canonical_market,
-        local_date=observed_at.astimezone(_NY).date(),
+        trader_family,
+        canonical_market,
+        observed_at.astimezone(_NY).date(),
     )
 
 
@@ -134,34 +111,30 @@ def stable_candidate_id(
     signal_at: datetime,
     evidence_fingerprint: str,
 ) -> str:
-    """Derive replay-stable diagnostic identity without implying trade authority."""
-
     if type(anchor_hour_new_york) is not int or not 0 <= anchor_hour_new_york <= 23:
-        raise DailyCardinalityValidationError("anchor hour must be 0..23")
-    _canonical_token(scenario, field="scenario")
-    _canonical_token(side, field="side")
-    if type(signal_at) is not datetime or signal_at.tzinfo is None or signal_at.utcoffset() is None:
+        raise DailyCardinalityValidationError("invalid anchor hour")
+    _token(scenario, "scenario")
+    _token(side, "side")
+    if signal_at.tzinfo is None or signal_at.utcoffset() is None:
         raise DailyCardinalityValidationError("signal_at must be timezone-aware")
-    if type(evidence_fingerprint) is not str or _SHA256_RE.fullmatch(evidence_fingerprint) is None:
-        raise DailyCardinalityValidationError("evidence_fingerprint must be SHA-256")
+    if type(evidence_fingerprint) is not str or _SHA256.fullmatch(evidence_fingerprint) is None:
+        raise DailyCardinalityValidationError("invalid evidence fingerprint")
     material = {
-        "market_day_id": market_day_id.value(),
-        "anchor_hour_new_york": anchor_hour_new_york,
+        "day": market_day_id.value(),
+        "anchor": anchor_hour_new_york,
         "scenario": scenario,
         "side": side,
-        "signal_at": signal_at.isoformat(timespec="microseconds"),
-        "evidence_fingerprint": evidence_fingerprint,
+        "signal_at": signal_at.astimezone(UTC).isoformat(timespec="microseconds"),
+        "evidence": evidence_fingerprint,
     }
     digest = sha256(
-        json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(material, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
     return f"candidate:{digest}"
 
 
 @dataclass(frozen=True, slots=True)
 class MarketDayLedger:
-    """Immutable diagnostic-to-economic reconciliation for one market-day."""
-
     market_day_id: MarketDayId
     eligible_day: bool
     data_complete: bool
@@ -174,6 +147,7 @@ class MarketDayLedger:
     qualified_setup_ids: tuple[str, ...] = ()
     selected_setup_id: str | None = None
     pending_order_id: str | None = None
+    unfilled_order_id: str | None = None
     fill_id: str | None = None
     terminal_trade_id: str | None = None
     abstain_reason: str | None = None
@@ -182,66 +156,65 @@ class MarketDayLedger:
 
     def __post_init__(self) -> None:
         if type(self.market_day_id) is not MarketDayId:
-            raise DailyCardinalityValidationError("market_day_id must be exact MarketDayId")
+            raise DailyCardinalityValidationError("invalid market_day_id")
         if type(self.eligible_day) is not bool or type(self.data_complete) is not bool:
-            raise DailyCardinalityValidationError("eligibility and data_complete must be bool")
-        if type(self.authorized_windows) is not tuple or not self.authorized_windows:
-            raise DailyCardinalityValidationError("authorized_windows must be non-empty tuple")
-        if any(type(hour) is not int or not 0 <= hour <= 23 for hour in self.authorized_windows):
-            raise DailyCardinalityValidationError("authorized window hours must be 0..23")
-        if len(set(self.authorized_windows)) != len(self.authorized_windows):
-            raise DailyCardinalityValidationError("authorized windows must be unique")
-        if tuple(sorted(self.authorized_windows)) != self.authorized_windows:
-            raise DailyCardinalityValidationError("authorized windows must be sorted")
-        _canonical_token(self.source_rule_version, field="source_rule_version")
-        if type(self.software_sha) is not str or _SHA40_RE.fullmatch(self.software_sha) is None:
-            raise DailyCardinalityValidationError("software_sha must be exact 40-hex Git SHA")
+            raise DailyCardinalityValidationError("invalid eligibility flags")
+        if (
+            type(self.authorized_windows) is not tuple
+            or not self.authorized_windows
+            or tuple(sorted(set(self.authorized_windows))) != self.authorized_windows
+            or any(type(hour) is not int or not 0 <= hour <= 23 for hour in self.authorized_windows)
+        ):
+            raise DailyCardinalityValidationError("invalid authorized windows")
+        if (
+            type(self.observed_windows) is not tuple
+            or tuple(sorted(set(self.observed_windows))) != self.observed_windows
+            or any(hour not in self.authorized_windows for hour in self.observed_windows)
+        ):
+            raise DailyCardinalityValidationError("invalid observed windows")
+        _token(self.source_rule_version, "source_rule_version")
+        if type(self.software_sha) is not str or _SHA40.fullmatch(self.software_sha) is None:
+            raise DailyCardinalityValidationError("invalid software_sha")
         if (
             type(self.evidence_fingerprint) is not str
-            or _SHA256_RE.fullmatch(self.evidence_fingerprint) is None
+            or _SHA256.fullmatch(self.evidence_fingerprint) is None
         ):
-            raise DailyCardinalityValidationError("evidence_fingerprint must be SHA-256")
-        if type(self.observed_windows) is not tuple:
-            raise DailyCardinalityValidationError("observed_windows must be tuple")
-        if len(set(self.observed_windows)) != len(self.observed_windows):
-            raise DailyCardinalityValidationError("observed windows must be unique")
-        if any(hour not in self.authorized_windows for hour in self.observed_windows):
-            raise DailyCardinalityValidationError("observed window is outside authorized set")
-        if tuple(sorted(self.observed_windows)) != self.observed_windows:
-            raise DailyCardinalityValidationError("observed windows must be sorted")
-        _strict_unique_tokens(self.candidate_ids, field="candidate_ids")
-        _strict_unique_tokens(self.qualified_setup_ids, field="qualified_setup_ids")
-        for field_name, value in (
+            raise DailyCardinalityValidationError("invalid evidence_fingerprint")
+        _unique(self.candidate_ids, "candidate_ids")
+        _unique(self.qualified_setup_ids, "qualified_setup_ids")
+        for name, value in (
             ("selected_setup_id", self.selected_setup_id),
             ("pending_order_id", self.pending_order_id),
+            ("unfilled_order_id", self.unfilled_order_id),
             ("fill_id", self.fill_id),
             ("terminal_trade_id", self.terminal_trade_id),
             ("abstain_reason", self.abstain_reason),
             ("containment_reason", self.containment_reason),
         ):
             if value is not None:
-                _canonical_token(value, field=field_name)
-        if (
-            self.selected_setup_id is not None
-            and self.selected_setup_id not in self.qualified_setup_ids
-        ):
-            raise DailyCardinalityValidationError(
-                "selected setup must be qualified on this market-day"
-            )
+                _token(value, name)
+        if self.selected_setup_id is not None:
+            if self.selected_setup_id not in self.qualified_setup_ids:
+                raise DailyCardinalityValidationError("selected setup is not qualified")
+            if not self.eligible_day or not self.data_complete:
+                raise DailyCardinalityValidationError("day cannot select a setup")
         if self.pending_order_id is not None and self.selected_setup_id is None:
-            raise DailyCardinalityValidationError("pending order requires one selected setup")
+            raise DailyCardinalityValidationError("pending order lacks selection")
+        if self.unfilled_order_id is not None and self.pending_order_id is None:
+            raise DailyCardinalityValidationError("unfilled order lacks pending order")
         if self.fill_id is not None and self.pending_order_id is None:
-            raise DailyCardinalityValidationError("fill requires the selected pending order")
+            raise DailyCardinalityValidationError("fill lacks pending order")
+        if self.unfilled_order_id is not None and self.fill_id is not None:
+            raise DailyCardinalityValidationError("order cannot be filled and unfilled")
         if self.terminal_trade_id is not None and self.fill_id is None:
-            raise DailyCardinalityValidationError("terminal trade requires a fill")
-        if self.selected_setup_id is not None and (not self.eligible_day or not self.data_complete):
-            raise DailyCardinalityValidationError(
-                "ineligible or incomplete day cannot select a setup"
-            )
-        if self.day_closed and self.pending_order_id is not None and self.fill_id is None:
-            raise DailyCardinalityValidationError(
-                "day cannot close with unresolved selected pending order"
-            )
+            raise DailyCardinalityValidationError("terminal trade lacks fill")
+        if (
+            self.day_closed
+            and self.pending_order_id is not None
+            and self.fill_id is None
+            and self.unfilled_order_id is None
+        ):
+            raise DailyCardinalityValidationError("closed day retains unresolved order")
 
     @property
     def candidate_count(self) -> int:
@@ -260,6 +233,10 @@ class MarketDayLedger:
         return int(self.pending_order_id is not None)
 
     @property
+    def unfilled_order_count(self) -> int:
+        return int(self.unfilled_order_id is not None)
+
+    @property
     def filled_trade_count(self) -> int:
         return int(self.fill_id is not None)
 
@@ -269,11 +246,9 @@ class MarketDayLedger:
 
     @property
     def daily_trade_budget(self) -> DailyTradeBudget:
-        return (
-            DailyTradeBudget.CONSUMED
-            if self.selected_setup_id is not None
-            else DailyTradeBudget.AVAILABLE
-        )
+        if self.selected_setup_id is None:
+            return DailyTradeBudget.AVAILABLE
+        return DailyTradeBudget.CONSUMED
 
     @property
     def phase(self) -> MarketDayPhase:
@@ -283,6 +258,8 @@ class MarketDayLedger:
             return MarketDayPhase.TERMINAL
         if self.fill_id is not None:
             return MarketDayPhase.FILLED
+        if self.unfilled_order_id is not None:
+            return MarketDayPhase.ORDER_UNFILLED
         if self.pending_order_id is not None:
             return MarketDayPhase.ORDER_PENDING
         if self.selected_setup_id is not None:
@@ -293,87 +270,87 @@ class MarketDayLedger:
             return MarketDayPhase.DATA_VALIDATED
         return MarketDayPhase.DAY_OPEN
 
-    def observe_window(self, hour_new_york: int) -> "MarketDayLedger":
-        if self.day_closed:
-            raise DailyCardinalityValidationError("closed day cannot observe another window")
-        if hour_new_york not in self.authorized_windows:
-            raise DailyCardinalityValidationError("window is not authorized for this Trader family")
-        if hour_new_york in self.observed_windows:
-            raise DailyCardinalityValidationError("window evidence already observed")
-        return replace(
-            self,
-            observed_windows=tuple(sorted((*self.observed_windows, hour_new_york))),
-        )
+    def observe_window(self, hour: int) -> MarketDayLedger:
+        if self.day_closed or hour not in self.authorized_windows or hour in self.observed_windows:
+            raise DailyCardinalityValidationError("window cannot be observed")
+        return replace(self, observed_windows=tuple(sorted((*self.observed_windows, hour))))
 
-    def add_candidate(self, candidate_id: str) -> "MarketDayLedger":
-        if self.day_closed:
-            raise DailyCardinalityValidationError("closed day cannot accept candidates")
-        _canonical_token(candidate_id, field="candidate_id")
-        if candidate_id in self.candidate_ids:
-            raise DailyCardinalityValidationError("duplicate candidate identity")
+    def add_candidate(self, candidate_id: str) -> MarketDayLedger:
+        _token(candidate_id, "candidate_id")
+        if self.day_closed or candidate_id in self.candidate_ids:
+            raise DailyCardinalityValidationError("candidate cannot be added")
         return replace(self, candidate_ids=(*self.candidate_ids, candidate_id))
 
-    def add_qualified_setup(self, setup_id: str) -> "MarketDayLedger":
-        if self.day_closed:
-            raise DailyCardinalityValidationError("closed day cannot accept setups")
-        if not self.eligible_day or not self.data_complete:
-            raise DailyCardinalityValidationError(
-                "ineligible or incomplete day cannot qualify setup"
-            )
-        _canonical_token(setup_id, field="setup_id")
-        if setup_id in self.qualified_setup_ids:
-            raise DailyCardinalityValidationError("duplicate qualified setup identity")
+    def add_qualified_setup(self, setup_id: str) -> MarketDayLedger:
+        _token(setup_id, "setup_id")
+        if (
+            self.day_closed
+            or not self.eligible_day
+            or not self.data_complete
+            or setup_id in self.qualified_setup_ids
+        ):
+            raise DailyCardinalityValidationError("setup cannot be qualified")
         return replace(self, qualified_setup_ids=(*self.qualified_setup_ids, setup_id))
 
-    def select_setup(self, setup_id: str) -> "MarketDayLedger":
-        if self.day_closed:
-            raise DailyCardinalityValidationError("closed day cannot select setup")
-        if setup_id not in self.qualified_setup_ids:
-            raise DailyCardinalityValidationError("selected setup must already be qualified")
-        if self.selected_setup_id is not None:
-            raise DailyCardinalityValidationError("daily selected-setup budget is already consumed")
+    def select_setup(self, setup_id: str) -> MarketDayLedger:
+        if (
+            self.day_closed
+            or setup_id not in self.qualified_setup_ids
+            or self.selected_setup_id is not None
+        ):
+            raise DailyCardinalityValidationError("daily setup budget is unavailable")
         return replace(self, selected_setup_id=setup_id)
 
-    def record_pending_order(self, pending_order_id: str) -> "MarketDayLedger":
-        _canonical_token(pending_order_id, field="pending_order_id")
-        if self.selected_setup_id is None:
-            raise DailyCardinalityValidationError("pending order requires selected setup")
-        if self.pending_order_id is not None:
-            raise DailyCardinalityValidationError("daily pending-order budget is already consumed")
-        return replace(self, pending_order_id=pending_order_id)
+    def record_pending_order(self, order_id: str) -> MarketDayLedger:
+        _token(order_id, "order_id")
+        if self.selected_setup_id is None or self.pending_order_id is not None:
+            raise DailyCardinalityValidationError("daily pending-order budget is unavailable")
+        return replace(self, pending_order_id=order_id)
 
-    def record_fill(self, fill_id: str) -> "MarketDayLedger":
-        _canonical_token(fill_id, field="fill_id")
-        if self.pending_order_id is None:
-            raise DailyCardinalityValidationError("fill requires pending selected order")
-        if self.fill_id is not None:
-            raise DailyCardinalityValidationError("daily fill budget is already consumed")
+    def record_unfilled_order(self, unfilled_id: str) -> MarketDayLedger:
+        _token(unfilled_id, "unfilled_id")
+        if (
+            self.pending_order_id is None
+            or self.fill_id is not None
+            or self.unfilled_order_id is not None
+        ):
+            raise DailyCardinalityValidationError("pending order cannot resolve unfilled")
+        return replace(self, unfilled_order_id=unfilled_id)
+
+    def record_fill(self, fill_id: str) -> MarketDayLedger:
+        _token(fill_id, "fill_id")
+        if (
+            self.pending_order_id is None
+            or self.unfilled_order_id is not None
+            or self.fill_id is not None
+        ):
+            raise DailyCardinalityValidationError("daily fill budget is unavailable")
         return replace(self, fill_id=fill_id)
 
-    def record_terminal_trade(self, terminal_trade_id: str) -> "MarketDayLedger":
-        _canonical_token(terminal_trade_id, field="terminal_trade_id")
-        if self.fill_id is None:
-            raise DailyCardinalityValidationError("terminal trade requires fill")
-        if self.terminal_trade_id is not None:
-            raise DailyCardinalityValidationError("daily terminal-trade budget is already consumed")
-        return replace(self, terminal_trade_id=terminal_trade_id)
+    def record_terminal_trade(self, trade_id: str) -> MarketDayLedger:
+        _token(trade_id, "trade_id")
+        if self.fill_id is None or self.terminal_trade_id is not None:
+            raise DailyCardinalityValidationError("daily terminal-trade budget is unavailable")
+        return replace(self, terminal_trade_id=trade_id)
 
     def close_day(
         self,
         *,
         abstain_reason: str | None = None,
         containment_reason: str | None = None,
-    ) -> "MarketDayLedger":
+    ) -> MarketDayLedger:
         if self.day_closed:
-            raise DailyCardinalityValidationError("market-day is already closed")
+            raise DailyCardinalityValidationError("day is already closed")
         if abstain_reason is not None:
-            _canonical_token(abstain_reason, field="abstain_reason")
+            _token(abstain_reason, "abstain_reason")
         if containment_reason is not None:
-            _canonical_token(containment_reason, field="containment_reason")
-        if self.pending_order_id is not None and self.fill_id is None:
-            raise DailyCardinalityValidationError(
-                "unresolved pending order requires containment before close"
-            )
+            _token(containment_reason, "containment_reason")
+        if (
+            self.pending_order_id is not None
+            and self.fill_id is None
+            and self.unfilled_order_id is None
+        ):
+            raise DailyCardinalityValidationError("unresolved order prevents close")
         return replace(
             self,
             abstain_reason=abstain_reason,
@@ -391,8 +368,6 @@ class MarketDayLedger:
             "data_complete": self.data_complete,
             "authorized_windows": list(self.authorized_windows),
             "observed_windows": list(self.observed_windows),
-            "authorized_window_count": len(self.authorized_windows),
-            "evaluated_window_count": len(self.observed_windows),
             "candidate_count": self.candidate_count,
             "candidate_ids": list(self.candidate_ids),
             "qualified_setup_count": self.qualified_setup_count,
@@ -402,11 +377,9 @@ class MarketDayLedger:
             "daily_trade_budget_before": DailyTradeBudget.AVAILABLE.value,
             "daily_trade_budget_after": self.daily_trade_budget.value,
             "pending_order_count": self.pending_order_count,
-            "pending_order_id": self.pending_order_id,
+            "unfilled_order_count": self.unfilled_order_count,
             "fill_count": self.filled_trade_count,
-            "fill_id": self.fill_id,
             "terminal_trade_count": self.terminal_trade_count,
-            "terminal_trade_id": self.terminal_trade_id,
             "abstain_reason": self.abstain_reason,
             "containment_reason": self.containment_reason,
             "source_rule_version": self.source_rule_version,
@@ -424,31 +397,15 @@ class DailyCardinalitySummary:
     qualified_setup_count: int
     selected_setup_count: int
     pending_order_count: int
+    unfilled_order_count: int
     filled_trade_count: int
     terminal_trade_count: int
-    daily_cardinality_violations: int
-
-    def payload(self) -> dict[str, int]:
-        return {
-            "eligible_market_days": self.eligible_market_days,
-            "candidate_count": self.candidate_count,
-            "qualified_setup_count": self.qualified_setup_count,
-            "selected_setup_count": self.selected_setup_count,
-            "pending_order_count": self.pending_order_count,
-            "filled_trade_count": self.filled_trade_count,
-            "terminal_trade_count": self.terminal_trade_count,
-            "daily_cardinality_violations": self.daily_cardinality_violations,
-        }
+    daily_cardinality_violations: int = 0
 
 
 def summarize_market_days(ledgers: tuple[MarketDayLedger, ...]) -> DailyCardinalitySummary:
-    """Aggregate ledgers and fail closed if market-day identity is duplicated."""
-
-    if type(ledgers) is not tuple:
-        raise DailyCardinalityValidationError("ledgers must be immutable tuple")
-    ids = tuple(item.market_day_id for item in ledgers)
-    if len(set(ids)) != len(ids):
-        raise DailyCardinalityValidationError("duplicate MarketDayId in aggregate")
+    if type(ledgers) is not tuple or len({item.market_day_id for item in ledgers}) != len(ledgers):
+        raise DailyCardinalityValidationError("aggregate MarketDayId set is invalid")
     eligible = sum(item.eligible_day for item in ledgers)
     summary = DailyCardinalitySummary(
         eligible_market_days=eligible,
@@ -456,16 +413,15 @@ def summarize_market_days(ledgers: tuple[MarketDayLedger, ...]) -> DailyCardinal
         qualified_setup_count=sum(item.qualified_setup_count for item in ledgers),
         selected_setup_count=sum(item.selected_setup_count for item in ledgers),
         pending_order_count=sum(item.pending_order_count for item in ledgers),
+        unfilled_order_count=sum(item.unfilled_order_count for item in ledgers),
         filled_trade_count=sum(item.filled_trade_count for item in ledgers),
         terminal_trade_count=sum(item.terminal_trade_count for item in ledgers),
-        daily_cardinality_violations=0,
     )
-    if summary.selected_setup_count > eligible:
-        raise DailyCardinalityValidationError("selected setups exceed eligible market-days")
-    if summary.pending_order_count > eligible:
-        raise DailyCardinalityValidationError("pending orders exceed eligible market-days")
-    if summary.filled_trade_count > eligible:
-        raise DailyCardinalityValidationError("fills exceed eligible market-days")
-    if summary.terminal_trade_count > eligible:
-        raise DailyCardinalityValidationError("terminal trades exceed eligible market-days")
+    if max(
+        summary.selected_setup_count,
+        summary.pending_order_count,
+        summary.filled_trade_count,
+        summary.terminal_trade_count,
+    ) > eligible:
+        raise DailyCardinalityValidationError("economic count exceeds eligible market-days")
     return summary
