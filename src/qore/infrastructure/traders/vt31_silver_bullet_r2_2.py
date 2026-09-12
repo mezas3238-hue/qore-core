@@ -340,7 +340,10 @@ def build_reference_range(
         return None
     if _wall(selected[-1].closed_at) != (10, 0, 0):
         return None
-    if any(cur.opened_at != prev.closed_at for prev, cur in zip(selected, selected[1:])):
+    if any(
+        cur.opened_at != prev.closed_at
+        for prev, cur in zip(selected, selected[1:], strict=False)
+    ):
         return None
     return Vt31R22ReferenceRange(
         high=max(_d(item.high) for item in selected),
@@ -350,7 +353,10 @@ def build_reference_range(
     )
 
 
-def _session_bars(as_of: datetime, bars: tuple[OhlcSnapshot, ...]) -> tuple[OhlcSnapshot, ...]:
+def _session_bars(
+    as_of: datetime,
+    bars: tuple[OhlcSnapshot, ...],
+) -> tuple[OhlcSnapshot, ...]:
     return tuple(
         bar
         for bar in bars
@@ -482,7 +488,6 @@ def _entry_evidence(
                 timestamps=("05:31-06:01", "07:18-07:43", "22:31-23:10"),
             )
         )
-
     opposite_bars: list[OhlcSnapshot] = []
     for bar in bars[raid.index : confirmation_index + 1]:
         opened = _d(bar.open)
@@ -491,7 +496,6 @@ def _entry_evidence(
             raid.side is DemoTradingSetupSide.LONG and closed < opened
         ):
             opposite_bars.append(bar)
-    # R2.2 does not authorize "last opposing candle" as a universal rule.
     if len(opposite_bars) == 1:
         source_bar = opposite_bars[0]
         lower, upper = _body_zone(source_bar)
@@ -506,7 +510,6 @@ def _entry_evidence(
                 timestamps=("10:32-10:49", "16:07-17:14"),
             )
         )
-
     for third_index in range(max(2, confirmation_index), len(bars)):
         first = bars[third_index - 2]
         third = bars[third_index]
@@ -550,7 +553,9 @@ def evaluate_vt31_r2_2_source(
     _sha256(evidence_fingerprint, "evidence_fingerprint")
     if instrument.symbol != AUTHORIZED_MARKET:
         return Vt31R22SourceEvaluation(
-            None, Vt31R22AbstainReason.UNSUPPORTED_MARKET, False
+            None,
+            Vt31R22AbstainReason.UNSUPPORTED_MARKET,
+            False,
         )
     wall = _wall(as_of)
     if not (10, 0, 0) <= wall <= (11, 0, 0):
@@ -562,7 +567,9 @@ def evaluate_vt31_r2_2_source(
     )
     if reference is None:
         return Vt31R22SourceEvaluation(
-            None, Vt31R22AbstainReason.REFERENCE_INCOMPLETE, False
+            None,
+            Vt31R22AbstainReason.REFERENCE_INCOMPLETE,
+            False,
         )
     session = _session_bars(as_of, m1_candles)
     if not session:
@@ -587,7 +594,9 @@ def evaluate_vt31_r2_2_source(
     candidates = _entry_evidence(session, raid, confirmation_index, extreme_index)
     if not candidates:
         return Vt31R22SourceEvaluation(
-            None, Vt31R22AbstainReason.NO_ENTRY_EVIDENCE, False
+            None,
+            Vt31R22AbstainReason.NO_ENTRY_EVIDENCE,
+            False,
         )
     extreme_bar = session[extreme_index]
     structure_evidence = Vt31R22StructureEvidence(
