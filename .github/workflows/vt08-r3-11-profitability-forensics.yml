@@ -7,9 +7,12 @@ on:
     paths:
       - .github/workflows/vt08-r3-11-profitability-forensics.yml
       - src/qore/infrastructure/trader_lab/vt08_b01_risk_economic_replay_r3_11.py
+      - src/qore/infrastructure/trader_lab/vt08_prop_firm_monte_carlo_r3_11.py
       - tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py
+      - tests/infrastructure/trader_lab/test_vt08_prop_firm_monte_carlo_r3_11.py
       - tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
       - docs/research/trader-lab/VT08-R3-11-RISK-ECONOMIC-REPLAY.md
+      - docs/research/trader-lab/VT08-R3-11-PROP-FIRM-RISK-MATRIX.md
   workflow_dispatch:
 
 permissions:
@@ -39,6 +42,7 @@ jobs:
         run: |
           pytest -q \
             tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py \
+            tests/infrastructure/trader_lab/test_vt08_prop_firm_monte_carlo_r3_11.py \
             tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py \
             tests/infrastructure/traders/test_vt08_b01_r3_8.py
       - name: Full QORE quality gate
@@ -79,6 +83,12 @@ jobs:
             --baseline-root consumed/baseline \
             --fresh-root consumed/fresh \
             --output out/risk-economic-replay.json
+      - name: Execute prop-firm Monte Carlo
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_prop_firm_monte_carlo_r3_11 \
+            --baseline-root consumed/baseline \
+            --fresh-root consumed/fresh \
+            --output out/prop-firm-monte-carlo.json
       - name: Enforce consumed-evidence and cardinality invariants
         run: |
           python - <<'PY'
@@ -91,10 +101,19 @@ jobs:
           assert report["demo_eligible"] is False
           assert report["primary_zero_cost"]["candidate-a"]["signal_count"] == 117
           assert report["primary_zero_cost"]["candidate-b"]["signal_count"] == 229
+
+          monte = json.loads(Path("out/prop-firm-monte-carlo.json").read_text())
+          assert monte["protected_holdout_2020_2022_accessed"] is False
+          assert monte["demo_eligible"] is False
+          assert monte["reference_sleeves"]["a"]["observed"]["trade_count"] == 117
+          assert monte["reference_sleeves"]["gbpjpy"]["observed"]["trade_count"] == 112
+          assert monte["reference_sleeves"]["b"]["observed"]["trade_count"] == 229
           PY
       - name: Upload immutable R3.11 economic evidence
         uses: actions/upload-artifact@v4
         with:
           name: qore-vt08-r3-11-risk-economic-replay-${{ github.sha }}
-          path: out/risk-economic-replay.json
+          path: |
+            out/risk-economic-replay.json
+            out/prop-firm-monte-carlo.json
           if-no-files-found: error
