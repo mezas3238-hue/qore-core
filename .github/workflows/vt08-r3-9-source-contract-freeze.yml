@@ -7,7 +7,9 @@ on:
     paths:
       - .github/workflows/vt08-r3-9-source-contract-freeze.yml
       - src/qore/infrastructure/traders/vt08_b01_source_contract_r3_9.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_causal_h01_h04_r3_9.py
       - tests/infrastructure/traders/test_vt08_b01_source_contract_r3_9.py
+      - tests/infrastructure/trader_lab/test_vt08_b01_causal_h01_h04_r3_9.py
       - docs/research/trader-lab/VT08-R3-9-FINAL-SOURCE-CONTRACT.md
   pull_request:
     branches:
@@ -15,7 +17,9 @@ on:
     paths:
       - .github/workflows/vt08-r3-9-source-contract-freeze.yml
       - src/qore/infrastructure/traders/vt08_b01_source_contract_r3_9.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_causal_h01_h04_r3_9.py
       - tests/infrastructure/traders/test_vt08_b01_source_contract_r3_9.py
+      - tests/infrastructure/trader_lab/test_vt08_b01_causal_h01_h04_r3_9.py
       - docs/research/trader-lab/VT08-R3-9-FINAL-SOURCE-CONTRACT.md
   workflow_dispatch:
 
@@ -46,7 +50,10 @@ jobs:
       - name: Mypy full gate
         run: mypy src tests
       - name: VT-08 R3.9 source-contract focused gate
-        run: pytest -q tests/infrastructure/traders/test_vt08_b01_source_contract_r3_9.py
+        run: |
+          pytest -q \
+            tests/infrastructure/traders/test_vt08_b01_source_contract_r3_9.py \
+            tests/infrastructure/trader_lab/test_vt08_b01_causal_h01_h04_r3_9.py
       - name: Existing VT-08 R3.8 regression gate
         run: |
           pytest -q \
