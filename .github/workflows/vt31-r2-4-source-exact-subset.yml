@@ -1,20 +1,26 @@
 name: QORE VT-31 R2.4 Source-Exact Subset
-# Fresh research trigger after the exact R2.4 quality gate was certified green.
+# R2.4 research gate. On the zero-trade-forensics child branch, replay output is
+# explicitly consumed data-repair evidence and not independent validation.
 
 on:
   push:
     branches:
       - agent/vt31-r2-2-source-rebuild-001
+      - agent/vt31-r2-4-zero-trade-forensics-001
     paths:
       - .github/workflows/vt31-r2-4-source-exact-subset.yml
+      - docs/research/trader-lab/VT31-R2-4-DEEPSEEK-BLINDED-CE-MIDNIGHT-ADJUDICATION.md
+      - src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py
       - src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
       - src/qore/infrastructure/traders/vt31_silver_bullet_r2_4.py
       - src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_4_backtest.py
+      - tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
       - tests/infrastructure/traders/test_vt31_silver_bullet_r2_4.py
       - tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_4_backtest.py
   pull_request:
     branches:
       - agent/trader-methodology-rebuild-v2-001
+      - agent/vt31-r2-2-source-rebuild-001
   workflow_dispatch:
 
 concurrency:
@@ -54,6 +60,7 @@ jobs:
       - name: VT-31 R2.4 focused source-fidelity gate
         run: |
           pytest -q --no-cov \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
             tests/infrastructure/traders/test_vt31_silver_bullet_r2_4.py \
             tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_4_backtest.py
       - name: Trader Lab regression gate
@@ -98,12 +105,30 @@ jobs:
             echo "::add-mask::$account_id"
             printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
           fi
-      - name: Collect fresh 760-day NAS100 M1 evidence
+      - name: Collect repaired 760-day NAS100 M1 evidence
         run: |
           mkdir -p artifacts/vt31-r2-4/NAS100
           python -m qore.infrastructure.ctrader_demo_lab_vt31_v2_probe \
             > artifacts/vt31-r2-4/NAS100/market-evidence.json
-      - name: Run R2.4 source-demonstrated subset replay
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          evidence = json.loads(
+              Path('artifacts/vt31-r2-4/NAS100/market-evidence.json').read_text()
+          )
+          assert evidence['environment'] == 'demo'
+          assert evidence['read_only'] is True
+          assert evidence['account_is_live'] is False
+          assert evidence['decision_timeframe'] == 'M1'
+          assert evidence['source_authorized_market'] == 'NAS100'
+          assert evidence['historical_chunk_days'] == 3
+          assert evidence['required_coverage_days'] == 730
+          print('bar_count=', evidence['coverage']['bar_count'])
+          print('observed_gap_count=', evidence['coverage']['observed_gap_count'])
+          print('maximum_observed_gap_seconds=', evidence['coverage']['maximum_observed_gap_seconds'])
+          PY
+      - name: Run unchanged R2.4 source-demonstrated subset replay
         run: |
           python -m qore.infrastructure.trader_lab.vt31_silver_bullet_r2_4_backtest \
             artifacts/vt31-r2-4/NAS100/market-evidence.json \
@@ -124,11 +149,43 @@ jobs:
           assert payload['broker_source_complete'] is False
           assert payload['daily_cardinality_violations'] == 0
           assert payload['filled_count'] <= payload['eligible_market_days']
+          print('eligible_market_days=', payload['eligible_market_days'])
+          print('selected_setup_count=', payload['selected_setup_count'])
+          print('filled_count=', payload['filled_count'])
+          print('abstain_counts=', payload['abstain_counts'])
           PY
-      - name: Upload sanitized R2.4 evidence
+      - name: Freeze consumed data-repair governance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          governance = {
+              'schema': 'qore.trader_lab.vt31_r2_4_data_repair_governance.v1',
+              'classification': 'CONSUMED_DATA_REPAIR_DIAGNOSTIC',
+              'software_sha': os.environ['GITHUB_SHA'],
+              'parent_consumed_run_id': 34698291771,
+              'parent_consumed_artifact_id': 10300155064,
+              'methodology_changed': False,
+              'source_semantics_changed': False,
+              'ce_midnight_source_adjudication': 'PENDING_DEEPSEEK_EXPLORER',
+              'current_evidence_consumed': True,
+              'independent_validation_reuse_prohibited': True,
+              'fresh_holdout_required_after_any_methodology_change': True,
+              'demo_eligible': False,
+              'live_authority': False,
+              'real_capital_authority': False,
+          }
+          Path('artifacts/vt31-r2-4/NAS100/data-repair-governance.json').write_text(
+              json.dumps(governance, sort_keys=True, separators=(',', ':')) + '\n',
+              encoding='utf-8',
+          )
+          PY
+      - name: Upload sanitized R2.4 data-repair diagnostic
         uses: actions/upload-artifact@v4
         with:
-          name: qore-vt31-r2-4-source-exact-${{ github.sha }}
+          name: qore-vt31-r2-4-data-repair-diagnostic-${{ github.sha }}
           path: artifacts/vt31-r2-4/NAS100
           if-no-files-found: error
           retention-days: 30

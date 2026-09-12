@@ -20,7 +20,6 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 
 from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
-    _CHUNK_DAYS,
     _HISTORICAL_PAGE_COUNT,
     _collect_period_window,
     _native_int,
@@ -47,6 +46,10 @@ _MIN_LOOKBACK_DAYS = 730
 _MAX_LOOKBACK_DAYS = 1095
 _REQUIRED_COVERAGE_DAYS = 730
 _RECENT_BOUNDARY_TOLERANCE_DAYS = 10
+# M1 must use a smaller acquisition window than the shared M5 collector. Three
+# calendar days contain at most 4,320 one-minute bars, which stays below the
+# provider's 5,000-bar response ceiling even if every minute traded.
+_M1_CHUNK_DAYS = 3
 
 # Explicit provider aliases for the same canonical NASDAQ-100 market. A suffix
 # is accepted only when separated from one of these exact roots (for example
@@ -251,6 +254,21 @@ def _coverage_payload(
     }
 
 
+def _m1_collection_windows(
+    opened_at: datetime,
+    checked_at: datetime,
+) -> tuple[tuple[datetime, datetime], ...]:
+    """Return contiguous M1 request windows that cannot hit the 5,000-bar ceiling."""
+
+    windows: list[tuple[datetime, datetime]] = []
+    cursor = opened_at
+    while cursor < checked_at:
+        window_end = min(cursor + timedelta(days=_M1_CHUNK_DAYS), checked_at)
+        windows.append((cursor, window_end))
+        cursor = window_end
+    return tuple(windows)
+
+
 def collect_vt31_v2_m1_evidence(
     client: CTraderOpenApiMessageClientBoundary,
     *,
@@ -278,10 +296,9 @@ def collect_vt31_v2_m1_evidence(
         )
     )
     retained: dict[datetime, CTraderDemoLabClosedTrendbar] = {}
-    cursor = opened
-    window_index = 0
-    while cursor < checked:
-        window_end = min(cursor + timedelta(days=_CHUNK_DAYS), checked)
+    for window_index, (cursor, window_end) in enumerate(
+        _m1_collection_windows(opened, checked)
+    ):
         bars = _collect_period_window(
             client,
             account_id=account_id,
@@ -301,8 +318,6 @@ def collect_vt31_v2_m1_evidence(
                     "VT-31 V2 M1 windows contradict on the same trendbar"
                 )
             retained[bar.opened_at] = bar
-        cursor = window_end
-        window_index += 1
 
     ordered = tuple(retained[key] for key in sorted(retained))
     _validate_m1_coverage(
@@ -322,7 +337,7 @@ def collect_vt31_v2_m1_evidence(
         "checked_at": checked.isoformat(timespec="microseconds"),
         "requested_opened_at": opened.isoformat(timespec="microseconds"),
         "required_coverage_days": _REQUIRED_COVERAGE_DAYS,
-        "historical_chunk_days": _CHUNK_DAYS,
+        "historical_chunk_days": _M1_CHUNK_DAYS,
         "historical_page_count": _HISTORICAL_PAGE_COUNT,
         "decision_timeframe": "M1",
         "source_authorized_market": _SYMBOL,

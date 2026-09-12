@@ -4,13 +4,18 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
+    _HISTORICAL_PAGE_COUNT,
+)
 from qore.infrastructure.ctrader_demo_lab_probe import (
     CTraderDemoLabClosedTrendbar,
     CTraderDemoLabProbeError,
 )
 from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
+    _M1_CHUNK_DAYS,
     _REQUIRED_COVERAGE_DAYS,
     _coverage_payload,
+    _m1_collection_windows,
     _provider_root,
     _select_nas100_provider_symbol_name,
     _validate_m1_coverage,
@@ -112,6 +117,25 @@ def test_coverage_payload_records_provider_gaps_without_inventing_candles() -> N
     assert payload["observed_gap_count"] == 1
     assert payload["observed_gap_seconds"] == 60
     assert "not invented" in str(payload["gap_policy"])
+
+
+def test_m1_collection_windows_are_gapless_and_below_provider_ceiling() -> None:
+    opened = _CHECKED_AT - timedelta(days=10, minutes=1)
+    windows = _m1_collection_windows(opened, _CHECKED_AT)
+
+    assert _M1_CHUNK_DAYS == 3
+    assert windows[0][0] == opened
+    assert windows[-1][1] == _CHECKED_AT
+    assert all(
+        left[1] == right[0] for left, right in zip(windows, windows[1:], strict=False)
+    )
+    assert all(
+        end - start <= timedelta(days=_M1_CHUNK_DAYS) for start, end in windows
+    )
+    assert all(
+        int((end - start).total_seconds() // 60) < _HISTORICAL_PAGE_COUNT
+        for start, end in windows
+    )
 
 
 @pytest.mark.parametrize(
