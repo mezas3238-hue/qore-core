@@ -8,7 +8,10 @@ on:
       - .github/workflows/vt08-r3-8-b01-backtest.yml
       - src/qore/infrastructure/traders/vt08_b01_r3_8.py
       - src/qore/infrastructure/trader_lab/vt08_b01_backtest_r3_8.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_trader_lab_r3_8.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_trader_lab_aggregate_r3_8.py
       - tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - tests/infrastructure/trader_lab/test_vt08_b01_trader_lab_r3_8.py
   pull_request:
     branches:
       - agent/vt08-r3-2-source-kernel-001
@@ -16,7 +19,10 @@ on:
       - .github/workflows/vt08-r3-8-b01-backtest.yml
       - src/qore/infrastructure/traders/vt08_b01_r3_8.py
       - src/qore/infrastructure/trader_lab/vt08_b01_backtest_r3_8.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_trader_lab_r3_8.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_trader_lab_aggregate_r3_8.py
       - tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - tests/infrastructure/trader_lab/test_vt08_b01_trader_lab_r3_8.py
   workflow_dispatch:
 
 concurrency:
@@ -38,7 +44,7 @@ env:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - name: Checkout exact R3.8 head
         uses: actions/checkout@v4
@@ -55,7 +61,12 @@ jobs:
       - name: Mypy full gate
         run: mypy src tests
       - name: R3.8 focused adversarial gate
-        run: pytest -q tests/infrastructure/traders/test_vt08_b01_r3_8.py
+        run: |
+          pytest -q \
+            tests/infrastructure/traders/test_vt08_b01_r3_8.py \
+            tests/infrastructure/trader_lab/test_vt08_b01_trader_lab_r3_8.py
+      - name: Trader Lab core regression gate
+        run: pytest -q tests/infrastructure/trader_lab
       - name: Pytest full quality gate
         run: pytest --cov=src/qore --cov-report=term-missing
 
@@ -147,9 +158,38 @@ jobs:
           assert payload["daily_cardinality_violations"] == 0
           assert payload["futures_status"] == "excluded-from-r3.8-first-replay"
           assert payload["sample_size"] >= 0
-          assert payload["winning_trades"] + payload["losing_trades"] + payload["flat_trades"] == payload["sample_size"]
+          assert (
+              payload["winning_trades"]
+              + payload["losing_trades"]
+              + payload["flat_trades"]
+              == payload["sample_size"]
+          )
           PY
-      - name: Upload sanitized R3.8 evidence
+      - name: Run deep VT-08 Trader Lab diagnostics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_b01_trader_lab_r3_8 \
+            "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
+            "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}/b01-backtest.json" \
+            > "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}/trader-lab.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          payload = json.loads(
+              Path(f"artifacts/vt08-r3-8/{symbol}/trader-lab.json").read_text()
+          )
+          assert payload["schema"] == "qore.trader_lab.vt08_b01_diagnostics.r3.8.v1"
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["research_only"] is True
+          assert payload["symbol"] == symbol
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert payload["lifecycle_gate"]["demo_eligible"] is False
+          assert payload["walk_forward"]["policy_id"] == "first-demo-economic-v1"
+          PY
+      - name: Upload sanitized R3.8 Trader Lab evidence
         uses: actions/upload-artifact@v4
         with:
           name: qore-vt08-r3-8-${{ matrix.symbol }}-${{ github.sha }}
@@ -160,14 +200,24 @@ jobs:
   aggregate:
     needs: fresh-replay
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
+      - name: Checkout exact R3.8 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE research runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
       - name: Download all R3.8 market artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: qore-vt08-r3-8-*-${{ github.sha }}
           path: artifacts/input
-      - name: Build seven-market aggregate
+      - name: Build seven-market backtest aggregate
         shell: bash
         run: |
           set -euo pipefail
@@ -193,8 +243,12 @@ jobs:
               "winning_trades": sum(item["winning_trades"] for item in reports),
               "losing_trades": sum(item["losing_trades"] for item in reports),
               "flat_trades": sum(item["flat_trades"] for item in reports),
-              "multiple_candidate_day_count": sum(item["multiple_candidate_day_count"] for item in reports),
-              "daily_cardinality_violations": sum(item["daily_cardinality_violations"] for item in reports),
+              "multiple_candidate_day_count": sum(
+                  item["multiple_candidate_day_count"] for item in reports
+              ),
+              "daily_cardinality_violations": sum(
+                  item["daily_cardinality_violations"] for item in reports
+              ),
               "reports": reports,
           }
           assert payload["daily_cardinality_violations"] == 0
@@ -202,7 +256,41 @@ jobs:
               json.dumps(payload, sort_keys=True, separators=(",", ":"))
           )
           PY
-      - name: Upload seven-market aggregate
+      - name: Aggregate seven-market Trader Lab diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t reports < <(
+            find artifacts/input -name trader-lab.json -type f | sort
+          )
+          if [ "${#reports[@]}" -ne 7 ]; then
+            echo "expected exactly seven Trader Lab reports" >&2
+            exit 4
+          fi
+          python -m \
+            qore.infrastructure.trader_lab.vt08_b01_trader_lab_aggregate_r3_8 \
+            "${reports[@]}" \
+            > artifacts/vt08-r3-8-aggregate/trader-lab-aggregate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/vt08-r3-8-aggregate/trader-lab-aggregate.json").read_text()
+          )
+          assert payload["schema"] == (
+              "qore.trader_lab.vt08_b01_diagnostics_aggregate.r3.8.v1"
+          )
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["research_only"] is True
+          assert payload["market_count"] == 7
+          assert payload["trader_lab_stage_summary"]["demo_eligible"] is False
+          assert payload["holdout_governance"][
+              "new_previously_unseen_holdout_required_after_any_hypothesis_change"
+          ] is True
+          PY
+      - name: Upload seven-market aggregate and failure radiography
         uses: actions/upload-artifact@v4
         with:
           name: qore-vt08-r3-8-aggregate-${{ github.sha }}
