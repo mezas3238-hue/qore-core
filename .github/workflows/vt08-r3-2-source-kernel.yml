@@ -1,0 +1,73 @@
+name: QORE VT-08 Revision 3.2 Source Kernel
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-2-source-kernel-001
+      - agent/vt08-forex-r3-2-rebuild-001
+      - agent/vt08-futures-r3-2-rebuild-001
+    paths:
+      - .github/workflows/vt08-r3-2-source-kernel.yml
+      - docs/research/trader-lab/VT08-R3-2-*.md
+      - docs/research/trader-lab/VT08-FOREX-SOURCE-RULEBOOK.md
+      - docs/research/trader-lab/VT08-FUTURES-SOURCE-RULEBOOK.md
+      - src/qore/infrastructure/trader_lab/trader_daily_cardinality.py
+      - src/qore/infrastructure/trader_lab/vt08_market_day_ledger.py
+      - src/qore/infrastructure/traders/vt08_source_kernel_r3_2.py
+      - src/qore/infrastructure/traders/vt08_forex.py
+      - src/qore/infrastructure/traders/vt08_futures.py
+      - tests/infrastructure/trader_lab/test_trader_daily_cardinality.py
+      - tests/infrastructure/traders/test_vt08_source_kernel_r3_2.py
+      - tests/infrastructure/traders/test_vt08_split_family_contracts.py
+  pull_request:
+    branches:
+      - agent/trader-methodology-rebuild-v2-001
+    paths:
+      - .github/workflows/vt08-r3-2-source-kernel.yml
+      - docs/research/trader-lab/VT08-R3-2-*.md
+      - docs/research/trader-lab/VT08-FOREX-SOURCE-RULEBOOK.md
+      - docs/research/trader-lab/VT08-FUTURES-SOURCE-RULEBOOK.md
+      - src/qore/infrastructure/trader_lab/trader_daily_cardinality.py
+      - src/qore/infrastructure/trader_lab/vt08_market_day_ledger.py
+      - src/qore/infrastructure/traders/vt08_source_kernel_r3_2.py
+      - src/qore/infrastructure/traders/vt08_forex.py
+      - src/qore/infrastructure/traders/vt08_futures.py
+      - tests/infrastructure/trader_lab/test_trader_daily_cardinality.py
+      - tests/infrastructure/traders/test_vt08_source_kernel_r3_2.py
+      - tests/infrastructure/traders/test_vt08_split_family_contracts.py
+  workflow_dispatch:
+
+concurrency:
+  group: qore-vt08-r3-2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact Revision 3.2 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: Revision 3.2 focused adversarial gate
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_trader_daily_cardinality.py \
+            tests/infrastructure/traders/test_vt08_source_kernel_r3_2.py \
+            tests/infrastructure/traders/test_vt08_split_family_contracts.py
+      - name: Pytest full quality gate
+        run: pytest --cov=src/qore --cov-report=term-missing
