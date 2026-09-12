@@ -1,0 +1,211 @@
+name: QORE VT-08 R3.8 B01 Fresh Replay
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-8-b01-backtest-001
+    paths:
+      - .github/workflows/vt08-r3-8-b01-backtest.yml
+      - src/qore/infrastructure/traders/vt08_b01_r3_8.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_backtest_r3_8.py
+      - tests/infrastructure/traders/test_vt08_b01_r3_8.py
+  pull_request:
+    branches:
+      - agent/vt08-r3-2-source-kernel-001
+    paths:
+      - .github/workflows/vt08-r3-8-b01-backtest.yml
+      - src/qore/infrastructure/traders/vt08_b01_r3_8.py
+      - src/qore/infrastructure/trader_lab/vt08_b01_backtest_r3_8.py
+      - tests/infrastructure/traders/test_vt08_b01_r3_8.py
+  workflow_dispatch:
+
+concurrency:
+  group: qore-vt08-r3-8-b01-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact R3.8 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: R3.8 focused adversarial gate
+        run: pytest -q tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - name: Pytest full quality gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  fresh-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol:
+          - AUDJPY
+          - AUDUSD
+          - EURUSD
+          - GBPJPY
+          - GBPUSD
+          - USDCAD
+          - USDJPY
+    env:
+      QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - name: Checkout exact R3.8 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE and cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify DEMO inputs without printing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN \
+            QORE_DEMO_LAB_SYMBOL
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect fresh 760-day read-only DEMO evidence
+        run: |
+          mkdir -p "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.ctrader_demo_lab_long_horizon_probe \
+            > "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+      - name: Run source-faithful narrow B01 replay
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_b01_backtest_r3_8 \
+            "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
+            > "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}/b01-backtest.json"
+          printf '%s\n' "$GITHUB_SHA" \
+            > "artifacts/vt08-r3-8/${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          payload = json.loads(
+              Path(f"artifacts/vt08-r3-8/{symbol}/b01-backtest.json").read_text()
+          )
+          assert payload["schema"] == "qore.trader_lab.vt08_b01_backtest.r3.8.v1"
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["research_only"] is True
+          assert payload["symbol"] == symbol
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert payload["daily_cardinality_violations"] == 0
+          assert payload["futures_status"] == "excluded-from-r3.8-first-replay"
+          assert payload["sample_size"] >= 0
+          assert payload["winning_trades"] + payload["losing_trades"] + payload["flat_trades"] == payload["sample_size"]
+          PY
+      - name: Upload sanitized R3.8 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-8-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/vt08-r3-8/${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 30
+
+  aggregate:
+    needs: fresh-replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download all R3.8 market artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-r3-8-*-${{ github.sha }}
+          path: artifacts/input
+      - name: Build seven-market aggregate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/vt08-r3-8-aggregate
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = sorted(Path("artifacts/input").rglob("b01-backtest.json"))
+          if len(paths) != 7:
+              raise SystemExit(f"expected 7 backtests, found {len(paths)}")
+          reports = [json.loads(path.read_text()) for path in paths]
+          symbols = sorted(item["symbol"] for item in reports)
+          payload = {
+              "schema": "qore.trader_lab.vt08_b01_backtest_aggregate.r3.8.v1",
+              "environment": "demo",
+              "read_only": True,
+              "research_only": True,
+              "market_count": len(reports),
+              "symbols": symbols,
+              "candidate_count": sum(item["candidate_count"] for item in reports),
+              "sample_size": sum(item["sample_size"] for item in reports),
+              "winning_trades": sum(item["winning_trades"] for item in reports),
+              "losing_trades": sum(item["losing_trades"] for item in reports),
+              "flat_trades": sum(item["flat_trades"] for item in reports),
+              "multiple_candidate_day_count": sum(item["multiple_candidate_day_count"] for item in reports),
+              "daily_cardinality_violations": sum(item["daily_cardinality_violations"] for item in reports),
+              "reports": reports,
+          }
+          assert payload["daily_cardinality_violations"] == 0
+          Path("artifacts/vt08-r3-8-aggregate/aggregate.json").write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":"))
+          )
+          PY
+      - name: Upload seven-market aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-8-aggregate-${{ github.sha }}
+          path: artifacts/vt08-r3-8-aggregate
+          if-no-files-found: error
+          retention-days: 30
