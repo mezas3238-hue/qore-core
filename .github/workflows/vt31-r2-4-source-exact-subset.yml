@@ -1,0 +1,134 @@
+name: QORE VT-31 R2.4 Source-Exact Subset
+# Fresh research trigger after the exact R2.4 quality gate was certified green.
+
+on:
+  push:
+    branches:
+      - agent/vt31-r2-2-source-rebuild-001
+    paths:
+      - .github/workflows/vt31-r2-4-source-exact-subset.yml
+      - src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
+      - src/qore/infrastructure/traders/vt31_silver_bullet_r2_4.py
+      - src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_4_backtest.py
+      - tests/infrastructure/traders/test_vt31_silver_bullet_r2_4.py
+      - tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_4_backtest.py
+  pull_request:
+    branches:
+      - agent/trader-methodology-rebuild-v2-001
+  workflow_dispatch:
+
+concurrency:
+  group: qore-vt31-r2-4-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_DEMO_LAB_SYMBOL: NAS100
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: VT-31 R2.4 focused source-fidelity gate
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/traders/test_vt31_silver_bullet_r2_4.py \
+            tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_4_backtest.py
+      - name: Trader Lab regression gate
+        run: pytest -q --no-cov tests/infrastructure/trader_lab
+      - name: Full quality gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  fresh-replay:
+    if: ${{ contains(github.event.head_commit.message || '', 'run-vt31-r2-4-source-backtest') || github.event_name == 'workflow_dispatch' }}
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE and cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify DEMO inputs without printing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO research input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect fresh 760-day NAS100 M1 evidence
+        run: |
+          mkdir -p artifacts/vt31-r2-4/NAS100
+          python -m qore.infrastructure.ctrader_demo_lab_vt31_v2_probe \
+            > artifacts/vt31-r2-4/NAS100/market-evidence.json
+      - name: Run R2.4 source-demonstrated subset replay
+        run: |
+          python -m qore.infrastructure.trader_lab.vt31_silver_bullet_r2_4_backtest \
+            artifacts/vt31-r2-4/NAS100/market-evidence.json \
+            > artifacts/vt31-r2-4/NAS100/backtest.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/vt31-r2-4/NAS100/git-sha.txt
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(
+              Path('artifacts/vt31-r2-4/NAS100/backtest.json').read_text()
+          )
+          assert payload['schema'] == 'qore.trader_lab.vt31_r2_4_backtest.v1'
+          assert payload['software_sha'] == os.environ['GITHUB_SHA']
+          assert payload['symbol'] == 'NAS100'
+          assert payload['source_exact_historical_replay'] is True
+          assert payload['broker_source_complete'] is False
+          assert payload['daily_cardinality_violations'] == 0
+          assert payload['filled_count'] <= payload['eligible_market_days']
+          PY
+      - name: Upload sanitized R2.4 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r2-4-source-exact-${{ github.sha }}
+          path: artifacts/vt31-r2-4/NAS100
+          if-no-files-found: error
+          retention-days: 30
