@@ -1,0 +1,86 @@
+name: QORE VT-08 R3.8 Causal H01-H04
+
+on:
+  pull_request:
+    branches:
+      - agent/vt08-r3-8-failure-forensics-001
+    paths:
+      - "src/qore/infrastructure/trader_lab/vt08_b01_causal_h01_h04_r3_8.py"
+      - "tests/infrastructure/trader_lab/test_vt08_b01_causal_h01_h04_r3_8.py"
+      - "docs/research/trader-lab/VT08-R3-8-CAUSAL-H01-H04-FREEZE.md"
+      - ".github/workflows/vt08-r3-8-causal-h01-h04.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff gate
+        run: ruff check .
+      - name: Mypy gate
+        run: mypy src tests
+      - name: Focused causal-contract tests
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_b01_causal_h01_h04_r3_8.py
+
+  causal-register:
+    needs: quality
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE runtime
+        run: pip install -e .
+      - name: Download frozen failure-forensics artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34696371933
+          pattern: qore-vt08-r3-8-failure-forensics-*
+          path: retained
+      - name: Verify one frozen failure-forensics artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t reports < <(find retained -type f -name 'vt08-r3-8-failure-forensics.json' | sort)
+          printf 'reports=%s\n' "${#reports[@]}"
+          test "${#reports[@]}" -eq 1
+          printf '%s\n' "${reports[0]}" > failure-forensics-path.txt
+      - name: Compile H01-H04 causal program
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$(cat failure-forensics-path.txt)"
+          python -m qore.infrastructure.trader_lab.vt08_b01_causal_h01_h04_r3_8 "$report" > vt08-r3-8-causal-h01-h04.json
+          python - <<'PY'
+          import json
+          p=json.load(open('vt08-r3-8-causal-h01-h04.json', encoding='utf-8'))
+          assert p['causal_phase_open'] is True
+          assert p['source_adjudication_required'] is True
+          assert p['methodology_mutation_authorized'] is False
+          assert p['demo_eligible'] is False
+          assert p['forbidden_reuse'] == 'run-34693803930'
+          assert len(p['tracks']) == 4
+          print('tracks=', [x['hypothesis_id'] for x in p['tracks']])
+          PY
+      - name: Upload causal-register evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-8-causal-h01-h04-${{ github.sha }}
+          path: vt08-r3-8-causal-h01-h04.json
+          if-no-files-found: error
+          retention-days: 30
