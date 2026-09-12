@@ -4,12 +4,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
+    _HISTORICAL_PAGE_COUNT,
+)
 from qore.infrastructure.ctrader_demo_lab_probe import (
     CTraderDemoLabClosedTrendbar,
     CTraderDemoLabProbeError,
 )
 from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
-    _HISTORICAL_PAGE_COUNT,
     _M1_CHUNK_DAYS,
     _REQUIRED_COVERAGE_DAYS,
     _coverage_payload,
@@ -124,7 +126,9 @@ def test_m1_collection_windows_are_gapless_and_below_provider_ceiling() -> None:
     assert _M1_CHUNK_DAYS == 3
     assert windows[0][0] == opened
     assert windows[-1][1] == _CHECKED_AT
-    assert all(left[1] == right[0] for left, right in zip(windows, windows[1:], strict=False))
+    assert all(
+        left[1] == right[0] for left, right in zip(windows, windows[1:], strict=False)
+    )
     assert all(
         end - start <= timedelta(days=_M1_CHUNK_DAYS) for start, end in windows
     )
