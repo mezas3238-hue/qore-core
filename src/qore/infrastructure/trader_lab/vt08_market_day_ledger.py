@@ -89,7 +89,7 @@ class VT08MarketDayLedger:
         *,
         candidate_id: str,
         scenario: Literal["c2", "c3"],
-    ) -> "VT08MarketDayLedger":
+    ) -> VT08MarketDayLedger:
         cardinality = self.cardinality.add_candidate(candidate_id)
         if scenario == "c2":
             if candidate_id in self.c2_candidate_ids:
@@ -114,7 +114,7 @@ class VT08MarketDayLedger:
         *,
         diagnostic_id: str,
         category: Literal["protected-swing", "entry", "stop", "target"],
-    ) -> "VT08MarketDayLedger":
+    ) -> VT08MarketDayLedger:
         if type(diagnostic_id) is not str or not diagnostic_id.strip():
             raise VT08MarketDayLedgerValidationError("diagnostic_id is invalid")
         if category == "protected-swing":
@@ -153,7 +153,7 @@ class VT08MarketDayLedger:
             )
         raise VT08MarketDayLedgerValidationError("unsupported diagnostic category")
 
-    def record_time_exit(self, terminal_trade_id: str) -> "VT08MarketDayLedger":
+    def record_time_exit(self, terminal_trade_id: str) -> VT08MarketDayLedger:
         if self.cardinality.terminal_trade_id != terminal_trade_id:
             raise VT08MarketDayLedgerValidationError(
                 "time exit must match the already terminal cardinality trade"
