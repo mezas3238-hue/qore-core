@@ -84,6 +84,7 @@ def test_r39_removes_13_as_source_entry_authority(tmp_path: Path) -> None:
 def test_r39_preserves_consumed_holdout_prohibition(tmp_path: Path) -> None:
     payload = compile_vt08_b01_causal_program_r3_9(_write(tmp_path))
     governance = payload["fresh_holdout_governance"]
+    assert isinstance(governance, dict)
     assert governance["required"] is True
     assert governance["forbidden_reuse"] == "run-34693803930"
     assert governance["must_not_treat_overlapping_reacquisition_as_independent"] is True
