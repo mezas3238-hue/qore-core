@@ -7,7 +7,7 @@ import re
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import cast
@@ -22,7 +22,7 @@ from qore.infrastructure.traders.vt08_b01_r3_8 import (
     TARGET_POLICY,
     Vt08B01Bar,
     Vt08B01Candidate,
-    evaluate_b01_at_entry,
+    evaluate_b01_at_entry_indexed,
     methodology_fingerprint,
 )
 from qore.kernel.errors import InfrastructureError
@@ -194,16 +194,24 @@ def _load(path: Path) -> tuple[str, str, datetime, str, tuple[Vt08B01Bar, ...]]:
         raise Vt08B01BacktestError("market evidence must be read-only")
     if _bool(payload.get("account_is_live"), name="account_is_live"):
         raise Vt08B01BacktestError("LIVE evidence is prohibited")
-    fingerprint = _text(payload.get("account_fingerprint"), name="account_fingerprint")
+    fingerprint = _text(
+        payload.get("account_fingerprint"),
+        name="account_fingerprint",
+    )
     if len(fingerprint) != 64:
         raise Vt08B01BacktestError("account fingerprint must have SHA-256 length")
-    symbol = _text(_obj(payload.get("symbol"), name="symbol").get("symbol_name"), name="symbol_name")
+    symbol_payload = _obj(payload.get("symbol"), name="symbol")
+    symbol = _text(symbol_payload.get("symbol_name"), name="symbol_name")
     if symbol not in AUTHORIZED_FOREX_MARKETS:
-        raise Vt08B01BacktestError("R3.8 first replay accepts only authorized Forex markets")
+        raise Vt08B01BacktestError(
+            "R3.8 first replay accepts only authorized Forex markets"
+        )
     checked_at = _timestamp(payload.get("checked_at"), name="checked_at")
     software_sha = _text(payload.get("software_sha"), name="software_sha")
     if re.fullmatch(r"[0-9a-f]{40}", software_sha) is None:
-        raise Vt08B01BacktestError("software_sha must be an exact lowercase Git SHA")
+        raise Vt08B01BacktestError(
+            "software_sha must be an exact lowercase Git SHA"
+        )
     periods = _obj(payload.get("periods"), name="periods")
     rows = _arr(periods.get("M15"), name="M15")
     bars = tuple(_parse_m15(row) for row in rows)
@@ -222,7 +230,12 @@ def _touches(bar: Vt08B01Bar, price: Decimal) -> bool:
     return bar.low <= price <= bar.high
 
 
-def _return_rate(*, side: DemoTradingSetupSide, entry: Decimal, exit_price: Decimal) -> Decimal:
+def _return_rate(
+    *,
+    side: DemoTradingSetupSide,
+    entry: Decimal,
+    exit_price: Decimal,
+) -> Decimal:
     if side is DemoTradingSetupSide.LONG:
         return (exit_price - entry) / entry
     return (entry - exit_price) / entry
@@ -236,6 +249,8 @@ def _model_trade(
     start = candidate.decision_at.astimezone(UTC)
     local = start.astimezone(_NY)
     end = (local + timedelta(hours=4)).astimezone(UTC)
+    if end - start != timedelta(hours=4):
+        return None
     retained: list[Vt08B01Bar] = []
     cursor = start
     while cursor < end:
@@ -283,15 +298,15 @@ def run_vt08_b01_backtest(path: Path) -> Vt08B01BacktestReport:
     fingerprint, symbol, checked_at, software_sha, bars = _load(path)
     bars_by_open = {item.opened_at: item for item in bars}
     abstains: Counter[str] = Counter()
-    candidates_by_day: dict[object, list[Vt08B01Candidate]] = defaultdict(list)
+    candidates_by_day: dict[date, list[Vt08B01Candidate]] = defaultdict(list)
 
     for bar in bars:
         local = bar.opened_at.astimezone(_NY)
         if local.minute != 0 or local.hour not in OWNER_FOREX_ENTRY_ANCHORS:
             continue
-        result = evaluate_b01_at_entry(
+        result = evaluate_b01_at_entry_indexed(
             symbol=symbol,
-            m15_bars=bars,
+            bars_by_open=bars_by_open,
             decision_at=bar.opened_at,
         )
         if result.candidate is None:
@@ -333,7 +348,9 @@ def run_vt08_b01_backtest(path: Path) -> Vt08B01BacktestReport:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise Vt08B01BacktestError("usage: vt08_b01_backtest_r3_8 <market-evidence.json>")
+        raise Vt08B01BacktestError(
+            "usage: vt08_b01_backtest_r3_8 <market-evidence.json>"
+        )
     print(run_vt08_b01_backtest(Path(sys.argv[1])).to_json())
 
 
