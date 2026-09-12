@@ -76,6 +76,16 @@ class Vt08B01R38ValidationError(Vt08B01R38Error):
     __slots__ = ()
 
 
+def _require_aware_datetime(value: datetime, *, name: str) -> None:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise Vt08B01R38ValidationError(f"{name} must be timezone-aware")
+
+
+def _require_positive_decimal(value: Decimal, *, name: str) -> None:
+    if not value.is_finite() or value <= 0:
+        raise Vt08B01R38ValidationError(f"{name} must be positive finite Decimal")
+
+
 class Vt08B01AbstainReason(StrEnum):
     UNSUPPORTED_MARKET = "unsupported-market"
     OUTSIDE_OWNER_ANCHOR = "outside-owner-anchor"
@@ -98,23 +108,14 @@ class Vt08B01Bar:
     close: Decimal
 
     def __post_init__(self) -> None:
-        for name, value in (("opened_at", self.opened_at), ("closed_at", self.closed_at)):
-            if (
-                type(value) is not datetime
-                or value.tzinfo is None
-                or value.utcoffset() is None
-            ):
-                raise Vt08B01R38ValidationError(f"{name} must be timezone-aware")
+        _require_aware_datetime(self.opened_at, name="opened_at")
+        _require_aware_datetime(self.closed_at, name="closed_at")
         if self.closed_at <= self.opened_at:
             raise Vt08B01R38ValidationError("bar close must follow open")
-        for name, value in (
-            ("open", self.open),
-            ("high", self.high),
-            ("low", self.low),
-            ("close", self.close),
-        ):
-            if type(value) is not Decimal or not value.is_finite() or value <= 0:
-                raise Vt08B01R38ValidationError(f"{name} must be positive finite Decimal")
+        _require_positive_decimal(self.open, name="open")
+        _require_positive_decimal(self.high, name="high")
+        _require_positive_decimal(self.low, name="low")
+        _require_positive_decimal(self.close, name="close")
         if self.low > self.high:
             raise Vt08B01R38ValidationError("bar low must not exceed high")
         if not self.low <= self.open <= self.high:
@@ -134,19 +135,13 @@ class Vt08B01ProtectedSwing:
     def __post_init__(self) -> None:
         if type(self.side) is not DemoTradingSetupSide:
             raise Vt08B01R38ValidationError("protected swing side must be canonical")
-        for name, value in (("price", self.price), ("cisd_level", self.cisd_level)):
-            if type(value) is not Decimal or not value.is_finite() or value <= 0:
-                raise Vt08B01R38ValidationError(f"{name} must be positive Decimal")
-        for name, value in (
-            ("confirmed_at", self.confirmed_at),
-            ("opposing_series_opened_at", self.opposing_series_opened_at),
-        ):
-            if (
-                type(value) is not datetime
-                or value.tzinfo is None
-                or value.utcoffset() is None
-            ):
-                raise Vt08B01R38ValidationError(f"{name} must be timezone-aware")
+        _require_positive_decimal(self.price, name="price")
+        _require_positive_decimal(self.cisd_level, name="cisd_level")
+        _require_aware_datetime(self.confirmed_at, name="confirmed_at")
+        _require_aware_datetime(
+            self.opposing_series_opened_at,
+            name="opposing_series_opened_at",
+        )
         if self.confirmed_at <= self.opposing_series_opened_at:
             raise Vt08B01R38ValidationError(
                 "CISD must confirm after the opposing series begins"
@@ -173,8 +168,7 @@ class Vt08B01Candidate:
             )
         if type(self.side) is not DemoTradingSetupSide:
             raise Vt08B01R38ValidationError("candidate side must be canonical")
-        if type(self.decision_at) is not datetime or self.decision_at.tzinfo is None:
-            raise Vt08B01R38ValidationError("decision_at must be timezone-aware")
+        _require_aware_datetime(self.decision_at, name="decision_at")
         if self.entry_anchor_hour not in OWNER_FOREX_ENTRY_ANCHORS:
             raise Vt08B01R38ValidationError(
                 "candidate anchor is outside Owner subset"
@@ -185,10 +179,7 @@ class Vt08B01Candidate:
             raise Vt08B01R38ValidationError(
                 "decision must occur at Candle-2 close/new H4 open"
             )
-        if (
-            type(self.methodology_fingerprint) is not str
-            or len(self.methodology_fingerprint) != 64
-        ):
+        if len(self.methodology_fingerprint) != 64:
             raise Vt08B01R38ValidationError(
                 "methodology fingerprint must be SHA-256"
             )
@@ -247,8 +238,7 @@ def methodology_fingerprint() -> str:
 
 
 def _utc(value: datetime) -> datetime:
-    if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
-        raise Vt08B01R38ValidationError("timestamp must be timezone-aware")
+    _require_aware_datetime(value, name="timestamp")
     return value.astimezone(UTC)
 
 
@@ -258,8 +248,8 @@ def _aggregate_window(
     opened_at_local: datetime,
     closed_at_local: datetime,
 ) -> Vt08B01Bar | None:
-    if opened_at_local.tzinfo is None or closed_at_local.tzinfo is None:
-        raise Vt08B01R38ValidationError("source windows must be timezone-aware")
+    _require_aware_datetime(opened_at_local, name="opened_at_local")
+    _require_aware_datetime(closed_at_local, name="closed_at_local")
     opened_at = opened_at_local.astimezone(UTC)
     closed_at = closed_at_local.astimezone(UTC)
     if closed_at <= opened_at:
@@ -302,7 +292,6 @@ def source_h4_from_m15(
         closed_local.astimezone(UTC) - local.astimezone(UTC)
         != timedelta(hours=4)
     ):
-        # DST-transition H4 construction is not silently invented.
         return None
     return _aggregate_window(
         bars_by_open,
@@ -337,8 +326,7 @@ def _latest_complete_source_days(
 ) -> tuple[Vt08B01Bar, ...]:
     if count < 1:
         raise Vt08B01R38ValidationError("source-day count must be positive")
-    if before_local.tzinfo is None or before_local.utcoffset() is None:
-        raise Vt08B01R38ValidationError("before_local must be timezone-aware")
+    _require_aware_datetime(before_local, name="before_local")
     end_date = before_local.astimezone(_NY).date() - timedelta(days=1)
     retained: list[Vt08B01Bar] = []
     for offset in range(10):
@@ -395,10 +383,7 @@ def protected_swings_in_candle2(
     side: DemoTradingSetupSide,
     important_level: Decimal,
 ) -> tuple[Vt08B01ProtectedSwing, ...]:
-    if type(side) is not DemoTradingSetupSide:
-        raise Vt08B01R38ValidationError("side must be canonical")
-    if type(important_level) is not Decimal or not important_level.is_finite():
-        raise Vt08B01R38ValidationError("important level must be finite Decimal")
+    _require_positive_decimal(important_level, name="important_level")
 
     candidates: list[Vt08B01ProtectedSwing] = []
     series_open: Decimal | None = None
