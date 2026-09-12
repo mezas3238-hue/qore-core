@@ -6,16 +6,20 @@ on:
       - agent/vt08-r3-11-profitability-forensics-001
     paths:
       - .github/workflows/vt08-r3-11-profitability-forensics.yml
+      - src/qore/infrastructure/trader_lab/vt08_b01_risk_economic_replay_r3_11.py
+      - tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py
       - tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
+      - docs/research/trader-lab/VT08-R3-11-RISK-ECONOMIC-REPLAY.md
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  mirror-symmetry:
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout exact R3.11 head
         uses: actions/checkout@v4
@@ -27,12 +31,70 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Ruff gate
-        run: ruff check tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
-      - name: Mypy gate
-        run: mypy src tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
-      - name: VT-08 mirror symmetry gate
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: Focused VT-08 R3.11 gates
         run: |
           pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py \
             tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py \
             tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - name: Full QORE quality gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  risk-economic-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact R3.11 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Download consumed 2024-2026 baseline evidence
+        run: |
+          mkdir -p consumed/baseline
+          gh run download 34693803930 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/baseline
+      - name: Download consumed 2022-2024 fresh evidence
+        run: |
+          mkdir -p consumed/fresh
+          gh run download 34707771460 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/fresh
+      - name: Execute Risk-aware fixed-loss account replay
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_b01_risk_economic_replay_r3_11 \
+            --baseline-root consumed/baseline \
+            --fresh-root consumed/fresh \
+            --output out/risk-economic-replay.json
+      - name: Enforce consumed-evidence and cardinality invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("out/risk-economic-replay.json").read_text())
+          assert report["trade_count"] == 809
+          assert report["protected_holdout_2020_2022_accessed"] is False
+          assert report["demo_eligible"] is False
+          assert report["primary_zero_cost"]["candidate-a"]["signal_count"] == 117
+          assert report["primary_zero_cost"]["candidate-b"]["signal_count"] == 229
+          PY
+      - name: Upload immutable R3.11 economic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-11-risk-economic-replay-${{ github.sha }}
+          path: out/risk-economic-replay.json
+          if-no-files-found: error
