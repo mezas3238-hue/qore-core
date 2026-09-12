@@ -14,6 +14,8 @@ from typing import cast
 
 from qore.infrastructure.trader_lab.vt08_b01_causal_h01_h04_r3_8 import (
     Vt08B01CausalProgramError,
+)
+from qore.infrastructure.trader_lab.vt08_b01_causal_h01_h04_r3_8 import (
     compile_vt08_b01_causal_program as compile_r38_causal_program,
 )
 from qore.infrastructure.traders.vt08_b01_source_contract_r3_9 import (
