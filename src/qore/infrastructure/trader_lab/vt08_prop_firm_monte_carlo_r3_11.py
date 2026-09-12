@@ -412,6 +412,42 @@ def _headroom_amount(
     return min(internal_daily, external_daily, internal_dd, external_max)
 
 
+def _realize_positions_until(
+    open_positions: list[_OpenRisk],
+    *,
+    cutoff: datetime | None,
+    equity: float,
+    peak: float,
+    losing_streak: int,
+    max_losing_streak: int,
+    month: _MonthAccumulator,
+    day_worst_equity: float,
+) -> tuple[float, float, int, int, float]:
+    ready = [
+        item
+        for item in open_positions
+        if cutoff is None or item.trade.observation.exited_at <= cutoff
+    ]
+    ready.sort(key=lambda item: item.trade.observation.exited_at)
+    for position in ready:
+        open_positions.remove(position)
+        pnl = position.risk_amount * position.trade.net_r
+        equity += pnl
+        if pnl < 0:
+            losing_streak += 1
+            max_losing_streak = max(max_losing_streak, losing_streak)
+        elif pnl > 0:
+            losing_streak = 0
+        if position.trade.sleeve == "a":
+            month.a_pnl += pnl
+        elif position.trade.sleeve == "gbpjpy":
+            month.gbpjpy_pnl += pnl
+        day_worst_equity = min(day_worst_equity, equity)
+        peak = max(peak, equity)
+        month.peak_equity = max(month.peak_equity, equity)
+    return equity, peak, losing_streak, max_losing_streak, day_worst_equity
+
+
 def _max_consecutive_negative_months(months: Sequence[MonthResult]) -> int:
     longest = 0
     current = 0
@@ -463,34 +499,23 @@ def simulate_path(
                 key=lambda item: (item.observation.signal_at, item.observation.symbol),
             )
             open_positions: list[_OpenRisk] = []
-
-            def realize_until(cutoff: datetime | None) -> None:
-                nonlocal equity, peak, losing_streak, max_losing_streak, day_worst_equity
-                ready = [
-                    item
-                    for item in open_positions
-                    if cutoff is None or item.trade.observation.exited_at <= cutoff
-                ]
-                ready.sort(key=lambda item: item.trade.observation.exited_at)
-                for position in ready:
-                    open_positions.remove(position)
-                    pnl = position.risk_amount * position.trade.net_r
-                    equity += pnl
-                    if pnl < 0:
-                        losing_streak += 1
-                        max_losing_streak = max(max_losing_streak, losing_streak)
-                    elif pnl > 0:
-                        losing_streak = 0
-                    if position.trade.sleeve == "a":
-                        month.a_pnl += pnl
-                    elif position.trade.sleeve == "gbpjpy":
-                        month.gbpjpy_pnl += pnl
-                    day_worst_equity = min(day_worst_equity, equity)
-                    peak = max(peak, equity)
-                    month.peak_equity = max(month.peak_equity, equity)
-
             for trade in pending:
-                realize_until(trade.observation.signal_at)
+                (
+                    equity,
+                    peak,
+                    losing_streak,
+                    max_losing_streak,
+                    day_worst_equity,
+                ) = _realize_positions_until(
+                    open_positions,
+                    cutoff=trade.observation.signal_at,
+                    equity=equity,
+                    peak=peak,
+                    losing_streak=losing_streak,
+                    max_losing_streak=max_losing_streak,
+                    month=month,
+                    day_worst_equity=day_worst_equity,
+                )
                 active_risk_amount = sum(item.risk_amount for item in open_positions)
                 multiplier = adaptive_risk_multiplier(equity=equity, peak_equity=peak)
                 requested_bps = trade.effective_risk_bps * multiplier
@@ -528,7 +553,22 @@ def simulate_path(
                 month.risk_observations += 1
                 month.max_risk_bps = max(month.max_risk_bps, authorized_bps)
                 month.trade_count += 1
-            realize_until(None)
+            (
+                equity,
+                peak,
+                losing_streak,
+                max_losing_streak,
+                day_worst_equity,
+            ) = _realize_positions_until(
+                open_positions,
+                cutoff=None,
+                equity=equity,
+                peak=peak,
+                losing_streak=losing_streak,
+                max_losing_streak=max_losing_streak,
+                month=month,
+                day_worst_equity=day_worst_equity,
+            )
         else:
             for trade_return in record.trade_returns:
                 equity *= 1.0 + trade_return
