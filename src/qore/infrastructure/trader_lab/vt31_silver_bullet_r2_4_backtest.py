@@ -460,7 +460,6 @@ def run_vt31_r2_4_backtest(path: Path) -> Vt31R24BacktestReport:
         containment: str | None = None
         signal_global_index: int | None = None
         prefix: list[OhlcSnapshot] = [midnight[0], *reference]
-        last_evaluation = None
         for global_index, bar in session_indexed:
             prefix.append(bar)
             evaluation = evaluate_vt31_r2_4_exact(
@@ -469,7 +468,6 @@ def run_vt31_r2_4_backtest(path: Path) -> Vt31R24BacktestReport:
                 m1_candles=tuple(prefix),
                 evidence_fingerprint=evidence_fp,
             )
-            last_evaluation = evaluation
             if evaluation.source_evaluation.both_sides_swept:
                 abstain = "both-sides-swept"
                 containment = "abstain-both-sides-swept-r2.4"
