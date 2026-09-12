@@ -8,6 +8,7 @@ on:
       - agent/vt08-futures-r3-2-rebuild-001
     paths:
       - .github/workflows/vt08-r3-2-source-kernel.yml
+      - .github/workflows/vt08-cardinality-rebuild.yml
       - docs/research/trader-lab/VT08-R3-2-*.md
       - docs/research/trader-lab/VT08-FOREX-SOURCE-RULEBOOK.md
       - docs/research/trader-lab/VT08-FUTURES-SOURCE-RULEBOOK.md
@@ -24,6 +25,7 @@ on:
       - agent/trader-methodology-rebuild-v2-001
     paths:
       - .github/workflows/vt08-r3-2-source-kernel.yml
+      - .github/workflows/vt08-cardinality-rebuild.yml
       - docs/research/trader-lab/VT08-R3-2-*.md
       - docs/research/trader-lab/VT08-FOREX-SOURCE-RULEBOOK.md
       - docs/research/trader-lab/VT08-FUTURES-SOURCE-RULEBOOK.md
