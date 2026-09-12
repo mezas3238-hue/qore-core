@@ -9,12 +9,13 @@ The executable research contract is restricted to Forex and to the Human Owner
 are reconstructed only from complete contiguous M15 evidence, avoiding the
 unresolved Futures 14:00/session-break construction.
 
-Three historical-replay containments are explicit and fingerprinted:
+Four historical-replay containments are explicit and fingerprinted:
 - fill exactly at the new H4 open (broker order type remains unresolved);
 - use the protected-swing structural level with no execution offset;
+- use a conservative initial 2R replay target;
 - close any still-open modeled trade at the next H4 boundary.
 
-Those containments are QORE research policies, not TTrades source claims.
+Those containments are QORE research policies, not universal TTrades source claims.
 """
 
 from __future__ import annotations
@@ -27,7 +28,11 @@ from enum import StrEnum
 from hashlib import sha256
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.traders.contracts import DemoTradingSetupSide, DemoTradingSetupSpec
+from qore.infrastructure.traders.contracts import (
+    DemoTradingError,
+    DemoTradingSetupSide,
+    DemoTradingSetupSpec,
+)
 from qore.kernel.errors import InfrastructureError
 
 TRADER_CODE = "vt-08"
@@ -56,6 +61,7 @@ AUTHORIZED_FOREX_MARKETS = (
 OPERATIONAL_CONTAINMENTS = (
     "historical-fill-at-new-h4-open-broker-order-type-unspecified",
     "protected-swing-structural-level-no-stop-offset",
+    "conservative-initial-2r-replay-target",
     "close-modeled-position-at-next-h4-boundary",
 )
 TARGET_POLICY = "conservative-initial-2r"
@@ -495,10 +501,11 @@ def evaluate_b01_at_entry(
                 "vt08-r3.8-b01-positional-new-h4-open;"
                 "exactly-one-protected-swing;"
                 "operational-containment-stop-no-offset;"
+                "operational-containment-conservative-initial-2r;"
                 "operational-containment-h4-close-all"
             ),
         )
-    except Exception as error:
+    except DemoTradingError as error:
         raise Vt08B01R38ValidationError("B01 setup geometry is invalid") from error
 
     return Vt08B01Evaluation(
