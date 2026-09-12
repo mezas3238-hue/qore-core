@@ -23,6 +23,9 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_4_backtest import (
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
+    Vt31R22EntryEvidence,
+    Vt31R22EntryFamily,
+    Vt31R22EvidenceClass,
     Vt31R22ReferenceRange,
     Vt31R22SourceSetup,
     Vt31R22StructureEvidence,
@@ -82,11 +85,23 @@ def _setup(at: datetime) -> Vt31R24ExactSetup:
         extreme_candle_low=Decimal("109.8"),
         extreme_candle_close=Decimal("110.8"),
     )
+    evidence = Vt31R22EntryEvidence(
+        family=Vt31R22EntryFamily.FAIR_VALUE_GAP,
+        formed_at=at + timedelta(minutes=3),
+        source_candle_open=Decimal("109.5"),
+        source_candle_high=Decimal("109.6"),
+        source_candle_low=Decimal("108.8"),
+        source_candle_close=Decimal("109.0"),
+        zone_lower=Decimal("109.6"),
+        zone_upper=Decimal("109.8"),
+        zone_class=Vt31R22EvidenceClass.SOURCE_EXPLICIT,
+        source_timestamps=("02:37-02:56",),
+    )
     source_setup = Vt31R22SourceSetup(
         side=DemoTradingSetupSide.SHORT,
         reference=reference,
         structure=structure,
-        candidates=(),
+        candidates=(evidence,),
         target_price=Decimal("100"),
         pending_expires_at=at + timedelta(hours=1),
         source_fingerprint="a" * 64,
