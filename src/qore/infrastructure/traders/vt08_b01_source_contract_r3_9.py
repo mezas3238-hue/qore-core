@@ -163,7 +163,10 @@ RULES = (
         Authority.CONTEXT_DEPENDENT_SOURCE_FAMILY,
         "structural-liquidity-objectives-with-2R-as-viability-or-generic-initial-reference",
         "fixed-2r-research-replay-containment",
-        "No deterministic next-liquidity selector is source-resolved, so R3.9 does not synthesize one.",
+        (
+            "No deterministic next-liquidity selector is source-resolved, so R3.9 "
+            "does not synthesize one."
+        ),
     ),
     SourceRule(
         "h4-filled-lifecycle",
@@ -212,7 +215,10 @@ RULES = (
         Authority.QORE_OPERATIONAL_CONTAINMENT,
         "full-six-candle-Forex-H4-grid-not-claimed-as-entry-authority",
         "01/05/09/13/17/21 reconstruction-grid-hours",
-        "Grid hours reconstruct contiguous H4 bars and must not be exposed as source entry anchors.",
+        (
+            "Grid hours reconstruct contiguous H4 bars and must not be exposed as "
+            "source entry anchors."
+        ),
     ),
     SourceRule(
         "futures-14",
@@ -317,7 +323,9 @@ def main() -> None:
     payload = source_contract_payload()
     alignment = payload["r38_alignment"]
     if not isinstance(alignment, dict) or alignment.get("aligned") is not True:
-        raise Vt08B01SourceContractError("R3.8 replay no longer matches the frozen source contract")
+        raise Vt08B01SourceContractError(
+            "R3.8 replay no longer matches the frozen source contract"
+        )
     print(
         json.dumps(
             payload,
