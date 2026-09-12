@@ -1,20 +1,4 @@
-"""Directional characterization for the VT-31 Silver Bullet V2 backtest.
-
-QORE already defines directional characterization semantics in
-``first_cohort_characterization``: direction is counted at SETUP time, then
-filled/unfilled behavior and economic outcomes are segmented by side.  This
-module applies that same contract to the source-bound VT-31 V2 NAS100 research
-runner without changing methodology, fill modeling, exits, or authority.
-
-The canonical backtest remains the behavioral source of truth.  This wrapper
-replays only the deterministic decision loop against the exact same retained
-M1 evidence to recover SETUP-side counts, reconciles them against the canonical
-backtest, and emits ``side_counts`` plus ``by_side``.  Filled-trade-only counts
-are retained as convenience fields, but they are not substituted for setup
-counts.
-
-Research only.  No DEMO/LIVE/Risk/execution authority is created here.
-"""
+"""Directional characterization for the source-bound VT-31 Silver Bullet V2 backtest."""
 
 from __future__ import annotations
 
@@ -46,8 +30,10 @@ _SCHEMA = "qore.trader_lab.vt31_silver_bullet_v2_backtest.v1"
 _SYMBOL = "NAS100"
 _SIDES = ("long", "short")
 _SIDE_SET = frozenset(_SIDES)
-_OUTCOMES = frozenset({"target", "stop", "gap_censored", "data_end_censored"})
-_TERMINAL_OUTCOMES = frozenset({"target", "stop"})
+_OUTCOMES = frozenset(
+    {"target", "stop", "breakeven", "gap_censored", "data_end_censored"}
+)
+_TERMINAL_OUTCOMES = frozenset({"target", "stop", "breakeven"})
 
 
 class Vt31SilverBulletV2BacktestReportError(Vt31SilverBulletV2BacktestError):
@@ -73,6 +59,7 @@ class Vt31SilverBulletV2DirectionalSummary:
     terminal_sample_size: int
     target_count: int
     stop_count: int
+    breakeven_count: int
     gap_censored_count: int
     data_end_censored_count: int
     win_rate: Decimal
@@ -98,6 +85,7 @@ class Vt31SilverBulletV2DirectionalSummary:
             "terminal_sample_size": self.terminal_sample_size,
             "target_count": self.target_count,
             "stop_count": self.stop_count,
+            "breakeven_count": self.breakeven_count,
             "gap_censored_count": self.gap_censored_count,
             "data_end_censored_count": self.data_end_censored_count,
             "win_rate": format(self.win_rate, "f"),
@@ -175,6 +163,10 @@ def _trade_rows(payload: dict[str, object]) -> tuple[_TradeRow, ...]:
             raise Vt31SilverBulletV2BacktestReportError(
                 f"trade[{index}] terminal state and r_multiple disagree"
             )
+        if outcome == "breakeven" and r_multiple != Decimal(0):
+            raise Vt31SilverBulletV2BacktestReportError(
+                f"trade[{index}] breakeven must have zero R"
+            )
         rows.append(_TradeRow(side=side, outcome=outcome, r_multiple=r_multiple))
     return tuple(rows)
 
@@ -210,6 +202,7 @@ def _summary(
     values = tuple(cast(Decimal, row.r_multiple) for row in terminal)
     target_count = sum(row.outcome == "target" for row in terminal)
     stop_count = sum(row.outcome == "stop" for row in terminal)
+    breakeven_count = sum(row.outcome == "breakeven" for row in terminal)
     win_rate = (
         Decimal(target_count) / Decimal(len(terminal)) if terminal else Decimal(0)
     )
@@ -229,6 +222,7 @@ def _summary(
         terminal_sample_size=len(terminal),
         target_count=target_count,
         stop_count=stop_count,
+        breakeven_count=breakeven_count,
         gap_censored_count=sum(row.outcome == "gap_censored" for row in selected),
         data_end_censored_count=sum(
             row.outcome == "data_end_censored" for row in selected
@@ -333,10 +327,7 @@ def enrich_vt31_silver_bullet_v2_backtest_payload(
 
     enriched = dict(payload)
     enriched["side_counts"] = dict(side_counts)
-    enriched["by_side"] = {
-        side: summaries[side].payload()
-        for side in _SIDES
-    }
+    enriched["by_side"] = {side: summaries[side].payload() for side in _SIDES}
     enriched["long_setup_count"] = side_counts["long"]
     enriched["short_setup_count"] = side_counts["short"]
     enriched["long_trade_count"] = summaries["long"].filled_count

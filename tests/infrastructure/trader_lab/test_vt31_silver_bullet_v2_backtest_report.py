@@ -11,6 +11,13 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_v2_backtest_report import
 
 
 def _trade(*, side: str, outcome: str, r_multiple: str | None) -> dict[str, object]:
+    exit_price: str | None
+    if outcome == "breakeven":
+        exit_price = "100"
+    elif r_multiple is not None:
+        exit_price = "102"
+    else:
+        exit_price = None
     return {
         "signal_at": "2026-07-08T14:03:00+00:00",
         "filled_at": "2026-07-08T14:04:00+00:00",
@@ -19,7 +26,7 @@ def _trade(*, side: str, outcome: str, r_multiple: str | None) -> dict[str, obje
         "entry_price": "100",
         "stop_loss": "99",
         "take_profit": "102",
-        "exit_price": "102" if r_multiple is not None else None,
+        "exit_price": exit_price,
         "outcome": outcome,
         "r_multiple": r_multiple,
     }
@@ -64,6 +71,7 @@ def test_directional_report_uses_core_setup_side_semantics() -> None:
         "terminal_sample_size": 2,
         "target_count": 1,
         "stop_count": 1,
+        "breakeven_count": 0,
         "gap_censored_count": 0,
         "data_end_censored_count": 0,
         "win_rate": "0.5",
@@ -78,12 +86,31 @@ def test_directional_report_uses_core_setup_side_semantics() -> None:
         "terminal_sample_size": 0,
         "target_count": 0,
         "stop_count": 0,
+        "breakeven_count": 0,
         "gap_censored_count": 1,
         "data_end_censored_count": 0,
         "win_rate": "0",
         "expectancy_r": "0",
         "population_variance_r": "0",
     }
+
+
+def test_directional_report_treats_breakeven_as_terminal_zero_r() -> None:
+    payload = _payload()
+    trades = cast(list[object], payload["trades"])
+    trades.append(_trade(side="short", outcome="breakeven", r_multiple="0"))
+    payload["filled_count"] = 4
+
+    result = enrich_vt31_silver_bullet_v2_backtest_payload(
+        payload,
+        setup_side_counts={"long": 3, "short": 2},
+    )
+    by_side = cast(dict[str, object], result["by_side"])
+    short = cast(dict[str, object], by_side["short"])
+
+    assert short["terminal_sample_size"] == 1
+    assert short["breakeven_count"] == 1
+    assert short["expectancy_r"] == "0"
 
 
 def test_directional_report_fails_closed_when_setup_counts_do_not_reconcile() -> None:
