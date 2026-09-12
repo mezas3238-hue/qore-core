@@ -176,8 +176,12 @@ def run_vt08_b01_failure_forensics(paths: list[Path]) -> dict[str, object]:
         by_exit[exit_reason].append(value)
 
     pooled_metrics = _metrics(pooled)
-    market_positive = sorted(symbol for symbol, value in market_means.items() if value > 0)
-    market_negative = sorted(symbol for symbol, value in market_means.items() if value < 0)
+    market_positive = sorted(
+        symbol for symbol, value in market_means.items() if value > 0
+    )
+    market_negative = sorted(
+        symbol for symbol, value in market_means.items() if value < 0
+    )
     oos_pass = sorted(symbol for symbol, value in market_oos.items() if value)
     stress_pass = sorted(symbol for symbol, value in market_stress.items() if value)
 
@@ -188,8 +192,15 @@ def run_vt08_b01_failure_forensics(paths: list[Path]) -> dict[str, object]:
                 "id": "VT08-R3.8-FF-H01",
                 "family": "entry-and-protected-swing-quality",
                 "status": "research_hypothesis_only",
-                "evidence": "more than half of frozen trades terminate at the protected-swing stop",
-                "falsification": "a pre-registered source-supported structural discriminator must reduce stop concentration on a previously unseen holdout without degrading OOS/stress policy",
+                "evidence": (
+                    "more than half of frozen trades terminate at the "
+                    "protected-swing stop"
+                ),
+                "falsification": (
+                    "a pre-registered source-supported structural discriminator "
+                    "must reduce stop concentration on a previously unseen holdout "
+                    "without degrading OOS/stress policy"
+                ),
                 "forbidden_reuse": "run-34693803930",
             }
         )
@@ -199,8 +210,14 @@ def run_vt08_b01_failure_forensics(paths: list[Path]) -> dict[str, object]:
                 "id": "VT08-R3.8-FF-H02",
                 "family": "instrument-dependency",
                 "status": "research_hypothesis_only",
-                "evidence": {"positive_mean_markets": market_positive, "negative_mean_markets": market_negative},
-                "falsification": "instrument separation must reproduce on a previously unseen holdout; selecting winners from the frozen campaign is prohibited",
+                "evidence": {
+                    "positive_mean_markets": market_positive,
+                    "negative_mean_markets": market_negative,
+                },
+                "falsification": (
+                    "instrument separation must reproduce on a previously unseen "
+                    "holdout; selecting winners from the frozen campaign is prohibited"
+                ),
                 "forbidden_reuse": "run-34693803930",
             }
         )
@@ -212,7 +229,10 @@ def run_vt08_b01_failure_forensics(paths: list[Path]) -> dict[str, object]:
                 "family": "source-anchor-regime-interaction",
                 "status": "research_hypothesis_only",
                 "evidence": {"05_ny": hour_metrics["5"]},
-                "falsification": "any anchor-specific hypothesis must be source-justified before change and validated on a fresh holdout",
+                "falsification": (
+                    "any anchor-specific hypothesis must be source-justified before "
+                    "change and validated on a fresh holdout"
+                ),
                 "forbidden_reuse": "run-34693803930",
             }
         )
@@ -222,8 +242,14 @@ def run_vt08_b01_failure_forensics(paths: list[Path]) -> dict[str, object]:
                 "id": "VT08-R3.8-FF-H04",
                 "family": "operational-containment-effect",
                 "status": "research_hypothesis_only",
-                "evidence": {"h4_containment_exit_count": exit_counts["h4_containment_exit"]},
-                "falsification": "compare pre-registered source-supported lifecycle alternatives on fresh evidence; do not choose the better policy from this consumed dataset",
+                "evidence": {
+                    "h4_containment_exit_count": exit_counts["h4_containment_exit"]
+                },
+                "falsification": (
+                    "compare pre-registered source-supported lifecycle alternatives "
+                    "on fresh evidence; do not choose the better policy from this "
+                    "consumed dataset"
+                ),
                 "forbidden_reuse": "run-34693803930",
             }
         )
@@ -256,7 +282,9 @@ def run_vt08_b01_failure_forensics(paths: list[Path]) -> dict[str, object]:
             "stress_fragility",
         ],
         "hypothesis_register": hypotheses,
-        "next_required_evidence": "previously-unseen holdout after source adjudication and pre-registration",
+        "next_required_evidence": (
+            "previously-unseen holdout after source adjudication and pre-registration"
+        ),
         "demo_eligible": False,
     }
 
@@ -264,7 +292,10 @@ def run_vt08_b01_failure_forensics(paths: list[Path]) -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if not arguments:
-        print("usage: vt08_b01_failure_forensics_r3_8 <trader-lab.json>...", file=sys.stderr)
+        print(
+            "usage: vt08_b01_failure_forensics_r3_8 <trader-lab.json>...",
+            file=sys.stderr,
+        )
         return 2
     try:
         payload = run_vt08_b01_failure_forensics([Path(item) for item in arguments])
