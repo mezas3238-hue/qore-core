@@ -23,11 +23,11 @@ from __future__ import annotations
 import argparse
 import json
 from bisect import bisect_right
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
-from typing import Mapping, Sequence
 
 CONSUMED_EVIDENCE_FLOOR = datetime(2022, 8, 13, tzinfo=UTC)
 BASELINE_RUN_ID = 34693803930
@@ -64,7 +64,7 @@ class BrokerVolumeConstraints:
     @classmethod
     def from_market_evidence(
         cls, payload: Mapping[str, object]
-    ) -> "BrokerVolumeConstraints":
+    ) -> BrokerVolumeConstraints:
         symbol_raw = payload.get("symbol")
         if not isinstance(symbol_raw, Mapping):
             raise RiskEconomicReplayError("market evidence missing symbol metadata")
