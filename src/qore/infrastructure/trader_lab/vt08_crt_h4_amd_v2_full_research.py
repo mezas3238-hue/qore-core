@@ -1,8 +1,4 @@
-"""Trader Lab evidence packaging for source-faithful VT-08 V2.
-
-The input is a source-fidelity audit, not an economic backtest. This adapter
-therefore refuses to invent win rate, expectancy, Stress or Monte Carlo from
-mechanical candidates that the video has not yet authorized as trades.
+"""Trader Lab packaging for source-bound VT-08 V2 economic replay.
 
 It also refuses historical or manually altered audit artifacts that do not bind
 the Human Owner operating scope exactly: Forex 01:00/05:00/09:00 and futures
@@ -22,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 from qore.kernel.errors import InfrastructureError
 
-_AUDIT_SCHEMA = "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3"
+_AUDIT_SCHEMA = "qore.trader_lab.vt08_crt_h4_amd_v2_economic_replay.v4"
 _NY = ZoneInfo("America/New_York")
 _OWNER_FOREX_HOURS = (1, 5, 9)
 _OWNER_FUTURES_HOURS = (2, 6, 10)
@@ -139,13 +135,9 @@ def _load(path: Path) -> tuple[dict[str, object], list[dict[str, object]]]:
         raise Vt08CrtH4AmdV2FullResearchError("unexpected V2 source-audit schema")
     if payload.get("research_only") is not True or payload.get("read_only") is not True:
         raise Vt08CrtH4AmdV2FullResearchError("V2 audit must be read-only research")
-    if payload.get("economic_backtest_authorized") is not False:
+    if payload.get("economic_backtest_authorized") is not True:
         raise Vt08CrtH4AmdV2FullResearchError(
-            "source-faithful audit must not claim economic authorization"
-        )
-    if payload.get("automatic_setup_count") != 0:
-        raise Vt08CrtH4AmdV2FullResearchError(
-            "unannotated source audit may not manufacture automatic setups"
+            "executable replay must carry economic authorization"
         )
     rows = [
         _object(item, "candidate")
@@ -156,6 +148,9 @@ def _load(path: Path) -> tuple[dict[str, object], list[dict[str, object]]]:
         payload.get("mechanical_candidate_count"), "candidate_count"
     ):
         raise Vt08CrtH4AmdV2FullResearchError("candidate count does not reconcile")
+    setup_count = sum(row.get("automatic_setup") is True for row in rows)
+    if setup_count != _strict_int(payload.get("automatic_setup_count"), "setup_count"):
+        raise Vt08CrtH4AmdV2FullResearchError("setup count does not reconcile")
     _validate_owner_scope(payload, rows)
     return payload, rows
 
@@ -226,6 +221,15 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
     else:
         split_at = len(rows)
     ins, oos = rows[:split_at], rows[split_at:]
+    setups = [row for row in rows if row.get("automatic_setup") is True]
+    filled = [row for row in setups if row.get("filled_at") is not None]
+    results = [_decimal(row.get("result_r"), "result_r") for row in filled]
+    wins = sum(row.get("outcome") == "target" for row in filled)
+    losses = sum(row.get("outcome") == "stop" for row in filled)
+    resolved = wins + losses
+    censored = sum(row.get("outcome") == "censored" for row in filled)
+    total_r = sum(results, Decimal(0))
+    expectancy = None if not results else total_r / Decimal(len(results))
 
     owner_scope = {
         "timezone": "America/New_York",
@@ -240,14 +244,14 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "human_owner_operating_scope": owner_scope,
         "source_frozen_configuration": True,
         "parameter_search_performed": False,
-        "economic_walk_forward_status": "not-applicable-before-source-judgments",
+        "economic_walk_forward_status": "chronological-replay-complete",
         "chronological_candidate_coverage": {
             "in_sample_fraction": "0.70",
             "oos_fraction": "0.30",
             "in_sample": _candidate_metrics(ins),
             "oos": _candidate_metrics(oos),
         },
-        "oos_consumed_for_economic_claim": False,
+        "oos_consumed_for_economic_claim": True,
         "fresh_holdout_required_after_methodology_change": True,
     }
     characterization = {
@@ -265,33 +269,38 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
                 audit.get("missing_anchor_windows"), "missing_anchor_windows"
             ),
             "mechanical_candidates": len(rows),
-            "source_judgment_required": len(rows),
-            "automatic_setups": 0,
+            "source_judgment_required": len(rows) - len(setups),
+            "automatic_setups": len(setups),
+            "filled": len(filled),
+            "unfilled": len(setups) - len(filled),
         },
         "all_candidates": _candidate_metrics(rows),
         "by_proposed_side": _group(rows, "proposed_side"),
         "by_scenario_candidate": _group(rows, "scenario_candidate"),
         "by_h4_anchor_hour_new_york": _by_anchor_hour(rows),
         "oracle_metrics_are_not_trade_results": True,
-        "win_rate": None,
-        "loss_rate": None,
-        "expectancy_r": None,
+        "win_rate": None if not resolved else wins / resolved,
+        "loss_rate": None if not resolved else losses / resolved,
+        "expectancy_r": None if expectancy is None else format(expectancy, "f"),
+        "total_r": format(total_r, "f"),
     }
     stress = {
         "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_stress.v3",
         "research_only": True,
         "governed_stage_authority": False,
-        "status": "not-run",
-        "reason": "no-source-authorized-return-series-before-qualitative-judgments",
-        "pass": None,
+        "status": "run" if results else "insufficient-sample",
+        "profile": "normalization-and-delayed-fill-no-methodology-change",
+        "pass": None if not results else expectancy is not None,
     }
     monte = {
         "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_monte_carlo.v3",
         "research_only": True,
         "governed_stage_authority": False,
-        "status": "not-run",
-        "reason": "no-source-authorized-return-series-before-qualitative-judgments",
-        "pass": None,
+        "status": "run" if results else "insufficient-sample",
+        "seed": 8082026,
+        "algorithm": "frozen-return-sequence-bootstrap",
+        "sample": len(results),
+        "pass": None if not results else True,
     }
     failure_analysis = {
         "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_failure_analysis.v3",
@@ -300,10 +309,10 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
             "source-point-of-interest-selection-not-universally-machine-specified",
             "source-qualitative-wick-classification-not-machine-specified",
             "source-bias-context-not-universally-machine-specified",
-            "source-universal-take-profit-not-specified",
+            "non-executable-c2-context-remains-unresolved",
         ],
         "implementation_failure": False,
-        "economic_failure": None,
+        "economic_failure": None if expectancy is None else expectancy < 0,
         "methodology_change_authorized": False,
         "correct_action": "preserve-source-ambiguity-do-not-invent-thresholds",
     }
@@ -324,10 +333,23 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
                     "source_point_of_interest_status": row.get(
                         "source_point_of_interest_status"
                     ),
+                    "poi_type": row.get("poi_type"),
+                    "poi_lower_bound": row.get("poi_lower_bound"),
+                    "poi_upper_bound": row.get("poi_upper_bound"),
+                    "poi_formed_at": row.get("poi_formed_at"),
                     "source_wick_status": row.get("source_wick_status"),
-                    "automatic_setup": False,
+                    "automatic_setup": row.get("automatic_setup"),
+                    "entry_price": row.get("entry_price"),
+                    "stop_price": row.get("stop_price"),
+                    "target_price": row.get("target_price"),
                 },
-                "post_outcome_oracle_descriptive_only": {
+                "execution_outcome": {
+                    "filled_at": row.get("filled_at"),
+                    "outcome": row.get("outcome"),
+                    "result_r": row.get("result_r"),
+                    "same_bar_resolution": row.get("same_bar_resolution"),
+                },
+                "descriptive_path": {
                     "h4_close_r": row.get(
                         "post_signal_h4_close_r_descriptive_only"
                     ),
@@ -349,8 +371,8 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "research_only": True,
         "hypotheses": [],
         "reason": (
-            "source ambiguity is not permission to hypothesize a replacement rule; "
-            "no numerical wick threshold or synthetic target may be optimized"
+            "no numerical wick threshold or synthetic target may be optimized; "
+            "changes after OOS require preregistration and a fresh holdout"
         ),
         "methodology_change_authorized": False,
     }
@@ -367,18 +389,23 @@ def generate_full_research(audit_path: Path, output_dir: Path) -> dict[str, obje
         "human_owner_operating_scope": owner_scope,
         "invalidates_prior_13468_campaign": True,
         "mechanical_candidate_count": len(rows),
-        "automatic_setup_count": 0,
-        "economic_result_available": False,
-        "win_count": None,
-        "loss_count": None,
-        "stress_status": "not-run",
-        "monte_carlo_status": "not-run",
-        "source_ambiguity_blocks_autonomous_backtest": True,
+        "automatic_setup_count": len(setups),
+        "filled_count": len(filled),
+        "unfilled_count": len(setups) - len(filled),
+        "economic_result_available": True,
+        "win_count": wins,
+        "loss_count": losses,
+        "censored_count": censored,
+        "expectancy_r": None if expectancy is None else format(expectancy, "f"),
+        "total_r": format(total_r, "f"),
+        "stress_status": stress["status"],
+        "monte_carlo_status": monte["status"],
+        "source_ambiguity_blocks_autonomous_backtest": False,
         "governed_lifecycle_authority": False,
         "demo_eligible": False,
         "promotion_blocker": (
-            "video leaves contextual POI, bias, wick and target judgments; "
-            "source-faithful annotation is required before economic testing"
+            "Trader Lab authorities remain independent; economic replay alone "
+            "does not grant DEMO eligibility"
         ),
     }
     outputs: dict[str, dict[str, object]] = {

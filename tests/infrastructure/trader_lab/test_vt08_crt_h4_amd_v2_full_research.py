@@ -38,6 +38,13 @@ def _source_audit(path: Path, count: int = 12) -> Path:
                 "source_wick_status": "qualitative-unresolved-by-video",
                 "prior_candle2_wick_status": None,
                 "automatic_setup": False,
+                "entry_price": None,
+                "stop_price": None,
+                "target_price": None,
+                "filled_at": None,
+                "outcome": None,
+                "result_r": None,
+                "same_bar_resolution": None,
                 "post_signal_h4_close_r_descriptive_only": "0.5",
                 "mfe_r_descriptive_only": "1.2",
                 "mae_r_descriptive_only": "0.4",
@@ -45,7 +52,7 @@ def _source_audit(path: Path, count: int = 12) -> Path:
             }
         )
     payload: dict[str, object] = {
-        "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_source_audit.v3",
+        "schema": "qore.trader_lab.vt08_crt_h4_amd_v2_economic_replay.v4",
         "environment": "demo",
         "read_only": True,
         "research_only": True,
@@ -66,14 +73,14 @@ def _source_audit(path: Path, count: int = 12) -> Path:
         "filled_count": 0,
         "win_count": None,
         "loss_count": None,
-        "economic_backtest_authorized": False,
+        "economic_backtest_authorized": True,
         "candidates": rows,
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
 
 
-def test_full_research_emits_evidence_without_fake_economics(tmp_path: Path) -> None:
+def test_full_research_emits_empty_but_valid_executable_economics(tmp_path: Path) -> None:
     output = tmp_path / "out"
     summary = generate_full_research(_source_audit(tmp_path / "audit.json"), output)
     assert {item.name for item in output.iterdir()} == {
@@ -88,9 +95,9 @@ def test_full_research_emits_evidence_without_fake_economics(tmp_path: Path) -> 
     }
     assert summary["mechanical_candidate_count"] == 12
     assert summary["automatic_setup_count"] == 0
-    assert summary["economic_result_available"] is False
-    assert summary["win_count"] is None
-    assert summary["loss_count"] is None
+    assert summary["economic_result_available"] is True
+    assert summary["win_count"] == 0
+    assert summary["loss_count"] == 0
     assert summary["demo_eligible"] is False
     assert summary["human_owner_operating_scope"] == {
         "timezone": "America/New_York",
@@ -106,9 +113,9 @@ def test_full_research_emits_evidence_without_fake_economics(tmp_path: Path) -> 
 
     stress = json.loads((output / "stress.json").read_text())
     monte = json.loads((output / "monte-carlo.json").read_text())
-    assert stress["status"] == "not-run"
+    assert stress["status"] == "insufficient-sample"
     assert stress["pass"] is None
-    assert monte["status"] == "not-run"
+    assert monte["status"] == "insufficient-sample"
     assert monte["pass"] is None
 
 
@@ -127,7 +134,8 @@ def test_story_forensics_separates_candidate_decision_data_from_oracle(
         "requires-source-poi-confirmation"
     )
     assert "h4_close_r" not in decision
-    assert "post_outcome_oracle_descriptive_only" in first
+    assert "execution_outcome" in first
+    assert "descriptive_path" in first
 
 
 def test_full_research_rejects_candidate_outside_owner_new_york_hours(

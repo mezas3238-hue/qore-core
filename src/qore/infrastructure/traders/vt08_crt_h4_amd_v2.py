@@ -22,14 +22,12 @@ Only the configured Forex and futures markets are in scope. XAUUSD is outside
 this VT-08 campaign. Source-cycle anchors outside the Human Owner operating scope
 must abstain and may not be introduced by research or optimization.
 
-Critical source-fidelity boundary
----------------------------------
-The lesson requires a source-defined point-of-interest reach before lower-timeframe
-CISD/protected-swing confirmation. Neither the exact POI choice, a universal
-executable entry price at the CISD confirming close, nor one universal target is
-defined mechanically for every case. Therefore a source-confirmed opportunity is
-research evidence, not an executable ``SETUP``. The evaluator fails closed with
-``ABSTAIN`` while preserving the causal confirmation evidence.
+Execution boundary
+------------------
+The lesson demonstrates several executable entry/exit families rather than one
+universal geometry.  This module consequently requires an explicit, causal
+execution plan identifying the demonstrated family and its structural evidence.
+Resolved cases emit ``SETUP``; only the unresolved case abstains.
 
 Outputs grant no Risk, broker, DEMO, LIVE, Production, or real-capital authority.
 """
@@ -50,7 +48,7 @@ from qore.kernel.errors import InfrastructureError
 TRADER_CODE = "vt-08"
 TRADER_VERSION = "v2"
 METHODOLOGY_ID = "ttrades-h4-po3-source"
-METHODOLOGY_VERSION = "v2.5-owner-operational-scope"
+METHODOLOGY_VERSION = "v2.6-source-executable"
 PRIMARY_SOURCE = "youtube:FAKWJ-1NlLE"
 PRIMARY_SOURCE_SHA256 = (
     "bfe76fa4346ec4d7442886c21834aa26f0d82172bdb55666e8c77226cdf83271"
@@ -89,11 +87,11 @@ RULESET = (
     "cisd-protected-swing;let-wick-form-trade-body;"
     "bias-is-explicit-causal-source-context;"
     "wick-size-is-explicit-qualitative-source-judgment;"
-    "cisd-close-is-confirmation-not-universal-entry;"
+    "cisd-close-confirms-protected-swing;contextual-entry-families;"
     "protected-swing-extreme-is-invalidation-reference;"
     "no-invented-wick-threshold;no-mandatory-d1-formula;"
-    "no-invented-poi-selection;no-universal-executable-entry;"
-    "no-universal-take-profit;research-only"
+    "no-invented-poi-selection;structural-or-conditioned-2r-or-minus-1sd-target;"
+    "resolved-context-emits-setup;unresolved-context-abstains;research-only"
 )
 
 
@@ -124,6 +122,26 @@ class Vt08CrtH4AmdV2TimingFamily(StrEnum):
     SOURCE_UNRESOLVED = "source-unresolved"
 
 
+class Vt08CrtH4AmdV2PoiType(StrEnum):
+    FAIR_VALUE_GAP = "fair-value-gap"
+    PREVIOUS_DAY_EXTREME = "previous-day-extreme"
+    FAILURE_SWING = "failure-swing"
+    CANDLE_EQUILIBRIUM = "candle-equilibrium-tspot"
+    IMPORTANT_HIGH_LOW = "important-high-low"
+
+
+class Vt08CrtH4AmdV2EntryModel(StrEnum):
+    CISD_CONFIRMATION_CLOSE = "cisd-confirmation-close"
+    POSITIONAL_H4_OPEN = "positional-new-h4-open"
+    PROTECTED_SWING_CONTINUATION = "protected-swing-continuation"
+
+
+class Vt08CrtH4AmdV2TargetType(StrEnum):
+    STRUCTURAL_OBJECTIVE = "structural-objective"
+    CONDITIONED_TWO_R = "conditioned-two-r"
+    NEGATIVE_ONE_STANDARD_DEVIATION = "negative-one-standard-deviation"
+
+
 class Vt08CrtH4AmdV2AbstainReason(StrEnum):
     UNSUPPORTED_MARKET = "unsupported-market"
     TIMING_FAMILY_REQUIRED = "source-timing-family-required"
@@ -139,6 +157,11 @@ class Vt08CrtH4AmdV2AbstainReason(StrEnum):
     CANDLE2_REVERSAL_REQUIRED = "candle3-requires-candle2-reversal"
     REFERENCE_BOUNDARY_NOT_RUN = "reference-boundary-not-run"
     NO_CISD_PROTECTED_SWING = "no-cisd-protected-swing"
+    EXECUTION_PLAN_REQUIRED = "source-execution-plan-required"
+    UNRESOLVED_POI_AMBIGUITY = "unresolved-poi-ambiguity"
+    INVALID_ENTRY = "invalid-entry"
+    INVALID_STOP = "invalid-stop"
+    INVALID_TARGET = "invalid-target"
     SOURCE_EXECUTION_CONTRACT_INCOMPLETE = "source-execution-entry-target-unresolved"
     INVALID_GEOMETRY = "invalid-geometry"
 
@@ -197,6 +220,7 @@ class Vt08CrtH4AmdV2SourceContext:
     point_of_interest_provenance: str | None
     observed_at: datetime
     provenance: str
+    execution_plan: Vt08CrtH4AmdV2ExecutionPlan | None = None
 
     def __post_init__(self) -> None:
         if self.bias_side is not None and type(self.bias_side) is not DemoTradingSetupSide:
@@ -228,6 +252,139 @@ class Vt08CrtH4AmdV2SourceContext:
             raise Vt08CrtH4AmdV2ValidationError("context observed_at must be timezone-aware")
         if type(self.provenance) is not str or not self.provenance.strip():
             raise Vt08CrtH4AmdV2ValidationError("source context provenance is required")
+        if self.execution_plan is not None and type(
+            self.execution_plan
+        ) is not Vt08CrtH4AmdV2ExecutionPlan:
+            raise Vt08CrtH4AmdV2ValidationError("execution_plan must be exact or None")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt08CrtH4AmdV2PointOfInterest:
+    poi_type: Vt08CrtH4AmdV2PoiType
+    timeframe: str
+    formed_at: datetime
+    confirmed_at: datetime
+    lower_bound: Decimal
+    upper_bound: Decimal
+    direction: DemoTradingSetupSide
+    source_timestamp: str
+    evidence_ids: tuple[str, ...]
+    selection_reason: str
+
+    def __post_init__(self) -> None:
+        if type(self.poi_type) is not Vt08CrtH4AmdV2PoiType:
+            raise Vt08CrtH4AmdV2ValidationError("POI type must be exact")
+        if type(self.direction) is not DemoTradingSetupSide:
+            raise Vt08CrtH4AmdV2ValidationError("POI direction must be exact")
+        if (
+            self.formed_at.tzinfo is None
+            or self.formed_at.utcoffset() is None
+            or self.confirmed_at.tzinfo is None
+            or self.confirmed_at.utcoffset() is None
+        ):
+            raise Vt08CrtH4AmdV2ValidationError("POI timestamps must be aware")
+        if self.formed_at > self.confirmed_at:
+            raise Vt08CrtH4AmdV2ValidationError("POI cannot confirm before formation")
+        if not (Decimal(0) < self.lower_bound <= self.upper_bound):
+            raise Vt08CrtH4AmdV2ValidationError("POI bounds are invalid")
+        if not self.timeframe or not self.source_timestamp or not self.selection_reason:
+            raise Vt08CrtH4AmdV2ValidationError("POI provenance fields are required")
+        if not self.evidence_ids or len(set(self.evidence_ids)) != len(self.evidence_ids):
+            raise Vt08CrtH4AmdV2ValidationError("POI evidence ids must be unique")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt08CrtH4AmdV2ExecutionPlan:
+    """Decision-time reconstruction of one entry family shown in the source."""
+
+    entry_model: Vt08CrtH4AmdV2EntryModel
+    entry_price: Decimal
+    methodological_stop: Decimal
+    target_type: Vt08CrtH4AmdV2TargetType
+    target_price: Decimal
+    poi: Vt08CrtH4AmdV2PointOfInterest
+    created_at: datetime
+    valid_until: datetime
+    source_timestamps: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if type(self.entry_model) is not Vt08CrtH4AmdV2EntryModel:
+            raise Vt08CrtH4AmdV2ValidationError("entry model must be exact")
+        if type(self.target_type) is not Vt08CrtH4AmdV2TargetType:
+            raise Vt08CrtH4AmdV2ValidationError("target type must be exact")
+        if type(self.poi) is not Vt08CrtH4AmdV2PointOfInterest:
+            raise Vt08CrtH4AmdV2ValidationError("execution POI must be exact")
+        if (
+            self.created_at.tzinfo is None
+            or self.created_at.utcoffset() is None
+            or self.valid_until.tzinfo is None
+            or self.valid_until.utcoffset() is None
+        ):
+            raise Vt08CrtH4AmdV2ValidationError("execution timestamps must be aware")
+        if self.created_at >= self.valid_until:
+            raise Vt08CrtH4AmdV2ValidationError("execution plan must have positive life")
+        if self.created_at < self.poi.confirmed_at:
+            raise Vt08CrtH4AmdV2ValidationError("execution cannot predate its POI")
+        prices = (
+            ("entry", self.entry_price),
+            ("stop", self.methodological_stop),
+            ("target", self.target_price),
+        )
+        for name, value in prices:
+            if not value.is_finite() or value <= 0:
+                raise Vt08CrtH4AmdV2ValidationError(f"{name} must be positive finite")
+        if (
+            not self.source_timestamps
+            or len(set(self.source_timestamps)) != len(self.source_timestamps)
+            or not self.evidence_ids
+            or len(set(self.evidence_ids)) != len(self.evidence_ids)
+        ):
+            raise Vt08CrtH4AmdV2ValidationError("execution provenance is required")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt08CrtH4AmdV2Setup:
+    side: DemoTradingSetupSide
+    scenario: Vt08CrtH4AmdV2Scenario
+    entry_model: Vt08CrtH4AmdV2EntryModel
+    entry_price: Decimal
+    methodological_invalidation: Decimal
+    stop_price: Decimal
+    target_type: Vt08CrtH4AmdV2TargetType
+    target_price: Decimal
+    expected_r: Decimal
+    signal_at: datetime
+    expires_at: datetime
+    cisd_level: Decimal
+    protected_swing_extreme: Decimal
+    poi: Vt08CrtH4AmdV2PointOfInterest
+    evidence_fingerprint: str
+    methodology_fingerprint: str
+    source_identity: str = PRIMARY_SOURCE
+    source_sha256: str = PRIMARY_SOURCE_SHA256
+
+    def __post_init__(self) -> None:
+        if self.signal_at.tzinfo is None or self.expires_at.tzinfo is None:
+            raise Vt08CrtH4AmdV2ValidationError("setup timestamps must be aware")
+        if self.signal_at >= self.expires_at:
+            raise Vt08CrtH4AmdV2ValidationError("setup must expire after its signal")
+        valid = (
+            self.stop_price < self.entry_price < self.target_price
+            if self.side is DemoTradingSetupSide.LONG
+            else self.target_price < self.entry_price < self.stop_price
+        )
+        if not valid or self.expected_r <= 0:
+            raise Vt08CrtH4AmdV2ValidationError("invalid setup geometry")
+        risk = abs(self.entry_price - self.stop_price)
+        reward = abs(self.target_price - self.entry_price)
+        if self.expected_r != reward / risk:
+            raise Vt08CrtH4AmdV2ValidationError("expected R must match setup geometry")
+        for fingerprint in (self.evidence_fingerprint, self.methodology_fingerprint):
+            if len(fingerprint) != 64 or any(c not in "0123456789abcdef" for c in fingerprint):
+                raise Vt08CrtH4AmdV2ValidationError("fingerprints must be SHA-256")
+        if self.source_identity != PRIMARY_SOURCE or self.source_sha256 != PRIMARY_SOURCE_SHA256:
+            raise Vt08CrtH4AmdV2ValidationError("setup source identity is immutable")
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,7 +447,7 @@ class Vt08CrtH4AmdV2Evaluation:
     confirmed_opportunity: Vt08CrtH4AmdV2ConfirmedOpportunity | None
     abstain_reason: Vt08CrtH4AmdV2AbstainReason | None
     methodology_fingerprint: str
-    setup: None = None
+    setup: Vt08CrtH4AmdV2Setup | None = None
 
 
 def methodology_fingerprint() -> str:
@@ -495,9 +652,81 @@ def _confirmed_opportunity(
         )
     except Vt08CrtH4AmdV2ValidationError:
         return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_GEOMETRY)
-    return _abstain(
-        Vt08CrtH4AmdV2AbstainReason.SOURCE_EXECUTION_CONTRACT_INCOMPLETE,
+    plan = context.execution_plan
+    if plan is None:
+        return _abstain(
+            Vt08CrtH4AmdV2AbstainReason.EXECUTION_PLAN_REQUIRED,
+            confirmed_opportunity=opportunity,
+        )
+    confirmation_at = confirmation.closed_at.astimezone(UTC)
+    if (
+        plan.created_at.astimezone(UTC) > confirmation_at
+        or plan.poi.confirmed_at.astimezone(UTC) > confirmation_at
+        or plan.valid_until.astimezone(UTC) > expires_at.astimezone(UTC)
+        or plan.poi.direction is not side
+    ):
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.NON_CAUSAL_SOURCE_CONTEXT)
+    if not (plan.poi.lower_bound <= plan.entry_price <= plan.poi.upper_bound):
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_ENTRY)
+    if plan.methodological_stop != extreme:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_STOP)
+    risk = (
+        plan.entry_price - plan.methodological_stop
+        if side is DemoTradingSetupSide.LONG
+        else plan.methodological_stop - plan.entry_price
+    )
+    reward = (
+        plan.target_price - plan.entry_price
+        if side is DemoTradingSetupSide.LONG
+        else plan.entry_price - plan.target_price
+    )
+    if risk <= 0 or reward <= 0:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_GEOMETRY)
+    expected_r = reward / risk
+    if plan.target_type is Vt08CrtH4AmdV2TargetType.CONDITIONED_TWO_R and expected_r != Decimal(2):
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_TARGET)
+    evidence_material = {
+        "side": side.value,
+        "scenario": scenario.value,
+        "signal_at": confirmation_at.isoformat(),
+        "cisd": format(cisd_level, "f"),
+        "protected_swing": format(extreme, "f"),
+        "entry": format(plan.entry_price, "f"),
+        "stop": format(plan.methodological_stop, "f"),
+        "target": format(plan.target_price, "f"),
+        "poi_evidence": plan.poi.evidence_ids,
+        "execution_evidence": plan.evidence_ids,
+    }
+    evidence_fingerprint = sha256(
+        json.dumps(evidence_material, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    try:
+        setup = Vt08CrtH4AmdV2Setup(
+            side=side,
+            scenario=scenario,
+            entry_model=plan.entry_model,
+            entry_price=plan.entry_price,
+            methodological_invalidation=extreme,
+            stop_price=plan.methodological_stop,
+            target_type=plan.target_type,
+            target_price=plan.target_price,
+            expected_r=expected_r,
+            signal_at=confirmation_at,
+            expires_at=plan.valid_until.astimezone(UTC),
+            cisd_level=cisd_level,
+            protected_swing_extreme=extreme,
+            poi=plan.poi,
+            evidence_fingerprint=evidence_fingerprint,
+            methodology_fingerprint=methodology_fingerprint(),
+        )
+    except Vt08CrtH4AmdV2ValidationError:
+        return _abstain(Vt08CrtH4AmdV2AbstainReason.INVALID_GEOMETRY)
+    return Vt08CrtH4AmdV2Evaluation(
+        decision=DemoTradingDecision.SETUP,
         confirmed_opportunity=opportunity,
+        abstain_reason=None,
+        methodology_fingerprint=methodology_fingerprint(),
+        setup=setup,
     )
 
 

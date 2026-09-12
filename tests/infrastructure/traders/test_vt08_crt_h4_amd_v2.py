@@ -15,8 +15,14 @@ from qore.infrastructure.traders.vt08_crt_h4_amd_v2 import (
     Vt08CrtH4AmdV2AbstainReason,
     Vt08CrtH4AmdV2Candle,
     Vt08CrtH4AmdV2ConfirmedOpportunity,
+    Vt08CrtH4AmdV2EntryModel,
+    Vt08CrtH4AmdV2Evaluation,
+    Vt08CrtH4AmdV2ExecutionPlan,
+    Vt08CrtH4AmdV2PointOfInterest,
+    Vt08CrtH4AmdV2PoiType,
     Vt08CrtH4AmdV2Scenario,
     Vt08CrtH4AmdV2SourceContext,
+    Vt08CrtH4AmdV2TargetType,
     Vt08CrtH4AmdV2TimingFamily,
     Vt08CrtH4AmdV2ValidationError,
     Vt08CrtH4AmdV2WickProfile,
@@ -54,6 +60,7 @@ def _context(
     *,
     observed_at: datetime,
     point_of_interest_reached: bool | None = True,
+    execution_plan: Vt08CrtH4AmdV2ExecutionPlan | None = None,
 ) -> Vt08CrtH4AmdV2SourceContext:
     poi_provenance = (
         "human-owner-primary-video/source-defined-poi"
@@ -67,6 +74,41 @@ def _context(
         point_of_interest_provenance=poi_provenance,
         observed_at=observed_at,
         provenance="human-owner-primary-video/source-context",
+        execution_plan=execution_plan,
+    )
+
+
+def _execution_plan(
+    *,
+    anchor: datetime,
+    side: DemoTradingSetupSide = DemoTradingSetupSide.LONG,
+    entry: str = "100",
+    stop: str = "94.5",
+    target: str = "111",
+) -> Vt08CrtH4AmdV2ExecutionPlan:
+    entry_price = Decimal(entry)
+    return Vt08CrtH4AmdV2ExecutionPlan(
+        entry_model=Vt08CrtH4AmdV2EntryModel.CISD_CONFIRMATION_CLOSE,
+        entry_price=entry_price,
+        methodological_stop=Decimal(stop),
+        target_type=Vt08CrtH4AmdV2TargetType.CONDITIONED_TWO_R,
+        target_price=Decimal(target),
+        poi=Vt08CrtH4AmdV2PointOfInterest(
+            poi_type=Vt08CrtH4AmdV2PoiType.FAIR_VALUE_GAP,
+            timeframe="M15",
+            formed_at=anchor,
+            confirmed_at=anchor,
+            lower_bound=entry_price - Decimal("1"),
+            upper_bound=entry_price + Decimal("1"),
+            direction=side,
+            source_timestamp="06:15-06:44",
+            evidence_ids=("video-example-fvg",),
+            selection_reason="reached FVG preceding CISD",
+        ),
+        created_at=anchor,
+        valid_until=anchor + timedelta(hours=4),
+        source_timestamps=("06:15-06:44", "09:08-09:58"),
+        evidence_ids=("cisd-confirmation", "protected-swing"),
     )
 
 
@@ -141,7 +183,7 @@ def test_source_anchor_is_new_york_dst_aware_in_winter_and_summer() -> None:
         assert result.confirmed_opportunity is not None
         assert (
             result.abstain_reason
-            is Vt08CrtH4AmdV2AbstainReason.SOURCE_EXECUTION_CONTRACT_INCOMPLETE
+            is Vt08CrtH4AmdV2AbstainReason.EXECUTION_PLAN_REQUIRED
         )
 
 
@@ -240,7 +282,7 @@ def test_source_bias_is_explicit_context_not_an_invented_daily_formula() -> None
     assert result.abstain_reason is Vt08CrtH4AmdV2AbstainReason.BIAS_CONTEXT_REQUIRED
 
 
-def test_video_shallow_candle2_plus_reference_run_and_cisd_confirms_opportunity_but_not_entry(
+def test_video_shallow_candle2_plus_reference_run_and_cisd_without_plan_abstains_locally(
 ) -> None:
     anchor, reference, bars = _c2_case()
     result = evaluate_reversal_expansion_candle2(
@@ -257,7 +299,7 @@ def test_video_shallow_candle2_plus_reference_run_and_cisd_confirms_opportunity_
     assert result.decision is DemoTradingDecision.ABSTAIN
     assert (
         result.abstain_reason
-        is Vt08CrtH4AmdV2AbstainReason.SOURCE_EXECUTION_CONTRACT_INCOMPLETE
+        is Vt08CrtH4AmdV2AbstainReason.EXECUTION_PLAN_REQUIRED
     )
     assert result.setup is None
     opportunity = result.confirmed_opportunity
@@ -269,6 +311,75 @@ def test_video_shallow_candle2_plus_reference_run_and_cisd_confirms_opportunity_
     assert opportunity.point_of_interest_provenance.endswith("source-defined-poi")
     assert opportunity.executable_entry_price is None
     assert opportunity.take_profit is None
+
+
+def test_candle2_resolved_source_plan_emits_exact_long_setup() -> None:
+    anchor, reference, bars = _c2_case()
+    result = evaluate_reversal_expansion_candle2(
+        symbol="EURUSD",
+        h4_reference=reference,
+        h4_candle2_closes_at=anchor + timedelta(hours=4),
+        observed_m15=bars,
+        context=_context(
+            DemoTradingSetupSide.LONG,
+            Vt08CrtH4AmdV2WickProfile.SHALLOW,
+            observed_at=anchor,
+            execution_plan=_execution_plan(anchor=anchor),
+        ),
+    )
+    assert result.decision is DemoTradingDecision.SETUP
+    assert result.setup is not None
+    assert result.setup.entry_price == Decimal("100")
+    assert result.setup.stop_price == Decimal("94.5")
+    assert result.setup.target_price == Decimal("111")
+    assert result.setup.expected_r == Decimal("2")
+    assert result.setup.source_identity == "youtube:FAKWJ-1NlLE"
+    assert len(result.setup.evidence_fingerprint) == 64
+
+
+def test_conditioned_two_r_target_cannot_hide_different_geometry() -> None:
+    anchor, reference, bars = _c2_case()
+    result = evaluate_reversal_expansion_candle2(
+        symbol="EURUSD",
+        h4_reference=reference,
+        h4_candle2_closes_at=anchor + timedelta(hours=4),
+        observed_m15=bars,
+        context=_context(
+            DemoTradingSetupSide.LONG,
+            Vt08CrtH4AmdV2WickProfile.SHALLOW,
+            observed_at=anchor,
+            execution_plan=_execution_plan(anchor=anchor, target="110"),
+        ),
+    )
+    assert result.decision is DemoTradingDecision.ABSTAIN
+    assert result.abstain_reason is Vt08CrtH4AmdV2AbstainReason.INVALID_TARGET
+
+
+def test_same_evidence_produces_identical_setup_and_fingerprints() -> None:
+    anchor, reference, bars = _c2_case()
+    context = _context(
+        DemoTradingSetupSide.LONG,
+        Vt08CrtH4AmdV2WickProfile.SHALLOW,
+        observed_at=anchor,
+        execution_plan=_execution_plan(anchor=anchor),
+    )
+
+    def evaluate() -> Vt08CrtH4AmdV2Evaluation:
+        return evaluate_reversal_expansion_candle2(
+            symbol="EURUSD",
+            h4_reference=reference,
+            h4_candle2_closes_at=anchor + timedelta(hours=4),
+            observed_m15=bars,
+            context=context,
+        )
+
+    first = evaluate()
+    second = evaluate()
+    assert first == second
+    assert first.setup is not None
+    assert second.setup is not None
+    assert first.setup.evidence_fingerprint == second.setup.evidence_fingerprint
+    assert first.methodology_fingerprint == second.methodology_fingerprint
 
 
 def test_video_large_candle2_does_not_get_forced_into_same_candle_trade() -> None:
@@ -289,7 +400,7 @@ def test_video_large_candle2_does_not_get_forced_into_same_candle_trade() -> Non
     assert result.confirmed_opportunity is None
 
 
-def test_video_large_candle2_reversal_then_shallow_candle3_cisd_is_confirmation_only() -> None:
+def test_video_large_candle2_reversal_then_shallow_candle3_cisd_can_emit_setup() -> None:
     reference_open = datetime(2026, 1, 5, 1, 0, tzinfo=_NY)
     reference = _candle(
         reference_open,
@@ -323,14 +434,21 @@ def test_video_large_candle2_reversal_then_shallow_candle3_cisd_is_confirmation_
             DemoTradingSetupSide.LONG,
             Vt08CrtH4AmdV2WickProfile.SHALLOW,
             observed_at=c3,
+            execution_plan=_execution_plan(
+                anchor=c3,
+                entry="99",
+                stop="96",
+                target="105",
+            ),
         ),
     )
-    assert result.decision is DemoTradingDecision.ABSTAIN
-    assert (
-        result.abstain_reason
-        is Vt08CrtH4AmdV2AbstainReason.SOURCE_EXECUTION_CONTRACT_INCOMPLETE
-    )
-    assert result.setup is None
+    assert result.decision is DemoTradingDecision.SETUP
+    assert result.abstain_reason is None
+    assert result.setup is not None
+    assert result.setup.entry_price == Decimal("99")
+    assert result.setup.stop_price == Decimal("96")
+    assert result.setup.target_price == Decimal("105")
+    assert result.setup.expected_r == Decimal("2")
     opportunity = result.confirmed_opportunity
     assert opportunity is not None
     assert opportunity.scenario is Vt08CrtH4AmdV2Scenario.CONTINUATION_EXPANSION_C3
@@ -402,7 +520,7 @@ def test_non_m15_confirmation_evidence_is_rejected() -> None:
     assert result.abstain_reason is Vt08CrtH4AmdV2AbstainReason.INVALID_M15_EVIDENCE
 
 
-def test_universal_executable_entry_and_take_profit_are_explicitly_prohibited() -> None:
+def test_legacy_confirmed_opportunity_still_cannot_smuggle_untyped_geometry() -> None:
     with pytest.raises(Vt08CrtH4AmdV2ValidationError):
         Vt08CrtH4AmdV2ConfirmedOpportunity(
             side=DemoTradingSetupSide.LONG,
