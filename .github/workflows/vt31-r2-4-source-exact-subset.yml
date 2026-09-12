@@ -1,4 +1,5 @@
 name: QORE VT-31 R2.4 Source-Exact Subset
+# Fresh research trigger after the exact R2.4 quality gate was certified green.
 
 on:
   push:
