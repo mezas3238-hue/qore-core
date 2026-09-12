@@ -30,6 +30,7 @@ permissions:
 
 jobs:
   quality:
+    if: github.event_name != 'pull_request' || github.head_ref == 'agent/vt08-cardinality-rebuild-001'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
