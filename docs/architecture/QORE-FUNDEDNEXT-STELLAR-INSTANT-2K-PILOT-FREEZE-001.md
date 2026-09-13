@@ -59,22 +59,24 @@ Current FundedNext Stellar Instant product guidance explicitly permits customize
 
 Therefore this pilot may expose an **MT5 automated-capable route** only after activation-time re-verification of the exact purchased product and EA fee/option state. Any mismatch fails closed.
 
-## VT-08 market universe and symbol mapping
+## Owner-authorized VT-08 pilot market universe
 
-The FundedNext CFD tradable-asset inventory currently contains every one of the ten QORE VT-08 markets. Frozen canonical mapping:
+The pilot MUST NOT introduce the full historical VT-08 universe. Only markets explicitly retained by the Owner because they have worked so far are permitted.
 
-- AUDJPY -> AUDJPY
-- AUDUSD -> AUDUSD
-- EURUSD -> EURUSD
-- GBPJPY -> GBPJPY
-- GBPUSD -> GBPUSD
-- USDCAD -> USDCAD
-- USDJPY -> USDJPY
-- NAS100 -> NDX100
-- SP500 -> SPX500
-- US30 -> US30
+Frozen allowlist for this pilot:
 
-The mapping is identity/proxy routing only. `NAS100 -> NDX100` and `SP500 -> SPX500` do not assert exact exchange-futures equivalence.
+- owner alias `A` — exact canonical symbol unresolved in this freeze; FAIL CLOSED until explicitly bound;
+- GBPJPY -> GBPJPY;
+- owner alias `B` — exact canonical symbol unresolved in this freeze; FAIL CLOSED until explicitly bound;
+- NAS100 -> NDX100;
+- SP500 -> SPX500;
+- US30 -> US30.
+
+No other Forex pair or index is authorized for this Stellar Instant pilot. In particular, AUDJPY, AUDUSD, EURUSD, GBPUSD, USDCAD and USDJPY MUST NOT be added merely because FundedNext offers them.
+
+`A` and `B` are Owner labels, not inferred symbols. QORE MUST NOT guess their identity. Until the Owner binds each alias to an exact QORE canonical symbol and FundedNext MT5 symbol, they are non-executable and excluded from replay/order routing.
+
+The index mapping is identity/proxy routing only. `NAS100 -> NDX100` and `SP500 -> SPX500` do not assert exact exchange-futures equivalence.
 
 ## Contract-size evidence
 
@@ -138,6 +140,8 @@ After a payout, because provider MLL does not reset downward, CIBO must not assu
 
 The first replay may consume previously used VT-08 evidence to validate mechanics, but is research-only. It cannot select a new Trader rule, market, anchor, direction, stop policy, or CIBO threshold from P&L.
 
+Replay and future adapter work MUST be restricted to the Owner-authorized pilot allowlist above. No market may be added because it exists at FundedNext or because it performed well in a post-hoc scan.
+
 Any economic replay must report all pre-existing CIBO/stop-policy arms rather than cherry-pick the best consumed-sample arm.
 
 Fresh unseen validation is required before any promotion.
@@ -162,6 +166,9 @@ FundedNext Help Center:
 - orders_submitted: false
 - trader_methodology_mutation: false
 - provider_selected_by_backtest_result: false
+- market_universe_expansion_authorized: false
+- owner_alias_A_bound: false
+- owner_alias_B_bound: false
 - DEMO_ELIGIBLE: false
 - LIVE_AUTHORIZED: false
 - PRODUCTION_AUTHORIZED: false
