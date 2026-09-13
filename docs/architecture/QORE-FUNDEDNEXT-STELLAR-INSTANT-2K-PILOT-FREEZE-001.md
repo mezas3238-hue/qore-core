@@ -1,6 +1,6 @@
 # QORE FundedNext Stellar Instant $2K Pilot Freeze 001
 
-Verified against FundedNext official Help Center: 2026-09-13
+Verified against FundedNext official Help Center and QORE frozen portfolio identities: 2026-09-13
 
 Status: PRE-IMPLEMENTATION / PRE-REPLAY COMPLIANCE FREEZE
 
@@ -22,28 +22,25 @@ CIBO may request BUILD / PROTECT / BANK / REDUCE / ATTACK. CIBO never creates lo
 - product: Stellar Instant
 - pilot initial balance: USD 2,000
 - platform target: MT5
-- account sizes currently published: 2,000 / 5,000 / 10,000 / 20,000 USD
 - no Challenge / Evaluation phase
 - no profit target prerequisite
 - no Daily Loss Limit
-- Maximum Loss Limit (MLL): 6% of the initial account balance
-- for the $2,000 pilot, fixed MLL distance = **$120**
-- initial MLL floor = **$1,880**
-- MLL trails upward when closed balance makes a new high
+- Maximum Loss Limit (MLL): 6% of initial account balance
+- fixed $2K MLL distance: **$120**
+- initial MLL floor: **$1,880**
+- MLL trails upward with new closed-balance highs
 - MLL never moves downward after losses
 - MLL is capped at the initial account balance
-- after withdrawals / Performance Rewards, the MLL does not reset lower
-- account is hard breached if equity falls below the active MLL
+- after withdrawals / Performance Rewards, MLL does not reset lower
+- equity below active MLL is a provider hard breach
 
-Frozen MLL recurrence for QORE replay:
+Frozen replay recurrence:
 
 `candidate_floor = highest_closed_balance - 0.06 * initial_balance`
 
 `active_mll = min(initial_balance, max(previous_active_mll, candidate_floor))`
 
-The initial active MLL is `initial_balance * 0.94`.
-
-QORE MUST preserve provider-reported MLL when the live adapter supplies it; locally reconstructed MLL is a verification calculation, not authority to override the provider.
+Provider-reported MLL is sovereign when available; local reconstruction is verification only.
 
 ## Leverage frozen for Stellar Instant
 
@@ -55,96 +52,96 @@ QORE MUST preserve provider-reported MLL when the live adapter supplies it; loca
 
 ## Automation / platform rule
 
-Current FundedNext Stellar Instant product guidance explicitly permits customized EAs and indicators subject to provider rules. Current generic FundedNext automation guidance permits EAs/bots on MT4/MT5 for accounts below $50,000 and forbids automation on cTrader / Match-Trader.
+Current Stellar Instant product guidance permits customized EAs/indicators subject to provider rules. This pilot may expose an MT5 automated-capable route only after activation-time re-verification of the exact purchased product and EA fee/option state. Any mismatch fails closed.
 
-Therefore this pilot may expose an **MT5 automated-capable route** only after activation-time re-verification of the exact purchased product and EA fee/option state. Any mismatch fails closed.
+## Recovered QORE portfolio identities
 
-## Owner-authorized VT-08 pilot market universe
+GitHub PR #528 and its committed R3.12 freeze are authoritative for the already-frozen portfolio identities:
 
-The pilot MUST NOT introduce the full historical VT-08 universe. Only markets explicitly retained by the Owner because they have worked so far are permitted.
+- **A CORE = AUDJPY SHORT + GBPUSD SHORT**
+- **GBPJPY RETURN ENHANCER = GBPJPY LONG + GBPJPY SHORT**
+- **B COMBINED = A CORE + GBPJPY RETURN ENHANCER**
 
-Frozen allowlist for this pilot:
+This is identity recovery from existing QORE governance, not a new market selection and not post-hoc tuning.
 
-- owner alias `A` — exact canonical symbol unresolved in this freeze; FAIL CLOSED until explicitly bound;
-- GBPJPY -> GBPJPY;
-- owner alias `B` — exact canonical symbol unresolved in this freeze; FAIL CLOSED until explicitly bound;
-- NAS100 -> NDX100;
-- SP500 -> SPX500;
-- US30 -> US30.
+## Owner-authorized Stellar Instant pilot universe
 
-No other Forex pair or index is authorized for this Stellar Instant pilot. In particular, AUDJPY, AUDUSD, EURUSD, GBPUSD, USDCAD and USDJPY MUST NOT be added merely because FundedNext offers them.
+The pilot MUST NOT introduce the full historical VT-08 universe. The only Forex instruments needed to preserve A / GBPJPY / B are:
 
-`A` and `B` are Owner labels, not inferred symbols. QORE MUST NOT guess their identity. Until the Owner binds each alias to an exact QORE canonical symbol and FundedNext MT5 symbol, they are non-executable and excluded from replay/order routing.
+- AUDJPY -> AUDJPY
+- GBPUSD -> GBPUSD
+- GBPJPY -> GBPJPY
 
-The index mapping is identity/proxy routing only. `NAS100 -> NDX100` and `SP500 -> SPX500` do not assert exact exchange-futures equivalence.
+The Owner additionally authorizes the existing index research set:
 
-## Contract-size evidence
+- NAS100 -> NDX100
+- SP500 -> SPX500
+- US30 -> US30
 
-Current FundedNext contract-size guidance states:
+Therefore the exact unique six-symbol pilot universe is:
 
-- Forex contract size: 100,000
-- Indices contract size: 10
+`AUDJPY, GBPUSD, GBPJPY, NAS100, SP500, US30`
 
-These values are reported as applying to all FundedNext accounts.
+Portfolio semantics remain frozen:
 
-However, static public documentation does **not** establish the exact live MT5 values needed for safe order sizing for every symbol: minimum volume, volume step, tick size, tick value, spread, margin currency/conversion and broker-side minimum stop distance.
+- A CORE executes only its existing AUDJPY SHORT and GBPUSD SHORT sleeves;
+- GBPJPY RETURN ENHANCER preserves both existing GBPJPY LONG and SHORT sleeves;
+- B COMBINED is the combination of A CORE plus the GBPJPY RETURN ENHANCER;
+- the three index instruments remain a separate VT-08 index research/execution lineage and are not silently redefined as components of A or B.
 
-Therefore the execution feasibility gate MUST ingest the live MT5 SymbolInfo/Specification before authorizing any order. QORE MUST NOT invent `0.01` lot or any other minimum volume.
+No other Forex pair or index is authorized for this pilot. AUDUSD, EURUSD, USDCAD and USDJPY are explicitly out of scope for now even if FundedNext offers them.
+
+`NAS100 -> NDX100` and `SP500 -> SPX500` are provider routing mappings and do not assert exact exchange-futures equivalence.
+
+## Contract-size and live-symbol evidence
+
+Current public FundedNext guidance reports Forex contract size 100,000 and indices contract size 10. Static public documentation does not establish every live MT5 value required for safe order sizing.
+
+Before any order, the MT5 adapter MUST provide fresh SymbolInfo/Specification for the exact provider symbol, including:
+
+- bid / ask / spread;
+- contract size;
+- minimum and maximum volume;
+- volume step;
+- tick size;
+- tick value in account currency or verified conversion path;
+- leverage / margin requirement;
+- minimum stop distance where applicable.
+
+QORE MUST NOT invent `0.01` lot, tick value, margin or any other broker parameter. Missing/stale fields fail closed.
 
 ## $2K pilot order-feasibility contract
 
-For each proposed order Risk must have, from the live provider adapter:
-
-- canonical QORE symbol and provider symbol;
-- bid / ask / spread;
-- contract size;
-- minimum volume;
-- maximum volume;
-- volume step;
-- tick size;
-- tick value in account currency or a verified conversion path;
-- leverage / margin requirement;
-- entry, stop and target;
-- current equity, balance and provider-reported MLL;
-- current open-position worst-case loss.
+For every proposed order Risk must additionally know entry, stop, target, current equity, balance, provider-reported MLL and aggregate open-position worst-case loss.
 
 Risk must calculate:
 
 1. provider headroom = `equity - active_mll`;
-2. QORE authorizable headroom after internal safety reserve;
+2. QORE authorizable headroom after internal reserve;
 3. monetary stop loss at broker-valid rounded volume;
-4. post-order worst-case equity including all open positions;
-5. required margin and free margin;
-6. whether CIBO BASE / REDUCED / ATTACK requested exposure fits.
+4. post-order worst-case equity across all open positions;
+5. required/free margin;
+6. whether the CIBO BASE / REDUCED / ATTACK request fits.
 
-Risk rejects when any required symbol specification is absent or stale, when volume rounding raises loss above budget, when post-order worst-case equity reaches the MLL, or when margin is insufficient.
+Risk rejects when volume rounding raises loss above budget, post-order worst-case equity reaches the MLL, margin is insufficient, or required market/account data is missing/stale.
 
 ## CIBO semantics for Stellar Instant
 
 `BANK != provider floor mutation`.
 
-The provider MLL is sovereign and already trails upward. CIBO must not invent another trailing provider floor. CIBO can maintain a separate strategic retained-profit / payout reserve, but it has `QORE_POLICY` provenance only.
+The provider MLL is sovereign and already trails upward. CIBO must not invent another provider MLL. Any retained-profit or payout reserve has `QORE_POLICY` provenance only.
 
-ATTACK is permitted only when Risk can authorize the requested envelope after considering:
+ATTACK is permitted only when Risk can authorize the full requested envelope after considering active MLL, current/open risk, QORE reserve, margin, broker-valid minimum volume and payout-retention policy.
 
-- active provider MLL;
-- floating/open-position worst-case loss;
-- QORE safety reserve;
-- margin headroom;
-- broker minimum volume;
-- any payout-retention reserve.
-
-After a payout, because provider MLL does not reset downward, CIBO must not assume that withdrawn profit restores loss budget. Risk must recompute from actual equity minus active MLL.
+After a payout, CIBO must not assume withdrawn profit restores loss budget. Risk recomputes from actual equity minus active MLL.
 
 ## Replay governance
 
-The first replay may consume previously used VT-08 evidence to validate mechanics, but is research-only. It cannot select a new Trader rule, market, anchor, direction, stop policy, or CIBO threshold from P&L.
+The first replay may consume previously used evidence to validate mechanics, but cannot use P&L to change Trader rules, portfolio identity, market universe, anchors, direction, stop policy or CIBO thresholds.
 
-Replay and future adapter work MUST be restricted to the Owner-authorized pilot allowlist above. No market may be added because it exists at FundedNext or because it performed well in a post-hoc scan.
+Replay and future adapter work MUST be restricted to the six-symbol allowlist and frozen portfolio semantics above.
 
-Any economic replay must report all pre-existing CIBO/stop-policy arms rather than cherry-pick the best consumed-sample arm.
-
-Fresh unseen validation is required before any promotion.
+Any economic replay must disclose all pre-existing CIBO/stop-policy arms rather than cherry-pick a consumed-sample winner. Fresh unseen validation is required before promotion.
 
 ## Official sources frozen
 
@@ -159,16 +156,24 @@ FundedNext Help Center:
 - https://help.fundednext.com/en/articles/8020350-what-is-the-contract-size-of-the-instruments
 - https://help.fundednext.com/en/articles/8020763-is-ea-allowed-in-fundednext
 
+QORE identity evidence:
+
+- PR #528 — VT-08 R3.12 adaptive prop-firm risk and monthly growth Monte Carlo
+- `docs/trader_lab/vt08-r3-12-adaptive-prop-risk-freeze.md` at R3.12 HEAD
+
 ## Governance
 
 - account_purchase_authorized: false
 - credentials_present: false
 - orders_submitted: false
 - trader_methodology_mutation: false
+- portfolio_identity_mutation: false
 - provider_selected_by_backtest_result: false
 - market_universe_expansion_authorized: false
-- owner_alias_A_bound: false
-- owner_alias_B_bound: false
+- A_CORE_identity_recovered: true
+- GBPJPY_RETURN_ENHANCER_identity_recovered: true
+- B_COMBINED_identity_recovered: true
+- pilot_unique_market_count: 6
 - DEMO_ELIGIBLE: false
 - LIVE_AUTHORIZED: false
 - PRODUCTION_AUTHORIZED: false
