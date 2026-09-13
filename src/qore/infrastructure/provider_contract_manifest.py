@@ -7,7 +7,7 @@ import json
 from dataclasses import asdict
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from qore.infrastructure.provider_contracts import (
     CHALLENGE_CONTRACTS,
@@ -54,7 +54,7 @@ def _contract_payload(contract_id: str) -> dict[str, Any]:
     payload["stage"] = contract.stage.value
     payload["overall_loss_model"] = contract.overall_loss_model.value
     payload["sources"] = [asdict(source) for source in contract.sources]
-    return _decimal_strings(payload)
+    return cast(dict[str, Any], _decimal_strings(payload))
 
 
 def _baseline_budget(contract_id: str) -> dict[str, Any]:
@@ -69,7 +69,7 @@ def _baseline_budget(contract_id: str) -> dict[str, Any]:
         trading_days_completed=0,
     )
     budget = evaluate_provider_budget(contract, snapshot)
-    return _decimal_strings(asdict(budget))
+    return cast(dict[str, Any], _decimal_strings(asdict(budget)))
 
 
 def _binding_for(
