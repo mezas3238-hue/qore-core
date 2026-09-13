@@ -1,6 +1,6 @@
 """Post-result failure forensics for frozen VT-08 Index C2 Positional R1.
 
-This module diagnoses one already-consumed R1 replay artifact.  It never changes
+This module diagnoses one already-consumed R1 replay artifact. It never changes
 trading rules, never selects a profitable subset for execution, and grants no
 promotion authority.
 """
@@ -11,12 +11,12 @@ import argparse
 import json
 import random
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from statistics import median
-from typing import Callable, cast
+from typing import cast
 from zoneinfo import ZoneInfo
 
 from qore.kernel.errors import InfrastructureError
@@ -138,7 +138,10 @@ def _load(path: Path) -> tuple[dict[str, object], tuple[Trade, ...]]:
         raise Vt08IndexC2R1ForensicsError("unexpected R1 replay schema")
     if payload.get("research_only") is not True:
         raise Vt08IndexC2R1ForensicsError("R1 replay must remain research-only")
-    if payload.get("consumed_evidence") is not True or payload.get("fresh_holdout") is not False:
+    if (
+        payload.get("consumed_evidence") is not True
+        or payload.get("fresh_holdout") is not False
+    ):
         raise Vt08IndexC2R1ForensicsError("R1 replay governance drifted")
     governance = _object(payload.get("governance"), name="governance")
     if governance.get("pre_economic_freeze_commit") != EXPECTED_FREEZE_COMMIT:
@@ -326,21 +329,33 @@ def _block_bootstrap(
     }
 
 
+def _market_getter(trade: Trade) -> object:
+    return trade.symbol
+
+
+def _anchor_getter(trade: Trade) -> object:
+    return trade.anchor_hour_ny
+
+
 def _leave_one_out(
     trades: tuple[Trade, ...],
     *,
     dimension: str,
 ) -> dict[str, object]:
+    labels: tuple[object, ...]
+    getter: Callable[[Trade], object]
     if dimension == "market":
         labels = EXPECTED_MARKETS
-        getter: Callable[[Trade], object] = lambda trade: trade.symbol
+        getter = _market_getter
     elif dimension == "anchor":
         labels = EXPECTED_ANCHORS
-        getter = lambda trade: trade.anchor_hour_ny
+        getter = _anchor_getter
     else:
         raise Vt08IndexC2R1ForensicsError("unsupported leave-one-out dimension")
     return {
-        str(label): _stats(tuple(item for item in trades if getter(item) != label)).payload()
+        str(label): _stats(
+            tuple(item for item in trades if getter(item) != label)
+        ).payload()
         for label in labels
     }
 
@@ -362,21 +377,16 @@ def build_report(path: Path) -> dict[str, object]:
         trades,
         lambda item: f"{item.anchor_hour_ny:02d}:00|{item.side}",
     )
-    quartile_stats = [
-        _stats(part).payload()
-        for part in quartiles
-    ]
+    quartile_stats = [_stats(part).payload() for part in quartiles]
     quartile_positive = sum(
-        Decimal(cast(str, item["mean_r"])) > 0
-        for item in quartile_stats
+        Decimal(cast(str, item["mean_r"])) > 0 for item in quartile_stats
     )
     bootstrap = {
         str(length): _block_bootstrap(trades, block_length=length)
         for length in BOOTSTRAP_BLOCK_LENGTHS
     }
     bootstrap_all_p05_nonpositive = all(
-        cast(float, item["mean_r_p05"]) <= 0.0
-        for item in bootstrap.values()
+        cast(float, item["mean_r_p05"]) <= 0.0 for item in bootstrap.values()
     )
 
     aggregate = _stats(trades)
@@ -384,11 +394,15 @@ def build_report(path: Path) -> dict[str, object]:
         replay.get("aggregate_equal_risk_trade_economics"),
         name="replay aggregate",
     )
-    if _integer(replay_aggregate.get("sample_size"), name="sample_size") != aggregate.sample_size:
+    if (
+        _integer(replay_aggregate.get("sample_size"), name="sample_size")
+        != aggregate.sample_size
+    ):
         raise Vt08IndexC2R1ForensicsError("replay sample size does not reconcile")
     if _decimal(replay_aggregate.get("total_r"), name="total_r") != aggregate.total_r:
         raise Vt08IndexC2R1ForensicsError("replay total R does not reconcile")
 
+    second_half = _stats(halves[1])
     return {
         "schema": SCHEMA,
         "research_only": True,
@@ -410,7 +424,7 @@ def build_report(path: Path) -> dict[str, object]:
         "by_exit_reason": _group(trades, lambda item: item.exit_reason),
         "chronological_halves": {
             "first": _stats(halves[0]).payload(),
-            "second": _stats(halves[1]).payload(),
+            "second": second_half.payload(),
         },
         "chronological_quartiles": {
             f"q{index + 1}": payload
@@ -425,11 +439,11 @@ def build_report(path: Path) -> dict[str, object]:
             "bootstrap_p05_mean_r_nonpositive_at_all_block_lengths": (
                 bootstrap_all_p05_nonpositive
             ),
-            "second_half_mean_r_positive": _stats(halves[1]).mean_r > 0,
+            "second_half_mean_r_positive": second_half.mean_r > 0,
             "evidence_supports_robust_positive_edge": (
                 quartile_positive >= 3
                 and not bootstrap_all_p05_nonpositive
-                and _stats(halves[1]).mean_r > 0
+                and second_half.mean_r > 0
             ),
             "retrospective_subset_selection_authorized": False,
             "methodology_change_authorized": False,
