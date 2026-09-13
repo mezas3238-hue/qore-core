@@ -97,8 +97,11 @@ account options. It is not inferred from the provider name alone.
 FTMO:
 - algorithmic trading and EAs are allowed when the strategy is legitimate,
   market-replicable and compliant with FTMO forbidden practices;
-- QORE may expose automated execution capability on a supported FTMO platform,
-  subject to the account/platform adapter confirming availability at activation.
+- FTMO currently offers MT4, MT5 and cTrader among supported platforms and cTrader
+  exposes algorithmic/Open API capability;
+- QORE freezes automated routing only for cTrader, MT4 and MT5 in this contract;
+  any platform not explicitly frozen fails closed until a separate adapter is
+  verified at activation.
 
 FundedNext:
 - automated/algorithmic trading is NOT allowed on cTrader or Match-Trader;
@@ -108,6 +111,10 @@ FundedNext:
   published rule;
 - tools that only modify SL/TP/lot size are still classified as automated tools by
   FundedNext and therefore receive the same restrictions;
+- current provider platform guidance also states that USD 100,000 and USD 200,000
+  accounts are not available for purchase/reset/top-up on cTrader or Match-Trader;
+  QORE therefore rejects those provider/platform/account-size bindings rather than
+  silently falling back to another platform;
 - QORE MUST fail closed rather than route an automated order when automation is not
   explicitly permitted.
 
@@ -143,7 +150,7 @@ They may make Risk more conservative but can never enlarge provider budget.
 
 ## Activation fail-closed rules
 
-Before a real Challenge account adapter is enabled, QORE must re-verify the provider
+Before a Challenge account adapter is enabled, QORE must re-verify the provider
 profile against current official terms and bind:
 
 - exact provider;
@@ -155,6 +162,10 @@ profile against current official terms and bind:
 - provider/server timezone;
 - profile version and source evidence.
 
+Provider documentation can change and product-specific help pages can diverge. The
+activation check therefore re-verifies the exact purchased account/program instead of
+assuming that this 2026-09-13 freeze is eternally valid.
+
 Any unknown or mismatched value means automated execution is not authorized.
 
 ## Official source inventory
@@ -162,6 +173,8 @@ Any unknown or mismatched value means automated execution is not authorized.
 FTMO:
 - https://ftmo.com/en/trading-objectives/
 - https://ftmo.com/faq/which-instruments-can-i-trade-and-what-strategies-am-i-allowed-to-use/
+- https://ftmo.com/en/faq/which-platforms-can-i-use-for-trading/
+- https://ftmo.com/en/trading-platforms/
 - https://ftmo.com/en/forbidden-trading-practices/
 
 FundedNext:
@@ -173,6 +186,7 @@ FundedNext:
 - https://help.fundednext.com/en/articles/8019812-how-can-i-calculate-the-maximum-loss-limit
 - https://help.fundednext.com/en/articles/8394309-when-does-the-daily-loss-limit-reset-with-fundednext-cfd
 - https://help.fundednext.com/en/articles/8020763-is-ea-allowed-in-fundednext
+- https://help.fundednext.com/en/articles/8019808-which-platforms-can-i-use-for-trading-at-fundednext
 
 ## Governance
 
