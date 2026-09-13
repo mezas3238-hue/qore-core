@@ -1,0 +1,118 @@
+name: VT08 Index C2 Positional R1
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-c2-positional-r1-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-c2-positional-r1-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused R1 gate
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_c2_positional_r1.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download retained NAS100 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-NAS100-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained SP500 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-SP500-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained US30 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-US30-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Run frozen consumed-evidence replay
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_c2_positional_r1_backtest \
+            --nas100 retained/NAS100/market-evidence.json \
+            --sp500 retained/SP500/market-evidence.json \
+            --us30 retained/US30/market-evidence.json \
+            --out artifacts/vt08-index-c2-positional-r1.json
+
+      - name: Verify research boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/vt08-index-c2-positional-r1.json")
+          payload = json.loads(path.read_text())
+          assert payload["schema"] == "qore.trader_lab.vt08_index_c2_positional_r1_backtest.v1"
+          assert payload["research_only"] is True
+          assert payload["consumed_evidence"] is True
+          assert payload["fresh_holdout"] is False
+          assert payload["owner_entry_anchors_new_york"] == [2, 6, 10]
+          assert len(payload["markets"]) == 3
+          governance = payload["governance"]
+          assert governance["pre_economic_freeze_commit"] == "31bee8643cb09659a66e9ed793c1cb2bf9ba6353"
+          assert governance["rules_selected_from_retained_economic_outcomes"] is False
+          assert governance["retained_window_is_independent_validation"] is False
+          assert governance["fresh_unseen_validation_required"] is True
+          assert governance["demo_eligible"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Bind git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload R1 research artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-c2-positional-r1-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90
