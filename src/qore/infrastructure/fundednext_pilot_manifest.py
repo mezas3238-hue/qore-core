@@ -8,8 +8,8 @@ from hashlib import sha256
 from pathlib import Path
 
 from qore.infrastructure.fundednext_stellar_instant import (
-    MAXIMUM_LOSS_FRACTION,
     MAX_RISK_AT_ANY_TIME_FRACTION,
+    MAXIMUM_LOSS_FRACTION,
     PILOT_INITIAL_BALANCE,
     PILOT_SYMBOL_MAP,
 )
