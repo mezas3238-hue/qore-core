@@ -319,6 +319,19 @@ def resolve_execution_route(binding: ProviderAccountBinding) -> ProviderRouteDec
             )
 
     if contract.provider is Provider.FUNDEDNEXT:
+        if binding.platform is TradingPlatform.UNKNOWN:
+            capability = _rejected_capability(
+                contract.provider,
+                binding.platform,
+                "fundednext-platform-unknown",
+            )
+            return ProviderRouteDecision(
+                binding_id=binding.binding_id,
+                contract_id=binding.contract_id,
+                route=ExecutionRoute.REJECT,
+                capability=capability,
+                reason="unknown-fundednext-platform",
+            )
         if binding.platform in (TradingPlatform.CTRADER, TradingPlatform.MATCH_TRADER):
             if binding.initial_balance >= Decimal("100000"):
                 capability = _rejected_capability(
@@ -333,6 +346,47 @@ def resolve_execution_route(binding: ProviderAccountBinding) -> ProviderRouteDec
                     capability=capability,
                     reason="fundednext-platform-unavailable-for-account-size",
                 )
+            capability = ProviderExecutionCapability(
+                provider=contract.provider,
+                platform=binding.platform,
+                mode=AutomationMode.MANUAL_ONLY,
+                automated_order_submission_allowed=False,
+                reason="fundednext-platform-automation-prohibited",
+            )
+            return ProviderRouteDecision(
+                binding_id=binding.binding_id,
+                contract_id=binding.contract_id,
+                route=ExecutionRoute.MANUAL_HANDOFF,
+                capability=capability,
+                reason="fundednext-provider-rules-require-manual-execution",
+            )
+        if binding.platform in (TradingPlatform.MT4, TradingPlatform.MT5):
+            capability = ProviderExecutionCapability(
+                provider=contract.provider,
+                platform=binding.platform,
+                mode=AutomationMode.CONDITIONAL,
+                automated_order_submission_allowed=False,
+                reason="fundednext-product-specific-automation-authority-unresolved",
+            )
+            return ProviderRouteDecision(
+                binding_id=binding.binding_id,
+                contract_id=binding.contract_id,
+                route=ExecutionRoute.MANUAL_HANDOFF,
+                capability=capability,
+                reason="fundednext-exact-product-rule-reverification-required",
+            )
+        capability = _rejected_capability(
+            contract.provider,
+            binding.platform,
+            "unsupported-fundednext-platform",
+        )
+        return ProviderRouteDecision(
+            binding_id=binding.binding_id,
+            contract_id=binding.contract_id,
+            route=ExecutionRoute.REJECT,
+            capability=capability,
+            reason="unsupported-fundednext-platform",
+        )
 
     capability = execution_capability(
         contract,
