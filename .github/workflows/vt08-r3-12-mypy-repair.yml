@@ -32,60 +32,46 @@ jobs:
 
           path = Path("src/qore/infrastructure/trader_lab/vt08_official_adaptive_monte_carlo_r3_12.py")
           text = path.read_text()
-          old_reasons = '''    reasons = list(limiting_reasons)
-    if broker_outcome == "REDUCE" or bounded < permitted - Decimal("0.000001"):
-        reasons.append("broker_quantity")
-    return Authorization(
-        "REDUCE" if reduced else "ALLOW",
-        quantity,
-        bounded,
-        actual_bps,
-        regime_bps,
-        tuple(sorted(set(reasons))),
-    )
-'''
-          new_reasons = '''    authorization_reasons = list(limiting_reasons)
-    if broker_outcome == "REDUCE" or bounded < permitted - Decimal("0.000001"):
-        authorization_reasons.append("broker_quantity")
-    return Authorization(
-        "REDUCE" if reduced else "ALLOW",
-        quantity,
-        bounded,
-        actual_bps,
-        regime_bps,
-        tuple(sorted(set(authorization_reasons))),
-    )
-'''
-          if old_reasons not in text:
-              raise SystemExit("authorization reasons block not found")
-          text = text.replace(old_reasons, new_reasons, 1)
-
-          old_targets = '''    for index, target in enumerate(TARGETS):
-        days = [item.target_days[index] for item in results if item.target_days[index] is not None]
-        before_breach = [
-            item.target_days[index]
-            for item in results
-            if item.target_days[index] is not None
-            and (item.first_breach_day is None or item.target_days[index] <= item.first_breach_day)
-        ]
-        target_summary[f"{int(target * 100)}pct"] = {
-'''
-          new_targets = '''    for index, target in enumerate(TARGETS):
-        days: list[int] = []
-        before_breach: list[int] = []
-        for item in results:
-            achieved_day = item.target_days[index]
-            if achieved_day is None:
-                continue
-            days.append(achieved_day)
-            if item.first_breach_day is None or achieved_day <= item.first_breach_day:
-                before_breach.append(achieved_day)
-        target_summary[f"{int(target * 100)}pct"] = {
-'''
-          if old_targets not in text:
-              raise SystemExit("target summary block not found")
-          text = text.replace(old_targets, new_targets, 1)
-          path.write_text(text)
+          text = text.replace(
+              "    reasons = list(limiting_reasons)\n",
+              "    authorization_reasons = list(limiting_reasons)\n",
+              1,
+          )
+          text = text.replace(
+              '        reasons.append("broker_quantity")\n',
+              '        authorization_reasons.append("broker_quantity")\n',
+              1,
+          )
+          text = text.replace(
+              "        tuple(sorted(set(reasons))),\n",
+              "        tuple(sorted(set(authorization_reasons))),\n",
+              1,
+          )
+          lines = text.splitlines()
+          start = next(
+              index
+              for index, line in enumerate(lines)
+              if line == "    for index, target in enumerate(TARGETS):"
+          )
+          finish = next(
+              index
+              for index in range(start + 1, len(lines))
+              if lines[index].startswith('        target_summary[f"{int(target * 100)}pct"] = {')
+          )
+          replacement = [
+              "    for index, target in enumerate(TARGETS):",
+              "        days: list[int] = []",
+              "        before_breach: list[int] = []",
+              "        for item in results:",
+              "            achieved_day = item.target_days[index]",
+              "            if achieved_day is None:",
+              "                continue",
+              "            days.append(achieved_day)",
+              "            if item.first_breach_day is None or achieved_day <= item.first_breach_day:",
+              "                before_breach.append(achieved_day)",
+          ]
+          lines[start:finish] = replacement
+          path.write_text("\n".join(lines) + "\n")
           PY
       - name: Verify full static gates before commit
         run: |
