@@ -69,11 +69,16 @@ def compile_holdout(paths: tuple[Path, ...]) -> dict[str, object]:
     software_shas: set[str] = set()
     for path in paths:
         payload = _obj(json.loads(path.read_text()), "backtest")
-        if _text(payload.get("schema"), "schema") != "qore.trader_lab.vt08_b01_backtest.r3.8.v1":
+        schema = _text(payload.get("schema"), "schema")
+        if schema != "qore.trader_lab.vt08_b01_backtest.r3.8.v1":
             raise Vt08R315Error("unexpected backtest schema")
         if _text(payload.get("trader_code"), "trader_code") != "vt-08":
             raise Vt08R315Error("wrong Trader")
-        if _text(payload.get("methodology_fingerprint"), "methodology_fingerprint") != methodology_fingerprint():
+        observed_methodology = _text(
+            payload.get("methodology_fingerprint"),
+            "methodology_fingerprint",
+        )
+        if observed_methodology != methodology_fingerprint():
             raise Vt08R315Error("methodology drift")
         symbol = _text(payload.get("symbol"), "symbol")
         seen.add(symbol)
@@ -99,7 +104,8 @@ def compile_holdout(paths: tuple[Path, ...]) -> dict[str, object]:
     mean = sum(values, Decimal(0)) / Decimal(n) if n else Decimal(0)
     variance = (
         sum(((v - mean) ** 2 for v in values), Decimal(0)) / Decimal(n)
-        if n else Decimal(0)
+        if n
+        else Decimal(0)
     )
     wins = sum(v > 0 for v in values)
     losses = sum(v < 0 for v in values)
@@ -135,14 +141,22 @@ def compile_holdout(paths: tuple[Path, ...]) -> dict[str, object]:
         "wins": wins,
         "losses": losses,
         "flats": n - wins - losses,
-        "win_rate": format(Decimal(wins) / Decimal(n) if n else Decimal(0), "f"),
+        "win_rate": format(
+            Decimal(wins) / Decimal(n) if n else Decimal(0),
+            "f",
+        ),
         "mean_return": format(mean, "f"),
         "population_variance": format(variance, "f"),
-        "profit_factor": None if gross_loss == 0 else format(gross_profit / gross_loss, "f"),
+        "profit_factor": (
+            None if gross_loss == 0 else format(gross_profit / gross_loss, "f")
+        ),
         "compounded_return": format(equity - Decimal(1), "f"),
         "maximum_drawdown": format(max_dd, "f"),
         "max_losing_streak": max_losing,
-        "median_return": format(Decimal(str(median(values))) if values else Decimal(0), "f"),
+        "median_return": format(
+            Decimal(str(median(values))) if values else Decimal(0),
+            "f",
+        ),
         "risk_policy": {
             "policy_id": "vt08-r315-final-demo-v1",
             "min_sample_size": MIN_SAMPLE,
@@ -165,7 +179,14 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, json.JSONDecodeError, Vt08R315Error) as error:
         print(f"VT-08 R3.15 failed: {error}", file=sys.stderr)
         return 1
-    print(json.dumps(report, sort_keys=True, separators=(",", ":"), allow_nan=False))
+    print(
+        json.dumps(
+            report,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    )
     return 0
 
 
