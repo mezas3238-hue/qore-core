@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 from bisect import bisect_right
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -22,6 +21,7 @@ from pathlib import Path
 from statistics import median
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.deterministic_random import DeterministicRandom
 from qore.infrastructure.trader_lab.vt08_b01_risk_economic_replay_r3_11 import (
     TradeObservation,
     load_consumed_evidence,
@@ -340,7 +340,7 @@ def moving_block_sample(
     *,
     horizon_days: int,
     block_days: int,
-    rng: random.Random,
+    rng: DeterministicRandom,
 ) -> tuple[DayRecord, ...]:
     if horizon_days <= 0 or block_days <= 0:
         raise PropFirmMonteCarloError("horizon and block must be positive")
@@ -726,7 +726,7 @@ def run_monte_carlo(
     if paths <= 0:
         raise PropFirmMonteCarloError("paths must be positive")
     active_policy = policy or POLICIES[0]
-    rng = random.Random(seed)
+    rng = DeterministicRandom(seed)
     results = [
         simulate_path(
             moving_block_sample(

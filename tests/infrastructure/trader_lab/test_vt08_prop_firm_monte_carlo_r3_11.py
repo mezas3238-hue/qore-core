@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 
+from qore.infrastructure.deterministic_random import DeterministicRandom
 from qore.infrastructure.trader_lab.vt08_b01_risk_economic_replay_r3_11 import (
     TradeObservation,
 )
@@ -165,9 +166,10 @@ def test_monte_carlo_monthly_output_contains_requested_governance_metrics() -> N
 
 
 def test_moving_block_rejects_block_larger_than_series() -> None:
-    import random
-
     with pytest.raises(PropFirmMonteCarloError, match="block cannot exceed"):
         moving_block_sample(
-            (DayRecord((), 0.0),), horizon_days=2, block_days=2, rng=random.Random(1)
+            (DayRecord((), 0.0),),
+            horizon_days=2,
+            block_days=2,
+            rng=DeterministicRandom(1),
         )
