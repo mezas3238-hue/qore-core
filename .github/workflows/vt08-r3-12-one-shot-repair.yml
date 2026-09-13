@@ -65,38 +65,40 @@ jobs:
           if "source_midnight = datetime.combine(" not in text:
               start = text.index(start_marker)
               entry_end = text.index(entry_marker, start) + len(entry_marker)
-              replacement = '''    for simulated_day, source_index in enumerate(indices, start=1):
-              if breached:
-                  break
-              local_day_start = epoch_local + timedelta(days=simulated_day - 1)
-              day_start = local_day_start.astimezone(UTC)
-              day_end = (local_day_start + timedelta(days=1)).astimezone(UTC)
-              close_due(day_start)
-              current_month = _month_key(simulated_day)
-              if current_month != month.key:
-                  daily_floor, max_floor = provider_floors()
-                  months.append(
-                      _finish_month(
-                          month,
-                          end_equity=balance,
-                          starting_equity=starting,
-                          daily_floor=daily_floor,
-                          max_loss_floor=max_floor,
-                      )
-                  )
-                  month = MonthAccumulator(current_month, balance, balance)
-              reset_balance = balance
-              day_start_balance = balance
-              source_day = days[source_index]
-              for trade in source_day.trades:
-                  if not _scope_membership(trade.prepared.source, portfolio):
-                      continue
-                  source_local = trade.prepared.source.signal_at.astimezone(provider_tz)
-                  source_midnight = datetime.combine(
-                      source_local.date(), datetime.min.time(), tzinfo=provider_tz
-                  )
-                  entry_at = day_start + (source_local - source_midnight)
-          '''
+              replacement_lines = [
+                  "    for simulated_day, source_index in enumerate(indices, start=1):",
+                  "        if breached:",
+                  "            break",
+                  "        local_day_start = epoch_local + timedelta(days=simulated_day - 1)",
+                  "        day_start = local_day_start.astimezone(UTC)",
+                  "        day_end = (local_day_start + timedelta(days=1)).astimezone(UTC)",
+                  "        close_due(day_start)",
+                  "        current_month = _month_key(simulated_day)",
+                  "        if current_month != month.key:",
+                  "            daily_floor, max_floor = provider_floors()",
+                  "            months.append(",
+                  "                _finish_month(",
+                  "                    month,",
+                  "                    end_equity=balance,",
+                  "                    starting_equity=starting,",
+                  "                    daily_floor=daily_floor,",
+                  "                    max_loss_floor=max_floor,",
+                  "                )",
+                  "            )",
+                  "            month = MonthAccumulator(current_month, balance, balance)",
+                  "        reset_balance = balance",
+                  "        day_start_balance = balance",
+                  "        source_day = days[source_index]",
+                  "        for trade in source_day.trades:",
+                  "            if not _scope_membership(trade.prepared.source, portfolio):",
+                  "                continue",
+                  "            source_local = trade.prepared.source.signal_at.astimezone(provider_tz)",
+                  "            source_midnight = datetime.combine(",
+                  "                source_local.date(), datetime.min.time(), tzinfo=provider_tz",
+                  "            )",
+                  "            entry_at = day_start + (source_local - source_midnight)",
+              ]
+              replacement = "\n".join(replacement_lines) + "\n"
               text = text[:start] + replacement + text[entry_end:]
 
           text = text.replace(
@@ -115,21 +117,27 @@ jobs:
           main.write_text(text)
 
           profiles = Path("src/qore/infrastructure/trader_lab/vt08_prop_firm_profiles_r3_12.py")
-          ptext = profiles.read_text().replace(
-              'daily_reset_timezone="FundedNextServerTime",',
-              'daily_reset_timezone="Europe/Athens",',
+          profiles.write_text(
+              profiles.read_text().replace(
+                  'daily_reset_timezone="FundedNextServerTime",',
+                  'daily_reset_timezone="Europe/Athens",',
+              )
           )
-          profiles.write_text(ptext)
 
           tests = Path("tests/infrastructure/trader_lab/test_vt08_official_adaptive_monte_carlo_r3_12.py")
-          ttext = tests.read_text().replace(
-              'assert funded.daily_reset_timezone == "FundedNextServerTime"',
-              'assert funded.daily_reset_timezone == "Europe/Athens"',
+          tests.write_text(
+              tests.read_text().replace(
+                  'assert funded.daily_reset_timezone == "FundedNextServerTime"',
+                  'assert funded.daily_reset_timezone == "Europe/Athens"',
+              )
           )
-          tests.write_text(ttext)
           PY
-      - name: Format and autofix without reducing strictness
+      - name: Compile, format and autofix without reducing strictness
         run: |
+          python -m py_compile \
+            src/qore/infrastructure/trader_lab/vt08_official_adaptive_monte_carlo_r3_12.py \
+            src/qore/infrastructure/trader_lab/vt08_prop_firm_profiles_r3_12.py \
+            tests/infrastructure/trader_lab/test_vt08_official_adaptive_monte_carlo_r3_12.py
           ruff format \
             src/qore/infrastructure/trader_lab/vt08_official_adaptive_monte_carlo_r3_12.py \
             src/qore/infrastructure/trader_lab/vt08_prop_firm_profiles_r3_12.py \
@@ -139,10 +147,6 @@ jobs:
             src/qore/infrastructure/trader_lab/vt08_prop_firm_profiles_r3_12.py \
             tests/infrastructure/trader_lab/test_vt08_official_adaptive_monte_carlo_r3_12.py
           ruff check .
-          python -m py_compile \
-            src/qore/infrastructure/trader_lab/vt08_official_adaptive_monte_carlo_r3_12.py \
-            src/qore/infrastructure/trader_lab/vt08_prop_firm_profiles_r3_12.py \
-            tests/infrastructure/trader_lab/test_vt08_official_adaptive_monte_carlo_r3_12.py
       - name: Commit exact repaired source and remove one-shot workflow
         run: |
           rm .github/workflows/vt08-r3-12-one-shot-repair.yml
