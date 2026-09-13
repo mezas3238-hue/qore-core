@@ -22,6 +22,7 @@ from qore.infrastructure.cibo_trader_manager import CiboRiskMode
 from qore.infrastructure.cibo_trader_operating_manager import (
     CiboCapitalSnapshot,
     CiboOperatingAuthority,
+    CiboOperatingDecision,
     CiboOperatingPosture,
     CiboRiskRequestMode,
     CiboTraderOperatingManager,
@@ -194,7 +195,7 @@ def _cibo_operating_decision(
     trading_day: date,
     anchor: int,
     policy: BankAttackPolicy,
-):
+) -> CiboOperatingDecision:
     risk_floor = _risk_capital_floor(peak)
     desired_banked_floor = _banked_floor(
         peak_equity=peak,
@@ -327,8 +328,6 @@ def run_bank_attack_sequence(
                 else headroom_fraction / worst_total
             )
 
-            # Risk is the final authority: CIBO requests the posture, Risk caps or
-            # rejects the actual exposure against heat and worst-case headroom.
             scale = min(heat_scale, floor_scale)
             if scale <= _EPSILON:
                 lockouts += len(group)
