@@ -51,8 +51,6 @@ _KIND_BY_STAGE = {
     TraderLabStage.MONTE_CARLO: TraderLabEvidenceKind.MONTE_CARLO_QUALIFICATION,
     TraderLabStage.ECONOMIC_EVIDENCE: TraderLabEvidenceKind.ECONOMIC_EVALUATION,
 }
-
-
 @dataclass(frozen=True, slots=True)
 class Vt08R315ImmutableArtifact:
     """One immutable external artifact participating in final certification."""
@@ -79,6 +77,37 @@ class Vt08R315ImmutableArtifact:
         return (self.name, self.artifact_id, self.run_id, self.head_sha, self.digest)
 
 
+R315_HOLDOUT_ARTIFACT = Vt08R315ImmutableArtifact(
+    name="qore-vt08-r3-15-independent-holdout-64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222",
+    artifact_id=10_318_827_002,
+    run_id=34_759_027_136,
+    head_sha=_R315_HEAD,
+    digest="73aad16176f2f5335b47fff6510f8f3ce586e2d0a291dd6056c4d3c9e57f9ae4",
+)
+R312_RISK_ARTIFACT = Vt08R315ImmutableArtifact(
+    name="qore-vt08-r3-12-adaptive-prop-risk-6a09be314a5c8b6a17822ea141a41d521aaf8655",
+    artifact_id=10_309_794_877,
+    run_id=34_733_491_533,
+    head_sha=_R312_HEAD,
+    digest="6b1ccbeac047b1d06d0b9eee7c24443d2ab03d7a9f33389dbc7ab34adba51d77",
+)
+R314_FUNDING_ARTIFACT = Vt08R315ImmutableArtifact(
+    name="qore-vt08-r3-14-two-phase-funding-266fa60df2654ffcbce3a89569295bb19f791022",
+    artifact_id=10_311_039_498,
+    run_id=34_737_134_896,
+    head_sha=_R314_HEAD,
+    digest="4745b610b4fe590b94dd715ef2e31d878971d768e96cf84ad6883a2d98869ac8",
+)
+_ARTIFACTS_BY_STAGE = {
+    TraderLabStage.RESEARCH: (R314_FUNDING_ARTIFACT,),
+    TraderLabStage.REPLAY: (R315_HOLDOUT_ARTIFACT,),
+    TraderLabStage.FAST_FORWARD: (R314_FUNDING_ARTIFACT,),
+    TraderLabStage.OOS: (R314_FUNDING_ARTIFACT,),
+    TraderLabStage.MONTE_CARLO: (R312_RISK_ARTIFACT,),
+    TraderLabStage.ECONOMIC_EVIDENCE: (R315_HOLDOUT_ARTIFACT,),
+}
+
+
 @dataclass(frozen=True, slots=True)
 class Vt08R315ArtifactEvidence:
     """Content-derived attestation for one self-authenticating Lab stage."""
@@ -98,6 +127,10 @@ class Vt08R315ArtifactEvidence:
             raise TraderLabValidationError("artifact evidence requires immutable sources")
         if len({item.artifact_id for item in self.artifacts}) != len(self.artifacts):
             raise TraderLabValidationError("artifact evidence cannot duplicate artifacts")
+        if self.artifacts != _ARTIFACTS_BY_STAGE[self.stage]:
+            raise TraderLabValidationError(
+                "stage must use the exact immutable official artifact"
+            )
         if fullmatch(r"[0-9a-f]{64}", self.payload_digest) is None:
             raise TraderLabValidationError("payload digest must be SHA-256")
         if (
@@ -135,6 +168,7 @@ def _validate_candidate(candidate: TraderLabCandidateBinding) -> None:
         "trader.methodology_id": "ttrades-h4-po3-b01",
         "trader.methodology_version": "r3.8-author-clarified-b01-v1",
         "trader.methodology_fingerprint": _EXPECTED_METHOD,
+        "trader.source_contract_fingerprint": _EXPECTED_SOURCE,
         "trader.executable_version": "r3.8-b01-author-clarified-v1",
         "trader.portfolio": "B_COMBINED",
         "trader.qualified_markets": "AUDJPY,GBPJPY,GBPUSD",
@@ -143,8 +177,21 @@ def _validate_candidate(candidate: TraderLabCandidateBinding) -> None:
     for key, expected in required.items():
         if values.get(key) != expected:
             raise TraderLabValidationError(f"VT-08 R3.15 candidate mismatch: {key}")
+    if candidate.version.value != "r3.8-b01-author-clarified-v1":
+        raise TraderLabValidationError("VT-08 R3.15 candidate version mismatch")
+    config = values.get("trader.config_fingerprint")
+    if config is None or fullmatch(r"[0-9a-f]{64}", config) is None:
+        raise TraderLabValidationError("VT-08 R3.15 config fingerprint mismatch")
     if candidate.strategy_binding.run.software_revision.value != _R315_HEAD:
         raise TraderLabValidationError("VT-08 R3.15 candidate must bind evidence HEAD")
+
+
+def validate_vt08_r315_candidate(candidate: TraderLabCandidateBinding) -> None:
+    """Revalidate the exact B01 portfolio candidate at an authority boundary."""
+
+    if not isinstance(candidate, TraderLabCandidateBinding):
+        raise TraderLabValidationError("candidate must be TraderLabCandidateBinding")
+    _validate_candidate(candidate)
 
 
 def reference_vt08_r315_artifact_evidence(
