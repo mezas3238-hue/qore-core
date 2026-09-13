@@ -11,9 +11,6 @@ from typing import Any
 
 from qore.infrastructure.provider_contracts import (
     CHALLENGE_CONTRACTS,
-    ChallengeProgram,
-    ChallengeStage,
-    Provider,
     ProviderAccountSnapshot,
     TradingPlatform,
     evaluate_provider_budget,
