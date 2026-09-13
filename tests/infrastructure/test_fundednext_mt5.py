@@ -152,8 +152,12 @@ def test_read_only_constructs_but_never_submits_and_duplicate_is_blocked() -> No
     gateway = FakeGateway()
     adapter = FundedNextMt5Adapter(gateway)
     intent = adapter.build_intent(_authorization(), now=_NOW)
-    first = adapter.execute(intent, mode=ExecutionMode.READ_ONLY, rule_verification=_rules(), now=_NOW)
-    second = adapter.execute(intent, mode=ExecutionMode.READ_ONLY, rule_verification=_rules(), now=_NOW)
+    first = adapter.execute(
+        intent, mode=ExecutionMode.READ_ONLY, rule_verification=_rules(), now=_NOW
+    )
+    second = adapter.execute(
+        intent, mode=ExecutionMode.READ_ONLY, rule_verification=_rules(), now=_NOW
+    )
     assert first.status is SubmissionStatus.NOT_SUBMITTED
     assert second.status is SubmissionStatus.DUPLICATE_BLOCKED
     assert gateway.submit_calls == 0
