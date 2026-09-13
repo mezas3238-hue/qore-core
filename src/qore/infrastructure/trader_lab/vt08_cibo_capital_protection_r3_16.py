@@ -27,23 +27,37 @@ from qore.infrastructure.trader_lab.vt08_cibo_engine_r3_16 import (
     BLOCK_DAYS,
     CAPITAL_GUARDS,
     FINAL_PATHS,
+    FINAL_SEED,
     HARD_DRAWDOWN,
     PHASE_DAYS,
     PRIMARY_PHASE1_TARGET,
     PRIMARY_PHASE2_TARGET,
     RISK_LEVELS,
     SEARCH_PATHS,
-    SEED,
+    SEARCH_SEED,
     SENSITIVITY_PHASE1_TARGET,
     SENSITIVITY_PHASE2_TARGET,
 )
-from qore.infrastructure.trader_lab.vt08_cibo_study_r3_16 import challenge_study, long_run_study
+from qore.infrastructure.trader_lab.vt08_cibo_study_r3_16 import (
+    challenge_study,
+    long_run_study,
+)
 
 SCHEMA = "qore.vt08.r3.16.cibo-capital-protection.v1"
 
 
+def _number(mapping: Mapping[str, object], key: str) -> float:
+    value = mapping[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{key} must be numeric")
+    return float(value)
+
+
 def build_report(challenge_root: Path, long_root: Path) -> dict[str, object]:
-    challenge_trades, challenge_bars = load_period(challenge_root, expected_sha=CHALLENGE_SHA)
+    challenge_trades, challenge_bars = load_period(
+        challenge_root,
+        expected_sha=CHALLENGE_SHA,
+    )
     long_trades, long_bars = load_period(long_root, expected_sha=LONG_SHA)
     challenge_records = {
         policy.name: build_records(
@@ -96,7 +110,8 @@ def build_report(challenge_root: Path, long_root: Path) -> dict[str, object]:
             "block_days": BLOCK_DAYS,
             "search_paths": SEARCH_PATHS,
             "final_paths": FINAL_PATHS,
-            "seed": SEED,
+            "search_seed": SEARCH_SEED,
+            "final_seed": FINAL_SEED,
             "primary_targets": [PRIMARY_PHASE1_TARGET, PRIMARY_PHASE2_TARGET],
             "sensitivity_targets": [
                 SENSITIVITY_PHASE1_TARGET,
@@ -132,9 +147,10 @@ def summary(report: Mapping[str, object]) -> str:
         lines.append(
             f"- {portfolio}: {policy['risk_level']} / {policy['stop_policy']} / "
             f"{policy['capital_guard']}; P(10% then 5%)="
-            f"{100 * float(primary['two_phase_pass_probability']):.2f}%; "
-            f"P(11% then 6%)={100 * float(sensitivity['two_phase_pass_probability']):.2f}%; "
-            f"DD p99={100 * float(primary['drawdown_p99']):.2f}%"
+            f"{100 * _number(primary, 'two_phase_pass_probability'):.2f}%; "
+            f"P(11% then 6%)="
+            f"{100 * _number(sensitivity, 'two_phase_pass_probability'):.2f}%; "
+            f"DD p99={100 * _number(primary, 'drawdown_p99'):.2f}%"
         )
     lines.extend(["", "## 2024-2026 retained two-year study"])
     for portfolio in PORTFOLIOS:
@@ -144,9 +160,9 @@ def summary(report: Mapping[str, object]) -> str:
         lines.append(
             f"- {portfolio}: {policy['risk_level']} / {policy['stop_policy']} / "
             f"{policy['capital_guard']}; return="
-            f"{100 * float(metrics['terminal_return']):.2f}%; "
-            f"max DD={100 * float(metrics['maximum_drawdown']):.2f}%; "
-            f"CIBO delta return={100 * float(item['cibo_delta_return']):+.2f}pp"
+            f"{100 * _number(metrics, 'terminal_return'):.2f}%; "
+            f"max DD={100 * _number(metrics, 'maximum_drawdown'):.2f}%; "
+            f"CIBO delta return={100 * _number(item, 'cibo_delta_return'):+.2f}pp"
         )
     return "\n".join(lines) + "\n"
 
