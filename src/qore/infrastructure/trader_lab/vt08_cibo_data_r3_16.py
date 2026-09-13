@@ -102,7 +102,7 @@ def _timestamp(value: object) -> datetime:
 
 
 def _float(value: object, *, name: str) -> float:
-    if type(value) not in (str, int, float):
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
         raise CiboCapitalProtectionError(f"{name} must be numeric")
     result = float(value)
     if not math.isfinite(result):
@@ -223,8 +223,6 @@ def replay_trade(
                 f"missing M15 bar for {trade.symbol} at {cursor.isoformat()}"
             )
         last = bar
-        # Conservative: the stop active at bar open is evaluated before target.
-        # A threshold reached inside this bar can protect only later bars.
         if _stop_touched(trade, _stop_price(trade, current_stop_r), bar):
             reason = "stop" if current_stop_r <= -0.999999 else "cibo_protected_stop"
             return current_stop_r, reason
@@ -281,7 +279,9 @@ def portfolio_record(record: ReplayTrade, portfolio: str) -> bool:
     if portfolio == "GBPJPY_RETURN_ENHANCER":
         return record.sleeve == "G"
     if portfolio == "B_COMBINED_PORTFOLIO":
-        return record.sleeve == "G" or (record.sleeve == "A" and record.side == "short")
+        return record.sleeve == "G" or (
+            record.sleeve == "A" and record.side == "short"
+        )
     raise CiboCapitalProtectionError(f"unknown portfolio {portfolio}")
 
 
@@ -289,4 +289,6 @@ def signal_identity(
     records: Iterable[ReplayTrade],
     portfolio: str,
 ) -> tuple[tuple[str, str, str], ...]:
-    return tuple(sorted(item.signal_key for item in records if portfolio_record(item, portfolio)))
+    return tuple(
+        sorted(item.signal_key for item in records if portfolio_record(item, portfolio))
+    )

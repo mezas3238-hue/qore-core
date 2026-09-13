@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import math
-import random
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from qore.infrastructure.deterministic_random import DeterministicRandom
 from qore.infrastructure.trader_lab.vt08_cibo_data_r3_16 import (
     CiboCapitalProtectionError,
     ReplayTrade,
@@ -241,7 +241,7 @@ def moving_block_draws(
 ) -> list[list[int]]:
     if day_count < BLOCK_DAYS:
         raise CiboCapitalProtectionError("challenge evidence has too few trading days")
-    rng = random.Random(seed)
+    rng = DeterministicRandom(seed)
     result: list[list[int]] = []
     max_start = day_count - BLOCK_DAYS
     for _ in range(paths):
