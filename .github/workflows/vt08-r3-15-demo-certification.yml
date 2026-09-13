@@ -143,7 +143,7 @@ jobs:
             .holdout.sample == 124 and
             .mandatory_stages == ["research", "replay", "fast_forward", "oos", "stress", "monte_carlo", "risk_review", "cibo_review", "independent_validation", "economic_evidence"] and
             .completed_stages == .mandatory_stages and
-            (.governed_authorities | map(.authority_kind) | sort) == ["cibo", "independent_validator", "risk", "robustness"] and
+            (.governed_authorities | map(.authority_kind) | sort) == ["cibo", "independent_validation", "risk", "robustness"] and
             .promotion_status == "demo_eligible" and
             .lifecycle_state == "demo_eligible" and
             .demo_eligible == true and
