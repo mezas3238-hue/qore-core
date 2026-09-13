@@ -41,7 +41,8 @@ jobs:
       - name: Focused CIBO T2 gate
         run: |
           pytest -q \
-            tests/infrastructure/trader_lab/test_vt08_index_c2_r1_cibo_capital_t2.py
+            tests/infrastructure/trader_lab/test_vt08_index_c2_r1_cibo_capital_t2.py \
+            tests/infrastructure/trader_lab/test_vt08_index_c2_r1_cibo_capital_t2_strict.py
 
       - name: Full QORE gate
         run: pytest --cov=src/qore --cov-report=term-missing
@@ -91,7 +92,7 @@ jobs:
       - name: Run frozen T2 chronological plus Monte Carlo study
         run: |
           mkdir -p artifacts
-          python -m qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_capital_t2 \
+          python -m qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_capital_t2_strict \
             --parent-stop parent-stop/vt08-index-c2-r1-cibo-stop-protection.json \
             --t1-reference parent-t1/t1-reference-t2-schema.json \
             --out artifacts/vt08-index-c2-r1-cibo-capital-t2.json
