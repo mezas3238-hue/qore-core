@@ -1,0 +1,18 @@
+name: QORE VT-08 R3.15 Final Independent Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  consumed-holdout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Protected holdout already consumed
+        run: |
+          echo "VT-08 R3.15 protected holdout [2020-07-01, 2022-07-01) was consumed by run 34759027136 at 64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222." >&2
+          echo "Do not rerun or recollect this holdout. Use the retained-evidence certification workflow." >&2
+          exit 1

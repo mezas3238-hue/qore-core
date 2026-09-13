@@ -1,0 +1,169 @@
+name: QORE VT-08 R3.15 DEMO Eligibility Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-r3-15-independent-validation-001
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  certify-demo-eligibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out certification software
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install QORE quality dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused R3.15 certification gates
+        run: |
+          pytest \
+            tests/infrastructure/trader_lab/test_vt08_final_holdout_r3_15.py \
+            tests/infrastructure/trader_lab/test_vt08_r3_15_certification.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download and authenticate immutable official evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p official-evidence/{r312,r314,r315}
+
+          download_artifact() {
+            local artifact_id="$1"
+            local run_id="$2"
+            local head_sha="$3"
+            local expected_digest="$4"
+            local destination="$5"
+            local metadata="official-evidence/${destination}.metadata.json"
+            local archive="official-evidence/${destination}.zip"
+
+            curl --fail --silent --show-error \
+              --retry 3 \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GH_REPOSITORY}/actions/artifacts/${artifact_id}" \
+              -o "${metadata}"
+            jq -e \
+              --argjson artifact_id "${artifact_id}" \
+              --argjson run_id "${run_id}" \
+              --arg head_sha "${head_sha}" \
+              --arg digest "sha256:${expected_digest}" \
+              '.id == $artifact_id and
+               .expired == false and
+               .workflow_run.id == $run_id and
+               .workflow_run.head_sha == $head_sha and
+               .digest == $digest' \
+              "${metadata}"
+
+            curl --fail --location --silent --show-error \
+              --retry 3 \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GH_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+              -o "${archive}"
+            echo "${expected_digest}  ${archive}" | sha256sum --check --strict
+            unzip -q "${archive}" -d "official-evidence/${destination}"
+            test "$(tr -d '\r\n' < "official-evidence/${destination}/git-sha.txt")" = "${head_sha}"
+          }
+
+          download_artifact \
+            10309794877 \
+            34733491533 \
+            6a09be314a5c8b6a17822ea141a41d521aaf8655 \
+            6b1ccbeac047b1d06d0b9eee7c24443d2ab03d7a9f33389dbc7ab34adba51d77 \
+            r312
+          download_artifact \
+            10311039498 \
+            34737134896 \
+            266fa60df2654ffcbce3a89569295bb19f791022 \
+            4745b610b4fe590b94dd715ef2e31d878971d768e96cf84ad6883a2d98869ac8 \
+            r314
+          download_artifact \
+            10318827002 \
+            34759027136 \
+            64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222 \
+            73aad16176f2f5335b47fff6510f8f3ce586e2d0a291dd6056c4d3c9e57f9ae4 \
+            r315
+
+      - name: Compose canonical governance and certify
+        run: |
+          set -euo pipefail
+          certified_at="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+          python -m qore.infrastructure.trader_lab.vt08_r3_15_certification \
+            official-evidence/r315/holdout-summary.json \
+            official-evidence/r312/adaptive-prop-firm-risk-policy.json \
+            official-evidence/r312/B-combined.json \
+            official-evidence/r314/two-phase-funding-qualification.json \
+            "${GITHUB_SHA}" \
+            "${GITHUB_RUN_ID}" \
+            "${certified_at}" \
+            certification/vt08-r3-15-demo-eligibility-certificate.json
+
+      - name: Assert certificate contract
+        run: |
+          set -euo pipefail
+          certificate=certification/vt08-r3-15-demo-eligibility-certificate.json
+          jq -e '
+            .schema == "qore.vt08.r3.15.demo-eligibility-certificate.v1" and
+            .trader.code == "vt-08" and
+            .trader.executable_version == "r3.8-b01-author-clarified-v1" and
+            .methodology.id == "ttrades-h4-po3-b01" and
+            .methodology.version == "r3.8-author-clarified-b01-v1" and
+            .methodology.fingerprint == "0c3fe8e1353386f7384a8532c7fe71bbbe9fcfdf1da7530be4b53e01bc59de0d" and
+            .methodology.source_contract_fingerprint == "403d54304f241f4a11b1ef847aa2a8b12d5ba6ffa2d9be5bb5cd9c19586943e3" and
+            .portfolio.id == "B_COMBINED" and
+            .holdout.state == "consumed" and
+            .holdout.reopened == false and
+            .holdout.run_id == 34759027136 and
+            .holdout.artifact_id == 10318827002 and
+            .holdout.sample == 124 and
+            .mandatory_stages == ["research", "replay", "fast_forward", "oos", "stress", "monte_carlo", "risk_review", "cibo_review", "independent_validation", "economic_evidence"] and
+            .completed_stages == .mandatory_stages and
+            (.governed_authorities | map(.authority_kind) | sort) == ["cibo", "independent_validation", "risk", "robustness"] and
+            .promotion_status == "demo_eligible" and
+            .lifecycle_state == "demo_eligible" and
+            .demo_eligible == true and
+            .live_authorized == false and
+            .production_authorized == false and
+            .methodology_mutation_after_holdout == false and
+            .certification_software_sha == env.GITHUB_SHA and
+            .workflow_run_id == (env.GITHUB_RUN_ID | tonumber)
+          ' "${certificate}"
+          (
+            cd certification
+            sha256sum vt08-r3-15-demo-eligibility-certificate.json \
+              > vt08-r3-15-demo-eligibility-certificate.sha256
+          )
+          printf '%s\n' "${GITHUB_SHA}" > certification/git-sha.txt
+
+      - name: Upload immutable certification package
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-15-demo-certification-${{ github.sha }}
+          path: certification/
+          if-no-files-found: error
+          retention-days: 90
