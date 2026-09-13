@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_stop_protection import (
+    STOP_POLICIES,
     Bar,
     R1Trade,
-    STOP_POLICIES,
     replay_trade,
 )
 
