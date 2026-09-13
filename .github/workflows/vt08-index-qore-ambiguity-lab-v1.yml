@@ -1,0 +1,113 @@
+name: VT08 Index QORE Ambiguity Lab V1
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-qore-ambiguity-lab-v1-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-qore-ambiguity-lab-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact lab head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused ambiguity-lab gate
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_qore_ambiguity_lab_v1.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download retained NAS100 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-NAS100-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained SP500 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-SP500-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained US30 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-US30-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Execute frozen 512-contract campaign
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 \
+            --nas100 retained/NAS100/market-evidence.json \
+            --sp500 retained/SP500/market-evidence.json \
+            --us30 retained/US30/market-evidence.json \
+            --out artifacts/VT08_INDEX_QORE_AMBIGUITY_LAB_V1.json
+
+      - name: Verify governance and deterministic selection
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("artifacts/VT08_INDEX_QORE_AMBIGUITY_LAB_V1.json").read_text())
+          assert payload["schema"] == "qore.trader_lab.vt08_index_qore_ambiguity_lab.v1"
+          assert payload["grid_size"] == 512
+          assert payload["research_only"] is True
+          assert payload["consumed_evidence"] is True
+          assert payload["fresh_holdout"] is False
+          assert payload["selection"] == "V-32e621c9282c"
+          assert payload["eligible_variant_count"] == 16
+          governance = payload["governance"]
+          assert governance["source_methodology_claim"] is False
+          assert governance["demo_eligible"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Bind git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload official lab artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-qore-ambiguity-lab-v1-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90
