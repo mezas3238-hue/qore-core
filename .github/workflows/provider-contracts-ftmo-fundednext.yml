@@ -42,7 +42,8 @@ jobs:
         run: |
           pytest -q \
             tests/infrastructure/test_provider_contracts.py \
-            tests/infrastructure/test_provider_operating.py
+            tests/infrastructure/test_provider_operating.py \
+            tests/infrastructure/test_provider_contract_platform_failclosed.py
 
       - name: Full QORE gate
         run: pytest --cov=src/qore --cov-report=term-missing
@@ -71,6 +72,7 @@ jobs:
           assert invariants["risk_remains_sovereign"] is True
           assert invariants["provider_static_floors_are_not_retrailed_by_qore"] is True
           assert invariants["ftmo_1_step_uses_eod_trailing_overall_loss"] is True
+          assert invariants["fundednext_product_rule_conflict_fails_closed_to_manual"] is True
           assert invariants["activation_reverification_required"] is True
           assert invariants["credentials_present"] is False
           assert invariants["orders_submitted"] is False
@@ -80,6 +82,14 @@ jobs:
           assert governance["live_authorized"] is False
           assert governance["production_authorized"] is False
           assert governance["provider_selected_by_economic_result"] is False
+
+          routing = payload["routing_adjudication"]
+          assert routing["ftmo"]["status"] == (
+              "AUTOMATION_SUPPORTED_SUBJECT_TO_ACTIVATION_REVERIFY"
+          )
+          assert routing["fundednext"]["status"] == (
+              "PRODUCT_RULE_CONFLICT_FAIL_CLOSED_TO_MANUAL"
+          )
 
           ftmo = payload["contracts"]["FTMO_2_STEP_PHASE_1_2026_09_13"]
           assert ftmo["baseline_100k_budget"]["overall_floor"] == "90000.00"
@@ -102,6 +112,15 @@ jobs:
           ]
           assert len(fn_ctrader_25) == 1
           assert fn_ctrader_25[0]["route"] == "manual-handoff"
+          fn_mt5_25_addon = [
+              row for row in fn["routing_matrix"]
+              if row["account_size"] == "25000"
+              and row["platform"] == "mt5"
+              and row["fundednext_ea_addon_enabled"] is True
+          ]
+          assert len(fn_mt5_25_addon) == 1
+          assert fn_mt5_25_addon[0]["route"] == "manual-handoff"
+          assert fn_mt5_25_addon[0]["automated_order_submission_allowed"] is False
           fn_ctrader_100 = [
               row for row in fn["routing_matrix"]
               if row["account_size"] == "100000"
