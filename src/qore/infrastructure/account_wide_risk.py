@@ -60,7 +60,7 @@ class AccountRiskSnapshot:
     def __post_init__(self) -> None:
         if not self.account_binding_id:
             raise AccountWideRiskError("account_binding_id must be opaque and non-empty")
-        for name, value in (
+        for name, decimal_value in (
             ("equity", self.equity),
             ("margin_used", self.margin_used),
             ("free_margin", self.free_margin),
@@ -69,7 +69,7 @@ class AccountRiskSnapshot:
             ("pending_broker_worst_case_loss", self.pending_broker_worst_case_loss),
             ("qore_authorizable_headroom", self.qore_authorizable_headroom),
         ):
-            _nonnegative(value, name)
+            _nonnegative(decimal_value, name)
         _aware(self.reconciled_at, "reconciled_at")
         if not isinstance(self.provider_budget, StellarInstantRiskBudget):
             raise AccountWideRiskError("provider_budget must be StellarInstantRiskBudget")
@@ -98,7 +98,7 @@ class CiboRiskRequest:
     expires_at: datetime
 
     def __post_init__(self) -> None:
-        for name, value in (
+        for name, text_value in (
             ("request_id", self.request_id),
             ("signal_fingerprint", self.signal_fingerprint),
             ("qore_symbol", self.qore_symbol),
@@ -106,11 +106,11 @@ class CiboRiskRequest:
             ("side", self.side),
             ("entry_type", self.entry_type),
         ):
-            if not value:
+            if not text_value:
                 raise AccountWideRiskError(f"{name} must be non-empty")
         if type(self.trader_id) is not TraderLineage:
             raise AccountWideRiskError("trader_id must be a frozen pilot lineage")
-        for name, value in (
+        for name, decimal_value in (
             ("intended_entry", self.intended_entry),
             ("stop_loss", self.stop_loss),
             ("take_profit", self.take_profit),
@@ -120,7 +120,7 @@ class CiboRiskRequest:
             ("stop_loss_per_volume", self.stop_loss_per_volume),
             ("margin_per_volume", self.margin_per_volume),
         ):
-            _positive(value, name)
+            _positive(decimal_value, name)
         _aware(self.requested_at, "requested_at")
         _aware(self.expires_at, "expires_at")
         if self.expires_at <= self.requested_at:
