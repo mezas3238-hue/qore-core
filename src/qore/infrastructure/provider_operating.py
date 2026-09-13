@@ -12,8 +12,8 @@ from decimal import Decimal
 from enum import StrEnum
 
 from qore.infrastructure.provider_contracts import (
-    AutomationMode,
     CHALLENGE_CONTRACTS,
+    AutomationMode,
     ChallengeProgram,
     ChallengeStage,
     Provider,
