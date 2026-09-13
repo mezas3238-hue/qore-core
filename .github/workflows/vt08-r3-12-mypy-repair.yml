@@ -1,0 +1,102 @@
+name: QORE VT-08 R3.12 One-Shot Mypy Repair
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-12-adaptive-prop-risk-001
+    paths:
+      - .github/workflows/vt08-r3-12-mypy-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout R3.12 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/vt08-r3-12-adaptive-prop-risk-001
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: pip install -e ".[dev]"
+      - name: Repair exact Mypy findings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/qore/infrastructure/trader_lab/vt08_official_adaptive_monte_carlo_r3_12.py")
+          text = path.read_text()
+          old_reasons = '''    reasons = list(limiting_reasons)
+    if broker_outcome == "REDUCE" or bounded < permitted - Decimal("0.000001"):
+        reasons.append("broker_quantity")
+    return Authorization(
+        "REDUCE" if reduced else "ALLOW",
+        quantity,
+        bounded,
+        actual_bps,
+        regime_bps,
+        tuple(sorted(set(reasons))),
+    )
+'''
+          new_reasons = '''    authorization_reasons = list(limiting_reasons)
+    if broker_outcome == "REDUCE" or bounded < permitted - Decimal("0.000001"):
+        authorization_reasons.append("broker_quantity")
+    return Authorization(
+        "REDUCE" if reduced else "ALLOW",
+        quantity,
+        bounded,
+        actual_bps,
+        regime_bps,
+        tuple(sorted(set(authorization_reasons))),
+    )
+'''
+          if old_reasons not in text:
+              raise SystemExit("authorization reasons block not found")
+          text = text.replace(old_reasons, new_reasons, 1)
+
+          old_targets = '''    for index, target in enumerate(TARGETS):
+        days = [item.target_days[index] for item in results if item.target_days[index] is not None]
+        before_breach = [
+            item.target_days[index]
+            for item in results
+            if item.target_days[index] is not None
+            and (item.first_breach_day is None or item.target_days[index] <= item.first_breach_day)
+        ]
+        target_summary[f"{int(target * 100)}pct"] = {
+'''
+          new_targets = '''    for index, target in enumerate(TARGETS):
+        days: list[int] = []
+        before_breach: list[int] = []
+        for item in results:
+            achieved_day = item.target_days[index]
+            if achieved_day is None:
+                continue
+            days.append(achieved_day)
+            if item.first_breach_day is None or achieved_day <= item.first_breach_day:
+                before_breach.append(achieved_day)
+        target_summary[f"{int(target * 100)}pct"] = {
+'''
+          if old_targets not in text:
+              raise SystemExit("target summary block not found")
+          text = text.replace(old_targets, new_targets, 1)
+          path.write_text(text)
+          PY
+      - name: Verify full static gates before commit
+        run: |
+          ruff format src/qore/infrastructure/trader_lab/vt08_official_adaptive_monte_carlo_r3_12.py
+          ruff check .
+          mypy src tests
+      - name: Commit repaired source and remove executor
+        run: |
+          rm .github/workflows/vt08-r3-12-mypy-repair.yml
+          git config user.name "qore-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(vt08): close R3.12 static typing gate"
+          git push origin HEAD:agent/vt08-r3-12-adaptive-prop-risk-001
