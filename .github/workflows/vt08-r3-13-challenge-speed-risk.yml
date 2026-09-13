@@ -88,6 +88,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          from decimal import Decimal
           from pathlib import Path
 
           report = json.loads(Path("out/challenge-speed-monte-carlo.json").read_text())
@@ -114,7 +115,9 @@ jobs:
               assert selected["drawdown_p99"] <= 0.06
               assert selected["ruin_probability"] == 0.0
               assert report["selected_policy"] is not None
-              assert report["selected_policy"]["upshift_step_bps"] < report["selected_policy"]["downshift_step_bps"]
+              assert Decimal(report["selected_policy"]["upshift_step_bps"]) < Decimal(
+                  report["selected_policy"]["downshift_step_bps"]
+              )
           for required in (
               "challenge-speed-monte-carlo.json",
               "risk-search-surface.json",
