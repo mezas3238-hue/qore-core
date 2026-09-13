@@ -8,6 +8,8 @@ from qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_capital_t2 import (
     run_sequence_t2,
 )
 
+TradeMap = dict[date, dict[int, tuple[t1.ObservedTrade, ...]]]
+
 
 def _trade(day: date, anchor: int, ordinal: int, r_multiple: float) -> t1.ObservedTrade:
     return t1.ObservedTrade(
@@ -28,7 +30,7 @@ def test_bank_reference_does_not_become_absorbing_risk_floor() -> None:
     day1 = date(2025, 1, 2)
     day2 = date(2025, 1, 3)
     day3 = date(2025, 1, 6)
-    mapped = {
+    mapped: TradeMap = {
         day1: {2: (_trade(day1, 2, 1, 2.0),)},
         day2: {2: (_trade(day2, 2, 2, -1.0),)},
         day3: {2: (_trade(day3, 2, 3, 1.0),)},
@@ -48,7 +50,7 @@ def test_bank_reference_does_not_become_absorbing_risk_floor() -> None:
 def test_attack_is_requested_when_bank_is_active_and_risk_has_cushion() -> None:
     day1 = date(2025, 1, 2)
     day2 = date(2025, 1, 3)
-    mapped = {
+    mapped: TradeMap = {
         day1: {2: (_trade(day1, 2, 1, 2.0),)},
         day2: {2: (_trade(day2, 2, 2, 1.0),)},
     }
@@ -62,7 +64,7 @@ def test_attack_is_requested_when_bank_is_active_and_risk_has_cushion() -> None:
 def test_daily_suspend_is_recomputed_and_reactivates_next_day() -> None:
     day1 = date(2025, 1, 2)
     day2 = date(2025, 1, 3)
-    mapped = {
+    mapped: TradeMap = {
         day1: {
             2: tuple(_trade(day1, 2, index, -1.0) for index in range(1, 4)),
             6: tuple(_trade(day1, 6, index, -1.0) for index in range(4, 7)),
@@ -84,7 +86,7 @@ def test_full_guard_reduce_has_priority_over_attack_in_drawdown() -> None:
         date(2025, 1, 6),
         date(2025, 1, 7),
     )
-    mapped = {
+    mapped: TradeMap = {
         days[0]: {2: (_trade(days[0], 2, 1, 2.0),)},
         days[1]: {2: (_trade(days[1], 2, 2, -1.0),)},
         days[2]: {2: (_trade(days[2], 2, 3, -1.0),)},
