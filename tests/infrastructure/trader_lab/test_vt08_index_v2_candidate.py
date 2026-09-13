@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import Signal
 from qore.infrastructure.trader_lab.vt08_index_v2_candidate import (
     CANDIDATE_ID,
     DEVELOPMENT_SELECTION_ID,
@@ -10,7 +11,6 @@ from qore.infrastructure.trader_lab.vt08_index_v2_candidate import (
     _intrabar_exit,
     _model_hardened,
 )
-from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import Signal
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
     Vt08IndexC2R1Bar,
