@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -19,6 +18,7 @@ from pathlib import Path
 from typing import cast
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.research_block_bootstrap import _draw_start
 from qore.kernel.errors import InfrastructureError
 
 SCHEMA = "qore.trader_lab.vt08_index_c2_positional_r1_forensics.v1"
@@ -280,15 +280,23 @@ def _circular_block_sample(
     values: tuple[float, ...],
     *,
     block_length: int,
-    rng: random.Random,
+    seed: int,
+    replicate: int,
 ) -> list[float]:
     n = len(values)
     if n == 0 or block_length < 1:
         raise Vt08IndexC2R1ForensicsError("invalid block bootstrap input")
     sampled: list[float] = []
+    draw = 0
     while len(sampled) < n:
-        start = rng.randrange(n)
+        start = _draw_start(
+            seed=seed,
+            replicate=replicate,
+            draw=draw,
+            sample_size=n,
+        )
         sampled.extend(values[(start + offset) % n] for offset in range(block_length))
+        draw += 1
     return sampled[:n]
 
 
@@ -299,22 +307,23 @@ def _block_bootstrap(
     paths: int = BOOTSTRAP_PATHS,
 ) -> dict[str, object]:
     values = tuple(float(item.r_multiple) for item in trades)
-    rng = random.Random(BOOTSTRAP_SEED + block_length)
+    seed = BOOTSTRAP_SEED + block_length
     means: list[float] = []
     totals: list[float] = []
     drawdowns: list[float] = []
-    for _ in range(paths):
+    for replicate in range(paths):
         sampled = _circular_block_sample(
             values,
             block_length=block_length,
-            rng=rng,
+            seed=seed,
+            replicate=replicate,
         )
         total = sum(sampled)
         totals.append(total)
         means.append(total / len(sampled))
         drawdowns.append(_max_drawdown_float(sampled))
     return {
-        "seed": BOOTSTRAP_SEED + block_length,
+        "seed": seed,
         "paths": paths,
         "block_length_trades": block_length,
         "probability_mean_r_positive": sum(value > 0 for value in means) / paths,
