@@ -1,0 +1,181 @@
+name: QORE VT-08 R3.13 Challenge-Speed Risk
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-13-challenge-speed-risk-001
+    paths:
+      - .github/workflows/vt08-r3-13-challenge-speed-risk.yml
+      - src/qore/infrastructure/trader_lab/vt08_challenge_speed_monte_carlo_r3_13.py
+      - tests/infrastructure/trader_lab/test_vt08_challenge_speed_monte_carlo_r3_13.py
+      - docs/trader_lab/vt08-r3-13-challenge-speed-risk-freeze.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact R3.13 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: Focused VT-08 R3.13 gates
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_challenge_speed_monte_carlo_r3_13.py \
+            tests/infrastructure/trader_lab/test_vt08_official_adaptive_monte_carlo_r3_12.py \
+            tests/infrastructure/trader_lab/test_vt08_official_monte_carlo_r3_11.py \
+            tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py \
+            tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py \
+            tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - name: Full QORE quality gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  official-challenge-speed-monte-carlo:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact R3.13 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Download consumed 2024-2026 baseline evidence
+        run: |
+          mkdir -p consumed/baseline
+          gh run download 34693803930 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/baseline
+      - name: Download consumed 2022-2024 evidence
+        run: |
+          mkdir -p consumed/fresh
+          gh run download 34707771460 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/fresh
+      - name: Execute official R3.13 challenge-speed paired Monte Carlo
+        run: |
+          generated_at="$(git show -s --format=%cI "$GITHUB_SHA")"
+          python -m qore.infrastructure.trader_lab.vt08_challenge_speed_monte_carlo_r3_13 \
+            --baseline-root consumed/baseline \
+            --fresh-root consumed/fresh \
+            --git-sha "$GITHUB_SHA" \
+            --generated-at "$generated_at" \
+            --output-dir out
+      - name: Enforce R3.13 governance and experiment invariants
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(Path("out/challenge-speed-monte-carlo.json").read_text())
+          assert report["holdout_not_accessed"] is True
+          assert report["protected_holdout"]["accessed"] is False
+          assert report["demo_eligible"] is False
+          assert report["live_authorized"] is False
+          assert report["experiment"]["paths"] == 10000
+          assert report["experiment"]["horizon_trading_days"] == 30
+          assert report["experiment"]["block_length_trading_days"] == 5
+          assert report["experiment"]["search_candidates"] == 8
+          assert report["experiment"]["primary_transaction_cost_bps_per_completed_trade"] == "0.50"
+          assert report["experiment"]["cost_grid_bps"] == ["0.00", "0.25", "0.50", "1.00"]
+          assert report["portfolio_samples"] == {
+              "A_CORE": 117,
+              "GBPJPY_RETURN_ENHANCER": 112,
+              "B_COMBINED_PORTFOLIO": 229,
+          }
+          assert len(report["search_surface"]) == 8
+          selected = report["selected_score"]
+          if selected is not None:
+              assert selected["safe_candidate"] is True
+              assert selected["any_breach_probability"] <= 0.01
+              assert selected["drawdown_p99"] <= 0.06
+              assert selected["ruin_probability"] == 0.0
+              assert report["selected_policy"] is not None
+              assert Decimal(report["selected_policy"]["upshift_step_bps"]) < Decimal(
+                  report["selected_policy"]["downshift_step_bps"]
+              )
+          for required in (
+              "challenge-speed-monte-carlo.json",
+              "risk-search-surface.json",
+              "selected-challenge-policy.json",
+              "challenge-cost-sensitivity.json",
+              "provider-results.json",
+              "risk-policy-fingerprint.txt",
+              "git-sha.txt",
+          ):
+              assert Path("out", required).is_file(), required
+          PY
+      - name: Build human-readable artifact summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("out/challenge-speed-monte-carlo.json").read_text())
+          score = report["selected_score"]
+          lines = [
+              "# VT-08 R3.13 Challenge-Speed Monte Carlo",
+              "",
+              f"HEAD: `{report['git_sha']}`",
+              "HOLDOUT_NOT_ACCESSED=true",
+              f"Selection status: **{report['selection_status']}**",
+          ]
+          if score is None:
+              lines += ["", "No policy satisfied the frozen safety contract."]
+          else:
+              policy = report["selected_policy"]
+              lines += [
+                  f"Selected policy: **{policy['name']}**",
+                  f"P(+10% <=30d before breach): **{score['probability_10pct_within_30d_before_breach']:.2%}**",
+                  f"P(+8% <=30d before breach): **{score['probability_8pct_within_30d_before_breach']:.2%}**",
+                  f"P(+5% <=30d before breach): **{score['probability_5pct_within_30d_before_breach']:.2%}**",
+                  f"P(any breach): **{score['any_breach_probability']:.2%}**",
+                  f"DD p99: **{score['drawdown_p99']:.2%}**",
+                  f"Median terminal 30d: **{score['median_terminal_return']:.2%}**",
+                  f"Median days to +10% when achieved: **{score['median_days_to_10pct_when_achieved']}**",
+              ]
+          lines += ["", "## Search surface", "", "| Policy | P10 | Breach | DD p99 | Median 30d | Safe |", "|---|---:|---:|---:|---:|:---:|"]
+          for row in report["search_surface"]:
+              item = row["score"]
+              lines.append(
+                  "| {name} | {p10:.2%} | {breach:.2%} | {dd:.2%} | {ret:.2%} | {safe} |".format(
+                      name=item["policy_name"],
+                      p10=item["probability_10pct_within_30d_before_breach"],
+                      breach=item["any_breach_probability"],
+                      dd=item["drawdown_p99"],
+                      ret=item["median_terminal_return"],
+                      safe="YES" if item["safe_candidate"] else "NO",
+                  )
+              )
+          Path("out/summary.md").write_text("\n".join(lines) + "\n")
+          PY
+      - name: Upload immutable R3.13 challenge-speed evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-13-challenge-speed-${{ github.sha }}
+          path: out/
+          if-no-files-found: error
