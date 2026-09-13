@@ -628,12 +628,15 @@ def build_report(path: Path) -> dict[str, object]:
                     - baseline.maximum_capital_drawdown
                 ),
                 "mc_terminal_median_delta": (
-                    float(monte_carlo[controller]["terminal_return_median"])
-                    - float(baseline_mc["terminal_return_median"])
+                    cast(float, monte_carlo[controller]["terminal_return_median"])
+                    - cast(float, baseline_mc["terminal_return_median"])
                 ),
                 "mc_probability_positive_delta": (
-                    float(monte_carlo[controller]["probability_terminal_positive"])
-                    - float(baseline_mc["probability_terminal_positive"])
+                    cast(
+                        float,
+                        monte_carlo[controller]["probability_terminal_positive"],
+                    )
+                    - cast(float, baseline_mc["probability_terminal_positive"])
                 ),
             }
             for controller in CONTROLLERS
