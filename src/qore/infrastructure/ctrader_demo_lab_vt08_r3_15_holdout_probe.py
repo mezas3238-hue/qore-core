@@ -48,11 +48,23 @@ def validate_freeze() -> None:
 def main() -> None:
     validate_freeze()
     credentials = CTraderOpenApiCredentials(
-        client_id=_required_env("QORE_CTRADER_CLIENT_ID", "QORE_CTRADER_DEMO_CLIENT_ID"),
-        client_secret=_required_env("QORE_CTRADER_CLIENT_SECRET", "QORE_CTRADER_DEMO_CLIENT_SECRET"),
-        access_token=_required_env("QORE_CTRADER_ACCESS_TOKEN", "QORE_CTRADER_DEMO_ACCESS_TOKEN"),
-        refresh_token=_required_env("QORE_CTRADER_REFRESH_TOKEN", "QORE_CTRADER_DEMO_REFRESH_TOKEN"),
-        ctid_trader_account_id=int(_required_env("QORE_CTRADER_DEMO_ACCOUNT_ID", "QORE_CTRADER_ACCOUNT_ID")),
+        client_id=_required_env(
+            "QORE_CTRADER_CLIENT_ID", "QORE_CTRADER_DEMO_CLIENT_ID"
+        ),
+        client_secret=_required_env(
+            "QORE_CTRADER_CLIENT_SECRET", "QORE_CTRADER_DEMO_CLIENT_SECRET"
+        ),
+        access_token=_required_env(
+            "QORE_CTRADER_ACCESS_TOKEN", "QORE_CTRADER_DEMO_ACCESS_TOKEN"
+        ),
+        refresh_token=_required_env(
+            "QORE_CTRADER_REFRESH_TOKEN", "QORE_CTRADER_DEMO_REFRESH_TOKEN"
+        ),
+        ctid_trader_account_id=int(
+            _required_env(
+                "QORE_CTRADER_DEMO_ACCOUNT_ID", "QORE_CTRADER_ACCOUNT_ID"
+            )
+        ),
     )
     symbol = _required_env("QORE_DEMO_LAB_SYMBOL")
     software_sha = _required_env("QORE_SOFTWARE_SHA")
@@ -78,11 +90,20 @@ def main() -> None:
                 "evaluation_opened_at": EVALUATION_OPENED_AT.isoformat(),
                 "evaluation_closed_at": EVALUATION_CLOSED_AT.isoformat(),
                 "evaluation_span_days": 730,
-                "warmup_days": (EVALUATION_OPENED_AT - ACQUISITION_OPENED_AT).days,
+                "warmup_days": (
+                    EVALUATION_OPENED_AT - ACQUISITION_OPENED_AT
+                ).days,
                 "coverage": _coverage_payload(evidence.bars),
             }
         )
-        print(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False))
+        print(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+        )
     finally:
         client.close()
 
