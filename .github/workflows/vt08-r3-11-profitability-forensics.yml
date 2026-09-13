@@ -1,0 +1,136 @@
+name: QORE VT-08 R3.11 Profitability Forensics
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-11-profitability-forensics-001
+    paths:
+      - .github/workflows/vt08-r3-11-profitability-forensics.yml
+      - src/qore/infrastructure/trader_lab/vt08_b01_risk_economic_replay_r3_11.py
+      - src/qore/infrastructure/trader_lab/vt08_prop_firm_monte_carlo_r3_11.py
+      - src/qore/infrastructure/trader_lab/vt08_official_monte_carlo_r3_11.py
+      - src/qore/infrastructure/deterministic_random.py
+      - tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py
+      - tests/infrastructure/trader_lab/test_vt08_prop_firm_monte_carlo_r3_11.py
+      - tests/infrastructure/trader_lab/test_vt08_official_monte_carlo_r3_11.py
+      - tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py
+      - docs/research/trader-lab/VT08-R3-11-RISK-ECONOMIC-REPLAY.md
+      - docs/research/trader-lab/VT08-R3-11-PROP-FIRM-RISK-MATRIX.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact R3.11 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: Focused VT-08 R3.11 gates
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py \
+            tests/infrastructure/trader_lab/test_vt08_prop_firm_monte_carlo_r3_11.py \
+            tests/infrastructure/trader_lab/test_vt08_official_monte_carlo_r3_11.py \
+            tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py \
+            tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - name: Full QORE quality gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  risk-economic-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact R3.11 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Download consumed 2024-2026 baseline evidence
+        run: |
+          mkdir -p consumed/baseline
+          gh run download 34693803930 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/baseline
+      - name: Download consumed 2022-2024 fresh evidence
+        run: |
+          mkdir -p consumed/fresh
+          gh run download 34707771460 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/fresh
+      - name: Execute Risk-aware fixed-loss account replay
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_b01_risk_economic_replay_r3_11 \
+            --baseline-root consumed/baseline \
+            --fresh-root consumed/fresh \
+            --output out/risk-economic-replay.json
+      - name: Execute official frozen paired Monte Carlo
+        run: |
+          generated_at="$(git show -s --format=%cI "$GITHUB_SHA")"
+          python -m qore.infrastructure.trader_lab.vt08_official_monte_carlo_r3_11 \
+            --baseline-root consumed/baseline \
+            --fresh-root consumed/fresh \
+            --git-sha "$GITHUB_SHA" \
+            --generated-at "$generated_at" \
+            --output out/official-monte-carlo.json
+      - name: Enforce consumed-evidence and cardinality invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("out/risk-economic-replay.json").read_text())
+          assert report["trade_count"] == 809
+          assert report["protected_holdout_2020_2022_accessed"] is False
+          assert report["demo_eligible"] is False
+          assert report["primary_zero_cost"]["candidate-a"]["signal_count"] == 117
+          assert report["primary_zero_cost"]["candidate-b"]["signal_count"] == 229
+
+          monte = json.loads(Path("out/official-monte-carlo.json").read_text())
+          assert monte["holdout_not_accessed"] is True
+          assert monte["demo_eligible"] is False
+          assert monte["experiment"]["paths"] == 10000
+          assert monte["experiment"]["horizon_trading_days"] == 250
+          assert monte["experiment"]["block_length_trading_days"] == 20
+          assert monte["experiment"]["primary_transaction_cost_bps_per_completed_trade"] == "0.50"
+          assert {name: item["original_sample"] for name, item in monte["results"].items()} == {
+              "A_CORE": 117,
+              "GBPJPY_RETURN_ENHANCER": 112,
+              "B_COMBINED_PORTFOLIO": 229,
+          }
+          assert all(
+              item["primary_0_50bp"]["heat_violations_total"] == 0
+              for item in monte["results"].values()
+          )
+          PY
+      - name: Upload immutable R3.11 economic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-11-risk-economic-replay-${{ github.sha }}
+          path: |
+            out/risk-economic-replay.json
+            out/official-monte-carlo.json
+          if-no-files-found: error
