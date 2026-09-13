@@ -141,6 +141,33 @@ def build_manifest() -> dict[str, Any]:
             }
             for contract_id in contracts
         },
+        "routing_adjudication": {
+            "ftmo": {
+                "status": "AUTOMATION_SUPPORTED_SUBJECT_TO_ACTIVATION_REVERIFY",
+                "frozen_automated_platforms": ["ctrader", "mt4", "mt5"],
+                "sources": [
+                    "https://ftmo.com/faq/which-instruments-can-i-trade-and-what-strategies-am-i-allowed-to-use/",
+                    "https://ftmo.com/en/faq/which-platforms-can-i-use-for-trading/",
+                    "https://ftmo.com/en/trading-platforms/",
+                ],
+            },
+            "fundednext": {
+                "status": "PRODUCT_RULE_CONFLICT_FAIL_CLOSED_TO_MANUAL",
+                "generic_ea_source": (
+                    "https://help.fundednext.com/en/articles/8020763-is-ea-allowed-in-fundednext"
+                ),
+                "product_specific_cfd_source": (
+                    "https://help.fundednext.com/en/articles/12673301-"
+                    "what-rules-do-i-need-to-follow-in-the-stellar-1-step-"
+                    "challenge-at-fundednext-cfd"
+                ),
+                "platform_source": (
+                    "https://help.fundednext.com/en/articles/8019808-"
+                    "which-platforms-can-i-use-for-trading-at-fundednext"
+                ),
+                "operational_default": "manual-handoff-until-exact-product-reverified",
+            },
+        },
         "authority_chain": [
             "provider-rules",
             "provider-risk-budget",
@@ -156,6 +183,7 @@ def build_manifest() -> dict[str, Any]:
             "risk_remains_sovereign": True,
             "provider_static_floors_are_not_retrailed_by_qore": True,
             "ftmo_1_step_uses_eod_trailing_overall_loss": True,
+            "fundednext_product_rule_conflict_fails_closed_to_manual": True,
             "activation_reverification_required": True,
             "credentials_present": False,
             "orders_submitted": False,
