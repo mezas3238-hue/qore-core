@@ -244,6 +244,7 @@ def simulate_portfolio_path(
     equity = starting
     peak = starting
     max_drawdown = Decimal(0)
+    ruin = False
     open_positions: list[_Position] = []
     losing = 0
     max_losing = 0
@@ -256,7 +257,7 @@ def simulate_portfolio_path(
     epoch = datetime(2000, 1, 3, tzinfo=UTC)
 
     def close_due(cutoff: datetime) -> None:
-        nonlocal equity, peak, losing, max_losing, open_positions, max_drawdown
+        nonlocal equity, peak, losing, max_losing, open_positions, max_drawdown, ruin
         due = sorted(
             (item for item in open_positions if item.exit_at <= cutoff),
             key=lambda item: item.exit_at,
@@ -269,7 +270,8 @@ def simulate_portfolio_path(
             elif item.pnl_usd > 0:
                 losing = 0
             peak = max(peak, equity)
-            max_drawdown = max(max_drawdown, peak - equity)
+            max_drawdown = max(max_drawdown, (peak - equity) / peak)
+            ruin = ruin or equity <= 0
         due_ids = {id(item) for item in due}
         open_positions = [item for item in open_positions if id(item) not in due_ids]
 
@@ -310,7 +312,8 @@ def simulate_portfolio_path(
             if total_heat > heat_limit + Decimal("0.00000001"):
                 heat_violations += 1
             adverse_equity = equity - total_heat
-            max_drawdown = max(max_drawdown, peak - adverse_equity)
+            max_drawdown = max(max_drawdown, (peak - adverse_equity) / peak)
+            ruin = ruin or adverse_equity <= 0
         close_due(day_start + timedelta(days=1))
         if equity < peak:
             underwater += 1
@@ -320,7 +323,7 @@ def simulate_portfolio_path(
     close_due(datetime.max.replace(tzinfo=epoch.tzinfo))
     return PathMetrics(
         terminal_return=float(equity / starting - Decimal(1)),
-        max_drawdown=float(max_drawdown / peak) if peak > 0 else 1.0,
+        max_drawdown=float(max_drawdown),
         losing_streak=max_losing,
         underwater_days=max_underwater,
         max_concurrency=max_concurrency,
@@ -329,7 +332,7 @@ def simulate_portfolio_path(
         reject=counts["REJECT"],
         heat_interactions=heat_interactions,
         heat_violations=heat_violations,
-        ruin=equity <= 0,
+        ruin=ruin,
     )
 
 
