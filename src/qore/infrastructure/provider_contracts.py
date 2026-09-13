@@ -339,12 +339,24 @@ def execution_capability(
         )
 
     if contract.provider is Provider.FTMO:
+        if platform in (
+            TradingPlatform.CTRADER,
+            TradingPlatform.MT4,
+            TradingPlatform.MT5,
+        ):
+            return ProviderExecutionCapability(
+                provider=contract.provider,
+                platform=platform,
+                mode=AutomationMode.AUTOMATED_ALLOWED,
+                automated_order_submission_allowed=True,
+                reason="ftmo-algorithmic-trading-provider-supported",
+            )
         return ProviderExecutionCapability(
             provider=contract.provider,
             platform=platform,
-            mode=AutomationMode.AUTOMATED_ALLOWED,
-            automated_order_submission_allowed=True,
-            reason="ftmo-algorithmic-trading-provider-supported",
+            mode=AutomationMode.FAIL_CLOSED,
+            automated_order_submission_allowed=False,
+            reason="ftmo-platform-not-frozen-for-qore-automation",
         )
 
     if platform in (TradingPlatform.CTRADER, TradingPlatform.MATCH_TRADER):
