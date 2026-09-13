@@ -7,6 +7,7 @@ import pytest
 
 from qore.infrastructure.trader_lab.vt08_index_r1_validation_rejection import (
     FORENSICS_SCHEMA,
+    R1_HEAD,
     R1_SCHEMA,
     Vt08IndexR1ValidationRejectionError,
     build_rejection,
@@ -43,10 +44,13 @@ def _inputs(tmp_path: Path) -> tuple[Path, Path]:
         forensics,
         {
             "schema": FORENSICS_SCHEMA,
-            "methodology_fingerprint": "a" * 64,
+            "source_replay_head": R1_HEAD,
+            "source_freeze_commit": "31bee8643cb09659a66e9ed793c1cb2bf9ba6353",
             "aggregate": economics,
-            "diagnostic": {"evidence_supports_robust_positive_edge": False},
-            "governance": {"methodology_changed_after_result": False},
+            "diagnostic_adjudication": {
+                "evidence_supports_robust_positive_edge": False
+            },
+            "methodology_mutation": False,
         },
     )
     return r1, forensics
@@ -70,10 +74,10 @@ def test_builds_fail_closed_rejection(tmp_path: Path) -> None:
     }
 
 
-def test_rejects_methodology_drift(tmp_path: Path) -> None:
+def test_rejects_source_replay_drift(tmp_path: Path) -> None:
     r1, forensics = _inputs(tmp_path)
     payload = json.loads(forensics.read_text(encoding="utf-8"))
-    payload["methodology_fingerprint"] = "b" * 64
+    payload["source_replay_head"] = "b" * 40
     _write(forensics, payload)
     with pytest.raises(Vt08IndexR1ValidationRejectionError, match="identity drifted"):
         build_rejection(r1_path=r1, forensics_path=forensics)

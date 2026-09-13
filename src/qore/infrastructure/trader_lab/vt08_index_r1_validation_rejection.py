@@ -49,8 +49,12 @@ def build_rejection(*, r1_path: Path, forensics_path: Path) -> dict[str, object]
         raise Vt08IndexR1ValidationRejectionError("R1 schema drifted")
     if forensics.get("schema") != FORENSICS_SCHEMA:
         raise Vt08IndexR1ValidationRejectionError("forensics schema drifted")
-    if r1.get("methodology_fingerprint") != forensics.get("methodology_fingerprint"):
-        raise Vt08IndexR1ValidationRejectionError("methodology identity drifted")
+    if forensics.get("source_replay_head") != R1_HEAD:
+        raise Vt08IndexR1ValidationRejectionError("source replay identity drifted")
+    if forensics.get("source_freeze_commit") != (
+        "31bee8643cb09659a66e9ed793c1cb2bf9ba6353"
+    ):
+        raise Vt08IndexR1ValidationRejectionError("source freeze identity drifted")
     r1_economics = _object(
         r1.get("aggregate_equal_risk_trade_economics"), name="R1 economics"
     )
@@ -68,11 +72,12 @@ def build_rejection(*, r1_path: Path, forensics_path: Path) -> dict[str, object]
     ):
         if r1_economics.get(field) != forensic_economics.get(field):
             raise Vt08IndexR1ValidationRejectionError(f"aggregate drifted: {field}")
-    diagnostic = _object(forensics.get("diagnostic"), name="forensic diagnostic")
+    diagnostic = _object(
+        forensics.get("diagnostic_adjudication"), name="forensic diagnostic"
+    )
     if diagnostic.get("evidence_supports_robust_positive_edge") is not False:
         raise Vt08IndexR1ValidationRejectionError("rejection requires failed robustness")
-    governance = _object(forensics.get("governance"), name="forensic governance")
-    if governance.get("methodology_changed_after_result") is not False:
+    if forensics.get("methodology_mutation") is not False:
         raise Vt08IndexR1ValidationRejectionError("methodology mutation detected")
 
     return {
