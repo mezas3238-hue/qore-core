@@ -3,12 +3,12 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.provider_contracts import (
-    ChallengeProgram,
-    ChallengeStage,
     FTMO_1_STEP_CHALLENGE,
     FTMO_2_STEP_PHASE_1,
     FUNDEDNEXT_STELLAR_1_STEP,
     FUNDEDNEXT_STELLAR_2_STEP_PHASE_1,
+    ChallengeProgram,
+    ChallengeStage,
     Provider,
     ProviderAccountSnapshot,
     ProviderContractError,
