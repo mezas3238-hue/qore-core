@@ -31,7 +31,6 @@ from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
-    AUTHORIZED_MARKETS,
     OWNER_ENTRY_ANCHORS_NY,
     Vt08IndexC2R1Bar,
 )
