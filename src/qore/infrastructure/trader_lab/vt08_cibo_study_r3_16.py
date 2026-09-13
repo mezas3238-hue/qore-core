@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import date
 from statistics import median
-from typing import cast
+from typing import Protocol, cast
 
 from qore.infrastructure.trader_lab.vt08_cibo_data_r3_16 import (
     CHALLENGE_END,
@@ -41,6 +41,10 @@ from qore.infrastructure.trader_lab.vt08_cibo_engine_r3_16 import (
 )
 
 
+class _NamedPolicy(Protocol):
+    name: str
+
+
 @dataclass(frozen=True, slots=True)
 class ChallengeScore:
     portfolio: str
@@ -64,9 +68,9 @@ class ChallengeScore:
         )
 
 
-def _by_name(name: str, values: Sequence[object]) -> object:
+def _by_name(name: str, values: Sequence[_NamedPolicy]) -> _NamedPolicy:
     for value in values:
-        if getattr(value, "name") == name:
+        if value.name == name:
             return value
     raise ValueError(f"policy not found: {name}")
 
