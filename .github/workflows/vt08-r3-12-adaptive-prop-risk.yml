@@ -1,0 +1,167 @@
+name: QORE VT-08 R3.12 Adaptive Prop-Firm Risk
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-12-adaptive-prop-risk-001
+    paths:
+      - .github/workflows/vt08-r3-12-adaptive-prop-risk.yml
+      - src/qore/infrastructure/trader_lab/vt08_prop_firm_profiles_r3_12.py
+      - src/qore/infrastructure/trader_lab/vt08_official_adaptive_monte_carlo_r3_12.py
+      - tests/infrastructure/trader_lab/test_vt08_official_adaptive_monte_carlo_r3_12.py
+      - docs/trader_lab/vt08-r3-12-adaptive-prop-risk-freeze.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout exact R3.12 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: Focused VT-08 R3.12 gates
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_official_adaptive_monte_carlo_r3_12.py \
+            tests/infrastructure/trader_lab/test_vt08_official_monte_carlo_r3_11.py \
+            tests/infrastructure/trader_lab/test_vt08_prop_firm_monte_carlo_r3_11.py \
+            tests/infrastructure/trader_lab/test_vt08_b01_risk_economic_replay_r3_11.py \
+            tests/infrastructure/traders/test_vt08_b01_r3_11_profitability_forensics.py \
+            tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - name: Full QORE quality gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  official-adaptive-monte-carlo:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact R3.12 head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Download consumed 2024-2026 baseline evidence
+        run: |
+          mkdir -p consumed/baseline
+          gh run download 34693803930 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/baseline
+      - name: Download consumed 2022-2024 evidence
+        run: |
+          mkdir -p consumed/fresh
+          gh run download 34707771460 \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir consumed/fresh
+      - name: Execute official R3.12 adaptive paired Monte Carlo
+        run: |
+          generated_at="$(git show -s --format=%cI "$GITHUB_SHA")"
+          python -m qore.infrastructure.trader_lab.vt08_official_adaptive_monte_carlo_r3_12 \
+            --baseline-root consumed/baseline \
+            --fresh-root consumed/fresh \
+            --git-sha "$GITHUB_SHA" \
+            --generated-at "$generated_at" \
+            --output-dir out
+      - name: Enforce R3.12 governance and experiment invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("out/adaptive-prop-firm-monte-carlo.json").read_text())
+          assert report["holdout_not_accessed"] is True
+          assert report["protected_holdout"]["accessed"] is False
+          assert report["demo_eligible"] is False
+          assert report["live_authorized"] is False
+          assert report["experiment"]["paths"] == 10000
+          assert report["experiment"]["horizon_trading_days"] == 250
+          assert report["experiment"]["block_length_trading_days"] == 20
+          assert report["experiment"]["primary_transaction_cost_bps_per_completed_trade"] == "0.50"
+          assert report["experiment"]["cost_grid_bps"] == ["0.00", "0.25", "0.50", "1.00"]
+          assert set(report["provider_profiles"]) == {
+              "FTMO_2STEP_2026_09_12",
+              "FUNDEDNEXT_STELLAR_2STEP_2026_09_12",
+          }
+          assert report["primary_policy"]["upshift_step_bps"] == "0.50"
+          assert report["primary_policy"]["downshift_step_bps"] == "5.00"
+          ftmo = report["provider_results"]["FTMO_2STEP_2026_09_12"]["results"]
+          assert ftmo["A_CORE"]["original_sample"] == 117
+          assert ftmo["GBPJPY_RETURN_ENHANCER"]["original_sample"] == 112
+          assert ftmo["B_COMBINED_PORTFOLIO"]["original_sample"] == 229
+          assert ftmo["A_CORE"]["primary_0_50bp"]["max_portfolio_heat_bps"]["p99"] <= 90.000001
+          assert ftmo["B_COMBINED_PORTFOLIO"]["primary_0_50bp"]["risk_dynamics"]["slow_up_fast_down"] is True
+          for required in (
+              "adaptive-prop-firm-risk-policy.json",
+              "adaptive-prop-firm-monte-carlo.json",
+              "monthly-growth-distribution.json",
+              "prop-firm-breach-analysis.json",
+              "A-core.json",
+              "GBPJPY-enhancer.json",
+              "B-combined.json",
+              "B-minus-A-marginal.json",
+              "risk-policy-fingerprint.txt",
+              "git-sha.txt",
+          ):
+              assert Path("out", required).is_file(), required
+          PY
+      - name: Build human-readable artifact summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("out/adaptive-prop-firm-monte-carlo.json").read_text())
+          ftmo = report["provider_results"]["FTMO_2STEP_2026_09_12"]["results"]
+          lines = [
+              "# VT-08 R3.12 Adaptive Prop-Firm Monte Carlo",
+              "",
+              f"HEAD: `{report['git_sha']}`",
+              f"Risk policy fingerprint: `{report['risk_policy_fingerprint']}`",
+              "HOLDOUT_NOT_ACCESSED=true",
+              "",
+              "| Portfolio | Median terminal | P(positive) | Median DD | P(any breach) | Median monthly |",
+              "|---|---:|---:|---:|---:|---:|",
+          ]
+          for name in ("A_CORE", "GBPJPY_RETURN_ENHANCER", "B_COMBINED_PORTFOLIO"):
+              item = ftmo[name]["primary_0_50bp"]
+              lines.append(
+                  "| {name} | {ret:.3%} | {pos:.2%} | {dd:.3%} | {breach:.2%} | {month:.3%} |".format(
+                      name=name,
+                      ret=item["terminal_return"]["median"],
+                      pos=item["probability_terminal_positive"],
+                      dd=item["maximum_drawdown"]["median"],
+                      breach=item["any_prop_firm_breach_probability"],
+                      month=item["monthly_growth"]["return"]["median"],
+                  )
+              )
+          Path("out/summary.md").write_text("\n".join(lines) + "\n")
+          PY
+      - name: Upload immutable R3.12 adaptive-risk evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-12-adaptive-prop-risk-${{ github.sha }}
+          path: out/
+          if-no-files-found: error
