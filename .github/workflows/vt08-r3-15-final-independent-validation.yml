@@ -1,0 +1,162 @@
+name: QORE VT-08 R3.15 Final Independent Validation
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-15-independent-validation-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: Focused R3.15 and authority gates
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_final_holdout_r3_15.py \
+            tests/infrastructure/trader_lab/test_first_cohort_authority_chain.py \
+            tests/infrastructure/traders/test_vt08_b01_r3_8.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  fresh-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol: [AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, USDCAD, USDJPY]
+    env:
+      QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify DEMO-only runtime inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_DEMO_LAB_SYMBOL; do
+            test -n "${!name:-}" || { echo "missing ${name}" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: One-time protected holdout collection
+        run: |
+          mkdir -p "out/${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.ctrader_demo_lab_vt08_r3_15_holdout_probe \
+            > "out/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+      - name: Frozen B01 replay
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_b01_backtest_r3_8 \
+            "out/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
+            > "out/${QORE_DEMO_LAB_SYMBOL}/b01-backtest.json"
+          printf '%s\n' "$GITHUB_SHA" > "out/${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
+      - name: Enforce holdout identity
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path(f"out/{os.environ['QORE_DEMO_LAB_SYMBOL']}/market-evidence.json").read_text())
+          assert p["holdout_id"] == "VT08_R3_15_FINAL_INDEPENDENT_2020_2022"
+          assert p["independent_validation_holdout"] is True
+          assert p["evaluation_opened_at"] == "2020-07-01T00:00:00+00:00"
+          assert p["evaluation_closed_at"] == "2022-07-01T00:00:00+00:00"
+          assert p["account_is_live"] is False
+          assert p["read_only"] is True
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-15-${{ matrix.symbol }}-${{ github.sha }}
+          path: out/${{ matrix.symbol }}
+          if-no-files-found: error
+
+  adjudicate:
+    needs: fresh-replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-r3-15-*-${{ github.sha }}
+          path: input
+      - name: Compile frozen B COMBINED holdout
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t reports < <(find input -name b01-backtest.json -type f | sort)
+          test "${#reports[@]}" -eq 7
+          mkdir -p out
+          python -m qore.infrastructure.trader_lab.vt08_final_holdout_r3_15 aggregate "${reports[@]}" > out/holdout-summary.json
+          printf '%s\n' "$GITHUB_SHA" > out/git-sha.txt
+      - name: Enforce frozen Risk gate without post-hoc relaxation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('out/holdout-summary.json').read_text())
+          assert p['holdout_id']=='VT08_R3_15_FINAL_INDEPENDENT_2020_2022'
+          assert p['independent_validation'] is True
+          assert p['methodology_mutation_after_holdout'] is False
+          assert p['software_sha']=='${{ github.sha }}'
+          assert p['risk_policy']['min_sample_size']==30
+          assert p['risk_policy']['max_population_variance']=='0.01'
+          assert p['live_authorized'] is False
+          PY
+      - name: Human-readable summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('out/holdout-summary.json').read_text())
+          text=f'''# VT-08 R3.15 Final Independent Holdout\n\nHEAD: `{p["software_sha"]}`\nSample: **{p["sample_size"]}**\nWins/Losses/Flats: **{p["wins"]}/{p["losses"]}/{p["flats"]}**\nWin rate: **{float(p["win_rate"]):.2%}**\nMean return: **{p["mean_return"]}**\nProfit factor: **{p["profit_factor"]}**\nCompounded return: **{p["compounded_return"]}**\nMax DD: **{p["maximum_drawdown"]}**\nPopulation variance: **{p["population_variance"]}**\nFrozen Risk gate: **{'APPROVED' if p["risk_policy"]["approved"] else 'BLOCKED'}**\nLIVE_AUTHORIZED=false\n'''
+          Path('out/summary.md').write_text(text)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-r3-15-independent-holdout-${{ github.sha }}
+          path: out
+          if-no-files-found: error
