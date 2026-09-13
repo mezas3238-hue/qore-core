@@ -153,7 +153,11 @@ jobs:
             .certification_software_sha == env.GITHUB_SHA and
             .workflow_run_id == (env.GITHUB_RUN_ID | tonumber)
           ' "${certificate}"
-          sha256sum "${certificate}" > certification/vt08-r3-15-demo-eligibility-certificate.sha256
+          (
+            cd certification
+            sha256sum vt08-r3-15-demo-eligibility-certificate.json \
+              > vt08-r3-15-demo-eligibility-certificate.sha256
+          )
           printf '%s\n' "${GITHUB_SHA}" > certification/git-sha.txt
 
       - name: Upload immutable certification package
