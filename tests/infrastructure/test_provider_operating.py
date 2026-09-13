@@ -242,7 +242,10 @@ def test_fundednext_100k_ctrader_is_rejected_as_unavailable() -> None:
     assert decision.route is ExecutionRoute.REJECT
 
 
-def test_fundednext_25k_mt5_with_ea_option_routes_automated() -> None:
+@pytest.mark.parametrize("addon", (False, True))
+def test_fundednext_25k_mt5_stays_manual_until_exact_product_reverified(
+    addon: bool,
+) -> None:
     decision = resolve_execution_route(
         _binding(
             contract_id=FUNDEDNEXT_STELLAR_2_STEP_PHASE_1.contract_id,
@@ -251,26 +254,15 @@ def test_fundednext_25k_mt5_with_ea_option_routes_automated() -> None:
             stage=ChallengeStage.PHASE_1,
             platform=TradingPlatform.MT5,
             initial="25000",
-            addon=True,
-        )
-    )
-
-    assert decision.route is ExecutionRoute.AUTOMATED
-
-
-def test_fundednext_25k_mt5_without_ea_option_routes_manual() -> None:
-    decision = resolve_execution_route(
-        _binding(
-            contract_id=FUNDEDNEXT_STELLAR_2_STEP_PHASE_1.contract_id,
-            provider=Provider.FUNDEDNEXT,
-            program=ChallengeProgram.FUNDEDNEXT_STELLAR_2_STEP,
-            stage=ChallengeStage.PHASE_1,
-            platform=TradingPlatform.MT5,
-            initial="25000",
+            addon=addon,
         )
     )
 
     assert decision.route is ExecutionRoute.MANUAL_HANDOFF
+    assert not decision.capability.automated_order_submission_allowed
+    assert decision.capability.reason == (
+        "fundednext-product-specific-automation-authority-unresolved"
+    )
 
 
 def test_fundednext_50k_mt5_is_manual_even_with_ea_option() -> None:
@@ -287,6 +279,7 @@ def test_fundednext_50k_mt5_is_manual_even_with_ea_option() -> None:
     )
 
     assert decision.route is ExecutionRoute.MANUAL_HANDOFF
+    assert not decision.capability.automated_order_submission_allowed
 
 
 def test_disabled_binding_is_rejected() -> None:
