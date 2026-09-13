@@ -116,7 +116,10 @@ def test_build_report_aggregates_without_manufacturing_trades(tmp_path: Path) ->
     assert anchors["02:00"]["candidate_count"] == 60
     assert anchors["06:00"]["candidate_count"] == 60
     assert anchors["10:00"]["candidate_count"] == 60
-    assert anchors["02:00"]["mean_post_signal_h4_close_r_descriptive_only"] == "0.2333333333333333333333333333"
+    assert (
+        anchors["02:00"]["mean_post_signal_h4_close_r_descriptive_only"]
+        == "0.2333333333333333333333333333"
+    )
 
     adjudication = report["adjudication"]
     assert isinstance(adjudication, dict)
