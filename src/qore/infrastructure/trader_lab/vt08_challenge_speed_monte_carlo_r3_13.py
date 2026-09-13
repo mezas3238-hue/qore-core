@@ -278,16 +278,13 @@ def _candidate_score(policy: AdaptiveRiskPolicy, results: Sequence[PathMetrics])
     breach = sum(item.any_prop_firm_breach for item in results) / len(results)
     ruin = sum(item.ruin for item in results) / len(results)
     drawdown_p99 = _distribution([item.max_drawdown for item in results])["p99"]
-    successful_days = [
-        float(item.target_days[TARGET_INDEX_10PCT])
-        for item in results
-        if item.target_days[TARGET_INDEX_10PCT] is not None
-        and item.target_days[TARGET_INDEX_10PCT] <= CHALLENGE_HORIZON_DAYS
-        and (
-            item.first_breach_day is None
-            or item.target_days[TARGET_INDEX_10PCT] <= item.first_breach_day
-        )
-    ]
+    successful_days: list[float] = []
+    for item in results:
+        achieved_day = item.target_days[TARGET_INDEX_10PCT]
+        if achieved_day is None or achieved_day > CHALLENGE_HORIZON_DAYS:
+            continue
+        if item.first_breach_day is None or achieved_day <= item.first_breach_day:
+            successful_days.append(float(achieved_day))
     safe = (
         breach <= MAX_SAFE_BREACH_PROBABILITY
         and drawdown_p99 <= MAX_SAFE_DRAWDOWN_P99
@@ -349,9 +346,7 @@ def build_report(
         raise ChallengeSpeedError(f"expected 809 consumed trades, found {len(trades)}")
     if min(trade.signal_at for trade in trades) < CONSUMED_EVIDENCE_FLOOR:
         raise ChallengeSpeedError("protected holdout evidence encountered")
-    samples = {
-        name: sum(_scope_membership(trade, name) for trade in trades) for name in PORTFOLIOS
-    }
+    samples = {name: sum(_scope_membership(trade, name) for trade in trades) for name in PORTFOLIOS}
     expected = {"A_CORE": 117, "GBPJPY_RETURN_ENHANCER": 112, "B_COMBINED_PORTFOLIO": 229}
     if samples != expected:
         raise ChallengeSpeedError(f"frozen portfolio cardinality changed: {samples}")
@@ -419,9 +414,7 @@ def build_report(
                 }
                 for portfolio, results in raw.items()
             }
-            summarized["B_MINUS_A"] = _paired_marginal(
-                raw["A_CORE"], raw["B_COMBINED_PORTFOLIO"]
-            )
+            summarized["B_MINUS_A"] = _paired_marginal(raw["A_CORE"], raw["B_COMBINED_PORTFOLIO"])
             provider_results[profile.profile_id] = {
                 "profile": _profile_material(profile),
                 "results": summarized,
