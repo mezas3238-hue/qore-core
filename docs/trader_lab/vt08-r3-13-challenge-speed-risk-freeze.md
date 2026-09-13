@@ -44,3 +44,7 @@ Discovery uses a deterministic paired moving-block bootstrap over consumed evide
 - PR must remain DRAFT. Do not merge or mark ready.
 - Search multiplicity is explicit: all candidates and their results must be retained in the artifact.
 - Primary modeled transaction cost remains 0.50 bp with robustness at 0.00 / 0.25 / 0.50 / 1.00 bp.
+
+## Gate repair checkpoint
+
+The first official R3.13 quality run passed Ruff and exposed three Mypy narrowing errors in optional target-day handling. One-shot repair run `34734882391` corrected that typing path and passed Ruff, Mypy, and the focused R3.13 test file before committing the repair. This documentation commit retriggers the full official gate from the repaired HEAD without changing the frozen research objective or search surface.
