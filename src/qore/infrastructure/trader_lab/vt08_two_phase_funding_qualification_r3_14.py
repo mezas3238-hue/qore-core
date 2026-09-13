@@ -38,7 +38,6 @@ from qore.infrastructure.trader_lab.vt08_official_adaptive_monte_carlo_r3_12 imp
     AdaptivePreparedDay,
     AdaptiveRiskPolicy,
     PathMetrics,
-    PropFirmProfile,
     _adaptive_days,
     _canonical_digest,
     _distribution,
@@ -56,6 +55,7 @@ from qore.infrastructure.trader_lab.vt08_official_monte_carlo_r3_11 import (
 )
 from qore.infrastructure.trader_lab.vt08_prop_firm_profiles_r3_12 import (
     FTMO_2STEP_2026_09_12,
+    PropFirmProfile,
 )
 
 SCHEMA = "qore.vt08.r3.14.two-phase-funding-qualification.v1"
