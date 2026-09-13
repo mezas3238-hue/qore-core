@@ -20,7 +20,8 @@ TOTAL_CHALLENGE_DAYS = 60
 BLOCK_DAYS = 5
 SEARCH_PATHS = 2_500
 FINAL_PATHS = 10_000
-SEED = 2026091304
+SEARCH_SEED = 2026091304
+FINAL_SEED = 2026091305
 PRIMARY_PHASE1_TARGET = 0.10
 PRIMARY_PHASE2_TARGET = 0.05
 SENSITIVITY_PHASE1_TARGET = 0.11
@@ -232,10 +233,15 @@ def run_sequence(
     )
 
 
-def moving_block_draws(day_count: int, *, paths: int) -> list[list[int]]:
+def moving_block_draws(
+    day_count: int,
+    *,
+    paths: int,
+    seed: int,
+) -> list[list[int]]:
     if day_count < BLOCK_DAYS:
         raise CiboCapitalProtectionError("challenge evidence has too few trading days")
-    rng = random.Random(SEED)
+    rng = random.Random(seed)
     result: list[list[int]] = []
     max_start = day_count - BLOCK_DAYS
     for _ in range(paths):
