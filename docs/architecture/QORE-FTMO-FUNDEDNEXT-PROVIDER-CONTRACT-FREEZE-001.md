@@ -91,8 +91,8 @@ above. The trading period is unlimited.
 
 ## Execution capability contract
 
-Execution capability is a tuple of provider + program + platform + account size +
-account options. It is not inferred from the provider name alone.
+Execution capability is a tuple of provider + exact product/ruleset + program +
+platform + account size + account options. It is not inferred from provider name alone.
 
 FTMO:
 - algorithmic trading and EAs are allowed when the strategy is legitimate,
@@ -103,23 +103,29 @@ FTMO:
   any platform not explicitly frozen fails closed until a separate adapter is
   verified at activation.
 
-FundedNext:
-- automated/algorithmic trading is NOT allowed on cTrader or Match-Trader;
-- on MT4/MT5, current provider guidance permits EAs/bots only on account sizes below
-  USD 50,000 and with the required EA option/add-on and other provider conditions;
-- accounts of USD 50,000 or more must be treated as manual-only under the current
-  published rule;
-- tools that only modify SL/TP/lot size are still classified as automated tools by
-  FundedNext and therefore receive the same restrictions;
-- current provider platform guidance also states that USD 100,000 and USD 200,000
-  accounts are not available for purchase/reset/top-up on cTrader or Match-Trader;
-  QORE therefore rejects those provider/platform/account-size bindings rather than
-  silently falling back to another platform;
-- QORE MUST fail closed rather than route an automated order when automation is not
-  explicitly permitted.
+FundedNext source conflict adjudication:
+- the current general FundedNext EA article states that MT4/MT5 accounts below
+  USD 50,000 may use EAs/bots with the relevant paid option and conditions, while
+  accounts at USD 50,000 or above are manual-only;
+- the current product-specific `FundedNext CFD — Stellar 1-Step` rule page states
+  that EAs and third-party indicators are not permitted;
+- current cTrader and Match-Trader guidance independently prohibits automated/algo
+  trading regardless of account size;
+- because generic and product-specific official documents diverge, QORE MUST NOT
+  infer automated authority for a FundedNext account from the generic EA article;
+- until the exact purchased product/account rules are re-verified and represented by
+  an explicit product-scoped execution contract, every FundedNext MT4/MT5 binding is
+  routed as `MANUAL_HANDOFF`, even when an EA add-on is present;
+- FundedNext cTrader/Match-Trader bindings below USD 100,000 are also
+  `MANUAL_HANDOFF`; automated submission remains prohibited;
+- current provider platform guidance states that USD 100,000 and USD 200,000
+  accounts are not available for purchase/reset/top-up on cTrader or Match-Trader
+  (with a U.S.-specific Match-Trader exception that is not generalized here), so
+  QORE rejects those bindings rather than silently switching platforms;
+- unknown combinations fail closed.
 
-A manual-only capability may still permit QORE to calculate a setup, CIBO posture and
-Risk decision, but the execution adapter must not submit the order automatically.
+A manual-handoff capability may still permit QORE to calculate a setup, CIBO posture
+and Risk decision, but the execution adapter must not submit the order automatically.
 
 ## Provider budget semantics
 
@@ -154,6 +160,7 @@ Before a Challenge account adapter is enabled, QORE must re-verify the provider
 profile against current official terms and bind:
 
 - exact provider;
+- exact product/ruleset;
 - exact program/model;
 - exact phase;
 - exact account initial balance;
@@ -179,6 +186,7 @@ FTMO:
 
 FundedNext:
 - https://help.fundednext.com/en/articles/8021061-what-are-the-rules-for-the-stellar-1-step-challenge-at-fundednext
+- https://help.fundednext.com/en/articles/12673301-what-rules-do-i-need-to-follow-in-the-stellar-1-step-challenge-at-fundednext-cfd
 - https://help.fundednext.com/en/articles/8021076-what-rules-do-i-need-to-follow-in-the-stellar-2-step-challenge
 - https://help.fundednext.com/en/articles/8030875-what-is-the-profit-target-of-the-stellar-1-step-challenge
 - https://help.fundednext.com/en/articles/8021071-what-is-the-profit-target-of-the-stellar-2-step-challenge
