@@ -114,6 +114,13 @@ jobs:
               "def _static_summary(results: Sequence[object]) -> dict[str, object]:",
               "def _static_summary(results: Sequence[StaticPathMetrics]) -> dict[str, object]:",
           )
+          text = text.replace(
+              '            "monthly_definition": "21 business-day simulation months rebased to month-opening equity",\n',
+              '            "monthly_definition": (\n'
+              '                "21 business-day simulation months rebased to "\n'
+              '                "month-opening equity"\n'
+              '            ),\n',
+          )
           main.write_text(text)
 
           profiles = Path("src/qore/infrastructure/trader_lab/vt08_prop_firm_profiles_r3_12.py")
