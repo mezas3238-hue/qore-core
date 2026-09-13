@@ -148,9 +148,16 @@ def test_forensics_reconciles_and_never_authorizes_subset_selection(
     assert isinstance(aggregate, dict)
     assert aggregate["sample_size"] == 9
     assert aggregate["total_r"] == "3"
-    assert set(report["by_market"]) == {"NAS100", "SP500", "US30"}
-    assert set(report["by_anchor_new_york"]) == {"02:00", "06:00", "10:00"}
-    assert len(report["block_bootstrap"]) == 3
+
+    by_market = report["by_market"]
+    by_anchor = report["by_anchor_new_york"]
+    bootstrap = report["block_bootstrap"]
+    assert isinstance(by_market, dict)
+    assert isinstance(by_anchor, dict)
+    assert isinstance(bootstrap, dict)
+    assert set(by_market) == {"NAS100", "SP500", "US30"}
+    assert set(by_anchor) == {"02:00", "06:00", "10:00"}
+    assert len(bootstrap) == 3
 
     adjudication = report["diagnostic_adjudication"]
     assert isinstance(adjudication, dict)
