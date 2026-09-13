@@ -87,7 +87,7 @@ def test_provider_profiles_are_versioned_and_keep_distinct_targets_and_days() ->
     assert ftmo.daily_reset_timezone == "Europe/Prague"
     assert funded.phase1_profit_target_fraction == Decimal("0.08")
     assert funded.minimum_trading_days_per_phase == 5
-    assert funded.daily_reset_timezone == "FundedNextServerTime"
+    assert funded.daily_reset_timezone == "Europe/Athens"
     assert ftmo.daily_loss_floor_usd(Decimal("102000")) == Decimal("97000.00")
 
 
@@ -121,12 +121,8 @@ def test_hysteresis_prevents_churn_and_downshift_is_faster_than_upshift() -> Non
     assert apply_hysteresis(
         policy, previous_bps=previous, target_bps_value=Decimal("25.10")
     ) == Decimal("25")
-    up = apply_hysteresis(
-        policy, previous_bps=previous, target_bps_value=Decimal("30")
-    )
-    down = apply_hysteresis(
-        policy, previous_bps=previous, target_bps_value=Decimal("10")
-    )
+    up = apply_hysteresis(policy, previous_bps=previous, target_bps_value=Decimal("30"))
+    down = apply_hysteresis(policy, previous_bps=previous, target_bps_value=Decimal("10"))
     assert up - previous == policy.upshift_step_bps
     assert previous - down == policy.downshift_step_bps
     assert previous - down > up - previous
@@ -240,9 +236,7 @@ def test_monthly_rebase_and_compounding_are_preserved() -> None:
     assert len(result.months) == 2
     assert result.months[0].net_return > 0
     assert result.months[1].net_return > 0
-    assert result.months[1].start_equity_usd == pytest.approx(
-        result.months[0].end_equity_usd
-    )
+    assert result.months[1].start_equity_usd == pytest.approx(result.months[0].end_equity_usd)
     compounded = (1 + result.months[0].net_return) * (1 + result.months[1].net_return) - 1
     assert result.terminal_return == pytest.approx(compounded)
     assert result.max_heat_bps <= float(PRIMARY_POLICY.portfolio_heat_bps) + 1e-6

@@ -22,6 +22,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from statistics import fmean, median
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.vt08_b01_risk_economic_replay_r3_11 import (
     BASELINE_RUN_ID,
@@ -42,6 +43,9 @@ from qore.infrastructure.trader_lab.vt08_official_monte_carlo_r3_11 import (
     paired_block_indices,
     prepare_daily_evidence,
     simulate_portfolio_path,
+)
+from qore.infrastructure.trader_lab.vt08_official_monte_carlo_r3_11 import (
+    PathMetrics as StaticPathMetrics,
 )
 from qore.infrastructure.trader_lab.vt08_prop_firm_profiles_r3_12 import (
     FTMO_2STEP_2026_09_12,
@@ -433,14 +437,14 @@ def _adaptive_days(
     cost_bps: Decimal,
 ) -> tuple[AdaptivePreparedDay, ...]:
     net_days = prepare_daily_evidence(trades, constraints, conversion_bars, cost_bps=cost_bps)
-    gross_days = prepare_daily_evidence(
-        trades, constraints, conversion_bars, cost_bps=Decimal(0)
-    )
+    gross_days = prepare_daily_evidence(trades, constraints, conversion_bars, cost_bps=Decimal(0))
     if len(net_days) != len(gross_days):
         raise AdaptiveMonteCarloError("gross/net prepared evidence cardinality mismatch")
     result: list[AdaptivePreparedDay] = []
     for net_day, gross_day in zip(net_days, gross_days, strict=True):
-        if net_day.source_day != gross_day.source_day or len(net_day.trades) != len(gross_day.trades):
+        if net_day.source_day != gross_day.source_day or len(net_day.trades) != len(
+            gross_day.trades
+        ):
             raise AdaptiveMonteCarloError("gross/net prepared evidence ordering mismatch")
         day_trades: list[AdaptivePreparedTrade] = []
         for net_trade, gross_trade in zip(net_day.trades, gross_day.trades, strict=True):
@@ -472,9 +476,7 @@ def _sleeve_open_risk(positions: Sequence[OpenPosition], sleeve: str) -> Decimal
     )
 
 
-def _correlated_open_risk(
-    positions: Sequence[OpenPosition], symbol: str
-) -> Decimal:
+def _correlated_open_risk(positions: Sequence[OpenPosition], symbol: str) -> Decimal:
     groups = set(_correlation_groups(symbol))
     if not groups:
         return Decimal(0)
@@ -653,9 +655,7 @@ def _finish_month(
         a_contribution_fraction=float(month.a_pnl / month.start_equity),
         gbpjpy_contribution_fraction=float(month.gbpjpy_pnl / month.start_equity),
         total_contribution_fraction=float(month.net_pnl / month.start_equity),
-        month_end_profit_cushion_fraction=float(
-            end_equity / starting_equity - Decimal(1)
-        ),
+        month_end_profit_cushion_fraction=float(end_equity / starting_equity - Decimal(1)),
         remaining_daily_loss_headroom_fraction=float(daily_headroom),
         remaining_maximum_loss_headroom_fraction=float(max_headroom),
         growth_efficiency=efficiency,
@@ -741,7 +741,8 @@ def simulate_adaptive_path(
     d5: list[float] = []
     months: list[MonthResult] = []
     month = MonthAccumulator("M01", balance, balance)
-    epoch = datetime(2000, 1, 3, tzinfo=UTC)
+    provider_tz = ZoneInfo(profile.daily_reset_timezone)
+    epoch_local = datetime(2000, 1, 3, tzinfo=provider_tz)
 
     def provider_floors() -> tuple[Decimal, Decimal]:
         safety = starting * policy.provider_safety_buffer_bps / Decimal(10_000)
@@ -767,7 +768,8 @@ def simulate_adaptive_path(
     def close_due(cutoff: datetime) -> None:
         nonlocal balance, peak, losing, max_losing, open_positions
         due = sorted(
-            (item for item in open_positions if item.exit_at <= cutoff), key=lambda item: item.exit_at
+            (item for item in open_positions if item.exit_at <= cutoff),
+            key=lambda item: item.exit_at,
         )
         for item in due:
             balance += item.net_pnl_usd
@@ -797,6 +799,10 @@ def simulate_adaptive_path(
     for simulated_day, source_index in enumerate(indices, start=1):
         if breached:
             break
+        local_day_start = epoch_local + timedelta(days=simulated_day - 1)
+        day_start = local_day_start.astimezone(UTC)
+        day_end = (local_day_start + timedelta(days=1)).astimezone(UTC)
+        close_due(day_start)
         current_month = _month_key(simulated_day)
         if current_month != month.key:
             daily_floor, max_floor = provider_floors()
@@ -811,13 +817,16 @@ def simulate_adaptive_path(
             )
             month = MonthAccumulator(current_month, balance, balance)
         reset_balance = balance
-        day_start = epoch + timedelta(days=simulated_day - 1)
         day_start_balance = balance
         source_day = days[source_index]
         for trade in source_day.trades:
             if not _scope_membership(trade.prepared.source, portfolio):
                 continue
-            entry_at = day_start + trade.prepared.entry_offset
+            source_local = trade.prepared.source.signal_at.astimezone(provider_tz)
+            source_midnight = datetime.combine(
+                source_local.date(), datetime.min.time(), tzinfo=provider_tz
+            )
+            entry_at = day_start + (source_local - source_midnight)
             close_due(entry_at)
             auth = _authorize(
                 trade=trade,
@@ -864,11 +873,7 @@ def simulate_adaptive_path(
             gross_pnl = quantity * trade.per_unit_gross_pnl_usd
             cost_usd = quantity * trade.per_unit_cost_usd
             net_pnl = gross_pnl - cost_usd
-            net_r = (
-                Decimal(0)
-                if auth.bounded_loss_usd <= 0
-                else net_pnl / auth.bounded_loss_usd
-            )
+            net_r = Decimal(0) if auth.bounded_loss_usd <= 0 else net_pnl / auth.bounded_loss_usd
             open_positions.append(
                 OpenPosition(
                     exit_at=entry_at + trade.prepared.duration,
@@ -924,7 +929,7 @@ def simulate_adaptive_path(
                 first_breach_day = first_breach_day or simulated_day
                 breached = True
                 break
-        close_due(day_start + timedelta(days=1))
+        close_due(day_end)
         adverse_close = observe_adverse_equity()
         daily_floor, max_floor = provider_floors()
         if adverse_close < daily_floor:
@@ -935,12 +940,16 @@ def simulate_adaptive_path(
             maximum_breach = True
             first_breach_day = first_breach_day or simulated_day
             breached = True
-        day_return = Decimal(0) if day_start_balance == 0 else balance / day_start_balance - Decimal(1)
+        day_return = (
+            Decimal(0) if day_start_balance == 0 else balance / day_start_balance - Decimal(1)
+        )
         month.best_day_return = (
             day_return if month.best_day_return is None else max(month.best_day_return, day_return)
         )
         month.worst_day_return = (
-            day_return if month.worst_day_return is None else min(month.worst_day_return, day_return)
+            day_return
+            if month.worst_day_return is None
+            else min(month.worst_day_return, day_return)
         )
         if balance < peak:
             underwater += 1
@@ -1045,9 +1054,7 @@ def _summarize_months(results: Sequence[PathMetrics]) -> dict[str, object]:
             growth *= 1.0 + month.net_return
         geometric.append(growth ** (1.0 / len(result.months)) - 1.0)
     efficiencies = [
-        month.growth_efficiency
-        for month in months
-        if month.growth_efficiency is not None
+        month.growth_efficiency for month in months if month.growth_efficiency is not None
     ]
     return {
         "definition": "21-business-day simulation month rebased to each month opening equity",
@@ -1055,11 +1062,17 @@ def _summarize_months(results: Sequence[PathMetrics]) -> dict[str, object]:
         "geometric_monthly_growth": _distribution(geometric),
         "positive_month_probability": sum(value > 0 for value in returns) / len(returns),
         "negative_month_probability": sum(value < 0 for value in returns) / len(returns),
-        "probability_month_below_minus_1pct": sum(value < -0.01 for value in returns) / len(returns),
-        "probability_month_below_minus_2pct": sum(value < -0.02 for value in returns) / len(returns),
+        "probability_month_below_minus_1pct": sum(value < -0.01 for value in returns)
+        / len(returns),
+        "probability_month_below_minus_2pct": sum(value < -0.02 for value in returns)
+        / len(returns),
         "monthly_max_drawdown": _distribution([month.max_drawdown for month in months]),
-        "worst_month_distribution": _distribution([min(month.net_return for month in result.months) for result in results]),
-        "best_month_distribution": _distribution([max(month.net_return for month in result.months) for result in results]),
+        "worst_month_distribution": _distribution(
+            [min(month.net_return for month in result.months) for result in results]
+        ),
+        "best_month_distribution": _distribution(
+            [max(month.net_return for month in result.months) for result in results]
+        ),
         "longest_negative_month_streak": _distribution(negative_streaks),
         "longest_positive_month_streak": _distribution(positive_streaks),
         "rolling_3_month_return": _optional_distribution(rolling3),
@@ -1103,9 +1116,13 @@ def _risk_summary(results: Sequence[PathMetrics], policy: AdaptiveRiskPolicy) ->
     }
 
 
-def _summarize_paths(results: Sequence[PathMetrics], policy: AdaptiveRiskPolicy) -> dict[str, object]:
+def _summarize_paths(
+    results: Sequence[PathMetrics], policy: AdaptiveRiskPolicy
+) -> dict[str, object]:
     terminal = [item.terminal_return for item in results]
-    breach_days = [float(item.first_breach_day) for item in results if item.first_breach_day is not None]
+    breach_days = [
+        float(item.first_breach_day) for item in results if item.first_breach_day is not None
+    ]
     target_summary: dict[str, object] = {}
     for index, target in enumerate(TARGETS):
         days = [item.target_days[index] for item in results if item.target_days[index] is not None]
@@ -1118,7 +1135,9 @@ def _summarize_paths(results: Sequence[PathMetrics], policy: AdaptiveRiskPolicy)
         target_summary[f"{int(target * 100)}pct"] = {
             "probability_achieved_before_breach": len(before_breach) / len(results),
             "median_days_when_achieved": None if not days else median(days),
-            "p95_days_when_achieved": None if not days else _percentile([float(v) for v in days], 0.95),
+            "p95_days_when_achieved": None
+            if not days
+            else _percentile([float(v) for v in days], 0.95),
         }
     return {
         "terminal_return": _distribution(terminal),
@@ -1126,7 +1145,9 @@ def _summarize_paths(results: Sequence[PathMetrics], policy: AdaptiveRiskPolicy)
         "probability_terminal_positive": sum(value > 0 for value in terminal) / len(results),
         "maximum_drawdown": _distribution([item.max_drawdown for item in results]),
         "losing_streak": _distribution([float(item.losing_streak) for item in results]),
-        "underwater_duration_days": _distribution([float(item.underwater_days) for item in results]),
+        "underwater_duration_days": _distribution(
+            [float(item.underwater_days) for item in results]
+        ),
         "max_concurrency": _distribution([float(item.max_concurrency) for item in results]),
         "max_portfolio_heat_bps": _distribution([item.max_heat_bps for item in results]),
         "risk_outcomes_total": {
@@ -1142,16 +1163,27 @@ def _summarize_paths(results: Sequence[PathMetrics], policy: AdaptiveRiskPolicy)
         "heat_throttles_total": sum(item.heat_throttles for item in results),
         "correlation_throttles_total": sum(item.correlation_throttles for item in results),
         "broker_throttles_total": sum(item.broker_throttles for item in results),
-        "account_containment_probability": sum(item.account_containment for item in results) / len(results),
-        "daily_loss_breach_probability": sum(item.daily_loss_breach for item in results) / len(results),
-        "maximum_loss_breach_probability": sum(item.maximum_loss_breach for item in results) / len(results),
-        "any_prop_firm_breach_probability": sum(item.any_prop_firm_breach for item in results) / len(results),
+        "account_containment_probability": sum(item.account_containment for item in results)
+        / len(results),
+        "daily_loss_breach_probability": sum(item.daily_loss_breach for item in results)
+        / len(results),
+        "maximum_loss_breach_probability": sum(item.maximum_loss_breach for item in results)
+        / len(results),
+        "any_prop_firm_breach_probability": sum(item.any_prop_firm_breach for item in results)
+        / len(results),
         "ruin_probability": sum(item.ruin for item in results) / len(results),
         "median_time_to_breach_days": None if not breach_days else median(breach_days),
         "breach_cause_distribution": {
-            "daily_only": sum(item.daily_loss_breach and not item.maximum_loss_breach for item in results) / len(results),
-            "maximum_only": sum(item.maximum_loss_breach and not item.daily_loss_breach for item in results) / len(results),
-            "both": sum(item.maximum_loss_breach and item.daily_loss_breach for item in results) / len(results),
+            "daily_only": sum(
+                item.daily_loss_breach and not item.maximum_loss_breach for item in results
+            )
+            / len(results),
+            "maximum_only": sum(
+                item.maximum_loss_breach and not item.daily_loss_breach for item in results
+            )
+            / len(results),
+            "both": sum(item.maximum_loss_breach and item.daily_loss_breach for item in results)
+            / len(results),
         },
         "targets": target_summary,
         "monthly_growth": _summarize_months(results),
@@ -1159,24 +1191,30 @@ def _summarize_paths(results: Sequence[PathMetrics], policy: AdaptiveRiskPolicy)
     }
 
 
-def _static_summary(results: Sequence[object]) -> dict[str, object]:
+def _static_summary(results: Sequence[StaticPathMetrics]) -> dict[str, object]:
     # PathMetrics type comes from R3.11; keep this adapter intentionally narrow.
-    terminal = [float(getattr(item, "terminal_return")) for item in results]
-    drawdown = [float(getattr(item, "max_drawdown")) for item in results]
+    terminal = [float(item.terminal_return) for item in results]
+    drawdown = [float(item.max_drawdown) for item in results]
     return {
         "terminal_return": _distribution(terminal),
         "probability_terminal_positive": sum(value > 0 for value in terminal) / len(terminal),
         "maximum_drawdown": _distribution(drawdown),
-        "ruin_probability": sum(bool(getattr(item, "ruin")) for item in results) / len(results),
+        "ruin_probability": sum(bool(item.ruin) for item in results) / len(results),
     }
 
 
 def _policy_material(policy: AdaptiveRiskPolicy) -> dict[str, object]:
-    return {key: str(value) if isinstance(value, Decimal) else value for key, value in asdict(policy).items()}
+    return {
+        key: str(value) if isinstance(value, Decimal) else value
+        for key, value in asdict(policy).items()
+    }
 
 
 def _profile_material(profile: PropFirmProfile) -> dict[str, object]:
-    return {key: str(value) if isinstance(value, Decimal) else value for key, value in asdict(profile).items()}
+    return {
+        key: str(value) if isinstance(value, Decimal) else value
+        for key, value in asdict(profile).items()
+    }
 
 
 def _file_digests(roots: Sequence[Path]) -> dict[str, str]:
@@ -1218,10 +1256,12 @@ def _paired_marginal(a: Sequence[PathMetrics], b: Sequence[PathMetrics]) -> dict
         ),
         "probability_B_terminal_return_exceeds_A": sum(
             right.terminal_return > left.terminal_return for left, right in zip(a, b, strict=True)
-        ) / len(a),
+        )
+        / len(a),
         "probability_B_drawdown_exceeds_A": sum(
             right.max_drawdown > left.max_drawdown for left, right in zip(a, b, strict=True)
-        ) / len(a),
+        )
+        / len(a),
     }
 
 
@@ -1254,7 +1294,6 @@ def build_report(
         seed=SEED,
     )
     provider_results: dict[str, object] = {}
-    raw_by_profile: dict[str, dict[str, list[PathMetrics]]] = {}
     for profile in PROFILES:
         raw: dict[str, list[PathMetrics]] = {name: [] for name in PORTFOLIOS}
         for indices in draws:
@@ -1268,7 +1307,6 @@ def build_report(
                         profile=profile,
                     )
                 )
-        raw_by_profile[profile.profile_id] = raw
         summarized = {
             portfolio: {
                 "original_sample": samples[portfolio],
@@ -1276,9 +1314,7 @@ def build_report(
             }
             for portfolio, results in raw.items()
         }
-        summarized["B_MINUS_A"] = _paired_marginal(
-            raw["A_CORE"], raw["B_COMBINED_PORTFOLIO"]
-        )
+        summarized["B_MINUS_A"] = _paired_marginal(raw["A_CORE"], raw["B_COMBINED_PORTFOLIO"])
         provider_results[profile.profile_id] = {
             "profile": _profile_material(profile),
             "results": summarized,
@@ -1393,7 +1429,9 @@ def build_report(
             "cost_grid_bps": [format(value, "f") for value in COST_GRID_BPS],
             "actual_ctrader_cost_demonstrated": False,
             "swap_model": "0 USD because consumed evidence contains no realized swap series",
-            "monthly_definition": "21 business-day simulation months rebased to month-opening equity",
+            "monthly_definition": (
+                "21 business-day simulation months rebased to month-opening equity"
+            ),
         },
         "adaptive_vs_static_reference": static_reference,
         "provider_results": provider_results,
