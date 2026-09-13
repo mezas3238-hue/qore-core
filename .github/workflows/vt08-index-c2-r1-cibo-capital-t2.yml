@@ -64,12 +64,36 @@ jobs:
           repository: ${{ github.repository }}
           run-id: 34774905465
 
+      - name: Verify exact T1 JSON and extend only T2 zero counters
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          source = Path("parent-t1/vt08-index-c2-r1-cibo-capital-t1.json")
+          raw = source.read_bytes()
+          assert hashlib.sha256(raw).hexdigest() == "6e8327e0c1ded91713d951d45919b845617726fd8fae63888e6eefd8589dd160"
+          payload = json.loads(raw)
+          for policy in ("off", "soft", "be050-lock050-at100", "aggressive"):
+              control = payload["studies"][policy]["risk_only_r100"]
+              control["chronological"]["cibo_lock_groups"] = 0
+              control["chronological"]["cibo_reactivate_groups"] = 0
+              control["monte_carlo_60d"]["mean_cibo_lock_groups"] = 0.0
+              control["monte_carlo_60d"]["mean_cibo_reactivate_groups"] = 0.0
+          normalized = Path("parent-t1/t1-reference-t2-schema.json")
+          normalized.write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
       - name: Run frozen T2 chronological plus Monte Carlo study
         run: |
           mkdir -p artifacts
           python -m qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_capital_t2 \
             --parent-stop parent-stop/vt08-index-c2-r1-cibo-stop-protection.json \
-            --t1-reference parent-t1/vt08-index-c2-r1-cibo-capital-t1.json \
+            --t1-reference parent-t1/t1-reference-t2-schema.json \
             --out artifacts/vt08-index-c2-r1-cibo-capital-t2.json
 
       - name: Verify governance and authority boundary
