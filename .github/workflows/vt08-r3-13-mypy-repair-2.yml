@@ -1,0 +1,41 @@
+name: VT08 R3.13 Mypy repair 2
+
+on:
+  push:
+    branches:
+      - agent/vt08-r3-13-challenge-speed-risk-001
+    paths:
+      - .github/workflows/vt08-r3-13-mypy-repair-2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/vt08-r3-13-challenge-speed-risk-001
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - run: python scripts/repair_vt08_r313_target_day.py
+      - run: |
+          ruff format src/qore/infrastructure/trader_lab/vt08_challenge_speed_monte_carlo_r3_13.py tests/infrastructure/trader_lab/test_vt08_challenge_speed_monte_carlo_r3_13.py
+          ruff check .
+          mypy src tests
+          pytest -q tests/infrastructure/trader_lab/test_vt08_challenge_speed_monte_carlo_r3_13.py
+      - run: |
+          rm .github/workflows/vt08-r3-13-mypy-repair-2.yml
+          rm .github/workflows/vt08-r3-13-mypy-repair.yml
+          rm scripts/repair_vt08_r313_target_day.py
+          git config user.name "qore-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(vt08): narrow R3.13 target day types"
+          git push origin HEAD:agent/vt08-r3-13-challenge-speed-risk-001
