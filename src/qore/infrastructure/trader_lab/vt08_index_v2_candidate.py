@@ -15,8 +15,10 @@ from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.trader_lab.vt08_crt_h4_amd_v2_backtest import _load_market
-from qore.infrastructure.trader_lab.vt08_index_c2_positional_r1_backtest import ModeledTrade
+from qore.infrastructure.trader_lab.vt08_index_c2_positional_r1_backtest import (
+    ModeledTrade,
+    _load_market,
+)
 from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
     ClosurePolicy,
     DailyPolicy,
