@@ -21,11 +21,13 @@ from qore.infrastructure.trader_lab.vt08_cibo_data_r3_16 import (
 from qore.infrastructure.trader_lab.vt08_cibo_engine_r3_16 import (
     CAPITAL_GUARDS,
     FINAL_PATHS,
+    FINAL_SEED,
     PHASE_DAYS,
     PRIMARY_PHASE1_TARGET,
     PRIMARY_PHASE2_TARGET,
     RISK_LEVELS,
     SEARCH_PATHS,
+    SEARCH_SEED,
     SENSITIVITY_PHASE1_TARGET,
     SENSITIVITY_PHASE2_TARGET,
     CapitalGuard,
@@ -138,8 +140,12 @@ def challenge_study(
     records_by_stop: Mapping[str, Sequence[ReplayTrade]],
 ) -> dict[str, object]:
     base_days = weekdays(CHALLENGE_START, CHALLENGE_END)
-    search_draws = moving_block_draws(len(base_days), paths=SEARCH_PATHS)
-    final_draws = moving_block_draws(len(base_days), paths=FINAL_PATHS)
+    search_draws = moving_block_draws(
+        len(base_days), paths=SEARCH_PATHS, seed=SEARCH_SEED
+    )
+    final_draws = moving_block_draws(
+        len(base_days), paths=FINAL_PATHS, seed=FINAL_SEED
+    )
     rows: list[dict[str, object]] = []
     selected: dict[str, dict[str, object]] = {}
     for portfolio in PORTFOLIOS:
