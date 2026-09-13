@@ -33,25 +33,88 @@ def _replay(path: Path) -> Path:
         {
             "symbol": "NAS100",
             "trades": [
-                _trade("NAS100", "2025-01-02T07:00:00+00:00", 2, "long", "2", "target"),
-                _trade("NAS100", "2025-01-03T11:00:00+00:00", 6, "short", "-1", "stop"),
-                _trade("NAS100", "2025-01-04T15:00:00+00:00", 10, "short", "1", "h4_containment_exit"),
+                _trade(
+                    "NAS100",
+                    "2025-01-02T07:00:00+00:00",
+                    2,
+                    "long",
+                    "2",
+                    "target",
+                ),
+                _trade(
+                    "NAS100",
+                    "2025-01-03T11:00:00+00:00",
+                    6,
+                    "short",
+                    "-1",
+                    "stop",
+                ),
+                _trade(
+                    "NAS100",
+                    "2025-01-04T15:00:00+00:00",
+                    10,
+                    "short",
+                    "1",
+                    "h4_containment_exit",
+                ),
             ],
         },
         {
             "symbol": "SP500",
             "trades": [
-                _trade("SP500", "2025-02-02T07:00:00+00:00", 2, "short", "-1", "stop"),
-                _trade("SP500", "2025-02-03T11:00:00+00:00", 6, "long", "2", "target"),
-                _trade("SP500", "2025-02-04T15:00:00+00:00", 10, "long", "-1", "stop"),
+                _trade(
+                    "SP500",
+                    "2025-02-02T07:00:00+00:00",
+                    2,
+                    "short",
+                    "-1",
+                    "stop",
+                ),
+                _trade(
+                    "SP500",
+                    "2025-02-03T11:00:00+00:00",
+                    6,
+                    "long",
+                    "2",
+                    "target",
+                ),
+                _trade(
+                    "SP500",
+                    "2025-02-04T15:00:00+00:00",
+                    10,
+                    "long",
+                    "-1",
+                    "stop",
+                ),
             ],
         },
         {
             "symbol": "US30",
             "trades": [
-                _trade("US30", "2026-01-02T07:00:00+00:00", 2, "long", "-1", "stop"),
-                _trade("US30", "2026-01-03T11:00:00+00:00", 6, "short", "2", "target"),
-                _trade("US30", "2026-01-04T15:00:00+00:00", 10, "short", "0", "h4_containment_exit"),
+                _trade(
+                    "US30",
+                    "2026-01-02T07:00:00+00:00",
+                    2,
+                    "long",
+                    "-1",
+                    "stop",
+                ),
+                _trade(
+                    "US30",
+                    "2026-01-03T11:00:00+00:00",
+                    6,
+                    "short",
+                    "2",
+                    "target",
+                ),
+                _trade(
+                    "US30",
+                    "2026-01-04T15:00:00+00:00",
+                    10,
+                    "short",
+                    "0",
+                    "h4_containment_exit",
+                ),
             ],
         },
     ]
@@ -76,7 +139,9 @@ def _replay(path: Path) -> Path:
     return path
 
 
-def test_forensics_reconciles_and_never_authorizes_subset_selection(tmp_path: Path) -> None:
+def test_forensics_reconciles_and_never_authorizes_subset_selection(
+    tmp_path: Path,
+) -> None:
     report = build_report(_replay(tmp_path / "r1.json"))
 
     aggregate = report["aggregate"]
