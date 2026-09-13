@@ -215,7 +215,9 @@ def resolve_pilot_symbol(qore_symbol: str) -> str:
     try:
         return PILOT_SYMBOL_MAP[qore_symbol]
     except KeyError as error:
-        raise StellarInstantContractError("symbol is outside the frozen six-market pilot") from error
+        raise StellarInstantContractError(
+            "symbol is outside the frozen six-market pilot"
+        ) from error
 
 
 def opening_commission_per_lot(qore_symbol: str) -> Decimal:
