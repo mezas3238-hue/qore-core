@@ -580,16 +580,16 @@ def _authorize(
         )
     actual_bps = bounded / balance * Decimal(10_000)
     reduced = permitted < desired or broker_outcome == "REDUCE" or bounded < desired
-    reasons = list(limiting_reasons)
+    authorization_reasons = list(limiting_reasons)
     if broker_outcome == "REDUCE" or bounded < permitted - Decimal("0.000001"):
-        reasons.append("broker_quantity")
+        authorization_reasons.append("broker_quantity")
     return Authorization(
         "REDUCE" if reduced else "ALLOW",
         quantity,
         bounded,
         actual_bps,
         regime_bps,
-        tuple(sorted(set(reasons))),
+        tuple(sorted(set(authorization_reasons))),
     )
 
 
@@ -1125,13 +1125,15 @@ def _summarize_paths(
     ]
     target_summary: dict[str, object] = {}
     for index, target in enumerate(TARGETS):
-        days = [item.target_days[index] for item in results if item.target_days[index] is not None]
-        before_breach = [
-            item.target_days[index]
-            for item in results
-            if item.target_days[index] is not None
-            and (item.first_breach_day is None or item.target_days[index] <= item.first_breach_day)
-        ]
+        days: list[int] = []
+        before_breach: list[int] = []
+        for item in results:
+            achieved_day = item.target_days[index]
+            if achieved_day is None:
+                continue
+            days.append(achieved_day)
+            if item.first_breach_day is None or achieved_day <= item.first_breach_day:
+                before_breach.append(achieved_day)
         target_summary[f"{int(target * 100)}pct"] = {
             "probability_achieved_before_breach": len(before_breach) / len(results),
             "median_days_when_achieved": None if not days else median(days),
