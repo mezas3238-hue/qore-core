@@ -27,12 +27,13 @@ Implement a sovereign Risk authority that recalculates authorized Risk before ev
 
 No DEMO_ELIGIBLE, no LIVE, no real capital, no merge, no ready-for-review authority.
 
-## Full-gate execution checkpoint
+## Full-gate execution checkpoints
 
-- R3.12 implementation was repaired and formatted on persisted branch HEAD `b413ed4c6e56bcd551295eb54a8131091299a6f9` before this checkpoint commit.
+- R3.12 implementation was repaired and formatted on persisted branch HEAD `b413ed4c6e56bcd551295eb54a8131091299a6f9` before the first official retrigger.
 - Provider daily-reset semantics are explicit and timezone-aware: FTMO uses `Europe/Prague`; FundedNext Stellar 2-Step uses `Europe/Athens` as the IANA representation of the published GMT+2/GMT+3 DST server clock.
-- The temporary one-shot repair executor removed itself after producing the persisted repair commit; it is not part of the R3.12 runtime/workflow surface.
-- This documentation-only checkpoint intentionally retriggers the official R3.12 workflow so Ruff, Mypy, the focused gates, the complete QORE pytest+coverage gate, and only then the official economic job execute against one exact auditable HEAD.
+- Official run `34733387692` passed the full Ruff gate and correctly stopped at five strict Mypy findings before any tests or economics could run.
+- Those five type findings were repaired without changing Risk semantics. The persisted repair HEAD is `7dcb9e04bf1a94ce2d4d7ebe4545a42296630a15`; its one-shot executor verified both `ruff check .` and `mypy src tests` successfully before committing, then removed itself.
+- This documentation-only commit retriggers the official workflow so focused tests, the complete QORE pytest+coverage gate, and only then the economic job execute against one exact auditable HEAD.
 - The protected July-2020 → June-2022 holdout has not been accessed by R3.12.
 
 `HOLDOUT_NOT_ACCESSED = true`
