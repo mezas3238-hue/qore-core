@@ -1,0 +1,110 @@
+name: QORE FundedNext Stellar Instant $2K Pilot
+
+on:
+  push:
+    branches:
+      - agent/fundednext-stellar-instant-2k-pilot-001
+  workflow_dispatch:
+
+concurrency:
+  group: qore-fundednext-stellar-instant-2k-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  pilot-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact pilot head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused Stellar Instant provider / shared Risk / MT5 gate
+        run: |
+          pytest -q \
+            tests/infrastructure/test_fundednext_stellar_instant.py \
+            tests/infrastructure/test_account_wide_risk.py \
+            tests/infrastructure/test_fundednext_mt5.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Build immutable pilot readiness manifest
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.fundednext_pilot_manifest \
+            --git-sha "$GITHUB_SHA" \
+            --out artifacts/fundednext-stellar-instant-2k-readiness.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+          sha256sum artifacts/fundednext-stellar-instant-2k-readiness.json \
+            > artifacts/readiness.sha256
+
+      - name: Verify governance cannot self-promote
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/fundednext-stellar-instant-2k-readiness.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert payload["schema"] == "qore.fundednext.stellar-instant-2k-pilot-readiness.v1"
+          assert payload["git_sha"] == "${{ github.sha }}"
+          assert payload["provider"]["daily_loss_limit"] is None
+          assert payload["provider"]["maximum_loss_fraction"] == "0.06"
+          assert payload["provider"]["max_risk_at_any_time_fraction"] == "0.03"
+          assert payload["provider"]["documentation_leverage_conflict"] is True
+          assert payload["provider"]["execution_leverage_source"] == "MT5_SYMBOL_INFO"
+          assert payload["topology"]["risk_scope"] == "ACCOUNT_WIDE"
+          assert payload["topology"]["traders"] == {
+              "VT08_FOREX": ["AUDJPY", "GBPUSD", "GBPJPY"],
+              "VT08_INDEX": ["NAS100", "SP500", "US30"],
+          }
+          state = payload["certification_state"]
+          assert state["vt08_forex_demo_approved"] is True
+          assert state["vt08_index_demo_approved"] is False
+          assert state["cibo_r3_17_promoted"] is False
+          governance = payload["governance"]
+          assert governance["account_purchase_authorized"] is False
+          assert governance["order_submission_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          assert governance["pr_may_be_merged"] is False
+          assert governance["pr_may_be_marked_ready"] is False
+          readiness = payload["technical_readiness"]
+          assert readiness["ready_to_operate_stellar_instant"] is False
+          assert readiness["concrete_mt5_gateway_bound"] is False
+          assert readiness["actual_account_bound"] is False
+          assert readiness["dry_run_passed_on_actual_account"] is False
+          assert readiness["shadow_mode_passed_on_actual_account"] is False
+          PY
+
+      - name: Upload pilot evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-fundednext-stellar-instant-2k-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90
