@@ -3,14 +3,15 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.provider_contracts import (
-    AutomationMode,
     FTMO_1_STEP_CHALLENGE,
     FTMO_2_STEP_PHASE_1,
     FTMO_2_STEP_PHASE_2,
     FUNDEDNEXT_STELLAR_1_STEP,
     FUNDEDNEXT_STELLAR_2_STEP_PHASE_1,
     FUNDEDNEXT_STELLAR_2_STEP_PHASE_2,
+    AutomationMode,
     ProviderAccountSnapshot,
+    ProviderContract,
     ProviderContractError,
     RuleAuthority,
     TradingPlatform,
@@ -148,11 +149,11 @@ def test_fundednext_stellar_one_step_uses_static_six_percent_floor() -> None:
     ),
 )
 def test_fundednext_stellar_two_step_static_floor_and_targets(
-    contract: object,
+    contract: ProviderContract,
     target: Decimal,
 ) -> None:
     budget = evaluate_provider_budget(
-        contract,  # type: ignore[arg-type]
+        contract,
         _snapshot(
             balance=str(target),
             equity=str(target),
