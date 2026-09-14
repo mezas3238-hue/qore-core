@@ -96,20 +96,20 @@ jobs:
           for trade in source:
               daybars=evidence[trade["market"]][trade["local_date"]]; signal,entry,initial_stop,target=initial(trade,daybars); risk=abs(entry-initial_stop)
               current_stop=initial_stop; candles=m5(daybars); close_index={x["closed_at"]:i for i,x in enumerate(candles)}
-              terminal=None; reason=None
+              terminal=None; reason=None; exit_at=None
               for local,b in daybars:
                   if dt(b["opened_at"])<signal or local.hour*60+local.minute>=960:continue
                   high=d(b["high"]);low=d(b["low"]); hit_stop=low<=current_stop if trade["side"]=="long" else high>=current_stop; hit_target=high>=target if trade["side"]=="long" else low<=target
-                  if hit_stop and hit_target: terminal=None;reason="same-bar-ambiguous";break
-                  if hit_stop: terminal=(current_stop-entry)/risk if trade["side"]=="long" else (entry-current_stop)/risk;reason="protected-stop";break
-                  if hit_target: terminal=abs(target-entry)/risk;reason="target";break
+                  if hit_stop and hit_target: terminal=None;reason="same-bar-ambiguous";exit_at=dt(b["closed_at"]);break
+                  if hit_stop: terminal=(current_stop-entry)/risk if trade["side"]=="long" else (entry-current_stop)/risk;reason="protected-stop";exit_at=dt(b["closed_at"]);break
+                  if hit_target: terminal=abs(target-entry)/risk;reason="target";exit_at=dt(b["closed_at"]);break
                   closed=dt(b["closed_at"])
                   if closed in close_index and closed>signal:
                       current_stop=new_protected(candles,close_index[closed],trade["side"],current_stop,d(b["close"]))
               if reason=="same-bar-ambiguous":continue
               if terminal is None:
-                  last=[b for local,b in daybars if local.hour*60+local.minute<960][-1]; close=d(last["close"]); terminal=(close-entry)/risk if trade["side"]=="long" else (entry-close)/risk;reason="lifecycle"
-              replay.append({**trade,"r_multiple":format(terminal,"f"),"exit_reason":reason,"initial_stop":format(initial_stop,"f"),"terminal_stop":format(current_stop,"f")})
+                  last=[b for local,b in daybars if local.hour*60+local.minute<960][-1]; close=d(last["close"]); terminal=(close-entry)/risk if trade["side"]=="long" else (entry-close)/risk;reason="lifecycle";exit_at=dt(last["closed_at"])
+              replay.append({**trade,"r_multiple":format(terminal,"f"),"exit_reason":reason,"exit_at":exit_at.isoformat(),"initial_stop":format(initial_stop,"f"),"terminal_stop":format(current_stop,"f")})
           replay.sort(key=lambda x:(x["signal_at"],x["market"])); agg=_metrics(replay); stress=_metrics(replay,friction=Decimal(".05"))
           bym={m:_metrics([t for t in replay if t["market"]==m],friction=Decimal(".05")) for m in markets}; bys={s:_metrics([t for t in replay if t["side"]==s],friction=Decimal(".05")) for s in ("long","short")}; q=_quartiles(replay); temporal={}
           for m in markets:
