@@ -358,7 +358,11 @@ class MetaTrader5FundedNextTransport:
                     if outcome in {Mt5ProviderOutcome.ACCEPTED, Mt5ProviderOutcome.CANCELLED}
                     else None
                 ),
-                reason=(None if outcome is not Mt5ProviderOutcome.UNKNOWN else "mt5-history-state-unknown"),
+                reason=(
+                    None
+                    if outcome is not Mt5ProviderOutcome.UNKNOWN
+                    else "mt5-history-state-unknown"
+                ),
             )
         deals = self._api.history_deals_get(now - _DISCOVERY_WINDOW, now) or ()
         for deal in reversed(deals):
