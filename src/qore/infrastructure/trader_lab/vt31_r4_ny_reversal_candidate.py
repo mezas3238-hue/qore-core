@@ -433,14 +433,14 @@ def _simulate(setup: Setup, day_bars: tuple[Bar, ...]) -> dict[str, object] | No
         return None
     close_index = {bar.closed_at: index for index, bar in enumerate(day_bars)}
     current_stop = setup.initial_stop
-    previous: Bar | None = None
+    expected_open = setup.signal_at
     for bar in day_bars:
         local = bar.opened_at.astimezone(NY)
         if bar.opened_at < setup.signal_at or local.hour * 60 + local.minute >= 960:
             continue
-        if previous is not None and bar.opened_at != previous.closed_at:
+        if bar.opened_at != expected_open:
             return None
-        previous = bar
+        expected_open = bar.closed_at
         hit_stop = (
             bar.low <= current_stop
             if setup.side == "long"
