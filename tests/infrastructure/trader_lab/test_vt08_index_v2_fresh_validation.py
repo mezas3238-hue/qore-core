@@ -1,4 +1,3 @@
-import random
 from decimal import Decimal
 
 import pytest
@@ -9,6 +8,7 @@ from qore.infrastructure.trader_lab.vt08_index_v2_fresh_validation import (
     HOLDOUT_END_EXCLUSIVE,
     HOLDOUT_START,
     MARKETS,
+    MONTE_CARLO_ALGORITHM,
     SELECTION_ID,
     Vt08IndexV2FreshValidationError,
     _bootstrap_path,
@@ -48,10 +48,17 @@ def _candidate_report(count: int = 120) -> dict[str, object]:
 
 def test_block_bootstrap_is_deterministic() -> None:
     values = tuple(Decimal(index) for index in range(10))
-    first = _bootstrap_path(values, rng=random.Random(7), block_length=5)
-    second = _bootstrap_path(values, rng=random.Random(7), block_length=5)
+    first = _bootstrap_path(values, seed=7, replicate=3, block_length=5)
+    second = _bootstrap_path(values, seed=7, replicate=3, block_length=5)
     assert first == second
     assert len(first) == len(values)
+
+
+def test_block_bootstrap_domain_separates_replicates() -> None:
+    values = tuple(Decimal(index) for index in range(20))
+    first = _bootstrap_path(values, seed=7, replicate=3, block_length=5)
+    second = _bootstrap_path(values, seed=7, replicate=4, block_length=5)
+    assert first != second
 
 
 def test_pre_registered_fresh_validation_accepts_robust_synthetic_series() -> None:
@@ -64,6 +71,7 @@ def test_pre_registered_fresh_validation_accepts_robust_synthetic_series() -> No
     assert isinstance(structural, dict) and structural["pass"] is True
     assert isinstance(stress, dict) and stress["pass"] is True
     assert isinstance(monte_carlo, dict) and monte_carlo["pass"] is True
+    assert monte_carlo["algorithm"] == MONTE_CARLO_ALGORITHM
 
 
 def test_pre_registered_fresh_validation_rejects_too_small_sample() -> None:
