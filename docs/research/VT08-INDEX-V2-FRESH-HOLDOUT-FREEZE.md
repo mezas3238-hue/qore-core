@@ -6,7 +6,7 @@ This document freezes one and only one QORE experimental VT-08 Index candidate b
 
 ## Immutable candidate entering validation
 
-Executable candidate SHA: `1d8b9115d3d8f94a2f3470d51d77e8b8327776f8`.
+Executable parent SHA: `47d6b3f1a4fced949b0b27b2d7260c81e2d660a3`.
 
 Candidate id: `VT08_INDEX_V2_QORE_CANDIDATE_001`.
 
@@ -25,7 +25,9 @@ Frozen mechanics:
 
 The development ambiguity search is consumed evidence and must not be reopened. Its official selecting run is `34789861277`, artifact `10327652038`, artifact digest `sha256:4a43aed58fa43374855ad906d26719e955a03e790398feb329132fd0d786b39b`.
 
-The execution-semantic hardening run is `34791208392`, artifact `10327822885`, artifact digest `sha256:6ca6a157572175e46fba1bd8a400cdedfd134b5b5200ee492824a13a2d03d2a3`. It passed Ruff, Mypy, focused hardening tests, the Full QORE Gate, and the frozen consumed-development replay. The hardened replay remained eligible with 314 trades, +38.57447511956754384644636730R total, +0.1228486468776036428230776029R mean, PF 1.270751727056919843895674775, and max drawdown 9.29850484081694974613427863R. The gap-through repair changed zero development exits (`gap_exit_count=0`).
+Execution-semantic hardening was first proven GREEN by run `34791208392`, artifact `10327822885`, digest `sha256:6ca6a157572175e46fba1bd8a400cdedfd134b5b5200ee492824a13a2d03d2a3`: 314 development trades, +38.57447511956754384644636730R total, +0.1228486468776036428230776029R mean, PF 1.270751727056919843895674775, max drawdown 9.29850484081694974613427863R, and zero changed exits from the gap-through repair.
+
+The exact parent SHA above additionally contains the fresh-evidence provenance binding and adversarial tests. Its pre-holdout verification run is `34792040609`. **Fresh evidence acquisition is forbidden unless that run concludes `success`.** The fresh workflow must enforce this gate before contacting cTrader.
 
 ## Fresh holdout partition
 
@@ -35,7 +37,7 @@ Raw cTrader DEMO acquisition requests the maximum supported 1,095-day M15 histor
 
 The end boundary is exclusive. No decision at or after 2024-08-13 may enter fresh validation. This is disjoint from the known VT-08 Index development lineage beginning 2024-08-13.
 
-The three markets must come from one read-only DEMO account fingerprint. LIVE acquisition or trading is prohibited.
+The three markets must come from one read-only DEMO account fingerprint. LIVE acquisition or trading is prohibited. Each acquired file must retain its real workflow software SHA; provenance rewriting to an older evidence SHA is prohibited.
 
 A causal-equivalence check is mandatory: trades and adjudication computed from the full acquired file must exactly match trades and adjudication computed after truncating all M15 observations at the holdout end boundary. A mismatch is a no-lookahead failure and rejects the candidate.
 
