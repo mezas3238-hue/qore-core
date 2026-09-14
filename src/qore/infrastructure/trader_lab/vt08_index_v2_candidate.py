@@ -1,6 +1,6 @@
 """Hardened single-candidate replay for the frozen VT-08 Index V2 hypothesis.
 
-This module does not reopen the 512-contract ambiguity search.  It binds the
+This module does not reopen the 512-contract ambiguity search. It binds the
 single development selection emitted by that consumed-evidence search and fixes
 historical exit semantics for M15 gaps before any fresh holdout is opened.
 """
@@ -9,15 +9,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import defaultdict
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.vt08_index_c2_positional_r1_backtest import (
     ModeledTrade,
-    _load_market,
+    _array,
+    _bool,
+    _object,
+    _parse_m15,
+    _text,
+    _timestamp,
 )
 from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
     ClosurePolicy,
@@ -33,6 +39,7 @@ from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
+    AUTHORIZED_MARKETS,
     OWNER_ENTRY_ANCHORS_NY,
     Vt08IndexC2R1Bar,
 )
@@ -45,6 +52,10 @@ DEVELOPMENT_SOURCE_RUN_ID = 34789861277
 DEVELOPMENT_ARTIFACT_ID = 10327652038
 DEVELOPMENT_ARTIFACT_DIGEST = (
     "sha256:4a43aed58fa43374855ad906d26719e955a03e790398feb329132fd0d786b39b"
+)
+DEFAULT_EVIDENCE_SOFTWARE_SHA = "a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0"
+PRIMARY_SOURCE_SHA256 = (
+    "bfe76fa4346ec4d7442886c21834aa26f0d82172bdb55666e8c77226cdf83271"
 )
 DEVELOPMENT_START = date(2024, 8, 13)
 DEVELOPMENT_END_EXCLUSIVE = date(2026, 9, 12)
@@ -66,6 +77,69 @@ class Vt08IndexV2CandidateError(InfrastructureError):
     __slots__ = ()
 
 
+def _load_candidate_market(
+    path: Path,
+    *,
+    expected_symbol: str,
+    expected_software_sha: str,
+    minimum_evidence_days: int,
+) -> tuple[str, str, datetime, tuple[Vt08IndexC2R1Bar, ...]]:
+    """Load one DEMO M15 dataset without rewriting acquisition provenance."""
+
+    if re.fullmatch(r"[0-9a-f]{40}", expected_software_sha) is None:
+        raise Vt08IndexV2CandidateError("expected software SHA must be lowercase git SHA")
+    if type(minimum_evidence_days) is not int or minimum_evidence_days < 0:
+        raise Vt08IndexV2CandidateError("minimum evidence days must be non-negative int")
+    try:
+        decoded: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise Vt08IndexV2CandidateError("cannot read market evidence") from error
+    payload = _object(decoded, name="market evidence")
+    if payload.get("schema") != "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v3":
+        raise Vt08IndexV2CandidateError("unexpected VT-08 market evidence schema")
+    if payload.get("environment") != "demo":
+        raise Vt08IndexV2CandidateError("market evidence must be DEMO")
+    if not _bool(payload.get("read_only"), name="read_only"):
+        raise Vt08IndexV2CandidateError("market evidence must be read-only")
+    if _bool(payload.get("account_is_live"), name="account_is_live"):
+        raise Vt08IndexV2CandidateError("LIVE evidence is prohibited")
+    if expected_symbol not in AUTHORIZED_MARKETS:
+        raise Vt08IndexV2CandidateError("market is outside frozen Index scope")
+    if _text(payload.get("canonical_symbol"), name="canonical_symbol") != expected_symbol:
+        raise Vt08IndexV2CandidateError("canonical symbol mismatch")
+    observed_sha = _text(payload.get("software_sha"), name="software_sha")
+    if observed_sha != expected_software_sha:
+        raise Vt08IndexV2CandidateError("market evidence software SHA drifted")
+    source_hash = _text(payload.get("primary_source_sha256"), name="primary_source_sha256")
+    if source_hash != PRIMARY_SOURCE_SHA256:
+        raise Vt08IndexV2CandidateError("primary source identity drifted")
+    provider_symbol = _text(
+        payload.get("provider_symbol_name"),
+        name="provider_symbol_name",
+    )
+    fingerprint = _text(
+        payload.get("account_fingerprint"),
+        name="account_fingerprint",
+    )
+    if re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
+        raise Vt08IndexV2CandidateError("account fingerprint must be SHA-256")
+    checked_at = _timestamp(payload.get("checked_at"), name="checked_at")
+    periods = _object(payload.get("periods"), name="periods")
+    if set(periods) != {"M15"}:
+        raise Vt08IndexV2CandidateError("candidate accepts M15 evidence only")
+    rows = _array(periods.get("M15"), name="periods.M15")
+    bars = tuple(_parse_m15(row) for row in rows)
+    if not bars:
+        raise Vt08IndexV2CandidateError("M15 evidence is empty")
+    if bars != tuple(sorted(bars, key=lambda item: item.opened_at)):
+        raise Vt08IndexV2CandidateError("M15 evidence must be chronological")
+    if len({item.opened_at for item in bars}) != len(bars):
+        raise Vt08IndexV2CandidateError("M15 evidence contains duplicate opens")
+    if bars[-1].closed_at - bars[0].opened_at < timedelta(days=minimum_evidence_days):
+        raise Vt08IndexV2CandidateError("M15 evidence is shorter than frozen minimum")
+    return fingerprint, provider_symbol, checked_at, bars
+
+
 def _gap_exit(
     *,
     side: DemoTradingSetupSide,
@@ -73,12 +147,7 @@ def _gap_exit(
     stop: Decimal,
     target: Decimal,
 ) -> tuple[Decimal, str] | None:
-    """Resolve an opening gap before intrabar touch semantics.
-
-    Adverse stop gaps are filled at the observed M15 open.  Favorable target
-    gaps are conservatively credited only at the frozen target.  This prevents
-    a bar that opens completely beyond an exit level from silently surviving.
-    """
+    """Resolve an opening gap before intrabar touch semantics."""
 
     if side is DemoTradingSetupSide.LONG:
         if bar.open <= stop:
@@ -246,12 +315,19 @@ def build_candidate_report(
     us30: Path,
     start_date: date | None = None,
     end_date_exclusive: date | None = None,
+    expected_software_sha: str = DEFAULT_EVIDENCE_SOFTWARE_SHA,
+    minimum_evidence_days: int = 730,
 ) -> dict[str, object]:
     paths = {"NAS100": nas100, "SP500": sp500, "US30": us30}
     all_trades: list[ModeledTrade] = []
     provenance: dict[str, object] = {}
     for symbol, path in paths.items():
-        fingerprint, provider, checked_at, bars = _load_market(path, expected_symbol=symbol)
+        fingerprint, provider, checked_at, bars = _load_candidate_market(
+            path,
+            expected_symbol=symbol,
+            expected_software_sha=expected_software_sha,
+            minimum_evidence_days=minimum_evidence_days,
+        )
         indexed = {item.opened_at.astimezone(UTC): item for item in bars}
         market_trades = _market_trades(
             symbol=symbol,
@@ -264,6 +340,7 @@ def build_candidate_report(
             "provider_symbol": provider,
             "account_fingerprint": fingerprint,
             "checked_at": checked_at.isoformat(),
+            "software_sha": expected_software_sha,
             "m15_bars": len(bars),
             "trade_count": len(market_trades),
         }
@@ -275,6 +352,11 @@ def build_candidate_report(
         "candidate_id": CANDIDATE_ID,
         "development_selection_id": DEVELOPMENT_SELECTION_ID,
         "variant": SELECTED_VARIANT.payload(),
+        "evidence_contract": {
+            "expected_software_sha": expected_software_sha,
+            "minimum_evidence_days": minimum_evidence_days,
+            "primary_source_sha256": PRIMARY_SOURCE_SHA256,
+        },
         "partition": {
             "start_date": start_date.isoformat() if start_date is not None else None,
             "end_date_exclusive": (
@@ -303,6 +385,11 @@ def main() -> None:
     parser.add_argument("--us30", type=Path, required=True)
     parser.add_argument("--start-date", type=date.fromisoformat)
     parser.add_argument("--end-date-exclusive", type=date.fromisoformat)
+    parser.add_argument(
+        "--expected-software-sha",
+        default=DEFAULT_EVIDENCE_SOFTWARE_SHA,
+    )
+    parser.add_argument("--minimum-evidence-days", type=int, default=730)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     report = build_candidate_report(
@@ -311,6 +398,8 @@ def main() -> None:
         us30=args.us30,
         start_date=args.start_date,
         end_date_exclusive=args.end_date_exclusive,
+        expected_software_sha=args.expected_software_sha,
+        minimum_evidence_days=args.minimum_evidence_days,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(
