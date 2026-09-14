@@ -85,10 +85,15 @@ def _bar(
     )
 
 
-def _long_history(*, reference_index: int = 16, tie_index: int | None = None) -> tuple[QualifiedOhlcBarObservation, ...]:
+def _long_history(
+    *,
+    reference_index: int = 16,
+    tie_index: int | None = None,
+) -> tuple[QualifiedOhlcBarObservation, ...]:
     bars: list[QualifiedOhlcBarObservation] = []
     for index in range(20):
-        low = "90.00" if index == reference_index or index == tie_index else f"{95 + index / 100:.2f}"
+        is_reference = index == reference_index or index == tie_index
+        low = "90.00" if is_reference else f"{95 + index / 100:.2f}"
         bars.append(
             _bar(
                 code=MarketTimeframeCode.D1,
@@ -102,10 +107,15 @@ def _long_history(*, reference_index: int = 16, tie_index: int | None = None) ->
     return tuple(bars)
 
 
-def _short_history(*, reference_index: int = 16, tie_index: int | None = None) -> tuple[QualifiedOhlcBarObservation, ...]:
+def _short_history(
+    *,
+    reference_index: int = 16,
+    tie_index: int | None = None,
+) -> tuple[QualifiedOhlcBarObservation, ...]:
     bars: list[QualifiedOhlcBarObservation] = []
     for index in range(20):
-        high = "120.00" if index == reference_index or index == tie_index else f"{110 + index / 100:.2f}"
+        is_reference = index == reference_index or index == tie_index
+        high = "120.00" if is_reference else f"{110 + index / 100:.2f}"
         bars.append(
             _bar(
                 code=MarketTimeframeCode.D1,
@@ -137,7 +147,10 @@ def _m1(
 
 
 def _config() -> TurtleSoupR1Config:
-    return TurtleSoupR1Config(tick_size=Decimal("0.01"), classic_entry_offset_ticks=5)
+    return TurtleSoupR1Config(
+        tick_size=Decimal("0.01"),
+        classic_entry_offset_ticks=5,
+    )
 
 
 def test_candidate_has_no_recycled_vt09_identity() -> None:
@@ -167,7 +180,8 @@ def test_config_fingerprint_is_deterministic_and_binds_tick_choice() -> None:
     first = _config().fingerprint()
     second = _config().fingerprint()
     other = TurtleSoupR1Config(
-        tick_size=Decimal("0.01"), classic_entry_offset_ticks=10
+        tick_size=Decimal("0.01"),
+        classic_entry_offset_ticks=10,
     ).fingerprint()
     assert first == second
     assert first != other
