@@ -11,7 +11,12 @@ from qore.infrastructure.fundednext_stellar_instant import (
     MAX_RISK_AT_ANY_TIME_FRACTION,
     MAXIMUM_LOSS_FRACTION,
     PILOT_INITIAL_BALANCE,
-    PILOT_SYMBOL_MAP,
+)
+from qore.infrastructure.vt08_forex_cibo_operational import (
+    R315_CIBO_VERSION,
+    R315_METHOD_FINGERPRINT,
+    R315_RISK_FINGERPRINT,
+    cibo_policy_fingerprint,
 )
 
 _SCHEMA = "qore.fundednext.stellar-instant-2k-pilot-readiness.v1"
@@ -27,7 +32,26 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
     files = {
         "provider_contract": root / "src/qore/infrastructure/fundednext_stellar_instant.py",
         "account_wide_risk": root / "src/qore/infrastructure/account_wide_risk.py",
+        "durable_risk_ledger": (
+            root / "src/qore/infrastructure/account_wide_risk_ledger.py"
+        ),
+        "execution_bridge": (
+            root / "src/qore/infrastructure/fundednext_execution_bridge.py"
+        ),
         "mt5_boundary": root / "src/qore/infrastructure/fundednext_mt5.py",
+        "mt5_transport": root / "src/qore/infrastructure/fundednext_mt5_transport.py",
+        "mt5_mutation_ledger": (
+            root / "src/qore/infrastructure/fundednext_mt5_mutation_ledger.py"
+        ),
+        "account_bound_execution": (
+            root / "src/qore/infrastructure/fundednext_operational.py"
+        ),
+        "vt08_forex_cibo": (
+            root / "src/qore/infrastructure/vt08_forex_cibo_operational.py"
+        ),
+        "vt08_forex_sizing": (
+            root / "src/qore/infrastructure/vt08_forex_fundednext_sizing.py"
+        ),
         "vt08_forex_executable": root / "src/qore/infrastructure/traders/vt08_b01_r3_8.py",
         "vt08_index_r1_executable": (
             root / "src/qore/infrastructure/traders/vt08_index_c2_positional_r1.py"
@@ -47,12 +71,15 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "daily_loss_limit": None,
             "maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
             "max_risk_at_any_time_fraction": str(MAX_RISK_AT_ANY_TIME_FRACTION),
+            "max_risk_value_is_research_snapshot_not_activation_authority": True,
+            "account_specific_risk_limit_reverification_required": True,
             "trailing_mll": True,
             "mll_capped_at_initial_balance": True,
             "payout_lowers_mll": False,
             "activation_reverification_required": True,
             "documentation_leverage_conflict": True,
-            "execution_leverage_source": "MT5_SYMBOL_INFO",
+            "execution_leverage_source": "MT5_SYMBOL_INFO_AND_ORDER_CALC_MARGIN",
+            "broker_symbol_source": "LIVE_MT5_ACCOUNT_CATALOG",
         },
         "topology": {
             "traders": {
@@ -62,10 +89,11 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "cibo_instances": ["CIBO_FOREX", "CIBO_INDEX"],
             "risk_scope": "ACCOUNT_WIDE",
             "signal_flow": (
-                "VT08 -> CIBO_REQUEST -> ACCOUNT_WIDE_RISK -> "
-                "RiskAuthorization -> MT5"
+                "VT08_FOREX -> CIBO_FOREX_ALLOW -> BROKER_EXACT_SIZING -> "
+                "ACCOUNT_WIDE_RISK -> RiskAuthorization -> CANONICAL_EXECUTION -> MT5"
             ),
-            "provider_symbols": dict(PILOT_SYMBOL_MAP),
+            "provider_symbol_resolution": "ACCOUNT_CATALOG_EXACT_OR_UNIQUE_DECORATION",
+            "index_execution_enabled": False,
         },
         "certification_state": {
             "vt08_forex_demo_approved": True,
@@ -74,16 +102,26 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "vt08_forex_certificate_json_sha256": (
                 "a4eb567592cedb4e92926881fb7a859c7b455329f00a4227d6886bbb1a33cf98"
             ),
+            "vt08_forex_methodology_fingerprint": R315_METHOD_FINGERPRINT,
+            "vt08_forex_risk_policy_fingerprint": R315_RISK_FINGERPRINT,
             "vt08_index_demo_approved": False,
             "vt08_index_work_in_progress": True,
             "cibo_forex_policy": "R3.15_CERTIFIED_CAPABILITY_ONLY",
+            "cibo_forex_version": R315_CIBO_VERSION,
+            "cibo_forex_fingerprint": cibo_policy_fingerprint(),
             "cibo_r3_17_promoted": False,
             "cibo_index_policy": "UNAPPROVED",
         },
         "component_versions": {
-            "provider_contract": "stellar-instant-2026-09-13-v1",
+            "provider_contract": "stellar-instant-2026-09-14-revalidation-required-v2",
             "account_wide_risk": "account-wide-risk-v1",
+            "durable_risk_ledger": "account-wide-risk-ledger-v1",
+            "execution_bridge": "fundednext-canonical-execution-v1",
             "mt5_boundary": "fundednext-mt5-boundary-v1",
+            "mt5_transport": "fundednext-metatrader5-transport-v1",
+            "account_bound_execution": "fundednext-account-bound-execution-v1",
+            "vt08_forex_sizing": "vt08-r315-mt5-tick-economics-v1",
+            "vt08_forex_cibo": R315_CIBO_VERSION,
         },
         "component_sha256": {name: _digest(path) for name, path in files.items()},
         "governance": {
@@ -97,15 +135,37 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
         },
         "technical_readiness": {
             "provider_contract_implemented": True,
+            "cibo_forex_gate_implemented": True,
             "shared_risk_implemented": True,
+            "durable_shared_risk_implemented": True,
+            "canonical_execution_bridge_implemented": True,
             "mt5_boundary_implemented": True,
+            "concrete_mt5_transport_implemented": True,
+            "account_bound_symbol_resolution_implemented": True,
+            "broker_exact_sizing_implemented": True,
+            "durable_idempotency_and_unknown_outcome_recovery_implemented": True,
+            "scoped_kill_switches_implemented": True,
+            "code_complete_for_account_binding": True,
             "concrete_mt5_gateway_bound": False,
             "actual_account_bound": False,
             "actual_symbol_info_verified": False,
             "dry_run_passed_on_actual_account": False,
             "shadow_mode_passed_on_actual_account": False,
+            "demo_execution_passed_on_actual_account": False,
+            "ready_for_owner_activation": False,
             "ready_to_operate_stellar_instant": False,
         },
+        "remaining_activation_evidence": [
+            "current account-specific FundedNext rules and Risk Limit",
+            "current EA/automation entitlement for the exact account",
+            "MT5 account login binding without persisting credentials",
+            "live terminal symbol catalog for AUDJPY GBPUSD GBPJPY",
+            "live SymbolInfo/tick/margin sizing validation for all retained markets",
+            "account equity/trailing-floor/open-position reconciliation",
+            "no-send dry-run and shadow cycle on the bound account",
+            "DEMO lifecycle/restart test if a compatible DEMO account is available",
+            "explicit Owner activation authorization",
+        ],
     }
 
 
