@@ -1,0 +1,213 @@
+name: QORE VT-31 R4 Fresh One-Shot Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      QORE_SOFTWARE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install candidate and cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify freeze and enforce one shot
+        run: |
+          set -euo pipefail
+          freeze_name="qore-vt31-r4-candidate-freeze-${GITHUB_SHA}"
+          fresh_name="qore-vt31-r4-fresh-validation-${GITHUB_SHA}"
+          freeze_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${freeze_name}" --jq '.artifacts | length')"
+          fresh_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${fresh_name}" --jq '.artifacts | length')"
+          test "$freeze_count" = "1"
+          test "$fresh_count" = "0"
+          freeze_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${freeze_name}" --jq '.artifacts[0].id')"
+          mkdir -p freeze
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${freeze_id}/zip" > freeze.zip
+          unzip -q freeze.zip -d freeze
+          test "$(cat freeze/git-sha.txt)" = "$GITHUB_SHA"
+          (cd freeze && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          payload=json.loads(Path("freeze/vt31-r4-candidate-freeze.json").read_text())
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert payload["candidate_frozen"] is True
+          assert payload["fresh_evidence_opened"] is False
+          assert payload["demo_eligible"] is False
+          PY
+      - name: Verify DEMO credentials without printing secrets
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Acquire unopened historical evidence once
+        run: |
+          set -euo pipefail
+          mkdir -p fresh/{NAS100,SP500,US30}
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" python -m qore.infrastructure.ctrader_demo_lab_vt31_r4_fresh_probe > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+      - name: Validate, stress, Monte Carlo and causal equivalence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+          from typing import cast
+          from qore.infrastructure.trader_lab.vt31_r4_ny_reversal_candidate import (
+              CANDIDATE_ID,
+              _metrics,
+              causal_equivalence,
+              contract_fingerprint,
+              replay,
+          )
+
+          paths={market:Path(f"fresh/{market}/market-evidence.json") for market in ("NAS100","SP500","US30")}
+          result=replay(paths)
+          causal=causal_equivalence(paths)
+          values=[Decimal(cast(str,t["r_multiple"])) for t in result["trades"]]
+          stress={str(cost):_metrics(tuple(result["trades"]),Decimal(cost)) for cost in ("0.025","0.05","0.075","0.10")}
+
+          domain=b"qore:vt31-r4:sha256-domain-separated-moving-block-bootstrap-v1"
+          block=5
+          terminals=[]
+          drawdowns=[]
+          streaks=[]
+          n=len(values)
+          for path_index in range(10000):
+              sampled=[]
+              block_index=0
+              while len(sampled)<n:
+                  digest=hashlib.sha256(domain+b":" + str(path_index).encode()+b":" + str(block_index).encode()).digest()
+                  start=int.from_bytes(digest,"big") % n
+                  sampled.extend(values[(start+offset)%n] for offset in range(block))
+                  block_index+=1
+              sampled=sampled[:n]
+              equity=peak=dd=Decimal(0)
+              streak=maximum=0
+              for value in sampled:
+                  equity+=value-Decimal("0.05")
+                  peak=max(peak,equity)
+                  dd=max(dd,peak-equity)
+                  streak=streak+1 if value-Decimal("0.05")<0 else 0
+                  maximum=max(maximum,streak)
+              terminals.append(equity)
+              drawdowns.append(dd)
+              streaks.append(maximum)
+          terminals.sort();drawdowns.sort();streaks.sort()
+          def quantile(xs,numerator,denominator):
+              return xs[(len(xs)-1)*numerator//denominator]
+          mc={
+              "algorithm":"sha256-domain-separated-moving-block-bootstrap-v1",
+              "paths":10000,
+              "block_length":5,
+              "positive_terminal_probability":format(Decimal(sum(x>0 for x in terminals))/Decimal(10000),"f"),
+              "p05_terminal_r":format(quantile(terminals,5,100),"f"),
+              "p50_terminal_r":format(quantile(terminals,50,100),"f"),
+              "p95_max_drawdown_r":format(quantile(drawdowns,95,100),"f"),
+              "p50_max_losing_streak":quantile(streaks,50,100),
+              "p95_max_losing_streak":quantile(streaks,95,100),
+          }
+          mc_gates={
+              "positive_terminal_probability_at_least_0_70":Decimal(mc["positive_terminal_probability"])>=Decimal(".70"),
+              "p95_max_drawdown_at_most_20r":Decimal(mc["p95_max_drawdown_r"])<=Decimal("20"),
+          }
+          evidence=[]
+          for market,path in paths.items():
+              payload=json.loads(path.read_text())
+              evidence.append({
+                  "market":market,
+                  "provider_symbol_name":payload["provider_symbol_name"],
+                  "account_fingerprint":payload["account_fingerprint"],
+                  "requested_opened_at":payload["requested_opened_at"],
+                  "first_opened_at":payload["coverage"]["first_opened_at"],
+                  "last_closed_at":payload["coverage"]["last_closed_at"],
+                  "bar_count":payload["coverage"]["bar_count"],
+                  "sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+              })
+          final_pass=bool(result["passes_economic_gates"]) and all(mc_gates.values()) and all(causal.values())
+          report={
+              "schema":"qore.trader_lab.vt31_r4_fresh_validation.v1",
+              "candidate_id":CANDIDATE_ID,
+              "software_sha":os.environ["GITHUB_SHA"],
+              "contract_fingerprint":contract_fingerprint(),
+              "fresh_evidence":evidence,
+              "fresh_validation":result,
+              "stress_sensitivity":stress,
+              "monte_carlo":mc,
+              "monte_carlo_gates":mc_gates,
+              "causal_equivalence":causal,
+              "adjudication":"VT31_R4_DEMO_ELIGIBLE" if final_pass else "VT31_R4_REJECTED",
+              "demo_eligible":final_pass,
+              "live_authorized":False,
+              "real_capital_authorized":False,
+              "production_authorized":False,
+          }
+          Path("vt31-r4-fresh-validation.json").write_text(json.dumps(report,sort_keys=True,separators=(",",":"))+"\n")
+          print(json.dumps({
+              "adjudication":report["adjudication"],
+              "aggregate":result["aggregate"],
+              "stress_0_05r":result["stress_0_05r"],
+              "markets":result["market_stress"],
+              "sides":result["side_stress"],
+              "monte_carlo":mc,
+              "causal_equivalence":causal,
+          },sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r4-fresh-validation.json fresh/*/market-evidence.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r4-fresh-validation-${{ github.sha }}
+          path: |
+            vt31-r4-fresh-validation.json
+            git-sha.txt
+            SHA256SUMS
+            fresh/EVIDENCE-SHA256SUMS
+            fresh/NAS100/market-evidence.json
+            fresh/SP500/market-evidence.json
+            fresh/US30/market-evidence.json
+          retention-days: 90
+          if-no-files-found: error
+      - name: Enforce final adjudication
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("vt31-r4-fresh-validation.json").read_text())
+          assert report["adjudication"] in {"VT31_R4_DEMO_ELIGIBLE","VT31_R4_REJECTED"}
+          if not report["demo_eligible"]:
+              raise SystemExit("fresh validation rejected the frozen candidate")
+          PY
