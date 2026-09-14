@@ -1,0 +1,132 @@
+name: QORE Turtle Soup R1 Development Data
+
+on:
+  push:
+    branches:
+      - agent/turtle-soup-candidate-r1-001
+    paths:
+      - .github/workflows/turtle-soup-candidate-r1-development-data.yml
+      - src/qore/infrastructure/trader_lab/turtle_soup_candidate_r1_data_probe.py
+      - docs/research/TURTLE-SOUP-CANDIDATE-R1-DATA-SPLIT-FREEZE.md
+
+concurrency:
+  group: qore-turtle-soup-r1-development-data-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_TURTLE_SOUP_LOOKBACK_DAYS: "1095"
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol:
+          - EURUSD
+          - GBPUSD
+          - USDJPY
+          - AUDUSD
+          - USDCAD
+          - GBPJPY
+          - AUDJPY
+    env:
+      QORE_TURTLE_SOUP_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+
+      - name: Verify required read-only market-data inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN \
+            QORE_TURTLE_SOUP_SYMBOL
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required market-data input: ${name}" >&2
+              exit 2
+            fi
+          done
+
+      - name: Discover authorized read-only cTrader account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Collect native D1 development evidence
+        run: |
+          set -euo pipefail
+          dir="artifacts/turtle-soup-r1-development/${QORE_TURTLE_SOUP_SYMBOL}"
+          mkdir -p "$dir"
+          python -m qore.infrastructure.trader_lab.turtle_soup_candidate_r1_data_probe \
+            > "$dir/d1-evidence.json"
+          printf '%s\n' "$GITHUB_SHA" > "$dir/git-sha.txt"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["QORE_TURTLE_SOUP_SYMBOL"]
+          path = Path(
+              f"artifacts/turtle-soup-r1-development/{symbol}/d1-evidence.json"
+          )
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema"] == (
+              "qore.trader_lab.turtle_soup_candidate_r1.d1_development_evidence.v1"
+          )
+          assert payload["read_only"] is True
+          assert payload["research_only"] is True
+          assert payload["fresh_oos_consumed"] is False
+          assert payload["research_identity"] == "turtle-soup-candidate-r1"
+          assert payload["symbol"] == symbol
+          assert payload["period"] == "D1"
+          assert payload["native_period_value"] == 12
+          assert payload["required_coverage_days"] == 730
+          assert payload["span_seconds"] >= 730 * 24 * 60 * 60
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert len(payload["evidence_digest_sha256"]) == 64
+          assert payload["bars"]
+          PY
+
+      - name: Upload sanitized native-D1 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-r1-d1-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/turtle-soup-r1-development/${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 30
