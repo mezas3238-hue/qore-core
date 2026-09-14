@@ -1,11 +1,11 @@
 """Concrete, secret-free MetaTrader5 adapter for the FundedNext execution port.
 
-Credentials and terminal initialization stay outside QORE Core.  The adapter is
+Credentials and terminal initialization stay outside QORE Core. The adapter is
 constructed with an already initialized MetaTrader5-compatible API object plus
-the runtime account login expected by the Owner activation procedure.  Every
-mutation re-checks that login, uses deterministic magic/comment identity, and
-classifies timeout/connection/partial-fill acknowledgements as UNKNOWN so QORE
-must reconcile before retrying.
+the runtime account identity expected by the Owner activation procedure. Every
+mutation re-checks login and server, uses deterministic magic/comment identity,
+and classifies timeout/connection/partial-fill acknowledgements as UNKNOWN so
+QORE must reconcile before retrying.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ class Mt5TerminalInfoLike(Protocol):
 
 class Mt5AccountInfoLike(Protocol):
     login: int
+    server: str
     balance: float
     equity: float
     margin: float
@@ -147,14 +148,18 @@ class MetaTrader5FundedNextTransport:
         api: MetaTrader5Api,
         qore_account_ref: str,
         expected_login: int,
+        expected_server: str,
     ) -> None:
         if not isinstance(qore_account_ref, str) or not qore_account_ref:
             raise Mt5ExecutionValidationError("QORE account ref is required")
         if type(expected_login) is not int or expected_login <= 0:
             raise Mt5ExecutionValidationError("expected MT5 login must be positive int")
+        if not isinstance(expected_server, str) or not expected_server.strip():
+            raise Mt5ExecutionValidationError("expected MT5 server is required")
         self._api = api
         self._qore_account_ref = qore_account_ref
         self._expected_login = expected_login
+        self._expected_server = expected_server.strip()
 
     def connected(self) -> bool:
         terminal = self._api.terminal_info()
@@ -377,16 +382,24 @@ class MetaTrader5FundedNextTransport:
 
     def _bound_account(self) -> Mt5AccountInfoLike | None:
         account = self._api.account_info()
-        if account is None or account.login != self._expected_login:
+        if account is None:
+            return None
+        if account.login != self._expected_login:
+            return None
+        if account.server != self._expected_server:
             return None
         return account
 
     def _require_bound_account(self) -> Mt5AccountInfoLike:
         if not self.connected():
             raise Mt5ExecutionBlockedError("mt5-disconnected")
-        account = self._bound_account()
+        account = self._api.account_info()
         if account is None:
+            raise Mt5ExecutionBlockedError("mt5-account-state-unavailable")
+        if account.login != self._expected_login:
             raise Mt5ExecutionBlockedError("mt5-account-login-mismatch")
+        if account.server != self._expected_server:
+            raise Mt5ExecutionBlockedError("mt5-account-server-mismatch")
         return account
 
     def _submission_payload(self, plan: FundedNextMt5OrderPlan) -> dict[str, object]:
