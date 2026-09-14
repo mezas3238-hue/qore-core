@@ -10,6 +10,7 @@ from qore.infrastructure.account_wide_risk import (
     RiskDecision,
     TraderLineage,
 )
+from qore.infrastructure.execution_boundary import ExecutionSubmission
 from qore.infrastructure.fundednext_mt5 import (
     FundedNextMt5OrderPlan,
     FundedNextMt5TransportReceipt,
@@ -45,7 +46,10 @@ _NOW = datetime(2026, 9, 14, 4, 0, tzinfo=UTC)
 
 
 class AccountCatalogTransport:
-    def __init__(self, symbols: tuple[str, ...] = ("AUDJPY.a", "GBPUSD.a", "GBPJPY.a")) -> None:
+    def __init__(
+        self,
+        symbols: tuple[str, ...] = ("AUDJPY.a", "GBPUSD.a", "GBPJPY.a"),
+    ) -> None:
         self.symbols = symbols
         self.submissions = 0
 
@@ -89,7 +93,10 @@ class AccountCatalogTransport:
             observed_at=_NOW,
         )
 
-    def submit_order(self, plan: FundedNextMt5OrderPlan) -> FundedNextMt5TransportReceipt:
+    def submit_order(
+        self,
+        plan: FundedNextMt5OrderPlan,
+    ) -> FundedNextMt5TransportReceipt:
         self.submissions += 1
         return FundedNextMt5TransportReceipt(
             client_order_id=plan.client_order_id,
@@ -112,7 +119,10 @@ class AccountCatalogTransport:
             recorded_at=cancelled_at,
         )
 
-    def discover_order(self, client_order_id: str) -> FundedNextMt5TransportReceipt | None:
+    def discover_order(
+        self,
+        client_order_id: str,
+    ) -> FundedNextMt5TransportReceipt | None:
         return None
 
 
@@ -176,7 +186,7 @@ def _gateway(
     )
 
 
-def _submission(provider_symbol: str = "GBPUSD.a"):
+def _submission(provider_symbol: str = "GBPUSD.a") -> ExecutionSubmission:
     switch = ExecutionSafetySwitchSnapshot(
         state=ExecutionSwitchState.ENABLED,
         observed_at=_NOW,
@@ -215,7 +225,10 @@ def test_risk_provider_symbol_must_match_account_discovery() -> None:
     assert plan.provider_symbol == "GBPUSD.a"
     assert transport.submissions == 0
 
-    with pytest.raises(Mt5ExecutionBlockedError, match="risk-provider-symbol-account-mismatch"):
+    with pytest.raises(
+        Mt5ExecutionBlockedError,
+        match="risk-provider-symbol-account-mismatch",
+    ):
         gateway.plan_submission(_submission("GBPUSD"), now=_NOW)
 
 
