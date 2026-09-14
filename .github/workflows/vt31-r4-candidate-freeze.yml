@@ -23,7 +23,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -e . pytest ruff mypy
+      - run: pip install -e . pytest pytest-cov ruff mypy
       - name: Focused quality gates
         run: |
           ruff check src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
