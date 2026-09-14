@@ -1,0 +1,363 @@
+name: VT08 Index V2 Fresh Holdout
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-v2-fresh-holdout-002
+    paths:
+      - .github/workflows/vt08-index-v2-fresh-holdout.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-v2-fresh-holdout-one-shot
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  PARENT_CANDIDATE_SHA: 47d6b3f1a4fced949b0b27b2d7260c81e2d660a3
+  PARENT_HARDENING_RUN_ID: "34792040609"
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "1095"
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  parent-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Wait for exact parent hardening gate and require GREEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["PARENT_HARDENING_RUN_ID"]
+          parent_sha = os.environ["PARENT_CANDIDATE_SHA"]
+          token = os.environ["GH_TOKEN"]
+          url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}"
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          for _ in range(120):
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  payload = json.load(response)
+              if payload.get("head_sha") != parent_sha:
+                  raise SystemExit("parent hardening run SHA mismatch")
+              if payload.get("status") == "completed":
+                  if payload.get("conclusion") != "success":
+                      raise SystemExit(
+                          f"parent hardening gate is not GREEN: {payload.get('conclusion')}"
+                      )
+                  print(json.dumps({"parent_run": int(run_id), "head_sha": parent_sha, "conclusion": "success"}))
+                  break
+              time.sleep(15)
+          else:
+              raise SystemExit("parent hardening gate did not complete within preflight window")
+          PY
+
+  quality:
+    needs: parent-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact holdout head
+        uses: actions/checkout@v4
+      - name: Verify exact parent ancestry
+        run: git merge-base --is-ancestor "$PARENT_CANDIDATE_SHA" "$GITHUB_SHA"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src tests
+      - name: Focused fresh-holdout gate
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_v2_candidate.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v2_candidate_evidence.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v2_fresh_validation.py
+      - name: Full QORE gate before fresh access
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  acquire-fresh-index-evidence:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        symbol: [NAS100, SP500, US30]
+    env:
+      QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - name: Checkout exact holdout head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE and cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify DEMO inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_DEMO_LAB_SYMBOL; do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO holdout input: ${name}" >&2
+              exit 2
+            fi
+          done
+          test "$QORE_DEMO_LAB_LOOKBACK_DAYS" = "1095"
+      - name: Discover authorized DEMO account if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Acquire maximum fresh M15 history once
+        run: |
+          root="artifacts/vt08-index-fresh/${QORE_DEMO_LAB_SYMBOL}"
+          mkdir -p "$root"
+          python -m qore.infrastructure.ctrader_demo_lab_vt08_v2_probe > "$root/market-evidence.json"
+          printf '%s\n' "$GITHUB_SHA" > "$root/git-sha.txt"
+      - name: Verify raw holdout provenance and coverage
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import date, datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-index-fresh/{symbol}")
+          payload = json.loads((root / "market-evidence.json").read_text())
+          assert payload["schema"] == "qore.ctrader_demo.vt08_crt_h4_amd_v2_evidence.v3"
+          assert payload["environment"] == "demo"
+          assert payload["read_only"] is True
+          assert payload["account_is_live"] is False
+          assert payload["canonical_symbol"] == symbol
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert payload["requested_lookback_days"] == 1095
+          assert payload["primary_source_sha256"] == "bfe76fa4346ec4d7442886c21834aa26f0d82172bdb55666e8c77226cdf83271"
+          assert set(payload["periods"]) == {"M15"}
+          ny = ZoneInfo("America/New_York")
+          first = datetime.fromisoformat(payload["coverage"]["first_opened_at"]).astimezone(ny).date()
+          last = datetime.fromisoformat(payload["coverage"]["last_closed_at"]).astimezone(ny).date()
+          assert first <= date(2023, 9, 15), (first, symbol)
+          assert last >= date(2024, 8, 13), (last, symbol)
+          PY
+      - name: Upload immutable raw market evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/vt08-index-fresh/${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 90
+
+  adjudicate-one-shot-holdout:
+    needs: acquire-fresh-index-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact holdout head
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Download all three immutable fresh market artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v2-fresh-*-${{ github.sha }}
+          path: artifacts/downloaded
+      - name: Resolve exact fresh market evidence paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          for symbol in NAS100 SP500 US30; do
+            path="$(find artifacts/downloaded -path "*${symbol}*" -name market-evidence.json -print -quit)"
+            if [ -z "$path" ]; then
+              echo "missing fresh ${symbol} market evidence" >&2
+              exit 2
+            fi
+            printf '%s_PATH=%s\n' "$symbol" "$path" >> "$GITHUB_ENV"
+          done
+      - name: Execute frozen candidate on full fresh files
+        run: |
+          mkdir -p artifacts/vt08-index-fresh-decision
+          python -m qore.infrastructure.trader_lab.vt08_index_v2_candidate \
+            --nas100 "$NAS100_PATH" \
+            --sp500 "$SP500_PATH" \
+            --us30 "$US30_PATH" \
+            --start-date 2023-09-15 \
+            --end-date-exclusive 2024-08-13 \
+            --expected-software-sha "$GITHUB_SHA" \
+            --minimum-evidence-days 1000 \
+            --out artifacts/vt08-index-fresh-decision/candidate-full.json
+      - name: Derive end-truncated causal copies
+        run: |
+          python - <<'PY'
+          import copy
+          import json
+          import os
+          from datetime import UTC, datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          boundary = datetime(2024, 8, 13, 0, 0, tzinfo=ZoneInfo("America/New_York")).astimezone(UTC)
+          out = Path("artifacts/vt08-index-fresh-decision/truncated")
+          out.mkdir(parents=True, exist_ok=True)
+          for symbol in ("NAS100", "SP500", "US30"):
+              source = Path(os.environ[f"{symbol}_PATH"])
+              payload = json.loads(source.read_text())
+              clone = copy.deepcopy(payload)
+              bars = [
+                  row
+                  for row in clone["periods"]["M15"]
+                  if datetime.fromisoformat(row["closed_at"]).astimezone(UTC) <= boundary
+              ]
+              assert bars, symbol
+              clone["periods"]["M15"] = bars
+              clone["causal_truncation"] = {
+                  "end_exclusive_new_york": "2024-08-13",
+                  "boundary_utc": boundary.isoformat(),
+                  "raw_file_retained_separately": True,
+              }
+              clone["coverage"] = {
+                  "bar_count": len(bars),
+                  "first_opened_at": bars[0]["opened_at"],
+                  "last_closed_at": bars[-1]["closed_at"],
+                  "span_seconds": int(
+                      (
+                          datetime.fromisoformat(bars[-1]["closed_at"])
+                          - datetime.fromisoformat(bars[0]["opened_at"])
+                      ).total_seconds()
+                  ),
+              }
+              (out / f"{symbol}.json").write_text(
+                  json.dumps(clone, sort_keys=True, separators=(",", ":")) + "\n"
+              )
+          PY
+      - name: Execute frozen candidate on causal-truncated files
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_v2_candidate \
+            --nas100 artifacts/vt08-index-fresh-decision/truncated/NAS100.json \
+            --sp500 artifacts/vt08-index-fresh-decision/truncated/SP500.json \
+            --us30 artifacts/vt08-index-fresh-decision/truncated/US30.json \
+            --start-date 2023-09-15 \
+            --end-date-exclusive 2024-08-13 \
+            --expected-software-sha "$GITHUB_SHA" \
+            --minimum-evidence-days 300 \
+            --out artifacts/vt08-index-fresh-decision/candidate-truncated.json
+      - name: Prove no-lookahead causal equivalence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/vt08-index-fresh-decision")
+          full = json.loads((root / "candidate-full.json").read_text())
+          truncated = json.loads((root / "candidate-truncated.json").read_text())
+          trades_equal = full["trades"] == truncated["trades"]
+          adjudication_equal = full["adjudication"] == truncated["adjudication"]
+          gaps_equal = full["gap_exit_count"] == truncated["gap_exit_count"]
+          passed = trades_equal and adjudication_equal and gaps_equal
+          payload = {
+              "schema": "qore.trader_lab.vt08_index_v2_causal_equivalence.v1",
+              "candidate_id": full["candidate_id"],
+              "full_report_sha256": hashlib.sha256((root / "candidate-full.json").read_bytes()).hexdigest(),
+              "truncated_report_sha256": hashlib.sha256((root / "candidate-truncated.json").read_bytes()).hexdigest(),
+              "trades_equal": trades_equal,
+              "adjudication_equal": adjudication_equal,
+              "gap_exit_count_equal": gaps_equal,
+              "pass": passed,
+          }
+          (root / "causal-equivalence.json").write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          PY
+      - name: Apply pre-registered structural stress and Monte-Carlo gates
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_v2_fresh_validation \
+            artifacts/vt08-index-fresh-decision/candidate-full.json \
+            --out artifacts/vt08-index-fresh-decision/fresh-validation.json
+      - name: Seal one-shot outcome without post-hoc tuning
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path("artifacts/vt08-index-fresh-decision")
+          causal = json.loads((root / "causal-equivalence.json").read_text())
+          validation = json.loads((root / "fresh-validation.json").read_text())
+          final_pass = causal["pass"] is True and validation["fresh_holdout_pass"] is True
+          payload = {
+              "schema": "qore.trader_lab.vt08_index_v2_one_shot_decision.v1",
+              "software_sha": os.environ["GITHUB_SHA"],
+              "parent_candidate_sha": os.environ["PARENT_CANDIDATE_SHA"],
+              "parent_hardening_run_id": int(os.environ["PARENT_HARDENING_RUN_ID"]),
+              "candidate_id": validation["candidate_id"],
+              "development_selection_id": validation["development_selection_id"],
+              "fresh_holdout_opened": True,
+              "causal_equivalence_pass": causal["pass"],
+              "fresh_validation_pass": validation["fresh_holdout_pass"],
+              "candidate_pass": final_pass,
+              "candidate_rejected": not final_pass,
+              "post_result_tuning_permitted": False,
+              "demo_eligible": False,
+              "live_authorized": False,
+              "production_authorized": False,
+          }
+          (root / "one-shot-decision.json").write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          print(json.dumps(payload, sort_keys=True))
+          PY
+      - name: Bind exact workflow SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/vt08-index-fresh-decision/git-sha.txt
+      - name: Upload one-shot decision evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-decision-${{ github.sha }}
+          path: artifacts/vt08-index-fresh-decision
+          if-no-files-found: error
+          retention-days: 90
