@@ -47,6 +47,7 @@ jobs:
             tests/infrastructure/test_account_wide_risk_ledger.py \
             tests/infrastructure/test_fundednext_execution_bridge.py \
             tests/infrastructure/test_fundednext_mt5.py \
+            tests/infrastructure/test_fundednext_mt5_transport.py \
             tests/infrastructure/test_fundednext_operational.py \
             tests/infrastructure/test_vt08_forex_fundednext_sizing.py
 
