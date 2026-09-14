@@ -1,0 +1,115 @@
+name: QORE VT-31 R4 Candidate Freeze
+
+on:
+  push:
+    branches:
+      - agent/vt31-r4-ny-reversal-candidate-001
+    paths:
+      - src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py
+      - tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
+      - docs/research/trader-lab/VT-31-R4-CANDIDATE-FREEZE-001.md
+      - .github/workflows/vt31-r4-candidate-freeze.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e . pytest ruff mypy
+      - name: Focused quality gates
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
+          mypy src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py
+          pytest -q tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
+      - name: Download immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" > sums
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> sums
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> sums
+          sha256sum -c sums
+          for market in NAS100 SP500 US30; do unzip -q "$market.zip" -d "evidence/$market"; done
+      - name: Reproduce consumed candidate and freeze
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt31_r4_ny_reversal_candidate import (
+              CANDIDATE_ID,
+              contract_fingerprint,
+              contract_payload,
+              replay,
+          )
+
+          result = replay({
+              "NAS100": Path("evidence/NAS100/market-evidence.json"),
+              "SP500": Path("evidence/SP500/market-evidence.json"),
+              "US30": Path("evidence/US30/market-evidence.json"),
+          })
+          aggregate = result["aggregate"]
+          stress = result["stress_0_05r"]
+          assert aggregate["sample"] == 166
+          assert aggregate["total_r"] == "48.84442495260714069014990233"
+          assert aggregate["profit_factor"] == "1.686283732815584770816343735"
+          assert aggregate["max_drawdown_r"] == "13.43164456210901167788646880"
+          assert stress["total_r"] == "40.54442495260714069014990235"
+          assert stress["profit_factor"] == "1.535073732294565506449208271"
+          assert stress["max_drawdown_r"] == "14.73164456210901167788646880"
+          assert result["passes_economic_gates"] is True
+          freeze = {
+              "schema": "qore.trader_lab.vt31_r4_candidate_freeze.v1",
+              "candidate_id": CANDIDATE_ID,
+              "software_sha": os.environ["GITHUB_SHA"],
+              "contract": contract_payload(),
+              "contract_fingerprint": contract_fingerprint(),
+              "research_parent": {
+                  "run_id": 34893281766,
+                  "artifact_id": 10367912073,
+                  "artifact_sha256": "cd1688e0818843a338b51244b79fbf7cea4b55a9c78afb7af20dd37991188be7",
+              },
+              "consumed_reproduction": result,
+              "candidate_frozen": True,
+              "fresh_evidence_opened": False,
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          Path("vt31-r4-candidate-freeze.json").write_text(
+              json.dumps(freeze, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          print(json.dumps({
+              "candidate_id": CANDIDATE_ID,
+              "contract_fingerprint": contract_fingerprint(),
+              "software_sha": os.environ["GITHUB_SHA"],
+              "consumed_sample": aggregate["sample"],
+              "consumed_stress_pf": stress["profit_factor"],
+              "consumed_stress_dd_r": stress["max_drawdown_r"],
+              "candidate_frozen": True,
+              "fresh_evidence_opened": False,
+          }, sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r4-candidate-freeze.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r4-candidate-freeze-${{ github.sha }}
+          path: |
+            vt31-r4-candidate-freeze.json
+            git-sha.txt
+            SHA256SUMS
+          retention-days: 90
+          if-no-files-found: error
