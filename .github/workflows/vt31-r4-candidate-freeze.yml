@@ -9,6 +9,7 @@ on:
       - src/qore/infrastructure/ctrader_demo_lab_vt31_r4_fresh_probe.py
       - tests/infrastructure/test_ctrader_demo_lab_vt31_r4_fresh_probe.py
       - .github/workflows/vt31-r4-fresh-one-shot.yml
+      - .github/vt31-r4-fresh-one-shot-trigger.json
       - tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
       - docs/research/trader-lab/VT-31-R4-CANDIDATE-FREEZE-001.md
       - .github/workflows/vt31-r4-candidate-freeze.yml
