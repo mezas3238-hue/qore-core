@@ -1,0 +1,120 @@
+name: QORE VT-31 R3.4 Source-Anchored 2R Research
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r3-4-source-2r.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" > sums
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> sums
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> sums
+          sha256sum -c sums
+          for m in NAS100 SP500 US30; do unzip -q "$m.zip" -d "evidence/$m"; done
+      - name: Falsify exact source-anchored 2R target
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from collections import defaultdict
+          from decimal import Decimal
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import load_market_evidence,_day,_wall,_simulate,_metrics,_quartiles,_Setup
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_6_composite_entry_research import VARIANTS,_evaluate
+          from qore.infrastructure.traders.contracts import DemoTradingSetupSide
+
+          markets=("NAS100","SP500","US30"); variant=next(x for x in VARIANTS if x.location=="near-stop")
+          loaded={m:load_market_evidence(Path(f"evidence/{m}/market-evidence.json")) for m in markets}
+          candidates=defaultdict(list)
+          for market,(series,*_) in loaded.items():
+              by_day=defaultdict(list)
+              for index,bar in enumerate(series): by_day[_day(bar.opened_at)].append((index,bar))
+              for day,indexed in by_day.items():
+                  reference=[bar for _,bar in indexed if (9,0,0)<=_wall(bar.opened_at)<(10,0,0)]
+                  session=[(i,bar) for i,bar in indexed if (10,0,0)<=_wall(bar.opened_at)<(11,0,0)]
+                  if len(reference)!=60 or len(session)!=60: continue
+                  prefix=list(reference)
+                  for global_index,bar in session:
+                      prefix.append(bar)
+                      setup,reason=_evaluate(instrument=series[0].instrument,as_of=bar.closed_at,bars=tuple(prefix),variant=variant)
+                      if setup is not None:
+                          risk=abs(setup.stop-setup.entry)
+                          target=setup.entry+2*risk if setup.side is DemoTradingSetupSide.LONG else setup.entry-2*risk
+                          capped=_Setup(setup.side,setup.signal_at,setup.entry,setup.stop,target,setup.variant)
+                          candidates[day.isoformat()].append((setup.signal_at.isoformat(),market,global_index,capped))
+                          break
+                      if reason=="both-sides-swept": break
+
+          def metrics(trades):
+              trades.sort(key=lambda x:(x["filled_at"],x["market"]))
+              agg=_metrics(trades); stress=_metrics(trades,friction=Decimal(".05"))
+              bym={m:_metrics([t for t in trades if t["market"]==m],friction=Decimal(".05")) for m in markets}
+              bys={s:_metrics([t for t in trades if t["side"]==s],friction=Decimal(".05")) for s in ("long","short")}
+              q=_quartiles(trades); temporal={}
+              for m in markets:
+                  own=[t for t in trades if t["market"]==m]
+                  for y in sorted({t["local_date"][:4] for t in own}):
+                      temporal[f"{m}:{y}"]=_metrics([t for t in own if t["local_date"].startswith(y)],friction=Decimal(".05"))
+              eligible=[x for x in temporal.values() if x["sample"]>=10]
+              gates={
+                "aggregate_sample_at_least_150":agg["sample"]>=150,
+                "each_market_sample_at_least_30":all(x["sample"]>=30 for x in bym.values()),
+                "aggregate_stressed_mean_positive":Decimal(stress["mean_r"])>0,
+                "aggregate_stressed_pf_at_least_1_10":stress["profit_factor"] is not None and Decimal(stress["profit_factor"])>=Decimal("1.10"),
+                "aggregate_stressed_dd_at_most_20r":Decimal(stress["max_drawdown_r"])<=20,
+                "every_market_stressed_mean_positive":all(Decimal(x["mean_r"])>0 for x in bym.values()),
+                "both_sides_stressed_mean_positive":all(x["sample"] and Decimal(x["mean_r"])>0 for x in bys.values()),
+                "three_of_four_quartiles_positive":sum(Decimal(x["mean_r"])>0 for x in q)>=3,
+                "two_thirds_eligible_temporal_blocks_positive":bool(eligible) and sum(Decimal(x["mean_r"])>0 for x in eligible)*3>=len(eligible)*2,
+              }
+              return {"aggregate":agg,"stress_0_05r":stress,"market_stress":bym,"side_stress":bys,"quartiles":q,"temporal_blocks":temporal,"gates":gates,"survivor":all(gates.values()),"trades":trades}
+
+          all_trades=[]
+          for day,items in candidates.items():
+              for _,market,index,setup in items:
+                  trade,status=_simulate(loaded[market][0],index,setup)
+                  if trade is not None: all_trades.append(dict(trade,market=market))
+          first=[]; ties=0
+          for day,items in candidates.items():
+              stamp=min(x[0] for x in items); xs=[x for x in items if x[0]==stamp]
+              if len(xs)!=1: ties+=1; continue
+              _,market,index,setup=xs[0]; trade,status=_simulate(loaded[market][0],index,setup)
+              if trade is not None: first.append(dict(trade,market=market))
+          results={"all-independent-setups":metrics(all_trades),"first-unique-confirmation-per-day":metrics(first)}
+          survivors=[h for h,x in results.items() if x["survivor"]]
+          contract={"methodology":"TTrades-Fractal-Model","source":"https://ttrades.com/fractal-model-playbook-aligning-daily-hourly-and-5-minute-charts/","entry":"R2.6-nearest-retracement-near-stop","target":"exact-2R-source-minimum","stop":"raid-extreme","pending_expiry":"11:00-NY","markets":list(markets),"portfolio_hypotheses":["all-independent-setups","first-unique-confirmation-per-day"],"hypothesis_count":2}
+          report={"schema":"qore.trader_lab.vt31_r3_4_source_2r_research.v1","software_sha":"${{ github.sha }}","research_only":True,"consumed_evidence_only":True,"fresh_evidence_opened":False,"contract":contract,"contract_fingerprint":hashlib.sha256(json.dumps(contract,sort_keys=True,separators=(",",":")).encode()).hexdigest(),"results":results,"survivors":survivors,"adjudication":"CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE" if len(survivors)==1 else "VT31_R3_4_CANDIDATE_NOT_JUSTIFIED","simultaneous_first_abstains":ties,"candidate_frozen":False,"demo_eligible":False,"live_authorized":False,"real_capital_authorized":False,"production_authorized":False}
+          Path("vt31-r3-4-source-2r-research.json").write_text(json.dumps(report,sort_keys=True,separators=(",",":"))+"\n")
+          print(json.dumps({"adjudication":report["adjudication"],"survivors":survivors,"summary":{h:{"aggregate":x["aggregate"],"stress":x["stress_0_05r"],"markets":{m:v["mean_r"] for m,v in x["market_stress"].items()},"sides":{s:v["mean_r"] for s,v in x["side_stress"].items()},"positive_quartiles":sum(Decimal(v["mean_r"])>0 for v in x["quartiles"]),"failed":[g for g,p in x["gates"].items() if not p]} for h,x in results.items()}},sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r3-4-source-2r-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r3-4-source-2r-${{ github.sha }}
+          path: |
+            vt31-r3-4-source-2r-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
