@@ -237,7 +237,9 @@ def test_cancel_and_discovery_use_same_deterministic_identity() -> None:
     transport = _transport(api)
     accepted = transport.submit_order(_plan())
     assert api.last_request is not None
-    magic = int(api.last_request["magic"])
+    raw_magic = api.last_request["magic"]
+    assert isinstance(raw_magic, int)
+    magic = raw_magic
     comment = str(api.last_request["comment"])
 
     api.active_orders = (
