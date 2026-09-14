@@ -1,0 +1,161 @@
+name: QORE VT-31 R2.5 Multi-Index Transfer Research
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r2-5-multi-index-transfer-research.yml
+      - src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py
+      - src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_5_multi_index_research.py
+      - src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_5_adjudication.py
+      - tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
+      - tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_5_multi_index_research.py
+      - docs/research/trader-lab/VT-31-R2-5-MULTI-INDEX-TRANSFER-RESEARCH-001.md
+  workflow_dispatch:
+
+concurrency:
+  group: qore-vt31-r2-5-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff full gate
+        run: ruff check .
+      - name: Mypy full gate
+        run: mypy src tests
+      - name: Focused VT-31 R2.5 tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
+            tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_5_multi_index_research.py
+      - name: Trader Lab regression gate
+        run: pytest -q --no-cov tests/infrastructure/trader_lab
+      - name: Full QORE Gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  market-research:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [NAS100, SP500, US30]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      QORE_DEMO_LAB_SYMBOL: ${{ matrix.market }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Verify DEMO inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO research input: ${name}" >&2
+              exit 2
+            fi
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect read-only 760-day M1 evidence
+        run: |
+          mkdir -p "artifacts/${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.ctrader_demo_lab_vt31_v2_probe \
+            > "artifacts/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+      - name: Run identical nine-variant research grid
+        run: |
+          python -m qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research \
+            "artifacts/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json" \
+            > "artifacts/${QORE_DEMO_LAB_SYMBOL}/research.json"
+          printf '%s\n' "$GITHUB_SHA" > "artifacts/${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r2-5-${{ matrix.market }}-${{ github.sha }}
+          path: artifacts/${{ matrix.market }}
+          if-no-files-found: error
+          retention-days: 90
+
+  adjudicate:
+    needs: market-research
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-r2-5-*-${{ github.sha }}
+          path: artifacts/markets
+      - name: Cross-market adjudication
+        run: |
+          mkdir -p artifacts/adjudication
+          python -m qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_adjudication \
+            "artifacts/markets/qore-vt31-r2-5-NAS100-${GITHUB_SHA}/research.json" \
+            "artifacts/markets/qore-vt31-r2-5-SP500-${GITHUB_SHA}/research.json" \
+            "artifacts/markets/qore-vt31-r2-5-US30-${GITHUB_SHA}/research.json" \
+            > artifacts/adjudication/vt31-r2-5-adjudication.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/adjudication/git-sha.txt
+          sha256sum artifacts/adjudication/vt31-r2-5-adjudication.json \
+            > artifacts/adjudication/SHA256SUMS
+      - name: Enforce research-only governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/adjudication/vt31-r2-5-adjudication.json").read_text())
+          assert report["same_configuration_across_markets"] is True
+          assert report["hypothesis_count"] == 9
+          assert report["candidate_frozen"] is False
+          assert report["demo_eligible"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r2-5-adjudication-${{ github.sha }}
+          path: artifacts/adjudication
+          if-no-files-found: error
+          retention-days: 90
