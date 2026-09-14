@@ -589,7 +589,7 @@ def replay(evidence_paths: dict[str, Path]) -> dict[str, object]:
         for setup in selected
         if (trade := _simulate(setup, day_maps[setup.market])) is not None
     )
-    ordered = tuple(sorted(trades, key=lambda item: (cast(str, item["signal_at"]), cast(str, item["market"]))))
+    ordered = tuple(\n        sorted(\n            trades,\n            key=lambda item: (\n                cast(str, item["signal_at"]), cast(str, item["market"])\n            ),\n        )\n    )
     friction = Decimal("0.05")
     market_stress = {
         market: _metrics(
