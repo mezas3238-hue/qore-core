@@ -24,15 +24,14 @@ from typing import cast
 from qore.infrastructure.market_data import Instrument, OhlcSnapshot
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     MARKETS,
-    NY,
     SOURCE_MARKET,
     Vt31R25ResearchError,
     Vt31R25Variant,
-    _Setup,
     _day,
     _entry,
     _metrics,
     _quartiles,
+    _Setup,
     _simulate,
     _wall,
     load_market_evidence,
