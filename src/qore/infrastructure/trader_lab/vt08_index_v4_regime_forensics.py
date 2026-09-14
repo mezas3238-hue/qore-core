@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -25,7 +25,11 @@ from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
 from qore.infrastructure.trader_lab.vt08_index_v2_candidate import _load_candidate_market
 from qore.infrastructure.trader_lab.vt08_index_v3_geometry_candidate import (
     CANDIDATE_ID as V3_CANDIDATE_ID,
+)
+from qore.infrastructure.trader_lab.vt08_index_v3_geometry_candidate import (
     RULE_FINGERPRINT as V3_RULE_FINGERPRINT,
+)
+from qore.infrastructure.trader_lab.vt08_index_v3_geometry_candidate import (
     STRESS_COST_R,
     _geometry,
     build_v3_candidate_report,
@@ -248,8 +252,8 @@ def _replay(
 def _condition_report(
     rows: list[dict[str, object]],
     *,
-    predicate: Any,
-) -> dict[str, object]:
+    predicate: Callable[[dict[str, object]], bool],
+) -> dict[str, Any]:
     retained = [row for row in rows if predicate(row)]
     markets = {
         market: _metrics([row for row in retained if row["symbol"] == market])
@@ -317,7 +321,7 @@ def build_report(
         "2023_24": rows_23,
         "2024_26": rows_24,
     }
-    conditions = {
+    conditions: dict[str, Callable[[dict[str, object]], bool]] = {
         "protected_swing_count_eq_2": (
             lambda row: row["protected_swing_count"] == 2
         ),
