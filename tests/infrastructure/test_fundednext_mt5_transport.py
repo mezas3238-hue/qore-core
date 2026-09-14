@@ -27,6 +27,7 @@ class _Terminal:
 @dataclass
 class _Account:
     login: int = 123456
+    server: str = "FundedNext-Server"
     balance: float = 2000.0
     equity: float = 1995.0
     margin: float = 20.0
@@ -166,6 +167,7 @@ def _transport(api: _Api) -> MetaTrader5FundedNextTransport:
         api=api,
         qore_account_ref="fn-si-opaque-001",
         expected_login=123456,
+        expected_server="FundedNext-Server",
     )
 
 
@@ -201,12 +203,19 @@ def test_account_and_symbol_are_read_from_bound_terminal() -> None:
     assert spec.margin_per_volume == Decimal("50.0")
 
 
-def test_wrong_terminal_login_fails_closed_before_broker_mutation() -> None:
+def test_wrong_terminal_identity_fails_closed_before_broker_mutation() -> None:
     api = _Api()
     api.account.login = 999999
     transport = _transport(api)
     assert transport.account_state("fn-si-opaque-001") is None
     with pytest.raises(Mt5ExecutionBlockedError, match="login-mismatch"):
+        transport.submit_order(_plan())
+    assert api.last_request is None
+
+    api.account.login = 123456
+    api.account.server = "Other-Server"
+    assert transport.account_state("fn-si-opaque-001") is None
+    with pytest.raises(Mt5ExecutionBlockedError, match="server-mismatch"):
         transport.submit_order(_plan())
     assert api.last_request is None
 
