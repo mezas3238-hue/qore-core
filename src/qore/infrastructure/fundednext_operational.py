@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from re import sub
 from threading import RLock
-from typing import Protocol, cast
+from typing import Protocol
 
 from qore.infrastructure.account_wide_risk import RiskAuthorization
 from qore.infrastructure.execution_boundary import ExecutionSubmission
@@ -199,7 +199,7 @@ class FundedNextAccountBoundMt5Gateway(FundedNextMt5ExecutionGateway):
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> Mt5SymbolSpecification:
         _aware(now, "now")
-        transport = cast(AccountBoundMt5Transport, self._account_bound_transport)
+        transport = self._account_bound_transport
         if not transport.connected():
             raise Mt5ExecutionBlockedError("mt5-disconnected")
         provider_symbol = resolve_account_provider_symbol(
