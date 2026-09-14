@@ -10,7 +10,10 @@ from qore.infrastructure.account_wide_risk import (
     RiskDecision,
     TraderLineage,
 )
-from qore.infrastructure.execution_boundary import ExecutionCancellation
+from qore.infrastructure.execution_boundary import (
+    ExecutionCancellation,
+    ExecutionSubmission,
+)
 from qore.infrastructure.fundednext_execution_bridge import (
     build_fundednext_execution_submission,
 )
@@ -226,7 +229,7 @@ def _submission(
     stop: str = "99",
     qore_symbol: str = "GBPUSD",
     provider_symbol: str = "GBPUSD",
-):
+) -> ExecutionSubmission:
     authorization = _risk_authorization(
         fingerprint,
         volume=volume,
