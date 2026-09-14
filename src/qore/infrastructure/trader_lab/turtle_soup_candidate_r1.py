@@ -6,9 +6,14 @@ to this research candidate.
 
 The executable source contracts implemented here are the adjudicated rules from
 Connors/Raschke ``Street Smarts``. The detector is causal: when lower-timeframe
-OHLC cannot establish the order of breakout and recovery inside one path bar, it
-returns ``AMBIGUOUS`` rather than inventing an intrabar path. No profit target is
-fabricated because the source management rules do not define one mechanically.
+OHLC cannot establish event order, it returns ``AMBIGUOUS`` rather than
+inventing an intrabar path. No profit target is fabricated because the source
+management rules do not define one mechanically.
+
+The book explicitly authorizes intraday Turtle Soup and gives one-tick entry
+semantics, but its printed 3/4 ``trading sessions`` age language has not yet been
+adjudicated into an exact intraday bar-age rule. R1 therefore automates D1 source
+bars only and fails closed on non-D1 source bars until that research gap closes.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ from hashlib import sha256
 from qore.infrastructure.market_observation import (
     MarketOhlcField,
     MarketOhlcFieldValidity,
+    MarketTimeframeCode,
     QualifiedOhlcBarObservation,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
@@ -59,6 +65,7 @@ class TurtleSoupR1Decision(StrEnum):
 
 class TurtleSoupR1Reason(StrEnum):
     INVALID_EVIDENCE = "invalid-evidence"
+    INTRADAY_AGE_UNRESOLVED = "intraday-age-unresolved"
     REFERENCE_TIE = "reference-tie"
     REFERENCE_TOO_RECENT = "reference-too-recent"
     NO_BREAKOUT = "no-breakout"
@@ -76,7 +83,7 @@ class TurtleSoupR1ManagementFamily(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class TurtleSoupR1Config:
-    """Frozen source axes plus the explicit unresolved Classic tick choice."""
+    """Frozen source axes plus the explicit Classic daily tick choice."""
 
     tick_size: Decimal
     classic_entry_offset_ticks: int = 5
@@ -108,10 +115,12 @@ class TurtleSoupR1Config:
 
     def fingerprint(self) -> str:
         payload = {
-            "schema": "qore.trader_lab.turtle_soup_candidate_r1.config.v1",
+            "schema": "qore.trader_lab.turtle_soup_candidate_r1.config.v2",
             "research_identity": RESEARCH_IDENTITY,
             "source": SOURCE_TITLE,
             "authors": SOURCE_AUTHORS,
+            "automated_source_timeframe": "D1",
+            "intraday_status": "source-authorized-age-semantics-unresolved",
             "tick_size": format(self.tick_size.normalize(), "f"),
             "classic_entry_offset_ticks": self.classic_entry_offset_ticks,
             "lookback": self.lookback,
@@ -183,7 +192,7 @@ class TurtleSoupR1Setup:
         elif self.side is DemoTradingSetupSide.SHORT:
             if not self.initial_stop_price > self.executable_entry_price:
                 raise TurtleSoupR1ValidationError("SHORT stop must be above entry")
-        else:  # pragma: no cover - enum exhaustiveness guard
+        else:  # pragma: no cover
             raise TurtleSoupR1ValidationError("unsupported setup side")
         if len(self.config_fingerprint) != 64:
             raise TurtleSoupR1ValidationError("config_fingerprint must be SHA-256")
@@ -276,6 +285,8 @@ def _validate_path(
         raise TurtleSoupR1ValidationError(
             "execution path must share instrument/source/price side"
         )
+    if first.opened_at < anchor.closed_at:
+        raise TurtleSoupR1ValidationError("execution path begins before source anchor closes")
     path_seconds = first.timeframe.fixed_seconds
     anchor_seconds = anchor.timeframe.fixed_seconds
     if path_seconds is None:
@@ -318,6 +329,12 @@ def _reference(
     return reference, age
 
 
+def _source_timeframe_is_automated(
+    history: tuple[QualifiedOhlcBarObservation, ...],
+) -> bool:
+    return history[-1].timeframe.code is MarketTimeframeCode.D1
+
+
 def _abstain(reason: TurtleSoupR1Reason) -> TurtleSoupR1Evaluation:
     return TurtleSoupR1Evaluation(TurtleSoupR1Decision.ABSTAIN, reason, None)
 
@@ -333,7 +350,7 @@ def evaluate_classic(
     side: DemoTradingSetupSide,
     config: TurtleSoupR1Config,
 ) -> TurtleSoupR1Evaluation:
-    """Evaluate one source-faithful Classic Turtle Soup session causally."""
+    """Evaluate one source-faithful Classic Turtle Soup daily setup causally."""
 
     if type(side) is not DemoTradingSetupSide or type(config) is not TurtleSoupR1Config:
         return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
@@ -342,6 +359,8 @@ def evaluate_classic(
         _validate_path(history[-1], current_session_path)
     except TurtleSoupR1ValidationError:
         return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
+    if not _source_timeframe_is_automated(history):
+        return _abstain(TurtleSoupR1Reason.INTRADAY_AGE_UNRESOLVED)
     reference = _reference(history, side=side, lookback=config.lookback)
     if reference is None:
         return _ambiguous(TurtleSoupR1Reason.REFERENCE_TIE)
@@ -371,30 +390,46 @@ def evaluate_classic(
                 running_extreme = low
                 continue
             if swept:
-                if running_extreme is None:  # pragma: no cover - guarded by state
+                if running_extreme is None:  # pragma: no cover
                     raise TurtleSoupR1ValidationError("lost LONG running extreme")
-                if high >= entry_trigger:
-                    executable_entry = max(open_price, entry_trigger)
+                if open_price >= entry_trigger:
                     stop = running_extreme - config.tick_size
-                    if stop <= 0 or stop >= executable_entry:
-                        return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
                     return TurtleSoupR1Evaluation(
                         TurtleSoupR1Decision.SETUP,
                         None,
                         TurtleSoupR1Setup(
-                            variant=TurtleSoupR1Variant.CLASSIC,
-                            side=side,
-                            reference_price=reference_price,
-                            reference_age=reference_age,
-                            entry_trigger_price=entry_trigger,
-                            executable_entry_price=executable_entry,
-                            initial_stop_price=stop,
-                            signal_opened_at=current_session_path[0].opened_at,
-                            fill_at=bar.opened_at,
-                            management_family=(
-                                TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED
-                            ),
-                            config_fingerprint=config.fingerprint(),
+                            TurtleSoupR1Variant.CLASSIC,
+                            side,
+                            reference_price,
+                            reference_age,
+                            entry_trigger,
+                            open_price,
+                            stop,
+                            current_session_path[0].opened_at,
+                            bar.opened_at,
+                            TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED,
+                            config.fingerprint(),
+                        ),
+                    )
+                if high >= entry_trigger:
+                    if low < running_extreme:
+                        return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
+                    stop = running_extreme - config.tick_size
+                    return TurtleSoupR1Evaluation(
+                        TurtleSoupR1Decision.SETUP,
+                        None,
+                        TurtleSoupR1Setup(
+                            TurtleSoupR1Variant.CLASSIC,
+                            side,
+                            reference_price,
+                            reference_age,
+                            entry_trigger,
+                            entry_trigger,
+                            stop,
+                            current_session_path[0].opened_at,
+                            bar.opened_at,
+                            TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED,
+                            config.fingerprint(),
                         ),
                     )
                 running_extreme = min(running_extreme, low)
@@ -407,30 +442,46 @@ def evaluate_classic(
                 running_extreme = high
                 continue
             if swept:
-                if running_extreme is None:  # pragma: no cover - guarded by state
+                if running_extreme is None:  # pragma: no cover
                     raise TurtleSoupR1ValidationError("lost SHORT running extreme")
-                if low <= entry_trigger:
-                    executable_entry = min(open_price, entry_trigger)
+                if open_price <= entry_trigger:
                     stop = running_extreme + config.tick_size
-                    if stop <= executable_entry:
-                        return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
                     return TurtleSoupR1Evaluation(
                         TurtleSoupR1Decision.SETUP,
                         None,
                         TurtleSoupR1Setup(
-                            variant=TurtleSoupR1Variant.CLASSIC,
-                            side=side,
-                            reference_price=reference_price,
-                            reference_age=reference_age,
-                            entry_trigger_price=entry_trigger,
-                            executable_entry_price=executable_entry,
-                            initial_stop_price=stop,
-                            signal_opened_at=current_session_path[0].opened_at,
-                            fill_at=bar.opened_at,
-                            management_family=(
-                                TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED
-                            ),
-                            config_fingerprint=config.fingerprint(),
+                            TurtleSoupR1Variant.CLASSIC,
+                            side,
+                            reference_price,
+                            reference_age,
+                            entry_trigger,
+                            open_price,
+                            stop,
+                            current_session_path[0].opened_at,
+                            bar.opened_at,
+                            TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED,
+                            config.fingerprint(),
+                        ),
+                    )
+                if low <= entry_trigger:
+                    if high > running_extreme:
+                        return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
+                    stop = running_extreme + config.tick_size
+                    return TurtleSoupR1Evaluation(
+                        TurtleSoupR1Decision.SETUP,
+                        None,
+                        TurtleSoupR1Setup(
+                            TurtleSoupR1Variant.CLASSIC,
+                            side,
+                            reference_price,
+                            reference_age,
+                            entry_trigger,
+                            entry_trigger,
+                            stop,
+                            current_session_path[0].opened_at,
+                            bar.opened_at,
+                            TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED,
+                            config.fingerprint(),
                         ),
                     )
                 running_extreme = max(running_extreme, high)
@@ -447,7 +498,7 @@ def evaluate_plus_one(
     side: DemoTradingSetupSide,
     config: TurtleSoupR1Config,
 ) -> TurtleSoupR1Evaluation:
-    """Evaluate source-faithful Turtle Soup Plus One without future-bar leakage."""
+    """Evaluate source-faithful daily Plus One without future-bar leakage."""
 
     if type(side) is not DemoTradingSetupSide or type(config) is not TurtleSoupR1Config:
         return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
@@ -461,12 +512,10 @@ def evaluate_plus_one(
         ):
             raise TurtleSoupR1ValidationError("breakout bar is not after history")
         _validate_path(breakout_bar, next_bar_path)
-        if next_bar_path[0].opened_at < breakout_bar.closed_at:
-            raise TurtleSoupR1ValidationError(
-                "Plus One path must begin after breakout bar closes"
-            )
     except TurtleSoupR1ValidationError:
         return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
+    if not _source_timeframe_is_automated(history):
+        return _abstain(TurtleSoupR1Reason.INTRADAY_AGE_UNRESOLVED)
 
     reference = _reference(history, side=side, lookback=config.lookback)
     if reference is None:
@@ -484,30 +533,44 @@ def evaluate_plus_one(
         running_extreme = breakout_low
         for bar in next_bar_path:
             open_price, high, low, _ = _ohlc(bar)
-            if high >= reference_price:
-                if low < running_extreme:
-                    return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
-                executable_entry = max(open_price, reference_price)
+            if open_price >= reference_price:
                 stop = running_extreme - config.tick_size
-                if stop <= 0 or stop >= executable_entry:
-                    return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
                 return TurtleSoupR1Evaluation(
                     TurtleSoupR1Decision.SETUP,
                     None,
                     TurtleSoupR1Setup(
-                        variant=TurtleSoupR1Variant.PLUS_ONE,
-                        side=side,
-                        reference_price=reference_price,
-                        reference_age=reference_age,
-                        entry_trigger_price=reference_price,
-                        executable_entry_price=executable_entry,
-                        initial_stop_price=stop,
-                        signal_opened_at=breakout_bar.opened_at,
-                        fill_at=bar.opened_at,
-                        management_family=(
-                            TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED
-                        ),
-                        config_fingerprint=config.fingerprint(),
+                        TurtleSoupR1Variant.PLUS_ONE,
+                        side,
+                        reference_price,
+                        reference_age,
+                        reference_price,
+                        open_price,
+                        stop,
+                        breakout_bar.opened_at,
+                        bar.opened_at,
+                        TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED,
+                        config.fingerprint(),
+                    ),
+                )
+            if high >= reference_price:
+                if low < running_extreme:
+                    return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
+                stop = running_extreme - config.tick_size
+                return TurtleSoupR1Evaluation(
+                    TurtleSoupR1Decision.SETUP,
+                    None,
+                    TurtleSoupR1Setup(
+                        TurtleSoupR1Variant.PLUS_ONE,
+                        side,
+                        reference_price,
+                        reference_age,
+                        reference_price,
+                        reference_price,
+                        stop,
+                        breakout_bar.opened_at,
+                        bar.opened_at,
+                        TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED,
+                        config.fingerprint(),
                     ),
                 )
             running_extreme = min(running_extreme, low)
@@ -519,30 +582,44 @@ def evaluate_plus_one(
         running_extreme = breakout_high
         for bar in next_bar_path:
             open_price, high, low, _ = _ohlc(bar)
-            if low <= reference_price:
-                if high > running_extreme:
-                    return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
-                executable_entry = min(open_price, reference_price)
+            if open_price <= reference_price:
                 stop = running_extreme + config.tick_size
-                if stop <= executable_entry:
-                    return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
                 return TurtleSoupR1Evaluation(
                     TurtleSoupR1Decision.SETUP,
                     None,
                     TurtleSoupR1Setup(
-                        variant=TurtleSoupR1Variant.PLUS_ONE,
-                        side=side,
-                        reference_price=reference_price,
-                        reference_age=reference_age,
-                        entry_trigger_price=reference_price,
-                        executable_entry_price=executable_entry,
-                        initial_stop_price=stop,
-                        signal_opened_at=breakout_bar.opened_at,
-                        fill_at=bar.opened_at,
-                        management_family=(
-                            TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED
-                        ),
-                        config_fingerprint=config.fingerprint(),
+                        TurtleSoupR1Variant.PLUS_ONE,
+                        side,
+                        reference_price,
+                        reference_age,
+                        reference_price,
+                        open_price,
+                        stop,
+                        breakout_bar.opened_at,
+                        bar.opened_at,
+                        TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED,
+                        config.fingerprint(),
+                    ),
+                )
+            if low <= reference_price:
+                if high > running_extreme:
+                    return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
+                stop = running_extreme + config.tick_size
+                return TurtleSoupR1Evaluation(
+                    TurtleSoupR1Decision.SETUP,
+                    None,
+                    TurtleSoupR1Setup(
+                        TurtleSoupR1Variant.PLUS_ONE,
+                        side,
+                        reference_price,
+                        reference_age,
+                        reference_price,
+                        reference_price,
+                        stop,
+                        breakout_bar.opened_at,
+                        bar.opened_at,
+                        TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED,
+                        config.fingerprint(),
                     ),
                 )
             running_extreme = max(running_extreme, high)
