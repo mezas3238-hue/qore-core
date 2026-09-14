@@ -690,3 +690,102 @@ def replay(evidence_paths: dict[str, Path]) -> dict[str, object]:
         "production_authorized": False,
         "abstention_policy": dict(Counter({"deterministic": 1})),
     }
+
+def causal_equivalence(evidence_paths: dict[str, Path]) -> dict[str, bool]:
+    """Compare full replay with decision-time-truncated signal and exit replays."""
+    full = replay(evidence_paths)
+    loaded = {
+        market: load_evidence(evidence_paths[market], market)
+        for market in MARKETS
+    }
+    provisional: list[Setup] = []
+    truncated: list[Setup] = []
+    day_maps: dict[str, dict[date, tuple[Bar, ...]]] = {}
+    for market, item in loaded.items():
+        by_calendar: dict[date, list[Bar]] = defaultdict(list)
+        by_source: dict[date, list[Bar]] = defaultdict(list)
+        for bar in item.bars:
+            local = bar.opened_at.astimezone(NY)
+            by_calendar[local.date()].append(bar)
+            by_source[_source_label(local)].append(bar)
+        complete = sorted(
+            key for key, values in by_source.items() if len(values) >= 1000
+        )
+        previous = {
+            complete[index]: complete[index - 1]
+            for index in range(1, len(complete))
+        }
+        days = {key: tuple(values) for key, values in by_calendar.items()}
+        day_maps[market] = days
+        for local_day in sorted(days):
+            prior_day = previous.get(local_day)
+            if prior_day is None:
+                continue
+            prior = tuple(by_source[prior_day])
+            setup = _detect_setup(market, local_day, days[local_day], prior)
+            if setup is None:
+                continue
+            provisional.append(setup)
+            visible = tuple(
+                bar
+                for bar in days[local_day]
+                if bar.closed_at <= setup.signal_at
+            )
+            decision_setup = _detect_setup(
+                market, local_day, visible, prior
+            )
+            if decision_setup is not None:
+                truncated.append(decision_setup)
+    selected_full = select_simultaneous(tuple(provisional))
+    selected_truncated = select_simultaneous(tuple(truncated))
+    adjudication_equal = selected_full == selected_truncated
+    setup_by_identity = {
+        (setup.market, setup.signal_at.isoformat()): setup
+        for setup in selected_full
+    }
+    trades_equal = True
+    for trade in cast(tuple[dict[str, object], ...], full["trades"]):
+        identity = (
+            cast(str, trade["market"]),
+            cast(str, trade["signal_at"]),
+        )
+        setup = setup_by_identity.get(identity)
+        if setup is None:
+            trades_equal = False
+            break
+        exit_at = _ts(trade["exit_at"], "exit_at")
+        visible = tuple(
+            bar
+            for bar in day_maps[setup.market][setup.local_date]
+            if bar.closed_at <= exit_at
+        )
+        if _simulate(setup, visible) != trade:
+            trades_equal = False
+            break
+    gap_exit_semantics_equal = True
+    for setup in selected_full:
+        day_bars = day_maps[setup.market][setup.local_date]
+        if _simulate(setup, day_bars) is not None:
+            continue
+        active = tuple(
+            bar
+            for bar in day_bars
+            if bar.opened_at >= setup.signal_at
+            and (
+                bar.opened_at.astimezone(NY).hour * 60
+                + bar.opened_at.astimezone(NY).minute
+            )
+            < 960
+        )
+        if not any(
+            current.opened_at != previous.closed_at
+            for previous, current in zip(active, active[1:], strict=False)
+        ):
+            gap_exit_semantics_equal = False
+            break
+    return {
+        "trades_equal": trades_equal,
+        "adjudication_equal": adjudication_equal,
+        "gap_exit_semantics_equal": gap_exit_semantics_equal,
+        "no_future_leakage": trades_equal and adjudication_equal,
+    }
