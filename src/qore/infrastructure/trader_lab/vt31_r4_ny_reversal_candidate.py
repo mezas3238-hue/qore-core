@@ -587,7 +587,12 @@ def replay(evidence_paths: dict[str, Path]) -> dict[str, object]:
     trades = tuple(
         trade
         for setup in selected
-        if (\n            trade := _simulate(\n                setup, day_maps[setup.market][setup.local_date]\n            )\n        )\n        is not None
+        if (
+            trade := _simulate(
+                setup, day_maps[setup.market][setup.local_date]
+            )
+        )
+        is not None
     )
     ordered = tuple(
         sorted(
@@ -632,7 +637,8 @@ def replay(evidence_paths: dict[str, Path]) -> dict[str, object]:
     gates = {
         "aggregate_sample_at_least_150": cast(int, aggregate["sample"]) >= 150,
         "each_market_sample_at_least_30": all(
-            cast(int, value["sample"]) >= 30\n            for value in market_stress.values()
+            cast(int, value["sample"]) >= 30
+            for value in market_stress.values()
         ),
         "aggregate_stressed_mean_positive": Decimal(cast(str, stress["mean_r"])) > 0,
         "aggregate_stressed_pf_at_least_1_10": (
@@ -647,7 +653,8 @@ def replay(evidence_paths: dict[str, Path]) -> dict[str, object]:
             for value in market_stress.values()
         ),
         "both_sides_stressed_mean_positive": all(
-            cast(int, value["sample"]) > 0\n            and Decimal(cast(str, value["mean_r"])) > 0
+            cast(int, value["sample"]) > 0
+            and Decimal(cast(str, value["mean_r"])) > 0
             for value in side_stress.values()
         ),
         "three_of_four_quartiles_positive": sum(
