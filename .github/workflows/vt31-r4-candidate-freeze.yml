@@ -68,6 +68,7 @@ jobs:
               "SP500": Path("evidence/SP500/market-evidence.json"),
               "US30": Path("evidence/US30/market-evidence.json"),
           })
+          print(json.dumps({"causal_equivalence": causal}, sort_keys=True))
           assert all(causal.values())
           aggregate = result["aggregate"]
           stress = result["stress_0_05r"]
