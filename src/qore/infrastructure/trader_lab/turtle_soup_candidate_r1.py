@@ -1,31 +1,21 @@
 """Source-faithful research contracts for the new Turtle Soup candidate.
 
 This module deliberately lives in Trader Lab rather than the canonical Trader
-catalog.  ``VT-09`` is obsolete and grants no identity or methodology authority
+catalog. ``VT-09`` is obsolete and grants no identity or methodology authority
 to this research candidate.
 
 The executable source contracts implemented here are the adjudicated rules from
-Connors/Raschke ``Street Smarts``:
-
-* Classic Turtle Soup: 20-bar reference, previous extreme at least four bars /
-  sessions earlier, same-session reversal stop entry after a strict breakout,
-  one-tick protective stop beyond the observed session extreme, and source-
-  authorized trailing-stop management whose exact algorithm remains unresolved.
-* Turtle Soup Plus One: 20-bar reference, previous extreme at least three bars /
-  sessions earlier, breakout bar closes at/beyond the reference, next-bar stop
-  entry at the earlier reference, cancellation after that next bar, and a
-  one-tick stop beyond the observed two-bar extreme.  Partial-profit/trailing
-  details remain source-discretionary and are not fabricated here.
-
-The detector is causal.  When lower-timeframe OHLC cannot establish the order of
-breakout and recovery inside one path bar, it returns ``AMBIGUOUS`` rather than
-inventing an intrabar path.  No profit target is fabricated.
+Connors/Raschke ``Street Smarts``. The detector is causal: when lower-timeframe
+OHLC cannot establish the order of breakout and recovery inside one path bar, it
+returns ``AMBIGUOUS`` rather than inventing an intrabar path. No profit target is
+fabricated because the source management rules do not define one mechanically.
 """
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 from hashlib import sha256
@@ -68,7 +58,6 @@ class TurtleSoupR1Decision(StrEnum):
 
 
 class TurtleSoupR1Reason(StrEnum):
-    INSUFFICIENT_HISTORY = "insufficient-history"
     INVALID_EVIDENCE = "invalid-evidence"
     REFERENCE_TIE = "reference-tie"
     REFERENCE_TOO_RECENT = "reference-too-recent"
@@ -87,12 +76,7 @@ class TurtleSoupR1ManagementFamily(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class TurtleSoupR1Config:
-    """Frozen source axes plus the explicit unresolved Classic tick choice.
-
-    ``classic_entry_offset_ticks`` is intentionally explicit because the source
-    allows a 5--10 tick band for the Classic entry.  It is not silently optimized
-    or attributed to a single canonical number.
-    """
+    """Frozen source axes plus the explicit unresolved Classic tick choice."""
 
     tick_size: Decimal
     classic_entry_offset_ticks: int = 5
@@ -137,19 +121,17 @@ class TurtleSoupR1Config:
                 TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED.value
             ),
             "plus_one_management": (
-                TurtleSoupR1ManagementFamily.
-                PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED.value
+                TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED.value
             ),
         }
-        return sha256(
-            json.dumps(
-                payload,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=True,
-                allow_nan=False,
-            ).encode("utf-8")
-        ).hexdigest()
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+        return sha256(encoded).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,8 +143,8 @@ class TurtleSoupR1Setup:
     entry_trigger_price: Decimal
     executable_entry_price: Decimal
     initial_stop_price: Decimal
-    signal_opened_at: object
-    fill_at: object
+    signal_opened_at: datetime
+    fill_at: datetime
     management_family: TurtleSoupR1ManagementFamily
     config_fingerprint: str
 
@@ -177,14 +159,24 @@ class TurtleSoupR1Setup:
                 raise TurtleSoupR1ValidationError(
                     f"{field_name} must be a positive finite Decimal"
                 )
-        if self.reference_age < 1:
-            raise TurtleSoupR1ValidationError("reference_age must be positive")
+        if type(self.reference_age) is not int or self.reference_age < 1:
+            raise TurtleSoupR1ValidationError("reference_age must be a positive int")
+        for field_name, value in (
+            ("signal_opened_at", self.signal_opened_at),
+            ("fill_at", self.fill_at),
+        ):
+            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
+                raise TurtleSoupR1ValidationError(f"{field_name} must be timezone-aware")
         if self.side is DemoTradingSetupSide.LONG:
             if not self.initial_stop_price < self.executable_entry_price:
                 raise TurtleSoupR1ValidationError("LONG stop must be below entry")
-        else:
+        elif self.side is DemoTradingSetupSide.SHORT:
             if not self.initial_stop_price > self.executable_entry_price:
                 raise TurtleSoupR1ValidationError("SHORT stop must be above entry")
+        else:  # pragma: no cover - enum exhaustiveness guard
+            raise TurtleSoupR1ValidationError("unsupported setup side")
+        if len(self.config_fingerprint) != 64:
+            raise TurtleSoupR1ValidationError("config_fingerprint must be SHA-256")
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,7 +207,9 @@ def _decimal(field: MarketOhlcField, *, field_name: str) -> Decimal:
     return field.price.value
 
 
-def _ohlc(bar: QualifiedOhlcBarObservation) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+def _ohlc(
+    bar: QualifiedOhlcBarObservation,
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     if type(bar) is not QualifiedOhlcBarObservation:
         raise TurtleSoupR1ValidationError(
             "bar evidence must be QualifiedOhlcBarObservation"
@@ -255,29 +249,30 @@ def _validate_history(
                 "history must share instrument/source/side/timeframe"
             )
         if previous is not None and bar.opened_at < previous.closed_at:
-            raise TurtleSoupR1ValidationError("history must be chronological and non-overlapping")
+            raise TurtleSoupR1ValidationError(
+                "history must be chronological and non-overlapping"
+            )
         previous = bar
 
 
 def _validate_path(
-    history: tuple[QualifiedOhlcBarObservation, ...],
+    anchor: QualifiedOhlcBarObservation,
     path: tuple[QualifiedOhlcBarObservation, ...],
 ) -> None:
     if type(path) is not tuple or not path:
         raise TurtleSoupR1ValidationError("execution path must be a non-empty tuple")
-    anchor = history[-1]
     first = path[0]
     if not _same_stream(anchor, first):
         raise TurtleSoupR1ValidationError(
-            "execution path must share history instrument/source/price side"
+            "execution path must share instrument/source/price side"
         )
     path_seconds = first.timeframe.fixed_seconds
-    history_seconds = anchor.timeframe.fixed_seconds
+    anchor_seconds = anchor.timeframe.fixed_seconds
     if path_seconds is None:
         raise TurtleSoupR1ValidationError("execution path must use a fixed timeframe")
-    if history_seconds is not None and path_seconds >= history_seconds:
+    if anchor_seconds is not None and path_seconds >= anchor_seconds:
         raise TurtleSoupR1ValidationError(
-            "execution path timeframe must be lower than history timeframe"
+            "execution path timeframe must be lower than source timeframe"
         )
     previous: QualifiedOhlcBarObservation | None = None
     for bar in path:
@@ -308,8 +303,7 @@ def _reference(
     matches = tuple(index for index, price in enumerate(prices) if price == reference)
     if len(matches) != 1:
         return None
-    window_index = matches[0]
-    absolute_index = len(history) - lookback + window_index
+    absolute_index = len(history) - lookback + matches[0]
     age = len(history) - absolute_index
     return reference, age
 
@@ -335,7 +329,7 @@ def evaluate_classic(
         return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
     try:
         _validate_history(history, lookback=config.lookback)
-        _validate_path(history, current_session_path)
+        _validate_path(history[-1], current_session_path)
     except TurtleSoupR1ValidationError:
         return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
     reference = _reference(history, side=side, lookback=config.lookback)
@@ -360,15 +354,14 @@ def evaluate_classic(
         open_price, high, low, _ = _ohlc(bar)
         if side is DemoTradingSetupSide.LONG:
             is_sweep = low < reference_price
-            same_bar_recovery = is_sweep and high >= entry_trigger
-            if not swept and same_bar_recovery:
+            if not swept and is_sweep and high >= entry_trigger:
                 return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
             if not swept and is_sweep:
                 swept = True
                 running_extreme = low
                 continue
             if swept:
-                if running_extreme is None:
+                if running_extreme is None:  # pragma: no cover - guarded by state
                     raise TurtleSoupR1ValidationError("lost LONG running extreme")
                 if high >= entry_trigger:
                     executable_entry = max(open_price, entry_trigger)
@@ -389,8 +382,7 @@ def evaluate_classic(
                             signal_opened_at=current_session_path[0].opened_at,
                             fill_at=bar.opened_at,
                             management_family=(
-                                TurtleSoupR1ManagementFamily.
-                                CLASSIC_TRAILING_STOP_UNRESOLVED
+                                TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED
                             ),
                             config_fingerprint=config.fingerprint(),
                         ),
@@ -398,15 +390,14 @@ def evaluate_classic(
                 running_extreme = min(running_extreme, low)
         else:
             is_sweep = high > reference_price
-            same_bar_recovery = is_sweep and low <= entry_trigger
-            if not swept and same_bar_recovery:
+            if not swept and is_sweep and low <= entry_trigger:
                 return _ambiguous(TurtleSoupR1Reason.INTRABAR_PATH_AMBIGUOUS)
             if not swept and is_sweep:
                 swept = True
                 running_extreme = high
                 continue
             if swept:
-                if running_extreme is None:
+                if running_extreme is None:  # pragma: no cover - guarded by state
                     raise TurtleSoupR1ValidationError("lost SHORT running extreme")
                 if low <= entry_trigger:
                     executable_entry = min(open_price, entry_trigger)
@@ -427,8 +418,7 @@ def evaluate_classic(
                             signal_opened_at=current_session_path[0].opened_at,
                             fill_at=bar.opened_at,
                             management_family=(
-                                TurtleSoupR1ManagementFamily.
-                                CLASSIC_TRAILING_STOP_UNRESOLVED
+                                TurtleSoupR1ManagementFamily.CLASSIC_TRAILING_STOP_UNRESOLVED
                             ),
                             config_fingerprint=config.fingerprint(),
                         ),
@@ -459,10 +449,12 @@ def evaluate_plus_one(
             or breakout_bar.timeframe != history[-1].timeframe
             or breakout_bar.opened_at < history[-1].closed_at
         ):
-            raise TurtleSoupR1ValidationError("breakout bar is not the next source bar")
-        _validate_path((*history, breakout_bar), next_bar_path)
+            raise TurtleSoupR1ValidationError("breakout bar is not after history")
+        _validate_path(breakout_bar, next_bar_path)
         if next_bar_path[0].opened_at < breakout_bar.closed_at:
-            raise TurtleSoupR1ValidationError("Plus One path must begin after breakout bar")
+            raise TurtleSoupR1ValidationError(
+                "Plus One path must begin after breakout bar closes"
+            )
     except TurtleSoupR1ValidationError:
         return _abstain(TurtleSoupR1Reason.INVALID_EVIDENCE)
 
@@ -503,8 +495,7 @@ def evaluate_plus_one(
                         signal_opened_at=breakout_bar.opened_at,
                         fill_at=bar.opened_at,
                         management_family=(
-                            TurtleSoupR1ManagementFamily.
-                            PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED
+                            TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED
                         ),
                         config_fingerprint=config.fingerprint(),
                     ),
@@ -539,8 +530,7 @@ def evaluate_plus_one(
                         signal_opened_at=breakout_bar.opened_at,
                         fill_at=bar.opened_at,
                         management_family=(
-                            TurtleSoupR1ManagementFamily.
-                            PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED
+                            TurtleSoupR1ManagementFamily.PLUS_ONE_PARTIAL_2_TO_6_BARS_PLUS_TRAIL_UNRESOLVED
                         ),
                         config_fingerprint=config.fingerprint(),
                     ),
