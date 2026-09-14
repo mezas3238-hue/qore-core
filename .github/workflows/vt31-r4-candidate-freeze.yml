@@ -60,7 +60,8 @@ jobs:
               "US30": Path("evidence/US30/market-evidence.json"),
           })
           aggregate = result["aggregate"]
-          stress = result["stress_0_05r"]\n          print(json.dumps({"diagnostic_aggregate": aggregate, "diagnostic_stress": stress}, sort_keys=True))
+          stress = result["stress_0_05r"]
+          print(json.dumps({"diagnostic_aggregate": aggregate, "diagnostic_stress": stress}, sort_keys=True))
           assert aggregate["sample"] == 166
           assert aggregate["total_r"] == "48.84442495260714069014990233"
           assert aggregate["profit_factor"] == "1.686283732815584770816343735"
