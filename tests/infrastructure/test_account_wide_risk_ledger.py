@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -70,7 +71,9 @@ def _request(signal: str) -> CiboRiskRequest:
     )
 
 
-def test_restart_restores_risk_and_blocks_until_fresh_reconciliation(tmp_path) -> None:
+def test_restart_restores_risk_and_blocks_until_fresh_reconciliation(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "account-wide-risk.json"
     first = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
     authorized = first.authorize(_request("same"), _snapshot(), now=_NOW)
@@ -90,7 +93,7 @@ def test_restart_restores_risk_and_blocks_until_fresh_reconciliation(tmp_path) -
     assert restarted.active_reserved_stop_risk() == Decimal("20.0")
 
 
-def test_stale_boot_snapshot_cannot_unlock_risk(tmp_path) -> None:
+def test_stale_boot_snapshot_cannot_unlock_risk(tmp_path: Path) -> None:
     path = tmp_path / "account-wide-risk.json"
     first = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
     first.authorize(_request("same"), _snapshot(), now=_NOW)
@@ -103,7 +106,7 @@ def test_stale_boot_snapshot_cannot_unlock_risk(tmp_path) -> None:
     assert restarted.recovery_required is True
 
 
-def test_full_fill_and_reconcile_are_durable(tmp_path) -> None:
+def test_full_fill_and_reconcile_are_durable(tmp_path: Path) -> None:
     path = tmp_path / "account-wide-risk.json"
     engine = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
     authorization = engine.authorize(_request("same"), _snapshot(), now=_NOW)
