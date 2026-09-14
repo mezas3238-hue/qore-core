@@ -8,6 +8,7 @@ from qore.infrastructure.trader_lab.vt31_r4_ny_reversal_candidate import (
     Bar,
     Setup,
     _new_protected_stop,
+    _simulate,
     contract_fingerprint,
     contract_payload,
     select_simultaneous,
@@ -92,3 +93,10 @@ def test_bar_rejects_impossible_ohlc() -> None:
         assert "OHLC" in str(error)
     else:
         raise AssertionError("invalid OHLC accepted")
+
+
+def test_gap_immediately_after_entry_is_censored() -> None:
+    setup = _setup("NAS100", "0.8")
+    first_visible_bar = _bar(61, "100", "100.5", "99.5", "100.25")
+
+    assert _simulate(setup, (first_visible_bar,)) is None
