@@ -80,13 +80,17 @@ jobs:
           assert payload["provider"]["daily_loss_limit"] is None
           assert payload["provider"]["maximum_loss_fraction"] == "0.06"
           assert payload["provider"]["max_risk_at_any_time_fraction"] == "0.03"
+          assert payload["provider"]["account_specific_risk_limit_reverification_required"] is True
           assert payload["provider"]["documentation_leverage_conflict"] is True
-          assert payload["provider"]["execution_leverage_source"] == "MT5_SYMBOL_INFO"
+          assert payload["provider"]["execution_leverage_source"] == (
+              "MT5_SYMBOL_INFO_AND_ORDER_CALC_MARGIN"
+          )
           assert payload["topology"]["risk_scope"] == "ACCOUNT_WIDE"
           assert payload["topology"]["traders"] == {
               "VT08_FOREX": ["AUDJPY", "GBPUSD", "GBPJPY"],
               "VT08_INDEX": ["NAS100", "SP500", "US30"],
           }
+          assert payload["topology"]["index_execution_enabled"] is False
           state = payload["certification_state"]
           assert state["vt08_forex_demo_approved"] is True
           assert state["vt08_index_demo_approved"] is False
@@ -100,6 +104,10 @@ jobs:
           assert governance["pr_may_be_merged"] is False
           assert governance["pr_may_be_marked_ready"] is False
           readiness = payload["technical_readiness"]
+          assert readiness["code_complete_for_account_binding"] is True
+          assert readiness["concrete_mt5_transport_implemented"] is True
+          assert readiness["durable_shared_risk_implemented"] is True
+          assert readiness["ready_for_owner_activation"] is False
           assert readiness["ready_to_operate_stellar_instant"] is False
           assert readiness["concrete_mt5_gateway_bound"] is False
           assert readiness["actual_account_bound"] is False
