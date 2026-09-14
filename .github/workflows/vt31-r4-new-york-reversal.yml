@@ -57,24 +57,26 @@ jobs:
                   key=minute_of_day//minutes*minutes
                   groups[key].append(bar)
               return [candle(groups[k]) for k in sorted(groups) if len(groups[k])==minutes]
-          def find_cisd(candles,side,level):
-              touch=None
+          def find_cisd(candles,allow_long,allow_short,pd_low,pd_high):
+              side=None
               for i,c in enumerate(candles):
-                  hit=c["low"]<level if side=="long" else c["high"]>level
-                  if hit and touch is None: touch=i
-                  opposite_hit=c["high"]>level if side=="long" else c["low"]<level
-                  if touch is not None and opposite_hit: return None,"both-prior-extremes-taken"
-                  if touch is None or i==0: continue
+                  low_hit=allow_long and c["low"]<pd_low
+                  high_hit=allow_short and c["high"]>pd_high
+                  if side is None and low_hit and high_hit: return None,"simultaneous-both-extremes"
+                  if side is None and (low_hit or high_hit): side="long" if low_hit else "short"
+                  if side is not None and ((side=="long" and c["high"]>pd_high) or (side=="short" and c["low"]<pd_low)): return None,"both-prior-extremes-taken"
+                  if side is None or i==0: continue
                   j=i-1
                   opposing=lambda x: x["close"]<x["open"] if side=="long" else x["close"]>x["open"]
                   if not opposing(candles[j]): continue
                   while j>0 and opposing(candles[j-1]): j-=1
                   series=candles[j:i]
+                  level=pd_low if side=="long" else pd_high
                   made_extreme=(min(x["low"] for x in series)<=level if side=="long" else max(x["high"] for x in series)>=level)
                   crossed=(c["close"]>series[0]["open"] if side=="long" else c["close"]<series[0]["open"])
                   if made_extreme and crossed:
                       stop=min(x["low"] for x in series) if side=="long" else max(x["high"] for x in series)
-                      return (c,stop), "confirmed"
+                      return (side,c,stop), "confirmed"
               return None,"no-cisd"
           def simulate(m1,confirmation,side,entry,stop,target):
               risk=abs(entry-stop)
@@ -108,17 +110,17 @@ jobs:
                   london=[b for local,b in daybars if 2<=local.hour<5]
                   if len(london)<150: continue
                   london_high=max(d(x["high"]) for x in london); london_low=min(d(x["low"]) for x in london)
-                  long_profile=london_low>pd_low; short_profile=london_high<pd_high
-                  if long_profile==short_profile:
-                      for tf in timeframes: reasons[str(tf)]["profile-ambiguous"]+=1
+                  allow_long=london_low>pd_low; allow_short=london_high<pd_high
+                  if not allow_long and not allow_short:
+                      for tf in timeframes: reasons[str(tf)]["london-reached-both-pois"]+=1
                       continue
-                  side="long" if long_profile else "short"; poi=pd_low if side=="long" else pd_high
-                  target=london_high if side=="long" else london_low
                   for tf in timeframes:
                       candles=aggregate(daybars,tf,8.5,10.5)
-                      found,status=find_cisd(candles,side,poi)
+                      found,status=find_cisd(candles,allow_long,allow_short,pd_low,pd_high)
                       if found is None: reasons[str(tf)][status]+=1; continue
-                      confirmation,stop=found; entry=confirmation["close"]
+                      side,confirmation,stop=found
+                      target=london_high if side=="long" else london_low
+                      entry=confirmation["close"]
                       value,exit_reason=simulate(daybars,confirmation,side,entry,stop,target)
                       if value is None: reasons[str(tf)][exit_reason]+=1; continue
                       reports[str(tf)].append({"market":market,"local_date":day,"side":side,"signal_at":confirmation["closed_at"],"r_multiple":format(value,"f"),"exit_reason":exit_reason})
