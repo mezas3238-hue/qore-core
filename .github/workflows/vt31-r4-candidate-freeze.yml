@@ -41,7 +41,7 @@ jobs:
           echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> sums
           sha256sum -c sums
           for market in NAS100 SP500 US30; do unzip -q "$market.zip" -d "evidence/$market"; done
-      - name: Reproduce consumed candidate and freeze
+      - name: Apply conservative gap containment and freeze
         run: |
           python - <<'PY'
           import json
@@ -62,13 +62,13 @@ jobs:
           aggregate = result["aggregate"]
           stress = result["stress_0_05r"]
           print(json.dumps({"diagnostic_aggregate": aggregate, "diagnostic_stress": stress}, sort_keys=True))
-          assert aggregate["sample"] == 166
-          assert aggregate["total_r"] == "48.84442495260714069014990233"
-          assert aggregate["profit_factor"] == "1.686283732815584770816343735"
-          assert aggregate["max_drawdown_r"] == "13.43164456210901167788646880"
-          assert stress["total_r"] == "40.54442495260714069014990235"
-          assert stress["profit_factor"] == "1.535073732294565506449208271"
-          assert stress["max_drawdown_r"] == "14.73164456210901167788646880"
+          assert aggregate["sample"] == 156
+          assert aggregate["total_r"] == "45.73353989969113876499432602"
+          assert aggregate["profit_factor"] == "1.698100829344289547092952576"
+          assert aggregate["max_drawdown_r"] == "13.74459593428041273710649769"
+          assert stress["total_r"] == "37.93353989969113876499432602"
+          assert stress["profit_factor"] == "1.543752214219749753733133495"
+          assert stress["max_drawdown_r"] == "14.99459593428041273710649769"
           assert result["passes_economic_gates"] is True
           freeze = {
               "schema": "qore.trader_lab.vt31_r4_candidate_freeze.v1",
