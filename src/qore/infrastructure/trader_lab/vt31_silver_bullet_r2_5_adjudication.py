@@ -162,7 +162,7 @@ def adjudicate(paths: tuple[Path, ...]) -> dict[str, object]:
         "adjudication": (
             "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE"
             if len(survivors) == 1
-            else "V4_CANDIDATE_NOT_JUSTIFIED"
+            else "VT31_R2_5_CANDIDATE_NOT_JUSTIFIED"
         ),
         "ambiguous_multiple_survivors": len(survivors) > 1,
         "candidate_frozen": False,

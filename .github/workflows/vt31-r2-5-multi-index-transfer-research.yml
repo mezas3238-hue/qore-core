@@ -60,6 +60,7 @@ jobs:
     needs: quality
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         market: [NAS100, SP500, US30]
     runs-on: ubuntu-latest

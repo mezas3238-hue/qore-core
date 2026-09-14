@@ -98,6 +98,20 @@ never fresh validation.
 
 No candidate is frozen by this document.
 
+## Acquisition reproducibility correction
+
+The first R2.5 run at `06b93fb36856c247da77e7221301082a313866d4`
+exposed a collector defect before adjudication could be accepted.  Its
+fourteen-calendar-day M1 requests could exceed cTrader's 5,000-bar page, while
+the provider did not reliably report more pages.  Repeated NAS100 acquisitions
+therefore agreed exactly on shared timestamps but omitted different time
+blocks.  All economic output from that run is invalid research evidence.
+
+VT-31 now requests no more than three calendar days at a time (at most 4,321
+inclusive M1 openings), serializes the three market acquisitions, and retains
+the existing contradiction and duplicate checks.  Only artifacts produced
+after this correction may be adjudicated.
+
 `VT31_CANDIDATE_FROZEN=false`
 
 `VT31_DEMO_ELIGIBLE=false`

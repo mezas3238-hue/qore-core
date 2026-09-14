@@ -20,7 +20,6 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 
 from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
-    _CHUNK_DAYS,
     _HISTORICAL_PAGE_COUNT,
     _collect_period_window,
     _native_int,
@@ -48,6 +47,11 @@ _MIN_LOOKBACK_DAYS = 730
 _MAX_LOOKBACK_DAYS = 1095
 _REQUIRED_COVERAGE_DAYS = 730
 _RECENT_BOUNDARY_TOLERANCE_DAYS = 10
+# cTrader caps each historical request at 5,000 bars.  A fourteen-day M1
+# window can contain far more bars and the provider has not reliably asserted
+# ``hasMore`` for that case.  Three calendar days contain at most 4,321 M1
+# openings including both boundaries, so every VT-31 request fits in one page.
+_VT31_M1_CHUNK_DAYS = 3
 
 # Explicit provider aliases for the same canonical NASDAQ-100 market. A suffix
 # is accepted only when separated from one of these exact roots (for example
@@ -412,7 +416,7 @@ def collect_vt31_v2_m1_evidence(
     cursor = opened
     window_index = 0
     while cursor < checked:
-        window_end = min(cursor + timedelta(days=_CHUNK_DAYS), checked)
+        window_end = min(cursor + timedelta(days=_VT31_M1_CHUNK_DAYS), checked)
         bars = _collect_period_window(
             client,
             account_id=account_id,
@@ -453,7 +457,7 @@ def collect_vt31_v2_m1_evidence(
         "checked_at": checked.isoformat(timespec="microseconds"),
         "requested_opened_at": opened.isoformat(timespec="microseconds"),
         "required_coverage_days": _REQUIRED_COVERAGE_DAYS,
-        "historical_chunk_days": _CHUNK_DAYS,
+        "historical_chunk_days": _VT31_M1_CHUNK_DAYS,
         "historical_page_count": _HISTORICAL_PAGE_COUNT,
         "decision_timeframe": "M1",
         "source_authorized_market": _SYMBOL,
