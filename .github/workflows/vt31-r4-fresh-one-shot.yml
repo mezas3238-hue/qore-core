@@ -182,15 +182,19 @@ jobs:
                   "first_opened_at":payload["coverage"]["first_opened_at"],
                   "last_closed_at":payload["coverage"]["last_closed_at"],
                   "bar_count":payload["coverage"]["bar_count"],
+                  "actual_calendar_span_days":payload["actual_calendar_span_days"],
+                  "historical_fresh_coverage_sufficient":payload["historical_fresh_coverage_sufficient"],
                   "sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
               })
-          final_pass=bool(result["passes_economic_gates"]) and all(mc_gates.values()) and all(causal.values())
+          coverage_gate=all(bool(item["historical_fresh_coverage_sufficient"]) for item in evidence)
+          final_pass=coverage_gate and bool(result["passes_economic_gates"]) and all(mc_gates.values()) and all(causal.values())
           report={
               "schema":"qore.trader_lab.vt31_r4_fresh_validation.v1",
               "candidate_id":CANDIDATE_ID,
               "software_sha":os.environ["GITHUB_SHA"],
               "contract_fingerprint":contract_fingerprint(),
               "fresh_evidence":evidence,
+              "historical_fresh_coverage_gate":coverage_gate,
               "fresh_validation":result,
               "stress_sensitivity":stress,
               "monte_carlo":mc,
