@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/fundednext-stellar-instant-2k-pilot-001
+      - agent/fundednext-stellar-instant-canonical-execution-001
   workflow_dispatch:
 
 concurrency:
@@ -38,11 +39,12 @@ jobs:
       - name: Mypy
         run: mypy src tests
 
-      - name: Focused Stellar Instant provider / shared Risk / MT5 gate
+      - name: Focused Stellar Instant provider / shared Risk / canonical execution / MT5 gate
         run: |
           pytest -q \
             tests/infrastructure/test_fundednext_stellar_instant.py \
             tests/infrastructure/test_account_wide_risk.py \
+            tests/infrastructure/test_fundednext_execution_bridge.py \
             tests/infrastructure/test_fundednext_mt5.py
 
       - name: Full QORE gate
