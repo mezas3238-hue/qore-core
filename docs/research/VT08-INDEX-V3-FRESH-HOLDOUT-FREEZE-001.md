@@ -26,6 +26,10 @@ Frozen mechanics:
 
 The numerical geometry gates and 2.5R target are QORE empirical research policies, not universal TTrades/source claims.
 
+## Pre-access execution history
+
+The first workflow attempt `34798831821` stopped in `quality` at Ruff before any fresh-data acquisition job ran. The only defect was a line-length lint violation in the fresh validator's CLI print statement. Commit `09801d70b473d5bcda97f9328a6fd63887d8dd0d` reformatted that statement only; no candidate mechanics, numerical gates, markets, sides, anchors, holdout dates, stress rule, or Monte Carlo rule changed. Acquisition and adjudication were skipped, so the V3 holdout remained unopened at this renewed freeze.
+
 ## New one-shot unseen tranche
 
 Fresh holdout ID: `VT08_INDEX_V3_FRESH_2022_09_15_TO_2023_09_15`.
