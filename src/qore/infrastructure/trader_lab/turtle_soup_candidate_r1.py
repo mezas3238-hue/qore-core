@@ -149,24 +149,34 @@ class TurtleSoupR1Setup:
     config_fingerprint: str
 
     def __post_init__(self) -> None:
-        for field_name, value in (
+        for field_name, price_value in (
             ("reference_price", self.reference_price),
             ("entry_trigger_price", self.entry_trigger_price),
             ("executable_entry_price", self.executable_entry_price),
             ("initial_stop_price", self.initial_stop_price),
         ):
-            if type(value) is not Decimal or not value.is_finite() or value <= 0:
+            if (
+                type(price_value) is not Decimal
+                or not price_value.is_finite()
+                or price_value <= 0
+            ):
                 raise TurtleSoupR1ValidationError(
                     f"{field_name} must be a positive finite Decimal"
                 )
         if type(self.reference_age) is not int or self.reference_age < 1:
             raise TurtleSoupR1ValidationError("reference_age must be a positive int")
-        for field_name, value in (
+        for field_name, timestamp_value in (
             ("signal_opened_at", self.signal_opened_at),
             ("fill_at", self.fill_at),
         ):
-            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
-                raise TurtleSoupR1ValidationError(f"{field_name} must be timezone-aware")
+            if (
+                type(timestamp_value) is not datetime
+                or timestamp_value.tzinfo is None
+                or timestamp_value.utcoffset() is None
+            ):
+                raise TurtleSoupR1ValidationError(
+                    f"{field_name} must be timezone-aware"
+                )
         if self.side is DemoTradingSetupSide.LONG:
             if not self.initial_stop_price < self.executable_entry_price:
                 raise TurtleSoupR1ValidationError("LONG stop must be below entry")
