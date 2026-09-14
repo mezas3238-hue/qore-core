@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timedelta
+from decimal import Decimal
 from re import sub
 from threading import RLock
 from typing import Protocol, cast
@@ -21,12 +22,19 @@ from qore.infrastructure.fundednext_execution_bridge import (
 )
 from qore.infrastructure.fundednext_mt5 import (
     FundedNextMt5ExecutionGateway,
-    FundedNextMt5TransportBoundary,
     FundedNextMt5OrderPlan,
+    FundedNextMt5TransportBoundary,
     Mt5ExecutionBlockedError,
     Mt5ExecutionValidationError,
     Mt5SymbolSpecification,
 )
+from qore.infrastructure.fundednext_mt5_mutation_ledger import (
+    FundedNextMt5MutationLedger,
+)
+from qore.infrastructure.fundednext_stellar_instant import (
+    StellarInstantRuleVerification,
+)
+from qore.infrastructure.market_test_environment import MarketTestAccountIdentity
 from qore.infrastructure.ports import ExternalRequestMetadata
 from qore.infrastructure.pretrade_safety import ExecutionSafetySwitchSnapshot
 
@@ -45,9 +53,9 @@ def resolve_account_provider_symbol(
 ) -> str:
     """Resolve one retained Forex symbol from the terminal inventory.
 
-    Exact account symbol identity wins.  Common broker prefix/suffix decoration
-    is accepted only when it produces exactly one candidate.  Zero or ambiguous
-    matches fail closed.  Index aliases are intentionally not inferred here.
+    Exact account symbol identity wins. Common broker prefix/suffix decoration
+    is accepted only when it produces exactly one candidate. Zero or ambiguous
+    matches fail closed. Index aliases are intentionally not inferred here.
     """
 
     if qore_symbol not in VT08_FOREX_RETAINED_MARKETS:
@@ -133,7 +141,9 @@ class OperationalSafetyController:
 
     def set_market_enabled(self, qore_symbol: str, enabled: bool) -> None:
         if qore_symbol not in VT08_FOREX_RETAINED_MARKETS:
-            raise Mt5ExecutionValidationError("market kill-switch is outside approved Forex")
+            raise Mt5ExecutionValidationError(
+                "market kill-switch is outside approved Forex"
+            )
         with self._lock:
             if enabled:
                 self._disabled_markets.discard(qore_symbol)
@@ -162,20 +172,34 @@ class FundedNextAccountBoundMt5Gateway(FundedNextMt5ExecutionGateway):
     def __init__(
         self,
         *,
+        account: MarketTestAccountIdentity,
+        transport: AccountBoundMt5Transport,
+        mutation_ledger: FundedNextMt5MutationLedger,
+        rule_verification: StellarInstantRuleVerification,
         safety: OperationalSafetyController,
-        **kwargs: object,
+        owner_submission_enabled: bool = False,
+        max_spec_age: timedelta = timedelta(seconds=10),
+        max_spread_points: Decimal | None = None,
     ) -> None:
         if not isinstance(safety, OperationalSafetyController):
             raise Mt5ExecutionValidationError("operational safety controller is required")
-        super().__init__(**kwargs)  # type: ignore[arg-type]
-        transport = cast(AccountBoundMt5Transport, self._transport)
+        super().__init__(
+            account=account,
+            transport=transport,
+            mutation_ledger=mutation_ledger,
+            rule_verification=rule_verification,
+            owner_submission_enabled=owner_submission_enabled,
+            max_spec_age=max_spec_age,
+            max_spread_points=max_spread_points,
+        )
         if not callable(getattr(transport, "available_symbols", None)):
             raise Mt5ExecutionValidationError("MT5 transport requires available_symbols")
+        self._account_bound_transport = transport
         self._operational_safety = safety
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> Mt5SymbolSpecification:
         _aware(now, "now")
-        transport = cast(AccountBoundMt5Transport, self._transport)
+        transport = cast(AccountBoundMt5Transport, self._account_bound_transport)
         if not transport.connected():
             raise Mt5ExecutionBlockedError("mt5-disconnected")
         provider_symbol = resolve_account_provider_symbol(
@@ -190,7 +214,10 @@ class FundedNextAccountBoundMt5Gateway(FundedNextMt5ExecutionGateway):
         _fresh(spec.observed_at, now, self._max_spec_age, "symbol-info")
         if not spec.trade_enabled or not spec.session_open:
             raise Mt5ExecutionBlockedError("mt5-symbol-not-tradable")
-        if self._max_spread_points is not None and spec.spread_points > self._max_spread_points:
+        if (
+            self._max_spread_points is not None
+            and spec.spread_points > self._max_spread_points
+        ):
             raise Mt5ExecutionBlockedError("spread-outside-operational-containment")
         return spec
 
