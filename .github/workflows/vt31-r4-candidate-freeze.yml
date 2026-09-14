@@ -5,7 +5,7 @@ on:
     branches:
       - agent/vt31-r4-ny-reversal-candidate-001
     paths:
-      - src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py
+      - src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py\n      - src/qore/infrastructure/ctrader_demo_lab_vt31_r4_fresh_probe.py\n      - tests/infrastructure/test_ctrader_demo_lab_vt31_r4_fresh_probe.py\n      - .github/workflows/vt31-r4-fresh-one-shot.yml
       - tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
       - docs/research/trader-lab/VT-31-R4-CANDIDATE-FREEZE-001.md
       - .github/workflows/vt31-r4-candidate-freeze.yml
@@ -26,9 +26,9 @@ jobs:
       - run: pip install -e . pytest pytest-cov ruff mypy
       - name: Focused quality gates
         run: |
-          ruff check src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
-          mypy src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py
-          pytest -q tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py
+          ruff check src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py src/qore/infrastructure/ctrader_demo_lab_vt31_r4_fresh_probe.py tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py tests/infrastructure/test_ctrader_demo_lab_vt31_r4_fresh_probe.py
+          mypy src/qore/infrastructure/trader_lab/vt31_r4_ny_reversal_candidate.py src/qore/infrastructure/ctrader_demo_lab_vt31_r4_fresh_probe.py
+          pytest -q tests/infrastructure/trader_lab/test_vt31_r4_ny_reversal_candidate.py tests/infrastructure/test_ctrader_demo_lab_vt31_r4_fresh_probe.py
       - name: Download immutable consumed evidence
         run: |
           set -euo pipefail
@@ -59,7 +59,7 @@ jobs:
               "SP500": Path("evidence/SP500/market-evidence.json"),
               "US30": Path("evidence/US30/market-evidence.json"),
           })
-          aggregate = result["aggregate"]
+          causal = causal_equivalence({\n              "NAS100": Path("evidence/NAS100/market-evidence.json"),\n              "SP500": Path("evidence/SP500/market-evidence.json"),\n              "US30": Path("evidence/US30/market-evidence.json"),\n          })\n          assert all(causal.values())\n          aggregate = result["aggregate"]
           stress = result["stress_0_05r"]
           print(json.dumps({"diagnostic_aggregate": aggregate, "diagnostic_stress": stress}, sort_keys=True))
           assert aggregate["sample"] == 156
@@ -81,7 +81,7 @@ jobs:
                   "artifact_id": 10367912073,
                   "artifact_sha256": "cd1688e0818843a338b51244b79fbf7cea4b55a9c78afb7af20dd37991188be7",
               },
-              "consumed_reproduction": result,
+              "consumed_reproduction": result,\n              "causal_equivalence": causal,
               "candidate_frozen": True,
               "fresh_evidence_opened": False,
               "demo_eligible": False,
