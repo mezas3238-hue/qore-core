@@ -57,6 +57,7 @@ def main() -> None:
         coverage = payload["coverage"]
         if not isinstance(coverage, dict):
             raise CTraderDemoLabProbeError("fresh coverage payload is invalid")
+        first = datetime.fromisoformat(str(coverage["first_opened_at"]))
         last = datetime.fromisoformat(str(coverage["last_closed_at"]))
         if last > FRESH_END_AT:
             raise CTraderDemoLabProbeError("fresh evidence crosses consumed boundary")
@@ -65,6 +66,9 @@ def main() -> None:
                 "evidence_purpose": "VT31_R4_ONE_SHOT_FRESH_VALIDATION",
                 "fresh_partition_end_exclusive": FRESH_END_AT.isoformat(),
                 "requested_lookback_days": FRESH_LOOKBACK_DAYS,
+                "actual_calendar_span_days": (last - first).days,
+                "historical_fresh_minimum_days": 730,
+                "historical_fresh_coverage_sufficient": (last - first).days >= 730,
                 "software_sha": software_sha,
                 "candidate_id": "VT31_R4_TTRADES_NY_REVERSAL_001",
             }
