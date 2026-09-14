@@ -1,0 +1,116 @@
+name: VT08 Index V2 Candidate Hardening
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-v2-candidate-hardening-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-v2-candidate-hardening-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-development-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused hardening gate
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_v2_candidate.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download retained NAS100 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-NAS100-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained SP500 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-SP500-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained US30 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-US30-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Replay hardened candidate on consumed development evidence
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_v2_candidate \
+            --nas100 retained/NAS100/market-evidence.json \
+            --sp500 retained/SP500/market-evidence.json \
+            --us30 retained/US30/market-evidence.json \
+            --start-date 2024-08-13 \
+            --end-date-exclusive 2026-09-12 \
+            --out artifacts/VT08_INDEX_V2_CANDIDATE_DEVELOPMENT_REPLAY.json
+
+      - name: Fail closed unless hardened candidate remains development-eligible
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/VT08_INDEX_V2_CANDIDATE_DEVELOPMENT_REPLAY.json").read_text()
+          )
+          assert payload["schema"] == "qore.trader_lab.vt08_index_v2_candidate.v1"
+          assert payload["candidate_id"] == "VT08_INDEX_V2_QORE_CANDIDATE_001"
+          assert payload["development_selection_id"] == "V-32e621c9282c"
+          assert payload["variant"]["variant_id"] == "V-32e621c9282c"
+          assert payload["partition"] == {
+              "start_date": "2024-08-13",
+              "end_date_exclusive": "2026-09-12",
+          }
+          assert payload["adjudication"]["eligible"] is True
+          assert payload["governance"]["fresh_holdout_opened"] is False
+          assert payload["governance"]["demo_eligible"] is False
+          PY
+
+      - name: Bind exact git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload hardening evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v2-candidate-hardening-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90
