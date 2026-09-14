@@ -775,17 +775,19 @@ def causal_equivalence(evidence_paths: dict[str, Path]) -> dict[str, bool]:
             )
             < 960
         )
-        has_gap = (
-            not active
-            or active[0].opened_at != setup.signal_at
-            or any(
-                current.opened_at != previous.closed_at
-                for previous, current in zip(active, active[1:], strict=False)
-            )
-        )
-        if has_gap and _simulate(setup, day_bars) is not None:
-            gap_exit_semantics_equal = False
-            break
+        expected_open = setup.signal_at
+        first_gap_at: datetime | None = None
+        for bar in active:
+            if bar.opened_at != expected_open:
+                first_gap_at = bar.opened_at
+                break
+            expected_open = bar.closed_at
+        simulated = _simulate(setup, day_bars)
+        if first_gap_at is not None and simulated is not None:
+            exit_at = _ts(simulated["exit_at"], "exit_at")
+            if first_gap_at <= exit_at:
+                gap_exit_semantics_equal = False
+                break
     return {
         "trades_equal": trades_equal,
         "adjudication_equal": adjudication_equal,
