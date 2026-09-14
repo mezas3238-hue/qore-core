@@ -3,7 +3,10 @@ name: VT08 Index V2 Fresh Holdout R2
 on:
   push:
     branches: [agent/vt08-index-v2-fresh-holdout-002]
-    paths: [.github/workflows/vt08-index-v2-fresh-holdout-r2.yml]
+    paths:
+      - .github/workflows/vt08-index-v2-fresh-holdout-r2.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_v2_fresh_validation.py
+      - tests/infrastructure/trader_lab/test_vt08_index_v2_fresh_validation.py
   workflow_dispatch:
 
 concurrency:
