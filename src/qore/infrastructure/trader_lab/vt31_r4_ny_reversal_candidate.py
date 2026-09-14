@@ -765,8 +765,6 @@ def causal_equivalence(evidence_paths: dict[str, Path]) -> dict[str, bool]:
     gap_exit_semantics_equal = True
     for setup in selected_full:
         day_bars = day_maps[setup.market][setup.local_date]
-        if _simulate(setup, day_bars) is not None:
-            continue
         active = tuple(
             bar
             for bar in day_bars
@@ -777,10 +775,15 @@ def causal_equivalence(evidence_paths: dict[str, Path]) -> dict[str, bool]:
             )
             < 960
         )
-        if not any(
-            current.opened_at != previous.closed_at
-            for previous, current in zip(active, active[1:], strict=False)
-        ):
+        has_gap = (
+            not active
+            or active[0].opened_at != setup.signal_at
+            or any(
+                current.opened_at != previous.closed_at
+                for previous, current in zip(active, active[1:], strict=False)
+            )
+        )
+        if has_gap and _simulate(setup, day_bars) is not None:
             gap_exit_semantics_equal = False
             break
     return {
