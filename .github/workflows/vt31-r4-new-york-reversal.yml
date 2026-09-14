@@ -1,0 +1,150 @@
+name: QORE VT-31 R4 New York Reversal Research
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r4-new-york-reversal.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" > sums
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> sums
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> sums
+          sha256sum -c sums
+          for m in NAS100 SP500 US30; do unzip -q "$m.zip" -d "evidence/$m"; done
+      - name: Replay source-defined New York Reversal
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from collections import Counter,defaultdict
+          from datetime import datetime,timedelta
+          from decimal import Decimal
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import _metrics,_quartiles
+
+          NY=ZoneInfo("America/New_York"); markets=("NAS100","SP500","US30"); timeframes=(5,15)
+          def dt(x): return datetime.fromisoformat(x.replace("Z","+00:00"))
+          def d(x): return Decimal(str(x))
+          def source_label(local): return (local.date()+timedelta(days=1)).isoformat() if local.hour>=18 else local.date().isoformat()
+          def candle(xs):
+              return {"opened_at":xs[0]["opened_at"],"closed_at":xs[-1]["closed_at"],"open":d(xs[0]["open"]),"high":max(d(x["high"]) for x in xs),"low":min(d(x["low"]) for x in xs),"close":d(xs[-1]["close"])}
+          def aggregate(timed,minutes,start_hour,end_hour):
+              groups=defaultdict(list)
+              for local,bar in timed:
+                  minute_of_day=local.hour*60+local.minute
+                  if not (start_hour*60<=minute_of_day<end_hour*60): continue
+                  key=minute_of_day//minutes*minutes
+                  groups[key].append(bar)
+              return [candle(groups[k]) for k in sorted(groups) if len(groups[k])==minutes]
+          def find_cisd(candles,side,level):
+              touch=None
+              for i,c in enumerate(candles):
+                  hit=c["low"]<level if side=="long" else c["high"]>level
+                  if hit and touch is None: touch=i
+                  opposite_hit=c["high"]>level if side=="long" else c["low"]<level
+                  if touch is not None and opposite_hit: return None,"both-prior-extremes-taken"
+                  if touch is None or i==0: continue
+                  j=i-1
+                  opposing=lambda x: x["close"]<x["open"] if side=="long" else x["close"]>x["open"]
+                  if not opposing(candles[j]): continue
+                  while j>0 and opposing(candles[j-1]): j-=1
+                  series=candles[j:i]
+                  made_extreme=(min(x["low"] for x in series)<=level if side=="long" else max(x["high"] for x in series)>=level)
+                  crossed=(c["close"]>series[0]["open"] if side=="long" else c["close"]<series[0]["open"])
+                  if made_extreme and crossed:
+                      stop=min(x["low"] for x in series) if side=="long" else max(x["high"] for x in series)
+                      return (c,stop), "confirmed"
+              return None,"no-cisd"
+          def simulate(m1,confirmation,side,entry,stop,target):
+              risk=abs(entry-stop)
+              if risk<=0 or (side=="long" and not stop<entry<target) or (side=="short" and not target<entry<stop): return None,"invalid-geometry"
+              after=[(local,b) for local,b in m1 if dt(b["opened_at"])>=dt(confirmation["closed_at"]) and (local.hour*60+local.minute)<16*60]
+              if not after:return None,"no-lifecycle"
+              for local,b in after:
+                  high=d(b["high"]); low=d(b["low"])
+                  hit_stop=low<=stop if side=="long" else high>=stop
+                  hit_target=high>=target if side=="long" else low<=target
+                  if hit_stop and hit_target:return None,"same-bar-ambiguous"
+                  if hit_stop:return Decimal("-1"),"stop"
+                  if hit_target:return abs(target-entry)/risk,"target"
+              close=d(after[-1][1]["close"])
+              value=(close-entry)/risk if side=="long" else (entry-close)/risk
+              return value,"lifecycle"
+
+          reports={str(tf):[] for tf in timeframes}; reasons={str(tf):Counter() for tf in timeframes}
+          for market in markets:
+              raw=json.loads(Path(f"evidence/{market}/market-evidence.json").read_text())
+              timed=[(dt(b["opened_at"]).astimezone(NY),b) for b in raw["periods"]["M1"]]
+              by_calendar=defaultdict(list); by_source=defaultdict(list)
+              for local,b in timed:
+                  by_calendar[local.date().isoformat()].append((local,b)); by_source[source_label(local)].append((local,b))
+              completed=[key for key in sorted(by_source) if len(by_source[key])>=1000]
+              previous={completed[i]:completed[i-1] for i in range(1,len(completed))}
+              for day,daybars in by_calendar.items():
+                  if day not in previous: continue
+                  prior=[b for _,b in by_source[previous[day]]]
+                  pd_high=max(d(x["high"]) for x in prior); pd_low=min(d(x["low"]) for x in prior)
+                  london=[b for local,b in daybars if 2<=local.hour<5]
+                  if len(london)<150: continue
+                  london_high=max(d(x["high"]) for x in london); london_low=min(d(x["low"]) for x in london)
+                  long_profile=london_low>pd_low; short_profile=london_high<pd_high
+                  if long_profile==short_profile:
+                      for tf in timeframes: reasons[str(tf)]["profile-ambiguous"]+=1
+                      continue
+                  side="long" if long_profile else "short"; poi=pd_low if side=="long" else pd_high
+                  target=london_high if side=="long" else london_low
+                  for tf in timeframes:
+                      candles=aggregate(daybars,tf,8.5,10.5)
+                      found,status=find_cisd(candles,side,poi)
+                      if found is None: reasons[str(tf)][status]+=1; continue
+                      confirmation,stop=found; entry=confirmation["close"]
+                      value,exit_reason=simulate(daybars,confirmation,side,entry,stop,target)
+                      if value is None: reasons[str(tf)][exit_reason]+=1; continue
+                      reports[str(tf)].append({"market":market,"local_date":day,"side":side,"signal_at":confirmation["closed_at"],"r_multiple":format(value,"f"),"exit_reason":exit_reason})
+          def assess(tf):
+              trades=sorted(reports[str(tf)],key=lambda x:(x["signal_at"],x["market"])); agg=_metrics(trades); stress=_metrics(trades,friction=Decimal(".05"))
+              bym={m:_metrics([t for t in trades if t["market"]==m],friction=Decimal(".05")) for m in markets}; bys={s:_metrics([t for t in trades if t["side"]==s],friction=Decimal(".05")) for s in ("long","short")}; q=_quartiles(trades); temporal={}
+              for m in markets:
+                  own=[t for t in trades if t["market"]==m]
+                  for y in sorted({t["local_date"][:4] for t in own}): temporal[f"{m}:{y}"]=_metrics([t for t in own if t["local_date"].startswith(y)],friction=Decimal(".05"))
+              eligible=[x for x in temporal.values() if x["sample"]>=10]
+              gates={"aggregate_sample_at_least_150":agg["sample"]>=150,"each_market_sample_at_least_30":all(x["sample"]>=30 for x in bym.values()),"aggregate_stressed_mean_positive":Decimal(stress["mean_r"])>0,"aggregate_stressed_pf_at_least_1_10":stress["profit_factor"] is not None and Decimal(stress["profit_factor"])>=Decimal("1.10"),"aggregate_stressed_dd_at_most_20r":Decimal(stress["max_drawdown_r"])<=20,"every_market_stressed_mean_positive":all(Decimal(x["mean_r"])>0 for x in bym.values()),"both_sides_stressed_mean_positive":all(x["sample"] and Decimal(x["mean_r"])>0 for x in bys.values()),"three_of_four_quartiles_positive":sum(Decimal(x["mean_r"])>0 for x in q)>=3,"two_thirds_eligible_temporal_blocks_positive":bool(eligible) and sum(Decimal(x["mean_r"])>0 for x in eligible)*3>=len(eligible)*2}
+              return {"aggregate":agg,"stress_0_05r":stress,"market_stress":bym,"side_stress":bys,"quartiles":q,"temporal_blocks":temporal,"gates":gates,"survivor":all(gates.values()),"reason_counts":dict(reasons[str(tf)]),"trades":trades}
+          results={f"cisd-{tf}m":assess(tf) for tf in timeframes}; survivors=[k for k,x in results.items() if x["survivor"]]
+          contract={"candidate_family":"VT31-R4-TTrades-New-York-Reversal","source":"https://ttrades.com/understanding-the-new-york-reversal-in-daily-profiles/","source_day":"18:00-to-17:00-America/New_York","poi":"previous-complete-source-day-extreme","london_failure":"02:00-05:00-does-not-reach-POI","ny_window":"08:30-10:30-America/New_York","confirmation":"opposing-series-CISD","timeframe_hypotheses":["M5","M15"],"entry":"CISD-confirmation-close","stop":"protected-series-extreme","target":"opposite-London-session-extreme","lifecycle":"16:00-America/New_York","markets":list(markets),"hypothesis_count":2}
+          report={"schema":"qore.trader_lab.vt31_r4_ny_reversal_research.v1","software_sha":"${{ github.sha }}","research_only":True,"consumed_evidence_only":True,"fresh_evidence_opened":False,"contract":contract,"contract_fingerprint":hashlib.sha256(json.dumps(contract,sort_keys=True,separators=(",",":")).encode()).hexdigest(),"results":results,"survivors":survivors,"adjudication":"CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE" if len(survivors)==1 else "VT31_R4_CANDIDATE_NOT_JUSTIFIED","candidate_frozen":False,"demo_eligible":False,"live_authorized":False,"real_capital_authorized":False,"production_authorized":False}
+          Path("vt31-r4-ny-reversal-research.json").write_text(json.dumps(report,sort_keys=True,separators=(",",":"))+"\n")
+          print(json.dumps({"adjudication":report["adjudication"],"survivors":survivors,"summary":{k:{"aggregate":x["aggregate"],"stress":x["stress_0_05r"],"markets":{m:v["mean_r"] for m,v in x["market_stress"].items()},"samples":{m:v["sample"] for m,v in x["market_stress"].items()},"sides":{s:v["mean_r"] for s,v in x["side_stress"].items()},"positive_quartiles":sum(Decimal(v["mean_r"])>0 for v in x["quartiles"]),"failed":[g for g,p in x["gates"].items() if not p]} for k,x in results.items()}},sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r4-ny-reversal-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r4-ny-reversal-${{ github.sha }}
+          path: |
+            vt31-r4-ny-reversal-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
