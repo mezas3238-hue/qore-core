@@ -19,6 +19,8 @@ from qore.infrastructure.market_data import Instrument, Timeframe
 from qore.infrastructure.ports import AdapterId, ExternalSourceDescriptor, PortName, SourceId
 from qore.infrastructure.research_run import (
     ResearchExecutionModelId,
+    ResearchRunError,
+    ResearchRunEvidence,
     ResearchRunId,
     ResearchSoftwareRevision,
     ResearchTransactionCostModelId,
@@ -32,7 +34,7 @@ from qore.infrastructure.trader_lab.turtle_soup_candidate_r1_research import (
     bind_research_configuration,
     build_turtle_soup_r1_development_run_evidence,
 )
-from qore.kernel.result import Success
+from qore.kernel.result import Result, Success
 
 _BASE = datetime(2020, 1, 2, tzinfo=UTC)
 _SOURCE = ExternalSourceDescriptor(
@@ -125,7 +127,13 @@ def test_source_config_changes_strategy_configuration_identity() -> None:
     assert five_ticks.strategy_configuration_id() != six_ticks.strategy_configuration_id()
 
 
-def _run(*, execution: ResearchExecutionModelId = _EXECUTION, costs: ResearchTransactionCostModelId = _COSTS, software: ResearchSoftwareRevision = _SOFTWARE, manifest: HistoricalDatasetManifest | None = None):
+def _run(
+    *,
+    execution: ResearchExecutionModelId = _EXECUTION,
+    costs: ResearchTransactionCostModelId = _COSTS,
+    software: ResearchSoftwareRevision = _SOFTWARE,
+    manifest: HistoricalDatasetManifest | None = None,
+) -> Result[ResearchRunEvidence, ResearchRunError]:
     return build_turtle_soup_r1_development_run_evidence(
         run_id=ResearchRunId(UUID("72000000-0000-0000-0000-000000000020")),
         created_at=_BASE + timedelta(days=102),
