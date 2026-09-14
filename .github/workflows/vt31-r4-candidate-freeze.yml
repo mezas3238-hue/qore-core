@@ -52,6 +52,7 @@ jobs:
           from pathlib import Path
           from qore.infrastructure.trader_lab.vt31_r4_ny_reversal_candidate import (
               CANDIDATE_ID,
+              causal_equivalence,
               contract_fingerprint,
               contract_payload,
               replay,
