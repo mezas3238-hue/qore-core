@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from decimal import Decimal, InvalidOperation
+from hashlib import sha256
 from pathlib import Path
 from typing import cast
 
@@ -32,8 +32,10 @@ STRESS_MAX_DRAWDOWN_R = Decimal("15")
 MONTE_CARLO_PATHS = 10_000
 MONTE_CARLO_BLOCK_LENGTH = 5
 MONTE_CARLO_SEED = 20260913
+MONTE_CARLO_ALGORITHM = "sha256-domain-separated-moving-block-bootstrap-v1"
 MONTE_CARLO_MIN_POSITIVE_TERMINAL_PROBABILITY = Decimal("0.70")
 MONTE_CARLO_MAX_P95_DRAWDOWN_R = Decimal("20")
+_BOOTSTRAP_DOMAIN = b"qore-vt08-index-v2-moving-block-bootstrap-v1"
 
 
 class Vt08IndexV2FreshValidationError(InfrastructureError):
@@ -209,20 +211,47 @@ def _stress(values: Sequence[Decimal]) -> dict[str, object]:
     }
 
 
+def _draw_block_start(
+    *,
+    seed: int,
+    replicate: int,
+    draw: int,
+    start_count: int,
+) -> int:
+    payload = (
+        _BOOTSTRAP_DOMAIN
+        + b":"
+        + str(seed).encode("ascii")
+        + b":"
+        + str(replicate).encode("ascii")
+        + b":"
+        + str(draw).encode("ascii")
+    )
+    return int.from_bytes(sha256(payload).digest(), "big") % start_count
+
+
 def _bootstrap_path(
     values: Sequence[Decimal],
     *,
-    rng: random.Random,
+    seed: int,
+    replicate: int,
     block_length: int,
 ) -> tuple[Decimal, ...]:
     if not values:
         return ()
     block = min(block_length, len(values))
     result: list[Decimal] = []
-    last_start = len(values) - block
+    start_count = len(values) - block + 1
+    draw = 0
     while len(result) < len(values):
-        start = rng.randint(0, last_start)
+        start = _draw_block_start(
+            seed=seed,
+            replicate=replicate,
+            draw=draw,
+            start_count=start_count,
+        )
         result.extend(values[start : start + block])
+        draw += 1
     return tuple(result[: len(values)])
 
 
@@ -232,13 +261,13 @@ def _monte_carlo(values: Sequence[Decimal]) -> dict[str, object]:
             "insufficient observations for block bootstrap"
         )
     stressed = tuple(value - STRESS_FRICTION_R for value in values)
-    rng = random.Random(MONTE_CARLO_SEED)
     terminal_values: list[Decimal] = []
     drawdowns: list[Decimal] = []
-    for _ in range(MONTE_CARLO_PATHS):
+    for replicate in range(MONTE_CARLO_PATHS):
         path = _bootstrap_path(
             stressed,
-            rng=rng,
+            seed=MONTE_CARLO_SEED,
+            replicate=replicate,
             block_length=MONTE_CARLO_BLOCK_LENGTH,
         )
         terminal_values.append(sum(path, Decimal()))
@@ -256,6 +285,7 @@ def _monte_carlo(values: Sequence[Decimal]) -> dict[str, object]:
         "p95_drawdown": p95_drawdown <= MONTE_CARLO_MAX_P95_DRAWDOWN_R,
     }
     return {
+        "algorithm": MONTE_CARLO_ALGORITHM,
         "paths": MONTE_CARLO_PATHS,
         "block_length": MONTE_CARLO_BLOCK_LENGTH,
         "seed": MONTE_CARLO_SEED,
@@ -329,6 +359,7 @@ def validate_fresh_holdout(payload: dict[str, object]) -> dict[str, object]:
             "monte_carlo_paths": MONTE_CARLO_PATHS,
             "monte_carlo_block_length": MONTE_CARLO_BLOCK_LENGTH,
             "monte_carlo_seed": MONTE_CARLO_SEED,
+            "monte_carlo_algorithm": MONTE_CARLO_ALGORITHM,
             "monte_carlo_min_positive_terminal_probability": str(
                 MONTE_CARLO_MIN_POSITIVE_TERMINAL_PROBABILITY
             ),
