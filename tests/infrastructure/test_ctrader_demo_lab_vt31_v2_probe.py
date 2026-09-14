@@ -10,6 +10,7 @@ from qore.infrastructure.ctrader_demo_lab_probe import (
 )
 from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
     _REQUIRED_COVERAGE_DAYS,
+    _VT31_M1_CHUNK_DAYS,
     _coverage_payload,
     _provider_root,
     _select_nas100_provider_symbol_name,
@@ -17,6 +18,11 @@ from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
 )
 
 _CHECKED_AT = datetime(2026, 9, 11, 12, 0, tzinfo=UTC)
+
+
+def test_vt31_m1_chunk_cannot_exceed_single_provider_page() -> None:
+    inclusive_m1_openings = (_VT31_M1_CHUNK_DAYS * 24 * 60) + 1
+    assert inclusive_m1_openings < 5000
 
 
 def _bar(opened_at: datetime, *, period: str = "M1") -> CTraderDemoLabClosedTrendbar:

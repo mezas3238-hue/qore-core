@@ -1,0 +1,78 @@
+name: QORE VT-31 R3 Artifact Audit
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r3-artifact-audit.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify all R3 artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p audit
+          cat > manifest <<'EOF'
+          10358685274 ce575e30f76705f76cfc926916897d3ec19e3824f5b864cf7c0da467c2416643 r3
+          10358567117 f6feee2266ef50ab8cd2207a7ff5809411c7382b343d6b89672843678db2e647 r31
+          10359070432 af54d76bda7061c65c4f4bedcf8e9d8f5541c14ffd824e15d08c09e16bee2377 r32
+          10358961466 44cb26c58c9e61337f627d5b671901d29edda5e570f167750c96c708821006f8 r33
+          10359245952 fc5b22700b1ed0954d0c83719e4b7882bbc9d7cb4b8a95b8789a050216783113 r34
+          10358484728 5b22fba2e37b3798bf11f63f926748626cce412074d4f24ea03d6dd3ef27e3c8 r35
+          10359042901 7311a45c4f67003dfaba7065a853f6f36aba724775f78f7319e156787fd233f7 r36
+          10358697377 872f769762fbb9cb9105f376073d69a53f828f8fa752979e770dedcd54a2b4b4 r37
+          EOF
+          while read -r id digest name; do
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" > "audit/$name.zip"
+            echo "$digest  audit/$name.zip" | sha256sum -c -
+            mkdir "audit/$name"
+            unzip -q "audit/$name.zip" -d "audit/$name"
+            (cd "audit/$name" && sha256sum -c SHA256SUMS)
+          done < manifest
+      - name: Read and adjudicate artifact payloads
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=[]
+          for directory in sorted(Path("audit").glob("r*")):
+              if not directory.is_dir(): continue
+              files=list(directory.glob("*.json"))
+              assert len(files)==1,(directory,files)
+              payload=json.loads(files[0].read_text())
+              assert payload["research_only"] is True
+              assert payload["fresh_evidence_opened"] is False
+              assert payload["candidate_frozen"] is False
+              assert payload["demo_eligible"] is False
+              assert payload["live_authorized"] is False
+              assert payload["real_capital_authorized"] is False
+              assert payload["production_authorized"] is False
+              rows.append({"artifact":directory.name,"schema":payload["schema"],"software_sha":payload["software_sha"],"adjudication":payload["adjudication"]})
+          assert len(rows)==8
+          assert all("NOT_JUSTIFIED" in row["adjudication"] for row in rows)
+          report={"schema":"qore.trader_lab.vt31_r3_artifact_audit.v1","audit_software_sha":"${{ github.sha }}","artifacts_read":8,"zip_digest_verification":"PASS","embedded_sha256sums":"PASS","all_research_only":True,"fresh_evidence_opened":False,"candidate_frozen":False,"demo_eligible":False,"terminal_adjudication":"VT31_R3_CANDIDATE_NOT_JUSTIFIED","rows":rows}
+          Path("vt31-r3-artifact-audit.json").write_text(json.dumps(report,sort_keys=True,separators=(",",":"))+"\n")
+          print(json.dumps(report,sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r3-artifact-audit.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r3-artifact-audit-${{ github.sha }}
+          path: |
+            vt31-r3-artifact-audit.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90

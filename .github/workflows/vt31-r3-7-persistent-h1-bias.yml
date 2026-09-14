@@ -1,0 +1,100 @@
+name: QORE VT-31 R3.7 Persistent H1 Bias Research
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r3-7-persistent-h1-bias.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30} r26
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10355074492/zip" > r26.zip
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" > sums
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> sums
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> sums
+          echo "f7c8d5d539623371b861569dbf859d86d8225a81effe0add4017e3db28f6d37a  r26.zip" >> sums
+          sha256sum -c sums
+          for m in NAS100 SP500 US30; do unzip -q "$m.zip" -d "evidence/$m"; done
+          unzip -q r26.zip -d r26
+      - name: Falsify persistent H1 bias
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from collections import defaultdict
+          from datetime import datetime
+          from decimal import Decimal
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import _metrics,_quartiles
+          NY=ZoneInfo("America/New_York"); markets=("NAS100","SP500","US30"); parent_id="all-families-nearest-retracement:near-stop"
+          hypotheses=("latest-daily-h1-directional-closure","latest-daily-h1-c2-reversal")
+          def parsed(x): return datetime.fromisoformat(x.replace("Z","+00:00"))
+          def candle(xs): return {"open":Decimal(str(xs[0]["open"])),"high":max(Decimal(str(x["high"])) for x in xs),"low":min(Decimal(str(x["low"])) for x in xs),"close":Decimal(str(xs[-1]["close"]))}
+          def unique(a,b): return "long" if a and not b else "short" if b and not a else None
+          def direction(a,b):
+              return unique((b["high"]>a["high"] and b["close"]>a["high"]) or (b["low"]<a["low"] and b["close"]>a["low"]),(b["low"]<a["low"] and b["close"]<a["low"]) or (b["high"]>a["high"] and b["close"]<a["high"]))
+          def c2(a,b): return unique(b["low"]<a["low"] and b["close"]>a["low"],b["high"]>a["high"] and b["close"]<a["high"])
+          parents={m:json.loads(Path(f"r26/{m}.json").read_text()) for m in markets}; state={}
+          for m in markets:
+              raw=json.loads(Path(f"evidence/{m}/market-evidence.json").read_text()); days=defaultdict(list)
+              for bar in raw["periods"]["M1"]:
+                  local=parsed(bar["opened_at"]).astimezone(NY); days[local.date().isoformat()].append((local,bar))
+              state[m]={}
+              for day,timed in days.items():
+                  hours=[]
+                  for hour in range(0,10):
+                      xs=[bar for local,bar in timed if local.hour==hour]
+                      if len(xs)==60: hours.append((hour,candle(xs)))
+                  directional=None; reversal=None
+                  for (_,a),(_,b) in zip(hours,hours[1:]):
+                      found=direction(a,b)
+                      if found is not None: directional=found
+                      found=c2(a,b)
+                      if found is not None: reversal=found
+                  state[m][day]={"latest-daily-h1-directional-closure":directional,"latest-daily-h1-c2-reversal":reversal}
+
+          def assess(name):
+              per={m:[dict(t,market=m) for t in parents[m]["variants"][parent_id]["trades"] if state[m].get(t["local_date"],{}).get(name)==t["side"]] for m in markets}
+              trades=sorted([t for xs in per.values() for t in xs],key=lambda x:(x["filled_at"],x["market"])); agg=_metrics(trades); stress=_metrics(trades,friction=Decimal(".05"))
+              bym={m:_metrics(xs,friction=Decimal(".05")) for m,xs in per.items()}; bys={s:_metrics([t for t in trades if t["side"]==s],friction=Decimal(".05")) for s in ("long","short")}; q=_quartiles(trades); temporal={}
+              for m,xs in per.items():
+                  for y in sorted({t["local_date"][:4] for t in xs}): temporal[f"{m}:{y}"]=_metrics([t for t in xs if t["local_date"].startswith(y)],friction=Decimal(".05"))
+              eligible=[x for x in temporal.values() if x["sample"]>=10]
+              gates={"aggregate_sample_at_least_150":agg["sample"]>=150,"each_market_sample_at_least_30":all(x["sample"]>=30 for x in bym.values()),"aggregate_stressed_mean_positive":Decimal(stress["mean_r"])>0,"aggregate_stressed_pf_at_least_1_10":stress["profit_factor"] is not None and Decimal(stress["profit_factor"])>=Decimal("1.10"),"aggregate_stressed_dd_at_most_20r":Decimal(stress["max_drawdown_r"])<=20,"every_market_stressed_mean_positive":all(Decimal(x["mean_r"])>0 for x in bym.values()),"both_sides_stressed_mean_positive":all(x["sample"] and Decimal(x["mean_r"])>0 for x in bys.values()),"three_of_four_quartiles_positive":sum(Decimal(x["mean_r"])>0 for x in q)>=3,"two_thirds_eligible_temporal_blocks_positive":bool(eligible) and sum(Decimal(x["mean_r"])>0 for x in eligible)*3>=len(eligible)*2}
+              return {"aggregate":agg,"stress_0_05r":stress,"market_stress":bym,"side_stress":bys,"quartiles":q,"temporal_blocks":temporal,"gates":gates,"survivor":all(gates.values()),"trades":trades}
+          results={h:assess(h) for h in hypotheses}; survivors=[h for h,x in results.items() if x["survivor"]]
+          contract={"methodology":"TTrades-Scalping-Fractal-Model","source":"https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/","bias_state":"most-recent-unambiguous-completed-H1-closure-from-current-NY-day-before-10:00","contexts":list(hypotheses),"parent":parent_id,"markets":list(markets),"hypothesis_count":2}
+          report={"schema":"qore.trader_lab.vt31_r3_7_persistent_h1_research.v1","software_sha":"${{ github.sha }}","research_only":True,"consumed_evidence_only":True,"fresh_evidence_opened":False,"contract":contract,"contract_fingerprint":hashlib.sha256(json.dumps(contract,sort_keys=True,separators=(",",":")).encode()).hexdigest(),"results":results,"survivors":survivors,"adjudication":"CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE" if len(survivors)==1 else "VT31_R3_7_CANDIDATE_NOT_JUSTIFIED","candidate_frozen":False,"demo_eligible":False,"live_authorized":False,"real_capital_authorized":False,"production_authorized":False}
+          Path("vt31-r3-7-persistent-h1-research.json").write_text(json.dumps(report,sort_keys=True,separators=(",",":"))+"\n")
+          print(json.dumps({"adjudication":report["adjudication"],"survivors":survivors,"summary":{h:{"aggregate":x["aggregate"],"stress":x["stress_0_05r"],"markets":{m:v["mean_r"] for m,v in x["market_stress"].items()},"sides":{s:v["mean_r"] for s,v in x["side_stress"].items()},"positive_quartiles":sum(Decimal(v["mean_r"])>0 for v in x["quartiles"]),"failed":[g for g,p in x["gates"].items() if not p]} for h,x in results.items()}},sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r3-7-persistent-h1-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r3-7-persistent-h1-${{ github.sha }}
+          path: |
+            vt31-r3-7-persistent-h1-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90

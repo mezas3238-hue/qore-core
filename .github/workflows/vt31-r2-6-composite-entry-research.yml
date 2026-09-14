@@ -1,0 +1,221 @@
+name: QORE VT-31 R2.6 Composite Entry Research
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r2-6-composite-entry-research.yml
+      - src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_6_composite_entry_research.py
+      - tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_6_composite_entry_research.py
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Quality and full regression gates
+        run: |
+          ruff check .
+          mypy src tests
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_vt31_silver_bullet_r2_6_composite_entry_research.py
+          pytest --cov=src/qore --cov-report=term-missing
+      - name: Download frozen consumed evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" > expected.sha256
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> expected.sha256
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> expected.sha256
+          sha256sum --check expected.sha256
+          unzip -q NAS100.zip -d evidence/NAS100
+          unzip -q SP500.zip -d evidence/SP500
+          unzip -q US30.zip -d evidence/US30
+      - name: Run predeclared composite selector
+        run: |
+          mkdir -p artifacts
+          for market in NAS100 SP500 US30; do
+            python -m qore.infrastructure.trader_lab.vt31_silver_bullet_r2_6_composite_entry_research               "evidence/${market}/market-evidence.json" > "artifacts/${market}.json"
+          done
+      - name: Adjudicate without retuning
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
+              _metrics,
+              _quartiles,
+          )
+
+          markets = ("NAS100", "SP500", "US30")
+          reports = {
+              market: json.loads(Path(f"artifacts/{market}.json").read_text())
+              for market in markets
+          }
+          variants = next(iter(reports.values()))["variants"]
+          results = {}
+          survivors = []
+          for variant_id in variants:
+              trades = []
+              market_stress = {}
+              temporal = {}
+              for market in markets:
+                  items = reports[market]["variants"][variant_id]["trades"]
+                  for item in items:
+                      item["market"] = market
+                  trades.extend(items)
+                  market_stress[market] = _metrics(
+                      items, friction=Decimal("0.05")
+                  )
+                  years = sorted({item["local_date"][:4] for item in items})
+                  for year in years:
+                      block = [
+                          item for item in items
+                          if item["local_date"].startswith(year)
+                      ]
+                      temporal[f"{market}:{year}"] = _metrics(block)
+              trades.sort(key=lambda item: (item["filled_at"], item["market"]))
+              aggregate = _metrics(trades)
+              stressed = _metrics(trades, friction=Decimal("0.05"))
+              side_stress = {
+                  side: _metrics(
+                      [item for item in trades if item["side"] == side],
+                      friction=Decimal("0.05"),
+                  )
+                  for side in ("long", "short")
+              }
+              quartiles = _quartiles(trades)
+              eligible = [
+                  block for block in temporal.values() if block["sample"] >= 10
+              ]
+              positive_blocks = sum(
+                  Decimal(block["mean_r"]) > 0 for block in eligible
+              )
+              gates = {
+                  "aggregate_sample_at_least_150": aggregate["sample"] >= 150,
+                  "each_market_sample_at_least_30": all(
+                      item["sample"] >= 30 for item in market_stress.values()
+                  ),
+                  "aggregate_stressed_mean_positive": Decimal(
+                      stressed["mean_r"]
+                  ) > 0,
+                  "aggregate_stressed_pf_at_least_1_10": (
+                      stressed["profit_factor"] is not None
+                      and Decimal(stressed["profit_factor"]) >= Decimal("1.10")
+                  ),
+                  "aggregate_stressed_dd_at_most_20r": Decimal(
+                      stressed["max_drawdown_r"]
+                  ) <= Decimal(20),
+                  "every_market_stressed_mean_positive": all(
+                      Decimal(item["mean_r"]) > 0
+                      for item in market_stress.values()
+                  ),
+                  "both_sides_stressed_mean_positive": all(
+                      item["sample"] > 0 and Decimal(item["mean_r"]) > 0
+                      for item in side_stress.values()
+                  ),
+                  "three_of_four_quartiles_positive": sum(
+                      Decimal(item["mean_r"]) > 0 for item in quartiles
+                  ) >= 3,
+                  "two_thirds_eligible_temporal_blocks_positive": (
+                      bool(eligible)
+                      and positive_blocks * 3 >= len(eligible) * 2
+                  ),
+              }
+              passed = all(gates.values())
+              if passed:
+                  survivors.append(variant_id)
+              results[variant_id] = {
+                  "aggregate": aggregate,
+                  "stress_0_05r": stressed,
+                  "market_stress": market_stress,
+                  "side_stress": side_stress,
+                  "quartiles": quartiles,
+                  "temporal_blocks": temporal,
+                  "gates": gates,
+                  "research_survivor": passed,
+                  "fingerprint": variants[variant_id]["fingerprint"],
+              }
+          report = {
+              "schema": "qore.trader_lab.vt31_r2_6_adjudication.v1",
+              "software_sha": os.environ["QORE_SOFTWARE_SHA"],
+              "research_only": True,
+              "hypothesis_count": 3,
+              "survivors": survivors,
+              "adjudication": (
+                  "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE"
+                  if len(survivors) == 1
+                  else "VT31_R2_6_CANDIDATE_NOT_JUSTIFIED"
+              ),
+              "candidate_frozen": False,
+              "fresh_validation": "NOT_RUN_RESEARCH_STAGE",
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+              "variants": results,
+          }
+          path = Path("artifacts/vt31-r2-6-adjudication.json")
+          path.write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          compact = {
+              key: {
+                  "aggregate": value["aggregate"],
+                  "stress_0_05r": value["stress_0_05r"],
+                  "market_mean": {
+                      market: item["mean_r"]
+                      for market, item in value["market_stress"].items()
+                  },
+                  "side_mean": {
+                      side: item["mean_r"]
+                      for side, item in value["side_stress"].items()
+                  },
+                  "positive_quartiles": sum(
+                      Decimal(item["mean_r"]) > 0
+                      for item in value["quartiles"]
+                  ),
+                  "failed_gates": sorted(
+                      gate for gate, passed in value["gates"].items()
+                      if not passed
+                  ),
+              }
+              for key, value in results.items()
+          }
+          print("VT31_R2_6=" + json.dumps({
+              "adjudication": report["adjudication"],
+              "survivors": survivors,
+              "variants": compact,
+          }, sort_keys=True, separators=(",", ":")))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+          sha256sum artifacts/*.json > artifacts/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r2-6-composite-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

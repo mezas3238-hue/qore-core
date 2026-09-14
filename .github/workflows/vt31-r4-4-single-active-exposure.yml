@@ -1,0 +1,169 @@
+name: QORE VT-31 R4.4 Single Active Index Exposure
+
+on:
+  push:
+    branches:
+      - agent/vt31-r2-5-multi-index-validation-001
+    paths:
+      - .github/workflows/vt31-r4-4-single-active-exposure.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download immutable R4.3 artifact
+        run: |
+          set -euo pipefail
+          mkdir -p r43
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10358629771/zip" > r43.zip
+          echo "41c003969441611352647f02488cec060feb5254fa2b335c996075a546367657  r43.zip" | sha256sum -c -
+          unzip -q r43.zip -d r43
+          test "$(cat r43/git-sha.txt)" = "2b062f96bf90071323ec5eaf4ba479e73ea0c798"
+          (cd r43 && sha256sum -c SHA256SUMS)
+      - name: Apply predeclared single-active portfolio containment
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from datetime import datetime
+          from decimal import Decimal
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import _metrics, _quartiles
+
+          def dt(value):
+              return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+          parent = json.loads(Path("r43/vt31-r4-3-protected-trail-research.json").read_text())
+          assert parent["software_sha"] == "2b062f96bf90071323ec5eaf4ba479e73ea0c798"
+          assert parent["fresh_evidence_opened"] is False
+          source = sorted(parent["result"]["trades"], key=lambda x: (x["signal_at"], x["market"]))
+          assert len({t["signal_at"] for t in source}) == len(source), "R4.2 simultaneous selection must be unique"
+
+          accepted = []
+          abstained = []
+          active_exit = None
+          for trade in source:
+              signal = dt(trade["signal_at"])
+              if active_exit is not None and signal < active_exit:
+                  abstained.append({
+                      "market": trade["market"],
+                      "signal_at": trade["signal_at"],
+                      "reason": "correlated-index-exposure-already-active",
+                      "active_until": active_exit.isoformat(),
+                  })
+                  continue
+              accepted.append(trade)
+              active_exit = dt(trade["exit_at"])
+
+          friction = Decimal("0.05")
+          markets = ("NAS100", "SP500", "US30")
+          sides = ("long", "short")
+          aggregate = _metrics(accepted)
+          stress = _metrics(accepted, friction=friction)
+          by_market = {
+              market: _metrics([t for t in accepted if t["market"] == market], friction=friction)
+              for market in markets
+          }
+          by_side = {
+              side: _metrics([t for t in accepted if t["side"] == side], friction=friction)
+              for side in sides
+          }
+          quartiles = _quartiles(accepted)
+          temporal = {}
+          for market in markets:
+              own = [t for t in accepted if t["market"] == market]
+              for year in sorted({t["local_date"][:4] for t in own}):
+                  temporal[f"{market}:{year}"] = _metrics(
+                      [t for t in own if t["local_date"].startswith(year)],
+                      friction=friction,
+                  )
+          eligible = [value for value in temporal.values() if value["sample"] >= 10]
+          gates = {
+              "aggregate_sample_at_least_150": aggregate["sample"] >= 150,
+              "each_market_sample_at_least_30": all(value["sample"] >= 30 for value in by_market.values()),
+              "aggregate_stressed_mean_positive": Decimal(stress["mean_r"]) > 0,
+              "aggregate_stressed_pf_at_least_1_10": stress["profit_factor"] is not None and Decimal(stress["profit_factor"]) >= Decimal("1.10"),
+              "aggregate_stressed_dd_at_most_20r": Decimal(stress["max_drawdown_r"]) <= Decimal("20"),
+              "every_market_stressed_mean_positive": all(Decimal(value["mean_r"]) > 0 for value in by_market.values()),
+              "both_sides_stressed_mean_positive": all(value["sample"] and Decimal(value["mean_r"]) > 0 for value in by_side.values()),
+              "three_of_four_quartiles_positive": sum(Decimal(value["mean_r"]) > 0 for value in quartiles) >= 3,
+              "two_thirds_eligible_temporal_blocks_positive": bool(eligible) and sum(Decimal(value["mean_r"]) > 0 for value in eligible) * 3 >= len(eligible) * 2,
+          }
+          contract = {
+              "parent_artifact_id": 10358629771,
+              "parent_artifact_sha256": "41c003969441611352647f02488cec060feb5254fa2b335c996075a546367657",
+              "parent_contract_fingerprint": parent["contract_fingerprint"],
+              "portfolio_containment": "maximum-one-active-index-position",
+              "selection_order": "signal_at-then-market",
+              "eligibility": "signal_at-greater-than-or-equal-to-active-exit-at",
+              "same_timestamp_parent_selection": "R4.2-maximum-directional-body-fraction-ties-abstain",
+              "markets": list(markets),
+              "friction_r_per_trade": "0.05",
+              "hypothesis_count": 1,
+              "outcome_used_for_entry_decision": False,
+          }
+          result = {
+              "aggregate": aggregate,
+              "stress_0_05r": stress,
+              "market_stress": by_market,
+              "side_stress": by_side,
+              "quartiles": quartiles,
+              "temporal_blocks": temporal,
+              "gates": gates,
+              "survivor": all(gates.values()),
+              "accepted_trades": accepted,
+              "abstentions": abstained,
+              "source_sample": len(source),
+              "accepted_sample": len(accepted),
+              "abstained_sample": len(abstained),
+          }
+          report = {
+              "schema": "qore.trader_lab.vt31_r4_4_single_active_exposure_research.v1",
+              "software_sha": __import__("os").environ["GITHUB_SHA"],
+              "research_only": True,
+              "consumed_evidence_only": True,
+              "fresh_evidence_opened": False,
+              "contract": contract,
+              "contract_fingerprint": hashlib.sha256(json.dumps(contract, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+              "result": result,
+              "adjudication": "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE" if result["survivor"] else "VT31_R4_4_CANDIDATE_NOT_JUSTIFIED",
+              "candidate_frozen": False,
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          Path("vt31-r4-4-single-active-exposure-research.json").write_text(json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n")
+          print(json.dumps({
+              "adjudication": report["adjudication"],
+              "source_sample": len(source),
+              "accepted_sample": len(accepted),
+              "abstained_sample": len(abstained),
+              "aggregate": aggregate,
+              "stress": stress,
+              "market_means": {k: v["mean_r"] for k, v in by_market.items()},
+              "market_samples": {k: v["sample"] for k, v in by_market.items()},
+              "side_means": {k: v["mean_r"] for k, v in by_side.items()},
+              "positive_quartiles": sum(Decimal(value["mean_r"]) > 0 for value in quartiles),
+              "failed": [key for key, passed in gates.items() if not passed],
+          }, sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r4-4-single-active-exposure-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r4-4-single-active-exposure-${{ github.sha }}
+          path: |
+            vt31-r4-4-single-active-exposure-research.json
+            git-sha.txt
+            SHA256SUMS
+          retention-days: 90
+          if-no-files-found: error

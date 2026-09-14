@@ -20,7 +20,6 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 
 from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
-    _CHUNK_DAYS,
     _HISTORICAL_PAGE_COUNT,
     _collect_period_window,
     _native_int,
@@ -41,12 +40,18 @@ from qore.kernel.result import Failure
 
 _SCHEMA = "qore.ctrader_demo.vt31_silver_bullet_v2_m1_evidence.v1"
 _SYMBOL = "NAS100"
+_RESEARCH_MARKETS = frozenset({"NAS100", "SP500", "US30"})
 _NATIVE_M1_PERIOD = 1
 _M1_SECONDS = 60
 _MIN_LOOKBACK_DAYS = 730
 _MAX_LOOKBACK_DAYS = 1095
 _REQUIRED_COVERAGE_DAYS = 730
 _RECENT_BOUNDARY_TOLERANCE_DAYS = 10
+# cTrader caps each historical request at 5,000 bars.  A fourteen-day M1
+# window can contain far more bars and the provider has not reliably asserted
+# ``hasMore`` for that case.  Three calendar days contain at most 4,321 M1
+# openings including both boundaries, so every VT-31 request fits in one page.
+_VT31_M1_CHUNK_DAYS = 3
 
 # Explicit provider aliases for the same canonical NASDAQ-100 market. A suffix
 # is accepted only when separated from one of these exact roots (for example
@@ -58,14 +63,21 @@ _NAS100_PROVIDER_ROOTS: tuple[str, ...] = (
     "USTECH",
     "NASDAQ100",
 )
+_SP500_PROVIDER_ROOTS: tuple[str, ...] = ("SP500", "US500", "SPX500")
+_US30_PROVIDER_ROOTS: tuple[str, ...] = ("US30", "DJ30", "DOW30", "WS30")
+_PROVIDER_ROOTS = {
+    "NAS100": _NAS100_PROVIDER_ROOTS,
+    "SP500": _SP500_PROVIDER_ROOTS,
+    "US30": _US30_PROVIDER_ROOTS,
+}
 _PROVIDER_SUFFIX_SEPARATORS = frozenset({".", "_", "-", "/"})
 
 
-def _provider_root(value: str) -> str | None:
+def _market_provider_root(market: str, value: str) -> str | None:
     if type(value) is not str or not value:
         return None
     upper = value.upper()
-    for root in _NAS100_PROVIDER_ROOTS:
+    for root in _PROVIDER_ROOTS.get(market, ()):
         if upper == root:
             return root
         if upper.startswith(root) and len(upper) > len(root):
@@ -75,6 +87,12 @@ def _provider_root(value: str) -> str | None:
                 if suffix and re.fullmatch(r"[A-Z0-9]+", suffix) is not None:
                     return root
     return None
+
+
+def _provider_root(value: str) -> str | None:
+    """Backward-compatible NAS100 alias resolver."""
+
+    return _market_provider_root(_SYMBOL, value)
 
 
 def _select_nas100_provider_symbol_name(
@@ -104,6 +122,38 @@ def _select_nas100_provider_symbol_name(
     if len(matches) != 1:
         raise CTraderDemoLabProbeError(
             "canonical NAS100 provider alias is ambiguous; exact one-to-one binding required"
+        )
+    return matches[0]
+
+
+def _select_provider_symbol_name(
+    market: str,
+    symbols: tuple[tuple[str, bool], ...],
+) -> str:
+    if market not in _RESEARCH_MARKETS:
+        raise CTraderDemoLabProbeError("unsupported VT-31 multi-index research market")
+    if type(symbols) is not tuple or any(
+        type(item) is not tuple
+        or len(item) != 2
+        or type(item[0]) is not str
+        or type(item[1]) is not bool
+        for item in symbols
+    ):
+        raise CTraderDemoLabProbeError(
+            "provider symbol observations must be immutable (name, enabled) pairs"
+        )
+    matches = tuple(
+        name
+        for name, enabled in symbols
+        if enabled and _market_provider_root(market, name) is not None
+    )
+    if not matches:
+        raise CTraderDemoLabProbeError(
+            f"canonical {market} has no enabled explicit cTrader provider alias"
+        )
+    if len(matches) != 1:
+        raise CTraderDemoLabProbeError(
+            f"canonical {market} provider alias is ambiguous; exact one-to-one binding required"
         )
     return matches[0]
 
@@ -189,6 +239,89 @@ def _connect_and_resolve_nas100(
     )
 
 
+def _connect_and_resolve_market(
+    client: CTraderOpenApiMessageClientBoundary,
+    *,
+    market: str,
+    timeout_seconds: float,
+) -> tuple[int, str, CTraderDemoLabSymbolEvidence, str]:
+    if market == _SYMBOL:
+        return _connect_and_resolve_nas100(client, timeout_seconds=timeout_seconds)
+    if market not in _RESEARCH_MARKETS:
+        raise CTraderDemoLabProbeError("unsupported VT-31 multi-index research market")
+    if not client.is_ready:
+        connected = client.connect_and_authenticate()
+        if isinstance(connected, Failure):
+            raise CTraderDemoLabProbeError(
+                f"cTrader DEMO authentication failed: {type(connected.error).__name__}"
+            )
+    account_id = client.account_id
+    listed = client.request(
+        "ProtoOASymbolsListReq",
+        {"ctidTraderAccountId": account_id, "includeArchivedSymbols": False},
+        client_msg_id=f"qore-vt31-r2-5-{market.lower()}-symbol-list",
+        timeout_seconds=timeout_seconds,
+    )
+    if isinstance(listed, Failure):
+        raise CTraderDemoLabProbeError("cTrader DEMO symbol-list read failed")
+    native_symbols = getattr(listed.value, "symbol", None)
+    if native_symbols is None:
+        raise CTraderDemoLabProbeError("cTrader DEMO symbol list is missing")
+    observed: list[tuple[str, bool]] = []
+    by_name: dict[str, object] = {}
+    for item in cast(tuple[object, ...], tuple(native_symbols)):
+        name = getattr(item, "symbolName", None)
+        enabled = getattr(item, "enabled", None)
+        if type(name) is not str or type(enabled) is not bool:
+            continue
+        observed.append((name, enabled))
+        if name in by_name:
+            raise CTraderDemoLabProbeError(
+                "cTrader DEMO symbol list duplicates provider symbol names"
+            )
+        by_name[name] = item
+    provider_symbol_name = _select_provider_symbol_name(market, tuple(observed))
+    selected = by_name[provider_symbol_name]
+    symbol_id = _native_int(selected, "symbolId")
+    details = client.request(
+        "ProtoOASymbolByIdReq",
+        {"ctidTraderAccountId": account_id, "symbolId": [symbol_id]},
+        client_msg_id=f"qore-vt31-r2-5-{market.lower()}-symbol-details:{symbol_id}",
+        timeout_seconds=timeout_seconds,
+    )
+    if isinstance(details, Failure):
+        raise CTraderDemoLabProbeError("cTrader DEMO symbol-details read failed")
+    native_details = getattr(details.value, "symbol", None)
+    if native_details is None:
+        raise CTraderDemoLabProbeError("cTrader DEMO symbol details are missing")
+    detail = next(
+        (
+            item
+            for item in cast(tuple[object, ...], tuple(native_details))
+            if getattr(item, "symbolId", None) == symbol_id
+        ),
+        None,
+    )
+    if detail is None:
+        raise CTraderDemoLabProbeError(
+            f"cTrader DEMO exact {market} symbol details are absent"
+        )
+    canonical_symbol = CTraderDemoLabSymbolEvidence(
+        symbol_id=symbol_id,
+        symbol_name=market,
+        digits=_native_int(detail, "digits"),
+        min_volume_units=_native_int(detail, "minVolume"),
+        max_volume_units=_native_int(detail, "maxVolume"),
+        step_volume_units=_native_int(detail, "stepVolume"),
+    )
+    return (
+        account_id,
+        compute_ctrader_demo_lab_account_fingerprint(account_id),
+        canonical_symbol,
+        provider_symbol_name,
+    )
+
+
 def _validate_m1_coverage(
     bars: tuple[CTraderDemoLabClosedTrendbar, ...],
     *,
@@ -257,6 +390,7 @@ def collect_vt31_v2_m1_evidence(
     requested_opened_at: datetime,
     checked_at: datetime,
     timeout_seconds: float = 15.0,
+    market: str = _SYMBOL,
 ) -> dict[str, object]:
     """Collect source-required two-year M1 evidence for canonical NAS100 only."""
 
@@ -272,8 +406,9 @@ def collect_vt31_v2_m1_evidence(
         raise CTraderDemoLabProbeError("requested_opened_at must predate checked_at")
 
     account_id, account_fingerprint, symbol, provider_symbol_name = (
-        _connect_and_resolve_nas100(
+        _connect_and_resolve_market(
             client,
+            market=market,
             timeout_seconds=timeout_seconds,
         )
     )
@@ -281,7 +416,7 @@ def collect_vt31_v2_m1_evidence(
     cursor = opened
     window_index = 0
     while cursor < checked:
-        window_end = min(cursor + timedelta(days=_CHUNK_DAYS), checked)
+        window_end = min(cursor + timedelta(days=_VT31_M1_CHUNK_DAYS), checked)
         bars = _collect_period_window(
             client,
             account_id=account_id,
@@ -322,10 +457,11 @@ def collect_vt31_v2_m1_evidence(
         "checked_at": checked.isoformat(timespec="microseconds"),
         "requested_opened_at": opened.isoformat(timespec="microseconds"),
         "required_coverage_days": _REQUIRED_COVERAGE_DAYS,
-        "historical_chunk_days": _CHUNK_DAYS,
+        "historical_chunk_days": _VT31_M1_CHUNK_DAYS,
         "historical_page_count": _HISTORICAL_PAGE_COUNT,
         "decision_timeframe": "M1",
         "source_authorized_market": _SYMBOL,
+        "owner_authorized_research_market": market,
         "coverage": _coverage_payload(ordered),
         "periods": {"M1": [item.payload() for item in ordered]},
     }
@@ -355,9 +491,9 @@ def main() -> None:
             "QORE_SOFTWARE_SHA must be the exact lowercase 40-character Git SHA"
         )
     configured_symbol = os.environ.get("QORE_DEMO_LAB_SYMBOL", _SYMBOL)
-    if configured_symbol != _SYMBOL:
+    if configured_symbol not in _RESEARCH_MARKETS:
         raise CTraderDemoLabProbeError(
-            "VT-31 V2 source contract authorizes only NAS100 for this research candidate"
+            "VT-31 multi-index research permits only NAS100, SP500 and US30"
         )
     lookback_days = int(os.environ.get("QORE_DEMO_LAB_LOOKBACK_DAYS", "760"))
     if not _MIN_LOOKBACK_DAYS <= lookback_days <= _MAX_LOOKBACK_DAYS:
@@ -372,6 +508,7 @@ def main() -> None:
             client,
             requested_opened_at=requested_opened_at,
             checked_at=checked_at,
+            market=configured_symbol,
         )
         payload["requested_lookback_days"] = lookback_days
         payload["software_sha"] = software_sha
