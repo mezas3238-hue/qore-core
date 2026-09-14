@@ -1,7 +1,7 @@
 """Broker-exact sizing for the frozen VT-08 R3.15 B_COMBINED Forex contract.
 
-The frozen economic policy is not optimized here.  R3.15 certified A-base risk
-at 25 bps and GBPJPY-base risk at 20 bps.  This adapter converts that monetary
+The frozen economic policy is not optimized here. R3.15 certified A-base risk
+at 25 bps and GBPJPY-base risk at 20 bps. This adapter converts that monetary
 risk envelope into broker volume using fresh MT5 tick economics and emits only a
 CiboRiskRequest; sovereign account-wide Risk may still reduce or reject it.
 """
@@ -59,7 +59,11 @@ def build_certified_vt08_forex_cibo_request(
         raise AccountWideRiskError("VT08 Forex Risk policy fingerprint mismatch")
     if not isinstance(provider_spec, Mt5SymbolSpecification):
         raise AccountWideRiskError("fresh MT5 symbol specification is required")
-    if not isinstance(account_equity, Decimal) or not account_equity.is_finite() or account_equity <= 0:
+    if (
+        not isinstance(account_equity, Decimal)
+        or not account_equity.is_finite()
+        or account_equity <= 0
+    ):
         raise AccountWideRiskError("account equity must be positive finite Decimal")
     if entry_type not in {"market", "limit"}:
         raise AccountWideRiskError("entry type must already be resolved upstream")
