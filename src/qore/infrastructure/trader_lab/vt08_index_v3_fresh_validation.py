@@ -386,7 +386,12 @@ def main() -> None:
         + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({"holdout_id": HOLDOUT_ID, "pass": result["fresh_holdout_pass"]}, sort_keys=True))
+    print(
+        json.dumps(
+            {"holdout_id": HOLDOUT_ID, "pass": result["fresh_holdout_pass"]},
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
