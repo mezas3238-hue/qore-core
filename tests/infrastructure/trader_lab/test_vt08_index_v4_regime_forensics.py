@@ -69,7 +69,7 @@ def test_previous_body_alignment_is_side_relative() -> None:
 
 
 def test_metrics_apply_frozen_point_zero_five_r_stress() -> None:
-    rows = [
+    rows: list[dict[str, object]] = [
         {"signal_at": "2026-01-01T00:00:00+00:00", "symbol": "A", "r_multiple": "1"},
         {"signal_at": "2026-01-02T00:00:00+00:00", "symbol": "A", "r_multiple": "-1"},
         {"signal_at": "2026-01-03T00:00:00+00:00", "symbol": "A", "r_multiple": "0.5"},
