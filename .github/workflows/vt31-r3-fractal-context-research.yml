@@ -1,0 +1,296 @@
+name: QORE VT-31 R3 Fractal Context Research
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r3-fractal-context-research.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download exact consumed evidence and parent research
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30} r26
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10355074492/zip" > r26.zip
+          cat > expected.sha256 <<'EOF'
+          1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip
+          bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip
+          bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip
+          f7c8d5d539623371b861569dbf859d86d8225a81effe0add4017e3db28f6d37a  r26.zip
+          EOF
+          sha256sum --check expected.sha256
+          unzip -q NAS100.zip -d evidence/NAS100
+          unzip -q SP500.zip -d evidence/SP500
+          unzip -q US30.zip -d evidence/US30
+          unzip -q r26.zip -d r26
+      - name: Test three predeclared TTrades context contracts
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from collections import defaultdict
+          from datetime import datetime
+          from decimal import Decimal
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
+              _metrics,
+              _quartiles,
+          )
+
+          NY = ZoneInfo("America/New_York")
+          MARKETS = ("NAS100", "SP500", "US30")
+          PARENT = "all-families-nearest-retracement:near-stop"
+          HYPOTHESES = ("daily-c2", "hourly-c2", "daily-and-hourly-c2")
+
+          def dt(value):
+              return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+          def candle(items):
+              return {
+                  "open": Decimal(str(items[0]["open"])),
+                  "high": max(Decimal(str(x["high"])) for x in items),
+                  "low": min(Decimal(str(x["low"])) for x in items),
+                  "close": Decimal(str(items[-1]["close"])),
+              }
+
+          def c2_bias(previous, current):
+              bullish = (
+                  current["low"] < previous["low"]
+                  and current["close"] > previous["low"]
+              )
+              bearish = (
+                  current["high"] > previous["high"]
+                  and current["close"] < previous["high"]
+              )
+              if bullish == bearish:
+                  return None
+              return "long" if bullish else "short"
+
+          parent = {
+              market: json.loads(Path(f"r26/{market}.json").read_text())
+              for market in MARKETS
+          }
+          labels = {}
+          diagnostics = {}
+          for market in MARKETS:
+              evidence = json.loads(
+                  Path(f"evidence/{market}/market-evidence.json").read_text()
+              )
+              by_day = defaultdict(list)
+              for bar in evidence["periods"]["M1"]:
+                  local = dt(bar["opened_at"]).astimezone(NY)
+                  by_day[local.date().isoformat()].append((local, bar))
+              valid_days = [
+                  day for day in sorted(by_day)
+                  if len(by_day[day]) >= 1000
+              ]
+              previous_days = {}
+              for index, day in enumerate(valid_days):
+                  if index >= 2:
+                      previous_days[day] = (valid_days[index - 2], valid_days[index - 1])
+              market_labels = {}
+              counts = defaultdict(int)
+              for day, timed in by_day.items():
+                  h08 = [bar for local, bar in timed if local.hour == 8]
+                  h09 = [bar for local, bar in timed if local.hour == 9]
+                  hourly = (
+                      c2_bias(candle(h08), candle(h09))
+                      if len(h08) == 60 and len(h09) == 60
+                      else None
+                  )
+                  daily = None
+                  if day in previous_days:
+                      d1, d2 = previous_days[day]
+                      daily = c2_bias(
+                          candle([bar for _, bar in by_day[d1]]),
+                          candle([bar for _, bar in by_day[d2]]),
+                      )
+                  market_labels[day] = {"daily": daily, "hourly": hourly}
+                  counts[f"daily:{daily}"] += 1
+                  counts[f"hourly:{hourly}"] += 1
+              labels[market] = market_labels
+              diagnostics[market] = dict(sorted(counts.items()))
+
+          def selected(hypothesis, market):
+              result = []
+              source = parent[market]["variants"][PARENT]["trades"]
+              for item in source:
+                  context = labels[market].get(item["local_date"], {})
+                  daily = context.get("daily")
+                  hourly = context.get("hourly")
+                  keep = (
+                      daily == item["side"]
+                      if hypothesis == "daily-c2"
+                      else hourly == item["side"]
+                      if hypothesis == "hourly-c2"
+                      else daily == hourly == item["side"]
+                  )
+                  if keep:
+                      result.append(dict(item, market=market))
+              return result
+
+          def adjudicate(hypothesis):
+              per_market = {market: selected(hypothesis, market) for market in MARKETS}
+              trades = sorted(
+                  [item for values in per_market.values() for item in values],
+                  key=lambda item: (item["filled_at"], item["market"]),
+              )
+              aggregate = _metrics(trades)
+              stressed = _metrics(trades, friction=Decimal("0.05"))
+              markets = {
+                  market: _metrics(values, friction=Decimal("0.05"))
+                  for market, values in per_market.items()
+              }
+              sides = {
+                  side: _metrics(
+                      [item for item in trades if item["side"] == side],
+                      friction=Decimal("0.05"),
+                  )
+                  for side in ("long", "short")
+              }
+              quartiles = _quartiles(trades)
+              temporal = {}
+              for market, values in per_market.items():
+                  for year in sorted({item["local_date"][:4] for item in values}):
+                      temporal[f"{market}:{year}"] = _metrics(
+                          [item for item in values if item["local_date"].startswith(year)],
+                          friction=Decimal("0.05"),
+                      )
+              eligible = [x for x in temporal.values() if x["sample"] >= 10]
+              gates = {
+                  "aggregate_sample_at_least_150": aggregate["sample"] >= 150,
+                  "each_market_sample_at_least_30": all(
+                      x["sample"] >= 30 for x in markets.values()
+                  ),
+                  "aggregate_stressed_mean_positive": Decimal(stressed["mean_r"]) > 0,
+                  "aggregate_stressed_pf_at_least_1_10": (
+                      stressed["profit_factor"] is not None
+                      and Decimal(stressed["profit_factor"]) >= Decimal("1.10")
+                  ),
+                  "aggregate_stressed_dd_at_most_20r": Decimal(
+                      stressed["max_drawdown_r"]
+                  ) <= Decimal(20),
+                  "every_market_stressed_mean_positive": all(
+                      Decimal(x["mean_r"]) > 0 for x in markets.values()
+                  ),
+                  "both_sides_stressed_mean_positive": all(
+                      x["sample"] > 0 and Decimal(x["mean_r"]) > 0
+                      for x in sides.values()
+                  ),
+                  "three_of_four_quartiles_positive": sum(
+                      Decimal(x["mean_r"]) > 0 for x in quartiles
+                  ) >= 3,
+                  "two_thirds_eligible_temporal_blocks_positive": (
+                      bool(eligible)
+                      and sum(Decimal(x["mean_r"]) > 0 for x in eligible) * 3
+                      >= len(eligible) * 2
+                  ),
+              }
+              return {
+                  "aggregate": aggregate,
+                  "stress_0_05r": stressed,
+                  "market_stress": markets,
+                  "side_stress": sides,
+                  "quartiles": quartiles,
+                  "temporal_blocks": temporal,
+                  "gates": gates,
+                  "survivor": all(gates.values()),
+                  "trades": trades,
+              }
+
+          results = {name: adjudicate(name) for name in HYPOTHESES}
+          survivors = [name for name, value in results.items() if value["survivor"]]
+          contract = {
+              "methodology": "TTrades-Fractal-Model",
+              "source_urls": [
+                  "https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/",
+                  "https://ttrades.com/understanding-candle-2-closures-within-the-fractal-model/",
+              ],
+              "parent_execution": PARENT,
+              "markets": list(MARKETS),
+              "same_configuration_across_markets": True,
+              "daily_c2": "previous-complete-day-sweeps-prior-day-extreme-and-closes-inside",
+              "hourly_c2": "09:00-10:00-NY-sweeps-08:00-09:00-extreme-and-closes-inside",
+              "hypotheses": list(HYPOTHESES),
+              "hypothesis_count": 3,
+          }
+          report = {
+              "schema": "qore.trader_lab.vt31_r3_fractal_context_research.v1",
+              "software_sha": "${{ github.sha }}",
+              "research_only": True,
+              "consumed_evidence_only": True,
+              "fresh_evidence_opened": False,
+              "contract": contract,
+              "contract_fingerprint": hashlib.sha256(
+                  json.dumps(contract, sort_keys=True, separators=(",", ":")).encode()
+              ).hexdigest(),
+              "context_diagnostics": diagnostics,
+              "results": results,
+              "survivors": survivors,
+              "adjudication": (
+                  "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE"
+                  if len(survivors) == 1
+                  else "VT31_R3_CANDIDATE_NOT_JUSTIFIED"
+              ),
+              "candidate_frozen": False,
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          Path("vt31-r3-fractal-context-research.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          print(json.dumps({
+              "adjudication": report["adjudication"],
+              "survivors": survivors,
+              "summary": {
+                  name: {
+                      "aggregate": value["aggregate"],
+                      "stress": value["stress_0_05r"],
+                      "market_mean": {
+                          key: metric["mean_r"]
+                          for key, metric in value["market_stress"].items()
+                      },
+                      "side_mean": {
+                          key: metric["mean_r"]
+                          for key, metric in value["side_stress"].items()
+                      },
+                      "failed": sorted(
+                          key for key, passed in value["gates"].items() if not passed
+                      ),
+                  }
+                  for name, value in results.items()
+              },
+          }, sort_keys=True))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r3-fractal-context-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r3-fractal-context-${{ github.sha }}
+          path: |
+            vt31-r3-fractal-context-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
