@@ -215,7 +215,7 @@ def test_wrong_terminal_identity_fails_closed_before_broker_mutation() -> None:
     assert transport.account_state("fn-si-opaque-001") is None
     with pytest.raises(Mt5ExecutionBlockedError, match="login-mismatch"):
         transport.submit_order(_plan())
-    assert api.last_request is None
+    assert api.last_request is none
 
     api.account.login = 123456
     api.account.server = "Other-Server"
@@ -271,6 +271,17 @@ def test_cancel_and_discovery_use_same_deterministic_identity() -> None:
         cancelled_at=_NOW,
     )
     assert cancelled.outcome is Mt5ProviderOutcome.CANCELLED
+
+
+def test_broker_comment_is_capped_at_fundednext_verified_29_characters() -> None:
+    api = _Api()
+    transport = _transport(api)
+    plan = replace(_plan(), client_order_id="qore-shadow-audjpy-short-probe")
+    transport.submit_order(plan)
+    assert api.last_request is not None
+    comment = str(api.last_request["comment"])
+    assert comment == plan.client_order_id[:29]
+    assert len(comment) == 29
 
 
 def test_market_order_uses_live_ioc_when_symbol_advertises_ioc() -> None:

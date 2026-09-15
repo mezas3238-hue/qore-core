@@ -461,7 +461,8 @@ class MetaTrader5FundedNextTransport:
 
 
 def _client_comment(client_order_id: str) -> str:
-    return client_order_id[:31]
+    # FundedNext MT5 rejects 30+ character comments; 29 is broker-verified.
+    return client_order_id[:29]
 
 
 def _magic(client_order_id: str) -> int:
