@@ -1,29 +1,17 @@
-"""Frozen experimental Classic re-entry replay for Turtle Soup R6.
-
-R6 deliberately layers one preregistered QORE_EXPERIMENTAL_REENTRY mechanic on
-R5.  It does not claim that underdetermined re-entry state mechanics are canonical
-Connors/Raschke rules and it never opens fresh OOS.
-"""
+"""Frozen experimental Classic re-entry replay for Turtle Soup R6."""
 
 from __future__ import annotations
 
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from datetime import datetime
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 
-from turtle_soup_r5_economics import (
-    POLICIES,
-    Trade,
-    bar_stop,
-    metrics,
-    policy_report,
-    replay,
-)
+from turtle_soup_r5_economics import POLICIES, Trade, bar_stop, metrics, policy_report, replay
 from turtle_soup_r5_replay_core import (
     MARKETS,
     OOS_START,
@@ -32,35 +20,13 @@ from turtle_soup_r5_replay_core import (
     Fill,
     Market,
     State,
-    decimal,
     process_bar,
+    process_ticks,
     run_census,
-    tick_rows,
-    timestamp,
 )
 
 R6_IDENTITY = "turtle-soup-candidate-r6-reentry-exp1"
-
-
-@dataclass(frozen=True, slots=True)
-class StopPoint:
-    day_offset: int
-    level: str
-    m15_index: int
-    m1_index: int | None
-    tick_index: int | None
-    stop_price: Decimal
-    reason: str
-    bar: Bar
-    record: dict[str, object] | None
-
-
-@dataclass(frozen=True, slots=True)
-class ReentryResolution:
-    status: str
-    evaluation: Evaluation | None
-    source_index: int | None
-    stop_day_offset: int | None
+BASE_POLICY = "C_TRAIL1_H3"
 
 
 def serialize(value: object) -> object:
@@ -85,144 +51,33 @@ def digest(value: object) -> str:
     return sha256(raw).hexdigest()
 
 
-def stop_hit(side: str, stop: Decimal, price: Decimal) -> bool:
-    return price <= stop if side == "long" else price >= stop
-
-
-def trigger_hit(side: str, trigger: Decimal, bar: Bar) -> bool:
-    return bar.high >= trigger if side == "long" else bar.low <= trigger
-
-
-def adverse_extreme(side: str, current: Decimal, bar: Bar) -> Decimal:
-    return min(current, bar.low) if side == "long" else max(current, bar.high)
-
-
-def exact_m1(market: Market, session: datetime, m15: Bar) -> tuple[Bar, ...] | None:
-    return market.m1_subbars(session, m15)
-
-
-def tick_record(market: Market, minute: datetime, side: str) -> dict[str, object] | None:
-    target = market.ticks.get((minute, side))
-    return None if target is None else target[1]
-
-
-def tick_sequence(bar: Bar, record: dict[str, object]) -> list[tuple[datetime, Decimal]] | None:
-    rows = tick_rows(record)
-    if not rows:
-        return None
-    prices = [bar.open, *(decimal(row["price"]) for row in rows)]
-    if max(prices) != bar.high or min(prices) != bar.low or prices[-1] != bar.close:
-        return None
-    previous: int | None = None
-    output = [(bar.opened_at, bar.open)]
-    for row in rows:
-        stamp = row.get("timestamp_ms")
-        if not isinstance(stamp, int):
-            return None
-        if previous is not None and stamp <= previous:
-            return None
-        previous = stamp
-        output.append((timestamp(row["timestamp"]), decimal(row["price"])))
-    return output
-
-
-def fill_from_data(
-    *,
-    original: Fill,
-    source_session: datetime,
-    resolution: str,
-    fill_data: tuple[Decimal, Decimal, datetime, str],
-+) -> Fill:
-    return Fill(
-        original.side,
-        fill_data[0],
-        original.trigger,
-        fill_data[1],
-        fill_data[2],
-        source_session,
-        resolution,
-    )
-
-
-def locate_day1_stop(result: Evaluation) -> StopPoint | None:
-    if result.fill is None or result.context is None:
-        raise ValueError("R6 requires deterministic R5 fill context")
-    fill = result.fill
-    context = result.context
-    path, m15_index, current_m15, mode = context[:4]
-    if not isinstance(path, tuple) or not isinstance(m15_index, int) or not isinstance(current_m15, Bar):
-        raise ValueError("invalid R5 context")
-    if not isinstance(mode, str):
-        raise ValueError("invalid R5 fill mode")
-
-    if fill.resolution.startswith("TICK:"):
-        subbars, m1_index, m1_bar, record = context[4:8]
-        if not isinstance(subbars, tuple) or not isinstance(m1_index, int):
-            raise ValueError("invalid tick context")
-        if not isinstance(m1_bar, Bar) or not isinstance(record, dict):
-            raise ValueError("invalid tick evidence")
-        rows = tick_rows(record)
-        started = fill.fill_at == m1_bar.opened_at
-        for tick_index, row in enumerate(rows):
-            observed_at = timestamp(row["timestamp"])
-            price = decimal(row["price"])
-            if not started:
-                if observed_at < fill.fill_at:
-                    continue
-                started = True
-                if observed_at == fill.fill_at and price == fill.entry:
-                    continue
-            if stop_hit(fill.side, fill.stop, price):
-                return StopPoint(
-                    0,
-                    "tick",
-                    m15_index,
-                    m1_index,
-                    tick_index,
-                    price,
-                    "gap-stop" if price != fill.stop else "stop",
-                    m1_bar,
-                    record,
-                )
-        for local_index, bar in enumerate(subbars[m1_index + 1 :], start=m1_index + 1):
-            if not isinstance(bar, Bar):
-                raise ValueError("invalid M1 bar")
-            price, reason = bar_stop(fill.side, fill.stop, bar)
-            if price is not None and reason is not None:
-                return StopPoint(0, "m1", m15_index, local_index, None, price, reason, bar, None)
-        start_m15 = m15_index + 1
-    elif fill.resolution == "M1":
-        subbars, m1_index, m1_bar = context[4:7]
-        if not isinstance(subbars, tuple) or not isinstance(m1_index, int) or not isinstance(m1_bar, Bar):
-            raise ValueError("invalid M1 context")
-        if mode == "open":
-            price, reason = bar_stop(fill.side, fill.stop, m1_bar)
-            if price is not None and reason is not None:
-                return StopPoint(0, "m1", m15_index, m1_index, None, price, reason, m1_bar, None)
-        for local_index, bar in enumerate(subbars[m1_index + 1 :], start=m1_index + 1):
-            if not isinstance(bar, Bar):
-                raise ValueError("invalid M1 bar")
-            price, reason = bar_stop(fill.side, fill.stop, bar)
-            if price is not None and reason is not None:
-                return StopPoint(0, "m1", m15_index, local_index, None, price, reason, bar, None)
-        start_m15 = m15_index + 1
-    else:
-        if mode == "open":
-            price, reason = bar_stop(fill.side, fill.stop, current_m15)
-            if price is not None and reason is not None:
-                return StopPoint(0, "m15", m15_index, None, None, price, reason, current_m15, None)
-        start_m15 = m15_index + 1
-
-    for local_index, bar in enumerate(path[start_m15:], start=start_m15):
-        if not isinstance(bar, Bar):
-            raise ValueError("invalid M15 bar")
-        price, reason = bar_stop(fill.side, fill.stop, bar)
-        if price is not None and reason is not None:
-            return StopPoint(0, "m15", local_index, None, None, price, reason, bar, None)
+def locate_m15(path: tuple[Bar, ...], when: datetime) -> int | None:
+    for index, bar in enumerate(path):
+        if bar.opened_at <= when < bar.closed_at:
+            return index
     return None
 
 
-def locate_day2_stop(market: Market, source_index: int, fill: Fill) -> StopPoint | None:
+def locate_attempt1_stop(
+    market: Market,
+    result: Evaluation,
+    source_index: int,
+) -> tuple[int, int, tuple[Bar, ...]] | None:
+    if result.fill is None or result.context is None:
+        raise ValueError("R6 requires deterministic R5 fill")
+    first = replay(market, result, source_index, BASE_POLICY)
+    if first.exit_reason not in {"stop", "gap-stop"} or first.exit_at is None:
+        return None
+    if first.holding_bars == 0:
+        path = result.context[0]
+        if not isinstance(path, tuple):
+            raise ValueError("invalid R5 path context")
+        index = locate_m15(path, first.exit_at)
+        if index is None:
+            raise AssertionError("could not locate Day-1 stop M15")
+        return 0, index, path
+    if first.holding_bars != 1:
+        return None
     day2_index = source_index + 1
     if day2_index >= len(market.d1):
         return None
@@ -232,155 +87,103 @@ def locate_day2_stop(market: Market, source_index: int, fill: Fill) -> StopPoint
     path = market.m15_session(day2)
     if path is None:
         return None
-    for m15_index, bar in enumerate(path):
-        price, reason = bar_stop(fill.side, fill.stop, bar)
+    for index, bar in enumerate(path):
+        price, reason = bar_stop(result.fill.side, result.fill.stop, bar)
         if price is not None and reason is not None:
-            return StopPoint(1, "m15", m15_index, None, None, price, reason, bar, None)
-    return None
+            return 1, index, path
+    raise AssertionError("R5 Day-2 stop did not reproduce on M15")
 
 
-def ticks_stop_then_reentry(
-    *,
+def make_fill(
+    original: Fill,
+    session: Bar,
+    resolution: str,
+    fill_data: tuple[Decimal, Decimal, datetime, str],
+) -> Fill:
+    return Fill(
+        original.side,
+        fill_data[0],
+        original.trigger,
+        fill_data[1],
+        fill_data[2],
+        session.opened_at,
+        resolution,
+    )
+
+
+def refine_m15(
     market: Market,
     session: Bar,
-    m15_path: tuple[Bar, ...],
+    path: tuple[Bar, ...],
     m15_index: int,
-    m1_path: tuple[Bar, ...],
-    m1_index: int,
-    bar: Bar,
-    record: dict[str, object],
     original: Fill,
-    initial_after_stop: State | None,
-+) -> tuple[str, State | None, Evaluation | None]:
-    sequence = tick_sequence(bar, record)
-    if sequence is None:
-        return "tick-irreconcilable", initial_after_stop, None
-    after_stop = initial_after_stop
-    for observed_at, price in sequence:
-        if after_stop is None:
-            if not stop_hit(original.side, original.stop, price):
-                continue
-            after_stop = State(True, price)
-            continue
-        if after_stop.extreme is None:
-            raise AssertionError("lost R6 adverse extreme")
-        if original.side == "long":
-            after_stop.extreme = min(after_stop.extreme, price)
-            if price >= original.trigger:
-                fill_data = (price, after_stop.extreme - market.tick_size, observed_at, "tick")
-                fill = fill_from_data(
-                    original=original,
-                    source_session=session.opened_at,
-                    resolution="TICK:R6",
-                    fill_data=fill_data,
-                )
-                context = (m15_path, m15_index, m15_path[m15_index], "tick", m1_path, m1_index, bar, record)
-                return "fill", after_stop, Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context)
-        else:
-            after_stop.extreme = max(after_stop.extreme, price)
-            if price <= original.trigger:
-                fill_data = (price, after_stop.extreme + market.tick_size, observed_at, "tick")
-                fill = fill_from_data(
-                    original=original,
-                    source_session=session.opened_at,
-                    resolution="TICK:R6",
-                    fill_data=fill_data,
-                )
-                context = (m15_path, m15_index, m15_path[m15_index], "tick", m1_path, m1_index, bar, record)
-                return "fill", after_stop, Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context)
-    return ("continue" if after_stop is not None else "stop-not-reproduced"), after_stop, None
-
-
-def m1_stop_then_reentry(
-    *,
-    market: Market,
-    session: Bar,
-    m15_path: tuple[Bar, ...],
-    m15_index: int,
-    m1_path: tuple[Bar, ...],
-    original: Fill,
-    state: State | None,
-    start_m1: int = 0,
-+) -> tuple[str, State | None, Evaluation | None]:
-    current = state
-    for m1_index, bar in enumerate(m1_path[start_m1:], start=start_m1):
-        if current is None:
-            stop_price, stop_reason = bar_stop(original.side, original.stop, bar)
-            if stop_price is None or stop_reason is None:
-                continue
-            if trigger_hit(original.side, original.trigger, bar) and stop_reason == "stop":
-                record = tick_record(market, bar.opened_at, original.side)
-                if record is None:
-                    return "reentry-ambiguous", None, None
-                return ticks_stop_then_reentry(
-                    market=market,
-                    session=session,
-                    m15_path=m15_path,
-                    m15_index=m15_index,
-                    m1_path=m1_path,
-                    m1_index=m1_index,
-                    bar=bar,
-                    record=record,
-                    original=original,
-                    initial_after_stop=None,
-                )
-            current = State(True, stop_price)
-            if stop_reason == "stop":
-                current.extreme = adverse_extreme(original.side, stop_price, bar)
-                continue
-        if current is None:
-            raise AssertionError("R6 stop state lost")
+    state: State,
+) -> tuple[str, State, Evaluation | None]:
+    m15 = path[m15_index]
+    subbars = market.m1_subbars(session.opened_at, m15)
+    if subbars is None:
+        return "reentry-ambiguous", state, None
+    local = State(state.swept, state.extreme)
+    for m1_index, m1 in enumerate(subbars):
         status, next_state, fill_data = process_bar(
-            bar,
+            m1,
             original.side,
             original.trigger,
             original.trigger,
-            current,
+            local,
             market.tick_size,
         )
         if status == "continue":
-            current = next_state
+            local = next_state
             continue
-        if status == "ambiguous":
-            record = tick_record(market, bar.opened_at, original.side)
-            if record is None:
-                return "reentry-ambiguous", current, None
-            return ticks_stop_then_reentry(
-                market=market,
-                session=session,
-                m15_path=m15_path,
-                m15_index=m15_index,
-                m1_path=m1_path,
-                m1_index=m1_index,
-                bar=bar,
-                record=record,
-                original=original,
-                initial_after_stop=current,
-            )
         if status == "fill" and fill_data is not None:
-            fill = fill_from_data(
-                original=original,
-                source_session=session.opened_at,
-                resolution="M1:R6",
-                fill_data=fill_data,
+            fill = make_fill(original, session, "M1:R6", fill_data)
+            context = (path, m15_index, m15, fill_data[3], subbars, m1_index, m1)
+            return (
+                "fill",
+                next_state,
+                Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context),
             )
-            context = (m15_path, m15_index, m15_path[m15_index], fill_data[3], m1_path, m1_index, bar)
-            return "fill", next_state, Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context)
-        raise AssertionError(f"unexpected M1 R6 state {status}")
-    return "continue", current, None
+        if status != "ambiguous":
+            raise AssertionError(f"unexpected M1 status {status}")
+        target = market.ticks.get((m1.opened_at, original.side))
+        if target is None:
+            return "reentry-ambiguous", local, None
+        wave, record = target
+        tick_status, tick_state, tick_fill = process_ticks(
+            m1,
+            record,
+            original.side,
+            original.trigger,
+            original.trigger,
+            local,
+            market.tick_size,
+        )
+        if tick_status == "continue":
+            local = tick_state
+            continue
+        if tick_status == "fill" and tick_fill is not None:
+            fill = make_fill(original, session, f"TICK:R6:{wave}", tick_fill)
+            context = (path, m15_index, m15, tick_fill[3], subbars, m1_index, m1, record)
+            return (
+                "fill",
+                tick_state,
+                Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context),
+            )
+        return f"reentry-tick-{tick_status}", local, None
+    return "continue", local, None
 
 
-def m15_after_stop(
-    *,
+def search_path(
     market: Market,
     session: Bar,
     path: tuple[Bar, ...],
     original: Fill,
     state: State,
-    start_m15: int,
-+) -> tuple[str, State, Evaluation | None]:
-    current = state
-    for m15_index, bar in enumerate(path[start_m15:], start=start_m15):
+    start_index: int,
+) -> tuple[str, State, Evaluation | None]:
+    current = State(state.swept, state.extreme)
+    for m15_index, bar in enumerate(path[start_index:], start=start_index):
         status, next_state, fill_data = process_bar(
             bar,
             original.side,
@@ -392,335 +195,82 @@ def m15_after_stop(
         if status == "continue":
             current = next_state
             continue
-        if status == "ambiguous":
-            subbars = exact_m1(market, session.opened_at, bar)
-            if subbars is None:
-                return "reentry-ambiguous", current, None
-            refined_status, refined_state, evaluation = m1_stop_then_reentry(
-                market=market,
-                session=session,
-                m15_path=path,
-                m15_index=m15_index,
-                m1_path=subbars,
-                original=original,
-                state=current,
+        if status == "fill" and fill_data is not None:
+            fill = make_fill(original, session, "M15:R6", fill_data)
+            context = (path, m15_index, bar, fill_data[3])
+            return (
+                "fill",
+                next_state,
+                Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context),
             )
-            if refined_status == "continue" and refined_state is not None:
+        if status == "ambiguous":
+            refined_status, refined_state, evaluation = refine_m15(
+                market, session, path, m15_index, original, current
+            )
+            if refined_status == "continue":
                 current = refined_state
                 continue
-            return refined_status, refined_state or current, evaluation
-        if status == "fill" and fill_data is not None:
-            fill = fill_from_data(
-                original=original,
-                source_session=session.opened_at,
-                resolution="M15:R6",
-                fill_data=fill_data,
-            )
-            context = (path, m15_index, bar, fill_data[3])
-            return "fill", next_state, Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context)
-        raise AssertionError(f"unexpected M15 R6 state {status}")
+            return refined_status, refined_state, evaluation
+        raise AssertionError(f"unexpected M15 status {status}")
     return "continue", current, None
 
 
-def day2_from_state(
+def resolve_reentry(
     market: Market,
+    result: Evaluation,
     source_index: int,
-    original: Fill,
-    state: State,
-+) -> tuple[str, State, Evaluation | None, int | None]:
-    day2_index = source_index + 1
-    if day2_index >= len(market.d1):
-        return "reentry-data-unavailable", state, None, None
-    session = market.d1[day2_index]
-    if session.opened_at >= OOS_START:
-        return "reentry-oos-embargo", state, None, None
-    path = market.m15_session(session)
-    if path is None:
-        return "reentry-data-unavailable", state, None, None
-    status, next_state, evaluation = m15_after_stop(
-        market=market,
-        session=session,
-        path=path,
-        original=original,
-        state=state,
-        start_m15=0,
-    )
-    return status, next_state, evaluation, day2_index
-
-
-def resolve_from_day2_stop(
-    market: Market,
-    source_index: int,
-    original: Fill,
-    point: StopPoint,
-+) -> ReentryResolution:
-    day2_index = source_index + 1
-    session = market.d1[day2_index]
-    path = market.m15_session(session)
-    if path is None:
-        return ReentryResolution("reentry-data-unavailable", None, None, 1)
-    bar = path[point.m15_index]
-    state = State(True, point.stop_price)
-    if point.reason == "stop" and trigger_hit(original.side, original.trigger, bar):
-        subbars = exact_m1(market, session.opened_at, bar)
-        if subbars is None:
-            return ReentryResolution("reentry-ambiguous", None, None, 1)
-        status, next_state, evaluation = m1_stop_then_reentry(
-            market=market,
-            session=session,
-            m15_path=path,
-            m15_index=point.m15_index,
-            m1_path=subbars,
-            original=original,
-            state=None,
-        )
-        if status == "fill":
-            return ReentryResolution(status, evaluation, day2_index, 1)
-        if status != "continue" or next_state is None:
-            return ReentryResolution(status, None, None, 1)
-        state = next_state
-    elif point.reason == "stop":
-        state.extreme = adverse_extreme(original.side, point.stop_price, bar)
-    else:
-        status, next_state, evaluation = m15_after_stop(
-            market=market,
-            session=session,
-            path=(bar,),
-            original=original,
-            state=state,
-            start_m15=0,
-        )
-        if status == "fill":
-            return ReentryResolution(status, evaluation, day2_index, 1)
-        if status != "continue":
-            return ReentryResolution(status, None, None, 1)
-        state = next_state
-    status, _, evaluation = m15_after_stop(
-        market=market,
-        session=session,
-        path=path,
-        original=original,
-        state=state,
-        start_m15=point.m15_index + 1,
-    )
-    return ReentryResolution(
-        "expired" if status == "continue" else status,
-        evaluation,
-        day2_index if evaluation is not None else None,
-        1,
-    )
-
-
-def resolve_reentry(market: Market, result: Evaluation, source_index: int) -> ReentryResolution:
+) -> tuple[str, Evaluation | None, int | None, int | None]:
     if result.fill is None:
         raise ValueError("R6 requires R5 source fill")
-    original = result.fill
-    day1_stop = locate_day1_stop(result)
-    if day1_stop is None:
-        day2_stop = locate_day2_stop(market, source_index, original)
-        if day2_stop is None:
-            return ReentryResolution("not-eligible-no-day1-day2-stop", None, None, None)
-        return resolve_from_day2_stop(market, source_index, original, day2_stop)
+    located = locate_attempt1_stop(market, result, source_index)
+    if located is None:
+        return "not-eligible-no-day1-day2-stop", None, None, None
+    day_offset, stop_m15_index, path = located
+    session_index = source_index + day_offset
+    session = market.d1[session_index]
+    stop_bar = path[stop_m15_index]
 
-    session = market.d1[source_index]
-    path = market.m15_session(session)
-    if path is None:
-        return ReentryResolution("reentry-data-unavailable", None, None, 0)
-    state = State(True, day1_stop.stop_price)
-
-    if day1_stop.level == "tick":
-        if day1_stop.record is None or day1_stop.tick_index is None or day1_stop.m1_index is None:
-            raise ValueError("invalid tick stop point")
-        subbars = exact_m1(market, session.opened_at, path[day1_stop.m15_index])
-        if subbars is None:
-            return ReentryResolution("reentry-data-unavailable", None, None, 0)
-        sequence = tick_sequence(day1_stop.bar, day1_stop.record)
-        if sequence is None:
-            return ReentryResolution("tick-irreconcilable", None, None, 0)
-        stop_seen = False
-        for observed_at, price in sequence:
-            if not stop_seen:
-                if observed_at < day1_stop.bar.opened_at:
-                    continue
-                if stop_hit(original.side, original.stop, price):
-                    stop_seen = True
-                    state = State(True, price)
-                continue
-            if state.extreme is None:
-                raise AssertionError("lost R6 tick state")
-            state.extreme = min(state.extreme, price) if original.side == "long" else max(state.extreme, price)
-            if (original.side == "long" and price >= original.trigger) or (
-                original.side == "short" and price <= original.trigger
-            ):
-                stop = state.extreme - market.tick_size if original.side == "long" else state.extreme + market.tick_size
-                fill = Fill(original.side, price, original.trigger, stop, observed_at, session.opened_at, "TICK:R6")
-                context = (
-                    path,
-                    day1_stop.m15_index,
-                    path[day1_stop.m15_index],
-                    "tick",
-                    subbars,
-                    day1_stop.m1_index,
-                    day1_stop.bar,
-                    day1_stop.record,
-                )
-                evaluation = Evaluation(market.symbol, session.opened_at, original.side, "fill", fill, context)
-                return ReentryResolution("fill", evaluation, source_index, 0)
-        status, next_state, evaluation = m1_stop_then_reentry(
-            market=market,
-            session=session,
-            m15_path=path,
-            m15_index=day1_stop.m15_index,
-            m1_path=subbars,
-            original=original,
-            state=state,
-            start_m1=day1_stop.m1_index + 1,
-        )
-        if status == "fill":
-            return ReentryResolution(status, evaluation, source_index, 0)
-        if status != "continue" or next_state is None:
-            return ReentryResolution(status, None, None, 0)
-        state = next_state
-        start_m15 = day1_stop.m15_index + 1
-    elif day1_stop.level == "m1":
-        subbars = exact_m1(market, session.opened_at, path[day1_stop.m15_index])
-        if subbars is None or day1_stop.m1_index is None:
-            return ReentryResolution("reentry-data-unavailable", None, None, 0)
-        bar = subbars[day1_stop.m1_index]
-        if day1_stop.reason == "stop" and trigger_hit(original.side, original.trigger, bar):
-            record = tick_record(market, bar.opened_at, original.side)
-            if record is None:
-                return ReentryResolution("reentry-ambiguous", None, None, 0)
-            status, next_state, evaluation = ticks_stop_then_reentry(
-                market=market,
-                session=session,
-                m15_path=path,
-                m15_index=day1_stop.m15_index,
-                m1_path=subbars,
-                m1_index=day1_stop.m1_index,
-                bar=bar,
-                record=record,
-                original=original,
-                initial_after_stop=None,
-            )
-            if status == "fill":
-                return ReentryResolution(status, evaluation, source_index, 0)
-            if status != "continue" or next_state is None:
-                return ReentryResolution(status, None, None, 0)
-            state = next_state
-        elif day1_stop.reason == "stop":
-            state.extreme = adverse_extreme(original.side, day1_stop.stop_price, bar)
-        else:
-            status, next_state, evaluation = m1_stop_then_reentry(
-                market=market,
-                session=session,
-                m15_path=path,
-                m15_index=day1_stop.m15_index,
-                m1_path=(bar,),
-                original=original,
-                state=state,
-            )
-            if status == "fill":
-                return ReentryResolution(status, evaluation, source_index, 0)
-            if status != "continue" or next_state is None:
-                return ReentryResolution(status, None, None, 0)
-            state = next_state
-        status, next_state, evaluation = m1_stop_then_reentry(
-            market=market,
-            session=session,
-            m15_path=path,
-            m15_index=day1_stop.m15_index,
-            m1_path=subbars,
-            original=original,
-            state=state,
-            start_m1=day1_stop.m1_index + 1,
-        )
-        if status == "fill":
-            return ReentryResolution(status, evaluation, source_index, 0)
-        if status != "continue" or next_state is None:
-            return ReentryResolution(status, None, None, 0)
-        state = next_state
-        start_m15 = day1_stop.m15_index + 1
-    else:
-        bar = path[day1_stop.m15_index]
-        if day1_stop.reason == "stop" and trigger_hit(original.side, original.trigger, bar):
-            subbars = exact_m1(market, session.opened_at, bar)
-            if subbars is None:
-                return ReentryResolution("reentry-ambiguous", None, None, 0)
-            status, next_state, evaluation = m1_stop_then_reentry(
-                market=market,
-                session=session,
-                m15_path=path,
-                m15_index=day1_stop.m15_index,
-                m1_path=subbars,
-                original=original,
-                state=None,
-            )
-            if status == "fill":
-                return ReentryResolution(status, evaluation, source_index, 0)
-            if status != "continue" or next_state is None:
-                return ReentryResolution(status, None, None, 0)
-            state = next_state
-        elif day1_stop.reason == "stop":
-            state.extreme = adverse_extreme(original.side, day1_stop.stop_price, bar)
-        else:
-            status, next_state, evaluation = m15_after_stop(
-                market=market,
-                session=session,
-                path=(bar,),
-                original=original,
-                state=state,
-                start_m15=0,
-            )
-            if status == "fill":
-                return ReentryResolution(status, evaluation, source_index, 0)
-            if status != "continue":
-                return ReentryResolution(status, None, None, 0)
-            state = next_state
-        start_m15 = day1_stop.m15_index + 1
-
-    status, next_state, evaluation = m15_after_stop(
-        market=market,
-        session=session,
-        path=path,
-        original=original,
-        state=state,
-        start_m15=start_m15,
+    # Frozen conservative addendum: the M15 containing the stop is never reused
+    # for re-entry.  Its adverse extreme is, however, part of the re-entry stop.
+    extreme = stop_bar.low if result.fill.side == "long" else stop_bar.high
+    state = State(True, extreme)
+    status, state, evaluation = search_path(
+        market,
+        session,
+        path,
+        result.fill,
+        state,
+        stop_m15_index + 1,
     )
     if status == "fill":
-        return ReentryResolution(status, evaluation, source_index, 0)
+        return status, evaluation, session_index, day_offset
     if status != "continue":
-        return ReentryResolution(status, None, None, 0)
-    status, _, evaluation, reentry_source_index = day2_from_state(
-        market, source_index, original, next_state
-    )
-    return ReentryResolution(
-        "expired" if status == "continue" else status,
-        evaluation,
-        reentry_source_index if evaluation is not None else None,
+        return status, None, None, day_offset
+    if day_offset == 1:
+        return "expired", None, None, day_offset
+
+    day2_index = source_index + 1
+    if day2_index >= len(market.d1):
+        return "reentry-data-unavailable", None, None, day_offset
+    day2 = market.d1[day2_index]
+    if day2.opened_at >= OOS_START:
+        return "reentry-oos-embargo", None, None, day_offset
+    day2_path = market.m15_session(day2)
+    if day2_path is None:
+        return "reentry-data-unavailable", None, None, day_offset
+    status, _, evaluation = search_path(
+        market,
+        day2,
+        day2_path,
+        result.fill,
+        state,
         0,
     )
-
-
-def opportunity_metrics(
-    first: list[Trade],
-    second: list[Trade],
-) -> dict[str, object]:
-    values: list[Decimal] = []
-    by_key: dict[tuple[str, str, datetime], Decimal] = {}
-    for trade in first + second:
-        if not isinstance(trade.net_1bp_r, Decimal):
-            continue
-        key = (trade.market, trade.side, trade.fill_at.replace(hour=0, minute=0, second=0, microsecond=0))
-        by_key[key] = by_key.get(key, Decimal(0)) + trade.net_1bp_r
-    values = list(by_key.values())
-    return {
-        "realized_opportunities": len(values),
-        "total_r": sum(values, Decimal(0)),
-        "mean_r": sum(values, Decimal(0)) / len(values) if values else None,
-        "positive": sum(value > 0 for value in values),
-        "negative": sum(value < 0 for value in values),
-    }
+    if status == "fill":
+        return status, evaluation, day2_index, day_offset
+    if status == "continue":
+        return "expired", None, None, day_offset
+    return status, None, None, day_offset
 
 
 def build_report(root: Path, software_sha: str) -> tuple[dict[str, object], dict[str, list[Trade]]]:
@@ -728,45 +278,51 @@ def build_report(root: Path, software_sha: str) -> tuple[dict[str, object], dict
     evaluations, fills = run_census(markets, True)
     if len(fills) != 290:
         raise AssertionError(f"R5 source fill census drifted: {len(fills)}")
-    unresolved = Counter(item.status for item in evaluations if item.status.startswith("tick-"))
-    if unresolved:
-        raise AssertionError(f"R5 causal base drifted: {unresolved}")
+    unresolved_base = Counter(
+        item.status for item in evaluations if item.status.startswith("tick-")
+    )
+    if unresolved_base:
+        raise AssertionError(f"R5 causal base drifted: {unresolved_base}")
 
-    resolutions: list[tuple[Evaluation, Market, int, ReentryResolution]] = []
+    resolved_rows: list[tuple[Evaluation, Market, int, str, Evaluation | None, int | None]] = []
     census: Counter[str] = Counter()
-    stop_day: Counter[str] = Counter()
+    stop_days: Counter[str] = Counter()
     for evaluation, market, source_index in fills:
-        resolved = resolve_reentry(market, evaluation, source_index)
-        resolutions.append((evaluation, market, source_index, resolved))
-        census[resolved.status] += 1
-        if resolved.stop_day_offset is not None:
-            stop_day[f"day{resolved.stop_day_offset + 1}"] += 1
+        status, reentry, reentry_source_index, stop_day = resolve_reentry(
+            market, evaluation, source_index
+        )
+        census[status] += 1
+        if stop_day is not None:
+            stop_days[f"day{stop_day + 1}"] += 1
+        resolved_rows.append(
+            (evaluation, market, source_index, status, reentry, reentry_source_index)
+        )
 
-    trades_by_policy: dict[str, list[Trade]] = {}
     policies: dict[str, object] = {}
+    trades_by_policy: dict[str, list[Trade]] = {}
     for policy in POLICIES:
-        first_trades: list[Trade] = []
-        second_trades: list[Trade] = []
-        for evaluation, market, source_index, resolved in resolutions:
-            first_trades.append(replay(market, evaluation, source_index, policy))
-            if resolved.evaluation is not None and resolved.source_index is not None:
-                second_trades.append(
-                    replay(market, resolved.evaluation, resolved.source_index, policy)
-                )
-        attempts = first_trades + second_trades
+        first: list[Trade] = []
+        second: list[Trade] = []
+        for evaluation, market, source_index, _, reentry, reentry_source_index in resolved_rows:
+            first.append(replay(market, evaluation, source_index, policy))
+            if reentry is not None and reentry_source_index is not None:
+                second.append(replay(market, reentry, reentry_source_index, policy))
+        attempts = first + second
         trades_by_policy[policy] = attempts
-        report = policy_report(attempts)
-        report["attempt1"] = metrics(first_trades)
-        report["attempt2"] = metrics(second_trades)
-        report["opportunity_view"] = opportunity_metrics(first_trades, second_trades)
-        report["reentry_fills"] = len(second_trades)
-        policies[policy] = report
+        policy_data = policy_report(attempts)
+        policy_data["attempt1"] = metrics(first)
+        policy_data["attempt2"] = metrics(second)
+        policy_data["reentry_fills"] = len(second)
+        policies[policy] = policy_data
 
     passing = [
-        policy for policy, report in policies.items()
-        if isinstance(report, dict) and report.get("passes_advancement_gate") is True
+        policy
+        for policy, data in policies.items()
+        if isinstance(data, dict) and data.get("passes_advancement_gate") is True
     ]
-    final_verdict = "R6_DEVELOPMENT_GATE_PASS" if passing else "R6_REENTRY_EXPERIMENT_REJECTED"
+    verdict = (
+        "R6_DEVELOPMENT_GATE_PASS" if passing else "R6_REENTRY_EXPERIMENT_REJECTED"
+    )
     report: dict[str, object] = {
         "schema": "qore.trader_lab.turtle_soup_candidate_r6.experimental_reentry.v1",
         "research_identity_root": "turtle-soup-candidate-r1",
@@ -774,17 +330,18 @@ def build_report(root: Path, software_sha: str) -> tuple[dict[str, object], dict
         "canonical_trader_code": "CODE_UNASSIGNED",
         "source_adjudication": "R6_REENTRY_SOURCE_UNDERDETERMINED",
         "reentry_provenance": "QORE_EXPERIMENTAL_REENTRY",
+        "same_stop_container_policy": "SKIP_TO_NEXT_M15_FAIL_CLOSED",
         "software_sha": software_sha,
         "fresh_oos_consumed": False,
-        "fresh_oos_authorized": bool(passing),
+        "fresh_oos_authorized": False,
         "fresh_oos_embargo_start": OOS_START,
         "r5_source_fills": len(fills),
         "reentry_resolution_census": census,
-        "eligible_stop_day_census": stop_day,
+        "eligible_stop_day_census": stop_days,
         "policies": policies,
         "passing_policies": passing,
         "candidate_freeze": None,
-        "final_verdict": final_verdict,
+        "final_verdict": verdict,
     }
     report["report_digest_sha256"] = digest(report)
     return report, trades_by_policy
