@@ -47,12 +47,26 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
         ),
         "mt5_boundary": root / "src/qore/infrastructure/fundednext_mt5.py",
         "mt5_transport": root / "src/qore/infrastructure/fundednext_mt5_transport.py",
+        "live_authorization": (
+            root / "src/qore/infrastructure/fundednext_live_authorization.py"
+        ),
+        "live_mt5_gateway": root / "src/qore/infrastructure/fundednext_live_mt5.py",
         "mt5_mutation_ledger": (
             root / "src/qore/infrastructure/fundednext_mt5_mutation_ledger.py"
         ),
         "account_bound_execution": (
             root / "src/qore/infrastructure/fundednext_operational.py"
         ),
+        "runtime_pipeline": (
+            root / "src/qore/infrastructure/fundednext_runtime_pipeline.py"
+        ),
+        "runtime_state": root / "src/qore/infrastructure/fundednext_runtime_state.py",
+        "runtime_service": root / "scripts/qore_fundednext_runtime.py",
+        "runtime_installer": root / "scripts/install_fundednext_runtime.ps1",
+        "runtime_watchdog": root / "scripts/qore_fundednext_watchdog.ps1",
+        "runtime_reboot_verifier": root / "scripts/finalize_fundednext_activation.ps1",
+        "no_send_probe": root / "scripts/fundednext_mt5_no_send_probe.py",
+        "order_check_probe": root / "scripts/fundednext_mt5_order_check_probe.py",
         "vt08_forex_cibo": (
             root / "src/qore/infrastructure/vt08_forex_cibo_operational.py"
         ),
@@ -139,7 +153,12 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "execution_bridge": "fundednext-canonical-execution-v1",
             "mt5_boundary": "fundednext-mt5-boundary-v1",
             "mt5_transport": "fundednext-metatrader5-transport-dynamic-filling-v2",
+            "live_authorization": "fundednext-production-exact-sha-authorization-v1",
+            "live_mt5_gateway": "fundednext-production-shadow-first-gateway-v1",
             "account_bound_execution": "fundednext-account-bound-execution-v1",
+            "runtime_pipeline": "vt08-cibo-risk-runtime-pipeline-v1",
+            "runtime_state": "fundednext-runtime-state-single-writer-v1",
+            "runtime_service": "fundednext-vt08-cibo-risk-resident-runtime-v1",
             "vt08_forex_sizing": "vt08-r315-mt5-tick-economics-v1",
             "vt08_forex_cibo": R315_CIBO_VERSION,
         },
@@ -163,11 +182,19 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "mt5_boundary_implemented": True,
             "concrete_mt5_transport_implemented": True,
             "dynamic_filling_mode_validation_implemented": True,
+            "production_account_authorization_contract_implemented": True,
+            "broker_native_order_check_shadow_implemented": True,
+            "resident_vt08_cibo_risk_runtime_implemented": True,
+            "single_writer_and_stale_lock_recovery_implemented": True,
+            "durable_runtime_heartbeat_implemented": True,
+            "windows_autostart_watchdog_implemented": True,
+            "post_reboot_reconciliation_proof_implemented": True,
             "account_bound_symbol_resolution_implemented": True,
             "broker_exact_sizing_implemented": True,
             "durable_idempotency_and_unknown_outcome_recovery_implemented": True,
             "scoped_kill_switches_implemented": True,
             "code_complete_for_account_binding": True,
+            "ready_for_vps_shadow_closeout": True,
             "concrete_mt5_gateway_bound": False,
             "actual_account_bound_on_this_sha": False,
             "actual_symbol_info_verified_on_this_sha": False,
@@ -180,10 +207,10 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
         "remaining_activation_evidence": [
             "bind this exact green SHA on the already-connected Windows VPS",
             "fresh NO-SEND probe on this exact SHA",
-            "real-account shadow cycle with broker-valid preflight and no order_send",
-            "24/7 service autostart/watchdog validation",
+            "real-account order_check shadow proof with no order_send",
+            "24/7 scheduled runtime heartbeat/watchdog validation",
             "reboot/crash recovery validation against current broker state",
-            "explicit Owner activation record outside CI",
+            "separate explicit Owner live-capital activation after provider automation entitlement",
         ],
     }
 
