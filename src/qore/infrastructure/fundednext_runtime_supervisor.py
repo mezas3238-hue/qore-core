@@ -8,6 +8,7 @@ not grant broker authority or bypass any QORE execution/risk control.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import signal
@@ -19,7 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
-from typing import IO
+from typing import IO, cast
 
 
 class FundedNextRuntimeSupervisorError(RuntimeError):
@@ -70,9 +71,9 @@ class ExclusiveRuntimeLock:
         handle.seek(0)
         try:
             if os.name == "nt":
-                import msvcrt
-
-                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                msvcrt = importlib.import_module("msvcrt")
+                locking = getattr(msvcrt, "locking")
+                locking(handle.fileno(), getattr(msvcrt, "LK_NBLCK"), 1)
             else:
                 import fcntl
 
@@ -97,9 +98,9 @@ class ExclusiveRuntimeLock:
         try:
             handle.seek(0)
             if os.name == "nt":
-                import msvcrt
-
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                msvcrt = importlib.import_module("msvcrt")
+                locking = getattr(msvcrt, "locking")
+                locking(handle.fileno(), getattr(msvcrt, "LK_UNLCK"), 1)
             else:
                 import fcntl
 
@@ -163,8 +164,8 @@ class FundedNextRuntimeSupervisor:
                             child_exit_code=None,
                         )
                         return 0
-                    self._child = subprocess.Popen(tuple(command))
-                    child = self._child
+                    child = subprocess.Popen(tuple(command))
+                    self._child = child
                     self._write_heartbeat(
                         state="RUNNING",
                         restart_count=restart_count,
@@ -207,9 +208,9 @@ class FundedNextRuntimeSupervisor:
                     backoff = min(backoff * 2, self._config.restart_max_seconds)
             finally:
                 self._restore_signal_handlers(previous_handlers)
-                child = self._child
-                if child is not None and child.poll() is None:
-                    self._terminate_child(child)
+                active_child = self._child
+                if active_child is not None and active_child.poll() is None:
+                    self._terminate_child(active_child)
                 self._child = None
 
     def _stop_requested(self) -> bool:
@@ -293,11 +294,14 @@ def read_runtime_heartbeat(path: Path) -> dict[str, object]:
     """Load one heartbeat; malformed evidence fails closed."""
 
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        raw = cast(object, json.loads(path.read_text(encoding="utf-8")))
     except (OSError, json.JSONDecodeError) as error:
         raise FundedNextRuntimeSupervisorError(
             "runtime-heartbeat-unavailable-or-invalid"
         ) from error
+    if not isinstance(raw, dict):
+        raise FundedNextRuntimeSupervisorError("runtime-heartbeat-not-object")
+    payload = {str(key): value for key, value in raw.items()}
     if payload.get("schema") != "qore.fundednext.runtime-heartbeat.v1":
         raise FundedNextRuntimeSupervisorError("runtime-heartbeat-schema-mismatch")
     return payload
