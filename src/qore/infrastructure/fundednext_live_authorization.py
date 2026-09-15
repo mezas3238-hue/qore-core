@@ -62,9 +62,11 @@ class FundedNextLiveAccountAuthorization:
             ("shadow_evidence_sha256", self.shadow_evidence_sha256),
             ("restart_recovery_evidence_sha256", self.restart_recovery_evidence_sha256),
         )
-        for name, value in hash_fields:
-            if fullmatch(r"[0-9a-f]{64}", value) is None:
-                raise FundedNextLiveAuthorizationError(f"{name} must be SHA-256 hex")
+        for hash_name, hash_value in hash_fields:
+            if fullmatch(r"[0-9a-f]{64}", hash_value) is None:
+                raise FundedNextLiveAuthorizationError(
+                    f"{hash_name} must be SHA-256 hex"
+                )
         if not isinstance(self.expected_server, str) or not self.expected_server.strip():
             raise FundedNextLiveAuthorizationError("expected_server is required")
         if (
@@ -83,9 +85,9 @@ class FundedNextLiveAccountAuthorization:
             ("restart_recovery_passed", self.restart_recovery_passed),
             ("order_submission_authorized", self.order_submission_authorized),
         )
-        for name, value in bool_fields:
-            if type(value) is not bool:
-                raise FundedNextLiveAuthorizationError(f"{name} must be bool")
+        for bool_name, bool_value in bool_fields:
+            if type(bool_value) is not bool:
+                raise FundedNextLiveAuthorizationError(f"{bool_name} must be bool")
 
     @property
     def can_submit(self) -> bool:
