@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
+from qore.infrastructure.account_wide_risk import AccountWideRiskError
 from qore.infrastructure.vt08_forex_cibo_operational import (
     R315_CIBO_VERSION,
     R315_METHOD_FINGERPRINT,
@@ -22,11 +25,11 @@ def _setup() -> Vt08ForexCiboSetup:
         signal_fingerprint="signal-gbpusd-001",
         setup_fingerprint="setup-gbpusd-001",
         qore_symbol="GBPUSD",
-        side="long",
+        side="short",
         entry_type="market",
         intended_entry=Decimal("1.2500"),
-        stop_loss=Decimal("1.2450"),
-        take_profit=Decimal("1.2600"),
+        stop_loss=Decimal("1.2550"),
+        take_profit=Decimal("1.2400"),
         methodology_fingerprint=R315_METHOD_FINGERPRINT,
         risk_policy_fingerprint=R315_RISK_FINGERPRINT,
         decided_at=_NOW,
@@ -48,6 +51,24 @@ def test_cibo_forwards_normal_bank_attack_as_requests_not_capital_authority() ->
         assert authorization.setup == _setup()
         assert authorization.cibo_version == R315_CIBO_VERSION
         assert authorization.cibo_policy_fingerprint == cibo_policy_fingerprint()
+
+
+def test_uncertified_gbpusd_long_is_rejected_at_setup_boundary() -> None:
+    with pytest.raises(AccountWideRiskError, match="outside certified live portfolio"):
+        Vt08ForexCiboSetup(
+            signal_fingerprint="signal-gbpusd-long",
+            setup_fingerprint="setup-gbpusd-long",
+            qore_symbol="GBPUSD",
+            side="long",
+            entry_type="market",
+            intended_entry=Decimal("1.2500"),
+            stop_loss=Decimal("1.2450"),
+            take_profit=Decimal("1.2600"),
+            methodology_fingerprint=R315_METHOD_FINGERPRINT,
+            risk_policy_fingerprint=R315_RISK_FINGERPRINT,
+            decided_at=_NOW,
+            expires_at=_NOW + timedelta(minutes=5),
+        )
 
 
 def test_cibo_deny_cannot_be_overridden_by_attack_request() -> None:
