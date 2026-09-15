@@ -37,26 +37,24 @@ The loader must remove embargoed D1 and M15 bars before setup detection, executi
 
 No code that computes setups, trades, P&L, metrics, rankings, policy selection or market selection during development may receive embargoed bars.
 
-## Provider-native D1 session boundary
+## Provider-native D1 session reconciliation
 
-The provider-native D1 opening timestamps are the authoritative boundaries for the daily source stream. Around session/DST transitions the interval between consecutive native D1 opens can differ from exactly 24 hours.
+The raw cTrader D1 evidence carries provider-native `opened_at` plus a synthetic nominal `closed_at = opened_at + 24h`; the trendbar payload does not supply an independent native close timestamp. Consecutive D1 opens can therefore be separated by weekends, holidays or DST/session effects and must not be interpreted mechanically as one continuous execution interval.
 
-For causal M15 execution slicing, source day `i` is therefore:
+For causal M15 execution, R1 uses an evidence-reconciliation rule rather than `D1[i] -> D1[i+1]` elapsed wall-clock time:
 
-`D1[i].opened_at <= M15.opened_at < D1[i+1].opened_at`
+1. start exactly at the D1 bar's provider-native `opened_at`;
+2. take the maximal chronological M15 path that is exactly contiguous at 15-minute cadence and remains inside the nominal 24-hour D1 interval;
+3. require that path to reproduce the D1 bar exactly: first M15 open equals D1 open, maximum M15 high equals D1 high, minimum M15 low equals D1 low, and last retained M15 close equals D1 close;
+4. the end of that reconciled M15 path is the executable session end;
+5. legitimate shortened sessions (including DST/session-close effects) are admitted only when the contiguous M15 aggregate reconciles exactly to the D1 OHLC;
+6. a missing, duplicated, overlapping, contradictory or non-reconciling required M15 path is explicit invalid/censored evidence and is never interpolated, merged, forward-filled or patched.
 
-The nominal `opened_at + 24h` endpoint carried by the raw D1 evidence must not truncate or extend a native provider session for execution-path purposes.
+Classic uses the reconciled M15 path for its current D1 source bar. Plus One uses the reconciled M15 path for the D1 bar immediately after the breakout bar. Provider-native D1 bars remain the source history for the 20-bar reference calculation.
 
-Consequences:
+Management bar 1 remains the first complete provider-native D1 bar after the fill/source-entry day. If a required subsequent D1 management bar lacks execution-qualified/reconciled evidence, the trade is censored rather than compressing time across a missing session.
 
-1. a D1 bar without a subsequent native D1 open cannot initiate a new replay setup;
-2. Classic uses the M15 slice belonging to its current native D1 source day;
-3. Plus One uses the M15 slice belonging to the next native D1 source day;
-4. management bar 1 is the first complete native D1 bar after the fill/source-entry day, preserving the already-frozen management contract;
-5. every required M15 execution slice must be chronological and exactly contiguous at 15-minute cadence across the provider-native D1 interval;
-6. a missing, duplicated, overlapping or noncontiguous required M15 slice is explicit invalid/censored evidence; it is never interpolated or patched.
-
-This is an execution-evidence interpretation of the provider-native D1 stream, not a new Turtle Soup trading rule.
+This is an execution-evidence interpretation of the provider-native D1 stream, not a new Turtle Soup trading rule. It supersedes the earlier draft wording that treated the interval up to the next D1 open as the execution session.
 
 ## Tick/increment operationalization
 
