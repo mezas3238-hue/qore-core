@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import importlib
 import json
 import subprocess
@@ -8,6 +7,10 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from qore.infrastructure.fundednext_account_identity import (
+    fundednext_mt5_account_fingerprint,
+)
 
 mt5 = importlib.import_module("MetaTrader5")
 
@@ -108,12 +111,13 @@ def main() -> int:
             return _fail("orders_unavailable", details={"last_error": mt5.last_error()})
 
         symbols = [_symbol_snapshot(symbol) for symbol in RETAINED_SYMBOLS]
-        identity_material = (
-            f"{server}|{account.company}|{account.currency}|{int(account.leverage)}"
+        account_identity_fingerprint = fundednext_mt5_account_fingerprint(
+            login=int(account.login),
+            server=server,
+            company=str(account.company),
+            currency=str(account.currency),
+            leverage=int(account.leverage),
         )
-        account_identity_fingerprint = hashlib.sha256(
-            identity_material.encode("utf-8")
-        ).hexdigest()
 
         payload = {
             "probe": "fundednext_mt5_no_send",
