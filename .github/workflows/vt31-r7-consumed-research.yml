@@ -120,15 +120,25 @@ jobs:
               "candidate_approved": False,
               "fresh_evidence_opened": False,
           }
+          Path("vt31-r7-consumed-research.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          print(json.dumps({
+              "stress_0_05r": stress,
+              "market_stress": markets,
+              "side_stress": sides,
+              "quartiles": quartiles,
+              "gates": gates,
+              "monte_carlo": mc,
+              "monte_carlo_gates": mc_gates,
+          }, sort_keys=True))
           assert stress["sample"] == 256
           assert Decimal(stress["mean_r"]) > Decimal("0.23")
           assert Decimal(stress["profit_factor"]) >= Decimal("1.35")
           assert Decimal(stress["max_drawdown_r"]) <= Decimal("11")
           assert all(gates.values())
-          assert all(mc_gates.values())
-          Path("vt31-r7-consumed-research.json").write_text(
-              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
-          )
+          if not all(mc_gates.values()):
+              Path("R7-CONSUMED-GATE-FAILED").write_text("monte-carlo\n")
           PY
           echo "$GITHUB_SHA" > git-sha.txt
           sha256sum vt31-r7-consumed-research.json > SHA256SUMS
@@ -139,4 +149,20 @@ jobs:
             vt31-r7-consumed-research.json
             git-sha.txt
             SHA256SUMS
+            R7-CONSUMED-GATE-FAILED
+          if-no-files-found: warn
           retention-days: 90
+      - name: Enforce consumed research gates
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("vt31-r7-consumed-research.json").read_text())
+          if not report["passes_economic_gates"]:
+              raise SystemExit("R7 consumed economic gates failed")
+          if not report["passes_monte_carlo_gates"]:
+              raise SystemExit("R7 consumed Monte Carlo gates failed")
+          if not report["passes_causal_checks"]:
+              raise SystemExit("R7 consumed causal checks failed")
+          PY
