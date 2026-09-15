@@ -1,9 +1,8 @@
 """Production-only FundedNext MT5 gateway and broker shadow preflight.
 
-The existing FundedNextMt5ExecutionGateway remains TEST/DEMO-only.  This module
-creates a separate PRODUCTION boundary requiring FundedNextLiveAccountAuthorization.
-It preserves the same deterministic client-order identity and durable mutation
-fence while adding MT5 ``order_check`` shadow evidence before any live mutation.
+The TEST/DEMO gateway remains separate.  This PRODUCTION boundary requires
+exact-SHA activation evidence, a live operational safety boundary, broker-native
+``order_check`` and a broker-executable stop-risk recheck before mutation.
 """
 
 from __future__ import annotations
@@ -11,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Protocol
 
 from qore.infrastructure.execution_boundary import ExecutionSubmission
@@ -19,6 +18,12 @@ from qore.infrastructure.fundednext_execution_bridge import extract_risk_provena
 from qore.infrastructure.fundednext_live_authorization import (
     FundedNextLiveAccountAuthorization,
     FundedNextLiveAuthorizationError,
+)
+from qore.infrastructure.fundednext_live_guard import (
+    FundedNextLiveGuardError,
+    assert_certified_direction,
+    assert_certified_entry_drift,
+    market_stop_risk_usd,
 )
 from qore.infrastructure.fundednext_mt5 import (
     FundedNextMt5OrderPlan,
@@ -55,6 +60,10 @@ class Mt5CheckResultLike(Protocol):
 
 class LiveMetaTrader5Api(MetaTrader5Api, Protocol):
     def order_check(self, request: dict[str, object]) -> Mt5CheckResultLike | None: ...
+
+
+class LiveOperationalSafetyBoundary(Protocol):
+    def assert_new_order_allowed(self, submission: ExecutionSubmission) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,7 +145,7 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
 
 
 class FundedNextLiveMt5ExecutionGateway:
-    """Production gateway that cannot exist without exact live activation evidence."""
+    """Production gateway that cannot create or exceed capital authority."""
 
     def __init__(
         self,
@@ -146,6 +155,7 @@ class FundedNextLiveMt5ExecutionGateway:
         mutation_ledger: FundedNextMt5MutationLedger,
         rule_verification: StellarInstantRuleVerification,
         live_authorization: FundedNextLiveAccountAuthorization,
+        safety: LiveOperationalSafetyBoundary,
         runtime_git_sha: str,
         account_identity_fingerprint: str,
         expected_server: str,
@@ -159,6 +169,8 @@ class FundedNextLiveMt5ExecutionGateway:
             raise Mt5ExecutionValidationError("live gateway provider mismatch")
         if not isinstance(live_authorization, FundedNextLiveAccountAuthorization):
             raise Mt5ExecutionValidationError("explicit live authorization is required")
+        if not callable(getattr(safety, "assert_new_order_allowed", None)):
+            raise Mt5ExecutionValidationError("live operational safety boundary is required")
         try:
             live_authorization.assert_matches(
                 account=account,
@@ -177,6 +189,7 @@ class FundedNextLiveMt5ExecutionGateway:
         self._ledger = mutation_ledger
         self._rules = rule_verification
         self._authorization = live_authorization
+        self._safety = safety
         self._submission_enabled = bool(submission_enabled)
         self._max_spec_age = max_spec_age
         self._max_spread_points = max_spread_points
@@ -225,10 +238,19 @@ class FundedNextLiveMt5ExecutionGateway:
         *,
         now: datetime,
     ) -> FundedNextMt5OrderPlan:
+        self._safety.assert_new_order_allowed(submission)
         if now > submission.authorized_intent.authorization.expires_at:
             raise Mt5ExecutionBlockedError("canonical-pretrade-authorization-expired")
         intent = submission.authorized_intent.intent
+        side_text = "long" if intent.side is OrderSide.BUY else "short"
+        try:
+            assert_certified_direction(intent.instrument.value, side_text)
+        except FundedNextLiveGuardError as error:
+            raise Mt5ExecutionBlockedError(str(error)) from error
         spec = self.read_symbol(intent.instrument.value, now=now)
+        expected_provider = intent.metadata.attributes.get("provider-symbol")
+        if expected_provider != spec.provider_symbol:
+            raise Mt5ExecutionBlockedError("risk-provider-symbol-account-mismatch")
         volume = intent.quantity.value
         if not spec.minimum_volume <= volume <= spec.maximum_volume:
             raise Mt5ExecutionBlockedError("authorized-volume-outside-broker-range")
@@ -248,6 +270,13 @@ class FundedNextLiveMt5ExecutionGateway:
         stop = intent.stop_loss.value
         target = intent.take_profit.value
         _validate_geometry(intent.side, entry, stop, target, spec)
+        _assert_broker_executable_risk(
+            submission=submission,
+            entry=entry,
+            stop=stop,
+            spec=spec,
+            volume=volume,
+        )
         margin_required = volume * spec.margin_per_volume
         account_state = self.read_account(now=now)
         if margin_required > account_state.free_margin:
@@ -273,7 +302,6 @@ class FundedNextLiveMt5ExecutionGateway:
         *,
         now: datetime,
     ) -> FundedNextMt5ShadowReceipt:
-        """Run complete broker-native preflight without order_send."""
         plan = self.plan_submission(submission, now=now)
         return self._transport.check_order(plan)
 
@@ -283,7 +311,6 @@ class FundedNextLiveMt5ExecutionGateway:
         *,
         now: datetime,
     ) -> str:
-        """Submit once after shadow check and durable mutation fence."""
         if not self._submission_enabled or not self._authorization.can_submit:
             raise Mt5ExecutionBlockedError("live-order-submission-disabled")
         if not self._rules.automated_mt5_allowed(now):
@@ -344,7 +371,6 @@ class FundedNextLiveMt5ExecutionGateway:
         raise Mt5ExecutionOutcomeUnknownError("provider-outcome-unknown-reconcile-first")
 
     def reconcile_unknown(self, *, now: datetime) -> tuple[str, ...]:
-        """Discover interrupted/unknown orders before any new mutation is allowed."""
         resolved: list[str] = []
         for key, record in tuple(self._records.items()):
             if record.state not in {
@@ -401,6 +427,44 @@ class FundedNextLiveMt5ExecutionGateway:
 
 def _system_utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def _assert_broker_executable_risk(
+    *,
+    submission: ExecutionSubmission,
+    entry: Decimal,
+    stop: Decimal,
+    spec: Mt5SymbolSpecification,
+    volume: Decimal,
+) -> None:
+    attrs = submission.authorized_intent.intent.metadata.attributes
+    try:
+        authorized_risk = Decimal(str(attrs["risk-monetary-stop-loss"]))
+        intended_entry = Decimal(str(attrs["risk-intended-entry"]))
+        authorized_volume = Decimal(str(attrs["risk-authorized-volume"]))
+    except (KeyError, InvalidOperation) as error:
+        raise Mt5ExecutionValidationError("sovereign-risk-envelope-missing") from error
+    if authorized_volume != volume:
+        raise Mt5ExecutionBlockedError("broker-volume-differs-from-risk-authorization")
+    intent = submission.authorized_intent.intent
+    if intent.order_type is OrderType.MARKET:
+        try:
+            assert_certified_entry_drift(
+                intended_entry=intended_entry,
+                executable_entry=entry,
+                tick_size=spec.tick_size,
+            )
+        except FundedNextLiveGuardError as error:
+            raise Mt5ExecutionBlockedError(str(error)) from error
+    actual_risk = market_stop_risk_usd(
+        executable_entry=entry,
+        stop_loss=stop,
+        tick_size=spec.tick_size,
+        tick_value=spec.tick_value,
+        volume=volume,
+    )
+    if actual_risk > authorized_risk:
+        raise Mt5ExecutionBlockedError("broker-executable-risk-exceeds-sovereign-authorization")
 
 
 def _validate_geometry(
