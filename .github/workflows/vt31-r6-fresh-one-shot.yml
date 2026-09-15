@@ -1,0 +1,224 @@
+name: QORE VT-31 R6 Fresh One-Shot Validation
+
+on:
+  push:
+    branches:
+      - agent/vt31-r6-dd-control-candidate-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install candidate and cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Wait for frozen-SHA prerequisite gates
+        run: |
+          set -euo pipefail
+          freeze_name="qore-vt31-r6-candidate-freeze-${GITHUB_SHA}"
+          ready=false
+          for attempt in $(seq 1 240)
+          do
+            freeze_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${freeze_name}" --jq '.artifacts | length')"
+            ci_conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}" --jq '[.workflow_runs[] | select(.name == "QORE CI" and .event == "pull_request")] | sort_by(.created_at) | last | .conclusion // ""')"
+            if [ "$freeze_count" = "1" ] && [ "$ci_conclusion" = "success" ]; then
+              ready=true
+              break
+            fi
+            case "$ci_conclusion" in
+              failure|cancelled|timed_out|action_required|stale)
+                echo "Full QORE prerequisite failed: $ci_conclusion"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          test "$ready" = "true"
+      - name: Verify freeze and enforce one shot
+        run: |
+          set -euo pipefail
+          freeze_name="qore-vt31-r6-candidate-freeze-${GITHUB_SHA}"
+          fresh_name="qore-vt31-r6-fresh-validation-${GITHUB_SHA}"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${freeze_name}" --jq '.artifacts | length')" = "1"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${fresh_name}" --jq '.artifacts | length')" = "0"
+          freeze_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${freeze_name}" --jq '.artifacts[0].id')"
+          mkdir -p freeze
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${freeze_id}/zip" > freeze.zip
+          unzip -q freeze.zip -d freeze
+          test "$(cat freeze/git-sha.txt)" = "$GITHUB_SHA"
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path("freeze/vt31-r6-candidate-freeze.json").read_text())
+          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+          assert payload["candidate_id"] == "VT31_R6_SILVER_BULLET_DD_CONTROL_001"
+          assert payload["candidate_frozen"] is True
+          assert payload["fresh_evidence_opened"] is False
+          assert payload["candidate_approved"] is False
+          checks = {
+              "candidate_script_sha256": Path("scripts/vt31_r6_candidate.py"),
+              "fresh_probe_sha256": Path("scripts/vt31_r6_fresh_probe.py"),
+              "fresh_workflow_sha256": Path(
+                  ".github/workflows/vt31-r6-fresh-one-shot.yml"
+              ),
+          }
+          for field, path in checks.items():
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == payload[field]
+          PY
+      - name: Verify DEMO credentials without printing secrets
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Acquire genuinely unobserved historical evidence once
+        run: |
+          set -euo pipefail
+          mkdir -p fresh/{NAS100,SP500,US30}
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" python scripts/vt31_r6_fresh_probe.py \
+              > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+      - name: Validate exact frozen candidate, stress and Monte Carlo
+        run: |
+          set -euo pipefail
+          python scripts/vt31_r6_candidate.py \
+            fresh/NAS100/market-evidence.json \
+            fresh/SP500/market-evidence.json \
+            fresh/US30/market-evidence.json > vt31-r6-replay.json
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          freeze = json.loads(Path("freeze/vt31-r6-candidate-freeze.json").read_text())
+          replay = json.loads(Path("vt31-r6-replay.json").read_text())
+          evidence = []
+          coverage_gate = True
+          for market in ("NAS100", "SP500", "US30"):
+              path = Path(f"fresh/{market}/market-evidence.json")
+              payload = json.loads(path.read_text())
+              assert payload["candidate_id"] == "VT31_R6_SILVER_BULLET_DD_CONTROL_001"
+              assert payload["software_sha"] == os.environ["GITHUB_SHA"]
+              assert payload["fresh_partition_end_exclusive"] == "2020-06-17T00:00:00+00:00"
+              sufficient = bool(payload["historical_fresh_coverage_sufficient"])
+              coverage_gate = coverage_gate and sufficient
+              evidence.append(
+                  {
+                      "market": market,
+                      "provider_symbol_name": payload["provider_symbol_name"],
+                      "account_fingerprint": payload["account_fingerprint"],
+                      "requested_opened_at": payload["requested_opened_at"],
+                      "first_opened_at": payload["coverage"]["first_opened_at"],
+                      "last_closed_at": payload["coverage"]["last_closed_at"],
+                      "bar_count": payload["coverage"]["bar_count"],
+                      "actual_calendar_span_days": payload["actual_calendar_span_days"],
+                      "historical_fresh_coverage_sufficient": sufficient,
+                      "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                  }
+              )
+          assert replay["candidate_id"] == freeze["candidate_id"]
+          final_pass = (
+              coverage_gate
+              and bool(replay["passes_economic_gates"])
+              and bool(replay["passes_monte_carlo_gates"])
+              and bool(replay["passes_causal_checks"])
+          )
+          report = {
+              "schema": "qore.trader_lab.vt31_r6_fresh_validation.v1",
+              "candidate_id": replay["candidate_id"],
+              "software_sha": os.environ["GITHUB_SHA"],
+              "freeze": freeze,
+              "fresh_evidence": evidence,
+              "historical_fresh_coverage_gate": coverage_gate,
+              "fresh_validation": replay,
+              "adjudication": (
+                  "VT31_R6_CANDIDATE_APPROVED"
+                  if final_pass
+                  else "VT31_R6_CANDIDATE_REJECTED"
+              ),
+              "candidate_approved": final_pass,
+              "fundednext_authorized": False,
+              "ftmo_authorized": False,
+              "live_authorized": False,
+              "production_authorized": False,
+          }
+          Path("vt31-r6-fresh-validation.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          print(
+              json.dumps(
+                  {
+                      "adjudication": report["adjudication"],
+                      "coverage_gate": coverage_gate,
+                      "aggregate": replay["aggregate"],
+                      "stress_0_05r": replay["stress_0_05r"],
+                      "markets": replay["market_stress"],
+                      "sides": replay["side_stress"],
+                      "gates": replay["gates"],
+                      "monte_carlo": replay["monte_carlo"],
+                      "monte_carlo_gates": replay["monte_carlo_gates"],
+                      "causal_checks": replay["causal_checks"],
+                  },
+                  sort_keys=True,
+              )
+          )
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r6-fresh-validation.json fresh/*/market-evidence.json \
+            > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r6-fresh-validation-${{ github.sha }}
+          path: |
+            vt31-r6-fresh-validation.json
+            vt31-r6-replay.json
+            git-sha.txt
+            SHA256SUMS
+            fresh/EVIDENCE-SHA256SUMS
+            fresh/NAS100/market-evidence.json
+            fresh/SP500/market-evidence.json
+            fresh/US30/market-evidence.json
+          retention-days: 90
+      - name: Enforce final adjudication
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("vt31-r6-fresh-validation.json").read_text())
+          if not report["candidate_approved"]:
+              raise SystemExit("fresh validation rejected the frozen VT-31 R6 candidate")
+          PY

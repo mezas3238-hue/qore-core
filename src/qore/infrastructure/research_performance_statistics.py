@@ -59,6 +59,32 @@ class ResearchPerformanceSnapshotId:
         return (str(self.value),)
 
 
+def _revalidate_observation_evidence(observation: ResearchReturnObservation) -> None:
+    """Deep-revalidate one retained return and its complete economic evidence tree."""
+
+    try:
+        source = observation.source_result
+        if isinstance(source, ResearchNetEconomicResult):
+            source.gross_result.__post_init__()
+            for cost in source.cost_coverage.costs:
+                cost.__post_init__()
+            source.cost_coverage.__post_init__()
+            source.__post_init__()
+        elif isinstance(source, ResearchGrossEconomicResult):
+            source.__post_init__()
+        else:
+            raise ResearchPerformanceStatisticsValidationError(
+                "performance return source must be an exact research economic result"
+            )
+        observation.__post_init__()
+    except ResearchPerformanceStatisticsError:
+        raise
+    except (InfrastructureError, AttributeError, TypeError, ValueError) as error:
+        raise ResearchPerformanceStatisticsValidationError(
+            "performance return failed deep economic evidence revalidation"
+        ) from error
+
+
 def _gross_result(
     observation: ResearchReturnObservation,
 ) -> ResearchGrossEconomicResult:
@@ -77,6 +103,8 @@ def _canonical_observations(
         raise ResearchPerformanceStatisticsValidationError(
             "performance observations must be a non-empty immutable return tuple"
         )
+    for item in observations:
+        _revalidate_observation_evidence(item)
     ordered = tuple(
         sorted(
             observations,

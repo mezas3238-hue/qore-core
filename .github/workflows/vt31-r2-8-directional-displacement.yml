@@ -1,0 +1,256 @@
+name: QORE VT-31 R2.8 Directional Displacement Research
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r2-8-directional-displacement.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download exact consumed evidence and R2.6 research
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30} r26
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10355074492/zip" > r26.zip
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" > expected.sha256
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> expected.sha256
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> expected.sha256
+          echo "f7c8d5d539623371b861569dbf859d86d8225a81effe0add4017e3db28f6d37a  r26.zip" >> expected.sha256
+          sha256sum --check expected.sha256
+          unzip -q NAS100.zip -d evidence/NAS100
+          unzip -q SP500.zip -d evidence/SP500
+          unzip -q US30.zip -d evidence/US30
+          unzip -q r26.zip -d r26
+      - name: Test two predeclared displacement contracts
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
+              _metrics,
+              _quartiles,
+          )
+
+          markets = ("NAS100", "SP500", "US30")
+          parent = "all-families-nearest-retracement:near-stop"
+          hypotheses = {
+              "directional-body": None,
+              "directional-body-plus-3r": Decimal(3),
+          }
+          raw = {
+              market: json.loads(Path(f"r26/{market}.json").read_text())
+              for market in markets
+          }
+          aligned = {}
+          for market in markets:
+              evidence = json.loads(
+                  Path(f"evidence/{market}/market-evidence.json").read_text()
+              )
+              candle = {
+                  item["closed_at"]: (
+                      Decimal(item["open"]), Decimal(item["close"])
+                  )
+                  for item in evidence["periods"]["M1"]
+              }
+              selected = []
+              for item in raw[market]["variants"][parent]["trades"]:
+                  opened, closed = candle[item["signal_at"]]
+                  direction_ok = (
+                      closed > opened if item["side"] == "long"
+                      else closed < opened
+                  )
+                  if direction_ok:
+                      selected.append(item)
+              aligned[market] = selected
+
+          def adjudicate(minimum_r):
+              trades = []
+              market_stress = {}
+              temporal = {}
+              for market in markets:
+                  selected = [
+                      dict(item, market=market)
+                      for item in aligned[market]
+                      if minimum_r is None
+                      or Decimal(item["planned_r"]) >= minimum_r
+                  ]
+                  trades.extend(selected)
+                  market_stress[market] = _metrics(
+                      selected, friction=Decimal("0.05")
+                  )
+                  for year in sorted(
+                      {item["local_date"][:4] for item in selected}
+                  ):
+                      block = [
+                          item for item in selected
+                          if item["local_date"].startswith(year)
+                      ]
+                      temporal[f"{market}:{year}"] = _metrics(block)
+              trades.sort(key=lambda item: (item["filled_at"], item["market"]))
+              aggregate = _metrics(trades)
+              stressed = _metrics(trades, friction=Decimal("0.05"))
+              side_stress = {
+                  side: _metrics(
+                      [item for item in trades if item["side"] == side],
+                      friction=Decimal("0.05"),
+                  )
+                  for side in ("long", "short")
+              }
+              quartiles = _quartiles(trades)
+              eligible = [
+                  block for block in temporal.values()
+                  if block["sample"] >= 10
+              ]
+              positive_blocks = sum(
+                  Decimal(block["mean_r"]) > 0 for block in eligible
+              )
+              gates = {
+                  "aggregate_sample_at_least_150": aggregate["sample"] >= 150,
+                  "each_market_sample_at_least_30": all(
+                      item["sample"] >= 30
+                      for item in market_stress.values()
+                  ),
+                  "aggregate_stressed_mean_positive": Decimal(
+                      stressed["mean_r"]
+                  ) > 0,
+                  "aggregate_stressed_pf_at_least_1_10": (
+                      stressed["profit_factor"] is not None
+                      and Decimal(stressed["profit_factor"]) >= Decimal("1.10")
+                  ),
+                  "aggregate_stressed_dd_at_most_20r": Decimal(
+                      stressed["max_drawdown_r"]
+                  ) <= Decimal(20),
+                  "every_market_stressed_mean_positive": all(
+                      Decimal(item["mean_r"]) > 0
+                      for item in market_stress.values()
+                  ),
+                  "both_sides_stressed_mean_positive": all(
+                      item["sample"] > 0 and Decimal(item["mean_r"]) > 0
+                      for item in side_stress.values()
+                  ),
+                  "three_of_four_quartiles_positive": sum(
+                      Decimal(item["mean_r"]) > 0 for item in quartiles
+                  ) >= 3,
+                  "two_thirds_eligible_temporal_blocks_positive": (
+                      bool(eligible)
+                      and positive_blocks * 3 >= len(eligible) * 2
+                  ),
+              }
+              return {
+                  "aggregate": aggregate,
+                  "stress_0_05r": stressed,
+                  "market_stress": market_stress,
+                  "side_stress": side_stress,
+                  "quartiles": quartiles,
+                  "temporal_blocks": temporal,
+                  "gates": gates,
+                  "survivor": all(gates.values()),
+              }
+
+          results = {
+              name: adjudicate(minimum_r)
+              for name, minimum_r in hypotheses.items()
+          }
+          survivors = [
+              name for name, item in results.items() if item["survivor"]
+          ]
+          contract = {
+              "parent": parent,
+              "entry_selector": "nearest-still-valid-retracement",
+              "zone_location": "near-stop",
+              "confirmation": "structural-close-and-directional-body",
+              "minimum_r_hypotheses": {
+                  "directional-body": None,
+                  "directional-body-plus-3r": "3",
+              },
+              "markets": list(markets),
+              "sides": ["long", "short"],
+              "hypothesis_count": 2,
+          }
+          fingerprint = hashlib.sha256(
+              json.dumps(
+                  contract, sort_keys=True, separators=(",", ":")
+              ).encode()
+          ).hexdigest()
+          report = {
+              "schema": "qore.trader_lab.vt31_r2_8_displacement_research.v1",
+              "software_sha": "${{ github.sha }}",
+              "research_only": True,
+              "hypothesis_count": 2,
+              "contract_fingerprint": fingerprint,
+              "results": results,
+              "survivors": survivors,
+              "adjudication": (
+                  "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE"
+                  if len(survivors) == 1
+                  else "VT31_R2_8_CANDIDATE_NOT_JUSTIFIED"
+              ),
+              "candidate_frozen": False,
+              "fresh_validation": "NOT_RUN_RESEARCH_STAGE",
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          Path("vt31-r2-8-displacement-research.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          compact = {}
+          for name, item in results.items():
+              compact[name] = {
+                  "aggregate": item["aggregate"],
+                  "stress_0_05r": item["stress_0_05r"],
+                  "market_mean": {
+                      key: value["mean_r"]
+                      for key, value in item["market_stress"].items()
+                  },
+                  "side_mean": {
+                      key: value["mean_r"]
+                      for key, value in item["side_stress"].items()
+                  },
+                  "positive_quartiles": sum(
+                      Decimal(value["mean_r"]) > 0
+                      for value in item["quartiles"]
+                  ),
+                  "failed_gates": sorted(
+                      key for key, value in item["gates"].items()
+                      if not value
+                  ),
+              }
+          print("VT31_R2_8=" + json.dumps({
+              "adjudication": report["adjudication"],
+              "survivors": survivors,
+              "results": compact,
+          }, sort_keys=True, separators=(",", ":")))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r2-8-displacement-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r2-8-displacement-${{ github.sha }}
+          path: |
+            vt31-r2-8-displacement-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90

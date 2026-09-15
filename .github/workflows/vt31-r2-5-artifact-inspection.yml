@@ -1,0 +1,78 @@
+name: QORE VT-31 R2.5 Artifact Inspection
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r2-5-artifact-inspection.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact official artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inspection/{adjudication,NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350477574/zip" > inspection/adjudication.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > inspection/NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > inspection/SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > inspection/US30.zip
+          unzip -q inspection/adjudication.zip -d inspection/adjudication
+          unzip -q inspection/NAS100.zip -d inspection/NAS100
+          unzip -q inspection/SP500.zip -d inspection/SP500
+          unzip -q inspection/US30.zip -d inspection/US30
+      - name: Verify official ZIP digests and print economic adjudication
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  inspection/SP500.zip" > inspection/expected.sha256
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  inspection/US30.zip" >> inspection/expected.sha256
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  inspection/NAS100.zip" >> inspection/expected.sha256
+          echo "591cdb1e99bbd0e592c64c61e0e8aa9780cde657ff1933c4d6162431e2afcc09  inspection/adjudication.zip" >> inspection/expected.sha256
+          sha256sum --check inspection/expected.sha256
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("inspection")
+          adjudication_path = root / "adjudication" / "vt31-r2-5-adjudication.json"
+          adjudication = json.loads(adjudication_path.read_text())
+          recorded = (root / "adjudication" / "SHA256SUMS").read_text().split()[0]
+          actual = hashlib.sha256(adjudication_path.read_bytes()).hexdigest()
+          assert actual == recorded
+          expected_sha = "81466402548f2c6343d0a038a2558a3a83dc0795"
+          assert (root / "adjudication" / "git-sha.txt").read_text().strip() == expected_sha
+          markets = {}
+          for market in ("NAS100", "SP500", "US30"):
+              evidence = json.loads((root / market / "market-evidence.json").read_text())
+              research = json.loads((root / market / "research.json").read_text())
+              assert (root / market / "git-sha.txt").read_text().strip() == expected_sha
+              assert evidence["software_sha"] == expected_sha
+              assert research["software_sha"] == expected_sha
+              markets[market] = {
+                  "provider_symbol_name": evidence["provider_symbol_name"],
+                  "requested_opened_at": evidence["requested_opened_at"],
+                  "checked_at": evidence["checked_at"],
+                  "historical_chunk_days": evidence["historical_chunk_days"],
+                  "coverage": evidence["coverage"],
+                  "evidence_fingerprint": research["evidence_fingerprint"],
+              }
+          output = {
+              "adjudication_sha256": actual,
+              "markets": markets,
+              "adjudication": adjudication,
+          }
+          print("OFFICIAL_INSPECTION_JSON=" + json.dumps(output, sort_keys=True, separators=(",", ":")))
+          PY

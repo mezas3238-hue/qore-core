@@ -1,0 +1,77 @@
+name: QORE VT-31 R6 Consumed Research
+
+on:
+  push:
+    branches:
+      - agent/vt31-r6-dd-control-candidate-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Recover frozen consumed R5 fresh evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p consumed
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" \
+            > consumed-r5-fresh.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  consumed-r5-fresh.zip" \
+            | sha256sum -c -
+          unzip -q consumed-r5-fresh.zip -d consumed
+          test -f consumed/fresh/NAS100/market-evidence.json
+          test -f consumed/fresh/SP500/market-evidence.json
+          test -f consumed/fresh/US30/market-evidence.json
+      - name: Replay R6 on consumed evidence
+        run: |
+          set -euo pipefail
+          python scripts/vt31_r6_candidate.py \
+            consumed/fresh/NAS100/market-evidence.json \
+            consumed/fresh/SP500/market-evidence.json \
+            consumed/fresh/US30/market-evidence.json \
+            > vt31-r6-consumed-research.json
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(Path("vt31-r6-consumed-research.json").read_text())
+          assert report["candidate_id"] == "VT31_R6_SILVER_BULLET_DD_CONTROL_001"
+          assert report["passes_economic_gates"] is True
+          assert report["passes_monte_carlo_gates"] is True
+          assert report["passes_causal_checks"] is True
+          stress = report["stress_0_05r"]
+          assert stress["sample"] == 162
+          assert Decimal(stress["mean_r"]) > Decimal("0.20")
+          assert Decimal(stress["profit_factor"]) >= Decimal("1.30")
+          assert Decimal(stress["max_drawdown_r"]) <= Decimal("10")
+          mc = report["monte_carlo"]
+          assert Decimal(mc["positive_terminal_probability"]) >= Decimal("0.95")
+          assert Decimal(mc["p95_max_drawdown_r"]) <= Decimal("19")
+          assert all(report["gates"].values())
+          assert all(report["monte_carlo_gates"].values())
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r6-consumed-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r6-consumed-research-${{ github.sha }}
+          path: |
+            vt31-r6-consumed-research.json
+            git-sha.txt
+            SHA256SUMS
+          retention-days: 90

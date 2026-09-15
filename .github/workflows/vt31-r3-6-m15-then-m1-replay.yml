@@ -1,0 +1,119 @@
+name: QORE VT-31 R3.6 M15-Then-M1 Replay
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r3-6-m15-then-m1-replay.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/{NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" > sums
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> sums
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> sums
+          sha256sum -c sums
+          for m in NAS100 SP500 US30; do unzip -q "$m.zip" -d "evidence/$m"; done
+      - name: Replay M15 confirmation before M1 selection
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from collections import Counter,defaultdict
+          from datetime import timedelta
+          from decimal import Decimal
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import load_market_evidence,_day,_wall,_simulate,_metrics,_quartiles
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_6_composite_entry_research import VARIANTS,_evaluate
+
+          markets=("NAS100","SP500","US30"); variant=next(x for x in VARIANTS if x.location=="near-stop")
+          def d(x): return Decimal(str(x))
+          def candle(xs): return {"open":d(xs[0].open),"high":max(d(x.high) for x in xs),"low":min(d(x.low) for x in xs),"close":d(xs[-1].close)}
+          def unique(long,short): return "long" if long and not short else "short" if short and not long else None
+          def directional(a,b):
+              bull=(b["high"]>a["high"] and b["close"]>a["high"]) or (b["low"]<a["low"] and b["close"]>a["low"])
+              bear=(b["low"]<a["low"] and b["close"]<a["low"]) or (b["high"]>a["high"] and b["close"]<a["high"])
+              return unique(bull,bear)
+          def m15_state(indexed,as_of):
+              buckets=defaultdict(list)
+              for _,bar in indexed:
+                  if bar.closed_at>as_of or not ((9,0,0)<=_wall(bar.opened_at)<(11,0,0)): continue
+                  local=bar.opened_at.astimezone(__import__("zoneinfo").ZoneInfo("America/New_York"))
+                  key=local.replace(minute=(local.minute//15)*15,second=0,microsecond=0)
+                  buckets[key].append(bar)
+              complete=sorted((key+timedelta(minutes=15),candle(xs)) for key,xs in buckets.items() if len(xs)==15 and key+timedelta(minutes=15)<=as_of.astimezone(__import__("zoneinfo").ZoneInfo("America/New_York")))
+              state=None
+              for i,(closed,current) in enumerate(complete):
+                  if i==0 or closed.hour<10: continue
+                  found=directional(complete[i-1][1],current)
+                  if found is not None: state=found
+              return state
+
+          all_trades=[]; per_market={}; abstains={}
+          for market in markets:
+              series,*_=load_market_evidence(Path(f"evidence/{market}/market-evidence.json"))
+              by_day=defaultdict(list)
+              for index,bar in enumerate(series): by_day[_day(bar.opened_at)].append((index,bar))
+              trades=[]; reasons=Counter()
+              for day,indexed in by_day.items():
+                  reference=[bar for _,bar in indexed if (9,0,0)<=_wall(bar.opened_at)<(10,0,0)]
+                  session=[(i,bar) for i,bar in indexed if (10,0,0)<=_wall(bar.opened_at)<(11,0,0)]
+                  if len(reference)!=60 or len(session)!=60: reasons["incomplete"]+=1; continue
+                  prefix=list(reference); chosen=None; chosen_index=None
+                  for global_index,bar in session:
+                      prefix.append(bar)
+                      setup,reason=_evaluate(instrument=series[0].instrument,as_of=bar.closed_at,bars=tuple(prefix),variant=variant)
+                      if reason=="both-sides-swept": reasons[reason]+=1; break
+                      if setup is None: continue
+                      state=m15_state(indexed,bar.closed_at)
+                      if state==setup.side.value:
+                          chosen=setup; chosen_index=global_index; break
+                      reasons["m15-not-yet-aligned"]+=1
+                  if chosen is None: continue
+                  trade,status=_simulate(series,chosen_index,chosen)
+                  if trade is None: reasons[status]+=1
+                  else: trades.append(dict(trade,market=market))
+              per_market[market]=trades; abstains[market]=dict(reasons); all_trades.extend(trades)
+          all_trades.sort(key=lambda x:(x["filled_at"],x["market"]))
+          agg=_metrics(all_trades); stress=_metrics(all_trades,friction=Decimal(".05"))
+          bym={m:_metrics(xs,friction=Decimal(".05")) for m,xs in per_market.items()}
+          bys={s:_metrics([t for t in all_trades if t["side"]==s],friction=Decimal(".05")) for s in ("long","short")}
+          q=_quartiles(all_trades); temporal={}
+          for m,xs in per_market.items():
+              for y in sorted({t["local_date"][:4] for t in xs}): temporal[f"{m}:{y}"]=_metrics([t for t in xs if t["local_date"].startswith(y)],friction=Decimal(".05"))
+          eligible=[x for x in temporal.values() if x["sample"]>=10]
+          gates={"aggregate_sample_at_least_150":agg["sample"]>=150,"each_market_sample_at_least_30":all(x["sample"]>=30 for x in bym.values()),"aggregate_stressed_mean_positive":Decimal(stress["mean_r"])>0,"aggregate_stressed_pf_at_least_1_10":stress["profit_factor"] is not None and Decimal(stress["profit_factor"])>=Decimal("1.10"),"aggregate_stressed_dd_at_most_20r":Decimal(stress["max_drawdown_r"])<=20,"every_market_stressed_mean_positive":all(Decimal(x["mean_r"])>0 for x in bym.values()),"both_sides_stressed_mean_positive":all(x["sample"] and Decimal(x["mean_r"])>0 for x in bys.values()),"three_of_four_quartiles_positive":sum(Decimal(x["mean_r"])>0 for x in q)>=3,"two_thirds_eligible_temporal_blocks_positive":bool(eligible) and sum(Decimal(x["mean_r"])>0 for x in eligible)*3>=len(eligible)*2}
+          contract={"methodology":"TTrades-Scalping-Fractal-Model","source":"https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/","sequence":["09:00-10:00-reference","persistent-causal-M15-directional-closure-after-10:00","first-still-valid-M1-R2.6-setup"],"markets":list(markets),"same_configuration":True,"target":"opposite-reference-boundary","hypothesis_count":1}
+          result={"aggregate":agg,"stress_0_05r":stress,"market_stress":bym,"side_stress":bys,"quartiles":q,"temporal_blocks":temporal,"gates":gates,"survivor":all(gates.values()),"abstains":abstains,"trades":all_trades}
+          report={"schema":"qore.trader_lab.vt31_r3_6_m15_then_m1_research.v1","software_sha":"${{ github.sha }}","research_only":True,"consumed_evidence_only":True,"fresh_evidence_opened":False,"contract":contract,"contract_fingerprint":hashlib.sha256(json.dumps(contract,sort_keys=True,separators=(",",":")).encode()).hexdigest(),"result":result,"adjudication":"CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE" if result["survivor"] else "VT31_R3_6_CANDIDATE_NOT_JUSTIFIED","candidate_frozen":False,"demo_eligible":False,"live_authorized":False,"real_capital_authorized":False,"production_authorized":False}
+          Path("vt31-r3-6-m15-then-m1-research.json").write_text(json.dumps(report,sort_keys=True,separators=(",",":"))+"\n")
+          print(json.dumps({"adjudication":report["adjudication"],"aggregate":agg,"stress":stress,"markets":{m:x["mean_r"] for m,x in bym.items()},"market_samples":{m:x["sample"] for m,x in bym.items()},"sides":{s:x["mean_r"] for s,x in bys.items()},"positive_quartiles":sum(Decimal(x["mean_r"])>0 for x in q),"failed":[g for g,p in gates.items() if not p]},sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r3-6-m15-then-m1-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r3-6-m15-then-m1-${{ github.sha }}
+          path: |
+            vt31-r3-6-m15-then-m1-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90

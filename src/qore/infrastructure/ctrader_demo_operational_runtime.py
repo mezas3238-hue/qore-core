@@ -10,6 +10,7 @@ from qore.infrastructure.ctrader_demo_execution_configuration import (
 from qore.infrastructure.ctrader_demo_execution_contracts import (
     CTraderDemoFillObservation,
     CTraderDemoFillReconciliation,
+    CTraderDemoMutationAttempt,
 )
 from qore.infrastructure.ctrader_demo_execution_gateway import (
     CTraderDemoExecutionGateway,
@@ -18,6 +19,7 @@ from qore.infrastructure.ctrader_demo_market_data import (
     CTraderDemoMarketDataFlow,
     CTraderDemoMarketDataPayloadAdapter,
 )
+from qore.infrastructure.ctrader_demo_mutation_ledger import CTraderDemoMutationLedger
 from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiCredentials,
     CTraderOpenApiMessageClientBoundary,
@@ -97,6 +99,7 @@ class CTraderDemoOperationalRuntime:
         credentials: CTraderOpenApiCredentials,
         environment_authorization: MarketTestEnvironmentAuthorization,
         market_data_descriptor: ExternalSourceDescriptor,
+        mutation_ledger: CTraderDemoMutationLedger,
         client: CTraderOpenApiMessageClientBoundary | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
@@ -138,6 +141,7 @@ class CTraderDemoOperationalRuntime:
         gateway = CTraderDemoExecutionGateway(
             configuration=configuration,
             transport=transport,
+            mutation_ledger=mutation_ledger,
         )
         market_client = CTraderOpenApiMarketDataClient(
             descriptor=market_data_descriptor,
@@ -171,6 +175,44 @@ class CTraderDemoOperationalRuntime:
     @property
     def execution(self) -> AuthorizedTestExecutionAdapter:
         return self._execution
+
+    @property
+    def has_unresolved_mutations(self) -> bool:
+        return self._gateway.has_unresolved_mutations
+
+    def stage_risk_fence(
+        self,
+        submission: ExecutionSubmission,
+        *,
+        risk_authorization_id: str,
+        risk_authorization_fingerprint: str,
+        risk_reservation_id: str,
+    ) -> Result[None, ExecutionBoundaryError]:
+        return self._gateway.stage_risk_fence(
+            submission,
+            risk_authorization_id=risk_authorization_id,
+            risk_authorization_fingerprint=risk_authorization_fingerprint,
+            risk_reservation_id=risk_reservation_id,
+        )
+
+    def recover_unknown_submission(
+        self,
+        submission: ExecutionSubmission,
+        *,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+        searched_at: datetime,
+    ) -> Result[CTraderDemoMutationAttempt, ExecutionBoundaryError]:
+        """Restore exact intent evidence, discover by clientOrderId, and reconcile."""
+        restored = self._gateway.restore_submission(submission)
+        if isinstance(restored, Failure):
+            return Failure(restored.error)
+        return self._gateway.discover_unknown_outcome(
+            receipt_id=submission.receipt_id,
+            from_timestamp=from_timestamp,
+            to_timestamp=to_timestamp,
+            searched_at=searched_at,
+        )
 
     def connect(
         self,
