@@ -9,6 +9,11 @@ set "QORE_PROBE_EXIT=%ERRORLEVEL%"
 echo.
 if "%QORE_PROBE_EXIT%"=="0" (
   echo QORE NO-SEND PROBE PASSED
+  if exist "artifacts\fundednext_mt5_no_send_probe.json" (
+    echo.
+    echo SHA256 evidence:
+    certutil -hashfile "artifacts\fundednext_mt5_no_send_probe.json" SHA256
+  )
 ) else (
   echo QORE NO-SEND PROBE FAILED - exit code %QORE_PROBE_EXIT%
 )
