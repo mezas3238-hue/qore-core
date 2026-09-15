@@ -33,8 +33,8 @@ from qore.infrastructure.fundednext_live_activation import load_verified_live_ac
 from qore.infrastructure.fundednext_live_guard import (
     FINAL_CAUSAL_ENTRY_ANCHOR_NY,
     FOREX_OPEN_COMMISSION_PER_LOT_USD,
-    FundedNextLiveCapitalCheckpoint,
     DurableFundedNextLiveCapitalStore,
+    FundedNextLiveCapitalCheckpoint,
     InactivityState,
     causal_daily_candidate_allowed,
     h4_containment_exit_at,
@@ -316,7 +316,10 @@ def _reconcile_exit_ledger(
     active_tickets = {str(item.ticket) for item in positions}
     deal_magics = {int(item.magic) for item in deals}
     for record in ledger.records():
-        if record.state not in {PositionExitState.ATTEMPT_STARTED, PositionExitState.OUTCOME_UNKNOWN}:
+        if record.state not in {
+            PositionExitState.ATTEMPT_STARTED,
+            PositionExitState.OUTCOME_UNKNOWN,
+        }:
             continue
         if record.provider_position_ref not in active_tickets and record.magic in deal_magics:
             ledger.upsert(
@@ -495,7 +498,14 @@ def _process_candidate(
         risk.complete_boot_reconciliation(snapshot, now=now)
     authorization = risk.authorize(request, snapshot, now=now)
     if authorization.decision is RiskDecision.REJECT:
-        _log(log_path, {"event": "RISK_REJECT", "symbol": candidate.symbol, "reason": authorization.reason})
+        _log(
+            log_path,
+            {
+                "event": "RISK_REJECT",
+                "symbol": candidate.symbol,
+                "reason": authorization.reason,
+            },
+        )
         return
     submission = build_account_bound_submission(
         authorization,
@@ -510,7 +520,14 @@ def _process_candidate(
     shadow = gateway.shadow_check(submission, now=now)
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
-        _log(log_path, {"event": "SHADOW_REJECT", "symbol": candidate.symbol, "reason": shadow.reason})
+        _log(
+            log_path,
+            {
+                "event": "SHADOW_REJECT",
+                "symbol": candidate.symbol,
+                "reason": shadow.reason,
+            },
+        )
         return
     if mode == "shadow":
         risk.cancel(authorization.authorization_id)
@@ -718,7 +735,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             for item in mutation_ledger.records()
             if item.state is FundedNextMt5MutationState.ACCEPTED
         ]
-        last_activity = max(accepted_times, default=activation.authorization.activation_timestamp)
+        last_activity = max(
+            accepted_times,
+            default=activation.authorization.activation_timestamp,
+        )
         lifecycle = inactivity_state(last_activity_at=last_activity, now=cycle_at)
         if lifecycle.value != last_lifecycle:
             _log(
