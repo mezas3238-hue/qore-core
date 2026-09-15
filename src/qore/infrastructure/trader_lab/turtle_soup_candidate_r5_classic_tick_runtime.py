@@ -6,7 +6,6 @@ import argparse
 import json
 from importlib import import_module
 from pathlib import Path
-from typing import cast
 
 from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
     _native_int,
@@ -37,19 +36,18 @@ def _admit_historical_tick_messages(client: SpotwareCTraderOpenApiClient) -> Non
 def _decode_tick_page_with_signed_deltas(
     native_ticks: tuple[object, ...], *, digits: int
 ) -> tuple[tick_probe.TurtleSoupR5HistoricalTick, ...]:
-    """Decode cTrader newest-first ticks without assuming delta sign convention.
+    """Decode the provider's newest-first cumulative tick delta stream.
 
-    The official response contract says the first timestamp is absolute and all
-    subsequent values are the difference between the previous and current tick.
-    Observed provider responses encode that difference as a signed negative
-    delta, while older QORE fixtures used a positive magnitude. Both encodings
-    represent the same elapsed time, so chronology is reconstructed by moving
-    backward by the delta magnitude. A zero delta deliberately preserves equal
-    timestamps for fail-closed causal handling downstream.
+    cTrader transmits the first timestamp and price as absolute values. Every
+    subsequent timestamp and price is a signed delta from the immediately
+    preceding tick. Because the response is newest-first, timestamp deltas must
+    be non-positive. Zero timestamp deltas are preserved so downstream causal
+    resolution can fail closed when two price events have no observable order.
     """
 
     decoded: list[tick_probe.TurtleSoupR5HistoricalTick] = []
     previous_ms: int | None = None
+    previous_tick_units: int | None = None
     for response_order, native in enumerate(native_ticks):
         raw_timestamp = _native_int(native, "timestamp")
         raw_tick = _native_int(native, "tick")
@@ -58,23 +56,38 @@ def _decode_tick_page_with_signed_deltas(
                 raise CTraderDemoLabProbeError(
                     "first historical tick timestamp is negative"
                 )
+            if raw_tick <= 0:
+                raise CTraderDemoLabProbeError(
+                    "first historical tick price must be absolute and positive"
+                )
             timestamp_ms = raw_timestamp
+            tick_units = raw_tick
         else:
-            if previous_ms is None:  # pragma: no cover - guarded by loop state
-                raise CTraderDemoLabProbeError("lost historical tick timestamp state")
-            timestamp_ms = previous_ms - abs(raw_timestamp)
+            if previous_ms is None or previous_tick_units is None:  # pragma: no cover
+                raise CTraderDemoLabProbeError("lost historical tick decoder state")
+            if raw_timestamp > 0:
+                raise CTraderDemoLabProbeError(
+                    "historical timestamp delta violates newest-first chronology"
+                )
+            timestamp_ms = previous_ms + raw_timestamp
+            tick_units = previous_tick_units + raw_tick
             if timestamp_ms < 0 or timestamp_ms > previous_ms:
                 raise CTraderDemoLabProbeError(
-                    "historical tick delta violates newest-first chronology"
+                    "historical tick timestamp reconstruction is invalid"
+                )
+            if tick_units <= 0:
+                raise CTraderDemoLabProbeError(
+                    "historical tick price reconstruction is non-positive"
                 )
         decoded.append(
             tick_probe.TurtleSoupR5HistoricalTick(
                 timestamp_ms=timestamp_ms,
-                price=_normalized_price(raw_tick, digits=digits),
+                price=_normalized_price(tick_units, digits=digits),
                 response_order=response_order,
             )
         )
         previous_ms = timestamp_ms
+        previous_tick_units = tick_units
     return tuple(decoded)
 
 
@@ -111,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     _install_r5_tick_decoder()
     try:
         payload = tick_probe.collect_r5_classic_tick_evidence(
-            cast(tick_probe.CTraderOpenApiMessageClientBoundary, client),
+            client,
             symbol_name=args.symbol,
             software_sha=args.software_sha,
         )
