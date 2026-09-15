@@ -66,7 +66,10 @@ def test_windows_end_exactly_at_checked_at_and_advance_strictly() -> None:
         bar_span=timedelta(minutes=15),
     )
     assert windows[-1][1] == checked
-    assert all(right[0] > left[0] for left, right in zip(windows, windows[1:]))
+    assert all(
+        right[0] > left[0]
+        for left, right in zip(windows, windows[1:], strict=False)
+    )
 
 
 @pytest.mark.parametrize(
