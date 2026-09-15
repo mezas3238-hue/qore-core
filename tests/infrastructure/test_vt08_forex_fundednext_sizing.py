@@ -15,9 +15,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     Vt08ForexCiboSetup,
     evaluate_vt08_forex_cibo,
 )
-from qore.infrastructure.vt08_forex_fundednext_sizing import (
-    build_certified_vt08_forex_cibo_request,
-)
+from qore.infrastructure.vt08_forex_fundednext_sizing import build_certified_vt08_forex_cibo_request
 
 _NOW = datetime(2026, 9, 14, 4, 0, tzinfo=UTC)
 
@@ -51,15 +49,18 @@ def _cibo(
     enabled: bool = True,
     posture: Vt08ForexCiboPosture = Vt08ForexCiboPosture.NORMAL,
 ) -> Vt08ForexCiboAuthorization:
+    side = "long" if symbol == "GBPJPY" else "short"
+    stop = Decimal("99") if side == "long" else Decimal("101")
+    target = Decimal("102") if side == "long" else Decimal("98")
     setup = Vt08ForexCiboSetup(
         signal_fingerprint=f"signal-{symbol}",
         setup_fingerprint=f"setup-{symbol}",
         qore_symbol=symbol,
-        side="long",
+        side=side,
         entry_type="market",
         intended_entry=Decimal("100"),
-        stop_loss=Decimal("99"),
-        take_profit=Decimal("102"),
+        stop_loss=stop,
+        take_profit=target,
         methodology_fingerprint=R315_METHOD_FINGERPRINT,
         risk_policy_fingerprint=R315_RISK_FINGERPRINT,
         decided_at=_NOW,
@@ -76,9 +77,9 @@ def _cibo(
 
 @pytest.mark.parametrize(
     ("symbol", "expected_volume"),
-    (("AUDJPY", "0.05"), ("GBPUSD", "0.05"), ("GBPJPY", "0.04")),
+    (("AUDJPY", "0.04"), ("GBPUSD", "0.04"), ("GBPJPY", "0.03")),
 )
-def test_certified_bps_size_from_mt5_tick_value(
+def test_certified_bps_size_includes_opening_commission(
     symbol: str,
     expected_volume: str,
 ) -> None:
@@ -89,7 +90,7 @@ def test_certified_bps_size_from_mt5_tick_value(
         account_equity=Decimal("2000"),
     )
     assert request.requested_volume == Decimal(expected_volume)
-    assert request.stop_loss_per_volume == Decimal("100")
+    assert request.stop_loss_per_volume == Decimal("107")
     assert request.provider_symbol == f"{symbol}.a"
 
 
