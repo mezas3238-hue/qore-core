@@ -21,6 +21,7 @@ from qore.infrastructure.fundednext_live_authorization import (
 )
 from qore.infrastructure.fundednext_mt5 import (
     FundedNextMt5OrderPlan,
+    Mt5AccountState,
     Mt5ExecutionBlockedError,
     Mt5ExecutionOutcomeUnknownError,
     Mt5ExecutionRejectedError,
@@ -167,7 +168,7 @@ class FundedNextLiveMt5ExecutionGateway:
             for item in self._records.values()
         )
 
-    def read_account(self, *, now: datetime):
+    def read_account(self, *, now: datetime) -> Mt5AccountState:
         if not self._transport.connected():
             raise Mt5ExecutionBlockedError("mt5-disconnected")
         state = self._transport.account_state(self._account.account_ref)
@@ -358,7 +359,7 @@ class FundedNextLiveMt5ExecutionGateway:
 
     def _mark_interrupted_attempts_unknown(self) -> None:
         now = datetime.now().astimezone()
-        for key, record in tuple(self._records.items()):
+        for _key, record in tuple(self._records.items()):
             if record.state is FundedNextMt5MutationState.ATTEMPT_STARTED:
                 self._persist(
                     record.transition(
