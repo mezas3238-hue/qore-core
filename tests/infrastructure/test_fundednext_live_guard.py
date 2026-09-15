@@ -59,8 +59,10 @@ def test_h4_containment_exit_is_four_hours_after_exact_anchor() -> None:
 
 
 def test_inactivity_warns_without_inventing_trade_and_then_blocks() -> None:
-    assert inactivity_state(last_activity_at=_NOW, now=_NOW + timedelta(days=25)) is InactivityState.WARNING
-    assert inactivity_state(last_activity_at=_NOW, now=_NOW + timedelta(days=30)) is InactivityState.BLOCKED
+    warning = inactivity_state(last_activity_at=_NOW, now=_NOW + timedelta(days=25))
+    blocked = inactivity_state(last_activity_at=_NOW, now=_NOW + timedelta(days=30))
+    assert warning is InactivityState.WARNING
+    assert blocked is InactivityState.BLOCKED
 
 
 def test_capital_checkpoint_requires_durable_copy_and_never_moves_down(tmp_path: Path) -> None:
