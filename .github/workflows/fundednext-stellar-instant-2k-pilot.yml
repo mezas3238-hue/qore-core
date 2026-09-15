@@ -45,7 +45,9 @@ jobs:
           $files = @(
             "scripts/install_fundednext_runtime.ps1",
             "scripts/qore_fundednext_watchdog.ps1",
-            "scripts/finalize_fundednext_activation.ps1"
+            "scripts/finalize_fundednext_activation.ps1",
+            "scripts/authorize_fundednext_live.ps1",
+            "scripts/set_fundednext_kill_switch.ps1"
           )
           foreach ($file in $files) {
             $tokens = $null
@@ -126,6 +128,8 @@ jobs:
           assert cert["cibo"]["capital_authority"] is False
           assert cert["cibo"]["attack_can_override_risk"] is False
           assert cert["account_wide_risk"]["final_capital_authority"] is True
+          assert cert["account_wide_risk"]["broker_executable_price_risk_recheck_required"] is True
+          assert cert["account_wide_risk"]["opening_commission_reserved"] is True
           assert cert["qore_internal_policy"]["explicitly_not_provider_rule"] is True
           assert cert["governance"]["component_certification_grants_order_send_authority"] is False
           assert cert["governance"]["component_certification_grants_live_activation"] is False
@@ -152,15 +156,26 @@ jobs:
           assert governance["pr_may_be_merged"] is False
           assert governance["pr_may_be_marked_ready"] is False
           readiness = payload["technical_readiness"]
-          assert readiness["dynamic_filling_mode_validation_implemented"] is True
-          assert readiness["durable_shared_risk_implemented"] is True
-          assert readiness["production_account_authorization_contract_implemented"] is True
-          assert readiness["broker_native_order_check_shadow_implemented"] is True
-          assert readiness["resident_vt08_cibo_risk_runtime_implemented"] is True
-          assert readiness["single_writer_and_stale_lock_recovery_implemented"] is True
-          assert readiness["durable_runtime_heartbeat_implemented"] is True
-          assert readiness["windows_autostart_watchdog_implemented"] is True
-          assert readiness["post_reboot_reconciliation_proof_implemented"] is True
+          for key in (
+              "certified_direction_guard_implemented",
+              "causal_daily_selection_live_subset_implemented",
+              "durable_shared_risk_implemented",
+              "opening_commission_reserved_in_risk_implemented",
+              "broker_executable_risk_recheck_implemented",
+              "current_price_open_position_risk_implemented",
+              "strict_activation_evidence_digest_verification_implemented",
+              "ea_and_vps_entitlement_gates_implemented",
+              "tracked_worktree_sha_guard_implemented",
+              "certified_direction_order_check_probe_implemented",
+              "durable_h4_containment_exit_implemented",
+              "dual_copy_trailing_mll_checkpoint_implemented",
+              "durable_scoped_kill_switches_implemented",
+              "post_reboot_reconciliation_proof_implemented",
+              "owner_live_activation_transition_implemented",
+              "provider_inactivity_guard_implemented",
+              "resident_scripts_compiled_in_ci",
+          ):
+              assert readiness[key] is True, key
           assert readiness["ready_for_vps_shadow_closeout"] is True
           assert readiness["ready_for_owner_activation"] is False
           assert readiness["ready_to_operate_stellar_instant"] is False
