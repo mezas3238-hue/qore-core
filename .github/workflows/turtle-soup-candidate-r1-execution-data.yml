@@ -23,6 +23,7 @@ env:
   QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
   QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
   QORE_TURTLE_SOUP_LOOKBACK_DAYS: "1095"
+  QORE_TURTLE_SOUP_CHECKED_AT: ${{ github.event.head_commit.timestamp }}
   QORE_SOFTWARE_SHA: ${{ github.sha }}
 
 jobs:
@@ -66,7 +67,8 @@ jobs:
             QORE_CTRADER_CLIENT_SECRET \
             QORE_CTRADER_ACCESS_TOKEN \
             QORE_CTRADER_REFRESH_TOKEN \
-            QORE_TURTLE_SOUP_SYMBOL
+            QORE_TURTLE_SOUP_SYMBOL \
+            QORE_TURTLE_SOUP_CHECKED_AT
           do
             if [ -z "${!name:-}" ]; then
               echo "missing required market-data input: ${name}" >&2
