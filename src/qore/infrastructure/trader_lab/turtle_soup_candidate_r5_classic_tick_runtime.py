@@ -21,6 +21,9 @@ from qore.infrastructure.trader_lab import turtle_soup_candidate_r5_classic_tick
 from qore.infrastructure.trader_lab.turtle_soup_candidate_r5_classic_tick_wave1b_targets import (
     frozen_wave1b_tick_target_manifest,
 )
+from qore.infrastructure.trader_lab.turtle_soup_candidate_r5_classic_tick_wave2_targets import (
+    frozen_wave2_tick_target_manifest,
+)
 
 
 def _admit_historical_tick_messages(client: SpotwareCTraderOpenApiClient) -> None:
@@ -99,13 +102,12 @@ def _install_target_wave(target_wave: str) -> None:
     if target_wave == "wave1":
         return
     if target_wave == "wave1b":
-        setattr(
-            tick_probe,
-            "frozen_tick_target_manifest",
-            frozen_wave1b_tick_target_manifest,
-        )
-        return
-    raise CTraderDemoLabProbeError("unsupported R5 target wave")
+        manifest_factory = frozen_wave1b_tick_target_manifest
+    elif target_wave == "wave2":
+        manifest_factory = frozen_wave2_tick_target_manifest
+    else:
+        raise CTraderDemoLabProbeError("unsupported R5 target wave")
+    setattr(tick_probe, "frozen_tick_target_manifest", manifest_factory)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -113,7 +115,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--symbol", required=True)
     parser.add_argument("--software-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--target-wave", choices=("wave1", "wave1b"), default="wave1")
+    parser.add_argument(
+        "--target-wave", choices=("wave1", "wave1b", "wave2"), default="wave1"
+    )
     args = parser.parse_args(argv)
 
     credentials = CTraderOpenApiCredentials(
