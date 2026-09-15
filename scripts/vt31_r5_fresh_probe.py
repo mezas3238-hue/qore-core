@@ -18,6 +18,7 @@ from qore.infrastructure.ctrader_open_api_client import (
     SpotwareCTraderOpenApiClient,
 )
 
+# Exact-head retrigger marker: no methodology or partition semantics changed.
 FRESH_END_AT = datetime(2022, 7, 17, tzinfo=UTC)
 FRESH_LOOKBACK_DAYS = 760
 CANDIDATE_ID = "VT31_R5_SILVER_BULLET_QUALITY_001"
