@@ -8,6 +8,7 @@ on:
       - .github/workflows/turtle-soup-candidate-r5-classic-ticks.yml
       - src/qore/infrastructure/trader_lab/turtle_soup_candidate_r5_classic_tick_targets.py
       - src/qore/infrastructure/trader_lab/turtle_soup_candidate_r5_classic_tick_probe.py
+      - src/qore/infrastructure/trader_lab/turtle_soup_candidate_r5_classic_tick_runtime.py
       - docs/research/TURTLE-SOUP-CANDIDATE-R5-CLASSIC-TICK-RESOLUTION-FREEZE.md
 
 concurrency:
@@ -92,7 +93,7 @@ jobs:
           set -euo pipefail
           dir="artifacts/turtle-soup-r5-classic-ticks/${QORE_TURTLE_SOUP_SYMBOL}"
           mkdir -p "$dir"
-          python -m qore.infrastructure.trader_lab.turtle_soup_candidate_r5_classic_tick_probe \
+          python -m qore.infrastructure.trader_lab.turtle_soup_candidate_r5_classic_tick_runtime \
             --symbol "$QORE_TURTLE_SOUP_SYMBOL" \
             --software-sha "$GITHUB_SHA" \
             --output "$dir/tick-evidence.json"
@@ -129,7 +130,10 @@ jobs:
           assert len(payload["target_manifest_digest_sha256"]) == 64
           assert len(payload["evidence_digest_sha256"]) == 64
           assert payload["target_count"] == len(payload["minutes"])
-          assert payload["available_target_count"] + payload["unavailable_target_count"] == payload["target_count"]
+          assert (
+              payload["available_target_count"] + payload["unavailable_target_count"]
+              == payload["target_count"]
+          )
           PY
 
       - name: Upload immutable R5 Classic tick evidence
