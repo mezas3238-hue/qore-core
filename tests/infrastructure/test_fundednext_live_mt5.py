@@ -282,6 +282,7 @@ def _gateway(
         qore_account_ref="fundednext-stellar-instant-live",
         expected_login=123456,
         expected_server="FundedNext-Server",
+        clock=lambda: _NOW,
     )
     return FundedNextLiveMt5ExecutionGateway(
         account=_account_identity(),
