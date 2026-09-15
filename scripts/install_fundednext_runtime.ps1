@@ -8,7 +8,7 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $Root
 
 if ($ActivateLive) {
-    throw "LIVE activation is a separate Owner-governance event; closeout must run SHADOW only"
+    throw "LIVE activation remains a separate Owner-governance event; installer is SHADOW only"
 }
 
 function Sha256([string]$Path) {
@@ -17,13 +17,18 @@ function Sha256([string]$Path) {
 
 $GitSha = (git rev-parse HEAD).Trim()
 if ($GitSha.Length -ne 40) { throw "QORE exact git SHA unavailable" }
+$TrackedDirty = @(git status --porcelain --untracked-files=no)
+if ($TrackedDirty.Count -ne 0) {
+    throw "Tracked QORE working tree differs from exact Git SHA"
+}
 
 Write-Host "QORE exact SHA: $GitSha"
-Write-Host "Running fresh real-account NO-SEND probe..."
+Write-Host "Using the existing QORE/MT5 VPS installation; no reinstall is performed."
+Write-Host "Running fresh exact-SHA NO-SEND evidence probe..."
 python "$Root\scripts\fundednext_mt5_no_send_probe.py"
 if ($LASTEXITCODE -ne 0) { throw "NO-SEND probe failed" }
 
-Write-Host "Running broker-native order_check probe (still NO-SEND)..."
+Write-Host "Running broker-native certified-direction order_check probe (still NO-SEND)..."
 python "$Root\scripts\fundednext_mt5_order_check_probe.py"
 if ($LASTEXITCODE -ne 0) { throw "MT5 order_check probe failed" }
 
@@ -33,6 +38,9 @@ $NoSend = Get-Content -Raw $NoSendPath | ConvertFrom-Json
 $Shadow = Get-Content -Raw $ShadowPath | ConvertFrom-Json
 if (-not $NoSend.ok -or [string]$NoSend.git_sha -ne $GitSha) {
     throw "NO-SEND evidence is not bound to the exact SHA"
+}
+if (-not [bool]$NoSend.startup_reconciliation.clean) {
+    throw "Initial SHADOW closeout requires a clean broker reconciliation state"
 }
 if ([bool]$NoSend.safety.order_send_called) {
     throw "NO-SEND evidence reports order_send activity"
@@ -51,6 +59,7 @@ $Now = [DateTimeOffset]::UtcNow
 $ActivationDir = "$Root\var\fundednext"
 New-Item -ItemType Directory -Force -Path $ActivationDir | Out-Null
 $ActivationPath = "$ActivationDir\live-activation.json"
+$SafetyPath = "$ActivationDir\live-safety.json"
 $ZeroHash = "0" * 64
 $Activation = [ordered]@{
     git_sha = $GitSha
@@ -61,17 +70,27 @@ $Activation = [ordered]@{
     shadow_evidence_sha256 = (Sha256 $ShadowPath)
     restart_recovery_evidence_sha256 = $ZeroHash
     ea_entitlement_verified = $false
-    provider_rules_current = $true
+    vps_entitlement_verified = $false
+    provider_rules_current = $false
     no_send_passed = $true
     shadow_passed = $true
     service_24_7_verified = $false
     restart_recovery_passed = $false
     activation_timestamp = $Now.ToString("o")
     order_submission_authorized = $false
-    rules_verified_at = $Now.ToString("o")
-    rules_valid_until = $Now.AddDays(7).ToString("o")
 }
 $Activation | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $ActivationPath
+
+if (-not (Test-Path $SafetyPath)) {
+    $Safety = [ordered]@{
+        schema = "qore.fundednext.live-safety.v1"
+        account_enabled = $true
+        gateway_enabled = $true
+        disabled_traders = @()
+        disabled_markets = @()
+    }
+    $Safety | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $SafetyPath
+}
 
 $Python = (Get-Command python).Source
 $RuntimeScript = "$Root\scripts\qore_fundednext_runtime.py"
@@ -102,15 +121,19 @@ if ([string]$State.git_sha -ne $GitSha) { throw "runtime state SHA mismatch" }
 if ([string]$State.account_identity_fingerprint -ne $ShadowFingerprint) {
     throw "runtime account fingerprint mismatch"
 }
+if (-not (Test-Path "$ActivationDir\capital-checkpoint.json") -or -not (Test-Path "$ActivationDir\capital-checkpoint.backup.json")) {
+    throw "durable capital checkpoint copies were not created"
+}
 
 $Activation.service_24_7_verified = $true
 $Activation | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $ActivationPath
 
 $PreReboot = [ordered]@{
-    schema = "qore.fundednext.pre-reboot-readiness.v1"
+    schema = "qore.fundednext.pre-reboot-readiness.v2"
     git_sha = $GitSha
     account_identity_fingerprint = $ShadowFingerprint
     heartbeat_at = [string]$State.heartbeat_at
+    service_started_at = [string]$State.service_started_at
     no_send_sha256 = (Sha256 $NoSendPath)
     shadow_sha256 = (Sha256 $ShadowPath)
     activate_live_after_reboot = $false
@@ -124,12 +147,11 @@ $FinalizeTrigger = New-ScheduledTaskTrigger -AtStartup
 $FinalizeTrigger.Delay = "PT90S"
 Register-ScheduledTask -TaskName "QORE-FundedNext-PostReboot-Finalize" -Action $FinalizeAction -Trigger $FinalizeTrigger -Principal $Principal -Settings $Settings -Force | Out-Null
 
-Write-Host "QORE runtime installed in SHADOW with fresh exact-SHA heartbeat."
-Write-Host "Post-reboot verifier installed; LIVE/order_send remains disabled."
+Write-Host "QORE runtime bound in SHADOW to exact clean SHA with durable capital/safety state."
+Write-Host "LIVE/order_send remains disabled; no provider-rule freshness was fabricated."
 if ($RebootNow) {
-    Write-Host "Rebooting VPS to prove boot recovery..."
+    Write-Host "Rebooting VPS only to prove exact-SHA recovery, not to reinstall QORE."
     Restart-Computer -Force
 } else {
-    Write-Host "Reboot is the only remaining local readiness evidence step."
-    Write-Host "Run this installer with -RebootNow to complete the SHADOW closeout proof."
+    Write-Host "Reboot proof can be run when the final SHA is selected for physical closeout."
 }
