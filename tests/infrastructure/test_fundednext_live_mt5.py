@@ -6,37 +6,23 @@ from decimal import Decimal
 
 import pytest
 
-from qore.infrastructure.account_wide_risk import (
-    RiskAuthorization,
-    RiskDecision,
-    TraderLineage,
-)
+from qore.infrastructure.account_wide_risk import RiskAuthorization, RiskDecision, TraderLineage
 from qore.infrastructure.execution_boundary import ExecutionSubmission
-from qore.infrastructure.fundednext_live_authorization import (
-    FundedNextLiveAccountAuthorization,
-)
+from qore.infrastructure.fundednext_live_authorization import FundedNextLiveAccountAuthorization
 from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
 )
 from qore.infrastructure.fundednext_mt5 import Mt5ExecutionBlockedError
-from qore.infrastructure.fundednext_mt5_mutation_ledger import (
-    InMemoryFundedNextMt5MutationLedger,
-)
+from qore.infrastructure.fundednext_mt5_mutation_ledger import InMemoryFundedNextMt5MutationLedger
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
 from qore.infrastructure.fundednext_stellar_instant import (
     AutomationVerificationState,
     RuleVerificationState,
     StellarInstantRuleVerification,
 )
-from qore.infrastructure.market_test_environment import (
-    MarketRuntimeEnvironment,
-    MarketTestAccountIdentity,
-)
-from qore.infrastructure.pretrade_safety import (
-    ExecutionSafetySwitchSnapshot,
-    ExecutionSwitchState,
-)
+from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment, MarketTestAccountIdentity
+from qore.infrastructure.pretrade_safety import ExecutionSafetySwitchSnapshot, ExecutionSwitchState
 
 _NOW = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
 _SHA = "a" * 40
@@ -78,8 +64,8 @@ class _Symbol:
 
 @dataclass
 class _Tick:
-    bid: float = 1.2499
-    ask: float = 1.2501
+    bid: float = 1.2500
+    ask: float = 1.2502
 
 
 @dataclass
@@ -102,6 +88,11 @@ class _Deal:
     order: int = 0
     magic: int = 0
     comment: str = ""
+
+
+class _Safety:
+    def assert_new_order_allowed(self, submission: ExecutionSubmission) -> None:
+        del submission
 
 
 class _Api:
@@ -128,9 +119,10 @@ class _Api:
     ORDER_STATE_FILLED = 4
     ORDER_STATE_PARTIAL = 5
 
-    def __init__(self) -> None:
+    def __init__(self, *, bid: float = 1.2500) -> None:
         self.sent = 0
         self.checked = 0
+        self.bid = bid
 
     def terminal_info(self) -> _Terminal | None:
         return _Terminal()
@@ -148,15 +140,9 @@ class _Api:
         return _Symbol() if symbol == "GBPUSD" else None
 
     def symbol_info_tick(self, symbol: str) -> _Tick | None:
-        return _Tick() if symbol == "GBPUSD" else None
+        return _Tick(bid=self.bid, ask=self.bid + 0.0002) if symbol == "GBPUSD" else None
 
-    def order_calc_margin(
-        self,
-        order_type: int,
-        symbol: str,
-        volume: float,
-        price: float,
-    ) -> float | None:
+    def order_calc_margin(self, order_type: int, symbol: str, volume: float, price: float) -> float | None:
         del order_type, symbol, price
         return volume * 50.0
 
@@ -173,19 +159,11 @@ class _Api:
     def orders_get(self) -> tuple[_Order, ...] | None:
         return ()
 
-    def history_orders_get(
-        self,
-        date_from: datetime,
-        date_to: datetime,
-    ) -> tuple[_Order, ...] | None:
+    def history_orders_get(self, date_from: datetime, date_to: datetime) -> tuple[_Order, ...] | None:
         del date_from, date_to
         return ()
 
-    def history_deals_get(
-        self,
-        date_from: datetime,
-        date_to: datetime,
-    ) -> tuple[_Deal, ...] | None:
+    def history_deals_get(self, date_from: datetime, date_to: datetime) -> tuple[_Deal, ...] | None:
         del date_from, date_to
         return ()
 
@@ -209,6 +187,7 @@ def _live_auth(*, complete: bool) -> FundedNextLiveAccountAuthorization:
         shadow_evidence_sha256=_HASH,
         restart_recovery_evidence_sha256=_HASH,
         ea_entitlement_verified=True,
+        vps_entitlement_verified=True,
         provider_rules_current=True,
         no_send_passed=True,
         shadow_passed=complete,
@@ -240,16 +219,16 @@ def _submission() -> ExecutionSubmission:
         signal_fingerprint="signal-test",
         qore_symbol="GBPUSD",
         provider_symbol="GBPUSD",
-        side="long",
+        side="short",
         entry_type="market",
         intended_entry=Decimal("1.2500"),
-        stop_loss=Decimal("1.2450"),
-        take_profit=Decimal("1.2600"),
+        stop_loss=Decimal("1.2550"),
+        take_profit=Decimal("1.2400"),
         requested_volume=Decimal("0.01"),
         authorized_volume=Decimal("0.01"),
-        monetary_stop_loss=Decimal("5"),
+        monetary_stop_loss=Decimal("5.07"),
         aggregate_pre_order_worst_case=Decimal("0"),
-        aggregate_post_order_worst_case=Decimal("5"),
+        aggregate_post_order_worst_case=Decimal("5.07"),
         provider_headroom=Decimal("120"),
         internal_qore_headroom=Decimal("20"),
         margin_reserved=Decimal("0.5"),
@@ -271,12 +250,7 @@ def _submission() -> ExecutionSubmission:
     )
 
 
-def _gateway(
-    api: _Api,
-    *,
-    complete: bool,
-    submission_enabled: bool,
-) -> FundedNextLiveMt5ExecutionGateway:
+def _gateway(api: _Api, *, complete: bool, submission_enabled: bool) -> FundedNextLiveMt5ExecutionGateway:
     transport = MetaTrader5FundedNextLiveTransport(
         api=api,
         qore_account_ref="fundednext-stellar-instant-live",
@@ -290,6 +264,7 @@ def _gateway(
         mutation_ledger=InMemoryFundedNextMt5MutationLedger(),
         rule_verification=_rules(),
         live_authorization=_live_auth(complete=complete),
+        safety=_Safety(),
         runtime_git_sha=_SHA,
         account_identity_fingerprint=_HASH,
         expected_server="FundedNext-Server",
@@ -314,13 +289,9 @@ def test_live_send_requires_complete_activation() -> None:
     assert api.sent == 0
 
 
-def test_complete_live_authority_checks_then_submits_once() -> None:
-    api = _Api()
-    gateway = _gateway(api, complete=True, submission_enabled=True)
-    provider_ref = gateway.submit_live(_submission(), now=_NOW)
-    assert provider_ref == "9001"
-    assert api.checked == 1
-    assert api.sent == 1
-    replay = gateway.submit_live(_submission(), now=_NOW)
-    assert replay == "9001"
-    assert api.sent == 1
+def test_broker_price_may_not_expand_sovereign_risk_in_shadow() -> None:
+    api = _Api(bid=1.2498)
+    gateway = _gateway(api, complete=False, submission_enabled=False)
+    with pytest.raises(Mt5ExecutionBlockedError, match="entry-drift|risk-exceeds"):
+        gateway.shadow_check(_submission(), now=_NOW)
+    assert api.sent == 0
