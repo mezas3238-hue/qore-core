@@ -47,6 +47,14 @@ def test_processed_anchor_is_durable_and_unique() -> None:
     assert state.highest_closed_balance == "2010"
 
 
+def test_restart_refreshes_service_and_reconciliation_timestamps() -> None:
+    restarted = _state().restarted_at(_NOW + timedelta(minutes=5))
+    assert restarted.service_started_at == _NOW + timedelta(minutes=5)
+    assert restarted.heartbeat_at == restarted.service_started_at
+    assert restarted.last_reconciliation_at == restarted.service_started_at
+    assert restarted.processed_anchors == _state().processed_anchors
+
+
 def test_single_writer_lock_rejects_second_runtime(tmp_path) -> None:
     path = tmp_path / "runtime.lock"
     first = SingleWriterRuntimeLock(path)
@@ -59,6 +67,17 @@ def test_single_writer_lock_rejects_second_runtime(tmp_path) -> None:
         first.release()
     second.acquire()
     second.release()
+
+
+def test_single_writer_lock_recovers_stale_crash_pid(tmp_path) -> None:
+    path = tmp_path / "runtime.lock"
+    path.write_text("99999999\n", encoding="ascii")
+    lock = SingleWriterRuntimeLock(path)
+    lock.acquire()
+    try:
+        assert path.exists()
+    finally:
+        lock.release()
 
 
 def test_heartbeat_freshness_is_fail_closed() -> None:
