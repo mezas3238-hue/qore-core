@@ -13,21 +13,21 @@ from qore.infrastructure.trader_lab.turtle_soup_candidate_r5_classic_tick_target
 )
 
 
-def test_r5_tick_target_manifest_is_frozen_to_293_pre_oos_ambiguous_minutes() -> None:
+def test_r5_tick_target_manifest_is_frozen_to_291_pre_oos_ambiguous_minutes() -> None:
     manifest = frozen_tick_target_manifest()
     assert manifest["manifest_digest_sha256"] == (
-        "a960c0f34392b0fdd8e18963a275b8524e23c9ca4cd554e2c073d3826b428c7c"
+        "3f620898c13d457da47f86061d0432b3b4d27796936cba609b6e337bea692eba"
     )
-    assert manifest["target_count"] == 293
+    assert manifest["target_count"] == 291
     assert manifest["m1_data_unavailable_count"] == 3
     targets = manifest["targets"]
     assert isinstance(targets, dict)
     assert {symbol: len(rows) for symbol, rows in targets.items()} == {
         "EURUSD": 40,
-        "GBPUSD": 47,
+        "GBPUSD": 46,
         "USDJPY": 35,
         "AUDUSD": 43,
-        "USDCAD": 43,
+        "USDCAD": 42,
         "GBPJPY": 44,
         "AUDJPY": 41,
     }
