@@ -41,22 +41,22 @@ def _candidate() -> Vt08B01Candidate:
     reference = _bar(_NOW - timedelta(hours=8), _NOW - timedelta(hours=4))
     candle2 = _bar(_NOW - timedelta(hours=4), _NOW)
     protected = Vt08B01ProtectedSwing(
-        side=DemoTradingSetupSide.LONG,
-        price=Decimal("99"),
-        cisd_level=Decimal("99.5"),
+        side=DemoTradingSetupSide.SHORT,
+        price=Decimal("101"),
+        cisd_level=Decimal("100.5"),
         confirmed_at=_NOW - timedelta(hours=1),
         opposing_series_opened_at=_NOW - timedelta(hours=2),
     )
     setup = DemoTradingSetupSpec(
-        side=DemoTradingSetupSide.LONG,
+        side=DemoTradingSetupSide.SHORT,
         entry_price=Decimal("100"),
-        invalidation_price=Decimal("99"),
-        take_profit_price=Decimal("102"),
+        invalidation_price=Decimal("101"),
+        take_profit_price=Decimal("98"),
         entry_reason="frozen-r315-test",
     )
     return Vt08B01Candidate(
         symbol="GBPUSD",
-        side=DemoTradingSetupSide.LONG,
+        side=DemoTradingSetupSide.SHORT,
         decision_at=_NOW,
         entry_anchor_hour=5,
         reference_h4=reference,
@@ -77,8 +77,8 @@ def test_candidate_translation_preserves_geometry_and_is_deterministic() -> None
     assert first == second
     assert first.entry_type == R315_OPERATIONAL_ENTRY_TYPE == "market"
     assert first.intended_entry == Decimal("100")
-    assert first.stop_loss == Decimal("99")
-    assert first.take_profit == Decimal("102")
+    assert first.stop_loss == Decimal("101")
+    assert first.take_profit == Decimal("98")
 
 
 def test_posture_requests_attack_only_after_earned_cushion_without_floating_loss() -> None:
