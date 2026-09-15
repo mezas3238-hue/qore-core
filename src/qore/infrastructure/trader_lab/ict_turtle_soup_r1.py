@@ -120,7 +120,10 @@ def _session_bars(bars: tuple[M5Bar, ...], start: time, end: time) -> tuple[M5Ba
 
 
 def _contiguous(bars: tuple[M5Bar, ...]) -> bool:
-    return all(left.closed_at == right.opened_at for left, right in zip(bars, bars[1:]))
+    return all(
+        left.closed_at == right.opened_at
+        for left, right in zip(bars, bars[1:], strict=False)
+    )
 
 
 def _validate_day(bars: tuple[M5Bar, ...]) -> tuple[date, tuple[M5Bar, ...], tuple[M5Bar, ...]]:
@@ -146,7 +149,9 @@ def _opposing(bar: M5Bar, side: Side) -> bool:
     return bar.close > bar.open
 
 
-def _opposing_series_threshold(ny_am: tuple[M5Bar, ...], sweep_index: int, side: Side) -> Decimal | None:
+def _opposing_series_threshold(
+    ny_am: tuple[M5Bar, ...], sweep_index: int, side: Side
+) -> Decimal | None:
     cursor = sweep_index if _opposing(ny_am[sweep_index], side) else sweep_index - 1
     if cursor < 0 or not _opposing(ny_am[cursor], side):
         return None
