@@ -5,6 +5,7 @@ on:
     branches:
       - agent/fundednext-stellar-instant-2k-pilot-001
       - agent/fundednext-stellar-instant-canonical-execution-001
+      - agent/fundednext-first-execution-closeout-001
   workflow_dispatch:
 
 concurrency:
@@ -36,13 +37,13 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Compile
-        run: python -m compileall -q src tests
+        run: python -m compileall -q src tests scripts
 
       - name: Ruff
         run: ruff check .
 
       - name: Mypy
-        run: mypy src tests
+        run: mypy src tests scripts
 
       - name: Focused Stellar Instant CIBO Risk canonical execution and MT5 gate
         run: |
@@ -54,6 +55,9 @@ jobs:
             tests/infrastructure/test_fundednext_execution_bridge.py \
             tests/infrastructure/test_fundednext_mt5.py \
             tests/infrastructure/test_fundednext_mt5_transport.py \
+            tests/infrastructure/test_fundednext_production_binding.py \
+            tests/infrastructure/test_fundednext_runtime_supervisor.py \
+            tests/infrastructure/test_fundednext_runtime_readiness.py \
             tests/infrastructure/test_fundednext_operational.py \
             tests/infrastructure/test_vt08_forex_cibo_operational.py \
             tests/infrastructure/test_vt08_forex_fundednext_sizing.py \
@@ -103,7 +107,7 @@ jobs:
           payload = json.loads(
               Path("artifacts/fundednext-stellar-instant-2k-readiness.json").read_text()
           )
-          assert payload["schema"] == "qore.fundednext.stellar-instant-2k-pilot-readiness.v2"
+          assert payload["schema"] == "qore.fundednext.stellar-instant-2k-pilot-readiness.v3"
           assert payload["git_sha"] == "${{ github.sha }}"
           assert payload["provider"]["maximum_loss_fraction"] == "0.06"
           assert payload["provider"]["daily_loss_limit"] is None
@@ -124,11 +128,42 @@ jobs:
           readiness = payload["technical_readiness"]
           assert readiness["dynamic_filling_mode_validation_implemented"] is True
           assert readiness["durable_shared_risk_implemented"] is True
+          assert readiness["production_binding_contract_implemented"] is True
+          assert readiness["shadow_order_check_implemented"] is True
+          assert readiness["runtime_supervisor_implemented"] is True
+          assert readiness["runtime_guard_implemented"] is True
+          assert readiness["windows_autostart_installer_implemented"] is True
+          assert readiness["reboot_recovery_probe_implemented"] is True
+          assert readiness["exact_sha_runtime_readiness_verifier_implemented"] is True
+          assert readiness["first_execution_engineering_closeout_complete"] is True
           assert readiness["ready_for_owner_activation"] is False
           assert readiness["ready_to_operate_stellar_instant"] is False
           assert readiness["actual_account_bound_on_this_sha"] is False
           assert readiness["no_send_passed_on_this_sha"] is False
           assert readiness["shadow_mode_passed_on_this_sha"] is False
+          PY
+
+      - name: Verify read-only runtime probes contain no order_send call
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          for name in (
+              "scripts/fundednext_mt5_no_send_probe.py",
+              "scripts/fundednext_mt5_shadow_probe.py",
+              "scripts/fundednext_runtime_guard.py",
+              "scripts/fundednext_runtime_readiness.py",
+          ):
+              tree = ast.parse(Path(name).read_text(encoding="utf-8"), filename=name)
+              calls = [
+                  node
+                  for node in ast.walk(tree)
+                  if isinstance(node, ast.Call)
+                  and isinstance(node.func, ast.Attribute)
+                  and node.func.attr == "order_send"
+              ]
+              assert not calls, f"read-only probe calls order_send: {name}"
           PY
 
       - name: Upload pilot evidence
