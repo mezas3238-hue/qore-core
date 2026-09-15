@@ -1,0 +1,154 @@
+name: QORE Turtle Soup Persistence Candidate P1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-persistence-candidate-p1-001
+    paths:
+      - .github/workflows/turtle-soup-persistence-candidate-p1.yml
+      - scripts/turtle_soup_persistence_p1.py
+      - docs/research/TURTLE-SOUP-PERSISTENCE-CANDIDATE-P1-FREEZE.md
+
+concurrency:
+  group: qore-turtle-soup-persistence-p1-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      R1_D1_RUN: "34947549114"
+      R1_M15_RUN: "34947548876"
+      R1_M1_RUN: "34959770555"
+      R5_WAVE1_RUN: "34969259616"
+      R5_WAVE1B_RUN: "34985374006"
+      R5_WAVE2_RUN: "34986122071"
+      R1_BASE_SHA: "5a228511d39dabd9686c2d9c14c1a6a4f52ad2b2"
+      R1_M1_SHA: "a2f1b411ea8b8dada4f41181f9698f503ac69de1"
+      R5_WAVE1_SHA: "36bc4a537a907b2a84509c1ab3a1babe033fad9c"
+      R5_WAVE1B_SHA: "48f562aef9c2cd4849c8d4317e61df909f50ed38"
+      R5_WAVE2_SHA: "8a1efc01b9c02478aae1d9d8fbc99ebc0c556e8a"
+    steps:
+      - name: Checkout exact P1 head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Static syntax gate
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/turtle_soup_r5_replay_core.py \
+            scripts/turtle_soup_r5_economics.py \
+            scripts/turtle_soup_persistence_p1.py
+
+      - name: Capture immutable upstream artifact metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p replay-output
+          for run in \
+            "$R1_D1_RUN" "$R1_M15_RUN" "$R1_M1_RUN" \
+            "$R5_WAVE1_RUN" "$R5_WAVE1B_RUN" "$R5_WAVE2_RUN"; do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run}/artifacts" \
+              > "replay-output/upstream-artifacts-${run}.json"
+          done
+
+      - name: Download frozen D1 M15 and targeted M1 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          for symbol in EURUSD GBPUSD USDJPY AUDUSD USDCAD GBPJPY AUDJPY; do
+            gh run download "$R1_D1_RUN" \
+              -n "qore-turtle-soup-r1-d1-${symbol}-${R1_BASE_SHA}" \
+              -D "evidence/d1/${symbol}"
+            gh run download "$R1_M15_RUN" \
+              -n "qore-turtle-soup-r1-m15-${symbol}-${R1_BASE_SHA}" \
+              -D "evidence/m15/${symbol}"
+            gh run download "$R1_M1_RUN" \
+              -n "qore-turtle-soup-r1-targeted-m1-${symbol}-${R1_M1_SHA}" \
+              -D "evidence/m1/${symbol}"
+          done
+
+      - name: Download immutable R5 tick evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          for symbol in EURUSD GBPUSD USDJPY AUDUSD USDCAD GBPJPY AUDJPY; do
+            gh run download "$R5_WAVE1_RUN" \
+              -n "qore-turtle-soup-r5-classic-ticks-${symbol}-${R5_WAVE1_SHA}" \
+              -D "evidence/ticks/wave1/${symbol}"
+            gh run download "$R5_WAVE2_RUN" \
+              -n "qore-turtle-soup-r5-classic-ticks-wave2-${symbol}-${R5_WAVE2_SHA}" \
+              -D "evidence/ticks/wave2/${symbol}"
+          done
+          for symbol in GBPUSD USDCAD; do
+            gh run download "$R5_WAVE1B_RUN" \
+              -n "qore-turtle-soup-r5-classic-ticks-wave1b-${symbol}-${R5_WAVE1B_SHA}" \
+              -D "evidence/ticks/wave1b/${symbol}"
+          done
+
+      - name: Hash exact P1 inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          find evidence -type f -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            > replay-output/input-files-sha256.txt
+
+      - name: Execute frozen P1 replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/turtle_soup_persistence_p1.py \
+            --input-root evidence \
+            --software-sha "$GITHUB_SHA" \
+            --report replay-output/turtle-soup-p1-report.json \
+            --trades replay-output/turtle-soup-p1-trades.json
+
+      - name: Enforce P1 governance invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("replay-output/turtle-soup-p1-report.json").read_text())
+          assert report["research_identity"] == "turtle-soup-persistence-candidate-p1"
+          assert report["canonical_trader_code"] == "CODE_UNASSIGNED"
+          assert report["source_fill_census"] == 290
+          assert report["fresh_oos_consumed"] is False
+          assert report["fresh_oos_authorized"] is False
+          assert report["candidate_freeze"] is None
+          assert report["frozen_contract"]["minimum_risk_bps"] == "4"
+          assert report["frozen_contract"]["target_r"] == "2"
+          assert report["frozen_contract"]["horizon_d1_sessions"] == 3
+          assert report["final_verdict"] in {
+              "P1_DEVELOPMENT_GATE_PASS",
+              "P1_PERSISTENCE_CANDIDATE_REJECTED",
+          }
+          if report["final_verdict"] == "P1_DEVELOPMENT_GATE_PASS":
+              assert report["policy"]["passes_advancement_gate"] is True
+          else:
+              assert report["policy"]["passes_advancement_gate"] is False
+          PY
+
+      - name: Upload immutable P1 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-persistence-p1-${{ github.sha }}
+          path: replay-output
+          if-no-files-found: error
+          retention-days: 30
