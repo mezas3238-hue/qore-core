@@ -15,6 +15,7 @@ $State = Get-Content -Raw $StatePath | ConvertFrom-Json
 $Boot = [DateTimeOffset](Get-CimInstance Win32_OperatingSystem).LastBootUpTime
 $Heartbeat = [DateTimeOffset]::Parse([string]$State.heartbeat_at)
 $Reconciled = [DateTimeOffset]::Parse([string]$State.last_reconciliation_at)
+$ServiceStarted = [DateTimeOffset]::Parse([string]$State.service_started_at)
 $Task = Get-ScheduledTask -TaskName "QORE-FundedNext-Runtime"
 
 if ([bool]$Pending.activate_live_after_reboot) {
@@ -24,24 +25,30 @@ if ([string]$State.git_sha -ne [string]$Pending.git_sha) { throw "post-reboot SH
 if ([string]$State.account_identity_fingerprint -ne [string]$Pending.account_identity_fingerprint) {
     throw "post-reboot account fingerprint mismatch"
 }
+if ($ServiceStarted -lt $Boot) { throw "runtime service was not restarted after this Windows boot" }
 if ($Heartbeat -lt $Boot) { throw "runtime produced no heartbeat after this Windows boot" }
 if ($Reconciled -lt $Boot) { throw "runtime produced no reconciliation after this Windows boot" }
 if (([DateTimeOffset]::UtcNow - $Heartbeat).TotalSeconds -gt 120) {
     throw "post-reboot runtime heartbeat stale"
 }
 if ([string]$Task.State -ne "Running") { throw "QORE runtime task is not running" }
+if (-not (Test-Path "$StateDir\capital-checkpoint.json") -or -not (Test-Path "$StateDir\capital-checkpoint.backup.json")) {
+    throw "durable capital checkpoint copies missing after reboot"
+}
 
 $EvidencePath = "$Root\artifacts\fundednext_restart_recovery.json"
 $Evidence = [ordered]@{
-    schema = "qore.fundednext.restart-recovery.v1"
+    schema = "qore.fundednext.restart-recovery.v2"
     ok = $true
     mode = "SHADOW_NO_SEND"
     git_sha = [string]$State.git_sha
     account_identity_fingerprint = [string]$State.account_identity_fingerprint
     windows_boot_at = $Boot.ToUniversalTime().ToString("o")
+    service_started_at = $ServiceStarted.ToUniversalTime().ToString("o")
     heartbeat_at = $Heartbeat.ToUniversalTime().ToString("o")
     reconciliation_at = $Reconciled.ToUniversalTime().ToString("o")
     scheduled_task_state = [string]$Task.State
+    capital_checkpoint_recovered = $true
     order_submission_authorized = $false
     verified_at = [DateTimeOffset]::UtcNow.ToString("o")
 }
@@ -56,7 +63,7 @@ $Activation.activation_timestamp = [DateTimeOffset]::UtcNow.ToString("o")
 $Activation | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $ActivationPath
 
 $Complete = [ordered]@{
-    schema = "qore.fundednext.runtime-closeout.v1"
+    schema = "qore.fundednext.runtime-closeout.v2"
     git_sha = [string]$State.git_sha
     account_identity_fingerprint = [string]$State.account_identity_fingerprint
     service_24_7_verified = $true
