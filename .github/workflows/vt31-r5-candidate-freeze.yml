@@ -1,0 +1,88 @@
+name: QORE VT-31 R5 Candidate Freeze
+
+on:
+  push:
+    branches: [agent/vt31-r5-silver-bullet-quality-research-001]
+    paths:
+      - scripts/vt31_r5_candidate.py
+      - scripts/vt31_r5_fresh_probe.py
+      - .github/workflows/vt31-r5-candidate-freeze.yml
+      - .github/workflows/vt31-r5-fresh-one-shot.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify consumed research survivor and freeze exact candidate
+        run: |
+          set -euo pipefail
+          mkdir -p research
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10379715887/zip" > research.zip
+          echo "55bfaabe92074ea8dfb311a52ce0221d78e9a8dd909fddb12703780fb0b2329d  research.zip" | sha256sum -c -
+          unzip -q research.zip -d research
+          (cd research && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          research=json.loads(Path("research/vt31-r5-consumed-quality-research.json").read_text())
+          survivor="early15-risk25-body50"
+          assert research["software_sha"] == "8a449939e3bb5453bf5e34bbb85c75dc71d4c9b0"
+          assert research["adjudication"] == "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE"
+          assert research["survivors"] == [survivor]
+          result=research["results"][survivor]
+          assert result["survivor"] is True
+          assert all(result["gates"].values())
+          candidate_script=Path("scripts/vt31_r5_candidate.py").read_bytes()
+          fresh_probe=Path("scripts/vt31_r5_fresh_probe.py").read_bytes()
+          fresh_workflow=Path(".github/workflows/vt31-r5-fresh-one-shot.yml").read_bytes()
+          payload={
+            "schema":"qore.trader_lab.vt31_r5_candidate_freeze.v1",
+            "candidate_id":"VT31_R5_SILVER_BULLET_QUALITY_001",
+            "software_sha":os.environ["GITHUB_SHA"],
+            "candidate_frozen":True,
+            "fresh_evidence_opened":False,
+            "research_run_id":34924753953,
+            "research_artifact_id":10379715887,
+            "research_artifact_digest":"sha256:55bfaabe92074ea8dfb311a52ce0221d78e9a8dd909fddb12703780fb0b2329d",
+            "research_survivor":survivor,
+            "research_metrics":result["stress_0_05r"],
+            "research_market_stress":result["market_stress"],
+            "research_side_stress":result["side_stress"],
+            "research_gates":result["gates"],
+            "candidate_script_sha256":hashlib.sha256(candidate_script).hexdigest(),
+            "fresh_probe_sha256":hashlib.sha256(fresh_probe).hexdigest(),
+            "fresh_workflow_sha256":hashlib.sha256(fresh_workflow).hexdigest(),
+            "fresh_partition_end_exclusive":"2022-07-17T00:00:00+00:00",
+            "fresh_requested_lookback_days":760,
+            "fresh_minimum_calendar_span_days":730,
+            "retuning_after_fresh":False,
+            "candidate_approved":False,
+            "fundednext_authorized":False,
+            "ftmo_authorized":False,
+            "live_authorized":False,
+            "production_authorized":False,
+          }
+          Path("vt31-r5-candidate-freeze.json").write_text(json.dumps(payload,sort_keys=True,separators=(",",":"))+"\n")
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r5-candidate-freeze.json scripts/vt31_r5_candidate.py scripts/vt31_r5_fresh_probe.py .github/workflows/vt31-r5-fresh-one-shot.yml > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r5-candidate-freeze-${{ github.sha }}
+          path: |
+            vt31-r5-candidate-freeze.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
