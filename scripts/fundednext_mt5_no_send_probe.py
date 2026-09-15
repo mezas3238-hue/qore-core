@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import MetaTrader5 as mt5
+mt5 = importlib.import_module("MetaTrader5")
 
 RETAINED_SYMBOLS = ("AUDJPY", "GBPUSD", "GBPJPY")
 EXPECTED_SERVER = "FundedNext-Server"
@@ -20,7 +21,7 @@ def _fail(reason: str, *, details: dict[str, Any] | None = None) -> int:
         "ok": False,
         "reason": reason,
         "details": details or {},
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "timestamp_utc": datetime.now(UTC).isoformat(),
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 2
@@ -86,14 +87,18 @@ def main() -> int:
             return _fail("orders_unavailable", details={"last_error": mt5.last_error()})
 
         symbols = [_symbol_snapshot(symbol) for symbol in RETAINED_SYMBOLS]
-        identity_material = f"{server}|{account.company}|{account.currency}|{int(account.leverage)}"
-        account_identity_fingerprint = hashlib.sha256(identity_material.encode("utf-8")).hexdigest()
+        identity_material = (
+            f"{server}|{account.company}|{account.currency}|{int(account.leverage)}"
+        )
+        account_identity_fingerprint = hashlib.sha256(
+            identity_material.encode("utf-8")
+        ).hexdigest()
 
         payload = {
             "probe": "fundednext_mt5_no_send",
             "mode": "NO_SEND",
             "ok": True,
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "timestamp_utc": datetime.now(UTC).isoformat(),
             "account": {
                 "server": server,
                 "company": str(account.company),
@@ -128,7 +133,10 @@ def main() -> int:
         print(f"ARTIFACT={out_path.resolve()}")
         return 0
     except Exception as exc:  # fail closed for live account inspection
-        return _fail("probe_exception", details={"type": type(exc).__name__, "message": str(exc)})
+        return _fail(
+            "probe_exception",
+            details={"type": type(exc).__name__, "message": str(exc)},
+        )
     finally:
         mt5.shutdown()
 
