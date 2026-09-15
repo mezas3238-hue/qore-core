@@ -86,6 +86,46 @@ Five of seven rolling OOS folds are positive; two are negative. The non-overlapp
 
 The optimizer selected `cutoff=20` and `risk/reference=0.175` in every rolling fold. Body and target switched with regime. This is strong evidence that the risk/reference containment is structurally more stable than the body threshold or fixed target choice.
 
+## Regime-level loss forensics
+
+The two negative rolling OOS folds were decomposed by month, market/side and entry family.
+
+### R3 OOS: 2020-05 through 2020-10
+
+Frozen config: `(20,0.175,0.50,2.0)`.
+
+- 49 trades, -0.0617R/trade, PF 0.912, DD 14.91R.
+- The loss is highly concentrated in September 2020: 8 trades, -1.039R/trade, -8.31R total.
+- US30 SHORT is the largest market/side loss pocket: 10 trades, -0.45R/trade, -4.50R total.
+- Order-block entries are weak: 6 trades, -0.55R/trade, -3.30R total.
+- Fair-value-gap entries remain positive: 18 trades, +0.14R/trade, +2.53R total.
+
+This fold is not a broad collapse of every market or entry family; it is a concentrated adverse regime with meaningful US30 SHORT and order-block contribution.
+
+### R5 OOS: 2021-05 through 2021-10
+
+Frozen config: `(20,0.175,0.60,1.7)`.
+
+- 47 trades, -0.0080R/trade, PF 0.988, DD 8.70R.
+- The negative months are June (-3.60R) and September (-4.65R); October recovers +6.15R.
+- LONG remains strongly positive: +0.412R/trade in the rolling fold summary.
+- SHORT is the primary failure mode: -0.447R/trade in the rolling fold summary.
+- SP500 SHORT: 9 trades, -0.708R/trade, -6.38R total.
+- US30 SHORT: 8 trades, -0.375R/trade, -3.00R total.
+- NAS100 LONG and SP500 LONG remain positive.
+
+This fold is therefore a directional/regime interaction, not a universal Silver Bullet failure.
+
+### Why target and body rules reverse sign
+
+In the 2020H2-2021H1 chronological window, the body >=0.60 tranche is negative while the 0.50-0.60 tranche is positive. A stronger-looking confirmation candle therefore does not monotonically imply better economics.
+
+The target comparison also changes the executable sample because QORE censors unknown intrabar paths. A smaller 1.7R target can create a same-bar target/stop ambiguity that is censored, while 2R can survive that bar and later produce a valid loss, and vice versa. Therefore target changes affect both payoff and censoring cardinality. Target comparisons must be treated as execution-path effects, not only as a simple reward/risk scalar.
+
+Within 2020H2-2021H1, 2R loses against 1.7R primarily through a small number of path-sensitive reversals: four trades that are winners at 1.7R fail under 2R, with about -10.6R aggregate delta, plus additional 2R-only executable cases that are net negative. In the later 2021H2-2022H1 regime, this relation reverses and 2R is materially superior.
+
+The stable result remains the risk/reference filter: wide-risk trades above 0.175 are strongly negative in the adverse 2020H2-2021H1 regime, while the <=0.175 subset stays positive.
+
 ## Full consumed-period fixed-configuration diagnostic
 
 The fixed configuration `(20, 0.175, 0.60, 2.0)` across the entire consumed 2018-05..2022-07 evidence gives:
@@ -106,9 +146,11 @@ This is retrospective consumed-evidence evidence only. It must not be treated as
 
 - The R5/R6 failure is not explained by LONG vs SHORT alone.
 - It is not explained by a single clock-minute filter alone.
-- The 0.175 risk/reference containment is the only tested parameter that remains strongly stable across almost every chronological comparison and is selected in every rolling fold.
-- The body >= 0.60 filter is not a stable causal lever.
-- Cutoff 10:20 and target 2R are useful in most regimes, but both reverse sign in one material chronological regime; therefore an unconditional claim would be overfit.
-- The remaining unresolved cause is regime interaction: why the target/cutoff behavior changes in 2020H2-2021H1 and why short/US30 weakness appears in some OOS folds.
+- `risk/reference <= 0.175` is the strongest currently supported structural containment: it is selected in every rolling fold and remains beneficial across almost every chronological comparison.
+- body >=0.60 is not a stable causal lever.
+- cutoff 10:20 is generally useful but is regime-sensitive.
+- target 2R is generally useful but is regime-sensitive and interacts with same-bar censoring/execution path.
+- The two negative walk-forward folds are concentrated rather than universal: one is dominated by a September-2020 / US30-SHORT / order-block pocket; the other is dominated by SHORT weakness in SP500/US30 during selected 2021 months.
+- This supports a regime-interaction hypothesis, but it does not yet justify deleting markets, sides or entry families. Any such rule would require a source-grounded or predecision observable that predicts the adverse pocket prospectively.
 
-No new candidate should be frozen until that regime interaction is analyzed at trade/path level. Any next candidate must receive a new identity and a genuinely earlier unseen holdout; R5 and R6 remain permanently rejected.
+No new candidate should be frozen until the adverse-regime pockets are tied to a predecision observable that survives additional chronological validation. Any next candidate must receive a new identity and a genuinely earlier unseen holdout; R5 and R6 remain permanently rejected.
