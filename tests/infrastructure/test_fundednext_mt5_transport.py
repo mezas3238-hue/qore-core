@@ -215,7 +215,7 @@ def test_wrong_terminal_identity_fails_closed_before_broker_mutation() -> None:
     assert transport.account_state("fn-si-opaque-001") is None
     with pytest.raises(Mt5ExecutionBlockedError, match="login-mismatch"):
         transport.submit_order(_plan())
-    assert api.last_request is none
+    assert api.last_request is None
 
     api.account.login = 123456
     api.account.server = "Other-Server"
