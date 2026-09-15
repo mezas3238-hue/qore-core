@@ -75,7 +75,11 @@ def main() -> None:
                 side = OrderSide.BUY if side_text == "long" else OrderSide.SELL
                 entry = spec.ask if side is OrderSide.BUY else spec.bid
                 stop = entry - distance if side is OrderSide.BUY else entry + distance
-                target = entry + distance * Decimal("2") if side is OrderSide.BUY else entry - distance * Decimal("2")
+                target = (
+                    entry + distance * Decimal("2")
+                    if side is OrderSide.BUY
+                    else entry - distance * Decimal("2")
+                )
                 plan = FundedNextMt5OrderPlan(
                     client_order_id=f"qore-shadow-{symbol.lower()}-{side_text}-probe",
                     qore_symbol=symbol,
