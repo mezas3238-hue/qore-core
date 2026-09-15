@@ -23,6 +23,9 @@ from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiMessageClientBoundary,
     SpotwareCTraderOpenApiClient,
 )
+from qore.infrastructure.trader_lab.turtle_soup_candidate_r1_collection_windows import (
+    build_overlapped_collection_windows,
+)
 
 _SCHEMA = "qore.trader_lab.turtle_soup_candidate_r1.m15_execution_evidence.v1"
 _NATIVE_M15_PERIOD = 7
@@ -135,10 +138,13 @@ def collect_turtle_soup_r1_m15_evidence(
         timeout_seconds=timeout_seconds,
     )
     retained: dict[datetime, CTraderDemoLabClosedTrendbar] = {}
-    cursor = opened
-    window_index = 0
-    while cursor < checked:
-        window_end = min(cursor + timedelta(days=_CHUNK_DAYS), checked)
+    windows = build_overlapped_collection_windows(
+        opened_at=opened,
+        checked_at=checked,
+        chunk_span=timedelta(days=_CHUNK_DAYS),
+        bar_span=timedelta(seconds=_M15_SECONDS),
+    )
+    for window_index, (window_opened_at, window_checked_at) in enumerate(windows):
         window = _collect_period_window(
             client,
             account_id=account_id,
@@ -146,8 +152,8 @@ def collect_turtle_soup_r1_m15_evidence(
             period_name="M15",
             native_period=_NATIVE_M15_PERIOD,
             seconds=_M15_SECONDS,
-            opened_at=cursor,
-            checked_at=window_end,
+            opened_at=window_opened_at,
+            checked_at=window_checked_at,
             window_index=window_index,
             timeout_seconds=timeout_seconds,
         )
@@ -158,8 +164,6 @@ def collect_turtle_soup_r1_m15_evidence(
                     "cTrader Turtle Soup M15 windows contradict on same bar"
                 )
             retained[bar.opened_at] = bar
-        cursor = window_end
-        window_index += 1
     return TurtleSoupR1M15Evidence(
         account_fingerprint=account_fingerprint,
         symbol_name=symbol.symbol_name,

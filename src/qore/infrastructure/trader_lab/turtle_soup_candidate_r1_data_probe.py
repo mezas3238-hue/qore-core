@@ -2,7 +2,7 @@
 
 This collector is intentionally isolated from the legacy first-cohort workflows.
 It requests provider-native cTrader D1 bars only and never submits, amends, or
-cancels an order.  The resulting payload is development evidence; it grants no
+cancels an order. The resulting payload is development evidence; it grants no
 fresh-OOS, DEMO, LIVE, or production authority.
 """
 
@@ -28,6 +28,9 @@ from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiCredentials,
     CTraderOpenApiMessageClientBoundary,
     SpotwareCTraderOpenApiClient,
+)
+from qore.infrastructure.trader_lab.turtle_soup_candidate_r1_collection_windows import (
+    build_overlapped_collection_windows,
 )
 from qore.kernel.result import Failure
 
@@ -284,17 +287,20 @@ def collect_turtle_soup_r1_d1_evidence(
         timeout_seconds=timeout_seconds,
     )
     retained: dict[datetime, TurtleSoupR1D1Bar] = {}
-    cursor = opened
-    window_index = 0
-    while cursor < checked:
-        window_end = min(cursor + timedelta(days=_CHUNK_DAYS), checked)
+    windows = build_overlapped_collection_windows(
+        opened_at=opened,
+        checked_at=checked,
+        chunk_span=timedelta(days=_CHUNK_DAYS),
+        bar_span=timedelta(seconds=_D1_SECONDS),
+    )
+    for window_index, (window_opened_at, window_checked_at) in enumerate(windows):
         window = _collect_d1_window(
             client,
             account_id=account_id,
             symbol_id=symbol.symbol_id,
             digits=symbol.digits,
-            opened_at=cursor,
-            checked_at=window_end,
+            opened_at=window_opened_at,
+            checked_at=window_checked_at,
             window_index=window_index,
             timeout_seconds=timeout_seconds,
         )
@@ -305,8 +311,6 @@ def collect_turtle_soup_r1_d1_evidence(
                     "cTrader Turtle Soup D1 windows contradict on same bar"
                 )
             retained[bar.opened_at] = bar
-        cursor = window_end
-        window_index += 1
     return TurtleSoupR1D1Evidence(
         account_fingerprint=account_fingerprint,
         symbol_name=symbol.symbol_name,
