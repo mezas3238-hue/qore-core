@@ -13,17 +13,20 @@ $Pending = Get-Content -Raw $PendingPath | ConvertFrom-Json
 $Activation = Get-Content -Raw $ActivationPath | ConvertFrom-Json
 $State = Get-Content -Raw $StatePath | ConvertFrom-Json
 $Boot = [DateTimeOffset](Get-CimInstance Win32_OperatingSystem).LastBootUpTime
-$Started = [DateTimeOffset]::Parse([string]$State.service_started_at)
 $Heartbeat = [DateTimeOffset]::Parse([string]$State.heartbeat_at)
+$Reconciled = [DateTimeOffset]::Parse([string]$State.last_reconciliation_at)
+$Task = Get-ScheduledTask -TaskName "QORE-FundedNext-Runtime"
 
 if ([string]$State.git_sha -ne [string]$Pending.git_sha) { throw "post-reboot SHA mismatch" }
 if ([string]$State.account_identity_fingerprint -ne [string]$Pending.account_identity_fingerprint) {
     throw "post-reboot account fingerprint mismatch"
 }
-if ($Started -lt $Boot) { throw "runtime did not start after this Windows boot" }
+if ($Heartbeat -lt $Boot) { throw "runtime produced no heartbeat after this Windows boot" }
+if ($Reconciled -lt $Boot) { throw "runtime produced no reconciliation after this Windows boot" }
 if (([DateTimeOffset]::UtcNow - $Heartbeat).TotalSeconds -gt 120) {
     throw "post-reboot runtime heartbeat stale"
 }
+if ([string]$Task.State -ne "Running") { throw "QORE runtime task is not running" }
 
 $EvidencePath = "$Root\artifacts\fundednext_restart_recovery.json"
 $Evidence = [ordered]@{
@@ -32,9 +35,9 @@ $Evidence = [ordered]@{
     git_sha = [string]$State.git_sha
     account_identity_fingerprint = [string]$State.account_identity_fingerprint
     windows_boot_at = $Boot.ToUniversalTime().ToString("o")
-    runtime_started_at = $Started.ToUniversalTime().ToString("o")
     heartbeat_at = $Heartbeat.ToUniversalTime().ToString("o")
-    reconciliation_at = [string]$State.last_reconciliation_at
+    reconciliation_at = $Reconciled.ToUniversalTime().ToString("o")
+    scheduled_task_state = [string]$Task.State
     verified_at = [DateTimeOffset]::UtcNow.ToString("o")
 }
 $Evidence | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $EvidencePath
@@ -56,6 +59,12 @@ if ([bool]$Pending.activate_live_after_reboot) {
     Set-ScheduledTask -TaskName "QORE-FundedNext-Runtime" -Action $Action | Out-Null
     Stop-ScheduledTask -TaskName "QORE-FundedNext-Runtime" -ErrorAction SilentlyContinue
     Start-ScheduledTask -TaskName "QORE-FundedNext-Runtime"
+    Start-Sleep -Seconds 20
+    $PostLiveState = Get-Content -Raw $StatePath | ConvertFrom-Json
+    $PostLiveHeartbeat = [DateTimeOffset]::Parse([string]$PostLiveState.heartbeat_at)
+    if (([DateTimeOffset]::UtcNow - $PostLiveHeartbeat).TotalSeconds -gt 120) {
+        throw "live runtime heartbeat failed after activation"
+    }
 }
 
 $Complete = [ordered]@{
