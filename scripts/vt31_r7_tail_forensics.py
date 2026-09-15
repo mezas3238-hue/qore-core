@@ -16,6 +16,7 @@ from typing import cast
 
 import vt31_r5_candidate as r5
 import vt31_r7_candidate as r7
+
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _metrics,
 )
@@ -235,9 +236,18 @@ def main(argv: list[str] | None = None) -> int:
             "mean_r": cast(dict[str, object], result)["stress"]["mean_r"],
             "pf": cast(dict[str, object], result)["stress"]["profit_factor"],
             "realized_dd": cast(dict[str, object], result)["stress"]["max_drawdown_r"],
-            "mc_p95_dd": cast(dict[str, object], result)["monte_carlo"]["p95_max_drawdown_r"],
-            "mc_positive_terminal": cast(dict[str, object], result)["monte_carlo"]["positive_terminal_probability"],
-            "mc_pass": all(cast(dict[str, bool], cast(dict[str, object], result)["monte_carlo_gates"]).values()),
+            "mc_p95_dd": cast(dict[str, object], result)["monte_carlo"][
+                "p95_max_drawdown_r"
+            ],
+            "mc_positive_terminal": cast(dict[str, object], result)["monte_carlo"][
+                "positive_terminal_probability"
+            ],
+            "mc_pass": all(
+                cast(
+                    dict[str, bool],
+                    cast(dict[str, object], result)["monte_carlo_gates"],
+                ).values()
+            ),
         }
         for duration, result in results.items()
     }
