@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from qore.infrastructure.fundednext_cibo_risk_certification import build_certification
 
-
 _SHA = "a" * 40
 
 
