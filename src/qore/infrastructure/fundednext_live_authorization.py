@@ -55,13 +55,14 @@ class FundedNextLiveAccountAuthorization:
             raise FundedNextLiveAuthorizationError(
                 "live git_sha must be full lowercase SHA"
             )
-        for name, value in (
+        hash_fields: tuple[tuple[str, str], ...] = (
             ("account_identity_fingerprint", self.account_identity_fingerprint),
             ("provider_rules_fingerprint", self.provider_rules_fingerprint),
             ("no_send_evidence_sha256", self.no_send_evidence_sha256),
             ("shadow_evidence_sha256", self.shadow_evidence_sha256),
             ("restart_recovery_evidence_sha256", self.restart_recovery_evidence_sha256),
-        ):
+        )
+        for name, value in hash_fields:
             if fullmatch(r"[0-9a-f]{64}", value) is None:
                 raise FundedNextLiveAuthorizationError(f"{name} must be SHA-256 hex")
         if not isinstance(self.expected_server, str) or not self.expected_server.strip():
@@ -73,7 +74,7 @@ class FundedNextLiveAccountAuthorization:
             raise FundedNextLiveAuthorizationError(
                 "activation_timestamp must be timezone-aware"
             )
-        for name, value in (
+        bool_fields: tuple[tuple[str, bool], ...] = (
             ("ea_entitlement_verified", self.ea_entitlement_verified),
             ("provider_rules_current", self.provider_rules_current),
             ("no_send_passed", self.no_send_passed),
@@ -81,7 +82,8 @@ class FundedNextLiveAccountAuthorization:
             ("service_24_7_verified", self.service_24_7_verified),
             ("restart_recovery_passed", self.restart_recovery_passed),
             ("order_submission_authorized", self.order_submission_authorized),
-        ):
+        )
+        for name, value in bool_fields:
             if type(value) is not bool:
                 raise FundedNextLiveAuthorizationError(f"{name} must be bool")
 
