@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -48,6 +48,8 @@ class _Symbol:
     trade_stops_level: int = 10
     trade_freeze_level: int = 0
     trade_mode: int = 1
+    filling_mode: int = 2
+    trade_exemode: int = 2
 
 
 @dataclass
@@ -87,8 +89,11 @@ class _Api:
     ORDER_TYPE_BUY_LIMIT = 2
     ORDER_TYPE_SELL_LIMIT = 3
     ORDER_TIME_GTC = 0
+    ORDER_FILLING_FOK = 0
     ORDER_FILLING_IOC = 1
+    ORDER_FILLING_RETURN = 2
     SYMBOL_TRADE_MODE_DISABLED = 0
+    SYMBOL_TRADE_EXECUTION_MARKET = 2
     TRADE_RETCODE_DONE = 10009
     TRADE_RETCODE_PLACED = 10008
     TRADE_RETCODE_DONE_PARTIAL = 10010
@@ -266,3 +271,53 @@ def test_cancel_and_discovery_use_same_deterministic_identity() -> None:
         cancelled_at=_NOW,
     )
     assert cancelled.outcome is Mt5ProviderOutcome.CANCELLED
+
+
+def test_market_order_uses_live_ioc_when_symbol_advertises_ioc() -> None:
+    api = _Api()
+    transport = _transport(api)
+    transport.submit_order(_plan())
+    assert api.last_request is not None
+    assert api.last_request["type_filling"] == api.ORDER_FILLING_IOC
+
+
+def test_market_order_uses_fok_when_symbol_is_fok_only() -> None:
+    api = _Api()
+    api.symbol.filling_mode = 1
+    transport = _transport(api)
+    transport.submit_order(_plan())
+    assert api.last_request is not None
+    assert api.last_request["type_filling"] == api.ORDER_FILLING_FOK
+
+
+def test_pending_limit_order_uses_return_filling() -> None:
+    api = _Api()
+    transport = _transport(api)
+    plan = replace(
+        _plan(),
+        order_type=OrderType.LIMIT,
+        limit_price=Decimal("1.24900"),
+    )
+    transport.submit_order(plan)
+    assert api.last_request is not None
+    assert api.last_request["type_filling"] == api.ORDER_FILLING_RETURN
+
+
+def test_market_execution_without_ioc_or_fok_fails_closed_before_send() -> None:
+    api = _Api()
+    api.symbol.filling_mode = 0
+    api.symbol.trade_exemode = api.SYMBOL_TRADE_EXECUTION_MARKET
+    transport = _transport(api)
+    with pytest.raises(Mt5ExecutionBlockedError, match="filling-policy-unavailable"):
+        transport.submit_order(_plan())
+    assert api.last_request is None
+
+
+def test_non_market_execution_can_use_return_when_flags_are_absent() -> None:
+    api = _Api()
+    api.symbol.filling_mode = 0
+    api.symbol.trade_exemode = 0
+    transport = _transport(api)
+    transport.submit_order(_plan())
+    assert api.last_request is not None
+    assert api.last_request["type_filling"] == api.ORDER_FILLING_RETURN

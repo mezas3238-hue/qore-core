@@ -5,7 +5,8 @@ constructed with an already initialized MetaTrader5-compatible API object plus
 the runtime account identity expected by the Owner activation procedure. Every
 mutation re-checks login and server, uses deterministic magic/comment identity,
 and classifies timeout/connection/partial-fill acknowledgements as UNKNOWN so
-QORE must reconcile before retrying.
+QORE must reconcile before retrying. New orders resolve the broker-advertised
+fill policy immediately before submission instead of hard-coding IOC.
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ from qore.infrastructure.fundednext_mt5 import (
 from qore.infrastructure.order_intent import OrderSide, OrderType
 
 _DISCOVERY_WINDOW = timedelta(days=7)
+_SYMBOL_FILLING_FOK_FLAG = 1
+_SYMBOL_FILLING_IOC_FLAG = 2
 
 
 class Mt5TerminalInfoLike(Protocol):
@@ -55,6 +58,8 @@ class Mt5SymbolInfoLike(Protocol):
     trade_stops_level: int
     trade_freeze_level: int
     trade_mode: int
+    filling_mode: int
+    trade_exemode: int
 
 
 class Mt5TickLike(Protocol):
@@ -90,8 +95,11 @@ class MetaTrader5Api(Protocol):
     ORDER_TYPE_BUY_LIMIT: int
     ORDER_TYPE_SELL_LIMIT: int
     ORDER_TIME_GTC: int
+    ORDER_FILLING_FOK: int
     ORDER_FILLING_IOC: int
+    ORDER_FILLING_RETURN: int
     SYMBOL_TRADE_MODE_DISABLED: int
+    SYMBOL_TRADE_EXECUTION_MARKET: int
     TRADE_RETCODE_DONE: int
     TRADE_RETCODE_PLACED: int
     TRADE_RETCODE_DONE_PARTIAL: int
@@ -431,8 +439,25 @@ class MetaTrader5FundedNextTransport:
             "magic": _magic(plan.client_order_id),
             "comment": _client_comment(plan.client_order_id),
             "type_time": self._api.ORDER_TIME_GTC,
-            "type_filling": self._api.ORDER_FILLING_IOC,
+            "type_filling": self._resolve_order_filling(plan),
         }
+
+    def _resolve_order_filling(self, plan: FundedNextMt5OrderPlan) -> int:
+        """Resolve a broker-compatible fill mode from fresh live symbol metadata."""
+
+        if plan.order_type is OrderType.LIMIT:
+            return self._api.ORDER_FILLING_RETURN
+        info = self._api.symbol_info(plan.provider_symbol)
+        if info is None:
+            raise Mt5ExecutionBlockedError("mt5-filling-policy-symbol-info-unavailable")
+        filling_mode = int(info.filling_mode)
+        if filling_mode & _SYMBOL_FILLING_IOC_FLAG:
+            return self._api.ORDER_FILLING_IOC
+        if filling_mode & _SYMBOL_FILLING_FOK_FLAG:
+            return self._api.ORDER_FILLING_FOK
+        if int(info.trade_exemode) != int(self._api.SYMBOL_TRADE_EXECUTION_MARKET):
+            return self._api.ORDER_FILLING_RETURN
+        raise Mt5ExecutionBlockedError("mt5-filling-policy-unavailable")
 
 
 def _client_comment(client_order_id: str) -> str:
