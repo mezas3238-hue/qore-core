@@ -24,7 +24,7 @@ jobs:
           ready=false
           for attempt in $(seq 1 240); do
             research_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${research_name}" --jq '.artifacts | length')"
-            ci_conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}" --jq '[.workflow_runs[] | select(.name == "QORE CI" and .event == "pull_request")] | sort_by(.created_at) | last | .conclusion // ""')"
+            ci_conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}" --jq '[.workflow_runs[] | select(.name == "QORE VT-31 R7 Full QORE" and .event == "push")] | sort_by(.created_at) | last | .conclusion // ""')"
             if [ "$research_count" = "1" ] && [ "$ci_conclusion" = "success" ]; then
               ready=true
               break
