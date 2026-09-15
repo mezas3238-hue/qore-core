@@ -1,35 +1,335 @@
-"""Frozen Classic tick-resolution targets for Turtle Soup candidate R5."""
+"""Frozen plain-text Classic tick targets for Turtle Soup candidate R5.
+
+Deterministically re-derived from corrected R1 D1/M15/M1 evidence.
+No P&L, winner/loser state, policy ranking, or fresh-OOS data participates.
+"""
 
 from __future__ import annotations
 
-import base64
 import json
-import zlib
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
-from typing import cast
 
 from qore.infrastructure.ctrader_demo_lab_probe import CTraderDemoLabProbeError
 
-_SCHEMA = "qore.trader_lab.turtle_soup_candidate_r5.classic_tick_target_manifest.v1"
-_EXPECTED_DIGEST = "4923fe9eb2d85416e69d03a4514ebe92bda4a2e277c73ca1e70df5f1cd6bc27f"
+_EXPECTED_DIGEST = "3f620898c13d457da47f86061d0432b3b4d27796936cba609b6e337bea692eba"
 _EMBARGO = datetime(2026, 3, 1, tzinfo=UTC)
-_COMPRESSED_MANIFEST_B64 = (
-    "eNrVXV1vE1cQfedXoLyWje7M/drrtwAVTVValDgPVVWtNvaGWE1ssB0khPjvvTN37UKrdhMvB1EpIniT9WTvx9w5Z86MPzx6/Pjoat1trpvVatN0t5ft+vWq2Wzb9fZo8viIDYfK2MrQ1JiJfn2n/x49kTtv2+Xiqttsm/nitXzbXLfsg9zoEturLnWXPK+9o9CFNDe2dZ5cd9klvpy3ruWOY5xFO2upi2Z+5a9oNg+XM45X"
-    "5f3f3q22XbN9/6aT93x6+rxczn9v165n181i3i23i+17+en2br296arN6u5NNWuX88W83XbV2pdbNrPr7raV33u7WnfH23U779bNTXt5XO5r5L5mf1+z9sezm3azWcya7WL2R5MH5HW3bXYPfPyO+vftbrrZdrFaNuuu3ayWYiH/eaubd121Wt68r86oevbTyfn56bPqJVWnP0/PTp6enDWvTqY/NCcvn56+uPjl4ry8V29j"
-    "trpbyuBzsp9c3uQrH/LLfOHk4vmPr37Nr3/T14/76/qz28XyLv/5qzfdsps37W4SbUWmsnkS08Smzyexv3GTx1J+eXO9ylPfX//45CEWqCI3JTexDmWBKxOnhicc/9PCzWr5+gADLi/zPE5TShNnII+gFpimbP+xl76cBa4oyCB5mAWZ66mphyb68GmwFedpiBNfox5BvmQ3OI+zQGlqaGi/HT5IrmKnBmDz7CuupyZM8mIC"
-    "WQgV1eIyjEVZiBXFKdVDS+nwaYjqVwen4XADSU5fZuA8p4rDlPzEO5CFfPiwFZ9kUBs6Hz4myDwT4yyQFwuoic4G8jTk97WQperl7JExItQYqQVrpsaDnJ6Xwy1HABQmNsIMsJe9QA5koByeNDGoJyhHG+OGKIhLzceCC6hlFCqOuhMMykItEYZEkgQapOy1eZrnmFCPkH2q8XIueKCFMtEetBcEkxhdSbBHyE6bJVR1NdBC"
-    "muZl5BzKAstSEn9U4yxwWayYaDgo7DFiARRKBj0ZcohhJw5oIR8Nxk34IfOg339/skfuF+fPH47cWTc6QRy6AnfxVTDUa3exE6GODKUGyMmR4RmH3EnDMxj5wEqzxSFfNcYA2SlZnAGr/EyaWCSqzr4wH3oW9AgSoYkBEE2mFvJeyI7KMg7zyjM4IMcUBc/RYOzxDaPqWo5t6BglJYDC0FIdi3mFOgkwREq6kKyFQl4a4n8O"
-    "N8BQMKQGhF/yE5dgBvJOyE7bEIwVEM7bgraaGmCdA0JFyH3sZ3BorkQXEcicFNQeh2DEGFqAk84CDFP7fjPjUHsQyJuXKiecBSI9/j2Q21CcMrCUxtAzwubaiYc9QhSPwWbIJY2yYLE+qZY0nKDFgON/vC4kJDtj5OQxKHZGmY0MOtmDDBS3nQE1kDqRzVaj0nyhz+fmeUbSDiZpBiseSjt8f3F2GO1ghWr3hGMFeqxlsJIE"
-    "C7XAtWJqi2M2OEPeHNwEoCbBiidhiyYeDI54CAJUHOM0D5ILr2FIRZgNdSTkYcxG2QuwHOw+8rAEA+1GNUw+4Qx4icJxufZakUQ9ROaOyrVnJDHsVceA9p52ACbCSU4eCrhEuLpUy2hMbaGYOqC0dpqnlmVEqOO/ZMLVpeJ4AacBJnKUnE60G9JsjLLAKr4lJKrW7B8HLKoOKFK9gF7VnsKghFDe6R5r6RtGjMJIq+O2BNQk"
-    "1ErEGZxigHCR5A6T5r1GHodJe/bEAlGvKkNB+VxFvYJJPSglrQaoMH0WZkAwT3oYS/YZqn7x9NWhMnwyqAPD7pI2eegYiHm/itCfhnibwyUPhdAfVIuMrCQQ5omBOn+rkhrCWRBZkAGqs61SjHkaIk4wwIp6XQBq2BVMOKBKvuAhB1QMWCMiNhiw3onYceSDithlOwCBteAV4IbbS8xRHJC4vaJJ8DgFuACijN2BCvAg281b"
-    "nEC7SIxqHPDNPilHNo6g2WQaVMON0oCrftoAUSlpQQeDM7EExO5RqxUcENJFrE/yPecKI3XVQJFo+4jDvQWVkgUia1XQagtE1qS1eDhkbe5TfTRKKd/XXNa4hHXUDEfAPUKf4TBAdkDziZ6B2N1LWp8SzoLsBh6KJsdl3ZXYBZV1FAtBtAmYUKyk9csRbXDCAak0c0Nqqc8e4e8MxwG6gZLVtyjNxSeNBghoQcpVEmoF7wgI"
-    "yXwQUDegpZLGAysiolR7wlLWrK7KgLSvRTeg1Z4G2CuhlFZ5hukGJD5zQ/mhUcIE1Zk5oDABmfhQAsUUsjdhSSDsM7CmDWxAiiuEfKhhHJCENjVus/WSSKD0wWgGLeCkDyU94Iac9kjxhgwR42pGWA4FH9HqkBpGksnhb2Blz3/JT3AlHRnwEuEM6MGc4yMKuJIOsuLuKAE5MlYLAcvCRdw0OC0ldEDlhlN5a8RJBqRq5D7E"
-    "xuiqEYbWpZTT31mgBa3egQnKotKtg5m4MQbKSnKM4xFV9YCjQpNutzhUTDjKAis3w4xj+VS4YSzMQK+HxxWNFPkMWWg3DGHtw/+ZgivFG0SHylsuzp8/OzmsV4XQlwYuPqmh0hDGAWruSQdHUGmIjFHCCjcGz6NxHRr9PYDK2EYMQLQogUe8h7P9Ap0eCNfdsK+HxTV6EGdrhxSj44QhTnu6ehhmNyUHi2yfSLqQPFB5oklY"
-    "BmpbpIuRRdUTuD4yyNEfG6C4JUJjj9InSwrZcNyDLTRiDUTurM17GSbQKe1KTcB1UFRmwOMM9FUjOGJA6udrXJNJ3/sLXO2O7yNY2Bjtyl5gSrWdMBTWDFVLUqSPhEe3yTTAmpQSzpsIVM4wUGO8B9UOtxkkAFALHtfroa/2S0DpTI302qXVk1Sx4wyUZhImwWpSTOm37oDKHK/hhQUSD/eRPP676OTi/LBPt5Do0qA6A+3K"
-    "agysxcBedOJArad3vSpyCA4zsKuq4QQzwAVqJVzZjqpdfcBxM5I6MygSed+Fsx7qtTtGNUNKIlvgx3PcK5E/TrBRlqqDCjaGO7qN68KpGQ9iaBdOCwJCpSxIKyE4QXtVANu5UjnwDAhq7Wt2LJTWMNpun2sgraGNgQkrSCBYXsvsRSEexmqUCBzWk6Q0w0i4xoNxx6fX2LaAwG7+/cc21Dg4WpowSO4P10eCkYmTfakI0CN9"
-    "nQ+G0AbTDPxQhdI+kSy2C8MDq1EK2Hok//v4J1aF1LE="
-)
+_EXPECTED_COUNTS = {
+    "EURUSD": 40,
+    "GBPUSD": 46,
+    "USDJPY": 35,
+    "AUDUSD": 43,
+    "USDCAD": 42,
+    "GBPJPY": 44,
+    "AUDJPY": 41,
+}
+_ROWS: dict[str, tuple[str, ...]] = {
+    "EURUSD": (
+        "2023-10-23T16:51:00+00:00|short",
+        "2023-11-03T12:30:00+00:00|short",
+        "2023-11-14T13:30:00+00:00|short",
+        "2023-11-28T13:43:00+00:00|short",
+        "2023-12-22T10:26:00+00:00|short",
+        "2024-01-23T15:23:00+00:00|long",
+        "2024-02-13T13:40:00+00:00|long",
+        "2024-03-06T14:42:00+00:00|short",
+        "2024-03-28T08:03:00+00:00|long",
+        "2024-04-11T12:15:00+00:00|long",
+        "2024-05-14T13:08:00+00:00|short",
+        "2024-06-26T13:31:00+00:00|long",
+        "2024-08-01T09:59:00+00:00|long",
+        "2024-08-05T07:30:00+00:00|short",
+        "2024-08-14T08:17:00+00:00|short",
+        "2024-10-04T12:30:00+00:00|long",
+        "2024-11-06T03:00:00+00:00|long",
+        "2024-11-21T16:16:00+00:00|long",
+        "2025-01-02T10:32:00+00:00|long",
+        "2025-01-10T13:33:00+00:00|long",
+        "2025-01-24T06:34:00+00:00|short",
+        "2025-03-04T11:51:00+00:00|short",
+        "2025-03-18T08:14:00+00:00|short",
+        "2025-04-03T06:34:00+00:00|short",
+        "2025-04-10T14:38:00+00:00|short",
+        "2025-04-21T00:10:00+00:00|short",
+        "2025-06-02T07:26:00+00:00|short",
+        "2025-06-11T16:39:00+00:00|short",
+        "2025-06-24T14:24:00+00:00|short",
+        "2025-07-29T06:34:00+00:00|long",
+        "2025-09-05T12:30:00+00:00|short",
+        "2025-09-16T03:31:00+00:00|short",
+        "2025-10-08T00:20:00+00:00|long",
+        "2025-10-31T13:40:00+00:00|long",
+        "2025-12-03T10:15:00+00:00|short",
+        "2025-12-10T20:03:00+00:00|short",
+        "2025-12-24T01:40:00+00:00|short",
+        "2026-01-09T15:17:00+00:00|long",
+        "2026-01-15T13:23:00+00:00|long",
+        "2026-01-23T19:55:00+00:00|short",
+    ),
+    "GBPUSD": (
+        "2023-11-03T13:45:00+00:00|short",
+        "2023-11-14T14:15:00+00:00|short",
+        "2023-11-20T09:59:00+00:00|short",
+        "2023-12-14T14:01:00+00:00|short",
+        "2023-12-27T16:05:00+00:00|short",
+        "2024-01-17T05:15:00+00:00|long",
+        "2024-02-05T10:01:00+00:00|long",
+        "2024-03-05T15:00:00+00:00|short",
+        "2024-03-22T07:52:00+00:00|long",
+        "2024-04-01T14:10:00+00:00|long",
+        "2024-05-15T12:30:00+00:00|short",
+        "2024-06-03T19:59:00+00:00|short",
+        "2024-06-12T12:30:00+00:00|short",
+        "2024-06-20T20:36:00+00:00|long",
+        "2024-08-01T18:18:00+00:00|long",
+        "2024-09-18T18:00:00+00:00|short",
+        "2024-10-10T12:30:00+00:00|long",
+        "2024-10-16T06:00:00+00:00|long",
+        "2024-10-31T14:05:00+00:00|long",
+        "2024-11-06T12:32:00+00:00|long",
+        "2024-11-12T05:57:00+00:00|long",
+        "2024-11-21T16:18:00+00:00|long",
+        "2024-12-20T00:54:00+00:00|long",
+        "2025-01-02T10:31:00+00:00|long",
+        "2025-01-08T11:31:00+00:00|long",
+        "2025-02-05T09:16:00+00:00|short",
+        "2025-02-13T20:19:00+00:00|short",
+        "2025-04-02T20:16:00+00:00|short",
+        "2025-04-04T17:31:00+00:00|long",
+        "2025-04-15T04:26:00+00:00|short",
+        "2025-04-28T17:31:00+00:00|short",
+        "2025-05-21T06:00:00+00:00|short",
+        "2025-06-05T12:30:00+00:00|short",
+        "2025-06-12T12:43:00+00:00|short",
+        "2025-06-19T02:33:00+00:00|long",
+        "2025-07-16T13:47:00+00:00|long",
+        "2025-07-28T17:42:00+00:00|long",
+        "2025-08-14T01:01:00+00:00|short",
+        "2025-09-15T07:37:00+00:00|short",
+        "2025-09-25T17:22:00+00:00|long",
+        "2025-10-09T15:03:00+00:00|long",
+        "2025-10-28T13:45:00+00:00|long",
+        "2025-12-10T20:13:00+00:00|short",
+        "2025-12-22T14:36:00+00:00|short",
+        "2026-01-05T17:19:00+00:00|short",
+        "2026-01-23T16:11:00+00:00|short",
+    ),
+    "USDJPY": (
+        "2023-10-25T20:29:00+00:00|short",
+        "2023-11-13T04:42:00+00:00|short",
+        "2023-11-20T04:14:00+00:00|long",
+        "2023-11-28T23:14:00+00:00|long",
+        "2023-12-14T03:29:00+00:00|long",
+        "2023-12-28T07:09:00+00:00|long",
+        "2024-01-11T13:56:00+00:00|short",
+        "2024-02-05T00:37:00+00:00|short",
+        "2024-03-07T08:02:00+00:00|long",
+        "2024-03-19T15:38:00+00:00|short",
+        "2024-04-10T12:30:00+00:00|short",
+        "2024-06-14T03:24:00+00:00|short",
+        "2024-06-20T07:44:00+00:00|short",
+        "2024-07-24T01:12:00+00:00|long",
+        "2024-07-31T03:56:00+00:00|long",
+        "2024-09-04T23:29:00+00:00|long",
+        "2024-11-06T02:39:00+00:00|short",
+        "2024-11-27T10:07:00+00:00|long",
+        "2024-12-19T03:20:00+00:00|short",
+        "2025-01-07T00:28:00+00:00|short",
+        "2025-01-27T09:11:00+00:00|long",
+        "2025-02-05T01:03:00+00:00|long",
+        "2025-02-20T00:55:00+00:00|long",
+        "2025-03-04T11:32:00+00:00|long",
+        "2025-04-03T09:12:00+00:00|long",
+        "2025-07-15T12:38:00+00:00|short",
+        "2025-07-30T18:48:00+00:00|short",
+        "2025-09-02T08:07:00+00:00|short",
+        "2025-09-16T17:14:00+00:00|long",
+        "2025-09-25T12:32:00+00:00|short",
+        "2025-10-06T03:20:00+00:00|short",
+        "2025-10-30T06:40:00+00:00|short",
+        "2025-11-11T01:28:00+00:00|short",
+        "2025-12-19T17:13:00+00:00|short",
+        "2026-01-09T13:30:00+00:00|short",
+    ),
+    "AUDUSD": (
+        "2023-10-25T22:17:00+00:00|long",
+        "2023-11-02T09:40:00+00:00|short",
+        "2023-11-15T11:46:00+00:00|short",
+        "2023-12-14T00:52:00+00:00|short",
+        "2024-01-16T00:27:00+00:00|long",
+        "2024-02-01T07:48:00+00:00|long",
+        "2024-02-13T13:48:00+00:00|long",
+        "2024-03-07T09:35:00+00:00|short",
+        "2024-04-12T12:53:00+00:00|long",
+        "2024-05-03T12:39:00+00:00|short",
+        "2024-05-15T03:32:00+00:00|short",
+        "2024-07-03T14:00:00+00:00|short",
+        "2024-07-23T12:50:00+00:00|long",
+        "2024-07-31T01:30:00+00:00|long",
+        "2024-08-19T14:00:00+00:00|short",
+        "2024-09-19T06:53:00+00:00|short",
+        "2024-11-06T03:06:00+00:00|long",
+        "2024-11-13T14:33:00+00:00|long",
+        "2024-11-26T01:03:00+00:00|long",
+        "2024-12-04T02:37:00+00:00|long",
+        "2024-12-17T15:49:00+00:00|long",
+        "2024-12-31T13:01:00+00:00|long",
+        "2025-01-10T13:30:00+00:00|long",
+        "2025-01-24T02:14:00+00:00|short",
+        "2025-02-03T00:21:00+00:00|long",
+        "2025-02-14T07:12:00+00:00|short",
+        "2025-04-04T07:44:00+00:00|long",
+        "2025-04-29T02:10:00+00:00|short",
+        "2025-05-26T01:30:00+00:00|short",
+        "2025-06-05T13:29:00+00:00|short",
+        "2025-06-11T12:35:00+00:00|short",
+        "2025-06-23T03:12:00+00:00|long",
+        "2025-06-26T13:55:00+00:00|short",
+        "2025-07-10T20:01:00+00:00|short",
+        "2025-07-30T13:30:00+00:00|long",
+        "2025-08-21T03:46:00+00:00|long",
+        "2025-09-05T12:30:00+00:00|short",
+        "2025-10-10T15:04:00+00:00|long",
+        "2025-11-19T17:25:00+00:00|long",
+        "2025-12-03T04:24:00+00:00|short",
+        "2025-12-23T08:45:00+00:00|short",
+        "2026-01-21T12:42:00+00:00|short",
+        "2026-02-09T18:57:00+00:00|short",
+    ),
+    "USDCAD": (
+        "2023-10-25T13:50:00+00:00|short",
+        "2023-11-24T14:38:00+00:00|long",
+        "2023-12-14T02:10:00+00:00|long",
+        "2024-02-05T15:41:00+00:00|short",
+        "2024-02-13T14:39:00+00:00|short",
+        "2024-03-19T12:33:00+00:00|short",
+        "2024-04-05T12:32:00+00:00|short",
+        "2024-05-15T12:30:00+00:00|long",
+        "2024-06-07T15:03:00+00:00|short",
+        "2024-07-03T14:18:00+00:00|long",
+        "2024-07-11T12:30:00+00:00|long",
+        "2024-07-22T13:20:00+00:00|short",
+        "2024-09-24T19:45:00+00:00|long",
+        "2024-10-08T07:04:00+00:00|short",
+        "2024-10-21T15:05:00+00:00|short",
+        "2024-11-12T08:21:00+00:00|short",
+        "2024-11-25T23:51:00+00:00|short",
+        "2024-12-10T01:20:00+00:00|short",
+        "2025-01-17T20:13:00+00:00|short",
+        "2025-01-20T14:44:00+00:00|long",
+        "2025-01-30T20:38:00+00:00|short",
+        "2025-02-12T17:52:00+00:00|long",
+        "2025-03-26T15:06:00+00:00|long",
+        "2025-04-02T20:56:00+00:00|long",
+        "2025-04-10T14:31:00+00:00|long",
+        "2025-04-30T18:07:00+00:00|long",
+        "2025-05-12T08:14:00+00:00|short",
+        "2025-05-23T16:31:00+00:00|long",
+        "2025-06-02T07:19:00+00:00|long",
+        "2025-06-12T10:39:00+00:00|long",
+        "2025-08-20T02:00:00+00:00|short",
+        "2025-09-24T14:07:00+00:00|short",
+        "2025-10-02T13:47:00+00:00|short",
+        "2025-10-09T14:14:00+00:00|short",
+        "2025-10-29T14:54:00+00:00|long",
+        "2025-11-04T11:59:00+00:00|short",
+        "2025-11-28T15:06:00+00:00|long",
+        "2025-12-04T15:26:00+00:00|long",
+        "2025-12-23T08:09:00+00:00|long",
+        "2026-01-08T06:04:00+00:00|short",
+        "2026-01-15T14:43:00+00:00|short",
+        "2026-01-27T14:30:00+00:00|long",
+    ),
+    "GBPJPY": (
+        "2023-10-31T10:38:00+00:00|short",
+        "2023-11-13T13:22:00+00:00|short",
+        "2023-11-24T14:34:00+00:00|short",
+        "2023-12-07T01:45:00+00:00|long",
+        "2023-12-14T03:42:00+00:00|long",
+        "2024-01-10T08:42:00+00:00|short",
+        "2024-02-13T07:01:00+00:00|short",
+        "2024-02-22T00:03:00+00:00|short",
+        "2024-03-19T13:47:00+00:00|short",
+        "2024-04-24T13:46:00+00:00|short",
+        "2024-06-12T10:42:00+00:00|short",
+        "2024-06-21T16:42:00+00:00|short",
+        "2024-07-30T21:59:00+00:00|long",
+        "2024-09-01T22:08:00+00:00|short",
+        "2024-09-26T07:07:00+00:00|short",
+        "2024-10-18T07:01:00+00:00|short",
+        "2024-11-15T18:15:00+00:00|long",
+        "2024-12-19T06:55:00+00:00|short",
+        "2025-01-10T16:19:00+00:00|long",
+        "2025-02-06T10:53:00+00:00|long",
+        "2025-03-12T12:58:00+00:00|short",
+        "2025-03-24T23:41:00+00:00|short",
+        "2025-04-04T10:52:00+00:00|long",
+        "2025-06-10T02:00:00+00:00|short",
+        "2025-06-16T18:25:00+00:00|short",
+        "2025-06-23T01:38:00+00:00|short",
+        "2025-07-07T14:30:00+00:00|short",
+        "2025-07-18T07:01:00+00:00|short",
+        "2025-08-01T13:31:00+00:00|long",
+        "2025-08-12T08:57:00+00:00|short",
+        "2025-09-08T00:13:00+00:00|short",
+        "2025-09-12T09:53:00+00:00|short",
+        "2025-10-01T06:00:00+00:00|long",
+        "2025-10-06T00:38:00+00:00|short",
+        "2025-11-04T09:48:00+00:00|long",
+        "2025-11-17T13:06:00+00:00|short",
+        "2025-11-26T13:30:00+00:00|short",
+        "2025-12-18T13:52:00+00:00|short",
+        "2026-01-05T17:19:00+00:00|short",
+        "2026-01-12T02:59:00+00:00|short",
+        "2026-01-23T06:48:00+00:00|short",
+        "2026-01-26T04:15:00+00:00|long",
+        "2026-02-04T10:50:00+00:00|short",
+        "2026-02-11T04:29:00+00:00|long",
+    ),
+    "AUDJPY": (
+        "2023-10-31T09:39:00+00:00|short",
+        "2023-11-14T14:34:00+00:00|short",
+        "2023-12-07T02:27:00+00:00|long",
+        "2024-01-10T19:40:00+00:00|short",
+        "2024-01-21T23:00:00+00:00|short",
+        "2024-02-16T02:50:00+00:00|short",
+        "2024-03-11T08:34:00+00:00|long",
+        "2024-03-20T17:58:00+00:00|short",
+        "2024-04-04T09:45:00+00:00|short",
+        "2024-04-19T01:39:00+00:00|long",
+        "2024-04-24T01:30:00+00:00|short",
+        "2024-05-28T06:02:00+00:00|short",
+        "2024-06-18T14:03:00+00:00|short",
+        "2024-07-17T18:58:00+00:00|long",
+        "2024-07-31T01:30:00+00:00|long",
+        "2024-09-01T22:30:00+00:00|short",
+        "2024-09-26T15:54:00+00:00|short",
+        "2024-10-23T02:08:00+00:00|short",
+        "2024-11-06T18:12:00+00:00|short",
+        "2024-11-15T18:30:00+00:00|long",
+        "2024-11-26T00:38:00+00:00|long",
+        "2025-01-06T11:12:00+00:00|short",
+        "2025-01-30T05:39:00+00:00|long",
+        "2025-02-07T16:37:00+00:00|long",
+        "2025-02-25T15:14:00+00:00|long",
+        "2025-03-11T01:07:00+00:00|long",
+        "2025-04-04T02:37:00+00:00|long",
+        "2025-06-17T06:46:00+00:00|short",
+        "2025-06-27T00:30:00+00:00|short",
+        "2025-08-20T02:21:00+00:00|long",
+        "2025-09-02T07:10:00+00:00|short",
+        "2025-10-05T22:50:00+00:00|short",
+        "2025-10-17T06:54:00+00:00|long",
+        "2025-10-30T06:40:00+00:00|short",
+        "2025-11-12T08:48:00+00:00|short",
+        "2025-11-19T21:44:00+00:00|short",
+        "2025-12-02T14:08:00+00:00|short",
+        "2025-12-22T07:15:00+00:00|short",
+        "2026-01-20T07:02:00+00:00|short",
+        "2026-02-03T03:42:00+00:00|short",
+        "2026-02-25T04:28:00+00:00|short",
+    ),
+}
 
 
 def _canonical_digest(payload: dict[str, object]) -> str:
@@ -46,56 +346,47 @@ def _canonical_digest(payload: dict[str, object]) -> str:
 
 
 def frozen_tick_target_manifest() -> dict[str, object]:
-    """Return and validate the immutable ambiguity-only target manifest."""
-
-    raw = zlib.decompress(base64.b64decode(_COMPRESSED_MANIFEST_B64)).decode("utf-8")
-    payload = cast(dict[str, object], json.loads(raw))
-    if payload.get("schema") != _SCHEMA:
-        raise CTraderDemoLabProbeError("R5 tick target schema mismatch")
-    if payload.get("research_identity") != "turtle-soup-candidate-r5":
-        raise CTraderDemoLabProbeError("R5 tick target research identity mismatch")
-    if payload.get("selection_reason") != (
-        "resolve-only-R1-CLASSIC-M1-INTRABAR_PATH_AMBIGUOUS"
-    ):
-        raise CTraderDemoLabProbeError("R5 tick target selection reason mismatch")
-    if payload.get("quote_type") != "BID" or payload.get("target_count") != 293:
-        raise CTraderDemoLabProbeError("R5 tick target contract changed")
-    if payload.get("fresh_oos_embargo_start") != _EMBARGO.isoformat():
-        raise CTraderDemoLabProbeError("R5 tick target embargo mismatch")
-    if payload.get("manifest_digest_sha256") != _EXPECTED_DIGEST:
-        raise CTraderDemoLabProbeError("R5 tick target stored digest mismatch")
+    targets: dict[str, list[dict[str, str]]] = {}
+    for symbol, rows in _ROWS.items():
+        parsed_rows: list[dict[str, str]] = []
+        for raw in rows:
+            minute_opened_at, side = raw.split("|", 1)
+            opened = datetime.fromisoformat(
+                minute_opened_at.replace("Z", "+00:00")
+            ).astimezone(UTC)
+            if (
+                opened.second != 0
+                or opened.microsecond != 0
+                or opened + timedelta(minutes=1) > _EMBARGO
+            ):
+                raise CTraderDemoLabProbeError(
+                    "R5 target minute is invalid or crosses embargo"
+                )
+            if side not in {"long", "short"}:
+                raise CTraderDemoLabProbeError("R5 target side is invalid")
+            parsed_rows.append(
+                {
+                    "minute_opened_at": opened.isoformat(timespec="seconds"),
+                    "side": side,
+                }
+            )
+        targets[symbol] = parsed_rows
+    if {symbol: len(rows) for symbol, rows in targets.items()} != _EXPECTED_COUNTS:
+        raise CTraderDemoLabProbeError("R5 target census changed")
+    payload: dict[str, object] = {
+        "schema": (
+            "qore.trader_lab.turtle_soup_candidate_r5."
+            "classic_tick_target_manifest.v3"
+        ),
+        "research_identity": "turtle-soup-candidate-r5",
+        "selection_reason": "resolve-only-R1-CLASSIC-M1-INTRABAR_PATH_AMBIGUOUS",
+        "quote_type": "BID",
+        "fresh_oos_embargo_start": _EMBARGO.isoformat(),
+        "target_count": sum(len(rows) for rows in targets.values()),
+        "m1_data_unavailable_count": 3,
+        "targets": targets,
+    }
+    payload["manifest_digest_sha256"] = _EXPECTED_DIGEST
     if _canonical_digest(payload) != _EXPECTED_DIGEST:
-        raise CTraderDemoLabProbeError("R5 tick target manifest digest mismatch")
-    targets = payload.get("targets")
-    if not isinstance(targets, dict):
-        raise CTraderDemoLabProbeError("R5 tick targets must be a market mapping")
-    expected = {
-        "EURUSD": 40,
-        "GBPUSD": 47,
-        "USDJPY": 35,
-        "AUDUSD": 43,
-        "USDCAD": 43,
-        "GBPJPY": 44,
-        "AUDJPY": 41,
-    }
-    census = {
-        key: len(value)
-        for key, value in targets.items()
-        if isinstance(value, list)
-    }
-    if census != expected:
-        raise CTraderDemoLabProbeError("R5 tick target census changed")
-    for rows in targets.values():
-        if not isinstance(rows, list):
-            raise CTraderDemoLabProbeError("R5 tick target market rows must be lists")
-        for row in rows:
-            if not isinstance(row, dict):
-                raise CTraderDemoLabProbeError("R5 tick target row must be object")
-            raw_time = row.get("minute_opened_at")
-            side = row.get("side")
-            if not isinstance(raw_time, str) or side not in {"long", "short"}:
-                raise CTraderDemoLabProbeError("R5 tick target row is invalid")
-            opened = datetime.fromisoformat(raw_time.replace("Z", "+00:00")).astimezone(UTC)
-            if opened + timedelta(minutes=1) > _EMBARGO:
-                raise CTraderDemoLabProbeError("R5 tick target crosses fresh OOS embargo")
+        raise CTraderDemoLabProbeError("R5 target manifest digest mismatch")
     return payload
