@@ -1,0 +1,73 @@
+name: VT08 Index V5 Phase B Ideal Formation
+
+on:
+  push:
+    branches: [agent/vt08-index-v5-phase-b-ideal-formation-001]
+    paths:
+      - .github/workflows/vt08-index-v5-phase-b.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_v5_phase_b_ideal_formation.py
+      - tests/infrastructure/trader_lab/test_vt08_index_v5_phase_b_ideal_formation.py
+      - docs/research/VT08-INDEX-V5-PHASE-B-IDEAL-FORMATION-PREREGISTRATION-001.md
+
+concurrency:
+  group: vt08-index-v5-phase-b
+  cancel-in-progress: false
+permissions:
+  actions: read
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_v5_phase_b_ideal_formation.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+  falsification:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Download frozen consumed V4 census
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v4-root-cause-forensics-27d4742cda6f691b359d106c2b6fe8eb2b044fc4
+          path: artifacts/v4
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34805546975
+      - name: Execute preregistered Phase B falsification
+        run: |
+          mkdir -p artifacts/v5-phase-b
+          python -m qore.infrastructure.trader_lab.vt08_index_v5_phase_b_ideal_formation --census-csv artifacts/v4/vt08-index-v4-regime-feature-census.csv --output-json artifacts/v5-phase-b/vt08-index-v5-phase-b.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('artifacts/v5-phase-b/vt08-index-v5-phase-b.json')
+          r = json.loads(p.read_text())
+          assert r['sample'] == 183
+          assert r['contract'].startswith('consumed-evidence-only')
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/v5-phase-b/git-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v5-phase-b-${{ github.sha }}
+          path: artifacts/v5-phase-b
+          if-no-files-found: error
+          retention-days: 90
