@@ -318,6 +318,21 @@ def collect_turtle_soup_r1_d1_evidence(
     )
 
 
+def _explicit_checked_at() -> datetime:
+    raw = _required_env("QORE_TURTLE_SOUP_CHECKED_AT")
+    try:
+        value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise CTraderDemoLabProbeError(
+            "QORE_TURTLE_SOUP_CHECKED_AT must be an ISO-8601 timestamp"
+        ) from exc
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise CTraderDemoLabProbeError(
+            "QORE_TURTLE_SOUP_CHECKED_AT must be timezone-aware"
+        )
+    return value.astimezone(UTC)
+
+
 def main() -> None:
     credentials = CTraderOpenApiCredentials(
         client_id=_required_env("QORE_CTRADER_CLIENT_ID", "QORE_CTRADER_DEMO_CLIENT_ID"),
@@ -341,7 +356,7 @@ def main() -> None:
         raise CTraderDemoLabProbeError(
             "Turtle Soup lookback days must be between 730 and 1095"
         )
-    checked_at = datetime.now(UTC)
+    checked_at = _explicit_checked_at()
     client = SpotwareCTraderOpenApiClient(credentials=credentials)
     try:
         evidence = collect_turtle_soup_r1_d1_evidence(
