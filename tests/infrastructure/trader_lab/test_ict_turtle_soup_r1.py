@@ -33,18 +33,28 @@ def _bar(local: datetime, open_: str, high: str, low: str, close: str) -> M5Bar:
 
 def _base_day(*, london_high: str = "110", london_low: str = "100") -> list[M5Bar]:
     day = date(2026, 1, 15)
+    high_bound = D(london_high)
+    low_bound = D(london_low)
+    price = (high_bound + low_bound) / D("2")
     bars: list[M5Bar] = []
     current = datetime.combine(day, datetime.min.time()).replace(hour=2)
     for index in range(36):
-        price = D("105")
-        high = D(london_high) if index == 4 else price + D("0.5")
-        low = D(london_low) if index == 20 else price - D("0.5")
+        high = high_bound if index == 4 else price + D("0.5")
+        low = low_bound if index == 20 else price - D("0.5")
         bars.append(_bar(current, str(price), str(high), str(low), str(price)))
         current += timedelta(minutes=5)
 
     current = datetime.combine(day, datetime.min.time()).replace(hour=8, minute=30)
     for _ in range(30):
-        bars.append(_bar(current, "105", "105.5", "104.5", "105"))
+        bars.append(
+            _bar(
+                current,
+                str(price),
+                str(price + D("0.5")),
+                str(price - D("0.5")),
+                str(price),
+            )
+        )
         current += timedelta(minutes=5)
     return bars
 
