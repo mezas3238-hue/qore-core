@@ -67,6 +67,20 @@ class FundedNextRuntimeState:
             service_started_at=self.service_started_at,
         )
 
+    def restarted_at(self, started_at: datetime) -> FundedNextRuntimeState:
+        if started_at.tzinfo is None or started_at.utcoffset() is None:
+            raise FundedNextRuntimeStateError("restart timestamp must be timezone-aware")
+        return FundedNextRuntimeState(
+            git_sha=self.git_sha,
+            account_identity_fingerprint=self.account_identity_fingerprint,
+            highest_closed_balance=self.highest_closed_balance,
+            active_mll=self.active_mll,
+            processed_anchors=self.processed_anchors,
+            heartbeat_at=started_at,
+            last_reconciliation_at=started_at,
+            service_started_at=started_at,
+        )
+
 
 class DurableFundedNextRuntimeStateStore:
     def __init__(self, path: Path) -> None:
@@ -128,24 +142,61 @@ class DurableFundedNextRuntimeStateStore:
 
 
 class SingleWriterRuntimeLock:
-    """Cross-platform best-effort process fence using atomic lock-file creation."""
+    """Atomic process fence that safely recovers a stale lock after a crash/reboot."""
 
     def __init__(self, path: Path) -> None:
         self._path = path
         self._held = False
 
+    @staticmethod
+    def _pid_is_alive(pid: int) -> bool:
+        if pid <= 0:
+            return False
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except OSError:
+            return False
+        return True
+
+    def _remove_stale_lock(self) -> bool:
+        try:
+            raw = self._path.read_text(encoding="ascii").strip()
+            pid = int(raw)
+        except (OSError, ValueError):
+            return False
+        if self._pid_is_alive(pid):
+            return False
+        try:
+            self._path.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return False
+        return True
+
     def acquire(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            descriptor = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError as error:
-            raise FundedNextRuntimeStateError("runtime-single-writer-lock-already-held") from error
-        try:
-            os.write(descriptor, f"{os.getpid()}\n".encode("ascii"))
-            os.fsync(descriptor)
-        finally:
-            os.close(descriptor)
-        self._held = True
+        for attempt in range(2):
+            try:
+                descriptor = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError as error:
+                if attempt == 0 and self._remove_stale_lock():
+                    continue
+                raise FundedNextRuntimeStateError(
+                    "runtime-single-writer-lock-already-held"
+                ) from error
+            try:
+                os.write(descriptor, f"{os.getpid()}\n".encode("ascii"))
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+            self._held = True
+            return
+        raise FundedNextRuntimeStateError("runtime-single-writer-lock-unavailable")
 
     def release(self) -> None:
         if not self._held:
