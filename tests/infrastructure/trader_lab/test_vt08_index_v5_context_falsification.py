@@ -24,7 +24,8 @@ def test_analysis_keeps_all_rows_and_separates_proxy_from_closure() -> None:
     assert report["resolvable_sample"] == 2
     assert report["opposed_reversal_agreement"] == "0.5"
     assert report["by_context_side_relation"]["inconclusive"]["sample"] == 1
-    assert report["by_context_side_relation"]["with_side"]["sample"] == 2
+    assert report["by_context_side_relation"]["with_side"]["sample"] == 1
+    assert report["by_context_side_relation"]["against_side"]["sample"] == 1
 
 
 def test_outcomes_do_not_change_context_classification() -> None:
