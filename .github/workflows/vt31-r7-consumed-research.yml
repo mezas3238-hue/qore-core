@@ -1,0 +1,168 @@
+name: QORE VT-31 R7 Consumed Research
+
+on:
+  push:
+    branches:
+      - agent/vt31-r7-raid-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Recover exact consumed R5 and R6 fresh evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p consumed/r5 consumed/r6
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          unzip -q r5.zip -d consumed/r5
+          unzip -q r6.zip -d consumed/r6
+          for tranche in r5 r6; do
+            for market in NAS100 SP500 US30; do
+              test -f "consumed/$tranche/fresh/$market/market-evidence.json"
+            done
+          done
+      - name: Replay fixed R7 over both consumed partitions
+        run: |
+          set -euo pipefail
+          for tranche in r5 r6; do
+            python scripts/vt31_r7_candidate.py \
+              "consumed/$tranche/fresh/NAS100/market-evidence.json" \
+              "consumed/$tranche/fresh/SP500/market-evidence.json" \
+              "consumed/$tranche/fresh/US30/market-evidence.json" \
+              > "r7-$tranche.json"
+          done
+          python - <<'PY'
+          import json
+          import sys
+          from decimal import Decimal
+          from pathlib import Path
+
+          sys.path.insert(0, "src")
+          sys.path.insert(0, "scripts")
+          import vt31_r7_candidate as candidate
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
+              _metrics,
+              _quartiles,
+          )
+
+          parts = [json.loads(Path(f"r7-{name}.json").read_text()) for name in ("r5", "r6")]
+          assert all(part["candidate_id"] == candidate.CANDIDATE_ID for part in parts)
+          assert all(part["passes_causal_checks"] is True for part in parts)
+          trades = [trade for part in parts for trade in part["trades"]]
+          trades.sort(key=lambda item: (item["signal_at"], item["market"]))
+          stress = _metrics(trades, friction=candidate.FRICTION)
+          markets = {
+              market: _metrics(
+                  [item for item in trades if item["market"] == market],
+                  friction=candidate.FRICTION,
+              )
+              for market in candidate.MARKETS
+          }
+          sides = {
+              side: _metrics(
+                  [item for item in trades if item["side"] == side],
+                  friction=candidate.FRICTION,
+              )
+              for side in ("long", "short")
+          }
+          quartiles = _quartiles(trades)
+          mc, mc_gates = candidate._monte_carlo(trades)
+          gates = {
+              "aggregate_sample_at_least_150": stress["sample"] >= 150,
+              "each_market_sample_at_least_30": all(x["sample"] >= 30 for x in markets.values()),
+              "aggregate_stressed_mean_positive": Decimal(stress["mean_r"]) > 0,
+              "aggregate_stressed_pf_at_least_1_10": (
+                  stress["profit_factor"] is not None
+                  and Decimal(stress["profit_factor"]) >= Decimal("1.10")
+              ),
+              "aggregate_stressed_dd_at_most_20r": Decimal(stress["max_drawdown_r"]) <= Decimal(20),
+              "every_market_stressed_mean_positive": all(Decimal(x["mean_r"]) > 0 for x in markets.values()),
+              "both_sides_stressed_mean_positive": all(Decimal(x["mean_r"]) > 0 for x in sides.values()),
+              "three_of_four_quartiles_positive": sum(Decimal(x["mean_r"]) > 0 for x in quartiles) >= 3,
+          }
+          report = {
+              "schema": "qore.trader_lab.vt31_r7_consumed_research.v1",
+              "candidate_id": candidate.CANDIDATE_ID,
+              "contract": candidate.contract_payload(),
+              "contract_fingerprint": candidate.contract_fingerprint(),
+              "consumed_sources": {
+                  "r5_fresh_artifact_id": 10380044761,
+                  "r6_fresh_artifact_id": 10389112524,
+              },
+              "stress_0_05r": stress,
+              "market_stress": markets,
+              "side_stress": sides,
+              "quartiles": quartiles,
+              "monte_carlo": mc,
+              "gates": gates,
+              "monte_carlo_gates": mc_gates,
+              "passes_economic_gates": all(gates.values()),
+              "passes_monte_carlo_gates": all(mc_gates.values()),
+              "passes_causal_checks": all(part["passes_causal_checks"] for part in parts),
+              "candidate_approved": False,
+              "fresh_evidence_opened": False,
+          }
+          Path("vt31-r7-consumed-research.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          print(json.dumps({
+              "stress_0_05r": stress,
+              "market_stress": markets,
+              "side_stress": sides,
+              "quartiles": quartiles,
+              "gates": gates,
+              "monte_carlo": mc,
+              "monte_carlo_gates": mc_gates,
+          }, sort_keys=True))
+          assert stress["sample"] == 256
+          assert Decimal(stress["mean_r"]) > Decimal("0.23")
+          assert Decimal(stress["profit_factor"]) >= Decimal("1.35")
+          assert Decimal(stress["max_drawdown_r"]) <= Decimal("11")
+          assert all(gates.values())
+          if not all(mc_gates.values()):
+              Path("R7-CONSUMED-GATE-FAILED").write_text("monte-carlo\n")
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r7-consumed-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r7-consumed-research-${{ github.sha }}
+          path: |
+            vt31-r7-consumed-research.json
+            git-sha.txt
+            SHA256SUMS
+            R7-CONSUMED-GATE-FAILED
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Enforce consumed research gates
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("vt31-r7-consumed-research.json").read_text())
+          if not report["passes_economic_gates"]:
+              raise SystemExit("R7 consumed economic gates failed")
+          if not report["passes_monte_carlo_gates"]:
+              raise SystemExit("R7 consumed Monte Carlo gates failed")
+          if not report["passes_causal_checks"]:
+              raise SystemExit("R7 consumed causal checks failed")
+          PY

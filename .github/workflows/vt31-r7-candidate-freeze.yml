@@ -1,0 +1,112 @@
+name: QORE VT-31 R7 Candidate Freeze
+
+on:
+  push:
+    branches:
+      - agent/vt31-r7-raid-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for consumed research and Full QORE
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          research_name="qore-vt31-r7-consumed-research-${GITHUB_SHA}"
+          ready=false
+          for attempt in $(seq 1 240); do
+            research_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${research_name}" --jq '.artifacts | length')"
+            ci_conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}" --jq '[.workflow_runs[] | select(.name == "QORE VT-31 R7 Full QORE" and .event == "push")] | sort_by(.created_at) | last | .conclusion // ""')"
+            if [ "$research_count" = "1" ] && [ "$ci_conclusion" = "success" ]; then
+              ready=true
+              break
+            fi
+            case "$ci_conclusion" in
+              failure|cancelled|timed_out|action_required|stale)
+                echo "Full QORE prerequisite failed: $ci_conclusion"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          test "$ready" = "true"
+      - name: Verify research and freeze exact candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          research_name="qore-vt31-r7-consumed-research-${GITHUB_SHA}"
+          research_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${research_name}" --jq '.artifacts[0].id')"
+          mkdir -p research
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${research_id}/zip" > research.zip
+          unzip -q research.zip -d research
+          test "$(cat research/git-sha.txt)" = "$GITHUB_SHA"
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "src")
+          sys.path.insert(0, "scripts")
+          import vt31_r7_candidate as candidate
+
+          research = json.loads(Path("research/vt31-r7-consumed-research.json").read_text())
+          assert research["candidate_id"] == candidate.CANDIDATE_ID
+          assert research["passes_economic_gates"] is True
+          assert research["passes_monte_carlo_gates"] is True
+          assert research["passes_causal_checks"] is True
+          checks = {
+              "candidate_script_sha256": Path("scripts/vt31_r7_candidate.py"),
+              "fresh_probe_sha256": Path("scripts/vt31_r7_fresh_probe.py"),
+              "fresh_workflow_sha256": Path(".github/workflows/vt31-r7-fresh-one-shot.yml"),
+          }
+          payload = {
+              "schema": "qore.trader_lab.vt31_r7_candidate_freeze.v1",
+              "candidate_id": candidate.CANDIDATE_ID,
+              "software_sha": os.environ["GITHUB_SHA"],
+              "contract": candidate.contract_payload(),
+              "contract_fingerprint": candidate.contract_fingerprint(),
+              "consumed_research": {
+                  "artifact_name": "qore-vt31-r7-consumed-research-" + os.environ["GITHUB_SHA"],
+                  "stress_0_05r": research["stress_0_05r"],
+                  "market_stress": research["market_stress"],
+                  "side_stress": research["side_stress"],
+                  "quartiles": research["quartiles"],
+                  "monte_carlo": research["monte_carlo"],
+                  "gates": research["gates"],
+                  "monte_carlo_gates": research["monte_carlo_gates"],
+              },
+              "candidate_frozen": True,
+              "fresh_evidence_opened": False,
+              "candidate_approved": False,
+              "fundednext_authorized": False,
+              "ftmo_authorized": False,
+              "live_authorized": False,
+              "production_authorized": False,
+          }
+          for field, path in checks.items():
+              payload[field] = hashlib.sha256(path.read_bytes()).hexdigest()
+          Path("vt31-r7-candidate-freeze.json").write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r7-candidate-freeze.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r7-candidate-freeze-${{ github.sha }}
+          path: |
+            vt31-r7-candidate-freeze.json
+            git-sha.txt
+            SHA256SUMS
+          retention-days: 90
