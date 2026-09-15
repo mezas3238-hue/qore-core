@@ -54,6 +54,10 @@ jobs:
             tests/infrastructure/test_fundednext_execution_bridge.py \
             tests/infrastructure/test_fundednext_mt5.py \
             tests/infrastructure/test_fundednext_mt5_transport.py \
+            tests/infrastructure/test_fundednext_live_authorization.py \
+            tests/infrastructure/test_fundednext_live_mt5.py \
+            tests/infrastructure/test_fundednext_runtime_pipeline.py \
+            tests/infrastructure/test_fundednext_runtime_state.py \
             tests/infrastructure/test_fundednext_operational.py \
             tests/infrastructure/test_vt08_forex_cibo_operational.py \
             tests/infrastructure/test_vt08_forex_fundednext_sizing.py \
