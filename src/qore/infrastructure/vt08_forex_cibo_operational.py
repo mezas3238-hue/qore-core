@@ -1,235 +1,178 @@
-"""Conservative QORE-internal capital policy for the real Stellar Instant account.
+"""Operational CIBO gate for the frozen VT-08 R3.15 Forex capability.
 
-Provider constraints and QORE operating limits are deliberately separate:
-
-* FundedNext provider wall: exact purchased Stellar Instant 6% trailing MLL.
-* QORE internal containment: tighter trailing floor, safety buffer, and shared
-  account heat caps.
-* CIBO may request NORMAL/BANK/ATTACK; this policy either ALLOWs the request,
-  REDUCEs ATTACK to NORMAL when earned cushion is insufficient, or REJECTs new
-  risk. No posture changes VT-08's certified per-trade bps.
+CIBO preserves the independently certified VT-08 methodology and per-trade Risk
+fingerprint. It may request NORMAL/BANK/ATTACK operating posture, but it cannot
+mint capital authority, resize the frozen setup, alter entry/stop/target, or
+override Account-Wide Risk. ATTACK is only a request: sovereign Risk decides
+whether the account has sufficient earned cushion and shared headroom.
 """
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 from hashlib import sha256
 
 from qore.infrastructure.account_wide_risk import AccountWideRiskError
-from qore.infrastructure.fundednext_stellar_instant import (
-    MAXIMUM_LOSS_FRACTION,
-    StellarInstantRiskBudget,
+
+R315_METHOD_FINGERPRINT = (
+    "0c3fe8e1353386f7384a8532c7fe71bbbe9fcfdf1da7530be4b53e01bc59de0d"
 )
-from qore.infrastructure.vt08_forex_cibo_operational import Vt08ForexCiboPosture
-
-QORE_INTERNAL_TRAILING_LOSS_FRACTION = Decimal("0.03")
-QORE_INTERNAL_SAFETY_BUFFER_FRACTION = Decimal("0.005")
-QORE_INTERNAL_BANK_HEAT_FRACTION = Decimal("0.005")
-QORE_INTERNAL_NORMAL_HEAT_FRACTION = Decimal("0.01")
-QORE_INTERNAL_ATTACK_HEAT_FRACTION = Decimal("0.015")
-QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION = Decimal("0.01")
-QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v1"
+R315_RISK_FINGERPRINT = (
+    "dfb3fc8217b9895356ed19f8d7e1ee47fae765d39a9bb2e72e14c4ac41fad1f5"
+)
+R315_CIBO_AUTHORITY = "qore-vt08-b01-r315-cibo-authority-v1"
+R315_CIBO_MARKETS = ("AUDJPY", "GBPJPY", "GBPUSD")
+R315_CIBO_VERSION = "r3.15-operational-posture-under-sovereign-risk-v2"
 
 
-class CapitalBudgetDecision(StrEnum):
+class Vt08ForexCiboDecision(StrEnum):
     ALLOW = "ALLOW"
-    REDUCE = "REDUCE"
-    REJECT = "REJECT"
+    DENY = "DENY"
+
+
+class Vt08ForexCiboPosture(StrEnum):
+    NORMAL = "NORMAL"
+    BANK = "BANK"
+    ATTACK = "ATTACK"
 
 
 @dataclass(frozen=True, slots=True)
-class QoreOperationalCapitalBudget:
-    requested_posture: Vt08ForexCiboPosture
-    authorized_posture: Vt08ForexCiboPosture
-    decision: CapitalBudgetDecision
-    provider_maximum_loss_fraction: Decimal
-    provider_active_mll: Decimal
-    provider_headroom: Decimal
-    qore_internal_trailing_loss_fraction: Decimal
-    qore_internal_floor: Decimal
-    qore_internal_safety_buffer: Decimal
-    aggregate_heat_cap: Decimal
-    qore_authorizable_headroom: Decimal
-    current_aggregate_stop_risk: Decimal
-    available_risk_budget: Decimal
-    earned_closed_balance_cushion: Decimal
-    attack_authorized: bool
-    reason: str
-    policy_version: str
-    policy_fingerprint: str
+class Vt08ForexCiboSetup:
+    signal_fingerprint: str
+    setup_fingerprint: str
+    qore_symbol: str
+    side: str
+    entry_type: str
+    intended_entry: Decimal
+    stop_loss: Decimal
+    take_profit: Decimal
+    methodology_fingerprint: str
+    risk_policy_fingerprint: str
+    decided_at: datetime
+    expires_at: datetime
 
     def __post_init__(self) -> None:
-        if type(self.requested_posture) is not Vt08ForexCiboPosture:
-            raise AccountWideRiskError("requested posture must be canonical")
-        if type(self.authorized_posture) is not Vt08ForexCiboPosture:
-            raise AccountWideRiskError("authorized posture must be canonical")
-        if type(self.decision) is not CapitalBudgetDecision:
-            raise AccountWideRiskError("capital budget decision must be canonical")
         for name, value in (
-            ("provider_maximum_loss_fraction", self.provider_maximum_loss_fraction),
-            ("provider_active_mll", self.provider_active_mll),
-            ("provider_headroom", self.provider_headroom),
-            ("qore_internal_trailing_loss_fraction", self.qore_internal_trailing_loss_fraction),
-            ("qore_internal_floor", self.qore_internal_floor),
-            ("qore_internal_safety_buffer", self.qore_internal_safety_buffer),
-            ("aggregate_heat_cap", self.aggregate_heat_cap),
-            ("qore_authorizable_headroom", self.qore_authorizable_headroom),
-            ("current_aggregate_stop_risk", self.current_aggregate_stop_risk),
-            ("available_risk_budget", self.available_risk_budget),
-            ("earned_closed_balance_cushion", self.earned_closed_balance_cushion),
+            ("signal_fingerprint", self.signal_fingerprint),
+            ("setup_fingerprint", self.setup_fingerprint),
+            ("qore_symbol", self.qore_symbol),
+            ("side", self.side),
+            ("entry_type", self.entry_type),
         ):
-            _nonnegative(value, name)
-        if self.provider_maximum_loss_fraction != MAXIMUM_LOSS_FRACTION:
-            raise AccountWideRiskError("provider MLL fraction must remain exact 6%")
-        if self.qore_internal_trailing_loss_fraction >= self.provider_maximum_loss_fraction:
-            raise AccountWideRiskError(
-                "QORE internal loss containment must be tighter than provider"
-            )
-        if self.qore_authorizable_headroom > self.provider_headroom:
-            raise AccountWideRiskError("QORE capital budget cannot exceed provider headroom")
-        if self.available_risk_budget > self.qore_authorizable_headroom:
-            raise AccountWideRiskError("available budget cannot exceed QORE headroom")
+            if not isinstance(value, str) or not value:
+                raise AccountWideRiskError(f"CIBO {name} must be non-empty")
+        if self.qore_symbol not in R315_CIBO_MARKETS:
+            raise AccountWideRiskError("CIBO market outside R3.15 certification")
+        if self.side not in {"long", "short"}:
+            raise AccountWideRiskError("CIBO side must be long or short")
+        if self.entry_type not in {"market", "limit"}:
+            raise AccountWideRiskError("CIBO entry type must be market or limit")
+        if self.methodology_fingerprint != R315_METHOD_FINGERPRINT:
+            raise AccountWideRiskError("CIBO methodology fingerprint mismatch")
+        if self.risk_policy_fingerprint != R315_RISK_FINGERPRINT:
+            raise AccountWideRiskError("CIBO Risk fingerprint mismatch")
+        _aware(self.decided_at, "decided_at")
+        _aware(self.expires_at, "expires_at")
+        if self.expires_at <= self.decided_at:
+            raise AccountWideRiskError("CIBO expiry must follow decision")
+        if self.side == "long" and not (
+            self.stop_loss < self.intended_entry < self.take_profit
+        ):
+            raise AccountWideRiskError("CIBO long geometry invalid")
+        if self.side == "short" and not (
+            self.take_profit < self.intended_entry < self.stop_loss
+        ):
+            raise AccountWideRiskError("CIBO short geometry invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt08ForexCiboAuthorization:
+    setup: Vt08ForexCiboSetup
+    decision: Vt08ForexCiboDecision
+    requested_posture: Vt08ForexCiboPosture
+    reason: str
+    cibo_version: str
+    cibo_policy_fingerprint: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.setup, Vt08ForexCiboSetup):
+            raise AccountWideRiskError("CIBO authorization setup invalid")
+        if type(self.decision) is not Vt08ForexCiboDecision:
+            raise AccountWideRiskError("CIBO decision invalid")
+        if type(self.requested_posture) is not Vt08ForexCiboPosture:
+            raise AccountWideRiskError("CIBO posture must be canonical")
         if not self.reason:
-            raise AccountWideRiskError("capital budget reason required")
-        if self.policy_version != QORE_OPERATIONAL_RISK_POLICY_VERSION:
-            raise AccountWideRiskError("capital budget policy version mismatch")
-        if self.policy_fingerprint != operational_risk_policy_fingerprint():
-            raise AccountWideRiskError("capital budget policy fingerprint mismatch")
-        if self.attack_authorized and self.authorized_posture is not Vt08ForexCiboPosture.ATTACK:
-            raise AccountWideRiskError("attack authorization requires ATTACK posture")
+            raise AccountWideRiskError("CIBO decision reason required")
+        if self.cibo_version != R315_CIBO_VERSION:
+            raise AccountWideRiskError("CIBO version mismatch")
+        if self.cibo_policy_fingerprint != cibo_policy_fingerprint():
+            raise AccountWideRiskError("CIBO policy fingerprint mismatch")
 
 
-def operational_risk_policy_fingerprint() -> str:
+def cibo_policy_fingerprint() -> str:
     material = {
-        "version": QORE_OPERATIONAL_RISK_POLICY_VERSION,
-        "provider_maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
-        "provider_separate_three_percent_rule": False,
-        "internal_trailing_loss_fraction": str(QORE_INTERNAL_TRAILING_LOSS_FRACTION),
-        "internal_safety_buffer_fraction": str(QORE_INTERNAL_SAFETY_BUFFER_FRACTION),
-        "bank_heat_fraction": str(QORE_INTERNAL_BANK_HEAT_FRACTION),
-        "normal_heat_fraction": str(QORE_INTERNAL_NORMAL_HEAT_FRACTION),
-        "attack_heat_fraction": str(QORE_INTERNAL_ATTACK_HEAT_FRACTION),
-        "attack_min_earned_cushion_fraction": str(
-            QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION
-        ),
-        "per_trade_vt08_risk_unchanged_by_posture": True,
-        "risk_final_capital_authority": True,
+        "authority": R315_CIBO_AUTHORITY,
+        "version": R315_CIBO_VERSION,
+        "methodology_fingerprint": R315_METHOD_FINGERPRINT,
+        "risk_policy_fingerprint": R315_RISK_FINGERPRINT,
+        "markets": R315_CIBO_MARKETS,
+        "postures": tuple(item.value for item in Vt08ForexCiboPosture),
+        "capital_authority": False,
+        "risk_is_final_capital_authority": True,
+        "attack_requires_risk_budget": True,
+        "per_trade_risk_augmentation": False,
+        "r3_17_research_copied_blindly": False,
     }
     return sha256(
-        json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(
+            material,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
     ).hexdigest()
 
 
-def evaluate_qore_operational_capital_budget(
+def evaluate_vt08_forex_cibo(
+    setup: Vt08ForexCiboSetup,
     *,
-    provider_budget: StellarInstantRiskBudget,
-    initial_balance: Decimal,
-    balance: Decimal,
-    equity: Decimal,
-    highest_closed_balance: Decimal,
-    current_aggregate_stop_risk: Decimal,
-    requested_posture: Vt08ForexCiboPosture,
-) -> QoreOperationalCapitalBudget:
-    """Resolve CIBO posture against provider distance and conservative QORE limits."""
+    enabled: bool,
+    certification_current: bool,
+    now: datetime,
+    requested_posture: Vt08ForexCiboPosture = Vt08ForexCiboPosture.NORMAL,
+) -> Vt08ForexCiboAuthorization:
+    """Pass the certified setup unchanged or deny it; posture never creates capital."""
 
-    if not isinstance(provider_budget, StellarInstantRiskBudget):
-        raise AccountWideRiskError("provider budget must be StellarInstantRiskBudget")
-    for name, value in (
-        ("initial_balance", initial_balance),
-        ("balance", balance),
-        ("equity", equity),
-        ("highest_closed_balance", highest_closed_balance),
-    ):
-        _positive(value, name)
-    _nonnegative(current_aggregate_stop_risk, "current_aggregate_stop_risk")
-    if highest_closed_balance < initial_balance:
-        raise AccountWideRiskError("highest closed balance cannot be below initial balance")
+    if not isinstance(setup, Vt08ForexCiboSetup):
+        raise AccountWideRiskError("CIBO requires canonical VT08 Forex setup")
     if type(requested_posture) is not Vt08ForexCiboPosture:
-        raise AccountWideRiskError("requested posture must be canonical")
-    if provider_budget.initial_balance != initial_balance:
-        raise AccountWideRiskError("provider/QORE initial balance mismatch")
-
-    internal_allowance = initial_balance * QORE_INTERNAL_TRAILING_LOSS_FRACTION
-    initial_internal_floor = initial_balance - internal_allowance
-    candidate_internal_floor = highest_closed_balance - internal_allowance
-    internal_floor = min(
-        initial_balance,
-        max(initial_internal_floor, candidate_internal_floor),
-    )
-    safety_buffer = initial_balance * QORE_INTERNAL_SAFETY_BUFFER_FRACTION
-    earned_cushion = max(Decimal(0), highest_closed_balance - initial_balance)
-    attack_threshold = (
-        initial_balance * QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION
-    )
-
-    authorized_posture = requested_posture
-    posture_decision = CapitalBudgetDecision.ALLOW
-    posture_reason = "requested-posture-fits-qore-policy"
-    if requested_posture is Vt08ForexCiboPosture.ATTACK and earned_cushion < attack_threshold:
-        authorized_posture = Vt08ForexCiboPosture.NORMAL
-        posture_decision = CapitalBudgetDecision.REDUCE
-        posture_reason = "attack-reduced-earned-cushion-insufficient"
-
-    heat_fraction = {
-        Vt08ForexCiboPosture.BANK: QORE_INTERNAL_BANK_HEAT_FRACTION,
-        Vt08ForexCiboPosture.NORMAL: QORE_INTERNAL_NORMAL_HEAT_FRACTION,
-        Vt08ForexCiboPosture.ATTACK: QORE_INTERNAL_ATTACK_HEAT_FRACTION,
-    }[authorized_posture]
-    heat_cap = initial_balance * heat_fraction
-    dd_capacity = max(Decimal(0), equity - internal_floor - safety_buffer)
-    total_headroom = min(provider_budget.provider_headroom, dd_capacity, heat_cap)
-    available = max(Decimal(0), total_headroom - current_aggregate_stop_risk)
-
-    decision = posture_decision
-    reason = posture_reason
-    if provider_budget.hard_breach:
-        decision = CapitalBudgetDecision.REJECT
-        reason = "provider-6pct-trailing-mll-breached"
-        total_headroom = Decimal(0)
-        available = Decimal(0)
-    elif equity <= internal_floor + safety_buffer:
-        decision = CapitalBudgetDecision.REJECT
-        reason = "qore-internal-dd-buffer-exhausted"
-        total_headroom = Decimal(0)
-        available = Decimal(0)
-    elif available <= 0:
-        decision = CapitalBudgetDecision.REJECT
-        reason = "qore-account-wide-heat-or-dd-budget-exhausted"
-
-    attack_authorized = (
-        decision is CapitalBudgetDecision.ALLOW
-        and authorized_posture is Vt08ForexCiboPosture.ATTACK
-    )
-    return QoreOperationalCapitalBudget(
-        requested_posture=requested_posture,
-        authorized_posture=authorized_posture,
+        raise AccountWideRiskError("CIBO requested posture must be canonical")
+    _aware(now, "now")
+    if now > setup.expires_at:
+        decision = Vt08ForexCiboDecision.DENY
+        reason = "setup-expired"
+    elif not certification_current:
+        decision = Vt08ForexCiboDecision.DENY
+        reason = "r3.15-certification-not-current"
+    elif not enabled:
+        decision = Vt08ForexCiboDecision.DENY
+        reason = "cibo-forex-disabled"
+    else:
+        decision = Vt08ForexCiboDecision.ALLOW
+        reason = "r3.15-certified-capability-posture-request-forwarded-to-risk"
+    return Vt08ForexCiboAuthorization(
+        setup=setup,
         decision=decision,
-        provider_maximum_loss_fraction=MAXIMUM_LOSS_FRACTION,
-        provider_active_mll=provider_budget.active_mll,
-        provider_headroom=provider_budget.provider_headroom,
-        qore_internal_trailing_loss_fraction=QORE_INTERNAL_TRAILING_LOSS_FRACTION,
-        qore_internal_floor=internal_floor,
-        qore_internal_safety_buffer=safety_buffer,
-        aggregate_heat_cap=heat_cap,
-        qore_authorizable_headroom=total_headroom,
-        current_aggregate_stop_risk=current_aggregate_stop_risk,
-        available_risk_budget=available,
-        earned_closed_balance_cushion=earned_cushion,
-        attack_authorized=attack_authorized,
+        requested_posture=requested_posture,
         reason=reason,
-        policy_version=QORE_OPERATIONAL_RISK_POLICY_VERSION,
-        policy_fingerprint=operational_risk_policy_fingerprint(),
+        cibo_version=R315_CIBO_VERSION,
+        cibo_policy_fingerprint=cibo_policy_fingerprint(),
     )
 
 
-def _positive(value: Decimal, name: str) -> None:
-    if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
-        raise AccountWideRiskError(f"{name} must be positive finite Decimal")
-
-
-def _nonnegative(value: Decimal, name: str) -> None:
-    if not isinstance(value, Decimal) or not value.is_finite() or value < 0:
-        raise AccountWideRiskError(f"{name} must be non-negative finite Decimal")
+def _aware(value: datetime, name: str) -> None:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise AccountWideRiskError(f"CIBO {name} must be timezone-aware")

@@ -1,119 +1,130 @@
-"""Build exact-SHA component certification evidence for CIBO + Account-Wide Risk."""
-
 from __future__ import annotations
 
-import argparse
-import json
-from pathlib import Path
+from decimal import Decimal
 
 from qore.infrastructure.fundednext_operational_risk_policy import (
+    CapitalBudgetDecision,
+    QoreOperationalCapitalBudget,
     QORE_INTERNAL_ATTACK_HEAT_FRACTION,
-    QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION,
     QORE_INTERNAL_BANK_HEAT_FRACTION,
     QORE_INTERNAL_NORMAL_HEAT_FRACTION,
-    QORE_INTERNAL_SAFETY_BUFFER_FRACTION,
     QORE_INTERNAL_TRAILING_LOSS_FRACTION,
-    QORE_OPERATIONAL_RISK_POLICY_VERSION,
-    operational_risk_policy_fingerprint,
+    evaluate_qore_operational_capital_budget,
 )
 from qore.infrastructure.fundednext_stellar_instant import (
-    MAXIMUM_LOSS_FRACTION,
-    SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
+    StellarInstantAccountSnapshot,
+    StellarInstantRiskBudget,
+    evaluate_stellar_instant_budget,
 )
-from qore.infrastructure.vt08_forex_cibo_operational import (
-    R315_CIBO_MARKETS,
-    R315_CIBO_VERSION,
-    R315_METHOD_FINGERPRINT,
-    R315_RISK_FINGERPRINT,
-    Vt08ForexCiboPosture,
-    cibo_policy_fingerprint,
-)
-from qore.infrastructure.vt08_forex_fundednext_sizing import R315_BASE_RISK_BPS
-
-_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v1"
+from qore.infrastructure.vt08_forex_cibo_operational import Vt08ForexCiboPosture
 
 
-def build_certification(*, git_sha: str) -> dict[str, object]:
-    if len(git_sha) != 40:
-        raise ValueError("git_sha must be a full commit SHA")
-    return {
-        "schema": _SCHEMA,
-        "git_sha": git_sha,
-        "status": "CIBO_RISK_COMPONENT_CERTIFIED",
-        "scope": {
-            "trader": "VT08_FOREX",
-            "markets": list(R315_CIBO_MARKETS),
-            "methodology_fingerprint": R315_METHOD_FINGERPRINT,
-            "frozen_trader_risk_fingerprint": R315_RISK_FINGERPRINT,
-            "base_risk_bps": {
-                symbol: str(R315_BASE_RISK_BPS[symbol])
-                for symbol in sorted(R315_BASE_RISK_BPS)
-            },
-        },
-        "provider": {
-            "program": "STELLAR_INSTANT",
-            "maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
-            "trailing_mll": True,
-            "daily_loss_limit": None,
-            "separate_max_risk_at_any_time_fraction": (
-                None
-                if SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION is None
-                else str(SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION)
-            ),
-            "provider_three_percent_rule_used_by_risk": False,
-        },
-        "cibo": {
-            "version": R315_CIBO_VERSION,
-            "policy_fingerprint": cibo_policy_fingerprint(),
-            "postures": [item.value for item in Vt08ForexCiboPosture],
-            "capital_authority": False,
-            "attack_can_override_risk": False,
-            "attack_changes_per_trade_bps": False,
-        },
-        "account_wide_risk": {
-            "final_capital_authority": True,
-            "decisions": ["ALLOW", "REDUCE", "REJECT"],
-            "provider_headroom_enforced": True,
-            "qore_internal_headroom_enforced": True,
-            "pending_risk_included": True,
-            "open_stop_risk_included": True,
-            "durable_reservations_required": True,
-            "restart_reconciliation_required": True,
-        },
-        "qore_internal_policy": {
-            "version": QORE_OPERATIONAL_RISK_POLICY_VERSION,
-            "fingerprint": operational_risk_policy_fingerprint(),
-            "trailing_loss_fraction": str(QORE_INTERNAL_TRAILING_LOSS_FRACTION),
-            "safety_buffer_fraction": str(QORE_INTERNAL_SAFETY_BUFFER_FRACTION),
-            "bank_heat_fraction": str(QORE_INTERNAL_BANK_HEAT_FRACTION),
-            "normal_heat_fraction": str(QORE_INTERNAL_NORMAL_HEAT_FRACTION),
-            "attack_heat_fraction": str(QORE_INTERNAL_ATTACK_HEAT_FRACTION),
-            "attack_min_earned_cushion_fraction": str(
-                QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION
-            ),
-            "explicitly_not_provider_rule": True,
-        },
-        "governance": {
-            "component_certification_grants_order_send_authority": False,
-            "component_certification_grants_live_activation": False,
-            "pr_may_be_merged": False,
-            "pr_may_be_marked_ready": False,
-        },
-    }
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--git-sha", required=True)
-    parser.add_argument("--out", type=Path, required=True)
-    args = parser.parse_args()
-    payload = build_certification(git_sha=args.git_sha)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+def _provider(
+    *,
+    balance: str = "2000",
+    equity: str = "2000",
+    high: str = "2000",
+    previous_mll: str = "1880",
+) -> StellarInstantRiskBudget:
+    return evaluate_stellar_instant_budget(
+        StellarInstantAccountSnapshot(
+            initial_balance=Decimal("2000"),
+            balance=Decimal(balance),
+            equity=Decimal(equity),
+            highest_closed_balance=Decimal(high),
+            previous_active_mll=Decimal(previous_mll),
+        )
     )
 
 
-if __name__ == "__main__":
-    main()
+def _budget(
+    posture: Vt08ForexCiboPosture,
+    *,
+    balance: str = "2000",
+    equity: str = "2000",
+    high: str = "2000",
+    previous_mll: str = "1880",
+    current_risk: str = "0",
+) -> QoreOperationalCapitalBudget:
+    provider = _provider(
+        balance=balance,
+        equity=equity,
+        high=high,
+        previous_mll=previous_mll,
+    )
+    return evaluate_qore_operational_capital_budget(
+        provider_budget=provider,
+        initial_balance=Decimal("2000"),
+        balance=Decimal(balance),
+        equity=Decimal(equity),
+        highest_closed_balance=Decimal(high),
+        current_aggregate_stop_risk=Decimal(current_risk),
+        requested_posture=posture,
+    )
+
+
+def test_normal_policy_is_stricter_than_provider_6pct_wall() -> None:
+    budget = _budget(Vt08ForexCiboPosture.NORMAL)
+    assert budget.provider_maximum_loss_fraction == Decimal("0.06")
+    assert budget.qore_internal_trailing_loss_fraction == Decimal("0.03")
+    assert QORE_INTERNAL_TRAILING_LOSS_FRACTION < budget.provider_maximum_loss_fraction
+    assert budget.provider_active_mll == Decimal("1880")
+    assert budget.qore_internal_floor == Decimal("1940.00")
+    assert budget.aggregate_heat_cap == Decimal("20.00")
+    assert budget.qore_authorizable_headroom == Decimal("20.00")
+    assert budget.available_risk_budget == Decimal("20.00")
+    assert budget.decision is CapitalBudgetDecision.ALLOW
+
+
+def test_attack_without_earned_cushion_is_reduced_to_normal() -> None:
+    budget = _budget(Vt08ForexCiboPosture.ATTACK)
+    assert budget.decision is CapitalBudgetDecision.REDUCE
+    assert budget.authorized_posture is Vt08ForexCiboPosture.NORMAL
+    assert budget.attack_authorized is False
+    assert budget.aggregate_heat_cap == Decimal("20.00")
+    assert QORE_INTERNAL_NORMAL_HEAT_FRACTION == Decimal("0.01")
+
+
+def test_attack_requires_earned_closed_balance_cushion_and_never_uses_provider_wall() -> None:
+    budget = _budget(
+        Vt08ForexCiboPosture.ATTACK,
+        balance="2025",
+        equity="2025",
+        high="2025",
+    )
+    assert budget.decision is CapitalBudgetDecision.ALLOW
+    assert budget.authorized_posture is Vt08ForexCiboPosture.ATTACK
+    assert budget.attack_authorized is True
+    assert budget.earned_closed_balance_cushion == Decimal("25")
+    assert budget.aggregate_heat_cap == Decimal("30.000")
+    assert budget.qore_authorizable_headroom == Decimal("30.000")
+    assert QORE_INTERNAL_ATTACK_HEAT_FRACTION == Decimal("0.015")
+
+
+def test_bank_reduces_account_heat_without_changing_provider_contract() -> None:
+    budget = _budget(Vt08ForexCiboPosture.BANK)
+    assert budget.decision is CapitalBudgetDecision.ALLOW
+    assert budget.aggregate_heat_cap == Decimal("10.000")
+    assert QORE_INTERNAL_BANK_HEAT_FRACTION == Decimal("0.005")
+    assert budget.provider_maximum_loss_fraction == Decimal("0.06")
+
+
+def test_existing_account_heat_can_exhaust_new_risk_budget() -> None:
+    budget = _budget(Vt08ForexCiboPosture.NORMAL, current_risk="20")
+    assert budget.decision is CapitalBudgetDecision.REJECT
+    assert budget.available_risk_budget == 0
+    assert budget.reason == "qore-account-wide-heat-or-dd-budget-exhausted"
+
+
+def test_provider_or_internal_dd_breach_rejects_new_risk() -> None:
+    # This equity is above FundedNext's 1880 provider wall but below QORE's
+    # internal 1940 floor plus its 10 USD safety buffer.
+    budget = _budget(
+        Vt08ForexCiboPosture.NORMAL,
+        balance="1945",
+        equity="1945",
+        high="2000",
+    )
+    assert budget.decision is CapitalBudgetDecision.REJECT
+    assert budget.qore_authorizable_headroom == 0
+    assert budget.reason == "qore-internal-dd-buffer-exhausted"

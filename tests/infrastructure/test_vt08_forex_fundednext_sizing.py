@@ -11,6 +11,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     R315_METHOD_FINGERPRINT,
     R315_RISK_FINGERPRINT,
     Vt08ForexCiboAuthorization,
+    Vt08ForexCiboPosture,
     Vt08ForexCiboSetup,
     evaluate_vt08_forex_cibo,
 )
@@ -44,7 +45,12 @@ def _spec(symbol: str, *, step: str = "0.01") -> Mt5SymbolSpecification:
     )
 
 
-def _cibo(symbol: str, *, enabled: bool = True) -> Vt08ForexCiboAuthorization:
+def _cibo(
+    symbol: str,
+    *,
+    enabled: bool = True,
+    posture: Vt08ForexCiboPosture = Vt08ForexCiboPosture.NORMAL,
+) -> Vt08ForexCiboAuthorization:
     setup = Vt08ForexCiboSetup(
         signal_fingerprint=f"signal-{symbol}",
         setup_fingerprint=f"setup-{symbol}",
@@ -64,6 +70,7 @@ def _cibo(symbol: str, *, enabled: bool = True) -> Vt08ForexCiboAuthorization:
         enabled=enabled,
         certification_current=True,
         now=_NOW,
+        requested_posture=posture,
     )
 
 
@@ -84,6 +91,29 @@ def test_certified_bps_size_from_mt5_tick_value(
     assert request.requested_volume == Decimal(expected_volume)
     assert request.stop_loss_per_volume == Decimal("100")
     assert request.provider_symbol == f"{symbol}.a"
+
+
+def test_bank_and_attack_do_not_increase_frozen_per_trade_vt08_size() -> None:
+    normal = build_certified_vt08_forex_cibo_request(
+        request_id="request-normal",
+        cibo_authorization=_cibo("GBPUSD", posture=Vt08ForexCiboPosture.NORMAL),
+        provider_spec=_spec("GBPUSD"),
+        account_equity=Decimal("2000"),
+    )
+    bank = build_certified_vt08_forex_cibo_request(
+        request_id="request-bank",
+        cibo_authorization=_cibo("GBPUSD", posture=Vt08ForexCiboPosture.BANK),
+        provider_spec=_spec("GBPUSD"),
+        account_equity=Decimal("2000"),
+    )
+    attack = build_certified_vt08_forex_cibo_request(
+        request_id="request-attack",
+        cibo_authorization=_cibo("GBPUSD", posture=Vt08ForexCiboPosture.ATTACK),
+        provider_spec=_spec("GBPUSD"),
+        account_equity=Decimal("2000"),
+    )
+    assert normal.requested_volume == bank.requested_volume == attack.requested_volume
+    assert attack.requested_stop_risk == normal.requested_stop_risk
 
 
 def test_broker_volume_step_change_is_obeyed() -> None:

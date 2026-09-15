@@ -3,124 +3,65 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
-
-from qore.infrastructure.fundednext_stellar_instant import (
-    MAXIMUM_LOSS_FRACTION,
-    SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
-    AutomationVerificationState,
-    RuleVerificationState,
-    StellarInstantAccountSnapshot,
-    StellarInstantContractError,
-    StellarInstantRuleVerification,
-    evaluate_stellar_instant_budget,
-    opening_commission_per_lot,
-    resolve_pilot_symbol,
+from qore.infrastructure.vt08_forex_cibo_operational import (
+    R315_CIBO_VERSION,
+    R315_METHOD_FINGERPRINT,
+    R315_RISK_FINGERPRINT,
+    Vt08ForexCiboDecision,
+    Vt08ForexCiboPosture,
+    Vt08ForexCiboSetup,
+    cibo_policy_fingerprint,
+    evaluate_vt08_forex_cibo,
 )
 
+_NOW = datetime(2026, 9, 15, 3, 0, tzinfo=UTC)
 
-def _snapshot(
-    *,
-    balance: str = "2000",
-    equity: str = "2000",
-    high: str = "2000",
-    previous_mll: str = "1880",
-    reported: str | None = None,
-) -> StellarInstantAccountSnapshot:
-    return StellarInstantAccountSnapshot(
-        initial_balance=Decimal("2000"),
-        balance=Decimal(balance),
-        equity=Decimal(equity),
-        highest_closed_balance=Decimal(high),
-        previous_active_mll=Decimal(previous_mll),
-        provider_reported_mll=Decimal(reported) if reported is not None else None,
+
+def _setup() -> Vt08ForexCiboSetup:
+    return Vt08ForexCiboSetup(
+        signal_fingerprint="signal-gbpusd-001",
+        setup_fingerprint="setup-gbpusd-001",
+        qore_symbol="GBPUSD",
+        side="long",
+        entry_type="market",
+        intended_entry=Decimal("1.2500"),
+        stop_loss=Decimal("1.2450"),
+        take_profit=Decimal("1.2600"),
+        methodology_fingerprint=R315_METHOD_FINGERPRINT,
+        risk_policy_fingerprint=R315_RISK_FINGERPRINT,
+        decided_at=_NOW,
+        expires_at=_NOW + timedelta(minutes=5),
     )
 
 
-def test_2k_exact_account_contract_is_6pct_trailing_without_daily_or_3pct_gate() -> None:
-    budget = evaluate_stellar_instant_budget(_snapshot())
-    assert MAXIMUM_LOSS_FRACTION == Decimal("0.06")
-    assert SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION is None
-    assert budget.loss_allowance == Decimal("120.00")
-    assert budget.active_mll == Decimal("1880")
-    assert budget.provider_headroom == Decimal("120")
-    assert budget.max_risk_at_any_time == budget.provider_headroom
-    assert budget.daily_loss_limit_present is False
-    assert budget.separate_max_risk_at_any_time_fraction is None
-    assert budget.payout_can_lower_mll is False
-
-
-def test_trailing_floor_rises_never_falls_and_caps_at_starting_balance() -> None:
-    risen = evaluate_stellar_instant_budget(
-        _snapshot(balance="2050", equity="2050", high="2050")
-    )
-    assert risen.active_mll == Decimal("1930.00")
-
-    after_loss = evaluate_stellar_instant_budget(
-        _snapshot(balance="2010", equity="2010", high="2050", previous_mll="1930")
-    )
-    assert after_loss.active_mll == Decimal("1930")
-
-    capped = evaluate_stellar_instant_budget(
-        _snapshot(balance="2200", equity="2200", high="2200", previous_mll="1930")
-    )
-    assert capped.active_mll == Decimal("2000")
-
-
-def test_payout_does_not_lower_previous_mll() -> None:
-    budget = evaluate_stellar_instant_budget(
-        _snapshot(balance="2010", equity="2010", high="2200", previous_mll="2000")
-    )
-    assert budget.active_mll == Decimal("2000")
-    assert budget.provider_headroom == Decimal("10")
-
-
-def test_provider_report_cannot_loosen_reconstructed_floor() -> None:
-    with pytest.raises(StellarInstantContractError):
-        evaluate_stellar_instant_budget(
-            _snapshot(high="2050", previous_mll="1880", reported="1900")
+def test_cibo_forwards_normal_bank_attack_as_requests_not_capital_authority() -> None:
+    for posture in Vt08ForexCiboPosture:
+        authorization = evaluate_vt08_forex_cibo(
+            _setup(),
+            enabled=True,
+            certification_current=True,
+            now=_NOW,
+            requested_posture=posture,
         )
+        assert authorization.decision is Vt08ForexCiboDecision.ALLOW
+        assert authorization.requested_posture is posture
+        assert authorization.setup == _setup()
+        assert authorization.cibo_version == R315_CIBO_VERSION
+        assert authorization.cibo_policy_fingerprint == cibo_policy_fingerprint()
 
 
-def test_provider_breach_uses_equity_below_active_mll() -> None:
-    budget = evaluate_stellar_instant_budget(
-        _snapshot(balance="1900", equity="1879.99", high="2000")
+def test_cibo_deny_cannot_be_overridden_by_attack_request() -> None:
+    authorization = evaluate_vt08_forex_cibo(
+        _setup(),
+        enabled=False,
+        certification_current=True,
+        now=_NOW,
+        requested_posture=Vt08ForexCiboPosture.ATTACK,
     )
-    assert budget.hard_breach is True
-    assert budget.provider_headroom == 0
+    assert authorization.decision is Vt08ForexCiboDecision.DENY
+    assert authorization.requested_posture is Vt08ForexCiboPosture.ATTACK
 
 
-def test_exact_six_symbol_mapping_and_commissions() -> None:
-    assert resolve_pilot_symbol("NAS100") == "NDX100"
-    assert resolve_pilot_symbol("SP500") == "SPX500"
-    assert resolve_pilot_symbol("US30") == "US30"
-    assert opening_commission_per_lot("GBPUSD") == Decimal("7")
-    assert opening_commission_per_lot("NAS100") == 0
-    with pytest.raises(StellarInstantContractError):
-        resolve_pilot_symbol("EURUSD")
-
-
-def test_automation_fails_closed_when_rules_stale_or_unverified() -> None:
-    now = datetime(2026, 9, 13, 18, 0, tzinfo=UTC)
-    current = StellarInstantRuleVerification(
-        rules_verified_at=now - timedelta(minutes=5),
-        rules_valid_until=now + timedelta(hours=1),
-        verification_state=RuleVerificationState.CURRENT,
-        automation_state=AutomationVerificationState.VERIFIED,
-        ea_addon_verified=True,
-        platform_verified=True,
-        exact_product_verified=True,
-    )
-    assert current.automated_mt5_allowed(now) is True
-    assert current.automated_mt5_allowed(now + timedelta(hours=2)) is False
-
-    unresolved = StellarInstantRuleVerification(
-        rules_verified_at=now - timedelta(minutes=5),
-        rules_valid_until=now + timedelta(hours=1),
-        verification_state=RuleVerificationState.CONFLICTED,
-        automation_state=AutomationVerificationState.VERIFIED,
-        ea_addon_verified=True,
-        platform_verified=True,
-        exact_product_verified=True,
-    )
-    assert unresolved.automated_mt5_allowed(now) is False
+def test_cibo_fingerprint_is_stable_and_sha256() -> None:
+    assert len(cibo_policy_fingerprint()) == 64
+    assert cibo_policy_fingerprint() == cibo_policy_fingerprint()
