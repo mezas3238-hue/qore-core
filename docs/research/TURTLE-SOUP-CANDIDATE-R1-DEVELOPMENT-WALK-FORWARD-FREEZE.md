@@ -34,7 +34,7 @@ The independent fresh-OOS embargo remains closed at:
 
 No bar with `opened_at >= 2026-03-01T00:00:00Z` may enter setup detection, fill resolution, management, metrics, policy ranking, market selection, or development walk-forward decisions.
 
-D1 sessions are normalized from each provider-native D1 open to the next provider-native D1 open. No missing source session may be synthesized, merged, interpolated, or forward-filled. M15 execution paths must be chronological and contiguous inside the exact source session; otherwise the affected evaluation fails closed/censors rather than fabricating event order.
+Each provider-native D1 source session uses the evidence bar's own `opened_at` and `closed_at` boundaries. The collector represents each fully closed D1 trendbar as the 24-hour source bar beginning at its provider-native open; a weekend or holiday gap between that close and the next provider-native D1 open is **not** part of the preceding session. No missing source session may be synthesized, merged, interpolated, or forward-filled. M15 execution paths must be chronological and contiguous inside the exact D1 evidence interval; otherwise the affected evaluation fails closed/censors rather than fabricating event order.
 
 ## 2. Frozen source configuration
 
