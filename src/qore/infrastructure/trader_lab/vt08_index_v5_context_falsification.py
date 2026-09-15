@@ -1,0 +1,103 @@
+"""Preregistered consumed-evidence falsification for VT-08 Index V5 context.
+
+Consumes the V4 feature census only.  It never opens fresh holdout data and it
+never selects rows by outcome.  The V5 source closure is reconstructed from the
+causal source-day descriptors already retained in the V4 census.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+from collections import Counter, defaultdict
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+
+STRESS_R = Decimal("0.05")
+
+
+def _closure_from_sweep(sweep: str) -> str:
+    return {
+        "high_breakout": "bearish_continuation",
+        "low_breakout": "bullish_continuation",
+        "high_reclaim": "bearish_reversal",
+        "low_reclaim": "bullish_reversal",
+    }.get(sweep, "inconclusive")
+
+
+def _direction(context: str) -> str | None:
+    if context.startswith("bullish_"):
+        return "long"
+    if context.startswith("bearish_"):
+        return "short"
+    return None
+
+
+def _mean(rows: list[dict[str, str]]) -> str | None:
+    if not rows:
+        return None
+    return str(sum((Decimal(row["outcome_r"]) - STRESS_R for row in rows), Decimal()) / len(rows))
+
+
+def _group(rows: list[dict[str, str]], key: str) -> dict[str, dict[str, Any]]:
+    grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        grouped[row[key]].append(row)
+    return {
+        name: {"sample": len(items), "stressed_mean_r": _mean(items)}
+        for name, items in sorted(grouped.items())
+    }
+
+
+def analyze(rows: list[dict[str, str]]) -> dict[str, Any]:
+    enriched: list[dict[str, str]] = []
+    matrix: Counter[tuple[str, str]] = Counter()
+    for source in rows:
+        row = dict(source)
+        context = _closure_from_sweep(row["previous_day_sweep_type"])
+        direction = _direction(context)
+        row["v5_previous_closed_day_context"] = context
+        row["v5_context_side_relation"] = (
+            "inconclusive" if direction is None else "with_side" if direction == row["side"] else "against_side"
+        )
+        matrix[(row["previous_source_day_body_alignment"], context)] += 1
+        enriched.append(row)
+
+    resolvable = [r for r in enriched if r["v5_previous_closed_day_context"] != "inconclusive"]
+    opposed = [r for r in resolvable if r["previous_source_day_body_alignment"] == "opposed"]
+    opposed_reversal = [r for r in opposed if r["v5_previous_closed_day_context"].endswith("reversal")]
+    return {
+        "schema": "qore.trader_lab.vt08_index_v5_context_falsification.v1",
+        "contract": "consumed-evidence-only; no fresh holdout; primary friction 0.05R/trade",
+        "sample": len(enriched),
+        "resolvable_sample": len(resolvable),
+        "confusion_matrix": [
+            {"body_alignment": a, "closure_context": c, "sample": n}
+            for (a, c), n in sorted(matrix.items())
+        ],
+        "opposed_reversal_agreement": None if not opposed else str(Decimal(len(opposed_reversal)) / len(opposed)),
+        "by_context_side_relation": _group(enriched, "v5_context_side_relation"),
+        "by_window": _group(enriched, "window_id"),
+        "by_market": _group(enriched, "symbol"),
+        "by_side": _group(enriched, "side"),
+        "by_anchor": _group(enriched, "anchor"),
+        "rows": enriched,
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--census-csv", type=Path, required=True)
+    parser.add_argument("--output-json", type=Path, required=True)
+    args = parser.parse_args()
+    with args.census_csv.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    report = analyze(rows)
+    args.output_json.parent.mkdir(parents=True, exist_ok=True)
+    args.output_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()
