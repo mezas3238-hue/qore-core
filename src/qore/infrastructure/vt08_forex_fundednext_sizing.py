@@ -3,8 +3,8 @@
 The frozen economic policy is not optimized here. R3.15 certified A-base risk
 at 25 bps and GBPJPY-base risk at 20 bps. This adapter accepts only an explicit
 CIBO ALLOW decision, converts that envelope into broker volume using fresh MT5
-tick economics, and emits a CiboRiskRequest. Sovereign account-wide Risk may
-still reduce or reject the request.
+tick economics plus known opening commission, and emits a CiboRiskRequest.
+Sovereign account-wide Risk may still reduce or reject the request.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from qore.infrastructure.account_wide_risk import (
     CiboRiskRequest,
     TraderLineage,
 )
+from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.vt08_forex_cibo_operational import (
     R315_METHOD_FINGERPRINT,
@@ -60,7 +61,10 @@ def build_certified_vt08_forex_cibo_request(
     ticks = stop_distance / provider_spec.tick_size
     if ticks <= 0:
         raise AccountWideRiskError("stop distance must be positive")
-    stop_loss_per_volume = ticks * provider_spec.tick_value
+    price_stop_loss_per_volume = ticks * provider_spec.tick_value
+    stop_loss_per_volume = (
+        price_stop_loss_per_volume + FOREX_OPEN_COMMISSION_PER_LOT_USD
+    )
     if stop_loss_per_volume <= 0:
         raise AccountWideRiskError("MT5 tick economics produced invalid stop risk")
 
