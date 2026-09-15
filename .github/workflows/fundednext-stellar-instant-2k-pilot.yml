@@ -38,6 +38,29 @@ jobs:
       - name: Compile
         run: python -m compileall -q src tests
 
+      - name: Parse Windows runtime PowerShell
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $files = @(
+            "scripts/install_fundednext_runtime.ps1",
+            "scripts/qore_fundednext_watchdog.ps1",
+            "scripts/finalize_fundednext_activation.ps1"
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -ne 0) {
+              $errors | ForEach-Object { Write-Error "${file}: $($_.Message)" }
+              throw "PowerShell parse failed: $file"
+            }
+          }
+
       - name: Ruff
         run: ruff check .
 
