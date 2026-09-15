@@ -52,7 +52,9 @@ class FundedNextLiveAccountAuthorization:
         if self.account.provider_key != "fundednext-stellar-instant-mt5":
             raise FundedNextLiveAuthorizationError("live provider identity mismatch")
         if fullmatch(r"[0-9a-f]{40}", self.git_sha) is None:
-            raise FundedNextLiveAuthorizationError("live git_sha must be full lowercase SHA")
+            raise FundedNextLiveAuthorizationError(
+                "live git_sha must be full lowercase SHA"
+            )
         for name, value in (
             ("account_identity_fingerprint", self.account_identity_fingerprint),
             ("provider_rules_fingerprint", self.provider_rules_fingerprint),
@@ -64,8 +66,13 @@ class FundedNextLiveAccountAuthorization:
                 raise FundedNextLiveAuthorizationError(f"{name} must be SHA-256 hex")
         if not isinstance(self.expected_server, str) or not self.expected_server.strip():
             raise FundedNextLiveAuthorizationError("expected_server is required")
-        if self.activation_timestamp.tzinfo is None or self.activation_timestamp.utcoffset() is None:
-            raise FundedNextLiveAuthorizationError("activation_timestamp must be timezone-aware")
+        if (
+            self.activation_timestamp.tzinfo is None
+            or self.activation_timestamp.utcoffset() is None
+        ):
+            raise FundedNextLiveAuthorizationError(
+                "activation_timestamp must be timezone-aware"
+            )
         for name, value in (
             ("ea_entitlement_verified", self.ea_entitlement_verified),
             ("provider_rules_current", self.provider_rules_current),
@@ -140,4 +147,6 @@ class FundedNextLiveAccountAuthorization:
             server=server,
         )
         if not self.can_submit:
-            raise FundedNextLiveAuthorizationError("live activation evidence is incomplete")
+            raise FundedNextLiveAuthorizationError(
+                "live activation evidence is incomplete"
+            )
