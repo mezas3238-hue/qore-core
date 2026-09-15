@@ -34,6 +34,7 @@ class FundedNextLiveAccountAuthorization:
     shadow_evidence_sha256: str
     restart_recovery_evidence_sha256: str
     ea_entitlement_verified: bool
+    vps_entitlement_verified: bool
     provider_rules_current: bool
     no_send_passed: bool
     shadow_passed: bool
@@ -78,6 +79,7 @@ class FundedNextLiveAccountAuthorization:
             )
         bool_fields: tuple[tuple[str, bool], ...] = (
             ("ea_entitlement_verified", self.ea_entitlement_verified),
+            ("vps_entitlement_verified", self.vps_entitlement_verified),
             ("provider_rules_current", self.provider_rules_current),
             ("no_send_passed", self.no_send_passed),
             ("shadow_passed", self.shadow_passed),
@@ -94,6 +96,7 @@ class FundedNextLiveAccountAuthorization:
         return all(
             (
                 self.ea_entitlement_verified,
+                self.vps_entitlement_verified,
                 self.provider_rules_current,
                 self.no_send_passed,
                 self.shadow_passed,
