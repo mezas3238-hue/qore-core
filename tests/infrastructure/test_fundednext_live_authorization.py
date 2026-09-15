@@ -37,6 +37,7 @@ def _authorization(**overrides: object) -> FundedNextLiveAccountAuthorization:
         "shadow_evidence_sha256": _HASH,
         "restart_recovery_evidence_sha256": _HASH,
         "ea_entitlement_verified": True,
+        "vps_entitlement_verified": True,
         "provider_rules_current": True,
         "no_send_passed": True,
         "shadow_passed": True,
@@ -58,6 +59,11 @@ def test_complete_live_evidence_can_submit() -> None:
         account_identity_fingerprint=_HASH,
         server="FundedNext-Server",
     )
+
+
+def test_vps_entitlement_is_required_for_submit() -> None:
+    auth = _authorization(vps_entitlement_verified=False)
+    assert auth.can_submit is False
 
 
 def test_shadow_identity_can_bind_before_live_authority_exists() -> None:
