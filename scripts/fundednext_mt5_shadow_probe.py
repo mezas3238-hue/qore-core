@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import importlib
 import json
 import subprocess
@@ -10,6 +9,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.fundednext_account_identity import (
+    fundednext_mt5_account_fingerprint,
+)
 from qore.infrastructure.fundednext_mt5 import FundedNextMt5OrderPlan
 from qore.infrastructure.fundednext_mt5_transport import (
     MetaTrader5FundedNextTransport,
@@ -36,7 +38,12 @@ def _git_sha() -> str:
     return sha
 
 
-def _fail(reason: str, *, details: dict[str, Any] | None = None) -> int:
+def _fail(
+    reason: str,
+    *,
+    details: dict[str, Any] | None = None,
+    order_check_called: bool = False,
+) -> int:
     payload = {
         "schema": "qore.fundednext.mt5-shadow-order-check.v1",
         "probe": "fundednext_mt5_shadow_order_check",
@@ -45,7 +52,11 @@ def _fail(reason: str, *, details: dict[str, Any] | None = None) -> int:
         "reason": reason,
         "details": details or {},
         "timestamp_utc": datetime.now(UTC).isoformat(),
-        "safety": {"order_check_called": True, "order_send_called": False},
+        "safety": {
+            "order_check_called": order_check_called,
+            "order_send_called": False,
+            "provider_mutation_requested": False,
+        },
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 2
@@ -89,6 +100,7 @@ def main() -> int:
     git_sha = _git_sha()
     if not mt5.initialize():
         return _fail("mt5_initialize_failed", details={"last_error": mt5.last_error()})
+    checks_started = False
     try:
         account = mt5.account_info()
         if account is None:
@@ -118,6 +130,7 @@ def main() -> int:
                 provider_symbol=provider_symbol,
                 sequence=sequence,
             )
+            checks_started = True
             evidence = transport.check_order(plan)
             checks.append(
                 {
@@ -130,10 +143,13 @@ def main() -> int:
                     "checked_at": evidence.checked_at.isoformat(),
                 }
             )
-        identity_material = (
-            f"{server}|{account.company}|{account.currency}|{int(account.leverage)}"
+        fingerprint = fundednext_mt5_account_fingerprint(
+            login=int(account.login),
+            server=server,
+            company=str(account.company),
+            currency=str(account.currency),
+            leverage=int(account.leverage),
         )
-        fingerprint = hashlib.sha256(identity_material.encode("utf-8")).hexdigest()
         ok = all(bool(item["ok"]) for item in checks)
         payload = {
             "schema": "qore.fundednext.mt5-shadow-order-check.v1",
@@ -170,6 +186,7 @@ def main() -> int:
         return _fail(
             "probe_exception",
             details={"type": type(exc).__name__, "message": str(exc)},
+            order_check_called=checks_started,
         )
     finally:
         mt5.shutdown()
