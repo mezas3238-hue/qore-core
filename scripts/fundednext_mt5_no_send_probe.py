@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,6 +26,31 @@ def _fail(reason: str, *, details: dict[str, Any] | None = None) -> int:
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 2
+
+
+def _git_sha(root: Path) -> str:
+    value = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if len(value) != 40:
+        raise RuntimeError("git_sha_unavailable")
+    return value
+
+
+def _account_fingerprint(account: Any) -> str:
+    material = "|".join(
+        (
+            str(account.login),
+            str(account.server),
+            str(account.company),
+            str(account.currency),
+        )
+    )
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
 def _symbol_snapshot(symbol: str) -> dict[str, Any]:
@@ -63,6 +89,7 @@ def _symbol_snapshot(symbol: str) -> dict[str, Any]:
 
 
 def main() -> int:
+    root = Path(__file__).resolve().parents[1]
     if not mt5.initialize():
         return _fail("mt5_initialize_failed", details={"last_error": mt5.last_error()})
 
@@ -87,17 +114,13 @@ def main() -> int:
             return _fail("orders_unavailable", details={"last_error": mt5.last_error()})
 
         symbols = [_symbol_snapshot(symbol) for symbol in RETAINED_SYMBOLS]
-        identity_material = (
-            f"{server}|{account.company}|{account.currency}|{int(account.leverage)}"
-        )
-        account_identity_fingerprint = hashlib.sha256(
-            identity_material.encode("utf-8")
-        ).hexdigest()
+        account_identity_fingerprint = _account_fingerprint(account)
 
         payload = {
             "probe": "fundednext_mt5_no_send",
             "mode": "NO_SEND",
             "ok": True,
+            "git_sha": _git_sha(root),
             "timestamp_utc": datetime.now(UTC).isoformat(),
             "account": {
                 "server": server,
@@ -125,7 +148,7 @@ def main() -> int:
             },
         }
 
-        out_dir = Path("artifacts")
+        out_dir = root / "artifacts"
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / "fundednext_mt5_no_send_probe.json"
         out_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
