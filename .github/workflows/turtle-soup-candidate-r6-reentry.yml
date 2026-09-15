@@ -10,6 +10,7 @@ on:
       - scripts/turtle_soup_r6_reentry.py
       - docs/research/TURTLE-SOUP-CANDIDATE-R6-REENTRY-SOURCE-ADJUDICATION.md
       - docs/research/TURTLE-SOUP-CANDIDATE-R6-EXPERIMENTAL-REENTRY-FREEZE.md
+      - docs/research/TURTLE-SOUP-CANDIDATE-R6-REENTRY-CAUSAL-ADDENDUM.md
 
 concurrency:
   group: qore-turtle-soup-r6-reentry-${{ github.ref }}
@@ -130,7 +131,9 @@ jobs:
           assert report["research_round_identity"] == "turtle-soup-candidate-r6-reentry-exp1"
           assert report["source_adjudication"] == "R6_REENTRY_SOURCE_UNDERDETERMINED"
           assert report["reentry_provenance"] == "QORE_EXPERIMENTAL_REENTRY"
+          assert report["same_stop_container_policy"] == "SKIP_TO_NEXT_M15_FAIL_CLOSED"
           assert report["fresh_oos_consumed"] is False
+          assert report["fresh_oos_authorized"] is False
           assert report["candidate_freeze"] is None
           assert report["r5_source_fills"] == 290
           assert report["final_verdict"] in {
@@ -139,10 +142,8 @@ jobs:
           }
           if report["final_verdict"] == "R6_REENTRY_EXPERIMENT_REJECTED":
               assert report["passing_policies"] == []
-              assert report["fresh_oos_authorized"] is False
           else:
               assert report["passing_policies"]
-              assert report["fresh_oos_authorized"] is True
           PY
 
       - name: Upload immutable R6 adjudication evidence
