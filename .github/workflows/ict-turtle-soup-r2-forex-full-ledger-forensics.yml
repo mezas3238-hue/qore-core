@@ -1,0 +1,124 @@
+name: QORE ICT Turtle Soup R2 Forex Full Ledger Forensics
+
+on:
+  push:
+    branches:
+      - agent/ict-turtle-soup-r2-forex-full-ledger-forensics-001
+    paths:
+      - .github/workflows/ict-turtle-soup-r2-forex-full-ledger-forensics.yml
+      - docs/research/ICT-TURTLE-SOUP-R2-FOREX-FULL-LEDGER-FORENSICS-FREEZE.md
+      - src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_full_ledger.py
+  workflow_dispatch:
+
+concurrency:
+  group: qore-ict-ts-r2-fx-full-ledger-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  full-ledger-forensics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff forensic gate
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_full_ledger.py
+      - name: Syntax gate
+        run: |
+          python -m py_compile \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_full_ledger.py
+      - name: Download retained Core market evidence
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: mezas3238-hue/qore-core
+          run-id: 34759027136
+          pattern: qore-vt08-r3-15-*-64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222
+          path: artifacts/full-ledger/source
+      - name: Download immutable parent holdout result
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: mezas3238-hue/qore-core
+          run-id: 35030690033
+          pattern: qore-ict-turtle-soup-r2-forex-holdout-*
+          path: artifacts/full-ledger/parent
+      - name: Verify immutable input census
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_count="$(find artifacts/full-ledger/source -name market-evidence.json -type f | wc -l)"
+          report_count="$(find artifacts/full-ledger/parent -name report.json -type f | wc -l)"
+          trades_count="$(find artifacts/full-ledger/parent -name trades.json -type f | wc -l)"
+          test "$source_count" -eq 7
+          test "$report_count" -eq 1
+          test "$trades_count" -eq 1
+      - name: Execute frozen full-ledger forensics
+        run: |
+          mkdir -p artifacts/full-ledger/result
+          python -m qore.infrastructure.trader_lab.ict_turtle_soup_r2_forex_full_ledger \
+            artifacts/full-ledger/source \
+            artifacts/full-ledger/parent \
+            artifacts/full-ledger/result \
+            > artifacts/full-ledger/result/stdout-report.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/full-ledger/result/git-sha.txt
+      - name: Governance and exact reconciliation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('artifacts/full-ledger/result/full-ledger-report.json').read_text()
+          )
+          assert report['identity'] == 'ICT_TURTLE_SOUP_R2_FOREX_FULL_LEDGER_FORENSICS_001'
+          assert report['event_count'] == 27840
+          assert report['swept_pool_count'] == 38047
+          assert report['executed_trade_count'] == 5162
+          assert report['winner_count'] == 1486
+          assert report['loser_count'] == 3676
+          assert report['flat_count'] == 0
+          assert report['non_executed_count'] == 22678
+          assert report['consumed_evidence_only'] is True
+          assert report['fresh_oos_accessed'] is False
+          assert report['rule_change_authorized'] is False
+          governance = report['governance']
+          assert governance['candidate_selection_authorized'] is False
+          assert governance['filter_selection_authorized'] is False
+          assert governance['counterfactual_pnl_on_abstentions'] is False
+          assert governance['demo_eligible'] is False
+          assert governance['live_authorized'] is False
+          assert governance['real_capital_authorized'] is False
+          assert governance['production_authorized'] is False
+          PY
+      - name: Hash forensic ledger outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/full-ledger/result
+          sha256sum \
+            full-ledger-report.json \
+            event-ledger.json \
+            winners.json \
+            losers.json \
+            flats.json \
+            non-executed.json \
+            git-sha.txt \
+            > SHA256SUMS.txt
+      - name: Upload immutable full-ledger forensic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-ict-turtle-soup-r2-forex-full-ledger-${{ github.sha }}
+          path: artifacts/full-ledger/result
+          if-no-files-found: error
+          retention-days: 90
