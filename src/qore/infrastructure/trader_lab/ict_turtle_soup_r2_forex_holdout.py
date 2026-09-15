@@ -6,11 +6,11 @@ import heapq
 import json
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Iterable
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.ict_turtle_soup_r2_all_session import (
@@ -85,10 +85,6 @@ def _dt(value: str) -> datetime:
     return parsed.astimezone(UTC)
 
 
-def _decimal(value: str) -> Decimal:
-    return Decimal(value)
-
-
 def _load_evidence(path: Path) -> Evidence:
     payload = json.loads(path.read_text())
     if payload.get("holdout_id") != HOLDOUT_ID:
@@ -100,17 +96,17 @@ def _load_evidence(path: Path) -> Evidence:
     if payload.get("read_only") is not True:
         raise ValueError("holdout evidence must be read-only")
     symbol_payload = payload["symbol"]
-    symbol = symbol_payload["symbol_name"]
+    symbol = str(symbol_payload["symbol_name"])
     digits = int(symbol_payload["digits"])
     raw = payload["periods"]["M5"]
     bars = tuple(
         M5Bar(
             opened_at=_dt(item["opened_at"]),
             closed_at=_dt(item["closed_at"]),
-            open=_decimal(item["open"]),
-            high=_decimal(item["high"]),
-            low=_decimal(item["low"]),
-            close=_decimal(item["close"]),
+            open=Decimal(item["open"]),
+            high=Decimal(item["high"]),
+            low=Decimal(item["low"]),
+            close=Decimal(item["close"]),
         )
         for item in raw
     )
@@ -127,7 +123,7 @@ def _range_pool_pair(
     key: str,
     bars: Iterable[M5Bar],
     known_at: datetime,
-) -> tuple[Pool, Pool] | tuple[()]:
+) -> tuple[Pool, ...]:
     selected = tuple(bars)
     if not selected:
         return ()
@@ -135,8 +131,22 @@ def _range_pool_pair(
     low = min(bar.low for bar in selected)
     stem = f"{symbol}:{family}:{key}"
     return (
-        Pool(f"{stem}:buy", symbol, family, LiquiditySide.BUY_SIDE, high, known_at),
-        Pool(f"{stem}:sell", symbol, family, LiquiditySide.SELL_SIDE, low, known_at),
+        Pool(
+            f"{stem}:buy",
+            symbol,
+            family,
+            LiquiditySide.BUY_SIDE,
+            high,
+            known_at,
+        ),
+        Pool(
+            f"{stem}:sell",
+            symbol,
+            family,
+            LiquiditySide.SELL_SIDE,
+            low,
+            known_at,
+        ),
     )
 
 
@@ -145,12 +155,29 @@ def _local_midnight(day: date) -> datetime:
 
 
 def _session_complete(bars: tuple[M5Bar, ...], expected: int) -> bool:
-    if len(bars) != expected:
-        return False
-    return all(
+    return len(bars) == expected and all(
         left.closed_at == right.opened_at
         for left, right in zip(bars, bars[1:], strict=False)
     )
+
+
+def _extend_session_pools(
+    pools: list[Pool],
+    source: dict[date, list[M5Bar]],
+    *,
+    symbol: str,
+    family: str,
+    expected_bars: int,
+    known_time: time,
+) -> None:
+    for day, raw_bars in sorted(source.items()):
+        ordered = tuple(sorted(raw_bars, key=lambda bar: bar.opened_at))
+        if not _session_complete(ordered, expected_bars):
+            continue
+        known = datetime.combine(day, known_time, NY).astimezone(UTC)
+        pools.extend(
+            _range_pool_pair(symbol, family, day.isoformat(), ordered, known)
+        )
 
 
 def build_pools(evidence: Evidence) -> tuple[Pool, ...]:
@@ -164,11 +191,10 @@ def build_pools(evidence: Evidence) -> tuple[Pool, ...]:
     for bar in evidence.bars:
         local = bar.opened_at.astimezone(NY)
         day = local.date()
-        by_day[day].append(bar)
-        week = day - timedelta(days=day.weekday())
-        by_week[week].append(bar)
         wall = local.timetz().replace(tzinfo=None)
-        if time(20, 0) <= wall < time(23, 59, 59, 999999):
+        by_day[day].append(bar)
+        by_week[day - timedelta(days=day.weekday())].append(bar)
+        if wall >= time(20, 0):
             asia[day + timedelta(days=1)].append(bar)
         if time(2, 0) <= wall < time(5, 0):
             london[day].append(bar)
@@ -198,39 +224,38 @@ def build_pools(evidence: Evidence) -> tuple[Pool, ...]:
                 _local_midnight(week + timedelta(days=7)),
             )
         )
-    for day, bars in sorted(asia.items()):
-        ordered = tuple(sorted(bars, key=lambda bar: bar.opened_at))
-        if _session_complete(ordered, 48):
-            pools.extend(
-                _range_pool_pair(
-                    evidence.symbol,
-                    "asia",
-                    day.isoformat(),
-                    ordered,
-                    _local_midnight(day),
-                )
-            )
-    for day, bars in sorted(london.items()):
-        ordered = tuple(sorted(bars, key=lambda bar: bar.opened_at))
-        if _session_complete(ordered, 36):
-            known = datetime.combine(day, time(5, 0), NY).astimezone(UTC)
-            pools.extend(
-                _range_pool_pair(evidence.symbol, "london", day.isoformat(), ordered, known)
-            )
-    for day, bars in sorted(ny_am.items()):
-        ordered = tuple(sorted(bars, key=lambda bar: bar.opened_at))
-        if _session_complete(ordered, 30):
-            known = datetime.combine(day, time(11, 0), NY).astimezone(UTC)
-            pools.extend(
-                _range_pool_pair(evidence.symbol, "ny-am", day.isoformat(), ordered, known)
-            )
-    for day, bars in sorted(ny_pm.items()):
-        ordered = tuple(sorted(bars, key=lambda bar: bar.opened_at))
-        if _session_complete(ordered, 30):
-            known = datetime.combine(day, time(16, 0), NY).astimezone(UTC)
-            pools.extend(
-                _range_pool_pair(evidence.symbol, "ny-pm", day.isoformat(), ordered, known)
-            )
+    _extend_session_pools(
+        pools,
+        asia,
+        symbol=evidence.symbol,
+        family="asia",
+        expected_bars=48,
+        known_time=time.min,
+    )
+    _extend_session_pools(
+        pools,
+        london,
+        symbol=evidence.symbol,
+        family="london",
+        expected_bars=36,
+        known_time=time(5, 0),
+    )
+    _extend_session_pools(
+        pools,
+        ny_am,
+        symbol=evidence.symbol,
+        family="ny-am",
+        expected_bars=30,
+        known_time=time(11, 0),
+    )
+    _extend_session_pools(
+        pools,
+        ny_pm,
+        symbol=evidence.symbol,
+        family="ny-pm",
+        expected_bars=30,
+        known_time=time(16, 0),
+    )
     return tuple(sorted(pools, key=lambda pool: (pool.known_at, pool.pool_id)))
 
 
@@ -242,6 +267,7 @@ def first_sweeps(
     cursor = 0
     first: dict[str, datetime] = {}
     groups: dict[datetime, list[str]] = defaultdict(list)
+
     for bar in bars:
         while cursor < len(pools) and pools[cursor].known_at <= bar.opened_at:
             pool = pools[cursor]
@@ -258,7 +284,8 @@ def first_sweeps(
             _neg_level, pool_id = heapq.heappop(sell_heap)
             first[pool_id] = bar.opened_at
             groups[bar.opened_at].append(pool_id)
-    return first, {key: tuple(value) for key, value in groups.items()}
+
+    return first, {moment: tuple(ids) for moment, ids in groups.items()}
 
 
 def _opposing(bar: M5Bar, side: Side) -> bool:
@@ -269,16 +296,14 @@ def _reclaims(bar: M5Bar, side: Side, level: Decimal) -> bool:
     return bar.close > level if side is Side.LONG else bar.close < level
 
 
-def _cisd(bar: M5Bar, side: Side, threshold: Decimal) -> bool:
+def _confirms_cisd(bar: M5Bar, side: Side, threshold: Decimal) -> bool:
     return bar.close > threshold if side is Side.LONG else bar.close < threshold
 
 
 def _profit_factor(values: list[Decimal]) -> Decimal | None:
     gains = sum((value for value in values if value > 0), Decimal(0))
     losses = -sum((value for value in values if value < 0), Decimal(0))
-    if losses == 0:
-        return None
-    return gains / losses
+    return None if losses == 0 else gains / losses
 
 
 def _max_drawdown(values: list[Decimal]) -> Decimal:
@@ -305,8 +330,7 @@ def _longest_loss(values: list[Decimal]) -> int:
 
 
 def _session_bucket(moment: datetime) -> str:
-    local = moment.astimezone(NY)
-    wall = local.timetz().replace(tzinfo=None)
+    wall = moment.astimezone(NY).timetz().replace(tzinfo=None)
     if wall >= time(20, 0):
         return "asia-reference-window"
     if time(2, 0) <= wall < time(5, 0):
@@ -333,38 +357,131 @@ def _simulate_trade(
     for bar in bars[entry_index:end_index]:
         if side is Side.LONG:
             if bar.open <= stop:
-                exit_price = bar.open
-                return bar.opened_at, exit_price, "gap-stop", (exit_price - entry) / risk
+                return (
+                    bar.opened_at,
+                    bar.open,
+                    "gap-stop",
+                    (bar.open - entry) / risk,
+                )
             if bar.open >= target:
                 return bar.opened_at, target, "target", reward / risk
             stop_touch = bar.low <= stop
             target_touch = bar.high >= target
-            if stop_touch and target_touch:
-                return bar.closed_at, stop, "stop-first", Decimal(-1)
-            if stop_touch:
-                return bar.closed_at, stop, "stop", Decimal(-1)
-            if target_touch:
-                return bar.closed_at, target, "target", reward / risk
         else:
             if bar.open >= stop:
-                exit_price = bar.open
-                return bar.opened_at, exit_price, "gap-stop", (entry - exit_price) / risk
+                return (
+                    bar.opened_at,
+                    bar.open,
+                    "gap-stop",
+                    (entry - bar.open) / risk,
+                )
             if bar.open <= target:
                 return bar.opened_at, target, "target", reward / risk
             stop_touch = bar.high >= stop
             target_touch = bar.low <= target
-            if stop_touch and target_touch:
-                return bar.closed_at, stop, "stop-first", Decimal(-1)
-            if stop_touch:
-                return bar.closed_at, stop, "stop", Decimal(-1)
-            if target_touch:
-                return bar.closed_at, target, "target", reward / risk
+        if stop_touch and target_touch:
+            return bar.closed_at, stop, "stop-first", Decimal(-1)
+        if stop_touch:
+            return bar.closed_at, stop, "stop", Decimal(-1)
+        if target_touch:
+            return bar.closed_at, target, "target", reward / risk
+
     final = bars[end_index - 1]
-    gross = (final.close - entry) / risk if side is Side.LONG else (entry - final.close) / risk
+    gross = (
+        (final.close - entry) / risk
+        if side is Side.LONG
+        else (entry - final.close) / risk
+    )
     return final.closed_at, final.close, "time-exit", gross
 
 
-def replay_symbol(evidence: Evidence) -> tuple[list[Trade], Counter[str], dict[str, object]]:
+def _event_end_index(bars: tuple[M5Bar, ...], sweep_index: int) -> int:
+    sweep_day = bars[sweep_index].opened_at.astimezone(NY).date()
+    end_index = sweep_index + 1
+    while (
+        end_index < len(bars)
+        and bars[end_index].opened_at.astimezone(NY).date() == sweep_day
+    ):
+        end_index += 1
+    return end_index
+
+
+def _cisd_threshold(
+    bars: tuple[M5Bar, ...],
+    *,
+    sweep_index: int,
+    pool: Pool,
+    side: Side,
+) -> Decimal | None:
+    if _opposing(bars[sweep_index], side):
+        cursor = sweep_index
+    else:
+        cursor = sweep_index - 1
+        if cursor < 0 or bars[cursor].closed_at != bars[sweep_index].opened_at:
+            return None
+    if bars[cursor].opened_at < pool.known_at or not _opposing(bars[cursor], side):
+        return None
+    while (
+        cursor > 0
+        and bars[cursor - 1].opened_at >= pool.known_at
+        and bars[cursor - 1].closed_at == bars[cursor].opened_at
+        and _opposing(bars[cursor - 1], side)
+    ):
+        cursor -= 1
+    return bars[cursor].open
+
+
+def _find_confirmation(
+    bars: tuple[M5Bar, ...],
+    *,
+    sweep_index: int,
+    end_index: int,
+    pool: Pool,
+    side: Side,
+    threshold: Decimal,
+) -> tuple[int | None, int | None, bool]:
+    reclaim_index: int | None = None
+    for index in range(sweep_index, end_index):
+        if index > sweep_index and bars[index - 1].closed_at != bars[index].opened_at:
+            return reclaim_index, None, True
+        bar = bars[index]
+        if reclaim_index is None and _reclaims(bar, side, pool.level):
+            reclaim_index = index
+        if reclaim_index is not None and _confirms_cisd(bar, side, threshold):
+            return reclaim_index, index, False
+    return reclaim_index, None, False
+
+
+def _target_pool(
+    pools: tuple[Pool, ...],
+    first: dict[str, datetime],
+    *,
+    swept: Pool,
+    side: Side,
+    entry: Decimal,
+    entry_at: datetime,
+) -> Pool | None:
+    candidates = [
+        pool
+        for pool in pools
+        if pool.side != swept.side
+        and pool.known_at <= entry_at
+        and (first.get(pool.pool_id) is None or first[pool.pool_id] >= entry_at)
+        and (
+            (side is Side.LONG and pool.level > entry)
+            or (side is Side.SHORT and pool.level < entry)
+        )
+    ]
+    if not candidates:
+        return None
+    if side is Side.LONG:
+        return min(candidates, key=lambda pool: pool.level)
+    return max(candidates, key=lambda pool: pool.level)
+
+
+def replay_symbol(
+    evidence: Evidence,
+) -> tuple[list[Trade], Counter[str], dict[str, object]]:
     bars = evidence.bars
     pools = build_pools(evidence)
     by_id = {pool.pool_id: pool for pool in pools}
@@ -387,47 +504,43 @@ def replay_symbol(evidence: Evidence) -> tuple[list[Trade], Counter[str], dict[s
         if sweep_at < next_available:
             funnel["ignored-position-open"] += 1
             continue
+
         pool = by_id[ids[0]]
         side = Side.LONG if pool.side is LiquiditySide.SELL_SIDE else Side.SHORT
         sweep_index = index_by_time[sweep_at]
-        sweep_day = sweep_at.astimezone(NY).date()
-        end_index = sweep_index + 1
-        while end_index < len(bars) and bars[end_index].opened_at.astimezone(NY).date() == sweep_day:
-            end_index += 1
-
-        cursor = sweep_index if _opposing(bars[sweep_index], side) else sweep_index - 1
-        if cursor < 0 or bars[cursor].opened_at < pool.known_at:
+        end_index = _event_end_index(bars, sweep_index)
+        threshold = _cisd_threshold(
+            bars,
+            sweep_index=sweep_index,
+            pool=pool,
+            side=side,
+        )
+        if threshold is None:
             funnel["no-opposing-series"] += 1
             continue
-        if not _opposing(bars[cursor], side):
-            funnel["no-opposing-series"] += 1
+        reclaim_index, cisd_index, data_gap = _find_confirmation(
+            bars,
+            sweep_index=sweep_index,
+            end_index=end_index,
+            pool=pool,
+            side=side,
+            threshold=threshold,
+        )
+        if data_gap:
+            funnel["event-data-gap"] += 1
             continue
-        while (
-            cursor > 0
-            and bars[cursor - 1].opened_at >= pool.known_at
-            and bars[cursor - 1].closed_at == bars[cursor].opened_at
-            and _opposing(bars[cursor - 1], side)
-        ):
-            cursor -= 1
-        threshold = bars[cursor].open
-
-        reclaim_index: int | None = None
-        cisd_index: int | None = None
-        for index in range(sweep_index, end_index):
-            bar = bars[index]
-            if reclaim_index is None and _reclaims(bar, side, pool.level):
-                reclaim_index = index
-            if reclaim_index is not None and _cisd(bar, side, threshold):
-                cisd_index = index
-                break
         if reclaim_index is None:
             funnel["no-reclaim"] += 1
             continue
         if cisd_index is None:
             funnel["no-cisd"] += 1
             continue
+
         entry_index = cisd_index + 1
-        if entry_index >= end_index or bars[cisd_index].closed_at != bars[entry_index].opened_at:
+        if (
+            entry_index >= end_index
+            or bars[cisd_index].closed_at != bars[entry_index].opened_at
+        ):
             funnel["no-causal-entry"] += 1
             continue
         entry_bar = bars[entry_index]
@@ -438,27 +551,23 @@ def replay_symbol(evidence: Evidence) -> tuple[list[Trade], Counter[str], dict[s
             if side is Side.LONG
             else max(bar.high for bar in adverse) + tick
         )
-        target_candidates = [
-            other
-            for other in pools
-            if other.side is not pool.side
-            and other.known_at <= entry_bar.opened_at
-            and (first.get(other.pool_id) is None or first[other.pool_id] >= entry_bar.opened_at)
-            and (
-                (side is Side.LONG and other.level > entry)
-                or (side is Side.SHORT and other.level < entry)
-            )
-        ]
-        if not target_candidates:
+        target_pool = _target_pool(
+            pools,
+            first,
+            swept=pool,
+            side=side,
+            entry=entry,
+            entry_at=entry_bar.opened_at,
+        )
+        if target_pool is None:
             funnel["no-opposing-target"] += 1
             continue
-        target_pool = (
-            min(target_candidates, key=lambda item: item.level)
-            if side is Side.LONG
-            else max(target_candidates, key=lambda item: item.level)
-        )
         risk = entry - stop if side is Side.LONG else stop - entry
-        reward = target_pool.level - entry if side is Side.LONG else entry - target_pool.level
+        reward = (
+            target_pool.level - entry
+            if side is Side.LONG
+            else entry - target_pool.level
+        )
         if risk <= 0 or reward <= 0:
             funnel["invalid-geometry"] += 1
             continue
@@ -466,6 +575,7 @@ def replay_symbol(evidence: Evidence) -> tuple[list[Trade], Counter[str], dict[s
         if projected_r < MIN_PROJECTED_R:
             funnel["insufficient-projected-r"] += 1
             continue
+
         exit_at, exit_price, reason, gross_r = _simulate_trade(
             bars,
             entry_index,
@@ -475,32 +585,33 @@ def replay_symbol(evidence: Evidence) -> tuple[list[Trade], Counter[str], dict[s
             stop=stop,
             target=target_pool.level,
         )
-        trade = Trade(
-            symbol=evidence.symbol,
-            side=side,
-            swept_pool_id=pool.pool_id,
-            swept_family=pool.family,
-            target_pool_id=target_pool.pool_id,
-            target_family=target_pool.family,
-            sweep_at=sweep_at,
-            cisd_at=bars[cisd_index].closed_at,
-            entry_at=entry_bar.opened_at,
-            exit_at=exit_at,
-            entry=entry,
-            stop=stop,
-            target=target_pool.level,
-            exit_price=exit_price,
-            projected_r=projected_r,
-            gross_r=gross_r,
-            primary_net_r=gross_r - PRIMARY_FRICTION_R,
-            stress_net_r=gross_r - STRESS_FRICTION_R,
-            exit_reason=reason,
+        trades.append(
+            Trade(
+                symbol=evidence.symbol,
+                side=side,
+                swept_pool_id=pool.pool_id,
+                swept_family=pool.family,
+                target_pool_id=target_pool.pool_id,
+                target_family=target_pool.family,
+                sweep_at=sweep_at,
+                cisd_at=bars[cisd_index].closed_at,
+                entry_at=entry_bar.opened_at,
+                exit_at=exit_at,
+                entry=entry,
+                stop=stop,
+                target=target_pool.level,
+                exit_price=exit_price,
+                projected_r=projected_r,
+                gross_r=gross_r,
+                primary_net_r=gross_r - PRIMARY_FRICTION_R,
+                stress_net_r=gross_r - STRESS_FRICTION_R,
+                exit_reason=reason,
+            )
         )
-        trades.append(trade)
         funnel["trade"] += 1
         next_available = max(next_available, exit_at)
 
-    metadata = {
+    metadata: dict[str, object] = {
         "pool_count": len(pools),
         "first_swept_pool_count": len(first),
         "m5_bar_count": len(bars),
@@ -508,44 +619,61 @@ def replay_symbol(evidence: Evidence) -> tuple[list[Trade], Counter[str], dict[s
     return trades, funnel, metadata
 
 
-def _group_summary(trades: list[Trade], key_fn: object) -> dict[str, dict[str, object]]:
+def _group_summary(
+    trades: list[Trade], key_fn: Callable[[Trade], object]
+) -> dict[str, dict[str, object]]:
     groups: dict[str, list[Trade]] = defaultdict(list)
     for trade in trades:
-        key = str(key_fn(trade))  # type: ignore[operator]
-        groups[key].append(trade)
+        groups[str(key_fn(trade))].append(trade)
     result: dict[str, dict[str, object]] = {}
     for key, selected in sorted(groups.items()):
         net = [trade.primary_net_r for trade in selected]
+        total = sum(net, Decimal(0))
+        pf = _profit_factor(net)
         result[key] = {
             "trades": len(selected),
-            "total_net_r": str(sum(net, Decimal(0))),
-            "mean_net_r": str(sum(net, Decimal(0)) / len(selected)),
-            "profit_factor": None if _profit_factor(net) is None else str(_profit_factor(net)),
+            "total_net_r": str(total),
+            "mean_net_r": str(total / len(selected)),
+            "profit_factor": None if pf is None else str(pf),
         }
     return result
 
 
-def _concentration(trades: list[Trade], key_fn: object) -> Decimal | None:
+def _concentration(
+    trades: list[Trade], key_fn: Callable[[Trade], object]
+) -> Decimal | None:
     positive = [trade for trade in trades if trade.primary_net_r > 0]
     total = sum((trade.primary_net_r for trade in positive), Decimal(0))
     if total <= 0:
         return None
     groups: dict[str, Decimal] = defaultdict(Decimal)
     for trade in positive:
-        groups[str(key_fn(trade))] += trade.primary_net_r  # type: ignore[operator]
+        groups[str(key_fn(trade))] += trade.primary_net_r
     return max(groups.values()) / total
 
 
 def _json_trade(trade: Trade) -> dict[str, object]:
-    payload = asdict(trade)
-    for key, value in tuple(payload.items()):
-        if isinstance(value, Decimal):
-            payload[key] = str(value)
-        elif isinstance(value, datetime):
-            payload[key] = value.astimezone(UTC).isoformat()
-        elif isinstance(value, Side):
-            payload[key] = value.value
-    return payload
+    return {
+        "symbol": trade.symbol,
+        "side": trade.side.value,
+        "swept_pool_id": trade.swept_pool_id,
+        "swept_family": trade.swept_family,
+        "target_pool_id": trade.target_pool_id,
+        "target_family": trade.target_family,
+        "sweep_at": trade.sweep_at.astimezone(UTC).isoformat(),
+        "cisd_at": trade.cisd_at.astimezone(UTC).isoformat(),
+        "entry_at": trade.entry_at.astimezone(UTC).isoformat(),
+        "exit_at": trade.exit_at.astimezone(UTC).isoformat(),
+        "entry": str(trade.entry),
+        "stop": str(trade.stop),
+        "target": str(trade.target),
+        "exit_price": str(trade.exit_price),
+        "projected_r": str(trade.projected_r),
+        "gross_r": str(trade.gross_r),
+        "primary_net_r": str(trade.primary_net_r),
+        "stress_net_r": str(trade.stress_net_r),
+        "exit_reason": trade.exit_reason,
+    }
 
 
 def run(root: Path, output: Path) -> dict[str, object]:
@@ -554,6 +682,7 @@ def run(root: Path, output: Path) -> dict[str, object]:
     symbols = {item.symbol for item in evidence}
     if symbols != EXPECTED_SYMBOLS:
         raise ValueError(f"retained symbol set mismatch: {sorted(symbols)}")
+
     all_trades: list[Trade] = []
     all_funnel: Counter[str] = Counter()
     per_symbol_meta: dict[str, object] = {}
@@ -563,6 +692,7 @@ def run(root: Path, output: Path) -> dict[str, object]:
         all_funnel.update(funnel)
         per_symbol_meta[item.symbol] = metadata
     all_trades.sort(key=lambda trade: (trade.entry_at, trade.symbol))
+
     primary = [trade.primary_net_r for trade in all_trades]
     gross = [trade.gross_r for trade in all_trades]
     stress = [trade.stress_net_r for trade in all_trades]
@@ -572,11 +702,24 @@ def run(root: Path, output: Path) -> dict[str, object]:
     total_primary = sum(primary, Decimal(0))
     total_gross = sum(gross, Decimal(0))
     total_stress = sum(stress, Decimal(0))
+    primary_pf = _profit_factor(primary)
+    stress_pf = _profit_factor(stress)
+    symbol_conc = _concentration(all_trades, lambda trade: trade.symbol)
+    side_conc = _concentration(all_trades, lambda trade: trade.side.value)
+    year_conc = _concentration(
+        all_trades,
+        lambda trade: trade.entry_at.astimezone(NY).year,
+    )
+
     symbols_sorted = sorted(EXPECTED_SYMBOLS)
     lomo = {
         symbol: str(
             sum(
-                (trade.primary_net_r for trade in all_trades if trade.symbol != symbol),
+                (
+                    trade.primary_net_r
+                    for trade in all_trades
+                    if trade.symbol != symbol
+                ),
                 Decimal(0),
             )
         )
@@ -598,19 +741,26 @@ def run(root: Path, output: Path) -> dict[str, object]:
         "gross_mean_r": None if not gross else str(total_gross / len(gross)),
         "primary_friction_r": str(PRIMARY_FRICTION_R),
         "primary_total_r": str(total_primary),
-        "primary_mean_r": None if not primary else str(total_primary / len(primary)),
-        "primary_profit_factor": None if _profit_factor(primary) is None else str(_profit_factor(primary)),
+        "primary_mean_r": (
+            None if not primary else str(total_primary / len(primary))
+        ),
+        "primary_profit_factor": None if primary_pf is None else str(primary_pf),
         "stress_friction_r": str(STRESS_FRICTION_R),
         "stress_total_r": str(total_stress),
         "stress_mean_r": None if not stress else str(total_stress / len(stress)),
-        "stress_profit_factor": None if _profit_factor(stress) is None else str(_profit_factor(stress)),
+        "stress_profit_factor": None if stress_pf is None else str(stress_pf),
         "max_drawdown_r": str(_max_drawdown(primary)),
         "longest_losing_streak": _longest_loss(primary),
         "funnel": dict(sorted(all_funnel.items())),
-        "exit_reasons": dict(sorted(Counter(trade.exit_reason for trade in all_trades).items())),
+        "exit_reasons": dict(
+            sorted(Counter(trade.exit_reason for trade in all_trades).items())
+        ),
         "per_symbol": _group_summary(all_trades, lambda trade: trade.symbol),
         "per_side": _group_summary(all_trades, lambda trade: trade.side.value),
-        "per_year": _group_summary(all_trades, lambda trade: trade.entry_at.astimezone(NY).year),
+        "per_year": _group_summary(
+            all_trades,
+            lambda trade: trade.entry_at.astimezone(NY).year,
+        ),
         "per_quarter": _group_summary(
             all_trades,
             lambda trade: (
@@ -618,13 +768,19 @@ def run(root: Path, output: Path) -> dict[str, object]:
                 f"{((trade.entry_at.astimezone(NY).month - 1) // 3) + 1}"
             ),
         ),
-        "per_session": _group_summary(all_trades, lambda trade: _session_bucket(trade.entry_at)),
-        "per_hour_ny": _group_summary(all_trades, lambda trade: trade.entry_at.astimezone(NY).hour),
+        "per_session": _group_summary(
+            all_trades,
+            lambda trade: _session_bucket(trade.entry_at),
+        ),
+        "per_hour_ny": _group_summary(
+            all_trades,
+            lambda trade: trade.entry_at.astimezone(NY).hour,
+        ),
         "leave_one_symbol_out_total_r": lomo,
         "positive_gain_concentration": {
-            "symbol": None if _concentration(all_trades, lambda trade: trade.symbol) is None else str(_concentration(all_trades, lambda trade: trade.symbol)),
-            "side": None if _concentration(all_trades, lambda trade: trade.side.value) is None else str(_concentration(all_trades, lambda trade: trade.side.value)),
-            "year": None if _concentration(all_trades, lambda trade: trade.entry_at.astimezone(NY).year) is None else str(_concentration(all_trades, lambda trade: trade.entry_at.astimezone(NY).year)),
+            "symbol": None if symbol_conc is None else str(symbol_conc),
+            "side": None if side_conc is None else str(side_conc),
+            "year": None if year_conc is None else str(year_conc),
         },
         "per_symbol_metadata": per_symbol_meta,
         "fresh_for_ict_turtle_soup_identity": True,
@@ -637,16 +793,25 @@ def run(root: Path, output: Path) -> dict[str, object]:
         "production_authorized": False,
     }
     output.mkdir(parents=True, exist_ok=True)
-    (output / "report.json").write_text(json.dumps(report, sort_keys=True, indent=2) + "\n")
+    (output / "report.json").write_text(
+        json.dumps(report, sort_keys=True, indent=2) + "\n"
+    )
     (output / "trades.json").write_text(
-        json.dumps([_json_trade(trade) for trade in all_trades], sort_keys=True, indent=2) + "\n"
+        json.dumps(
+            [_json_trade(trade) for trade in all_trades],
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
     )
     return report
 
 
 def main() -> None:
     if len(sys.argv) != 3:
-        raise SystemExit("usage: ict_turtle_soup_r2_forex_holdout SOURCE_ROOT OUTPUT_DIR")
+        raise SystemExit(
+            "usage: ict_turtle_soup_r2_forex_holdout SOURCE_ROOT OUTPUT_DIR"
+        )
     report = run(Path(sys.argv[1]), Path(sys.argv[2]))
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
 
