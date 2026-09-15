@@ -41,7 +41,9 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
     files = {
         "provider_contract": root / "src/qore/infrastructure/fundednext_stellar_instant.py",
         "account_wide_risk": root / "src/qore/infrastructure/account_wide_risk.py",
-        "operational_risk_policy": root / "src/qore/infrastructure/fundednext_operational_risk_policy.py",
+        "operational_risk_policy": (
+            root / "src/qore/infrastructure/fundednext_operational_risk_policy.py"
+        ),
         "durable_risk_ledger": root / "src/qore/infrastructure/account_wide_risk_ledger.py",
         "execution_bridge": root / "src/qore/infrastructure/fundednext_execution_bridge.py",
         "mt5_boundary": root / "src/qore/infrastructure/fundednext_mt5.py",
@@ -65,7 +67,9 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
         "order_check_probe": root / "scripts/fundednext_mt5_order_check_probe.py",
         "vt08_forex_cibo": root / "src/qore/infrastructure/vt08_forex_cibo_operational.py",
         "vt08_forex_sizing": root / "src/qore/infrastructure/vt08_forex_fundednext_sizing.py",
-        "cibo_risk_certification": root / "src/qore/infrastructure/fundednext_cibo_risk_certification.py",
+        "cibo_risk_certification": (
+            root / "src/qore/infrastructure/fundednext_cibo_risk_certification.py"
+        ),
         "vt08_forex_executable": root / "src/qore/infrastructure/traders/vt08_b01_r3_8.py",
     }
     missing = [name for name, path in files.items() if not path.is_file()]
