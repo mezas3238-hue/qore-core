@@ -57,6 +57,7 @@ jobs:
           import sys
           from pathlib import Path
 
+          sys.path.insert(0, "src")
           sys.path.insert(0, "scripts")
           import vt31_r6_candidate as candidate
 
