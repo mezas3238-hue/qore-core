@@ -6,23 +6,37 @@ from decimal import Decimal
 
 import pytest
 
-from qore.infrastructure.account_wide_risk import RiskAuthorization, RiskDecision, TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    RiskAuthorization,
+    RiskDecision,
+    TraderLineage,
+)
 from qore.infrastructure.execution_boundary import ExecutionSubmission
-from qore.infrastructure.fundednext_live_authorization import FundedNextLiveAccountAuthorization
+from qore.infrastructure.fundednext_live_authorization import (
+    FundedNextLiveAccountAuthorization,
+)
 from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
 )
 from qore.infrastructure.fundednext_mt5 import Mt5ExecutionBlockedError
-from qore.infrastructure.fundednext_mt5_mutation_ledger import InMemoryFundedNextMt5MutationLedger
+from qore.infrastructure.fundednext_mt5_mutation_ledger import (
+    InMemoryFundedNextMt5MutationLedger,
+)
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
 from qore.infrastructure.fundednext_stellar_instant import (
     AutomationVerificationState,
     RuleVerificationState,
     StellarInstantRuleVerification,
 )
-from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment, MarketTestAccountIdentity
-from qore.infrastructure.pretrade_safety import ExecutionSafetySwitchSnapshot, ExecutionSwitchState
+from qore.infrastructure.market_test_environment import (
+    MarketRuntimeEnvironment,
+    MarketTestAccountIdentity,
+)
+from qore.infrastructure.pretrade_safety import (
+    ExecutionSafetySwitchSnapshot,
+    ExecutionSwitchState,
+)
 
 _NOW = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
 _SHA = "a" * 40
@@ -140,9 +154,19 @@ class _Api:
         return _Symbol() if symbol == "GBPUSD" else None
 
     def symbol_info_tick(self, symbol: str) -> _Tick | None:
-        return _Tick(bid=self.bid, ask=self.bid + 0.0002) if symbol == "GBPUSD" else None
+        return (
+            _Tick(bid=self.bid, ask=self.bid + 0.0002)
+            if symbol == "GBPUSD"
+            else None
+        )
 
-    def order_calc_margin(self, order_type: int, symbol: str, volume: float, price: float) -> float | None:
+    def order_calc_margin(
+        self,
+        order_type: int,
+        symbol: str,
+        volume: float,
+        price: float,
+    ) -> float | None:
         del order_type, symbol, price
         return volume * 50.0
 
@@ -159,11 +183,19 @@ class _Api:
     def orders_get(self) -> tuple[_Order, ...] | None:
         return ()
 
-    def history_orders_get(self, date_from: datetime, date_to: datetime) -> tuple[_Order, ...] | None:
+    def history_orders_get(
+        self,
+        date_from: datetime,
+        date_to: datetime,
+    ) -> tuple[_Order, ...] | None:
         del date_from, date_to
         return ()
 
-    def history_deals_get(self, date_from: datetime, date_to: datetime) -> tuple[_Deal, ...] | None:
+    def history_deals_get(
+        self,
+        date_from: datetime,
+        date_to: datetime,
+    ) -> tuple[_Deal, ...] | None:
         del date_from, date_to
         return ()
 
@@ -250,7 +282,12 @@ def _submission() -> ExecutionSubmission:
     )
 
 
-def _gateway(api: _Api, *, complete: bool, submission_enabled: bool) -> FundedNextLiveMt5ExecutionGateway:
+def _gateway(
+    api: _Api,
+    *,
+    complete: bool,
+    submission_enabled: bool,
+) -> FundedNextLiveMt5ExecutionGateway:
     transport = MetaTrader5FundedNextLiveTransport(
         api=api,
         qore_account_ref="fundednext-stellar-instant-live",
