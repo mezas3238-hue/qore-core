@@ -11,6 +11,7 @@ fill policy immediately before submission instead of hard-coding IOC.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
@@ -73,6 +74,11 @@ class Mt5OrderResultLike(Protocol):
     comment: str
 
 
+class Mt5OrderCheckResultLike(Protocol):
+    retcode: int
+    comment: str
+
+
 class Mt5OrderLike(Protocol):
     ticket: int
     magic: int
@@ -130,6 +136,11 @@ class MetaTrader5Api(Protocol):
         price: float,
     ) -> float | None: ...
 
+    def order_check(
+        self,
+        request: dict[str, object],
+    ) -> Mt5OrderCheckResultLike | None: ...
+
     def order_send(self, request: dict[str, object]) -> Mt5OrderResultLike | None: ...
 
     def orders_get(self) -> tuple[Mt5OrderLike, ...] | None: ...
@@ -145,6 +156,19 @@ class MetaTrader5Api(Protocol):
         date_from: datetime,
         date_to: datetime,
     ) -> tuple[Mt5DealLike, ...] | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class Mt5OrderCheckEvidence:
+    client_order_id: str
+    provider_symbol: str
+    retcode: int
+    comment: str
+    checked_at: datetime
+
+    @property
+    def ok(self) -> bool:
+        return self.retcode == 0
 
 
 class MetaTrader5FundedNextTransport:
@@ -236,6 +260,24 @@ class MetaTrader5FundedNextTransport:
             trade_enabled=trade_enabled,
             session_open=session_open,
             observed_at=datetime.now(UTC),
+        )
+
+    def check_order(self, plan: FundedNextMt5OrderPlan) -> Mt5OrderCheckEvidence:
+        """Ask MT5 to validate the exact future payload without mutation."""
+
+        self._require_bound_account()
+        if not isinstance(plan, FundedNextMt5OrderPlan):
+            raise Mt5ExecutionValidationError("MT5 shadow check requires canonical plan")
+        request = self._submission_payload(plan)
+        result = self._api.order_check(request)
+        if result is None:
+            raise Mt5ExecutionBlockedError("mt5-order-check-no-result")
+        return Mt5OrderCheckEvidence(
+            client_order_id=plan.client_order_id,
+            provider_symbol=plan.provider_symbol,
+            retcode=int(result.retcode),
+            comment=str(result.comment),
+            checked_at=datetime.now(UTC),
         )
 
     def submit_order(

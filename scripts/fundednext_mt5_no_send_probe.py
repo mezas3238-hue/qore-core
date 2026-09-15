@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,19 @@ mt5 = importlib.import_module("MetaTrader5")
 
 RETAINED_SYMBOLS = ("AUDJPY", "GBPUSD", "GBPJPY")
 EXPECTED_SERVER = "FundedNext-Server"
+
+
+def _git_sha() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    sha = result.stdout.strip().lower()
+    if len(sha) != 40 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise RuntimeError("git_head_is_not_full_sha")
+    return sha
 
 
 def _fail(reason: str, *, details: dict[str, Any] | None = None) -> int:
@@ -63,6 +77,13 @@ def _symbol_snapshot(symbol: str) -> dict[str, Any]:
 
 
 def main() -> int:
+    try:
+        git_sha = _git_sha()
+    except Exception as exc:
+        return _fail(
+            "git_sha_unavailable",
+            details={"type": type(exc).__name__, "message": str(exc)},
+        )
     if not mt5.initialize():
         return _fail("mt5_initialize_failed", details={"last_error": mt5.last_error()})
 
@@ -98,6 +119,7 @@ def main() -> int:
             "probe": "fundednext_mt5_no_send",
             "mode": "NO_SEND",
             "ok": True,
+            "git_sha": git_sha,
             "timestamp_utc": datetime.now(UTC).isoformat(),
             "account": {
                 "server": server,

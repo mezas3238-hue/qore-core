@@ -23,7 +23,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     cibo_policy_fingerprint,
 )
 
-_SCHEMA = "qore.fundednext.stellar-instant-2k-pilot-readiness.v2"
+_SCHEMA = "qore.fundednext.stellar-instant-2k-pilot-readiness.v3"
 
 
 def _digest(path: Path) -> str:
@@ -47,6 +47,21 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
         ),
         "mt5_boundary": root / "src/qore/infrastructure/fundednext_mt5.py",
         "mt5_transport": root / "src/qore/infrastructure/fundednext_mt5_transport.py",
+        "production_binding": (
+            root / "src/qore/infrastructure/fundednext_production_binding.py"
+        ),
+        "runtime_supervisor": (
+            root / "src/qore/infrastructure/fundednext_runtime_supervisor.py"
+        ),
+        "shadow_probe": root / "scripts/fundednext_mt5_shadow_probe.py",
+        "runtime_guard": root / "scripts/fundednext_runtime_guard.py",
+        "runtime_readiness": root / "scripts/fundednext_runtime_readiness.py",
+        "windows_autostart_installer": (
+            root / "scripts/install_fundednext_runtime_task.ps1"
+        ),
+        "reboot_recovery_probe": (
+            root / "scripts/fundednext_reboot_recovery_probe.ps1"
+        ),
         "mt5_mutation_ledger": (
             root / "src/qore/infrastructure/fundednext_mt5_mutation_ledger.py"
         ),
@@ -138,8 +153,10 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "durable_risk_ledger": "account-wide-risk-ledger-v1",
             "execution_bridge": "fundednext-canonical-execution-v1",
             "mt5_boundary": "fundednext-mt5-boundary-v1",
-            "mt5_transport": "fundednext-metatrader5-transport-dynamic-filling-v2",
-            "account_bound_execution": "fundednext-account-bound-execution-v1",
+            "mt5_transport": "fundednext-metatrader5-transport-order-check-v3",
+            "production_binding": "fundednext-production-binding-v1",
+            "runtime_supervisor": "fundednext-runtime-supervisor-v1",
+            "account_bound_execution": "fundednext-account-bound-execution-v2",
             "vt08_forex_sizing": "vt08-r315-mt5-tick-economics-v1",
             "vt08_forex_cibo": R315_CIBO_VERSION,
         },
@@ -168,6 +185,14 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "durable_idempotency_and_unknown_outcome_recovery_implemented": True,
             "scoped_kill_switches_implemented": True,
             "code_complete_for_account_binding": True,
+            "production_binding_contract_implemented": True,
+            "shadow_order_check_implemented": True,
+            "runtime_supervisor_implemented": True,
+            "runtime_guard_implemented": True,
+            "windows_autostart_installer_implemented": True,
+            "reboot_recovery_probe_implemented": True,
+            "exact_sha_runtime_readiness_verifier_implemented": True,
+            "first_execution_engineering_closeout_complete": True,
             "concrete_mt5_gateway_bound": False,
             "actual_account_bound_on_this_sha": False,
             "actual_symbol_info_verified_on_this_sha": False,

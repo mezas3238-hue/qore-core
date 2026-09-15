@@ -110,10 +110,13 @@ class _Api:
         self.symbol = _Symbol()
         self.tick = _Tick()
         self.next_result: _Result | None = _Result(self.TRADE_RETCODE_DONE, 9001)
+        self.next_check_result: _Result | None = _Result(0, 0, "Done")
         self.active_orders: tuple[_Order, ...] = ()
         self.history_orders: tuple[_Order, ...] = ()
         self.deals: tuple[_Deal, ...] = ()
         self.last_request: dict[str, object] | None = None
+        self.order_send_calls = 0
+        self.order_check_calls = 0
 
     def terminal_info(self) -> _Terminal | None:
         return self.terminal
@@ -143,7 +146,13 @@ class _Api:
         del order_type, symbol, price
         return 50.0 * volume
 
+    def order_check(self, request: dict[str, object]) -> _Result | None:
+        self.order_check_calls += 1
+        self.last_request = request
+        return self.next_check_result
+
     def order_send(self, request: dict[str, object]) -> _Result | None:
+        self.order_send_calls += 1
         self.last_request = request
         return self.next_result
 
@@ -321,3 +330,14 @@ def test_non_market_execution_can_use_return_when_flags_are_absent() -> None:
     transport.submit_order(_plan())
     assert api.last_request is not None
     assert api.last_request["type_filling"] == api.ORDER_FILLING_RETURN
+
+def test_shadow_order_check_never_calls_order_send() -> None:
+    api = _Api()
+    transport = _transport(api)
+    evidence = transport.check_order(_plan())
+    assert evidence.ok is True
+    assert evidence.retcode == 0
+    assert api.order_check_calls == 1
+    assert api.order_send_calls == 0
+    assert api.last_request is not None
+    assert api.last_request["type_filling"] == api.ORDER_FILLING_IOC

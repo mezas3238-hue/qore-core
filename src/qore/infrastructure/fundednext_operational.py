@@ -20,6 +20,9 @@ from qore.infrastructure.execution_boundary import ExecutionSubmission
 from qore.infrastructure.fundednext_execution_bridge import (
     build_fundednext_execution_submission,
 )
+from qore.infrastructure.fundednext_production_binding import (
+    FundedNextProductionAccountBinding,
+)
 from qore.infrastructure.fundednext_mt5 import (
     FundedNextMt5ExecutionGateway,
     FundedNextMt5OrderPlan,
@@ -177,6 +180,7 @@ class FundedNextAccountBoundMt5Gateway(FundedNextMt5ExecutionGateway):
         mutation_ledger: FundedNextMt5MutationLedger,
         rule_verification: StellarInstantRuleVerification,
         safety: OperationalSafetyController,
+        production_binding: FundedNextProductionAccountBinding | None = None,
         owner_submission_enabled: bool = False,
         max_spec_age: timedelta = timedelta(seconds=10),
         max_spread_points: Decimal | None = None,
@@ -188,6 +192,7 @@ class FundedNextAccountBoundMt5Gateway(FundedNextMt5ExecutionGateway):
             transport=transport,
             mutation_ledger=mutation_ledger,
             rule_verification=rule_verification,
+            production_binding=production_binding,
             owner_submission_enabled=owner_submission_enabled,
             max_spec_age=max_spec_age,
             max_spread_points=max_spread_points,

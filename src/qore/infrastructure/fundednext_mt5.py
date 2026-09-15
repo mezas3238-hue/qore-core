@@ -24,6 +24,11 @@ from qore.infrastructure.execution_boundary import (
     ExecutionSubmission,
 )
 from qore.infrastructure.fundednext_execution_bridge import extract_risk_provenance
+from qore.infrastructure.fundednext_production_binding import (
+    FundedNextProductionAccountBinding,
+    FundedNextProductionBindingError,
+    validate_fundednext_gateway_account,
+)
 from qore.infrastructure.fundednext_mt5_mutation_ledger import (
     FundedNextMt5MutationLedger,
     FundedNextMt5MutationLedgerError,
@@ -35,10 +40,7 @@ from qore.infrastructure.fundednext_stellar_instant import (
     StellarInstantRuleVerification,
     resolve_pilot_symbol,
 )
-from qore.infrastructure.market_test_environment import (
-    MarketRuntimeEnvironment,
-    MarketTestAccountIdentity,
-)
+from qore.infrastructure.market_test_environment import MarketTestAccountIdentity
 from qore.infrastructure.order_intent import OrderSide, OrderType
 from qore.infrastructure.test_execution_adapter import TestExecutionGatewayReceipt
 from qore.kernel.result import Failure, Result, Success
@@ -252,11 +254,12 @@ class FundedNextMt5ExecutionGateway:
         transport: FundedNextMt5TransportBoundary,
         mutation_ledger: FundedNextMt5MutationLedger,
         rule_verification: StellarInstantRuleVerification,
+        production_binding: FundedNextProductionAccountBinding | None = None,
         owner_submission_enabled: bool = False,
         max_spec_age: timedelta = timedelta(seconds=10),
         max_spread_points: Decimal | None = None,
     ) -> None:
-        _validate_account(account)
+        _validate_account(account, production_binding=production_binding)
         if not isinstance(rule_verification, StellarInstantRuleVerification):
             raise Mt5ExecutionValidationError(
                 "Stellar Instant rule verification must be explicit"
@@ -287,6 +290,7 @@ class FundedNextMt5ExecutionGateway:
         self._transport = transport
         self._ledger = mutation_ledger
         self._rules = rule_verification
+        self._production_binding = production_binding
         self._owner_submission_enabled = owner_submission_enabled
         self._max_spec_age = max_spec_age
         self._max_spread_points = max_spread_points
@@ -813,20 +817,18 @@ def _client_order_id(submission: ExecutionSubmission) -> str:
     return f"qore-{submission.idempotency_key.value.hex[:24]}"
 
 
-def _validate_account(account: MarketTestAccountIdentity) -> None:
-    if not isinstance(account, MarketTestAccountIdentity):
-        raise Mt5ExecutionValidationError("MT5 account identity must be explicit")
-    if account.provider_key != _PROVIDER_KEY:
-        raise Mt5ExecutionValidationError(
-            "MT5 account must use fundednext-stellar-instant-mt5 provider key"
+def _validate_account(
+    account: MarketTestAccountIdentity,
+    *,
+    production_binding: FundedNextProductionAccountBinding | None,
+) -> None:
+    try:
+        validate_fundednext_gateway_account(
+            account,
+            production_binding=production_binding,
         )
-    if account.environment not in {
-        MarketRuntimeEnvironment.DEMO,
-        MarketRuntimeEnvironment.TEST,
-    }:
-        raise Mt5ExecutionValidationError(
-            "FundedNext simulated proprietary account must remain TEST/DEMO in QORE"
-        )
+    except FundedNextProductionBindingError as error:
+        raise Mt5ExecutionValidationError(str(error)) from error
 
 
 def _fresh(observed_at: datetime, now: datetime, max_age: timedelta, name: str) -> None:
