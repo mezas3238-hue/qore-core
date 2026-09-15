@@ -1,10 +1,9 @@
 """Operational CIBO gate for the frozen VT-08 R3.15 Forex capability.
 
-CIBO preserves the independently certified VT-08 methodology and per-trade Risk
-fingerprint. It may request NORMAL/BANK/ATTACK operating posture, but it cannot
-mint capital authority, resize the frozen setup, alter entry/stop/target, or
-override Account-Wide Risk. ATTACK is only a request: sovereign Risk decides
-whether the account has sufficient earned cushion and shared headroom.
+CIBO preserves the independently certified VT-08 methodology, retained portfolio
+sides and per-trade Risk fingerprint. It may request NORMAL/BANK/ATTACK operating
+posture, but it cannot mint capital authority, resize the frozen setup, alter
+entry/stop/target, or override Account-Wide Risk.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from enum import StrEnum
 from hashlib import sha256
 
 from qore.infrastructure.account_wide_risk import AccountWideRiskError
+from qore.infrastructure.fundednext_live_guard import CERTIFIED_LIVE_DIRECTIONS
 
 R315_METHOD_FINGERPRINT = (
     "0c3fe8e1353386f7384a8532c7fe71bbbe9fcfdf1da7530be4b53e01bc59de0d"
@@ -26,7 +26,7 @@ R315_RISK_FINGERPRINT = (
 )
 R315_CIBO_AUTHORITY = "qore-vt08-b01-r315-cibo-authority-v1"
 R315_CIBO_MARKETS = ("AUDJPY", "GBPJPY", "GBPUSD")
-R315_CIBO_VERSION = "r3.15-operational-posture-under-sovereign-risk-v2"
+R315_CIBO_VERSION = "r3.15-operational-posture-under-sovereign-risk-v3"
 
 
 class Vt08ForexCiboDecision(StrEnum):
@@ -69,6 +69,8 @@ class Vt08ForexCiboSetup:
             raise AccountWideRiskError("CIBO market outside R3.15 certification")
         if self.side not in {"long", "short"}:
             raise AccountWideRiskError("CIBO side must be long or short")
+        if self.side not in CERTIFIED_LIVE_DIRECTIONS[self.qore_symbol]:
+            raise AccountWideRiskError("CIBO side outside certified live portfolio")
         if self.entry_type not in {"market", "limit"}:
             raise AccountWideRiskError("CIBO entry type must be market or limit")
         if self.methodology_fingerprint != R315_METHOD_FINGERPRINT:
@@ -120,6 +122,10 @@ def cibo_policy_fingerprint() -> str:
         "methodology_fingerprint": R315_METHOD_FINGERPRINT,
         "risk_policy_fingerprint": R315_RISK_FINGERPRINT,
         "markets": R315_CIBO_MARKETS,
+        "certified_live_directions": {
+            symbol: tuple(sorted(sides))
+            for symbol, sides in sorted(CERTIFIED_LIVE_DIRECTIONS.items())
+        },
         "postures": tuple(item.value for item in Vt08ForexCiboPosture),
         "capital_authority": False,
         "risk_is_final_capital_authority": True,
