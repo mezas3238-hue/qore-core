@@ -128,6 +128,14 @@ jobs:
           readiness = payload["technical_readiness"]
           assert readiness["dynamic_filling_mode_validation_implemented"] is True
           assert readiness["durable_shared_risk_implemented"] is True
+          assert readiness["production_account_authorization_contract_implemented"] is True
+          assert readiness["broker_native_order_check_shadow_implemented"] is True
+          assert readiness["resident_vt08_cibo_risk_runtime_implemented"] is True
+          assert readiness["single_writer_and_stale_lock_recovery_implemented"] is True
+          assert readiness["durable_runtime_heartbeat_implemented"] is True
+          assert readiness["windows_autostart_watchdog_implemented"] is True
+          assert readiness["post_reboot_reconciliation_proof_implemented"] is True
+          assert readiness["ready_for_vps_shadow_closeout"] is True
           assert readiness["ready_for_owner_activation"] is False
           assert readiness["ready_to_operate_stellar_instant"] is False
           assert readiness["actual_account_bound_on_this_sha"] is False
