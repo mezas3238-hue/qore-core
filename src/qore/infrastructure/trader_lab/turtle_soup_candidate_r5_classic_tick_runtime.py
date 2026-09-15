@@ -18,6 +18,9 @@ from qore.infrastructure.ctrader_open_api_client import (
     SpotwareCTraderOpenApiClient,
 )
 from qore.infrastructure.trader_lab import turtle_soup_candidate_r5_classic_tick_probe as tick_probe
+from qore.infrastructure.trader_lab.turtle_soup_candidate_r5_classic_tick_wave1b_targets import (
+    frozen_wave1b_tick_target_manifest,
+)
 
 
 def _admit_historical_tick_messages(client: SpotwareCTraderOpenApiClient) -> None:
@@ -36,14 +39,7 @@ def _admit_historical_tick_messages(client: SpotwareCTraderOpenApiClient) -> Non
 def _decode_tick_page_with_signed_deltas(
     native_ticks: tuple[object, ...], *, digits: int
 ) -> tuple[tick_probe.TurtleSoupR5HistoricalTick, ...]:
-    """Decode the provider's newest-first cumulative tick delta stream.
-
-    cTrader transmits the first timestamp and price as absolute values. Every
-    subsequent timestamp and price is a signed delta from the immediately
-    preceding tick. Because the response is newest-first, timestamp deltas must
-    be non-positive. Zero timestamp deltas are preserved so downstream causal
-    resolution can fail closed when two price events have no observable order.
-    """
+    """Decode the provider's newest-first cumulative tick delta stream."""
 
     decoded: list[tick_probe.TurtleSoupR5HistoricalTick] = []
     previous_ms: int | None = None
@@ -97,11 +93,27 @@ def _install_r5_tick_decoder() -> None:
     setattr(tick_probe, "_decode_tick_page", _decode_tick_page_with_signed_deltas)
 
 
+def _install_target_wave(target_wave: str) -> None:
+    """Select only a frozen R5 acquisition wave before collection starts."""
+
+    if target_wave == "wave1":
+        return
+    if target_wave == "wave1b":
+        setattr(
+            tick_probe,
+            "frozen_tick_target_manifest",
+            frozen_wave1b_tick_target_manifest,
+        )
+        return
+    raise CTraderDemoLabProbeError("unsupported R5 target wave")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--symbol", required=True)
     parser.add_argument("--software-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--target-wave", choices=("wave1", "wave1b"), default="wave1")
     args = parser.parse_args(argv)
 
     credentials = CTraderOpenApiCredentials(
@@ -122,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     client = SpotwareCTraderOpenApiClient(credentials=credentials)
     _admit_historical_tick_messages(client)
     _install_r5_tick_decoder()
+    _install_target_wave(args.target_wave)
     try:
         payload = tick_probe.collect_r5_classic_tick_evidence(
             client,
