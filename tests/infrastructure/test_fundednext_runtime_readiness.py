@@ -86,7 +86,7 @@ def _evidence() -> tuple[dict[str, object], ...]:
 def test_complete_exact_sha_evidence_is_ready_for_owner_activation() -> None:
     module = _load_script()
     no_send, shadow, heartbeat, guard, autostart, reboot = _evidence()
-    build_readiness = getattr(module, "build_readiness")
+    build_readiness = module.build_readiness
     payload = build_readiness(
         git_sha=_SHA,
         no_send=no_send,

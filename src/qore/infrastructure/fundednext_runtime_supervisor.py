@@ -14,11 +14,12 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
-from typing import IO, Sequence
+from typing import IO
 
 
 class FundedNextRuntimeSupervisorError(RuntimeError):
