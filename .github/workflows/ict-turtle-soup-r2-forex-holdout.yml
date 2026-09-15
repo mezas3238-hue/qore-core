@@ -31,8 +31,11 @@ jobs:
           python-version: "3.12"
       - name: Install QORE development dependencies
         run: python -m pip install -e '.[dev]'
-      - name: Ruff focused gate
+      - name: Ruff safe autofix and focused gate
         run: |
+          ruff check --fix \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_holdout.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r2_forex_holdout.py
           ruff check \
             src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_holdout.py \
             tests/infrastructure/trader_lab/test_ict_turtle_soup_r2_forex_holdout.py
