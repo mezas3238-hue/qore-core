@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -28,7 +29,7 @@ def _state() -> FundedNextRuntimeState:
     )
 
 
-def test_runtime_state_round_trips_atomically(tmp_path) -> None:
+def test_runtime_state_round_trips_atomically(tmp_path: Path) -> None:
     store = DurableFundedNextRuntimeStateStore(tmp_path / "state.json")
     assert store.load() is None
     store.store(_state())
@@ -55,7 +56,7 @@ def test_restart_refreshes_service_and_reconciliation_timestamps() -> None:
     assert restarted.processed_anchors == _state().processed_anchors
 
 
-def test_single_writer_lock_rejects_second_runtime(tmp_path) -> None:
+def test_single_writer_lock_rejects_second_runtime(tmp_path: Path) -> None:
     path = tmp_path / "runtime.lock"
     first = SingleWriterRuntimeLock(path)
     second = SingleWriterRuntimeLock(path)
@@ -69,7 +70,7 @@ def test_single_writer_lock_rejects_second_runtime(tmp_path) -> None:
     second.release()
 
 
-def test_single_writer_lock_recovers_stale_crash_pid(tmp_path) -> None:
+def test_single_writer_lock_recovers_stale_crash_pid(tmp_path: Path) -> None:
     path = tmp_path / "runtime.lock"
     path.write_text("99999999\n", encoding="ascii")
     lock = SingleWriterRuntimeLock(path)
