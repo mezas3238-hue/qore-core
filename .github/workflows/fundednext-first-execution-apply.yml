@@ -1,0 +1,62 @@
+name: QORE FundedNext First Execution Closeout Applicator
+
+on:
+  push:
+    branches:
+      - agent/fundednext-first-execution-closeout-001
+    paths:
+      - scripts/first_execution_closeout_patch.py
+      - .github/workflows/fundednext-first-execution-apply.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout closeout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fundednext-first-execution-closeout-001
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply deterministic closeout patch
+        run: python scripts/first_execution_closeout_patch.py
+
+      - name: Show closeout diff
+        run: git diff --check && git status --short && git diff --stat
+
+      - name: Commit closeout patch
+        id: commit
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "qore-closeout-bot"
+          git config user.email "qore-closeout-bot@users.noreply.github.com"
+          git add .
+          git commit -m "close FundedNext first-execution engineering gaps"
+          git push origin HEAD:agent/fundednext-first-execution-closeout-001
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch exact-head pilot gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            --method POST \
+            repos/${{ github.repository }}/actions/workflows/fundednext-stellar-instant-2k-pilot.yml/dispatches \
+            -f ref=agent/fundednext-first-execution-closeout-001
+          echo "Dispatched pilot gate for ${{ steps.commit.outputs.sha }}"
