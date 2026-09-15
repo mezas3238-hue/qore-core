@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
-from typing import Mapping
 
 from qore.infrastructure.ctrader_demo_lab_long_horizon_probe import (
     _collect_period_window,
