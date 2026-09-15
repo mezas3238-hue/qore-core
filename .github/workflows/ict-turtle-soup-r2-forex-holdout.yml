@@ -1,0 +1,110 @@
+name: QORE ICT Turtle Soup R2 Forex Holdout
+
+on:
+  push:
+    branches:
+      - agent/ict-turtle-soup-r2-forex-holdout-001
+    paths:
+      - .github/workflows/ict-turtle-soup-r2-forex-holdout.yml
+      - docs/research/ICT-TURTLE-SOUP-R2-FOREX-HOLDOUT-EXECUTION-FREEZE.md
+      - docs/research/ICT-TURTLE-SOUP-R2-FOREX-HOLDOUT-AMBIGUITY-ADDENDUM.md
+      - src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_holdout.py
+      - tests/infrastructure/trader_lab/test_ict_turtle_soup_r2_forex_holdout.py
+  workflow_dispatch:
+
+concurrency:
+  group: qore-ict-turtle-soup-r2-forex-holdout-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_holdout.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r2_forex_holdout.py
+      - name: Mypy focused gate
+        run: mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_r2_forex_holdout.py
+      - name: Focused holdout semantics tests
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_ict_turtle_soup_r2_forex_holdout.py
+      - name: R2 core regression
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_ict_turtle_soup_r2_all_session.py
+
+  one-shot-holdout:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE
+        run: python -m pip install -e '.[dev]'
+      - name: Download retained Core holdout evidence only
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: mezas3238-hue/qore-core
+          run-id: 34759027136
+          pattern: qore-vt08-r3-15-*-64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222
+          path: artifacts/ict-ts-r2/source
+      - name: Verify retained market evidence count
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(find artifacts/ict-ts-r2/source -name market-evidence.json -type f | wc -l)"
+          test "$count" -eq 7
+      - name: Execute frozen one-shot Forex holdout
+        run: |
+          mkdir -p artifacts/ict-ts-r2/result
+          python -m qore.infrastructure.trader_lab.ict_turtle_soup_r2_forex_holdout \
+            artifacts/ict-ts-r2/source \
+            artifacts/ict-ts-r2/result \
+            > artifacts/ict-ts-r2/result/stdout-report.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/ict-ts-r2/result/git-sha.txt
+      - name: Governance and report invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('artifacts/ict-ts-r2/result/report.json').read_text())
+          assert report['identity'] == 'ICT_TURTLE_SOUP_R2_ALL_SESSION_MULTI_ASSET'
+          assert report['holdout_id'] == 'VT08_R3_15_FINAL_INDEPENDENT_2020_2022'
+          assert report['retained_evidence_only'] is True
+          assert report['fresh_for_ict_turtle_soup_identity'] is True
+          assert report['globally_unseen_data'] is False
+          assert len(report['symbols']) == 7
+          assert report['post_result_rule_change_authorized'] is False
+          assert report['demo_eligible'] is False
+          assert report['live_authorized'] is False
+          assert report['real_capital_authorized'] is False
+          assert report['production_authorized'] is False
+          PY
+      - name: Hash holdout outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/ict-ts-r2/result
+          sha256sum report.json trades.json git-sha.txt > SHA256SUMS.txt
+      - name: Upload immutable holdout result
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-ict-turtle-soup-r2-forex-holdout-${{ github.sha }}
+          path: artifacts/ict-ts-r2/result
+          if-no-files-found: error
+          retention-days: 90
