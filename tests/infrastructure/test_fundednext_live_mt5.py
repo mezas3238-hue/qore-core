@@ -11,6 +11,7 @@ from qore.infrastructure.account_wide_risk import (
     RiskDecision,
     TraderLineage,
 )
+from qore.infrastructure.execution_boundary import ExecutionSubmission
 from qore.infrastructure.fundednext_live_authorization import (
     FundedNextLiveAccountAuthorization,
 )
@@ -88,6 +89,21 @@ class _Result:
     comment: str = ""
 
 
+@dataclass
+class _Order:
+    ticket: int = 0
+    magic: int = 0
+    comment: str = ""
+    state: int = 0
+
+
+@dataclass
+class _Deal:
+    order: int = 0
+    magic: int = 0
+    comment: str = ""
+
+
 class _Api:
     TRADE_ACTION_DEAL = 1
     TRADE_ACTION_PENDING = 5
@@ -116,44 +132,60 @@ class _Api:
         self.sent = 0
         self.checked = 0
 
-    def terminal_info(self):
+    def terminal_info(self) -> _Terminal | None:
         return _Terminal()
 
-    def account_info(self):
+    def account_info(self) -> _Account | None:
         return _Account()
 
-    def symbols_get(self):
+    def symbols_get(self) -> tuple[_Symbol, ...] | None:
         return (_Symbol(),)
 
     def symbol_select(self, symbol: str, enable: bool) -> bool:
         return enable and symbol == "GBPUSD"
 
-    def symbol_info(self, symbol: str):
+    def symbol_info(self, symbol: str) -> _Symbol | None:
         return _Symbol() if symbol == "GBPUSD" else None
 
-    def symbol_info_tick(self, symbol: str):
+    def symbol_info_tick(self, symbol: str) -> _Tick | None:
         return _Tick() if symbol == "GBPUSD" else None
 
-    def order_calc_margin(self, order_type: int, symbol: str, volume: float, price: float):
+    def order_calc_margin(
+        self,
+        order_type: int,
+        symbol: str,
+        volume: float,
+        price: float,
+    ) -> float | None:
         del order_type, symbol, price
         return volume * 50.0
 
-    def order_check(self, request: dict[str, object]):
+    def order_check(self, request: dict[str, object]) -> _Result | None:
+        del request
         self.checked += 1
         return _Result(retcode=0, order=0)
 
-    def order_send(self, request: dict[str, object]):
+    def order_send(self, request: dict[str, object]) -> _Result | None:
+        del request
         self.sent += 1
         return _Result(retcode=self.TRADE_RETCODE_DONE)
 
-    def orders_get(self):
+    def orders_get(self) -> tuple[_Order, ...] | None:
         return ()
 
-    def history_orders_get(self, date_from: datetime, date_to: datetime):
+    def history_orders_get(
+        self,
+        date_from: datetime,
+        date_to: datetime,
+    ) -> tuple[_Order, ...] | None:
         del date_from, date_to
         return ()
 
-    def history_deals_get(self, date_from: datetime, date_to: datetime):
+    def history_deals_get(
+        self,
+        date_from: datetime,
+        date_to: datetime,
+    ) -> tuple[_Deal, ...] | None:
         del date_from, date_to
         return ()
 
@@ -199,7 +231,7 @@ def _rules() -> StellarInstantRuleVerification:
     )
 
 
-def _submission():
+def _submission() -> ExecutionSubmission:
     auth = RiskAuthorization(
         authorization_id="risk-test",
         account_binding_id=_HASH,
@@ -239,7 +271,12 @@ def _submission():
     )
 
 
-def _gateway(api: _Api, *, complete: bool, submission_enabled: bool):
+def _gateway(
+    api: _Api,
+    *,
+    complete: bool,
+    submission_enabled: bool,
+) -> FundedNextLiveMt5ExecutionGateway:
     transport = MetaTrader5FundedNextLiveTransport(
         api=api,
         qore_account_ref="fundednext-stellar-instant-live",
