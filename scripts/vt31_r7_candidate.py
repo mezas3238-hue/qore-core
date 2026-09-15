@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import cast
 
 import vt31_r5_candidate as r5
+
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
     _detect_raid,
     _session_bars,
@@ -131,8 +132,8 @@ def _d(value: float) -> Decimal:
 def _r7_quality(
     prefix: tuple[object, ...], setup: object, reference_width: Decimal
 ) -> bool:
-    instrument = getattr(prefix[0], "instrument")
-    signal_at = getattr(setup, "signal_at")
+    instrument = prefix[0].instrument
+    signal_at = setup.signal_at
     reference = build_reference_range(
         instrument=instrument,
         as_of=signal_at,
@@ -168,10 +169,10 @@ def _r7_quality(
     span = high - low
     if span <= 0:
         return False
-    side = getattr(setup, "side").value
+    side = setup.side.value
     aligned = closed > opened if side == "long" else closed < opened
     confirmation_body_fraction = abs(closed - opened) / span
-    risk = cast(Decimal, getattr(setup, "risk"))
+    risk = cast(Decimal, setup.risk)
     local = signal_at.astimezone(r5.NY)
     signal_minute = local.hour * 60 + local.minute - 10 * 60
     return (
