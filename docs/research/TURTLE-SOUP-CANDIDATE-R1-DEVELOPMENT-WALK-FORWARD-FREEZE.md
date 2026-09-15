@@ -34,7 +34,11 @@ The independent fresh-OOS embargo remains closed at:
 
 No bar with `opened_at >= 2026-03-01T00:00:00Z` may enter setup detection, fill resolution, management, metrics, policy ranking, market selection, or development walk-forward decisions.
 
-Each provider-native D1 source session uses the evidence bar's own `opened_at` and `closed_at` boundaries. The collector represents each fully closed D1 trendbar as the 24-hour source bar beginning at its provider-native open; a weekend or holiday gap between that close and the next provider-native D1 open is **not** part of the preceding session. No missing source session may be synthesized, merged, interpolated, or forward-filled. M15 execution paths must be chronological and contiguous inside the exact D1 evidence interval; otherwise the affected evaluation fails closed/censors rather than fabricating event order.
+The D1 collector has a synthetic nominal `closed_at = opened_at + 24h` because the cTrader native trendbar payload provides the bar open timestamp rather than an independent native close timestamp. Therefore R1 does **not** require 96 M15 bars mechanically and does not merge a D1 bar through a weekend/holiday to the next D1 open.
+
+For causal execution, a D1 session is execution-qualified only when the maximal chronological contiguous M15 path beginning exactly at that D1 `opened_at`, bounded by the nominal D1 interval, reproduces that D1 bar's exact OHLC (`first M15 open`, `max high`, `min low`, `last M15 close`). The reconciled M15 path end is the executable session end. This permits legitimate 23-hour/shortened sessions (for example DST or market-close effects) when the M15 aggregate exactly reconciles to D1, while rejecting partial/missing M15 evidence. A D1 session with no reconciled path cannot be counted as a realized execution session. No missing bar or session may be synthesized, merged, interpolated, or forward-filled.
+
+Provider-native D1 bars remain the source history for the 20-bar reference calculation. A current Classic execution session or a Plus-One next-day execution session whose M15 evidence does not reconcile fails closed. If a required subsequent D1 management bar cannot be execution-qualified/reconciled, the trade is censored rather than skipping the missing session and compressing time.
 
 ## 2. Frozen source configuration
 
@@ -97,7 +101,7 @@ The walk-forward is expanding-window and chronological. The ten fixed policies a
 | WF5 | `< 2025-09-01T00:00:00Z` | `2025-09-01T00:00:00Z` → `< 2025-12-01T00:00:00Z` |
 | WF6 | `< 2025-12-01T00:00:00Z` | `2025-12-01T00:00:00Z` → `< 2026-03-01T00:00:00Z` |
 
-Warm-up/history bars before a test window may be used only to causally establish a signal whose signal/fill belongs to the test window; their realized returns never migrate into the test window.
+Warm-up/history bars before a test window may be used only to causally establish a signal whose fill belongs to the test window; their realized returns never migrate into the test window. Fold assignment is by executable `fill_at`.
 
 ## 6. Frozen development metrics
 
@@ -113,6 +117,7 @@ For each policy and aggregate/per-fold/per-market/per-side views, record at mini
 - win rate;
 - profit factor;
 - max drawdown in net R;
+- worst trade;
 - longest losing sequence;
 - holding bars;
 - market, year and side contribution concentration;
