@@ -6,6 +6,11 @@ import argparse
 import json
 from pathlib import Path
 
+from qore.infrastructure.fundednext_live_guard import (
+    CERTIFIED_LIVE_DIRECTIONS,
+    FINAL_CAUSAL_ENTRY_ANCHOR_NY,
+    FOREX_OPEN_COMMISSION_PER_LOT_USD,
+)
 from qore.infrastructure.fundednext_operational_risk_policy import (
     QORE_INTERNAL_ATTACK_HEAT_FRACTION,
     QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION,
@@ -30,7 +35,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 )
 from qore.infrastructure.vt08_forex_fundednext_sizing import R315_BASE_RISK_BPS
 
-_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v1"
+_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v2"
 
 
 def build_certification(*, git_sha: str) -> dict[str, object]:
@@ -43,12 +48,20 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
         "scope": {
             "trader": "VT08_FOREX",
             "markets": list(R315_CIBO_MARKETS),
+            "certified_live_directions": {
+                symbol: sorted(sides)
+                for symbol, sides in sorted(CERTIFIED_LIVE_DIRECTIONS.items())
+            },
+            "live_causal_entry_anchor_ny": FINAL_CAUSAL_ENTRY_ANCHOR_NY,
             "methodology_fingerprint": R315_METHOD_FINGERPRINT,
             "frozen_trader_risk_fingerprint": R315_RISK_FINGERPRINT,
             "base_risk_bps": {
                 symbol: str(R315_BASE_RISK_BPS[symbol])
                 for symbol in sorted(R315_BASE_RISK_BPS)
             },
+            "opening_commission_per_lot_usd_reserved_in_risk": str(
+                FOREX_OPEN_COMMISSION_PER_LOT_USD
+            ),
         },
         "provider": {
             "program": "STELLAR_INSTANT",
@@ -77,6 +90,8 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
             "qore_internal_headroom_enforced": True,
             "pending_risk_included": True,
             "open_stop_risk_included": True,
+            "broker_executable_price_risk_recheck_required": True,
+            "opening_commission_reserved": True,
             "durable_reservations_required": True,
             "restart_reconciliation_required": True,
         },
