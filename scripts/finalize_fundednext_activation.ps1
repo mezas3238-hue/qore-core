@@ -17,6 +17,9 @@ $Heartbeat = [DateTimeOffset]::Parse([string]$State.heartbeat_at)
 $Reconciled = [DateTimeOffset]::Parse([string]$State.last_reconciliation_at)
 $Task = Get-ScheduledTask -TaskName "QORE-FundedNext-Runtime"
 
+if ([bool]$Pending.activate_live_after_reboot) {
+    throw "reboot readiness proof must remain SHADOW; LIVE activation is separate"
+}
 if ([string]$State.git_sha -ne [string]$Pending.git_sha) { throw "post-reboot SHA mismatch" }
 if ([string]$State.account_identity_fingerprint -ne [string]$Pending.account_identity_fingerprint) {
     throw "post-reboot account fingerprint mismatch"
@@ -32,12 +35,14 @@ $EvidencePath = "$Root\artifacts\fundednext_restart_recovery.json"
 $Evidence = [ordered]@{
     schema = "qore.fundednext.restart-recovery.v1"
     ok = $true
+    mode = "SHADOW_NO_SEND"
     git_sha = [string]$State.git_sha
     account_identity_fingerprint = [string]$State.account_identity_fingerprint
     windows_boot_at = $Boot.ToUniversalTime().ToString("o")
     heartbeat_at = $Heartbeat.ToUniversalTime().ToString("o")
     reconciliation_at = $Reconciled.ToUniversalTime().ToString("o")
     scheduled_task_state = [string]$Task.State
+    order_submission_authorized = $false
     verified_at = [DateTimeOffset]::UtcNow.ToString("o")
 }
 $Evidence | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $EvidencePath
@@ -46,36 +51,21 @@ $RecoveryHash = (Get-FileHash -Algorithm SHA256 -Path $EvidencePath).Hash.ToLowe
 $Activation.restart_recovery_evidence_sha256 = $RecoveryHash
 $Activation.restart_recovery_passed = $true
 $Activation.service_24_7_verified = $true
-if ([bool]$Pending.activate_live_after_reboot) {
-    $Activation.order_submission_authorized = $true
-}
+$Activation.order_submission_authorized = $false
 $Activation.activation_timestamp = [DateTimeOffset]::UtcNow.ToString("o")
 $Activation | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $ActivationPath
 
-if ([bool]$Pending.activate_live_after_reboot) {
-    $Python = (Get-Command python).Source
-    $RuntimeScript = "$Root\scripts\qore_fundednext_runtime.py"
-    $Action = New-ScheduledTaskAction -Execute $Python -Argument "`"$RuntimeScript`" --mode live --activation var/fundednext/live-activation.json" -WorkingDirectory $Root
-    Set-ScheduledTask -TaskName "QORE-FundedNext-Runtime" -Action $Action | Out-Null
-    Stop-ScheduledTask -TaskName "QORE-FundedNext-Runtime" -ErrorAction SilentlyContinue
-    Start-ScheduledTask -TaskName "QORE-FundedNext-Runtime"
-    Start-Sleep -Seconds 20
-    $PostLiveState = Get-Content -Raw $StatePath | ConvertFrom-Json
-    $PostLiveHeartbeat = [DateTimeOffset]::Parse([string]$PostLiveState.heartbeat_at)
-    if (([DateTimeOffset]::UtcNow - $PostLiveHeartbeat).TotalSeconds -gt 120) {
-        throw "live runtime heartbeat failed after activation"
-    }
-}
-
 $Complete = [ordered]@{
-    schema = "qore.fundednext.activation-complete.v1"
+    schema = "qore.fundednext.runtime-closeout.v1"
     git_sha = [string]$State.git_sha
     account_identity_fingerprint = [string]$State.account_identity_fingerprint
     service_24_7_verified = $true
     restart_recovery_passed = $true
-    live_mode_enabled = [bool]$Pending.activate_live_after_reboot
+    shadow_mode_verified = $true
+    live_mode_enabled = $false
+    order_submission_authorized = $false
     completed_at = [DateTimeOffset]::UtcNow.ToString("o")
 }
-$Complete | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 "$Root\artifacts\fundednext_activation_complete.json"
+$Complete | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 "$Root\artifacts\fundednext_runtime_closeout.json"
 Remove-Item $PendingPath -Force
 Unregister-ScheduledTask -TaskName "QORE-FundedNext-PostReboot-Finalize" -Confirm:$false -ErrorAction SilentlyContinue
