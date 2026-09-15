@@ -1,0 +1,94 @@
+name: QORE Turtle Soup Post-R6 Forensics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-post-r6-forensics-001
+    paths:
+      - .github/workflows/turtle-soup-post-r6-forensics.yml
+      - scripts/turtle_soup_post_r6_forensics.py
+      - docs/research/TURTLE-SOUP-POST-R6-FORENSICS-FREEZE.md
+
+concurrency:
+  group: qore-turtle-soup-post-r6-forensics-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  forensics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      R6_RUN: "35023272848"
+      R6_SHA: "2423f1f72005388fb14d916099bef9a1dac96c3b"
+    steps:
+      - name: Checkout exact forensics head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/turtle_soup_post_r6_forensics.py
+
+      - name: Download exact rejected R6 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$R6_RUN" \
+            -n "qore-turtle-soup-r6-reentry-${R6_SHA}" \
+            -D r6-evidence
+          test -f r6-evidence/turtle-soup-r6-report.json
+          test -f r6-evidence/turtle-soup-r6-trades.json
+
+      - name: Hash forensic input
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forensic-output
+          sha256sum \
+            r6-evidence/turtle-soup-r6-report.json \
+            r6-evidence/turtle-soup-r6-trades.json \
+            > forensic-output/input-sha256.txt
+
+      - name: Execute diagnostic forensics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/turtle_soup_post_r6_forensics.py \
+            --r6-report r6-evidence/turtle-soup-r6-report.json \
+            --r6-trades r6-evidence/turtle-soup-r6-trades.json \
+            --output forensic-output/turtle-soup-post-r6-forensics.json
+
+      - name: Enforce governance and structural findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("forensic-output/turtle-soup-post-r6-forensics.json").read_text())
+          assert report["forensics_only"] is True
+          assert report["fresh_oos_consumed"] is False
+          assert report["candidate_selection_authorized"] is False
+          assert report["forensic_verdict"] == "STRUCTURAL_EDGE_FAILURE_NOT_MANAGEMENT_ONLY"
+          assert all(report["cross_policy_invariants"].values())
+          PY
+
+      - name: Upload immutable forensic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-post-r6-forensics-${{ github.sha }}
+          path: forensic-output
+          if-no-files-found: error
+          retention-days: 30
