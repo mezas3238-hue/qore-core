@@ -1,0 +1,92 @@
+name: QORE ICT Turtle Soup R2 Forex Forensics
+
+on:
+  push:
+    branches:
+      - agent/ict-turtle-soup-r2-forex-forensics-001
+    paths:
+      - .github/workflows/ict-turtle-soup-r2-forex-forensics.yml
+      - docs/research/ICT-TURTLE-SOUP-R2-FOREX-FORENSICS-FREEZE.md
+      - scripts/ict_turtle_soup_r2_forex_forensics.py
+  workflow_dispatch:
+
+concurrency:
+  group: qore-ict-turtle-soup-r2-forex-forensics-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  forensics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE dev dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff forensic gate
+        run: ruff check scripts/ict_turtle_soup_r2_forex_forensics.py
+      - name: Syntax gate
+        run: python -m py_compile scripts/ict_turtle_soup_r2_forex_forensics.py
+      - name: Download retained Core market evidence
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: mezas3238-hue/qore-core
+          run-id: 34759027136
+          pattern: qore-vt08-r3-15-*-64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222
+          path: artifacts/forensics/source
+      - name: Download immutable ICT Turtle Soup R2 holdout result
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: mezas3238-hue/qore-core
+          run-id: 35030690033
+          pattern: qore-ict-turtle-soup-r2-forex-holdout-3cb3d789eb73aa346affad7a80fe5214942ca992
+          path: artifacts/forensics/holdout
+      - name: Verify immutable inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find artifacts/forensics/source -name market-evidence.json -type f | wc -l)" -eq 7
+          test "$(find artifacts/forensics/holdout -name trades.json -type f | wc -l)" -eq 1
+          test "$(find artifacts/forensics/holdout -name report.json -type f | wc -l)" -eq 1
+      - name: Execute frozen post-holdout forensics
+        run: |
+          mkdir -p artifacts/forensics/result
+          python scripts/ict_turtle_soup_r2_forex_forensics.py \
+            artifacts/forensics/source \
+            artifacts/forensics/holdout \
+            artifacts/forensics/result \
+            > artifacts/forensics/result/stdout-report.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/forensics/result/git-sha.txt
+      - name: Governance invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('artifacts/forensics/result/forensics-report.json').read_text())
+          assert report['forensics_only'] is True
+          assert report['parent_holdout_run'] == 35030690033
+          assert report['parent_trade_count'] == 5162
+          assert report['candidate_selection_authorized'] is False
+          assert report['post_result_filtering_authorized'] is False
+          assert report['fresh_oos_accessed'] is False
+          PY
+      - name: Hash forensic outputs
+        shell: bash
+        run: |
+          cd artifacts/forensics/result
+          sha256sum forensics-report.json stopped-trades-forensics.json git-sha.txt > SHA256SUMS.txt
+      - name: Upload immutable forensic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-ict-turtle-soup-r2-forex-forensics-${{ github.sha }}
+          path: artifacts/forensics/result
+          if-no-files-found: error
+          retention-days: 90
