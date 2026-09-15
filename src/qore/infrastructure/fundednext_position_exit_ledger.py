@@ -48,9 +48,14 @@ class PositionExitRecord:
                 raise FundedNextPositionExitError(f"{name} required")
         if self.magic <= 0:
             raise FundedNextPositionExitError("magic must be positive")
-        for name, value in (("due_at", self.due_at), ("transitioned_at", self.transitioned_at)):
-            if value.tzinfo is None or value.utcoffset() is None:
-                raise FundedNextPositionExitError(f"{name} must be timezone-aware")
+        for timestamp_name, timestamp_value in (
+            ("due_at", self.due_at),
+            ("transitioned_at", self.transitioned_at),
+        ):
+            if timestamp_value.tzinfo is None or timestamp_value.utcoffset() is None:
+                raise FundedNextPositionExitError(
+                    f"{timestamp_name} must be timezone-aware"
+                )
         if type(self.state) is not PositionExitState:
             raise FundedNextPositionExitError("exit state must be canonical")
 
