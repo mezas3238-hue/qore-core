@@ -8,8 +8,9 @@ fence while adding MT5 ``order_check`` shadow evidence before any live mutation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
 
@@ -76,6 +77,7 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
         qore_account_ref: str,
         expected_login: int,
         expected_server: str,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         super().__init__(
             api=api,
@@ -84,12 +86,25 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
             expected_server=expected_server,
         )
         self._live_api = api
+        self._clock = clock or _system_utc_now
+
+    def account_state(self, account_ref: str) -> Mt5AccountState | None:
+        state = super().account_state(account_ref)
+        if state is None:
+            return None
+        return replace(state, observed_at=self._now())
+
+    def symbol_info(self, provider_symbol: str) -> Mt5SymbolSpecification | None:
+        spec = super().symbol_info(provider_symbol)
+        if spec is None:
+            return None
+        return replace(spec, observed_at=self._now())
 
     def check_order(self, plan: FundedNextMt5OrderPlan) -> FundedNextMt5ShadowReceipt:
         self._require_bound_account()
         request = self._submission_payload(plan)
         result = self._live_api.order_check(request)
-        now = datetime.now().astimezone()
+        now = self._now()
         if result is None:
             return FundedNextMt5ShadowReceipt(
                 client_order_id=plan.client_order_id,
@@ -105,9 +120,19 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
             provider_symbol=plan.provider_symbol,
             broker_valid=valid,
             retcode=int(result.retcode),
-            reason="mt5-order-check-ok" if valid else f"mt5-order-check-retcode-{result.retcode}",
+            reason=(
+                "mt5-order-check-ok"
+                if valid
+                else f"mt5-order-check-retcode-{result.retcode}"
+            ),
             checked_at=now,
         )
+
+    def _now(self) -> datetime:
+        value = self._clock()
+        if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+            raise Mt5ExecutionValidationError("live MT5 clock must be timezone-aware")
+        return value.astimezone(UTC)
 
 
 class FundedNextLiveMt5ExecutionGateway:
@@ -358,7 +383,7 @@ class FundedNextLiveMt5ExecutionGateway:
         return tuple(sorted(resolved))
 
     def _mark_interrupted_attempts_unknown(self) -> None:
-        now = datetime.now().astimezone()
+        now = datetime.now(UTC)
         for _key, record in tuple(self._records.items()):
             if record.state is FundedNextMt5MutationState.ATTEMPT_STARTED:
                 self._persist(
@@ -372,6 +397,10 @@ class FundedNextLiveMt5ExecutionGateway:
     def _persist(self, record: FundedNextMt5MutationRecord) -> None:
         self._ledger.upsert(record)
         self._records[record.idempotency_key] = record
+
+
+def _system_utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 def _validate_geometry(
