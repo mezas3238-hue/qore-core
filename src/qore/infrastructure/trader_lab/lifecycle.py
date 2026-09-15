@@ -41,6 +41,7 @@ class TraderLabState(StrEnum):
     MONTE_CARLO_QUALIFIED = "monte_carlo_qualified"
     RISK_REVIEWED = "risk_reviewed"
     CIBO_REVIEWED = "cibo_reviewed"
+    INDEPENDENTLY_VALIDATED = "independently_validated"
     DEMO_ELIGIBLE = "demo_eligible"
     REJECTED = "rejected"
     DEGRADED = "degraded"
@@ -57,6 +58,7 @@ MANDATORY_STAGES: tuple[TraderLabStage, ...] = (
     TraderLabStage.RISK_REVIEW,
     TraderLabStage.CIBO_REVIEW,
     TraderLabStage.INDEPENDENT_VALIDATION,
+    TraderLabStage.ECONOMIC_EVIDENCE,
 )
 
 _STAGE_TARGET_STATE: dict[TraderLabStage, TraderLabState] = {
@@ -68,7 +70,8 @@ _STAGE_TARGET_STATE: dict[TraderLabStage, TraderLabState] = {
     TraderLabStage.MONTE_CARLO: TraderLabState.MONTE_CARLO_QUALIFIED,
     TraderLabStage.RISK_REVIEW: TraderLabState.RISK_REVIEWED,
     TraderLabStage.CIBO_REVIEW: TraderLabState.CIBO_REVIEWED,
-    TraderLabStage.INDEPENDENT_VALIDATION: TraderLabState.DEMO_ELIGIBLE,
+    TraderLabStage.INDEPENDENT_VALIDATION: TraderLabState.INDEPENDENTLY_VALIDATED,
+    TraderLabStage.ECONOMIC_EVIDENCE: TraderLabState.DEMO_ELIGIBLE,
 }
 
 _STATE_NEXT_STAGE: dict[TraderLabState, TraderLabStage | None] = {
@@ -81,6 +84,7 @@ _STATE_NEXT_STAGE: dict[TraderLabState, TraderLabStage | None] = {
     TraderLabState.MONTE_CARLO_QUALIFIED: TraderLabStage.RISK_REVIEW,
     TraderLabState.RISK_REVIEWED: TraderLabStage.CIBO_REVIEW,
     TraderLabState.CIBO_REVIEWED: TraderLabStage.INDEPENDENT_VALIDATION,
+    TraderLabState.INDEPENDENTLY_VALIDATED: TraderLabStage.ECONOMIC_EVIDENCE,
     TraderLabState.DEMO_ELIGIBLE: None,
     TraderLabState.REJECTED: None,
     TraderLabState.DEGRADED: None,

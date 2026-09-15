@@ -1,0 +1,11 @@
+{
+  "candidate_id": "VT31_R4_TTRADES_NY_REVERSAL_001",
+  "contract_fingerprint": "5bccaf9677fa9a07f3e5827b0d8f186f02bccc11783e67d7473a6cee1de8a41a",
+  "issued_at": "2026-09-14T21:12:00Z",
+  "fresh_acquisition_authorized": true,
+  "retuning_after_open": false,
+  "demo_only": true,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "production_authorized": false
+}

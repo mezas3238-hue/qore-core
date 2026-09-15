@@ -1,0 +1,95 @@
+name: QORE VT-31 R4.1 CISD Rejection Quality
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r4-1-cisd-rejection-quality.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download immutable R4 and market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p r4 evidence/{NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10359912335/zip" > r4.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          echo "b7486398602a31a1e3954e79759a1a590111abb523c8b0124f563a96e0b0b66a  r4.zip" > sums
+          echo "1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip" >> sums
+          echo "bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip" >> sums
+          echo "bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip" >> sums
+          sha256sum -c sums
+          unzip -q r4.zip -d r4
+          for m in NAS100 SP500 US30; do unzip -q "$m.zip" -d "evidence/$m"; done
+      - name: Apply one predeclared source-quality containment
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from datetime import datetime,timedelta
+          from decimal import Decimal
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import _metrics,_quartiles
+          markets=("NAS100","SP500","US30")
+          def dt(x): return datetime.fromisoformat(x.replace("Z","+00:00"))
+          def d(x): return Decimal(str(x))
+          parent=json.loads(Path("r4/vt31-r4-ny-reversal-research.json").read_text())
+          source=parent["results"]["cisd-5m"]["trades"]
+          bars={}
+          for m in markets:
+              raw=json.loads(Path(f"evidence/{m}/market-evidence.json").read_text())
+              bars[m]=[(dt(x["closed_at"]),x) for x in raw["periods"]["M1"]]
+          selected=[]
+          for trade in source:
+              end=dt(trade["signal_at"]); start=end-timedelta(minutes=5)
+              xs=[x for closed,x in bars[trade["market"]] if start<closed<=end]
+              if len(xs)!=5: continue
+              opened=d(xs[0]["open"]); closed=d(xs[-1]["close"])
+              high=max(d(x["high"]) for x in xs); low=min(d(x["low"]) for x in xs)
+              body=abs(closed-opened)
+              if trade["side"]=="long":
+                  aligned=closed>opened; opposing_wick=min(opened,closed)-low
+              else:
+                  aligned=closed<opened; opposing_wick=high-max(opened,closed)
+              if aligned and body>=opposing_wick:
+                  selected.append(trade)
+          selected.sort(key=lambda x:(x["signal_at"],x["market"]))
+          agg=_metrics(selected); stress=_metrics(selected,friction=Decimal(".05"))
+          bym={m:_metrics([t for t in selected if t["market"]==m],friction=Decimal(".05")) for m in markets}
+          bys={s:_metrics([t for t in selected if t["side"]==s],friction=Decimal(".05")) for s in ("long","short")}
+          q=_quartiles(selected); temporal={}
+          for m in markets:
+              own=[t for t in selected if t["market"]==m]
+              for y in sorted({t["local_date"][:4] for t in own}): temporal[f"{m}:{y}"]=_metrics([t for t in own if t["local_date"].startswith(y)],friction=Decimal(".05"))
+          eligible=[x for x in temporal.values() if x["sample"]>=10]
+          gates={"aggregate_sample_at_least_150":agg["sample"]>=150,"each_market_sample_at_least_30":all(x["sample"]>=30 for x in bym.values()),"aggregate_stressed_mean_positive":Decimal(stress["mean_r"])>0,"aggregate_stressed_pf_at_least_1_10":stress["profit_factor"] is not None and Decimal(stress["profit_factor"])>=Decimal("1.10"),"aggregate_stressed_dd_at_most_20r":Decimal(stress["max_drawdown_r"])<=20,"every_market_stressed_mean_positive":all(Decimal(x["mean_r"])>0 for x in bym.values()),"both_sides_stressed_mean_positive":all(x["sample"] and Decimal(x["mean_r"])>0 for x in bys.values()),"three_of_four_quartiles_positive":sum(Decimal(x["mean_r"])>0 for x in q)>=3,"two_thirds_eligible_temporal_blocks_positive":bool(eligible) and sum(Decimal(x["mean_r"])>0 for x in eligible)*3>=len(eligible)*2}
+          contract={"parent_fingerprint":parent["contract_fingerprint"],"source":"https://ttrades.com/how-to-use-smt-divergence-ttrades-fractal-model/","quality":"CISD-confirmation-body-direction-aligned-and-body-at-least-opposing-wick","numeric_optimized_threshold":False,"markets":list(markets),"hypothesis_count":1}
+          result={"aggregate":agg,"stress_0_05r":stress,"market_stress":bym,"side_stress":bys,"quartiles":q,"temporal_blocks":temporal,"gates":gates,"survivor":all(gates.values()),"trades":selected}
+          report={"schema":"qore.trader_lab.vt31_r4_1_cisd_quality_research.v1","software_sha":"${{ github.sha }}","research_only":True,"consumed_evidence_only":True,"fresh_evidence_opened":False,"contract":contract,"contract_fingerprint":hashlib.sha256(json.dumps(contract,sort_keys=True,separators=(",",":")).encode()).hexdigest(),"result":result,"adjudication":"CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE" if result["survivor"] else "VT31_R4_1_CANDIDATE_NOT_JUSTIFIED","candidate_frozen":False,"demo_eligible":False,"live_authorized":False,"real_capital_authorized":False,"production_authorized":False}
+          Path("vt31-r4-1-cisd-quality-research.json").write_text(json.dumps(report,sort_keys=True,separators=(",",":"))+"\n")
+          print(json.dumps({"adjudication":report["adjudication"],"aggregate":agg,"stress":stress,"markets":{m:x["mean_r"] for m,x in bym.items()},"samples":{m:x["sample"] for m,x in bym.items()},"sides":{s:x["mean_r"] for s,x in bys.items()},"positive_quartiles":sum(Decimal(x["mean_r"])>0 for x in q),"failed":[g for g,p in gates.items() if not p]},sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r4-1-cisd-quality-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r4-1-cisd-quality-${{ github.sha }}
+          path: |
+            vt31-r4-1-cisd-quality-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,51 @@
+name: QORE VT-31 R2.5 Compact Adjudication
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r2-5-compact-adjudication.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Read exact adjudication artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350477574/zip" > adjudication.zip
+          echo "591cdb1e99bbd0e592c64c61e0e8aa9780cde657ff1933c4d6162431e2afcc09  adjudication.zip" | sha256sum --check
+          unzip -q adjudication.zip -d adjudication
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("adjudication/vt31-r2-5-adjudication.json").read_text())
+          compact = {}
+          for variant_id, item in report["variants"].items():
+              eligible = [b for b in item["temporal_blocks"].values() if b["sample"] >= 10]
+              compact[variant_id] = {
+                  "aggregate": item["aggregate"],
+                  "stress_0_05r": item["stress_0_05r"],
+                  "market_stressed_mean": {k: v["mean_r"] for k, v in item["market_stress"].items()},
+                  "side_stressed_mean": {k: v["mean_r"] for k, v in item["side_stress"].items()},
+                  "positive_quartiles": sum(float(q["mean_r"]) > 0 for q in item["quartiles"]),
+                  "eligible_temporal_blocks": len(eligible),
+                  "positive_eligible_temporal_blocks": sum(float(b["mean_r"]) > 0 for b in eligible),
+                  "failed_gates": sorted(k for k, value in item["gates"].items() if not value),
+              }
+          print("VT31_COMPACT=" + json.dumps({
+              "adjudication": report["adjudication"],
+              "survivors": report["survivors"],
+              "variants": compact,
+          }, sort_keys=True, separators=(",", ":")))
+          PY

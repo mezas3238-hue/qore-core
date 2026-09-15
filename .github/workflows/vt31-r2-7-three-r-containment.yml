@@ -1,0 +1,178 @@
+name: QORE VT-31 R2.7 Source-Anchored 3R Containment
+
+on:
+  push:
+    branches: [agent/vt31-r2-5-multi-index-validation-001]
+    paths:
+      - .github/workflows/vt31-r2-7-three-r-containment.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install package
+        run: pip install -e .
+      - name: Download exact R2.6 consumed research
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10355074492/zip" > r26.zip
+          echo "f7c8d5d539623371b861569dbf859d86d8225a81effe0add4017e3db28f6d37a  r26.zip" | sha256sum --check
+          unzip -q r26.zip -d r26
+      - name: Test sole predeclared 3R containment
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
+              _metrics,
+              _quartiles,
+          )
+
+          markets = ("NAS100", "SP500", "US30")
+          variant_id = "all-families-nearest-retracement:near-stop"
+          reports = {
+              market: json.loads(Path(f"r26/{market}.json").read_text())
+              for market in markets
+          }
+          trades = []
+          market_stress = {}
+          temporal = {}
+          for market in markets:
+              selected = [
+                  dict(item, market=market)
+                  for item in reports[market]["variants"][variant_id]["trades"]
+                  if Decimal(item["planned_r"]) >= Decimal(3)
+              ]
+              trades.extend(selected)
+              market_stress[market] = _metrics(
+                  selected, friction=Decimal("0.05")
+              )
+              years = sorted({item["local_date"][:4] for item in selected})
+              for year in years:
+                  block = [
+                      item for item in selected
+                      if item["local_date"].startswith(year)
+                  ]
+                  temporal[f"{market}:{year}"] = _metrics(block)
+          trades.sort(key=lambda item: (item["filled_at"], item["market"]))
+          aggregate = _metrics(trades)
+          stressed = _metrics(trades, friction=Decimal("0.05"))
+          side_stress = {
+              side: _metrics(
+                  [item for item in trades if item["side"] == side],
+                  friction=Decimal("0.05"),
+              )
+              for side in ("long", "short")
+          }
+          quartiles = _quartiles(trades)
+          eligible = [
+              block for block in temporal.values() if block["sample"] >= 10
+          ]
+          positive_blocks = sum(
+              Decimal(block["mean_r"]) > 0 for block in eligible
+          )
+          gates = {
+              "aggregate_sample_at_least_150": aggregate["sample"] >= 150,
+              "each_market_sample_at_least_30": all(
+                  item["sample"] >= 30 for item in market_stress.values()
+              ),
+              "aggregate_stressed_mean_positive": Decimal(
+                  stressed["mean_r"]
+              ) > 0,
+              "aggregate_stressed_pf_at_least_1_10": (
+                  stressed["profit_factor"] is not None
+                  and Decimal(stressed["profit_factor"]) >= Decimal("1.10")
+              ),
+              "aggregate_stressed_dd_at_most_20r": Decimal(
+                  stressed["max_drawdown_r"]
+              ) <= Decimal(20),
+              "every_market_stressed_mean_positive": all(
+                  Decimal(item["mean_r"]) > 0
+                  for item in market_stress.values()
+              ),
+              "both_sides_stressed_mean_positive": all(
+                  item["sample"] > 0 and Decimal(item["mean_r"]) > 0
+                  for item in side_stress.values()
+              ),
+              "three_of_four_quartiles_positive": sum(
+                  Decimal(item["mean_r"]) > 0 for item in quartiles
+              ) >= 3,
+              "two_thirds_eligible_temporal_blocks_positive": (
+                  bool(eligible)
+                  and positive_blocks * 3 >= len(eligible) * 2
+              ),
+          }
+          contract = {
+              "parent_variant": variant_id,
+              "entry_families": ["breaker", "fair-value-gap", "order-block"],
+              "selector": "nearest-still-valid-retracement",
+              "zone_location": "near-stop",
+              "minimum_planned_r": "3",
+              "minimum_planned_r_basis": "source-management-3R-boundary",
+              "source_rule": False,
+              "markets": list(markets),
+              "sides": ["long", "short"],
+              "stress_r_per_trade": "0.05",
+          }
+          fingerprint = hashlib.sha256(
+              json.dumps(
+                  contract, sort_keys=True, separators=(",", ":")
+              ).encode()
+          ).hexdigest()
+          passed = all(gates.values())
+          report = {
+              "schema": "qore.trader_lab.vt31_r2_7_three_r_research.v1",
+              "software_sha": "${{ github.sha }}",
+              "research_only": True,
+              "hypothesis_count": 1,
+              "contract": contract,
+              "fingerprint": fingerprint,
+              "aggregate": aggregate,
+              "stress_0_05r": stressed,
+              "market_stress": market_stress,
+              "side_stress": side_stress,
+              "quartiles": quartiles,
+              "temporal_blocks": temporal,
+              "gates": gates,
+              "survivor": passed,
+              "adjudication": (
+                  "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE"
+                  if passed
+                  else "VT31_R2_7_CANDIDATE_NOT_JUSTIFIED"
+              ),
+              "candidate_frozen": False,
+              "fresh_validation": "NOT_RUN_RESEARCH_STAGE",
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          Path("vt31-r2-7-three-r-research.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
+          )
+          print("VT31_R2_7=" + json.dumps(report, sort_keys=True, separators=(",", ":")))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r2-7-three-r-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r2-7-three-r-${{ github.sha }}
+          path: |
+            vt31-r2-7-three-r-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90

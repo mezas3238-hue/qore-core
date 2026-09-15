@@ -1,0 +1,444 @@
+name: QORE VT-31 R5 Consumed Quality Research
+
+on:
+  push:
+    branches: [agent/vt31-r5-silver-bullet-quality-research-001]
+    paths:
+      - .github/workflows/vt31-r5-consumed-quality-research.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      QORE_SOFTWARE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - name: Download immutable consumed VT-31 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p old recent/{NAS100,SP500,US30}
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10370226830/zip" > old.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350575547/zip" > NAS100.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10351435307/zip" > SP500.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10350622506/zip" > US30.zip
+          cat > sums <<'EOF'
+          8682da07cfa1898d60d5b1db1ed5b4c828f66711cacf6a1bc149bb1f7c997233  old.zip
+          1a16adc1485ce7f77666fde2261a36dd62beea8cfea1f3a5abcea176a3902cea  NAS100.zip
+          bcdc7a346cb3a618b277934d21e9ed30583f814c0645862dd48cd8ca3a5a1fc1  SP500.zip
+          bdfc75724433162bd4d079f581543c09aad75f35406a7a3d2985cd205c89b96c  US30.zip
+          EOF
+          sed -i 's/^          //' sums
+          sha256sum -c sums
+          unzip -q old.zip -d old
+          for m in NAS100 SP500 US30; do unzip -q "$m.zip" -d "recent/$m"; done
+          (cd old && sha256sum -c SHA256SUMS)
+      - name: Replay finite R5 quality family on consumed evidence only
+        run: |
+          python - <<'PY'
+          import gc
+          import hashlib
+          import json
+          import os
+          from collections import defaultdict
+          from datetime import UTC, datetime
+          from decimal import Decimal
+          from pathlib import Path
+          from typing import cast
+          from zoneinfo import ZoneInfo
+
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
+              _day,
+              _metrics,
+              _quartiles,
+              _wall,
+              load_market_evidence,
+          )
+          from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_6_composite_entry_research import (
+              Vt31R26Variant,
+              _evaluate,
+          )
+          from qore.infrastructure.traders.contracts import DemoTradingSetupSide
+          from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
+              _detect_raid,
+              _session_bars,
+              _structure,
+              build_reference_range,
+          )
+
+          NY = ZoneInfo("America/New_York")
+          MARKETS = ("NAS100", "SP500", "US30")
+          FRICTION = Decimal("0.05")
+          BASE_VARIANT = Vt31R26Variant("near-stop")
+
+          # Finite, predeclared, symmetric quality family.  No side or market deletion.
+          # Numeric geometry/timing limits are QORE empirical containment, not TTrades claims.
+          VARIANTS = {
+              "early15-risk25": lambda f: True,
+              "early15-risk25-directional-confirmation": lambda f: f["aligned"],
+              "early15-risk25-cisd-body-vs-wick": lambda f: f["aligned"] and f["body"] >= f["opposing_wick"],
+              "early15-risk25-body50": lambda f: f["aligned"] and f["body_fraction"] >= Decimal("0.50"),
+              "early15-risk25-shallow25": lambda f: f["sweep_depth"] <= Decimal("0.25"),
+              "early15-risk25-cisd-body-vs-wick-shallow25": lambda f: f["aligned"] and f["body"] >= f["opposing_wick"] and f["sweep_depth"] <= Decimal("0.25"),
+          }
+
+          def dec(value: float) -> Decimal:
+              return Decimal(str(value))
+
+          def touch(bar, price: Decimal) -> bool:
+              return dec(bar.low) <= price <= dec(bar.high)
+
+          def opposing(bar, side: str) -> bool:
+              return dec(bar.close) < dec(bar.open) if side == "long" else dec(bar.close) > dec(bar.open)
+
+          def new_protected(candles, index: int, side: str, current_stop: Decimal, current_close: Decimal) -> Decimal:
+              if index < 2:
+                  return current_stop
+              start = index - 1
+              if not opposing(candles[start], side):
+                  return current_stop
+              while start > 0 and opposing(candles[start - 1], side):
+                  start -= 1
+              if start == 0:
+                  return current_stop
+              series = candles[start:index]
+              swept = (
+                  min(dec(x.low) for x in series) < dec(candles[start - 1].low)
+                  if side == "long"
+                  else max(dec(x.high) for x in series) > dec(candles[start - 1].high)
+              )
+              crossed = (
+                  dec(candles[index].close) > dec(series[0].open)
+                  if side == "long"
+                  else dec(candles[index].close) < dec(series[0].open)
+              )
+              if not swept or not crossed:
+                  return current_stop
+              proposed = (
+                  min(dec(x.low) for x in series)
+                  if side == "long"
+                  else max(dec(x.high) for x in series)
+              )
+              if side == "long" and current_stop < proposed < current_close:
+                  return proposed
+              if side == "short" and current_close < proposed < current_stop:
+                  return proposed
+              return current_stop
+
+          def setup_quality(prefix, setup, reference_width: Decimal) -> dict[str, object] | None:
+              reference = build_reference_range(
+                  instrument=prefix[0].instrument,
+                  as_of=setup.signal_at,
+                  bars=tuple(prefix),
+              )
+              if reference is None:
+                  return None
+              session = _session_bars(setup.signal_at, tuple(prefix))
+              raid = _detect_raid(session, reference)
+              if raid is None or (raid.high_taken and raid.low_taken):
+                  return None
+              structure = _structure(session, raid)
+              if structure is None:
+                  return None
+              confirmation_index, _, extreme, _ = structure
+              confirmation = session[confirmation_index]
+              side = setup.side.value
+              opened = dec(confirmation.open)
+              closed = dec(confirmation.close)
+              high = dec(confirmation.high)
+              low = dec(confirmation.low)
+              body = abs(closed - opened)
+              span = high - low
+              aligned = closed > opened if side == "long" else closed < opened
+              opposing_wick = (
+                  min(opened, closed) - low
+                  if side == "long"
+                  else high - max(opened, closed)
+              )
+              boundary = reference.low if side == "long" else reference.high
+              sweep_depth = (
+                  (boundary - extreme) / reference_width
+                  if side == "long"
+                  else (extreme - boundary) / reference_width
+              )
+              return {
+                  "aligned": aligned,
+                  "body": body,
+                  "opposing_wick": opposing_wick,
+                  "body_fraction": body / span if span > 0 else Decimal(0),
+                  "sweep_depth": max(Decimal(0), sweep_depth),
+              }
+
+          def simulate(day_bars, signal_index: int, setup):
+              side = setup.side.value
+              entry = setup.entry
+              initial_stop = setup.stop
+              risk = abs(entry - initial_stop)
+              if risk <= 0:
+                  return None
+              target = entry + Decimal(2) * risk if side == "long" else entry - Decimal(2) * risk
+              fill_index = None
+              # Pending LIMIT survives decision but expires at 11:00 NY.
+              for index in range(signal_index + 1, len(day_bars)):
+                  bar = day_bars[index]
+                  if _wall(bar.opened_at) >= (11, 0, 0):
+                      break
+                  if index > signal_index + 1 and bar.opened_at != day_bars[index - 1].closed_at:
+                      return None
+                  if touch(bar, entry):
+                      fill_index = index
+                      break
+              if fill_index is None:
+                  return None
+              current_stop = initial_stop
+              candles = day_bars
+              # Conservative unknown path on fill bar.
+              first = candles[fill_index]
+              hit_stop = dec(first.low) <= current_stop if side == "long" else dec(first.high) >= current_stop
+              hit_target = dec(first.high) >= target if side == "long" else dec(first.low) <= target
+              if hit_stop or hit_target:
+                  return None
+              resolved_at = None
+              reason = None
+              terminal = None
+              previous = first
+              for index in range(fill_index + 1, len(candles)):
+                  bar = candles[index]
+                  local = bar.opened_at.astimezone(NY)
+                  if local.hour * 60 + local.minute >= 16 * 60:
+                      break
+                  if bar.opened_at != previous.closed_at:
+                      return None
+                  previous = bar
+                  hit_stop = dec(bar.low) <= current_stop if side == "long" else dec(bar.high) >= current_stop
+                  hit_target = dec(bar.high) >= target if side == "long" else dec(bar.low) <= target
+                  if hit_stop and hit_target:
+                      return None
+                  if hit_stop:
+                      terminal = (current_stop - entry) / risk if side == "long" else (entry - current_stop) / risk
+                      reason = "protected-stop"
+                      resolved_at = bar.closed_at
+                      break
+                  if hit_target:
+                      terminal = Decimal(2)
+                      reason = "fixed-2r-target"
+                      resolved_at = bar.closed_at
+                      break
+                  current_stop = new_protected(candles, index, side, current_stop, dec(bar.close))
+              if terminal is None:
+                  eligible = [x for x in candles if x.opened_at.astimezone(NY).hour * 60 + x.opened_at.astimezone(NY).minute < 16 * 60]
+                  if not eligible:
+                      return None
+                  final = eligible[-1]
+                  terminal = (dec(final.close) - entry) / risk if side == "long" else (entry - dec(final.close)) / risk
+                  reason = "16:00-lifecycle"
+                  resolved_at = final.closed_at
+              return {
+                  "market": setup.variant.variant_id.split(":")[0],  # overwritten by caller
+                  "local_date": _day(setup.signal_at).isoformat(),
+                  "side": side,
+                  "signal_at": setup.signal_at.astimezone(UTC).isoformat(),
+                  "filled_at": candles[fill_index].closed_at.astimezone(UTC).isoformat(),
+                  "exit_at": resolved_at.astimezone(UTC).isoformat(),
+                  "entry": format(entry, "f"),
+                  "initial_stop": format(initial_stop, "f"),
+                  "target": format(target, "f"),
+                  "exit_reason": reason,
+                  "r_multiple": format(terminal, "f"),
+              }
+
+          all_trades = {name: [] for name in VARIANTS}
+          diagnostics = {name: defaultdict(int) for name in VARIANTS}
+          evidence_meta = []
+
+          evidence_sets = (
+              ("old", {m: Path(f"old/fresh/{m}/market-evidence.json") for m in MARKETS}),
+              ("recent", {m: Path(f"recent/{m}/market-evidence.json") for m in MARKETS}),
+          )
+          for tranche, paths in evidence_sets:
+              for market in MARKETS:
+                  series, account, fingerprint, checked_at, software_sha, provider = load_market_evidence(paths[market])
+                  evidence_meta.append({
+                      "tranche": tranche,
+                      "market": market,
+                      "account_fingerprint": account,
+                      "evidence_fingerprint": fingerprint,
+                      "checked_at": checked_at.astimezone(UTC).isoformat(),
+                      "evidence_software_sha": software_sha,
+                      "provider_symbol_name": provider,
+                      "bar_count": len(series),
+                      "first_opened_at": series[0].opened_at.astimezone(UTC).isoformat(),
+                      "last_closed_at": series[-1].closed_at.astimezone(UTC).isoformat(),
+                  })
+                  by_day = defaultdict(list)
+                  for bar in series:
+                      by_day[_day(bar.opened_at)].append(bar)
+                  for local_day in sorted(by_day):
+                      day = tuple(by_day[local_day])
+                      reference = tuple(x for x in day if (9, 0, 0) <= _wall(x.opened_at) < (10, 0, 0))
+                      session = tuple((i, x) for i, x in enumerate(day) if (10, 0, 0) <= _wall(x.opened_at) < (11, 0, 0))
+                      if len(reference) != 60 or len(session) != 60:
+                          continue
+                      ref_high = max(dec(x.high) for x in reference)
+                      ref_low = min(dec(x.low) for x in reference)
+                      ref_width = ref_high - ref_low
+                      if ref_width <= 0:
+                          continue
+                      prefix = list(reference)
+                      selected = None
+                      selected_global_index = None
+                      selected_quality = None
+                      for global_index, bar in session:
+                          prefix.append(bar)
+                          selected, _ = _evaluate(
+                              instrument=bar.instrument,
+                              as_of=bar.closed_at,
+                              bars=tuple(prefix),
+                              variant=BASE_VARIANT,
+                          )
+                          if selected is None:
+                              continue
+                          local_signal = selected.signal_at.astimezone(NY)
+                          signal_minutes = local_signal.hour * 60 + local_signal.minute - 10 * 60
+                          risk_ratio = selected.risk / ref_width
+                          if signal_minutes > 15 or risk_ratio > Decimal("0.25"):
+                              selected = None
+                              # Fail closed for this day: first causal executable setup does not satisfy frozen quality.
+                              break
+                          selected_global_index = global_index
+                          selected_quality = setup_quality(prefix, selected, ref_width)
+                          break
+                      if selected is None or selected_global_index is None or selected_quality is None:
+                          continue
+                      trade = simulate(day, selected_global_index, selected)
+                      if trade is None:
+                          continue
+                      trade["market"] = market
+                      trade["tranche"] = tranche
+                      trade["risk_to_reference"] = format(selected.risk / ref_width, "f")
+                      trade["signal_minutes_after_10"] = selected.signal_at.astimezone(NY).hour * 60 + selected.signal_at.astimezone(NY).minute - 10 * 60
+                      trade["confirmation_body_fraction"] = format(cast(Decimal, selected_quality["body_fraction"]), "f")
+                      trade["sweep_depth_fraction"] = format(cast(Decimal, selected_quality["sweep_depth"]), "f")
+                      for name, predicate in VARIANTS.items():
+                          if predicate(selected_quality):
+                              all_trades[name].append(dict(trade))
+                          else:
+                              diagnostics[name]["quality-filtered"] += 1
+                  del by_day, series
+                  gc.collect()
+
+          def assess(trades):
+              trades.sort(key=lambda x: (x["signal_at"], x["market"]))
+              aggregate = _metrics(trades)
+              stress = _metrics(trades, friction=FRICTION)
+              by_market = {m: _metrics([t for t in trades if t["market"] == m], friction=FRICTION) for m in MARKETS}
+              by_side = {s: _metrics([t for t in trades if t["side"] == s], friction=FRICTION) for s in ("long", "short")}
+              quartiles = _quartiles(trades)
+              temporal = {}
+              for m in MARKETS:
+                  own = [t for t in trades if t["market"] == m]
+                  for year in sorted({t["local_date"][:4] for t in own}):
+                      temporal[f"{m}:{year}"] = _metrics([t for t in own if t["local_date"].startswith(year)], friction=FRICTION)
+              eligible = [x for x in temporal.values() if x["sample"] >= 10]
+              gates = {
+                  "aggregate_sample_at_least_150": aggregate["sample"] >= 150,
+                  "each_market_sample_at_least_30": all(x["sample"] >= 30 for x in by_market.values()),
+                  "aggregate_stressed_mean_positive": Decimal(stress["mean_r"]) > 0,
+                  "aggregate_stressed_pf_at_least_1_10": stress["profit_factor"] is not None and Decimal(stress["profit_factor"]) >= Decimal("1.10"),
+                  "aggregate_stressed_dd_at_most_20r": Decimal(stress["max_drawdown_r"]) <= Decimal(20),
+                  "every_market_stressed_mean_positive": all(Decimal(x["mean_r"]) > 0 for x in by_market.values()),
+                  "both_sides_stressed_mean_positive": all(x["sample"] > 0 and Decimal(x["mean_r"]) > 0 for x in by_side.values()),
+                  "three_of_four_quartiles_positive": sum(Decimal(x["mean_r"]) > 0 for x in quartiles) >= 3,
+                  "two_thirds_eligible_temporal_blocks_positive": bool(eligible) and sum(Decimal(x["mean_r"]) > 0 for x in eligible) * 3 >= len(eligible) * 2,
+              }
+              return {
+                  "aggregate": aggregate,
+                  "stress_0_05r": stress,
+                  "market_stress": by_market,
+                  "side_stress": by_side,
+                  "quartiles": quartiles,
+                  "temporal_blocks": temporal,
+                  "gates": gates,
+                  "survivor": all(gates.values()),
+                  "trades": trades,
+              }
+
+          results = {name: assess(trades) for name, trades in all_trades.items()}
+          survivors = [name for name, result in results.items() if result["survivor"]]
+          contract = {
+              "identity": "VT31-R5-SILVER-BULLET-QUALITY-RESEARCH-001",
+              "methodology_sources": [
+                  "youtube:o0v4KQxZbpU",
+                  "https://ttrades.com/the-am-silver-bullet-strategy-on-nq/",
+                  "https://ttrades.com/stop-loss-mastery-using-protected-swings-for-precise-invalidations/",
+                  "https://ttrades.com/protected-swings-and-cisd-how-to-trail-your-stop-loss/",
+              ],
+              "base_setup": "R2.6-all-families-nearest-retracement-near-stop",
+              "reference": "09:00-10:00-America/New_York",
+              "setup_window": "10:00-11:00-America/New_York",
+              "entry": "nearest-still-valid-near-stop-zone-across-breaker-fvg-order-block",
+              "stop": "raid-extreme-no-buffer",
+              "target": "fixed-2R",
+              "management": "M1-protected-swing-trail",
+              "lifecycle": "16:00-America/New_York",
+              "qore_geometry_containment": {
+                  "first_executable_setup_decision_at_or_before": "10:15-America/New_York",
+                  "initial_risk_over_09_range_at_most": "0.25",
+              },
+              "quality_hypotheses": list(VARIANTS),
+              "markets": list(MARKETS),
+              "identical_configuration_across_markets": True,
+              "friction_r_per_trade": "0.05",
+              "consumed_evidence_only": True,
+              "fresh_evidence_opened": False,
+          }
+          report = {
+              "schema": "qore.trader_lab.vt31_r5_consumed_quality_research.v1",
+              "software_sha": os.environ["GITHUB_SHA"],
+              "contract": contract,
+              "contract_fingerprint": hashlib.sha256(json.dumps(contract, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+              "evidence": evidence_meta,
+              "results": results,
+              "survivors": survivors,
+              "adjudication": "CANDIDATE_JUSTIFIED_FOR_SEPARATE_FREEZE" if len(survivors) == 1 else ("MULTIPLE_RESEARCH_SURVIVORS_REQUIRE_PREDECLARED_SELECTION" if survivors else "VT31_R5_RESEARCH_NO_SURVIVOR"),
+              "candidate_frozen": False,
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          Path("vt31-r5-consumed-quality-research.json").write_text(json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n")
+          print(json.dumps({
+              "adjudication": report["adjudication"],
+              "survivors": survivors,
+              "summary": {
+                  name: {
+                      "stress": result["stress_0_05r"],
+                      "markets": {m: x["mean_r"] for m, x in result["market_stress"].items()},
+                      "market_samples": {m: x["sample"] for m, x in result["market_stress"].items()},
+                      "sides": {s: x["mean_r"] for s, x in result["side_stress"].items()},
+                      "positive_quartiles": sum(Decimal(x["mean_r"]) > 0 for x in result["quartiles"]),
+                      "failed": [gate for gate, passed in result["gates"].items() if not passed],
+                  }
+                  for name, result in results.items()
+              },
+          }, sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-r5-consumed-quality-research.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-r5-consumed-quality-research-${{ github.sha }}
+          path: |
+            vt31-r5-consumed-quality-research.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
