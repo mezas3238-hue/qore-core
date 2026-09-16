@@ -1,0 +1,128 @@
+name: QORE ICT Turtle Soup CIBO Diagnostics V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/ict-turtle-soup-behavior-lab-v1-001
+    paths:
+      - '.github/workflows/ict-turtle-soup-cibo-diagnostics-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_diagnostics_v1.py'
+      - 'tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_diagnostics_v1.py'
+      - 'docs/research/ICT-TURTLE-SOUP-CIBO-DIAGNOSTICS-V1-*'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE development dependencies
+        run: pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_diagnostics_v1.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_diagnostics_v1.py
+      - name: Mypy focused gate
+        run: mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_diagnostics_v1.py
+      - name: Focused CIBO diagnostics tests
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_diagnostics_v1.py
+      - name: Contract governance assertion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('docs/research/ICT-TURTLE-SOUP-CIBO-DIAGNOSTICS-V1-CONTRACT.md').read_text()
+          assert 'No conclusion may jump directly from E0/E1 to E4.' in text
+          assert 'DEMO_ELIGIBLE=false' in text
+          assert 'LIVE_AUTHORIZED=false' in text
+          assert 'REAL_CAPITAL_AUTHORIZED=false' in text
+          assert 'PRODUCTION_AUTHORIZED=false' in text
+          PY
+
+  consumed-holdout-diagnostics:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE
+        run: pip install -e .
+      - name: Download authoritative Behavior Lab artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: mezas3238-hue/qore-core
+          run-id: 35125861002
+          name: qore-ict-ts-behavior-lab-v1-fx-pilot-4d09a43aa5795624b4a7cb29bb2503ae586c5a4f
+          path: evidence/behavior-lab
+      - name: Download authoritative R5 aggregate artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: mezas3238-hue/qore-core
+          run-id: 35118222306
+          name: qore-ict-ts-r5-aggregate-9beb2f8147db2b9fb780bc4cc28e2cdb05b7851e
+          path: evidence/r5
+      - name: Verify frozen evidence files
+        run: |
+          test -f evidence/behavior-lab/events.csv
+          test -f evidence/r5/trades.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          trades = json.loads(Path('evidence/r5/trades.json').read_text())
+          assert len(trades) == 12, len(trades)
+          PY
+      - name: Run CIBO over consumed R5 holdout
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.ict_turtle_soup_cibo_diagnostics_v1 \
+            evidence/r5/trades.json \
+            evidence/behavior-lab/events.csv \
+            artifacts/cibo-diagnostics \
+            > artifacts/cibo-stdout.json
+      - name: Enforce CIBO evidence and authority boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('artifacts/cibo-diagnostics/summary.json').read_text())
+          assert p['identity'] == 'ICT_TS_CIBO_DIAGNOSTICS_V1'
+          assert p['holdout_id'] == 'ICT_TS_R5_FRESH_2016_2018'
+          assert p['trade_count'] == 12
+          assert p['exact_d1_matches'] == 12
+          assert p['exact_h4_matches'] == 12
+          assert p['approximate_matching_used'] is False
+          assert p['evidence_status'] == 'CONSUMED_DIAGNOSTIC_ONLY'
+          assert p['cibo_authority_ceiling'] == 'opinion'
+          g = p['governance']
+          assert g['pnl_used_for_filter_selection'] is False
+          assert g['candidate_rule_created'] is False
+          assert g['demo_eligible'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          assert g['production_authorized'] is False
+          print(json.dumps(p, indent=2, sort_keys=True))
+          PY
+      - name: Hash immutable CIBO diagnostic artifact
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > artifacts/cibo-diagnostics/git-sha.txt
+          cd artifacts/cibo-diagnostics
+          sha256sum cibo-trade-ledger.json cibo-trade-ledger.csv summary.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-ict-ts-cibo-diagnostics-v1-${{ github.sha }}
+          path: artifacts/cibo-diagnostics
+          if-no-files-found: error
+          retention-days: 90
