@@ -69,6 +69,7 @@ class AvailabilityManifest:
     earliest_verified_m5: str | None
     latest_verified_m5: str | None
     earliest_verified_month: str | None
+    yearly_probe_count: int
     monthly_probe_count: int
     months_with_data: int
     months_without_data_after_first_observation: int
@@ -117,6 +118,10 @@ def _next_month(value: datetime) -> datetime:
     return datetime(value.year, value.month + 1, 1, tzinfo=UTC)
 
 
+def _year_start(value: datetime) -> datetime:
+    return datetime(value.year, 1, 1, tzinfo=UTC)
+
+
 def month_grid(start: datetime, end: datetime) -> tuple[tuple[datetime, datetime], ...]:
     cursor = _month_start(start)
     result: list[tuple[datetime, datetime]] = []
@@ -124,6 +129,16 @@ def month_grid(start: datetime, end: datetime) -> tuple[tuple[datetime, datetime
         nxt = min(_next_month(cursor), end)
         result.append((cursor, nxt))
         cursor = _next_month(cursor)
+    return tuple(result)
+
+
+def year_grid(start: datetime, end: datetime) -> tuple[tuple[datetime, datetime], ...]:
+    cursor = _year_start(start)
+    result: list[tuple[datetime, datetime]] = []
+    while cursor < end:
+        nxt = min(datetime(cursor.year + 1, 1, 1, tzinfo=UTC), end)
+        result.append((cursor, nxt))
+        cursor = datetime(cursor.year + 1, 1, 1, tzinfo=UTC)
     return tuple(result)
 
 
@@ -212,6 +227,34 @@ def _refine_first_day(
     return None
 
 
+def _unavailable_manifest(symbol_name: str) -> AvailabilityManifest:
+    return AvailabilityManifest(
+        schema=SCHEMA,
+        identity=IDENTITY,
+        symbol_requested=symbol_name,
+        symbol_status="UNAVAILABLE_EXACT_SYMBOL",
+        provider_symbol_name=None,
+        provider_symbol_id=None,
+        digits=None,
+        probe_floor=PROBE_FLOOR.isoformat(),
+        frozen_close=FROZEN_CLOSE.isoformat(),
+        earliest_verified_m5=None,
+        latest_verified_m5=None,
+        earliest_verified_month=None,
+        yearly_probe_count=0,
+        monthly_probe_count=0,
+        months_with_data=0,
+        months_without_data_after_first_observation=0,
+        observed_years=(),
+        contiguous_from_earliest_month=None,
+        read_only=True,
+        demo_eligible=False,
+        live_authorized=False,
+        real_capital_authorized=False,
+        production_authorized=False,
+    )
+
+
 def discover_symbol(symbol_name: str) -> tuple[AvailabilityManifest, tuple[ProbeWindow, ...]]:
     if symbol_name not in TARGET_SYMBOLS:
         raise ValueError(f"symbol outside frozen atlas scope: {symbol_name}")
@@ -240,33 +283,8 @@ def discover_symbol(symbol_name: str) -> tuple[AvailabilityManifest, tuple[Probe
             None,
         )
         if selected is None:
-            return (
-                AvailabilityManifest(
-                    schema=SCHEMA,
-                    identity=IDENTITY,
-                    symbol_requested=symbol_name,
-                    symbol_status="UNAVAILABLE_EXACT_SYMBOL",
-                    provider_symbol_name=None,
-                    provider_symbol_id=None,
-                    digits=None,
-                    probe_floor=PROBE_FLOOR.isoformat(),
-                    frozen_close=FROZEN_CLOSE.isoformat(),
-                    earliest_verified_m5=None,
-                    latest_verified_m5=None,
-                    earliest_verified_month=None,
-                    monthly_probe_count=0,
-                    months_with_data=0,
-                    months_without_data_after_first_observation=0,
-                    observed_years=(),
-                    contiguous_from_earliest_month=None,
-                    read_only=True,
-                    demo_eligible=False,
-                    live_authorized=False,
-                    real_capital_authorized=False,
-                    production_authorized=False,
-                ),
-                (),
-            )
+            return _unavailable_manifest(symbol_name), ()
+
         symbol_id = _native_int(selected, "symbolId")
         details = client.request(
             "ProtoOASymbolByIdReq",
@@ -288,7 +306,48 @@ def discover_symbol(symbol_name: str) -> tuple[AvailabilityManifest, tuple[Probe
             raise RuntimeError("exact symbol details missing")
         digits = _native_int(detail, "digits")
 
-        windows = tuple(
+        yearly_windows = tuple(
+            _probe_window(
+                client,
+                account_id=account_id,
+                symbol_id=symbol_id,
+                opened_at=opened,
+                closed_at=closed,
+                client_msg_id=f"cibo-atlas-year:{symbol_id}:{index}",
+            )
+            for index, (opened, closed) in enumerate(year_grid(PROBE_FLOOR, FROZEN_CLOSE))
+        )
+        observed_year_windows = tuple(item for item in yearly_windows if item.has_data)
+        if not observed_year_windows:
+            manifest = AvailabilityManifest(
+                schema=SCHEMA,
+                identity=IDENTITY,
+                symbol_requested=symbol_name,
+                symbol_status="NO_M5_HISTORY_OBSERVED",
+                provider_symbol_name=str(getattr(selected, "symbolName")),
+                provider_symbol_id=symbol_id,
+                digits=digits,
+                probe_floor=PROBE_FLOOR.isoformat(),
+                frozen_close=FROZEN_CLOSE.isoformat(),
+                earliest_verified_m5=None,
+                latest_verified_m5=None,
+                earliest_verified_month=None,
+                yearly_probe_count=len(yearly_windows),
+                monthly_probe_count=0,
+                months_with_data=0,
+                months_without_data_after_first_observation=0,
+                observed_years=(),
+                contiguous_from_earliest_month=None,
+                read_only=True,
+                demo_eligible=False,
+                live_authorized=False,
+                real_capital_authorized=False,
+                production_authorized=False,
+            )
+            return manifest, ()
+
+        first_year_open = observed_year_windows[0].opened_at
+        monthly_windows = tuple(
             _probe_window(
                 client,
                 account_id=account_id,
@@ -297,9 +356,9 @@ def discover_symbol(symbol_name: str) -> tuple[AvailabilityManifest, tuple[Probe
                 closed_at=closed,
                 client_msg_id=f"cibo-atlas-month:{symbol_id}:{index}",
             )
-            for index, (opened, closed) in enumerate(month_grid(PROBE_FLOOR, FROZEN_CLOSE))
+            for index, (opened, closed) in enumerate(month_grid(first_year_open, FROZEN_CLOSE))
         )
-        observed = tuple(item for item in windows if item.has_data)
+        observed = tuple(item for item in monthly_windows if item.has_data)
         earliest_month = observed[0].opened_at if observed else None
         earliest = (
             _refine_first_day(
@@ -314,14 +373,14 @@ def discover_symbol(symbol_name: str) -> tuple[AvailabilityManifest, tuple[Probe
         )
         latest = observed[-1].last_bar_at if observed else None
         first_observed_index = next(
-            (index for index, item in enumerate(windows) if item.has_data), None
+            (index for index, item in enumerate(monthly_windows) if item.has_data), None
         )
         missing_after = (
-            sum(not item.has_data for item in windows[first_observed_index:])
+            sum(not item.has_data for item in monthly_windows[first_observed_index:])
             if first_observed_index is not None
             else 0
         )
-        contiguous = first_contiguous_month(windows)
+        contiguous = first_contiguous_month(monthly_windows)
         manifest = AvailabilityManifest(
             schema=SCHEMA,
             identity=IDENTITY,
@@ -335,7 +394,8 @@ def discover_symbol(symbol_name: str) -> tuple[AvailabilityManifest, tuple[Probe
             earliest_verified_m5=None if earliest is None else earliest.isoformat(),
             latest_verified_m5=None if latest is None else latest.isoformat(),
             earliest_verified_month=None if earliest_month is None else earliest_month.isoformat(),
-            monthly_probe_count=len(windows),
+            yearly_probe_count=len(yearly_windows),
+            monthly_probe_count=len(monthly_windows),
             months_with_data=len(observed),
             months_without_data_after_first_observation=missing_after,
             observed_years=tuple(sorted({item.opened_at.year for item in observed})),
@@ -348,7 +408,7 @@ def discover_symbol(symbol_name: str) -> tuple[AvailabilityManifest, tuple[Probe
             real_capital_authorized=False,
             production_authorized=False,
         )
-        return manifest, windows
+        return manifest, monthly_windows
     finally:
         client.close()
 
