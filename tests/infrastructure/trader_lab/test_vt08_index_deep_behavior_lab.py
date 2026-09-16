@@ -13,7 +13,12 @@ from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected impor
 )
 
 
-def _row(signal_at: str, primary_r: str, *, symbol: str = "NAS100") -> dict[str, object]:
+def _row(
+    signal_at: str,
+    primary_r: str,
+    *,
+    symbol: str = "NAS100",
+) -> dict[str, object]:
     return {
         "signal_at": signal_at,
         "symbol": symbol,
@@ -32,7 +37,9 @@ def _row(signal_at: str, primary_r: str, *, symbol: str = "NAS100") -> dict[str,
         "primary_r": primary_r,
         "secondary_r": str(float(primary_r) - 0.05),
         "mfe_r_conservative": "0.25" if primary_r.startswith("-") else "2",
-        "stop_excursion_bucket": "lt_0_5r" if primary_r.startswith("-") else "not-stop",
+        "stop_excursion_bucket": (
+            "lt_0_5r" if primary_r.startswith("-") else "not-stop"
+        ),
         "duration_bucket": "le_2h",
         "target_outcomes_raw_r": {
             "0.5": "0.5",
@@ -92,10 +99,22 @@ def test_stop_taxonomy_is_market_specific() -> None:
 def test_combined_report_is_diagnostic_only_and_bound_to_v7() -> None:
     report = {
         "window_id": "w1",
-        "partition": {"start_date": "2020-01-01", "end_date_exclusive": "2020-07-01"},
-        "metrics_primary": {"sample": 1, "mean_r": "1.95", "profit_factor": None, "max_drawdown_r": "0"},
+        "partition": {
+            "start_date": "2020-01-01",
+            "end_date_exclusive": "2020-07-01",
+        },
+        "metrics_primary": {
+            "sample": 1,
+            "mean_r": "1.95",
+            "profit_factor": None,
+            "max_drawdown_r": "0",
+        },
         "opportunity_funnel": {
-            "overall": {"opportunities": 2, "signals": 1, "stages": {"signal": 1, "no-cisd": 1}}
+            "overall": {
+                "opportunities": 2,
+                "signals": 1,
+                "stages": {"signal": 1, "no-cisd": 1},
+            }
         },
         "trades": [_row("2020-01-01T14:00:00+00:00", "1.95")],
     }
