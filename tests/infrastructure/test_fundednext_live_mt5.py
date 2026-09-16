@@ -46,6 +46,8 @@ _HASH = "b" * 64
 @dataclass
 class _Terminal:
     connected: bool = True
+    trade_allowed: bool = True
+    tradeapi_disabled: bool = False
 
 
 @dataclass
@@ -56,6 +58,8 @@ class _Account:
     equity: float = 2000.0
     margin: float = 0.0
     margin_free: float = 2000.0
+    trade_allowed: bool = True
+    trade_expert: bool = True
 
 
 @dataclass

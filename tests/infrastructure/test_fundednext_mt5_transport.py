@@ -22,6 +22,8 @@ _NOW = datetime(2026, 9, 14, 4, 0, tzinfo=UTC)
 @dataclass
 class _Terminal:
     connected: bool = True
+    trade_allowed: bool = True
+    tradeapi_disabled: bool = False
 
 
 @dataclass
@@ -32,6 +34,8 @@ class _Account:
     equity: float = 1995.0
     margin: float = 20.0
     margin_free: float = 1975.0
+    trade_allowed: bool = True
+    trade_expert: bool = True
 
 
 @dataclass
@@ -221,6 +225,34 @@ def test_wrong_terminal_identity_fails_closed_before_broker_mutation() -> None:
     api.account.server = "Other-Server"
     assert transport.account_state("fn-si-opaque-001") is None
     with pytest.raises(Mt5ExecutionBlockedError, match="server-mismatch"):
+        transport.submit_order(_plan())
+    assert api.last_request is None
+
+
+def test_mutation_requires_terminal_python_and_account_trade_permissions() -> None:
+    api = _Api()
+    transport = _transport(api)
+
+    api.terminal.trade_allowed = False
+    with pytest.raises(Mt5ExecutionBlockedError, match="terminal-trading-disabled"):
+        transport.submit_order(_plan())
+    assert api.last_request is None
+
+    api.terminal.trade_allowed = True
+    api.terminal.tradeapi_disabled = True
+    with pytest.raises(Mt5ExecutionBlockedError, match="python-trading-disabled"):
+        transport.submit_order(_plan())
+    assert api.last_request is None
+
+    api.terminal.tradeapi_disabled = False
+    api.account.trade_allowed = False
+    with pytest.raises(Mt5ExecutionBlockedError, match="account-trading-disabled"):
+        transport.submit_order(_plan())
+    assert api.last_request is None
+
+    api.account.trade_allowed = True
+    api.account.trade_expert = False
+    with pytest.raises(Mt5ExecutionBlockedError, match="account-expert-trading-disabled"):
         transport.submit_order(_plan())
     assert api.last_request is None
 

@@ -34,6 +34,8 @@ _SYMBOL_FILLING_IOC_FLAG = 2
 
 class Mt5TerminalInfoLike(Protocol):
     connected: bool
+    trade_allowed: bool
+    tradeapi_disabled: bool
 
 
 class Mt5AccountInfoLike(Protocol):
@@ -43,6 +45,8 @@ class Mt5AccountInfoLike(Protocol):
     equity: float
     margin: float
     margin_free: float
+    trade_allowed: bool
+    trade_expert: bool
 
 
 class Mt5SymbolInfoLike(Protocol):
@@ -242,7 +246,7 @@ class MetaTrader5FundedNextTransport:
         self,
         plan: FundedNextMt5OrderPlan,
     ) -> FundedNextMt5TransportReceipt:
-        self._require_bound_account()
+        self._require_mutation_permission()
         if not isinstance(plan, FundedNextMt5OrderPlan):
             raise Mt5ExecutionValidationError("MT5 transport requires canonical plan")
         request = self._submission_payload(plan)
@@ -298,7 +302,7 @@ class MetaTrader5FundedNextTransport:
         client_order_id: str,
         cancelled_at: datetime,
     ) -> FundedNextMt5TransportReceipt:
-        self._require_bound_account()
+        self._require_mutation_permission()
         try:
             ticket = int(provider_order_ref)
         except ValueError as error:
@@ -408,6 +412,21 @@ class MetaTrader5FundedNextTransport:
             raise Mt5ExecutionBlockedError("mt5-account-login-mismatch")
         if account.server != self._expected_server:
             raise Mt5ExecutionBlockedError("mt5-account-server-mismatch")
+        return account
+
+    def _require_mutation_permission(self) -> Mt5AccountInfoLike:
+        terminal = self._api.terminal_info()
+        if terminal is None or not bool(terminal.connected):
+            raise Mt5ExecutionBlockedError("mt5-disconnected")
+        if not bool(terminal.trade_allowed):
+            raise Mt5ExecutionBlockedError("mt5-terminal-trading-disabled")
+        if bool(terminal.tradeapi_disabled):
+            raise Mt5ExecutionBlockedError("mt5-python-trading-disabled")
+        account = self._require_bound_account()
+        if not bool(account.trade_allowed):
+            raise Mt5ExecutionBlockedError("mt5-account-trading-disabled")
+        if not bool(account.trade_expert):
+            raise Mt5ExecutionBlockedError("mt5-account-expert-trading-disabled")
         return account
 
     def _submission_payload(self, plan: FundedNextMt5OrderPlan) -> dict[str, object]:
