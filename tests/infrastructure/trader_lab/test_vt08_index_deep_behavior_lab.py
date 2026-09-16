@@ -97,7 +97,7 @@ def test_stop_taxonomy_is_market_specific() -> None:
 
 
 def test_combined_report_is_diagnostic_only_and_bound_to_v7() -> None:
-    report = {
+    report: dict[str, object] = {
         "window_id": "w1",
         "partition": {
             "start_date": "2020-01-01",
