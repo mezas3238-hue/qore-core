@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from zoneinfo import ZoneInfo
 
-import vt31_r8_sparse_reference_forensics as sparse
 import cibo_atlas_vt31_pre_departure_structure_lab as lab
+import vt31_r8_sparse_reference_forensics as sparse
 
 
 def main() -> None:
-    setattr(sparse, "NY", ZoneInfo("America/New_York"))
+    sparse.NY = ZoneInfo("America/New_York")
     lab.main()
 
 
