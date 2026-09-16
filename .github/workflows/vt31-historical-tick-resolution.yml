@@ -1,0 +1,53 @@
+name: QORE VT-31 Historical Tick Resolution
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Compile and test tick-page chronology
+        run: |
+          python -m py_compile scripts/vt31_historical_tick_probe.py
+          python - <<'PY'
+          from scripts.vt31_historical_tick_probe import _decode_page
+
+          class Tick:
+              def __init__(self, timestamp: int, tick: int) -> None:
+                  self.timestamp = timestamp
+                  self.tick = tick
+
+          decoded = _decode_page((
+              Tick(1_700_000_000_500, 123456),
+              Tick(200, 123450),
+              Tick(150, 123440),
+          ))
+          assert [x.timestamp_ms for x in decoded] == [
+              1_700_000_000_500,
+              1_700_000_000_300,
+              1_700_000_000_150,
+          ]
+          assert [x.relative_price for x in decoded] == [123456, 123450, 123440]
+          PY
+      - name: Governance guard
+        run: |
+          grep -q 'research_only' scripts/vt31_historical_tick_probe.py
+          grep -q 'opens_new_holdout' scripts/vt31_historical_tick_probe.py
+          grep -q 'BID' scripts/vt31_historical_tick_probe.py
+          grep -q 'ASK' scripts/vt31_historical_tick_probe.py
