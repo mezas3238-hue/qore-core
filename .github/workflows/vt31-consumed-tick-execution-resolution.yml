@@ -1,0 +1,116 @@
+name: QORE VT-31 Consumed Tick Execution Resolution
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  resolve-consumed-ambiguity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e .
+          python -m py_compile scripts/vt31_tick_execution_resolution.py
+          python scripts/vt31_tick_execution_resolution.py --self-test
+      - name: Recover and verify bound 437-window BID ASK evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429417732/zip" > bound-ticks.zip
+          echo "71255ebcdeeb9b278ca0f1aea3e98dd4fc1a75bb10f4b3020529a79e3aeee2ed  bound-ticks.zip" | sha256sum -c -
+          mkdir source-ticks
+          unzip -q bound-ticks.zip -d source-ticks
+          test -f source-ticks/acquisition/vt31-historical-tick-acquisition-summary.json
+          test -d source-ticks/acquisition/windows
+          test "$(cat source-ticks/acquisition/git-sha.txt)" = "3d939789f8dd5b7e4c59920bd8e37e76189100a5"
+          test "$(cat source-ticks/acquisition/source-manifest-artifact-id.txt)" = "10425626147"
+          test "$(cat source-ticks/source-acquisition-run-id.txt)" = "35051448655"
+          test "$(cat source-ticks/source-acquisition-artifact-id.txt)" = "10429442649"
+          test "$(cat source-ticks/source-acquisition-zip-sha256.txt)" = "09cf6ce6ddc62fc221d693a29be7e728dbbbbe1994935400667d30017bb53a16"
+          (cd source-ticks/acquisition && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('source-ticks/acquisition')
+          p=json.loads((root/'vt31-historical-tick-acquisition-summary.json').read_text())
+          assert p['source_window_count'] == 437
+          assert p['available'] == 437
+          assert all(p[k] == 0 for k in ('partial','empty','probe_failure','binding_mismatch'))
+          assert len(p['results']) == 437
+          assert len(list((root/'windows').glob('*.json'))) == 437
+          PY
+      - name: Recover immutable 437-window source manifest
+        run: |
+          set -euo pipefail
+          mkdir source-manifest
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10425626147/zip" > source-manifest.zip
+          unzip -q source-manifest.zip -d source-manifest
+          test "$(cat source-manifest/git-sha.txt)" = "493825d2b14946a6ddffe36f6c472fa5d0c3187e"
+          (cd source-manifest && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('source-manifest/vt31-historical-tick-windows.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert len(p['windows']) == 437
+          assert p['counts']['r5']['total'] == 157
+          assert p['counts']['r6']['total'] == 159
+          assert p['counts']['r8_fresh']['total'] == 121
+          PY
+      - name: Resolve consumed same-M1 ambiguity from executable quote sides
+        run: |
+          set -euo pipefail
+          mkdir resolution
+          python scripts/vt31_tick_execution_resolution.py \
+            --manifest source-manifest/vt31-historical-tick-windows.json \
+            --acquisition-dir source-ticks/acquisition \
+            --output resolution/vt31-tick-execution-resolution.json
+      - name: Validate fail-closed resolution inventory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('resolution/vt31-tick-execution-resolution.json').read_text())
+          assert p['schema'] == 'qore.vt31.consumed_tick_execution_resolution.v1'
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_window_count'] == 437
+          assert len(p['results']) == 437
+          assert len({row['window_id'] for row in p['results']}) == 437
+          assert sum(p['counts'].values()) == 437
+          forbidden={'unresolved-acquisition-not-available','unresolved-missing-quote-side'}
+          assert not forbidden.intersection(p['counts'])
+          print(json.dumps(p['counts'], sort_keys=True))
+          PY
+      - name: Bind immutable resolution artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > resolution/git-sha.txt
+          echo "10429417732" > resolution/source-bound-tick-artifact-id.txt
+          echo "71255ebcdeeb9b278ca0f1aea3e98dd4fc1a75bb10f4b3020529a79e3aeee2ed" > resolution/source-bound-tick-zip-sha256.txt
+          echo "10425626147" > resolution/source-manifest-artifact-id.txt
+          (cd resolution && sha256sum vt31-tick-execution-resolution.json git-sha.txt source-bound-tick-artifact-id.txt source-bound-tick-zip-sha256.txt source-manifest-artifact-id.txt > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-consumed-tick-execution-resolution-${{ github.sha }}
+          path: resolution/
+          retention-days: 90
