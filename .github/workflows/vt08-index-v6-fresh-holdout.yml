@@ -49,7 +49,7 @@ jobs:
           git diff --name-only "$FREEZE_SHA" "$GITHUB_SHA" | sort > /tmp/actual
           sort /tmp/expected -o /tmp/expected
           diff -u /tmp/expected /tmp/actual
-          python - <<'PY'
+          PYTHONPATH=src python - <<'PY'
           from qore.infrastructure.trader_lab.vt08_index_v6_ttrades_source_faithful import RULE_FINGERPRINT
           import os
           assert RULE_FINGERPRINT == os.environ["FROZEN_RULE_FINGERPRINT"]
