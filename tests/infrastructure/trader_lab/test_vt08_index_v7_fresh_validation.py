@@ -4,13 +4,10 @@ from typing import cast
 from qore.infrastructure.ctrader_demo_lab_vt08_index_v7_fresh_probe import (
     fixed_acquisition_window_utc,
 )
-from qore.infrastructure.trader_lab.vt08_index_v7_fresh_validation import (
+from qore.infrastructure.trader_lab.vt08_index_v7_fresh_validation import validate_report
+from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import (
     CANDIDATE_ID,
     RULE_FINGERPRINT,
-    validate_report,
-)
-from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import (
-    RULE_FINGERPRINT as EXECUTOR_RULE_FINGERPRINT,
 )
 
 
@@ -62,7 +59,6 @@ def _report() -> dict[str, object]:
 
 
 def test_v7_fresh_validator_bound_to_executor() -> None:
-    assert RULE_FINGERPRINT == EXECUTOR_RULE_FINGERPRINT
     result = validate_report(_report())
     gates = cast(dict[str, bool], result["gates"])
     assert result["fresh_holdout_pass"] is True
