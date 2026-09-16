@@ -4,6 +4,7 @@ on:
   push:
     branches: [agent/cibo-atlas-vt31-market-specialists-001]
     paths:
+      - scripts/cibo_atlas_vt31_pre_departure_structure_driver.py
       - .github/workflows/cibo-atlas-vt31-pre-departure-lab-v2.yml
   workflow_dispatch:
 
@@ -28,10 +29,10 @@ jobs:
       - name: Static validation
         run: |
           set -euo pipefail
-          python -m py_compile scripts/cibo_atlas_vt31_pre_departure_structure_lab.py scripts/cibo_atlas_vt31_pre_departure_timing_lab.py
-          ruff check --ignore E501,SLF001,UP035,I001 scripts/cibo_atlas_vt31_pre_departure_structure_lab.py scripts/cibo_atlas_vt31_pre_departure_timing_lab.py
+          python -m py_compile scripts/cibo_atlas_vt31_pre_departure_structure_lab.py scripts/cibo_atlas_vt31_pre_departure_structure_driver.py scripts/cibo_atlas_vt31_pre_departure_timing_lab.py
+          ruff check --ignore E501,SLF001,UP035,I001 scripts/cibo_atlas_vt31_pre_departure_structure_lab.py scripts/cibo_atlas_vt31_pre_departure_structure_driver.py scripts/cibo_atlas_vt31_pre_departure_timing_lab.py
           mypy src/qore/infrastructure/cibo_atlas_market_lab.py
-          python scripts/cibo_atlas_vt31_pre_departure_structure_lab.py --self-test
+          python scripts/cibo_atlas_vt31_pre_departure_structure_driver.py --self-test
           python scripts/cibo_atlas_vt31_pre_departure_timing_lab.py --self-test
       - name: Recover immutable root-cause attribution
         run: |
@@ -75,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir result
-          python scripts/cibo_atlas_vt31_pre_departure_structure_lab.py \
+          python scripts/cibo_atlas_vt31_pre_departure_structure_driver.py \
             --attribution attribution/cibo-atlas-vt31-root-cause-attribution.json \
             --r8-fresh-nas100 evidence-r8/fresh/NAS100/market-evidence.json \
             --r8-fresh-sp500 evidence-r8/fresh/SP500/market-evidence.json \
