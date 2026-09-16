@@ -1,0 +1,152 @@
+name: VT08 Index V7 Source Corrected Hardening
+
+on:
+  push:
+    branches: [agent/vt08-index-v7-source-correction-001]
+    paths:
+      - .github/workflows/vt08-index-v7-source-corrected-hardening.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py
+      - tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+      - docs/research/VT08-INDEX-V7-SOURCE-CORRECTION-FORENSICS-FREEZE-001.md
+      - docs/research/VT08-INDEX-V7-STOP-TARGET-FORENSICS-001.md
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - name: Focused V7 tests
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  consumed-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+
+      - name: Download consumed 2020-22 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v6-fresh-*-0f992b3709c3d5d5d938e722ce434653c487734b
+          path: artifacts/v6fresh
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35054539866
+
+      - name: Download consumed 2022-23 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v3-fresh-decision-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/v3
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+
+      - name: Download consumed 2023-24 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-r2-decision-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/v2
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+
+      - name: Download consumed 2024-26 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-v2-source-executable-*-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/dev
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Execute V7 consumed replays
+        shell: bash
+        run: |
+          set -euo pipefail
+          fresh_nas="$(find artifacts/v6fresh -path '*NAS100*' -name market-evidence.json -print -quit)"
+          fresh_sp="$(find artifacts/v6fresh -path '*SP500*' -name market-evidence.json -print -quit)"
+          fresh_us="$(find artifacts/v6fresh -path '*US30*' -name market-evidence.json -print -quit)"
+          dev_nas="$(find artifacts/dev -path '*NAS100*' -name market-evidence.json -print -quit)"
+          dev_sp="$(find artifacts/dev -path '*SP500*' -name market-evidence.json -print -quit)"
+          dev_us="$(find artifacts/dev -path '*US30*' -name market-evidence.json -print -quit)"
+          test -n "$fresh_nas" && test -n "$fresh_sp" && test -n "$fresh_us"
+          test -n "$dev_nas" && test -n "$dev_sp" && test -n "$dev_us"
+          mkdir -p artifacts/report
+
+          python -m qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected \
+            --nas100 "$fresh_nas" --sp500 "$fresh_sp" --us30 "$fresh_us" \
+            --start-date 2020-09-15 --end-date-exclusive 2022-09-15 \
+            --expected-software-sha 0f992b3709c3d5d5d938e722ce434653c487734b \
+            --minimum-evidence-days 730 \
+            --out artifacts/report/2020_22.json
+
+          python -m qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected \
+            --nas100 artifacts/v3/truncated/NAS100.json \
+            --sp500 artifacts/v3/truncated/SP500.json \
+            --us30 artifacts/v3/truncated/US30.json \
+            --start-date 2022-09-15 --end-date-exclusive 2023-09-15 \
+            --expected-software-sha 106a34282fe8eac2f8c466bcc8502d4ec8d73855 \
+            --minimum-evidence-days 350 \
+            --out artifacts/report/2022_23.json
+
+          python -m qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected \
+            --nas100 artifacts/v2/truncated/NAS100.json \
+            --sp500 artifacts/v2/truncated/SP500.json \
+            --us30 artifacts/v2/truncated/US30.json \
+            --start-date 2023-09-15 --end-date-exclusive 2024-08-13 \
+            --expected-software-sha 58dd289646de8814449f836ad617a51342eba0da \
+            --minimum-evidence-days 300 \
+            --out artifacts/report/2023_24.json
+
+          python -m qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected \
+            --nas100 "$dev_nas" --sp500 "$dev_sp" --us30 "$dev_us" \
+            --start-date 2024-08-13 --end-date-exclusive 2026-09-12 \
+            --expected-software-sha a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 \
+            --minimum-evidence-days 700 \
+            --out artifacts/report/2024_26.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for name in ('2020_22','2022_23','2023_24','2024_26'):
+              p=json.loads(Path(f'artifacts/report/{name}.json').read_text())
+              assert p['candidate_id']=='VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001'
+              assert p['rules']['executable_h4_anchors_new_york']==[22,2,6,10]
+              assert p['rules']['source_day_synthesized_ohlc'] is False
+              print(name, json.dumps({
+                  'raw':p['metrics_raw'],
+                  'primary':p['metrics_primary_stress'],
+                  'secondary':p['metrics_secondary_stress'],
+                  'markets':p['by_market_primary_stress'],
+                  'anchors':p['by_anchor_primary_stress'],
+                  'models':p['by_model_primary_stress'],
+                  'sessions':{k:v['session_reconstruction'] for k,v in p['market_reports'].items()},
+              },sort_keys=True))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/report/git-sha.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v7-hardening-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
