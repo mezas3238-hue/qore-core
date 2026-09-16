@@ -1,0 +1,103 @@
+name: QORE VT-31 Initial Pending Later Ambiguity
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-initial-pending-later-ambiguity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  resolve-one:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install tick research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+          python -m py_compile scripts/vt31_consumed_tick_manifest_acquisition.py scripts/vt31_open_position_tick_exit_resolution.py
+          python scripts/vt31_open_position_tick_exit_resolution.py --self-test
+      - name: Recover immutable one-window ambiguity manifest
+        run: |
+          set -euo pipefail
+          mkdir lifecycle
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10430137583/zip" > lifecycle.zip
+          echo "93e401a7530672b1e90e2f524a0206fe5249b7bdbd855c7a86af9107fc685702  lifecycle.zip" | sha256sum -c -
+          unzip -q lifecycle.zip -d lifecycle
+          (cd lifecycle && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('lifecycle/vt31-pending-fill-later-ambiguity-manifest.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert len(p['windows'])==1
+          PY
+      - name: Verify cTrader credentials
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do test -n "${!name:-}"; done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Acquire exact BID ASK and resolve terminal order
+        run: |
+          set -euo pipefail
+          python scripts/vt31_consumed_tick_manifest_acquisition.py \
+            --manifest lifecycle/vt31-pending-fill-later-ambiguity-manifest.json \
+            --output-dir acquisition
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('acquisition/vt31-bounded-tick-acquisition-summary.json').read_text())
+          assert p['source_window_count']==1 and p['available']==1
+          assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
+          PY
+          mkdir result
+          python scripts/vt31_open_position_tick_exit_resolution.py \
+            --manifest lifecycle/vt31-pending-fill-later-ambiguity-manifest.json \
+            --acquisition-dir acquisition \
+            --output result/vt31-initial-pending-later-open-position-resolution.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-initial-pending-later-open-position-resolution.json').read_text())
+          assert p['source_window_count']==1 and len(p['results'])==1
+          assert sum(p['counts'].values())==1
+          print(json.dumps(p['counts'],sort_keys=True))
+          PY
+      - name: Bind immutable artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10430137583" > result/source-lifecycle-artifact-id.txt
+          echo "93e401a7530672b1e90e2f524a0206fe5249b7bdbd855c7a86af9107fc685702" > result/source-lifecycle-zip-sha256.txt
+          cp -r acquisition result/tick-acquisition
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-initial-pending-later-ambiguity-${{ github.sha }}
+          path: result/
+          retention-days: 90
