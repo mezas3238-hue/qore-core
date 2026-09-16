@@ -36,7 +36,7 @@ def _mean(values: Sequence[Decimal]) -> Decimal:
 
 
 def _bucket_minutes(value: object) -> str:
-    minutes = int(value)
+    minutes = int(str(value))
     if minutes <= 60:
         return "le60"
     if minutes <= 120:
@@ -143,7 +143,7 @@ def _state_patterns(
         supported_windows = [
             cast(dict[str, object], stats)
             for stats in window_stats.values()
-            if int(cast(dict[str, object], stats)["sample"]) >= 5
+            if int(str(cast(dict[str, object], stats)["sample"])) >= 5
         ]
         positive_supported = sum(
             _decimal(stats["mean_r"]) > 0 for stats in supported_windows
@@ -164,7 +164,7 @@ def _state_patterns(
         )
     result.sort(
         key=lambda item: (
-            int(cast(dict[str, object], item["overall"])["sample"]),
+            int(str(cast(dict[str, object], item["overall"])["sample"])),
             _decimal(cast(dict[str, object], item["overall"])["mean_r"]),
         ),
         reverse=True,
@@ -203,7 +203,7 @@ def _sequence_motifs(
         )
     result.sort(
         key=lambda item: int(
-            cast(dict[str, object], item["endpoint_outcome"])["sample"]
+            str(cast(dict[str, object], item["endpoint_outcome"])["sample"])
         ),
         reverse=True,
     )
@@ -253,7 +253,7 @@ def _loss_precursors(rows: Sequence[dict[str, object]]) -> list[dict[str, object
     result.sort(
         key=lambda item: (
             _decimal(cast(dict[str, object], item["behavior"])["stop_rate"]),
-            int(cast(dict[str, object], item["behavior"])["sample"]),
+            int(str(cast(dict[str, object], item["behavior"])["sample"])),
         ),
         reverse=True,
     )
@@ -284,7 +284,7 @@ def _expansion_precursors(rows: Sequence[dict[str, object]]) -> list[dict[str, o
     result.sort(
         key=lambda item: (
             _decimal(item["mfe_ge_2r_rate"]),
-            int(item["sample"]),
+            int(str(item["sample"])),
         ),
         reverse=True,
     )
