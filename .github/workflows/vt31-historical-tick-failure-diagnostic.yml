@@ -58,12 +58,9 @@ jobs:
           assert p['research_only'] is True
           assert p['opens_new_holdout'] is False
           assert p['market'] == 'NAS100'
-          print('status=', p['status'])
-          if p['status'] == 'failure':
-              print('error_type=', p['error_type'])
-              print('error_message=', p['error_message'])
-          else:
-              print('response_type=', p['response_type'], 'tick_count=', p['tick_count'], 'has_more=', p['has_more'])
+          assert len(p['cases']) == 3
+          for case in p['cases']:
+              print(json.dumps(case, sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
         with:
