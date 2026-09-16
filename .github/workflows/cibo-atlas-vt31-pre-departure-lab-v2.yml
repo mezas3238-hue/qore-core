@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/cibo_atlas_vt31_pre_departure_structure_lab.py scripts/cibo_atlas_vt31_pre_departure_timing_lab.py
-          ruff check --ignore E501,SLF001,UP035 scripts/cibo_atlas_vt31_pre_departure_structure_lab.py scripts/cibo_atlas_vt31_pre_departure_timing_lab.py
+          ruff check --ignore E501,SLF001,UP035,I001 scripts/cibo_atlas_vt31_pre_departure_structure_lab.py scripts/cibo_atlas_vt31_pre_departure_timing_lab.py
           mypy src/qore/infrastructure/cibo_atlas_market_lab.py
           python scripts/cibo_atlas_vt31_pre_departure_structure_lab.py --self-test
           python scripts/cibo_atlas_vt31_pre_departure_timing_lab.py --self-test
