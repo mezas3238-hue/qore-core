@@ -81,8 +81,8 @@ def main()->None:
         old=parent_rows[rid]
         changed.append({"root_id":rid,"old_classification":old["classification"],"old_terminal_r":old.get("terminal_r"),"old_status":old.get("terminal_status"),"new_classification":new["classification"],"new_terminal_r":new.get("terminal_r"),"new_status":new.get("terminal_status")})
     trades=sorted([r for r in final_roots if r["classification"]=="terminal"],key=lambda r:(r["signal_opened_at"],r["market"],r["root_id"]))
-    no_trade=sorted([r["root_id"] for r in final_roots if r["classification"]=="no_trade")
-    censored=sorted([r["root_id"] for r in final_roots if r["classification"]=="censored")
+    no_trade=sorted([r["root_id"] for r in final_roots if r["classification"]=="no_trade"])
+    censored=sorted([r["root_id"] for r in final_roots if r["classification"]=="censored"])
     if len(trades)+len(no_trade)+len(censored)!=780: raise AssertionError("final classification conservation failed")
     payload=dict(parent); payload.update({"schema":"qore.vt31.tick_corrected.consumed_ledger.v2","candidate_status":"NO_R9_NOT_CERTIFIED","supersedes_parent_ledger":True,"four_root_initial_fill_parity_applied":True,"roots":final_roots,"trades":trades,"terminal_trade_count":len(trades),"no_trade_roots":no_trade,"censored_roots":censored,"four_root_correction":changed,"terminal_trade_counts_by_partition":dict(Counter(r["partition"] for r in trades)),"terminal_trade_counts_by_market":dict(Counter(r["market"] for r in trades)),"terminal_trade_counts_by_side":dict(Counter(r["side"] for r in trades))})
     payload["authority"]=dict(parent["authority"]); payload["authority"].update({"definitive_four_root_parity":True,"terminal_trade_count":len(trades),"no_trade_root_count":len(no_trade),"censored_root_count":len(censored)})
