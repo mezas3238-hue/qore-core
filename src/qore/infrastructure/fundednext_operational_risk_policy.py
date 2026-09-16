@@ -2,7 +2,7 @@
 
 Provider constraints and QORE operating limits are deliberately separate:
 
-* FundedNext provider wall: exact purchased Stellar Instant 6% trailing MLL.
+* FundedNext provider walls: 6% trailing MLL plus the applicable cumulative open-risk cap.
 * QORE internal containment: tighter trailing floor, safety buffer, and shared
   account heat caps.
 * CIBO may request NORMAL/BANK/ATTACK; this policy either ALLOWs the request,
@@ -106,7 +106,8 @@ def operational_risk_policy_fingerprint() -> str:
     material = {
         "version": QORE_OPERATIONAL_RISK_POLICY_VERSION,
         "provider_maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
-        "provider_separate_three_percent_rule": False,
+        "provider_separate_three_percent_rule": True,
+        "provider_separate_three_percent_fraction": "0.03",
         "internal_trailing_loss_fraction": str(QORE_INTERNAL_TRAILING_LOSS_FRACTION),
         "internal_safety_buffer_fraction": str(QORE_INTERNAL_SAFETY_BUFFER_FRACTION),
         "bank_heat_fraction": str(QORE_INTERNAL_BANK_HEAT_FRACTION),
@@ -180,7 +181,12 @@ def evaluate_qore_operational_capital_budget(
     }[authorized_posture]
     heat_cap = initial_balance * heat_fraction
     dd_capacity = max(Decimal(0), equity - internal_floor - safety_buffer)
-    total_headroom = min(provider_budget.provider_headroom, dd_capacity, heat_cap)
+    total_headroom = min(
+        provider_budget.provider_headroom,
+        provider_budget.max_risk_at_any_time,
+        dd_capacity,
+        heat_cap,
+    )
     available = max(Decimal(0), total_headroom - current_aggregate_stop_risk)
 
     decision = posture_decision
