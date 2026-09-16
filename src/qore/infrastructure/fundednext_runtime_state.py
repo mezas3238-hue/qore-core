@@ -155,21 +155,25 @@ class SingleWriterRuntimeLock:
         if pid <= 0:
             return False
         if platform.system() == "Windows":
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            win_dll = getattr(ctypes, "WinDLL", None)
+            get_last_error = getattr(ctypes, "get_last_error", None)
+            if win_dll is None or get_last_error is None:
+                # Fail closed if the Windows ctypes surface is unexpectedly unavailable.
+                return True
+            kernel32 = win_dll("kernel32", use_last_error=True)
             process_query_limited_information = 0x1000
             still_active = 259
-            handle = kernel32.OpenProcess(
-                process_query_limited_information, False, pid
-            )
-            if not handle:
+            handle = int(kernel32.OpenProcess(process_query_limited_information, False, pid))
+            if handle == 0:
                 # Access denied still proves that the process exists.
-                return ctypes.get_last_error() == 5
+                return int(get_last_error()) == 5
             try:
                 exit_code = ctypes.c_ulong()
-                if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                query_ok = int(kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)))
+                if query_ok == 0:
                     # Fail closed: never discard a lock when liveness is uncertain.
                     return True
-                return exit_code.value == still_active
+                return int(exit_code.value) == still_active
             finally:
                 kernel32.CloseHandle(handle)
         try:
