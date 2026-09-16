@@ -161,29 +161,36 @@ jobs:
           p=json.loads(Path('artifacts/report/reaction-structure-atlas.json').read_text())
           lines=['# VT08 Index CIBO Reaction Structure Atlas','']
           lines.append(f"Episodes reconstructed: {p['episode_count']}")
-          lines += ['', '## Market x structure']
-          for key,value in p['by_market_structure'].items():
-              lines.append(
-                  f"- {key}: n={value['sample']} stop={value.get('stop_rate')} "
-                  f"1R={value.get('hit_1r_rate')} 2R={value.get('hit_2r_rate')} "
-                  f"3R={value.get('hit_3r_rate')} reaction->2R={value.get('median_minutes_reaction_to_2r')}m"
-              )
-          lines += ['', '## Market x weekday x structure']
-          for key,value in p['by_market_weekday_structure'].items():
-              if int(value.get('sample',0)) >= 10:
+
+          sections=(
+              ('Market x structure confluence','by_market_structure_combo'),
+              ('Market x weekday x structure','by_market_weekday_structure_combo'),
+              ('Market x reaction hour x structure','by_market_hour_structure_combo'),
+              ('Market x pre-arrival phase','by_market_pre_arrival_phase'),
+              ('Market x post-arrival phase','by_market_post_arrival_phase'),
+              ('Market x structure x post-arrival phase','by_market_structure_post_phase'),
+          )
+          for title,key in sections:
+              lines += ['', f'## {title}']
+              for label,value in p[key].items():
+                  if int(value.get('sample',0)) < 10:
+                      continue
                   lines.append(
-                      f"- {key}: n={value['sample']} stop={value.get('stop_rate')} "
-                      f"2R={value.get('hit_2r_rate')} 3R={value.get('hit_3r_rate')}"
+                      f"- {label}: n={value['sample']} stop={value.get('stop_rate')} "
+                      f"1R={value.get('hit_1r_rate')} 2R={value.get('hit_2r_rate')} "
+                      f"3R={value.get('hit_3r_rate')} "
+                      f"reaction->signal={value.get('median_minutes_reaction_to_signal')}m "
+                      f"reaction->2R={value.get('median_minutes_reaction_to_2r')}m"
                   )
-          lines += ['', '## Market x reaction hour x structure']
-          for key,value in p['by_market_hour_structure'].items():
-              if int(value.get('sample',0)) >= 10:
-                  lines.append(
-                      f"- {key}: n={value['sample']} stop={value.get('stop_rate')} "
-                      f"2R={value.get('hit_2r_rate')} 3R={value.get('hit_3r_rate')}"
-                  )
-          lines += ['', 'Observed structure is diagnostic evidence, not causation or an automatic entry rule.']
-          Path('artifacts/report/cibo-reaction-summary.md').write_text('\n'.join(lines)+'\n')
+          lines += [
+              '',
+              'Reaction is strictly pre-signal and direction-aligned.',
+              'The 60m post-arrival phase is an outcome descriptor, never an admission rule.',
+              'Observed structure is diagnostic evidence, not proof of causation.',
+          ]
+          Path('artifacts/report/cibo-reaction-summary.md').write_text(
+              '\n'.join(lines)+'\n'
+          )
           PY
 
       - name: Verify governance
@@ -202,6 +209,7 @@ jobs:
           assert g['diagnostic_only'] is True
           assert g['changes_v7'] is False
           assert g['observed_structure_is_not_causation'] is True
+          assert g['post_arrival_phase_is_outcome_not_admission_feature'] is True
           assert g['automatic_rule_promotion_forbidden'] is True
           assert g['live_authorized'] is False
           assert g['real_capital_authorized'] is False
