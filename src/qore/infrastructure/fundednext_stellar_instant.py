@@ -42,7 +42,7 @@ PROGRAM = "STELLAR_INSTANT"
 PLATFORM = "MT5"
 PILOT_INITIAL_BALANCE = Decimal("2000")
 MAXIMUM_LOSS_FRACTION = Decimal("0.06")
-SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION: Decimal | None = Decimal("0.03")
+SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION: Decimal | None = None
 FOREX_OPEN_COMMISSION_PER_LOT_USD = Decimal("7")
 INDEX_OPEN_COMMISSION_PER_LOT_USD = Decimal("0")
 PILOT_SYMBOL_MAP: dict[str, str] = {
@@ -142,8 +142,9 @@ class StellarInstantRiskBudget:
     provider_reported_mll: Decimal | None
     active_mll: Decimal
     provider_headroom: Decimal
-    # Provider max-risk-at-any-time ceiling consumed by Account-Wide Risk.
-    # Current official Stellar Instant rules expose a separate 3% cap.
+    # Compatibility ceiling consumed by the existing account-wide Risk engine.
+    # For this exact purchased account it is NOT a separate 3% provider rule:
+    # it equals the remaining 6% trailing-MLL provider headroom.
     max_risk_at_any_time: Decimal
     hard_breach: bool
     daily_loss_limit_present: bool
@@ -164,18 +165,18 @@ class StellarInstantRiskBudget:
                 raise StellarInstantContractError(f"{name} must be finite Decimal")
         if self.provider_headroom < 0:
             raise StellarInstantContractError("provider_headroom cannot be negative")
-        expected_max_risk = min(
-            self.provider_headroom,
-            self.initial_balance * Decimal("0.03"),
-        )
-        if self.max_risk_at_any_time != expected_max_risk:
-            raise StellarInstantContractError("provider max-risk-at-any-time cap mismatch")
+        if self.max_risk_at_any_time != self.provider_headroom:
+            raise StellarInstantContractError(
+                "compatibility risk ceiling must equal 6% trailing-MLL provider headroom"
+            )
         if self.active_mll > self.initial_balance:
             raise StellarInstantContractError("active MLL cannot trail above initial balance")
         if self.daily_loss_limit_present:
             raise StellarInstantContractError("Stellar Instant must not invent a daily loss limit")
-        if self.separate_max_risk_at_any_time_fraction != Decimal("0.03"):
-            raise StellarInstantContractError("Stellar Instant requires provider 3% max-risk cap")
+        if self.separate_max_risk_at_any_time_fraction is not None:
+            raise StellarInstantContractError(
+                "exact purchased Stellar Instant policy has no separate provider 3% cap"
+            )
         if self.payout_can_lower_mll:
             raise StellarInstantContractError("payout cannot lower Stellar Instant MLL")
         if self.leverage_execution_source != "MT5_SYMBOL_INFO":
@@ -217,10 +218,7 @@ def evaluate_stellar_instant_budget(
         provider_reported_mll=reported,
         active_mll=active_mll,
         provider_headroom=headroom,
-        max_risk_at_any_time=min(
-            headroom,
-            snapshot.initial_balance * Decimal("0.03"),
-        ),
+        max_risk_at_any_time=headroom,
         hard_breach=hard_breach,
         daily_loss_limit_present=False,
         separate_max_risk_at_any_time_fraction=SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
