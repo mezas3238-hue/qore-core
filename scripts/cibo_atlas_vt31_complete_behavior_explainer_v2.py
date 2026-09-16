@@ -1,9 +1,11 @@
 """Fail-closed overlap-safe runner for the CIBO VT-31 complete explainer.
 
-Consumed R5/R6/R8 evidence can share calendar days. The base explainer must not
-double-count those days. This adapter deduplicates a market/date only when the
-provider and every M1 market value/timestamp are identical. Any disagreement
-aborts the run. It then delegates all analysis to the frozen base explainer.
+Consumed R5/R6/R8 evidence can share calendar boundary fragments because the
+immutable acquisition windows are UTC while Atlas sessions are New York time.
+The base explainer must not double-count those days. This adapter first rejects
+any market/day that is not a complete Atlas 09:00-16:00 observation, then
+deduplicates remaining overlaps only when provider and every M1 market
+value/timestamp are identical. Any disagreement among complete days aborts.
 """
 from __future__ import annotations
 
@@ -41,6 +43,7 @@ def overlap_safe_load_market_days(
     partitions_by_key: dict[tuple[str, str], list[str]] = defaultdict(list)
     rows_by_key: dict[tuple[str, str], dict[str, Any]] = {}
     duplicate_count = 0
+    incomplete_boundary_count = 0
 
     for partition in base.PARTITIONS:
         for market in base.MARKETS:
@@ -52,25 +55,28 @@ def overlap_safe_load_market_days(
             for local_day, bars in sorted(grouped.items()):
                 key = (market, str(local_day))
                 frozen = tuple(bars)
+                row = base.analyze_market_day(partition, market, provider, frozen)
+                if row is None:
+                    incomplete_boundary_count += 1
+                    continue
+
                 existing = bars_by_key.get(key)
                 if existing is not None:
                     duplicate_count += 1
                     if provider_by_key[key] != provider:
                         raise ValueError(
-                            f"overlap provider mismatch {key}: "
+                            f"complete overlap provider mismatch {key}: "
                             f"{provider_by_key[key]} != {provider}"
                         )
                     if series_fingerprint(existing) != series_fingerprint(frozen):
-                        raise ValueError(f"overlap M1 mismatch for consumed market day {key}")
+                        raise ValueError(f"complete overlap M1 mismatch for consumed market day {key}")
                     partitions_by_key[key].append(partition)
                     continue
 
                 bars_by_key[key] = frozen
                 provider_by_key[key] = provider
                 partitions_by_key[key].append(partition)
-                row = base.analyze_market_day(partition, market, provider, frozen)
-                if row is not None:
-                    rows_by_key[key] = row
+                rows_by_key[key] = row
 
     rows: list[dict[str, Any]] = []
     for key, row in sorted(rows_by_key.items()):
@@ -81,7 +87,9 @@ def overlap_safe_load_market_days(
 
     print(
         "CIBO overlap audit PASS: "
-        f"unique_market_days={len(bars_by_key)} duplicate_occurrences={duplicate_count}"
+        f"unique_complete_market_days={len(bars_by_key)} "
+        f"complete_duplicate_occurrences={duplicate_count} "
+        f"incomplete_boundary_observations_excluded={incomplete_boundary_count}"
     )
     return bars_by_key, rows
 
