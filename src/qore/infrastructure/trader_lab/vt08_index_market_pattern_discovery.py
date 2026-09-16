@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -214,7 +214,7 @@ def _transition_matrix(rows: Sequence[dict[str, object]]) -> dict[str, object]:
     ordered = sorted(rows, key=lambda row: str(row["signal_at"]))
     transitions: dict[str, Counter[str]] = defaultdict(Counter)
     outcome_rows: dict[str, list[dict[str, object]]] = defaultdict(list)
-    for previous, current in zip(ordered, ordered[1:]):
+    for previous, current in zip(ordered, ordered[1:], strict=False):
         source = _state_token(previous)
         target = _state_token(current)
         transitions[source][target] += 1
