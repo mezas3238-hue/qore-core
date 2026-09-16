@@ -1,0 +1,139 @@
+name: VT08 Index V5 D1 Candidate Hardening
+
+on:
+  push:
+    branches: [agent/vt08-index-v5-phase-d-relative-strength-001]
+    paths:
+      - .github/workflows/vt08-index-v5-d1-candidate-hardening.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_v5_d1_relative_strength_candidate.py
+      - tests/infrastructure/trader_lab/test_vt08_index_v5_d1_relative_strength_candidate.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_v5_d1_relative_strength_candidate.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  hardening:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - name: Download frozen V4 census
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v4-root-cause-forensics-27d4742cda6f691b359d106c2b6fe8eb2b044fc4
+          path: artifacts/v4
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34805546975
+      - name: Download 2022-23 consumed raw evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v3-fresh-*-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/raw/2022_23
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+      - name: Download 2023-24 consumed raw evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v2-fresh-r2-*-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/raw/2023_24
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+      - name: Download 2024-26 consumed raw evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-v2-source-executable-*-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/raw/2024_26
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+      - name: Resolve and replay all consumed windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/hardening
+          replay() {
+            window="$1"; start="$2"; end="$3"; sha="$4"; min_days="$5"
+            for symbol in NAS100 SP500 US30; do
+              path="$(find "artifacts/raw/$window" -path "*${symbol}*" -name market-evidence.json -print -quit)"
+              test -n "$path"
+              printf -v "${symbol}_PATH" '%s' "$path"
+            done
+            python -m qore.infrastructure.trader_lab.vt08_index_v5_d1_relative_strength_candidate \
+              --nas100 "$NAS100_PATH" --sp500 "$SP500_PATH" --us30 "$US30_PATH" \
+              --start-date "$start" --end-date-exclusive "$end" \
+              --expected-software-sha "$sha" --minimum-evidence-days "$min_days" \
+              --out "artifacts/hardening/${window}.json"
+          }
+          replay 2022_23 2022-09-15 2023-09-15 106a34282fe8eac2f8c466bcc8502d4ec8d73855 350
+          replay 2023_24 2023-09-15 2024-08-13 58dd289646de8814449f836ad617a51342eba0da 350
+          replay 2024_26 2024-08-13 2026-09-12 a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 700
+      - name: Verify exact D1 equivalence to frozen census
+        run: |
+          python - <<'PY'
+          import csv, hashlib, json, os
+          from decimal import Decimal
+          from pathlib import Path
+
+          census = list(csv.DictReader(Path("artifacts/v4/vt08-index-v4-regime-feature-census.csv").open()))
+          wanted = [row for row in census if int(row["cross_index_simultaneous_same_side_signals"]) == 2 and int(row["cross_index_simultaneous_opposite_side_signals"]) == 0]
+          expected = {(row["window_id"], row["symbol"], row["signal_at"]): Decimal(row["outcome_r"]) for row in wanted}
+          observed = {}
+          fingerprints = set()
+          counts = {}
+          for window in ("2022_23", "2023_24", "2024_26"):
+              report = json.loads(Path(f"artifacts/hardening/{window}.json").read_text())
+              fingerprints.add(report["rule_fingerprint"])
+              counts[window] = len(report["trades"])
+              for row in report["trades"]:
+                  observed[(window, row["symbol"], row["signal_at"])] = Decimal(row["r_multiple"])
+          assert counts == {"2022_23": 13, "2023_24": 19, "2024_26": 41}, counts
+          assert len(expected) == len(observed) == 73
+          assert set(expected) == set(observed)
+          assert all(observed[key] == value for key, value in expected.items())
+          assert len(fingerprints) == 1
+          payload = {
+              "schema": "qore.trader_lab.vt08_index_v5_d1_candidate_hardening.v1",
+              "exact_trade_identity_match": True,
+              "exact_r_match": True,
+              "counts": {**counts, "total": 73},
+              "rule_fingerprint": next(iter(fingerprints)),
+              "candidate_freeze_permitted": True,
+              "holdout_open_permitted": False,
+              "git_sha": os.environ["GITHUB_SHA"],
+          }
+          material = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+          payload["hardening_fingerprint"] = hashlib.sha256(material).hexdigest()
+          Path("artifacts/hardening/hardening-decision.json").write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
+          Path("artifacts/hardening/git-sha.txt").write_text(os.environ["GITHUB_SHA"] + "\n")
+          print(json.dumps(payload, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v5-d1-candidate-hardening-${{ github.sha }}
+          path: artifacts/hardening
+          if-no-files-found: error
+          retention-days: 90
