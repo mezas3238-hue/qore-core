@@ -14,7 +14,10 @@ from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
     SwingPolicy,
     _signal,
 )
-from qore.infrastructure.trader_lab.vt08_index_v2_candidate import _in_partition, _load_candidate_market
+from qore.infrastructure.trader_lab.vt08_index_v2_candidate import (
+    _in_partition,
+    _load_candidate_market,
+)
 from qore.infrastructure.trader_lab.vt08_index_v3_geometry_candidate import (
     _geometry,
     _geometry_accepts,
@@ -27,14 +30,38 @@ from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
 
 SCHEMA = "qore.trader_lab.vt08_index_v5_phase_e_frequency_census.v1"
 WINDOWS = (
-    ("2022_23", date(2022, 9, 15), date(2023, 9, 15), "106a34282fe8eac2f8c466bcc8502d4ec8d73855", 350),
-    ("2023_24", date(2023, 9, 15), date(2024, 8, 13), "58dd289646de8814449f836ad617a51342eba0da", 300),
-    ("2024_26", date(2024, 8, 13), date(2026, 9, 12), "a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0", 700),
+    (
+        "2022_23",
+        date(2022, 9, 15),
+        date(2023, 9, 15),
+        "106a34282fe8eac2f8c466bcc8502d4ec8d73855",
+        350,
+    ),
+    (
+        "2023_24",
+        date(2023, 9, 15),
+        date(2024, 8, 13),
+        "58dd289646de8814449f836ad617a51342eba0da",
+        300,
+    ),
+    (
+        "2024_26",
+        date(2024, 8, 13),
+        date(2026, 9, 12),
+        "a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0",
+        700,
+    ),
 )
 _NY = ZoneInfo("America/New_York")
 
 
-def _load(path: Path, *, symbol: str, sha: str, minimum_days: int) -> dict[datetime, Vt08IndexC2R1Bar]:
+def _load(
+    path: Path,
+    *,
+    symbol: str,
+    sha: str,
+    minimum_days: int,
+) -> dict[datetime, Vt08IndexC2R1Bar]:
     _, _, _, bars = _load_candidate_market(
         path,
         expected_symbol=symbol,
@@ -55,13 +82,22 @@ def _window_census(
     raw_rows: list[dict[str, Any]] = []
     decisions = 0
     for symbol in AUTHORIZED_MARKETS:
-        indexed = _load(paths[symbol], symbol=symbol, sha=sha, minimum_days=minimum_days)
+        indexed = _load(
+            paths[symbol],
+            symbol=symbol,
+            sha=sha,
+            minimum_days=minimum_days,
+        )
         symbol_decisions = tuple(
             opened
             for opened in indexed
             if opened.astimezone(_NY).minute == 0
             and opened.astimezone(_NY).hour in OWNER_ENTRY_ANCHORS_NY
-            and _in_partition(opened, start_date=start, end_date_exclusive=end_exclusive)
+            and _in_partition(
+                opened,
+                start_date=start,
+                end_date_exclusive=end_exclusive,
+            )
         )
         decisions += len(symbol_decisions)
         for decision in symbol_decisions:
@@ -83,7 +119,9 @@ def _window_census(
                     "anchor": signal.anchor,
                     "side": signal.side.value,
                     "geometry_available": geometry is not None,
-                    "geometry_accepts": geometry is not None and _geometry_accepts(geometry),
+                    "geometry_accepts": (
+                        geometry is not None and _geometry_accepts(geometry)
+                    ),
                 }
             )
 
@@ -160,7 +198,10 @@ def run(
         "holdout_open_permitted": False,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return report
 
 
@@ -172,8 +213,16 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     run(
-        v3_paths={"NAS100": args.v3_nas100, "SP500": args.v3_sp500, "US30": args.v3_us30},
-        v2_paths={"NAS100": args.v2_nas100, "SP500": args.v2_sp500, "US30": args.v2_us30},
+        v3_paths={
+            "NAS100": args.v3_nas100,
+            "SP500": args.v3_sp500,
+            "US30": args.v3_us30,
+        },
+        v2_paths={
+            "NAS100": args.v2_nas100,
+            "SP500": args.v2_sp500,
+            "US30": args.v2_us30,
+        },
         development_paths={
             "NAS100": args.development_nas100,
             "SP500": args.development_sp500,
