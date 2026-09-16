@@ -147,7 +147,7 @@ R5 must not use as fresh evidence:
 
 Repository audit found no documented trading-research exposure to 2016/2017. The intended next one-shot window is immediately prior to R4 acquisition and must not overlap it:
 
-- warm-up/acquisition start: `2016-03-01T21:00:00Z`;
+- warm-up/acquisition start: `2016-03-01T22:00:00Z` (17:00 New York while EST is in force);
 - evaluation: `[2016-05-01T21:00:00Z, 2018-05-01T21:00:00Z)`;
 - span: 730 days;
 - symbols: AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, USDCAD, USDJPY.
