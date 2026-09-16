@@ -202,8 +202,6 @@ def _zone_retests(
     events: list[dict[str, object]] = []
     for zone in zones:
         for bar in reversed(bars):
-            # Strictly before the signal. A structure first observed on the signal
-            # candle cannot explain where price arrived before departure.
             if bar.closed_at >= signal_at or bar.opened_at < zone.confirmed_at:
                 continue
             if not _overlaps(zone, bar):
@@ -347,9 +345,9 @@ def _episode(
             if _dt(item["observed_at"]) == reaction_at
         ]
 
-    pre_arrival = ()
-    reaction_to_signal = ()
-    post_arrival_60m = ()
+    pre_arrival: tuple[Bar, ...] = ()
+    reaction_to_signal: tuple[Bar, ...] = ()
+    post_arrival_60m: tuple[Bar, ...] = ()
     if reaction_at is not None:
         pre_arrival = _slice(
             bars,
