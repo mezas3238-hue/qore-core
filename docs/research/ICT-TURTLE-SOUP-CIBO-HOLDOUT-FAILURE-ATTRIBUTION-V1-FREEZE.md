@@ -60,6 +60,7 @@ Allowed values:
 - `MIXED`
 - `UNRESOLVED`
 - `NO_FAILURE_TARGET_EXIT`
+- `NO_FAILURE_PROFITABLE_EXIT`
 
 ## 3. Entry audit
 
@@ -167,6 +168,9 @@ Used when evidence supports more than one failure zone.
 
 ### `UNRESOLVED`
 Required whenever evidence cannot distinguish the above.
+
+### `NO_FAILURE_TARGET_EXIT` / `NO_FAILURE_PROFITABLE_EXIT`
+Used when the recorded trade was not an economic failure. These labels do not certify entry quality; they only prevent profitable outcomes from being mislabeled as failure cases.
 
 A losing trade must never receive a failure code merely because it lost.
 
