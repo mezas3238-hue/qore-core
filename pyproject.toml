@@ -7,6 +7,9 @@ name = "qore-core"
 version = "0.1.0"
 description = "QORE Core"
 requires-python = ">=3.12,<3.13"
+dependencies = [
+    "tzdata>=2026.1,<2027",
+]
 
 [project.optional-dependencies]
 ctrader = [
