@@ -6,7 +6,9 @@ on:
     paths:
       - .github/workflows/vt08-index-deep-behavior-lab.yml
       - src/qore/infrastructure/trader_lab/vt08_index_deep_behavior_lab.py
+      - src/qore/infrastructure/trader_lab/vt08_index_market_pattern_discovery.py
       - tests/infrastructure/trader_lab/test_vt08_index_deep_behavior_lab.py
+      - tests/infrastructure/trader_lab/test_vt08_index_market_pattern_discovery.py
       - docs/research/VT08-INDEX-DEEP-BEHAVIOR-LAB-001.md
 
 permissions:
@@ -42,7 +44,10 @@ jobs:
       - run: ruff check .
       - run: mypy src tests
       - name: Focused deep behavior tests
-        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_deep_behavior_lab.py
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_deep_behavior_lab.py \
+            tests/infrastructure/trader_lab/test_vt08_index_market_pattern_discovery.py
       - name: Full QORE gate
         run: pytest --cov=src/qore --cov-report=term-missing
 
@@ -146,15 +151,21 @@ jobs:
             artifacts/report/windows/*.json \
             --out artifacts/report/deep-behavior-master.json
 
+      - name: Discover market-specific patterns
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_market_pattern_discovery \
+            --input artifacts/report/deep-behavior-master.json \
+            --out artifacts/report/market-pattern-discovery.json
+
       - name: Build human-readable diagnostic summary
         run: |
           python - <<'PY'
           import json
-          from decimal import Decimal
           from pathlib import Path
 
           root=Path('artifacts/report')
           p=json.loads((root/'deep-behavior-master.json').read_text())
+          patterns=json.loads((root/'market-pattern-discovery.json').read_text())
           cube=p['cohort_cube']
           summary={
               'schema':'qore.trader_lab.vt08_index_deep_behavior_summary.v1',
@@ -175,6 +186,10 @@ jobs:
               'target_surface':p['target_surface'],
               'top_drawdown_episodes':p['drawdown_episodes'][:10],
               'top_correlated_loss_clusters':p['correlated_loss_clusters'][:10],
+              'pattern_discovery':{
+                  'market_count':patterns['market_count'],
+                  'cross_market_same_context':patterns['cross_market_same_context'][:20],
+              },
               'governance':p['governance'],
           }
           (root/'behavior-summary.json').write_text(json.dumps(summary,sort_keys=True,separators=(',',':'))+'\n')
@@ -198,7 +213,16 @@ jobs:
           for k,v in p['target_surface'].items():
               q=v['primary']
               lines.append(f"- {k}R: n={q['sample']} mean={q['mean_r']} PF={q['profit_factor']} DD={q['max_drawdown_r']}")
-          lines += ['', 'Diagnostic only. All source periods are consumed evidence; no row in this report is a fresh validation result.']
+          lines += ['', '## Pattern Discovery']
+          for market, payload in patterns['markets'].items():
+              fingerprint=payload['fingerprint']['performance']
+              lines.append(
+                  f"- {market}: states={len(payload['state_patterns'])} "
+                  f"loss_precursors={len(payload['loss_precursors'])} "
+                  f"expansion_precursors={len(payload['expansion_precursors'])} "
+                  f"mean={fingerprint['mean_r']} stop_rate={fingerprint['stop_rate']}"
+              )
+          lines += ['', 'Diagnostic only. All source periods are consumed evidence; discovered patterns are probabilistic hypotheses, never automatic trading rules.']
           (root/'behavior-summary.md').write_text('\n'.join(lines)+'\n')
           PY
 
@@ -208,6 +232,7 @@ jobs:
           import json
           from pathlib import Path
           p=json.loads(Path('artifacts/report/deep-behavior-master.json').read_text())
+          patterns=json.loads(Path('artifacts/report/market-pattern-discovery.json').read_text())
           assert p['candidate_id']=='VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001'
           assert p['rule_fingerprint']=='a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308'
           g=p['governance']
@@ -216,6 +241,12 @@ jobs:
           assert g['live_authorized'] is False
           assert g['real_capital_authorized'] is False
           assert g['production_authorized'] is False
+          pg=patterns['governance']
+          assert pg['diagnostic_only'] is True
+          assert pg['patterns_are_probabilistic_not_deterministic'] is True
+          assert pg['automatic_rule_promotion_forbidden'] is True
+          assert pg['new_candidate_identity_required_for_any_rule_change'] is True
+          assert pg['fresh_validation_required_after_freeze'] is True
           PY
 
       - uses: actions/upload-artifact@v4
