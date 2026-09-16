@@ -4,10 +4,10 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.trader_lab.cibo_market_atlas_journey_contract_v1 import (
-    EvidenceRole,
     PROVIDER_INDEX_MAP,
     CrossIndexJourney,
     DepartureTiming,
+    EvidenceRole,
     StructureTouch,
     StructureType,
     TargetCandidate,
