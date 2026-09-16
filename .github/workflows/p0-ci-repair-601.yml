@@ -1,4 +1,4 @@
-name: P0 PR 601 Ruff Repair
+name: P0 PR 601 Quality Repair
 
 on:
   push:
@@ -25,14 +25,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Apply mechanical Ruff-only repair
+      - name: Apply mechanical quality-gate repairs
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
           source_path = Path("src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_holdout_failure_attribution_v1.py")
-          test_path = Path("tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_holdout_failure_attribution_v1.py")
+          attribution_test_path = Path("tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_holdout_failure_attribution_v1.py")
+          r5_test_path = Path("tests/infrastructure/trader_lab/test_ict_turtle_soup_r5_authentic_ideal.py")
+          lab_test_path = Path("tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py")
 
           source = source_path.read_text()
           replacements = {
@@ -47,22 +49,43 @@ jobs:
               source = source.replace(old, new)
           source_path.write_text(source)
 
-          tests = test_path.read_text()
+          tests = attribution_test_path.read_text()
           test_replacements = {
               "def _bar(at: datetime, o: str, h: str, l: str, c: str) -> Bar:": "def _bar(at: datetime, o: str, h: str, low: str, c: str) -> Bar:",
               "def _candle(day: int, o: str, h: str, l: str, c: str) -> SourceCandle:": "def _candle(day: int, o: str, h: str, low: str, c: str) -> SourceCandle:",
           }
           for old, new in test_replacements.items():
               if tests.count(old) != 1:
-                  raise SystemExit(f"fail-closed: expected one test match for {old!r}")
+                  raise SystemExit(f"fail-closed: expected one attribution-test match for {old!r}")
               tests = tests.replace(old, new)
           if tests.count("low=Decimal(l),") != 2:
               raise SystemExit("fail-closed: expected two helper low assignments")
           tests = tests.replace("low=Decimal(l),", "low=Decimal(low),")
-          test_path.write_text(tests)
+          attribution_test_path.write_text(tests)
+
+          r5_tests = r5_test_path.read_text()
+          old_r4 = "from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (\n    Bar,\n    SourceCandle,\n)"
+          new_r4 = "from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (\n    Bar,\n    Side,\n    SourceCandle,\n)"
+          old_r5_side = "    EVAL_OPEN,\n    Side,\n    _daily_swing_targets,"
+          new_r5_side = "    EVAL_OPEN,\n    _daily_swing_targets,"
+          if r5_tests.count(old_r4) != 1 or r5_tests.count(old_r5_side) != 1:
+              raise SystemExit("fail-closed: unexpected R5 test import shape")
+          r5_tests = r5_tests.replace(old_r4, new_r4).replace(old_r5_side, new_r5_side)
+          r5_test_path.write_text(r5_tests)
+
+          lab_tests = lab_test_path.read_text()
+          old_replace = "    return replace(base, **changes)"
+          new_replace = "    return replace(base, **changes)  # type: ignore[arg-type]"
+          if lab_tests.count(old_replace) != 1:
+              raise SystemExit("fail-closed: unexpected Behavior Lab helper shape")
+          lab_test_path.write_text(lab_tests.replace(old_replace, new_replace))
           PY
           git diff --check
-          git diff -- src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_holdout_failure_attribution_v1.py tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_holdout_failure_attribution_v1.py
+          git diff -- \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_holdout_failure_attribution_v1.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_holdout_failure_attribution_v1.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r5_authentic_ideal.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py
 
       - name: Install
         run: |
@@ -80,10 +103,14 @@ jobs:
         run: |
           git config user.name "qore-ci-bot"
           git config user.email "qore-ci-bot@users.noreply.github.com"
-          git add src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_holdout_failure_attribution_v1.py tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_holdout_failure_attribution_v1.py
+          git add \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_cibo_holdout_failure_attribution_v1.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_cibo_holdout_failure_attribution_v1.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r5_authentic_ideal.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py
           if git diff --cached --quiet; then
             echo "No repair diff to commit"
             exit 0
           fi
-          git commit -m "fix(cibo): resolve failure-attribution Ruff issues"
+          git commit -m "fix(cibo): close PR 601 quality-gate defects"
           git push origin HEAD:agent/ict-turtle-soup-behavior-lab-v1-001
