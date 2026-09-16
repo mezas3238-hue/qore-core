@@ -42,13 +42,14 @@ jobs:
             echo "::add-mask::$account_id"
             echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
           fi
-      - name: Run one consumed-window sanitized diagnostic
+      - name: Run one exact consumed-window sanitized diagnostic
         env:
           QORE_DEMO_LAB_SYMBOL: NAS100
-          QORE_TICK_WINDOW_OPEN_MS: '1656512160000'
-          QORE_TICK_WINDOW_CLOSE_MS: '1656512219999'
+          QORE_TICK_WINDOW_OPEN_MS: '1656511860000'
+          QORE_TICK_WINDOW_CLOSE_MS: '1656511919999'
         run: |
           set -euo pipefail
+          # Exact manifest row b72b45dad3d2d02764de3328: R5/NAS100/2022-06-29.
           python scripts/vt31_historical_tick_failure_diagnostic.py | tee vt31-historical-tick-failure-diagnostic.json
           python - <<'PY'
           import json
