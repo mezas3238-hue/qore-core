@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -19,7 +20,10 @@ from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
 )
-from qore.infrastructure.fundednext_mt5 import Mt5ExecutionBlockedError
+from qore.infrastructure.fundednext_mt5 import (
+    Mt5ExecutionBlockedError,
+    Mt5ExecutionValidationError,
+)
 from qore.infrastructure.fundednext_mt5_mutation_ledger import (
     InMemoryFundedNextMt5MutationLedger,
 )
@@ -291,13 +295,14 @@ def _gateway(
     *,
     complete: bool,
     submission_enabled: bool,
+    clock: Callable[[], datetime] | None = None,
 ) -> FundedNextLiveMt5ExecutionGateway:
     transport = MetaTrader5FundedNextLiveTransport(
         api=api,
         qore_account_ref="fundednext-stellar-instant-live",
         expected_login=123456,
         expected_server="FundedNext-Server",
-        clock=lambda: _NOW,
+        clock=clock or (lambda: _NOW),
     )
     return FundedNextLiveMt5ExecutionGateway(
         account=_account_identity(),
@@ -336,3 +341,27 @@ def test_broker_price_may_not_expand_sovereign_risk_in_shadow() -> None:
     with pytest.raises(Mt5ExecutionBlockedError, match="entry-drift|risk-exceeds"):
         gateway.shadow_check(_submission(), now=_NOW)
     assert api.sent == 0
+
+
+def test_account_observation_allows_subsecond_call_order_skew() -> None:
+    api = _Api()
+    gateway = _gateway(
+        api,
+        complete=False,
+        submission_enabled=False,
+        clock=lambda: _NOW + timedelta(milliseconds=500),
+    )
+    state = gateway.read_account(now=_NOW)
+    assert state.balance == Decimal("2000.0")
+
+
+def test_account_observation_rejects_material_future_timestamp() -> None:
+    api = _Api()
+    gateway = _gateway(
+        api,
+        complete=False,
+        submission_enabled=False,
+        clock=lambda: _NOW + timedelta(seconds=2),
+    )
+    with pytest.raises(Mt5ExecutionValidationError, match="account-state-timestamp-from-future"):
+        gateway.read_account(now=_NOW)
