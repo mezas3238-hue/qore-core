@@ -10,9 +10,10 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 MARKETS = ("NAS100", "SP500", "US30")
 SCHEMA = "qore.cibo_atlas.vt31.specialist_telemetry.v1"
