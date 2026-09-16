@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import cast
 
 from qore.infrastructure.ctrader_demo_lab_vt08_index_v6_fresh_probe import (
     fixed_acquisition_window_utc,
@@ -60,11 +61,15 @@ def _report() -> dict[str, object]:
     }
 
 
+def _gates(result: dict[str, object]) -> dict[str, bool]:
+    return cast(dict[str, bool], result["gates"])
+
+
 def test_v6_fresh_validator_is_bound_to_frozen_executor() -> None:
     assert RULE_FINGERPRINT == EXECUTOR_RULE_FINGERPRINT
     result = validate_report(_report())
     assert result["fresh_holdout_pass"] is True
-    assert all(result["gates"].values())
+    assert all(_gates(result).values())
 
 
 def test_v6_fresh_validator_rejects_a_failing_frozen_gate() -> None:
@@ -72,7 +77,7 @@ def test_v6_fresh_validator_rejects_a_failing_frozen_gate() -> None:
     report["metrics_primary_stress"] = _metrics(mean_r="-0.01")
     result = validate_report(report)
     assert result["fresh_holdout_pass"] is False
-    assert result["gates"]["primary_mean_positive"] is False
+    assert _gates(result)["primary_mean_positive"] is False
 
 
 def test_v6_fresh_acquisition_has_fixed_historical_end() -> None:
