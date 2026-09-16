@@ -8,6 +8,8 @@ necessary, and returns an account id only when exactly one account is explicitly
 from __future__ import annotations
 
 import os
+import socket
+import ssl
 from collections.abc import Callable, Iterable
 from threading import Event, Lock, Thread
 from time import monotonic
@@ -16,7 +18,6 @@ from typing import cast
 from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiClientError,
     _SdkBindings,
-    verify_ctrader_tls_server_identity,
 )
 from qore.kernel.errors import InfrastructureError
 
@@ -33,6 +34,27 @@ def _required_env(name: str, *aliases: str) -> str:
     raise CTraderDemoAccountDiscoveryError(
         f"missing required environment input: {name}"
     )
+
+
+def _verify_tls_server_identity(
+    host: str,
+    port: int,
+    timeout_seconds: float,
+) -> None:
+    """Fail closed on CA-chain or hostname verification before discovery auth."""
+    context = ssl.create_default_context()
+    if context.verify_mode is not ssl.CERT_REQUIRED or not context.check_hostname:
+        raise CTraderDemoAccountDiscoveryError(
+            "secure TLS identity policy is unavailable"
+        )
+    with socket.create_connection(
+        (host, port), timeout=timeout_seconds
+    ) as connection:
+        with context.wrap_socket(connection, server_hostname=host) as verified:
+            if not verified.getpeercert():
+                raise CTraderDemoAccountDiscoveryError(
+                    "cTrader DEMO TLS peer omitted certificate identity"
+                )
 
 
 def _set_sdk_field(value: object, name: str, field_value: object) -> None:
@@ -234,10 +256,10 @@ def discover_single_ctrader_demo_account_id(
     current_access_token = access_token
     try:
         try:
-            verify_ctrader_tls_server_identity(
+            _verify_tls_server_identity(
                 "demo.ctraderapi.com", 5035, timeout_seconds
             )
-        except (CTraderOpenApiClientError, OSError) as error:
+        except (CTraderDemoAccountDiscoveryError, OSError) as error:
             raise CTraderDemoAccountDiscoveryError(
                 "cTrader DEMO TLS server identity verification failed"
             ) from error
