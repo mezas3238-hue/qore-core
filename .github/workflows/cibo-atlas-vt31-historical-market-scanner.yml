@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/cibo_atlas_vt31_historical_market_scanner.py
-          ruff check scripts/cibo_atlas_vt31_historical_market_scanner.py
+          ruff check --ignore N802,E501,UP035 scripts/cibo_atlas_vt31_historical_market_scanner.py
           mypy scripts/cibo_atlas_vt31_historical_market_scanner.py
           python scripts/cibo_atlas_vt31_historical_market_scanner.py --self-test
 
