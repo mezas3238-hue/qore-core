@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from bisect import bisect_left
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -21,7 +22,6 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.vt08_index_market_journey_atlas import (
     Bar,
-    _bars_between,
     _decimal,
     _dt,
     _fmt,
@@ -30,8 +30,8 @@ from qore.infrastructure.trader_lab.vt08_index_market_journey_atlas import (
     _local_sweep_events,
 )
 
-SCHEMA = "qore.trader_lab.vt08_index_reaction_structure_atlas.v1"
-COMBINED_SCHEMA = "qore.trader_lab.vt08_index_reaction_structure_atlas.combined.v1"
+SCHEMA = "qore.trader_lab.vt08_index_reaction_structure_atlas.v2"
+COMBINED_SCHEMA = "qore.trader_lab.vt08_index_reaction_structure_atlas.combined.v2"
 _NY = ZoneInfo("America/New_York")
 
 
@@ -202,7 +202,9 @@ def _zone_retests(
     events: list[dict[str, object]] = []
     for zone in zones:
         for bar in reversed(bars):
-            if bar.closed_at > signal_at or bar.opened_at < zone.confirmed_at:
+            # Strictly before the signal. A structure first observed on the signal
+            # candle cannot explain where price arrived before departure.
+            if bar.closed_at >= signal_at or bar.opened_at < zone.confirmed_at:
                 continue
             if not _overlaps(zone, bar):
                 continue
@@ -229,7 +231,7 @@ def _liquidity_events(
     result: list[dict[str, object]] = []
     for event in _local_sweep_events(bars):
         observed = _dt(event["observed_at"])
-        if observed > signal_at:
+        if observed >= signal_at:
             continue
         result.append(
             {
@@ -289,6 +291,17 @@ def _segment_behavior(bars: Sequence[Bar]) -> dict[str, object]:
     }
 
 
+def _slice(
+    bars: Sequence[Bar],
+    opened_times: Sequence[datetime],
+    start: datetime,
+    end: datetime,
+) -> tuple[Bar, ...]:
+    left = bisect_left(opened_times, start)
+    right = bisect_left(opened_times, end)
+    return tuple(bars[left:right])
+
+
 def _hit(row: dict[str, object], level: str) -> bool:
     levels = cast(dict[str, object], row["time_to_favorable_levels"])
     payload = cast(dict[str, object], levels[level])
@@ -302,12 +315,17 @@ def _hit_at(row: dict[str, object], level: str) -> datetime | None:
     return _dt(value) if value else None
 
 
-def _episode(row: dict[str, object], bars: Sequence[Bar]) -> dict[str, object]:
+def _episode(
+    row: dict[str, object],
+    bars: Sequence[Bar],
+    opened_times: Sequence[datetime],
+) -> dict[str, object]:
     signal_at = _dt(row["signal_at"])
-    window = tuple(
-        bar
-        for bar in bars
-        if signal_at - timedelta(hours=24) <= bar.opened_at < signal_at
+    window = _slice(
+        bars,
+        opened_times,
+        signal_at - timedelta(hours=24),
+        signal_at,
     )
     structures = [
         *_zone_retests(_fvg_zones(window), window, signal_at),
@@ -315,7 +333,10 @@ def _episode(row: dict[str, object], bars: Sequence[Bar]) -> dict[str, object]:
         *_zone_retests(_breaker_zones(window), window, signal_at),
         *_liquidity_events(window, signal_at),
     ]
+    wanted_side = "bullish" if str(row["side"]) == "long" else "bearish"
+    structures = [item for item in structures if item["side"] == wanted_side]
     structures.sort(key=lambda item: str(item["observed_at"]))
+
     reaction_at: datetime | None = None
     reaction_structures: list[dict[str, object]] = []
     if structures:
@@ -325,15 +346,44 @@ def _episode(row: dict[str, object], bars: Sequence[Bar]) -> dict[str, object]:
             for item in structures
             if _dt(item["observed_at"]) == reaction_at
         ]
-    opened_times = tuple(bar.opened_at for bar in bars)
-    segment = (
-        _bars_between(bars, opened_times, reaction_at, signal_at)
-        if reaction_at is not None
-        else ()
+
+    pre_arrival = ()
+    reaction_to_signal = ()
+    post_arrival_60m = ()
+    if reaction_at is not None:
+        pre_arrival = _slice(
+            bars,
+            opened_times,
+            reaction_at - timedelta(minutes=60),
+            reaction_at,
+        )
+        reaction_to_signal = _slice(
+            bars,
+            opened_times,
+            reaction_at,
+            signal_at,
+        )
+        post_arrival_60m = _slice(
+            bars,
+            opened_times,
+            reaction_at,
+            reaction_at + timedelta(minutes=60),
+        )
+
+    pre_phase = _segment_behavior(pre_arrival)
+    transition_phase = _segment_behavior(reaction_to_signal)
+    post_phase = _segment_behavior(post_arrival_60m)
+    reaction_event = (
+        "liquidity-take"
+        if any(item["kind"] == "liquidity-sweep" for item in reaction_structures)
+        else "structure-retest"
+        if reaction_structures
+        else "none-detected"
     )
-    behavior = _segment_behavior(segment)
-    if any(item["kind"] == "liquidity-sweep" for item in reaction_structures):
-        behavior = {**behavior, "descriptor": "liquidity-take"}
+    combo = "+".join(
+        sorted({str(item["kind"]) for item in reaction_structures})
+    ) or "none-detected"
+
     one_r_at = _hit_at(row, "1")
     two_r_at = _hit_at(row, "2")
     return {
@@ -347,8 +397,15 @@ def _episode(row: dict[str, object], bars: Sequence[Bar]) -> dict[str, object]:
         "reaction_hour_new_york": (
             reaction_at.astimezone(_NY).hour if reaction_at else None
         ),
+        "reaction_event": reaction_event,
+        "reaction_structure_combo": combo,
         "reaction_structures": reaction_structures,
-        "reaction_behavior_to_signal": behavior,
+        "pre_arrival_phase_60m": pre_phase["descriptor"],
+        "reaction_to_signal_phase": transition_phase["descriptor"],
+        "post_arrival_phase_60m": post_phase["descriptor"],
+        "pre_arrival_detail": pre_phase,
+        "reaction_to_signal_detail": transition_phase,
+        "post_arrival_detail_60m": post_phase,
         "minutes_reaction_to_signal": (
             int((signal_at - reaction_at).total_seconds() // 60)
             if reaction_at is not None
@@ -420,19 +477,8 @@ def _group(
 ) -> dict[str, object]:
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for episode in episodes:
-        structures = cast(
-            list[dict[str, object]],
-            episode["reaction_structures"],
-        )
-        labels = [str(item["kind"]) for item in structures] or ["none-detected"]
-        for structure in labels:
-            values = [
-                structure
-                if key == "reaction_structure"
-                else str(episode.get(key, "unknown"))
-                for key in keys
-            ]
-            grouped["|".join(values)].append(episode)
+        label = "|".join(str(episode.get(key, "unknown")) for key in keys)
+        grouped[label].append(episode)
     return {
         label: _summary(items)
         for label, items in sorted(grouped.items())
@@ -454,8 +500,8 @@ def _definition_status() -> dict[str, str]:
         "mitigation_block": (
             "UNRESOLVED_FOR_THIS_ATLAS: separate formalization required"
         ),
-        "behavior_labels": (
-            "DESCRIPTIVE_HEURISTIC_ONLY: fixed efficiency/body-flip labels"
+        "phase_labels": (
+            "DESCRIPTIVE_HEURISTIC_ONLY: fixed 60m efficiency/body-flip labels"
         ),
     }
 
@@ -466,11 +512,41 @@ def _governance() -> dict[str, bool]:
         "consumed_evidence_only": True,
         "changes_v7": False,
         "observed_structure_is_not_causation": True,
+        "post_arrival_phase_is_outcome_not_admission_feature": True,
         "automatic_rule_promotion_forbidden": True,
         "fresh_validation_required_for_any_specialist_rule": True,
         "live_authorized": False,
         "real_capital_authorized": False,
         "production_authorized": False,
+    }
+
+
+def _aggregates(episodes: Sequence[dict[str, object]]) -> dict[str, object]:
+    return {
+        "by_market_structure_combo": _group(
+            episodes,
+            ("symbol", "reaction_structure_combo"),
+        ),
+        "by_market_weekday_structure_combo": _group(
+            episodes,
+            ("symbol", "weekday_new_york", "reaction_structure_combo"),
+        ),
+        "by_market_hour_structure_combo": _group(
+            episodes,
+            ("symbol", "reaction_hour_new_york", "reaction_structure_combo"),
+        ),
+        "by_market_pre_arrival_phase": _group(
+            episodes,
+            ("symbol", "pre_arrival_phase_60m"),
+        ),
+        "by_market_post_arrival_phase": _group(
+            episodes,
+            ("symbol", "post_arrival_phase_60m"),
+        ),
+        "by_market_structure_post_phase": _group(
+            episodes,
+            ("symbol", "reaction_structure_combo", "post_arrival_phase_60m"),
+        ),
     }
 
 
@@ -491,7 +567,18 @@ def analyze_window(
         symbol: _load_bars(path, symbol)
         for symbol, path in paths.items()
     }
-    episodes = [_episode(row, bars[str(row["symbol"])]) for row in trades]
+    opened_times = {
+        symbol: tuple(bar.opened_at for bar in market_bars)
+        for symbol, market_bars in bars.items()
+    }
+    episodes = [
+        _episode(
+            row,
+            bars[str(row["symbol"])],
+            opened_times[str(row["symbol"])],
+        )
+        for row in trades
+    ]
     return {
         "schema": SCHEMA,
         "candidate_id": payload["candidate_id"],
@@ -499,18 +586,7 @@ def analyze_window(
         "window": payload["window"],
         "episode_count": len(episodes),
         "episodes": episodes,
-        "by_market_structure": _group(
-            episodes,
-            ("symbol", "reaction_structure"),
-        ),
-        "by_market_weekday_structure": _group(
-            episodes,
-            ("symbol", "weekday_new_york", "reaction_structure"),
-        ),
-        "by_market_hour_structure": _group(
-            episodes,
-            ("symbol", "reaction_hour_new_york", "reaction_structure"),
-        ),
+        **_aggregates(episodes),
         "definition_status": _definition_status(),
         "governance": _governance(),
     }
@@ -532,18 +608,7 @@ def combine(payloads: Sequence[dict[str, object]]) -> dict[str, object]:
         "windows": [payload["window"] for payload in payloads],
         "episode_count": len(episodes),
         "episodes": episodes,
-        "by_market_structure": _group(
-            episodes,
-            ("symbol", "reaction_structure"),
-        ),
-        "by_market_weekday_structure": _group(
-            episodes,
-            ("symbol", "weekday_new_york", "reaction_structure"),
-        ),
-        "by_market_hour_structure": _group(
-            episodes,
-            ("symbol", "reaction_hour_new_york", "reaction_structure"),
-        ),
+        **_aggregates(episodes),
         "definition_status": first["definition_status"],
         "governance": first["governance"],
     }
