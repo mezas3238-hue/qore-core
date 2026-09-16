@@ -205,9 +205,16 @@ All are positive in consumed evidence. No POI family is removed.
 
 ## Target forensics
 
-TTrades target methodology is structural: higher-timeframe highs/lows, untouched swing highs/lows, previous-candle highs/lows and liquidity objectives are the natural targets. A fixed R projection is not the canonical final target model.
+Official TTrades material explicitly supports both:
 
-Nevertheless, the frozen V6/V7 2R target was stress-tested on the consumed corrected stream to determine whether 2R itself was causing the stop-loss problem.
+- a fixed 2:1 / 2R target; and
+- higher-timeframe / logical-liquidity objectives when structure supports a larger target.
+
+The 15-minute Fractal Model guidance states that after continuation entry with the stop beyond the protected swing, targets can be set at a fixed two-to-one or at higher-timeframe objectives. Other TTrades playbook material describes 2R as a minimum target/benchmark and uses higher-timeframe liquidity for extended R:R.
+
+Therefore a fixed 2R target is source-compatible and may remain the deterministic V7 primary target. Structural higher-timeframe objectives may be retained as diagnostics/runners, but are not required to replace 2R before the next holdout.
+
+The frozen V6/V7 2R target was stress-tested on the consumed corrected stream to determine whether 2R itself was causing the stop-loss problem.
 
 All values below include `-0.05R/trade` friction and use the same 336 entry signals/stops.
 
@@ -223,7 +230,7 @@ All values below include `-0.05R/trade` friction and use the same 336 entry sign
 | 2.50R | +92.35 | +0.2749 | 1.4221 | 17.15R |
 | 3.00R | +88.54 | +0.2635 | 1.3752 | 14.00R |
 
-### Target conclusion T1 — 2R is not too ambitious
+### Target conclusion T1 — 2R is sufficient and not too ambitious
 
 Lowering the target does not solve the loss mechanism. 1R and 1.5R both produce materially less expectancy than 2R in consumed evidence.
 
@@ -231,9 +238,10 @@ Lowering the target does not solve the loss mechanism. 1R and 1.5R both produce 
 
 Therefore:
 
+- retain fixed 2R as the V7 primary deterministic target;
 - do not lower 2R to cure stops;
 - do not promote 2.25R based on consumed optimization;
-- retain 2R only as a diagnostic/replay reference while the final source-faithful target rule is formalized from structure.
+- higher-timeframe liquidity objectives may be recorded as optional structural extension diagnostics, not as a post-hoc replacement target.
 
 ### Target conclusion T2 — trade management can reduce DD but costs expectancy
 
@@ -253,7 +261,7 @@ With remaining stop moved to breakeven after 1R:
 - PF: 1.3347
 - DD: 9.50R
 
-This demonstrates a return/DD tradeoff, not a free improvement. TTrades permits multi-target management, but no partial/breakeven policy is adopted here because the exact management contract has not been independently frozen.
+This demonstrates a return/DD tradeoff, not a free improvement. No partial/breakeven policy is adopted for V7 because it is unnecessary to repair the identified failure and would add a new management degree of freedom.
 
 ## Critical infrastructure finding I1 — nominal holdout did not actually trade its first ~10 months
 
@@ -293,7 +301,8 @@ The `[2018-09-15, 2020-09-15)` fresh holdout MUST NOT be opened until this corre
 2. 14:00 execution: owner-disabled; zero consumed V6 trades, therefore no economic tuning effect.
 3. SAME_C2 pre-body execution defect: CONFIRMED and removed.
 4. Protected-swing stop placement: retained. TTrades treats the protected swing as the structural invalidation level; most remaining stops fail before +1R, so widening the stop is not supported.
-5. Fixed 2R target: not identified as the cause of stops. It remains a replay benchmark only, not yet the canonical final source target.
-6. Final target policy: must be structural/liquidity-based before fresh certification; no retrospective selection of 2.25R.
-7. Daily-source aggregation maintenance-gap bug: CONFIRMED P0 and must be fixed before any older fresh holdout.
-8. Next fresh interval remains `[2018-09-15, 2020-09-15)` only if deterministic evidence is available after the source-day fix and candidate freeze.
+5. Fixed 2R target: CONFIRMED source-compatible and quantitatively sufficient; retain for V7.
+6. 2.25R: diagnostic only; prohibited as a retrospective optimization choice.
+7. Partial/breakeven management: not adopted; it reduces DD but also reduces expectancy and is not required to repair the root cause.
+8. Daily-source aggregation maintenance-gap bug: CONFIRMED P0 and must be fixed before any older fresh holdout.
+9. Next fresh interval remains `[2018-09-15, 2020-09-15)` only if deterministic evidence is available after the source-day fix and candidate freeze.
