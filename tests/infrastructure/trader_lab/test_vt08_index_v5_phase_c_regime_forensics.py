@@ -8,6 +8,7 @@ import pytest
 from qore.infrastructure.trader_lab.vt08_index_v5_phase_c_regime_forensics import run
 
 
+# Regression guard: keep CSV writes on separate lines so Ruff E702 remains satisfied.
 def test_phase_c_rejects_nonfrozen_sample(tmp_path: Path) -> None:
     path = tmp_path / "c.csv"
     with path.open("w", newline="", encoding="utf-8") as fh:
