@@ -86,6 +86,7 @@ jobs:
           PY
       - name: Run CIBO over consumed R5 holdout
         run: |
+          mkdir -p artifacts
           python -m qore.infrastructure.trader_lab.ict_turtle_soup_cibo_diagnostics_v1 \
             evidence/r5/trades.json \
             evidence/behavior-lab/events.csv \
