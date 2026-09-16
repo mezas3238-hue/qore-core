@@ -1,0 +1,71 @@
+name: QORE VT-31 Historical Tick Failure Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Discover demo account when needed
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Run one consumed-window sanitized diagnostic
+        env:
+          QORE_DEMO_LAB_SYMBOL: NAS100
+          QORE_TICK_WINDOW_OPEN_MS: '1656512160000'
+          QORE_TICK_WINDOW_CLOSE_MS: '1656512219999'
+        run: |
+          set -euo pipefail
+          python scripts/vt31_historical_tick_failure_diagnostic.py | tee vt31-historical-tick-failure-diagnostic.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('vt31-historical-tick-failure-diagnostic.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['market'] == 'NAS100'
+          print('status=', p['status'])
+          if p['status'] == 'failure':
+              print('error_type=', p['error_type'])
+              print('error_message=', p['error_message'])
+          else:
+              print('response_type=', p['response_type'], 'tick_count=', p['tick_count'], 'has_more=', p['has_more'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-consumed-historical-tick-failure-diagnostic-${{ github.sha }}
+          path: vt31-historical-tick-failure-diagnostic.json
+          retention-days: 30
