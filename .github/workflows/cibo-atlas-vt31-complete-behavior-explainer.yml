@@ -5,6 +5,7 @@ on:
     branches: [agent/cibo-atlas-vt31-market-specialists-001]
     paths:
       - scripts/cibo_atlas_vt31_complete_behavior_explainer.py
+      - scripts/cibo_atlas_vt31_complete_behavior_explainer_v2.py
       - .github/workflows/cibo-atlas-vt31-complete-behavior-explainer.yml
   workflow_dispatch:
 
@@ -29,9 +30,9 @@ jobs:
       - name: Static validation
         run: |
           set -euo pipefail
-          python -m py_compile scripts/cibo_atlas_vt31_complete_behavior_explainer.py
-          ruff check --ignore E501,I001,UP035,SLF001 scripts/cibo_atlas_vt31_complete_behavior_explainer.py
-          python scripts/cibo_atlas_vt31_complete_behavior_explainer.py --self-test
+          python -m py_compile scripts/cibo_atlas_vt31_complete_behavior_explainer.py scripts/cibo_atlas_vt31_complete_behavior_explainer_v2.py
+          ruff check --ignore E501,I001,UP035,SLF001 scripts/cibo_atlas_vt31_complete_behavior_explainer.py scripts/cibo_atlas_vt31_complete_behavior_explainer_v2.py
+          python scripts/cibo_atlas_vt31_complete_behavior_explainer_v2.py --self-test
       - name: Recover immutable definitive forensics
         run: |
           set -euo pipefail
@@ -99,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir result
-          python scripts/cibo_atlas_vt31_complete_behavior_explainer.py \
+          python scripts/cibo_atlas_vt31_complete_behavior_explainer_v2.py \
             --forensics forensics/vt31-tick-corrected-deep-forensics.json \
             --attribution attribution/cibo-atlas-vt31-root-cause-attribution.json \
             --predeparture predeparture/cibo-atlas-vt31-pre-departure-structure-lab.json \
