@@ -106,6 +106,7 @@ jobs:
           assert p['source_window_count']==4 and p['available']==4
           assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
           PY
+          cp acquisition/vt31-bounded-tick-acquisition-summary.json acquisition/vt31-historical-tick-acquisition-summary.json
           mkdir result
           python scripts/vt31_tick_execution_resolution.py \
             --manifest manifest/vt31-original-later-initial-fill-parity-manifest.json \
