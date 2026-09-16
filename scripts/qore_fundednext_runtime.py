@@ -383,7 +383,7 @@ def _manage_h4_exits(
             "type": mt5.ORDER_TYPE_BUY if closing_buy else mt5.ORDER_TYPE_SELL,
             "price": float(tick.ask if closing_buy else tick.bid),
             "magic": int(position.magic),
-            "comment": f"qore-h4-exit-{str(position.ticket)}"[:31],
+            "comment": f"qore-h4-exit-{str(position.ticket)}"[:29],
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": _exit_filling(str(position.symbol)),
         }
