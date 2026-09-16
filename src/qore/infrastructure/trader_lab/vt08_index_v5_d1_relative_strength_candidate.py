@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
     ClosurePolicy,
@@ -18,7 +18,11 @@ from qore.infrastructure.trader_lab.vt08_index_qore_ambiguity_lab_v1 import (
 from qore.infrastructure.trader_lab.vt08_index_v2_candidate import _load_candidate_market
 from qore.infrastructure.trader_lab.vt08_index_v3_geometry_candidate import (
     CANDIDATE_ID as BASE_CANDIDATE_ID,
+)
+from qore.infrastructure.trader_lab.vt08_index_v3_geometry_candidate import (
     RULE_FINGERPRINT as BASE_RULE_FINGERPRINT,
+)
+from qore.infrastructure.trader_lab.vt08_index_v3_geometry_candidate import (
     build_v3_candidate_report,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
