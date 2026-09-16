@@ -110,9 +110,10 @@ class CiboAtlasMetric:
             )
 
     def logical_values(self) -> tuple[object, ...]:
+        normalized = Decimal(0) if self.value == 0 else self.value.normalize()
         return (
             self.metric_code,
-            format(self.value.normalize() if self.value else Decimal(0), "f"),
+            format(normalized, "f"),
             self.timing.value,
             self.evidence_ref.logical_values(),
         )
@@ -375,8 +376,12 @@ def compare_cibo_atlas_market_to_trader(
                 "diagnostic rule codes must be unique"
             )
 
-        market_metrics = {metric.metric_code: metric for metric in market_snapshot.metrics}
-        trader_metrics = {metric.metric_code: metric for metric in trader_snapshot.metrics}
+        market_metrics = {
+            metric.metric_code: metric for metric in market_snapshot.metrics
+        }
+        trader_metrics = {
+            metric.metric_code: metric for metric in trader_snapshot.metrics
+        }
         common_codes = sorted(set(market_metrics) & set(trader_metrics))
         gaps: list[CiboAtlasBehaviorGap] = []
         gap_by_code: dict[str, CiboAtlasBehaviorGap] = {}
@@ -387,7 +392,7 @@ def compare_cibo_atlas_market_to_trader(
                 raise CiboAtlasMarketLabValidationError(
                     f"metric timing mismatch for {code}"
                 )
-            gap = CiboAtlasBehaviorGap(
+            behavior_gap = CiboAtlasBehaviorGap(
                 metric_code=code,
                 market_value=market_metric.value,
                 trader_value=trader_metric.value,
@@ -395,15 +400,15 @@ def compare_cibo_atlas_market_to_trader(
                 timing=market_metric.timing,
                 evidence_refs=(market_metric.evidence_ref, trader_metric.evidence_ref),
             )
-            gaps.append(gap)
-            gap_by_code[code] = gap
+            gaps.append(behavior_gap)
+            gap_by_code[code] = behavior_gap
 
         hypotheses: list[CiboAtlasResearchHypothesis] = []
         for rule in sorted(rules, key=lambda item: item.rule_code):
-            gap = gap_by_code.get(rule.metric_code)
-            if gap is None:
+            candidate_gap = gap_by_code.get(rule.metric_code)
+            if candidate_gap is None:
                 continue
-            observed = gap.trader_minus_market
+            observed = candidate_gap.trader_minus_market
             if rule.direction is CiboAtlasComparisonDirection.ABOVE:
                 fired = observed >= rule.threshold
             elif rule.direction is CiboAtlasComparisonDirection.BELOW:
