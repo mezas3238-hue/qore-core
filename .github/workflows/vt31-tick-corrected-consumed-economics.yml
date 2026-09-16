@@ -1,0 +1,180 @@
+name: QORE VT-31 Tick-Corrected Consumed Economics
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-tick-corrected-consumed-economics.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  corrected-economics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ledger runtime
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_tick_corrected_consumed_ledger.py scripts/vt31_tick_corrected_economics.py
+
+      - name: Wait for exact four original later ambiguities
+        run: |
+          set -euo pipefail
+          source_run=35054986173
+          completed=false
+          for attempt in $(seq 1 240); do
+            status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .status)"
+            if [ "$status" = completed ]; then
+              conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .conclusion)"
+              test "$conclusion" = success
+              completed=true
+              break
+            fi
+            sleep 10
+          done
+          test "$completed" = true
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .head_sha)" = "07f3b3d32414f66cc7e2fe664fe875f6dacbdf97"
+
+      - name: Recover immutable consumed inputs by API digest
+        run: |
+          set -euo pipefail
+          fetch_artifact() {
+            id="$1"; name="$2"
+            mkdir "$name"
+            digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" --jq .digest)"
+            test -n "$digest"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > "${name}.zip"
+            echo "${digest#sha256:}  ${name}.zip" | sha256sum -c -
+            unzip -q "${name}.zip" -d "$name"
+            printf '%s\n' "$id" > "${name}.artifact-id.txt"
+            printf '%s\n' "$digest" > "${name}.artifact-digest.txt"
+          }
+
+          fetch_artifact 10420087200 attrition
+          fetch_artifact 10425626147 ambiguous-manifest
+          fetch_artifact 10428964679 ambiguous-resolution
+          fetch_artifact 10428839699 ambiguous-lifecycle
+          fetch_artifact 10429847173 ambiguous-later
+          fetch_artifact 10429677148 nofill-manifest
+          fetch_artifact 10430037237 nofill-resolution
+          fetch_artifact 10430137583 nofill-lifecycle
+          fetch_artifact 10430630506 nofill-later
+          fetch_artifact 10429775693 parity-manifest
+          fetch_artifact 10429374558 parity-evaluation
+          fetch_artifact 10430491963 parity-correction
+
+          original_artifact_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/35054986173/artifacts" --jq '.artifacts[] | select(.name | startswith("qore-vt31-original-later-ambiguity-resolution-")) | .id' | head -n1)"
+          test -n "$original_artifact_id"
+          fetch_artifact "$original_artifact_id" original-later
+
+          # Verify all artifact-internal SHA manifests when present.
+          for d in attrition ambiguous-manifest ambiguous-resolution ambiguous-lifecycle ambiguous-later nofill-manifest nofill-resolution nofill-lifecycle nofill-later parity-manifest parity-evaluation parity-correction original-later; do
+            if [ -f "$d/SHA256SUMS" ]; then (cd "$d" && sha256sum -c SHA256SUMS); fi
+          done
+
+      - name: Validate immutable source cardinalities before assembly
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          def j(path): return json.loads(Path(path).read_text())
+          assert len(j('ambiguous-manifest/vt31-historical-tick-windows.json')['windows']) == 437
+          assert j('ambiguous-resolution/vt31-tick-execution-resolution.json')['source_window_count'] == 437
+          assert j('ambiguous-lifecycle/vt31-tick-clear-fill-lifecycle.json')['source_tick_clear_count'] == 47
+          assert j('ambiguous-later/vt31-open-position-tick-exit-resolution.json')['source_window_count'] == 2
+          assert len(j('nofill-manifest/vt31-no-executable-fill-followup-manifest.json')['windows']) == 59
+          assert j('nofill-resolution/vt31-pending-limit-tick-resolution.json')['source_window_count'] == 59
+          assert j('nofill-lifecycle/vt31-pending-fill-lifecycle.json')['source_tick_clear_count'] == 10
+          assert j('nofill-later/vt31-initial-pending-later-open-position-resolution.json')['source_window_count'] == 1
+          assert len(j('parity-manifest/vt31-historical-tick-parity-windows.json')['windows']) == 339
+          assert j('parity-evaluation/vt31-tick-parity-evaluation.json')['source_count'] == 339
+          assert j('original-later/vt31-original-later-open-position-resolution.json')['source_window_count'] == 4
+          PY
+
+      - name: Assemble complete fail-closed consumed ledger
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_tick_corrected_consumed_ledger.py \
+            --fill-attrition-summary attrition/vt31-r8-fill-attrition-summary.json \
+            --ambiguous-manifest ambiguous-manifest/vt31-historical-tick-windows.json \
+            --ambiguous-resolution ambiguous-resolution/vt31-tick-execution-resolution.json \
+            --ambiguous-lifecycle ambiguous-lifecycle/vt31-tick-clear-fill-lifecycle.json \
+            --ambiguous-later-resolution ambiguous-later/vt31-open-position-tick-exit-resolution.json \
+            --nofill-followup-manifest nofill-manifest/vt31-no-executable-fill-followup-manifest.json \
+            --nofill-pending-resolution nofill-resolution/vt31-pending-limit-tick-resolution.json \
+            --nofill-lifecycle nofill-lifecycle/vt31-pending-fill-lifecycle.json \
+            --nofill-later-resolution nofill-later/vt31-initial-pending-later-open-position-resolution.json \
+            --parity-manifest parity-manifest/vt31-historical-tick-parity-windows.json \
+            --parity-evaluation parity-evaluation/vt31-tick-parity-evaluation.json \
+            --parity-correction-dir parity-correction \
+            --original-later-manifest original-later/vt31-original-later-ambiguity-manifest.json \
+            --original-later-resolution original-later/vt31-original-later-open-position-resolution.json \
+            --output result/vt31-tick-corrected-consumed-ledger.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-tick-corrected-consumed-ledger.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          a=p['authority']
+          assert a['gap05_quality_pass_total']==1019
+          assert a['original_pending_no_fill_total']==239
+          assert a['corrected_root_total']==780
+          assert sum(a['corrected_root_classes'].values())==780
+          assert p['terminal_trade_count'] + len(p['no_trade_roots']) + len(p['censored_roots']) == 780
+          print(json.dumps({
+            'terminal_trade_count':p['terminal_trade_count'],
+            'no_trade_roots':len(p['no_trade_roots']),
+            'censored_roots':len(p['censored_roots']),
+            'partition':p['terminal_trade_counts_by_partition'],
+            'market':p['terminal_trade_counts_by_market'],
+            'side':p['terminal_trade_counts_by_side'],
+          },sort_keys=True))
+          PY
+
+      - name: Evaluate predeclared consumed economic gates
+        run: |
+          set -euo pipefail
+          python scripts/vt31_tick_corrected_economics.py \
+            result/vt31-tick-corrected-consumed-ledger.json \
+            --output result/vt31-tick-corrected-consumed-economics.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-tick-corrected-consumed-economics.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert p['gate_friction_r_per_trade']=='0.10'
+          print(json.dumps({'pass':p['consumed_economic_gate_pass'],'gates':p['gates'],'gate_result':p['results']['0.10']},sort_keys=True))
+          PY
+
+      - name: Bind immutable corrected-economics artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          for name in attrition ambiguous-manifest ambiguous-resolution ambiguous-lifecycle ambiguous-later nofill-manifest nofill-resolution nofill-lifecycle nofill-later parity-manifest parity-evaluation parity-correction original-later; do
+            cp "${name}.artifact-id.txt" "result/source-${name}-artifact-id.txt"
+            cp "${name}.artifact-digest.txt" "result/source-${name}-artifact-digest.txt"
+          done
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-tick-corrected-consumed-economics-${{ github.sha }}
+          path: result/
+          retention-days: 90
