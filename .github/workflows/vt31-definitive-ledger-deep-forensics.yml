@@ -1,0 +1,155 @@
+name: QORE VT-31 Definitive Tick Ledger + Deep Forensics
+
+on:
+  push:
+    branches: [agent/vt31-historical-tick-resolution-001]
+    paths:
+      - .github/workflows/vt31-definitive-ledger-deep-forensics.yml
+      - scripts/vt31_tick_corrected_consumed_ledger_v2.py
+      - scripts/vt31_tick_corrected_deep_forensics.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  definitive-ledger-and-forensics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          pip install -e .
+          python -m py_compile scripts/vt31_tick_corrected_consumed_ledger_v2.py scripts/vt31_tick_corrected_economics.py scripts/vt31_tick_corrected_deep_forensics.py
+      - name: Wait for exact one-root finalization run
+        run: |
+          set -euo pipefail
+          source_run=35081343304
+          completed=false
+          for attempt in $(seq 1 240); do
+            status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .status)"
+            if [ "$status" = completed ]; then
+              conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .conclusion)"
+              test "$conclusion" = success
+              completed=true
+              break
+            fi
+            sleep 10
+          done
+          test "$completed" = true
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .head_sha)" = "6fb1df538b522d7f378d331cae7a67eb2bd03987"
+      - name: Recover immutable consumed artifacts
+        run: |
+          set -euo pipefail
+          fetch_artifact() {
+            id="$1"; name="$2"; expected="$3"
+            mkdir "$name"
+            digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" --jq .digest)"
+            test "$digest" = "sha256:${expected}"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > "${name}.zip"
+            echo "${expected}  ${name}.zip" | sha256sum -c -
+            unzip -q "${name}.zip" -d "$name"
+            if [ -f "$name/SHA256SUMS" ]; then (cd "$name" && sha256sum -c SHA256SUMS); fi
+            printf '%s\n' "$id" > "${name}.artifact-id.txt"
+            printf '%s\n' "$digest" > "${name}.artifact-digest.txt"
+          }
+          fetch_artifact 10430178404 parent f6614ad3003770d80b97ce0249784ed6a19d43486fb45c753b7f054df5c1da28
+          fetch_artifact 10440396158 parity 574bf8d0403ffda7547482c148b05ad6950b16109a8f92033f7daf856cc2a80a
+          pending_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/35081343304/artifacts" --jq '.artifacts[] | select(.name | startswith("qore-vt31-original-later-pending-finalization-")) | .id' | head -n1)"
+          test -n "$pending_id"
+          pending_digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${pending_id}" --jq .digest)"
+          test -n "$pending_digest"
+          mkdir pending
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${pending_id}/zip" > pending.zip
+          echo "${pending_digest#sha256:}  pending.zip" | sha256sum -c -
+          unzip -q pending.zip -d pending
+          (cd pending && sha256sum -c SHA256SUMS)
+          printf '%s\n' "$pending_id" > pending.artifact-id.txt
+          printf '%s\n' "$pending_digest" > pending.artifact-digest.txt
+          test "$(cat pending/git-sha.txt)" = "6fb1df538b522d7f378d331cae7a67eb2bd03987"
+      - name: Build definitive 780-root ledger v2
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_tick_corrected_consumed_ledger_v2.py \
+            --parent-ledger parent/vt31-tick-corrected-consumed-ledger.json \
+            --initial-manifest parity/vt31-original-later-initial-fill-parity-manifest.json \
+            --initial-resolution parity/vt31-original-later-initial-fill-parity-resolution.json \
+            --pending-manifest pending/vt31-original-later-pending-followup-manifest.json \
+            --pending-resolution pending/vt31-original-later-pending-resolution.json \
+            --pending-lifecycle pending/vt31-pending-fill-lifecycle.json \
+            --pending-later-resolution pending/vt31-original-later-pending-later-resolution.json \
+            --output result/vt31-tick-corrected-consumed-ledger-v2.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-tick-corrected-consumed-ledger-v2.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert p['authority']['corrected_root_total']==780
+          assert p['authority']['definitive_four_root_parity'] is True
+          assert len(p['roots'])==780 and len({r['root_id'] for r in p['roots']})==780
+          assert len(p['four_root_correction'])==4
+          print(json.dumps({'terminal':p['terminal_trade_count'],'no_trade':len(p['no_trade_roots']),'censored':len(p['censored_roots']),'corrections':p['four_root_correction']},sort_keys=True))
+          PY
+      - name: Recalculate definitive consumed economics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_tick_corrected_economics.py result/vt31-tick-corrected-consumed-ledger-v2.json --output result/vt31-tick-corrected-consumed-economics-v2.json
+      - name: Recover immutable M1 evidence for causal forensics
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/r5 evidence/r6 evidence/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          unzip -q r5.zip -d evidence/r5
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          unzip -q r6.zip -d evidence/r6
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -
+          unzip -q r8.zip -d evidence/r8
+      - name: Run pre-entry causal matrix and losing-streak forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_tick_corrected_deep_forensics.py \
+            --ledger result/vt31-tick-corrected-consumed-ledger-v2.json \
+            --r5-nas100 evidence/r5/fresh/NAS100/market-evidence.json --r5-sp500 evidence/r5/fresh/SP500/market-evidence.json --r5-us30 evidence/r5/fresh/US30/market-evidence.json \
+            --r6-nas100 evidence/r6/fresh/NAS100/market-evidence.json --r6-sp500 evidence/r6/fresh/SP500/market-evidence.json --r6-us30 evidence/r6/fresh/US30/market-evidence.json \
+            --r8-fresh-nas100 evidence/r8/fresh/NAS100/market-evidence.json --r8-fresh-sp500 evidence/r8/fresh/SP500/market-evidence.json --r8-fresh-us30 evidence/r8/fresh/US30/market-evidence.json \
+            --output result/vt31-tick-corrected-deep-forensics.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-tick-corrected-deep-forensics.json').read_text())
+          assert p['selection_prohibited'] is True and p['feature_timing']=='pre-entry-only'
+          assert p['terminal_count']>0 and p['reconstructed_quality_pass_count']==1019
+          print(json.dumps({'terminal':p['terminal_count'],'max_losing_streak':p['max_losing_streak'],'source_target_structure':p['source_target_structure'],'top_streaks':p['top_losing_streaks'][:5]},sort_keys=True))
+          PY
+      - name: Bind immutable definitive forensic artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          cp parent.artifact-id.txt result/source-parent-artifact-id.txt
+          cp parent.artifact-digest.txt result/source-parent-artifact-digest.txt
+          cp parity.artifact-id.txt result/source-four-root-parity-artifact-id.txt
+          cp parity.artifact-digest.txt result/source-four-root-parity-artifact-digest.txt
+          cp pending.artifact-id.txt result/source-pending-finalization-artifact-id.txt
+          cp pending.artifact-digest.txt result/source-pending-finalization-artifact-digest.txt
+          printf '%s\n' '10380044761' > result/source-r5-artifact-id.txt
+          printf '%s\n' '10389112524' > result/source-r6-artifact-id.txt
+          printf '%s\n' '10402199719' > result/source-r8-fresh-artifact-id.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-definitive-ledger-deep-forensics-${{ github.sha }}
+          path: result/
+          retention-days: 90

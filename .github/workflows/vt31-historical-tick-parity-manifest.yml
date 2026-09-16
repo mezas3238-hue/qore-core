@@ -1,0 +1,80 @@
+name: QORE VT-31 Consumed Tick Parity Manifest
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  parity-manifest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e .
+          python -m py_compile scripts/vt31_historical_tick_parity_manifest.py
+      - name: Recover immutable consumed R5 R6 R8 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p consumed/r5 consumed/r6 consumed/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -
+          unzip -q r5.zip -d consumed/r5
+          unzip -q r6.zip -d consumed/r6
+          unzip -q r8.zip -d consumed/r8
+      - name: Freeze previously resolved consumed fill bars
+        run: |
+          set -euo pipefail
+          python scripts/vt31_historical_tick_parity_manifest.py \
+            consumed/r5/fresh/NAS100/market-evidence.json \
+            consumed/r5/fresh/SP500/market-evidence.json \
+            consumed/r5/fresh/US30/market-evidence.json \
+            consumed/r6/fresh/NAS100/market-evidence.json \
+            consumed/r6/fresh/SP500/market-evidence.json \
+            consumed/r6/fresh/US30/market-evidence.json \
+            consumed/r8/fresh/NAS100/market-evidence.json \
+            consumed/r8/fresh/SP500/market-evidence.json \
+            consumed/r8/fresh/US30/market-evidence.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('vt31-historical-tick-parity-windows.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['expected_total'] == 339
+          assert len(p['windows']) == 339
+          assert sum(v['total'] for v in p['counts'].values()) == 339
+          print(json.dumps(p['counts'], sort_keys=True))
+          PY
+      - name: Bind deterministic parity manifest
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-historical-tick-parity-windows.json vt31-historical-tick-parity-summary.json > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-consumed-tick-parity-manifest-${{ github.sha }}
+          path: |
+            vt31-historical-tick-parity-windows.json
+            vt31-historical-tick-parity-summary.json
+            git-sha.txt
+            SHA256SUMS
+          retention-days: 90

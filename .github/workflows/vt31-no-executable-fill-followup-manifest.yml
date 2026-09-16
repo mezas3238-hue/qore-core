@@ -1,0 +1,71 @@
+name: QORE VT-31 No-Executable-Fill Follow-up Manifest
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  freeze-followup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Recover immutable source manifest and tick resolution
+        run: |
+          set -euo pipefail
+          mkdir source-manifest source-resolution
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10425626147/zip" > source-manifest.zip
+          unzip -q source-manifest.zip -d source-manifest
+          test "$(cat source-manifest/git-sha.txt)" = "493825d2b14946a6ddffe36f6c472fa5d0c3187e"
+          (cd source-manifest && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10428964679/zip" > source-resolution.zip
+          echo "b0273dfbe63377497c359d1fedd25fa4e12e51254b9cb32da2fd79d35550f10e  source-resolution.zip" | sha256sum -c -
+          unzip -q source-resolution.zip -d source-resolution
+          test "$(cat source-resolution/git-sha.txt)" = "2270fdc7b39fdd53a2ac72b27527b0cc0236ae8d"
+          (cd source-resolution && sha256sum -c SHA256SUMS)
+      - name: Freeze bounded follow-up to 11 NY
+        run: |
+          set -euo pipefail
+          mkdir followup
+          python -m py_compile scripts/vt31_no_executable_fill_followup_manifest.py
+          python scripts/vt31_no_executable_fill_followup_manifest.py \
+            --source-manifest source-manifest/vt31-historical-tick-windows.json \
+            --resolution source-resolution/vt31-tick-execution-resolution.json \
+            --output followup/vt31-no-executable-fill-followup-manifest.json
+      - name: Validate consumed-only follow-up inventory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('followup/vt31-no-executable-fill-followup-manifest.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_resolution_count'] == 59
+          assert len(p['windows']) + len(p['session_expired_no_fill']) == 59
+          assert len({r['window_id'] for r in p['windows']}) == len(p['windows'])
+          print(json.dumps({'followup_windows':len(p['windows']),'session_expired_no_fill':len(p['session_expired_no_fill'])}, sort_keys=True))
+          PY
+      - name: Bind immutable follow-up manifest
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > followup/git-sha.txt
+          echo "10425626147" > followup/source-manifest-artifact-id.txt
+          echo "10428964679" > followup/source-resolution-artifact-id.txt
+          echo "b0273dfbe63377497c359d1fedd25fa4e12e51254b9cb32da2fd79d35550f10e" > followup/source-resolution-zip-sha256.txt
+          (cd followup && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-no-executable-fill-followup-manifest-${{ github.sha }}
+          path: followup/
+          retention-days: 90

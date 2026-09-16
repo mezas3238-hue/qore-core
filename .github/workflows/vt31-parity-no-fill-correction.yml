@@ -1,0 +1,255 @@
+name: QORE VT-31 Parity No-Fill Correction
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-parity-no-fill-correction.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  correct-parity-no-fills:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install consumed research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+          python -m py_compile \
+            scripts/vt31_parity_no_fill_followup_manifest.py \
+            scripts/vt31_consumed_tick_manifest_acquisition.py \
+            scripts/vt31_pending_limit_tick_resolution.py \
+            scripts/vt31_pending_limit_tick_resolution_driver.py \
+            scripts/vt31_pending_fill_frozen_m1_lifecycle.py \
+            scripts/vt31_open_position_tick_exit_resolution.py
+          python scripts/vt31_pending_limit_tick_resolution_driver.py --self-test
+          python scripts/vt31_open_position_tick_exit_resolution.py --self-test
+
+      - name: Recover immutable 339 parity source and evaluation
+        run: |
+          set -euo pipefail
+          mkdir parity-manifest parity-evaluation
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429775693/zip" > parity-manifest.zip
+          echo "5fa9d0d4ae542baa8357946b23f393e12bd3a33a06eb9670d4928daf8b03e8c4  parity-manifest.zip" | sha256sum -c -
+          unzip -q parity-manifest.zip -d parity-manifest
+          (cd parity-manifest && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429374558/zip" > parity-evaluation.zip
+          echo "d4b3fab919dd106ef82981c58af47d117b1c02ae5d42b5572fb856ed17b2ac01  parity-evaluation.zip" | sha256sum -c -
+          unzip -q parity-evaluation.zip -d parity-evaluation
+          (cd parity-evaluation && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('parity-manifest/vt31-historical-tick-parity-windows.json').read_text())
+          e=json.loads(Path('parity-evaluation/vt31-tick-parity-evaluation.json').read_text())
+          assert len(m['windows'])==339 and e['source_count']==339
+          assert e['status_counts']['no-executable-fill-in-source-minute']==65
+          assert m['research_only'] is True and e['research_only'] is True
+          assert m['opens_new_holdout'] is False and e['opens_new_holdout'] is False
+          PY
+
+      - name: Freeze exact 65 pending follow-up windows
+        run: |
+          set -euo pipefail
+          mkdir followup
+          python scripts/vt31_parity_no_fill_followup_manifest.py \
+            --source-manifest parity-manifest/vt31-historical-tick-parity-windows.json \
+            --evaluation parity-evaluation/vt31-tick-parity-evaluation.json \
+            --output followup/vt31-parity-no-fill-followup-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('followup/vt31-parity-no-fill-followup-manifest.json').read_text())
+          assert p['source_resolution_count']==65
+          assert len(p['windows'])+len(p['session_expired_no_fill'])==65
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          print(json.dumps({'followup_windows':len(p['windows']),'session_expired_no_fill':len(p['session_expired_no_fill'])},sort_keys=True))
+          PY
+
+      - name: Verify cTrader credentials without printing values
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire BID ASK through frozen 11 NY cutoff
+        run: |
+          set -euo pipefail
+          python scripts/vt31_consumed_tick_manifest_acquisition.py \
+            --manifest followup/vt31-parity-no-fill-followup-manifest.json \
+            --output-dir followup-acquisition
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('followup/vt31-parity-no-fill-followup-manifest.json').read_text())
+          p=json.loads(Path('followup-acquisition/vt31-bounded-tick-acquisition-summary.json').read_text())
+          n=len(m['windows'])
+          assert p['source_window_count']==n
+          assert p['available']==n
+          assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
+          PY
+
+      - name: Recover immutable 339 parity seed BID ASK acquisition
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429747322/zip" > parity-seed.zip
+          echo "6535d279f7d8493d4f79779789ab874bb6726030ca2a54bfee11150e834ebfcd  parity-seed.zip" | sha256sum -c -
+          mkdir parity-seed
+          unzip -q parity-seed.zip -d parity-seed
+          (cd parity-seed && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('parity-seed/vt31-bounded-tick-acquisition-summary.json').read_text())
+          assert p['source_window_count']==339 and p['available']==339
+          assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
+          PY
+
+      - name: Resolve first executable later LIMIT fill
+        run: |
+          set -euo pipefail
+          mkdir pending-resolution
+          python scripts/vt31_pending_limit_tick_resolution_driver.py \
+            --manifest followup/vt31-parity-no-fill-followup-manifest.json \
+            --acquisition-dir followup-acquisition \
+            --seed-acquisition-dir parity-seed \
+            --output pending-resolution/vt31-parity-pending-limit-resolution.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('followup/vt31-parity-no-fill-followup-manifest.json').read_text())
+          p=json.loads(Path('pending-resolution/vt31-parity-pending-limit-resolution.json').read_text())
+          assert p['source_window_count']==len(m['windows'])
+          assert len(p['results'])==len(m['windows'])
+          assert sum(p['counts'].values())==len(m['windows'])
+          print(json.dumps({'pending_counts':p['counts']},sort_keys=True))
+          PY
+
+      - name: Recover immutable consumed M1 partitions
+        run: |
+          set -euo pipefail
+          mkdir -p consumed/r5 consumed/r6 consumed/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -
+          unzip -q r5.zip -d consumed/r5
+          unzip -q r6.zip -d consumed/r6
+          unzip -q r8.zip -d consumed/r8
+
+      - name: Continue all tick-clear later fills under frozen M1 lifecycle
+        run: |
+          set -euo pipefail
+          python scripts/vt31_pending_fill_frozen_m1_lifecycle.py \
+            --manifest followup/vt31-parity-no-fill-followup-manifest.json \
+            --resolution pending-resolution/vt31-parity-pending-limit-resolution.json \
+            --output-dir lifecycle \
+            --r5-nas100 consumed/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp500 consumed/r5/fresh/SP500/market-evidence.json \
+            --r5-us30 consumed/r5/fresh/US30/market-evidence.json \
+            --r6-nas100 consumed/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp500 consumed/r6/fresh/SP500/market-evidence.json \
+            --r6-us30 consumed/r6/fresh/US30/market-evidence.json \
+            --r8-fresh-nas100 consumed/r8/fresh/NAS100/market-evidence.json \
+            --r8-fresh-sp500 consumed/r8/fresh/SP500/market-evidence.json \
+            --r8-fresh-us30 consumed/r8/fresh/US30/market-evidence.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('pending-resolution/vt31-parity-pending-limit-resolution.json').read_text())
+          p=json.loads(Path('lifecycle/vt31-pending-fill-lifecycle.json').read_text())
+          a=json.loads(Path('lifecycle/vt31-pending-fill-later-ambiguity-manifest.json').read_text())
+          clear=r['counts'].get('executable-fill-minute-clear',0)
+          assert p['source_tick_clear_count']==clear and len(p['results'])==clear
+          assert sum(p['counts'].values())==clear
+          assert len({w['window_id'] for w in a['windows']})==len(a['windows'])
+          print(json.dumps({'lifecycle_counts':p['counts'],'later_ambiguities':len(a['windows'])},sort_keys=True))
+          PY
+
+      - name: Resolve any later same-M1 ambiguity with exact ticks
+        run: |
+          set -euo pipefail
+          count="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('lifecycle/vt31-pending-fill-later-ambiguity-manifest.json').read_text())
+          print(len(p['windows']))
+          PY
+          )"
+          mkdir later-resolution
+          if [ "$count" -gt 0 ]; then
+            python scripts/vt31_consumed_tick_manifest_acquisition.py \
+              --manifest lifecycle/vt31-pending-fill-later-ambiguity-manifest.json \
+              --output-dir later-acquisition
+            python scripts/vt31_open_position_tick_exit_resolution.py \
+              --manifest lifecycle/vt31-pending-fill-later-ambiguity-manifest.json \
+              --acquisition-dir later-acquisition \
+              --output later-resolution/vt31-parity-later-open-position-resolution.json
+          else
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          payload={'schema':'qore.vt31.empty_later_open_position_resolution.v1','research_only':True,'opens_new_holdout':False,'candidate_status':'NO_R9_NOT_CERTIFIED','source_window_count':0,'counts':{},'results':[]}
+          Path('later-resolution/vt31-parity-later-open-position-resolution.json').write_text(json.dumps(payload,sort_keys=True,indent=2)+'\n')
+          PY
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('lifecycle/vt31-pending-fill-later-ambiguity-manifest.json').read_text())
+          p=json.loads(Path('later-resolution/vt31-parity-later-open-position-resolution.json').read_text())
+          assert p['source_window_count']==len(a['windows'])
+          assert len(p['results'])==len(a['windows'])
+          assert sum(p['counts'].values())==len(a['windows'])
+          print(json.dumps({'later_tick_counts':p['counts']},sort_keys=True))
+          PY
+
+      - name: Bind complete parity correction artifact
+        run: |
+          set -euo pipefail
+          mkdir package
+          cp followup/vt31-parity-no-fill-followup-manifest.json package/
+          cp followup-acquisition/vt31-bounded-tick-acquisition-summary.json package/
+          cp pending-resolution/vt31-parity-pending-limit-resolution.json package/
+          cp lifecycle/vt31-pending-fill-lifecycle.json package/
+          cp lifecycle/vt31-pending-fill-later-ambiguity-manifest.json package/
+          cp later-resolution/vt31-parity-later-open-position-resolution.json package/
+          echo "$GITHUB_SHA" > package/git-sha.txt
+          echo "10429775693" > package/source-parity-manifest-artifact-id.txt
+          echo "10429374558" > package/source-parity-evaluation-artifact-id.txt
+          echo "10429747322" > package/source-parity-seed-acquisition-artifact-id.txt
+          (cd package && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-parity-no-fill-correction-${{ github.sha }}
+          path: package/
+          retention-days: 90

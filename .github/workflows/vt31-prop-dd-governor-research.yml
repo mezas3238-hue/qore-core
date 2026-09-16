@@ -1,0 +1,76 @@
+name: QORE VT-31 Prop Drawdown Governor Research
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Recover immutable consumed R5 R6 and R8 evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p consumed/r5 consumed/r6 consumed/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -
+          unzip -q r5.zip -d consumed/r5
+          unzip -q r6.zip -d consumed/r6
+          unzip -q r8.zip -d consumed/r8
+      - name: Reconstruct gap05 resolved trade baseline
+        run: |
+          set -euo pipefail
+          python scripts/vt31_r8_fill_attrition_forensics.py \
+            consumed/r5/fresh/NAS100/market-evidence.json \
+            consumed/r5/fresh/SP500/market-evidence.json \
+            consumed/r5/fresh/US30/market-evidence.json \
+            consumed/r6/fresh/NAS100/market-evidence.json \
+            consumed/r6/fresh/SP500/market-evidence.json \
+            consumed/r6/fresh/US30/market-evidence.json \
+            consumed/r8/fresh/NAS100/market-evidence.json \
+            consumed/r8/fresh/SP500/market-evidence.json \
+            consumed/r8/fresh/US30/market-evidence.json
+      - name: Test causal drawdown governors and 10k block Monte Carlo
+        run: |
+          set -euo pipefail
+          python scripts/vt31_prop_dd_governor_research.py vt31-r8-fill-attrition-forensics.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('vt31-prop-dd-governor-summary.json').read_text())
+          print(json.dumps(x, sort_keys=True, indent=2))
+          assert x['selection']['selected'] is not None
+          assert x['selection']['adjacent_support'] is True
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-prop-dd-governor-research.json vt31-prop-dd-governor-summary.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-prop-dd-governor-${{ github.sha }}
+          path: |
+            vt31-prop-dd-governor-research.json
+            vt31-prop-dd-governor-summary.json
+            git-sha.txt
+            SHA256SUMS
+          retention-days: 90

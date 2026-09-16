@@ -1,0 +1,103 @@
+name: QORE VT-31 Consumed Tick Parity Acquisition
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  acquire-parity-controls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+          python -m py_compile scripts/vt31_consumed_tick_manifest_acquisition.py
+      - name: Recover immutable 339-row consumed parity manifest
+        run: |
+          set -euo pipefail
+          mkdir source-parity
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429775693/zip" > source-parity.zip
+          echo "5fa9d0d4ae542baa8357946b23f393e12bd3a33a06eb9670d4928daf8b03e8c4  source-parity.zip" | sha256sum -c -
+          unzip -q source-parity.zip -d source-parity
+          test "$(cat source-parity/git-sha.txt)" = "c0d30ff8e2f3d9edc990f033e23ae2028e38bf48"
+          (cd source-parity && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('source-parity/vt31-historical-tick-parity-windows.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert len(p['windows']) == 339
+          assert p['counts']['r5']['total'] == 128
+          assert p['counts']['r6']['total'] == 111
+          assert p['counts']['r8_fresh']['total'] == 100
+          PY
+      - name: Verify cTrader credentials without printing values
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Acquire executable BID ASK evidence for all 339 parity controls
+        run: |
+          set -euo pipefail
+          python scripts/vt31_consumed_tick_manifest_acquisition.py \
+            --manifest source-parity/vt31-historical-tick-parity-windows.json \
+            --output-dir acquisition
+      - name: Validate parity acquisition inventory without imputation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('acquisition/vt31-bounded-tick-acquisition-summary.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_window_count'] == 339
+          assert len(p['results']) == 339
+          assert len({r['window_id'] for r in p['results']}) == 339
+          assert sum(p[k] for k in ('available','partial','empty','probe_failure','binding_mismatch')) == 339
+          print(json.dumps({k:p[k] for k in ('available','partial','empty','probe_failure','binding_mismatch')}, sort_keys=True))
+          PY
+      - name: Bind immutable parity acquisition
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d acquisition ]; then
+            echo "$GITHUB_SHA" > acquisition/git-sha.txt
+            echo "10429775693" > acquisition/source-parity-manifest-artifact-id.txt
+            echo "5fa9d0d4ae542baa8357946b23f393e12bd3a33a06eb9670d4928daf8b03e8c4" > acquisition/source-parity-manifest-zip-sha256.txt
+            (cd acquisition && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt31-consumed-tick-parity-acquisition-${{ github.sha }}
+          path: acquisition/
+          retention-days: 90

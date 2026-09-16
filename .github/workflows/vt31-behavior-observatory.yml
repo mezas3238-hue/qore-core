@@ -1,0 +1,107 @@
+name: QORE VT-31 Multi-Index Behavior Observatory
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-behavior-observatory.yml
+      - scripts/vt31_behavior_observatory.py
+      - docs/research/vt31_behavior_observatory.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  behavior-observatory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile observatory
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_behavior_observatory.py
+
+      - name: Recover immutable definitive ledger and deep-forensics source
+        run: |
+          set -euo pipefail
+          artifact_id=10440468729
+          expected=2d6a2c609a0fb0caf11f936623ed4907450e0f9a8581b4f6b54997b89b743b65
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
+          test "$digest" = "sha256:${expected}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > source.zip
+          echo "${expected}  source.zip" | sha256sum -c -
+          mkdir source
+          unzip -q source.zip -d source
+          (cd source && sha256sum -c SHA256SUMS)
+          test "$(cat source/git-sha.txt)" = "ac05b3c84433bf052b494bbc5b803e98de66e571"
+          test -f source/vt31-tick-corrected-consumed-ledger-v2.json
+          test -f source/vt31-tick-corrected-deep-forensics.json
+          printf '%s\n' "$artifact_id" > source-artifact-id.txt
+          printf '%s\n' "$digest" > source-artifact-digest.txt
+
+      - name: Build multi-index behavior atlas
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_behavior_observatory.py \
+            --deep-forensics source/vt31-tick-corrected-deep-forensics.json \
+            --ledger source/vt31-tick-corrected-consumed-ledger-v2.json \
+            --output-dir result
+
+      - name: Validate observatory governance and cardinality
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-behavior-observatory.json').read_text())
+          assert p['schema']=='qore.vt31.multi_index_behavior_observatory.v1'
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['selection_prohibited'] is True
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert p['live_authorized'] is False and p['production_authorized'] is False
+          assert p['terminal_count']==618
+          assert p['coverage']['root_count']==780
+          assert p['coverage']['class_counts']=={'censored':140,'no_trade':22,'terminal':618}
+          assert sorted(p['market_universe'])==['NAS100','SP500','US30']
+          assert set(p['market_metrics'])=={'NAS100','SP500','US30'}
+          assert p['unsupervised_pre_entry_regimes']['k']==6
+          assert len(p['unsupervised_pre_entry_regimes']['rows'])==618
+          with Path('result/vt31-behavior-trade-matrix.csv').open() as handle:
+              rows=list(csv.DictReader(handle))
+          assert len(rows)==618 and len({r['root_id'] for r in rows})==618
+          print(json.dumps({
+              'terminal':p['terminal_count'],
+              'markets':p['market_metrics'],
+              'coverage':p['coverage']['class_counts'],
+              'failure_modes':p['failure_modes']['overall'],
+              'regimes':{k:v['n'] for k,v in p['unsupervised_pre_entry_regimes']['clusters'].items()},
+              'pairwise':p['cross_index']['pairwise_same_day'],
+          },sort_keys=True))
+          PY
+
+      - name: Bind immutable observatory artifact
+        run: |
+          set -euo pipefail
+          cp source-artifact-id.txt result/
+          cp source-artifact-digest.txt result/
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-multi-index-behavior-observatory-${{ github.sha }}
+          path: result/
+          retention-days: 90

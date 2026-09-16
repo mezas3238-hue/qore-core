@@ -1,0 +1,142 @@
+name: QORE VT-31 Pending LIMIT Tick Resolution
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-pending-limit-tick-resolution.yml
+      - scripts/vt31_pending_limit_tick_resolution_driver.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  resolve-pending-limits:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Recover immutable 59-window follow-up manifest
+        run: |
+          set -euo pipefail
+          mkdir followup-manifest
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429677148/zip" > followup-manifest.zip
+          echo "f2e15888b5c9df67b0736bb2f45d78975f4edf090a45d2674ee8f61b4df2d52d  followup-manifest.zip" | sha256sum -c -
+          unzip -q followup-manifest.zip -d followup-manifest
+          (cd followup-manifest && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('followup-manifest/vt31-no-executable-fill-followup-manifest.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_resolution_count'] == 59
+          assert len(p['windows']) == 59
+          assert len(p['session_expired_no_fill']) == 0
+          PY
+
+      - name: Recover immutable 59-window follow-up BID ASK acquisition
+        run: |
+          set -euo pipefail
+          artifact_id=10429628733
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
+          test -n "$digest"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > followup-acquisition.zip
+          echo "${digest#sha256:}  followup-acquisition.zip" | sha256sum -c -
+          mkdir followup-acquisition
+          unzip -q followup-acquisition.zip -d followup-acquisition
+          (cd followup-acquisition && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('followup-acquisition/vt31-bounded-tick-acquisition-summary.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['source_window_count'] == 59
+          assert p['available'] == 59
+          assert p['partial'] == p['empty'] == p['probe_failure'] == p['binding_mismatch'] == 0
+          PY
+          echo "$artifact_id" > source-followup-acquisition-artifact-id.txt
+          echo "$digest" > source-followup-acquisition-artifact-digest.txt
+
+      - name: Recover immutable 437-window seed BID ASK acquisition
+        run: |
+          set -euo pipefail
+          artifact_id=10429417732
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
+          test -n "$digest"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > seed-acquisition.zip
+          echo "${digest#sha256:}  seed-acquisition.zip" | sha256sum -c -
+          mkdir seed-acquisition
+          unzip -q seed-acquisition.zip -d seed-acquisition
+          test -d seed-acquisition/acquisition
+          (cd seed-acquisition/acquisition && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('seed-acquisition/acquisition')
+          p=json.loads((root/'vt31-historical-tick-acquisition-summary.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['source_window_count'] == 437
+          assert p['available'] == 437
+          assert p['partial'] == p['empty'] == p['probe_failure'] == p['binding_mismatch'] == 0
+          PY
+          echo "$artifact_id" > source-seed-acquisition-artifact-id.txt
+          echo "$digest" > source-seed-acquisition-artifact-digest.txt
+
+      - name: Resolve first executable pending LIMIT fill and exact fill minute
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_tick_execution_resolution.py scripts/vt31_pending_limit_tick_resolution.py scripts/vt31_pending_limit_tick_resolution_driver.py
+          python scripts/vt31_pending_limit_tick_resolution_driver.py --self-test
+          mkdir result
+          python scripts/vt31_pending_limit_tick_resolution_driver.py \
+            --manifest followup-manifest/vt31-no-executable-fill-followup-manifest.json \
+            --acquisition-dir followup-acquisition \
+            --seed-acquisition-dir seed-acquisition/acquisition \
+            --output result/vt31-pending-limit-tick-resolution.json
+
+      - name: Validate fail-closed pending LIMIT result
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-pending-limit-tick-resolution.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_window_count'] == 59
+          assert len(p['results']) == 59
+          assert sum(p['counts'].values()) == 59
+          assert len({r['parent_window_id'] for r in p['results']}) == 59
+          print(json.dumps({'counts':p['counts']}, sort_keys=True))
+          PY
+
+      - name: Bind immutable result
+        run: |
+          set -euo pipefail
+          cp source-followup-acquisition-artifact-id.txt result/
+          cp source-followup-acquisition-artifact-digest.txt result/
+          cp source-seed-acquisition-artifact-id.txt result/
+          cp source-seed-acquisition-artifact-digest.txt result/
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10429677148" > result/source-followup-manifest-artifact-id.txt
+          echo "f2e15888b5c9df67b0736bb2f45d78975f4edf090a45d2674ee8f61b4df2d52d" > result/source-followup-manifest-zip-sha256.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-pending-limit-tick-resolution-${{ github.sha }}
+          path: result/
+          retention-days: 90

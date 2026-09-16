@@ -1,0 +1,26 @@
+name: QORE VT-31 Parity No-Fill Correction Dispatch
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-parity-no-fill-correction-dispatch.yml
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch corrected consumed-only workflow on current branch
+        run: |
+          set -euo pipefail
+          gh workflow run vt31-parity-no-fill-correction.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref agent/vt31-historical-tick-resolution-001

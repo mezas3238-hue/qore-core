@@ -1,0 +1,112 @@
+name: QORE VT-31 Consumed Tick Parity Evaluation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  evaluate-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wait for immutable 339-control parity acquisition
+        run: |
+          set -euo pipefail
+          source_run=35052734298
+          completed=false
+          for attempt in $(seq 1 180); do
+            status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .status)"
+            if [ "$status" = "completed" ]; then
+              conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .conclusion)"
+              test "$conclusion" = "success"
+              completed=true
+              break
+            fi
+            sleep 10
+          done
+          test "$completed" = "true"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .head_sha)" = "6e29b839ef85e7c308af8f8b97232f10b3e1e258"
+      - name: Recover exact parity acquisition artifact and bind API digest
+        run: |
+          set -euo pipefail
+          source_run=35052734298
+          artifact_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}/artifacts" --jq '.artifacts[] | select(.name | startswith("qore-vt31-consumed-tick-parity-acquisition-")) | .id' | head -n1)"
+          test -n "$artifact_id"
+          artifact_digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
+          test -n "$artifact_digest"
+          expected="${artifact_digest#sha256:}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > parity-acquisition.zip
+          echo "${expected}  parity-acquisition.zip" | sha256sum -c -
+          mkdir parity-acquisition
+          unzip -q parity-acquisition.zip -d parity-acquisition
+          (cd parity-acquisition && sha256sum -c SHA256SUMS)
+          echo "$artifact_id" > source-parity-acquisition-artifact-id.txt
+          echo "$artifact_digest" > source-parity-acquisition-artifact-digest.txt
+          echo "$source_run" > source-parity-acquisition-run-id.txt
+          test "$(cat parity-acquisition/git-sha.txt)" = "6e29b839ef85e7c308af8f8b97232f10b3e1e258"
+      - name: Recover immutable 339-row consumed parity manifest
+        run: |
+          set -euo pipefail
+          mkdir parity-manifest
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429775693/zip" > parity-manifest.zip
+          echo "5fa9d0d4ae542baa8357946b23f393e12bd3a33a06eb9670d4928daf8b03e8c4  parity-manifest.zip" | sha256sum -c -
+          unzip -q parity-manifest.zip -d parity-manifest
+          test "$(cat parity-manifest/git-sha.txt)" = "c0d30ff8e2f3d9edc990f033e23ae2028e38bf48"
+          (cd parity-manifest && sha256sum -c SHA256SUMS)
+      - name: Evaluate executable quote-side parity
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_tick_execution_resolution.py
+          python -m py_compile scripts/vt31_tick_parity_evaluation.py
+          mkdir parity-result
+          python scripts/vt31_tick_parity_evaluation.py \
+            --manifest parity-manifest/vt31-historical-tick-parity-windows.json \
+            --acquisition-dir parity-acquisition \
+            --output parity-result/vt31-tick-parity-evaluation.json
+      - name: Validate parity result without forcing agreement
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('parity-result/vt31-tick-parity-evaluation.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_count'] == 339
+          assert len(p['results']) == 339
+          assert p['parity_pass_count'] + p['parity_fail_or_censored_count'] == 339
+          assert sum(p['status_counts'].values()) == 339
+          print(json.dumps({
+            'parity_pass_count':p['parity_pass_count'],
+            'parity_fail_or_censored_count':p['parity_fail_or_censored_count'],
+            'parity_pass_fraction':p['parity_pass_fraction'],
+            'status_counts':p['status_counts'],
+            'm1_quote_side_closest_counts':p['m1_quote_side_closest_counts'],
+          }, sort_keys=True))
+          PY
+      - name: Bind immutable parity evaluation artifact
+        run: |
+          set -euo pipefail
+          cp source-parity-acquisition-artifact-id.txt parity-result/
+          cp source-parity-acquisition-artifact-digest.txt parity-result/
+          cp source-parity-acquisition-run-id.txt parity-result/
+          echo "$GITHUB_SHA" > parity-result/git-sha.txt
+          echo "10429775693" > parity-result/source-parity-manifest-artifact-id.txt
+          echo "5fa9d0d4ae542baa8357946b23f393e12bd3a33a06eb9670d4928daf8b03e8c4" > parity-result/source-parity-manifest-zip-sha256.txt
+          (cd parity-result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-consumed-tick-parity-evaluation-${{ github.sha }}
+          path: parity-result/
+          retention-days: 90

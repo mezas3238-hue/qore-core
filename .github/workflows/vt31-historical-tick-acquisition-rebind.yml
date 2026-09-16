@@ -1,0 +1,77 @@
+name: QORE VT-31 Consumed Tick Acquisition Rebind
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  rebind-acquisition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover completed 437-window acquisition artifact
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429442649/zip" > acquisition-source.zip
+          echo "09cf6ce6ddc62fc221d693a29be7e728dbbbbe1994935400667d30017bb53a16  acquisition-source.zip" | sha256sum -c -
+          mkdir recovered
+          unzip -q acquisition-source.zip -d recovered
+          test -f recovered/acquisition/vt31-historical-tick-acquisition-summary.json
+          test -d recovered/acquisition/windows
+          test "$(cat recovered/acquisition/git-sha.txt)" = "3d939789f8dd5b7e4c59920bd8e37e76189100a5"
+          test "$(cat recovered/acquisition/source-manifest-artifact-id.txt)" = "10425626147"
+      - name: Revalidate immutable acquisition inventory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('recovered/acquisition')
+          p=json.loads((root/'vt31-historical-tick-acquisition-summary.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_window_count'] == 437
+          assert p['available'] == 437
+          assert p['partial'] == 0
+          assert p['empty'] == 0
+          assert p['probe_failure'] == 0
+          assert p['binding_mismatch'] == 0
+          assert len(p['results']) == 437
+          ids=[]
+          for row in p['results']:
+              assert row['status'] == 'available'
+              ids.append(row['window_id'])
+              path=root/'windows'/row['evidence_file']
+              assert path.is_file()
+              evidence=json.loads(path.read_text())
+              assert evidence['source_window']['window_id'] == row['window_id']
+              assert evidence['bid'] and evidence['ask']
+          assert len(set(ids)) == 437
+          assert len(list((root/'windows').glob('*.json'))) == 437
+          print(json.dumps({'available':437,'unique_windows':len(set(ids))}, sort_keys=True))
+          PY
+      - name: Repair relative SHA binding without changing tick evidence
+        run: |
+          set -euo pipefail
+          cd recovered/acquisition
+          rm -f SHA256SUMS
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          cd ../..
+          echo "$GITHUB_SHA" > recovered/rebinding-git-sha.txt
+          echo "35051448655" > recovered/source-acquisition-run-id.txt
+          echo "10429442649" > recovered/source-acquisition-artifact-id.txt
+          echo "09cf6ce6ddc62fc221d693a29be7e728dbbbbe1994935400667d30017bb53a16" > recovered/source-acquisition-zip-sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-consumed-historical-ticks-bound-${{ github.sha }}
+          path: recovered/
+          retention-days: 90

@@ -1,0 +1,133 @@
+name: QORE VT-31 Original Later Pending Finalization
+
+on:
+  push:
+    branches: [agent/vt31-historical-tick-resolution-001]
+    paths:
+      - .github/workflows/vt31-original-later-pending-finalization.yml
+      - scripts/vt31_original_later_pending_followup_manifest.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+
+jobs:
+  finalize-one-pending-root:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+          python -m py_compile scripts/vt31_original_later_pending_followup_manifest.py scripts/vt31_consumed_tick_manifest_acquisition.py scripts/vt31_pending_limit_tick_resolution_driver.py scripts/vt31_pending_fill_frozen_m1_lifecycle.py scripts/vt31_open_position_tick_exit_resolution.py
+      - name: Recover immutable successful four-root parity
+        run: |
+          set -euo pipefail
+          id=10440396158
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" --jq .digest)"
+          test "$digest" = "sha256:574bf8d0403ffda7547482c148b05ad6950b16109a8f92033f7daf856cc2a80a"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > parity.zip
+          echo "${digest#sha256:}  parity.zip" | sha256sum -c -
+          mkdir parity; unzip -q parity.zip -d parity; (cd parity && sha256sum -c SHA256SUMS)
+          test "$(cat parity/git-sha.txt)" = "2ee80c8a7f7469c7ab5222a0237a9243b2299916"
+      - name: Freeze exact one-root followup
+        run: |
+          set -euo pipefail
+          mkdir work
+          python scripts/vt31_original_later_pending_followup_manifest.py \
+            --manifest parity/vt31-original-later-initial-fill-parity-manifest.json \
+            --resolution parity/vt31-original-later-initial-fill-parity-resolution.json \
+            --output work/vt31-original-later-pending-followup-manifest.json
+      - name: Verify cTrader credentials
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do test -n "${!name:-}"; done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"; test -n "$account_id"; echo "::add-mask::$account_id"; echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"; fi
+      - name: Acquire one pending window and resolve exact fill
+        run: |
+          set -euo pipefail
+          python scripts/vt31_consumed_tick_manifest_acquisition.py --manifest work/vt31-original-later-pending-followup-manifest.json --output-dir work/followup-acquisition
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('work/followup-acquisition/vt31-bounded-tick-acquisition-summary.json').read_text()); assert p['source_window_count']==1; assert p['available']==1; assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
+          PY
+          mkdir -p work/seed-acquisition/windows
+          cp parity/tick-acquisition/vt31-bounded-tick-acquisition-summary.json work/seed-acquisition/
+          cp parity/tick-acquisition/windows/*.json work/seed-acquisition/windows/
+          python scripts/vt31_pending_limit_tick_resolution_driver.py --self-test
+          python scripts/vt31_pending_limit_tick_resolution_driver.py \
+            --manifest work/vt31-original-later-pending-followup-manifest.json \
+            --acquisition-dir work/followup-acquisition \
+            --seed-acquisition-dir work/seed-acquisition \
+            --output work/vt31-original-later-pending-resolution.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('work/vt31-original-later-pending-resolution.json').read_text()); assert p['source_window_count']==1 and len(p['results'])==1; print(json.dumps(p['counts'],sort_keys=True))
+          PY
+      - name: Recover immutable consumed M1 partitions
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/r5 evidence/r6 evidence/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip; echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -; unzip -q r5.zip -d evidence/r5
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip; echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -; unzip -q r6.zip -d evidence/r6
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip; echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -; unzip -q r8.zip -d evidence/r8
+      - name: Continue any clear later fill under frozen M1 lifecycle
+        run: |
+          set -euo pipefail
+          mkdir work/lifecycle
+          python scripts/vt31_pending_fill_frozen_m1_lifecycle.py \
+            --manifest work/vt31-original-later-pending-followup-manifest.json --resolution work/vt31-original-later-pending-resolution.json --output-dir work/lifecycle \
+            --r5-nas100 evidence/r5/fresh/NAS100/market-evidence.json --r5-sp500 evidence/r5/fresh/SP500/market-evidence.json --r5-us30 evidence/r5/fresh/US30/market-evidence.json \
+            --r6-nas100 evidence/r6/fresh/NAS100/market-evidence.json --r6-sp500 evidence/r6/fresh/SP500/market-evidence.json --r6-us30 evidence/r6/fresh/US30/market-evidence.json \
+            --r8-fresh-nas100 evidence/r8/fresh/NAS100/market-evidence.json --r8-fresh-sp500 evidence/r8/fresh/SP500/market-evidence.json --r8-fresh-us30 evidence/r8/fresh/US30/market-evidence.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('work/lifecycle/vt31-pending-fill-lifecycle.json').read_text()); a=json.loads(Path('work/lifecycle/vt31-pending-fill-later-ambiguity-manifest.json').read_text()); print(json.dumps({'lifecycle':p['counts'],'later_ambiguities':len(a['windows'])},sort_keys=True))
+          PY
+      - name: Resolve any later same-bar ambiguity with BID ASK
+        run: |
+          set -euo pipefail
+          n="$(python -c "import json; print(len(json.load(open('work/lifecycle/vt31-pending-fill-later-ambiguity-manifest.json'))['windows']))")"
+          mkdir work/later-resolution
+          if [ "$n" -gt 0 ]; then
+            python scripts/vt31_consumed_tick_manifest_acquisition.py --manifest work/lifecycle/vt31-pending-fill-later-ambiguity-manifest.json --output-dir work/later-acquisition
+            cp work/later-acquisition/vt31-bounded-tick-acquisition-summary.json work/later-acquisition/vt31-historical-tick-acquisition-summary.json
+            python scripts/vt31_open_position_tick_exit_resolution.py --self-test
+            python scripts/vt31_open_position_tick_exit_resolution.py --manifest work/lifecycle/vt31-pending-fill-later-ambiguity-manifest.json --acquisition-dir work/later-acquisition --output work/later-resolution/vt31-original-later-pending-later-resolution.json
+          else
+            printf '%s\n' '{"schema":"qore.vt31.empty_later_resolution.v1","research_only":true,"opens_new_holdout":false,"candidate_status":"NO_R9_NOT_CERTIFIED","source_window_count":0,"counts":{},"results":[]}' > work/later-resolution/vt31-original-later-pending-later-resolution.json
+          fi
+      - name: Bind immutable finalization package
+        run: |
+          set -euo pipefail
+          mkdir result
+          cp work/vt31-original-later-pending-followup-manifest.json result/
+          cp work/vt31-original-later-pending-resolution.json result/
+          cp work/lifecycle/*.json result/
+          cp work/later-resolution/*.json result/
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10440396158" > result/source-four-root-initial-parity-artifact-id.txt
+          echo "574bf8d0403ffda7547482c148b05ad6950b16109a8f92033f7daf856cc2a80a" > result/source-four-root-initial-parity-zip-sha256.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-original-later-pending-finalization-${{ github.sha }}
+          path: result/
+          retention-days: 90
