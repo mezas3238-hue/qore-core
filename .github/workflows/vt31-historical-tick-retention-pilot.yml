@@ -1,0 +1,224 @@
+name: QORE VT-31 Historical Tick Retention Pilot
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  retention-pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Recover immutable 437-window consumed manifest
+        run: |
+          set -euo pipefail
+          mkdir -p manifest
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10425626147/zip" > manifest.zip
+          unzip -q manifest.zip -d manifest
+          test "$(cat manifest/git-sha.txt)" = "493825d2b14946a6ddffe36f6c472fa5d0c3187e"
+          (cd manifest && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload=json.loads(Path('manifest/vt31-historical-tick-windows.json').read_text())
+          assert payload['research_only'] is True
+          assert payload['opens_new_holdout'] is False
+          assert len(payload['windows']) == 437
+          assert payload['counts']['r5']['total'] == 157
+          assert payload['counts']['r6']['total'] == 159
+          assert payload['counts']['r8_fresh']['total'] == 121
+          PY
+      - name: Verify historical-data credentials without printing secrets
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Select bounded consumed retention pilot
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from collections import defaultdict
+          from pathlib import Path
+
+          source=json.loads(Path('manifest/vt31-historical-tick-windows.json').read_text())
+          buckets=defaultdict(list)
+          for row in source['windows']:
+              buckets[(row['partition'], row['market'])].append(row)
+          selected=[]
+          for key in sorted(buckets):
+              rows=sorted(buckets[key], key=lambda x:(x['tick_window_open_ms'], x['window_id']))
+              for boundary,row in (('oldest', rows[0]), ('newest', rows[-1])):
+                  item=dict(row)
+                  item['pilot_boundary']=boundary
+                  selected.append(item)
+          assert len(selected) == 18
+          out={
+              'schema':'qore.vt31.consumed_historical_tick_retention_pilot_manifest.v1',
+              'research_only':True,
+              'opens_new_holdout':False,
+              'selection':'oldest_and_newest_per_consumed_partition_market',
+              'source_window_count':437,
+              'pilot_window_count':len(selected),
+              'windows':selected,
+          }
+          Path('vt31-historical-tick-retention-pilot-manifest.json').write_text(
+              json.dumps(out, indent=2, sort_keys=True) + '\n'
+          )
+          for row in selected:
+              print(row['partition'], row['market'], row['pilot_boundary'], row['ny_date'], row['window_id'])
+          PY
+      - name: Query real cTrader BID ASK retention for consumed windows only
+        run: |
+          set -euo pipefail
+          mkdir -p pilot/evidence
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          import time
+          from pathlib import Path
+
+          pilot=json.loads(Path('vt31-historical-tick-retention-pilot-manifest.json').read_text())
+          results=[]
+          for index,row in enumerate(pilot['windows'], start=1):
+              env=os.environ.copy()
+              env['QORE_DEMO_LAB_SYMBOL']=row['market']
+              env['QORE_TICK_WINDOW_OPEN_MS']=str(row['tick_window_open_ms'])
+              env['QORE_TICK_WINDOW_CLOSE_MS']=str(row['tick_window_close_ms'])
+              proc=subprocess.run(
+                  [sys.executable, 'scripts/vt31_historical_tick_probe.py'],
+                  env=env,
+                  capture_output=True,
+                  text=True,
+                  timeout=45,
+                  check=False,
+              )
+              result={
+                  'partition':row['partition'],
+                  'market':row['market'],
+                  'provider':row['provider'],
+                  'ny_date':row['ny_date'],
+                  'window_id':row['window_id'],
+                  'pilot_boundary':row['pilot_boundary'],
+                  'tick_window_open_ms':row['tick_window_open_ms'],
+                  'tick_window_close_ms':row['tick_window_close_ms'],
+                  'probe_returncode':proc.returncode,
+              }
+              if proc.returncode != 0:
+                  result.update({
+                      'status':'probe_failure',
+                      'bid_count':0,
+                      'ask_count':0,
+                      'failure_kind':'historical_tick_probe_failed',
+                  })
+              else:
+                  try:
+                      payload=json.loads(proc.stdout)
+                  except json.JSONDecodeError as error:
+                      raise RuntimeError('historical tick probe emitted malformed JSON') from error
+                  assert payload['research_only'] is True
+                  assert payload['opens_new_holdout'] is False
+                  assert payload['market'] == row['market']
+                  assert payload['opened_ms'] == row['tick_window_open_ms']
+                  assert payload['closed_ms'] == row['tick_window_close_ms']
+                  bid=payload['bid']
+                  ask=payload['ask']
+                  bid_count=len(bid)
+                  ask_count=len(ask)
+                  if bid_count and ask_count:
+                      status='available'
+                  elif bid_count or ask_count:
+                      status='partial'
+                  else:
+                      status='empty'
+                  result.update({
+                      'status':status,
+                      'bid_count':bid_count,
+                      'ask_count':ask_count,
+                      'bid_first_ms':bid[0]['timestamp_ms'] if bid else None,
+                      'bid_last_ms':bid[-1]['timestamp_ms'] if bid else None,
+                      'ask_first_ms':ask[0]['timestamp_ms'] if ask else None,
+                      'ask_last_ms':ask[-1]['timestamp_ms'] if ask else None,
+                      'provider_symbol':payload['provider_symbol'],
+                      'symbol_id':payload['symbol_id'],
+                      'digits':payload['digits'],
+                      'account_fingerprint':payload['account_fingerprint'],
+                      'evidence_sha256':payload['sha256'],
+                  })
+                  Path(f"pilot/evidence/{row['window_id']}.json").write_text(
+                      json.dumps(payload, indent=2, sort_keys=True) + '\n'
+                  )
+              results.append(result)
+              print(index, row['partition'], row['market'], row['pilot_boundary'], row['ny_date'], result['status'], result['bid_count'], result['ask_count'])
+              time.sleep(0.30)
+
+          groups={}
+          for result in results:
+              key=f"{result['partition']}:{result['market']}"
+              groups.setdefault(key, {'available':0,'partial':0,'empty':0,'probe_failure':0})
+              groups[key][result['status']] += 1
+          summary={
+              'schema':'qore.vt31.consumed_historical_tick_retention_pilot.v1',
+              'research_only':True,
+              'opens_new_holdout':False,
+              'candidate_status':'NO_R9_NOT_CERTIFIED',
+              'pilot_window_count':len(results),
+              'available':sum(x['status']=='available' for x in results),
+              'partial':sum(x['status']=='partial' for x in results),
+              'empty':sum(x['status']=='empty' for x in results),
+              'probe_failure':sum(x['status']=='probe_failure' for x in results),
+              'groups':groups,
+              'results':results,
+          }
+          Path('vt31-historical-tick-retention-pilot.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps({k:summary[k] for k in ('pilot_window_count','available','partial','empty','probe_failure')}, sort_keys=True))
+          PY
+      - name: Bind pilot evidence
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-historical-tick-retention-pilot-manifest.json vt31-historical-tick-retention-pilot.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-consumed-historical-tick-retention-pilot-${{ github.sha }}
+          path: |
+            vt31-historical-tick-retention-pilot-manifest.json
+            vt31-historical-tick-retention-pilot.json
+            pilot/evidence/
+            git-sha.txt
+            SHA256SUMS
+          retention-days: 90
