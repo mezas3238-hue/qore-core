@@ -113,24 +113,24 @@ class StructureTouch:
             raise ValueError("episode_id, event_id and symbol must be non-empty")
         if not self.detector_version or not self.source_timeframe:
             raise ValueError("detector_version and source_timeframe must be non-empty")
-        for value, name in (
+        for timestamp, timestamp_name in (
             (self.created_at, "created_at"),
             (self.first_touch_at, "first_touch_at"),
             (self.last_touch_at, "last_touch_at"),
         ):
-            _require_aware(value, name)
+            _require_aware(timestamp, timestamp_name)
         if not self.created_at <= self.first_touch_at <= self.last_touch_at:
             raise ValueError("structure chronology must be created <= first_touch <= last_touch")
         if self.price_low > self.price_high:
             raise ValueError("price_low must be <= price_high")
-        for value, name in (
+        for metric, metric_name in (
             (self.distance_from_source_ticks, "distance_from_source_ticks"),
             (self.distance_from_opposite_ticks, "distance_from_opposite_ticks"),
             (self.penetration_ticks, "penetration_ticks"),
             (self.dwell_minutes, "dwell_minutes"),
             (self.revisit_count, "revisit_count"),
         ):
-            _require_non_negative(value, name)
+            _require_non_negative(metric, metric_name)
         if self.evidence_role is not EvidenceRole.CAUSAL_FEATURE:
             raise ValueError("pre-departure structure touches must be causal features")
 
