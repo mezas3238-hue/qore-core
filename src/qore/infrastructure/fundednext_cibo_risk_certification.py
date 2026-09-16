@@ -73,7 +73,7 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
                 if SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION is None
                 else str(SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION)
             ),
-            "provider_three_percent_rule_used_by_risk": False,
+            "provider_three_percent_rule_used_by_risk": True,
         },
         "cibo": {
             "version": R315_CIBO_VERSION,
@@ -87,6 +87,7 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
             "final_capital_authority": True,
             "decisions": ["ALLOW", "REDUCE", "REJECT"],
             "provider_headroom_enforced": True,
+            "provider_max_risk_at_any_time_enforced": True,
             "qore_internal_headroom_enforced": True,
             "pending_risk_included": True,
             "open_stop_risk_included": True,
