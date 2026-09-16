@@ -90,7 +90,7 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
                 if SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION is None
                 else str(SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION)
             ),
-            "provider_three_percent_cap_present": False,
+            "provider_three_percent_cap_present": True,
             "trailing_mll": True,
             "mll_capped_at_initial_balance": True,
             "payout_lowers_mll": False,
@@ -135,7 +135,7 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "account_wide_risk_component_certifiable": True,
         },
         "component_versions": {
-            "provider_contract": "stellar-instant-exact-6pct-trailing-v3",
+            "provider_contract": "stellar-instant-6pct-trailing-plus-3pct-open-risk-v4",
             "account_wide_risk": "account-wide-risk-v1",
             "operational_risk_policy": QORE_OPERATIONAL_RISK_POLICY_VERSION,
             "durable_risk_ledger": "account-wide-risk-ledger-v1",
