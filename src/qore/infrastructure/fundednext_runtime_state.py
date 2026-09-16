@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
+import platform
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -152,6 +154,24 @@ class SingleWriterRuntimeLock:
     def _pid_is_alive(pid: int) -> bool:
         if pid <= 0:
             return False
+        if platform.system() == "Windows":
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            process_query_limited_information = 0x1000
+            still_active = 259
+            handle = kernel32.OpenProcess(
+                process_query_limited_information, False, pid
+            )
+            if not handle:
+                # Access denied still proves that the process exists.
+                return ctypes.get_last_error() == 5
+            try:
+                exit_code = ctypes.c_ulong()
+                if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                    # Fail closed: never discard a lock when liveness is uncertain.
+                    return True
+                return exit_code.value == still_active
+            finally:
+                kernel32.CloseHandle(handle)
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
