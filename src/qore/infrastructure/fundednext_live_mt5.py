@@ -486,7 +486,9 @@ def _validate_geometry(
 def _fresh(observed_at: datetime, now: datetime, max_age: timedelta, name: str) -> None:
     if observed_at.tzinfo is None or observed_at.utcoffset() is None:
         raise Mt5ExecutionValidationError(f"{name}-timestamp-naive")
-    if observed_at > now:
+    future_skew = observed_at - now
+    if future_skew > timedelta(seconds=1):
         raise Mt5ExecutionValidationError(f"{name}-timestamp-from-future")
-    if now - observed_at > max_age:
+    reference_now = observed_at if future_skew > timedelta(0) else now
+    if reference_now - observed_at > max_age:
         raise Mt5ExecutionBlockedError(f"{name}-stale")
