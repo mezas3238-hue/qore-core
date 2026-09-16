@@ -1,0 +1,137 @@
+name: QORE VT-31 Original Later Initial Fill Parity
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-original-later-initial-fill-parity.yml
+      - scripts/vt31_original_later_fill_parity_manifest.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  initial-fill-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install consumed tick research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+          python -m py_compile scripts/vt31_original_later_fill_parity_manifest.py scripts/vt31_consumed_tick_manifest_acquisition.py scripts/vt31_tick_execution_resolution.py
+
+      - name: Recover immutable four-root source and consumed M1 partitions
+        run: |
+          set -euo pipefail
+          mkdir source consumed
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429753571/zip" > source.zip
+          echo "4cb2af3ca26bc3cbf312dd4590c4269c235065cd5537d310ab8735caf07dd1a4  source.zip" | sha256sum -c -
+          unzip -q source.zip -d source
+          (cd source && sha256sum -c SHA256SUMS)
+          mkdir -p consumed/r5 consumed/r6 consumed/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -
+          unzip -q r5.zip -d consumed/r5
+          unzip -q r6.zip -d consumed/r6
+          unzip -q r8.zip -d consumed/r8
+
+      - name: Freeze exact four initial fill bars
+        run: |
+          set -euo pipefail
+          mkdir manifest
+          python scripts/vt31_original_later_fill_parity_manifest.py \
+            --source source/vt31-original-later-ambiguity-manifest.json \
+            --r5-nas100 consumed/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp500 consumed/r5/fresh/SP500/market-evidence.json \
+            --r5-us30 consumed/r5/fresh/US30/market-evidence.json \
+            --r6-nas100 consumed/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp500 consumed/r6/fresh/SP500/market-evidence.json \
+            --r6-us30 consumed/r6/fresh/US30/market-evidence.json \
+            --r8-fresh-nas100 consumed/r8/fresh/NAS100/market-evidence.json \
+            --r8-fresh-sp500 consumed/r8/fresh/SP500/market-evidence.json \
+            --r8-fresh-us30 consumed/r8/fresh/US30/market-evidence.json \
+            --output manifest/vt31-original-later-initial-fill-parity-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('manifest/vt31-original-later-initial-fill-parity-manifest.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['source_original_later_root_count']==4
+          assert len(p['windows'])==4
+          assert len({r['root_id'] for r in p['windows']})==4
+          PY
+
+      - name: Verify cTrader credentials without printing values
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do test -n "${!name:-}"; done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire exact BID ASK and resolve initial fill parity
+        run: |
+          set -euo pipefail
+          python scripts/vt31_consumed_tick_manifest_acquisition.py \
+            --manifest manifest/vt31-original-later-initial-fill-parity-manifest.json \
+            --output-dir acquisition
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('acquisition/vt31-bounded-tick-acquisition-summary.json').read_text())
+          assert p['source_window_count']==4 and p['available']==4
+          assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
+          PY
+          mkdir result
+          python scripts/vt31_tick_execution_resolution.py \
+            --manifest manifest/vt31-original-later-initial-fill-parity-manifest.json \
+            --acquisition-dir acquisition \
+            --output result/vt31-original-later-initial-fill-parity-resolution.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-original-later-initial-fill-parity-resolution.json').read_text())
+          assert p['source_window_count']==4 and len(p['results'])==4
+          assert sum(p['counts'].values())==4
+          print(json.dumps(p['counts'],sort_keys=True))
+          PY
+
+      - name: Bind immutable parity package
+        run: |
+          set -euo pipefail
+          cp manifest/vt31-original-later-initial-fill-parity-manifest.json result/
+          cp -r acquisition result/tick-acquisition
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10429753571" > result/source-original-later-artifact-id.txt
+          echo "4cb2af3ca26bc3cbf312dd4590c4269c235065cd5537d310ab8735caf07dd1a4" > result/source-original-later-zip-sha256.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-original-later-initial-fill-parity-${{ github.sha }}
+          path: result/
+          retention-days: 90
