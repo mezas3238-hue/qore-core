@@ -9,6 +9,7 @@ on:
       - .github/workflows/ict-turtle-soup-r4-fresh-holdout.yml
       - docs/research/ICT-TURTLE-SOUP-R4-PRE-HOLDOUT-FREEZE.md
       - src/qore/infrastructure/trader_lab/ict_turtle_soup_r4_source_exact.py
+      - src/qore/infrastructure/ctrader_demo_account_discovery.py
       - tests/infrastructure/trader_lab/test_ict_turtle_soup_r4_source_exact.py
 
 concurrency:
@@ -41,9 +42,13 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/trader_lab/ict_turtle_soup_r4_source_exact.py \
+            src/qore/infrastructure/ctrader_demo_account_discovery.py \
             tests/infrastructure/trader_lab/test_ict_turtle_soup_r4_source_exact.py
       - name: Mypy focused gate
-        run: mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_r4_source_exact.py
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_r4_source_exact.py \
+            src/qore/infrastructure/ctrader_demo_account_discovery.py
       - name: Focused R4 source-exact tests
         run: pytest -q --no-cov tests/infrastructure/trader_lab/test_ict_turtle_soup_r4_source_exact.py
       - name: Governance assertions before evidence access
@@ -95,13 +100,26 @@ jobs:
           python-version: "3.12"
       - name: Install QORE + cTrader runtime
         run: python -m pip install -e '.[ctrader]'
-      - name: Verify frozen DEMO read-only inputs
+      - name: Verify frozen DEMO read-only credential inputs
         shell: bash
         run: |
           set -euo pipefail
-          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_CTRADER_DEMO_ACCOUNT_ID; do
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
             test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
           done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
       - name: Collect frozen fresh M5 evidence
         run: |
           mkdir -p "artifacts/${QORE_SYMBOL}/result"
