@@ -2,6 +2,14 @@ name: QORE ICT Turtle Soup Behavior Lab V1
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - agent/ict-turtle-soup-behavior-lab-v1-001
+    paths:
+      - '.github/workflows/ict-turtle-soup-behavior-lab-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py'
+      - 'tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py'
+      - 'docs/research/ICT-TURTLE-SOUP-BEHAVIOR-LAB-V1-*.md'
 
 permissions:
   contents: read
