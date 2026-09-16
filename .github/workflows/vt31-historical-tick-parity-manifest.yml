@@ -1,9 +1,6 @@
 name: QORE VT-31 Consumed Tick Parity Manifest
 
 on:
-  push:
-    branches:
-      - agent/vt31-historical-tick-resolution-001
   workflow_dispatch:
 
 permissions:
