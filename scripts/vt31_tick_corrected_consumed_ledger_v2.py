@@ -35,7 +35,15 @@ def main()->None:
     if len(sources)!=4 or set(sources)!=set(results): raise ValueError("exact four initial parity roots required")
     root_sources={str(r["root_id"]):r for r in sources.values()}
     if len(root_sources)!=4: raise ValueError("four unique root ids required")
-    parent_rows={r["root_id"]:r for r in parent["roots"]}
+    parent_root_rows=[]
+    for key,klass in (("trades","terminal"),("no_trade_roots","no_trade"),("censored_roots","censored")):
+        rows=parent.get(key)
+        if not isinstance(rows,list): raise ValueError(f"parent missing {key} rows")
+        for row in rows:
+            if not isinstance(row,dict) or row.get("classification")!=klass: raise ValueError(f"parent {key} row malformed")
+            parent_root_rows.append(row)
+    if len(parent_root_rows)!=780 or len({r["root_id"] for r in parent_root_rows})!=780: raise ValueError("parent root reconstruction failed")
+    parent_rows={r["root_id"]:r for r in parent_root_rows}
     if not set(root_sources)<=set(parent_rows): raise ValueError("four roots not contained in parent ledger")
     replacements:dict[str,dict[str,Any]]={}
     nofill=[]
@@ -73,18 +81,20 @@ def main()->None:
     else: raise ValueError(f"unknown pending status {pstatus}")
     if len(replacements)!=4: raise AssertionError("exact four replacements required")
     final_roots=[]
-    for old in parent["roots"]:
+    for old in parent_root_rows:
         final_roots.append(replacements.get(old["root_id"],old))
+    final_roots.sort(key=lambda r:(r["signal_opened_at"],r["market"],r["root_id"]))
     if len(final_roots)!=780 or len({r["root_id"] for r in final_roots})!=780: raise AssertionError("root conservation failed")
     changed=[]
     for rid,new in replacements.items():
         old=parent_rows[rid]
         changed.append({"root_id":rid,"old_classification":old["classification"],"old_terminal_r":old.get("terminal_r"),"old_status":old.get("terminal_status"),"new_classification":new["classification"],"new_terminal_r":new.get("terminal_r"),"new_status":new.get("terminal_status")})
-    trades=sorted([r for r in final_roots if r["classification"]=="terminal"],key=lambda r:(r["signal_opened_at"],r["market"],r["root_id"]))
-    no_trade=sorted([r["root_id"] for r in final_roots if r["classification"]=="no_trade"])
-    censored=sorted([r["root_id"] for r in final_roots if r["classification"]=="censored"])
+    changed.sort(key=lambda r:r["root_id"])
+    trades=[r for r in final_roots if r["classification"]=="terminal"]
+    no_trade=[r for r in final_roots if r["classification"]=="no_trade"]
+    censored=[r for r in final_roots if r["classification"]=="censored"]
     if len(trades)+len(no_trade)+len(censored)!=780: raise AssertionError("final classification conservation failed")
-    payload=dict(parent); payload.update({"schema":"qore.vt31.tick_corrected.consumed_ledger.v2","candidate_status":"NO_R9_NOT_CERTIFIED","supersedes_parent_ledger":True,"four_root_initial_fill_parity_applied":True,"roots":final_roots,"trades":trades,"terminal_trade_count":len(trades),"no_trade_roots":no_trade,"censored_roots":censored,"four_root_correction":changed,"terminal_trade_counts_by_partition":dict(Counter(r["partition"] for r in trades)),"terminal_trade_counts_by_market":dict(Counter(r["market"] for r in trades)),"terminal_trade_counts_by_side":dict(Counter(r["side"] for r in trades))})
-    payload["authority"]=dict(parent["authority"]); payload["authority"].update({"definitive_four_root_parity":True,"terminal_trade_count":len(trades),"no_trade_root_count":len(no_trade),"censored_root_count":len(censored)})
+    payload=dict(parent); payload.update({"schema":"qore.vt31.tick_corrected.consumed_ledger.v2","candidate_status":"NO_R9_NOT_CERTIFIED","supersedes_parent_ledger":True,"four_root_initial_fill_parity_applied":True,"trades":trades,"terminal_trade_count":len(trades),"no_trade_roots":no_trade,"censored_roots":censored,"four_root_correction":changed,"terminal_trade_counts_by_partition":dict(sorted(Counter(r["partition"] for r in trades).items())),"terminal_trade_counts_by_market":dict(sorted(Counter(r["market"] for r in trades).items())),"terminal_trade_counts_by_side":dict(sorted(Counter(r["side"] for r in trades).items()))})
+    payload["authority"]=dict(parent["authority"]); payload["authority"].update({"definitive_four_root_parity":True,"terminal_trade_count":len(trades),"no_trade_root_count":len(no_trade),"censored_root_count":len(censored),"corrected_root_classes":dict(sorted(Counter(r["classification"] for r in final_roots).items()))})
     a.output.write_text(json.dumps(payload,sort_keys=True,indent=2)+"\n"); print(json.dumps({"terminal":len(trades),"no_trade":len(no_trade),"censored":len(censored),"four_root_correction":changed},sort_keys=True))
 if __name__=="__main__": main()
