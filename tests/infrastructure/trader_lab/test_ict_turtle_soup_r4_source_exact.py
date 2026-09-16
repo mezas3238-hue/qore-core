@@ -15,15 +15,21 @@ from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
 )
 
 
-def _candle(hour: int, o: str, h: str, l: str, c: str) -> SourceCandle:
+def _candle(
+    hour: int,
+    open_price: str,
+    high_price: str,
+    low_price: str,
+    close_price: str,
+) -> SourceCandle:
     opened = datetime(2019, 1, 2, hour, tzinfo=UTC)
     return SourceCandle(
         opened_at=opened,
         closed_at=opened + timedelta(hours=1),
-        open=Decimal(o),
-        high=Decimal(h),
-        low=Decimal(l),
-        close=Decimal(c),
+        open=Decimal(open_price),
+        high=Decimal(high_price),
+        low=Decimal(low_price),
+        close=Decimal(close_price),
         m5=(),
     )
 
