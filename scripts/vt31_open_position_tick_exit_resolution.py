@@ -17,6 +17,10 @@ from typing import Any, Callable
 from vt31_tick_execution_resolution import TickResolutionError, _price, _timestamp, _validated_stream
 
 
+def _tick(timestamp_ms: int, price: str) -> dict[str, object]:
+    return {"timestamp_ms": timestamp_ms, "price": price}
+
+
 def _predicate(side: str, kind: str, threshold: Decimal) -> Callable[[Decimal], bool]:
     if kind == "stop":
         return (lambda price: price <= threshold) if side == "long" else (lambda price: price >= threshold)
