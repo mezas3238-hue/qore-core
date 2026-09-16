@@ -1,16 +1,16 @@
 """Deep diagnostic laboratory for VT-08 Index.
 
-This module is deliberately research-only.  It never changes V7 admission,
-execution, stop, target or governance.  It instruments frozen V7 on evidence
-that has already been consumed and produces a causal/behavioral feature ledger,
-opportunity funnel, excursion analysis, target surface, drawdown anatomy and
-cross-index context.
+This module is deliberately research-only. It never changes V7 admission,
+execution, stop, target or governance. It instruments frozen V7 on consumed
+evidence and produces a causal/behavioral feature ledger, opportunity funnel,
+excursion analysis, target surface, drawdown anatomy and cross-index context.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+from bisect import bisect_left
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime, timedelta
@@ -23,7 +23,9 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
 from qore.infrastructure.trader_lab.vt08_index_v2_candidate import (
+    _gap_exit,
     _in_partition,
+    _intrabar_exit,
     _load_candidate_market,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
@@ -110,7 +112,9 @@ def _duration_bucket(minutes: int) -> str:
     return "gt_24h"
 
 
-def _row_metrics(rows: Sequence[dict[str, object]], *, key: str = "primary_r") -> dict[str, object]:
+def _row_metrics(
+    rows: Sequence[dict[str, object]], *, key: str = "primary_r"
+) -> dict[str, object]:
     ordered = sorted(rows, key=lambda row: str(row["signal_at"]))
     values = tuple(_decimal(row[key]) for row in ordered)
     total = sum(values, Decimal())
@@ -155,6 +159,7 @@ def _cohort_cube(rows: Sequence[dict[str, object]]) -> dict[str, object]:
         "entry_timing": ("entry_timing_bucket",),
         "prior_h4_range_regime": ("prior_h4_range_regime",),
         "peer_alignment": ("peer_alignment_count",),
+        "relative_strength_rank": ("side_adjusted_relative_strength_rank",),
         "current_source_body": ("current_source_body_alignment",),
         "previous_source_body": ("previous_source_body_alignment",),
         "symbol_anchor": ("symbol", "anchor_hour_new_york"),
@@ -176,7 +181,9 @@ def _cohort_cube(rows: Sequence[dict[str, object]]) -> dict[str, object]:
     return result
 
 
-def _summarize_mix(rows: Sequence[dict[str, object]], key: str) -> dict[str, object]:
+def _summarize_mix(
+    rows: Sequence[dict[str, object]], key: str
+) -> dict[str, object]:
     totals: dict[str, Decimal] = defaultdict(Decimal)
     counts: Counter[str] = Counter()
     for row in rows:
@@ -189,7 +196,9 @@ def _summarize_mix(rows: Sequence[dict[str, object]], key: str) -> dict[str, obj
     }
 
 
-def _drawdown_episodes(rows: Sequence[dict[str, object]], limit: int = 10) -> list[dict[str, object]]:
+def _drawdown_episodes(
+    rows: Sequence[dict[str, object]], limit: int = 10
+) -> list[dict[str, object]]:
     ordered = sorted(rows, key=lambda row: str(row["signal_at"]))
     equity = Decimal()
     peak_equity = Decimal()
@@ -242,11 +251,13 @@ def _drawdown_episodes(rows: Sequence[dict[str, object]], limit: int = 10) -> li
     return episodes[:limit]
 
 
-def _loss_streaks(rows: Sequence[dict[str, object]], minimum: int = 3) -> list[dict[str, object]]:
+def _loss_streaks(
+    rows: Sequence[dict[str, object]], minimum: int = 3
+) -> list[dict[str, object]]:
     ordered = sorted(rows, key=lambda row: str(row["signal_at"]))
     result: list[dict[str, object]] = []
     streak: list[dict[str, object]] = []
-    for row in ordered + [{}]:
+    for row in [*ordered, {}]:
         if row and _decimal(row["primary_r"]) < 0:
             streak.append(row)
             continue
@@ -256,18 +267,39 @@ def _loss_streaks(rows: Sequence[dict[str, object]], minimum: int = 3) -> list[d
                     "started_at": streak[0]["signal_at"],
                     "ended_at": streak[-1]["signal_at"],
                     "length": len(streak),
-                    "total_r": _fmt(sum((_decimal(item["primary_r"]) for item in streak), Decimal())),
-                    "symbols": dict(Counter(str(item["symbol"]) for item in streak)),
-                    "anchors": dict(Counter(str(item["anchor_hour_new_york"]) for item in streak)),
-                    "models": dict(Counter(str(item["model_kind"]) for item in streak)),
+                    "total_r": _fmt(
+                        sum(
+                            (_decimal(item["primary_r"]) for item in streak),
+                            Decimal(),
+                        )
+                    ),
+                    "symbols": dict(
+                        Counter(str(item["symbol"]) for item in streak)
+                    ),
+                    "anchors": dict(
+                        Counter(
+                            str(item["anchor_hour_new_york"]) for item in streak
+                        )
+                    ),
+                    "models": dict(
+                        Counter(str(item["model_kind"]) for item in streak)
+                    ),
                 }
             )
         streak = []
-    result.sort(key=lambda item: (int(item["length"]), -_decimal(item["total_r"])), reverse=True)
+    result.sort(
+        key=lambda item: (
+            cast(int, item["length"]),
+            -_decimal(item["total_r"]),
+        ),
+        reverse=True,
+    )
     return result[:20]
 
 
-def _correlated_loss_clusters(rows: Sequence[dict[str, object]]) -> list[dict[str, object]]:
+def _correlated_loss_clusters(
+    rows: Sequence[dict[str, object]],
+) -> list[dict[str, object]]:
     losses = sorted(
         (row for row in rows if _decimal(row["primary_r"]) < 0),
         key=lambda row: str(row["signal_at"]),
@@ -297,8 +329,17 @@ def _correlated_loss_clusters(rows: Sequence[dict[str, object]]) -> list[dict[st
                 "ended_at": cluster[-1]["signal_at"],
                 "trade_count": len(cluster),
                 "distinct_markets": markets,
-                "total_r": _fmt(sum((_decimal(row["primary_r"]) for row in cluster), Decimal())),
-                "anchors": dict(Counter(str(row["anchor_hour_new_york"]) for row in cluster)),
+                "total_r": _fmt(
+                    sum(
+                        (_decimal(row["primary_r"]) for row in cluster),
+                        Decimal(),
+                    )
+                ),
+                "anchors": dict(
+                    Counter(
+                        str(row["anchor_hour_new_york"]) for row in cluster
+                    )
+                ),
             }
         )
     payloads.sort(key=lambda item: _decimal(item["total_r"]))
@@ -323,7 +364,12 @@ def _funnel_slot(
     if side is None:
         return {**base, "stage": "no-daily-bias"}
     base["side"] = side.value
-    poi = v6._source_poi_for_h4(indexed, h4, h4_opened_at=opened, side=side)
+    poi = v6._source_poi_for_h4(
+        indexed,
+        h4,
+        h4_opened_at=opened,
+        side=side,
+    )
     if poi is None:
         return {**base, "stage": "no-poi"}
     base["poi_kind"] = poi.kind.value
@@ -332,7 +378,12 @@ def _funnel_slot(
     touch_index = v6._poi_touch_index(bars, poi)
     if touch_index is None:
         return {**base, "stage": "poi-not-touched"}
-    model = v6._completed_h4_model(indexed, h4, current_h4_open=opened, side=side)
+    model = v6._completed_h4_model(
+        indexed,
+        h4,
+        current_h4_open=opened,
+        side=side,
+    )
     if model is None:
         model = v6.H4ModelKind.SAME_C2
     base["model_kind"] = model.value
@@ -340,7 +391,9 @@ def _funnel_slot(
     if cisd is None:
         return {**base, "stage": "no-cisd"}
     cisd_index, _, protected_swing = cisd
-    base["cisd_latency_minutes"] = int((bars[cisd_index].closed_at - opened).total_seconds() // 60)
+    base["cisd_latency_minutes"] = int(
+        (bars[cisd_index].closed_at - opened).total_seconds() // 60
+    )
     continuation_index = v6._first_continuation(
         bars,
         side=side,
@@ -352,17 +405,29 @@ def _funnel_slot(
     continuation = bars[continuation_index]
     entry = continuation.close
     if model is v6.H4ModelKind.SAME_C2:
-        in_body = entry > h4_bar.open if side is DemoTradingSetupSide.LONG else entry < h4_bar.open
+        in_body = (
+            entry > h4_bar.open
+            if side is DemoTradingSetupSide.LONG
+            else entry < h4_bar.open
+        )
         if not in_body:
             return {**base, "stage": "same-c2-still-in-wick"}
-    risk = entry - protected_swing if side is DemoTradingSetupSide.LONG else protected_swing - entry
+    risk = (
+        entry - protected_swing
+        if side is DemoTradingSetupSide.LONG
+        else protected_swing - entry
+    )
     if risk <= 0:
         return {**base, "stage": "non-positive-risk"}
-    base["entry_latency_minutes"] = int((continuation.closed_at - opened).total_seconds() // 60)
+    base["entry_latency_minutes"] = int(
+        (continuation.closed_at - opened).total_seconds() // 60
+    )
     return {**base, "stage": "signal"}
 
 
-def _funnel_summary(observations: Sequence[dict[str, object]]) -> dict[str, object]:
+def _funnel_summary(
+    observations: Sequence[dict[str, object]],
+) -> dict[str, object]:
     def summarize(items: Iterable[dict[str, object]]) -> dict[str, object]:
         rows = list(items)
         counts = Counter(str(row["stage"]) for row in rows)
@@ -370,27 +435,39 @@ def _funnel_summary(observations: Sequence[dict[str, object]]) -> dict[str, obje
         return {
             "opportunities": len(rows),
             "signals": signals,
-            "conversion_rate": _fmt(Decimal(signals) / Decimal(len(rows))) if rows else "0",
+            "conversion_rate": (
+                _fmt(Decimal(signals) / Decimal(len(rows))) if rows else "0"
+            ),
             "stages": dict(sorted(counts.items())),
         }
 
-    by_symbol: dict[str, object] = {}
-    by_anchor: dict[str, object] = {}
+    symbols = sorted({str(row["symbol"]) for row in observations})
+    anchors = sorted({str(row["anchor_hour_new_york"]) for row in observations})
+    by_symbol = {
+        symbol: summarize(
+            row for row in observations if str(row["symbol"]) == symbol
+        )
+        for symbol in symbols
+    }
+    by_anchor = {
+        anchor: summarize(
+            row
+            for row in observations
+            if str(row["anchor_hour_new_york"]) == anchor
+        )
+        for anchor in anchors
+    }
     by_symbol_anchor: dict[str, object] = {}
-    for symbol in sorted({str(row["symbol"]) for row in observations}):
-        by_symbol[symbol] = summarize(row for row in observations if str(row["symbol"]) == symbol)
-    for anchor in sorted({str(row["anchor_hour_new_york"]) for row in observations}):
-        by_anchor[anchor] = summarize(row for row in observations if str(row["anchor_hour_new_york"]) == anchor)
-    for symbol in sorted({str(row["symbol"]) for row in observations}):
-        for anchor in sorted({str(row["anchor_hour_new_york"]) for row in observations}):
-            key = f"{symbol}|{anchor}"
+    for symbol in symbols:
+        for anchor in anchors:
             items = [
                 row
                 for row in observations
-                if str(row["symbol"]) == symbol and str(row["anchor_hour_new_york"]) == anchor
+                if str(row["symbol"]) == symbol
+                and str(row["anchor_hour_new_york"]) == anchor
             ]
             if items:
-                by_symbol_anchor[key] = summarize(items)
+                by_symbol_anchor[f"{symbol}|{anchor}"] = summarize(items)
     return {
         "overall": summarize(observations),
         "by_symbol": by_symbol,
@@ -401,30 +478,44 @@ def _funnel_summary(observations: Sequence[dict[str, object]]) -> dict[str, obje
 
 def _pre_exit_excursions(
     trade: v6.ModeledV6Trade,
-    indexed: dict[datetime, Vt08IndexC2R1Bar],
+    future_bars: Sequence[Vt08IndexC2R1Bar],
 ) -> tuple[Decimal, Decimal]:
     signal = trade.signal
     risk = abs(signal.entry - signal.stop)
     mfe = Decimal()
     mae = Decimal()
-    for opened, bar in sorted(indexed.items()):
-        if opened.astimezone(UTC) < signal.signal_at.astimezone(UTC):
-            continue
+    for bar in future_bars:
         if bar.closed_at > trade.exited_at:
             break
         if bar.closed_at == trade.exited_at:
-            if trade.exit_reason in {"target", "gap-target"}:
+            if trade.exit_reason in {"target", "target-gap"}:
                 mfe = max(mfe, max(trade.r_multiple, Decimal()))
-            elif trade.exit_reason in {"stop", "gap-stop"}:
+            elif trade.exit_reason in {"stop", "stop-gap"}:
                 mae = max(mae, max(-trade.r_multiple, Decimal("1")))
             else:
-                favorable = bar.high - signal.entry if signal.side is DemoTradingSetupSide.LONG else signal.entry - bar.low
-                adverse = signal.entry - bar.low if signal.side is DemoTradingSetupSide.LONG else bar.high - signal.entry
+                favorable = (
+                    bar.high - signal.entry
+                    if signal.side is DemoTradingSetupSide.LONG
+                    else signal.entry - bar.low
+                )
+                adverse = (
+                    signal.entry - bar.low
+                    if signal.side is DemoTradingSetupSide.LONG
+                    else bar.high - signal.entry
+                )
                 mfe = max(mfe, favorable / risk)
                 mae = max(mae, adverse / risk)
             break
-        favorable = bar.high - signal.entry if signal.side is DemoTradingSetupSide.LONG else signal.entry - bar.low
-        adverse = signal.entry - bar.low if signal.side is DemoTradingSetupSide.LONG else bar.high - signal.entry
+        favorable = (
+            bar.high - signal.entry
+            if signal.side is DemoTradingSetupSide.LONG
+            else signal.entry - bar.low
+        )
+        adverse = (
+            signal.entry - bar.low
+            if signal.side is DemoTradingSetupSide.LONG
+            else bar.high - signal.entry
+        )
         mfe = max(mfe, favorable / risk)
         mae = max(mae, adverse / risk)
     return max(mfe, Decimal()), max(mae, Decimal())
@@ -432,29 +523,48 @@ def _pre_exit_excursions(
 
 def _alternate_target_r(
     trade: v6.ModeledV6Trade,
-    indexed: dict[datetime, Vt08IndexC2R1Bar],
-    end_date_exclusive: date,
+    future_bars: Sequence[Vt08IndexC2R1Bar],
     target_r: Decimal,
 ) -> Decimal | None:
     signal = trade.signal
     risk = abs(signal.entry - signal.stop)
-    target = signal.entry + target_r * risk if signal.side is DemoTradingSetupSide.LONG else signal.entry - target_r * risk
-    alternate = v6.CandidateSignal(
-        symbol=signal.symbol,
-        side=signal.side,
-        model_kind=signal.model_kind,
-        h4_opened_at=signal.h4_opened_at,
-        signal_at=signal.signal_at,
-        entry=signal.entry,
-        stop=signal.stop,
-        target=target,
-        poi=signal.poi,
-        cisd_level=signal.cisd_level,
-        cisd_confirmed_at=signal.cisd_confirmed_at,
-        protected_swing_extreme=signal.protected_swing_extreme,
+    target = (
+        signal.entry + target_r * risk
+        if signal.side is DemoTradingSetupSide.LONG
+        else signal.entry - target_r * risk
     )
-    modeled = v6._model_trade(alternate, indexed=indexed, end_date_exclusive=end_date_exclusive)
-    return modeled.r_multiple if modeled is not None else None
+    last: Vt08IndexC2R1Bar | None = None
+    for bar in future_bars:
+        last = bar
+        resolved = _gap_exit(
+            side=signal.side,
+            bar=bar,
+            stop=signal.stop,
+            target=target,
+        )
+        if resolved is None:
+            resolved = _intrabar_exit(
+                bar=bar,
+                stop=signal.stop,
+                target=target,
+            )
+        if resolved is None:
+            continue
+        exit_price, _ = resolved
+        pnl = (
+            exit_price - signal.entry
+            if signal.side is DemoTradingSetupSide.LONG
+            else signal.entry - exit_price
+        )
+        return pnl / risk
+    if last is None:
+        return None
+    pnl = (
+        last.close - signal.entry
+        if signal.side is DemoTradingSetupSide.LONG
+        else signal.entry - last.close
+    )
+    return pnl / risk
 
 
 def _prior_context(
@@ -469,10 +579,13 @@ def _prior_context(
         last = h4[prior_keys[-1]]
         prior_alignment = _aligned(signal.side, last.open, last.close)
         ranges = [h4[key].high - h4[key].low for key in prior_keys]
-        reference = Decimal(str(median(ranges))) if ranges else Decimal()
+        reference = median(ranges) if ranges else Decimal()
         if reference > 0:
             ratio = (last.high - last.low) / reference
-    source_days = v7._latest_complete_source_days(indexed, before_local=signal.h4_opened_at)
+    source_days = v7._latest_complete_source_days(
+        indexed,
+        before_local=signal.h4_opened_at,
+    )
     current_alignment = "unknown"
     previous_alignment = "unknown"
     source_range_ratio: Decimal | None = None
@@ -489,7 +602,9 @@ def _prior_context(
         "prior_h4_range_regime": _range_regime(ratio),
         "current_source_body_alignment": current_alignment,
         "previous_source_body_alignment": previous_alignment,
-        "source_day_range_ratio": _fmt(source_range_ratio) if source_range_ratio is not None else None,
+        "source_day_range_ratio": (
+            _fmt(source_range_ratio) if source_range_ratio is not None else None
+        ),
     }
 
 
@@ -499,33 +614,70 @@ def _peer_context(
 ) -> dict[str, object]:
     returns: dict[str, Decimal] = {}
     for symbol, state in states.items():
-        indexed = cast(dict[datetime, Vt08IndexC2R1Bar], state["indexed"])
         h4 = cast(dict[datetime, Vt08IndexC2R1Bar], state["h4"])
         h4_bar = h4.get(signal.h4_opened_at.astimezone(UTC))
         if h4_bar is None or h4_bar.open <= 0:
             continue
-        observed = [
-            bar
-            for opened, bar in sorted(indexed.items())
-            if opened >= signal.h4_opened_at.astimezone(UTC)
-            and bar.closed_at <= signal.signal_at.astimezone(UTC)
-        ]
-        if not observed:
+        opened_times = cast(tuple[datetime, ...], state["opened_times"])
+        ordered_bars = cast(tuple[Vt08IndexC2R1Bar, ...], state["ordered_bars"])
+        start_index = bisect_left(
+            opened_times,
+            signal.h4_opened_at.astimezone(UTC),
+        )
+        end_index = bisect_left(
+            opened_times,
+            signal.signal_at.astimezone(UTC),
+        )
+        if end_index <= start_index:
             continue
-        returns[symbol] = (observed[-1].close - h4_bar.open) / h4_bar.open
-    side_sign = Decimal("1") if signal.side is DemoTradingSetupSide.LONG else Decimal("-1")
-    peers = {symbol: value for symbol, value in returns.items() if symbol != signal.symbol}
+        observed = ordered_bars[end_index - 1]
+        returns[symbol] = (observed.close - h4_bar.open) / h4_bar.open
+    side_sign = (
+        Decimal("1")
+        if signal.side is DemoTradingSetupSide.LONG
+        else Decimal("-1")
+    )
+    peers = {
+        symbol: value
+        for symbol, value in returns.items()
+        if symbol != signal.symbol
+    }
     peer_alignment = sum(value * side_sign > 0 for value in peers.values())
     side_adjusted = sorted(
         ((symbol, value * side_sign) for symbol, value in returns.items()),
         key=lambda item: item[1],
     )
-    rank = next((index + 1 for index, item in enumerate(side_adjusted) if item[0] == signal.symbol), None)
+    rank = next(
+        (
+            index + 1
+            for index, item in enumerate(side_adjusted)
+            if item[0] == signal.symbol
+        ),
+        None,
+    )
     return {
         "peer_alignment_count": peer_alignment,
         "side_adjusted_relative_strength_rank": rank,
-        "contemporaneous_h4_returns": {symbol: _fmt(value) for symbol, value in sorted(returns.items())},
+        "contemporaneous_h4_returns": {
+            symbol: _fmt(value) for symbol, value in sorted(returns.items())
+        },
     }
+
+
+def _future_bars_for_trade(
+    trade: v6.ModeledV6Trade,
+    *,
+    opened_times: tuple[datetime, ...],
+    ordered_bars: tuple[Vt08IndexC2R1Bar, ...],
+    end_date_exclusive: date,
+) -> tuple[Vt08IndexC2R1Bar, ...]:
+    boundary = v6._boundary_utc(end_date_exclusive)
+    start_index = bisect_left(
+        opened_times,
+        trade.signal.signal_at.astimezone(UTC),
+    )
+    end_index = bisect_left(opened_times, boundary)
+    return ordered_bars[start_index:end_index]
 
 
 def _trade_row(
@@ -533,20 +685,34 @@ def _trade_row(
     *,
     indexed: dict[datetime, Vt08IndexC2R1Bar],
     h4: dict[datetime, Vt08IndexC2R1Bar],
+    opened_times: tuple[datetime, ...],
+    ordered_bars: tuple[Vt08IndexC2R1Bar, ...],
     states: dict[str, dict[str, object]],
     end_date_exclusive: date,
 ) -> dict[str, object]:
     signal = trade.signal
     local = signal.signal_at.astimezone(_NY)
     risk = abs(signal.entry - signal.stop)
-    entry_latency = int((signal.signal_at - signal.h4_opened_at).total_seconds() // 60)
-    cisd_latency = int((signal.cisd_confirmed_at - signal.h4_opened_at).total_seconds() // 60)
+    entry_latency = int(
+        (signal.signal_at - signal.h4_opened_at).total_seconds() // 60
+    )
+    cisd_latency = int(
+        (signal.cisd_confirmed_at - signal.h4_opened_at).total_seconds() // 60
+    )
     duration = int((trade.exited_at - signal.signal_at).total_seconds() // 60)
-    mfe, mae = _pre_exit_excursions(trade, indexed)
+    future_bars = _future_bars_for_trade(
+        trade,
+        opened_times=opened_times,
+        ordered_bars=ordered_bars,
+        end_date_exclusive=end_date_exclusive,
+    )
+    mfe, mae = _pre_exit_excursions(trade, future_bars)
     target_outcomes: dict[str, object] = {}
     for target_r in TARGET_SURFACE_R:
-        realized = _alternate_target_r(trade, indexed, end_date_exclusive, target_r)
-        target_outcomes[_fmt(target_r)] = _fmt(realized) if realized is not None else None
+        realized = _alternate_target_r(trade, future_bars, target_r)
+        target_outcomes[_fmt(target_r)] = (
+            _fmt(realized) if realized is not None else None
+        )
     row: dict[str, object] = {
         "symbol": signal.symbol,
         "side": signal.side.value,
@@ -561,7 +727,9 @@ def _trade_row(
         "entry": _fmt(signal.entry),
         "stop": _fmt(signal.stop),
         "risk_points": _fmt(risk),
-        "risk_fraction_of_entry": _fmt(risk / signal.entry) if signal.entry > 0 else None,
+        "risk_fraction_of_entry": (
+            _fmt(risk / signal.entry) if signal.entry > 0 else None
+        ),
         "raw_r": _fmt(trade.r_multiple),
         "primary_r": _fmt(trade.r_multiple - PRIMARY_STRESS),
         "secondary_r": _fmt(trade.r_multiple - SECONDARY_STRESS),
@@ -574,7 +742,9 @@ def _trade_row(
         "duration_bucket": _duration_bucket(duration),
         "mfe_r_conservative": _fmt(mfe),
         "mae_r_conservative": _fmt(mae),
-        "stop_excursion_bucket": _excursion_bucket(mfe) if trade.r_multiple < 0 else "not-stop",
+        "stop_excursion_bucket": (
+            _excursion_bucket(mfe) if trade.r_multiple < 0 else "not-stop"
+        ),
         "target_outcomes_raw_r": target_outcomes,
     }
     row.update(_prior_context(signal, indexed, h4))
@@ -612,9 +782,23 @@ def _stop_taxonomy(rows: Sequence[dict[str, object]]) -> dict[str, object]:
         subset = [row for row in stops if str(row["symbol"]) == symbol]
         by_symbol[symbol] = {
             "sample": len(subset),
-            "excursion_buckets": dict(Counter(str(row["stop_excursion_bucket"]) for row in subset)),
-            "duration_buckets": dict(Counter(str(row["duration_bucket"]) for row in subset)),
-            "mean_mfe_r": _fmt(sum((_decimal(row["mfe_r_conservative"]) for row in subset), Decimal()) / len(subset)) if subset else "0",
+            "excursion_buckets": dict(
+                Counter(str(row["stop_excursion_bucket"]) for row in subset)
+            ),
+            "duration_buckets": dict(
+                Counter(str(row["duration_bucket"]) for row in subset)
+            ),
+            "mean_mfe_r": (
+                _fmt(
+                    sum(
+                        (_decimal(row["mfe_r_conservative"]) for row in subset),
+                        Decimal(),
+                    )
+                    / len(subset)
+                )
+                if subset
+                else "0"
+            ),
         }
     return {
         "sample": len(stops),
@@ -646,7 +830,15 @@ def analyze_window(
             minimum_evidence_days=minimum_evidence_days,
         )
         indexed = {bar.opened_at.astimezone(UTC): bar for bar in bars}
-        states[symbol] = {"indexed": indexed, "h4": v6._build_h4(indexed), "bars": bars}
+        ordered_bars = tuple(sorted(bars, key=lambda bar: bar.opened_at))
+        opened_times = tuple(bar.opened_at.astimezone(UTC) for bar in ordered_bars)
+        states[symbol] = {
+            "indexed": indexed,
+            "h4": v6._build_h4(indexed),
+            "bars": bars,
+            "ordered_bars": ordered_bars,
+            "opened_times": opened_times,
+        }
         provenance[symbol] = {
             "provider_symbol": provider,
             "account_fingerprint": fingerprint,
@@ -662,6 +854,8 @@ def analyze_window(
         state = states[symbol]
         indexed = cast(dict[datetime, Vt08IndexC2R1Bar], state["indexed"])
         h4 = cast(dict[datetime, Vt08IndexC2R1Bar], state["h4"])
+        ordered_bars = cast(tuple[Vt08IndexC2R1Bar, ...], state["ordered_bars"])
+        opened_times = cast(tuple[datetime, ...], state["opened_times"])
         market = v7._market_report(
             symbol=symbol,
             bars=cast(Sequence[Vt08IndexC2R1Bar], state["bars"]),
@@ -676,24 +870,43 @@ def analyze_window(
                     trade,
                     indexed=indexed,
                     h4=h4,
+                    opened_times=opened_times,
+                    ordered_bars=ordered_bars,
                     states=states,
                     end_date_exclusive=end_date_exclusive,
                 )
             )
         for opened in sorted(h4):
-            if opened.astimezone(_NY).hour not in v7.EXECUTABLE_H4_ANCHORS_NY:
+            if (
+                opened.astimezone(_NY).hour
+                not in v7.EXECUTABLE_H4_ANCHORS_NY
+            ):
                 continue
-            if not _in_partition(opened, start_date=start_date, end_date_exclusive=end_date_exclusive):
+            if not _in_partition(
+                opened,
+                start_date=start_date,
+                end_date_exclusive=end_date_exclusive,
+            ):
                 continue
-            funnel.append(_funnel_slot(symbol=symbol, indexed=indexed, h4=h4, opened=opened))
+            funnel.append(
+                _funnel_slot(
+                    symbol=symbol,
+                    indexed=indexed,
+                    h4=h4,
+                    opened=opened,
+                )
+            )
 
     rows.sort(key=lambda row: (str(row["signal_at"]), str(row["symbol"])))
-    report = {
+    return {
         "schema": SCHEMA,
         "window_id": window_id,
         "candidate_id": v7.CANDIDATE_ID,
         "rule_fingerprint": v7.RULE_FINGERPRINT,
-        "partition": {"start_date": start_date.isoformat(), "end_date_exclusive": end_date_exclusive.isoformat()},
+        "partition": {
+            "start_date": start_date.isoformat(),
+            "end_date_exclusive": end_date_exclusive.isoformat(),
+        },
         "provenance": provenance,
         "session_reconstruction": session_reconstruction,
         "metrics_raw": _row_metrics(rows, key="raw_r"),
@@ -716,7 +929,6 @@ def analyze_window(
             "production_authorized": False,
         },
     }
-    return report
 
 
 def combine_reports(reports: Sequence[dict[str, object]]) -> dict[str, object]:
@@ -741,8 +953,8 @@ def combine_reports(reports: Sequence[dict[str, object]]) -> dict[str, object]:
         )
         funnel = cast(dict[str, object], report["opportunity_funnel"])
         overall = cast(dict[str, object], funnel["overall"])
-        funnel_total += int(overall["opportunities"])
-        funnel_signals += int(overall["signals"])
+        funnel_total += cast(int, overall["opportunities"])
+        funnel_signals += cast(int, overall["signals"])
         funnel_stages.update(cast(dict[str, int], overall["stages"]))
     rows.sort(key=lambda row: (str(row["signal_at"]), str(row["symbol"])))
     return {
@@ -756,7 +968,11 @@ def combine_reports(reports: Sequence[dict[str, object]]) -> dict[str, object]:
         "opportunity_funnel": {
             "opportunities": funnel_total,
             "signals": funnel_signals,
-            "conversion_rate": _fmt(Decimal(funnel_signals) / Decimal(funnel_total)) if funnel_total else "0",
+            "conversion_rate": (
+                _fmt(Decimal(funnel_signals) / Decimal(funnel_total))
+                if funnel_total
+                else "0"
+            ),
             "stages": dict(sorted(funnel_stages.items())),
         },
         "cohort_cube": _cohort_cube(rows),
@@ -779,7 +995,16 @@ def combine_reports(reports: Sequence[dict[str, object]]) -> dict[str, object]:
 
 def _write(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -814,12 +1039,38 @@ def main() -> None:
             window_id=args.window_id,
         )
         _write(args.out, payload)
-        print(json.dumps({"window_id": args.window_id, "sample": cast(dict[str, object], payload["metrics_primary"])["sample"]}, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "window_id": args.window_id,
+                    "sample": cast(
+                        dict[str, object], payload["metrics_primary"]
+                    )["sample"],
+                },
+                sort_keys=True,
+            )
+        )
         return
-    reports = [cast(dict[str, object], json.loads(path.read_text(encoding="utf-8"))) for path in args.reports]
+    reports = [
+        cast(
+            dict[str, object],
+            json.loads(path.read_text(encoding="utf-8")),
+        )
+        for path in args.reports
+    ]
     payload = combine_reports(reports)
     _write(args.out, payload)
-    print(json.dumps({"windows": len(reports), "sample": cast(dict[str, object], payload["metrics_primary"])["sample"]}, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "windows": len(reports),
+                "sample": cast(
+                    dict[str, object], payload["metrics_primary"]
+                )["sample"],
+            },
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
