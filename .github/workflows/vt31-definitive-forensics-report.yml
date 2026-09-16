@@ -1,0 +1,52 @@
+name: QORE VT-31 Definitive Forensics Report
+
+on:
+  push:
+    branches: [agent/vt31-historical-tick-resolution-001]
+    paths:
+      - .github/workflows/vt31-definitive-forensics-report.yml
+      - scripts/vt31_deep_forensics_report.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Recover immutable definitive ledger + deep forensics artifact
+        run: |
+          set -euo pipefail
+          id=10440468729
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" --jq .digest)"
+          test "$digest" = "sha256:2d6a2c609a0fb0caf11f936623ed4907450e0f9a8581b4f6b54997b89b743b65"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > source.zip
+          echo "${digest#sha256:}  source.zip" | sha256sum -c -
+          mkdir source; unzip -q source.zip -d source; (cd source && sha256sum -c SHA256SUMS)
+          test "$(cat source/git-sha.txt)" = "ac05b3c84433bf052b494bbc5b803e98de66e571"
+      - name: Render non-selective causal diagnostics
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_deep_forensics_report.py \
+            --forensics source/vt31-tick-corrected-deep-forensics.json \
+            --economics source/vt31-tick-corrected-consumed-economics-v2.json \
+            --output result/vt31-definitive-forensics-report.json
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10440468729" > result/source-artifact-id.txt
+          echo "2d6a2c609a0fb0caf11f936623ed4907450e0f9a8581b4f6b54997b89b743b65" > result/source-artifact-digest.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-definitive-forensics-report-${{ github.sha }}
+          path: result/
+          retention-days: 90
