@@ -1,6 +1,6 @@
 """Render research-only market-vs-trader gap diagnostics for VT-31 specialists.
 
-Inputs come from the independent CIBO Atlas Historical Market Scanner. Trader
+Inputs come from an independent CIBO Atlas Historical Market Scanner. Trader
 outcomes are labels only. This script does not select markets, thresholds, or
 candidate rules and does not open a holdout.
 """
@@ -9,13 +9,17 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
 
 MARKETS = ("NAS100", "SP500", "US30")
 SCHEMA = "qore.cibo_atlas.vt31.specialist_gap_report.v1"
+ACCEPTED_SCANNERS = {
+    "qore.cibo_atlas.vt31.historical_market_scanner.v1",
+    "qore.cibo_atlas.vt31.historical_market_scanner.gap05.v1",
+}
 
 
 def D(value: object) -> Decimal:
@@ -52,10 +56,12 @@ def optional_decimal(value: object) -> Decimal | None:
     return None if text in {"", "None", "null"} else D(text)
 
 
-def load_inputs(scanner_path: Path, matrix_path: Path) -> tuple[dict[str, Any], list[dict[str, str]]]:
+def load_inputs(
+    scanner_path: Path, matrix_path: Path
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
     scanner = cast(dict[str, Any], json.loads(scanner_path.read_text(encoding="utf-8")))
-    if scanner.get("schema") != "qore.cibo_atlas.vt31.historical_market_scanner.v1":
-        raise ValueError("gap report requires CIBO Atlas historical scanner v1")
+    if scanner.get("schema") not in ACCEPTED_SCANNERS:
+        raise ValueError("gap report requires an accepted CIBO Atlas historical scanner")
     if scanner.get("research_only") is not True or scanner.get("selection_prohibited") is not True:
         raise ValueError("scanner governance guard")
     if scanner.get("opens_new_holdout") is not False:
@@ -64,6 +70,11 @@ def load_inputs(scanner_path: Path, matrix_path: Path) -> tuple[dict[str, Any], 
         rows = list(csv.DictReader(handle))
     if len(rows) != int(scanner["independent_market_day_count"]):
         raise ValueError("scanner/matrix cardinality mismatch")
+    if scanner.get("schema") == "qore.cibo_atlas.vt31.historical_market_scanner.gap05.v1":
+        if scanner.get("ledger_root_overlay_count") != 780:
+            raise ValueError("gap05 scanner must cover all 780 ledger roots")
+        if sum(int(row["trader_root_count"]) for row in rows) != 780:
+            raise ValueError("gap05 matrix must overlay all 780 ledger roots")
     return scanner, rows
 
 
@@ -84,7 +95,9 @@ def metric_bundle(rows: list[dict[str, str]]) -> dict[str, Any]:
         "opposite_boundary_hit_by_16_rate": fraction(
             sum(truth(row["opposite_boundary_hit_by_16"]) for row in directional), len(directional)
         ),
-        "post_breach_reversal_excursion_ref_by_16_p50": fmt(quantile(reverse16, Decimal("0.5"))),
+        "post_breach_reversal_excursion_ref_by_16_p50": fmt(
+            quantile(reverse16, Decimal("0.5"))
+        ),
     }
 
 
@@ -113,7 +126,9 @@ def specialist_report(market: str, rows: list[dict[str, str]]) -> dict[str, Any]
         "trader": {
             "market_day_count": len(rows),
             "root_count": roots,
-            "root_day_coverage_rate": fraction(sum(int(row["trader_root_count"]) > 0 for row in rows), len(rows)),
+            "root_day_coverage_rate": fraction(
+                sum(int(row["trader_root_count"]) > 0 for row in rows), len(rows)
+            ),
             "terminal_count": terminal,
             "initial_stop_count": initial_stop,
             "protected_stop_count": protected_stop,
@@ -240,6 +255,7 @@ def build(scanner_path: Path, matrix_path: Path, output_dir: Path) -> dict[str, 
         "live_authorized": False,
         "production_authorized": False,
         "source_scanner_schema": scanner["schema"],
+        "source_ledger_root_overlay_count": scanner.get("ledger_root_overlay_count"),
         "specialists": {
             market: specialist_report(market, by_market[market]) for market in MARKETS
         },
