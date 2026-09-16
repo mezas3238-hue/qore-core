@@ -4,9 +4,9 @@ Provider rules constrain account-wide QORE Risk. This module does not issue a
 RiskAuthorization and never changes Trader or CIBO methodology.
 
 The exact purchased account is governed here by the verified Stellar Instant
-6% trailing Maximum Loss Limit. QORE-internal operating buffers/heat limits are
-intentionally defined in a separate module and must never be mislabelled as a
-FundedNext provider rule.
+6% trailing Maximum Loss Limit and the applicable cumulative open-risk limit.
+QORE-internal operating buffers/heat limits are intentionally defined in a
+separate module and remain stricter than the provider open-risk ceiling.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ PROGRAM = "STELLAR_INSTANT"
 PLATFORM = "MT5"
 PILOT_INITIAL_BALANCE = Decimal("2000")
 MAXIMUM_LOSS_FRACTION = Decimal("0.06")
-SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION: Decimal | None = None
+SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION = Decimal("0.03")
 FOREX_OPEN_COMMISSION_PER_LOT_USD = Decimal("7")
 INDEX_OPEN_COMMISSION_PER_LOT_USD = Decimal("0")
 PILOT_SYMBOL_MAP: dict[str, str] = {
@@ -142,9 +142,8 @@ class StellarInstantRiskBudget:
     provider_reported_mll: Decimal | None
     active_mll: Decimal
     provider_headroom: Decimal
-    # Compatibility ceiling consumed by the existing account-wide Risk engine.
-    # For this exact purchased account it is NOT a separate 3% provider rule:
-    # it equals the remaining 6% trailing-MLL provider headroom.
+    # Provider cumulative open-risk ceiling consumed by account-wide Risk.
+    # It is the tighter of remaining trailing-MLL headroom and 3% of initial balance.
     max_risk_at_any_time: Decimal
     hard_breach: bool
     daily_loss_limit_present: bool
@@ -165,17 +164,21 @@ class StellarInstantRiskBudget:
                 raise StellarInstantContractError(f"{name} must be finite Decimal")
         if self.provider_headroom < 0:
             raise StellarInstantContractError("provider_headroom cannot be negative")
-        if self.max_risk_at_any_time != self.provider_headroom:
+        expected_risk_cap = min(
+            self.provider_headroom,
+            self.initial_balance * SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
+        )
+        if self.max_risk_at_any_time != expected_risk_cap:
             raise StellarInstantContractError(
-                "compatibility risk ceiling must equal 6% trailing-MLL provider headroom"
+                "provider risk ceiling must enforce 3% cumulative open risk"
             )
         if self.active_mll > self.initial_balance:
             raise StellarInstantContractError("active MLL cannot trail above initial balance")
         if self.daily_loss_limit_present:
             raise StellarInstantContractError("Stellar Instant must not invent a daily loss limit")
-        if self.separate_max_risk_at_any_time_fraction is not None:
+        if self.separate_max_risk_at_any_time_fraction != SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION:
             raise StellarInstantContractError(
-                "exact purchased Stellar Instant policy has no separate provider 3% cap"
+                "provider cumulative open-risk fraction must remain exact 3%"
             )
         if self.payout_can_lower_mll:
             raise StellarInstantContractError("payout cannot lower Stellar Instant MLL")
@@ -218,7 +221,10 @@ def evaluate_stellar_instant_budget(
         provider_reported_mll=reported,
         active_mll=active_mll,
         provider_headroom=headroom,
-        max_risk_at_any_time=headroom,
+        max_risk_at_any_time=min(
+            headroom,
+            snapshot.initial_balance * SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
+        ),
         hard_breach=hard_breach,
         daily_loss_limit_present=False,
         separate_max_risk_at_any_time_fraction=SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
