@@ -1,0 +1,146 @@
+name: QORE VT-31 Original Later Ambiguity Resolution
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-original-later-ambiguity-resolution.yml
+      - scripts/vt31_original_later_ambiguity_manifest.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  resolve-four:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install consumed research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+          python -m py_compile scripts/vt31_original_later_ambiguity_manifest.py scripts/vt31_consumed_tick_manifest_acquisition.py scripts/vt31_open_position_tick_exit_resolution.py
+          python scripts/vt31_open_position_tick_exit_resolution.py --self-test
+
+      - name: Recover immutable consumed M1 partitions and forensics authority
+        run: |
+          set -euo pipefail
+          mkdir -p consumed/r5 consumed/r6 consumed/r8 authority
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10420087200/zip" > authority.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -
+          echo "d18a04925667b5dcda1d9139bb597aad477e9efbc3165c0139609a25c8f7b0de  authority.zip" | sha256sum -c -
+          unzip -q r5.zip -d consumed/r5
+          unzip -q r6.zip -d consumed/r6
+          unzip -q r8.zip -d consumed/r8
+          unzip -q authority.zip -d authority
+          (cd authority && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('authority/vt31-r8-fill-attrition-summary.json').read_text())
+          expected={'r5':1,'r6':2,'r8_fresh':1}
+          for partition,n in expected.items():
+              a=p[partition]['gap05']['aggregate']
+              assert a.get('later-same-bar-stop-target-ambiguous',0)==n
+          assert sum(expected.values())==4
+          PY
+
+      - name: Reconstruct exact four consumed ambiguous bars
+        run: |
+          set -euo pipefail
+          mkdir source
+          python scripts/vt31_original_later_ambiguity_manifest.py \
+            --r5-nas100 consumed/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp500 consumed/r5/fresh/SP500/market-evidence.json \
+            --r5-us30 consumed/r5/fresh/US30/market-evidence.json \
+            --r6-nas100 consumed/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp500 consumed/r6/fresh/SP500/market-evidence.json \
+            --r6-us30 consumed/r6/fresh/US30/market-evidence.json \
+            --r8-fresh-nas100 consumed/r8/fresh/NAS100/market-evidence.json \
+            --r8-fresh-sp500 consumed/r8/fresh/SP500/market-evidence.json \
+            --r8-fresh-us30 consumed/r8/fresh/US30/market-evidence.json \
+            --output source/vt31-original-later-ambiguity-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('source/vt31-original-later-ambiguity-manifest.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert len(p['windows'])==4
+          assert {k:v['total'] for k,v in p['counts'].items()}=={'r5':1,'r6':2,'r8_fresh':1}
+          PY
+
+      - name: Verify cTrader credentials without printing values
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do test -n "${!name:-}"; done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire exact BID ASK and resolve open-position terminal order
+        run: |
+          set -euo pipefail
+          python scripts/vt31_consumed_tick_manifest_acquisition.py \
+            --manifest source/vt31-original-later-ambiguity-manifest.json \
+            --output-dir acquisition
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('acquisition/vt31-bounded-tick-acquisition-summary.json').read_text())
+          assert p['source_window_count']==4 and p['available']==4
+          assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
+          PY
+          mkdir result
+          python scripts/vt31_open_position_tick_exit_resolution.py \
+            --manifest source/vt31-original-later-ambiguity-manifest.json \
+            --acquisition-dir acquisition \
+            --output result/vt31-original-later-open-position-resolution.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-original-later-open-position-resolution.json').read_text())
+          assert p['source_window_count']==4 and len(p['results'])==4
+          assert sum(p['counts'].values())==4
+          print(json.dumps(p['counts'],sort_keys=True))
+          PY
+
+      - name: Bind immutable package
+        run: |
+          set -euo pipefail
+          cp source/vt31-original-later-ambiguity-manifest.json result/
+          cp -r acquisition result/tick-acquisition
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10420087200" > result/source-fill-attrition-artifact-id.txt
+          echo "d18a04925667b5dcda1d9139bb597aad477e9efbc3165c0139609a25c8f7b0de" > result/source-fill-attrition-zip-sha256.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-original-later-ambiguity-resolution-${{ github.sha }}
+          path: result/
+          retention-days: 90
