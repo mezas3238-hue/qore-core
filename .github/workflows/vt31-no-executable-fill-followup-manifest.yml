@@ -1,9 +1,6 @@
 name: QORE VT-31 No-Executable-Fill Follow-up Manifest
 
 on:
-  push:
-    branches:
-      - agent/vt31-historical-tick-resolution-001
   workflow_dispatch:
 
 permissions:
