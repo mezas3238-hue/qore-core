@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/cibo_atlas_vt31_historical_market_scanner.py
           ruff check --ignore N802,E501,UP035 scripts/cibo_atlas_vt31_historical_market_scanner.py
-          mypy scripts/cibo_atlas_vt31_historical_market_scanner.py
+          mypy src/qore/infrastructure/cibo_atlas_market_lab.py
           python scripts/cibo_atlas_vt31_historical_market_scanner.py --self-test
 
       - name: Recover immutable definitive ledger
