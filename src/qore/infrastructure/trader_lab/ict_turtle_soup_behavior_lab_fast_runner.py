@@ -99,10 +99,10 @@ def _opposite_hit(
 
 
 def install() -> None:
-    setattr(lab, "_reclaim", _reclaim)
-    setattr(lab, "_forward_extremes", _forward_extremes)
-    setattr(lab, "_fvg_after_raid", _fvg_after_raid)
-    setattr(lab, "_opposite_hit", _opposite_hit)
+    lab._reclaim = _reclaim
+    lab._forward_extremes = _forward_extremes
+    lab._fvg_after_raid = _fvg_after_raid
+    lab._opposite_hit = _opposite_hit
 
 
 def main() -> None:
