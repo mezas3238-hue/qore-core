@@ -6,6 +6,8 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.fundednext_stellar_instant import (
+    MAXIMUM_LOSS_FRACTION,
+    SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
     AutomationVerificationState,
     RuleVerificationState,
     StellarInstantAccountSnapshot,
@@ -35,13 +37,16 @@ def _snapshot(
     )
 
 
-def test_2k_initial_floor_is_1880_without_daily_loss_gate() -> None:
+def test_2k_exact_account_contract_is_6pct_trailing_without_daily_or_3pct_gate() -> None:
     budget = evaluate_stellar_instant_budget(_snapshot())
+    assert MAXIMUM_LOSS_FRACTION == Decimal("0.06")
+    assert SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION is None
     assert budget.loss_allowance == Decimal("120.00")
     assert budget.active_mll == Decimal("1880")
     assert budget.provider_headroom == Decimal("120")
-    assert budget.max_risk_at_any_time == Decimal("60.00")
+    assert budget.max_risk_at_any_time == budget.provider_headroom
     assert budget.daily_loss_limit_present is False
+    assert budget.separate_max_risk_at_any_time_fraction is None
     assert budget.payout_can_lower_mll is False
 
 
