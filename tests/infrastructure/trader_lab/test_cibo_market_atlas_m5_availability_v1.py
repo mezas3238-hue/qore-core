@@ -4,6 +4,7 @@ from qore.infrastructure.trader_lab.cibo_market_atlas_m5_availability_v1 import 
     ProbeWindow,
     first_contiguous_month,
     month_grid,
+    year_grid,
 )
 
 
@@ -18,6 +19,15 @@ def test_month_grid_spans_calendar_months_without_overlap() -> None:
         (_dt(2025, 12), _dt(2026, 1)),
         (_dt(2026, 1), _dt(2026, 2)),
         (_dt(2026, 2), _dt(2026, 2, 10)),
+    )
+
+
+def test_year_grid_spans_calendar_years_without_overlap() -> None:
+    windows = year_grid(_dt(2024, 6), _dt(2026, 9, 16))
+    assert windows == (
+        (_dt(2024, 1), _dt(2025, 1)),
+        (_dt(2025, 1), _dt(2026, 1)),
+        (_dt(2026, 1), _dt(2026, 9, 16)),
     )
 
 
