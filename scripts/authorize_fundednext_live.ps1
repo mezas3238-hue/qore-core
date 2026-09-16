@@ -1,8 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][switch]$ConfirmLiveCapital,
     [Parameter(Mandatory=$true)][switch]$EaEntitlementVerified,
-    [Parameter(Mandatory=$true)][switch]$VpsEntitlementVerified,
-    [Parameter(Mandatory=$true)][DateTimeOffset]$RulesValidUntil
+    [Parameter(Mandatory=$true)][switch]$VpsEntitlementVerified
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,6 +19,9 @@ $SafetyPath = "$StateDir\live-safety.json"
 $OwnerArtifactPath = "$Root\artifacts\fundednext_owner_live_activation.json"
 $FailureArtifactPath = "$Root\artifacts\fundednext_live_activation_failed.json"
 $RuntimeScript = "$Root\scripts\qore_fundednext_runtime.py"
+$RulesRefreshScript = "$Root\scripts\qore_fundednext_rules_refresh.py"
+$RulesRefreshPath = "$StateDir\provider-rules-refresh.json"
+$RulesRefreshTaskName = "QORE-FundedNext-Rules-Refresh"
 
 function Write-JsonAtomic([object]$Value, [string]$Path) {
     $Temp = "$Path.tmp.$PID"
@@ -127,9 +129,6 @@ if (-not $ConfirmLiveCapital -or -not $EaEntitlementVerified -or -not $VpsEntitl
     throw "Explicit Owner confirmation plus EA and VPS entitlement verification are required"
 }
 $AttemptStartedAt = [DateTimeOffset]::UtcNow
-if ($RulesValidUntil -le $AttemptStartedAt) {
-    throw "RulesValidUntil must be an explicit future timestamp"
-}
 
 $GitSha = (git rev-parse HEAD).Trim()
 if ($GitSha.Length -ne 40) { throw "QORE exact git SHA unavailable" }
@@ -168,6 +167,17 @@ if (-not [bool]$Safety.account_enabled -or -not [bool]$Safety.gateway_enabled) {
 }
 
 $Python = (Get-Command python).Source
+if (-not (Get-ScheduledTask -TaskName $RulesRefreshTaskName -ErrorAction SilentlyContinue)) {
+    throw "Provider-rule auto-refresh task is not installed"
+}
+& $Python $RulesRefreshScript --root $Root --lease-hours 30
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $RulesRefreshPath)) {
+    throw "Fresh provider-rule verification failed"
+}
+$RulesRefresh = Get-Content -Raw $RulesRefreshPath | ConvertFrom-Json
+$RulesVerifiedAt = [DateTimeOffset]::Parse([string]$RulesRefresh.verified_at)
+$RulesValidUntil = [DateTimeOffset]::Parse([string]$RulesRefresh.valid_until)
+if ($RulesValidUntil -le $AttemptStartedAt) { throw "Provider-rule refresh lease is not current" }
 Remove-Item $OwnerArtifactPath -Force -ErrorAction SilentlyContinue
 Disable-ScheduledTask -TaskName $WatchdogTaskName -ErrorAction SilentlyContinue | Out-Null
 Stop-ScheduledTask -TaskName $RuntimeTaskName -ErrorAction SilentlyContinue
@@ -187,7 +197,7 @@ $Activation.no_send_passed = $true
 $Activation.shadow_passed = $true
 $Activation.service_24_7_verified = $true
 $Activation.restart_recovery_passed = $true
-$Activation | Add-Member -NotePropertyName rules_verified_at -NotePropertyValue $AttemptStartedAt.ToString("o") -Force
+$Activation | Add-Member -NotePropertyName rules_verified_at -NotePropertyValue $RulesVerifiedAt.ToUniversalTime().ToString("o") -Force
 $Activation | Add-Member -NotePropertyName rules_valid_until -NotePropertyValue $RulesValidUntil.ToUniversalTime().ToString("o") -Force
 $Activation.activation_timestamp = $AttemptStartedAt.ToString("o")
 $Activation.order_submission_authorized = $true
@@ -215,7 +225,9 @@ try {
         ea_entitlement_verified = $true
         vps_entitlement_verified = $true
         provider_rules_current = $true
+        rules_verified_at = $RulesVerifiedAt.ToUniversalTime().ToString("o")
         rules_valid_until = $RulesValidUntil.ToUniversalTime().ToString("o")
+        rules_refresh_mode = "AUTOMATIC_6H_ROLLING_LEASE"
         resident_runtime_mode = "LIVE_ARMED_WAITING_FOR_GENUINE_VT08_SIGNAL"
         runtime_pid = [int]$Process.ProcessId
         service_started_at = [string]$State.service_started_at

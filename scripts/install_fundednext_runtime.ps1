@@ -96,6 +96,7 @@ $Python = (Get-Command python).Source
 $RuntimeScript = "$Root\scripts\qore_fundednext_runtime.py"
 $WatchdogScript = "$Root\scripts\qore_fundednext_watchdog.ps1"
 $FinalizeScript = "$Root\scripts\finalize_fundednext_activation.ps1"
+$RulesRefreshScript = "$Root\scripts\qore_fundednext_rules_refresh.py"
 
 $RuntimeAction = New-ScheduledTaskAction -Execute $Python -Argument "`"$RuntimeScript`" --mode shadow --activation var/fundednext/live-activation.json" -WorkingDirectory $Root
 $RuntimeTrigger = New-ScheduledTaskTrigger -AtStartup
@@ -107,6 +108,15 @@ Register-ScheduledTask -TaskName "QORE-FundedNext-Runtime" -Action $RuntimeActio
 $WatchdogAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$WatchdogScript`"" -WorkingDirectory $Root
 $WatchdogTrigger = New-ScheduledTaskTrigger -Once -At ([DateTime]::Now.AddMinutes(1)) -RepetitionInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName "QORE-FundedNext-Watchdog" -Action $WatchdogAction -Trigger $WatchdogTrigger -Principal $Principal -Settings $Settings -Force | Out-Null
+
+$RulesRefreshAction = New-ScheduledTaskAction -Execute $Python -Argument "`"$RulesRefreshScript`" --root `"$Root`" --lease-hours 30" -WorkingDirectory $Root
+$RulesRefreshTrigger = New-ScheduledTaskTrigger -Once -At ([DateTime]::Now.AddMinutes(2)) -RepetitionInterval (New-TimeSpan -Hours 6)
+$RulesRefreshStartupTrigger = New-ScheduledTaskTrigger -AtStartup
+$RulesRefreshStartupTrigger.Delay = "PT120S"
+Register-ScheduledTask -TaskName "QORE-FundedNext-Rules-Refresh" -Action $RulesRefreshAction -Trigger @($RulesRefreshTrigger, $RulesRefreshStartupTrigger) -Principal $Principal -Settings $Settings -Force | Out-Null
+
+& $Python $RulesRefreshScript --root $Root --lease-hours 30
+if ($LASTEXITCODE -ne 0) { throw "initial provider-rule refresh failed" }
 
 Start-ScheduledTask -TaskName "QORE-FundedNext-Runtime"
 Start-Sleep -Seconds 35

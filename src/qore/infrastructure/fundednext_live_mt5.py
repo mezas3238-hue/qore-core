@@ -45,6 +45,7 @@ from qore.infrastructure.fundednext_mt5_transport import (
     MetaTrader5Api,
     MetaTrader5FundedNextTransport,
 )
+from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
 from qore.infrastructure.fundednext_stellar_instant import StellarInstantRuleVerification
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
@@ -153,7 +154,7 @@ class FundedNextLiveMt5ExecutionGateway:
         account: MarketTestAccountIdentity,
         transport: MetaTrader5FundedNextLiveTransport,
         mutation_ledger: FundedNextMt5MutationLedger,
-        rule_verification: StellarInstantRuleVerification,
+        rule_verification: StellarInstantRuleVerification | RollingStellarInstantRuleVerification,
         live_authorization: FundedNextLiveAccountAuthorization,
         safety: LiveOperationalSafetyBoundary,
         runtime_git_sha: str,
@@ -180,7 +181,10 @@ class FundedNextLiveMt5ExecutionGateway:
             )
         except FundedNextLiveAuthorizationError as error:
             raise Mt5ExecutionBlockedError(str(error)) from error
-        if not isinstance(rule_verification, StellarInstantRuleVerification):
+        if not isinstance(
+            rule_verification,
+            (StellarInstantRuleVerification, RollingStellarInstantRuleVerification),
+        ):
             raise Mt5ExecutionValidationError("Stellar Instant rules verification required")
         if max_spec_age <= timedelta(0):
             raise Mt5ExecutionValidationError("max_spec_age must be positive")

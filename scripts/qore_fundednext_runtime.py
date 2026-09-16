@@ -44,6 +44,7 @@ from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
 )
+from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
 from qore.infrastructure.fundednext_live_safety import (
     JsonFileLiveOperationalSafetyBoundary,
     load_live_safety_state,
@@ -608,7 +609,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         account=account,
         transport=transport,
         mutation_ledger=mutation_ledger,
-        rule_verification=activation.rules,
+        rule_verification=RollingStellarInstantRuleVerification(
+            baseline=activation.rules,
+            refresh_path=state_dir / "provider-rules-refresh.json",
+            expected_provider_rules_fingerprint=activation.authorization.provider_rules_fingerprint,
+        ),
         live_authorization=activation.authorization,
         safety=safety,
         runtime_git_sha=sha,
