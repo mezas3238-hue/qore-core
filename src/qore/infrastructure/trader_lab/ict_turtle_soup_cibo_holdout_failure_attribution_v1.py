@@ -46,6 +46,8 @@ EXPECTED_SYMBOLS = {
     "USDCAD",
     "USDJPY",
 }
+STOP_REASONS = {"stop", "gap-stop", "stop-first"}
+TARGET_REASONS = {"target", "gap-target-capped"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,7 +127,19 @@ def _dt(value: str) -> datetime:
 
 
 def _side(value: str) -> Side:
-    return Side.LONG if value == "LONG" else Side.SHORT
+    normalized = value.strip().lower()
+    if normalized == Side.LONG.value:
+        return Side.LONG
+    if normalized == Side.SHORT.value:
+        return Side.SHORT
+    raise ValueError(f"unknown side: {value}")
+
+
+def _required_row(row: dict[str, str | None], key: str) -> str:
+    value = row.get(key)
+    if value is None:
+        raise ValueError(f"missing CSV field: {key}")
+    return value
 
 
 def _tick_size(digits: int) -> Decimal:
@@ -245,22 +259,29 @@ def _load_lab_events(path: Path) -> dict[tuple[str, str, str, datetime], LabEven
     result: dict[tuple[str, str, str, datetime], LabEvent] = {}
     with path.open(newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["reference_type"] != "prior-candle":
+            reference_type = _required_row(row, "reference_type")
+            if reference_type != "prior-candle":
                 continue
-            timeframe = row["timeframe"]
+            timeframe = _required_row(row, "timeframe")
             if timeframe not in {"D1", "H4"}:
                 continue
-            key = (
-                row["symbol"],
-                timeframe,
-                row["side"],
-                _dt(row["source_opened_at"]),
+            raw_minutes = _required_row(row, "opposite_reference_hit_minutes")
+            minutes = (
+                None
+                if raw_minutes.strip().lower() in {"", "nan", "none"}
+                else int(float(raw_minutes))
             )
-            raw_minutes = row["opposite_reference_hit_minutes"]
-            minutes = None if raw_minutes in {"", "nan", "None"} else int(float(raw_minutes))
+            key = (
+                _required_row(row, "symbol"),
+                timeframe,
+                _required_row(row, "side"),
+                _dt(_required_row(row, "source_opened_at")),
+            )
             result[key] = LabEvent(
-                raid_at=_dt(row["raid_at"]),
-                opposite_reference_hit_24h=row["opposite_reference_hit_24h"].lower()
+                raid_at=_dt(_required_row(row, "raid_at")),
+                opposite_reference_hit_24h=_required_row(
+                    row, "opposite_reference_hit_24h"
+                ).strip().lower()
                 == "true",
                 opposite_reference_hit_minutes=minutes,
             )
@@ -286,6 +307,14 @@ def _window_directional_net_r(
     return float(_directional_delta(window[0].open, window[-1].close, side) / risk)
 
 
+def _is_stop_reason(reason: str) -> bool:
+    return reason in STOP_REASONS
+
+
+def _is_target_reason(reason: str) -> bool:
+    return reason in TARGET_REASONS
+
+
 def _stop_behavior(
     *,
     trade: dict[str, Any],
@@ -298,7 +327,7 @@ def _stop_behavior(
     risk: Decimal,
     tick: Decimal,
 ) -> tuple[str, dict[str, Any]]:
-    if trade["exit_reason"] != "stop":
+    if not _is_stop_reason(str(trade["exit_reason"])):
         return "STOP_NOT_TESTED", {
             "time_to_stop_minutes": None,
             "mfe_before_stop_r": None,
@@ -308,10 +337,10 @@ def _stop_behavior(
             "post_stop_max_recovery_r": None,
             "daily_close_beyond_stop": None,
         }
-    entry_at = _dt(trade["entry_at"])
-    exit_at = _dt(trade["exit_at"])
-    before = _bars_between(evidence.bars, entry_at, exit_at + timedelta(minutes=5))
-    after = _bars_between(evidence.bars, exit_at + timedelta(minutes=5), daily_close)
+    entry_at = _dt(str(trade["entry_at"]))
+    exit_at = _dt(str(trade["exit_at"]))
+    before = _bars_between(evidence.bars, entry_at, exit_at)
+    after = _bars_between(evidence.bars, exit_at, daily_close)
     mfe = _favorable_excursion(before, entry, side) / risk
     recovered = _recover_entry(after, entry, side)
     target_after = _hit_level(after, target, side)
@@ -319,16 +348,12 @@ def _stop_behavior(
         penetration = max(
             Decimal(0), stop - min((bar.low for bar in after), default=stop)
         ) / tick
-        recovery = (
-            max((bar.high for bar in after), default=stop) - stop
-        ) / risk
+        recovery = (max((bar.high for bar in after), default=stop) - stop) / risk
     else:
         penetration = max(
             Decimal(0), max((bar.high for bar in after), default=stop) - stop
         ) / tick
-        recovery = (
-            stop - min((bar.low for bar in after), default=stop)
-        ) / risk
+        recovery = (stop - min((bar.low for bar in after), default=stop)) / risk
     close_bar = _daily_close_bar(after)
     beyond_stop = False
     if close_bar is not None:
@@ -362,7 +387,7 @@ def _failure_zone(
     target_contract_ok: bool,
     stop_behavior: str,
 ) -> tuple[str, str]:
-    if exit_reason == "target":
+    if _is_target_reason(exit_reason):
         return "NO_FAILURE_TARGET_EXIT", "E0_OBSERVATION"
     if gross_r > 0:
         return "NO_FAILURE_PROFITABLE_EXIT", "E0_OBSERVATION"
@@ -383,12 +408,13 @@ def _diagnose_trade(
     context: MarketContext,
     lab_events: dict[tuple[str, str, str, datetime], LabEvent],
 ) -> TradeAttribution:
-    side = _side(trade["side"])
-    entry_at = _dt(trade["entry_at"])
-    exit_at = _dt(trade["exit_at"])
-    daily_c2_at = _dt(trade["daily_c2_opened_at"])
-    daily_c3_at = _dt(trade["daily_c3_opened_at"])
-    h4_c2_at = _dt(trade["h4_c2_opened_at"])
+    side_text = str(trade["side"])
+    side = _side(side_text)
+    entry_at = _dt(str(trade["entry_at"]))
+    exit_at = _dt(str(trade["exit_at"]))
+    daily_c2_at = _dt(str(trade["daily_c2_opened_at"]))
+    daily_c3_at = _dt(str(trade["daily_c3_opened_at"]))
+    h4_c2_at = _dt(str(trade["h4_c2_opened_at"]))
     if daily_c2_at not in context.daily_index or h4_c2_at not in context.h4_index:
         raise ValueError("trade source candle missing from reconstructed evidence")
     day_idx = context.daily_index[daily_c2_at]
@@ -405,10 +431,10 @@ def _diagnose_trade(
     if daily_ideal.side is not side or h4_ideal.side is not side:
         raise ValueError("R5 side drift against reconstructed Ideal C2")
 
-    entry = Decimal(trade["entry"])
-    stop = Decimal(trade["stop"])
-    target = Decimal(trade["target"])
-    protected = Decimal(trade["protected_swing"])
+    entry = Decimal(str(trade["entry"]))
+    stop = Decimal(str(trade["stop"]))
+    target = Decimal(str(trade["target"]))
+    protected = Decimal(str(trade["protected_swing"]))
     tick = _tick_size(context.evidence.digits)
     expected_stop = protected - tick if side is Side.LONG else protected + tick
     entry_contract_ok = (
@@ -419,10 +445,9 @@ def _diagnose_trade(
         and daily_c3.opened_at <= entry_at < daily_c3.closed_at
     )
     stop_contract_ok = stop == expected_stop
-    if not entry_contract_ok:
-        entry_contract = "ENTRY_CONTRACT_INVALID"
-    else:
-        entry_contract = "ENTRY_CONTRACT_CORRECT"
+    entry_contract = (
+        "ENTRY_CONTRACT_CORRECT" if entry_contract_ok else "ENTRY_CONTRACT_INVALID"
+    )
     stop_contract = (
         "STOP_CONTRACT_CORRECT_ONE_NATIVE_TICK_BEYOND_PS"
         if stop_contract_ok
@@ -440,7 +465,7 @@ def _diagnose_trade(
         entry=entry,
         entry_at=entry_at,
     )
-    target_opened_at = _dt(trade["primary_dol_opened_at"])
+    target_opened_at = _dt(str(trade["primary_dol_opened_at"]))
     nearest = candidates[0] if candidates else None
     target_contract_ok = (
         nearest is not None
@@ -455,8 +480,8 @@ def _diagnose_trade(
         target_contract = "TARGET_CONTRACT_CORRECT_NEAREST_OF_MULTIPLE"
     next_dol = candidates[1].level if len(candidates) > 1 else None
 
-    d1_key = (trade["symbol"], "D1", trade["side"], daily_c2_at)
-    h4_key = (trade["symbol"], "H4", trade["side"], h4_c2_at)
+    d1_key = (str(trade["symbol"]), "D1", side_text, daily_c2_at)
+    h4_key = (str(trade["symbol"]), "H4", side_text, h4_c2_at)
     if d1_key not in lab_events or h4_key not in lab_events:
         raise ValueError("exact Behavior Lab linkage missing")
     d1_full = _full_c1_pre_entry(lab_events[d1_key], entry_at)
@@ -466,14 +491,27 @@ def _diagnose_trade(
     daily_open = daily_c3.open
     favorable_pre = _favorable_excursion(daily_pre, daily_open, side)
     adverse_pre = _adverse_excursion(daily_pre, daily_open, side)
-    progress_to_target = favorable_pre / abs(target - daily_open) if target != daily_open else Decimal(0)
+    progress_denominator = abs(target - daily_open)
+    progress_to_target = (
+        favorable_pre / progress_denominator
+        if progress_denominator > 0
+        else Decimal(0)
+    )
     c2_range = h4_c2.high - h4_c2.low
-    body_fraction = abs(h4_c2.close - h4_c2.open) / c2_range if c2_range > 0 else Decimal(0)
+    body_fraction = (
+        abs(h4_c2.close - h4_c2.open) / c2_range
+        if c2_range > 0
+        else Decimal(0)
+    )
     directional_close = (
-        (h4_c2.close - h4_c2.low) / c2_range
-        if side is Side.LONG
-        else (h4_c2.high - h4_c2.close) / c2_range
-    ) if c2_range > 0 else Decimal(0)
+        (
+            (h4_c2.close - h4_c2.low) / c2_range
+            if side is Side.LONG
+            else (h4_c2.high - h4_c2.close) / c2_range
+        )
+        if c2_range > 0
+        else Decimal(0)
+    )
 
     if not entry_contract_ok:
         entry_market_state = "ENTRY_STATE_FAIL_CLOSED_CONTRACT_MISMATCH"
@@ -494,22 +532,16 @@ def _diagnose_trade(
         tick=tick,
     )
 
-    after_exit = _bars_between(
-        context.evidence.bars, exit_at + timedelta(minutes=5), daily_c3.closed_at
-    )
+    after_exit = _bars_between(context.evidence.bars, exit_at, daily_c3.closed_at)
     target_after_exit = _hit_level(after_exit, target, side)
     whole_trade_path = _bars_between(context.evidence.bars, entry_at, daily_c3.closed_at)
     max_favorable = _favorable_excursion(whole_trade_path, entry, side)
     max_favorable_fraction = max_favorable / reward
     additional_after_target: float | None = None
     next_dol_after_target: bool | None = None
-    if trade["exit_reason"] == "target":
-        target_hit_at = exit_at
-        after_target = _bars_between(
-            context.evidence.bars,
-            target_hit_at + timedelta(minutes=5),
-            daily_c3.closed_at,
-        )
+    exit_reason = str(trade["exit_reason"])
+    if _is_target_reason(exit_reason):
+        after_target = _bars_between(context.evidence.bars, exit_at, daily_c3.closed_at)
         additional_after_target = float(
             _favorable_excursion(after_target, target, side) / risk
         )
@@ -527,7 +559,7 @@ def _diagnose_trade(
         target_behavior = "TARGET_NOT_REACHED_BY_DAILY_C3_CLOSE"
 
     failure_zone, failure_tier = _failure_zone(
-        exit_reason=trade["exit_reason"],
+        exit_reason=exit_reason,
         gross_r=float(trade["gross_r"]),
         d1_full=d1_full,
         entry_contract_ok=entry_contract_ok,
@@ -549,11 +581,11 @@ def _diagnose_trade(
 
     return TradeAttribution(
         trade_id=trade_id,
-        symbol=trade["symbol"],
-        side=trade["side"],
+        symbol=str(trade["symbol"]),
+        side=side_text,
         entry_at=entry_at.isoformat(),
         exit_at=exit_at.isoformat(),
-        exit_reason=trade["exit_reason"],
+        exit_reason=exit_reason,
         gross_r=float(trade["gross_r"]),
         entry_contract_assessment=entry_contract,
         entry_market_state_assessment=entry_market_state,
@@ -612,7 +644,7 @@ def diagnose(
     contexts = _load_market_contexts(market_root)
     lab_events = _load_lab_events(events_path)
     return [
-        _diagnose_trade(index, trade, contexts[trade["symbol"]], lab_events)
+        _diagnose_trade(index, trade, contexts[str(trade["symbol"])], lab_events)
         for index, trade in enumerate(trades, start=1)
     ]
 
@@ -637,8 +669,8 @@ def write_outputs(items: list[TradeAttribution], output: Path) -> dict[str, Any]
                     for key, value in row.items()
                 }
             )
-    stops = [item for item in items if item.exit_reason == "stop"]
-    targets = [item for item in items if item.exit_reason == "target"]
+    stops = [item for item in items if _is_stop_reason(item.exit_reason)]
+    targets = [item for item in items if _is_target_reason(item.exit_reason)]
     summary: dict[str, Any] = {
         "schema": "qore.ict_ts_cibo_holdout_failure_attribution.v1",
         "identity": IDENTITY,
@@ -651,6 +683,11 @@ def write_outputs(items: list[TradeAttribution], output: Path) -> dict[str, Any]
         "trade_count": len(items),
         "entry_contract_correct": _count(
             items, "entry_contract_assessment", "ENTRY_CONTRACT_CORRECT"
+        ),
+        "entry_e1_d1_incomplete_warning": _count(
+            items,
+            "entry_market_state_assessment",
+            "E1_WARNING_D1_INCOMPLETE_FULL_RANGE_REPRICING",
         ),
         "stop_contract_correct": _count(
             items,
@@ -695,7 +732,9 @@ def write_outputs(items: list[TradeAttribution], output: Path) -> dict[str, Any]
             "production_authorized": False,
         },
     }
-    (output / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    (output / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n"
+    )
     report_lines = [
         "# CIBO Turtle Soup R5 Holdout Failure Attribution V1",
         "",
@@ -703,6 +742,7 @@ def write_outputs(items: list[TradeAttribution], output: Path) -> dict[str, Any]
         f"- Entry contract correct: {summary['entry_contract_correct']}/{len(items)}",
         f"- Stop contract correct: {summary['stop_contract_correct']}/{len(items)}",
         f"- Target contract correct: {summary['target_contract_correct']}/{len(items)}",
+        f"- Entry E1 D1-incomplete warnings: {summary['entry_e1_d1_incomplete_warning']}/{len(items)}",
         f"- Hard stops: {len(stops)}",
         f"- Hard stops recovering entry: {summary['hard_stop_entry_recovered']}/{len(stops)}",
         f"- Hard stops later reaching original target: {summary['hard_stop_target_reached_after_stop']}/{len(stops)}",
