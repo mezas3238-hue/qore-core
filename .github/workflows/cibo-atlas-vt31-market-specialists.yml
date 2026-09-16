@@ -1,0 +1,50 @@
+name: QORE CIBO Atlas VT31 Market Specialists
+
+on:
+  push:
+    branches: [agent/cibo-atlas-vt31-market-specialists-001]
+    paths:
+      - src/qore/infrastructure/cibo_atlas_market_lab.py
+      - tests/infrastructure/test_cibo_atlas_market_lab.py
+      - docs/architecture/QORE-CIBO-ATLAS-VT31-MARKET-SPECIALISTS-001.md
+      - .github/workflows/cibo-atlas-vt31-market-specialists.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-cibo-atlas-market-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install development runtime
+        run: pip install -e .[dev]
+      - name: Compile
+        run: python -m py_compile src/qore/infrastructure/cibo_atlas_market_lab.py tests/infrastructure/test_cibo_atlas_market_lab.py
+      - name: Ruff
+        run: ruff check src/qore/infrastructure/cibo_atlas_market_lab.py tests/infrastructure/test_cibo_atlas_market_lab.py
+      - name: Mypy
+        run: mypy src/qore/infrastructure/cibo_atlas_market_lab.py
+      - name: Focused tests
+        run: pytest -q tests/infrastructure/test_cibo_atlas_market_lab.py
+      - name: Governance guard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('src/qore/infrastructure/cibo_atlas_market_lab.py').read_text()
+          required=(
+              'research_only: bool = True',
+              'selection_prohibited: bool = True',
+              'opens_new_holdout: bool = False',
+              'live_authorized: bool = False',
+              'production_authorized: bool = False',
+          )
+          for token in required:
+              assert token in text, token
+          print('CIBO Atlas governance guard PASS')
+          PY
