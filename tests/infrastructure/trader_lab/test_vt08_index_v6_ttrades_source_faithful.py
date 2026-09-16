@@ -2,12 +2,12 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.vt08_index_v6_ttrades_source_faithful import (
+    _RULE_MATERIAL,
     H4_ANCHORS_NY,
     TARGET_R_MULTIPLE,
     H4ModelKind,
     PoiKind,
     SourcePoi,
-    _RULE_MATERIAL,
     _c2_side,
     _c3_side,
     _first_cisd,
