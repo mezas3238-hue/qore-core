@@ -12,8 +12,8 @@ def test_component_certification_binds_exact_6pct_provider_and_separate_qore_pol
     assert isinstance(provider, dict)
     assert provider["maximum_loss_fraction"] == "0.06"
     assert provider["daily_loss_limit"] is None
-    assert provider["separate_max_risk_at_any_time_fraction"] == "0.03"
-    assert provider["provider_three_percent_rule_used_by_risk"] is True
+    assert provider["separate_max_risk_at_any_time_fraction"] is None
+    assert provider["provider_three_percent_rule_used_by_risk"] is False
     internal = payload["qore_internal_policy"]
     assert isinstance(internal, dict)
     assert internal["explicitly_not_provider_rule"] is True
