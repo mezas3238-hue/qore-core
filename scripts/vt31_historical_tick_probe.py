@@ -53,30 +53,53 @@ def _int_env(name: str) -> int:
 
 
 def _decode_page(native_ticks: object) -> tuple[HistoricalTick, ...]:
+    """Decode cTrader's newest-first delta representation.
+
+    ProtoOAGetTickDataRes carries one absolute first record. Subsequent records
+    carry signed deltas relative to the preceding record for both timestamp and
+    tick price. Zero deltas are valid (for example multiple changes in one ms or
+    an unchanged quote). The reconstructed timestamp must never move forward and
+    the reconstructed relative price must remain positive.
+    """
     items = tuple(cast(object, item) for item in cast(object, native_ticks))
     if not items:
         return ()
     decoded: list[HistoricalTick] = []
     previous_timestamp: int | None = None
+    previous_relative_price: int | None = None
     for index, item in enumerate(items):
         raw_timestamp = getattr(item, "timestamp", None)
         raw_tick = getattr(item, "tick", None)
         if type(raw_timestamp) is not int or type(raw_tick) is not int:
             raise CTraderDemoLabProbeError("historical tick payload is malformed")
-        if raw_timestamp <= 0 or raw_tick <= 0:
-            raise CTraderDemoLabProbeError("historical tick payload is non-positive")
         if index == 0:
+            if raw_timestamp <= 0 or raw_tick <= 0:
+                raise CTraderDemoLabProbeError(
+                    "historical tick absolute anchor is non-positive"
+                )
             timestamp_ms = raw_timestamp
+            relative_price = raw_tick
         else:
-            if previous_timestamp is None:
-                raise AssertionError("previous timestamp missing")
-            timestamp_ms = previous_timestamp - raw_timestamp
+            if previous_timestamp is None or previous_relative_price is None:
+                raise AssertionError("previous historical tick missing")
+            timestamp_ms = previous_timestamp + raw_timestamp
+            relative_price = previous_relative_price + raw_tick
+            if timestamp_ms > previous_timestamp:
+                raise CTraderDemoLabProbeError("historical ticks are not newest-first")
+            if relative_price <= 0:
+                raise CTraderDemoLabProbeError(
+                    "historical tick reconstructed price is non-positive"
+                )
         if timestamp_ms <= 0:
             raise CTraderDemoLabProbeError("historical tick timestamp delta is invalid")
-        if previous_timestamp is not None and timestamp_ms >= previous_timestamp:
-            raise CTraderDemoLabProbeError("historical ticks are not newest-first")
-        decoded.append(HistoricalTick(timestamp_ms=timestamp_ms, relative_price=raw_tick))
+        decoded.append(
+            HistoricalTick(
+                timestamp_ms=timestamp_ms,
+                relative_price=relative_price,
+            )
+        )
         previous_timestamp = timestamp_ms
+        previous_relative_price = relative_price
     return tuple(decoded)
 
 
