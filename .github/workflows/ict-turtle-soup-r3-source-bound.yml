@@ -1,0 +1,124 @@
+name: QORE ICT Turtle Soup R3 Source Bound
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/ict-turtle-soup-r3-source-bound-001
+    paths:
+      - docs/research/ICT-TURTLE-SOUP-R3-PRE-ECONOMIC-CANDIDATE-FREEZE.md
+      - src/qore/infrastructure/trader_lab/ict_turtle_soup_r3_source_bound.py
+      - tests/infrastructure/trader_lab/test_ict_turtle_soup_r3_source_bound.py
+      - .github/workflows/ict-turtle-soup-r3-source-bound.yml
+
+concurrency:
+  group: qore-ict-turtle-soup-r3-source-bound-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_r3_source_bound.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r3_source_bound.py
+      - name: Mypy focused gate
+        run: mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_r3_source_bound.py
+      - name: Focused source-bound mechanics tests
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_ict_turtle_soup_r3_source_bound.py
+      - name: R2/R3 regression
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r2_all_session.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r3_source_bound.py
+      - name: Freeze governance assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          freeze = Path('docs/research/ICT-TURTLE-SOUP-R3-PRE-ECONOMIC-CANDIDATE-FREEZE.md').read_text()
+          module = Path('src/qore/infrastructure/trader_lab/ict_turtle_soup_r3_source_bound.py').read_text()
+          assert 'ICT_TURTLE_SOUP_R3_H4_C2_M15_CISD' in freeze
+          assert 'No clock-time or session is an inclusion/exclusion rule' in freeze
+          assert 'There is **no minimum projected R gate**' in freeze
+          assert 'IDENTITY = "ICT_TURTLE_SOUP_R3_H4_C2_M15_CISD"' in module
+          assert 'MIN_PROJECTED_R' not in module
+          PY
+
+  consumed-development-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install QORE
+        run: python -m pip install -e '.[dev]'
+      - name: Download retained Core Forex evidence only
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: mezas3238-hue/qore-core
+          run-id: 34759027136
+          pattern: qore-vt08-r3-15-*-64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222
+          path: artifacts/ict-ts-r3/source
+      - name: Verify retained evidence count
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(find artifacts/ict-ts-r3/source -name market-evidence.json -type f | wc -l)"
+          test "$count" -eq 7
+      - name: Execute frozen R3 consumed-development replay
+        run: |
+          mkdir -p artifacts/ict-ts-r3/result
+          python -m qore.infrastructure.trader_lab.ict_turtle_soup_r3_source_bound \
+            artifacts/ict-ts-r3/source \
+            artifacts/ict-ts-r3/result \
+            > artifacts/ict-ts-r3/result/stdout-report.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/ict-ts-r3/result/git-sha.txt
+      - name: Governance and output invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('artifacts/ict-ts-r3/result/report.json').read_text())
+          assert report['identity'] == 'ICT_TURTLE_SOUP_R3_H4_C2_M15_CISD'
+          assert report['evidence_status'] == 'CONSUMED_DEVELOPMENT_ONLY'
+          assert report['session_filter_applied'] is False
+          assert report['asia_london_new_york_all_eligible'] is True
+          assert report['minimum_projected_r_gate'] is None
+          assert len(report['symbols']) == 7
+          assert report['demo_eligible'] is False
+          assert report['live_authorized'] is False
+          assert report['real_capital_authorized'] is False
+          assert report['production_authorized'] is False
+          PY
+      - name: Hash immutable R3 outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/ict-ts-r3/result
+          sha256sum report.json trades.json git-sha.txt > SHA256SUMS.txt
+      - name: Upload immutable consumed-development result
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-ict-turtle-soup-r3-source-bound-${{ github.sha }}
+          path: artifacts/ict-ts-r3/result
+          if-no-files-found: error
+          retention-days: 90
