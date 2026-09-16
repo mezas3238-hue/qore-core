@@ -66,11 +66,14 @@ jobs:
           from pathlib import Path
           p=json.loads(Path('work/followup-acquisition/vt31-bounded-tick-acquisition-summary.json').read_text()); assert p['source_window_count']==1; assert p['available']==1; assert p['partial']==p['empty']==p['probe_failure']==p['binding_mismatch']==0
           PY
+          mkdir -p work/seed-acquisition/windows
+          cp parity/tick-acquisition/vt31-bounded-tick-acquisition-summary.json work/seed-acquisition/
+          cp parity/tick-acquisition/windows/*.json work/seed-acquisition/windows/
           python scripts/vt31_pending_limit_tick_resolution_driver.py --self-test
           python scripts/vt31_pending_limit_tick_resolution_driver.py \
             --manifest work/vt31-original-later-pending-followup-manifest.json \
             --acquisition-dir work/followup-acquisition \
-            --seed-acquisition-dir parity/tick-acquisition \
+            --seed-acquisition-dir work/seed-acquisition \
             --output work/vt31-original-later-pending-resolution.json
           python - <<'PY'
           import json
