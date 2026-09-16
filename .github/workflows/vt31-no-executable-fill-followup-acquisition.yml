@@ -1,0 +1,123 @@
+name: QORE VT-31 No-Executable-Fill Follow-up Acquisition
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  acquire-followup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wait for one-shot 339-control parity acquisition to finish
+        run: |
+          set -euo pipefail
+          source_run=35052734298
+          completed=false
+          for attempt in $(seq 1 180); do
+            status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .status)"
+            if [ "$status" = "completed" ]; then
+              conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .conclusion)"
+              test "$conclusion" = "success"
+              completed=true
+              break
+            fi
+            sleep 10
+          done
+          test "$completed" = "true"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}" --jq .head_sha)" = "6e29b839ef85e7c308af8f8b97232f10b3e1e258"
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+          python -m py_compile scripts/vt31_consumed_tick_manifest_acquisition.py
+      - name: Recover immutable 59-window consumed follow-up manifest
+        run: |
+          set -euo pipefail
+          mkdir source-followup
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429677148/zip" > source-followup.zip
+          echo "f2e15888b5c9df67b0736bb2f45d78975f4edf090a45d2674ee8f61b4df2d52d  source-followup.zip" | sha256sum -c -
+          unzip -q source-followup.zip -d source-followup
+          test "$(cat source-followup/git-sha.txt)" = "f6ecd59d87a37a7cd45bf9ed0edb906677cf232f"
+          (cd source-followup && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('source-followup/vt31-no-executable-fill-followup-manifest.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_resolution_count'] == 59
+          assert len(p['windows']) == 59
+          assert len(p['session_expired_no_fill']) == 0
+          PY
+      - name: Verify cTrader credentials without printing values
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Acquire BID ASK evidence for all 59 pending-entry follow-ups
+        run: |
+          set -euo pipefail
+          python scripts/vt31_consumed_tick_manifest_acquisition.py \
+            --manifest source-followup/vt31-no-executable-fill-followup-manifest.json \
+            --output-dir acquisition
+      - name: Validate follow-up acquisition inventory without imputation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('acquisition/vt31-bounded-tick-acquisition-summary.json').read_text())
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status'] == 'NO_R9_NOT_CERTIFIED'
+          assert p['source_window_count'] == 59
+          assert len(p['results']) == 59
+          assert len({r['window_id'] for r in p['results']}) == 59
+          assert sum(p[k] for k in ('available','partial','empty','probe_failure','binding_mismatch')) == 59
+          print(json.dumps({k:p[k] for k in ('available','partial','empty','probe_failure','binding_mismatch')}, sort_keys=True))
+          PY
+      - name: Bind immutable follow-up acquisition
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d acquisition ]; then
+            echo "$GITHUB_SHA" > acquisition/git-sha.txt
+            echo "10429677148" > acquisition/source-followup-manifest-artifact-id.txt
+            echo "f2e15888b5c9df67b0736bb2f45d78975f4edf090a45d2674ee8f61b4df2d52d" > acquisition/source-followup-manifest-zip-sha256.txt
+            echo "35052734298" > acquisition/serialized-after-parity-run-id.txt
+            (cd acquisition && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt31-no-executable-fill-followup-acquisition-${{ github.sha }}
+          path: acquisition/
+          retention-days: 90
