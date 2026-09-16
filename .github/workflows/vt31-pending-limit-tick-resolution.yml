@@ -78,14 +78,13 @@ jobs:
           echo "${digest#sha256:}  seed-acquisition.zip" | sha256sum -c -
           mkdir seed-acquisition
           unzip -q seed-acquisition.zip -d seed-acquisition
-          (cd seed-acquisition && sha256sum -c SHA256SUMS)
+          test -d seed-acquisition/acquisition
+          (cd seed-acquisition/acquisition && sha256sum -c SHA256SUMS)
           python - <<'PY'
           import json
           from pathlib import Path
-          paths=[Path('seed-acquisition/vt31-historical-tick-acquisition-summary.json'),Path('seed-acquisition/vt31-bounded-tick-acquisition-summary.json')]
-          found=[p for p in paths if p.is_file()]
-          assert len(found)==1, found
-          p=json.loads(found[0].read_text())
+          root=Path('seed-acquisition/acquisition')
+          p=json.loads((root/'vt31-historical-tick-acquisition-summary.json').read_text())
           assert p['research_only'] is True and p['opens_new_holdout'] is False
           assert p['source_window_count'] == 437
           assert p['available'] == 437
@@ -103,7 +102,7 @@ jobs:
           python scripts/vt31_pending_limit_tick_resolution.py \
             --manifest followup-manifest/vt31-no-executable-fill-followup-manifest.json \
             --acquisition-dir followup-acquisition \
-            --seed-acquisition-dir seed-acquisition \
+            --seed-acquisition-dir seed-acquisition/acquisition \
             --output result/vt31-pending-limit-tick-resolution.json
 
       - name: Validate fail-closed pending LIMIT result
