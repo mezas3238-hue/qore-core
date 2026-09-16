@@ -48,7 +48,7 @@ CONTINUOUS = (
 def _r(row: dict[str, str]) -> Decimal:
     for key in ("r_multiple", "label_r", "outcome_r", "r"):
         value = row.get(key)
-        if value not in (None, ""):
+        if value is not None and value != "":
             return Decimal(value)
     raise ValueError("missing R outcome column")
 
