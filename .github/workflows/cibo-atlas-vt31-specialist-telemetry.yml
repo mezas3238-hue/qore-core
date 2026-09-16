@@ -1,0 +1,89 @@
+name: QORE CIBO Atlas VT31 Specialist Telemetry
+
+on:
+  push:
+    branches: [agent/cibo-atlas-vt31-market-specialists-001]
+    paths:
+      - scripts/cibo_atlas_vt31_specialist_telemetry.py
+      - .github/workflows/cibo-atlas-vt31-specialist-telemetry.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  specialist-telemetry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: pip install -e .[dev]
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_atlas_vt31_specialist_telemetry.py
+          ruff check --ignore N802,E501 scripts/cibo_atlas_vt31_specialist_telemetry.py
+          mypy src/qore/infrastructure/cibo_atlas_market_lab.py
+          python scripts/cibo_atlas_vt31_specialist_telemetry.py --self-test
+      - name: Recover immutable definitive deep forensics
+        run: |
+          set -euo pipefail
+          artifact_id=10440468729
+          expected=2d6a2c609a0fb0caf11f936623ed4907450e0f9a8581b4f6b54997b89b743b65
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
+          test "$digest" = "sha256:${expected}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > source.zip
+          echo "${expected}  source.zip" | sha256sum -c -
+          mkdir source
+          unzip -q source.zip -d source
+          (cd source && sha256sum -c SHA256SUMS)
+          test "$(cat source/git-sha.txt)" = "ac05b3c84433bf052b494bbc5b803e98de66e571"
+          test -f source/vt31-tick-corrected-deep-forensics.json
+          printf '%s\n' "$artifact_id" > source-artifact-id.txt
+          printf '%s\n' "$digest" > source-artifact-digest.txt
+      - name: Build specialist telemetry
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/cibo_atlas_vt31_specialist_telemetry.py \
+            --source source/vt31-tick-corrected-deep-forensics.json \
+            --output-dir result
+      - name: Validate telemetry governance and conservation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/cibo-atlas-vt31-specialist-telemetry.json').read_text())
+          assert p['schema']=='qore.cibo_atlas.vt31.specialist_telemetry.v1'
+          assert p['research_only'] is True and p['selection_prohibited'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert p['live_authorized'] is False and p['production_authorized'] is False
+          assert p['feature_timing']=='pre-entry-only'
+          assert p['outcome_timing']=='post-outcome-research-label-only'
+          assert p['source_terminal_count']==618
+          assert sum(p['specialists'][m]['terminal_count'] for m in ('NAS100','SP500','US30'))==618
+          assert p['governance']['automatic_market_drop'] is False
+          assert p['governance']['automatic_parameter_change'] is False
+          print(json.dumps(p['specialists'], sort_keys=True))
+          PY
+      - name: Bind immutable telemetry artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          cp source-artifact-id.txt source-artifact-digest.txt result/
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-atlas-vt31-specialist-telemetry-${{ github.sha }}
+          path: result/
+          retention-days: 90
