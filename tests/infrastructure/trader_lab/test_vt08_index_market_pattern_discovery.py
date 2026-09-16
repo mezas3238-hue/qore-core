@@ -80,6 +80,34 @@ def _payload() -> dict[str, object]:
     }
 
 
+def _cross_market_payload() -> dict[str, object]:
+    payload = _payload()
+    rows: list[dict[str, object]] = []
+    for index in range(12):
+        rows.append(
+            _row(
+                symbol="NAS100",
+                signal_at=f"2020-03-{index + 1:02d}T14:00:00+00:00",
+                primary_r="-1.05",
+                raw_r="-1",
+                mfe="0.2",
+                poi="fvg",
+            )
+        )
+        rows.append(
+            _row(
+                symbol="SP500",
+                signal_at=f"2020-03-{index + 1:02d}T15:00:00+00:00",
+                primary_r="1.95",
+                raw_r="2",
+                mfe="2.4",
+                poi="fvg",
+            )
+        )
+    payload["trades"] = rows
+    return payload
+
+
 def test_discovery_is_market_specific_and_governed() -> None:
     report = discover(_payload())
     assert report["market_count"] == 2
@@ -107,7 +135,7 @@ def test_discovery_is_market_specific_and_governed() -> None:
 
 
 def test_cross_market_context_detects_behavior_dispersion() -> None:
-    report = discover(_payload())
+    report = discover(_cross_market_payload())
     contexts = report["cross_market_same_context"]
     assert isinstance(contexts, list)
     assert contexts
