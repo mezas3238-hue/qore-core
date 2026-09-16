@@ -31,7 +31,7 @@ def _bar(
     )
 
 
-def test_cisd_confirmed_order_block_is_detected_and_retested() -> None:
+def test_cisd_confirmed_order_block_requires_retest_before_signal() -> None:
     bars = (
         _bar(0, opened="10", high="10.2", low="8.8", closed="9"),
         _bar(15, opened="9", high="10.8", low="8.9", closed="10.5"),
@@ -44,9 +44,14 @@ def test_cisd_confirmed_order_block_is_detected_and_retested() -> None:
     assert zone.side == "bullish"
     assert zone.low == Decimal("8.8")
     assert zone.high == Decimal("10.2")
-    retests = _zone_retests(zones, bars, bars[-1].closed_at)
+
+    signal_after_retest = bars[-1].closed_at + timedelta(minutes=15)
+    retests = _zone_retests(zones, bars, signal_after_retest)
     assert retests
     assert retests[-1]["kind"] == "order-block"
+
+    same_bar_signal = bars[-1].closed_at
+    assert not _zone_retests(zones, bars, same_bar_signal)
 
 
 def test_ttrades_bullish_breaker_sequence_is_detected() -> None:
@@ -59,7 +64,6 @@ def test_ttrades_bullish_breaker_sequence_is_detected() -> None:
         _bar(75, opened="12", high="12.2", low="9", closed="10"),
     )
     zones = _breaker_zones(bars)
-    assert zones
     bullish = [zone for zone in zones if zone.side == "bullish"]
     assert bullish
     assert bullish[0].definition == "ttrades-low-high-lower-low-higher-high"
