@@ -1,4 +1,5 @@
 name: VT08 Index V6 Fresh Holdout
+# One-shot fresh execution; candidate economics remain frozen at FREEZE_SHA.
 
 on:
   push:
