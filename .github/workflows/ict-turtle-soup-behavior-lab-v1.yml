@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/ict-turtle-soup-behavior-lab-v1.yml'
       - 'src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py'
+      - 'src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab_fast_runner.py'
       - 'tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py'
       - 'docs/research/ICT-TURTLE-SOUP-BEHAVIOR-LAB-V1-*.md'
 
@@ -29,9 +30,12 @@ jobs:
       - name: Ruff focused gate
         run: |
           ruff check src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab_fast_runner.py \
             tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py
       - name: Mypy focused gate
-        run: mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py
+        run: |
+          mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab_fast_runner.py
       - name: Focused Behavior Lab tests
         run: pytest -q tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py
       - name: Research-only governance assertion
@@ -76,10 +80,10 @@ jobs:
           print('\n'.join(str(p) for p in paths))
           assert len(paths) == 7, len(paths)
           PY
-      - name: Execute frozen Behavior Lab V1
+      - name: Execute frozen Behavior Lab V1 with indexed windows
         run: |
           mapfile -t evidence < <(find consumed-r5 -name market-evidence.json -type f | sort)
-          python -m qore.infrastructure.trader_lab.ict_turtle_soup_behavior_lab \
+          python -m qore.infrastructure.trader_lab.ict_turtle_soup_behavior_lab_fast_runner \
             behavior-lab-output "${evidence[@]}" \
             --asset-class fx \
             --provider ctrader-demo \
