@@ -25,6 +25,7 @@ jobs:
       - name: Compile and test signed tick-page deltas
         run: |
           python -m py_compile scripts/vt31_historical_tick_probe.py
+          python -m py_compile scripts/vt31_tick_execution_resolution.py
           python - <<'PY'
           from scripts.vt31_historical_tick_probe import _decode_page
 
@@ -59,9 +60,15 @@ jobs:
           else:
               raise AssertionError('forward timestamp delta must fail closed')
           PY
+      - name: Validate execution resolver semantics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_tick_execution_resolution.py --self-test
       - name: Governance guard
         run: |
           grep -q 'research_only' scripts/vt31_historical_tick_probe.py
           grep -q 'opens_new_holdout' scripts/vt31_historical_tick_probe.py
           grep -q 'BID' scripts/vt31_historical_tick_probe.py
           grep -q 'ASK' scripts/vt31_historical_tick_probe.py
+          grep -q 'NO_R9_NOT_CERTIFIED' scripts/vt31_tick_execution_resolution.py
+          grep -q 'same_millisecond_cross_stream_order' scripts/vt31_tick_execution_resolution.py
