@@ -160,7 +160,7 @@ def validate_report(report: dict[str, object]) -> dict[str, object]:
         "supported_markets_not_materially_negative": market_pass,
         "supported_sides_not_materially_negative": side_pass,
     }
-    passed = all(cast(bool, value) for value in gates.values())
+    passed = all(gates.values())
     return {
         "schema": "qore.trader_lab.vt08_index_v6_fresh_validation.v1",
         "candidate_id": CANDIDATE_ID,
