@@ -44,6 +44,17 @@ CONTINUOUS = (
     "cross_index_simultaneous_same_side_signals",
     "cross_index_simultaneous_opposite_side_signals",
 )
+PHASE_B_DECOMPOSITION_FEATURES = (
+    "symbol",
+    "side",
+    "anchor",
+    "closure_family",
+    "bias_family",
+    "source_day_relationship",
+    "recent_causal_h4_range_state",
+    "recent_causal_daily_range_state",
+    "cross_index_directional_state",
+)
 
 
 def _r(row: dict[str, str]) -> Decimal:
@@ -118,6 +129,61 @@ def _continuous(rows: list[dict[str, str]], feature: str) -> dict[str, Any]:
     }
 
 
+def _phase_b_ideal(row: dict[str, str]) -> bool:
+    latency = int(row["cisd_latency_m15"])
+    return 0 <= latency <= 15 and int(row["protected_swing_count"]) >= 1
+
+
+def _phase_b_context_direction(row: dict[str, str]) -> str | None:
+    return {
+        "high_breakout": "long",
+        "low_breakout": "short",
+        "high_reclaim": "short",
+        "low_reclaim": "long",
+    }.get(row["current_day_sweep_type"])
+
+
+def _phase_b_retained_sets(
+    rows: list[dict[str, str]],
+) -> dict[str, list[dict[str, str]]]:
+    ideal = [row for row in rows if _phase_b_ideal(row)]
+    return {
+        "H1_ideal_formation": ideal,
+        "H2_c2_ideal_formation": [
+            row for row in ideal if row["closure_family"] == "c2"
+        ],
+        "H3_c3_ideal_formation": [
+            row for row in ideal if row["closure_family"] == "c3"
+        ],
+        "H4_ideal_with_source_direction": [
+            row
+            for row in ideal
+            if _phase_b_context_direction(row) == row["side"]
+        ],
+    }
+
+
+def _phase_b_failure_decomposition(
+    rows: list[dict[str, str]],
+) -> dict[str, Any]:
+    report: dict[str, Any] = {}
+    for hypothesis, retained in _phase_b_retained_sets(rows).items():
+        report[hypothesis] = {
+            "summary": _summary(retained),
+            "by_window": {
+                window: _summary(
+                    [row for row in retained if row["window_id"] == window]
+                )
+                for window in WINDOWS
+            },
+            "by_feature": {
+                feature: _categorical(retained, feature)
+                for feature in PHASE_B_DECOMPOSITION_FEATURES
+            },
+        }
+    return report
+
+
 def run(census_csv: Path, output_json: Path) -> dict[str, Any]:
     with census_csv.open(newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
@@ -142,6 +208,7 @@ def run(census_csv: Path, output_json: Path) -> dict[str, Any]:
             for feature in CONTINUOUS
             if feature in rows[0]
         },
+        "phase_b_failure_decomposition": _phase_b_failure_decomposition(rows),
         "candidate_freeze_permitted": False,
         "holdout_open_permitted": False,
     }
