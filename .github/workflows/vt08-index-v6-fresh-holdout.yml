@@ -4,7 +4,11 @@ name: VT08 Index V6 Fresh Holdout
 on:
   push:
     branches: [agent/vt08-index-v6-fresh-holdout-001]
-    paths: [.github/workflows/vt08-index-v6-fresh-holdout.yml]
+    paths:
+      - .github/workflows/vt08-index-v6-fresh-holdout.yml
+      - src/qore/infrastructure/ctrader_demo_lab_vt08_index_v6_fresh_probe.py
+      - src/qore/infrastructure/trader_lab/vt08_index_v6_fresh_validation.py
+      - tests/infrastructure/trader_lab/test_vt08_index_v6_fresh_validation.py
 
 concurrency:
   group: vt08-index-v6-fresh-holdout-one-shot
