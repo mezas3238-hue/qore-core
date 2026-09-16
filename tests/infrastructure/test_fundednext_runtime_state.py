@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -68,6 +69,10 @@ def test_single_writer_lock_rejects_second_runtime(tmp_path: Path) -> None:
         first.release()
     second.acquire()
     second.release()
+
+
+def test_pid_liveness_probe_never_interrupts_current_process() -> None:
+    assert SingleWriterRuntimeLock._pid_is_alive(os.getpid()) is True
 
 
 def test_single_writer_lock_recovers_stale_crash_pid(tmp_path: Path) -> None:
