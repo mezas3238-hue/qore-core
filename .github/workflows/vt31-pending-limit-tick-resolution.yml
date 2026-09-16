@@ -6,6 +6,7 @@ on:
       - agent/vt31-historical-tick-resolution-001
     paths:
       - .github/workflows/vt31-pending-limit-tick-resolution.yml
+      - scripts/vt31_pending_limit_tick_resolution_driver.py
   workflow_dispatch:
 
 permissions:
@@ -96,10 +97,10 @@ jobs:
       - name: Resolve first executable pending LIMIT fill and exact fill minute
         run: |
           set -euo pipefail
-          python -m py_compile scripts/vt31_tick_execution_resolution.py scripts/vt31_pending_limit_tick_resolution.py
-          python scripts/vt31_pending_limit_tick_resolution.py --self-test
+          python -m py_compile scripts/vt31_tick_execution_resolution.py scripts/vt31_pending_limit_tick_resolution.py scripts/vt31_pending_limit_tick_resolution_driver.py
+          python scripts/vt31_pending_limit_tick_resolution_driver.py --self-test
           mkdir result
-          python scripts/vt31_pending_limit_tick_resolution.py \
+          python scripts/vt31_pending_limit_tick_resolution_driver.py \
             --manifest followup-manifest/vt31-no-executable-fill-followup-manifest.json \
             --acquisition-dir followup-acquisition \
             --seed-acquisition-dir seed-acquisition/acquisition \
