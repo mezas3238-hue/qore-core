@@ -1,15 +1,17 @@
 """Performance-only runner for ICT Turtle Soup Behavior Lab V1.
 
-This module replaces full-history scans with indexed time windows. It does not
-change event ontology, reference definitions, reclaim/CISD semantics, or output
-schema.
+This module replaces full-history scans with indexed time windows and computes
+block-bootstrap confidence intervals from per-day counts. It does not change
+event ontology, reference definitions, reclaim/CISD semantics, or output schema.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import random
 from bisect import bisect_left
+from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -98,11 +100,47 @@ def _opposite_hit(
     return False, None
 
 
+def _bootstrap_ci(
+    events: Sequence[lab.Event], attr: str
+) -> tuple[float | None, float | None]:
+    if not events:
+        return None, None
+    blocks: dict[str, tuple[int, int]] = {}
+    grouped: dict[str, list[lab.Event]] = defaultdict(list)
+    for event in events:
+        grouped[event.raid_at.date().isoformat()].append(event)
+    for day, members in grouped.items():
+        blocks[day] = (
+            sum(bool(getattr(item, attr)) for item in members),
+            len(members),
+        )
+    population = list(blocks.values())
+    if len(population) < 2:
+        successes, total = population[0]
+        value = successes / total
+        return value, value
+    rng = random.Random(lab.BOOTSTRAP_SEED)
+    estimates: list[float] = []
+    for _ in range(400):
+        successes = 0
+        total = 0
+        for _index in population:
+            block_successes, block_total = rng.choice(population)
+            successes += block_successes
+            total += block_total
+        estimates.append(successes / total)
+    estimates.sort()
+    low = estimates[max(0, int(len(estimates) * 0.025) - 1)]
+    high = estimates[min(len(estimates) - 1, int(len(estimates) * 0.975))]
+    return low, high
+
+
 def install() -> None:
     lab._reclaim = _reclaim
     lab._forward_extremes = _forward_extremes
     lab._fvg_after_raid = _fvg_after_raid
     lab._opposite_hit = _opposite_hit
+    lab._bootstrap_ci = _bootstrap_ci
 
 
 def main() -> None:
