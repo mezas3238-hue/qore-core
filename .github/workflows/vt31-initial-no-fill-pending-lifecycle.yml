@@ -1,0 +1,118 @@
+name: QORE VT-31 Initial No-Fill Pending Lifecycle
+
+on:
+  push:
+    branches:
+      - agent/vt31-historical-tick-resolution-001
+    paths:
+      - .github/workflows/vt31-initial-no-fill-pending-lifecycle.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  continue-pending-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e .
+          python -m py_compile scripts/vt31_pending_fill_frozen_m1_lifecycle.py
+
+      - name: Recover immutable 59 follow-up manifest and resolution
+        run: |
+          set -euo pipefail
+          mkdir followup resolution
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429677148/zip" > followup.zip
+          echo "f2e15888b5c9df67b0736bb2f45d78975f4edf090a45d2674ee8f61b4df2d52d  followup.zip" | sha256sum -c -
+          unzip -q followup.zip -d followup
+          (cd followup && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10430037237/zip" > resolution.zip
+          echo "b7ad638b6f9ec46f7f91fe863e5d8549e2e7cb56d075a2a907df22504196d3b7  resolution.zip" | sha256sum -c -
+          unzip -q resolution.zip -d resolution
+          (cd resolution && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('followup/vt31-no-executable-fill-followup-manifest.json').read_text())
+          r=json.loads(Path('resolution/vt31-pending-limit-tick-resolution.json').read_text())
+          assert len(m['windows'])==59
+          assert r['source_window_count']==59
+          assert r['counts']['executable-fill-minute-clear']==10
+          assert m['research_only'] is True and r['research_only'] is True
+          assert m['opens_new_holdout'] is False and r['opens_new_holdout'] is False
+          PY
+
+      - name: Recover immutable consumed M1 partitions
+        run: |
+          set -euo pipefail
+          mkdir -p consumed/r5 consumed/r6 consumed/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          echo "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8  r5.zip" | sha256sum -c -
+          echo "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9  r6.zip" | sha256sum -c -
+          echo "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d  r8.zip" | sha256sum -c -
+          unzip -q r5.zip -d consumed/r5
+          unzip -q r6.zip -d consumed/r6
+          unzip -q r8.zip -d consumed/r8
+
+      - name: Continue ten exact later fills through frozen protected-swing M1
+        run: |
+          set -euo pipefail
+          python scripts/vt31_pending_fill_frozen_m1_lifecycle.py \
+            --manifest followup/vt31-no-executable-fill-followup-manifest.json \
+            --resolution resolution/vt31-pending-limit-tick-resolution.json \
+            --output-dir lifecycle \
+            --r5-nas100 consumed/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp500 consumed/r5/fresh/SP500/market-evidence.json \
+            --r5-us30 consumed/r5/fresh/US30/market-evidence.json \
+            --r6-nas100 consumed/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp500 consumed/r6/fresh/SP500/market-evidence.json \
+            --r6-us30 consumed/r6/fresh/US30/market-evidence.json \
+            --r8-fresh-nas100 consumed/r8/fresh/NAS100/market-evidence.json \
+            --r8-fresh-sp500 consumed/r8/fresh/SP500/market-evidence.json \
+            --r8-fresh-us30 consumed/r8/fresh/US30/market-evidence.json
+
+      - name: Validate fail-closed lifecycle
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('lifecycle/vt31-pending-fill-lifecycle.json').read_text())
+          a=json.loads(Path('lifecycle/vt31-pending-fill-later-ambiguity-manifest.json').read_text())
+          assert p['research_only'] is True and p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert p['source_tick_clear_count']==10
+          assert len(p['results'])==10 and sum(p['counts'].values())==10
+          assert a['research_only'] is True and a['opens_new_holdout'] is False
+          assert len({w['window_id'] for w in a['windows']})==len(a['windows'])
+          print(json.dumps({'counts':p['counts'],'later_ambiguities':len(a['windows'])},sort_keys=True))
+          PY
+
+      - name: Bind immutable lifecycle artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > lifecycle/git-sha.txt
+          echo "10429677148" > lifecycle/source-followup-manifest-artifact-id.txt
+          echo "10430037237" > lifecycle/source-pending-resolution-artifact-id.txt
+          (cd lifecycle && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-initial-no-fill-pending-lifecycle-${{ github.sha }}
+          path: lifecycle/
+          retention-days: 90
