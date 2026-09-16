@@ -42,7 +42,7 @@ def build(source_manifest_path: Path, evaluation_path: Path, output_path: Path) 
     by_id={row["window_id"]:row for row in source_rows if isinstance(row,dict)}
     if len(by_id)!=EXPECTED_SOURCE_ROWS:
         raise ValueError("parity source identities malformed")
-    selected=[row for row in eval_rows if isinstance(row,dict) and row.get("status")=="no-executable-fill-in-source-minute"]
+    selected=[row for row in eval_rows if isinstance(row,dict) and row.get("tick_status")=="no-executable-fill-in-source-minute"]
     if len(selected)!=EXPECTED_NO_FILL:
         raise ValueError(f"parity no-fill count changed: {len(selected)}")
 
