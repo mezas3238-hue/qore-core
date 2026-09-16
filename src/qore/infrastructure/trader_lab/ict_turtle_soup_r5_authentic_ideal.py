@@ -27,12 +27,9 @@ from qore.infrastructure.ctrader_open_api_client import (
 )
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     CHUNK_DAYS,
-    H4,
     H4_SOURCE_ANCHORS,
     M5,
-    NY,
     PAGE_COUNT,
-    PRICE_SCALE,
     PRIMARY_FRICTION_R,
     REQUEST_PAUSE_SECONDS,
     STRESS_FRICTION_R,
