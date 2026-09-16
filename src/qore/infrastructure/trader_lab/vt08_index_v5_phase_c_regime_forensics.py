@@ -41,7 +41,8 @@ CONTINUOUS = (
     "protected_risk_fraction",
     "recent_causal_h4_range_ratio",
     "recent_causal_daily_range_ratio",
-    "cross_index_simultaneous_signal_count",
+    "cross_index_simultaneous_same_side_signals",
+    "cross_index_simultaneous_opposite_side_signals",
 )
 
 
