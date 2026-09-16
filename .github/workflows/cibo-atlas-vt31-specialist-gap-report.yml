@@ -33,11 +33,11 @@ jobs:
           ruff check --ignore N802,E501 scripts/cibo_atlas_vt31_specialist_gap_report.py
           mypy src/qore/infrastructure/cibo_atlas_market_lab.py
           python scripts/cibo_atlas_vt31_specialist_gap_report.py --self-test
-      - name: Recover immutable historical Atlas
+      - name: Recover immutable gap05 historical Atlas
         run: |
           set -euo pipefail
-          artifact_id=10467004744
-          expected=a969d2c3a5da29fc44a07adae65b49d275bc0e5844001f82ea721d571635423b
+          artifact_id=10467818090
+          expected=e613fbd237e54a7b91dce4aee8874585057ac41395560052978b7fd2f4139cc9
           digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
           test "$digest" = "sha256:${expected}"
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > atlas.zip
@@ -45,9 +45,9 @@ jobs:
           mkdir atlas
           unzip -q atlas.zip -d atlas
           (cd atlas && sha256sum -c SHA256SUMS)
-          test "$(cat atlas/git-sha.txt)" = "735cfc1edb193dbf6c2337f9b771cea8ca70dc0f"
-          test -f atlas/cibo-atlas-vt31-historical-market-scanner.json
-          test -f atlas/cibo-atlas-vt31-market-day-matrix.csv
+          test "$(cat atlas/git-sha.txt)" = "65a3b329b8ecabab948381b57c6612aa3f86354d"
+          test -f atlas/cibo-atlas-vt31-historical-market-scanner-gap05.json
+          test -f atlas/cibo-atlas-vt31-market-day-matrix-gap05.csv
           printf '%s\n' "$artifact_id" > atlas-artifact-id.txt
           printf '%s\n' "$digest" > atlas-artifact-digest.txt
       - name: Render specialist gap report
@@ -55,8 +55,8 @@ jobs:
           set -euo pipefail
           mkdir result
           python scripts/cibo_atlas_vt31_specialist_gap_report.py \
-            --scanner atlas/cibo-atlas-vt31-historical-market-scanner.json \
-            --matrix atlas/cibo-atlas-vt31-market-day-matrix.csv \
+            --scanner atlas/cibo-atlas-vt31-historical-market-scanner-gap05.json \
+            --matrix atlas/cibo-atlas-vt31-market-day-matrix-gap05.csv \
             --output-dir result
       - name: Validate research governance
         run: |
@@ -66,12 +66,16 @@ jobs:
           from pathlib import Path
           p=json.loads(Path('result/cibo-atlas-vt31-specialist-gap-report.json').read_text())
           assert p['schema']=='qore.cibo_atlas.vt31.specialist_gap_report.v1'
+          assert p['source_scanner_schema']=='qore.cibo_atlas.vt31.historical_market_scanner.gap05.v1'
+          assert p['source_ledger_root_overlay_count']==780
           assert p['research_only'] is True
           assert p['selection_prohibited'] is True
           assert p['opens_new_holdout'] is False
           assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
           assert p['live_authorized'] is False and p['production_authorized'] is False
           assert set(p['specialists'])=={'NAS100','SP500','US30'}
+          assert sum(p['specialists'][m]['trader']['root_count'] for m in p['specialists'])==780
+          assert sum(p['specialists'][m]['trader']['terminal_count'] for m in p['specialists'])==618
           assert p['hypothesis_policy']['automatic_parameter_change'] is False
           assert p['hypothesis_policy']['automatic_market_drop'] is False
           print(json.dumps(p['specialists'], sort_keys=True))
