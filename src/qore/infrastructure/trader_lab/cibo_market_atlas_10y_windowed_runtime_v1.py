@@ -19,6 +19,7 @@ from qore.infrastructure.trader_lab import cibo_market_atlas_10y_m5_consumer_v1 
 from qore.kernel.result import Failure
 
 IDENTITY = base.IDENTITY
+TRANSPORT = "STRICT_FROM_TO_WINDOWED_V1"
 PERIOD_M5 = base.PERIOD_M5
 MAX_CALENDAR_M5_BARS_PER_CHUNK = base.CHUNK_DAYS * 24 * 60 // PERIOD_M5
 
