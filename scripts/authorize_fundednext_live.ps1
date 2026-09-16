@@ -55,8 +55,8 @@ $Activation.no_send_passed = $true
 $Activation.shadow_passed = $true
 $Activation.service_24_7_verified = $true
 $Activation.restart_recovery_passed = $true
-$Activation.rules_verified_at = $Now.ToString("o")
-$Activation.rules_valid_until = $RulesValidUntil.ToUniversalTime().ToString("o")
+$Activation | Add-Member -NotePropertyName rules_verified_at -NotePropertyValue $Now.ToString("o") -Force
+$Activation | Add-Member -NotePropertyName rules_valid_until -NotePropertyValue $RulesValidUntil.ToUniversalTime().ToString("o") -Force
 $Activation.activation_timestamp = $Now.ToString("o")
 $Activation.order_submission_authorized = $true
 $Activation | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $ActivationPath
