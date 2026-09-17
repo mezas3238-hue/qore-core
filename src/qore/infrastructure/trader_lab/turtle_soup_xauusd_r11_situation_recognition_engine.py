@@ -28,15 +28,34 @@ from typing import Any, cast
 from qore.infrastructure.trader_lab.turtle_soup_xauusd_r10_cibo_structural_knowledge_base import (
     claim_by_code,
 )
-from qore.infrastructure.trader_lab.turtle_soup_xauusd_r10_journey_intelligence_contract import (
-    JourneyObservation,
-    identify_structural_mechanism,
-)
 
 IDENTITY = "TURTLE_SOUP_XAUUSD_R11_SITUATION_RECOGNITION_ENGINE_V1"
 EVIDENCE_STATUS = (
     "CONSUMED_CIBO_10Y_EVIDENCE_BOUND_SITUATION_RECOGNITION_NOT_FRESH_HOLDOUT"
 )
+
+# Evidence-family membership MUST reproduce the exact categorical populations
+# used by R7/R8. Continuous R9/R10 values are context inside a family and
+# cannot broaden family membership.
+ROBUST_INVALID_SIGNATURE = {
+    "raid_depth_range_bucket": "q4:<=0.50",
+    "cisd_progress_bucket": "q4:>0.75",
+    "reclaim_latency_bucket": "<=5m",
+    "protected_risk_range_bucket": "q3:<=1.0",
+}
+BREAK_A_SIGNATURE = {
+    "raid_depth_range_bucket": "q4:<=0.50",
+    "cisd_progress_bucket": "q3:<=0.75",
+    "reclaim_latency_bucket": "<=5m",
+    "protected_risk_range_bucket": "q3:<=1.0",
+}
+BREAK_B_SIGNATURE = {
+    "raid_depth_range_bucket": "q3:<=0.25",
+    "cisd_progress_bucket": "q2:<=0.50",
+    "reclaim_latency_bucket": "<=5m",
+    "protected_risk_range_bucket": "q3:<=1.0",
+    "h4_range_3v20": "normal_0.75_1.25",
+}
 
 # Frozen from R10 causal-memory-transfer artifact 10522826606.
 # These are not searched or recalibrated here.
@@ -83,6 +102,12 @@ class SituationObservation:
     cisd_progress_exact: Decimal
     protected_risk_source_fraction: Decimal
     h4_range_state: str | None
+
+    raid_depth_range_bucket: str
+    reclaim_latency_bucket: str
+    cisd_progress_bucket: str
+    protected_risk_range_bucket: str
+    h4_range_3v20: str | None
 
     c1_directional_wick_fraction: Decimal | None = None
     c1_nearest_prior_h4_boundary_source_fraction: Decimal | None = None
@@ -233,19 +258,28 @@ def _matched(signals: tuple[EvidenceSignal, ...], *codes: str) -> bool:
     return all(selected.get(code) is True for code in codes)
 
 
-def _mechanism(observation: SituationObservation) -> str:
-    base = JourneyObservation(
-        observed_at=observation.observed_at,
-        side=observation.side,
-        source_timeframe=observation.source_timeframe,
-        raid_depth_source_fraction=observation.raid_depth_source_fraction,
-        reclaim_latency_minutes=observation.reclaim_latency_minutes,
-        cisd_progress_exact=observation.cisd_progress_exact,
-        protected_risk_source_fraction=observation.protected_risk_source_fraction,
-        h4_range_state=observation.h4_range_state,
-    )
-    return identify_structural_mechanism(base)
+def _signature_matches(
+    observation: SituationObservation,
+    signature: dict[str, str],
+) -> bool:
+    values = {
+        "raid_depth_range_bucket": observation.raid_depth_range_bucket,
+        "reclaim_latency_bucket": observation.reclaim_latency_bucket,
+        "cisd_progress_bucket": observation.cisd_progress_bucket,
+        "protected_risk_range_bucket": observation.protected_risk_range_bucket,
+        "h4_range_3v20": observation.h4_range_3v20,
+    }
+    return all(str(values.get(key)) == expected for key, expected in signature.items())
 
+
+def _mechanism(observation: SituationObservation) -> str:
+    if _signature_matches(observation, ROBUST_INVALID_SIGNATURE):
+        return "ROBUST_INVALID_DEEP_RAID_LATE_CISD"
+    if _signature_matches(observation, BREAK_A_SIGNATURE):
+        return "BREAK_A_DEEP_RAID_MID_LATE_CISD"
+    if _signature_matches(observation, BREAK_B_SIGNATURE):
+        return "BREAK_B_MODERATE_RAID_MID_CISD_NORMAL_H4"
+    return "UNRESOLVED_JOURNEY"
 
 def _dol_context(observation: SituationObservation) -> dict[str, Any]:
     return {
@@ -331,7 +365,7 @@ def assess_situation(observation: SituationObservation) -> SituationAssessment:
             dol_context=_dol_context(observation),
         )
 
-    if mechanism == "BREAK_B_MEDIUM_RAID_EARLY_MID_CISD_NORMAL_H4":
+    if mechanism == "BREAK_B_MODERATE_RAID_MID_CISD_NORMAL_H4":
         signals = _break_b_signals(observation)
         modest_pair = _matched(
             signals,
@@ -393,6 +427,11 @@ def engine_manifest() -> dict[str, Any]:
         "evidence_status": EVIDENCE_STATUS,
         "states": [item.value for item in SituationState],
         "directives": [item.value for item in SituationDirective],
+        "evidence_family_signatures": {
+            "robust_invalid": dict(ROBUST_INVALID_SIGNATURE),
+            "break_a": dict(BREAK_A_SIGNATURE),
+            "break_b": dict(BREAK_B_SIGNATURE),
+        },
         "frozen_anchors": {
             "break_a": {
                 "c1_directional_wick_min": str(A_WICK_MIN),
@@ -414,6 +453,8 @@ def engine_manifest() -> dict[str, Any]:
             "probability_of_profit": False,
             "automatic_threshold_search": False,
             "later_period_recalibration": False,
+            "continuous_values_can_define_evidence_family_membership": False,
+            "evidence_family_membership_uses_exact_r7_r8_buckets": True,
             "year_or_date_operating_input": False,
             "post_entry_input": False,
             "dol_is_destination_context_not_upstream_validity": True,
