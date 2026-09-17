@@ -54,7 +54,7 @@ jobs:
           assert r3.IDENTITY == 'TURTLE_SOUP_XAUUSD_R3_CIBO_JOURNEY_ROUTER'
           assert r3.TRAIN_CLOSE.isoformat() == '2022-09-17T00:00:00+00:00'
           assert ('CISD_THRESHOLD_RETEST', 'PRIOR_H4') in r3.ACTIONS
-          assert 'predicted_primary_r > 0' not in freeze
+          assert 'selection_rule = predicted_primary_r_gt_0' not in freeze
           assert 'no `predicted_primary_r > 0` trade filter' in freeze
           assert 'MFE' in freeze and 'MAE' in freeze
           PY
