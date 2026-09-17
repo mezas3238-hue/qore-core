@@ -55,3 +55,10 @@ def test_watchdog_detects_missing_wrong_mode_and_multiple_runtime_processes() ->
     assert '"WATCHDOG_FAIL_CLOSED"' in source
     assert '"WATCHDOG_RESTART"' in source
     assert "runtime.lock" in source
+
+def test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "local.hour not in LIVE_ENTRY_ANCHORS_NY" in source
+    assert "current_anchor_hour=anchor_local.hour" in source
+    assert "if hour > anchor_local.hour:" in source
+    assert "FINAL_CAUSAL_ENTRY_ANCHOR_NY" not in source

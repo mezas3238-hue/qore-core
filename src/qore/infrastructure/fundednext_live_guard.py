@@ -27,7 +27,7 @@ CERTIFIED_LIVE_DIRECTIONS: dict[str, frozenset[str]] = {
     "GBPUSD": frozenset({"short"}),
     "GBPJPY": frozenset({"long", "short"}),
 }
-FINAL_CAUSAL_ENTRY_ANCHOR_NY = 9
+LIVE_ENTRY_ANCHORS_NY = (1, 5, 9)
 MAX_LIVE_ENTRY_DRIFT_TICKS = Decimal("1")
 FOREX_OPEN_COMMISSION_PER_LOT_USD = Decimal("7")
 INACTIVITY_WARNING_DAYS = 25
@@ -55,19 +55,17 @@ def causal_daily_candidate_allowed(
     candidate_anchor_hours: tuple[int, ...],
     current_anchor_hour: int,
 ) -> bool:
-    """Permit only the causal 09:00 subset of the historical daily-cardinality rule.
+    """Permit the current causal VT-08 Forex anchor at 01/05/09 New York.
 
-    The historical replay knows all 01/05/09 candidates after the day has passed.
-    Live execution cannot know future anchors.  At 09:00 NY all three candidate
-    opportunities are already observable, so requiring exactly one candidate and
-    requiring it to be the 09:00 candidate is a strict causal subset, never an
-    expansion, of the certified daily-selection policy.
+    Only information observable at the current anchor is considered.  Prior same-day
+    candidates do not suppress a later authorized anchor; CIBO and sovereign Risk keep
+    their existing authority over each candidate that reaches the live pipeline.
     """
 
     normalized = tuple(sorted(candidate_anchor_hours))
     return (
-        current_anchor_hour == FINAL_CAUSAL_ENTRY_ANCHOR_NY
-        and normalized == (FINAL_CAUSAL_ENTRY_ANCHOR_NY,)
+        current_anchor_hour in LIVE_ENTRY_ANCHORS_NY
+        and current_anchor_hour in normalized
     )
 
 

@@ -1,8 +1,8 @@
 """Resident FundedNext VT-08/CIBO/Risk runtime for the existing Windows VPS.
 
 The VPS/MT5 installation is assumed to exist already.  This runtime is the
-fail-closed resident execution loop. It executes only the causal 09:00 NY subset
-of the certified daily-cardinality rule, keeps sovereign Risk above execution,
+fail-closed resident execution loop. It evaluates the authorized 01:00 / 05:00 /
+09:00 NY entry anchors causally, keeps sovereign Risk above execution,
 maintains the certified H4 containment exit, and never depends on ChatGPT/RDP.
 """
 
@@ -32,7 +32,7 @@ from qore.infrastructure.account_wide_risk_ledger import (
 )
 from qore.infrastructure.fundednext_live_activation import load_verified_live_activation
 from qore.infrastructure.fundednext_live_guard import (
-    FINAL_CAUSAL_ENTRY_ANCHOR_NY,
+    LIVE_ENTRY_ANCHORS_NY,
     FOREX_OPEN_COMMISSION_PER_LOT_USD,
     DurableFundedNextLiveCapitalStore,
     FundedNextLiveCapitalCheckpoint,
@@ -165,7 +165,7 @@ def _m15_bars(symbol: str, decision_at: datetime) -> tuple[Vt08B01Bar, ...]:
 
 def _current_anchor(now: datetime) -> datetime | None:
     local = now.astimezone(_NY)
-    if local.hour != FINAL_CAUSAL_ENTRY_ANCHOR_NY:
+    if local.hour not in LIVE_ENTRY_ANCHORS_NY:
         return None
     anchor = local.replace(minute=0, second=0, microsecond=0).astimezone(UTC)
     current = now.astimezone(UTC)
@@ -180,6 +180,8 @@ def _causal_candidate(symbol: str, anchor: datetime) -> tuple[Vt08B01Candidate |
     candidate_hours: list[int] = []
     current: Vt08B01Candidate | None = None
     for hour in OWNER_FOREX_ENTRY_ANCHORS:
+        if hour > anchor_local.hour:
+            continue
         decision_local = anchor_local.replace(hour=hour, minute=0, second=0, microsecond=0)
         decision = decision_local.astimezone(UTC)
         evaluation = evaluate_b01_at_entry(
@@ -189,17 +191,17 @@ def _causal_candidate(symbol: str, anchor: datetime) -> tuple[Vt08B01Candidate |
         )
         if evaluation.candidate is not None:
             candidate_hours.append(hour)
-            if hour == FINAL_CAUSAL_ENTRY_ANCHOR_NY:
+            if hour == anchor_local.hour:
                 current = evaluation.candidate
     allowed = causal_daily_candidate_allowed(
         candidate_anchor_hours=tuple(candidate_hours),
-        current_anchor_hour=FINAL_CAUSAL_ENTRY_ANCHOR_NY,
+        current_anchor_hour=anchor_local.hour,
     )
     if current is None:
-        return None, "no-09-candidate"
+        return None, f"no-{anchor_local.hour:02d}-candidate"
     if not allowed:
         return None, f"daily-cardinality-causal-abstain:{','.join(map(str, candidate_hours))}"
-    return current, "causal-single-09-candidate"
+    return current, f"causal-{anchor_local.hour:02d}-candidate"
 
 
 def _broker_risk(
@@ -287,7 +289,7 @@ def _log(path: Path, event: dict[str, object]) -> None:
 
 def _signal_anchor(accepted_at: datetime) -> datetime:
     local = accepted_at.astimezone(_NY).replace(minute=0, second=0, microsecond=0)
-    if local.hour != FINAL_CAUSAL_ENTRY_ANCHOR_NY:
+    if local.hour not in LIVE_ENTRY_ANCHORS_NY:
         raise RuntimeError("accepted-live-order-outside-causal-anchor")
     return local.astimezone(UTC)
 

@@ -30,15 +30,22 @@ def test_certified_direction_contract_is_frozen() -> None:
         assert_certified_direction("GBPUSD", "long")
 
 
-def test_daily_cardinality_is_live_only_at_single_09_candidate() -> None:
+def test_live_causal_candidate_accepts_all_authorized_forex_anchors() -> None:
+    for hour in (1, 5, 9):
+        assert causal_daily_candidate_allowed(
+            candidate_anchor_hours=(hour,), current_anchor_hour=hour
+        )
     assert causal_daily_candidate_allowed(
-        candidate_anchor_hours=(9,), current_anchor_hour=9
+        candidate_anchor_hours=(1, 5), current_anchor_hour=5
+    )
+    assert causal_daily_candidate_allowed(
+        candidate_anchor_hours=(1, 5, 9), current_anchor_hour=9
     )
     assert not causal_daily_candidate_allowed(
-        candidate_anchor_hours=(1,), current_anchor_hour=1
+        candidate_anchor_hours=(1,), current_anchor_hour=5
     )
     assert not causal_daily_candidate_allowed(
-        candidate_anchor_hours=(1, 9), current_anchor_hour=9
+        candidate_anchor_hours=(13,), current_anchor_hour=13
     )
 
 
