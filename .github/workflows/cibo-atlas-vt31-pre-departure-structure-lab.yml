@@ -1,0 +1,117 @@
+name: QORE CIBO Atlas VT31 Pre-Departure Structure Lab
+
+on:
+  push:
+    branches: [agent/cibo-atlas-vt31-market-specialists-001]
+    paths:
+      - scripts/cibo_atlas_vt31_pre_departure_structure_lab.py
+      - .github/workflows/cibo-atlas-vt31-pre-departure-structure-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  pre-departure-structure-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: pip install -e .[dev]
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_atlas_vt31_pre_departure_structure_lab.py
+          ruff check --ignore E501,SLF001 scripts/cibo_atlas_vt31_pre_departure_structure_lab.py
+          mypy src/qore/infrastructure/cibo_atlas_market_lab.py
+          python scripts/cibo_atlas_vt31_pre_departure_structure_lab.py --self-test
+      - name: Recover immutable root-cause attribution
+        run: |
+          set -euo pipefail
+          artifact_id=10469098482
+          expected=722c92398e0af62f7ab20b27adc2d0e9fd013ebe7fd7f800122e126e6d6d6ffd
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
+          test "$digest" = "sha256:${expected}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > attribution.zip
+          echo "${expected}  attribution.zip" | sha256sum -c -
+          mkdir attribution
+          unzip -q attribution.zip -d attribution
+          (cd attribution && sha256sum -c SHA256SUMS)
+          test -f attribution/cibo-atlas-vt31-root-cause-attribution.json
+          printf '%s\n' "$artifact_id" > attribution-artifact-id.txt
+          printf '%s\n' "$digest" > attribution-artifact-digest.txt
+      - name: Recover immutable consumed M1 evidence
+        run: |
+          set -euo pipefail
+          fetch_artifact() {
+            id="$1"; expected="$2"; destination="$3"
+            digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" --jq .digest)"
+            test "$digest" = "sha256:${expected}"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > "${destination}.zip"
+            echo "${expected}  ${destination}.zip" | sha256sum -c -
+            mkdir "$destination"
+            unzip -q "${destination}.zip" -d "$destination"
+            if [ -f "$destination/SHA256SUMS" ]; then
+              (cd "$destination" && sha256sum -c SHA256SUMS)
+            fi
+          }
+          fetch_artifact 10380044761 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8 evidence-r5
+          fetch_artifact 10389112524 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9 evidence-r6
+          fetch_artifact 10402199719 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d evidence-r8
+          for root in evidence-r5 evidence-r6 evidence-r8; do
+            for market in NAS100 SP500 US30; do
+              test -f "$root/fresh/$market/market-evidence.json"
+            done
+          done
+      - name: Build pre-departure structure statistics
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/cibo_atlas_vt31_pre_departure_structure_lab.py \
+            --attribution attribution/cibo-atlas-vt31-root-cause-attribution.json \
+            --r8-fresh-nas100 evidence-r8/fresh/NAS100/market-evidence.json \
+            --r8-fresh-sp500 evidence-r8/fresh/SP500/market-evidence.json \
+            --r8-fresh-us30 evidence-r8/fresh/US30/market-evidence.json \
+            --r6-nas100 evidence-r6/fresh/NAS100/market-evidence.json \
+            --r6-sp500 evidence-r6/fresh/SP500/market-evidence.json \
+            --r6-us30 evidence-r6/fresh/US30/market-evidence.json \
+            --r5-nas100 evidence-r5/fresh/NAS100/market-evidence.json \
+            --r5-sp500 evidence-r5/fresh/SP500/market-evidence.json \
+            --r5-us30 evidence-r5/fresh/US30/market-evidence.json \
+            --output-dir result
+      - name: Validate governance and conservation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/cibo-atlas-vt31-pre-departure-structure-lab.json').read_text())
+          assert p['schema']=='qore.cibo_atlas.vt31.pre_departure_structure_lab.v1'
+          assert p['research_only'] is True and p['selection_prohibited'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['candidate_status']=='NO_R9_NOT_CERTIFIED'
+          assert p['live_authorized'] is False and p['production_authorized'] is False
+          assert p['demonstrated_stop_root_count']==163
+          assert sum(p['demonstrated_stop_by_market'][m]['n'] for m in ('NAS100','SP500','US30'))==163
+          assert p['definition_contract']['multi_label'] is True
+          print(json.dumps({'market_days':p['objective_completion_market_day_count'],'demonstrated':p['demonstrated_stop_root_count'],'by_market':p['demonstrated_stop_by_market'],'by_terminal':p['demonstrated_stop_by_terminal_family']},sort_keys=True))
+          PY
+      - name: Bind immutable lab artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          cp attribution-artifact-id.txt attribution-artifact-digest.txt result/
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-atlas-vt31-pre-departure-structure-lab-${{ github.sha }}
+          path: result/
+          retention-days: 90
