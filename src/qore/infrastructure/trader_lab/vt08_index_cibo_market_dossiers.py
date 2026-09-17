@@ -201,6 +201,12 @@ def _daily_summary(rows: Sequence[dict[str, object]]) -> dict[str, object]:
     }
 
 
+def _max_favorable_24h(row: Mapping[str, object]) -> Decimal:
+    horizons = cast(dict[str, object], row["horizon_excursions"])
+    day = cast(dict[str, object], horizons["1440"])
+    return _decimal(day["max_favorable_r"])
+
+
 def _market_dossier(
     *,
     symbol: str,
@@ -285,11 +291,11 @@ def _market_dossier(
                     {
                         "band": (
                             "sub-1R"
-                            if _decimal(row["horizon_excursions"]["1440"]["max_favorable_r"]) < 1
+                            if _max_favorable_24h(row) < 1
                             else "1R-to-2R"
-                            if _decimal(row["horizon_excursions"]["1440"]["max_favorable_r"]) < 2
+                            if _max_favorable_24h(row) < 2
                             else "2R-to-3R"
-                            if _decimal(row["horizon_excursions"]["1440"]["max_favorable_r"]) < 3
+                            if _max_favorable_24h(row) < 3
                             else "3R-plus"
                         )
                     }
