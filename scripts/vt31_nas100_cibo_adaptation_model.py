@@ -23,7 +23,11 @@ EXPECTED_BUNDLE_SCHEMA = "qore.cibo_atlas.vt31.eight_ledger_bundle.v1"
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def fraction(n: int, d: int) -> str | None:
@@ -73,29 +77,53 @@ def summarize_departures(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "departure_time_ny_p75": hhmm(quantile(minutes, Decimal("0.75"))),
         "departure_10_00_10_59_count": len(within_source_hour),
         "departure_10_30_10_59_count": len(late_source_hour),
-        "late_half_share_of_source_hour_departures": fraction(len(late_source_hour), len(within_source_hour)),
+        "late_half_share_of_source_hour_departures": fraction(
+            len(late_source_hour), len(within_source_hour)
+        ),
         "last_structure_counts": dict(sorted(structures.items())),
-        "departure_to_objective_minutes_p25": None if not latencies else format(quantile(latencies, Decimal("0.25")), "f"),
-        "departure_to_objective_minutes_p50": None if not latencies else format(quantile(latencies, Decimal("0.50")), "f"),
-        "departure_to_objective_minutes_p75": None if not latencies else format(quantile(latencies, Decimal("0.75")), "f"),
+        "departure_to_objective_minutes_p25": (
+            None
+            if not latencies
+            else format(quantile(latencies, Decimal("0.25")), "f")
+        ),
+        "departure_to_objective_minutes_p50": (
+            None
+            if not latencies
+            else format(quantile(latencies, Decimal("0.50")), "f")
+        ),
+        "departure_to_objective_minutes_p75": (
+            None
+            if not latencies
+            else format(quantile(latencies, Decimal("0.75")), "f")
+        ),
     }
 
 
 def build(ledger_dir: Path) -> dict[str, Any]:
-    summary = json.loads((ledger_dir / "CIBO_ATLAS_VT31_EIGHT_LEDGER_SUMMARY.json").read_text(encoding="utf-8"))
+    summary = json.loads(
+        (ledger_dir / "CIBO_ATLAS_VT31_EIGHT_LEDGER_SUMMARY.json").read_text(
+            encoding="utf-8"
+        )
+    )
     if summary.get("schema") != EXPECTED_BUNDLE_SCHEMA:
         raise ValueError("unexpected CIBO Eight-Ledger schema")
     if summary.get("research_only") is not True or summary.get("opens_new_holdout") is not False:
         raise ValueError("CIBO bundle governance guard failed")
 
     departures = [
-        row for row in read_jsonl(ledger_dir / "DEPARTURE_TIMING_LEDGER.jsonl") if row.get("market") == MARKET
+        row
+        for row in read_jsonl(ledger_dir / "DEPARTURE_TIMING_LEDGER.jsonl")
+        if row.get("market") == MARKET
     ]
     trader = [
-        row for row in read_jsonl(ledger_dir / "TRADER_MARKET_SYNC_LEDGER.jsonl") if row.get("market") == MARKET
+        row
+        for row in read_jsonl(ledger_dir / "TRADER_MARKET_SYNC_LEDGER.jsonl")
+        if row.get("market") == MARKET
     ]
     targets = [
-        row for row in read_jsonl(ledger_dir / "TARGET_DESTINATION_LEDGER.jsonl") if row.get("market") == MARKET
+        row
+        for row in read_jsonl(ledger_dir / "TARGET_DESTINATION_LEDGER.jsonl")
+        if row.get("market") == MARKET
     ]
     if len(departures) != 547 or len(trader) != 208 or len(targets) != 1591:
         raise ValueError("unexpected NAS100 consumed-evidence row counts")
@@ -108,7 +136,10 @@ def build(ledger_dir: Path) -> dict[str, Any]:
     stop_mismatch: dict[str, dict[str, Any]] = {}
     for family in ("initial_stop", "protected_stop"):
         rows = [row for row in trader if row.get("terminal_family") == family]
-        mismatches = sum(bool(row.get("trader_stopped_before_eventual_source_objective")) for row in rows)
+        mismatches = sum(
+            bool(row.get("trader_stopped_before_eventual_source_objective"))
+            for row in rows
+        )
         stop_mismatch[family] = {
             "n": len(rows),
             "later_source_objective_count": mismatches,
@@ -119,10 +150,15 @@ def build(ledger_dir: Path) -> dict[str, Any]:
     extension_rates: dict[str, Any] = {}
     for level in ("0.25", "0.5", "1", "1.5", "2"):
         count = sum(bool(row.get("post_boundary_ladder", {}).get(level)) for row in target_hits)
-        extension_rates[level] = {"count": count, "rate_given_boundary_hit": fraction(count, len(target_hits))}
+        extension_rates[level] = {
+            "count": count,
+            "rate_given_boundary_hit": fraction(count, len(target_hits)),
+        }
 
     partition_timing = {
-        partition: summarize_departures([row for row in departures if row.get("partition") == partition])
+        partition: summarize_departures(
+            [row for row in departures if row.get("partition") == partition]
+        )
         for partition in sorted({str(row.get("partition")) for row in departures})
     }
 
@@ -151,9 +187,15 @@ def build(ledger_dir: Path) -> dict[str, Any]:
             "signal_before_final_departure_count": sum(
                 row.get("signal_vs_departure") == "signal-before-final-departure" for row in linked
             ),
-            "signal_to_departure_minutes_p25": format(quantile(signal_to_departure, Decimal("0.25")), "f"),
-            "signal_to_departure_minutes_p50": format(quantile(signal_to_departure, Decimal("0.50")), "f"),
-            "signal_to_departure_minutes_p75": format(quantile(signal_to_departure, Decimal("0.75")), "f"),
+            "signal_to_departure_minutes_p25": format(
+                quantile(signal_to_departure, Decimal("0.25")), "f"
+            ),
+            "signal_to_departure_minutes_p50": format(
+                quantile(signal_to_departure, Decimal("0.50")), "f"
+            ),
+            "signal_to_departure_minutes_p75": format(
+                quantile(signal_to_departure, Decimal("0.75")), "f"
+            ),
             "partition_stability": partition_timing,
         },
         "stop_findings": stop_mismatch,
@@ -174,40 +216,68 @@ def build(ledger_dir: Path) -> dict[str, Any]:
                     "code": "T1_LATE_SOURCE_HOUR",
                     "signal_window": "10:00-10:59 NY",
                     "entry_window": "10:30-10:59 NY",
-                    "execution": "wait for a causal post-raid reclaim plus source-valid PD-array retest",
+                    "execution": (
+                        "wait for a causal post-raid reclaim plus source-valid "
+                        "PD-array retest"
+                    ),
                 },
                 {
                     "code": "T2_DELAYED_EXECUTION",
                     "signal_window": "10:00-10:59 NY",
                     "entry_window": "10:30-11:29 NY",
-                    "execution": "original Silver Bullet thesis must remain structurally valid; require a new causal reclaim/confirmation before fill",
+                    "execution": (
+                        "original Silver Bullet thesis must remain structurally valid; "
+                        "require a new causal reclaim/confirmation before fill"
+                    ),
                 },
             ],
             "entry": [
                 {"code": "E0_R22", "rule": "existing R2.2 earliest actionable confluence"},
                 {
                     "code": "E1_RECLAIM_PDARRAY",
-                    "rule": "after first-side raid, require local/reference liquidity sweep-reclaim followed by FVG/Breaker/OB retest",
+                    "rule": (
+                        "after first-side raid, require local/reference liquidity "
+                        "sweep-reclaim followed by FVG/Breaker/OB retest"
+                    ),
                 },
             ],
             "initial_stop": [
-                {"code": "S0_SOURCE_SWING", "rule": "source-methodological structural swing extreme, no fixed buffer"},
+                {
+                    "code": "S0_SOURCE_SWING",
+                    "rule": (
+                        "source-methodological structural swing extreme, no fixed buffer"
+                    ),
+                },
                 {
                     "code": "S1_RECLAIM_EXTREME",
-                    "rule": "structural extreme belonging to the causal reclaim that authorizes the delayed entry; no retrospective widening",
+                    "rule": (
+                        "structural extreme belonging to the causal reclaim that "
+                        "authorizes the delayed entry; no retrospective widening"
+                    ),
                 },
             ],
             "target": [
-                {"code": "P0_OPPOSITE_09_BOUNDARY", "rule": "full exit at opposite frozen 09:00 reference boundary"},
+                {
+                    "code": "P0_OPPOSITE_09_BOUNDARY",
+                    "rule": "full exit at opposite frozen 09:00 reference boundary",
+                },
                 {
                     "code": "P1_BOUNDARY_PLUS_RUNNER",
-                    "rule": "realize at opposite boundary and research a predeclared 0.25-reference runner only after boundary is reached",
+                    "rule": (
+                        "realize at opposite boundary and research a predeclared "
+                        "0.25-reference runner only after boundary is reached"
+                    ),
                 },
             ],
             "management": [
                 {"code": "M0_NO_M1_TRAIL", "rule": "no R8 protected-swing M1 trailing"},
                 {
-                    "code": "M1_ONE_SHOT_BE", "rule": "single breakeven transition at a predeclared favorable-excursion boundary; threshold chosen only by consumed WFO"},
+                    "code": "M1_ONE_SHOT_BE",
+                    "rule": (
+                        "single breakeven transition at a predeclared favorable-excursion "
+                        "boundary; threshold chosen only by consumed WFO"
+                    ),
+                },
             ],
         },
         "next_gate": {
@@ -239,8 +309,15 @@ def main() -> None:
         parser.error("--ledger-dir and --output are required")
     result = build(args.ledger_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"market": result["market"], "next_gate": result["next_gate"]}, sort_keys=True))
+    args.output.write_text(
+        json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {"market": result["market"], "next_gate": result["next_gate"]},
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
