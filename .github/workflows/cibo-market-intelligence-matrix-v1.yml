@@ -79,6 +79,14 @@ jobs:
           merge-multiple: false
           github-token: ${{ github.token }}
           run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Normalize raw artifact discovery marker
+        run: |
+          find raw-root -mindepth 1 -maxdepth 1 -type d -print0 | \
+            while IFS= read -r -d '' dir; do
+              if [ -f "$dir/symbol-consumption-manifest.json" ]; then
+                cp "$dir/symbol-consumption-manifest.json" "$dir/manifest.json"
+              fi
+            done
       - name: Download immutable Journey V1 sources
         uses: actions/download-artifact@v4
         with:
