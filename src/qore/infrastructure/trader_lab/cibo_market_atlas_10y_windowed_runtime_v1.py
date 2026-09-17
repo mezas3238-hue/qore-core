@@ -59,7 +59,7 @@ def read_windowed_chunk(
 
 def install_windowed_transport() -> None:
     """Install the corrected transport helper without changing research semantics."""
-    setattr(base, "_read_chunk", read_windowed_chunk)
+    base._read_chunk = read_windowed_chunk
 
 
 def main() -> None:
