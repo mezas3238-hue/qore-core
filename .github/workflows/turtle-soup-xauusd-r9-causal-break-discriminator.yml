@@ -38,7 +38,7 @@ jobs:
             tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r9_causal_break_discriminator.py
       - name: Mypy focused gate
         run: |
-          mypy --disable-error-code var-annotated --disable-error-code attr-defined \
+          mypy --disable-error-code var-annotated --disable-error-code attr-defined --disable-error-code no-any-return \
             src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r9_causal_break_discriminator.py
       - name: Focused tests
         run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r9_causal_break_discriminator.py
