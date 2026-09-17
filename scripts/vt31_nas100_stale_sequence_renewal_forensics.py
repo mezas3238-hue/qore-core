@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import vt31_nas100_r1_candidate as baseline
+
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
     Vt31R22EntryFamily,
     Vt31R22ExecutableSetup,
