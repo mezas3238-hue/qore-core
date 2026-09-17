@@ -131,7 +131,7 @@ def test_cross_summary_counts_multi_market_same_side_stops() -> None:
             },
         }
     ]
-    v1_cross = {
+    v1_cross: dict[tuple[str, int], dict[str, object]] = {
         ("2024-01-02", 6): {
             "signals": signals,
         }
