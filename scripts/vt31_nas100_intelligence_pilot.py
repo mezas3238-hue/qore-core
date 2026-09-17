@@ -1,5 +1,5 @@
 """Causal, research-only intelligence pilot for VT31_NAS100."""
-# ruff: noqa: B009
+# ruff: noqa: B009,I001
 from __future__ import annotations
 
 import argparse
