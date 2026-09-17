@@ -267,18 +267,25 @@ def run(
     for bar in series:
         by_day[baseline._day(getattr(bar, "opened_at"))].append(bar)
     days = sorted(by_day)
-    prior_day_map: dict[date, date | None] = {}
-    for index, day in enumerate(days):
-        prior_day_map[day] = days[index - 1] if index > 0 else None
-
+    eligible_context_days: list[date] = []
     reference_width_by_day: dict[date, Decimal] = {}
     for day in days:
-        reference = _interval(
-            _slice(tuple(by_day[day]), (9, 0, 0), (10, 0, 0))
-        )
+        day_tuple = tuple(by_day[day])
+        reference_bars = _slice(day_tuple, (9, 0, 0), (10, 0, 0))
+        session_bars = _slice(day_tuple, (10, 0, 0), (11, 0, 0))
+        if len(reference_bars) != 60 or len(session_bars) != 60:
+            continue
+        reference = _interval(reference_bars)
         width = _range(reference)
-        if width is not None and width > 0:
-            reference_width_by_day[day] = width
+        if width is None or width <= 0:
+            continue
+        eligible_context_days.append(day)
+        reference_width_by_day[day] = width
+
+    prior_day_map: dict[date, date | None] = {}
+    for day in days:
+        prior = [candidate for candidate in eligible_context_days if candidate < day]
+        prior_day_map[day] = prior[-1] if prior else None
 
     enriched: list[dict[str, object]] = []
     missing_previous = 0
@@ -314,12 +321,16 @@ def run(
             "all_added_features_known_at_decision": True,
             "current_day_bars_cut_at_decision": True,
             "previous_day_is_completed_before_decision": True,
+            "previous_day_uses_same_reference_session_admission": True,
             "rolling_context_uses_prior_days_only": True,
             "date_level_outcome_lookup": False,
             "future_bar_lookup_for_runtime_features": False,
         },
         "context_definitions": {
-            "previous_market_day": "previous available NY date, 00:00-16:00",
+            "previous_market_day": (
+                "last prior NY date admitted by complete 09:00-10:00 and "
+                "10:00-11:00 M1 windows; context path uses that date 00:00-16:00"
+            ),
             "premarket": "08:00-09:00 NY",
             "reference": "09:00-10:00 NY frozen",
             "cash_open_segment": "09:30-10:00 NY",
