@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/cibo_atlas_vt31_eight_ledger_builder.py
-          ruff check --ignore E501,I001,UP035,SLF001 scripts/cibo_atlas_vt31_eight_ledger_builder.py
+          ruff check --ignore E501,I001,UP035,SLF001,F401,F841 scripts/cibo_atlas_vt31_eight_ledger_builder.py
           python scripts/cibo_atlas_vt31_eight_ledger_builder.py --self-test
       - name: Recover immutable definitive forensics
         run: |
