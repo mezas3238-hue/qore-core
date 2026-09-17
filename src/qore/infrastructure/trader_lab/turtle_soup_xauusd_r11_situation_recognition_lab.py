@@ -70,6 +70,13 @@ def _build_observation(row: dict[str, Any]) -> engine.SituationObservation:
         h4_range_state=(
             None if row.get("h4_range_state") is None else str(row["h4_range_state"])
         ),
+        raid_depth_range_bucket=str(row["raid_depth_range_bucket"]),
+        reclaim_latency_bucket=str(row["reclaim_latency_bucket"]),
+        cisd_progress_bucket=str(row["cisd_progress_bucket"]),
+        protected_risk_range_bucket=str(row["protected_risk_range_bucket"]),
+        h4_range_3v20=(
+            None if row.get("h4_range_3v20") is None else str(row["h4_range_3v20"])
+        ),
         c1_directional_wick_fraction=_optional_d(
             row.get("c1_directional_wick_fraction")
         ),
@@ -300,6 +307,20 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
             f"R11 recognition count drift: {len(recognized)} != {len(selected)}"
         )
 
+    mechanism_counts = Counter(row["mechanism_code"] for row in recognized)
+    expected_mechanisms = {
+        "ROBUST_INVALID_DEEP_RAID_LATE_CISD": 273,
+        "BREAK_A_DEEP_RAID_MID_LATE_CISD": 151,
+        "BREAK_B_MODERATE_RAID_MID_CISD_NORMAL_H4": 88,
+    }
+    for mechanism, expected_count in expected_mechanisms.items():
+        actual = mechanism_counts.get(mechanism, 0)
+        if actual != expected_count:
+            raise ValueError(
+                f"R11 exact evidence-family drift {mechanism}: "
+                f"{actual} != {expected_count}"
+            )
+
     state_counts = dict(Counter(row["recognized_state"] for row in recognized))
     candidate_rows = [
         row
@@ -307,6 +328,11 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
         if row["recognized_state"]
         == engine.SituationState.STRUCTURALLY_VALID_CANDIDATE.value
     ]
+    if len(candidate_rows) != 30:
+        raise ValueError(
+            f"R11 BREAK A transferred-candidate drift: "
+            f"{len(candidate_rows)} != 30"
+        )
 
     payload = {
         "schema": "qore.turtle_soup_xauusd_r11.situation_recognition_lab.v1",
@@ -316,6 +342,14 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
         "reproduction": {
             **reproduction,
             "recognized_trades": len(recognized),
+            "robust_invalid_exact": mechanism_counts[
+                "ROBUST_INVALID_DEEP_RAID_LATE_CISD"
+            ],
+            "break_a_exact": mechanism_counts["BREAK_A_DEEP_RAID_MID_LATE_CISD"],
+            "break_b_exact": mechanism_counts[
+                "BREAK_B_MODERATE_RAID_MID_CISD_NORMAL_H4"
+            ],
+            "break_a_transferred_candidate_exact": len(candidate_rows),
         },
         "recognition_contract": {
             "engine_receives_post_entry_information": False,
@@ -324,6 +358,8 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
             "pnl_used_for_audit": False,
             "year_or_date_used_by_engine": False,
             "frozen_anchor_recalibration": False,
+            "evidence_family_membership_exact_r7_r8_buckets": True,
+            "continuous_values_can_broaden_evidence_family": False,
             "structurally_valid_candidate_is_operating_permission": False,
         },
         "state_counts": state_counts,
