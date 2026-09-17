@@ -24,7 +24,6 @@ from qore.infrastructure.trader_lab import cibo_market_atlas_journey_extractor_v
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r1 as r1
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r2_cibo_full as r2
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
-    Bar,
     Side,
     SourceCandle,
     build_h1,
