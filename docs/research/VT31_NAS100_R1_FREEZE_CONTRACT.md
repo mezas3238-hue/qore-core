@@ -17,10 +17,11 @@ This specialist identity is derived from consumed CIBO Atlas and VT31 laboratory
 
 - Market: NAS100 only.
 - Timezone: America/New_York, DST-aware.
-- Reference: 09:00 NY reference structure.
-- Operating window: AM Silver Bullet, approximately 10:00–11:00 NY.
-- Setup family: liquidity raid/sweep followed by displacement/confirmation into an eligible PD-array context.
-- Eligible PD-array context remains the source-method family (FVG / Breaker / Order Block); no retrospective family selection from consumed PnL.
+- Reference: 09:00–10:00 NY frozen reference range built only from closed M1 bars.
+- Operating window: 10:00–11:00 NY AM Silver Bullet.
+- Setup family: strict first-side liquidity raid/sweep, both-sides-swept abstention, post-raid structural close, then eligible PD-array evidence.
+- Eligible PD-array families remain the source-method families: FVG / Breaker / Order Block. No family is selected or removed using consumed PnL.
+- Executable price uses the already-versioned R2.2 execution policy: FVG consequent encroachment, Breaker/OB body midpoint, earliest actionable confluence, fail closed on ambiguous contemporaneous prices.
 - SMT/cross-index state is contextual telemetry only for R1 and is not a mandatory filter.
 - Side is determined causally from the raid/reversal structure, never from future outcome.
 
@@ -28,27 +29,31 @@ This specialist identity is derived from consumed CIBO Atlas and VT31 laboratory
 
 ### Entry
 
-R1 must not enter solely because a raid occurred. Entry requires a completed pre-entry reversal sequence in the Silver Bullet window with displacement/confirmation and a deterministic executable price derived from the confirmed PD-array/retrace rule implemented in code.
+R1 does not inherit the R8 empirical quality/tail filters. It uses the source-anchored R2.2 causal sequence and its separately fingerprinted execution policy. This prevents consumed outcome labels from becoming new entry filters.
 
 ### Initial invalidation
 
-The R8 raid/final-extreme stop is retired for R1. Initial invalidation must be tied to the deterministic displacement-associated/protected structural swing that exists before entry. The stop may not be widened or selected by retrospective PnL.
+The initial stop is the source-methodological swing extreme already frozen in the R2.2 source setup, with no retrospective widening and no extra buffer. CIBO root-cause evidence explicitly does not prove that initial stops should simply be widened; therefore R1 does not optimize stop distance from consumed PnL.
 
 ### Protection lifecycle
 
-Consumed NAS100 research showed materially more post-stop continuation after protected-stop exits than after initial-stop exits. R1 therefore must not arm a protected stop immediately on first favorable movement. Protection may arm only after an objective post-entry structural confirmation defined in code from information available at that instant. Before that event, the original structural invalidation remains in force.
+R8/R5 M1 protected-swing trailing is removed from R1. Consumed NAS100 research showed substantially more eventual source-objective completion after protected-stop exits than after initial-stop exits, concentrating the repair on premature management rather than on arbitrary stop widening. R1 uses the source-anchored containment rule: the original structural stop remains in force until price reaches the setup's precomputed 3R management boundary; only then is the stop moved once to breakeven. No further trailing is allowed.
 
 ### Target
 
-Fixed 2R is not assumed to be the destination. R1 target selection is structural: the deterministic opposite-liquidity destination known at entry. R-multiples remain measurement telemetry. If structural target data are unavailable or invalid, fail closed rather than substitute a retrospectively favorable target.
+Fixed 2R is retired. The target is the opposite frozen 09:00 reference boundary carried by the source setup and known before entry. R-multiples are measurement telemetry, not the target selector. If the structural target is not valid relative to entry/stop, the setup fails closed.
 
 ### Lifecycle
 
-The trade remains bounded by the AM Silver Bullet lifecycle policy implemented in code. A position that has not completed its structural destination is handled by the deterministic time/lifecycle exit; no post-hoc extension is allowed.
+Pending orders expire at 11:00 NY. Filled positions may survive 11:00 and are bounded by the deterministic 16:00 NY research lifecycle. If neither stop nor structural target has resolved by the lifecycle boundary, the last admissible pre-16:00 close is used as the time exit. Gaps or unresolved same-bar path ambiguity fail closed/censor rather than assume a favorable sequence.
 
 ## Mandatory measurements
 
-For consumed validation, the new 1Y holdout and subsequent WFO report at minimum: roots, executable trades, no-trades, censored cases, initial/protected/time/target exits, win rate, total and mean R, PF, max drawdown, max losing streak, long/short decomposition, MFE, MAE, time-to-MFE, time-to-stop, time-to-target, 0.25R/0.5R/1R/1.5R/2R/2.5R/3R excursions, structural-target reach, friction stress, and Monte Carlo path risk.
+The new 1Y holdout and subsequent WFO report at minimum: market days, source setups, executable setups, fills, no-fills, censored cases, initial-stop / breakeven-stop / lifecycle / structural-target exits, win rate, total and mean R, PF, max drawdown, max losing streak, long/short decomposition, entry family, planned structural target R, MFE, MAE, time-to-MFE, time-to-stop, time-to-target, 0.25R/0.5R/1R/1.5R/2R/2.5R/3R excursion reach, structural-target reach, friction stress, and Monte Carlo path risk.
+
+## Holdout order
+
+Per Owner instruction dated 17-Sep-2026, R1 is frozen before opening the holdout; the new intact 1Y NAS100 holdout is then evaluated once, permanently consumed, and only after that result is the unchanged R1 introduced to WFO. The holdout is not reused as fresh evidence and no post-open retuning is permitted.
 
 ## Freeze condition
 
