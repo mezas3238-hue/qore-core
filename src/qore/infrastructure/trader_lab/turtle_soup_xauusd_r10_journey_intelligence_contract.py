@@ -22,7 +22,8 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 IDENTITY = "TURTLE_SOUP_XAUUSD_R10_CIBO_JOURNEY_INTELLIGENCE_CONTRACT_V1"
 EVIDENCE_STATUS = (
