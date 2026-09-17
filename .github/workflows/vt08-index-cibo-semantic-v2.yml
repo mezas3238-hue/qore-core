@@ -1,0 +1,261 @@
+name: VT08 Index CIBO Semantic V2
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-cibo-semantic-v2.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_cibo_semantic_v2.py
+      - tests/infrastructure/trader_lab/test_vt08_index_cibo_semantic_v2.py
+      - docs/research/VT08-INDEX-CIBO-SEMANTIC-V2-001.md
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" -- \
+            src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ["V7_RULE_FINGERPRINT"]
+          PY
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - name: Focused semantic V2 tests
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_cibo_semantic_v2.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  semantic-v2:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+
+      - name: Download validated Market Journey Atlas
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-market-journey-atlas-dd81261a81c594e3c3d1a357b09521fbc6152e5b
+          path: artifacts/journey
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35159041735
+
+      - name: Download validated Reaction Structure Atlas
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-reaction-structure-atlas-d4388b0ab5f0225cd3ccaaee5d1bfe61da48ce7c
+          path: artifacts/reaction
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166186219
+
+      - name: Download consumed 2018-20 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v7-fresh-*-c58751a753ef14841bd971e8abfed0388d122a02
+          path: artifacts/w2018
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35082269231
+
+      - name: Download consumed 2020-22 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v6-fresh-*-0f992b3709c3d5d5d938e722ce434653c487734b
+          path: artifacts/w2020
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35054539866
+
+      - name: Download consumed 2022-23 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v3-fresh-decision-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/w2022
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+
+      - name: Download consumed 2023-24 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-r2-decision-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/w2023
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+
+      - name: Download consumed 2024-26 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-v2-source-executable-*-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/w2024
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Build semantic V2 ledgers on five consumed windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/semantic-v2/windows artifacts/semantic-v2/combined
+
+          resolve_triplet() {
+            root="$1"
+            nas="$(find "$root" -path '*NAS100*' -name market-evidence.json -print -quit)"
+            sp="$(find "$root" -path '*SP500*' -name market-evidence.json -print -quit)"
+            us="$(find "$root" -path '*US30*' -name market-evidence.json -print -quit)"
+            test -n "$nas" && test -n "$sp" && test -n "$us"
+            printf '%s\n%s\n%s\n' "$nas" "$sp" "$us"
+          }
+
+          mapfile -t w18 < <(resolve_triplet artifacts/w2018)
+          mapfile -t w20 < <(resolve_triplet artifacts/w2020)
+          mapfile -t w24 < <(resolve_triplet artifacts/w2024)
+
+          run_v2() {
+            id="$1"; nas="$2"; sp="$3"; us="$4"
+            python -m qore.infrastructure.trader_lab.vt08_index_cibo_semantic_v2 window \
+              --journey "artifacts/journey/windows/${id}.json" \
+              --reaction "artifacts/reaction/windows/${id}.json" \
+              --nas100 "$nas" --sp500 "$sp" --us30 "$us" \
+              --out-dir "artifacts/semantic-v2/windows/${id}"
+          }
+
+          run_v2 w2018_2020 "${w18[0]}" "${w18[1]}" "${w18[2]}"
+          run_v2 w2020_2022 "${w20[0]}" "${w20[1]}" "${w20[2]}"
+          run_v2 w2022_2023 \
+            artifacts/w2022/truncated/NAS100.json \
+            artifacts/w2022/truncated/SP500.json \
+            artifacts/w2022/truncated/US30.json
+          run_v2 w2023_2024 \
+            artifacts/w2023/truncated/NAS100.json \
+            artifacts/w2023/truncated/SP500.json \
+            artifacts/w2023/truncated/US30.json
+          run_v2 w2024_2026 "${w24[0]}" "${w24[1]}" "${w24[2]}"
+
+          python -m qore.infrastructure.trader_lab.vt08_index_cibo_semantic_v2 combine \
+            artifacts/semantic-v2/windows/w2018_2020 \
+            artifacts/semantic-v2/windows/w2020_2022 \
+            artifacts/semantic-v2/windows/w2022_2023 \
+            artifacts/semantic-v2/windows/w2023_2024 \
+            artifacts/semantic-v2/windows/w2024_2026 \
+            --out-dir artifacts/semantic-v2/combined
+
+      - name: Verify semantic V2 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/semantic-v2/combined")
+          manifest = json.loads((root / "CIBO_SEMANTIC_V2_MANIFEST.json").read_text())
+          assert manifest["window_count"] == 5
+          assert manifest["governance"]["changes_v7"] is False
+          assert manifest["governance"]["fresh_holdout_opened"] is False
+          assert manifest["contract"]["legacy_0_5r_proxy_retained_for_comparison_only"] is True
+
+          source = json.loads((root / "SOURCE_STRUCTURE_LEDGER_V2.json").read_text())
+          departure = json.loads((root / "DEPARTURE_TIMING_LEDGER_V2.json").read_text())
+          sync = json.loads((root / "TRADER_MARKET_SYNC_LEDGER_V2.json").read_text())
+          cross = json.loads((root / "CROSS_INDEX_JOURNEY_LEDGER_V2.json").read_text())
+
+          assert source["row_count"] == departure["row_count"] == sync["row_count"]
+          assert source["row_count"] > 2000
+          assert cross["row_count"] > 0
+
+          for row in source["rows"]:
+              assert row["signal_at_matches_reconstruction"] is True
+              assert row["cisd_confirmed_at"] <= row["continuation_at"]
+              assert row["protected_swing_confirmed_at"] == row["cisd_confirmed_at"]
+
+          for row in departure["rows"]:
+              assert row["departure_at"] == row["signal_at"]
+              assert row["legacy_0_5r_proxy"]["is_departure_definition"] is False
+              assert row["departure_definition"] == "frozen-v7-first-causal-m15-continuation-closure"
+
+          expected = {
+              "A_DIRECTION_ERROR",
+              "B_TIMING_ERROR",
+              "C_STOP_LOCATION_ERROR",
+              "D_STRUCTURE_SELECTION_ERROR",
+              "E_CONFIRMATION_ERROR",
+              "F_TARGET_ERROR",
+              "G_REGIME_ERROR",
+              "H_CROSS_INDEX_CONTEXT_ERROR",
+              "I_CORRECT_LOSS",
+          }
+          for row in sync["rows"]:
+              taxonomy = row["error_taxonomy"]
+              assert expected <= set(taxonomy)
+              assert taxonomy["non_causal_multi_label"] is True
+          PY
+
+      - name: Build semantic V2 summary
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          root = Path("artifacts/semantic-v2/combined")
+          source = json.loads((root / "SOURCE_STRUCTURE_LEDGER_V2.json").read_text())
+          sync = json.loads((root / "TRADER_MARKET_SYNC_LEDGER_V2.json").read_text())
+
+          counts = Counter()
+          for row in sync["rows"]:
+              for name, payload in row["error_taxonomy"].items():
+                  if name == "non_causal_multi_label":
+                      continue
+                  if payload["status"] == "candidate":
+                      counts[name] += 1
+
+          lines = [
+              "# VT08 Index CIBO Semantic V2",
+              "",
+              f"- reconstructed frozen V7 episodes: {source['row_count']}",
+              "- canonical departure: frozen V7 first causal M15 continuation closure",
+              "- legacy +0.5R retained only as non-canonical comparison proxy",
+              "- fresh holdout opened: NO",
+              "- V7 changed: NO",
+              "",
+              "## A-I diagnostic candidate counts",
+          ]
+          lines.extend(f"- {name}: {count}" for name, count in sorted(counts.items()))
+          (root / "CIBO_SEMANTIC_V2_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-semantic-v2-${{ github.sha }}
+          path: artifacts/semantic-v2
+          if-no-files-found: error
+          retention-days: 90
