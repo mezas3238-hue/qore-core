@@ -1,4 +1,5 @@
 name: QORE Turtle Soup XAUUSD R1 Consumed 10Y Replay
+# Registered replay workflow; this commit triggers the frozen consumed-corpus run.
 
 on:
   workflow_dispatch:
