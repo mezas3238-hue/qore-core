@@ -22,7 +22,6 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from statistics import median
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
