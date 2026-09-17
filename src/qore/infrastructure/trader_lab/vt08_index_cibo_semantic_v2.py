@@ -223,7 +223,6 @@ def _taxonomy(
     stopped = str(trade["exit_reason"]) == "stop"
     hit05 = bool(_hit_payload(trade, "0.5")["hit"])
     hit1 = bool(_hit_payload(trade, "1")["hit"])
-    hit2 = bool(_hit_payload(trade, "2")["hit"])
     hit3 = bool(_hit_payload(trade, "3")["hit"])
     afterlife = cast(dict[str, object] | None, trade.get("post_stop_afterlife"))
     later2 = False
