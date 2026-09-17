@@ -107,11 +107,11 @@ def _geometry(
 
     return {
         "active_dol_count": len(active),
-        "nearest_dol_r": distances[0] / risk,
+        "nearest_dol_r": str(distances[0] / risk),
         "selected_dol_rank": selected_rank,
-        "selected_rr": selected_distance / risk,
-        "protected_risk_entry_fraction": risk / entry,
-        "selected_target_entry_fraction": selected_distance / entry,
+        "selected_rr": str(selected_distance / risk),
+        "protected_risk_entry_fraction": str(risk / entry),
+        "selected_target_entry_fraction": str(selected_distance / entry),
     }
 
 
