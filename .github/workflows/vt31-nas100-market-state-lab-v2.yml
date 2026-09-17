@@ -7,6 +7,10 @@ on:
     paths:
       - scripts/vt31_nas100_market_state_lab_v2.py
       - .github/workflows/vt31-nas100-market-state-lab-v2.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_market_state_lab_v2.py
+      - .github/workflows/vt31-nas100-market-state-lab-v2.yml
   workflow_dispatch:
 
 permissions:
@@ -14,7 +18,7 @@ permissions:
   actions: read
 
 env:
-  GH_TOKEN: \${{ github.token }}
+  GH_TOKEN: ${{ github.token }}
   CIBO_ARTIFACT_ID: 10478487667
   CIBO_DIGEST: 17c8d1909152d87ed67a05cd986fa9cca39b2ac92598d36822c38e8afccde192
 
@@ -37,9 +41,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
-      PARTITION: \${{ matrix.partition }}
-      EVIDENCE_ARTIFACT_ID: \${{ matrix.artifact_id }}
-      EVIDENCE_DIGEST: \${{ matrix.digest }}
+      PARTITION: ${{ matrix.partition }}
+      EVIDENCE_ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EVIDENCE_DIGEST: ${{ matrix.digest }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -59,10 +63,10 @@ jobs:
       - name: Recover immutable CIBO laboratory
         run: |
           set -euo pipefail
-          digest="$(gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${CIBO_ARTIFACT_ID}" --jq .digest)"
-          test "$digest" = "sha256:\${CIBO_DIGEST}"
-          gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${CIBO_ARTIFACT_ID}/zip" > cibo.zip
-          echo "\${CIBO_DIGEST}  cibo.zip" | sha256sum -c -
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CIBO_ARTIFACT_ID}" --jq .digest)"
+          test "$digest" = "sha256:${CIBO_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CIBO_ARTIFACT_ID}/zip" > cibo.zip
+          echo "${CIBO_DIGEST}  cibo.zip" | sha256sum -c -
           mkdir cibo
           unzip -q cibo.zip -d cibo
           (cd cibo && sha256sum -c SHA256SUMS)
@@ -75,10 +79,10 @@ jobs:
       - name: Recover immutable consumed NAS100 fold
         run: |
           set -euo pipefail
-          digest="$(gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${EVIDENCE_ARTIFACT_ID}" --jq .digest)"
-          test "$digest" = "sha256:\${EVIDENCE_DIGEST}"
-          gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${EVIDENCE_ARTIFACT_ID}/zip" > evidence.zip
-          echo "\${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT_ID}" --jq .digest)"
+          test "$digest" = "sha256:${EVIDENCE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT_ID}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
           mkdir evidence
           unzip -q evidence.zip -d evidence
           if [ -f evidence/SHA256SUMS ]; then
@@ -93,8 +97,8 @@ jobs:
           python scripts/vt31_nas100_market_state_lab_v2.py \
             --ledger-dir cibo \
             --evidence evidence/fresh/NAS100/market-evidence.json \
-            --partition "\${PARTITION}" \
-            --output "result/vt31-nas100-market-state-v2-\${PARTITION}.json" \
+            --partition "${PARTITION}" \
+            --output "result/vt31-nas100-market-state-v2-${PARTITION}.json" \
             | tee result/summary.json
 
       - name: Governance validation
@@ -134,15 +138,15 @@ jobs:
       - name: Bind immutable result
         run: |
           set -euo pipefail
-          echo "\${GITHUB_SHA}" > result/git-sha.txt
-          echo "\${PARTITION}" > result/partition.txt
-          echo "\${CIBO_ARTIFACT_ID} sha256:\${CIBO_DIGEST}" > result/cibo-evidence.txt
-          echo "\${EVIDENCE_ARTIFACT_ID} sha256:\${EVIDENCE_DIGEST}" > result/market-evidence.txt
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          echo "${PARTITION}" > result/partition.txt
+          echo "${CIBO_ARTIFACT_ID} sha256:${CIBO_DIGEST}" > result/cibo-evidence.txt
+          echo "${EVIDENCE_ARTIFACT_ID} sha256:${EVIDENCE_DIGEST}" > result/market-evidence.txt
           (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-vt31-nas100-market-state-v2-\${{ matrix.partition }}-\${{ github.sha }}
+          name: qore-vt31-nas100-market-state-v2-${{ matrix.partition }}-${{ github.sha }}
           path: result/
           if-no-files-found: error
           retention-days: 90
