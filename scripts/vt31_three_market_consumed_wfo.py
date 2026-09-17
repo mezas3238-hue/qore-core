@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import vt31_nas100_r1_candidate as baseline
+
 from qore.infrastructure.traders import vt31_silver_bullet_r2_2 as source_model
 
 MARKETS = ("NAS100", "SP500", "US30")
