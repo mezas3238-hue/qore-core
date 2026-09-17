@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 
 from qore.infrastructure.trader_lab.turtle_soup_xauusd_r10_cibo_structural_knowledge_base import (
     claim_by_code,
@@ -291,11 +291,6 @@ def assess_situation(observation: SituationObservation) -> SituationAssessment:
             "A_CISD_POST_RECLAIM_REVIOLATION",
         )
         if strongest_pair:
-            claims = (
-                claim_by_code("K09_BREAK_A_MULTICHANNEL_TRANSFER_CLUE"),
-                claim_by_code("K07_BREAK_A_B_REMAIN_CONFLICTED"),
-                claim_by_code("K08_POSITIVE_VALIDITY_NOT_YET_PROVEN"),
-            )
             return SituationAssessment(
                 identity=IDENTITY,
                 observed_at=observation.observed_at,
@@ -304,7 +299,11 @@ def assess_situation(observation: SituationObservation) -> SituationAssessment:
                 directive=SituationDirective.RESEARCH_CANDIDATE_NO_ENTRY,
                 evidence_grade=EvidenceGrade.MULTICHANNEL_TRANSFERRED_CLUE,
                 evidence_signals=signals,
-                knowledge_claim_codes=tuple(item.code for item in claims),
+                knowledge_claim_codes=(
+                    claim_by_code("K09_BREAK_A_MULTICHANNEL_TRANSFER_CLUE").code,
+                    claim_by_code("K07_BREAK_A_B_REMAIN_CONFLICTED").code,
+                    claim_by_code("K08_POSITIVE_VALIDITY_NOT_YET_PROVEN").code,
+                ),
                 explanation=(
                     "Two independent pre-entry channels match the strongest frozen BREAK A transfer clue.",
                     "The conjunction preserved its structural-capacity direction without recalibration in early, transition, and recent consumed partitions.",
@@ -313,10 +312,6 @@ def assess_situation(observation: SituationObservation) -> SituationAssessment:
                 dol_context=_dol_context(observation),
             )
 
-        claims = (
-            claim_by_code("K07_BREAK_A_B_REMAIN_CONFLICTED"),
-            claim_by_code("K05_BREAK_A_OPPOSING_SERIES_LENGTH_CLUE"),
-        )
         return SituationAssessment(
             identity=IDENTITY,
             observed_at=observation.observed_at,
@@ -325,7 +320,10 @@ def assess_situation(observation: SituationObservation) -> SituationAssessment:
             directive=SituationDirective.ABSTAIN_CONFLICTED,
             evidence_grade=EvidenceGrade.CONFLICTED_WITH_CONTEXT,
             evidence_signals=signals,
-            knowledge_claim_codes=tuple(item.code for item in claims),
+            knowledge_claim_codes=(
+                claim_by_code("K07_BREAK_A_B_REMAIN_CONFLICTED").code,
+                claim_by_code("K05_BREAK_A_OPPOSING_SERIES_LENGTH_CLUE").code,
+            ),
             explanation=(
                 "BREAK A is historically viable but degraded recently.",
                 "The strongest transferred multi-channel clue is not simultaneously present.",
@@ -340,11 +338,6 @@ def assess_situation(observation: SituationObservation) -> SituationAssessment:
             "B_RAID_DEPTH_RELATIVE_C1",
             "B_PS_CANDLE_RANGE",
         )
-        claims = [
-            claim_by_code("K07_BREAK_A_B_REMAIN_CONFLICTED"),
-            claim_by_code("K10_BREAK_B_RAID_PS_TRANSFER_CLUE"),
-            claim_by_code("K11_BREAK_B_CISD_EXPANSION_NOT_STABLE"),
-        ]
         explanation = [
             "BREAK B remains conflicted because recent degradation is not yet causally resolved.",
         ]
@@ -367,7 +360,11 @@ def assess_situation(observation: SituationObservation) -> SituationAssessment:
             directive=SituationDirective.ABSTAIN_CONFLICTED,
             evidence_grade=EvidenceGrade.CONFLICTED_WITH_CONTEXT,
             evidence_signals=signals,
-            knowledge_claim_codes=tuple(item.code for item in claims),
+            knowledge_claim_codes=(
+                claim_by_code("K07_BREAK_A_B_REMAIN_CONFLICTED").code,
+                claim_by_code("K10_BREAK_B_RAID_PS_TRANSFER_CLUE").code,
+                claim_by_code("K11_BREAK_B_CISD_EXPANSION_NOT_STABLE").code,
+            ),
             explanation=tuple(explanation),
             dol_context=_dol_context(observation),
         )
@@ -450,4 +447,4 @@ def assessment_to_dict(assessment: SituationAssessment) -> dict[str, Any]:
             return [convert(item) for item in value]
         return value
 
-    return convert(raw)
+    return cast(dict[str, Any], convert(raw))
