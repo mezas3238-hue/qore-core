@@ -19,9 +19,11 @@ def test_vt31_nas100_r1_contract_self_test() -> None:
 
 
 def test_vt31_nas100_r1_freeze_contract_preserves_one_shot_order() -> None:
-    text = Path("docs/research/VT31_NAS100_R1_FREEZE_CONTRACT.md").read_text(encoding="utf-8")
-    assert "freeze->one-intact-1Y-holdout->permanently-consume->unchanged-WFO" not in text
-    assert "freeze -> one 1Y fresh holdout" in text
+    text = Path("docs/research/VT31_NAS100_R1_FREEZE_CONTRACT.md").read_text(
+        encoding="utf-8"
+    )
+    assert "R1 is frozen before opening the holdout" in text
+    assert "permanently consumed" in text
     assert "no post-open retuning" in text
     assert "Fixed 2R is retired" in text
     assert "M1 protected-swing trailing is removed" in text
