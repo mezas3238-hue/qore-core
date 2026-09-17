@@ -89,6 +89,13 @@ R10_INTELLIGENCE = EvidenceRef(
 )
 
 
+R10_MEMORY_ATLAS = EvidenceRef(
+    code="R10_CAUSAL_MEMORY_TRANSFER_ATLAS",
+    run_id=35280678425,
+    artifact_id=10522826606,
+    digest="sha256:c5ca6976877e53ceb797cc81e6a1e12e94b8d38ae4fd38b4a55e91f3d67baeaa",
+)
+
 CLAIMS = (
     StructuralKnowledgeClaim(
         code="K01_ROBUST_INVALID_DEEP_RAID_LATE_CISD",
@@ -184,6 +191,54 @@ CLAIMS = (
         limitations=(
             "no date/year rule is permitted",
             "no retrospective blacklist is justified",
+        ),
+    ),
+    StructuralKnowledgeClaim(
+        code="K09_BREAK_A_MULTICHANNEL_TRANSFER_CLUE",
+        subject="multi_channel_interaction",
+        statement=(
+            "For BREAK A, the frozen early-history conjunction of stronger C1 directional wick "
+            "and lower post-reclaim re-violation retained a positive association with touching "
+            "active DOL across 2016-20, 2021-23, and 2024-26 without recalibration."
+        ),
+        strength=KnowledgeStrength.STABLE_CLUE_NOT_RULE,
+        operating_use=OperatingUse.REASONING_CONTEXT_ONLY,
+        evidence=(R10_MEMORY_ATLAS,),
+        limitations=(
+            "true-conjunction samples are small: 16 early, 8 transition, 6 recent",
+            "anchors were learned on consumed early history and are diagnostic only",
+            "transfer success is not trade permission and must not open the fresh holdout",
+        ),
+    ),
+    StructuralKnowledgeClaim(
+        code="K10_BREAK_B_RAID_PS_TRANSFER_CLUE",
+        subject="multi_channel_interaction",
+        statement=(
+            "For BREAK B, relative raid depth to C1 combined with Protected Swing candle range "
+            "kept a positive but modest structural-capacity association across all three consumed "
+            "temporal partitions without recalibration."
+        ),
+        strength=KnowledgeStrength.STABLE_CLUE_NOT_RULE,
+        operating_use=OperatingUse.REASONING_CONTEXT_ONLY,
+        evidence=(R10_MEMORY_ATLAS,),
+        limitations=(
+            "separation is materially weaker than the BREAK A multi-channel clue",
+            "the relation remains research context, not a positive entry contract",
+        ),
+    ),
+    StructuralKnowledgeClaim(
+        code="K11_BREAK_B_CISD_EXPANSION_NOT_STABLE",
+        subject="multi_channel_interaction",
+        statement=(
+            "BREAK B CISD confirmation-range evidence did not transfer consistently: "
+            "the early-history relation reversed in the 2021-23 transition partition, "
+            "including pre-registered interaction pairs."
+        ),
+        strength=KnowledgeStrength.INSUFFICIENT_STANDALONE,
+        operating_use=OperatingUse.REASONING_CONTEXT_ONLY,
+        evidence=(R10_MEMORY_ATLAS,),
+        limitations=(
+            "do not encode CISD expansion magnitude as a universal BREAK B permission rule",
         ),
     ),
     StructuralKnowledgeClaim(
