@@ -30,8 +30,6 @@ from qore.infrastructure.trader_lab import turtle_soup_xauusd_r9_journey_diverge
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Side,
     SourceCandle,
-    build_h1,
-    build_h4,
     causal_cisd,
 )
 
