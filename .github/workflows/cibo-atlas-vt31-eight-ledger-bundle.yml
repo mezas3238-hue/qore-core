@@ -5,6 +5,7 @@ on:
     branches: [agent/cibo-atlas-vt31-market-specialists-001]
     paths:
       - scripts/cibo_atlas_vt31_eight_ledger_builder.py
+      - scripts/cibo_atlas_vt31_departure_timing_upgrade.py
       - docs/research/CIBO_ATLAS_VT31_EIGHT_LEDGER_CONTRACT.md
       - .github/workflows/cibo-atlas-vt31-eight-ledger-bundle.yml
   workflow_dispatch:
@@ -30,9 +31,10 @@ jobs:
       - name: Static validation
         run: |
           set -euo pipefail
-          python -m py_compile scripts/cibo_atlas_vt31_eight_ledger_builder.py
-          ruff check --ignore E501,I001,UP035,SLF001,F401,F841 scripts/cibo_atlas_vt31_eight_ledger_builder.py
+          python -m py_compile scripts/cibo_atlas_vt31_eight_ledger_builder.py scripts/cibo_atlas_vt31_departure_timing_upgrade.py
+          ruff check --ignore E501,I001,UP035,SLF001,F401,F841 scripts/cibo_atlas_vt31_eight_ledger_builder.py scripts/cibo_atlas_vt31_departure_timing_upgrade.py
           python scripts/cibo_atlas_vt31_eight_ledger_builder.py --self-test
+          python scripts/cibo_atlas_vt31_departure_timing_upgrade.py --self-test
       - name: Recover immutable definitive forensics
         run: |
           set -euo pipefail
@@ -99,6 +101,7 @@ jobs:
             --r5-sp500 evidence-r5/fresh/SP500/market-evidence.json \
             --r5-us30 evidence-r5/fresh/US30/market-evidence.json \
             --output-dir result
+          python scripts/cibo_atlas_vt31_departure_timing_upgrade.py --result-dir result
       - name: Validate eight-ledger conservation and governance
         run: |
           set -euo pipefail
@@ -122,6 +125,8 @@ jobs:
           assert s['ledger_counts']['MARKET_JOURNEY_LEDGER']==s['ledger_counts']['DAILY_PATH_LEDGER']
           assert s['ledger_counts']['MARKET_JOURNEY_LEDGER']==s['ledger_counts']['TARGET_DESTINATION_LEDGER']
           assert s['ledger_counts']['TRADER_MARKET_SYNC_LEDGER']==618
+          assert s['ledger_counts']['DEPARTURE_TIMING_LEDGER']==s['ledger_counts']['PRE_DEPARTURE_SEQUENCE_LEDGER']
+          assert s['departure_timing_scope']=='all-completed-market-reversal-episodes-with-trader-root-overlays'
           for name in expected:
             p=Path('result')/f'{name}.jsonl'
             assert p.is_file() and p.stat().st_size>0
