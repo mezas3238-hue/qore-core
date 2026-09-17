@@ -119,7 +119,6 @@ jobs:
               'sample': row['sample'],
               'total_r': row['total_r'],
               'mean_r': row['mean_r'],
-              'win_rate': row['win_rate'],
               'profit_factor': row['profit_factor'],
               'max_drawdown_r': row['max_drawdown_r'],
               'max_losing_streak': row['max_losing_streak'],
