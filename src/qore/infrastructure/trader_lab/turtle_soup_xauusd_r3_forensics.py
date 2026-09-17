@@ -9,10 +9,11 @@ from __future__ import annotations
 import json
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 IDENTITY = "TURTLE_SOUP_XAUUSD_R3_FAILURE_FORENSICS_V1"
 R3_RUN_ID = 35256772043
