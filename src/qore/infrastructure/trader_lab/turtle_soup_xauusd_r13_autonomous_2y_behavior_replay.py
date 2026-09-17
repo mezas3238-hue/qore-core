@@ -42,6 +42,9 @@ from qore.infrastructure.trader_lab import (
     turtle_soup_xauusd_r3_cibo_journey as r3,
 )
 from qore.infrastructure.trader_lab import (
+    turtle_soup_xauusd_r3_cibo_journey_binding_repair as binding_repair,
+)
+from qore.infrastructure.trader_lab import (
     turtle_soup_xauusd_r5_regime_journey_validity_forensics as r5,
 )
 from qore.infrastructure.trader_lab import (
@@ -341,7 +344,7 @@ def run(
     if int(provenance["retained_bars"]) != 707716:
         raise ValueError("R13 unexpected retained bar count")
 
-    episodes, source_index = r3._load_targets(target_root)
+    episodes, source_index = binding_repair._load_targets_fail_closed(target_root)
 
     original_open, original_close = r3.r1.EVAL_OPEN, r3.r1.EVAL_CLOSE
     try:
@@ -533,6 +536,7 @@ def run(
             "setup_pool_10y": len(setups),
             "matched_rows_10y": len(all_rows),
             "unmatched_10y": unmatched,
+            "ambiguous_source_opposite_keys_fail_closed": binding_repair._LAST_AMBIGUOUS_KEYS,
             "setups_presented_2y": len(eval_rows),
         },
         "autonomy_contract": {
@@ -552,6 +556,7 @@ def run(
             "max_lifetime": "24H",
             "calendar_year_used_as_trade_feature": False,
             "post_entry_data_used_for_decision": False,
+            "ambiguous_source_bindings_fail_closed": True,
             "fresh_holdout_used": False,
         },
         "behavior": {
