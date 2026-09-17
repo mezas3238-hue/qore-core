@@ -91,10 +91,14 @@ def test_supported_candidates_use_only_information_known_by_departure() -> None:
             2025, 1, 2, 9, 0, tzinfo=UTC
         ).isoformat(),
     }
-    frames = {"H1": (prior, current)}
+    frames: dict[str, tuple[SourceCandle, ...]] = {"H1": (prior, current)}
     frame_opens = {"H1": tuple(item.opened_at for item in frames["H1"])}
-    swings = {"H1": {Side.LONG: (), Side.SHORT: ()}}
-    swing_known = {"H1": {Side.LONG: (), Side.SHORT: ()}}
+    swings: dict[str, dict[Side, tuple[target.SwingCandidate, ...]]] = {
+        "H1": {Side.LONG: (), Side.SHORT: ()}
+    }
+    swing_known: dict[str, dict[Side, tuple[datetime, ...]]] = {
+        "H1": {Side.LONG: (), Side.SHORT: ()}
+    }
 
     candidates = target._supported_candidates(
         row,
