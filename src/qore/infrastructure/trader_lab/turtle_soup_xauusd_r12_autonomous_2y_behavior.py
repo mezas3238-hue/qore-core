@@ -77,8 +77,8 @@ def _stats(rows: list[dict[str, Any]], extra_friction_r: Decimal = Decimal(0)) -
             continue
         delta = datetime.fromisoformat(str(row["exit_at"])) - datetime.fromisoformat(str(row["entry_at"]))
         durations.append(Decimal(str(delta.total_seconds())) / Decimal(60))
-    target_exits = sum(1 for row in rows if "TARGET" in str(row["exit_reason"]).upper())
-    stop_exits = sum(1 for row in rows if "STOP" in str(row["exit_reason"]).upper())
+    target_exits = sum(1 for row in rows if "TARGET" in str(row.get("exit_reason", "")).upper())
+    stop_exits = sum(1 for row in rows if "STOP" in str(row.get("exit_reason", "")).upper())
     return {
         "trades": len(rows),
         "wins": wins,
