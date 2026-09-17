@@ -116,6 +116,25 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/report/windows
 
+          # The validated Market Journey Atlas emits `window_id`. Reaction Atlas v2
+          # historically consumed `window`. Normalize only this metadata field at the
+          # diagnostic boundary; no trade/economic fields are changed.
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in sorted(Path('artifacts/journey/windows').glob('*.json')):
+              payload = json.loads(path.read_text(encoding='utf-8'))
+              if 'window' not in payload:
+                  if 'window_id' not in payload:
+                      raise SystemExit(f'{path}: missing window_id/window identity')
+                  payload['window'] = payload['window_id']
+              path.write_text(
+                  json.dumps(payload, sort_keys=True, separators=(',', ':')) + '\n',
+                  encoding='utf-8',
+              )
+          PY
+
           resolve_triplet() {
             root="$1"
             nas="$(find "$root" -path '*NAS100*' -name market-evidence.json -print -quit)"
