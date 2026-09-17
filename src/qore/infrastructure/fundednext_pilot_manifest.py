@@ -9,7 +9,7 @@ from pathlib import Path
 
 from qore.infrastructure.fundednext_live_guard import (
     CERTIFIED_LIVE_DIRECTIONS,
-    FINAL_CAUSAL_ENTRY_ANCHOR_NY,
+    LIVE_ENTRY_ANCHORS_NY,
     FOREX_OPEN_COMMISSION_PER_LOT_USD,
 )
 from qore.infrastructure.fundednext_operational_risk_policy import (
@@ -115,7 +115,7 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
                 symbol: sorted(sides)
                 for symbol, sides in sorted(CERTIFIED_LIVE_DIRECTIONS.items())
             },
-            "live_causal_entry_anchor_ny": FINAL_CAUSAL_ENTRY_ANCHOR_NY,
+            "live_causal_entry_anchor_ny": list(LIVE_ENTRY_ANCHORS_NY),
             "risk_scope": "ACCOUNT_WIDE",
             "signal_flow": (
                 "VT08_FOREX -> CAUSAL_DAILY_GATE -> CIBO -> BROKER_EXACT_SIZING -> "
