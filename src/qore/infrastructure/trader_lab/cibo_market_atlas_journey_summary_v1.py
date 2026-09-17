@@ -208,7 +208,11 @@ def _write_report(payload: dict[str, Any], path: Path) -> None:
             "",
             "## Governance / interpretation",
             "",
-            "These are consumed descriptive research statistics. Cross-index lead/lag is E1 association only. No field in this report authorizes a trader rule or execution.",
+            (
+                "These are consumed descriptive research statistics. Cross-index "
+                "lead/lag is E1 association only. No field in this report authorizes "
+                "a trader rule or execution."
+            ),
             "",
             "`DEMO_ELIGIBLE=false`  ",
             "`LIVE_AUTHORIZED=false`  ",
