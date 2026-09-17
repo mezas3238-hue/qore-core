@@ -18,7 +18,7 @@ permissions:
   actions: read
 
 env:
-  GH_TOKEN: \${{ github.token }}
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   renewal-forensics:
@@ -45,11 +45,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      PARTITION: \${{ matrix.partition }}
-      STATE_ARTIFACT: \${{ matrix.state_artifact }}
-      STATE_DIGEST: \${{ matrix.state_digest }}
-      EVIDENCE_ARTIFACT: \${{ matrix.evidence_artifact }}
-      EVIDENCE_DIGEST: \${{ matrix.evidence_digest }}
+      PARTITION: ${{ matrix.partition }}
+      STATE_ARTIFACT: ${{ matrix.state_artifact }}
+      STATE_DIGEST: ${{ matrix.state_digest }}
+      EVIDENCE_ARTIFACT: ${{ matrix.evidence_artifact }}
+      EVIDENCE_DIGEST: ${{ matrix.evidence_digest }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -68,22 +68,22 @@ jobs:
       - name: Recover immutable Market State V2
         run: |
           set -euo pipefail
-          digest="$(gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${STATE_ARTIFACT}" --jq .digest)"
-          test "$digest" = "sha256:\${STATE_DIGEST}"
-          gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${STATE_ARTIFACT}/zip" > state.zip
-          echo "\${STATE_DIGEST}  state.zip" | sha256sum -c -
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${STATE_ARTIFACT}" --jq .digest)"
+          test "$digest" = "sha256:${STATE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${STATE_ARTIFACT}/zip" > state.zip
+          echo "${STATE_DIGEST}  state.zip" | sha256sum -c -
           mkdir state
           unzip -q state.zip -d state
           (cd state && sha256sum -c SHA256SUMS)
-          test -f "state/vt31-nas100-market-state-v2-\${PARTITION}.json"
+          test -f "state/vt31-nas100-market-state-v2-${PARTITION}.json"
 
       - name: Recover immutable consumed NAS100 evidence
         run: |
           set -euo pipefail
-          digest="$(gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${EVIDENCE_ARTIFACT}" --jq .digest)"
-          test "$digest" = "sha256:\${EVIDENCE_DIGEST}"
-          gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${EVIDENCE_ARTIFACT}/zip" > evidence.zip
-          echo "\${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}" --jq .digest)"
+          test "$digest" = "sha256:${EVIDENCE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
           mkdir evidence
           unzip -q evidence.zip -d evidence
           if [ -f evidence/SHA256SUMS ]; then
@@ -96,9 +96,9 @@ jobs:
           set -euo pipefail
           mkdir result
           python scripts/vt31_nas100_stale_sequence_renewal_forensics.py \
-            --market-state "state/vt31-nas100-market-state-v2-\${PARTITION}.json" \
+            --market-state "state/vt31-nas100-market-state-v2-${PARTITION}.json" \
             --evidence evidence/fresh/NAS100/market-evidence.json \
-            --output "result/vt31-nas100-stale-renewal-\${PARTITION}.json" \
+            --output "result/vt31-nas100-stale-renewal-${PARTITION}.json" \
             | tee result/summary.json
 
       - name: Governance validation
@@ -130,15 +130,15 @@ jobs:
       - name: Bind immutable result
         run: |
           set -euo pipefail
-          echo "\${GITHUB_SHA}" > result/git-sha.txt
+          echo "${GITHUB_SHA}" > result/git-sha.txt
           echo "market-state-run=35284479467" > result/source-market-state-run.txt
-          echo "\${STATE_ARTIFACT} sha256:\${STATE_DIGEST}" > result/state-artifact.txt
-          echo "\${EVIDENCE_ARTIFACT} sha256:\${EVIDENCE_DIGEST}" > result/evidence-artifact.txt
+          echo "${STATE_ARTIFACT} sha256:${STATE_DIGEST}" > result/state-artifact.txt
+          echo "${EVIDENCE_ARTIFACT} sha256:${EVIDENCE_DIGEST}" > result/evidence-artifact.txt
           (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-vt31-nas100-stale-renewal-\${{ matrix.partition }}-\${{ github.sha }}
+          name: qore-vt31-nas100-stale-renewal-${{ matrix.partition }}-${{ github.sha }}
           path: result/
           if-no-files-found: error
           retention-days: 90
