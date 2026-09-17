@@ -95,7 +95,7 @@ def _run_variant(
     original_loader = r3._load_targets
     original_identity = r3.IDENTITY
     try:
-        r3._route_state = state_fn  # type: ignore[assignment]
+        r3._route_state = state_fn
         r3._load_targets = repair._load_targets_fail_closed
         r3.IDENTITY = f"TURTLE_SOUP_XAUUSD_{name}_TOPOLOGY_ROUTER"
         payload = r3.run(source_root, target_root, variant_output)
