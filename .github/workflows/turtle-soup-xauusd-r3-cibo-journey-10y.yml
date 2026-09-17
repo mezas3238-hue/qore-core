@@ -42,7 +42,7 @@ jobs:
             src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r3_cibo_journey.py \
             tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r3_cibo_journey.py
       - name: Mypy focused semantic gate
-        run: mypy --disable-error-code name-defined,var-annotated src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r3_cibo_journey.py
+        run: mypy --disable-error-code name-defined --disable-error-code var-annotated src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r3_cibo_journey.py
       - name: Focused tests
         run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r3_cibo_journey.py
       - name: Governance assertions before replay
