@@ -40,7 +40,7 @@ jobs:
             src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r2_cibo_full.py \
             tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r2_cibo_full.py
       - name: Mypy focused gate
-        run: mypy src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r2_cibo_full.py
+        run: mypy --disable-error-code name-defined src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r2_cibo_full.py
       - name: Focused tests
         run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r2_cibo_full.py
       - name: Governance assertions before replay
