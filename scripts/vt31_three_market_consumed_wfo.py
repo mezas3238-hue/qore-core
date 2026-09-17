@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import vt31_nas100_r1_candidate as baseline
+from qore.infrastructure.traders import vt31_silver_bullet_r2_2 as source_model
 
 MARKETS = ("NAS100", "SP500", "US30")
 PARTITIONS = ("r8_fresh", "r6", "r5")
@@ -57,12 +58,14 @@ def _compact(result: dict[str, Any]) -> dict[str, Any]:
 def run(partition_dirs: dict[str, Path]) -> dict[str, Any]:
     original_market = baseline.MARKET
     original_monte_carlo = baseline._monte_carlo
+    original_authorized_market = source_model.AUTHORIZED_MARKET
     replays: dict[str, dict[str, Any]] = {}
     baseline._monte_carlo = _wfo_monte_carlo
     try:
         for market in MARKETS:
             market_result: dict[str, Any] = {}
             baseline.MARKET = market
+            source_model.AUTHORIZED_MARKET = market
             for partition in PARTITIONS:
                 evidence = partition_dirs[partition] / market / "market-evidence.json"
                 if not evidence.is_file():
@@ -72,6 +75,7 @@ def run(partition_dirs: dict[str, Path]) -> dict[str, Any]:
     finally:
         baseline.MARKET = original_market
         baseline._monte_carlo = original_monte_carlo
+        source_model.AUTHORIZED_MARKET = original_authorized_market
 
     return {
         "schema": SCHEMA,
@@ -84,8 +88,15 @@ def run(partition_dirs: dict[str, Path]) -> dict[str, Any]:
             "fixed-policy chronological stability survey before market-specific "
             "CIBO parameter freeze"
         ),
+        "source_authority": {
+            "original_r2_2_market": "NAS100",
+            "sp500_us30_status": (
+                "research-only translation of the same formation mechanics; not source "
+                "authorization and not a production contract"
+            ),
+        },
         "baseline_policy": {
-            "strategy": "VT31 AM Silver Bullet / source-coherent R2.2 formation",
+            "strategy": "VT31 AM Silver Bullet / source-coherent R2.2 formation mechanics",
             "reference": "09:00-10:00 NY frozen range",
             "setup_window": "10:00-10:59 NY",
             "initial_stop": "source methodological swing extreme",
@@ -117,6 +128,7 @@ def self_test() -> None:
     assert MARKETS == ("NAS100", "SP500", "US30")
     assert PARTITIONS == ("r8_fresh", "r6", "r5")
     assert SCHEMA.endswith(".v1")
+    assert source_model.AUTHORIZED_MARKET == "NAS100"
     assert report["paths"] == 0
     assert not any(gates.values())
     print("VT31 three-market consumed WFO self-test PASS")
