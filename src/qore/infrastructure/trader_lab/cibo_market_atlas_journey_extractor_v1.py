@@ -1,9 +1,8 @@
 """CIBO Market Atlas Journey Layer V1 extractor.
 
 Research-only transformation of the retained ten-year M5 corpus into auditable
-journey ledgers. The extractor reuses the frozen Behavior Lab raid/reclaim/CISD
-semantics and fails closed for structures that do not yet have deterministic
-source-bound detectors.
+journey ledgers. Frozen Behavior Lab raid/reclaim/CISD semantics are reused and
+unsupported structures fail closed as UNRESOLVED_STRUCTURE.
 """
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ import hashlib
 import json
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -51,7 +49,7 @@ LEDGER_NAMES = (
     "TRADER_MARKET_SYNC_LEDGER",
 )
 
-ASSET_CLASS: dict[str, str] = {
+ASSET_CLASS = {
     "AUDJPY": "fx",
     "AUDUSD": "fx",
     "EURUSD": "fx",
@@ -212,13 +210,13 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         if event.reference_type == "swing-3"
         else "UNRESOLVED_STRUCTURE"
     )
-    if departure is not None:
-        final_structure = "CISD_RELATED_STRUCTURE"
-    elif event.same_source_reclaim:
-        final_structure = "LIQUIDITY_RAID_RECLAIM"
-    else:
-        final_structure = "UNRESOLVED_STRUCTURE"
-
+    final_structure = (
+        "CISD_RELATED_STRUCTURE"
+        if departure is not None
+        else "LIQUIDITY_RAID_RECLAIM"
+        if event.same_source_reclaim
+        else "UNRESOLVED_STRUCTURE"
+    )
     market = {
         "schema": MARKET_JOURNEY_SCHEMA,
         "identity": IDENTITY,
@@ -236,9 +234,7 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         "liquidity_raid_at": event.raid_at.isoformat(),
         "reclaim_at": None if reclaim_at is None else reclaim_at.isoformat(),
         "departure_at": None if departure is None else departure.isoformat(),
-        "departure_detector": (
-            "CAUSAL_CISD_V1" if departure is not None else "UNRESOLVED_DEPARTURE"
-        ),
+        "departure_detector": "CAUSAL_CISD_V1" if departure else "UNRESOLVED_DEPARTURE",
         "last_structure_before_departure": final_structure,
         "session_bucket": event.session_bucket,
         "ny_minute_of_day": event.ny_minute_of_day,
@@ -247,7 +243,6 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         "source_run_id": SOURCE_RUN_ID,
         "source_git_sha": SOURCE_GIT_SHA,
     }
-
     source_touch = {
         "schema": STRUCTURE_TOUCH_SCHEMA,
         "identity": IDENTITY,
@@ -273,7 +268,7 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         "causal_feature": True,
         "outcome_only": False,
     }
-    structure_rows = [source_touch]
+    structures = [source_touch]
     sequence = [
         {
             "order": 1,
@@ -283,29 +278,15 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         }
     ]
     if reclaim_at is not None:
-        structure_rows.append(
+        structures.append(
             {
-                "schema": STRUCTURE_TOUCH_SCHEMA,
-                "identity": IDENTITY,
-                "episode_id": episode_id,
-                "event_id": event_id,
-                "symbol": event.symbol,
-                "side": event.side,
+                **source_touch,
                 "structure_type": "LIQUIDITY_RAID_RECLAIM",
-                "detector_version": "ICT_TS_BEHAVIOR_LAB_V1",
-                "source_timeframe": event.timeframe,
                 "structure_created_at": event.raid_at.isoformat(),
                 "first_touch_at": reclaim_at.isoformat(),
                 "last_touch_at": reclaim_at.isoformat(),
-                "price_low": str(event.reference_level),
-                "price_high": str(event.reference_level),
-                "penetration_depth_ticks": str(event.raid_depth_ticks),
                 "reclaim_state": "RECLAIMED",
-                "dwell_minutes": event.reclaim_latency_minutes,
-                "revisit_count": None,
                 "last_structure_before_departure": departure is None,
-                "causal_feature": True,
-                "outcome_only": False,
             }
         )
         sequence.append(
@@ -317,17 +298,11 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
             }
         )
     if departure is not None:
-        structure_rows.append(
+        structures.append(
             {
-                "schema": STRUCTURE_TOUCH_SCHEMA,
-                "identity": IDENTITY,
-                "episode_id": episode_id,
-                "event_id": event_id,
-                "symbol": event.symbol,
-                "side": event.side,
+                **source_touch,
                 "structure_type": "CISD_RELATED_STRUCTURE",
                 "detector_version": "CAUSAL_CISD_V1",
-                "source_timeframe": event.timeframe,
                 "structure_created_at": event.source_opened_at.isoformat(),
                 "first_touch_at": departure.isoformat(),
                 "last_touch_at": departure.isoformat(),
@@ -336,10 +311,7 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
                 "penetration_depth_ticks": None,
                 "reclaim_state": "CISD_CONFIRMED",
                 "dwell_minutes": event.cisd_latency_minutes,
-                "revisit_count": None,
                 "last_structure_before_departure": True,
-                "causal_feature": True,
-                "outcome_only": False,
             }
         )
         sequence.append(
@@ -350,7 +322,6 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
                 "state": "DEPARTURE_CONFIRMATION",
             }
         )
-
     pre_departure = {
         "schema": PRE_DEPARTURE_SCHEMA,
         "identity": IDENTITY,
@@ -363,7 +334,6 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         "causal_feature": True,
         "outcome_only": False,
     }
-
     timing = {
         "schema": DEPARTURE_TIMING_SCHEMA,
         "identity": IDENTITY,
@@ -372,13 +342,6 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         "symbol": event.symbol,
         "structure_appearance_at": event.reference_opened_at.isoformat(),
         "first_touch_at": event.raid_at.isoformat(),
-        "last_touch_at": (
-            departure.isoformat()
-            if departure is not None
-            else reclaim_at.isoformat()
-            if reclaim_at is not None
-            else event.raid_at.isoformat()
-        ),
         "departure_at": None if departure is None else departure.isoformat(),
         "minutes_structure_creation_to_first_touch": int(
             (event.raid_at - event.reference_opened_at).total_seconds() // 60
@@ -396,7 +359,6 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
         "causal_feature": True,
         "outcome_only": False,
     }
-
     target = {
         "schema": TARGET_DESTINATION_SCHEMA,
         "identity": IDENTITY,
@@ -423,7 +385,7 @@ def event_ledgers(event: behavior.Event) -> dict[str, list[dict[str, Any]]]:
     }
     return {
         "MARKET_JOURNEY_LEDGER": [market],
-        "STRUCTURE_TOUCH_LEDGER": structure_rows,
+        "STRUCTURE_TOUCH_LEDGER": structures,
         "PRE_DEPARTURE_SEQUENCE_LEDGER": [pre_departure],
         "DEPARTURE_TIMING_LEDGER": [timing],
         "TARGET_DESTINATION_LEDGER": [target],
@@ -441,12 +403,13 @@ def daily_path_rows(evidence: Evidence) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for day, raw in sorted(grouped.items()):
         bars = sorted(raw, key=lambda item: item.opened_at)
-        if not bars:
-            continue
         high_bar = max(bars, key=lambda item: item.high)
         low_bar = min(bars, key=lambda item: item.low)
         total_path = sum(
-            (abs(right.close - left.close) for left, right in zip(bars, bars[1:], strict=False)),
+            (
+                abs(right.close - left.close)
+                for left, right in zip(bars, bars[1:], strict=False)
+            ),
             Decimal(0),
         )
         displacement = bars[-1].close - bars[0].open
@@ -454,7 +417,6 @@ def daily_path_rows(evidence: Evidence) -> list[dict[str, Any]]:
             min(left.high, right.high) >= max(left.low, right.low)
             for left, right in zip(bars, bars[1:], strict=False)
         )
-        denominator = max(len(bars) - 1, 1)
         span = high_bar.high - low_bar.low
         rows.append(
             {
@@ -473,7 +435,7 @@ def daily_path_rows(evidence: Evidence) -> list[dict[str, Any]]:
                 "path_efficiency": (
                     None if total_path == 0 else str(abs(displacement) / total_path)
                 ),
-                "overlap_fraction": overlap_count / denominator,
+                "overlap_fraction": overlap_count / max(len(bars) - 1, 1),
                 "realized_close_to_close_path": str(total_path),
                 "daily_high_at": high_bar.opened_at.isoformat(),
                 "daily_low_at": low_bar.opened_at.isoformat(),
@@ -499,7 +461,7 @@ def build_symbol_journey(source: Path, output: Path) -> dict[str, Any]:
         evidence,
         asset_class=ASSET_CLASS[evidence.symbol],
         provider=str(provenance["provider_symbol"]),
-        evidence_id=(f"atlas10y:{SOURCE_RUN_ID}:{SOURCE_GIT_SHA}:{evidence.symbol}"),
+        evidence_id=f"atlas10y:{SOURCE_RUN_ID}:{SOURCE_GIT_SHA}:{evidence.symbol}",
     )
     ledgers: dict[str, list[dict[str, Any]]] = {name: [] for name in LEDGER_NAMES}
     for event in events:
@@ -507,7 +469,6 @@ def build_symbol_journey(source: Path, output: Path) -> dict[str, Any]:
             ledgers[name].extend(rows)
     ledgers["DAILY_PATH_LEDGER"] = daily_path_rows(evidence)
     ledgers["TRADER_MARKET_SYNC_LEDGER"] = []
-
     output.mkdir(parents=True, exist_ok=True)
     counts: dict[str, int] = {}
     hashes: dict[str, str] = {}
@@ -515,7 +476,6 @@ def build_symbol_journey(source: Path, output: Path) -> dict[str, Any]:
         path = output / f"{name}.jsonl"
         counts[name] = _write_jsonl(path, ledgers[name])
         hashes[name] = _sha256(path)
-
     manifest = {
         "schema": MANIFEST_SCHEMA,
         "identity": IDENTITY,
@@ -541,8 +501,9 @@ def build_symbol_journey(source: Path, output: Path) -> dict[str, Any]:
         "real_capital_authorized": False,
         "production_authorized": False,
     }
-    manifest_path = output / "journey-manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    (output / "journey-manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    )
     return manifest
 
 
@@ -589,9 +550,7 @@ def cross_index_rows(
                     "episode_id": nearest["episode_id"] if within else None,
                     "departure_at": nearest_at.isoformat() if within else None,
                     "lead_lag_minutes": delta if within else None,
-                    "agreement": (
-                        row.get("side") == nearest.get("side") if within else None
-                    ),
+                    "agreement": row.get("side") == nearest.get("side") if within else None,
                     "comparison_window_minutes": 120,
                 }
             result.append(
@@ -612,8 +571,12 @@ def cross_index_rows(
     return result
 
 
-def build_cross_index(nas100: Path, sp500: Path, us30: Path, output: Path) -> dict[str, Any]:
-    rows = cross_index_rows(_read_jsonl(nas100), _read_jsonl(sp500), _read_jsonl(us30))
+def build_cross_index(
+    nas100: Path, sp500: Path, us30: Path, output: Path
+) -> dict[str, Any]:
+    rows = cross_index_rows(
+        _read_jsonl(nas100), _read_jsonl(sp500), _read_jsonl(us30)
+    )
     output.mkdir(parents=True, exist_ok=True)
     path = output / "CROSS_INDEX_JOURNEY_LEDGER.jsonl"
     count = _write_jsonl(path, rows)
