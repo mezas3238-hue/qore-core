@@ -33,7 +33,6 @@ from qore.infrastructure.trader_lab.vt08_index_market_journey_atlas import (
     _fmt,
     _load_bars,
 )
-from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 SCHEMA = "qore.trader_lab.vt08_index_cibo_semantic_v2.v1"
@@ -61,14 +60,6 @@ def _as_v7_bar(bar: Bar) -> Vt08IndexC2R1Bar:
         high=bar.high,
         low=bar.low,
         close=bar.close,
-    )
-
-
-def _side(value: object) -> DemoTradingSetupSide:
-    return (
-        DemoTradingSetupSide.LONG
-        if str(value).lower() == "long"
-        else DemoTradingSetupSide.SHORT
     )
 
 
