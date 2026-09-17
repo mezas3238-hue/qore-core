@@ -5,8 +5,13 @@ from qore.infrastructure.trader_lab import turtle_soup_xauusd_r9_cisd_sequence_f
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Side
 
 
-def _bar(o: str, h: str, l: str, c: str):
-    return SimpleNamespace(open=Decimal(o), high=Decimal(h), low=Decimal(l), close=Decimal(c))
+def _bar(open_: str, high: str, low: str, close: str):
+    return SimpleNamespace(
+        open=Decimal(open_),
+        high=Decimal(high),
+        low=Decimal(low),
+        close=Decimal(close),
+    )
 
 
 def test_path_efficiency_is_one_for_monotonic_path() -> None:
