@@ -6,6 +6,8 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.fundednext_stellar_instant import (
+    MAXIMUM_LOSS_FRACTION,
+    SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
     AutomationVerificationState,
     RuleVerificationState,
     StellarInstantAccountSnapshot,
@@ -35,13 +37,16 @@ def _snapshot(
     )
 
 
-def test_2k_initial_floor_is_1880_without_daily_loss_gate() -> None:
+def test_2k_exact_account_contract_is_6pct_trailing_with_3pct_cumulative_open_risk_gate() -> None:
     budget = evaluate_stellar_instant_budget(_snapshot())
+    assert MAXIMUM_LOSS_FRACTION == Decimal("0.06")
+    assert SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION == Decimal("0.03")
     assert budget.loss_allowance == Decimal("120.00")
     assert budget.active_mll == Decimal("1880")
     assert budget.provider_headroom == Decimal("120")
     assert budget.max_risk_at_any_time == Decimal("60.00")
     assert budget.daily_loss_limit_present is False
+    assert budget.separate_max_risk_at_any_time_fraction == Decimal("0.03")
     assert budget.payout_can_lower_mll is False
 
 
@@ -68,6 +73,7 @@ def test_payout_does_not_lower_previous_mll() -> None:
     )
     assert budget.active_mll == Decimal("2000")
     assert budget.provider_headroom == Decimal("10")
+    assert budget.max_risk_at_any_time == Decimal("10")
 
 
 def test_provider_report_cannot_loosen_reconstructed_floor() -> None:
@@ -95,11 +101,9 @@ def test_exact_six_symbol_mapping_and_commissions() -> None:
         resolve_pilot_symbol("EURUSD")
 
 
-def test_automation_fails_closed_when_rules_stale_or_unverified() -> None:
+def test_automation_has_no_owner_expiry_and_fails_closed_when_unverified() -> None:
     now = datetime(2026, 9, 13, 18, 0, tzinfo=UTC)
     current = StellarInstantRuleVerification(
-        rules_verified_at=now - timedelta(minutes=5),
-        rules_valid_until=now + timedelta(hours=1),
         verification_state=RuleVerificationState.CURRENT,
         automation_state=AutomationVerificationState.VERIFIED,
         ea_addon_verified=True,
@@ -107,11 +111,9 @@ def test_automation_fails_closed_when_rules_stale_or_unverified() -> None:
         exact_product_verified=True,
     )
     assert current.automated_mt5_allowed(now) is True
-    assert current.automated_mt5_allowed(now + timedelta(hours=2)) is False
+    assert current.automated_mt5_allowed(now + timedelta(days=365)) is True
 
     unresolved = StellarInstantRuleVerification(
-        rules_verified_at=now - timedelta(minutes=5),
-        rules_valid_until=now + timedelta(hours=1),
         verification_state=RuleVerificationState.CONFLICTED,
         automation_state=AutomationVerificationState.VERIFIED,
         ea_addon_verified=True,

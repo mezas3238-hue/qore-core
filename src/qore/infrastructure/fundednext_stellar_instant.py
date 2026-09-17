@@ -1,7 +1,12 @@
 """FundedNext Stellar Instant provider contract for the QORE $2K pilot.
 
-Provider rules constrain account-wide QORE Risk.  This module does not issue a
+Provider rules constrain account-wide QORE Risk. This module does not issue a
 RiskAuthorization and never changes Trader or CIBO methodology.
+
+The exact purchased account is governed here by the verified Stellar Instant
+6% trailing Maximum Loss Limit and the applicable cumulative open-risk limit.
+QORE-internal operating buffers/heat limits are intentionally defined in a
+separate module and remain stricter than the provider open-risk ceiling.
 """
 
 from __future__ import annotations
@@ -37,7 +42,7 @@ PROGRAM = "STELLAR_INSTANT"
 PLATFORM = "MT5"
 PILOT_INITIAL_BALANCE = Decimal("2000")
 MAXIMUM_LOSS_FRACTION = Decimal("0.06")
-MAX_RISK_AT_ANY_TIME_FRACTION = Decimal("0.03")
+SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION = Decimal("0.03")
 FOREX_OPEN_COMMISSION_PER_LOT_USD = Decimal("7")
 INDEX_OPEN_COMMISSION_PER_LOT_USD = Decimal("0")
 PILOT_SYMBOL_MAP: dict[str, str] = {
@@ -49,9 +54,9 @@ PILOT_SYMBOL_MAP: dict[str, str] = {
     "US30": "US30",
 }
 
-# Two current official FundedNext surfaces disagree on index/commodity leverage.
-# QORE therefore refuses to use documentation leverage for order sizing.  Live
-# MT5 SymbolInfo/Specification is the execution authority.
+# Two retained documentation surfaces disagree on index/commodity leverage.
+# QORE therefore refuses to use documentation leverage for order sizing. Live
+# MT5 SymbolInfo/Specification and order_calc_margin are execution authority.
 DOCUMENTED_FOREX_LEVERAGE = (Decimal("30"),)
 DOCUMENTED_INDEX_LEVERAGE = (Decimal("5"), Decimal("10"))
 DOCUMENTED_COMMODITY_LEVERAGE = (Decimal("7.5"), Decimal("15"))
@@ -59,8 +64,6 @@ DOCUMENTED_COMMODITY_LEVERAGE = (Decimal("7.5"), Decimal("15"))
 
 @dataclass(frozen=True, slots=True)
 class StellarInstantRuleVerification:
-    rules_verified_at: datetime
-    rules_valid_until: datetime
     verification_state: RuleVerificationState
     automation_state: AutomationVerificationState
     ea_addon_verified: bool
@@ -69,10 +72,6 @@ class StellarInstantRuleVerification:
     leverage_execution_source: str = "MT5_SYMBOL_INFO"
 
     def __post_init__(self) -> None:
-        _aware(self.rules_verified_at, "rules_verified_at")
-        _aware(self.rules_valid_until, "rules_valid_until")
-        if self.rules_valid_until <= self.rules_verified_at:
-            raise StellarInstantContractError("rules_valid_until must follow rules_verified_at")
         if type(self.verification_state) is not RuleVerificationState:
             raise StellarInstantContractError("verification_state must be canonical")
         if type(self.automation_state) is not AutomationVerificationState:
@@ -82,10 +81,7 @@ class StellarInstantRuleVerification:
 
     def is_current(self, now: datetime) -> bool:
         _aware(now, "now")
-        return (
-            self.verification_state is RuleVerificationState.CURRENT
-            and self.rules_verified_at <= now <= self.rules_valid_until
-        )
+        return self.verification_state is RuleVerificationState.CURRENT
 
     def automated_mt5_allowed(self, now: datetime) -> bool:
         return (
@@ -99,7 +95,7 @@ class StellarInstantRuleVerification:
 
 @dataclass(frozen=True, slots=True)
 class StellarInstantAccountSnapshot:
-    """Provider state required to reconstruct and verify the trailing MLL."""
+    """Provider state required to reconstruct and verify the 6% trailing MLL."""
 
     initial_balance: Decimal
     balance: Decimal
@@ -137,9 +133,12 @@ class StellarInstantRiskBudget:
     provider_reported_mll: Decimal | None
     active_mll: Decimal
     provider_headroom: Decimal
+    # Provider cumulative open-risk ceiling consumed by account-wide Risk.
+    # It is the tighter of remaining trailing-MLL headroom and 3% of initial balance.
     max_risk_at_any_time: Decimal
     hard_breach: bool
     daily_loss_limit_present: bool
+    separate_max_risk_at_any_time_fraction: Decimal | None
     payout_can_lower_mll: bool
     leverage_execution_source: str
 
@@ -156,10 +155,22 @@ class StellarInstantRiskBudget:
                 raise StellarInstantContractError(f"{name} must be finite Decimal")
         if self.provider_headroom < 0:
             raise StellarInstantContractError("provider_headroom cannot be negative")
+        expected_risk_cap = min(
+            self.provider_headroom,
+            self.initial_balance * SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
+        )
+        if self.max_risk_at_any_time != expected_risk_cap:
+            raise StellarInstantContractError(
+                "provider risk ceiling must enforce 3% cumulative open risk"
+            )
         if self.active_mll > self.initial_balance:
             raise StellarInstantContractError("active MLL cannot trail above initial balance")
         if self.daily_loss_limit_present:
             raise StellarInstantContractError("Stellar Instant must not invent a daily loss limit")
+        if self.separate_max_risk_at_any_time_fraction != SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION:
+            raise StellarInstantContractError(
+                "provider cumulative open-risk fraction must remain exact 3%"
+            )
         if self.payout_can_lower_mll:
             raise StellarInstantContractError("payout cannot lower Stellar Instant MLL")
         if self.leverage_execution_source != "MT5_SYMBOL_INFO":
@@ -201,11 +212,13 @@ def evaluate_stellar_instant_budget(
         provider_reported_mll=reported,
         active_mll=active_mll,
         provider_headroom=headroom,
-        max_risk_at_any_time=(
-            snapshot.initial_balance * MAX_RISK_AT_ANY_TIME_FRACTION
+        max_risk_at_any_time=min(
+            headroom,
+            snapshot.initial_balance * SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
         ),
         hard_breach=hard_breach,
         daily_loss_limit_present=False,
+        separate_max_risk_at_any_time_fraction=SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION,
         payout_can_lower_mll=False,
         leverage_execution_source="MT5_SYMBOL_INFO",
     )
