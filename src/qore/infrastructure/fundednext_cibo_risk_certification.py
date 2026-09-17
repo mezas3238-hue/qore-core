@@ -8,8 +8,8 @@ from pathlib import Path
 
 from qore.infrastructure.fundednext_live_guard import (
     CERTIFIED_LIVE_DIRECTIONS,
-    LIVE_ENTRY_ANCHORS_NY,
     FOREX_OPEN_COMMISSION_PER_LOT_USD,
+    LIVE_ENTRY_ANCHORS_NY,
 )
 from qore.infrastructure.fundednext_operational_risk_policy import (
     QORE_INTERNAL_ATTACK_HEAT_FRACTION,
