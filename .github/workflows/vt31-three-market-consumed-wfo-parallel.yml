@@ -17,15 +17,55 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
-  wfo-market:
+  wfo-fold:
     strategy:
       fail-fast: false
+      max-parallel: 9
       matrix:
-        market: [NAS100, SP500, US30]
+        include:
+          - market: NAS100
+            partition: r8_fresh
+            artifact_id: 10402199719
+            digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - market: NAS100
+            partition: r6
+            artifact_id: 10389112524
+            digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - market: NAS100
+            partition: r5
+            artifact_id: 10380044761
+            digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
+          - market: SP500
+            partition: r8_fresh
+            artifact_id: 10402199719
+            digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - market: SP500
+            partition: r6
+            artifact_id: 10389112524
+            digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - market: SP500
+            partition: r5
+            artifact_id: 10380044761
+            digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
+          - market: US30
+            partition: r8_fresh
+            artifact_id: 10402199719
+            digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - market: US30
+            partition: r6
+            artifact_id: 10389112524
+            digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - market: US30
+            partition: r5
+            artifact_id: 10380044761
+            digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       MARKET: ${{ matrix.market }}
+      PARTITION: ${{ matrix.partition }}
+      EVIDENCE_ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EVIDENCE_DIGEST: ${{ matrix.digest }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,28 +79,20 @@ jobs:
           python -m py_compile scripts/vt31_three_market_consumed_wfo.py
           ruff check scripts/vt31_three_market_consumed_wfo.py
           python scripts/vt31_three_market_consumed_wfo.py --self-test
-      - name: Recover immutable consumed M1 evidence
+      - name: Recover immutable consumed fold evidence
         run: |
           set -euo pipefail
-          fetch_artifact() {
-            id="$1"; expected="$2"; destination="$3"
-            digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" --jq .digest)"
-            test "$digest" = "sha256:${expected}"
-            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > "${destination}.zip"
-            echo "${expected}  ${destination}.zip" | sha256sum -c -
-            mkdir "$destination"
-            unzip -q "${destination}.zip" -d "$destination"
-            if [ -f "$destination/SHA256SUMS" ]; then
-              (cd "$destination" && sha256sum -c SHA256SUMS)
-            fi
-          }
-          fetch_artifact 10380044761 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8 evidence-r5
-          fetch_artifact 10389112524 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9 evidence-r6
-          fetch_artifact 10402199719 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d evidence-r8
-          for root in evidence-r5 evidence-r6 evidence-r8; do
-            test -f "$root/fresh/${MARKET}/market-evidence.json"
-          done
-      - name: Run consumed WFO for market
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT_ID}" --jq .digest)"
+          test "$digest" = "sha256:${EVIDENCE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT_ID}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          mkdir evidence
+          unzip -q evidence.zip -d evidence
+          if [ -f evidence/SHA256SUMS ]; then
+            (cd evidence && sha256sum -c SHA256SUMS)
+          fi
+          test -f "evidence/fresh/${MARKET}/market-evidence.json"
+      - name: Run consumed WFO fold
         run: |
           set -euo pipefail
           mkdir result
@@ -71,27 +103,28 @@ jobs:
           import vt31_three_market_consumed_wfo as w
 
           market = os.environ['MARKET']
+          partition = os.environ['PARTITION']
           w.MARKETS = (market,)
-          payload = w.run({
-              'r8_fresh': Path('evidence-r8/fresh'),
-              'r6': Path('evidence-r6/fresh'),
-              'r5': Path('evidence-r5/fresh'),
-          })
-          Path(f'result/{market}-consumed-wfo-v1.json').write_text(
+          w.PARTITIONS = (partition,)
+          payload = w.run({partition: Path('evidence/fresh')})
+          output = Path(f'result/{market}-{partition}-consumed-wfo-v1.json')
+          output.write_text(
               json.dumps(payload, sort_keys=True, indent=2) + '\n',
               encoding='utf-8',
           )
-          summary = {}
-          for partition in w.PARTITIONS:
-              row = payload['markets'][market][partition]['stress_0_05r']
-              summary[partition] = {
-                  'sample': row['sample'],
-                  'mean_r': row['mean_r'],
-                  'profit_factor': row['profit_factor'],
-                  'max_drawdown_r': row['max_drawdown_r'],
-                  'max_losing_streak': row['max_losing_streak'],
-              }
-          print(json.dumps({'market': market, 'partitions': summary}, sort_keys=True))
+          row = payload['markets'][market][partition]['stress_0_05r']
+          summary = {
+              'market': market,
+              'partition': partition,
+              'sample': row['sample'],
+              'total_r': row['total_r'],
+              'mean_r': row['mean_r'],
+              'win_rate': row['win_rate'],
+              'profit_factor': row['profit_factor'],
+              'max_drawdown_r': row['max_drawdown_r'],
+              'max_losing_streak': row['max_losing_streak'],
+          }
+          print(json.dumps(summary, sort_keys=True))
           PY
       - name: Governance validation
         run: |
@@ -100,29 +133,30 @@ jobs:
           import json
           import os
           from pathlib import Path
-          market=os.environ['MARKET']
-          p=json.loads(Path(f'result/{market}-consumed-wfo-v1.json').read_text())
-          assert p['research_only'] is True
-          assert p['opens_new_holdout'] is False
-          assert p['fresh_holdout_consumed'] is False
-          assert p['live_authorized'] is False
-          assert p['production_authorized'] is False
-          assert set(p['markets']) == {market}
-          assert set(p['markets'][market]) == {'r8_fresh','r6','r5'}
-          print(f'{market} consumed WFO governance PASS')
+          market = os.environ['MARKET']
+          partition = os.environ['PARTITION']
+          path = Path(f'result/{market}-{partition}-consumed-wfo-v1.json')
+          payload = json.loads(path.read_text())
+          assert payload['research_only'] is True
+          assert payload['opens_new_holdout'] is False
+          assert payload['fresh_holdout_consumed'] is False
+          assert payload['live_authorized'] is False
+          assert payload['production_authorized'] is False
+          assert set(payload['markets']) == {market}
+          assert set(payload['markets'][market]) == {partition}
+          print(f'{market}/{partition} consumed WFO governance PASS')
           PY
       - name: Bind immutable run metadata
         run: |
           set -euo pipefail
           echo "$GITHUB_SHA" > result/git-sha.txt
           printf '%s\n' "$MARKET" > result/market.txt
-          printf '%s\n' '10380044761 sha256:828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8' > result/r5-evidence.txt
-          printf '%s\n' '10389112524 sha256:9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9' > result/r6-evidence.txt
-          printf '%s\n' '10402199719 sha256:9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d' > result/r8-evidence.txt
+          printf '%s\n' "$PARTITION" > result/partition.txt
+          printf '%s sha256:%s\n' "$EVIDENCE_ARTIFACT_ID" "$EVIDENCE_DIGEST" > result/evidence.txt
           (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-vt31-consumed-wfo-${{ matrix.market }}-${{ github.sha }}
+          name: qore-vt31-consumed-wfo-${{ matrix.market }}-${{ matrix.partition }}-${{ github.sha }}
           path: result/
           if-no-files-found: error
           retention-days: 90
