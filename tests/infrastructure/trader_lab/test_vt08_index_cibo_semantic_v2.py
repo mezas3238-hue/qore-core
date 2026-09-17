@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import cast
 
 from qore.infrastructure.trader_lab.vt08_index_cibo_semantic_v2 import (
     _departure_row,
@@ -109,10 +110,10 @@ def test_find_h4_open_uses_containing_anchor_bar() -> None:
 
 def test_departure_is_frozen_continuation_not_half_r_proxy() -> None:
     trade = _trade()
-    reaction = {
+    reaction: dict[str, object] = {
         "reaction_at": "2024-01-02T14:00:00+00:00",
     }
-    mechanics = {
+    mechanics: dict[str, object] = {
         "source_poi": {
             "first_touch_at": "2024-01-02T14:15:00+00:00",
         },
@@ -167,7 +168,7 @@ def test_cross_index_event_order_tracks_arrival_cisd_and_continuation() -> None:
     mechanics: dict[tuple[str, str], dict[str, object]] = {}
     for offset, symbol in enumerate(("NAS100", "SP500", "US30")):
         signal = base + timedelta(minutes=60 + offset * 15)
-        trade = {
+        trade: dict[str, object] = {
             "symbol": symbol,
             "signal_at": signal.isoformat(),
         }
@@ -184,6 +185,10 @@ def test_cross_index_event_order_tracks_arrival_cisd_and_continuation() -> None:
             "continuation_at": signal.isoformat(),
         }
     result = _event_order(cohort, mechanics)
-    assert result["source_poi_arrival"]["leader"] == "NAS100"
-    assert result["cisd_confirmation"]["order"] == ["NAS100", "SP500", "US30"]
-    assert result["continuation_departure"]["lag_minutes"]["US30"] == 30
+    arrival = cast(dict[str, object], result["source_poi_arrival"])
+    cisd = cast(dict[str, object], result["cisd_confirmation"])
+    departure = cast(dict[str, object], result["continuation_departure"])
+    lags = cast(dict[str, int], departure["lag_minutes"])
+    assert arrival["leader"] == "NAS100"
+    assert cisd["order"] == ["NAS100", "SP500", "US30"]
+    assert lags["US30"] == 30
