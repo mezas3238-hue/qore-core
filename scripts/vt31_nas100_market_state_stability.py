@@ -9,10 +9,11 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 SCHEMA = "qore.vt31.nas100.market_state_stability.v1"
 FRICTION = Decimal("0.05")
