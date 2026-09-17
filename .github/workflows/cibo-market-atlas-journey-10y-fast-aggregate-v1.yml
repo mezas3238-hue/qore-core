@@ -1,0 +1,198 @@
+name: QORE CIBO Market Atlas Journey 10Y Fast Aggregate V1
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-atlas-journey-10y-fast-aggregate-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_cross_index_fast_v1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-market-atlas-journey-10y-fast-aggregate-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_MARKET_RUN_ID: '35166210458'
+  SOURCE_MARKET_GIT_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_JOURNEY_GIT_SHA: '9cc0f17a2f30846d61b242132547f39391909656'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_cross_index_fast_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_cross_index_fast_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py
+      - name: Semantic-equivalence tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py
+      - name: Frozen-source assertions
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.trader_lab import cibo_market_atlas_cross_index_fast_v1 as f
+          from qore.infrastructure.trader_lab import cibo_market_atlas_journey_extractor_v1 as j
+          assert j.SOURCE_RUN_ID == 35166210458
+          assert j.SOURCE_GIT_SHA == 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+          assert f.IDENTITY == 'CIBO_MARKET_JOURNEY_LAYER_V1'
+          PY
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable GREEN Journey symbol artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-market-journey-*-${{ env.SOURCE_JOURNEY_GIT_SHA }}
+          path: journeys
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Verify 12 frozen Journey manifests
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected = {
+              'AUDJPY','AUDUSD','EURUSD','GBPJPY','GBPUSD','USDCAD','USDJPY',
+              'NAS100','SP500','US30','XAUUSD','XAGUSD'
+          }
+          manifests = {}
+          for path in Path('journeys').rglob('journey-manifest.json'):
+              payload = json.loads(path.read_text())
+              symbol = payload['symbol']
+              assert symbol not in manifests, f'duplicate manifest for {symbol}'
+              manifests[symbol] = payload
+          assert set(manifests) == expected
+          for symbol, manifest in manifests.items():
+              assert manifest['identity'] == 'CIBO_MARKET_JOURNEY_LAYER_V1'
+              assert manifest['source_run_id'] == 35166210458
+              assert manifest['source_git_sha'] == 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+              assert manifest['retained_m5_bars'] > 0
+              assert manifest['ledger_counts']['MARKET_JOURNEY_LEDGER'] > 0
+              assert manifest['ledger_counts']['DAILY_PATH_LEDGER'] > 0
+              assert manifest['demo_eligible'] is False
+              assert manifest['live_authorized'] is False
+              assert manifest['real_capital_authorized'] is False
+              assert manifest['production_authorized'] is False
+          print(json.dumps({'symbols': sorted(manifests), 'count': len(manifests)}))
+          PY
+      - name: Build optimized cross-index ledger and authoritative 10Y Journey index
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.cibo_market_atlas_cross_index_fast_v1 import build_cross_index
+
+          manifests = {}
+          for path in Path('journeys').rglob('journey-manifest.json'):
+              payload = json.loads(path.read_text())
+              manifests[payload['symbol']] = (path.parent, payload)
+
+          cross = build_cross_index(
+              manifests['NAS100'][0] / 'MARKET_JOURNEY_LEDGER.jsonl',
+              manifests['SP500'][0] / 'MARKET_JOURNEY_LEDGER.jsonl',
+              manifests['US30'][0] / 'MARKET_JOURNEY_LEDGER.jsonl',
+              Path('aggregate'),
+          )
+
+          symbols = []
+          total_m5 = 0
+          total_journeys = 0
+          total_structure_touches = 0
+          total_daily_paths = 0
+          for symbol in sorted(manifests):
+              _, manifest = manifests[symbol]
+              total_m5 += manifest['retained_m5_bars']
+              total_journeys += manifest['ledger_counts']['MARKET_JOURNEY_LEDGER']
+              total_structure_touches += manifest['ledger_counts']['STRUCTURE_TOUCH_LEDGER']
+              total_daily_paths += manifest['ledger_counts']['DAILY_PATH_LEDGER']
+              symbols.append({
+                  'symbol': symbol,
+                  'provider_symbol': manifest['provider_symbol'],
+                  'earliest_observed_m5': manifest['earliest_observed_m5'],
+                  'latest_observed_m5': manifest['latest_observed_m5'],
+                  'retained_m5_bars': manifest['retained_m5_bars'],
+                  'behavior_event_count': manifest['behavior_event_count'],
+                  'ledger_counts': manifest['ledger_counts'],
+                  'ledger_sha256': manifest['ledger_sha256'],
+                  'structure_coverage': manifest['structure_coverage'],
+                  'trader_sync_status': manifest['trader_sync_status'],
+              })
+
+          index = {
+              'schema': 'qore.cibo_market_atlas.journey_10y_index.v1',
+              'identity': 'CIBO_MARKET_JOURNEY_LAYER_V1',
+              'source_market_run_id': 35166210458,
+              'source_market_git_sha': 'ab782b8e9f890f86a2b6500070f0556b4b685e3d',
+              'source_journey_run_id': 35175979474,
+              'source_journey_git_sha': '9cc0f17a2f30846d61b242132547f39391909656',
+              'symbols': symbols,
+              'symbol_count': len(symbols),
+              'total_retained_m5_bars': total_m5,
+              'total_market_journeys': total_journeys,
+              'total_structure_touches': total_structure_touches,
+              'total_daily_path_rows': total_daily_paths,
+              'cross_index_rows': cross['rows'],
+              'cross_index_aggregation': cross['aggregation_transport'],
+              'cross_index_evidence_tier': cross['lead_lag_evidence_tier'],
+              'structure_coverage': 'DETERMINISTIC_SUPPORTED_SUBSET_FAIL_CLOSED',
+              'unsupported_structure_policy': 'UNRESOLVED_STRUCTURE',
+              'evidence_status': 'CONSUMED_RESEARCH_EVIDENCE',
+              'demo_eligible': False,
+              'live_authorized': False,
+              'real_capital_authorized': False,
+              'production_authorized': False,
+          }
+          out = Path('aggregate/journey-10y-index.json')
+          out.write_text(json.dumps(index, indent=2, sort_keys=True) + '\n')
+          digest = hashlib.sha256(out.read_bytes()).hexdigest()
+          Path('aggregate/journey-10y-index.sha256').write_text(digest + '\n')
+
+          assert index['symbol_count'] == 12
+          assert index['total_retained_m5_bars'] > 0
+          assert index['total_market_journeys'] > 0
+          assert index['total_structure_touches'] >= index['total_market_journeys']
+          assert index['cross_index_rows'] > 0
+          assert index['cross_index_aggregation'] == 'BINARY_SEARCH_NEAREST_V1'
+          assert index['cross_index_evidence_tier'] == 'E1_ASSOCIATION_ONLY'
+          print(json.dumps(index, sort_keys=True))
+          PY
+      - name: Upload authoritative fast Journey aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-market-journey-10y-fast-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90
