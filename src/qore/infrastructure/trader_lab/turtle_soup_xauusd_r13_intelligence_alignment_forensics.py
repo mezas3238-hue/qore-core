@@ -191,7 +191,6 @@ def _loss_dol_diagnostic(
 def run(r12_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
     report = json.loads(_find(r12_root, "r12-autonomous-2y-report.json").read_text())
     trades = json.loads(_find(r12_root, "r12-autonomous-2y-trades.json").read_text())
-    decisions = json.loads(_find(r12_root, "r12-autonomous-2y-decisions.json").read_text())
     baseline = json.loads(_find(r12_root, "r12-canonical-r3-2y-trades.json").read_text())
 
     if report["identity"] != EXPECTED_R12_IDENTITY:
