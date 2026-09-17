@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir result
-          python scripts/vt31_nas100_intelligence_pilot.py             --ledger-dir cibo             --evidence evidence/fresh/NAS100/market-evidence.json             --output "result/vt31-nas100-intelligence-${PARTITION}.json"             | tee result/summary.json
+          python scripts/vt31_nas100_intelligence_pilot.py --ledger-dir cibo --evidence evidence/fresh/NAS100/market-evidence.json --output "result/vt31-nas100-intelligence-${PARTITION}.json" | tee result/summary.json
       - name: Governance and capability validation
         run: |
           set -euo pipefail
@@ -118,12 +118,9 @@ jobs:
         run: |
           set -euo pipefail
           echo "${GITHUB_SHA}" > result/git-sha.txt
-          printf '%s
-' "${PARTITION}" > result/partition.txt
-          printf '%s sha256:%s
-' "${CIBO_ARTIFACT_ID}" "${CIBO_DIGEST}" > result/cibo-evidence.txt
-          printf '%s sha256:%s
-' "${EVIDENCE_ARTIFACT_ID}" "${EVIDENCE_DIGEST}" > result/market-evidence.txt
+          echo "${PARTITION}" > result/partition.txt
+          echo "${CIBO_ARTIFACT_ID} sha256:${CIBO_DIGEST}" > result/cibo-evidence.txt
+          echo "${EVIDENCE_ARTIFACT_ID} sha256:${EVIDENCE_DIGEST}" > result/market-evidence.txt
           (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
