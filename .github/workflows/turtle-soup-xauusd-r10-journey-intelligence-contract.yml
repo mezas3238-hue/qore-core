@@ -68,7 +68,7 @@ jobs:
           sha256sum journey-intelligence-contract.json stdout.json git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-turtle-soup-xauusd-r10-journey-intelligence-\${{ github.sha }}
+          name: qore-turtle-soup-xauusd-r10-journey-intelligence-${{ github.sha }}
           path: r10-output
           if-no-files-found: error
           retention-days: 90
