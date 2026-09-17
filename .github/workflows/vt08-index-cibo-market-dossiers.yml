@@ -1,0 +1,173 @@
+name: VT08 Index CIBO Market Dossiers
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-cibo-market-dossiers.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_cibo_market_dossiers.py
+      - tests/infrastructure/trader_lab/test_vt08_index_cibo_market_dossiers.py
+      - docs/research/VT08-INDEX-CIBO-MARKET-DOSSIERS-001.md
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+  SEMANTIC_V2_GREEN_SHA: c335aff708844e0695079e7ecd290c8f29965d09
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" -- \
+            src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ["V7_RULE_FINGERPRINT"]
+          PY
+      - name: Verify Semantic V2 unchanged
+        run: |
+          git diff --exit-code "$SEMANTIC_V2_GREEN_SHA" "$GITHUB_SHA" -- \
+            src/qore/infrastructure/trader_lab/vt08_index_cibo_semantic_v2.py \
+            tests/infrastructure/trader_lab/test_vt08_index_cibo_semantic_v2.py \
+            docs/research/VT08-INDEX-CIBO-SEMANTIC-V2-001.md \
+            .github/workflows/vt08-index-cibo-semantic-v2.yml
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - name: Focused dossier tests
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_cibo_market_dossiers.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  dossiers:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+
+      - name: Download validated Complete Ledgers V1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-complete-ledgers-79bd5f24cccde7f0f1e817ee7eceab9d801f8d28
+          path: artifacts/complete-v1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35179667875
+
+      - name: Download validated Semantic V2
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-semantic-v2-c335aff708844e0695079e7ecd290c8f29965d09
+          path: artifacts/semantic-v2
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35286956816
+
+      - name: Build three market dossiers and cross-index dossier
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_cibo_market_dossiers \
+            --complete-root artifacts/complete-v1 \
+            --semantic-root artifacts/semantic-v2 \
+            --out-dir artifacts/dossiers
+
+      - name: Verify dossier contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/dossiers")
+          manifest = json.loads((root / "CIBO_MARKET_DOSSIER_MANIFEST.json").read_text())
+          assert manifest["market_episode_count"] == 2294
+          assert manifest["cross_index_cohort_count"] == 1765
+          assert len(manifest["windows"]) == 5
+          assert manifest["governance"]["specialists_frozen"] is False
+          assert manifest["governance"]["fresh_holdout_opened"] is False
+
+          total = 0
+          for symbol in ("NAS100", "SP500", "US30"):
+              dossier = json.loads((root / f"{symbol}_MARKET_DOSSIER.json").read_text())
+              sample = dossier["overall"]["sample"]
+              assert sample > 700
+              total += sample
+              stability = dossier["temporal_stability"]
+              assert len(stability["by_consumed_window"]) == 5
+              assert stability["by_year"]
+              assert stability["by_semester"]
+              assert stability["by_quarter"]
+              assert dossier["governance"]["specialist_not_frozen"] is True
+              assert dossier["governance"]["fresh_holdout_opened"] is False
+          assert total == 2294
+
+          cross = json.loads((root / "CROSS_INDEX_MARKET_DOSSIER.json").read_text())
+          assert cross["cohort_count"] == 1765
+          assert cross["leader_counts"]["source_poi_arrival"]
+          assert cross["leader_counts"]["cisd_confirmation"]
+          assert cross["leader_counts"]["continuation_departure"]
+          assert cross["governance"]["cross_index_gate_not_selected"] is True
+          PY
+
+      - name: Build dossier summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/dossiers")
+          lines = ["# VT08 Index CIBO Market Dossiers", ""]
+          for symbol in ("NAS100", "SP500", "US30"):
+              dossier = json.loads((root / f"{symbol}_MARKET_DOSSIER.json").read_text())
+              overall = dossier["overall"]
+              lines += [
+                  f"## {symbol}",
+                  f"- sample: {overall['sample']}",
+                  f"- mean primary R: {overall['mean_primary_r']}",
+                  f"- PF primary: {overall['profit_factor_primary']}",
+                  f"- max DD primary R: {overall['max_drawdown_primary_r']}",
+                  f"- stop rate: {overall['stop_rate']}",
+                  f"- stopped -> later 2R: {overall['stopped_then_later_2r_rate']}",
+                  f"- median CISD -> continuation minutes: {overall['median_minutes_cisd_to_continuation']}",
+                  "",
+              ]
+          cross = json.loads((root / "CROSS_INDEX_MARKET_DOSSIER.json").read_text())
+          lines += [
+              "## Cross-index",
+              f"- cohorts: {cross['cohort_count']}",
+              f"- three-market cohort rate: {cross['three_market_cohort_rate']}",
+              f"- side agreement rate: {cross['side_agreement_rate']}",
+              f"- multi-market stop cohorts: {cross['multi_market_stop_cohorts']}",
+              f"- same-side multi-market stop cohorts: {cross['same_side_multi_market_stop_cohorts']}",
+              "",
+              "Research-only. No specialist frozen. Fresh holdout remains sealed.",
+          ]
+          (root / "CIBO_MARKET_DOSSIER_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-market-dossiers-${{ github.sha }}
+          path: artifacts/dossiers
+          if-no-files-found: error
+          retention-days: 90
