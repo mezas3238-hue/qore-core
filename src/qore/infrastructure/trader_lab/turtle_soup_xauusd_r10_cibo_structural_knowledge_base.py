@@ -96,6 +96,19 @@ R10_MEMORY_ATLAS = EvidenceRef(
     digest="sha256:c5ca6976877e53ceb797cc81e6a1e12e94b8d38ae4fd38b4a55e91f3d67baeaa",
 )
 
+R11_RECOGNITION = EvidenceRef(
+    code="R11_SITUATION_RECOGNITION_ENGINE_AUDIT",
+    run_id=35282212625,
+    artifact_id=10522679602,
+    digest="sha256:d78081b2aab8a2d3d85e34e49a5f2134dfc90221cd5a5abf0df2fa7fd8f3e134",
+)
+R11_POSITIVE_CANDIDATE = EvidenceRef(
+    code="R11_BREAK_A_POSITIVE_VALIDITY_CANDIDATE_CONTRACT",
+    run_id=35282466639,
+    artifact_id=10523105269,
+    digest="sha256:cfcfdfad5f7907c85f9355b3710ade97c3b16883d86628b0003b6cf925938a1c",
+)
+
 CLAIMS = (
     StructuralKnowledgeClaim(
         code="K01_ROBUST_INVALID_DEEP_RAID_LATE_CISD",
@@ -239,6 +252,38 @@ CLAIMS = (
         evidence=(R10_MEMORY_ATLAS,),
         limitations=(
             "do not encode CISD expansion magnitude as a universal BREAK B permission rule",
+        ),
+    ),
+    StructuralKnowledgeClaim(
+        code="K12_R11_EXACT_SITUATION_RECOGNITION_BOUND",
+        subject="situation_recognition",
+        statement=(
+            "R11 reproduces the exact evidence populations before applying continuous "
+            "context: 273 robust-invalid cases, 151 BREAK A cases, and 88 BREAK B cases."
+        ),
+        strength=KnowledgeStrength.ESTABLISHED_DIAGNOSTIC,
+        operating_use=OperatingUse.REASONING_CONTEXT_ONLY,
+        evidence=(R11_RECOGNITION,),
+        limitations=(
+            "recognition accuracy is evidence-binding accuracy, not profitability",
+            "all audited outcomes remain consumed research evidence",
+        ),
+    ),
+    StructuralKnowledgeClaim(
+        code="K13_BREAK_A_POSITIVE_VALIDITY_CANDIDATE_FROZEN",
+        subject="positive_entry_validity",
+        statement=(
+            "Exact BREAK A plus the transferred C1 directional-wick and defended-reclaim "
+            "conjunction is frozen as a research structural-validity candidate: 31 situations "
+            "recognized pre-entry, 30 binary-auditable, and 21 of 30 reached at least one active DOL."
+        ),
+        strength=KnowledgeStrength.STABLE_CLUE_NOT_RULE,
+        operating_use=OperatingUse.NO_OPERATING_USE,
+        evidence=(R11_RECOGNITION, R11_POSITIVE_CANDIDATE),
+        limitations=(
+            "the candidate predicts journey capacity, not profit or selected-target success",
+            "sample support is limited and entirely consumed",
+            "independent validation is required before any positive operating contract",
         ),
     ),
     StructuralKnowledgeClaim(
