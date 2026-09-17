@@ -69,7 +69,7 @@ jobs:
 
           contract = Path('tests/infrastructure/test_fundednext_runtime_script_contract.py')
           text = contract.read_text(encoding='utf-8')
-          addition = '''\n\ndef test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:\n    source = _RUNTIME.read_text(encoding="utf-8-sig")\n    assert "local.hour not in LIVE_ENTRY_ANCHORS_NY" in source\n    assert "current_anchor_hour=anchor_local.hour" in source\n    assert "if hour > anchor_local.hour:" in source\n    assert "FINAL_CAUSAL_ENTRY_ANCHOR_NY" not in source\n'''
+          addition = '''\n\ndef test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:\n    source = _RUNTIME.read_text(encoding="utf-8-sig")\n    assert "local.hour not in LIVE_ENTRY_ANCHORS_NY" in source\n    assert "current_anchor_hour=anchor_local.hour" in source\n    assert "if hour > anchor_local.hour:" in source\n    assert "FINAL_CAUSAL_ENTRY_ANCHOR_NY" not in source'''
           assert 'test_live_runtime_accepts_only_010509_new_york_entry_anchors' not in text
           contract.write_text(text.rstrip() + addition + '\n', encoding='utf-8')
           PY
