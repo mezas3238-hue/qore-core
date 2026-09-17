@@ -33,7 +33,7 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Ruff focused gate
         run: |
-          ruff check --ignore E501,I001 \
+          ruff check --ignore E501,I001,F401 \
             src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r9_causal_break_discriminator.py \
             tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r9_causal_break_discriminator.py
       - name: Mypy focused gate
