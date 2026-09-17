@@ -96,7 +96,8 @@ jobs:
           assert p['reproduction']['robust_invalid_exact']==273
           assert p['reproduction']['break_a_exact']==151
           assert p['reproduction']['break_b_exact']==88
-          assert p['reproduction']['break_a_transferred_candidate_exact']==30
+          assert p['reproduction']['break_a_pre_entry_candidate_exact']==31
+          assert p['reproduction']['break_a_binary_auditable_candidate_exact']==30
           assert p['recognition_contract']['engine_receives_post_entry_information'] is False
           assert p['recognition_contract']['post_entry_path_used_only_after_recognition_as_label'] is True
           assert p['recognition_contract']['pnl_used_for_recognition'] is False
@@ -106,6 +107,7 @@ jobs:
           assert p['recognition_contract']['evidence_family_membership_exact_r7_r8_buckets'] is True
           assert p['recognition_contract']['continuous_values_can_broaden_evidence_family'] is False
           assert p['recognition_contract']['structurally_valid_candidate_is_operating_permission'] is False
+          assert p['recognition_contract']['post_entry_other_diagnostic_can_remove_pre_entry_candidate'] is False
           assert e['reasoning_contract']['pnl_score'] is False
           assert e['reasoning_contract']['probability_of_profit'] is False
           assert e['reasoning_contract']['automatic_threshold_search'] is False
