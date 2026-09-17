@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -405,7 +405,7 @@ def _day_behavior(bars: Sequence[Bar]) -> dict[str, object]:
 
 
 def _daily_path_ledger(
-    symbol_bars: dict[str, Sequence[Bar]],
+    symbol_bars: Mapping[str, Sequence[Bar]],
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for symbol, bars in symbol_bars.items():
