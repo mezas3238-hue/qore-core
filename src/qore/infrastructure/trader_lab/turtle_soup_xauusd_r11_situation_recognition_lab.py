@@ -223,6 +223,8 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
             setup.source.opened_at,
         )
         row: dict[str, Any] = dict(base)
+        row["timeframe"] = timeframe
+        row["side"] = setup.context.signal.side.value
         row.update(
             r9._continuous_record(
                 setup,
