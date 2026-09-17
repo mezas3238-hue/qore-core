@@ -6,7 +6,6 @@ from qore.infrastructure.fundednext_operational_risk_policy import (
     QORE_INTERNAL_ATTACK_HEAT_FRACTION,
     QORE_INTERNAL_BANK_HEAT_FRACTION,
     QORE_INTERNAL_NORMAL_HEAT_FRACTION,
-    QORE_INTERNAL_TRAILING_LOSS_FRACTION,
     CapitalBudgetDecision,
     QoreOperationalCapitalBudget,
     evaluate_qore_operational_capital_budget,
@@ -63,13 +62,11 @@ def _budget(
     )
 
 
-def test_normal_policy_is_stricter_than_provider_6pct_wall() -> None:
+def test_normal_policy_uses_provider_6pct_mll_without_second_trailing_wall() -> None:
     budget = _budget(Vt08ForexCiboPosture.NORMAL)
     assert budget.provider_maximum_loss_fraction == Decimal("0.06")
-    assert budget.qore_internal_trailing_loss_fraction == Decimal("0.03")
-    assert QORE_INTERNAL_TRAILING_LOSS_FRACTION < budget.provider_maximum_loss_fraction
     assert budget.provider_active_mll == Decimal("1880")
-    assert budget.qore_internal_floor == Decimal("1940.00")
+    assert budget.qore_internal_floor == budget.provider_active_mll
     assert budget.aggregate_heat_cap == Decimal("20.00")
     assert budget.qore_authorizable_headroom == Decimal("20.00")
     assert budget.available_risk_budget == Decimal("20.00")
@@ -116,13 +113,12 @@ def test_existing_account_heat_can_exhaust_new_risk_budget() -> None:
     assert budget.reason == "qore-account-wide-heat-or-dd-budget-exhausted"
 
 
-def test_provider_or_internal_dd_breach_rejects_new_risk() -> None:
-    # This equity is above FundedNext's 1880 provider wall but below QORE's
-    # internal 1940 floor plus its 10 USD safety buffer.
+def test_provider_or_qore_safety_buffer_breach_rejects_new_risk() -> None:
+    # Equity is above the provider 1880 MLL but inside QORE's 10 USD safety buffer.
     budget = _budget(
         Vt08ForexCiboPosture.NORMAL,
-        balance="1945",
-        equity="1945",
+        balance="1889",
+        equity="1889",
         high="2000",
     )
     assert budget.decision is CapitalBudgetDecision.REJECT

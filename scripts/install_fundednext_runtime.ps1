@@ -109,13 +109,13 @@ $WatchdogAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-
 $WatchdogTrigger = New-ScheduledTaskTrigger -Once -At ([DateTime]::Now.AddMinutes(1)) -RepetitionInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName "QORE-FundedNext-Watchdog" -Action $WatchdogAction -Trigger $WatchdogTrigger -Principal $Principal -Settings $Settings -Force | Out-Null
 
-$RulesRefreshAction = New-ScheduledTaskAction -Execute $Python -Argument "`"$RulesRefreshScript`" --root `"$Root`" --lease-hours 30" -WorkingDirectory $Root
+$RulesRefreshAction = New-ScheduledTaskAction -Execute $Python -Argument "`"$RulesRefreshScript`" --root `"$Root`"" -WorkingDirectory $Root
 $RulesRefreshTrigger = New-ScheduledTaskTrigger -Once -At ([DateTime]::Now.AddMinutes(2)) -RepetitionInterval (New-TimeSpan -Hours 6)
 $RulesRefreshStartupTrigger = New-ScheduledTaskTrigger -AtStartup
 $RulesRefreshStartupTrigger.Delay = "PT120S"
 Register-ScheduledTask -TaskName "QORE-FundedNext-Rules-Refresh" -Action $RulesRefreshAction -Trigger @($RulesRefreshTrigger, $RulesRefreshStartupTrigger) -Principal $Principal -Settings $Settings -Force | Out-Null
 
-& $Python $RulesRefreshScript --root $Root --lease-hours 30
+& $Python $RulesRefreshScript --root $Root
 if ($LASTEXITCODE -ne 0) { throw "initial provider-rule refresh failed" }
 
 Start-ScheduledTask -TaskName "QORE-FundedNext-Runtime"

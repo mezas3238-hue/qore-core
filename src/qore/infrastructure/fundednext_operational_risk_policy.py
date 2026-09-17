@@ -2,9 +2,9 @@
 
 Provider constraints and QORE operating limits are deliberately separate:
 
-* FundedNext provider walls: 6% trailing MLL plus the applicable cumulative open-risk cap.
-* QORE internal containment: tighter trailing floor, safety buffer, and shared
-  account heat caps.
+* FundedNext provider wall: exact 6% trailing MLL plus the separate cumulative open-risk cap.
+* QORE does not replace the 6% Maximum Loss with a 3% drawdown rule; internal
+  containment uses a safety buffer and shared account heat caps above the provider wall.
 * CIBO may request NORMAL/BANK/ATTACK; this policy either ALLOWs the request,
   REDUCEs ATTACK to NORMAL when earned cushion is insufficient, or REJECTs new
   risk. No posture changes VT-08's certified per-trade bps.
@@ -25,13 +25,12 @@ from qore.infrastructure.fundednext_stellar_instant import (
 )
 from qore.infrastructure.vt08_forex_cibo_operational import Vt08ForexCiboPosture
 
-QORE_INTERNAL_TRAILING_LOSS_FRACTION = Decimal("0.03")
 QORE_INTERNAL_SAFETY_BUFFER_FRACTION = Decimal("0.005")
 QORE_INTERNAL_BANK_HEAT_FRACTION = Decimal("0.005")
 QORE_INTERNAL_NORMAL_HEAT_FRACTION = Decimal("0.01")
 QORE_INTERNAL_ATTACK_HEAT_FRACTION = Decimal("0.015")
 QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION = Decimal("0.01")
-QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v1"
+QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v2"
 
 
 class CapitalBudgetDecision(StrEnum):
@@ -48,7 +47,6 @@ class QoreOperationalCapitalBudget:
     provider_maximum_loss_fraction: Decimal
     provider_active_mll: Decimal
     provider_headroom: Decimal
-    qore_internal_trailing_loss_fraction: Decimal
     qore_internal_floor: Decimal
     qore_internal_safety_buffer: Decimal
     aggregate_heat_cap: Decimal
@@ -72,7 +70,6 @@ class QoreOperationalCapitalBudget:
             ("provider_maximum_loss_fraction", self.provider_maximum_loss_fraction),
             ("provider_active_mll", self.provider_active_mll),
             ("provider_headroom", self.provider_headroom),
-            ("qore_internal_trailing_loss_fraction", self.qore_internal_trailing_loss_fraction),
             ("qore_internal_floor", self.qore_internal_floor),
             ("qore_internal_safety_buffer", self.qore_internal_safety_buffer),
             ("aggregate_heat_cap", self.aggregate_heat_cap),
@@ -84,10 +81,6 @@ class QoreOperationalCapitalBudget:
             _nonnegative(value, name)
         if self.provider_maximum_loss_fraction != MAXIMUM_LOSS_FRACTION:
             raise AccountWideRiskError("provider MLL fraction must remain exact 6%")
-        if self.qore_internal_trailing_loss_fraction >= self.provider_maximum_loss_fraction:
-            raise AccountWideRiskError(
-                "QORE internal loss containment must be tighter than provider"
-            )
         if self.qore_authorizable_headroom > self.provider_headroom:
             raise AccountWideRiskError("QORE capital budget cannot exceed provider headroom")
         if self.available_risk_budget > self.qore_authorizable_headroom:
@@ -106,9 +99,8 @@ def operational_risk_policy_fingerprint() -> str:
     material = {
         "version": QORE_OPERATIONAL_RISK_POLICY_VERSION,
         "provider_maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
-        "provider_separate_three_percent_rule": True,
-        "provider_separate_three_percent_fraction": "0.03",
-        "internal_trailing_loss_fraction": str(QORE_INTERNAL_TRAILING_LOSS_FRACTION),
+        "provider_cumulative_open_risk_rule": True,
+        "provider_cumulative_open_risk_fraction": "0.03",
         "internal_safety_buffer_fraction": str(QORE_INTERNAL_SAFETY_BUFFER_FRACTION),
         "bank_heat_fraction": str(QORE_INTERNAL_BANK_HEAT_FRACTION),
         "normal_heat_fraction": str(QORE_INTERNAL_NORMAL_HEAT_FRACTION),
@@ -153,13 +145,10 @@ def evaluate_qore_operational_capital_budget(
     if provider_budget.initial_balance != initial_balance:
         raise AccountWideRiskError("provider/QORE initial balance mismatch")
 
-    internal_allowance = initial_balance * QORE_INTERNAL_TRAILING_LOSS_FRACTION
-    initial_internal_floor = initial_balance - internal_allowance
-    candidate_internal_floor = highest_closed_balance - internal_allowance
-    internal_floor = min(
-        initial_balance,
-        max(initial_internal_floor, candidate_internal_floor),
-    )
+    # The trailing Maximum Loss is exactly the provider's 6% MLL.
+    # QORE adds a safety buffer and heat caps; it does not invent a separate
+    # 3% drawdown/Maximum Loss floor.
+    internal_floor = provider_budget.active_mll
     safety_buffer = initial_balance * QORE_INTERNAL_SAFETY_BUFFER_FRACTION
     earned_cushion = max(Decimal(0), highest_closed_balance - initial_balance)
     attack_threshold = (
@@ -216,7 +205,6 @@ def evaluate_qore_operational_capital_budget(
         provider_maximum_loss_fraction=MAXIMUM_LOSS_FRACTION,
         provider_active_mll=provider_budget.active_mll,
         provider_headroom=provider_budget.provider_headroom,
-        qore_internal_trailing_loss_fraction=QORE_INTERNAL_TRAILING_LOSS_FRACTION,
         qore_internal_floor=internal_floor,
         qore_internal_safety_buffer=safety_buffer,
         aggregate_heat_cap=heat_cap,

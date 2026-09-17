@@ -317,8 +317,6 @@ class FundedNextLiveMt5ExecutionGateway:
     ) -> str:
         if not self._submission_enabled or not self._authorization.can_submit:
             raise Mt5ExecutionBlockedError("live-order-submission-disabled")
-        if not self._rules.automated_mt5_allowed(now):
-            raise Mt5ExecutionBlockedError("provider-automation-rules-not-current")
         if self.has_unresolved_mutations:
             raise Mt5ExecutionOutcomeUnknownError("unresolved-provider-state-suspends-new-orders")
         key = str(submission.idempotency_key.value)
@@ -335,6 +333,8 @@ class FundedNextLiveMt5ExecutionGateway:
         shadow = self._transport.check_order(plan)
         if not shadow.broker_valid:
             raise Mt5ExecutionBlockedError(shadow.reason)
+        if not self._rules.automated_mt5_allowed(now):
+            raise Mt5ExecutionBlockedError("provider-automation-rules-not-current")
         risk_id, risk_fingerprint, reservation_id = extract_risk_provenance(submission)
         record = FundedNextMt5MutationRecord(
             idempotency_key=key,

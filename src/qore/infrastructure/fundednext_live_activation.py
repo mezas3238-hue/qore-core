@@ -6,7 +6,7 @@ import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from qore.infrastructure.fundednext_live_authorization import (
@@ -124,17 +124,7 @@ def load_verified_live_activation(
         activation_timestamp=_timestamp(payload, "activation_timestamp"),
         order_submission_authorized=_bool(payload, "order_submission_authorized"),
     )
-    if auth.provider_rules_current:
-        rules_verified_at = _timestamp(payload, "rules_verified_at")
-        rules_valid_until = _timestamp(payload, "rules_valid_until")
-    else:
-        # SHADOW has no fabricated freshness window. These timestamps satisfy the
-        # value object only; verification_state remains STALE and cannot submit.
-        rules_verified_at = auth.activation_timestamp
-        rules_valid_until = auth.activation_timestamp + timedelta(seconds=1)
     rules = StellarInstantRuleVerification(
-        rules_verified_at=rules_verified_at,
-        rules_valid_until=rules_valid_until,
         verification_state=(
             RuleVerificationState.CURRENT
             if auth.provider_rules_current

@@ -64,8 +64,6 @@ DOCUMENTED_COMMODITY_LEVERAGE = (Decimal("7.5"), Decimal("15"))
 
 @dataclass(frozen=True, slots=True)
 class StellarInstantRuleVerification:
-    rules_verified_at: datetime
-    rules_valid_until: datetime
     verification_state: RuleVerificationState
     automation_state: AutomationVerificationState
     ea_addon_verified: bool
@@ -74,10 +72,6 @@ class StellarInstantRuleVerification:
     leverage_execution_source: str = "MT5_SYMBOL_INFO"
 
     def __post_init__(self) -> None:
-        _aware(self.rules_verified_at, "rules_verified_at")
-        _aware(self.rules_valid_until, "rules_valid_until")
-        if self.rules_valid_until <= self.rules_verified_at:
-            raise StellarInstantContractError("rules_valid_until must follow rules_verified_at")
         if type(self.verification_state) is not RuleVerificationState:
             raise StellarInstantContractError("verification_state must be canonical")
         if type(self.automation_state) is not AutomationVerificationState:
@@ -87,10 +81,7 @@ class StellarInstantRuleVerification:
 
     def is_current(self, now: datetime) -> bool:
         _aware(now, "now")
-        return (
-            self.verification_state is RuleVerificationState.CURRENT
-            and self.rules_verified_at <= now <= self.rules_valid_until
-        )
+        return self.verification_state is RuleVerificationState.CURRENT
 
     def automated_mt5_allowed(self, now: datetime) -> bool:
         return (

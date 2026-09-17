@@ -12,11 +12,14 @@ def test_component_certification_binds_exact_6pct_provider_and_separate_qore_pol
     assert isinstance(provider, dict)
     assert provider["maximum_loss_fraction"] == "0.06"
     assert provider["daily_loss_limit"] is None
-    assert provider["separate_max_risk_at_any_time_fraction"] == "0.03"
-    assert provider["provider_three_percent_rule_used_by_risk"] is True
+    assert provider["cumulative_open_risk_fraction"] == "0.03"
+    assert provider["cumulative_open_risk_guard_enforced"] is True
+    assert provider["cumulative_open_risk_is_maximum_loss"] is False
     internal = payload["qore_internal_policy"]
     assert isinstance(internal, dict)
     assert internal["explicitly_not_provider_rule"] is True
+    assert internal["maximum_loss_fraction"] == "0.06"
+    assert internal["uses_provider_mll_without_second_trailing_wall"] is True
 
 
 def test_component_certification_cannot_self_authorize_live_send() -> None:

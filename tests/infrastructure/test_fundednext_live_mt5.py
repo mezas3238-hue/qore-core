@@ -240,8 +240,6 @@ def _live_auth(*, complete: bool) -> FundedNextLiveAccountAuthorization:
 
 def _rules() -> StellarInstantRuleVerification:
     return StellarInstantRuleVerification(
-        rules_verified_at=_NOW - timedelta(hours=1),
-        rules_valid_until=_NOW + timedelta(days=1),
         verification_state=RuleVerificationState.CURRENT,
         automation_state=AutomationVerificationState.VERIFIED,
         ea_addon_verified=True,
@@ -296,6 +294,7 @@ def _gateway(
     complete: bool,
     submission_enabled: bool,
     clock: Callable[[], datetime] | None = None,
+    rules: StellarInstantRuleVerification | None = None,
 ) -> FundedNextLiveMt5ExecutionGateway:
     transport = MetaTrader5FundedNextLiveTransport(
         api=api,
@@ -308,7 +307,7 @@ def _gateway(
         account=_account_identity(),
         transport=transport,
         mutation_ledger=InMemoryFundedNextMt5MutationLedger(),
-        rule_verification=_rules(),
+        rule_verification=rules or _rules(),
         live_authorization=_live_auth(complete=complete),
         safety=_Safety(),
         runtime_git_sha=_SHA,
@@ -332,6 +331,27 @@ def test_live_send_requires_complete_activation() -> None:
     gateway = _gateway(api, complete=False, submission_enabled=True)
     with pytest.raises(Mt5ExecutionBlockedError, match="submission-disabled"):
         gateway.submit_live(_submission(), now=_NOW)
+    assert api.sent == 0
+
+
+def test_rule_verification_failure_occurs_after_order_check_and_before_send() -> None:
+    api = _Api()
+    blocked_rules = StellarInstantRuleVerification(
+        verification_state=RuleVerificationState.CONFLICTED,
+        automation_state=AutomationVerificationState.VERIFIED,
+        ea_addon_verified=True,
+        platform_verified=True,
+        exact_product_verified=True,
+    )
+    gateway = _gateway(
+        api,
+        complete=True,
+        submission_enabled=True,
+        rules=blocked_rules,
+    )
+    with pytest.raises(Mt5ExecutionBlockedError, match="provider-automation-rules-not-current"):
+        gateway.submit_live(_submission(), now=_NOW)
+    assert api.checked == 1
     assert api.sent == 0
 
 

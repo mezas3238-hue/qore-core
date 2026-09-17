@@ -170,14 +170,27 @@ $Python = (Get-Command python).Source
 if (-not (Get-ScheduledTask -TaskName $RulesRefreshTaskName -ErrorAction SilentlyContinue)) {
     throw "Provider-rule auto-refresh task is not installed"
 }
-& $Python $RulesRefreshScript --root $Root --lease-hours 30
+& $Python $RulesRefreshScript --root $Root
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $RulesRefreshPath)) {
-    throw "Fresh provider-rule verification failed"
+    throw "Automated provider-rule verification failed"
 }
 $RulesRefresh = Get-Content -Raw $RulesRefreshPath | ConvertFrom-Json
-$RulesVerifiedAt = [DateTimeOffset]::Parse([string]$RulesRefresh.verified_at)
-$RulesValidUntil = [DateTimeOffset]::Parse([string]$RulesRefresh.valid_until)
-if ($RulesValidUntil -le $AttemptStartedAt) { throw "Provider-rule refresh lease is not current" }
+if ([string]$RulesRefresh.schema -ne "qore.fundednext.provider-rules-refresh.v2") {
+    throw "Provider-rule verification schema mismatch"
+}
+if ([string]$RulesRefresh.provider_rules_fingerprint -ne [string]$Activation.provider_rules_fingerprint) {
+    throw "Provider-rule verification fingerprint mismatch"
+}
+if (
+    -not [bool]$RulesRefresh.facts.no_daily_loss_limit -or
+    [string]$RulesRefresh.facts.maximum_loss_fraction -ne "0.06" -or
+    -not [bool]$RulesRefresh.facts.trailing_maximum_loss -or
+    -not [bool]$RulesRefresh.facts.ea_allowed_mt5 -or
+    [string]$RulesRefresh.facts.cumulative_open_risk_fraction -ne "0.03" -or
+    -not [bool]$RulesRefresh.facts.cumulative_open_risk_applies
+) {
+    throw "Provider-rule verification facts do not match the frozen Stellar Instant contract"
+}
 Remove-Item $OwnerArtifactPath -Force -ErrorAction SilentlyContinue
 Disable-ScheduledTask -TaskName $WatchdogTaskName -ErrorAction SilentlyContinue | Out-Null
 Stop-ScheduledTask -TaskName $RuntimeTaskName -ErrorAction SilentlyContinue
@@ -197,8 +210,6 @@ $Activation.no_send_passed = $true
 $Activation.shadow_passed = $true
 $Activation.service_24_7_verified = $true
 $Activation.restart_recovery_passed = $true
-$Activation | Add-Member -NotePropertyName rules_verified_at -NotePropertyValue $RulesVerifiedAt.ToUniversalTime().ToString("o") -Force
-$Activation | Add-Member -NotePropertyName rules_valid_until -NotePropertyValue $RulesValidUntil.ToUniversalTime().ToString("o") -Force
 $Activation.activation_timestamp = $AttemptStartedAt.ToString("o")
 $Activation.order_submission_authorized = $true
 Write-JsonAtomic $Activation $ActivationPath
@@ -219,15 +230,16 @@ try {
     $State = $Verified.State
     $Process = $Verified.Process
     $Armed = [ordered]@{
-        schema = "qore.fundednext.owner-live-activation.v2"
+        schema = "qore.fundednext.owner-live-activation.v3"
         git_sha = $GitSha
         account_identity_fingerprint = [string]$Activation.account_identity_fingerprint
         ea_entitlement_verified = $true
         vps_entitlement_verified = $true
         provider_rules_current = $true
-        rules_verified_at = $RulesVerifiedAt.ToUniversalTime().ToString("o")
-        rules_valid_until = $RulesValidUntil.ToUniversalTime().ToString("o")
-        rules_refresh_mode = "AUTOMATIC_6H_ROLLING_LEASE"
+        rules_refresh_mode = "AUTOMATIC_JIT_BEFORE_ORDER_SEND_PLUS_6H_PREWARM"
+        manual_rule_expiry_required = $false
+        provider_maximum_loss_fraction = "0.06"
+        provider_cumulative_open_risk_fraction = "0.03"
         resident_runtime_mode = "LIVE_ARMED_WAITING_FOR_GENUINE_VT08_SIGNAL"
         runtime_pid = [int]$Process.ProcessId
         service_started_at = [string]$State.service_started_at

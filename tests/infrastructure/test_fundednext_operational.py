@@ -158,8 +158,6 @@ def _authorization(provider_symbol: str = "GBPUSD.a") -> RiskAuthorization:
 
 def _rules() -> StellarInstantRuleVerification:
     return StellarInstantRuleVerification(
-        rules_verified_at=_NOW - timedelta(minutes=1),
-        rules_valid_until=_NOW + timedelta(hours=1),
         verification_state=RuleVerificationState.CURRENT,
         automation_state=AutomationVerificationState.VERIFIED,
         ea_addon_verified=True,

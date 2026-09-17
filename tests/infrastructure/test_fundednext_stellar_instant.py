@@ -101,11 +101,9 @@ def test_exact_six_symbol_mapping_and_commissions() -> None:
         resolve_pilot_symbol("EURUSD")
 
 
-def test_automation_fails_closed_when_rules_stale_or_unverified() -> None:
+def test_automation_has_no_owner_expiry_and_fails_closed_when_unverified() -> None:
     now = datetime(2026, 9, 13, 18, 0, tzinfo=UTC)
     current = StellarInstantRuleVerification(
-        rules_verified_at=now - timedelta(minutes=5),
-        rules_valid_until=now + timedelta(hours=1),
         verification_state=RuleVerificationState.CURRENT,
         automation_state=AutomationVerificationState.VERIFIED,
         ea_addon_verified=True,
@@ -113,11 +111,9 @@ def test_automation_fails_closed_when_rules_stale_or_unverified() -> None:
         exact_product_verified=True,
     )
     assert current.automated_mt5_allowed(now) is True
-    assert current.automated_mt5_allowed(now + timedelta(hours=2)) is False
+    assert current.automated_mt5_allowed(now + timedelta(days=365)) is True
 
     unresolved = StellarInstantRuleVerification(
-        rules_verified_at=now - timedelta(minutes=5),
-        rules_valid_until=now + timedelta(hours=1),
         verification_state=RuleVerificationState.CONFLICTED,
         automation_state=AutomationVerificationState.VERIFIED,
         ea_addon_verified=True,

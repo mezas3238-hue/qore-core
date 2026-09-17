@@ -85,12 +85,13 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "pilot_initial_balance_usd": str(PILOT_INITIAL_BALANCE),
             "daily_loss_limit": None,
             "maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
-            "separate_max_risk_at_any_time_fraction": (
+            "cumulative_open_risk_fraction": (
                 None
                 if SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION is None
                 else str(SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION)
             ),
-            "provider_three_percent_cap_present": True,
+            "cumulative_open_risk_guard_present": True,
+            "cumulative_open_risk_is_maximum_loss": False,
             "trailing_mll": True,
             "mll_capped_at_initial_balance": True,
             "payout_lowers_mll": False,
@@ -99,7 +100,7 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
                 FOREX_OPEN_COMMISSION_PER_LOT_USD
             ),
             "automation_and_vps_entitlements_required_for_live": True,
-            "rules_freshness_must_be_owner_verified": True,
+            "provider_rules_revalidated_jit_before_order_send": True,
             "synthetic_inactivity_trade_forbidden": True,
         },
         "qore_internal_risk_policy": {

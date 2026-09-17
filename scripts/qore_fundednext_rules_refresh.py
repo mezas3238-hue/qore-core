@@ -9,19 +9,19 @@ import json
 import os
 import re
 import tempfile
-from datetime import UTC, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.request import Request, urlopen
 
 MLL_URL = "https://help.fundednext.com/en/articles/11641163-what-are-the-daily-loss-limit-and-the-maximum-loss-limit-for-the-stellar-instant-accounts"
 EA_URL = "https://help.fundednext.com/en/articles/11641338-can-i-use-ea-in-stellar-instant"
 RISK_URL = "https://help.fundednext.com/en/articles/15644011-what-are-the-clarity-cards-and-how-do-they-affect-my-account"
-_SCHEMA = "qore.fundednext.provider-rules-refresh.v1"
+_SCHEMA = "qore.fundednext.provider-rules-refresh.v2"
 
 
 def _fetch(url: str) -> bytes:
     request = Request(url, headers={"User-Agent": "QORE-Core/1.0 provider-rule-verifier"})
-    with urlopen(request, timeout=25) as response:  # noqa: S310 - fixed trusted HTTPS URLs
+    with urlopen(request, timeout=15) as response:  # noqa: S310 - fixed trusted HTTPS URLs
         if getattr(response, "status", 200) != 200:
             raise RuntimeError(f"provider rule source returned HTTP {response.status}")
         return response.read()
@@ -53,19 +53,22 @@ def _atomic_json(path: Path, payload: dict[str, object]) -> None:
             os.unlink(temp_name)
 
 
-def refresh(root: Path, *, lease_hours: int) -> dict[str, object]:
-    if not 12 <= lease_hours <= 72:
-        raise ValueError("lease_hours must be between 12 and 72")
+def refresh(root: Path) -> dict[str, object]:
     activation_path = root / "var/fundednext/live-activation.json"
     activation = json.loads(activation_path.read_text(encoding="utf-8-sig"))
     provider_path = root / "src/qore/infrastructure/fundednext_stellar_instant.py"
     local_provider_hash = hashlib.sha256(provider_path.read_bytes()).hexdigest()
     expected_provider_hash = str(activation["provider_rules_fingerprint"])
     _require(
-        local_provider_hash == expected_provider_hash, "provider contract fingerprint mismatch"
+        local_provider_hash == expected_provider_hash,
+        "provider contract fingerprint mismatch",
     )
 
-    sources = {"mll": _fetch(MLL_URL), "ea": _fetch(EA_URL), "risk": _fetch(RISK_URL)}
+    urls = {"mll": MLL_URL, "ea": EA_URL, "risk": RISK_URL}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {name: pool.submit(_fetch, url) for name, url in urls.items()}
+        sources = {name: future.result() for name, future in futures.items()}
+
     mll = _text(sources["mll"])
     ea = _text(sources["ea"])
     risk = _text(sources["risk"])
@@ -75,10 +78,11 @@ def refresh(root: Path, *, lease_hours: int) -> dict[str, object]:
         "no daily loss limit" in mll or "no daily loss limits" in mll,
         "no-daily-loss rule not verified",
     )
-    _require("6%" in mll and "trailing" in mll, "6% trailing MLL not verified")
+    _require("6%" in mll and "trailing" in mll, "6% trailing Maximum Loss not verified")
     _require("stellar instant" in ea, "EA source no longer identifies Stellar Instant")
     _require(
-        "expert advisors" in ea and ("meta trader 5" in ea or "metatrader 5" in ea or "mt5" in ea),
+        "expert advisors" in ea
+        and ("meta trader 5" in ea or "metatrader 5" in ea or "mt5" in ea),
         "EA-on-MT5 rule not verified",
     )
     _require("allowed" in ea, "EA permission wording not verified")
@@ -86,22 +90,22 @@ def refresh(root: Path, *, lease_hours: int) -> dict[str, object]:
         "stellar instant" in risk or "instant account" in risk,
         "risk source no longer identifies Instant account",
     )
-    _require("default risk limit is 3%" in risk, "3% cumulative risk limit not verified")
+    _require(
+        "default risk limit is 3%" in risk,
+        "3% cumulative open-position Risk Limit not verified",
+    )
     _require(
         "cumulative across all open positions" in risk,
         "cumulative open-position risk scope not verified",
     )
 
-    now = datetime.now(UTC)
-    valid_until = now + timedelta(hours=lease_hours)
     payload: dict[str, object] = {
         "schema": _SCHEMA,
         "provider_rules_fingerprint": expected_provider_hash,
-        "verified_at": now.isoformat(),
-        "valid_until": valid_until.isoformat(),
         "facts": {
             "no_daily_loss_limit": True,
-            "trailing_mll_fraction": "0.06",
+            "maximum_loss_fraction": "0.06",
+            "trailing_maximum_loss": True,
             "ea_allowed_mt5": True,
             "cumulative_open_risk_fraction": "0.03",
             "cumulative_open_risk_applies": True,
@@ -111,7 +115,7 @@ def refresh(root: Path, *, lease_hours: int) -> dict[str, object]:
                 "url": url,
                 "sha256": hashlib.sha256(sources[name]).hexdigest(),
             }
-            for name, url in {"mll": MLL_URL, "ea": EA_URL, "risk": RISK_URL}.items()
+            for name, url in urls.items()
         },
     }
     _atomic_json(root / "var/fundednext/provider-rules-refresh.json", payload)
@@ -121,15 +125,16 @@ def refresh(root: Path, *, lease_hours: int) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[1]))
-    parser.add_argument("--lease-hours", type=int, default=30)
     args = parser.parse_args()
-    payload = refresh(Path(args.root).resolve(), lease_hours=args.lease_hours)
+    payload = refresh(Path(args.root).resolve())
+    facts = payload["facts"]
+    assert isinstance(facts, dict)
     print(
         json.dumps(
             {
                 "ok": True,
-                "verified_at": payload["verified_at"],
-                "valid_until": payload["valid_until"],
+                "maximum_loss_fraction": facts["maximum_loss_fraction"],
+                "cumulative_open_risk_fraction": facts["cumulative_open_risk_fraction"],
             }
         )
     )

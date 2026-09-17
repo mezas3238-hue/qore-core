@@ -73,6 +73,9 @@ jobs:
         run: |
           pytest -q \
             tests/infrastructure/test_fundednext_stellar_instant.py \
+            tests/infrastructure/test_fundednext_rule_refresh.py \
+            tests/infrastructure/test_fundednext_rules_refresh_script.py \
+            tests/infrastructure/test_fundednext_runtime_script_contract.py \
             tests/infrastructure/test_account_wide_risk.py \
             tests/infrastructure/test_account_wide_risk_ledger.py \
             tests/infrastructure/test_fundednext_operational_risk_policy.py \
@@ -123,8 +126,9 @@ jobs:
           assert cert["status"] == "CIBO_RISK_COMPONENT_CERTIFIED"
           assert cert["provider"]["maximum_loss_fraction"] == "0.06"
           assert cert["provider"]["daily_loss_limit"] is None
-          assert cert["provider"]["separate_max_risk_at_any_time_fraction"] == "0.03"
-          assert cert["provider"]["provider_three_percent_rule_used_by_risk"] is True
+          assert cert["provider"]["cumulative_open_risk_fraction"] == "0.03"
+          assert cert["provider"]["cumulative_open_risk_guard_enforced"] is True
+          assert cert["provider"]["cumulative_open_risk_is_maximum_loss"] is False
           assert cert["cibo"]["capital_authority"] is False
           assert cert["cibo"]["attack_can_override_risk"] is False
           assert cert["account_wide_risk"]["final_capital_authority"] is True
@@ -141,8 +145,9 @@ jobs:
           assert payload["git_sha"] == "${{ github.sha }}"
           assert payload["provider"]["maximum_loss_fraction"] == "0.06"
           assert payload["provider"]["daily_loss_limit"] is None
-          assert payload["provider"]["separate_max_risk_at_any_time_fraction"] == "0.03"
-          assert payload["provider"]["provider_three_percent_cap_present"] is True
+          assert payload["provider"]["cumulative_open_risk_fraction"] == "0.03"
+          assert payload["provider"]["cumulative_open_risk_guard_present"] is True
+          assert payload["provider"]["cumulative_open_risk_is_maximum_loss"] is False
           assert payload["qore_internal_risk_policy"]["explicitly_not_provider_rule"] is True
           assert payload["qore_internal_risk_policy"]["risk_is_final_capital_authority"] is True
           state = payload["certification_state"]

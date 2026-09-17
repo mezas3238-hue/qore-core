@@ -15,12 +15,15 @@ def test_h4_exit_comment_uses_broker_verified_29_character_limit() -> None:
     assert '"comment": f"qore-h4-exit-{str(position.ticket)}"[:31],' not in source
 
 
-def test_live_activation_adds_rule_freshness_properties_safely() -> None:
+def test_live_activation_has_no_owner_rule_expiry_and_uses_automated_verification() -> None:
     source = _ACTIVATOR.read_text(encoding="utf-8-sig")
-    assert "Add-Member -NotePropertyName rules_verified_at" in source
-    assert "Add-Member -NotePropertyName rules_valid_until" in source
-    assert "$Activation.rules_verified_at =" not in source
-    assert "$Activation.rules_valid_until =" not in source
+    assert "rules_verified_at" not in source
+    assert "rules_valid_until" not in source
+    assert "--lease-hours" not in source
+    assert "qore.fundednext.provider-rules-refresh.v2" in source
+    assert 'maximum_loss_fraction -ne "0.06"' in source
+    assert "AUTOMATIC_JIT_BEFORE_ORDER_SEND_PLUS_6H_PREWARM" in source
+    assert "manual_rule_expiry_required = $false" in source
 
 
 def test_live_activation_waits_for_old_writer_and_requires_new_live_runtime() -> None:
@@ -40,7 +43,7 @@ def test_live_activation_rolls_back_fail_closed_and_self_checks_watchdog() -> No
     assert "$Activation.order_submission_authorized = $false" in source
     assert "Remove-Item $OwnerArtifactPath" in source
     assert "LIVE watchdog self-check failed" in source
-    assert 'schema = "qore.fundednext.owner-live-activation.v2"' in source
+    assert 'schema = "qore.fundednext.owner-live-activation.v3"' in source
     assert "Write-JsonAtomic $Activation $ActivationPath" in source
 
 

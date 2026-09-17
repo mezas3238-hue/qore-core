@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -591,6 +592,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             server=_EXPECTED_SERVER,
         )
     state_dir = root / "var" / "fundednext"
+
+    def refresh_provider_rules_before_submission() -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(root / "scripts" / "qore_fundednext_rules_refresh.py"),
+                "--root",
+                str(root),
+            ],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "provider-rule-refresh-failed").strip()
+            raise RuntimeError(detail[:500])
     safety_path = state_dir / "live-safety.json"
     load_live_safety_state(safety_path)
     safety = JsonFileLiveOperationalSafetyBoundary(safety_path)
@@ -613,6 +632,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             baseline=activation.rules,
             refresh_path=state_dir / "provider-rules-refresh.json",
             expected_provider_rules_fingerprint=activation.authorization.provider_rules_fingerprint,
+            refresh_action=refresh_provider_rules_before_submission,
         ),
         live_authorization=activation.authorization,
         safety=safety,

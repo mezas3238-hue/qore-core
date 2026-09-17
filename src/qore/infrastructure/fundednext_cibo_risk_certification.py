@@ -17,7 +17,6 @@ from qore.infrastructure.fundednext_operational_risk_policy import (
     QORE_INTERNAL_BANK_HEAT_FRACTION,
     QORE_INTERNAL_NORMAL_HEAT_FRACTION,
     QORE_INTERNAL_SAFETY_BUFFER_FRACTION,
-    QORE_INTERNAL_TRAILING_LOSS_FRACTION,
     QORE_OPERATIONAL_RISK_POLICY_VERSION,
     operational_risk_policy_fingerprint,
 )
@@ -35,7 +34,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 )
 from qore.infrastructure.vt08_forex_fundednext_sizing import R315_BASE_RISK_BPS
 
-_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v2"
+_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v3"
 
 
 def build_certification(*, git_sha: str) -> dict[str, object]:
@@ -68,12 +67,13 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
             "maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
             "trailing_mll": True,
             "daily_loss_limit": None,
-            "separate_max_risk_at_any_time_fraction": (
+            "cumulative_open_risk_fraction": (
                 None
                 if SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION is None
                 else str(SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION)
             ),
-            "provider_three_percent_rule_used_by_risk": True,
+            "cumulative_open_risk_guard_enforced": True,
+            "cumulative_open_risk_is_maximum_loss": False,
         },
         "cibo": {
             "version": R315_CIBO_VERSION,
@@ -99,7 +99,8 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
         "qore_internal_policy": {
             "version": QORE_OPERATIONAL_RISK_POLICY_VERSION,
             "fingerprint": operational_risk_policy_fingerprint(),
-            "trailing_loss_fraction": str(QORE_INTERNAL_TRAILING_LOSS_FRACTION),
+            "maximum_loss_fraction": str(MAXIMUM_LOSS_FRACTION),
+            "uses_provider_mll_without_second_trailing_wall": True,
             "safety_buffer_fraction": str(QORE_INTERNAL_SAFETY_BUFFER_FRACTION),
             "bank_heat_fraction": str(QORE_INTERNAL_BANK_HEAT_FRACTION),
             "normal_heat_fraction": str(QORE_INTERNAL_NORMAL_HEAT_FRACTION),

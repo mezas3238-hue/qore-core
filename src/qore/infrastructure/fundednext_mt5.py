@@ -416,12 +416,6 @@ class FundedNextMt5ExecutionGateway:
                     "owner-order-submission-authorization-disabled"
                 )
             )
-        if not self._rules.automated_mt5_allowed(now):
-            return Failure(
-                Mt5ExecutionBlockedError(
-                    "fundednext-automation-rules-not-current-and-verified"
-                )
-            )
         if self.has_unresolved_mutations:
             return Failure(
                 Mt5ExecutionOutcomeUnknownError(
@@ -449,6 +443,12 @@ class FundedNextMt5ExecutionGateway:
                 risk_authorization_fingerprint=risk_fingerprint,
                 risk_reservation_id=reservation_id,
             )
+            if not self._rules.automated_mt5_allowed(now):
+                return Failure(
+                    Mt5ExecutionBlockedError(
+                        "fundednext-automation-rules-not-current-and-verified"
+                    )
+                )
             self._persist(record)
             outcome = self._transport.submit_order(plan)
             if outcome.client_order_id != plan.client_order_id:
