@@ -213,14 +213,13 @@ def _cibo_research_priors(ledger_dir: Path) -> dict[str, object]:
 
     timing: dict[str, object] = {}
     for partition, values in sorted(departure_minutes.items()):
-        values = sorted(values)
-        def q(p: Decimal) -> int:
-            return values[int((len(values) - 1) * p)]
+        ordered = sorted(values)
+        last = len(ordered) - 1
         timing[partition] = {
-            "n": len(values),
-            "p25_minute_ny": q(Decimal("0.25")),
-            "p50_minute_ny": q(Decimal("0.50")),
-            "p75_minute_ny": q(Decimal("0.75")),
+            "n": len(ordered),
+            "p25_minute_ny": ordered[last * 25 // 100],
+            "p50_minute_ny": ordered[last * 50 // 100],
+            "p75_minute_ny": ordered[last * 75 // 100],
         }
 
     return {
@@ -336,7 +335,10 @@ def _state_features(
 
     if source.side.value == "long":
         expected_side = "low"
-        raid_extreme = min((_d(getattr(bar, "low")) for bar in session_prefix), default=source.reference.low)
+        raid_extreme = min(
+            (_d(getattr(bar, "low")) for bar in session_prefix),
+            default=source.reference.low,
+        )
         raid_depth = max(Decimal(0), source.reference.low - raid_extreme)
         directional_progress = (
             _d(getattr(session_prefix[-1], "close")) - source.reference.low
@@ -344,7 +346,10 @@ def _state_features(
         )
     else:
         expected_side = "high"
-        raid_extreme = max((_d(getattr(bar, "high")) for bar in session_prefix), default=source.reference.high)
+        raid_extreme = max(
+            (_d(getattr(bar, "high")) for bar in session_prefix),
+            default=source.reference.high,
+        )
         raid_depth = max(Decimal(0), raid_extreme - source.reference.high)
         directional_progress = (
             source.reference.high - _d(getattr(session_prefix[-1], "close"))
