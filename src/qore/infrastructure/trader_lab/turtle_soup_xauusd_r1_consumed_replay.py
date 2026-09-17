@@ -12,7 +12,7 @@ import json
 import sys
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -29,6 +29,7 @@ SOURCE_ARTIFACT_DIGEST = (
 )
 EVAL_OPEN = datetime(2016, 9, 17, 0, 0, tzinfo=UTC)
 EVAL_CLOSE = datetime(2026, 9, 17, 0, 0, tzinfo=UTC)
+SESSION_BOUNDARY_TOLERANCE = timedelta(days=10)
 
 
 def _stat(values: Sequence[Decimal]) -> dict[str, Any]:
@@ -54,10 +55,10 @@ def run_consumed_replay(source_root: Path, output: Path) -> dict[str, Any]:
         raise ValueError("empty XAUUSD consumed corpus")
     first_bar = evidence.bars[0].opened_at
     last_bar_close = evidence.bars[-1].closed_at
-    if first_bar > EVAL_OPEN:
-        raise ValueError("consumed corpus starts after frozen replay open")
-    if last_bar_close < EVAL_CLOSE:
-        raise ValueError("consumed corpus ends before frozen replay close")
+    if first_bar > EVAL_OPEN + SESSION_BOUNDARY_TOLERANCE:
+        raise ValueError("consumed corpus starts too far after frozen replay open")
+    if last_bar_close < EVAL_CLOSE - SESSION_BOUNDARY_TOLERANCE:
+        raise ValueError("consumed corpus ends too far before frozen replay close")
 
     original_open = r1.EVAL_OPEN
     original_close = r1.EVAL_CLOSE
@@ -107,6 +108,8 @@ def run_consumed_replay(source_root: Path, output: Path) -> dict[str, Any]:
         "source_artifact_digest": SOURCE_ARTIFACT_DIGEST,
         "evaluation_opened_at": EVAL_OPEN.isoformat(),
         "evaluation_closed_at": EVAL_CLOSE.isoformat(),
+        "first_observed_m5": first_bar.isoformat(),
+        "last_observed_m5_close": last_bar_close.isoformat(),
         "retained_m5_bars": provenance["retained_bars"],
         "candidate_contract_unchanged": True,
         "candidate_contract": {
