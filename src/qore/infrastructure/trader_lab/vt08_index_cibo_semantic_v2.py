@@ -22,6 +22,7 @@ from typing import cast
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
+from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
 from qore.infrastructure.trader_lab.vt08_index_cibo_complete_ledgers import (
     _hit_payload,
 )
@@ -87,7 +88,7 @@ def _find_h4_open(
     candidates = [
         opened
         for opened, bar in h4.items()
-        if opened <= signal_at < bar.closed_at
+        if opened < signal_at <= bar.closed_at
         and opened.astimezone(_NY).hour == anchor_hour_new_york
     ]
     if len(candidates) != 1:
@@ -103,7 +104,6 @@ def _reconstruct_v7(
     state: Mapping[str, object],
 ) -> dict[str, object]:
     signal_at = _dt(trade["signal_at"])
-    side = _side(trade["side"])
     indexed = cast(dict[datetime, Vt08IndexC2R1Bar], state["indexed"])
     h4 = cast(dict[datetime, Vt08IndexC2R1Bar], state["h4"])
     h4_open = _find_h4_open(
@@ -111,67 +111,62 @@ def _reconstruct_v7(
         anchor_hour_new_york=int(str(trade["anchor_hour_new_york"])),
         h4=h4,
     )
-    h4_bar = h4[h4_open]
-    poi = v6._source_poi_for_h4(
-        indexed,
-        h4,
+    signal = v7._signal_for_h4(
+        symbol=str(trade["symbol"]),
+        indexed=indexed,
+        h4=h4,
         h4_opened_at=h4_open,
-        side=side,
     )
-    if poi is None:
-        raise ValueError(f"frozen V7 POI missing for {trade['symbol']} {trade['signal_at']}")
-    bars = v6._bars_between(indexed, start=h4_open, end=h4_bar.closed_at)
-    touch_index = v6._poi_touch_index(bars, poi)
-    if touch_index is None:
-        raise ValueError(f"frozen V7 POI touch missing for {trade['symbol']} {trade['signal_at']}")
-    cisd = v6._first_cisd(bars, side=side, start_index=touch_index)
-    if cisd is None:
-        raise ValueError(f"frozen V7 CISD missing for {trade['symbol']} {trade['signal_at']}")
-    cisd_index, cisd_level, protected_swing = cisd
-    continuation_index = v6._first_continuation(
-        bars,
-        side=side,
-        start_index=cisd_index + 1,
-        protected_swing=protected_swing,
-    )
-    if continuation_index is None:
+    if signal is None:
         raise ValueError(
-            f"frozen V7 continuation missing for {trade['symbol']} {trade['signal_at']}"
+            f"frozen V7 signal did not reconstruct for {trade['symbol']} {trade['signal_at']}"
         )
-    continuation = bars[continuation_index]
-    if continuation.closed_at != signal_at:
+    if signal.signal_at != signal_at:
         raise ValueError(
             "reconstructed continuation does not equal frozen signal: "
             f"{trade['symbol']} expected={signal_at.isoformat()} "
-            f"actual={continuation.closed_at.isoformat()}"
+            f"actual={signal.signal_at.isoformat()}"
         )
-    model = v6._completed_h4_model(
-        indexed,
-        h4,
-        current_h4_open=h4_open,
-        side=side,
-    )
-    if model is None:
-        model = v6.H4ModelKind.SAME_C2
+    if signal.side.value != str(trade["side"]):
+        raise ValueError(
+            f"reconstructed side mismatch for {trade['symbol']} {trade['signal_at']}"
+        )
+    if signal.model_kind.value != str(trade["model_kind"]):
+        raise ValueError(
+            f"reconstructed model mismatch for {trade['symbol']} {trade['signal_at']}"
+        )
+    if signal.poi.kind.value != str(trade["poi_kind"]):
+        raise ValueError(
+            f"reconstructed POI mismatch for {trade['symbol']} {trade['signal_at']}"
+        )
+
+    h4_bar = h4[h4_open]
+    bars = v6._bars_between(indexed, start=h4_open, end=h4_bar.closed_at)
+    touch_index = v6._poi_touch_index(bars, signal.poi)
+    if touch_index is None:
+        raise ValueError(
+            f"frozen V7 POI touch missing for {trade['symbol']} {trade['signal_at']}"
+        )
     poi_touch = bars[touch_index]
-    cisd_bar = bars[cisd_index]
     return {
         "symbol": trade["symbol"],
         "side": trade["side"],
         "h4_opened_at": h4_open.isoformat(),
         "anchor_hour_new_york": trade["anchor_hour_new_york"],
-        "model_kind_reconstructed": model.value,
+        "model_kind_reconstructed": signal.model_kind.value,
         "source_poi": {
-            **poi.payload(),
+            **signal.poi.payload(),
             "first_touch_at": poi_touch.closed_at.isoformat(),
             "touch_bar_opened_at": poi_touch.opened_at.isoformat(),
         },
-        "cisd_level": _fmt(cisd_level),
-        "cisd_confirmed_at": cisd_bar.closed_at.isoformat(),
-        "protected_swing_extreme": _fmt(protected_swing),
-        "protected_swing_confirmed_at": cisd_bar.closed_at.isoformat(),
-        "continuation_at": continuation.closed_at.isoformat(),
-        "continuation_entry": _fmt(continuation.close),
+        "cisd_level": _fmt(signal.cisd_level),
+        "cisd_confirmed_at": signal.cisd_confirmed_at.isoformat(),
+        "protected_swing_extreme": _fmt(signal.protected_swing_extreme),
+        "protected_swing_confirmed_at": signal.cisd_confirmed_at.isoformat(),
+        "continuation_at": signal.signal_at.isoformat(),
+        "continuation_entry": _fmt(signal.entry),
+        "frozen_stop": _fmt(signal.stop),
+        "frozen_target": _fmt(signal.target),
         "signal_at_matches_reconstruction": True,
     }
 
