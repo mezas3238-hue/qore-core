@@ -7,7 +7,9 @@ on:
     paths:
       - '.github/workflows/cibo-market-atlas-journey-10y-v1.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_cross_index_fast_v1.py'
       - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_extractor_v1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py'
       - 'docs/research/CIBO-MARKET-ATLAS-JOURNEY-LAYER-V1.md'
   workflow_dispatch:
 
@@ -38,16 +40,21 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py \
-            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_extractor_v1.py
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_cross_index_fast_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_extractor_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py
       - name: Mypy
         run: |
           mypy \
             src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py \
-            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_extractor_v1.py
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_cross_index_fast_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_extractor_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_extractor_v1.py
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_extractor_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_cross_index_fast_v1.py
       - name: Governance assertions
         run: |
           python - <<'PY'
@@ -147,7 +154,7 @@ jobs:
           import hashlib
           import json
           from pathlib import Path
-          from qore.infrastructure.trader_lab.cibo_market_atlas_journey_extractor_v1 import build_cross_index
+          from qore.infrastructure.trader_lab.cibo_market_atlas_cross_index_fast_v1 import build_cross_index
 
           manifests = {}
           for path in Path('journeys').rglob('journey-manifest.json'):
@@ -180,6 +187,7 @@ jobs:
               'source_git_sha': 'ab782b8e9f890f86a2b6500070f0556b4b685e3d',
               'symbols': rows,
               'cross_index_rows': cross['rows'],
+              'cross_index_aggregation': cross['aggregation_transport'],
               'evidence_status': 'CONSUMED_RESEARCH_EVIDENCE',
               'demo_eligible': False,
               'live_authorized': False,
@@ -191,6 +199,7 @@ jobs:
           digest = hashlib.sha256(out.read_bytes()).hexdigest()
           Path('aggregate/journey-10y-index.sha256').write_text(digest + '\n')
           assert cross['rows'] > 0
+          assert cross['aggregation_transport'] == 'BINARY_SEARCH_NEAREST_V1'
           PY
       - name: Upload authoritative Journey aggregate
         uses: actions/upload-artifact@v4
