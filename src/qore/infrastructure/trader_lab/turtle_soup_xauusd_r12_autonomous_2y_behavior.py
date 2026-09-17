@@ -246,7 +246,7 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
     window_setup_count = 0
     window_assessed_fill_count = 0
 
-    for setup, target_rows, outcomes in routed:
+    for setup, routed_targets, outcomes in routed:
         signal = setup.context.signal
         signal_in_window = _in_window(signal.entry_at)
         if signal_in_window:
@@ -264,7 +264,7 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
                 natural_abstentions[reason] += 1
             continue
 
-        assessment, feature_row = _assess(setup, trade, target_rows, evidence, opens, rc)
+        assessment, feature_row = _assess(setup, trade, routed_targets, evidence, opens, rc)
         if signal_in_window:
             assessments[assessment.state.value] += 1
             window_assessed_fill_count += 1
