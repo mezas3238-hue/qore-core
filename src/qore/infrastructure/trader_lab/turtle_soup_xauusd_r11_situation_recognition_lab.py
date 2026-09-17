@@ -328,10 +328,20 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
         if row["recognized_state"]
         == engine.SituationState.STRUCTURALLY_VALID_CANDIDATE.value
     ]
-    if len(candidate_rows) != 30:
+    if len(candidate_rows) != 31:
         raise ValueError(
-            f"R11 BREAK A transferred-candidate drift: "
-            f"{len(candidate_rows)} != 30"
+            f"R11 BREAK A pre-entry candidate drift: "
+            f"{len(candidate_rows)} != 31"
+        )
+    candidate_binary = [
+        row
+        for row in candidate_rows
+        if row["outcome_class"] in {CAPABLE, INVALIDATED}
+    ]
+    if len(candidate_binary) != 30:
+        raise ValueError(
+            f"R11 BREAK A binary-auditable candidate drift: "
+            f"{len(candidate_binary)} != 30"
         )
 
     payload = {
@@ -349,7 +359,8 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
             "break_b_exact": mechanism_counts[
                 "BREAK_B_MODERATE_RAID_MID_CISD_NORMAL_H4"
             ],
-            "break_a_transferred_candidate_exact": len(candidate_rows),
+            "break_a_pre_entry_candidate_exact": len(candidate_rows),
+            "break_a_binary_auditable_candidate_exact": len(candidate_binary),
         },
         "recognition_contract": {
             "engine_receives_post_entry_information": False,
@@ -361,6 +372,7 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
             "evidence_family_membership_exact_r7_r8_buckets": True,
             "continuous_values_can_broaden_evidence_family": False,
             "structurally_valid_candidate_is_operating_permission": False,
+            "post_entry_other_diagnostic_can_remove_pre_entry_candidate": False,
         },
         "state_counts": state_counts,
         "full_state_profiles": _state_profiles(recognized),
