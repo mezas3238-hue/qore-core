@@ -1,0 +1,108 @@
+name: QORE VT31 NAS100 R1 Candidate Freeze
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-r1-holdout-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Wait for Full QORE on exact SHA
+        run: |
+          set -euo pipefail
+          ready=false
+          for attempt in $(seq 1 240); do
+            conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}" --jq '[.workflow_runs[] | select(.name == "QORE VT31 NAS100 R1 Full QORE" and .event == "push")] | sort_by(.created_at) | last | .conclusion // ""')"
+            if [ "$conclusion" = "success" ]; then
+              ready=true
+              break
+            fi
+            case "$conclusion" in
+              failure|cancelled|timed_out|action_required|stale)
+                echo "Full QORE prerequisite failed: $conclusion"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          test "$ready" = "true"
+      - name: Freeze exact candidate and sealed holdout boundary
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r1_candidate.py --self-test
+          python scripts/vt31_nas100_r1_holdout_probe.py --self-test
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "scripts")
+          import vt31_nas100_r1_candidate as candidate
+          import vt31_nas100_r1_holdout_probe as probe
+
+          assert candidate.CANDIDATE_ID == "VT31_NAS100_R1"
+          assert probe.CANDIDATE_ID == candidate.CANDIDATE_ID
+          assert probe.MARKET == "NAS100"
+          assert probe.FRESH_END_EXCLUSIVE.isoformat() == "2016-04-19T00:00:00+00:00"
+          checks = {
+              "candidate_script_sha256": Path("scripts/vt31_nas100_r1_candidate.py"),
+              "holdout_probe_sha256": Path("scripts/vt31_nas100_r1_holdout_probe.py"),
+              "freeze_contract_sha256": Path("docs/research/VT31_NAS100_R1_FREEZE_CONTRACT.md"),
+          }
+          payload = {
+              "schema": "qore.trader_lab.vt31_nas100_r1_candidate_freeze.v1",
+              "candidate_id": candidate.CANDIDATE_ID,
+              "software_sha": os.environ["GITHUB_SHA"],
+              "contract": candidate.contract_payload(),
+              "contract_fingerprint": candidate.contract_fingerprint(),
+              "holdout_boundary": {
+                  "market": probe.MARKET,
+                  "start_at": probe.FRESH_START_AT.isoformat(),
+                  "end_exclusive": probe.FRESH_END_EXCLUSIVE.isoformat(),
+                  "preexisting_cibo_contract": "No pre-2016 fresh region is opened.",
+              },
+              "candidate_frozen": True,
+              "fresh_evidence_opened": False,
+              "holdout_consumed": False,
+              "candidate_approved": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          for field, path in checks.items():
+              payload[field] = hashlib.sha256(path.read_bytes()).hexdigest()
+          Path("vt31-nas100-r1-candidate-freeze.json").write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({"candidate_id": payload["candidate_id"], "contract_fingerprint": payload["contract_fingerprint"], "holdout_boundary": payload["holdout_boundary"]}, sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > git-sha.txt
+          sha256sum vt31-nas100-r1-candidate-freeze.json scripts/vt31_nas100_r1_candidate.py scripts/vt31_nas100_r1_holdout_probe.py docs/research/VT31_NAS100_R1_FREEZE_CONTRACT.md > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r1-candidate-freeze-${{ github.sha }}
+          path: |
+            vt31-nas100-r1-candidate-freeze.json
+            git-sha.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90

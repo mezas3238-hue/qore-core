@@ -1,0 +1,103 @@
+name: QORE VT31 Three-Market Consumed WFO
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-r1-holdout-001
+    paths:
+      - scripts/vt31_three_market_consumed_wfo.py
+      - .github/workflows/vt31-three-market-consumed-wfo.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  wfo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: pip install -e .[dev]
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_three_market_consumed_wfo.py
+          ruff check scripts/vt31_three_market_consumed_wfo.py
+          python scripts/vt31_three_market_consumed_wfo.py --self-test
+      - name: Recover immutable consumed M1 evidence
+        run: |
+          set -euo pipefail
+          fetch_artifact() {
+            id="$1"; expected="$2"; destination="$3"
+            digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" --jq .digest)"
+            test "$digest" = "sha256:${expected}"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > "${destination}.zip"
+            echo "${expected}  ${destination}.zip" | sha256sum -c -
+            mkdir "$destination"
+            unzip -q "${destination}.zip" -d "$destination"
+            if [ -f "$destination/SHA256SUMS" ]; then
+              (cd "$destination" && sha256sum -c SHA256SUMS)
+            fi
+          }
+          fetch_artifact 10380044761 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8 evidence-r5
+          fetch_artifact 10389112524 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9 evidence-r6
+          fetch_artifact 10402199719 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d evidence-r8
+          for root in evidence-r5 evidence-r6 evidence-r8; do
+            for market in NAS100 SP500 US30; do
+              test -f "$root/fresh/$market/market-evidence.json"
+            done
+          done
+      - name: Run three-market consumed WFO
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_three_market_consumed_wfo.py \
+            --r8-dir evidence-r8/fresh \
+            --r6-dir evidence-r6/fresh \
+            --r5-dir evidence-r5/fresh \
+            --output result/vt31-three-market-consumed-wfo-v1.json | tee result/summary.json
+      - name: Governance and result validation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-three-market-consumed-wfo-v1.json').read_text())
+          assert p['schema']=='qore.vt31.three_market_consumed_wfo.v1'
+          assert p['research_only'] is True
+          assert p['opens_new_holdout'] is False
+          assert p['fresh_holdout_consumed'] is False
+          assert p['live_authorized'] is False
+          assert p['production_authorized'] is False
+          assert set(p['markets'])=={'NAS100','SP500','US30'}
+          for market in ('NAS100','SP500','US30'):
+            assert set(p['markets'][market])=={'r8_fresh','r6','r5'}
+            for partition in ('r8_fresh','r6','r5'):
+              row=p['markets'][market][partition]
+              assert row['market_days'] > 0
+              assert row['stress_0_05r']['sample'] >= 0
+          print('three-market WFO governance PASS')
+          PY
+      - name: Bind immutable run metadata
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          printf '%s\n' '10380044761 sha256:828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8' > result/r5-evidence.txt
+          printf '%s\n' '10389112524 sha256:9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9' > result/r6-evidence.txt
+          printf '%s\n' '10402199719 sha256:9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d' > result/r8-evidence.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-three-market-consumed-wfo-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

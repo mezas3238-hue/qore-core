@@ -1,0 +1,90 @@
+name: QORE VT31 NAS100 CIBO Adaptation Model
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-r1-holdout-001
+    paths:
+      - scripts/vt31_nas100_cibo_adaptation_model.py
+      - docs/research/VT31_NAS100_CIBO_ADAPTATION_MODEL_V1.md
+      - .github/workflows/vt31-nas100-cibo-adaptation-model.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install research runtime
+        run: pip install -e ".[dev]"
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_cibo_adaptation_model.py
+          ruff check scripts/vt31_nas100_cibo_adaptation_model.py
+          python scripts/vt31_nas100_cibo_adaptation_model.py --self-test
+      - name: Recover immutable CIBO Eight-Ledger evidence
+        run: |
+          set -euo pipefail
+          artifact_id=10478487667
+          expected=17c8d1909152d87ed67a05cd986fa9cca39b2ac92598d36822c38e8afccde192
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq .digest)"
+          test "$digest" = "sha256:${expected}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > cibo.zip
+          echo "${expected}  cibo.zip" | sha256sum -c -
+          mkdir cibo
+          unzip -q cibo.zip -d cibo
+          (cd cibo && sha256sum -c SHA256SUMS)
+      - name: Build NAS100 adaptation model
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_nas100_cibo_adaptation_model.py \
+            --ledger-dir cibo \
+            --output result/vt31-nas100-cibo-adaptation-model-v1.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/vt31-nas100-cibo-adaptation-model-v1.json').read_text())
+          assert p['schema']=='qore.vt31.nas100.cibo_adaptation_model.v1'
+          assert p['market']=='NAS100'
+          assert p['opens_new_holdout'] is False
+          assert p['fresh_holdout_consumed'] is False
+          t=p['timing_findings']
+          assert t['completed_reversal_episodes']['n']==547
+          assert t['first_breach_15m_counts']['10:00']==399
+          assert t['trader_signal_time_ny_p50']=='10:07'
+          assert t['signal_to_departure_minutes_p50']=='118.00'
+          assert p['stop_findings']['protected_stop']['later_source_objective_count']==31
+          assert p['target_findings']['opposite_09_boundary_hit_by_16_count']==547
+          assert p['next_gate']['fresh_holdout_remains_sealed'] is True
+          print(json.dumps({
+            'timing': t['completed_reversal_episodes'],
+            'stop_findings': p['stop_findings'],
+            'target_findings': p['target_findings'],
+          }, sort_keys=True))
+          PY
+      - name: Bind model artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          printf '%s\n' 10478487667 > result/cibo-artifact-id.txt
+          printf '%s\n' sha256:17c8d1909152d87ed67a05cd986fa9cca39b2ac92598d36822c38e8afccde192 > result/cibo-artifact-digest.txt
+          (cd result && sha256sum * > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-cibo-adaptation-model-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
