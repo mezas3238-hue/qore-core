@@ -12,6 +12,7 @@ Post-stale bars are consumed incrementally and an event is observable only
 after its closing bar.  Outcome simulation is a research label and is never
 fed back into event detection.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
