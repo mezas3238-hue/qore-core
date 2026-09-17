@@ -17,7 +17,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r3_causal_regime_forensics as causal
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r3_cibo_journey as r3
@@ -431,7 +431,7 @@ def run(source_root: Path, target_root: Path, output: Path) -> dict[str, Any]:
             json.dumps(_jsonable(family_rows[family]), indent=2, sort_keys=True)
             + "\n"
         )
-    return _jsonable(payload)
+    return cast(dict[str, Any], _jsonable(payload))
 
 
 def main() -> None:
