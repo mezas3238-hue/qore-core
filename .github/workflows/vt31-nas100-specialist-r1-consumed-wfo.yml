@@ -9,6 +9,10 @@ on:
       - .github/workflows/vt31-nas100-specialist-r1-consumed-wfo.yml
   workflow_dispatch:
 
+concurrency:
+  group: -github-workflows-vt31-nas100-specialist-r1-consumed-wfo-yml-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: read
