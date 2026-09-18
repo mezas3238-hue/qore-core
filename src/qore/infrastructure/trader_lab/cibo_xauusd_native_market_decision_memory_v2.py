@@ -715,6 +715,70 @@ def _best_posture(item: dict[str, Any]) -> tuple[str | None, str]:
     return None, NEGATIVE
 
 
+
+def _decision_index(hierarchy: dict[str, Any]) -> dict[str, Any]:
+    compact: dict[str, Any] = {}
+    for level_name, fields in MEMORY_LEVELS:
+        source = hierarchy[level_name]
+        signatures: dict[str, Any] = {}
+        for signature, item in cast(dict[str, Any], source["signatures"]).items():
+            posture, classification = _best_posture(item)
+            if posture is None:
+                # Keep temporally-supported negative knowledge, but omit groups
+                # that remain entirely unresolved.
+                resolved = [
+                    model["classification"]
+                    for model in item["postures"].values()
+                    if model["classification"] != UNRESOLVED
+                ]
+                if not resolved:
+                    continue
+                signatures[signature] = {
+                    "classification": NEGATIVE,
+                    "preferred_posture": None,
+                    "observations": item["observations"],
+                    "mean_net_010_r": None,
+                    "target_rate": item["full_target_rate"],
+                    "values": item["values"],
+                }
+                continue
+            combined = item["postures"][posture]["combined"]
+            signatures[signature] = {
+                "classification": classification,
+                "preferred_posture": posture,
+                "observations": item["observations"],
+                "mean_net_010_r": combined["mean_net_010_r"],
+                "profit_factor_010": combined["profit_factor_010"],
+                "target_rate": combined["target_rate"],
+                "protected_exit_rate": combined["protected_exit_rate"],
+                "stop_exit_rate": combined["stop_exit_rate"],
+                "values": item["values"],
+            }
+        compact[level_name] = {
+            "fields": list(fields),
+            "signatures": signatures,
+            "classification_counts": dict(
+                Counter(
+                    str(item["classification"])
+                    for item in signatures.values()
+                )
+            ),
+        }
+    return compact
+
+
+def resolve_index(
+    index: dict[str, Any],
+    row: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None, str | None]:
+    for level_name, fields in MEMORY_LEVELS:
+        signature = _key(row, fields)
+        item = cast(dict[str, Any], index[level_name]["signatures"]).get(signature)
+        if item is not None:
+            return item, level_name, signature
+    return None, None, None
+
+
 def build(
     raw_root: Path,
     journey_root: Path,
@@ -833,6 +897,7 @@ def build(
             observations.append(observation)
 
     hierarchy = _build_memory(observations)
+    decision_index = _decision_index(hierarchy)
 
     decision_counts: Counter[str] = Counter()
     posture_counts: Counter[str] = Counter()
@@ -888,6 +953,14 @@ def build(
             "memory_observations": len(observations),
         },
         "hierarchy": hierarchy,
+        "decision_index_summary": {
+            level: {
+                "fields": payload["fields"],
+                "classification_counts": payload["classification_counts"],
+                "signatures": len(payload["signatures"]),
+            }
+            for level, payload in decision_index.items()
+        },
         "resolution_counts": dict(decision_counts),
         "preferred_posture_counts": dict(posture_counts),
         "governance": {
@@ -910,6 +983,9 @@ def build(
     )
     (output / "cibo-xauusd-native-memory-v2-hierarchy.json").write_text(
         json.dumps(hierarchy, indent=2, sort_keys=True) + "\n"
+    )
+    (output / "cibo-xauusd-native-memory-v2-decision-index.json").write_text(
+        json.dumps(decision_index, indent=2, sort_keys=True) + "\n"
     )
     return payload
 
