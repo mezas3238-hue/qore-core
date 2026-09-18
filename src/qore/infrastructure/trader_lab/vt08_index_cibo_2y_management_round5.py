@@ -30,6 +30,10 @@ from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round1 as r1
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round2 as r2
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
+from qore.infrastructure.trader_lab.vt08_index_v2_candidate import (
+    _gap_exit,
+    _intrabar_exit,
+)
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
@@ -196,13 +200,13 @@ def _manage_trade(
         start=1,
     ):
         last = bar
-        gap = v6._gap_exit(
+        gap = _gap_exit(
             side=signal.side,
             bar=bar,
             stop=current_stop,
             target=target,
         )
-        resolved = gap or v6._intrabar_exit(
+        resolved = gap or _intrabar_exit(
             bar=bar,
             stop=current_stop,
             target=target,
@@ -493,7 +497,7 @@ def build_report(
             )
             for signal in signals
         )
-        row = {
+        row: dict[str, Any] = {
             "policy": policy.payload(),
             "primary": _metrics(
                 signals,
