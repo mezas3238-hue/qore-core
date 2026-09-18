@@ -8,6 +8,7 @@ on:
       - scripts/vt31_nas100_specialist_r1_candidate.py
       - scripts/vt31_nas100_2y_calibration_probe.py
       - src/qore/infrastructure/traders/vt31_nas100_*.py
+      - tests/infrastructure/test_vt31_nas100_*.py
       - .github/workflows/vt31-nas100-2y-calibration.yml
   workflow_dispatch:
 
