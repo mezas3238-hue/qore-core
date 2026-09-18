@@ -93,14 +93,14 @@ def _median(values: Sequence[Decimal]) -> str | None:
 
 def _stop_touched(side: Side, stop: Decimal, bar: Any) -> bool:
     if side is Side.LONG:
-        return bar.open <= stop or bar.low <= stop
-    return bar.open >= stop or bar.high >= stop
+        return bool(bar.open <= stop or bar.low <= stop)
+    return bool(bar.open >= stop or bar.high >= stop)
 
 
 def _target_touched(side: Side, level: Decimal, bar: Any) -> bool:
     if side is Side.LONG:
-        return bar.open >= level or bar.high >= level
-    return bar.open <= level or bar.low <= level
+        return bool(bar.open >= level or bar.high >= level)
+    return bool(bar.open <= level or bar.low <= level)
 
 
 def _trace_ladder(
