@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as mod
+from qore.infrastructure.trader_lab import vt08_index_r6_five_year_validation as v5y
 from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
 
 
