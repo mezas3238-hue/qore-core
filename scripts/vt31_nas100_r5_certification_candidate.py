@@ -73,10 +73,11 @@ DEVELOPMENT_5Y_WINDOW = ("2017-07-01", "2022-07-01")
 # complete Monday after all VT31/CIBO consumed evidence ends (2022-07-15).
 FINAL_HOLDOUT_ID = "VT31_NAS100_R5_FINAL_HOLDOUT_001"
 FINAL_HOLDOUT_START = "2022-07-18T00:00:00+00:00"
-FINAL_HOLDOUT_END_EXCLUSIVE = "2023-07-18T00:00:00+00:00"
+FINAL_HOLDOUT_END_EXCLUSIVE = "2024-07-18T00:00:00+00:00"
 
 FINAL_CERTIFICATION_GATES = {
-    "terminal_sample_min": 125,
+    "terminal_sample_min": 300,
+    "terminal_sample_max": 350,
     "profit_factor_min": "1.50",
     "mean_r_min_exclusive": "0",
     "total_r_min_exclusive": "0",
@@ -175,6 +176,9 @@ def contract_payload() -> dict[str, object]:
             "selected_before_open": True,
             "overlaps_consumed_cibo_or_folds": False,
             "retuning_after_open_on_same_interval": False,
+            "calendar_span": "2Y",
+            "canonical_m1_minimum_coverage_days": 730,
+            "all_annual_blocks_must_be_positive": True,
             "gates": FINAL_CERTIFICATION_GATES,
         },
         "candidate_frozen": True,
