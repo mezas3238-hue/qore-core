@@ -291,15 +291,33 @@ def _classify_event(
             "deeper_rank_after_counterfactual_exit": False,
         }
 
-    future_rank = _rank_through(
-        bars[stop_touch_index : original_end_index + 1],
-        side=side,
-        ladder=ladder,
-        end_index=original_end_index - stop_touch_index,
+    stop_bar = bars[stop_touch_index]
+    same_bar_rank = max(
+        (
+            rank
+            for rank, (_, level) in enumerate(ladder, start=1)
+            if _touches_level(stop_bar, side, level)
+        ),
+        default=0,
     )
-    deeper = future_rank > event.dol_rank_when_observed
-    if deeper:
+    later_bars = bars[stop_touch_index + 1 : original_end_index + 1]
+    later_rank = (
+        _rank_through(
+            later_bars,
+            side=side,
+            ladder=ladder,
+            end_index=len(later_bars) - 1,
+        )
+        if later_bars
+        else 0
+    )
+    deeper_later = later_rank > event.dol_rank_when_observed
+    same_bar_deeper = same_bar_rank > event.dol_rank_when_observed
+
+    if deeper_later:
         classification = "PREMATURE_CUT_DEEPER_JOURNEY"
+    elif same_bar_deeper:
+        classification = "CENSORED_SAME_BAR_PROTECTION_DOL"
     elif original_end_reason == "METHODOLOGICAL_INVALIDATION":
         classification = "PROTECTED_FAILED_JOURNEY"
     else:
@@ -309,12 +327,14 @@ def _classify_event(
         "classification": classification,
         "stop_touch_at": cast(
             datetime,
-            getattr(bars[stop_touch_index], "closed_at"),
+            getattr(stop_bar, "closed_at"),
         )
         .astimezone(UTC)
         .isoformat(),
-        "future_max_dol_rank_after_counterfactual_exit": future_rank,
-        "deeper_rank_after_counterfactual_exit": deeper,
+        "same_bar_max_dol_rank": same_bar_rank,
+        "later_max_dol_rank": later_rank,
+        "deeper_rank_after_counterfactual_exit": deeper_later,
+        "same_bar_deeper_dol_ambiguous": same_bar_deeper,
     }
 
 
