@@ -26,6 +26,7 @@ CERTIFIED_LIVE_DIRECTIONS: dict[str, frozenset[str]] = {
     "AUDJPY": frozenset({"short"}),
     "GBPUSD": frozenset({"short"}),
     "GBPJPY": frozenset({"long", "short"}),
+    "EURUSD": frozenset({"long", "short"}),
     "XAUUSD": frozenset({"long", "short"}),
 }
 LIVE_ENTRY_ANCHORS_NY = (1, 5, 9)
