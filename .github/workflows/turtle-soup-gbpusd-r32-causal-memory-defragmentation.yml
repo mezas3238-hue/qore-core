@@ -20,7 +20,7 @@ env:
   TARGET_RUN_ID: '35204892665'
   TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-GBPUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
   V2_RUN_ID: '35339237432'
-  V2_ARTIFACT: 'qore-turtle-soup-gbpusd-structural-specialist-v2-r27-f168e5a72b1e26f91141910c29c8a24f73b79315'
+  V2_ARTIFACT: 'qore-turtle-soup-gbpusd-structural-specialist-v2-r27-b7005f4dab80376f3bdd5ce199e37f425ab99633'
 
 jobs:
   quality:
