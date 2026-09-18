@@ -216,9 +216,9 @@ def _validate_journey(
         raise ValueError(f"Journey M5 source drift for {symbol}")
     if manifest.get("source_git_sha") != SOURCE_M5_GIT_SHA:
         raise ValueError(f"Journey M5 SHA drift for {symbol}")
-    if int(manifest.get("retained_m5_bars", 0)) != int(expected["m5"]):
+    if _int(manifest.get("retained_m5_bars", 0)) != _int(expected["m5"]):
         raise ValueError(f"retained M5 count drift for {symbol}")
-    if int(manifest.get("behavior_event_count", 0)) != int(expected["events"]):
+    if _int(manifest.get("behavior_event_count", 0)) != _int(expected["events"]):
         raise ValueError(f"behavior event count drift for {symbol}")
     if manifest.get("structure_coverage") != "DETERMINISTIC_SUPPORTED_SUBSET_FAIL_CLOSED":
         raise ValueError(f"Journey structure coverage drift for {symbol}")
@@ -226,7 +226,7 @@ def _validate_journey(
         raise ValueError(f"Journey trader-sync status drift for {symbol}")
 
     ledger_counts = cast(dict[str, Any], manifest["ledger_counts"])
-    if int(ledger_counts.get("MARKET_JOURNEY_LEDGER", 0)) != int(expected["events"]):
+    if _int(ledger_counts.get("MARKET_JOURNEY_LEDGER", 0)) != _int(expected["events"]):
         raise ValueError(f"market Journey ledger count drift for {symbol}")
     if int(ledger_counts.get("TRADER_MARKET_SYNC_LEDGER", -1)) != 0:
         raise ValueError(f"general Journey unexpectedly contains trader sync for {symbol}")
@@ -261,11 +261,11 @@ def _validate_target(root: Path, *, symbol: str) -> dict[str, Any]:
         raise ValueError(f"Target V2 Journey SHA drift for {symbol}")
     if int(manifest.get("source_m5_run_id", 0)) != SOURCE_M5_RUN_ID:
         raise ValueError(f"Target V2 M5 source drift for {symbol}")
-    if int(manifest.get("retained_m5_bars", 0)) != int(expected["m5"]):
+    if _int(manifest.get("retained_m5_bars", 0)) != _int(expected["m5"]):
         raise ValueError(f"Target V2 M5 count drift for {symbol}")
-    if int(manifest.get("market_journey_rows", 0)) != int(expected["events"]):
+    if _int(manifest.get("market_journey_rows", 0)) != _int(expected["events"]):
         raise ValueError(f"Target V2 Journey row drift for {symbol}")
-    if int(manifest.get("resolved_departures", 0)) != int(
+    if _int(manifest.get("resolved_departures", 0)) != int(
         expected["resolved_departures"]
     ):
         raise ValueError(f"Target V2 departure count drift for {symbol}")
@@ -540,10 +540,10 @@ def _market_matrix_detail(matrix: Mapping[str, Any], symbol: str) -> dict[str, A
         raise ValueError(f"matrix detail evidence tier drift for {symbol}")
     if bool(detail.get("rule_promotion_allowed")):
         raise ValueError(f"matrix detail unexpectedly promotes rules for {symbol}")
-    if int(detail.get("retained_m5_bars", 0)) != int(expected["m5"]):
+    if _int(detail.get("retained_m5_bars", 0)) != _int(expected["m5"]):
         raise ValueError(f"matrix detail retained M5 drift for {symbol}")
     overall = cast(dict[str, Any], detail["overall"])
-    if int(overall.get("events", 0)) != int(expected["events"]):
+    if _int(overall.get("events", 0)) != _int(expected["events"]):
         raise ValueError(f"matrix detail event count drift for {symbol}")
     return detail
 
@@ -594,9 +594,9 @@ def build_market_dossier(
     expected = EXPECTED[symbol]
 
     journey = _journey_summary(journey_root)
-    if int(journey["rows"]) != int(expected["events"]):
+    if _int(journey["rows"]) != _int(expected["events"]):
         raise ValueError(f"Journey stream row count drift for {symbol}")
-    if int(journey["resolved_departures"]) != int(expected["resolved_departures"]):
+    if _int(journey["resolved_departures"]) != _int(expected["resolved_departures"]):
         raise ValueError(f"resolved departure stream count drift for {symbol}")
 
     dossier = {
@@ -709,10 +709,10 @@ def build_package(
             "journey_summary_run_id": SOURCE_SUMMARY_RUN_ID,
             "journey_summary_git_sha": SOURCE_SUMMARY_GIT_SHA,
         },
-        "total_retained_m5_bars": sum(int(EXPECTED[s]["m5"]) for s in SYMBOLS),
-        "total_behavior_events": sum(int(EXPECTED[s]["events"]) for s in SYMBOLS),
+        "total_retained_m5_bars": sum(_int(EXPECTED[s]["m5"]) for s in SYMBOLS),
+        "total_behavior_events": sum(_int(EXPECTED[s]["events"]) for s in SYMBOLS),
         "total_resolved_departures": sum(
-            int(EXPECTED[s]["resolved_departures"]) for s in SYMBOLS
+            _int(EXPECTED[s]["resolved_departures"]) for s in SYMBOLS
         ),
         "market_manifests": manifests,
         "full_market_memory_ready": True,
