@@ -58,6 +58,7 @@ class Nas100ReasoningDecision:
     supporting_evidence: tuple[str, ...]
     contradictions: tuple[str, ...]
     uncertainty: tuple[str, ...]
+    context_observations: tuple[str, ...]
     strategy_memory_used: tuple[str, ...]
     cibo_market_memory_used: tuple[str, ...]
     trader_experience_memory_used: tuple[str, ...]
@@ -95,6 +96,7 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     support: list[str] = []
     contradictions: list[str] = []
     uncertainty: list[str] = []
+    context_observations: list[str] = []
     strategy_used: list[str] = []
     market_used: list[str] = []
     experience_used: list[str] = []
@@ -133,6 +135,43 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     assert isinstance(journey, dict)
     assert isinstance(target_memory, dict)
     assert isinstance(structure_memory, dict)
+
+    # Higher context is observed and retained without being promoted to a
+    # standalone entry prohibition. Its operational meaning must be learned
+    # conjunctively on consumed NAS100 evidence.
+    context_observations.extend(
+        [
+            f"PRIOR_DAY:{state.prior_day_state}",
+            f"H4:{state.h4_state}",
+            f"H1:{state.h1_state}",
+            f"PREMARKET:{state.premarket_state}",
+            f"CASH_OPEN:{state.cash_open_state}",
+            f"PRIOR_RANGE_LOCATION:{state.position_in_prior_day_range}",
+            f"RANGE_STATE:{state.range_state}",
+            f"VOLATILITY_STATE:{state.volatility_state}",
+            (
+                "RAID_DEPTH_REF:unavailable"
+                if state.raid_depth_ref is None
+                else f"RAID_DEPTH_REF:{state.raid_depth_ref}"
+            ),
+            (
+                "RECENT_PATH_EFFICIENCY:unavailable"
+                if state.recent_path_efficiency is None
+                else f"RECENT_PATH_EFFICIENCY:{state.recent_path_efficiency}"
+            ),
+            (
+                "RECENT_OVERLAP_RATE:unavailable"
+                if state.recent_overlap_rate is None
+                else f"RECENT_OVERLAP_RATE:{state.recent_overlap_rate}"
+            ),
+        ]
+    )
+    if state.h4_state == "unavailable":
+        uncertainty.append("SITUATION:H4_CONTEXT_UNAVAILABLE")
+    if state.h1_state == "unavailable":
+        uncertainty.append("SITUATION:H1_CONTEXT_UNAVAILABLE")
+    if state.prior_day_state == "unavailable":
+        uncertainty.append("SITUATION:PRIOR_DAY_CONTEXT_UNAVAILABLE")
 
     # Trader Experience says the latest reference-liquidity event, compression,
     # and freshness are meaningful jointly. They are not promoted independently.
@@ -217,6 +256,7 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
         supporting_evidence=tuple(support),
         contradictions=tuple(contradictions),
         uncertainty=tuple(uncertainty),
+        context_observations=tuple(context_observations),
         strategy_memory_used=tuple(dict.fromkeys(strategy_used)),
         cibo_market_memory_used=tuple(dict.fromkeys(market_used)),
         trader_experience_memory_used=tuple(dict.fromkeys(experience_used)),
