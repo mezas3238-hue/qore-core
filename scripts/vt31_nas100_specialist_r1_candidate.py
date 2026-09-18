@@ -23,6 +23,7 @@ from typing import Any, cast
 import vt31_nas100_intelligence_policy_lab_v2b as v2b
 import vt31_nas100_r1_candidate as baseline
 
+from qore.infrastructure.market_data import OhlcSnapshot
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _day,
     _metrics,
@@ -38,6 +39,9 @@ from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
 from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
     validate_memory,
+)
+from qore.infrastructure.traders.vt31_nas100_market_context_runtime import (
+    build_higher_context,
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
     Nas100ReasoningState,
@@ -274,10 +278,17 @@ def _reference_width(day_bars: tuple[object, ...]) -> Decimal | None:
 
 def _context_map(
     by_day: dict[date, tuple[object, ...]],
-) -> dict[date, tuple[Decimal | None, Decimal | None]]:
-    result: dict[date, tuple[Decimal | None, Decimal | None]] = {}
+) -> dict[
+    date,
+    tuple[Decimal | None, Decimal | None, tuple[object, ...]],
+]:
+    result: dict[
+        date,
+        tuple[Decimal | None, Decimal | None, tuple[object, ...]],
+    ] = {}
     admitted_ranges: list[Decimal | None] = []
     admitted_widths: list[Decimal] = []
+    last_admitted_bars: tuple[object, ...] = ()
     for local_day in sorted(by_day):
         previous_path_range = (
             admitted_ranges[-1] if admitted_ranges else None
@@ -285,7 +296,11 @@ def _context_map(
         prior_ref_median = (
             median(admitted_widths[-5:]) if admitted_widths else None
         )
-        result[local_day] = (previous_path_range, prior_ref_median)
+        result[local_day] = (
+            previous_path_range,
+            prior_ref_median,
+            last_admitted_bars,
+        )
 
         day_bars = by_day[local_day]
         if not _admitted_day(day_bars):
@@ -298,6 +313,7 @@ def _context_map(
         width = _reference_width(day_bars)
         if width is not None and width > 0:
             admitted_widths.append(width)
+        last_admitted_bars = day_bars
     return result
 
 
@@ -305,6 +321,7 @@ def _state_snapshot(
     day_bars: tuple[object, ...],
     previous_path_range: Decimal | None,
     prior_ref_median: Decimal | None,
+    prior_admitted_day_bars: tuple[object, ...],
     session_prefix: tuple[object, ...],
     source: Vt31R22SourceSetup,
     executable: Vt31R22ExecutableSetup,
@@ -423,6 +440,18 @@ def _state_snapshot(
         else None
     )
 
+    higher_context = build_higher_context(
+        day_bars=cast(tuple[OhlcSnapshot, ...], day_bars),
+        prior_admitted_day_bars=cast(
+            tuple[OhlcSnapshot, ...],
+            prior_admitted_day_bars,
+        ),
+        decision_at=decision_at,
+        side=executable.side.value,
+        reference_high=source.reference.high,
+        reference_low=source.reference.low,
+    )
+
     reasoning = reason(
         Nas100ReasoningState(
             as_of=decision_at.astimezone(UTC).isoformat(),
@@ -432,13 +461,21 @@ def _state_snapshot(
             side=executable.side.value,
             setup_family="VT31_AM_SILVER_BULLET_R2_2",
             confirmation_state="confirmed",
-            prior_day_state="UNRESOLVED_IN_DIRECT_RUNTIME",
-            h4_state="UNRESOLVED_IN_DIRECT_RUNTIME",
-            h1_state="UNRESOLVED_IN_DIRECT_RUNTIME",
+            prior_day_state=higher_context.prior_day_state,
+            h4_state=higher_context.h4_state,
+            h1_state=higher_context.h1_state,
+            premarket_state=higher_context.premarket_state,
+            cash_open_state=higher_context.cash_open_state,
+            position_in_prior_day_range=(
+                higher_context.position_in_prior_day_range
+            ),
             range_state=current_range_state,
             volatility_state=reference_volatility_state,
             current_path_vs_previous=current_path_ratio,
             reference_width_vs_prior5=ref_ratio,
+            raid_depth_ref=higher_context.raid_depth_ref,
+            recent_path_efficiency=higher_context.recent_path_efficiency,
+            recent_overlap_rate=higher_context.recent_overlap_rate,
             first_breach_side=breach_side,
             double_sided_before_decision=False,
             reference_reclaimed=reclaim_at is not None,
@@ -695,7 +732,11 @@ def replay(evidence_path: Path) -> dict[str, object]:
             continue
 
         prefix = list(reference)
-        previous_path_range, prior_ref_median = context_by_day[local_day]
+        (
+            previous_path_range,
+            prior_ref_median,
+            prior_admitted_day_bars,
+        ) = context_by_day[local_day]
         selected_source: Vt31R22SourceSetup | None = None
         selected: Vt31R22ExecutableSetup | None = None
         selected_state: dict[str, object] | None = None
@@ -735,6 +776,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 day_bars,
                 previous_path_range,
                 prior_ref_median,
+                prior_admitted_day_bars,
                 session_prefix,
                 evaluation.setup,
                 executable,
