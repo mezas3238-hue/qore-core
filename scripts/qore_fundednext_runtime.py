@@ -1260,6 +1260,71 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             "message": str(error),
                         },
                     )
+        r38_anchor = current_r38_anchor(cycle_at)
+        if r38_anchor is not None and not new_order_blocked:
+            r38_anchor_key = f"R38_EURUSD|{r38_anchor.isoformat()}"
+            if r38_anchor_key not in state.processed_anchors:
+                try:
+                    r38_live_state = r38_store.reconcile(mt5, now=cycle_at)
+                    signal, reason = build_r38_live_signal(
+                        mt5,
+                        now=cycle_at,
+                        cognitive=r38_cognitive,
+                        state=r38_live_state,
+                    )
+                    if signal is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "R38_CAUSAL_ABSTAIN",
+                                "symbol": "EURUSD",
+                                "decision_at": r38_anchor.isoformat(),
+                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                                "reason": reason,
+                                "last_trailing_exit_at": (
+                                    None
+                                    if r38_live_state.trailing_exit_at is None
+                                    else r38_live_state.trailing_exit_at.isoformat()
+                                ),
+                            },
+                        )
+                    else:
+                        _process_r38_candidate(
+                            signal=signal,
+                            now=cycle_at,
+                            mode=mode,
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=provider,
+                            capital_budget=capital,
+                            account_equity=account_state.equity,
+                            r38_store=r38_store,
+                            log_path=log_path,
+                        )
+                    processed_anchor = r38_anchor_key
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=r38_anchor_key,
+                        reconciled_at=cycle_at,
+                        heartbeat_at=cycle_at,
+                    )
+                    store.store(state)
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "R38_ANCHOR_FAIL_CLOSED",
+                            "symbol": "EURUSD",
+                            "decision_at": r38_anchor.isoformat(),
+                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                        },
+                    )
+
         if processed_anchor is None:
             state = state.with_cycle(
                 highest_closed_balance=str(highest),
