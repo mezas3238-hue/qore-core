@@ -44,7 +44,7 @@ jobs:
         run: |
           pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_specialist_cognitive_memory_v2.py
 
-  structural-memory-and-replay:
+  structural_specialist:
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 360
