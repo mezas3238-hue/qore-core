@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -93,13 +94,12 @@ def _group_metrics(
 
 def _period_metrics(
     rows: list[dict[str, object]],
-    key_fn: object,
+    key_fn: Callable[[date], str],
 ) -> dict[str, dict[str, object]]:
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
-    fn = cast("object", key_fn)
     for row in rows:
-        key = cast("object", fn)(_signal_date(row))  # type: ignore[operator]
-        grouped[str(key)].append(row)
+        key = key_fn(_signal_date(row))
+        grouped[key].append(row)
     return {
         key: _metrics(items)
         for key, items in sorted(grouped.items())
