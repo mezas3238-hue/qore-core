@@ -111,7 +111,7 @@ from qore.infrastructure.vt08_forex_fundednext_sizing import (
     build_certified_vt08_forex_cibo_request,
 )
 
-_NY = ZoneInfo("America/New_York")
+_NY = NEW_YORK_TZ
 _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
 _EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
@@ -154,25 +154,38 @@ def _magic(client_order_id: str) -> int:
 
 
 def _m15_bars(symbol: str, decision_at: datetime) -> tuple[Vt08B01Bar, ...]:
+    """Read broker M15 and normalize FundedNext server time before VT08 sees it."""
     start = decision_at - timedelta(days=_HISTORY_DAYS)
     end = decision_at + timedelta(minutes=1)
-    rows = mt5.copy_rates_range(symbol, mt5.TIMEFRAME_M15, start, end)
+    rows = mt5.copy_rates_from_pos(
+        symbol,
+        mt5.TIMEFRAME_M15,
+        0,
+        _HISTORY_M15_BARS,
+    )
     if rows is None or len(rows) == 0:
         raise RuntimeError(f"m15-data-unavailable-{symbol}")
-    bars: list[Vt08B01Bar] = []
+    retained: dict[datetime, Vt08B01Bar] = {}
     for row in rows:
-        opened = datetime.fromtimestamp(int(row["time"]), tz=UTC)
-        bars.append(
-            Vt08B01Bar(
-                opened_at=opened,
-                closed_at=opened + timedelta(minutes=15),
-                open=Decimal(str(row["open"])),
-                high=Decimal(str(row["high"])),
-                low=Decimal(str(row["low"])),
-                close=Decimal(str(row["close"])),
-            )
+        opened = normalise_fundednext_server_epoch(int(row["time"]))
+        if opened < start or opened > end:
+            continue
+        bar = Vt08B01Bar(
+            opened_at=opened,
+            closed_at=opened + timedelta(minutes=15),
+            open=Decimal(str(row["open"])),
+            high=Decimal(str(row["high"])),
+            low=Decimal(str(row["low"])),
+            close=Decimal(str(row["close"])),
         )
-    return tuple(bars)
+        prior = retained.get(opened)
+        if prior is not None and prior != bar:
+            raise RuntimeError(f"contradictory-m15-bar-{symbol}")
+        retained[opened] = bar
+    bars = tuple(retained[key] for key in sorted(retained))
+    if not bars:
+        raise RuntimeError(f"m15-data-unavailable-after-clock-normalization-{symbol}")
+    return bars
 
 
 def _current_anchor(now: datetime) -> datetime | None:
