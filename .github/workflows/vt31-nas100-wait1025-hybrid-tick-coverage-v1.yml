@@ -1,0 +1,230 @@
+name: QORE VT31 NAS100 WAIT1025 Hybrid Tick Coverage V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - .github/workflows/vt31-nas100-wait1025-hybrid-tick-coverage-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r5
+            manifest_artifact: "10540692646"
+            extra_tick_artifact: "10540880908"
+          - partition: r6
+            manifest_artifact: "10540692608"
+            extra_tick_artifact: ""
+          - partition: r8_fresh
+            manifest_artifact: "10540592822"
+            extra_tick_artifact: "10540189029"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      MANIFEST_ARTIFACT: ${{ matrix.manifest_artifact }}
+      EXTRA_TICK_ARTIFACT: ${{ matrix.extra_tick_artifact }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recover exact hybrid manifest
+        run: |
+          set -euo pipefail
+          mkdir -p source old result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${MANIFEST_ARTIFACT}/zip" > source.zip
+          unzip -q source.zip -d source
+          (cd source && sha256sum -c SHA256SUMS)
+          test -f "source/hybrid-wait1025-tick-manifest-${PARTITION}.json"
+
+      - name: Recover immutable prior tick inventory
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429417732/zip" > old.zip
+          echo "71255ebcdeeb9b278ca0f1aea3e98dd4fc1a75bb10f4b3020529a79e3aeee2ed  old.zip" \
+            | sha256sum -c -
+          unzip -q old.zip -d old
+          (cd old/acquisition && sha256sum -c SHA256SUMS)
+
+      - name: Recover fold-specific high-density tick inventory
+        if: env.EXTRA_TICK_ARTIFACT != ''
+        run: |
+          set -euo pipefail
+          mkdir -p extra
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EXTRA_TICK_ARTIFACT}/zip" > extra.zip
+          unzip -q extra.zip -d extra
+          (cd extra/acquisition && sha256sum -c SHA256SUMS)
+
+      - name: Measure exact minute coverage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition=os.environ["PARTITION"]
+          manifest=json.loads(
+              Path(
+                  f"source/hybrid-wait1025-tick-manifest-{partition}.json"
+              ).read_text()
+          )
+
+          summaries=[
+              json.loads(
+                  Path(
+                      "old/acquisition/"
+                      "vt31-historical-tick-acquisition-summary.json"
+                  ).read_text()
+              )
+          ]
+          extra=Path(
+              "extra/acquisition/high-density-tick-acquisition-summary.json"
+          )
+          if extra.is_file():
+              summaries.append(json.loads(extra.read_text()))
+
+          available=set()
+          for summary in summaries:
+              for row in summary["results"]:
+                  if row.get("status") != "available":
+                      continue
+                  available.add((
+                      row["market"],
+                      row["provider"],
+                      row["tick_window_open_ms"],
+                      row["tick_window_close_ms"],
+                  ))
+
+          covered=[]
+          missing=[]
+          for row in manifest["windows"]:
+              key=(
+                  row["market"],
+                  row["provider"],
+                  row["tick_window_open_ms"],
+                  row["tick_window_close_ms"],
+              )
+              (covered if key in available else missing).append(row)
+
+          report={
+              "schema":(
+                  "qore.vt31.nas100."
+                  "wait1025_hybrid_tick_coverage.v1"
+              ),
+              "partition":partition,
+              "variant":"WAIT_1025_B060",
+              "source_window_count":manifest["window_count"],
+              "covered_window_count":len(covered),
+              "missing_window_count":len(missing),
+              "coverage_rate":(
+                  len(covered)/manifest["window_count"]
+                  if manifest["window_count"] else 1.0
+              ),
+              "research_only":True,
+              "opens_new_holdout":False,
+          }
+          missing_manifest={
+              "schema":(
+                  "qore.vt31.nas100."
+                  "wait1025_hybrid_missing_tick_manifest.v1"
+              ),
+              "partition":partition,
+              "variant":"WAIT_1025_B060",
+              "research_only":True,
+              "opens_new_holdout":False,
+              "source_manifest_sha256":manifest["sha256"],
+              "window_count":len(missing),
+              "windows":missing,
+          }
+          Path("result/coverage.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          Path("result/missing-manifest.json").write_text(
+              json.dumps(missing_manifest,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(report,sort_keys=True))
+          PY
+
+      - name: Bind coverage
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$MANIFEST_ARTIFACT" > result/source-manifest-artifact-id.txt
+          echo "10429417732" > result/source-prior-ticks-artifact-id.txt
+          echo "$EXTRA_TICK_ARTIFACT" > result/source-extra-ticks-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-wait1025-tick-coverage-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-wait1025-tick-coverage-*-${{ github.sha }}
+          path: input
+
+      - name: Aggregate
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows={}
+          for path in Path("input").glob("*/coverage.json"):
+              p=json.loads(path.read_text())
+              rows[p["partition"]]=p
+          assert set(rows)=={"r5","r6","r8_fresh"}, rows
+          report={
+              "schema":(
+                  "qore.vt31.nas100."
+                  "wait1025_hybrid_tick_coverage.aggregate.v1"
+              ),
+              "variant":"WAIT_1025_B060",
+              "folds":rows,
+              "all_windows_covered":all(
+                  row["missing_window_count"]==0
+                  for row in rows.values()
+              ),
+              "research_only":True,
+              "opens_new_holdout":False,
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(report,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-wait1025-tick-coverage-aggregate-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
