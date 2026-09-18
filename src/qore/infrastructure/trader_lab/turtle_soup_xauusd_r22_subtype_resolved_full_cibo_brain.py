@@ -28,7 +28,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from qore.infrastructure.trader_lab import (
     cibo_market_atlas_journey_extractor_v1 as journey,
@@ -93,7 +93,10 @@ def _load_subtype_memory(root: Path) -> dict[str, dict[str, Any]]:
         raise ValueError("unexpected R21 subtype-memory identity")
     if report["classification_contract"]["pnl_used"] is not False:
         raise ValueError("R21 subtype memory unexpectedly uses PnL")
-    return json.loads(_find(root, "r21-subtype-memory.json").read_text())
+    return cast(
+        dict[str, dict[str, Any]],
+        json.loads(_find(root, "r21-subtype-memory.json").read_text()),
+    )
 
 
 def _subtype_signature(
