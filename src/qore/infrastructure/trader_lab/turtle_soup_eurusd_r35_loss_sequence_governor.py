@@ -336,7 +336,7 @@ def _run_family_set(
     busy_until = EVAL_OPEN
     trailing_exit_at: datetime | None = None
     trades: list[r26.RuntimeTrade] = []
-    attributed: list[tuple[r26.RuntimeTrade, str, str | None]] = []
+    attributed: list[dict[str, Any]] = []
     counts: Counter[str] = Counter()
 
     for setup in setups:
@@ -414,7 +414,15 @@ def _run_family_set(
         if "TRAIL" in runtime.exit_reason:
             trailing_exit_at = runtime.exit_at
         trades.append(runtime)
-        attributed.append((runtime, decision.source, decision.family))
+        attributed.append(
+            {
+                "trade": runtime,
+                "source": decision.source,
+                "family": decision.family,
+                "setup_context": v1._setup_context(setup),
+                "regime": regime,
+            }
+        )
         counts["EXECUTE"] += 1
         counts[f"SOURCE_{decision.source}"] += 1
         if decision.family is not None:
@@ -447,10 +455,10 @@ def _run_family_set(
         family: str | None = None,
     ) -> dict[str, Any]:
         selected = [
-            trade
-            for trade, trade_source, trade_family in attributed
-            if (source is None or trade_source == source)
-            and (family is None or trade_family == family)
+            item["trade"]
+            for item in attributed
+            if (source is None or item["source"] == source)
+            and (family is None or item["family"] == family)
         ]
         return {
             "trades": len(selected),
@@ -490,8 +498,13 @@ def _run_family_set(
                 "exit_reason": trade.exit_reason,
                 "gross_r": str(trade.gross_r),
                 "net_010_r": str(trade.net_010_r),
+                "setup_context": item["setup_context"],
+                "regime": item["regime"],
             }
-            for trade, source, family in attributed
+            for item in attributed
+            for trade, source, family in [
+                (item["trade"], item["source"], item["family"])
+            ]
         ],
         "risk_governors": risk_results,
     }
