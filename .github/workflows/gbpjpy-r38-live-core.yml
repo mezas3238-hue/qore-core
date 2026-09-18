@@ -16,6 +16,9 @@ on:
       - 'tests/infrastructure/test_r38_gbpjpy_live.py'
       - 'tests/infrastructure/test_account_wide_risk.py'
       - 'tests/infrastructure/test_r43_gbpusd_live.py'
+      - 'scripts/rebind_fundednext_shadow_state.py'
+      - 'scripts/install_fundednext_runtime.ps1'
+      - 'tests/infrastructure/test_fundednext_shadow_state_rebind.py'
 
 permissions:
   contents: read
@@ -37,22 +40,28 @@ jobs:
             src/qore/infrastructure/account_wide_risk.py \
             scripts/qore_fundednext_runtime.py \
             tests/infrastructure/test_r38_gbpjpy_live.py \
-            tests/infrastructure/test_r43_gbpusd_live.py
+            tests/infrastructure/test_r43_gbpusd_live.py \
+            scripts/rebind_fundednext_shadow_state.py \
+            tests/infrastructure/test_fundednext_shadow_state_rebind.py
       - name: Mypy focused integration gate
         run: |
           mypy --disable-error-code attr-defined \
             src/qore/infrastructure/r38_gbpjpy_live.py \
             src/qore/infrastructure/account_wide_risk.py \
-            scripts/qore_fundednext_runtime.py
+            scripts/qore_fundednext_runtime.py \
+            scripts/rebind_fundednext_shadow_state.py
       - name: Focused live and account-wide risk tests
         run: |
           pytest -q --no-cov \
             tests/infrastructure/test_r38_gbpjpy_live.py \
             tests/infrastructure/test_r43_gbpusd_live.py \
-            tests/infrastructure/test_account_wide_risk.py
+            tests/infrastructure/test_account_wide_risk.py \
+            tests/infrastructure/test_fundednext_shadow_state_rebind.py
       - name: Runtime syntax and immutable memory binding
         run: |
-          python -m py_compile scripts/qore_fundednext_runtime.py
+          python -m py_compile scripts/qore_fundednext_runtime.py scripts/rebind_fundednext_shadow_state.py
+          grep -F 'order_submission_authorized = $false' scripts/install_fundednext_runtime.ps1
+          grep -F 'rebind_fundednext_shadow_state.py' scripts/install_fundednext_runtime.ps1
           python - <<'PY'
           import hashlib, json
           from pathlib import Path
