@@ -242,7 +242,7 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
             if key != "member_keys"
         }
         family["family_id"] = f"GBPJPY_F{len(selected) + 1}"
-        family["incremental_observations_at_selection"] = len(members - covered)
+        family["incremental_observations_at_selection"] = len(winner_member_keys - covered)
         selected.append(family)
         covered.update(members)
         remaining = [item for item in remaining if item is not winner]
