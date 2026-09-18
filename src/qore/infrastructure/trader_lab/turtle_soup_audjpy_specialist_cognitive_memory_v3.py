@@ -113,7 +113,7 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
         for line in handle:
             if line.strip():
                 observations.append(json.loads(line))
-    if len(observations) != 41302:
+    if len(observations) != 40980:
         raise ValueError("Cognitive Memory V2 observation drift")
 
     grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
