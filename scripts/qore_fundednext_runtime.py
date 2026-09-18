@@ -55,6 +55,9 @@ from qore.infrastructure.fundednext_realtime_market_data import (
     FundedNextRealtimeMarketData,
     MarketDataSlaError,
 )
+from qore.infrastructure.fundednext_vt08_realtime_market_data import (
+    vt08_boundary_ready as _vt08_boundary_ready,
+)
 from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
 from qore.infrastructure.fundednext_live_safety import (
     JsonFileLiveOperationalSafetyBoundary,
@@ -266,37 +269,6 @@ def _m15_bars(symbol: str, decision_at: datetime) -> tuple[Vt08B01Bar, ...]:
     if expected_closed not in retained:
         raise RuntimeError(f"vt08-latest-closed-m15-unavailable-{symbol}")
     return bars
-
-
-def _vt08_boundary_ready(symbol: str, anchor: datetime) -> tuple[bool, str | None]:
-    rows = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 2)
-    if rows is None or len(rows) < 2:
-        return False, f"{symbol} recent M15 unavailable"
-    opened = {
-        normalise_fundednext_server_epoch(int(row["time"]))
-        for row in rows
-    }
-    expected_current = anchor.astimezone(UTC)
-    expected_closed = expected_current - timedelta(minutes=15)
-    if expected_current not in opened or expected_closed not in opened:
-        latest = max(opened, default=None)
-        return (
-            False,
-            f"{symbol} exact M15 boundary unavailable; latest="
-            f"{None if latest is None else latest.isoformat()}",
-        )
-    tick = mt5.symbol_info_tick(symbol)
-    if tick is None:
-        return False, f"{symbol} tick unavailable"
-    tick_at = normalise_fundednext_server_epoch(int(tick.time))
-    observed = datetime.now(UTC)
-    age = abs((observed - tick_at).total_seconds())
-    if age > MARKET_DATA_SLA_SECONDS:
-        return False, (
-            f"{symbol} tick stale: {age:.3f}s > "
-            f"{MARKET_DATA_SLA_SECONDS:.1f}s"
-        )
-    return True, None
 
 
 def _current_anchor(now: datetime) -> datetime | None:
