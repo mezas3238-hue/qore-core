@@ -16,6 +16,7 @@ from collections.abc import Callable, Sequence
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
@@ -26,6 +27,7 @@ from qore.infrastructure.trader_lab import vt08_index_r15_dual_window_gate as r1
 SCHEMA = "qore.trader_lab.vt08_index_r16_cross_window_forensics.v1"
 IDENTITY = "VT08_INDEX_R16_CROSS_WINDOW_FORENSICS_001"
 STRESS = Decimal("0.05")
+_NY = ZoneInfo("America/New_York")
 
 
 def _raw_values(
@@ -115,7 +117,7 @@ def _dimension_reports(
             stream,
             contexts,
             key_fn=lambda o, _c: str(
-                o.signal.h4_opened_at.astimezone(r15.v5y._NY).hour
+                o.signal.h4_opened_at.astimezone(_NY).hour
             ),
         ),
         "poi": _breakdown(
@@ -160,7 +162,7 @@ def _dimension_reports(
             stream,
             contexts,
             key_fn=lambda o, _c: (
-                f"{o.signal.h4_opened_at.astimezone(r15.v5y._NY).hour}:"
+                f"{o.signal.h4_opened_at.astimezone(_NY).hour}:"
                 f"{o.signal.side.value}"
             ),
         ),
