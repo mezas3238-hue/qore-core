@@ -178,6 +178,10 @@ jobs:
                       float(row["metrics"]["max_drawdown_r"]) <= 10.0
                       for row in rows
                   ),
+                  "all_folds_dd_le_6":all(
+                      float(row["metrics"]["max_drawdown_r"]) <= 6.0
+                      for row in rows
+                  ),
                   "all_folds_dd_le_5":all(
                       float(row["metrics"]["max_drawdown_r"]) <= 5.0
                       for row in rows
@@ -201,7 +205,7 @@ jobs:
               "objective":{
                   "trade_count_2y_equivalent":"300-350",
                   "preferred_profit_factor_floor":"2.0",
-                  "observed_dd_ceiling_r":"10",
+                  "observed_dd_ceiling_r":"6",
                   "stretch_observed_dd_r":"4-5",
                   "mc_positive_floor":"0.90",
                   "mc_p95_dd_ceiling_r":"15",
@@ -212,6 +216,12 @@ jobs:
                   if item["all_folds_300_350"]
                   and item["all_folds_pf_ge_2"]
                   and item["all_folds_dd_le_10"]
+              ],
+              "dd6_passing":[
+                  name for name,item in variants.items()
+                  if item["all_folds_300_350"]
+                  and item["all_folds_pf_ge_2"]
+                  and item["all_folds_dd_le_6"]
               ],
               "stretch_dd5_passing":[
                   name for name,item in variants.items()
