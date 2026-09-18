@@ -4,6 +4,7 @@ Uses the exact original entry/authorization logic and baseline management. It
 attaches only decision-time state already available before trade outcome.
 Consumed-evidence diagnostics only.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
@@ -12,7 +13,6 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
 
 import vt31_nas100_causal_hybrid_rearm_v1 as engine
 import vt31_nas100_r5_corrective_management_frontier_v1 as corrective
