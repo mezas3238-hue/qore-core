@@ -19,9 +19,6 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     cibo_market_atlas_journey_extractor_v1 as journey,
 )
-from qore.infrastructure.trader_lab import (
-    cibo_gbpusd_native_market_decision_memory_v2 as native,
-)
 from qore.infrastructure.trader_lab import turtle_soup_gbpusd_r1 as r1
 from qore.infrastructure.trader_lab import turtle_soup_gbpusd_r3_cibo_journey as r3
 from qore.infrastructure.trader_lab import (
