@@ -175,6 +175,7 @@ def _capacity_context_tables(
     rows: list[dict[str, Any]],
 ) -> dict[str, object]:
     dimensions = (
+        "prior_day_state",
         "h4_state",
         "h1_state",
         "premarket_state",
