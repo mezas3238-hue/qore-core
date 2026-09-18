@@ -1,0 +1,167 @@
+name: VT08 Index CIBO 2Y Specialist Risk Round6
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-cibo-2y-specialist-risk-round6.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_cibo_2y_specialist_risk_round6.py
+      - tests/infrastructure/trader_lab/test_vt08_index_cibo_2y_specialist_risk_round6.py
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py             tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ["V7_RULE_FINGERPRINT"]
+          PY
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_cibo_2y_specialist_risk_round6.py
+
+  research:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute Round6 specialist management and risk governor
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_cibo_2y_specialist_risk_round6             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-cibo-2y-specialist-risk-round6.json
+
+      - name: Verify fixed-density governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(
+              Path("artifacts/report/vt08-index-cibo-2y-specialist-risk-round6.json").read_text()
+          )
+          assert report["identity"] == "VT08_INDEX_CIBO_2Y_SPECIALIST_RISK_ROUND6_FIXED_657"
+          contract = report["fixed_admission_contract"]
+          assert contract["sample"] == 657
+          assert contract["required_sample"] == 657
+          assert contract["entry_skips_allowed"] is False
+          assert contract["all_entries_preserved"] is True
+          assert report["owner_goal"]["governed_pf_minimum"] == "1.50"
+          assert report["owner_goal"]["governed_max_drawdown_r"] == "6"
+          governance = report["governance"]
+          assert governance["research_only"] is True
+          assert governance["fresh_holdout_claim"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Build result summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("artifacts/report")
+          report = json.loads(
+              (root / "vt08-index-cibo-2y-specialist-risk-round6.json").read_text()
+          )
+          lines = [
+              "# VT08 Index CIBO 2Y Specialist Risk Round 6",
+              "",
+              "- fixed entries: 657 / 657",
+              f"- management candidates: {report['management_candidate_count']}",
+              f"- governors: {report['governor_count']}",
+              f"- final combinations: {report['final_combination_count']}",
+              f"- goal candidates: {report['goal_candidate_count']}",
+              "",
+          ]
+          for label in ("best_raw_management", "best"):
+              row = report[label]
+              lines.append(f"## {label.upper()}")
+              if label == "best_raw_management":
+                  raw = row["raw"]["primary"]
+                  lines += [
+                      f"- management: {json.dumps(row['management'], sort_keys=True)}",
+                      f"- raw PF: {raw['profit_factor']}",
+                      f"- raw DD: {raw['max_drawdown_r']}R",
+                      f"- raw total: {raw['total_r']}R",
+                  ]
+              else:
+                  raw = row["raw"]["primary"]
+                  gp = row["governed"]["primary"]
+                  gs = row["governed"]["secondary"]
+                  lines += [
+                      f"- management: {json.dumps(row['management'], sort_keys=True)}",
+                      f"- governor: {json.dumps(row['governor'], sort_keys=True)}",
+                      f"- raw PF: {raw['profit_factor']}",
+                      f"- raw DD: {raw['max_drawdown_r']}R",
+                      f"- governed PF05: {gp['profit_factor']}",
+                      f"- governed DD05: {gp['max_drawdown_r']}R",
+                      f"- governed total05: {gp['total_r']}R",
+                      f"- governed PF10: {gs['profit_factor']}",
+                      f"- governed DD10: {gs['max_drawdown_r']}R",
+                      f"- goal pass: {row['goal_pass']}",
+                  ]
+              lines.append("")
+          (root / "VT08_INDEX_CIBO_2Y_SPECIALIST_RISK_ROUND6_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-2y-specialist-risk-round6-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
