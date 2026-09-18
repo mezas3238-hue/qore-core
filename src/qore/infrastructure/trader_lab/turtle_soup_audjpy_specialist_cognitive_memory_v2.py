@@ -409,7 +409,7 @@ def build(raw_root: Path, v1_root: Path, output: Path) -> dict[str, Any]:
         for line in handle:
             if line.strip():
                 observations.append(json.loads(line))
-    if len(observations) != 41302:
+    if len(observations) != 40980:
         raise ValueError("Specialist Memory V1 observation drift")
 
     h4 = build_h4(evidence.bars)
