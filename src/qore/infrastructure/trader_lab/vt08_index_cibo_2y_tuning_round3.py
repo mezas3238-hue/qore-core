@@ -116,9 +116,12 @@ def _benchmark(
     sides: tuple[str, ...],
     target: str,
 ) -> dict[str, Any]:
+    targets: dict[str, str | None] = {
+        symbol: target for symbol in r1.SYMBOLS
+    }
     result = r1._candidate_report(
         rows,
-        targets={symbol: target for symbol in r1.SYMBOLS},
+        targets=targets,
         anchors=anchors,
         sides=sides,
     )
