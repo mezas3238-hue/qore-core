@@ -1123,6 +1123,7 @@ def manage_open_position(
     *,
     now: datetime,
     store: R38GbpJpyLiveStateStore,
+    mutations_enabled: bool = True,
 ) -> tuple[R38GbpJpyLiveState, str]:
     state = store.reconcile(api, now=now)
     opened = state.open_trade
@@ -1172,6 +1173,8 @@ def manage_open_position(
     checked = api.order_check(request)
     if checked is None or int(checked.retcode) != 0:
         raise RuntimeError("GBPJPY R38 certified stop modification order_check rejected")
+    if not mutations_enabled:
+        return state, f"gbpjpy-r38-shadow-stop-check-pass:{expected}"
     result = api.order_send(request)
     if result is None or int(result.retcode) not in {
         int(api.TRADE_RETCODE_DONE),
