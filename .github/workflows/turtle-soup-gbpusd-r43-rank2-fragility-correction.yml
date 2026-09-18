@@ -1,0 +1,151 @@
+name: QORE Turtle Soup GBPUSD R43 Rank2 Fragility Correction
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpusd-r43-rank2-fragility-correction.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r43_rank2_fragility_correction.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r43_rank2_fragility_correction.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  R39_RUN_ID: '35353073610'
+  R39_ARTIFACT: 'qore-turtle-soup-gbpusd-r39-frozen-r37-5y-e02d9384fbe6521040fc2779a085c43b8d5f0f92'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r43_rank2_fragility_correction.py             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r43_rank2_fragility_correction.py
+      - run: |
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r43_rank2_fragility_correction.py
+      - run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r43_rank2_fragility_correction.py
+
+  correct:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R39_ARTIFACT }}
+          path: r39-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R39_RUN_ID }}
+      - name: Run R43 rank2 fragility correction
+        run: |
+          mkdir -p r43-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r43_rank2_fragility_correction             r39-source r43-output > r43-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r43-output/git-sha.txt
+      - name: Enforce R43 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r43-output/r43-rank2-fragility-correction-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPUSD_R43_RANK2_FRAGILITY_CORRECTION_V1'
+          c=p['correction_contract']
+          assert c['signals_suppressed'] is False
+          assert c['all_907_trades_preserved'] is True
+          assert c['structural_risk_overlay_only'] is True
+          assert c['preentry_target_rank_only'] is True
+          assert c['short_side_known_preentry'] is True
+          assert c['entry_changed'] is False
+          assert c['target_changed'] is False
+          assert c['stop_changed'] is False
+          assert c['lifecycle_changed'] is False
+          assert c['families_changed'] is False
+          assert c['fresh_holdout_consumed'] is False
+          a=p['predeclared_acceptance']
+          assert a['minimum_trades']==800
+          assert a['minimum_profit_factor']=='1.50'
+          assert a['maximum_drawdown_r']=='6.0'
+          assert a['minimum_positive_annual_blocks']==5
+          assert a['calendar_time_not_used_as_rule'] is True
+          g=p['governance']
+          assert g['candidate_certified'] is False
+          assert g['fresh_holdout_consumed'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash R43 evidence
+        run: |
+          cd r43-output
+          files=(r43-rank2-fragility-correction-report.json stdout.json git-sha.txt)
+          if [ -f r43-5y-corrected-trades.jsonl ]; then files+=(r43-5y-corrected-trades.jsonl); fi
+          sha256sum "${files[@]}" > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r43-rank2-fragility-${{ github.sha }}
+          path: r43-output
+          if-no-files-found: error
+          retention-days: 90
+
+  publish_status:
+    if: always()
+    needs: [quality, correct]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
+      - name: Download successful R43 artifact
+        if: needs.correct.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r43-rank2-fragility-${{ github.sha }}
+          path: published-result
+      - name: Write auditable R43 status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          CORRECT_RESULT: ${{ needs.correct.result }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_GBPUSD_R43_RANK2_FRAGILITY_STATUS',
+            'workflow_run_id':int(os.environ['RUN_ID']),
+            'workflow_sha':os.environ['RUN_SHA'],
+            'quality_result':os.environ['QUALITY_RESULT'],
+            'correction_result':os.environ['CORRECT_RESULT'],
+          }
+          matches=list(Path('published-result').rglob('r43-rank2-fragility-correction-report.json'))
+          if len(matches)==1:
+            out['r43_report']=json.loads(matches[0].read_text())
+          sums=list(Path('published-result').rglob('SHA256SUMS.txt'))
+          if len(sums)==1:
+            out['sha256sums']=sums[0].read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-GBPUSD-R43-RANK2-FRAGILITY-LATEST.json').write_text(
+            json.dumps(out,indent=2,sort_keys=True)+'\n'
+          )
+          PY
+      - name: Commit status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-GBPUSD-R43-RANK2-FRAGILITY-LATEST.json
+          git commit -m "research(gbpusd): record R43 rank2 fragility result" || exit 0
+          git push origin HEAD:agent/turtle-soup-gbpusd-specialist-memory-v1-001
