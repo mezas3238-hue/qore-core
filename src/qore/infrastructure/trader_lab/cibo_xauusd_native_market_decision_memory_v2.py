@@ -750,8 +750,8 @@ def build(
     }
     target_rows = _read_jsonl(_single(target_root, "TARGET_DESTINATION_LEDGER_V2.jsonl"))
     by_episode: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in target_rows:
-        by_episode[str(row["episode_id"])].append(row)
+    for target_row in target_rows:
+        by_episode[str(target_row["episode_id"])].append(target_row)
 
     opens = tuple(bar.opened_at for bar in evidence.bars)
     observations: list[dict[str, Any]] = []
@@ -801,7 +801,7 @@ def build(
                 )
                 for posture in POSTURES
             }
-            row: dict[str, Any] = {
+            observation: dict[str, Any] = {
                 **state,
                 "episode_id": episode_id,
                 "departure_at": departure.isoformat(),
@@ -823,28 +823,28 @@ def build(
                 "mae_1440_r": str(event.mae_1440m_ticks / risk_ticks),
             }
             for posture, result in lifecycle.items():
-                row[f"{posture}_gross_r"] = str(result.gross_r)
-                row[f"{posture}_net_010_r"] = str(result.net_010_r)
-                row[f"{posture}_exit_reason"] = result.exit_reason
-                row[f"{posture}_target_reached"] = result.target_reached
-                row[f"{posture}_protected_exit"] = result.protected_exit
-                row[f"{posture}_stop_exit"] = result.stop_exit
-                row[f"{posture}_trail_moves"] = result.trail_moves
-            observations.append(row)
+                observation[f"{posture}_gross_r"] = str(result.gross_r)
+                observation[f"{posture}_net_010_r"] = str(result.net_010_r)
+                observation[f"{posture}_exit_reason"] = result.exit_reason
+                observation[f"{posture}_target_reached"] = result.target_reached
+                observation[f"{posture}_protected_exit"] = result.protected_exit
+                observation[f"{posture}_stop_exit"] = result.stop_exit
+                observation[f"{posture}_trail_moves"] = result.trail_moves
+            observations.append(observation)
 
     hierarchy = _build_memory(observations)
 
     decision_counts: Counter[str] = Counter()
     posture_counts: Counter[str] = Counter()
-    for row in observations:
-        item, level, _signature = resolve(hierarchy, row)
+    for observation in observations:
+        item, level, _signature = resolve(hierarchy, observation)
         if item is None:
             decision_counts["UNRESOLVED"] += 1
             continue
-        posture, classification = _best_posture(item)
+        preferred_posture, classification = _best_posture(item)
         decision_counts[f"{level}:{classification}"] += 1
-        if posture is not None:
-            posture_counts[posture] += 1
+        if preferred_posture is not None:
+            posture_counts[preferred_posture] += 1
 
     payload = {
         "schema": "qore.cibo.xauusd.native_market_decision_memory.v2",
