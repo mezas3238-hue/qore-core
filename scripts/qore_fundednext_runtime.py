@@ -164,6 +164,20 @@ _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
 _DISCOVERY_DAYS = 7
 
 
+def _arm_to_hour_boundary(now: datetime) -> datetime:
+    """Wake on the H1 boundary before any slower reconciliation work begins."""
+    observed = now.astimezone(UTC)
+    top = observed.replace(minute=0, second=0, microsecond=0)
+    if (observed - top).total_seconds() <= MARKET_DATA_SLA_SECONDS:
+        return observed
+    next_top = top + timedelta(hours=1)
+    until_top = (next_top - observed).total_seconds()
+    if 0 < until_top <= _BOUNDARY_ARM_SECONDS:
+        time.sleep(until_top)
+        return datetime.now(UTC)
+    return observed
+
+
 def _runtime_sleep_seconds(now: datetime) -> float:
     """Sleep coarsely off-boundary and arm at 100 ms around each H1 boundary."""
     observed = now.astimezone(UTC)
@@ -1414,7 +1428,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     logged_market_data_boundaries: set[tuple[str, str]] = set()
 
     while True:
-        cycle_at = datetime.now(UTC)
+        cycle_at = _arm_to_hour_boundary(datetime.now(UTC))
         turtle_anchor = current_r34_anchor(cycle_at)
         if turtle_anchor is not None:
             market_status = turtle_market_data.prime_anchor_group(
