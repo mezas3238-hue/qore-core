@@ -10,7 +10,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Sequence
+from collections.abc import Sequence
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.market_data import OhlcSnapshot
