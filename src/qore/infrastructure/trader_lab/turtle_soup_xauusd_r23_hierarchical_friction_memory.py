@@ -611,12 +611,12 @@ def run(
 
     resilience_hierarchy = _build_resilience_hierarchy(observations)
 
-    resolved_subtypes = Counter()
+    resolved_subtypes: Counter[str] = Counter()
     for row in r21_ledger:
         cls, level, _sig = resolve_subtype(subtype_hierarchy, row)
         resolved_subtypes[f"{level or 'none'}:{cls}"] += 1
 
-    resolved_resilience = Counter()
+    resolved_resilience: Counter[str] = Counter()
     for row in observations:
         cls, level, _sig = resolve_resilience(resilience_hierarchy, row)
         resolved_resilience[f"{level or 'none'}:{cls}"] += 1
