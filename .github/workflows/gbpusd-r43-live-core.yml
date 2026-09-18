@@ -14,28 +14,9 @@ on:
       - 'src/qore/infrastructure/trader_lab/cibo_gbpusd_*.py'
       - 'runtime_data/gbpusd/**'
       - 'tests/infrastructure/test_r43_gbpusd_live.py'
-      - 'scripts/build_audjpy_r42_live_memory.py'
-      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_*.py'
-      - 'src/qore/infrastructure/trader_lab/cibo_audjpy_*.py'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/gbpusd-r43-live-core.yml'
-      - 'src/qore/infrastructure/r43_gbpusd_live.py'
-      - 'src/qore/infrastructure/account_wide_risk.py'
-      - 'scripts/qore_fundednext_runtime.py'
-      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_*.py'
-      - 'src/qore/infrastructure/trader_lab/cibo_gbpusd_*.py'
-      - 'runtime_data/gbpusd/**'
-      - 'tests/infrastructure/test_r43_gbpusd_live.py'
-      - 'scripts/build_audjpy_r42_live_memory.py'
-      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_*.py'
-      - 'src/qore/infrastructure/trader_lab/cibo_audjpy_*.py'
 
 permissions:
-  contents: write
-  actions: read
+  contents: read
 
 jobs:
   quality:
@@ -56,69 +37,3 @@ jobs:
       - name: Focused tests
         run: |
           pytest -q --no-cov             tests/infrastructure/test_r43_gbpusd_live.py             tests/infrastructure/test_account_wide_risk.py
-
-
-  audjpy-memory-freeze:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/turtle-soup-gbpusd-r43-live-core-integration-001
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install -e '.[dev]'
-      - name: AUDJPY builder quality
-        run: |
-          ruff check --ignore E501,I001 scripts/build_audjpy_r42_live_memory.py
-          mypy --disable-error-code attr-defined scripts/build_audjpy_r42_live_memory.py
-      - name: Download exact AUDJPY R27 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: qore-turtle-soup-audjpy-structural-specialist-v2-r27-e0bec233ed40197a1e969786b24a9dc8a1e5869f
-          path: r27-source
-          github-token: ${{ github.token }}
-          run-id: '35383377176'
-      - name: Build immutable AUDJPY memory
-        run: |
-          mkdir -p runtime_data/audjpy
-          python scripts/build_audjpy_r42_live_memory.py             r27-source runtime_data/audjpy/r42-causal-authority-memory.json             > runtime_data/audjpy/r42-causal-authority-memory-build.json
-          sha256sum runtime_data/audjpy/r42-causal-authority-memory.json             | awk '{print $1}'             > runtime_data/audjpy/r42-causal-authority-memory.sha256
-          cat runtime_data/audjpy/r42-causal-authority-memory-build.json
-          cat runtime_data/audjpy/r42-causal-authority-memory.sha256
-      - name: Verify AUDJPY snapshot
-        run: |
-          python - <<'PY'
-          import hashlib, json
-          from pathlib import Path
-          p=Path('runtime_data/audjpy/r42-causal-authority-memory.json')
-          payload=json.loads(p.read_text())
-          assert payload['identity']=='TURTLE_SOUP_AUDJPY_R42_LIVE_MEMORY_V1'
-          assert payload['source']['run_id']==35383377176
-          assert payload['source']['artifact_id']==10562458144
-          assert payload['source']['observations_sha256']=='4fb9c6d1c9c4537bb5e0de7f4a728ee0725677422ac396cbd63fb606a52c1b11'
-          assert payload['certification']['run_id']==35400542409
-          assert payload['selected_ensemble']=='R38_FROZEN_SIGNAL_BASELINE'
-          assert payload['selected_policy']=='AUDJPY_CONFIDENCE_100_075_025'
-          digest=hashlib.sha256(p.read_bytes()).hexdigest()
-          assert digest==Path('runtime_data/audjpy/r42-causal-authority-memory.sha256').read_text().strip()
-          PY
-      - name: Commit frozen AUDJPY memory
-        run: |
-          git config user.name "qore-actions"
-          git config user.email "qore-actions@users.noreply.github.com"
-          git add runtime_data/audjpy
-          if git diff --cached --quiet; then
-            echo "AUDJPY memory unchanged"
-          else
-            git commit -m "integrate(audjpy): freeze certified R42 live memory"
-            git push origin HEAD:agent/turtle-soup-gbpusd-r43-live-core-integration-001
-          fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: qore-audjpy-r42-live-memory-${{ github.sha }}
-          path: runtime_data/audjpy
-          if-no-files-found: error
-          retention-days: 90
