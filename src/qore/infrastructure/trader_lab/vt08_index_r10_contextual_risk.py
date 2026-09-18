@@ -95,7 +95,13 @@ def _schemes() -> tuple[RiskScheme, ...]:
         RiskScheme(Decimal("0.75"), Decimal("0.10"), Decimal("1"), Decimal("1"), Decimal("1")),
         RiskScheme(Decimal("1"), Decimal("0.10"), Decimal("1"), Decimal("0.25"), Decimal("1")),
         RiskScheme(Decimal("1"), Decimal("0.10"), Decimal("1"), Decimal("0.25"), Decimal("0.50")),
-        RiskScheme(Decimal("0.75"), Decimal("0.10"), Decimal("1"), Decimal("0.25"), Decimal("0.50")),
+        RiskScheme(
+            Decimal("0.75"),
+            Decimal("0.10"),
+            Decimal("1"),
+            Decimal("0.25"),
+            Decimal("0.50"),
+        ),
     )
 
 
