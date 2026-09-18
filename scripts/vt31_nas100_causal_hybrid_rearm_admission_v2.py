@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import cast
 
 import vt31_nas100_causal_hybrid_density_v2 as hybrid
-import vt31_nas100_causal_hybrid_rearm_v1 as rearm
 import vt31_nas100_high_density_structural_protection_v1 as protection
 import vt31_nas100_specialist_r1_candidate as specialist
 import vt31_nas100_structural_rearm_density_frontier_v1 as frontier
