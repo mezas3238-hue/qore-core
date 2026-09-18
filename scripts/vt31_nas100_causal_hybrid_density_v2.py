@@ -58,12 +58,14 @@ FRICTION = Decimal("0.05")
 CORE_RISK = Decimal("1.00")
 SECONDARY_RISK = Decimal("0.05")
 SCOUT_RISK = Decimal("0.02")
-MONTHLY_ALT_BUDGET = Decimal("0.60")
-
-VARIANTS: dict[str, int | None] = {
-    "WAIT_NONE": None,
-    "WAIT_1025": 10 * 60 + 25,
-    "WAIT_1020": 10 * 60 + 20,
+VARIANTS: dict[str, tuple[int | None, Decimal]] = {
+    "WAIT_NONE_B060": (None, Decimal("0.60")),
+    "WAIT_1025_B060": (10 * 60 + 25, Decimal("0.60")),
+    "WAIT_1020_B060": (10 * 60 + 20, Decimal("0.60")),
+    "WAIT_1020_B075": (10 * 60 + 20, Decimal("0.75")),
+    "WAIT_1015_B075": (10 * 60 + 15, Decimal("0.75")),
+    "WAIT_1010_B075": (10 * 60 + 10, Decimal("0.75")),
+    "WAIT_1015_B090": (10 * 60 + 15, Decimal("0.90")),
 }
 
 
@@ -175,6 +177,7 @@ def _run_variant(
     *,
     evidence: str,
     wait_release_minute: int | None,
+    monthly_alt_budget: Decimal,
     variant: str,
 ) -> dict[str, object]:
     policy = Vt31R22ExecutionPolicy()
@@ -188,7 +191,7 @@ def _run_variant(
         month = local_day.isoformat()[:7]
         if month != current_month:
             current_month = month
-            alt_budget = MONTHLY_ALT_BUDGET
+            alt_budget = monthly_alt_budget
             budget_ledger[month] = {
                 "opening_budget_r": format(alt_budget, "f"),
                 "secondary_count": 0,
@@ -376,6 +379,7 @@ def _run_variant(
     return {
         "variant": variant,
         "wait_release_minute": wait_release_minute,
+        "monthly_alt_budget_r": format(monthly_alt_budget, "f"),
         "trade_count": len(trades),
         "tier_counts": dict(sorted(tier_counts.items())),
         "capital_weighted_metrics": metrics,
@@ -412,9 +416,10 @@ def replay(evidence_path: Path) -> dict[str, object]:
             context_by_day,
             evidence=evidence,
             wait_release_minute=minute,
+            monthly_alt_budget=budget,
             variant=name,
         )
-        for name, minute in VARIANTS.items()
+        for name, (minute, budget) in VARIANTS.items()
     }
     return {
         "schema": SCHEMA,
@@ -432,7 +437,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "core_requested_risk_r": format(CORE_RISK, "f"),
             "secondary_requested_risk_r": format(SECONDARY_RISK, "f"),
             "scout_requested_risk_r": format(SCOUT_RISK, "f"),
-            "monthly_alt_budget_r": format(MONTHLY_ALT_BUDGET, "f"),
+            "monthly_alt_budget_r": "variant-specific",
             "one_selected_position_per_market_day": True,
             "qore_risk_remains_sovereign": True,
         },
