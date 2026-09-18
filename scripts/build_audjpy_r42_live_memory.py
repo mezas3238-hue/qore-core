@@ -217,3 +217,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# AUDJPY_R42_MEMORY_TRIGGER
