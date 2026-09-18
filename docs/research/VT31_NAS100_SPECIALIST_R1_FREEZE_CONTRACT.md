@@ -33,6 +33,45 @@ Silver Bullet / VT31 remains the trading methodology:
 
 ## NAS100 specialist intelligence
 
+### Internalized CIBO + laboratory memory
+
+VT31 does **not** consult CIBO at runtime.
+
+CIBO is the historical teacher. Its consumed NAS100 knowledge, together with
+the adjudicated VT31 laboratory findings, is distilled into a versioned
+`VT31_NAS100 Cognitive Memory` that ships inside the specialist.
+
+The specialist therefore carries:
+
+- NAS100 sequence/departure timing priors;
+- structure/liquidity behavior priors;
+- stop and premature-management lessons;
+- destination/extension priors;
+- supported laboratory mechanisms;
+- falsified/rejected hypotheses;
+- unresolved research warnings;
+- immutable evidence bindings and a memory fingerprint.
+
+Runtime architecture:
+
+```text
+INTERNALIZED LONG-TERM MEMORY
+        +
+CURRENT NAS100 M1 WORKING MEMORY
+        ↓
+REASONING ENGINE
+        ↓
+THESIS / SUPPORT / CONTRADICTIONS / UNCERTAINTY
+        ↓
+EXECUTE / WAIT / ABSTAIN
+        ↓
+STOP / TARGET / MANAGEMENT PLAN
+```
+
+There is no CIBO API call, no ledger lookup, no date-level historical lookup
+and no mutable online rewriting of this long-term memory. A new memory version
+requires an explicit research/revalidation cycle and a new fingerprint.
+
 The candidate reconstructs its intelligence from **closed NAS100 M1 bars only**.
 It does not query a CIBO ledger by date and it does not require SP500/US30 data.
 
