@@ -33,6 +33,30 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Candidate self-test
         run: python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
+      - name: Three-memory identity gate
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
+              memory_fingerprint,
+              validate_memory,
+          )
+          from qore.infrastructure.traders.vt31_nas100_episodic_memory import (
+              episodic_memory_fingerprint,
+          )
+          from qore.infrastructure.traders.vt31_nas100_long_term_memory import (
+              long_term_memory_fingerprint,
+          )
+
+          validate_memory()
+          values = {
+              "long_term": long_term_memory_fingerprint(),
+              "episodic_research": episodic_memory_fingerprint(),
+              "cognitive_bundle": memory_fingerprint(),
+          }
+          assert all(len(value) == 64 for value in values.values())
+          assert len(set(values.values())) == 3
+          print(values)
+          PY
       - name: Focused specialist tests
         run: |
           pytest -q \
