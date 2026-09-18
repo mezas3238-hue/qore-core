@@ -59,8 +59,7 @@ jobs:
         run: |
           mkdir -p r35-output
           python -m qore.infrastructure.trader_lab.turtle_soup_xauusd_r35_final_certification_suite             r34-source r35-output > r35-output/stdout.json
-          printf '%s
-' "$GITHUB_SHA" > r35-output/git-sha.txt
+          echo "$GITHUB_SHA" > r35-output/git-sha.txt
       - name: Enforce fail-closed certification contract
         run: |
           python - <<'PY'
