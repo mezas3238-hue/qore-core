@@ -921,6 +921,30 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 evidence_fingerprint=evidence,
             )
             if evaluation.setup is None:
+                if saw_wait and evaluation.both_sides_swept:
+                    current_at = cast(datetime, getattr(bar, "closed_at"))
+                    reasoning_trace.append(
+                        {
+                            "local_date": local_day.isoformat(),
+                            "decision_at": current_at.astimezone(UTC).isoformat(),
+                            "action": "ABSTAIN",
+                            "abstain_reasons": [
+                                "STRATEGY:BOTH_SIDES_SWEPT_AFTER_WAIT"
+                            ],
+                            "reasoning_thesis": "SOURCE_IDENTITY_INVALIDATED",
+                            "reasoning_support": [],
+                            "reasoning_contradictions": [
+                                "STRATEGY:BOTH_SIDES_SWEPT_AFTER_WAIT"
+                            ],
+                            "reasoning_uncertainty": [],
+                            "outcome_fields_used_for_decision": False,
+                        }
+                    )
+                    status_counts[
+                        "intelligence-abstain-source-invalidated"
+                    ] += 1
+                    hard_abstain = True
+                    break
                 continue
 
             saw_source = True
