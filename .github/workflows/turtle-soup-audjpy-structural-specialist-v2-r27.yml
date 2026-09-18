@@ -166,3 +166,52 @@ jobs:
           path: package
           if-no-files-found: error
           retention-days: 90
+
+
+  publish-status:
+    if: ${{ always() && github.event_name != 'pull_request' }}
+    needs: [quality, structural-memory-and-replay]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-audjpy-specialist-memory-v1-001
+      - name: Download successful R27 artifact
+        if: needs.structural-memory-and-replay.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-structural-specialist-v2-r27-${{ env.EVIDENCE_SHA }}
+          path: published-r27
+      - name: Write auditable R27 status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          R27_RESULT: ${{ needs.structural-memory-and-replay.result }}
+          RUN_SHA: ${{ env.EVIDENCE_SHA }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_AUDJPY_R27_STATUS',
+            'workflow_run_id': int(os.environ['RUN_ID']),
+            'workflow_sha': os.environ['RUN_SHA'],
+            'quality_result': os.environ['QUALITY_RESULT'],
+            'r27_result': os.environ['R27_RESULT'],
+          }
+          report=Path('published-r27/r27-structural-specialist-brain-report.json')
+          sums=Path('published-r27/SHA256SUMS.txt')
+          if report.exists():
+            out['report']=json.loads(report.read_text())
+          if sums.exists():
+            out['sha256sums']=sums.read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-AUDJPY-R27-LATEST.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Commit R27 status to research branch
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-AUDJPY-R27-LATEST.json
+          git commit -m "research(audjpy): record R27 structural replay result" || exit 0
+          git push origin HEAD:agent/turtle-soup-audjpy-specialist-memory-v1-001
