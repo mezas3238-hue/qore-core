@@ -1,0 +1,97 @@
+name: QORE Turtle Soup EURUSD R34 Corrective Ensemble
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-eurusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-eurusd-r34-corrective-ensemble.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r34_corrective_ensemble.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_eurusd_r34_corrective_ensemble.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-EURUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  R28_RUN_ID: '35319457546'
+  R28_ARTIFACT: 'qore-turtle-soup-eurusd-cognitive-v3-r28-e6879bbdd3844751af075269ddd93db6d3f9b9e1'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check --ignore E501,I001 src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r34_corrective_ensemble.py tests/infrastructure/trader_lab/test_turtle_soup_eurusd_r34_corrective_ensemble.py
+      - run: mypy --disable-error-code attr-defined src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r34_corrective_ensemble.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_eurusd_r34_corrective_ensemble.py
+
+  replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-eurusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-eurusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R28_ARTIFACT }}
+          path: cognitive-v3
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R28_RUN_ID }}
+      - name: Run corrective replay
+        run: |
+          mkdir -p r34-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_eurusd_r34_corrective_ensemble source-eurusd target-eurusd cognitive-v3 r34-output > r34-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r34-output/git-sha.txt
+      - name: Enforce governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r34-output/r34-corrective-ensemble-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_EURUSD_R34_CORRECTIVE_ENSEMBLE_LAB_V1'
+          c=p['experiment_contract']
+          assert c['fresh_holdout_consumed'] is False
+          assert c['f1_recent_regime_falsified'] is True
+          assert c['f1_excluded_from_all_r34_variants'] is True
+          assert c['entry_changed'] is False
+          assert c['c2_changed'] is False
+          assert c['cisd_changed'] is False
+          assert c['protected_swing_changed'] is False
+          assert c['structural_rearm_changed'] is False
+          PY
+      - run: |
+          cd r34-output
+          sha256sum r34-corrective-ensemble-report.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-eurusd-r34-corrective-ensemble-${{ github.sha }}
+          path: r34-output
+          if-no-files-found: error
+          retention-days: 90
