@@ -331,10 +331,7 @@ def run(
 
     rows: list[dict[str, Any]] = []
     unmatched = 0
-    setup_counter = 0
-
     for setup in setups:
-        setup_counter += 1
         signal = setup.context.signal
         episode_id = source_index.get(
             (
@@ -381,6 +378,25 @@ def run(
                         "target_route": target_route,
                         "filled": False,
                         "reason": reason,
+                        "d1_trend_state_20": regime["d1_trend_state_20"],
+                        "h4_trend_state_20": regime["h4_trend_state_20"],
+                        "d1_range_5v20": regime["d1_range_5v20"],
+                        "h4_range_3v20": regime["h4_range_3v20"],
+                        "d1_efficiency_20": regime["d1_efficiency_20"],
+                        "h4_efficiency_20": regime["h4_efficiency_20"],
+                        "weekday": setup.context.weekday,
+                        "session": setup.context.session,
+                        "fvg_before_entry": setup.context.fvg_before_entry,
+                        "exact_equal_liquidity": setup.context.exact_equal_liquidity,
+                        "raid_depth_range_bucket": setup.context.raid_depth_range_bucket,
+                        "reclaim_latency_bucket": setup.context.reclaim_latency_bucket,
+                        "cisd_progress_bucket": setup.context.cisd_progress_bucket,
+                        "protected_risk_range_bucket": (
+                            setup.context.protected_risk_range_bucket
+                        ),
+                        "source_range_state_bucket": (
+                            setup.context.source_range_state_bucket
+                        ),
                     }
                 )
                 continue
