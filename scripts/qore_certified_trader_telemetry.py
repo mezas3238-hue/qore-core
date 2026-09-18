@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import asdict
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -45,14 +44,17 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _comparison_json(value: Any) -> dict[str, Any]:
-    raw = asdict(value)
-    raw["closed_r"] = str(value.closed_r)
-    raw["worst_closed_day_r"] = str(value.worst_closed_day_r)
-    raw["frequency_status"] = value.frequency_status.value
-    raw["weekly_loss_status"] = value.weekly_loss_status.value
-    raw["daily_loss_status"] = value.daily_loss_status.value
-    raw["outside_historical_envelope"] = value.outside_historical_envelope
-    return raw
+    return {
+        "trader_id": value.trader_id,
+        "entries": value.entries,
+        "closed_r": str(value.closed_r),
+        "worst_closed_day_r": str(value.worst_closed_day_r),
+        "frequency_status": value.frequency_status.value,
+        "weekly_loss_status": value.weekly_loss_status.value,
+        "daily_loss_status": value.daily_loss_status.value,
+        "advisory_only": value.advisory_only,
+        "outside_historical_envelope": value.outside_historical_envelope,
+    }
 
 
 def main() -> int:
