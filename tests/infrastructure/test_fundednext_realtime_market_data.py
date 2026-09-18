@@ -63,7 +63,7 @@ class _FakeApi:
         first = anchor - timedelta(minutes=5 * 2_000)
         self.rows = tuple(
             _row(first + timedelta(minutes=5 * index))
-            for index in range(2_001)
+            for index in range(2_025)
         )
         self.copy_counts: list[int] = []
 
@@ -79,7 +79,15 @@ class _FakeApi:
             self.clock.now()
             >= self.anchor + timedelta(seconds=self.boundary_delay_seconds)
         )
-        last_open = self.anchor if boundary_available else self.anchor - timedelta(minutes=5)
+        if boundary_available:
+            observed = self.clock.now()
+            last_open = observed.replace(
+                minute=(observed.minute // 5) * 5,
+                second=0,
+                microsecond=0,
+            )
+        else:
+            last_open = self.anchor - timedelta(minutes=5)
         available = tuple(
             row
             for row in self.rows
@@ -134,6 +142,42 @@ def test_boundary_snapshot_waits_for_exact_bar_but_never_beyond_two_seconds() ->
     assert api.copy_counts[0] == 2_000
     assert all(count == 8 for count in api.copy_counts[1:])
 
+
+
+def test_continuous_refresh_keeps_incremental_cache_complete() -> None:
+    anchor = datetime(2026, 9, 18, 20, 0, tzinfo=UTC)
+    clock = _FakeClock(anchor)
+    api = _FakeApi(
+        clock=clock,
+        anchor=anchor,
+        boundary_delay_seconds=0.0,
+    )
+    engine = _engine(clock)
+    engine.warm(api, symbol="EURUSD", history_bars=2_000)
+
+    for minutes in range(5, 65, 5):
+        clock.value = anchor + timedelta(minutes=minutes, milliseconds=200)
+        result = engine.refresh_many(
+            api,
+            symbols=("EURUSD",),
+            now=clock.now(),
+        )
+        assert result == {"EURUSD": None}
+
+    rates = engine.latest_closed_rates(
+        api,
+        symbol="EURUSD",
+        history_bars=2_000,
+        now=clock.now(),
+    )
+    recent = tuple(rate.opened_at for rate in rates[-13:])
+    expected = tuple(
+        anchor - timedelta(minutes=5) + timedelta(minutes=5 * index)
+        for index in range(13)
+    )
+    assert recent == expected
+    assert api.copy_counts[0] == 2_000
+    assert all(count == 8 for count in api.copy_counts[1:])
 
 def test_late_boundary_bar_is_fail_closed_and_never_accepted_later() -> None:
     anchor = datetime(2026, 9, 18, 20, 0, tzinfo=UTC)
