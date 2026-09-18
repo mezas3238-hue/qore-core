@@ -1,9 +1,9 @@
-"""Resident FundedNext VT-08/CIBO/Risk runtime for the existing Windows VPS.
+"""Resident QORE FundedNext runtime for VT08 Forex and certified R34 XAUUSD.
 
-The VPS/MT5 installation is assumed to exist already.  This runtime is the
-fail-closed resident execution loop. It evaluates the authorized 01:00 / 05:00 /
-09:00 NY entry anchors causally, keeps sovereign Risk above execution,
-maintains the certified H4 containment exit, and never depends on ChatGPT/RDP.
+The VPS/MT5 installation is assumed to exist already. This is the single-writer
+24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; R34
+evaluates every New York H1/H4 boundary using the broker-to-New-York normalized
+M5 feed. Sovereign Account-Wide Risk remains above both traders.
 """
 
 from __future__ import annotations
@@ -19,12 +19,13 @@ from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import MetaTrader5 as mt5
+import MetaTrader5 as mt5  # type: ignore[import-untyped]
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     ReservationState,
     RiskDecision,
+    TraderLineage,
 )
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
@@ -57,6 +58,7 @@ from qore.infrastructure.fundednext_mt5_mutation_ledger import (
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
 from qore.infrastructure.fundednext_operational_risk_policy import (
     CapitalBudgetDecision,
+    QoreOperationalCapitalBudget,
     evaluate_qore_operational_capital_budget,
 )
 from qore.infrastructure.fundednext_position_exit_ledger import (
@@ -76,6 +78,7 @@ from qore.infrastructure.fundednext_runtime_state import (
 from qore.infrastructure.fundednext_stellar_instant import (
     PILOT_INITIAL_BALANCE,
     StellarInstantAccountSnapshot,
+    StellarInstantRiskBudget,
     evaluate_stellar_instant_budget,
 )
 from qore.infrastructure.market_test_environment import (
@@ -85,6 +88,14 @@ from qore.infrastructure.market_test_environment import (
 from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
     ExecutionSwitchState,
+)
+from qore.infrastructure.r34_xauusd_live import (
+    R34LiveSignal,
+    R34LiveStateStore,
+    build_live_signal as build_r34_live_signal,
+    build_r34_risk_request,
+    current_anchor as current_r34_anchor,
+    load_cognitive as load_r34_cognitive,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     OWNER_FOREX_ENTRY_ANCHORS,
@@ -346,6 +357,7 @@ def _reconcile_exit_ledger(
 def _manage_h4_exits(
     *,
     mutation_ledger: JsonFileFundedNextMt5MutationLedger,
+    risk_ledger: DurableAccountWideRiskLedger,
     exit_ledger: JsonFileFundedNextPositionExitLedger,
     now: datetime,
     log_path: Path,
@@ -360,11 +372,24 @@ def _manage_h4_exits(
         if record.state is FundedNextMt5MutationState.ACCEPTED
     }
     existing = {record.key: record for record in exit_ledger.records()}
+    lineages = {
+        item.authorization.authorization_id: item.authorization.trader_id
+        for item in risk_ledger.load()
+    }
     for position in positions:
         source = accepted.get(int(position.magic))
         if source is None:
             continue
-        due = h4_containment_exit_at(_signal_anchor(source.transitioned_at))
+        lineage = lineages.get(source.risk_authorization_id)
+        if lineage is TraderLineage.R34_XAUUSD:
+            signal_anchor = source.transitioned_at.astimezone(UTC).replace(
+                minute=0, second=0, microsecond=0
+            )
+            due = signal_anchor + timedelta(hours=24)
+            exit_label = "R34_24H"
+        else:
+            due = h4_containment_exit_at(_signal_anchor(source.transitioned_at))
+            exit_label = "VT08_H4"
         if now < due:
             continue
         key = f"{source.client_order_id}|{position.ticket}"
@@ -387,7 +412,7 @@ def _manage_h4_exits(
             "type": mt5.ORDER_TYPE_BUY if closing_buy else mt5.ORDER_TYPE_SELL,
             "price": float(tick.ask if closing_buy else tick.bid),
             "magic": int(position.magic),
-            "comment": f"qore-h4-exit-{str(position.ticket)}"[:29],
+            "comment": f"qore-exit-{exit_label}-{str(position.ticket)}"[:29],
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": _exit_filling(str(position.symbol)),
         }
@@ -420,10 +445,16 @@ def _manage_h4_exits(
                     state=PositionExitState.ACCEPTED,
                     transitioned_at=recorded,
                     provider_deal_ref=deal_ref if deal_ref != "0" else None,
-                    reason="certified-h4-containment-exit-accepted",
+                    reason=f"certified-{exit_label.lower()}-exit-accepted",
                 )
             )
-            _log(log_path, {"event": "H4_EXIT_ACCEPTED", "position": int(position.ticket)})
+            _log(
+                log_path,
+                {
+                    "event": f"{exit_label}_EXIT_ACCEPTED",
+                    "position": int(position.ticket),
+                },
+            )
         elif result is not None and int(result.retcode) not in {
             int(mt5.TRADE_RETCODE_TIMEOUT),
             int(mt5.TRADE_RETCODE_CONNECTION),
@@ -455,8 +486,8 @@ def _process_candidate(
     transport: MetaTrader5FundedNextLiveTransport,
     risk: DurableAccountWideRiskEngine,
     account_binding_id: str,
-    provider_budget: object,
-    capital_budget: object,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
     account_equity: Decimal,
     log_path: Path,
 ) -> None:
@@ -563,6 +594,128 @@ def _process_candidate(
     )
 
 
+def _process_r34_candidate(
+    *,
+    signal: R34LiveSignal,
+    now: datetime,
+    mode: str,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    account_equity: Decimal,
+    r34_store: R34LiveStateStore,
+    log_path: Path,
+) -> None:
+    spec = gateway.read_symbol("XAUUSD", now=now)
+    request, base_risk_usd = build_r34_risk_request(
+        request_id=f"r34-{signal.signal_fingerprint[:24]}",
+        signal=signal,
+        provider_spec=spec,
+        account_equity=account_equity,
+        now=now,
+    )
+    open_stop, floating_loss, pending_stop = _broker_risk(transport)
+    account_state = gateway.read_account(now=now)
+    snapshot = AccountRiskSnapshot(
+        account_binding_id=account_binding_id,
+        equity=account_equity,
+        margin_used=account_state.margin,
+        free_margin=account_state.free_margin,
+        open_stop_worst_case_loss=open_stop,
+        open_floating_loss=floating_loss,
+        pending_broker_worst_case_loss=pending_stop,
+        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+        provider_budget=provider_budget,
+        reconciled_at=now,
+    )
+    if risk.recovery_required:
+        risk.complete_boot_reconciliation(snapshot, now=now)
+    authorization = risk.authorize(request, snapshot, now=now)
+    if authorization.decision is RiskDecision.REJECT:
+        _log(
+            log_path,
+            {
+                "event": "R34_RISK_REJECT",
+                "symbol": "XAUUSD",
+                "reason": authorization.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+    submission = build_account_bound_submission(
+        authorization,
+        switch=ExecutionSafetySwitchSnapshot(
+            state=ExecutionSwitchState.ENABLED,
+            observed_at=now,
+            reason="qore R34 certified runtime safety gate enabled",
+        ),
+        authorized_at=now,
+        submitted_at=now,
+    )
+    shadow = gateway.shadow_check(submission, now=now)
+    if not shadow.broker_valid:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R34_SHADOW_REJECT",
+                "symbol": "XAUUSD",
+                "reason": shadow.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+    if mode == "shadow":
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R34_SHADOW_PASS",
+                "symbol": "XAUUSD",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "timeframe": signal.timeframe,
+                "target_rank": signal.target_rank,
+                "target_route": signal.target_route,
+                "decision_source": signal.decision_source,
+                "family": signal.family,
+                "risk_scale": str(signal.risk_scale),
+                "risk_usd": str(authorization.monetary_stop_loss),
+                "volume": str(authorization.authorized_volume),
+                "retcode": shadow.retcode,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=now)
+    risk.record_full_fill(authorization.authorization_id)
+    client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
+    r34_store.mark_open(
+        client_order_id=client_order_id,
+        signal=signal,
+        base_risk_usd=base_risk_usd,
+    )
+    _log(
+        log_path,
+        {
+            "event": "R34_LIVE_SUBMIT_ACCEPTED",
+            "symbol": "XAUUSD",
+            "signal_fingerprint": signal.signal_fingerprint,
+            "timeframe": signal.timeframe,
+            "target_rank": signal.target_rank,
+            "target_route": signal.target_route,
+            "decision_source": signal.decision_source,
+            "family": signal.family,
+            "risk_scale": str(signal.risk_scale),
+            "risk_authorization": authorization.authorization_id,
+            "provider_order_ref": provider_ref,
+            "risk_usd": str(authorization.monetary_stop_loss),
+            "volume": str(authorization.authorized_volume),
+        },
+    )
+
+
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
     sha = _git_sha(root)
     if not mt5.initialize():
@@ -594,6 +747,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             server=_EXPECTED_SERVER,
         )
     state_dir = root / "var" / "fundednext"
+    r34_cognitive = load_r34_cognitive(
+        root
+        / "var"
+        / "r34"
+        / "cognitive-v3"
+        / "turtle-soup-xauusd-specialist-cognitive-memory-v3.json"
+    )
+    r34_store = R34LiveStateStore(state_dir / "r34-state.json")
+    r34_store.reconcile(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
@@ -702,6 +864,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "mode": mode,
             "git_sha": sha,
             "news_policy": "provider-permitted-no-synthetic-qore-news-trade-or-filter",
+            "r34_enabled": True,
+            "r34_identity": "TURTLE_SOUP_XAUUSD_R34",
+            "r34_strategy_timezone": "America/New_York",
+            "r34_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "r34_single_position_busy": True,
+            "r34_lifecycle": "STATIC_SL_TP_PLUS_24H_EXIT",
         },
     )
     last_lifecycle: str | None = None
@@ -712,6 +880,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         gateway.reconcile_unknown(now=cycle_at)
         _manage_h4_exits(
             mutation_ledger=mutation_ledger,
+            risk_ledger=risk_ledger,
             exit_ledger=exit_ledger,
             now=cycle_at,
             log_path=log_path,
@@ -722,6 +891,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             mutation_ledger=mutation_ledger,
             now=cycle_at,
         )
+        r34_live_state = r34_store.reconcile(mt5, now=cycle_at)
         highest = max(highest, account_state.balance)
         provider = evaluate_stellar_instant_budget(
             StellarInstantAccountSnapshot(
@@ -833,6 +1003,68 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         {
                             "event": "ANCHOR_FAIL_CLOSED",
                             "symbol": symbol,
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                        },
+                    )
+
+        r34_anchor = current_r34_anchor(cycle_at)
+        if r34_anchor is not None and not new_order_blocked:
+            r34_anchor_key = f"R34_XAUUSD|{r34_anchor.isoformat()}"
+            if r34_anchor_key not in state.processed_anchors:
+                try:
+                    r34_live_state = r34_store.reconcile(mt5, now=cycle_at)
+                    signal, reason = build_r34_live_signal(
+                        mt5,
+                        now=cycle_at,
+                        cognitive=r34_cognitive,
+                        state=r34_live_state,
+                    )
+                    if signal is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "R34_CAUSAL_ABSTAIN",
+                                "symbol": "XAUUSD",
+                                "decision_at": r34_anchor.isoformat(),
+                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                                "reason": reason,
+                                "strategy_drawdown_r": str(r34_live_state.drawdown_r),
+                                "risk_scale": str(r34_live_state.risk_scale),
+                            },
+                        )
+                    else:
+                        _process_r34_candidate(
+                            signal=signal,
+                            now=cycle_at,
+                            mode=mode,
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=provider,
+                            capital_budget=capital,
+                            account_equity=account_state.equity,
+                            r34_store=r34_store,
+                            log_path=log_path,
+                        )
+                    processed_anchor = r34_anchor_key
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=r34_anchor_key,
+                        reconciled_at=cycle_at,
+                        heartbeat_at=cycle_at,
+                    )
+                    store.store(state)
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "R34_ANCHOR_FAIL_CLOSED",
+                            "symbol": "XAUUSD",
+                            "decision_at": r34_anchor.isoformat(),
+                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                             "reason": type(error).__name__,
                             "message": str(error),
                         },

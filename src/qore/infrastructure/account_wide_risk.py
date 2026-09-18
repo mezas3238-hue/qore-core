@@ -26,6 +26,7 @@ class AccountWideRiskError(InfrastructureError):
 class TraderLineage(StrEnum):
     VT08_FOREX = "VT08_FOREX"
     VT08_INDEX = "VT08_INDEX"
+    R34_XAUUSD = "R34_XAUUSD"
 
 
 class RiskDecision(StrEnum):

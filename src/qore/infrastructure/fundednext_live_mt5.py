@@ -220,8 +220,8 @@ class FundedNextLiveMt5ExecutionGateway:
         return state
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> Mt5SymbolSpecification:
-        if qore_symbol not in {"AUDJPY", "GBPUSD", "GBPJPY"}:
-            raise Mt5ExecutionBlockedError("symbol-outside-frozen-vt08-forex-universe")
+        if qore_symbol not in {"AUDJPY", "GBPUSD", "GBPJPY", "XAUUSD"}:
+            raise Mt5ExecutionBlockedError("symbol-outside-certified-live-universe")
         catalog = self._transport.available_symbols()
         matches = tuple(symbol for symbol in catalog if symbol == qore_symbol)
         if len(matches) != 1:
@@ -452,14 +452,29 @@ def _assert_broker_executable_risk(
         raise Mt5ExecutionBlockedError("broker-volume-differs-from-risk-authorization")
     intent = submission.authorized_intent.intent
     if intent.order_type is OrderType.MARKET:
-        try:
-            assert_certified_entry_drift(
-                intended_entry=intended_entry,
-                executable_entry=entry,
-                tick_size=spec.tick_size,
+        trader_id = attrs.get("trader-id")
+        if trader_id == "R34_XAUUSD":
+            base_risk = abs(intended_entry - stop)
+            if base_risk <= 0:
+                raise Mt5ExecutionBlockedError("r34-live-entry-risk-invalid")
+            adverse = (
+                max(Decimal(0), entry - intended_entry)
+                if intent.side is OrderSide.BUY
+                else max(Decimal(0), intended_entry - entry)
             )
-        except FundedNextLiveGuardError as error:
-            raise Mt5ExecutionBlockedError(str(error)) from error
+            if adverse / base_risk > Decimal("0.02"):
+                raise Mt5ExecutionBlockedError(
+                    "r34-live-entry-drift-exceeds-buffer"
+                )
+        else:
+            try:
+                assert_certified_entry_drift(
+                    intended_entry=intended_entry,
+                    executable_entry=entry,
+                    tick_size=spec.tick_size,
+                )
+            except FundedNextLiveGuardError as error:
+                raise Mt5ExecutionBlockedError(str(error)) from error
     actual_risk = market_stop_risk_usd(
         executable_entry=entry,
         stop_loss=stop,
