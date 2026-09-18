@@ -107,6 +107,10 @@ def _read_json(path: Path) -> dict[str, Any]:
     return cast(dict[str, Any], payload)
 
 
+def _int(value: object) -> int:
+    return int(str(value))
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -132,11 +136,11 @@ def load_full_market_memory(
         raise ValueError("full CIBO index package unexpectedly allows rule promotion")
     if bool(package.get("fresh_holdout_opened")):
         raise ValueError("full CIBO index package unexpectedly opened fresh holdout")
-    if int(package.get("total_retained_m5_bars", 0)) != 2095377:
+    if _int(package.get("total_retained_m5_bars", 0)) != 2095377:
         raise ValueError("full CIBO retained M5 population drift")
-    if int(package.get("total_behavior_events", 0)) != 322675:
+    if _int(package.get("total_behavior_events", 0)) != 322675:
         raise ValueError("full CIBO behavior population drift")
-    if int(package.get("total_resolved_departures", 0)) != 108558:
+    if _int(package.get("total_resolved_departures", 0)) != 108558:
         raise ValueError("full CIBO departure population drift")
 
     package_manifests = cast(dict[str, Any], package.get("market_manifests", {}))
@@ -166,11 +170,11 @@ def load_full_market_memory(
             raise ValueError(f"full CIBO evidence tier drift for {symbol}")
         if bool(dossier.get("rule_promotion_allowed")):
             raise ValueError(f"full CIBO dossier promotes rules for {symbol}")
-        if int(dossier.get("retained_m5_bars", 0)) != expected_m5:
+        if _int(dossier.get("retained_m5_bars", 0)) != expected_m5:
             raise ValueError(f"full CIBO M5 count drift for {symbol}")
-        if int(dossier.get("behavior_events", 0)) != expected_events:
+        if _int(dossier.get("behavior_events", 0)) != expected_events:
             raise ValueError(f"full CIBO event count drift for {symbol}")
-        if int(dossier.get("resolved_departures", 0)) != expected_departures:
+        if _int(dossier.get("resolved_departures", 0)) != expected_departures:
             raise ValueError(f"full CIBO departure count drift for {symbol}")
         target_v2 = cast(dict[str, Any], dossier["target_destination_v2"])
         target_summary = cast(dict[str, Any], target_v2["summary"])
