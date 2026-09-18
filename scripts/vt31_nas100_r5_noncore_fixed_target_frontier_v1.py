@@ -111,16 +111,26 @@ def _run_variant(
             rearm_partial_r=None,
         )
     else:
-        original_simulate = specialist.baseline._simulate
+        original_protection = (
+            corrective.protection._simulate_single_structural_trail
+        )
 
-        def fixed_rearm_simulate(
+        def fixed_rearm_protection(
             day_bars: tuple[object, ...],
             setup: object,
+            *,
+            required_confirmations: int | None,
         ) -> dict[str, object]:
             retargeted = _retarget(setup, rearm_target_r)
-            return original_simulate(day_bars, retargeted)
+            return original_protection(
+                day_bars,
+                retargeted,
+                required_confirmations=required_confirmations,
+            )
 
-        specialist.baseline._simulate = fixed_rearm_simulate
+        corrective.protection._simulate_single_structural_trail = (
+            fixed_rearm_protection
+        )
         try:
             rearm_rows, rearm_diag = corrective._rearm_rows(
                 by_day,
@@ -130,7 +140,9 @@ def _run_variant(
                 rearm_partial_r=None,
             )
         finally:
-            specialist.baseline._simulate = original_simulate
+            corrective.protection._simulate_single_structural_trail = (
+                original_protection
+            )
 
     combined = sorted(
         [*first_rows, *rearm_rows],
