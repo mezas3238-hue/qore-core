@@ -6,6 +6,7 @@ on:
       - agent/vt31-nas100-intelligence-pilot-001
     paths:
       - scripts/vt31_nas100_specialist_r1_candidate.py
+      - src/qore/infrastructure/traders/vt31_nas100_*.py
       - .github/workflows/vt31-nas100-specialist-r1-consumed-wfo.yml
   workflow_dispatch:
 
@@ -98,7 +99,12 @@ jobs:
           assert runtime["cross_index_required"] is False
           for trace in payload["reasoning_trace"]:
               assert trace["outcome_fields_used_for_decision"] is False
-          assert payload["passes_development_gates"] is True, payload["development_gates"]
+          Path("result/development-gates.json").write_text(
+              json.dumps({
+                  "passes": payload["passes_development_gates"],
+                  "gates": payload["development_gates"],
+              }, sort_keys=True, indent=2) + "\n"
+          )
           print(json.dumps({
               "partition": p,
               "stress": payload["stress_0_05r"],
@@ -120,3 +126,21 @@ jobs:
           path: result/
           if-no-files-found: error
           retention-days: 90
+
+      - name: Development promotion gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(
+                  f"result/vt31-nas100-specialist-r1-{partition}.json"
+              ).read_text()
+          )
+          assert payload["passes_development_gates"] is True, (
+              payload["development_gates"]
+          )
+          PY
