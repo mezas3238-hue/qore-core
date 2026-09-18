@@ -25,88 +25,65 @@ OBSERVE
 information available at the same timestamp, the specialist must make the same
 decision and explain it.
 
-## 2. Three-memory cognitive architecture
+## 2. Three persistent memories + Situation Model
 
-VT31_NAS100 carries three explicitly separated memories.
+VT31_NAS100 carries exactly three persistent governed memories.
 
-### A. Long-Term Semantic Memory
+### A. Strategy / Identity Memory
 
-Persistent, immutable-at-runtime NAS100 knowledge distilled from consumed CIBO
-Atlas evidence:
+Answers: **what am I and what must I look for?**
 
-- sequence / departure timing priors;
-- liquidity and structure behavior;
-- stop / premature-management lessons;
-- structural destinations and conditional extension behavior.
+It contains the controlled AM Silver Bullet / VT31 methodology: source
+identity, raid and structural-confirmation semantics, entry evidence families,
+methodological invalidation, destination identity and lifecycle.
 
-This memory contains no historical date-to-outcome map and performs no runtime
-CIBO lookup.
+It cannot be rewritten by CIBO statistics, Trader Experience, or retrospective
+PnL.
 
-### B. Episodic / Research Memory
+### B. CIBO NAS100 Market Memory
 
-Persistent development memory distilled from the VT31 laboratory:
+Answers: **how does NAS100 behave historically?**
 
-- supported mechanisms;
-- rejected / falsified hypotheses;
-- failure lessons;
-- consumed-evidence governance;
-- unresolved warnings that must block premature freeze.
+The official consumed NAS100 dossier is retained inside `CiboMemoryStore`:
+the complete dossier remains `LONG_TERM_ARCHIVE`, while decomposed sections
+are governed MARKET/RESEARCH memories with provenance, freshness, evidence
+references and explicit E1 association-only limitations.
 
-This is the specialist's memory of what the research program already learned,
-including what must not be tried again as if it were new evidence.
+### C. VT31_NAS100 Trader Experience / Lab Memory
 
-### C. Working Memory
+Answers: **what have I learned when my methodology interacts with NAS100?**
 
-Ephemeral causal state rebuilt at every decision from market information known
-at that timestamp:
+It retains supported mechanisms, rejected hypotheses, failure lessons,
+journey/capacity evidence, position-management forensics and unresolved
+research warnings. It does not contain a date-to-outcome oracle and cannot
+self-train in production.
 
-- decision time;
-- latest observed structure/liquidity event;
-- event age / sequence freshness;
-- current path compression;
-- reference volatility state;
-- current thesis-relevant state.
+### D. Market Situation Model — ephemeral, not Memory #3
 
-Working Memory is never populated from future bars, terminal PnL, or historical
-date-level outcomes.
-
-### Cognitive flow
+The Situation Model represents what is known **now** from causal evidence:
+time/session, current structure/liquidity sequence, higher context, volatility,
+invalidation geometry, journey/DOL state and reasoning uncertainty.
 
 ```text
-LONG-TERM SEMANTIC MEMORY
-        +
-EPISODIC / RESEARCH MEMORY
-        +
-WORKING MEMORY (NOW)
-        ↓
+STRATEGY IDENTITY
+      +
+CIBO MARKET MEMORY
+      +
+TRADER EXPERIENCE MEMORY
+      +
+CURRENT SITUATION
+      ↓
 REASONING ENGINE
-        ↓
-THESIS
-SUPPORT
-CONTRADICTIONS
-UNCERTAINTY
-        ↓
+      ↓
 EXECUTE / WAIT / ABSTAIN
-        ↓
-STOP / TARGET / MANAGEMENT
+      ↓
+POSITION INTELLIGENCE
+      ↓
+STRUCTURAL REARM
 ```
 
-Every reasoning decision records the fingerprints of all three memory layers
-(the working-memory fingerprint is per decision) plus the composite cognitive
-memory fingerprint.
-
-The architecture is deliberately **internal**:
-
-```text
-external CIBO runtime dependency = FALSE
-date-level historical lookup     = FALSE
-future-bar lookup                = FALSE
-runtime long-term retraining     = FALSE
-```
-
-CIBO remains the research teacher. VT31 receives a new long-term/episodic
-memory version only through an explicit research, revalidation and fingerprint
-change cycle.
+Every decision binds fingerprints for the three persistent memories and a
+per-observation Situation fingerprint.
 
 ## 2.1 Handoff architecture supersession
 
