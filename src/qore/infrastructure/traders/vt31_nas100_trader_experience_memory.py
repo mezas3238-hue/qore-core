@@ -58,6 +58,11 @@ _SUPPORTED: Final = {
         "source structural swing remains the methodological initial "
         "invalidation; widening is not justified by stop-mismatch evidence"
     ),
+    "causal_structure_timestamp_semantics": (
+        "legacy Eight-Ledger structure timestamps are retained only as "
+        "consumed aggregate research; runtime CIBO structure state uses "
+        "closed-M1 causal V2 timestamps and never backdates a reclaim/touch"
+    ),
 }
 
 _REJECTED: Final = {
@@ -79,10 +84,6 @@ _REJECTED: Final = {
 }
 
 _UNRESOLVED: Final = {
-    "cibo_structure_touch_runtime_equivalence": (
-        "raw-M1 source-zone touches are not semantically identical to official "
-        "CIBO STRUCTURE_TOUCH_LEDGER generation; must be repaired before freeze"
-    ),
     "journey_capacity_memory": (
         "must be learned with structural labels and target-depth calibration, "
         "not selected directly from PnL"
