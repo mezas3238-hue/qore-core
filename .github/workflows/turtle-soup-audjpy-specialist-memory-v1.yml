@@ -195,3 +195,4 @@ jobs:
           git add docs/research/results/TURTLE-SOUP-AUDJPY-SPECIALIST-MEMORY-V1-LATEST.json
           git commit -m "research(audjpy): record specialist memory V1 workflow result" || exit 0
           git push origin HEAD:agent/turtle-soup-audjpy-specialist-memory-v1-001
+# AUDJPY specialist memory CI trigger
