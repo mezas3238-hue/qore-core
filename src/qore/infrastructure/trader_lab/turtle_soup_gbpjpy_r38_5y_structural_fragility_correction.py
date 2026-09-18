@@ -307,8 +307,10 @@ def run(source_root: Path, output: Path) -> dict[str, Any]:
         "w",
         encoding="utf-8",
     ) as handle:
-        for row in corrected:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for corrected_trade in corrected:
+            handle.write(
+                json.dumps(asdict(corrected_trade), sort_keys=True) + "\n"
+            )
 
     report: dict[str, Any] = {
         "schema": "qore.turtle_soup_gbpjpy.r38_5y_structural_fragility_correction.v1",
