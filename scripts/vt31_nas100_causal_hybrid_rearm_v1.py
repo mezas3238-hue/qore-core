@@ -190,6 +190,29 @@ GLOBAL_RISK_SCALARS = (
 DD6_FRONTIER_ONLY = os.getenv("QORE_DD6_FRONTIER_ONLY") == "1"
 DD6_FRONTIER_PROFILES = {"ACTIVITY_K", "ACTIVITY_L", "ACTIVITY_M"}
 DD6_FRONTIER_SCALARS = (Decimal("0.62"), Decimal("0.60"))
+EVAL_START_DATE = (
+    date.fromisoformat(os.environ["QORE_EVAL_START_DATE"])
+    if os.environ.get("QORE_EVAL_START_DATE")
+    else None
+)
+EVAL_END_EXCLUSIVE_DATE = (
+    date.fromisoformat(os.environ["QORE_EVAL_END_EXCLUSIVE_DATE"])
+    if os.environ.get("QORE_EVAL_END_EXCLUSIVE_DATE")
+    else None
+)
+INCLUDE_TRADE_ROWS = os.getenv("QORE_INCLUDE_TRADE_ROWS") == "1"
+
+
+def _inside_eval_window(local_day: date) -> bool:
+    if EVAL_START_DATE is not None and local_day < EVAL_START_DATE:
+        return False
+    if (
+        EVAL_END_EXCLUSIVE_DATE is not None
+        and local_day >= EVAL_END_EXCLUSIVE_DATE
+    ):
+        return False
+    return True
+
 
 
 def _risk_class(score: int) -> str:
@@ -509,11 +532,18 @@ def replay(
         monthly_alt_budget=MONTHLY_ALT_BUDGET,
         variant=BASE_VARIANT,
     )
-    first_rows = [
+    all_first_rows = [
         dict(row)
         for row in cast(
             list[dict[str, object]],
             first_report["trades"],
+        )
+    ]
+    first_rows = [
+        row
+        for row in all_first_rows
+        if _inside_eval_window(
+            date.fromisoformat(cast(str, row["local_date"]))
         )
     ]
     first_by_day = {
@@ -803,7 +833,7 @@ def replay(
         rearm_rows, activity_ledger = _adaptive_budgeted_rearm_rows(
             rearm_raw_by_mode[mode],
             risk_map=RISK_PROFILES["REARM_CONSERVATIVE"],
-            first_rows=first_rows,
+            first_rows=all_first_rows,
             profile=profile,
             mode=mode,
         )
@@ -890,6 +920,7 @@ def replay(
                     "rearm_trade_count": len(rearm_rows),
                     "metrics": scaled_metrics,
                     "monte_carlo": scaled_mc,
+                    "trade_rows": scaled if INCLUDE_TRADE_ROWS else [],
                     "global_risk_scalar": format(scalar, "f"),
                     "activity_budget_profile": {
                         key: (
@@ -972,6 +1003,17 @@ def replay(
         "market": MARKET,
         "partition": partition,
         "base_variant": BASE_VARIANT,
+        "evaluation_window": {
+            "start_date": (
+                None if EVAL_START_DATE is None else EVAL_START_DATE.isoformat()
+            ),
+            "end_exclusive_date": (
+                None
+                if EVAL_END_EXCLUSIVE_DATE is None
+                else EVAL_END_EXCLUSIVE_DATE.isoformat()
+            ),
+            "warmup_context_retained": True,
+        },
         "evidence": {
             "account_fingerprint": account,
             "evidence_fingerprint": evidence,
@@ -980,8 +1022,11 @@ def replay(
             "provider_symbol_name": provider,
         },
         "base_trade_count": len(first_rows),
-        "base_metrics": first_report["capital_weighted_metrics"],
-        "base_monte_carlo": first_report["monte_carlo"],
+        "base_metrics": _capital_metrics(first_rows),
+        "base_monte_carlo": _monte_carlo(
+            first_rows,
+            variant=f"{BASE_VARIANT}:evaluation-window",
+        ),
         "rearm_candidate_count": max(
             (
                 len(rows)
@@ -1020,6 +1065,8 @@ def replay(
             "global_risk_scalar_uses_fold_identity": False,
             "global_risk_scalar_changes_trade_count": False,
             "dd6_frontier_only": DD6_FRONTIER_ONLY,
+            "evaluation_window_uses_date_only_not_outcome": True,
+            "warmup_context_retained_before_evaluation_window": True,
             "first_swing_is_universal": False,
             "qore_risk_remains_sovereign": True,
             "consumed_evidence_only": True,
