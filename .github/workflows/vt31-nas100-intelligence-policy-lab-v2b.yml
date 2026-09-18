@@ -76,8 +76,6 @@ jobs:
       - name: Recover immutable consumed NAS100 evidence
         run: |
           set -euo pipefail
-          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}" --jq .digest)"
-          test "$digest" = "sha256:${EVIDENCE_DIGEST}"
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}/zip" > evidence.zip
           echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
           mkdir evidence
