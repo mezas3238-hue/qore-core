@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
 from qore.infrastructure.fundednext_mt5_clock import (
     normalise_fundednext_server_epoch,
