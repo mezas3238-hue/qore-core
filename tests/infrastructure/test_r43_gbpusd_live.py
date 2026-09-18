@@ -124,6 +124,15 @@ def test_r43_committed_memory_is_exactly_bound() -> None:
     )
 
 
+def test_r43_memory_hash_is_cross_platform_line_ending_stable(tmp_path: Path) -> None:
+    source = Path("runtime_data/gbpusd/r43-r32-regime-memory.json").read_bytes()
+    converted = source.replace(b"\n", b"\r\n")
+    target = tmp_path / "r43-memory-windows.json"
+    target.write_bytes(converted)
+    _fields, _route_mode, memory = load_memory(target)
+    assert len(memory) == MEMORY_PROFILE_COUNT
+
+
 def test_r43_long_request_maps_certified_risk_into_sovereign_risk() -> None:
     now = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
     request, base_risk = build_r43_risk_request(
