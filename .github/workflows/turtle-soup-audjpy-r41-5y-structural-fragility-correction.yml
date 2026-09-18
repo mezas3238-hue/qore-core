@@ -117,3 +117,65 @@ jobs:
           path: r41-output
           if-no-files-found: error
           retention-days: 90
+
+
+  freeze-r42:
+    needs: [quality, correction]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused R42 quality
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r42_final_candidate_freeze.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r42_final_candidate_freeze.py
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r42_final_candidate_freeze.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r42_final_candidate_freeze.py
+      - name: Download exact official R41 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r41-5y-fragility-correction-2976255f2459a17603b0b9385b4c249a720463b8
+          path: r41-official
+          github-token: ${{ github.token }}
+          run-id: '35399430491'
+      - name: Freeze exact R41 final candidate
+        run: |
+          mkdir -p r42-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_audjpy_r42_final_candidate_freeze \
+            r41-official r42-output > r42-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > r42-output/git-sha.txt
+      - name: Enforce R42 final freeze
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r42-output/r42-final-candidate-freeze-manifest.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_AUDJPY_R42_FINAL_CANDIDATE_001'
+          assert p['status']=='FROZEN_FOR_FINAL_ROBUSTNESS'
+          assert p['consumed_5y_result']['trades']==1039
+          assert p['consumed_5y_result']['profit_factor_scaled_net_010']=='1.957251590510384151212372667'
+          assert p['consumed_5y_result']['max_drawdown_scaled_r']=='5.293573269867727808258117465'
+          assert p['consumed_2y_result']['trades']==422
+          assert p['governance']['candidate_frozen'] is True
+          assert p['governance']['fresh_holdout_consumed'] is False
+          assert p['governance']['trader_certified'] is False
+          PY
+      - name: Hash R42 evidence
+        run: |
+          cd r42-output
+          sha256sum r42-final-candidate-freeze-manifest.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r42-final-freeze-${{ env.EVIDENCE_SHA }}
+          path: r42-output
+          if-no-files-found: error
+          retention-days: 90
