@@ -857,60 +857,61 @@ def replay(
             [*first_rows, *rearm_rows],
             key=lambda row: cast(str, row["signal_at"]),
         )
-        variant = f"REARM_ADAPTIVE_{profile_name}_SCORE_PROTECT"
-        metrics = _capital_metrics(combined)
-        mc = _monte_carlo(combined, variant=variant)
         trade_count = len(combined)
-        variants[variant] = {
-            "trade_count": trade_count,
-            "base_trade_count": len(first_rows),
-            "rearm_trade_count": len(rearm_rows),
-            "metrics": metrics,
-            "monte_carlo": mc,
-            "activity_budget_profile": {
-                key: (
-                    format(value, "f")
-                    if isinstance(value, Decimal)
-                    else value
-                )
-                for key, value in profile.items()
-            },
-            "monthly_activity_budget_ledger": activity_ledger,
-            "density": {
-                "at_least_300": trade_count >= 300,
-                "inside_300_350": 300 <= trade_count <= 350,
-            },
-            "development_objectives": {
-                "density_300_350": 300 <= trade_count <= 350,
-                "profit_factor_at_least_2": (
-                    metrics["profit_factor"] is not None
-                    and Decimal(cast(str, metrics["profit_factor"]))
-                    >= Decimal("2")
-                ),
-                "observed_dd_at_most_10r": (
-                    Decimal(cast(str, metrics["max_drawdown_r"]))
-                    <= Decimal("10")
-                ),
-                "observed_dd_at_most_6r": (
-                    Decimal(cast(str, metrics["max_drawdown_r"]))
-                    <= Decimal("6")
-                ),
-                "stretch_observed_dd_at_most_5r": (
-                    Decimal(cast(str, metrics["max_drawdown_r"]))
-                    <= Decimal("5")
-                ),
-                "mc_positive_at_least_0_90": (
-                    Decimal(
-                        cast(str, mc["positive_terminal_probability"])
+        if FIXED_GLOBAL_RISK_SCALAR is None:
+            variant = f"REARM_ADAPTIVE_{profile_name}_SCORE_PROTECT"
+            metrics = _capital_metrics(combined)
+            mc = _monte_carlo(combined, variant=variant)
+            variants[variant] = {
+                "trade_count": trade_count,
+                "base_trade_count": len(first_rows),
+                "rearm_trade_count": len(rearm_rows),
+                "metrics": metrics,
+                "monte_carlo": mc,
+                "activity_budget_profile": {
+                    key: (
+                        format(value, "f")
+                        if isinstance(value, Decimal)
+                        else value
                     )
-                    >= Decimal("0.90")
-                ),
-                "mc_p95_dd_at_most_15r": (
-                    Decimal(cast(str, mc["p95_max_drawdown_r"]))
-                    <= Decimal("15")
-                ),
-            },
-        }
+                    for key, value in profile.items()
+                },
+                "monthly_activity_budget_ledger": activity_ledger,
+                "density": {
+                    "at_least_300": trade_count >= 300,
+                    "inside_300_350": 300 <= trade_count <= 350,
+                },
+                "development_objectives": {
+                    "density_300_350": 300 <= trade_count <= 350,
+                    "profit_factor_at_least_2": (
+                        metrics["profit_factor"] is not None
+                        and Decimal(cast(str, metrics["profit_factor"]))
+                        >= Decimal("2")
+                    ),
+                    "observed_dd_at_most_10r": (
+                        Decimal(cast(str, metrics["max_drawdown_r"]))
+                        <= Decimal("10")
+                    ),
+                    "observed_dd_at_most_6r": (
+                        Decimal(cast(str, metrics["max_drawdown_r"]))
+                        <= Decimal("6")
+                    ),
+                    "stretch_observed_dd_at_most_5r": (
+                        Decimal(cast(str, metrics["max_drawdown_r"]))
+                        <= Decimal("5")
+                    ),
+                    "mc_positive_at_least_0_90": (
+                        Decimal(
+                            cast(str, mc["positive_terminal_probability"])
+                        )
+                        >= Decimal("0.90")
+                    ),
+                    "mc_p95_dd_at_most_15r": (
+                        Decimal(cast(str, mc["p95_max_drawdown_r"]))
+                        <= Decimal("15")
+                    ),
+                },
+            }
 
         if profile_name in {"ACTIVITY_K", "ACTIVITY_L", "ACTIVITY_M"}:
             if FIXED_GLOBAL_RISK_SCALAR is not None:
