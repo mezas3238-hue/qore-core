@@ -20,7 +20,8 @@ env:
   TARGET_RUN_ID: '35204892665'
   TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
   SPECIALIST_RUN_ID: '35304421155'
-  EXPECTED_SPECIALIST_SHA: '8a5c174e854400c54d7849cc29ba3a4d357afdbb'
+  SPECIALIST_MEMORY_SHA: '8a5c174e854400c54d7849cc29ba3a4d357afdbb'
+  R26_CODE_SHA: '559383b993b5721641cd410098b9c2f438c92425'
 
 jobs:
   quality:
@@ -29,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.EXPECTED_SPECIALIST_SHA }}
+          ref: ${{ env.R26_CODE_SHA }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -55,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.EXPECTED_SPECIALIST_SHA }}
+          ref: ${{ env.R26_CODE_SHA }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -77,7 +78,7 @@ jobs:
       - name: Download exact specialist memory artifact
         uses: actions/download-artifact@v4
         with:
-          name: qore-turtle-soup-xauusd-specialist-memory-v1-${{ env.EXPECTED_SPECIALIST_SHA }}
+          name: qore-turtle-soup-xauusd-specialist-memory-v1-${{ env.SPECIALIST_MEMORY_SHA }}
           path: specialist-memory
           github-token: ${{ github.token }}
           run-id: ${{ env.SPECIALIST_RUN_ID }}
@@ -122,7 +123,7 @@ jobs:
             stdout.json git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-turtle-soup-xauusd-r26-specialist-memory-${{ env.EXPECTED_SPECIALIST_SHA }}
+          name: qore-turtle-soup-xauusd-r26-specialist-memory-${{ env.R26_CODE_SHA }}
           path: r26-output
           if-no-files-found: error
           retention-days: 90
