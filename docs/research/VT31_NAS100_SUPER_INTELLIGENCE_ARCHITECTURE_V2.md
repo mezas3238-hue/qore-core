@@ -108,6 +108,46 @@ CIBO remains the research teacher. VT31 receives a new long-term/episodic
 memory version only through an explicit research, revalidation and fingerprint
 change cycle.
 
+## 2.1 Handoff architecture supersession
+
+The Turtle Soup intelligent-trader handoff is now the target architecture for
+VT31_NAS100. The three persistent memories are:
+
+1. Strategy / Identity Memory.
+2. Governed CIBO NAS100 Market Memory.
+3. VT31_NAS100 Trader Experience / Lab Memory.
+
+The Market Situation Model is a separate ephemeral causal runtime object and is
+not counted as one of the three persistent memories.
+
+The governed CIBO Market Memory retains the full NAS100 market dossier as
+LONG_TERM_ARCHIVE inside CiboMemoryStore and decomposes market/research
+sections with provenance, freshness, evidence references and explicit
+association-only limitations.
+
+### Causal structure timestamp repair
+
+During implementation, the legacy Eight-Ledger V1 structure timeline was found
+to contain two timestamp semantics that are unsuitable for runtime reasoning:
+
+- a liquidity reclaim event was stamped at bar opened_at even though the bar
+  close is required to know that price reclaimed the level;
+- a PD-array touch could be stamped inside the same bar before the structure's
+  formed_at timestamp.
+
+Therefore exact equality with the legacy STRUCTURE_TOUCH_LEDGER is no longer
+a freeze objective. Runtime structure reasoning uses causal V2 semantics:
+
+    closed M1 only
+    reference/local reclaim -> observable at bar close
+    PD-array -> never observable before formed_at
+    later PD-array touch -> observable no earlier than touching bar close
+    future session bars -> prohibited
+
+The legacy ledger remains valid as consumed post-outcome research evidence for
+aggregate market study, subject to its stated limitations. It is not an oracle
+for runtime event timestamps.
+
 ## 3. Immutable CIBO Intelligence Bridge
 
 Workflow:
