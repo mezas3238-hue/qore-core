@@ -1,0 +1,174 @@
+name: QORE VT31 NAS100 Dense Journey Capacity V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_dense_journey_capacity_memory_v1.py
+      - scripts/vt31_nas100_entry_intelligence_oco_lab_v1.py
+      - .github/workflows/vt31-nas100-dense-journey-capacity-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-nas100-dense-journey-capacity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+          - partition: r8_fresh
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          ruff check             scripts/vt31_nas100_dense_journey_capacity_memory_v1.py             scripts/vt31_nas100_entry_intelligence_oco_lab_v1.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d evidence
+          path="evidence/fresh/NAS100/market-evidence.json"
+          actual="$(sha256sum "$path" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Build dense journey capacity memory
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_dense_journey_capacity_memory_v1.py             evidence/fresh/NAS100/market-evidence.json             --output "result/capacity-${PARTITION}.json"             | tee result/summary.json
+      - name: Governance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/capacity-{p}.json").read_text()
+          )
+          g = payload["governance"]
+          assert g["label_is_pnl"] is False
+          assert g["label_is_structural_journey_capacity"] is True
+          assert g["post_outcome_label_used_at_runtime"] is False
+          assert g["consumed_evidence_only"] is True
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+      - name: Bind
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-dense-capacity-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-dense-capacity-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Cross-fold structural stability
+        run: |
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds = []
+          for path in sorted(Path("input").glob("capacity-*.json")):
+              p = json.loads(path.read_text())
+              folds.append({
+                  "file": path.name,
+                  "summary": p["summary"],
+                  "by_dimension": p["by_dimension"],
+              })
+          assert len(folds) == 3, folds
+          dimensions = folds[0]["by_dimension"].keys()
+          stable = {}
+          for dimension in dimensions:
+              keys = set.intersection(*[
+                  set(fold["by_dimension"][dimension])
+                  for fold in folds
+              ])
+              stable[dimension] = {}
+              for key in sorted(keys):
+                  rows = [
+                      fold["by_dimension"][dimension][key]
+                      for fold in folds
+                  ]
+                  stable[dimension][key] = {
+                      "labeled_samples": [
+                          row["labeled"] for row in rows
+                      ],
+                      "dol1_rates": [
+                          row["dol1_rate"] for row in rows
+                      ],
+                      "dol2_rates": [
+                          row["dol2_rate"] for row in rows
+                      ],
+                      "dol3_plus_rates": [
+                          row["dol3_plus_rate"] for row in rows
+                      ],
+                      "invalidation_rates": [
+                          row["invalidation_rate"] for row in rows
+                      ],
+                  }
+          report = {
+              "schema": "qore.vt31.nas100.dense_journey_capacity.cross_fold.v1",
+              "folds": folds,
+              "stable_common_states": stable,
+              "policy_promoted": False,
+              "opens_new_holdout": False,
+              "live_authorized": False,
+              "production_authorized": False,
+          }
+          Path("result/dense-capacity-cross-fold.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-dense-capacity-cross-fold-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
