@@ -1,0 +1,146 @@
+"""VT31_NAS100 Trader Experience / Lab Memory.
+
+This memory answers: "What have I learned when *my VT31 methodology* interacts
+with NAS100?"
+
+It is distinct from general CIBO market memory. It retains adjudicated
+laboratory lessons, failed hypotheses, consumed-research bindings and
+strategy-market interaction diagnostics. It cannot rewrite Strategy Identity
+Memory and cannot self-train at runtime.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+from copy import deepcopy
+from typing import Final
+
+from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+    dossier_payload,
+)
+
+SCHEMA: Final = "qore.vt31.nas100.trader_experience_memory.v1"
+TRADER_ID: Final = "VT31_NAS100_SPECIALIST_R1"
+MARKET: Final = "NAS100"
+
+_LAB_BINDINGS: Final = {
+    "market_state_v2_run": 35284479467,
+    "temporal_stability_v1_run": 35284842202,
+    "intelligence_v2a_run": 35285082329,
+    "stale_renewal_forensics_run": 35285506160,
+    "market_context_v3_run": 35288495678,
+    "cibo_intelligence_bridge_v1_run": 35288950361,
+    "market_understanding_snapshot_v1_run": 35289940990,
+    "intelligence_policy_lab_v2b_run": 35290200552,
+    "direct_m1_wfo_run": 35291106350,
+    "state_equivalence_run": 35291288678,
+}
+
+_SUPPORTED: Final = {
+    "sequence_freshness": (
+        "reclaim-age 8-14m was negative across all consumed folds; mechanism "
+        "supported but not a universal standalone law"
+    ),
+    "reference_liquidity_context": (
+        "last observed reference-liquidity-sweep was directionally positive "
+        "across consumed R8/R6/R5 diagnostics"
+    ),
+    "context_is_multidimensional": (
+        "generic renewal and single-variable routing were unstable; reasoning "
+        "must combine causal state rather than promote isolated bins"
+    ),
+    "dynamic_destination_management": (
+        "full-boundary versus partial+runner behavior differs by causal market "
+        "state; no universal target plan survived research"
+    ),
+    "initial_invalidation_identity": (
+        "source structural swing remains the methodological initial "
+        "invalidation; widening is not justified by stop-mismatch evidence"
+    ),
+}
+
+_REJECTED: Final = {
+    "generic_wait_renewal": (
+        "WAIT->new local confirmation->fresh same-side FVG was not stable "
+        "across all consumed folds"
+    ),
+    "static_stale_filter_freeze": (
+        "mechanism supported but static filter was not freeze-ready because "
+        "secondary stability diagnostics degraded"
+    ),
+    "universal_partial_runner": (
+        "indiscriminate partial+runner management was unstable across folds"
+    ),
+    "best_bin_promotion": (
+        "historically attractive bins are not operational rules without "
+        "mechanistic and temporal validation"
+    ),
+}
+
+_UNRESOLVED: Final = {
+    "cibo_structure_touch_runtime_equivalence": (
+        "raw-M1 source-zone touches are not semantically identical to official "
+        "CIBO STRUCTURE_TOUCH_LEDGER generation; must be repaired before freeze"
+    ),
+    "journey_capacity_memory": (
+        "must be learned with structural labels and target-depth calibration, "
+        "not selected directly from PnL"
+    ),
+    "contextual_position_management": (
+        "SUPPORTIVE/MIXED/CAUTIOUS-like VT31 states must be learned from NAS100 "
+        "evidence before activating structural trailing policy"
+    ),
+    "structural_rearm_economics": (
+        "rearm mechanism can be defined methodologically, but its effect must "
+        "be measured on consumed evidence before candidate freeze"
+    ),
+}
+
+
+def trader_experience_payload() -> dict[str, object]:
+    dossier = dossier_payload()
+    overlay = dossier["trader_overlay_research_source"]
+    assert isinstance(overlay, dict)
+    return deepcopy(
+        {
+            "schema": SCHEMA,
+            "memory_class": "TRADER_EXPERIENCE_LAB",
+            "trader_id": TRADER_ID,
+            "market": MARKET,
+            "laboratory_bindings": _LAB_BINDINGS,
+            "strategy_market_overlay": overlay,
+            "supported_mechanisms": _SUPPORTED,
+            "rejected_hypotheses": _REJECTED,
+            "unresolved": _UNRESOLVED,
+            "experience_governance": {
+                "consumed_evidence_only": True,
+                "contains_per_date_outcome_map": False,
+                "runtime_self_training_allowed": False,
+                "pnl_direct_rule_promotion_allowed": False,
+                "strategy_identity_rewrite_allowed": False,
+                "fresh_holdout_opened": False,
+            },
+        }
+    )
+
+
+def trader_experience_fingerprint() -> str:
+    encoded = json.dumps(
+        trader_experience_payload(),
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def validate_trader_experience() -> None:
+    payload = trader_experience_payload()
+    governance = payload["experience_governance"]
+    assert isinstance(governance, dict)
+    assert governance["consumed_evidence_only"] is True
+    assert governance["contains_per_date_outcome_map"] is False
+    assert governance["runtime_self_training_allowed"] is False
+    assert governance["pnl_direct_rule_promotion_allowed"] is False
+    assert governance["strategy_identity_rewrite_allowed"] is False
+    assert governance["fresh_holdout_opened"] is False
+    assert len(trader_experience_fingerprint()) == 64
