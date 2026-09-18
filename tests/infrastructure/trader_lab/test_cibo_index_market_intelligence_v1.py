@@ -143,7 +143,7 @@ def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
             "close_location": "0.7",
         }
     ]
-    ledgers = {
+    ledgers: dict[str, tuple[str, list[dict[str, Any]]]] = {
         "MARKET_JOURNEY_LEDGER": (
             "MARKET_JOURNEY_LEDGER.jsonl",
             market_rows,
