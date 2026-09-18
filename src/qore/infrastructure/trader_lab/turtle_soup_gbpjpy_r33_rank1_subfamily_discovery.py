@@ -170,6 +170,7 @@ def _observation_key(row: dict[str, Any]) -> str:
 def build(v2_root: Path, output: Path) -> dict[str, Any]:
     rows = _load_rank1(v2_root)
     candidates: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, Any]] = []
 
     feature_sets: list[tuple[str, ...]] = [(feature,) for feature in PRE_ENTRY_FEATURES]
     feature_sets.extend(
@@ -183,6 +184,7 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
             if len(members) < MIN_OBSERVATIONS:
                 continue
             profile = _profile(fields, values, members)
+            diagnostics.append(dict(profile))
             if profile["qualified"]:
                 profile["member_keys"] = sorted(_observation_key(row) for row in members)
                 candidates.append(profile)
@@ -247,6 +249,21 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
         covered.update(winner_member_keys)
         remaining = [item for item in remaining if item is not winner]
 
+    def diagnostic_key(item: dict[str, Any]) -> tuple[int, Decimal, int]:
+        pf_raw = item["aggregate"]["profit_factor"]
+        pf = Decimal(0) if pf_raw is None else Decimal(str(pf_raw))
+        return (
+            int(item["positive_quintiles"]),
+            pf,
+            int(item["observations"]),
+        )
+
+    diagnostic_frontier = sorted(
+        diagnostics,
+        key=diagnostic_key,
+        reverse=True,
+    )[:50]
+
     output.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema": "qore.turtle_soup_gbpjpy.r33_rank1_subfamily_discovery.v1",
@@ -271,6 +288,15 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
             "minimum_incremental_observations": MIN_INCREMENTAL_OBSERVATIONS,
             "selection_after_qualification": "GREEDY_INCREMENTAL_COVERAGE_THEN_PF",
         },
+        "evaluated_family_count": len(diagnostics),
+        "diagnostic_positive_quintile_counts": {
+            str(value): sum(
+                int(item["positive_quintiles"]) == value
+                for item in diagnostics
+            )
+            for value in range(6)
+        },
+        "diagnostic_frontier": diagnostic_frontier,
         "qualified_candidate_count": len(candidates),
         "selected_families": selected,
         "selected_family_count": len(selected),
