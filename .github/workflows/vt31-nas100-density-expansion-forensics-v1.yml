@@ -61,11 +61,12 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          echo "${EXPECTED_EVIDENCE_SHA256}  evidence.zip" | sha256sum -c -
           unzip -q evidence.zip -d evidence
-          path="evidence/fresh/NAS100/market-evidence.json"
-          test -f "$path"
-          actual="$(sha256sum "$path" | awk '{print $1}')"
-          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+          test -f evidence/fresh/NAS100/market-evidence.json
+          if [ -f evidence/SHA256SUMS ]; then
+            (cd evidence && sha256sum -c SHA256SUMS)
+          fi
 
       - name: Enumerate causal opportunity density
         run: |
