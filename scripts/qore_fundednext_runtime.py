@@ -1621,6 +1621,32 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
+        audjpy_r42_live_state, audjpy_r42_manage_reason = (
+            manage_audjpy_r42_open_position(
+                mt5,
+                now=cycle_at,
+                store=audjpy_r42_store,
+                mutations_enabled=mode == "live",
+            )
+        )
+        if audjpy_r42_manage_reason not in {
+            "no-open-audjpy-r42-position",
+            "audjpy-r42-stop-unchanged",
+            "audjpy-r42-position-awaiting-reconcile",
+            "audjpy-r42-24h-exit-due",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_POSITION_MANAGEMENT",
+                    "symbol": "AUDJPY",
+                    "reason": audjpy_r42_manage_reason,
+                    "strategy_drawdown_r": str(
+                        audjpy_r42_live_state.drawdown_r
+                    ),
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
         highest = max(highest, account_state.balance)
         provider = evaluate_stellar_instant_budget(
             StellarInstantAccountSnapshot(
