@@ -28,6 +28,7 @@ class TraderLineage(StrEnum):
     VT08_INDEX = "VT08_INDEX"
     R34_XAUUSD = "R34_XAUUSD"
     R38_EURUSD = "R38_EURUSD"
+    R43_GBPUSD = "R43_GBPUSD"
 
 
 class RiskDecision(StrEnum):
