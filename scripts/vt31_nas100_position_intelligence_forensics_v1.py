@@ -322,7 +322,8 @@ def _selected_setup(
     day_bars: tuple[object, ...],
     *,
     evidence_fingerprint: str,
-    signal_at: datetime,
+    setup_formed_at: datetime,
+    intelligence_decision_at: datetime,
 ) -> Vt31R22ExecutableSetup | None:
     reference = tuple(
         bar
@@ -351,38 +352,58 @@ def _selected_setup(
         executable, _ = make_executable_setup(evaluation.setup, policy)
         if executable is None:
             return None
-        if executable.decision_at == signal_at:
-            return executable
+        if executable.decision_at == setup_formed_at:
+            if intelligence_decision_at < setup_formed_at:
+                raise ValueError("intelligence decision cannot predate setup")
+            return Vt31R22ExecutableSetup(
+                side=executable.side,
+                entry_price=executable.entry_price,
+                stop_price=executable.stop_price,
+                target_price=executable.target_price,
+                three_r_price=executable.three_r_price,
+                selected_family=executable.selected_family,
+                candidate_families=executable.candidate_families,
+                decision_at=intelligence_decision_at,
+                pending_expires_at=executable.pending_expires_at,
+                source_setup=executable.source_setup,
+                execution_policy_fingerprint=(
+                    executable.execution_policy_fingerprint
+                ),
+            )
     return None
 
 
-def _context_for_signal(
+def _trace_for_signal(
     replay: dict[str, Any],
     signal_at: str,
-) -> dict[str, object]:
+) -> dict[str, Any] | None:
     for row in cast(list[dict[str, Any]], replay["reasoning_trace"]):
         if (
             row.get("decision_at") == signal_at
             and row.get("action") == "EXECUTE"
         ):
-            return {
-                key: row.get(key)
-                for key in (
-                    "prior_day_state",
-                    "h4_state",
-                    "h1_state",
-                    "premarket_state",
-                    "cash_open_state",
-                    "position_in_prior_day_range",
-                    "reference_volatility_state",
-                    "last_structure_event_family",
-                    "current_path_vs_previous",
-                    "raid_depth_ref",
-                    "recent_path_efficiency",
-                    "recent_overlap_rate",
-                )
-            }
-    return {}
+            return row
+    return None
+
+
+def _context_from_trace(row: dict[str, Any]) -> dict[str, object]:
+    return {
+        key: row.get(key)
+        for key in (
+            "prior_day_state",
+            "h4_state",
+            "h1_state",
+            "premarket_state",
+            "cash_open_state",
+            "position_in_prior_day_range",
+            "reference_volatility_state",
+            "last_structure_event_family",
+            "current_path_vs_previous",
+            "raid_depth_ref",
+            "recent_path_efficiency",
+            "recent_overlap_rate",
+        )
+    }
 
 
 def build(
@@ -421,10 +442,22 @@ def build(
         if day_bars is None:
             reconstruction_failures += 1
             continue
+        trace_row = _trace_for_signal(
+            replay,
+            signal_at.astimezone(UTC).isoformat(),
+        )
+        if trace_row is None:
+            reconstruction_failures += 1
+            continue
+        setup_formed_raw = trace_row.get("setup_formed_at")
+        if not isinstance(setup_formed_raw, str):
+            reconstruction_failures += 1
+            continue
         setup = _selected_setup(
             day_bars,
             evidence_fingerprint=evidence,
-            signal_at=signal_at,
+            setup_formed_at=datetime.fromisoformat(setup_formed_raw),
+            intelligence_decision_at=signal_at,
         )
         if setup is None:
             reconstruction_failures += 1
@@ -464,10 +497,7 @@ def build(
                 ladder=ladder,
             ),
         ]
-        context = _context_for_signal(
-            replay,
-            signal_at.astimezone(UTC).isoformat(),
-        )
+        context = _context_from_trace(trace_row)
         for event in sorted(events, key=lambda item: item.effective_at):
             classification = _classify_event(
                 event,
