@@ -1,0 +1,170 @@
+name: QORE Turtle Soup AUDJPY R36 Causal Authority Ensemble
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-r36-causal-authority-ensemble.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r36_causal_authority_ensemble.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r36_causal_authority_ensemble.py'
+  push:
+    branches:
+      - agent/turtle-soup-audjpy-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-r36-causal-authority-ensemble.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r36_causal_authority_ensemble.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r36_causal_authority_ensemble.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-AUDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-AUDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  V2_RUN_ID: '35383377176'
+  V2_ARTIFACT: 'qore-turtle-soup-audjpy-structural-specialist-v2-r27-e0bec233ed40197a1e969786b24a9dc8a1e5869f'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r36_causal_authority_ensemble.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r36_causal_authority_ensemble.py
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r36_causal_authority_ensemble.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r36_causal_authority_ensemble.py
+
+  replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable AUDJPY raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-audjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-audjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download exact Cognitive V2 R27 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.V2_ARTIFACT }}
+          path: v2-r27
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V2_RUN_ID }}
+      - name: Run R35 confidence-tier ensemble
+        run: |
+          mkdir -p r36-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_audjpy_r36_causal_authority_ensemble \
+            source-audjpy target-audjpy v2-r27 r36-output > r36-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > r36-output/git-sha.txt
+      - name: Enforce frozen owner gate and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r36-output/r36-causal-authority-ensemble-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_AUDJPY_R36_CAUSAL_AUTHORITY_ENSEMBLE_LAB_V1'
+          a=p['predeclared_acceptance']
+          assert int(a['minimum_trades']) == 350
+          assert a['minimum_scaled_net_010_profit_factor'] == '1.90'
+          assert a['maximum_scaled_net_010_drawdown_r'] == '6.0'
+          assert a['losing_streak'] == 'DIAGNOSTIC_NOT_HARD_GATE'
+          c=p['experiment_contract']
+          assert c['r32_core_is_primary_authority'] is True
+          assert c['r34_direction_is_expansion_only'] is True
+          assert c['r34_range_falsified_for_recent_development'] is True
+          assert c['r34_range_used_for_authority'] is False
+          assert c['expansion_only_when_higher_authority_layer_abstains'] is True
+          assert c['actual_active_cibo_dol_price_used'] is True
+          assert c['entry_changed'] is False
+          assert c['c2_changed'] is False
+          assert c['cisd_changed'] is False
+          assert c['protected_swing_changed'] is False
+          assert c['risk_governor_suppresses_trades'] is False
+          assert p['governance']['fresh_holdout_consumed'] is False
+          PY
+      - name: Hash R36 evidence
+        run: |
+          cd r36-output
+          sha256sum r36-causal-authority-ensemble-report.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r36-causal-authority-${{ env.EVIDENCE_SHA }}
+          path: r36-output
+          if-no-files-found: error
+          retention-days: 90
+
+
+  publish-status:
+    if: ${{ always() && github.event_name != 'pull_request' }}
+    needs: [quality, replay]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-audjpy-specialist-memory-v1-001
+      - name: Download successful R35 artifact
+        if: needs.replay.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r36-causal-authority-${{ env.EVIDENCE_SHA }}
+          path: published-r35
+      - name: Write auditable R35 status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          R36_RESULT: ${{ needs.replay.result }}
+          RUN_SHA: ${{ env.EVIDENCE_SHA }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={'identity':'TURTLE_SOUP_AUDJPY_R36_STATUS','workflow_run_id':int(os.environ['RUN_ID']),'workflow_sha':os.environ['RUN_SHA'],'quality_result':os.environ['QUALITY_RESULT'],'r36_result':os.environ['R36_RESULT']}
+          report=Path('published-r35/r36-causal-authority-ensemble-report.json')
+          sums=Path('published-r35/SHA256SUMS.txt')
+          if report.exists(): out['report']=json.loads(report.read_text())
+          if sums.exists(): out['sha256sums']=sums.read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-AUDJPY-R36-LATEST.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Commit R35 status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-AUDJPY-R36-LATEST.json
+          git commit -m "research(audjpy): record R36 causal authority ensemble" || exit 0
+          git push origin HEAD:agent/turtle-soup-audjpy-specialist-memory-v1-001
