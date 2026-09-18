@@ -30,7 +30,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import vt31_nas100_structural_rearm_density_frontier_v1 as frontier
 import vt31_nas100_specialist_r1_candidate as specialist
