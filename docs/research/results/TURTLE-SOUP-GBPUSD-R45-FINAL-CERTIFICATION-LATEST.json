@@ -1,0 +1,517 @@
+{
+  "certification_manifest": {
+    "all_gates_pass": true,
+    "candidate": "TURTLE_SOUP_GBPUSD_R43",
+    "five_of_five_annual_positive": true,
+    "fresh_holdout_consumed": false,
+    "gate_results": {
+      "five_of_five_annual_positive": true,
+      "freeze_binding": true,
+      "frozen_5y_baseline": true,
+      "monte_carlo": true,
+      "robustness": true,
+      "slippage": true,
+      "stress": true,
+      "wfo": true
+    },
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "source_freeze_artifact_id": 10552911323,
+    "source_freeze_run_id": 35357779125,
+    "source_r43_artifact_id": 10552052483,
+    "source_r43_run_id": 35357443440,
+    "status": "TRADER_CERTIFIED"
+  },
+  "certify_result": "success",
+  "identity": "TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_STATUS",
+  "quality_result": "success",
+  "r45_report": {
+    "candidate_identity": "TURTLE_SOUP_GBPUSD_R43_5Y_CANDIDATE_001",
+    "certification": {
+      "candidate": "TURTLE_SOUP_GBPUSD_R43",
+      "certified": true,
+      "scope": "QORE_INTERNAL_RESEARCH_CERTIFICATION",
+      "status": "TRADER_CERTIFIED"
+    },
+    "certification_contract": {
+      "all_five_annual_blocks_required_positive": true,
+      "broker_or_prop_firm_endorsement": false,
+      "external_regulatory_certification": false,
+      "fail_closed": true,
+      "fresh_holdout_consumed": false,
+      "internal_qore_research_certification": true,
+      "rules_reoptimized_after_r44_freeze": false
+    },
+    "frozen_5y": {
+      "max_drawdown_r": "4.401231922815307849576052766",
+      "max_losing_streak": 7,
+      "mean_r": "0.03903414246453459426408394239",
+      "pass": true,
+      "positive_annual_blocks": 5,
+      "profit_factor": "1.713624514596208498825398640",
+      "total_r": "35.40396721533287699752413575",
+      "trades": 907
+    },
+    "gate_results": {
+      "five_of_five_annual_positive": true,
+      "freeze_binding": true,
+      "frozen_5y_baseline": true,
+      "monte_carlo": true,
+      "robustness": true,
+      "slippage": true,
+      "stress": true,
+      "wfo": true
+    },
+    "governance": {
+      "certification_does_not_authorize_live_capital": true,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "merge_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_SUITE_V1",
+    "monte_carlo": {
+      "block_size": 5,
+      "gate": {
+        "maximum_p95_drawdown_r": "20.0",
+        "maximum_p99_drawdown_r": "25.0",
+        "minimum_p05_terminal_r_exclusive": "0",
+        "minimum_positive_terminal_probability": "0.99"
+      },
+      "max_drawdown_r": {
+        "p95": "10.56405934821237578677147021",
+        "p99": "13.91252532784261248713087627"
+      },
+      "method": "CONTIGUOUS_BLOCK_BOOTSTRAP",
+      "pass": true,
+      "paths": 20000,
+      "positive_terminal_probability": "0.9959",
+      "seed": 20260918,
+      "terminal_r": {
+        "p05": "12.19260483613795785091028463",
+        "p50": "34.55753517067408931372888714",
+        "p95": "60.08620300998707881137178487"
+      }
+    },
+    "robustness": {
+      "all_five_annual_blocks_positive": true,
+      "family_stats": {
+        "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+          "max_drawdown_r": "2.62494873716993212970148613",
+          "max_losing_streak": 2,
+          "mean_r": "0.1296471480217349251277314363",
+          "profit_factor": "2.023333350735256919612613984",
+          "total_r": "10.50141898976052893534624634",
+          "trades": 81
+        },
+        "OTHER_SESSION_D1_BODY_OPPOSED": {
+          "max_drawdown_r": "3.77275806831720508669695482",
+          "max_losing_streak": 5,
+          "mean_r": "0.04004849572270236799811016049",
+          "profit_factor": "1.652288067491515190171112313",
+          "total_r": "14.81794341739987615930075938",
+          "trades": 370
+        }
+      },
+      "gate": {
+        "minimum_each_leave_one_year_out_pf": "1.30",
+        "minimum_each_source_pf": "1.30",
+        "minimum_positive_half_year_blocks": 6,
+        "required_positive_annual_blocks": 5,
+        "required_positive_families": 2
+      },
+      "leave_one_year_out": [
+        {
+          "close": "2022-09-17T00:00:00+00:00",
+          "omitted_block": 1,
+          "open": "2021-09-17T00:00:00+00:00",
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "4.300521803608512592748368354",
+            "max_losing_streak": 7,
+            "mean_r": "0.04873004430385424379463388930",
+            "profit_factor": "1.905479414992981072353429560",
+            "total_r": "34.93944176586349280075249863",
+            "trades": 717
+          }
+        },
+        {
+          "close": "2023-09-17T00:00:00+00:00",
+          "omitted_block": 2,
+          "open": "2022-09-17T00:00:00+00:00",
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "5.497838894452575648783363998",
+            "max_losing_streak": 7,
+            "mean_r": "0.04508357249689311360701511439",
+            "profit_factor": "1.721992822750108956071119959",
+            "total_r": "33.36184364770090406919118465",
+            "trades": 740
+          }
+        },
+        {
+          "close": "2024-09-17T00:00:00+00:00",
+          "omitted_block": 3,
+          "open": "2023-09-17T00:00:00+00:00",
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "4.451584759515698153154451774",
+            "max_losing_streak": 7,
+            "mean_r": "0.04464910701611151339458189156",
+            "profit_factor": "1.808437267462836424546961470",
+            "total_r": "32.63849722877751629143936273",
+            "trades": 731
+          }
+        },
+        {
+          "close": "2025-09-17T00:00:00+00:00",
+          "omitted_block": 4,
+          "open": "2024-09-17T00:00:00+00:00",
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "4.401231922815307849576052766",
+            "max_losing_streak": 7,
+            "mean_r": "0.02309976782599373229573844329",
+            "profit_factor": "1.429444323727175597105354435",
+            "total_r": "16.56253353123750605604446384",
+            "trades": 717
+          }
+        },
+        {
+          "close": "2026-09-17T00:00:00+00:00",
+          "omitted_block": 5,
+          "open": "2025-09-17T00:00:00+00:00",
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "4.401231922815307849576052766",
+            "max_losing_streak": 7,
+            "mean_r": "0.03335207840629611171876768071",
+            "profit_factor": "1.694683895063818331540590293",
+            "total_r": "24.11355268775208877266903315",
+            "trades": 723
+          }
+        }
+      ],
+      "pass": true,
+      "positive_annual_blocks": 5,
+      "positive_families": 2,
+      "positive_half_year_blocks": 8,
+      "source_pf_pass": true,
+      "source_stats": {
+        "R32_REGIME_CORE": {
+          "max_drawdown_r": "3.642112176220475841774182360",
+          "max_losing_streak": 6,
+          "mean_r": "0.02211536142143085943613405708",
+          "profit_factor": "1.606314308252748195393863502",
+          "total_r": "10.08460480817247190287713003",
+          "trades": 456
+        },
+        "R37_STRUCTURAL_EXPANSION": {
+          "max_drawdown_r": "4.339870314322162819681451938",
+          "max_losing_streak": 5,
+          "mean_r": "0.05614049314226253901252107696",
+          "profit_factor": "1.767745622786829691763675141",
+          "total_r": "25.31936240716040509464700571",
+          "trades": 451
+        }
+      }
+    },
+    "schema": "qore.turtle_soup_gbpusd.r45_final_certification_suite.v1",
+    "slippage": {
+      "pass": true,
+      "scenarios": {
+        "ADVERSE": {
+          "gate": {
+            "maximum_dd_r": "14.0",
+            "minimum_pf": "1.30",
+            "total_must_be_positive": true
+          },
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "4.836830047815307849576052767",
+            "max_losing_streak": 8,
+            "mean_r": "0.03567770434435818853089761384",
+            "profit_factor": "1.623294265362614015987934897",
+            "total_r": "32.35967784033287699752413575",
+            "trades": 907
+          }
+        },
+        "NORMAL": {
+          "gate": {
+            "maximum_dd_r": "12.0",
+            "minimum_pf": "1.35",
+            "total_must_be_positive": true
+          },
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "4.580614110315307849576052766",
+            "max_losing_streak": 7,
+            "mean_r": "0.03760933506376281918139375496",
+            "profit_factor": "1.675001130440374549981289523",
+            "total_r": "34.11166690283287699752413575",
+            "trades": 907
+          }
+        },
+        "SEVERE": {
+          "gate": {
+            "maximum_dd_r": "15.0",
+            "minimum_pf": "1.20",
+            "total_must_be_positive": true
+          },
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "5.272428172815307849576052768",
+            "max_losing_streak": 8,
+            "mean_r": "0.03232728882616634729605748152",
+            "profit_factor": "1.540684431092958701253965550",
+            "total_r": "29.32085096533287699752413574",
+            "trades": 907
+          }
+        }
+      }
+    },
+    "source_binding": {
+      "freeze_artifact_digest": "sha256:cb648b672eedd43afad918380b815eb3a619448ffd74b8d8ae421d3c98491087",
+      "freeze_artifact_id": 10552911323,
+      "freeze_run_id": 35357779125,
+      "r39_artifact_id": 10550866581,
+      "r39_git_sha": "e02d9384fbe6521040fc2779a085c43b8d5f0f92",
+      "r39_run_id": 35353073610,
+      "r43_artifact_digest": "sha256:1157e9e3079d46e04d541744c012f75cc5405cb0e299d593622ab11777b9308f",
+      "r43_artifact_id": 10552052483,
+      "r43_git_sha": "2748596bd132e6577e87851849a338b9a7a9c42e",
+      "r43_report_sha256": "39df0bb2984e8ad9e62b7eac0cf4f716ae88f0d0f9e7c81173965e037e48cbe0",
+      "r43_run_id": 35357443440,
+      "r43_trades_sha256": "4af1c2977b2b80437f1a58436efa4967fec09d0d8968946e41f41f5c9db1025e"
+    },
+    "stress": {
+      "baseline_friction_already_in_candidate_r": "0.10",
+      "pass": true,
+      "scenarios": {
+        "EXTRA_002": {
+          "additional_friction_r_per_1r_risk": "0.02",
+          "gate": {
+            "maximum_dd_r": "12.0",
+            "minimum_pf": "1.35",
+            "total_must_be_positive": true
+          },
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "4.657758172815307849576052766",
+            "max_losing_streak": 8,
+            "mean_r": "0.03633659560676171664556134041",
+            "profit_factor": "1.651026399319617826381291187",
+            "total_r": "32.95729221533287699752413575",
+            "trades": 907
+          }
+        },
+        "EXTRA_005": {
+          "additional_friction_r_per_1r_risk": "0.05",
+          "gate": {
+            "maximum_dd_r": "15.0",
+            "minimum_pf": "1.25",
+            "total_must_be_positive": true
+          },
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "5.042547547815307849576052767",
+            "max_losing_streak": 8,
+            "mean_r": "0.03229027532010240021777743743",
+            "profit_factor": "1.561422040538596606863070303",
+            "total_r": "29.28727971533287699752413575",
+            "trades": 907
+          }
+        },
+        "EXTRA_010": {
+          "additional_friction_r_per_1r_risk": "0.10",
+          "gate": {
+            "maximum_dd_r": "20.0",
+            "minimum_pf": "1.10",
+            "total_must_be_positive": true
+          },
+          "pass": true,
+          "stats": {
+            "max_drawdown_r": "6.851060031482228501258304956",
+            "max_losing_streak": 9,
+            "mean_r": "0.02554640817567020617147093246",
+            "profit_factor": "1.422781967339409648639243484",
+            "total_r": "23.17059221533287699752413574",
+            "trades": 907
+          }
+        }
+      }
+    },
+    "wfo": {
+      "aggregate": {
+        "max_drawdown_r": "4.401231922815307849576052766",
+        "max_losing_streak": 7,
+        "mean_r": "0.03903414246453459426408394239",
+        "profit_factor": "1.713624514596208498825398640",
+        "total_r": "35.40396721533287699752413575",
+        "trades": 907
+      },
+      "blocks": [
+        {
+          "block": 1,
+          "close": "2022-03-17T00:00:00+00:00",
+          "open": "2021-09-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "2.808872646747833867309587085",
+            "max_losing_streak": 5,
+            "mean_r": "0.01904426277562352963631797419",
+            "profit_factor": "1.257694585096704993478361304",
+            "total_r": "1.733027912581741196904935651",
+            "trades": 91
+          }
+        },
+        {
+          "block": 2,
+          "close": "2022-09-17T00:00:00+00:00",
+          "open": "2022-03-17T00:00:00+00:00",
+          "positive": false,
+          "stats": {
+            "max_drawdown_r": "2.027067622795795519748287195",
+            "max_losing_streak": 4,
+            "mean_r": "-0.012813156193054111112457561",
+            "profit_factor": "0.7049773257943445487042370171",
+            "total_r": "-1.268502463112357000133298539",
+            "trades": 99
+          }
+        },
+        {
+          "block": 3,
+          "close": "2023-03-17T00:00:00+00:00",
+          "open": "2022-09-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "0.4346060103128894826448569963",
+            "max_losing_streak": 3,
+            "mean_r": "0.006925987244188179241820752775",
+            "profit_factor": "1.456627889062407512655050811",
+            "total_r": "0.5540789795350543393456602220",
+            "trades": 80
+          }
+        },
+        {
+          "block": 4,
+          "close": "2023-09-17T00:00:00+00:00",
+          "open": "2023-03-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "1.100000000000000000000000000",
+            "max_losing_streak": 5,
+            "mean_r": "0.01710396078272320217226771126",
+            "profit_factor": "1.679452328759336917886715060",
+            "total_r": "1.488044588096918588987290880",
+            "trades": 87
+          }
+        },
+        {
+          "block": 5,
+          "close": "2024-03-17T00:00:00+00:00",
+          "open": "2023-09-17T00:00:00+00:00",
+          "positive": false,
+          "stats": {
+            "max_drawdown_r": "1.420463784592384781340478376",
+            "max_losing_streak": 5,
+            "mean_r": "-0.003118924970608634604475308095",
+            "profit_factor": "0.9195820257129317473867962369",
+            "total_r": "-0.2401572227368648645445987233",
+            "trades": 77
+          }
+        },
+        {
+          "block": 6,
+          "close": "2024-09-17T00:00:00+00:00",
+          "open": "2024-03-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "3.341283634317963845072036191",
+            "max_losing_streak": 7,
+            "mean_r": "0.03035987080093157142049870439",
+            "profit_factor": "1.480686190923082455951686923",
+            "total_r": "3.005627209292225570629371735",
+            "trades": 99
+          }
+        },
+        {
+          "block": 7,
+          "close": "2025-03-17T00:00:00+00:00",
+          "open": "2024-09-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "2.924817518511888879840075709",
+            "max_losing_streak": 5,
+            "mean_r": "0.08345507622749242565401477120",
+            "profit_factor": "2.523810933496981759077364268",
+            "total_r": "8.262052546521750139747462349",
+            "trades": 99
+          }
+        },
+        {
+          "block": 8,
+          "close": "2025-09-17T00:00:00+00:00",
+          "open": "2025-03-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "2.93427167366522300968913811",
+            "max_losing_streak": 6,
+            "mean_r": "0.1162569355777320967223319735",
+            "profit_factor": "2.881731554122148519637992463",
+            "total_r": "10.57938113757362080173220959",
+            "trades": 91
+          }
+        },
+        {
+          "block": 9,
+          "close": "2026-03-17T00:00:00+00:00",
+          "open": "2025-09-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "1.355882952235772357723577235",
+            "max_losing_streak": 4,
+            "mean_r": "0.07502239095049003153310645340",
+            "profit_factor": "2.111702678319017703155063493",
+            "total_r": "7.052104749346062964112006620",
+            "trades": 94
+          }
+        },
+        {
+          "block": 10,
+          "close": "2026-09-17T00:00:00+00:00",
+          "open": "2026-03-17T00:00:00+00:00",
+          "positive": true,
+          "stats": {
+            "max_drawdown_r": "3.386459523008437369495228051",
+            "max_losing_streak": 5,
+            "mean_r": "0.04709233086927472511936773339",
+            "profit_factor": "1.495337127656064998180094734",
+            "total_r": "4.238309778234725260743096005",
+            "trades": 90
+          }
+        }
+      ],
+      "gate": {
+        "minimum_aggregate_pf": "1.30",
+        "minimum_positive_blocks": 6,
+        "worst_block_total_floor_r": "-6.0"
+      },
+      "method": "FIXED_RULE_6M_BLOCK_STABILITY",
+      "pass": true,
+      "positive_blocks": 8,
+      "worst_block_total_r": "-1.268502463112357000133298539"
+    }
+  },
+  "sha256sums": [
+    "71d9a61bdebb3db60c0d0b59b85c83ea0753e829c278f63680b14825e2ed454a  r45-final-certification-report.json",
+    "7f5304265463a0127872ae6a4a77e0a90e73eef567e7b46f7a1dbc381c5a408f  r45-certification-manifest.json",
+    "1f1e9ea2a5c9865152165d6af7128de18c718f4628e8b2026bbec6cd24e70f87  stdout.json",
+    "3af62ed9503d5541622ac8cc686d73dfb4e3a8ff33810f46753fcc9ae9f5e0bf  git-sha.txt"
+  ],
+  "workflow_run_id": 35358106508,
+  "workflow_sha": "85adbce275199c08e3713aaa7d4c1633c5c397d1"
+}
