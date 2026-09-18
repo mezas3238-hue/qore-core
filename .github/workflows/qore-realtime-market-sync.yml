@@ -29,6 +29,7 @@ jobs:
             src/qore/infrastructure/r38_gbpjpy_live.py \
             scripts/qore_fundednext_runtime.py \
             tests/infrastructure/test_fundednext_realtime_market_data.py \
+            tests/infrastructure/test_fundednext_runtime_realtime_contract.py \
             tests/infrastructure/test_r34_xauusd_live.py \
             tests/infrastructure/test_r38_eurusd_live.py \
             tests/infrastructure/test_r43_gbpusd_live.py \
@@ -46,6 +47,7 @@ jobs:
         run: |
           pytest -q --no-cov \
             tests/infrastructure/test_fundednext_realtime_market_data.py \
+            tests/infrastructure/test_fundednext_runtime_realtime_contract.py \
             tests/infrastructure/test_fundednext_mt5_clock.py \
             tests/infrastructure/test_r34_xauusd_live.py \
             tests/infrastructure/test_r38_eurusd_live.py \
@@ -72,9 +74,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -e ".[dev]"
-      - name: Ruff
-        run: ruff check .
-      - name: Mypy
-        run: mypy src tests
-      - name: Pytest
+      - name: Repository-wide Python syntax
+        run: python -m compileall -q src scripts tests
+      - name: Full QORE test suite
         run: pytest -q --no-cov
