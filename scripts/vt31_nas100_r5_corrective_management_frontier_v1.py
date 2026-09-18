@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -90,6 +91,8 @@ def _first_rows(
     evidence: str,
     alt_partial_r: Decimal | None,
     secondary_route_policy: str = "ORIGINAL",
+    secondary_be_r: Decimal | None = None,
+    secondary_be_scope: str = "NONE",
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
@@ -351,12 +354,54 @@ def _first_rows(
                 )
                 status["route-renewed-event-selected"] += 1
 
+        managed_selected = selected
+        be_applied = False
+        if secondary_be_r is not None:
+            family = selected.selected_family.value
+            side = selected.side.value
+            stable_positive = (
+                family == "fair-value-gap"
+                and alt_state.get("h1_state") == "mixed"
+            )
+            stable_negative = (
+                family == "breaker"
+                or (family == "order-block" and side == "long")
+                or alt_state.get("cash_open_state") == "bullish"
+            )
+            be_applied = (
+                secondary_be_scope == "ALL"
+                or (
+                    secondary_be_scope == "STABLE_NEGATIVE"
+                    and stable_negative
+                )
+                or (
+                    secondary_be_scope == "ALL_EXCEPT_STABLE_POSITIVE"
+                    and not stable_positive
+                )
+                or (
+                    secondary_be_scope == "SCOUT_OR_STABLE_NEGATIVE"
+                    and (alt_tier == "SCOUT" or stable_negative)
+                )
+            )
+            if be_applied:
+                entry = selected.entry_price
+                risk = selected.initial_risk
+                boundary = (
+                    entry + risk * secondary_be_r
+                    if side == "long"
+                    else entry - risk * secondary_be_r
+                )
+                managed_selected = replace(
+                    selected,
+                    three_r_price=boundary,
+                )
+
         outcome = (
-            specialist.baseline._simulate(day_bars, selected)
+            specialist.baseline._simulate(day_bars, managed_selected)
             if alt_partial_r is None
             else v2b._simulate_partial_runner(
                 day_bars,
-                selected,
+                managed_selected,
                 alt_partial_r,
             )
         )
@@ -397,6 +442,13 @@ def _first_rows(
                     "confirmation_latency_minutes"
                 ),
                 "risk_ref": alt_state.get("risk_ref"),
+                "secondary_be_scope": secondary_be_scope,
+                "secondary_be_r": (
+                    None
+                    if secondary_be_r is None
+                    else format(secondary_be_r, "f")
+                ),
+                "secondary_be_applied": be_applied,
             }
         )
         trades.append(weighted)
@@ -406,6 +458,10 @@ def _first_rows(
         "status_counts": dict(sorted(status.items())),
         "monthly_alt_budget_ledger": budget_ledger,
         "secondary_route_policy": secondary_route_policy,
+        "secondary_be_scope": secondary_be_scope,
+        "secondary_be_r": (
+            None if secondary_be_r is None else format(secondary_be_r, "f")
+        ),
     }
 
 
