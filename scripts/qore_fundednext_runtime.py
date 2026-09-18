@@ -19,7 +19,7 @@ from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import MetaTrader5 as mt5  # type: ignore[import-untyped]
+import MetaTrader5 as mt5  # type: ignore
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
