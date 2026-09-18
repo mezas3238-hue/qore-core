@@ -17,9 +17,10 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from vt31_tick_execution_resolution import (
     TickResolutionError,
@@ -116,6 +117,23 @@ def _evidence(
     return payload
 
 
+def _threshold_predicate(
+    mode: str,
+    threshold: Decimal,
+) -> Callable[[Decimal], bool]:
+    if mode == "le":
+        def at_or_below(price: Decimal) -> bool:
+            return price <= threshold
+
+        return at_or_below
+    if mode == "ge":
+        def at_or_above(price: Decimal) -> bool:
+            return price >= threshold
+
+        return at_or_above
+    raise ValueError(mode)
+
+
 def _first_at_or_after(
     stream: tuple[dict[str, object], ...],
     *,
@@ -155,17 +173,17 @@ def _terminal_after_fill(
     if side == "long":
         fill_stream = ask
         exit_stream = bid
-        fill_predicate = lambda price: price <= entry
-        stop_predicate = lambda price: price <= stop
-        target_predicate = lambda price: price >= target
+        fill_predicate = _threshold_predicate("le", entry)
+        stop_predicate = _threshold_predicate("le", stop)
+        target_predicate = _threshold_predicate("ge", target)
         fill_quote_side = "ASK"
         exit_quote_side = "BID"
     else:
         fill_stream = bid
         exit_stream = ask
-        fill_predicate = lambda price: price >= entry
-        stop_predicate = lambda price: price >= stop
-        target_predicate = lambda price: price <= target
+        fill_predicate = _threshold_predicate("ge", entry)
+        stop_predicate = _threshold_predicate("ge", stop)
+        target_predicate = _threshold_predicate("le", target)
         fill_quote_side = "BID"
         exit_quote_side = "ASK"
 
