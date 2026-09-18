@@ -73,7 +73,6 @@ def _run_variant(
 
     # Re-simulate only non-CORE first positions when a fixed target is requested.
     if secondary_target_r is not None:
-        policy = corrective.Vt31R22ExecutionPolicy()
         rebuilt: list[dict[str, object]] = []
         # Preserve CORE rows exactly. Reconstruct SECONDARY/SCOUT from the
         # original causal day selection via the same helper, but monkeypatch
@@ -102,7 +101,6 @@ def _run_variant(
         # CORE uses _simulate_selected_plan and is therefore unchanged by the
         # temporary baseline patch.
         first_rows = rebuilt
-        del policy
 
     if rearm_target_r is None:
         rearm_rows, rearm_diag = corrective._rearm_rows(
