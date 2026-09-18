@@ -50,6 +50,14 @@ from qore.infrastructure.fundednext_mt5_clock import (
     NEW_YORK_TZ,
     normalise_fundednext_server_epoch,
 )
+from qore.infrastructure.fundednext_realtime_market_data import (
+    MARKET_DATA_SLA_SECONDS,
+    FundedNextRealtimeMarketData,
+    MarketDataSlaError,
+)
+from qore.infrastructure.fundednext_vt08_realtime_market_data import (
+    vt08_boundary_ready as _vt08_boundary_ready,
+)
 from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
 from qore.infrastructure.fundednext_live_safety import (
     JsonFileLiveOperationalSafetyBoundary,
@@ -94,6 +102,7 @@ from qore.infrastructure.pretrade_safety import (
     ExecutionSwitchState,
 )
 from qore.infrastructure.r34_xauusd_live import (
+    HISTORY_M5_BARS as R34_HISTORY_M5_BARS,
     R34LiveSignal,
     R34LiveStateStore,
     build_live_signal as build_r34_live_signal,
@@ -102,6 +111,7 @@ from qore.infrastructure.r34_xauusd_live import (
     load_cognitive as load_r34_cognitive,
 )
 from qore.infrastructure.r38_eurusd_live import (
+    HISTORY_M5_BARS as R38_HISTORY_M5_BARS,
     R38LiveSignal,
     R38LiveStateStore,
     build_live_signal as build_r38_live_signal,
@@ -111,6 +121,7 @@ from qore.infrastructure.r38_eurusd_live import (
     manage_open_position as manage_r38_open_position,
 )
 from qore.infrastructure.r43_gbpusd_live import (
+    HISTORY_M5_BARS as R43_HISTORY_M5_BARS,
     R43LiveSignal,
     R43LiveStateStore,
     build_live_signal as build_r43_live_signal,
@@ -120,6 +131,7 @@ from qore.infrastructure.r43_gbpusd_live import (
     manage_open_position as manage_r43_open_position,
 )
 from qore.infrastructure.r38_gbpjpy_live import (
+    HISTORY_M5_BARS as GBPJPY_R38_HISTORY_M5_BARS,
     R38GbpJpyLiveSignal,
     R38GbpJpyLiveStateStore,
     build_live_signal as build_gbpjpy_r38_live_signal,
@@ -147,11 +159,44 @@ _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
 _EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
-_LOOP_SECONDS = 10
-_ANCHOR_GRACE = timedelta(seconds=30)
+_IDLE_LOOP_SECONDS = 1.0
+_BOUNDARY_ARM_SECONDS = 10.0
+_BOUNDARY_POLL_SECONDS = 0.10
+_ANCHOR_GRACE = timedelta(seconds=2)
 _HISTORY_DAYS = 14
 _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
 _DISCOVERY_DAYS = 7
+
+
+def _arm_to_hour_boundary(now: datetime) -> datetime:
+    """Wake on the H1 boundary before any slower reconciliation work begins."""
+    observed = now.astimezone(UTC)
+    top = observed.replace(minute=0, second=0, microsecond=0)
+    if (observed - top).total_seconds() <= MARKET_DATA_SLA_SECONDS:
+        return observed
+    next_top = top + timedelta(hours=1)
+    until_top = (next_top - observed).total_seconds()
+    if 0 < until_top <= _BOUNDARY_ARM_SECONDS:
+        time.sleep(until_top)
+        return datetime.now(UTC)
+    return observed
+
+
+def _runtime_sleep_seconds(now: datetime) -> float:
+    """Sleep coarsely off-boundary and arm at 100 ms around each H1 boundary."""
+    observed = now.astimezone(UTC)
+    top = observed.replace(minute=0, second=0, microsecond=0)
+    since_top = (observed - top).total_seconds()
+    if since_top <= MARKET_DATA_SLA_SECONDS:
+        return _BOUNDARY_POLL_SECONDS
+    next_top = top + timedelta(hours=1)
+    until_top = (next_top - observed).total_seconds()
+    if until_top <= _BOUNDARY_ARM_SECONDS:
+        return _BOUNDARY_POLL_SECONDS
+    return min(
+        _IDLE_LOOP_SECONDS,
+        max(_BOUNDARY_POLL_SECONDS, until_top - 1.0),
+    )
 
 
 def _git_sha(root: Path) -> str:
@@ -217,6 +262,12 @@ def _m15_bars(symbol: str, decision_at: datetime) -> tuple[Vt08B01Bar, ...]:
     bars = tuple(retained[key] for key in sorted(retained))
     if not bars:
         raise RuntimeError(f"m15-data-unavailable-after-clock-normalization-{symbol}")
+    expected_current = decision_at.astimezone(UTC)
+    expected_closed = expected_current - timedelta(minutes=15)
+    if expected_current not in retained:
+        raise RuntimeError(f"vt08-current-m15-unavailable-{symbol}")
+    if expected_closed not in retained:
+        raise RuntimeError(f"vt08-latest-closed-m15-unavailable-{symbol}")
     return bars
 
 
@@ -407,6 +458,7 @@ def _manage_h4_exits(
     exit_ledger: JsonFileFundedNextPositionExitLedger,
     now: datetime,
     log_path: Path,
+    mutations_enabled: bool = True,
 ) -> None:
     _reconcile_exit_ledger(exit_ledger, now=now)
     positions = mt5.positions_get()
@@ -479,6 +531,16 @@ def _manage_h4_exits(
             _log(
                 log_path,
                 {"event": "H4_EXIT_CHECK_REJECT", "position": int(position.ticket)},
+            )
+            continue
+        if not mutations_enabled:
+            _log(
+                log_path,
+                {
+                    "event": f"{exit_label}_SHADOW_EXIT_CHECK_PASS",
+                    "position": int(position.ticket),
+                    "due_at": due.isoformat(),
+                },
             )
             continue
         attempt = PositionExitRecord(
@@ -1209,6 +1271,18 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     gbpjpy_r38_store.reconcile(mt5, now=datetime.now(UTC))
 
+    turtle_history_bars = {
+        "XAUUSD": R34_HISTORY_M5_BARS,
+        "EURUSD": R38_HISTORY_M5_BARS,
+        "GBPUSD": R43_HISTORY_M5_BARS,
+        "GBPJPY": GBPJPY_R38_HISTORY_M5_BARS,
+    }
+    turtle_market_data = FundedNextRealtimeMarketData()
+    turtle_market_data.warm_many(
+        mt5,
+        symbols=turtle_history_bars,
+    )
+
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
             [
@@ -1353,6 +1427,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             ],
             "single_mt5_writer": True,
             "account_wide_risk_active": True,
+            "market_data_sla_seconds": MARKET_DATA_SLA_SECONDS,
+            "market_data_cache": "WARM_ONCE_INCREMENTAL_M5",
+            "market_data_boundary_policy": "EXACT_CLOSED_AND_CURRENT_M5",
             "gbpjpy_r38_enabled": True,
             "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
             "gbpjpy_r38_certification": "TURTLE_SOUP_GBPJPY_R39_FINAL_CERTIFICATION_SUITE_V1",
@@ -1369,9 +1446,155 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         },
     )
     last_lifecycle: str | None = None
+    logged_market_data_boundaries: set[tuple[str, str]] = set()
+    last_boundary_capture: datetime | None = None
+    vt08_boundary_results: dict[
+        str,
+        tuple[Vt08B01Candidate | None, str],
+    ] = {}
+    vt08_boundary_failures: dict[str, str] = {}
 
     while True:
-        cycle_at = datetime.now(UTC)
+        cycle_at = _arm_to_hour_boundary(datetime.now(UTC))
+        turtle_anchor = current_r34_anchor(cycle_at)
+        if turtle_anchor is None:
+            turtle_market_data.refresh_many(
+                mt5,
+                symbols=tuple(turtle_history_bars),
+                now=cycle_at,
+            )
+        elif turtle_anchor != last_boundary_capture:
+            vt08_anchor = _current_anchor(cycle_at)
+            vt08_boundary_results = {}
+            vt08_boundary_failures = {}
+            vt08_pending = set(_MARKETS) if vt08_anchor is not None else set()
+            vt08_pending_reason: dict[str, str] = {}
+            deadline = turtle_anchor + timedelta(seconds=MARKET_DATA_SLA_SECONDS)
+
+            while True:
+                turtle_pending = set(
+                    turtle_market_data.prime_anchor_once(
+                        mt5,
+                        anchor=turtle_anchor,
+                        symbols=turtle_history_bars,
+                    )
+                )
+                for symbol in tuple(vt08_pending):
+                    ready, pending_reason = _vt08_boundary_ready(
+                        mt5,
+                        symbol=symbol,
+                        anchor=(
+                            vt08_anchor
+                            if vt08_anchor is not None
+                            else turtle_anchor
+                        ),
+                    )
+                    if not ready:
+                        if pending_reason is not None:
+                            vt08_pending_reason[symbol] = pending_reason
+                        continue
+                    try:
+                        vt08_boundary_results[symbol] = _causal_candidate(
+                            symbol,
+                            vt08_anchor if vt08_anchor is not None else turtle_anchor,
+                        )
+                    except Exception as error:
+                        vt08_boundary_failures[symbol] = (
+                            f"{type(error).__name__}: {error}"
+                        )
+                    vt08_pending.remove(symbol)
+
+                if not turtle_pending and not vt08_pending:
+                    break
+                remaining = (deadline - datetime.now(UTC)).total_seconds()
+                if remaining <= 0:
+                    break
+                time.sleep(min(_BOUNDARY_POLL_SECONDS, remaining))
+
+            market_status = turtle_market_data.finalize_anchor_group(
+                anchor=turtle_anchor,
+                symbols=turtle_history_bars,
+            )
+            for symbol in vt08_pending:
+                detail = vt08_pending_reason.get(
+                    symbol,
+                    f"{symbol} VT08 boundary evidence unavailable",
+                )
+                vt08_boundary_failures[symbol] = (
+                    f"{detail}; hard_sla={MARKET_DATA_SLA_SECONDS:.1f}s"
+                )
+
+            for symbol, failure in market_status.items():
+                log_key = (symbol, turtle_anchor.isoformat())
+                if log_key in logged_market_data_boundaries:
+                    continue
+                if failure is not None:
+                    _log(
+                        log_path,
+                        {
+                            "event": "TURTLE_MARKET_DATA_SLA_FAIL_CLOSED",
+                            "symbol": symbol,
+                            "decision_at": turtle_anchor.isoformat(),
+                            "sla_seconds": MARKET_DATA_SLA_SECONDS,
+                            "message": failure,
+                        },
+                    )
+                else:
+                    snapshot = turtle_market_data.snapshot(
+                        mt5,
+                        symbol=symbol,
+                        anchor=turtle_anchor,
+                        history_bars=turtle_history_bars[symbol],
+                    )
+                    _log(
+                        log_path,
+                        {
+                            "event": "TURTLE_MARKET_DATA_BOUNDARY_READY",
+                            "symbol": symbol,
+                            "decision_at": turtle_anchor.isoformat(),
+                            "capture_latency_ms": round(
+                                (snapshot.captured_at - turtle_anchor).total_seconds()
+                                * 1_000,
+                                3,
+                            ),
+                            "tick_age_ms": round(
+                                snapshot.tick_age_seconds * 1_000,
+                                3,
+                            ),
+                            "latest_closed_m5": (
+                                snapshot.closed_rates[-1].opened_at.isoformat()
+                            ),
+                            "current_m5": snapshot.current_rate.opened_at.isoformat(),
+                        },
+                    )
+                logged_market_data_boundaries.add(log_key)
+
+            if vt08_anchor is not None:
+                for symbol in _MARKETS:
+                    failure = vt08_boundary_failures.get(symbol)
+                    if failure is not None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT08_MARKET_DATA_SLA_FAIL_CLOSED",
+                                "symbol": symbol,
+                                "decision_at": vt08_anchor.isoformat(),
+                                "sla_seconds": MARKET_DATA_SLA_SECONDS,
+                                "message": failure,
+                            },
+                        )
+                    elif symbol in vt08_boundary_results:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT08_MARKET_DATA_BOUNDARY_READY",
+                                "symbol": symbol,
+                                "decision_at": vt08_anchor.isoformat(),
+                                "sla_seconds": MARKET_DATA_SLA_SECONDS,
+                            },
+                        )
+            last_boundary_capture = turtle_anchor
+
         account_state = gateway.read_account(now=cycle_at)
         gateway.reconcile_unknown(now=cycle_at)
         _manage_h4_exits(
@@ -1380,6 +1603,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             exit_ledger=exit_ledger,
             now=cycle_at,
             log_path=log_path,
+            mutations_enabled=mode == "live",
         )
         _reconcile_filled_reservations(
             risk=risk,
@@ -1388,11 +1612,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             now=cycle_at,
         )
         r34_live_state = r34_store.reconcile(mt5, now=cycle_at)
-        r38_live_state, r38_manage_reason = manage_r38_open_position(
-            mt5,
-            now=cycle_at,
-            store=r38_store,
-        )
+        try:
+            r38_live_state, r38_manage_reason = manage_r38_open_position(
+                mt5,
+                now=cycle_at,
+                store=r38_store,
+                market_data=turtle_market_data,
+                mutations_enabled=mode == "live",
+            )
+        except MarketDataSlaError as error:
+            r38_live_state = r38_store.reconcile(mt5, now=cycle_at)
+            r38_manage_reason = "r38-market-data-fail-closed"
+            _log(
+                log_path,
+                {
+                    "event": "R38_MANAGEMENT_DATA_FAIL_CLOSED",
+                    "symbol": "EURUSD",
+                    "message": str(error),
+                },
+            )
         if r38_manage_reason not in {
             "no-open-r38-position",
             "r38-stop-unchanged",
@@ -1408,11 +1646,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
-        r43_live_state, r43_manage_reason = manage_r43_open_position(
-            mt5,
-            now=cycle_at,
-            store=r43_store,
-        )
+        try:
+            r43_live_state, r43_manage_reason = manage_r43_open_position(
+                mt5,
+                now=cycle_at,
+                store=r43_store,
+                market_data=turtle_market_data,
+                mutations_enabled=mode == "live",
+            )
+        except MarketDataSlaError as error:
+            r43_live_state = r43_store.reconcile(mt5, now=cycle_at)
+            r43_manage_reason = "r43-market-data-fail-closed"
+            _log(
+                log_path,
+                {
+                    "event": "R43_MANAGEMENT_DATA_FAIL_CLOSED",
+                    "symbol": "GBPUSD",
+                    "message": str(error),
+                },
+            )
         if r43_manage_reason not in {
             "no-open-r43-position",
             "r43-stop-unchanged",
@@ -1429,14 +1681,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
-        gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = (
-            manage_gbpjpy_r38_open_position(
-                mt5,
-                now=cycle_at,
-                store=gbpjpy_r38_store,
-                mutations_enabled=mode == "live",
+        try:
+            gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = (
+                manage_gbpjpy_r38_open_position(
+                    mt5,
+                    now=cycle_at,
+                    store=gbpjpy_r38_store,
+                    market_data=turtle_market_data,
+                    mutations_enabled=mode == "live",
+                )
             )
-        )
+        except MarketDataSlaError as error:
+            gbpjpy_r38_live_state = gbpjpy_r38_store.reconcile(mt5, now=cycle_at)
+            gbpjpy_r38_manage_reason = "gbpjpy-r38-market-data-fail-closed"
+            _log(
+                log_path,
+                {
+                    "event": "GBPJPY_R38_MANAGEMENT_DATA_FAIL_CLOSED",
+                    "symbol": "GBPJPY",
+                    "message": str(error),
+                },
+            )
         if gbpjpy_r38_manage_reason not in {
             "no-open-gbpjpy-r38-position",
             "gbpjpy-r38-stop-unchanged",
@@ -1526,12 +1791,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 if anchor_key in state.processed_anchors:
                     continue
                 try:
-                    candidate, reason = _causal_candidate(symbol, anchor)
+                    failure = vt08_boundary_failures.get(symbol)
+                    captured = vt08_boundary_results.get(symbol)
+                    if failure is not None:
+                        candidate = None
+                        reason = f"market-data-sla-fail:{failure}"
+                    elif captured is None:
+                        raise RuntimeError("vt08-boundary-capture-missing")
+                    else:
+                        candidate, reason = captured
                     if candidate is None:
                         _log(
                             log_path,
                             {
-                                "event": "VT08_CAUSAL_ABSTAIN",
+                                "event": (
+                                    "VT08_MARKET_DATA_SLA_FAIL_CLOSED"
+                                    if reason.startswith("market-data-sla-fail:")
+                                    else "VT08_CAUSAL_ABSTAIN"
+                                ),
                                 "symbol": symbol,
                                 "decision_at": anchor.isoformat(),
                                 "reason": reason,
@@ -1582,6 +1859,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         cognitive=r34_cognitive,
                         state=r34_live_state,
+                        market_data=turtle_market_data,
                     )
                     if r34_signal is None:
                         _log(
@@ -1643,6 +1921,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         cognitive=r38_cognitive,
                         state=r38_live_state,
+                        market_data=turtle_market_data,
                     )
                     if r38_signal is None:
                         _log(
@@ -1708,6 +1987,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         memory_bundle=r43_memory,
                         state=r43_live_state,
+                        market_data=turtle_market_data,
                     )
                     if r43_signal is None:
                         _log(
@@ -1780,6 +2060,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         memory_bundle=gbpjpy_r38_memory,
                         state=gbpjpy_r38_live_state,
+                        market_data=turtle_market_data,
                     )
                     if gbpjpy_r38_signal is None:
                         _log(
@@ -1846,7 +2127,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 heartbeat_at=cycle_at,
             )
             store.store(state)
-        time.sleep(_LOOP_SECONDS)
+        time.sleep(_runtime_sleep_seconds(datetime.now(UTC)))
 
 
 def main() -> None:

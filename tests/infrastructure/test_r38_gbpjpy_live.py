@@ -203,12 +203,12 @@ def test_r38_gbpjpy_broker_minimum_stop_level_fails_closed() -> None:
         )
 
 
-def test_r38_gbpjpy_anchor_is_hourly_and_short_grace_only() -> None:
+def test_r38_gbpjpy_anchor_has_hard_two_second_grace() -> None:
     assert current_anchor(
-        datetime(2026, 9, 18, 15, 0, 30, tzinfo=UTC)
+        datetime(2026, 9, 18, 15, 0, 1, 900_000, tzinfo=UTC)
     ) == datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
     assert current_anchor(
-        datetime(2026, 9, 18, 15, 0, 46, tzinfo=UTC)
+        datetime(2026, 9, 18, 15, 0, 2, 1_000, tzinfo=UTC)
     ) is None
 
 
