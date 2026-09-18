@@ -282,7 +282,7 @@ class R38LiveStateStore:
             == int(getattr(api, "DEAL_ENTRY_OUT", -2))
         ]
         last = max(exits or matching, key=lambda item: int(getattr(item, "time", 0)))
-        closed_at = normalise_fundednext_server_epoch(int(getattr(last, "time")))
+        closed_at = normalise_fundednext_server_epoch(int(last.time))
         trailing_exit = state.last_trailing_exit_at
         moved = Decimal(opened.current_stop) != Decimal(opened.initial_stop)
         if (
