@@ -102,7 +102,7 @@ jobs:
           assert int(a['minimum_trades']) == 350
           assert a['minimum_scaled_net_010_profit_factor'] == '1.90'
           assert a['maximum_scaled_net_010_drawdown_r'] == '6.0'
-          assert int(a['maximum_losing_streak']) == 3
+          assert a['losing_streak'] == 'DIAGNOSTIC_NOT_HARD_GATE'
           c=p['experiment_contract']
           assert c['r34_range_core_preserved'] is True
           assert c['expansion_only_when_higher_authority_layer_abstains'] is True
