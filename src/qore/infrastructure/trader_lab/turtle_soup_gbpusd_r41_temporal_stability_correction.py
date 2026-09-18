@@ -1,10 +1,9 @@
 """GBPUSD R41 — temporal-stability correction before final freeze.
 
-R39 supplied sufficient 5Y coverage (907 trades) but narrowly missed PF/DD.
-R40 preserves every trade and its frozen structural scale. It recomputes the
-same causal drawdown governor after applying a small set of predeclared,
-pre-entry-only structural overlays derived from R39 forensics. No signal,
-entry, target, stop, lifecycle, family membership or fresh holdout is changed.
+R40 passed the economic 5Y PF/DD gate with 907 trades but only 3/5 positive
+annual blocks. R41 preserves all 907 trades and tests only a monotonic SHORT
+risk overlay, using calendar years strictly as a validation gate and never as
+an execution rule. Approval requires 5/5 positive annual blocks.
 """
 from __future__ import annotations
 
@@ -290,7 +289,7 @@ def _run_policy(trades: Sequence[Trade], name: str) -> dict[str, Any]:
         and pf >= MIN_PF_010
         and dd <= MAX_DD_010
         and total > 0
-        and sum(bool(item["positive_total"]) for item in annual) >= 4
+        and sum(bool(item["positive_total"]) for item in annual) == 5
     )
     return {
         "policy": name,
@@ -379,7 +378,7 @@ def run(source_root: Path, output: Path) -> dict[str, Any]:
             "minimum_profit_factor": str(MIN_PF_010),
             "maximum_drawdown_r": str(MAX_DD_010),
             "total_must_be_positive": True,
-            "minimum_positive_annual_blocks": 4,
+            "minimum_positive_annual_blocks": 5,
             "calendar_time_not_used_as_rule": True,
         },
         "results": public_results,
