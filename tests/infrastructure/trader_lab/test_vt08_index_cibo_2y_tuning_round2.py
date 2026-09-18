@@ -41,6 +41,8 @@ def _root(tmp_path: Path, symbol: str) -> Path:
                 "read_only": True,
                 "live_authorized": False,
                 "real_capital_authorized": False,
+                "target_start": "2016-09-17T00:00:00+00:00",
+                "target_end_exclusive": "2026-09-17T00:00:00+00:00",
             }
         ),
         encoding="utf-8",
