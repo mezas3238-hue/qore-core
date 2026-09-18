@@ -37,6 +37,10 @@ from typing import Any
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
+from qore.infrastructure.fundednext_realtime_market_data import (
+    DEFAULT_FUNDEDNEXT_REALTIME_MARKET_DATA,
+    FundedNextRealtimeMarketData,
+)
 from qore.infrastructure.fundednext_mt5_clock import (
     NEW_YORK_TZ,
     normalise_fundednext_server_epoch,
@@ -90,7 +94,7 @@ MEMORY_PROFILE_COUNT = 4246
 BASE_RISK_FRACTION = Decimal("0.002")
 MAX_SOURCE_ENTRY_DRIFT_R = Decimal("0.10")
 BROKER_RISK_BUFFER = Decimal("1.02")
-ANCHOR_GRACE = timedelta(seconds=45)
+ANCHOR_GRACE = timedelta(seconds=2)
 HISTORY_M5_BARS = 15_000
 _STATE_SCHEMA = "qore.turtle_soup_gbpusd.r43.live_state.v1"
 _STRATEGY_TZ = NEW_YORK_TZ
@@ -377,36 +381,40 @@ def current_anchor(now: datetime) -> datetime | None:
     return anchor_local.astimezone(UTC)
 
 
-def mt5_evidence(api: Any, *, now: datetime) -> tuple[Evidence, Decimal]:
-    rows = api.copy_rates_from_pos(SYMBOL, api.TIMEFRAME_M5, 0, HISTORY_M5_BARS)
-    if rows is None or len(rows) < 2_000:
-        raise RuntimeError("R43 M5 history unavailable")
+def mt5_evidence(
+    api: Any,
+    *,
+    now: datetime,
+    market_data: FundedNextRealtimeMarketData | None = None,
+) -> tuple[Evidence, Decimal]:
     info = api.symbol_info(SYMBOL)
     if info is None:
         raise RuntimeError("R43 GBPUSD symbol info unavailable")
-    retained: dict[datetime, Bar] = {}
-    for row in rows:
-        opened = normalise_fundednext_server_epoch(int(row["time"]))
-        bar = Bar(
-            opened_at=opened,
-            closed_at=opened + timedelta(minutes=5),
-            open=Decimal(str(row["open"])),
-            high=Decimal(str(row["high"])),
-            low=Decimal(str(row["low"])),
-            close=Decimal(str(row["close"])),
-        )
-        prior = retained.get(opened)
-        if prior is not None and prior != bar:
-            raise RuntimeError("R43 contradictory MT5 M5 bar")
-        retained[opened] = bar
-    bars = tuple(retained[key] for key in sorted(retained))
-    latest = bars[-1].opened_at
-    if abs((now.astimezone(UTC) - latest).total_seconds()) > 600:
-        raise RuntimeError("R43 MT5 clock normalization stale")
-    return (
-        Evidence(symbol=SYMBOL, digits=int(info.digits), bars=bars),
-        Decimal(str(rows[-1]["open"])),
+    observed = now.astimezone(UTC)
+    boundary = observed.replace(
+        minute=(observed.minute // 5) * 5,
+        second=0,
+        microsecond=0,
     )
+    engine = market_data or DEFAULT_FUNDEDNEXT_REALTIME_MARKET_DATA
+    snapshot = engine.snapshot(
+        api,
+        symbol=SYMBOL,
+        anchor=boundary,
+        history_bars=HISTORY_M5_BARS,
+    )
+    bars = tuple(
+        Bar(
+            opened_at=rate.opened_at,
+            closed_at=rate.opened_at + timedelta(minutes=5),
+            open=rate.open,
+            high=rate.high,
+            low=rate.low,
+            close=rate.close,
+        )
+        for rate in snapshot.closed_rates
+    )
+    return Evidence(symbol=SYMBOL, digits=int(info.digits), bars=bars), snapshot.current_rate.open
 
 
 def load_memory(
@@ -748,20 +756,19 @@ def build_live_signal(
         dict[tuple[str, str], r32.Profile],
     ],
     state: R43LiveState,
+    market_data: FundedNextRealtimeMarketData | None = None,
 ) -> tuple[R43LiveSignal | None, str]:
     anchor = current_anchor(now)
     if anchor is None:
         return None, "not-r43-entry-anchor"
     if state.open_trade is not None:
         return None, "single-position-busy"
-    evidence, _latest_open = mt5_evidence(api, now=now)
-    current = next(
-        (bar for bar in reversed(evidence.bars) if bar.opened_at == anchor),
-        None,
+    evidence, current_open = mt5_evidence(
+        api,
+        now=now,
+        market_data=market_data,
     )
-    if current is None:
-        return None, "current-m5-open-unavailable"
-    complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
+    complete = evidence.bars
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
     h4 = build_h4(complete)
     if _h4_open_for(anchor) == anchor:
@@ -774,7 +781,7 @@ def build_live_signal(
             timeframe=timeframe,
             candles=candles,
             anchor=anchor,
-            current_open=current.open,
+            current_open=current_open,
         )
         if setup is None:
             continue
@@ -785,7 +792,7 @@ def build_live_signal(
             setup=setup,
             evidence=evidence,
             memory_bundle=memory_bundle,
-            current_open=current.open,
+            current_open=current_open,
         )
         if resolved is None:
             continue
@@ -809,7 +816,7 @@ def build_live_signal(
                 signal.entry_at.isoformat(),
                 timeframe,
                 signal.side.value,
-                str(current.open),
+                str(current_open),
                 str(signal.protected_swing),
                 str(decision.target.level),
                 str(decision.target.rank),
@@ -835,7 +842,7 @@ def build_live_signal(
                 entry_at=anchor,
                 timeframe=timeframe,
                 side=signal.side.value,
-                certified_entry=current.open,
+                certified_entry=current_open,
                 stop_loss=signal.protected_swing,
                 take_profit=decision.target.level,
                 target_rank=decision.target.rank,
