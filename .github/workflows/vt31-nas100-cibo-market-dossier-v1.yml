@@ -55,6 +55,15 @@ jobs:
           mkdir -p result
           python scripts/vt31_nas100_cibo_market_dossier_v1.py             cibo             --output result/CIBO_NAS100_MARKET_INTELLIGENCE_DOSSIER_V1.json             | tee result/summary.json
 
+      - name: Temporary canonical dossier audit payload
+        run: |
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+          path = Path("result/CIBO_NAS100_MARKET_INTELLIGENCE_DOSSIER_V1.json")
+          print("DOSSIER_B64=" + base64.b64encode(path.read_bytes()).decode("ascii"))
+          PY
+
       - name: Bind dossier to embedded governed memory
         run: |
           set -euo pipefail
