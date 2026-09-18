@@ -53,7 +53,15 @@ def _situation(
         cash_open_state="bearish",
         position_in_prior_day_range="upper-third",
         range_state="compressed",
-        volatility_state="compressed",
+        volatility_state=(
+            "compressed"
+            if Decimal(ref_ratio) < Decimal("0.75")
+            else (
+                "normal"
+                if Decimal(ref_ratio) <= Decimal("1.25")
+                else "expanded"
+            )
+        ),
         current_path_vs_previous=Decimal(path_ratio),
         reference_width_vs_prior5=Decimal(ref_ratio),
         raid_depth_ref=Decimal("0.14"),
