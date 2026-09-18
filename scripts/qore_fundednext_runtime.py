@@ -53,6 +53,7 @@ from qore.infrastructure.fundednext_mt5_clock import (
 from qore.infrastructure.fundednext_realtime_market_data import (
     MARKET_DATA_SLA_SECONDS,
     FundedNextRealtimeMarketData,
+    MarketDataSlaError,
 )
 from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
 from qore.infrastructure.fundednext_live_safety import (
@@ -156,7 +157,7 @@ _EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
 _IDLE_LOOP_SECONDS = 1.0
-_BOUNDARY_ARM_SECONDS = 3.0
+_BOUNDARY_ARM_SECONDS = 10.0
 _BOUNDARY_POLL_SECONDS = 0.10
 _ANCHOR_GRACE = timedelta(seconds=30)
 _HISTORY_DAYS = 14
@@ -1515,13 +1516,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             now=cycle_at,
         )
         r34_live_state = r34_store.reconcile(mt5, now=cycle_at)
-        r38_live_state, r38_manage_reason = manage_r38_open_position(
-            mt5,
-            now=cycle_at,
-            store=r38_store,
-            market_data=turtle_market_data,
-            mutations_enabled=mode == "live",
-        )
+        try:
+            r38_live_state, r38_manage_reason = manage_r38_open_position(
+                mt5,
+                now=cycle_at,
+                store=r38_store,
+                market_data=turtle_market_data,
+                mutations_enabled=mode == "live",
+            )
+        except MarketDataSlaError as error:
+            r38_live_state = r38_store.reconcile(mt5, now=cycle_at)
+            r38_manage_reason = "r38-market-data-fail-closed"
+            _log(
+                log_path,
+                {
+                    "event": "R38_MANAGEMENT_DATA_FAIL_CLOSED",
+                    "symbol": "EURUSD",
+                    "message": str(error),
+                },
+            )
         if r38_manage_reason not in {
             "no-open-r38-position",
             "r38-stop-unchanged",
@@ -1537,13 +1550,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
-        r43_live_state, r43_manage_reason = manage_r43_open_position(
-            mt5,
-            now=cycle_at,
-            store=r43_store,
-            market_data=turtle_market_data,
-            mutations_enabled=mode == "live",
-        )
+        try:
+            r43_live_state, r43_manage_reason = manage_r43_open_position(
+                mt5,
+                now=cycle_at,
+                store=r43_store,
+                market_data=turtle_market_data,
+                mutations_enabled=mode == "live",
+            )
+        except MarketDataSlaError as error:
+            r43_live_state = r43_store.reconcile(mt5, now=cycle_at)
+            r43_manage_reason = "r43-market-data-fail-closed"
+            _log(
+                log_path,
+                {
+                    "event": "R43_MANAGEMENT_DATA_FAIL_CLOSED",
+                    "symbol": "GBPUSD",
+                    "message": str(error),
+                },
+            )
         if r43_manage_reason not in {
             "no-open-r43-position",
             "r43-stop-unchanged",
@@ -1560,15 +1585,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
-        gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = (
-            manage_gbpjpy_r38_open_position(
-                mt5,
-                now=cycle_at,
-                store=gbpjpy_r38_store,
-                market_data=turtle_market_data,
-                mutations_enabled=mode == "live",
+        try:
+            gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = (
+                manage_gbpjpy_r38_open_position(
+                    mt5,
+                    now=cycle_at,
+                    store=gbpjpy_r38_store,
+                    market_data=turtle_market_data,
+                    mutations_enabled=mode == "live",
+                )
             )
-        )
+        except MarketDataSlaError as error:
+            gbpjpy_r38_live_state = gbpjpy_r38_store.reconcile(mt5, now=cycle_at)
+            gbpjpy_r38_manage_reason = "gbpjpy-r38-market-data-fail-closed"
+            _log(
+                log_path,
+                {
+                    "event": "GBPJPY_R38_MANAGEMENT_DATA_FAIL_CLOSED",
+                    "symbol": "GBPJPY",
+                    "message": str(error),
+                },
+            )
         if gbpjpy_r38_manage_reason not in {
             "no-open-gbpjpy-r38-position",
             "gbpjpy-r38-stop-unchanged",
