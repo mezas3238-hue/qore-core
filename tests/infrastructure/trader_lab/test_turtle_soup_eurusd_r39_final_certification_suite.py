@@ -32,6 +32,8 @@ def test_r39_stress_and_slippage_are_predeclared() -> None:
     }
     assert r39.STRESS_SCENARIOS["EXTRA_010"]["extra_r"] == Decimal("0.10")
     assert r39.SLIPPAGE_SCENARIOS["SEVERE"]["STOP"] == Decimal("0.100")
+    assert r39.SLIPPAGE_SCENARIOS["SEVERE"]["TRAIL_STOP"] == Decimal("0.100")
+    assert r39.SLIPPAGE_SCENARIOS["SEVERE"]["STOP_FIRST"] == Decimal("0.100")
 
 
 def test_r39_robustness_is_fail_closed_for_three_eurusd_families() -> None:
