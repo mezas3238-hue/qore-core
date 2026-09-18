@@ -133,7 +133,8 @@ def _frozen_admissions_5y(
 def _frozen_policy_map() -> dict[str, r5.Policy]:
     policies = {policy.policy_id: policy for policy in r5._policy_grid()}
     result: dict[str, r5.Policy] = {}
-    for cell, payload in freeze.MANAGEMENT_BY_CELL.items():
+    for cell, raw_payload in freeze.MANAGEMENT_BY_CELL.items():
+        payload = cast(dict[str, object], raw_payload)
         policy_id = str(payload["policy_id"])
         policy = policies.get(policy_id)
         if policy is None:
@@ -174,7 +175,9 @@ def _frozen_governor() -> r6.RiskGovernor:
         warn_multiplier=Decimal(str(freeze.RISK_GOVERNOR["warn_multiplier"])),
         hard_dd_r=Decimal(str(freeze.RISK_GOVERNOR["hard_dd_r"])),
         hard_multiplier=Decimal(str(freeze.RISK_GOVERNOR["hard_multiplier"])),
-        loss_streak_trigger=int(freeze.RISK_GOVERNOR["loss_streak_trigger"]),
+        loss_streak_trigger=int(
+            str(freeze.RISK_GOVERNOR["loss_streak_trigger"])
+        ),
         loss_streak_multiplier=Decimal(
             str(freeze.RISK_GOVERNOR["loss_streak_multiplier"])
         ),
