@@ -21,7 +21,10 @@ CONTEXT_SCHEMA = "qore.vt31.nas100.market_context_lab.v3"
 
 
 def _key(row: dict[str, Any]) -> tuple[str, str]:
-    return str(row["local_date"]), str(row["decision_at"])
+    timestamp = row.get("decision_at", row.get("signal_at"))
+    if timestamp is None:
+        raise ValueError("row missing decision/signal timestamp")
+    return str(row["local_date"]), str(timestamp)
 
 
 def build(bridge_path: Path, context_path: Path) -> dict[str, object]:
