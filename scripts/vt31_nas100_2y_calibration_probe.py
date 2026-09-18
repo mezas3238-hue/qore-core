@@ -26,7 +26,7 @@ from qore.infrastructure.ctrader_open_api_client import (
 CANDIDATE_ID = "VT31_NAS100_SPECIALIST_R1"
 MARKET = "NAS100"
 CALIBRATION_ID = "VT31_NAS100_2Y_CALIBRATION_001"
-START_AT = datetime(2014, 4, 19, tzinfo=UTC)
+START_AT = datetime(2014, 4, 14, tzinfo=UTC)
 END_EXCLUSIVE = datetime(2016, 4, 19, tzinfo=UTC)
 REQUESTED_CALENDAR_DAYS = (END_EXCLUSIVE - START_AT).days
 MINIMUM_CALENDAR_SPAN_DAYS = 700
@@ -35,7 +35,7 @@ MINIMUM_CALENDAR_SPAN_DAYS = 700
 def self_test() -> None:
     assert MARKET == "NAS100"
     assert START_AT < END_EXCLUSIVE
-    assert REQUESTED_CALENDAR_DAYS == 731
+    assert REQUESTED_CALENDAR_DAYS == 736
     assert END_EXCLUSIVE == datetime(2016, 4, 19, tzinfo=UTC)
 
 
