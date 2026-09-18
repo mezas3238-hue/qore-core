@@ -8,8 +8,8 @@ from typing import Any
 import pytest
 
 from qore.infrastructure.cibo_executive_memory import CiboMemoryKind
-from qore.infrastructure.trader_lab import vt08_index_three_memory_brain_v2 as mod
 from qore.infrastructure.trader_lab import vt08_index_three_memory_brain_v1 as v1
+from qore.infrastructure.trader_lab import vt08_index_three_memory_brain_v2 as mod
 
 
 def _write(path: Path, payload: dict[str, Any]) -> None:
