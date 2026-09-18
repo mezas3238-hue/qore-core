@@ -20,10 +20,10 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
-from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_r6_five_year_validation as v5y
 from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_reset as r8
+from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
 
 SCHEMA = "qore.trader_lab.vt08_index_r11_recovery_governor.v1"
 IDENTITY = "VT08_INDEX_R11_RECOVERY_GOVERNOR_001"
