@@ -13,7 +13,7 @@ import json
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
