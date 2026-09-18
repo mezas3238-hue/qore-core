@@ -7,7 +7,7 @@ position on one symbol MUST NOT block a valid position on another symbol.
 Risk may resize concurrent signals but may not suppress them merely because
 another index is already open.
 
-The portfolio-level drawdown ceiling is six R across all three markets.
+The portfolio-level drawdown ceiling is six R across all three markets.\n\nOwner density contract (18-Sep-2026): 5Y must naturally produce roughly\n2,300-2,500 trades across the three markets; 2Y must produce at least 1,000.\nDensity may not be manufactured by suppressing valid signals or by trivial\nrisk scaling.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Final
 
-CONTRACT_ID: Final = "VT08_INDEX_CONCURRENT_MARKET_CONTRACT_V1"
+CONTRACT_ID: Final = "VT08_INDEX_CONCURRENT_MARKET_CONTRACT_V2"
 MARKETS: Final = ("NAS100", "SP500", "US30")
 
 MAX_ACTIVE_POSITIONS_PER_SYMBOL: Final = 1
@@ -34,8 +34,8 @@ PREFERRED_PORTFOLIO_DRAWDOWN_BAND_R: Final = (
     Decimal("6"),
 )
 
-FIVE_YEAR_TRADE_RANGE: Final = (1500, 1600)
-TWO_YEAR_REFERENCE_TRADE_RANGE: Final = (600, 700)
+FIVE_YEAR_TRADE_RANGE: Final = (2300, 2500)
+TWO_YEAR_MIN_TRADES: Final = 1000
 
 PRIMARY_STRESS_R_PER_TRADE: Final = Decimal("0.05")
 SECONDARY_STRESS_R_PER_TRADE: Final = Decimal("0.10")
@@ -49,7 +49,7 @@ def validates_trade_count(*, years: int, sample: int) -> bool:
     if years == 5:
         low, high = FIVE_YEAR_TRADE_RANGE
     elif years == 2:
-        low, high = TWO_YEAR_REFERENCE_TRADE_RANGE
+        return sample >= TWO_YEAR_MIN_TRADES
     else:
-        raise ValueError("VT08 concurrent contract defines only 5Y and 2Y ranges")
+        raise ValueError("VT08 concurrent contract defines only 5Y and 2Y density")
     return low <= sample <= high
