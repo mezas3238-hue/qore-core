@@ -1205,13 +1205,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             if r34_anchor_key not in state.processed_anchors:
                 try:
                     r34_live_state = r34_store.reconcile(mt5, now=cycle_at)
-                    signal, reason = build_r34_live_signal(
+                    r34_signal, reason = build_r34_live_signal(
                         mt5,
                         now=cycle_at,
                         cognitive=r34_cognitive,
                         state=r34_live_state,
                     )
-                    if signal is None:
+                    if r34_signal is None:
                         _log(
                             log_path,
                             {
@@ -1226,7 +1226,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         )
                     else:
                         _process_r34_candidate(
-                            signal=signal,
+                            signal=r34_signal,
                             now=cycle_at,
                             mode=mode,
                             gateway=gateway,
@@ -1266,13 +1266,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             if r38_anchor_key not in state.processed_anchors:
                 try:
                     r38_live_state = r38_store.reconcile(mt5, now=cycle_at)
-                    signal, reason = build_r38_live_signal(
+                    r38_signal, reason = build_r38_live_signal(
                         mt5,
                         now=cycle_at,
                         cognitive=r38_cognitive,
                         state=r38_live_state,
                     )
-                    if signal is None:
+                    if r38_signal is None:
                         _log(
                             log_path,
                             {
@@ -1290,7 +1290,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         )
                     else:
                         _process_r38_candidate(
-                            signal=signal,
+                            signal=r38_signal,
                             now=cycle_at,
                             mode=mode,
                             gateway=gateway,
