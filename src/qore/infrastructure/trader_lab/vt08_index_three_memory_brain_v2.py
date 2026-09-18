@@ -30,6 +30,7 @@ from qore.infrastructure.cibo_executive_memory import (
     CiboMemoryStore,
 )
 from qore.infrastructure.trader_lab import vt08_index_three_memory_brain_v1 as v1
+from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
 from qore.kernel.result import Success
 from qore.modules.cibo.cognitive_contracts import CiboCognitiveEvidenceRef
 
@@ -552,8 +553,8 @@ def memory_store_manifest(store: CiboMemoryStore) -> dict[str, Any]:
         counts[item.kind.value] = counts.get(item.kind.value, 0) + 1
     return {
         "identity": IDENTITY,
-        "strategy_candidate_id": v1.v7.CANDIDATE_ID,
-        "strategy_rule_fingerprint": v1.v7.RULE_FINGERPRINT,
+        "strategy_candidate_id": v7.CANDIDATE_ID,
+        "strategy_rule_fingerprint": v7.RULE_FINGERPRINT,
         "strategy_freeze_sha": v1.V7_FREEZE_SHA,
         "full_market_run_id": FULL_MARKET_RUN_ID,
         "full_market_git_sha": FULL_MARKET_GIT_SHA,
