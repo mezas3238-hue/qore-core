@@ -50,6 +50,7 @@ jobs:
         run: |
           pytest -q --no-cov \
             tests/infrastructure/test_fundednext_realtime_market_data.py \
+            tests/infrastructure/test_fundednext_vt08_realtime_market_data.py \
             tests/infrastructure/test_fundednext_runtime_realtime_contract.py \
             tests/infrastructure/test_fundednext_mt5_clock.py \
             tests/infrastructure/test_r34_xauusd_live.py \
@@ -62,6 +63,7 @@ jobs:
           python -m py_compile \
             scripts/qore_fundednext_runtime.py \
             src/qore/infrastructure/fundednext_realtime_market_data.py \
+            src/qore/infrastructure/fundednext_vt08_realtime_market_data.py \
             src/qore/infrastructure/r34_xauusd_live.py \
             src/qore/infrastructure/r38_eurusd_live.py \
             src/qore/infrastructure/r43_gbpusd_live.py \
