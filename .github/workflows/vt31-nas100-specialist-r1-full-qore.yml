@@ -9,9 +9,10 @@ on:
       - tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
       - tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
       - src/qore/infrastructure/traders/vt31_nas100_cognitive_memory.py
-      - src/qore/infrastructure/traders/vt31_nas100_long_term_memory.py
-      - src/qore/infrastructure/traders/vt31_nas100_episodic_memory.py
-      - src/qore/infrastructure/traders/vt31_nas100_working_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_strategy_identity_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_trader_experience_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
       - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
       - docs/research/VT31_NAS100_SPECIALIST_R1_FREEZE_CONTRACT.md
       - .github/workflows/vt31-nas100-specialist-r1-full-qore.yml
@@ -40,21 +41,25 @@ jobs:
               memory_fingerprint,
               validate_memory,
           )
-          from qore.infrastructure.traders.vt31_nas100_episodic_memory import (
-              episodic_memory_fingerprint,
+          from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+              cibo_market_memory_fingerprint,
           )
-          from qore.infrastructure.traders.vt31_nas100_long_term_memory import (
-              long_term_memory_fingerprint,
+          from qore.infrastructure.traders.vt31_nas100_strategy_identity_memory import (
+              strategy_identity_fingerprint,
+          )
+          from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
+              trader_experience_fingerprint,
           )
 
           validate_memory()
           values = {
-              "long_term": long_term_memory_fingerprint(),
-              "episodic_research": episodic_memory_fingerprint(),
+              "strategy_identity": strategy_identity_fingerprint(),
+              "cibo_market": cibo_market_memory_fingerprint(),
+              "trader_experience": trader_experience_fingerprint(),
               "cognitive_bundle": memory_fingerprint(),
           }
           assert all(len(value) == 64 for value in values.values())
-          assert len(set(values.values())) == 3
+          assert len(set(values.values())) == 4
           print(values)
           PY
       - name: Focused specialist tests
