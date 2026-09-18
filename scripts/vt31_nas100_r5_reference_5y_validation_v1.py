@@ -10,6 +10,7 @@ calendar years:
 No parameter is selected or tuned inside this script. The entire interval is
 consumed development evidence and is not a fresh certification holdout.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
