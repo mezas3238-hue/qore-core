@@ -7,6 +7,12 @@ on:
     paths:
       - scripts/vt31_nas100_specialist_r1_candidate.py
       - tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
+      - tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
+      - src/qore/infrastructure/traders/vt31_nas100_cognitive_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_long_term_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_episodic_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_working_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
       - docs/research/VT31_NAS100_SPECIALIST_R1_FREEZE_CONTRACT.md
       - .github/workflows/vt31-nas100-specialist-r1-full-qore.yml
   workflow_dispatch:
@@ -28,7 +34,10 @@ jobs:
       - name: Candidate self-test
         run: python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
       - name: Focused specialist tests
-        run: pytest -q tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
+        run: |
+          pytest -q \
+            tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py \
+            tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
       - name: Ruff production and specialist surface
         run: |
           ruff check src tests \
