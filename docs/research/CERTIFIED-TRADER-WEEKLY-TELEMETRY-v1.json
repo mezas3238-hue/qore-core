@@ -1,0 +1,110 @@
+{
+  "schema": "qore.certified-trader.weekly-telemetry-baselines.v1",
+  "timezone": "America/New_York",
+  "method": {
+    "trade_selection": "entry_at in [window_start, window_end)",
+    "calendar_grouping": "ISO calendar week after America/New_York conversion, including partial boundary weeks",
+    "p95_entries_method": "lower empirical quantile: sorted_counts[floor((n-1)*0.95)]",
+    "loss_assignment": "scaled closed R assigned to exit_at New York date/week",
+    "descriptive_only": true,
+    "not_a_live_risk_limit": true
+  },
+  "live_reference": {
+    "base_risk_fraction_per_1r": "0.002",
+    "note": "Nominal percent translations assume 0.20% equity per 1R before trader-specific scaling and Account-Wide Risk. They are descriptive, not guarantees or provider limits."
+  },
+  "traders": {
+    "R34_XAUUSD": {
+      "identity": "TURTLE_SOUP_XAUUSD_R34",
+      "symbol": "XAUUSD",
+      "source": {
+        "run_id": 35308785945,
+        "artifact_id": 10532254052,
+        "artifact_digest": "sha256:87690342f8b72988cf5f608434ec592b5c5492671b583f6fab306ae38617f5ca",
+        "git_sha": "56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84",
+        "trade_ledger": "r34-5y-scaled-trades.jsonl",
+        "trade_ledger_sha256": "784185b4f3f9db079780715d311c38058124f8643562dd7ad7d09f4f8389db2e"
+      },
+      "certification": {
+        "run_id": 35309675755,
+        "artifact_id": 10533485352,
+        "status": "TRADER_CERTIFIED"
+      },
+      "metrics": {
+        "window_start": "2024-09-17T00:00:00+00:00",
+        "window_end": "2026-09-17T00:00:00+00:00",
+        "timezone": "America/New_York",
+        "trades": 367,
+        "calendar_weeks": 105,
+        "active_weeks": 103,
+        "zero_entry_weeks": 2,
+        "average_entries_per_week": "3.49523809523809523809523809524",
+        "median_entries_per_week": "3",
+        "p95_entries_per_week": 6,
+        "max_entries_per_week": 9,
+        "max_entries_per_day": 3,
+        "worst_closed_day": "2025-01-07",
+        "worst_closed_day_r": "-2.7500",
+        "worst_closed_week": {
+          "iso_year": 2025,
+          "iso_week": 2,
+          "closed_r": "-4.500000000000000000000000000"
+        },
+        "closed_trading_days": 282,
+        "losing_closed_days": 118,
+        "closed_weeks": 103,
+        "losing_closed_weeks": 40
+      },
+      "nominal_translation_at_0_20pct_per_1r": {
+        "worst_closed_day_percent": "-0.5500",
+        "worst_closed_week_percent": "-0.9000"
+      }
+    },
+    "R38_EURUSD": {
+      "identity": "TURTLE_SOUP_EURUSD_R38",
+      "symbol": "EURUSD",
+      "source": {
+        "run_id": 35327677519,
+        "artifact_id": 10539313228,
+        "artifact_digest": "sha256:2fc7246d9aac4b7c281301e94b71ff336d3f0967859a46a33f3fa62e4fe74e00",
+        "git_sha": "324fb91d44a6fa328e66de2e22ace7386630c7aa",
+        "trade_ledger": "r38-5y-corrected-trades.jsonl",
+        "trade_ledger_sha256": "61746b6866dce66c2b522be56016c5d5b786821704f71f947b4cf2337aeefc9a"
+      },
+      "certification": {
+        "run_id": 35329170426,
+        "artifact_id": 10539754975,
+        "status": "TRADER_CERTIFIED"
+      },
+      "metrics": {
+        "window_start": "2024-09-17T00:00:00+00:00",
+        "window_end": "2026-09-17T00:00:00+00:00",
+        "timezone": "America/New_York",
+        "trades": 366,
+        "calendar_weeks": 105,
+        "active_weeks": 104,
+        "zero_entry_weeks": 1,
+        "average_entries_per_week": "3.48571428571428571428571428571",
+        "median_entries_per_week": "3",
+        "p95_entries_per_week": 7,
+        "max_entries_per_week": 8,
+        "max_entries_per_day": 4,
+        "worst_closed_day": "2025-09-23",
+        "worst_closed_day_r": "-2.4200",
+        "worst_closed_week": {
+          "iso_year": 2025,
+          "iso_week": 39,
+          "closed_r": "-2.4200"
+        },
+        "closed_trading_days": 274,
+        "losing_closed_days": 118,
+        "closed_weeks": 103,
+        "losing_closed_weeks": 43
+      },
+      "nominal_translation_at_0_20pct_per_1r": {
+        "worst_closed_day_percent": "-0.4840",
+        "worst_closed_week_percent": "-0.4840"
+      }
+    }
+  }
+}
