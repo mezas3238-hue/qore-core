@@ -77,11 +77,33 @@ def analyze(path: Path, *, partition: str) -> dict[str, object]:
         secondary_route_policy="ORIGINAL",
     )
     core_rows = [
-        row for row in first_rows
+        dict(row)
+        for row in first_rows
         if str(row.get("tier")) == "CORE"
     ]
+    for row in core_rows:
+        row["core_family_bucket"] = (
+            "BREAKER"
+            if str(row.get("entry_family")) == "breaker"
+            else "NON_BREAKER"
+        )
 
     specs = {
+        "core_family_bucket": ("core_family_bucket",),
+        "core_family_bucket_x_side": ("core_family_bucket", "side"),
+        "core_family_bucket_x_h1": ("core_family_bucket", "h1_state"),
+        "core_family_bucket_x_reference_volatility": (
+            "core_family_bucket",
+            "reference_volatility_state",
+        ),
+        "core_family_bucket_x_cash_open": (
+            "core_family_bucket",
+            "cash_open_state",
+        ),
+        "core_family_bucket_x_last_structure": (
+            "core_family_bucket",
+            "last_structure_event_family",
+        ),
         "family": ("entry_family",),
         "side": ("side",),
         "family_x_side": ("entry_family", "side"),
