@@ -3,11 +3,11 @@ from __future__ import annotations
 from decimal import Decimal
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
+    RESEARCH_UNCALIBRATED_POLICY,
+    ContextualTrailingPolicy,
     ManagementContext,
     PositionAction,
-    RESEARCH_UNCALIBRATED_POLICY,
     StructuralProtectionCandidate,
-    ContextualTrailingPolicy,
     decide_structural_protection,
     structurally_rearmed,
 )
