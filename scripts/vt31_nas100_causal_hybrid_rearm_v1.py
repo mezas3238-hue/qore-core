@@ -162,6 +162,20 @@ ADAPTIVE_REARM_BUDGET_PROFILES: dict[str, dict[str, object]] = {
         "balanced_budget": Decimal("0.18"),
         "dense_budget": Decimal("0.04"),
     },
+    "ACTIVITY_L": {
+        "sparse_max": 8,
+        "balanced_max": 10,
+        "sparse_budget": Decimal("0.30"),
+        "balanced_budget": Decimal("0.17"),
+        "dense_budget": Decimal("0.04"),
+    },
+    "ACTIVITY_M": {
+        "sparse_max": 8,
+        "balanced_max": 10,
+        "sparse_budget": Decimal("0.30"),
+        "balanced_budget": Decimal("0.16"),
+        "dense_budget": Decimal("0.04"),
+    },
 }
 
 GLOBAL_RISK_SCALARS = (
@@ -169,6 +183,8 @@ GLOBAL_RISK_SCALARS = (
     Decimal("0.70"),
     Decimal("0.68"),
     Decimal("0.65"),
+    Decimal("0.62"),
+    Decimal("0.60"),
 )
 
 
@@ -833,12 +849,12 @@ def replay(
             },
         }
 
-        if profile_name == "ACTIVITY_K":
+        if profile_name in {"ACTIVITY_K", "ACTIVITY_L", "ACTIVITY_M"}:
             for scalar in GLOBAL_RISK_SCALARS:
                 scaled = _scale_capital_rows(combined, scalar=scalar)
                 scalar_tag = format(scalar, "f").replace(".", "")
                 scaled_variant = (
-                    "REARM_ADAPTIVE_ACTIVITY_K_SCORE_PROTECT_"
+                    f"REARM_ADAPTIVE_{profile_name}_SCORE_PROTECT_"
                     f"RISK_SCALAR_{scalar_tag}"
                 )
                 scaled_metrics = _capital_metrics(scaled)
