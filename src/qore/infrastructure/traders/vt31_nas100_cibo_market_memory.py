@@ -18,6 +18,7 @@ import hashlib
 import json
 from copy import deepcopy
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
@@ -61,7 +62,8 @@ _MARKET_SECTIONS = (
 _RESEARCH_SECTIONS = ("trader_overlay_research_source",)
 
 
-def dossier_payload() -> dict[str, Any]:
+@lru_cache(maxsize=1)
+def _dossier_cached() -> dict[str, Any]:
     dossier = json.loads(_DOSSIER_JSON)
     if dossier.get("identity") != DOSSIER_IDENTITY:
         raise ValueError("unexpected NAS100 CIBO dossier identity")
@@ -85,7 +87,17 @@ def dossier_payload() -> dict[str, Any]:
         raise ValueError("NAS100 dossier cannot promote rules")
     if governance.get("fresh_holdout_opened") is not False:
         raise ValueError("NAS100 fresh holdout unexpectedly opened")
-    return deepcopy(dossier)
+    return dossier
+
+
+def dossier_payload() -> dict[str, Any]:
+    """Return a defensive copy for artifact/governance consumers."""
+    return deepcopy(_dossier_cached())
+
+
+def dossier_runtime_view() -> dict[str, Any]:
+    """Read-only-by-contract internal view of immutable CIBO dossier."""
+    return _dossier_cached()
 
 
 def _subject(section: str) -> str:
@@ -124,8 +136,9 @@ def _memory_item(
     )
 
 
+@lru_cache(maxsize=1)
 def build_market_memory_store() -> CiboMemoryStore:
-    dossier = dossier_payload()
+    dossier = dossier_runtime_view()
     evidence_ref = CiboCognitiveEvidenceRef(
         f"cibo:nas100:market-intelligence:v1:artifact:{SOURCE_ARTIFACT_ID}"
     )
@@ -193,6 +206,7 @@ def market_memory_index() -> dict[str, Any]:
     return index
 
 
+@lru_cache(maxsize=1)
 def cibo_market_memory_fingerprint() -> str:
     store = build_market_memory_store()
     encoded = json.dumps(
@@ -204,7 +218,8 @@ def cibo_market_memory_fingerprint() -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def market_memory_manifest() -> dict[str, object]:
+@lru_cache(maxsize=1)
+def _market_memory_manifest_cached() -> dict[str, object]:
     store = build_market_memory_store()
     items = store.retrieve()
     counts: dict[str, int] = {}
@@ -226,6 +241,10 @@ def market_memory_manifest() -> dict[str, object]:
         "rule_promotion_allowed": False,
         "fresh_holdout_opened": False,
     }
+
+
+def market_memory_manifest() -> dict[str, object]:
+    return deepcopy(_market_memory_manifest_cached())
 
 
 def validate_cibo_market_memory() -> None:
