@@ -137,11 +137,14 @@ def load_full_market_memory(
         raise ValueError("full CIBO index package unexpectedly allows rule promotion")
     if bool(package.get("fresh_holdout_opened")):
         raise ValueError("full CIBO index package unexpectedly opened fresh holdout")
-    if _int(package.get("total_retained_m5_bars", 0)) != 2095377:
+    expected_total_m5 = sum(values[0] for values in EXPECTED_MARKET.values())
+    expected_total_events = sum(values[1] for values in EXPECTED_MARKET.values())
+    expected_total_departures = sum(values[2] for values in EXPECTED_MARKET.values())
+    if _int(package.get("total_retained_m5_bars", 0)) != expected_total_m5:
         raise ValueError("full CIBO retained M5 population drift")
-    if _int(package.get("total_behavior_events", 0)) != 322675:
+    if _int(package.get("total_behavior_events", 0)) != expected_total_events:
         raise ValueError("full CIBO behavior population drift")
-    if _int(package.get("total_resolved_departures", 0)) != 108558:
+    if _int(package.get("total_resolved_departures", 0)) != expected_total_departures:
         raise ValueError("full CIBO departure population drift")
 
     package_manifests = cast(dict[str, Any], package.get("market_manifests", {}))
