@@ -138,7 +138,7 @@ def test_bool_cannot_launder_as_sample_count() -> None:
             market=CiboTradeableMarketRef("NAS100"),
             observed_from=_START,
             observed_to=_END,
-            sample_count=True,  # type: ignore[arg-type]
+            sample_count=True,
             methodology_family="vt31-silver-bullet",
             evidence_ref=_ref("atlas:market"),
             metrics=(),
