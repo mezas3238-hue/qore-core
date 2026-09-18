@@ -408,12 +408,16 @@ def _manage_h4_exits(
         if source is None:
             continue
         lineage = lineages.get(source.risk_authorization_id)
-        if lineage is TraderLineage.R34_XAUUSD:
+        if lineage in {TraderLineage.R34_XAUUSD, TraderLineage.R38_EURUSD}:
             signal_anchor = source.transitioned_at.astimezone(UTC).replace(
                 minute=0, second=0, microsecond=0
             )
             due = signal_anchor + timedelta(hours=24)
-            exit_label = "R34_24H"
+            exit_label = (
+                "R34_24H"
+                if lineage is TraderLineage.R34_XAUUSD
+                else "R38_24H"
+            )
         else:
             due = h4_containment_exit_at(_signal_anchor(source.transitioned_at))
             exit_label = "VT08_H4"
