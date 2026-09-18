@@ -32,6 +32,7 @@ from typing import Any
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
+from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
 from qore.infrastructure.trader_lab import vt08_index_r13_rolling_drawdown_governor as r13
 from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_validation as r15
 from qore.infrastructure.trader_lab import vt08_index_r20_static_quality_portfolio as r20
@@ -275,10 +276,9 @@ def _assign(
             if active:
                 overlap_entries += 1
 
-            context = r15.r10._context(
-                opportunity,
-                indexed={},  # Context is not used by R21 after static quality.
-            ) if False else r15.r10.Context(
+            # AssignedTrade keeps a context field for shared portfolio tooling.
+            # R21 sizing itself uses only r20 formation-quality features.
+            context = r10.Context(
                 previous_source_day_body_opposed=False,
                 rearm=int(opportunity.rearm_index) > 0,
                 c2_expansion=False,
