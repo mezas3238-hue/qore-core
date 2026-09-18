@@ -34,7 +34,7 @@ jobs:
       - name: Install research runtime
         run: |
           set -euo pipefail
-          pip install -e ".[ctrader]"
+          pip install -e ".[ctrader]" ruff
           python -m py_compile \
             scripts/vt31_nas100_high_density_tick_acquisition_v1.py
           ruff check \
