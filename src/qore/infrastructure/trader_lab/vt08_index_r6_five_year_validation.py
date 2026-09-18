@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from bisect import bisect_left
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, time, timedelta
@@ -35,6 +36,8 @@ from qore.infrastructure.trader_lab import vt08_index_cibo_2y_specialist_risk_ro
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round1 as r1
 from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
+from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
+from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 SCHEMA = "qore.trader_lab.vt08_index_r6_five_year_validation.v1"
@@ -160,6 +163,275 @@ def _load_cibo_m15_5y(
     }
 
 
+def _bars_between_fast(
+    indexed: dict[datetime, Vt08IndexC2R1Bar],
+    *,
+    start: datetime,
+    end: datetime,
+) -> tuple[Vt08IndexC2R1Bar, ...]:
+    cursor = start.astimezone(UTC)
+    end_utc = end.astimezone(UTC)
+    result: list[Vt08IndexC2R1Bar] = []
+    while cursor < end_utc:
+        bar = indexed.get(cursor)
+        if bar is not None:
+            result.append(bar)
+        cursor += timedelta(minutes=15)
+    return tuple(result)
+
+
+def _prior_h4_keys_fast(
+    h4_keys: tuple[datetime, ...],
+    *,
+    before: datetime,
+    count: int,
+) -> tuple[datetime, ...]:
+    index = bisect_left(h4_keys, before.astimezone(UTC))
+    return h4_keys[max(0, index - count) : index]
+
+
+def _source_pois_fast(
+    indexed: dict[datetime, Vt08IndexC2R1Bar],
+    h4: dict[datetime, Vt08IndexC2R1Bar],
+    h4_keys: tuple[datetime, ...],
+    *,
+    h4_opened_at: datetime,
+    side: DemoTradingSetupSide,
+) -> tuple[v6.SourcePoi, ...]:
+    prior_keys = _prior_h4_keys_fast(
+        h4_keys,
+        before=h4_opened_at,
+        count=3,
+    )
+    if len(prior_keys) < 3:
+        return ()
+    a, b, c_bar = (h4[key] for key in prior_keys)
+    result: list[v6.SourcePoi] = []
+
+    if side is DemoTradingSetupSide.LONG and a.high < c_bar.low:
+        result.append(
+            v6.SourcePoi(v6.PoiKind.FVG, a.high, c_bar.low, c_bar.closed_at)
+        )
+    if side is DemoTradingSetupSide.SHORT and a.low > c_bar.high:
+        result.append(
+            v6.SourcePoi(v6.PoiKind.FVG, c_bar.high, a.low, c_bar.closed_at)
+        )
+
+    if (
+        side is DemoTradingSetupSide.LONG
+        and b.low < a.low
+        and b.low < c_bar.low
+    ):
+        result.append(
+            v6.SourcePoi(
+                v6.PoiKind.RELEVANT_SWING,
+                b.low,
+                b.low,
+                c_bar.closed_at,
+            )
+        )
+    if (
+        side is DemoTradingSetupSide.SHORT
+        and b.high > a.high
+        and b.high > c_bar.high
+    ):
+        result.append(
+            v6.SourcePoi(
+                v6.PoiKind.RELEVANT_SWING,
+                b.high,
+                b.high,
+                c_bar.closed_at,
+            )
+        )
+
+    last_key = prior_keys[-1]
+    last_bars = _bars_between_fast(
+        indexed,
+        start=last_key,
+        end=h4[last_key].closed_at,
+    )
+    cisd = v6._last_cisd_poi(last_bars, side=side)
+    if cisd is not None:
+        result.append(cisd)
+
+    unique: dict[tuple[object, ...], v6.SourcePoi] = {}
+    for poi in result:
+        key = (
+            poi.kind.value,
+            poi.low,
+            poi.high,
+            poi.observed_at.astimezone(UTC),
+        )
+        unique[key] = poi
+    return tuple(unique.values())
+
+
+def _priority_source_poi_fast(
+    indexed: dict[datetime, Vt08IndexC2R1Bar],
+    h4: dict[datetime, Vt08IndexC2R1Bar],
+    h4_keys: tuple[datetime, ...],
+    *,
+    h4_opened_at: datetime,
+    side: DemoTradingSetupSide,
+) -> v6.SourcePoi | None:
+    pois = _source_pois_fast(
+        indexed,
+        h4,
+        h4_keys,
+        h4_opened_at=h4_opened_at,
+        side=side,
+    )
+    return pois[0] if pois else None
+
+
+def _completed_h4_model_fast(
+    indexed: dict[datetime, Vt08IndexC2R1Bar],
+    h4: dict[datetime, Vt08IndexC2R1Bar],
+    h4_keys: tuple[datetime, ...],
+    *,
+    current_h4_open: datetime,
+    side: DemoTradingSetupSide,
+) -> v6.H4ModelKind | None:
+    keys = _prior_h4_keys_fast(
+        h4_keys,
+        before=current_h4_open,
+        count=3,
+    )
+    if len(keys) < 2:
+        return None
+    prior_open = keys[-1]
+    if v6._c2_side(h4[keys[-2]], h4[prior_open]) is side:
+        poi = _priority_source_poi_fast(
+            indexed,
+            h4,
+            h4_keys,
+            h4_opened_at=prior_open,
+            side=side,
+        )
+        bars = _bars_between_fast(
+            indexed,
+            start=prior_open,
+            end=h4[prior_open].closed_at,
+        )
+        if poi is not None and v6._poi_touch_index(bars, poi) is not None:
+            return v6.H4ModelKind.C2_EXPANSION
+    if len(keys) == 3 and v6._c3_side(
+        h4[keys[-3]],
+        h4[keys[-2]],
+        h4[keys[-1]],
+    ) is side:
+        poi = _priority_source_poi_fast(
+            indexed,
+            h4,
+            h4_keys,
+            h4_opened_at=prior_open,
+            side=side,
+        )
+        bars = _bars_between_fast(
+            indexed,
+            start=prior_open,
+            end=h4[prior_open].closed_at,
+        )
+        if poi is not None and v6._poi_touch_index(bars, poi) is not None:
+            return v6.H4ModelKind.C3_EXPANSION
+    return None
+
+
+def _opportunities_for_h4_fast(
+    *,
+    symbol: str,
+    indexed: dict[datetime, Vt08IndexC2R1Bar],
+    h4: dict[datetime, Vt08IndexC2R1Bar],
+    h4_keys: tuple[datetime, ...],
+    h4_opened_at: datetime,
+    side: DemoTradingSetupSide,
+) -> tuple[r4.ExpandedOpportunity, ...]:
+    h4_bar = h4.get(h4_opened_at.astimezone(UTC))
+    if h4_bar is None:
+        return ()
+    pois = _source_pois_fast(
+        indexed,
+        h4,
+        h4_keys,
+        h4_opened_at=h4_opened_at,
+        side=side,
+    )
+    if not pois:
+        return ()
+
+    bars = _bars_between_fast(
+        indexed,
+        start=h4_opened_at,
+        end=h4_bar.closed_at,
+    )
+    if not bars:
+        return ()
+    model_kind = _completed_h4_model_fast(
+        indexed,
+        h4,
+        h4_keys,
+        current_h4_open=h4_opened_at,
+        side=side,
+    )
+    if model_kind is None:
+        model_kind = v6.H4ModelKind.SAME_C2
+
+    result: list[r4.ExpandedOpportunity] = []
+    for poi in pois:
+        cursor = 0
+        rearm_index = 0
+        while cursor < len(bars):
+            touches = r4._touch_indices(
+                bars,
+                poi,
+                start_index=cursor,
+            )
+            if not touches:
+                break
+            touch_index = touches[0]
+            built = r4._candidate_from_sequence(
+                symbol=symbol,
+                h4_bar=h4_bar,
+                h4_opened_at=h4_opened_at,
+                bars=bars,
+                poi=poi,
+                side=side,
+                model_kind=model_kind,
+                touch_index=touch_index,
+            )
+            if built is None:
+                cursor = touch_index + 1
+                continue
+            signal, continuation_index = built
+            result.append(
+                r4.ExpandedOpportunity(
+                    signal=signal,
+                    source_poi_kind=poi.kind.value,
+                    poi_touch_at=bars[touch_index].opened_at.astimezone(UTC),
+                    rearm_index=rearm_index,
+                )
+            )
+            rearm_index += 1
+            cursor = continuation_index + 1
+
+    poi_priority = {
+        v6.PoiKind.FVG.value: 0,
+        v6.PoiKind.RELEVANT_SWING.value: 1,
+        v6.PoiKind.CISD.value: 2,
+    }
+    deduped: dict[tuple[object, ...], r4.ExpandedOpportunity] = {}
+    for item in sorted(
+        result,
+        key=lambda value: (
+            value.signal.signal_at,
+            poi_priority.get(value.source_poi_kind, 99),
+            value.rearm_index,
+        ),
+    ):
+        deduped.setdefault(item.identity(), item)
+    return tuple(deduped.values())
+
+
 def _build_surface_5y(
     *,
     symbol: str,
@@ -167,21 +439,28 @@ def _build_surface_5y(
 ) -> tuple[r4.ExpandedOpportunity, ...]:
     indexed = {bar.opened_at.astimezone(UTC): bar for bar in bars}
     h4 = v6._build_h4(indexed)
+    h4_keys = tuple(sorted(h4))
+    side_cache: dict[date, DemoTradingSetupSide | None] = {}
     opportunities: list[r4.ExpandedOpportunity] = []
-    for opened in sorted(h4):
+    for opened in h4_keys:
         local_date = opened.astimezone(_NY).date()
         if not (START_DATE <= local_date < END_DATE_EXCLUSIVE):
             continue
         if opened.astimezone(_NY).hour not in r4.V7_ANCHORS:
             continue
+        if local_date not in side_cache:
+            side_cache[local_date] = v7._daily_bias(indexed, before=opened)
+        side = side_cache[local_date]
+        if side is None:
+            continue
         opportunities.extend(
-            r4._opportunities_for_h4(
+            _opportunities_for_h4_fast(
                 symbol=symbol,
                 indexed=indexed,
                 h4=h4,
+                h4_keys=h4_keys,
                 h4_opened_at=opened,
-                multi_poi=True,
-                rearm=True,
+                side=side,
             )
         )
     opportunities.sort(
@@ -193,7 +472,6 @@ def _build_surface_5y(
         )
     )
     return tuple(opportunities)
-
 
 def _frozen_admissions_5y(
     *,
