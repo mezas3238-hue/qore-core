@@ -31,7 +31,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import vt31_nas100_entry_intelligence_oco_lab_v1 as oco
 import vt31_nas100_high_density_management_intelligence_v1 as management
