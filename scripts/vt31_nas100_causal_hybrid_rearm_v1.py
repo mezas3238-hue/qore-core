@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -186,6 +187,9 @@ GLOBAL_RISK_SCALARS = (
     Decimal("0.62"),
     Decimal("0.60"),
 )
+DD6_FRONTIER_ONLY = os.getenv("QORE_DD6_FRONTIER_ONLY") == "1"
+DD6_FRONTIER_PROFILES = {"ACTIVITY_K", "ACTIVITY_L", "ACTIVITY_M"}
+DD6_FRONTIER_SCALARS = (Decimal("0.62"), Decimal("0.60"))
 
 
 def _risk_class(score: int) -> str:
@@ -639,7 +643,9 @@ def replay(
             rearm_raw_by_mode[mode].append(row)
 
     variants: dict[str, object] = {}
-    for profile_name, risk_map in RISK_PROFILES.items():
+    for profile_name, risk_map in (
+        () if DD6_FRONTIER_ONLY else RISK_PROFILES.items()
+    ):
         for mode in MANAGEMENT_MODES:
             rearm_rows = []
             for raw_row in rearm_raw_by_mode[mode]:
@@ -721,7 +727,9 @@ def replay(
             }
 
     conservative = RISK_PROFILES["REARM_CONSERVATIVE"]
-    for monthly_budget in REARM_MONTHLY_BUDGETS:
+    for monthly_budget in (
+        () if DD6_FRONTIER_ONLY else REARM_MONTHLY_BUDGETS
+    ):
         mode = "SCORE_PROTECT"
         rearm_rows, budget_ledger = _budgeted_rearm_rows(
             rearm_raw_by_mode[mode],
@@ -781,7 +789,16 @@ def replay(
             },
         }
 
-    for profile_name, profile in ADAPTIVE_REARM_BUDGET_PROFILES.items():
+    adaptive_items = (
+        (
+            (name, profile)
+            for name, profile in ADAPTIVE_REARM_BUDGET_PROFILES.items()
+            if name in DD6_FRONTIER_PROFILES
+        )
+        if DD6_FRONTIER_ONLY
+        else ADAPTIVE_REARM_BUDGET_PROFILES.items()
+    )
+    for profile_name, profile in adaptive_items:
         mode = "SCORE_PROTECT"
         rearm_rows, activity_ledger = _adaptive_budgeted_rearm_rows(
             rearm_raw_by_mode[mode],
@@ -850,7 +867,12 @@ def replay(
         }
 
         if profile_name in {"ACTIVITY_K", "ACTIVITY_L", "ACTIVITY_M"}:
-            for scalar in GLOBAL_RISK_SCALARS:
+            scalars = (
+                DD6_FRONTIER_SCALARS
+                if DD6_FRONTIER_ONLY
+                else GLOBAL_RISK_SCALARS
+            )
+            for scalar in scalars:
                 scaled = _scale_capital_rows(combined, scalar=scalar)
                 scalar_tag = format(scalar, "f").replace(".", "")
                 scaled_variant = (
@@ -997,6 +1019,7 @@ def replay(
             "global_risk_scalar_uses_terminal_pnl": False,
             "global_risk_scalar_uses_fold_identity": False,
             "global_risk_scalar_changes_trade_count": False,
+            "dd6_frontier_only": DD6_FRONTIER_ONLY,
             "first_swing_is_universal": False,
             "qore_risk_remains_sovereign": True,
             "consumed_evidence_only": True,
