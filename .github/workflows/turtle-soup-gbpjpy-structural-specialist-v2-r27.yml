@@ -1,4 +1,5 @@
 name: QORE Turtle Soup GBPJPY Structural Specialist V2 R27
+# EXECUTION_RETRIGGER_GBPJPY_V2_R27 — GitHub-only research execution
 
 on:
   workflow_dispatch:
