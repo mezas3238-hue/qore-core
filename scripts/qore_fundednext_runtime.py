@@ -448,6 +448,7 @@ def _manage_h4_exits(
     exit_ledger: JsonFileFundedNextPositionExitLedger,
     now: datetime,
     log_path: Path,
+    mutations_enabled: bool = True,
 ) -> None:
     _reconcile_exit_ledger(exit_ledger, now=now)
     positions = mt5.positions_get()
@@ -520,6 +521,16 @@ def _manage_h4_exits(
             _log(
                 log_path,
                 {"event": "H4_EXIT_CHECK_REJECT", "position": int(position.ticket)},
+            )
+            continue
+        if not mutations_enabled:
+            _log(
+                log_path,
+                {
+                    "event": f"{exit_label}_SHADOW_EXIT_CHECK_PASS",
+                    "position": int(position.ticket),
+                    "due_at": due.isoformat(),
+                },
             )
             continue
         attempt = PositionExitRecord(
@@ -1495,6 +1506,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             exit_ledger=exit_ledger,
             now=cycle_at,
             log_path=log_path,
+            mutations_enabled=mode == "live",
         )
         _reconcile_filled_reservations(
             risk=risk,
