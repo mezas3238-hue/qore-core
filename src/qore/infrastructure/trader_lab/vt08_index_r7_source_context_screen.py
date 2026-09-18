@@ -24,8 +24,10 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_r6_five_year_validation as v5y
+from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
 from qore.infrastructure.trader_lab import vt08_index_v4_regime_forensics as v4
 from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
@@ -321,7 +323,7 @@ def build_report(
         "schema": SCHEMA,
         "identity": IDENTITY,
         "source_failure": {
-            "candidate_id": fx.freeze.CANDIDATE_ID,
+            "candidate_id": freeze.CANDIDATE_ID,
             "five_year_forensics_run": 35343338395,
             "five_year_forensics_artifact": 10546426128,
             "sample": len(admissions),
