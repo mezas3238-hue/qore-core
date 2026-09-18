@@ -17,7 +17,6 @@ import json
 import sys
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
