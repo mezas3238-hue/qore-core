@@ -289,48 +289,57 @@ class FundedNextRealtimeMarketData:
         return closed[-history_bars:]
 
 
-    def prime_anchor_group(
+    def prime_anchor_once(
         self,
         api: Any,
         *,
         anchor: datetime,
         symbols: dict[str, int],
-    ) -> dict[str, str | None]:
+    ) -> tuple[str, ...]:
+        """Attempt each unresolved boundary symbol once without waiting."""
         anchor_utc = self._anchor_utc(anchor)
-        pending = {
-            symbol
-            for symbol in symbols
-            if (symbol, anchor_utc) not in self._snapshots
-            and (symbol, anchor_utc) not in self._failures
-        }
         deadline = anchor_utc + timedelta(seconds=self._sla_seconds)
+        if self._now_fn().astimezone(UTC) > deadline:
+            return tuple(
+                symbol
+                for symbol in symbols
+                if (symbol, anchor_utc) not in self._snapshots
+                and (symbol, anchor_utc) not in self._failures
+            )
 
-        while pending:
-            now = self._now_fn().astimezone(UTC)
-            if now > deadline:
-                break
-            for symbol in tuple(pending):
-                try:
-                    snapshot = self._try_snapshot(
-                        api,
-                        symbol=symbol,
-                        anchor=anchor_utc,
-                        history_bars=symbols[symbol],
-                    )
-                except MarketDataSlaError as error:
-                    self._failures[(symbol, anchor_utc)] = str(error)
-                    pending.remove(symbol)
-                    continue
-                if snapshot is not None:
-                    self._snapshots[(symbol, anchor_utc)] = snapshot
-                    pending.remove(symbol)
-            if pending:
-                remaining = (deadline - self._now_fn().astimezone(UTC)).total_seconds()
-                if remaining <= 0:
-                    break
-                self._sleep_fn(min(self._poll_seconds, remaining))
+        pending: list[str] = []
+        for symbol in symbols:
+            key = (symbol, anchor_utc)
+            if key in self._snapshots or key in self._failures:
+                continue
+            try:
+                snapshot = self._try_snapshot(
+                    api,
+                    symbol=symbol,
+                    anchor=anchor_utc,
+                    history_bars=symbols[symbol],
+                )
+            except MarketDataSlaError as error:
+                self._failures[key] = str(error)
+                continue
+            if snapshot is None:
+                pending.append(symbol)
+            else:
+                self._snapshots[key] = snapshot
+        return tuple(pending)
 
-        for symbol in pending:
+    def finalize_anchor_group(
+        self,
+        *,
+        anchor: datetime,
+        symbols: dict[str, int],
+    ) -> dict[str, str | None]:
+        """Freeze unresolved symbols as failed after the absolute SLA deadline."""
+        anchor_utc = self._anchor_utc(anchor)
+        for symbol in symbols:
+            key = (symbol, anchor_utc)
+            if key in self._snapshots or key in self._failures:
+                continue
             retained = self._history.get(symbol, {})
             latest = max(retained, default=None)
             reason = (
@@ -339,12 +348,41 @@ class FundedNextRealtimeMarketData:
             )
             if latest is not None:
                 reason += f"; latest={latest.isoformat()}"
-            self._failures[(symbol, anchor_utc)] = reason
-
+            self._failures[key] = reason
         return {
             symbol: self._failures.get((symbol, anchor_utc))
             for symbol in symbols
         }
+
+    def prime_anchor_group(
+        self,
+        api: Any,
+        *,
+        anchor: datetime,
+        symbols: dict[str, int],
+    ) -> dict[str, str | None]:
+        anchor_utc = self._anchor_utc(anchor)
+        deadline = anchor_utc + timedelta(seconds=self._sla_seconds)
+
+        while True:
+            pending = self.prime_anchor_once(
+                api,
+                anchor=anchor_utc,
+                symbols=symbols,
+            )
+            if not pending:
+                break
+            remaining = (
+                deadline - self._now_fn().astimezone(UTC)
+            ).total_seconds()
+            if remaining <= 0:
+                break
+            self._sleep_fn(min(self._poll_seconds, remaining))
+
+        return self.finalize_anchor_group(
+            anchor=anchor_utc,
+            symbols=symbols,
+        )
 
     def snapshot(
         self,
