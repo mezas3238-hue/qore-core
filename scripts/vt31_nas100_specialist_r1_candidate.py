@@ -982,6 +982,14 @@ def replay(evidence_path: Path) -> dict[str, object]:
             if action != "EXECUTE":
                 raise ValueError(f"unsupported intelligence action: {action}")
 
+            if observation_at < executable.decision_at:
+                raise ValueError(
+                    "intelligence decision cannot predate setup formation"
+                )
+            if observation_at > executable.pending_expires_at:
+                raise ValueError(
+                    "intelligence decision cannot exceed pending expiry"
+                )
             selected_source = evaluation.setup
             selected = Vt31R22ExecutableSetup(
                 side=executable.side,
