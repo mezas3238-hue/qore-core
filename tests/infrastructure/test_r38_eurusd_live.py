@@ -155,13 +155,13 @@ def test_r38_structural_overlays_are_exact(monkeypatch: pytest.MonkeyPatch) -> N
     assert scale2 == Decimal("0.125")
 
 
-def _bar(at: datetime, o: str, h: str, l: str, c: str) -> Bar:
+def _bar(at: datetime, o: str, h: str, low: str, c: str) -> Bar:
     return Bar(
         opened_at=at,
         closed_at=at + timedelta(minutes=5),
         open=Decimal(o),
         high=Decimal(h),
-        low=Decimal(l),
+        low=Decimal(low),
         close=Decimal(c),
     )
 
