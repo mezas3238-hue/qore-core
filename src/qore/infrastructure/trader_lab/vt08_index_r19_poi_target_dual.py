@@ -177,6 +177,121 @@ def _preload_window(
     return data
 
 
+def _target_options_for_opportunity(
+    opportunity: r4.ExpandedOpportunity,
+) -> tuple[Decimal, ...]:
+    kind = str(opportunity.source_poi_kind)
+    if kind == "cisd":
+        return (
+            Decimal("0.75"),
+            Decimal("1.00"),
+            Decimal("1.25"),
+            Decimal("1.50"),
+            Decimal("1.75"),
+            Decimal("2.00"),
+        )
+    if kind == "fvg":
+        return (
+            Decimal("1.50"),
+            Decimal("2.00"),
+            Decimal("2.50"),
+            Decimal("3.00"),
+        )
+    if kind == "relevant-swing":
+        return (
+            Decimal("1.00"),
+            Decimal("1.50"),
+            Decimal("2.00"),
+            Decimal("2.50"),
+        )
+    raise ValueError(f"unsupported POI family: {kind}")
+
+
+def _prepare_preloaded(
+    data: dict[
+        str,
+        tuple[
+            tuple[Vt08IndexC2R1Bar, ...],
+            tuple[r4.ExpandedOpportunity, ...],
+        ],
+    ],
+) -> dict[
+    str,
+    tuple[
+        tuple[
+            r4.ExpandedOpportunity,
+            dict[Decimal, r5.ManagedTrade],
+        ],
+        ...,
+    ],
+]:
+    prepared: dict[
+        str,
+        tuple[
+            tuple[
+                r4.ExpandedOpportunity,
+                dict[Decimal, r5.ManagedTrade],
+            ],
+            ...,
+        ],
+    ] = {}
+    for symbol in ("NAS100", "SP500", "US30"):
+        bars, opportunities = data[symbol]
+        opened = tuple(bar.opened_at.astimezone(UTC) for bar in bars)
+        rows: list[
+            tuple[
+                r4.ExpandedOpportunity,
+                dict[Decimal, r5.ManagedTrade],
+            ]
+        ] = []
+        for opportunity in opportunities:
+            outcomes = {
+                target: r5._manage_trade(
+                    opportunity.signal,
+                    bars=bars,
+                    opened=opened,
+                    policy=_policy(target),
+                )
+                for target in _target_options_for_opportunity(opportunity)
+            }
+            rows.append((opportunity, outcomes))
+        prepared[symbol] = tuple(rows)
+    return prepared
+
+
+def _stream_from_prepared(
+    prepared: dict[
+        str,
+        tuple[
+            tuple[
+                r4.ExpandedOpportunity,
+                dict[Decimal, r5.ManagedTrade],
+            ],
+            ...,
+        ],
+    ],
+    *,
+    targets: PoiTargets,
+) -> tuple[tuple[r4.ExpandedOpportunity, r5.ManagedTrade], ...]:
+    selected: list[tuple[r4.ExpandedOpportunity, r5.ManagedTrade]] = []
+    for symbol in ("NAS100", "SP500", "US30"):
+        last_exit = None
+        for opportunity, outcomes in prepared[symbol]:
+            target = targets.for_opportunity(opportunity)
+            outcome = outcomes[target]
+            if last_exit is not None and opportunity.signal.signal_at < last_exit:
+                continue
+            selected.append((opportunity, outcome))
+            last_exit = outcome.exited_at
+    selected.sort(
+        key=lambda item: (
+            item[0].signal.signal_at,
+            item[0].signal.symbol,
+        )
+    )
+    return tuple(selected)
+
+
 def _stream_from_preloaded(
     data: dict[
         str,
@@ -272,6 +387,83 @@ def _metric_pass(
         and Decimal(str(row["profit_factor"] or "0")) >= pf_min
         and Decimal(str(row["max_drawdown_r"])) <= dd_max
     )
+
+
+def _candidate_from_prepared(
+    five_prepared: dict[
+        str,
+        tuple[
+            tuple[
+                r4.ExpandedOpportunity,
+                dict[Decimal, r5.ManagedTrade],
+            ],
+            ...,
+        ],
+    ],
+    two_prepared: dict[
+        str,
+        tuple[
+            tuple[
+                r4.ExpandedOpportunity,
+                dict[Decimal, r5.ManagedTrade],
+            ],
+            ...,
+        ],
+    ],
+    *,
+    targets: PoiTargets,
+) -> dict[str, Any]:
+    five_stream = _stream_from_prepared(
+        five_prepared,
+        targets=targets,
+    )
+    two_stream = _stream_from_prepared(
+        two_prepared,
+        targets=targets,
+    )
+    five_primary = _metrics(five_stream, stress=PRIMARY_STRESS)
+    five_secondary = _metrics(five_stream, stress=SECONDARY_STRESS)
+    two_primary = _metrics(two_stream, stress=PRIMARY_STRESS)
+    two_secondary = _metrics(two_stream, stress=SECONDARY_STRESS)
+
+    five_density = FIVE_YEAR_MIN_TRADES <= len(five_stream) <= FIVE_YEAR_MAX_TRADES
+    two_density = TWO_YEAR_MIN_TRADES <= len(two_stream) <= TWO_YEAR_MAX_TRADES
+    five_pass = (
+        five_density
+        and _metric_pass(five_primary, pf_min=PF_MIN, dd_max=DD_MAX)
+        and _metric_pass(
+            five_secondary,
+            pf_min=SECONDARY_PF_MIN,
+            dd_max=SECONDARY_DD_MAX,
+        )
+    )
+    two_pass = (
+        two_density
+        and _metric_pass(two_primary, pf_min=PF_MIN, dd_max=DD_MAX)
+        and _metric_pass(
+            two_secondary,
+            pf_min=SECONDARY_PF_MIN,
+            dd_max=SECONDARY_DD_MAX,
+        )
+    )
+    return {
+        "targets": targets.payload(),
+        "five_year": {
+            "sample": len(five_stream),
+            "primary": five_primary,
+            "secondary": five_secondary,
+        },
+        "recent_two_year": {
+            "sample": len(two_stream),
+            "primary": two_primary,
+            "secondary": two_secondary,
+        },
+        "five_year_density_pass": five_density,
+        "recent_two_year_density_pass": two_density,
+        "five_year_pass": five_pass,
+        "recent_two_year_pass": two_pass,
+        "dual_window_pass": five_pass and two_pass,
+    }
 
 
 def _candidate_from_preloaded(
@@ -383,10 +575,12 @@ def build_report(
     }
     five_data = _preload_window(roots, recent_two_year=False)
     two_data = _preload_window(roots, recent_two_year=True)
+    five_prepared = _prepare_preloaded(five_data)
+    two_prepared = _prepare_preloaded(two_data)
     rows = [
-        _candidate_from_preloaded(
-            five_data,
-            two_data,
+        _candidate_from_prepared(
+            five_prepared,
+            two_prepared,
             targets=targets,
         )
         for targets in _maps()
