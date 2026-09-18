@@ -1,0 +1,110 @@
+name: QORE VT31 NAS100 R5 Reference 5Y Validation V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_reference_5y_validation_v1.py
+      - scripts/vt31_nas100_causal_hybrid_rearm_v1.py
+      - .github/workflows/vt31-nas100-r5-reference-5y-validation-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate-5y:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/vt31_nas100_r5_reference_5y_validation_v1.py             scripts/vt31_nas100_causal_hybrid_rearm_v1.py
+          ruff check             scripts/vt31_nas100_r5_reference_5y_validation_v1.py             scripts/vt31_nas100_causal_hybrid_rearm_v1.py
+
+      - name: Recover immutable R8 R6 R5 NAS100 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          test -f input/r8/fresh/NAS100/market-evidence.json
+          echo "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb  input/r8/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          test -f input/r6/fresh/NAS100/market-evidence.json
+          echo "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581  input/r6/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          test -f input/r5/fresh/NAS100/market-evidence.json
+          echo "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7  input/r5/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+      - name: Run fixed-policy five-year validation
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_reference_5y_validation_v1.py             --r8 input/r8/fresh/NAS100/market-evidence.json             --r6 input/r6/fresh/NAS100/market-evidence.json             --r5 input/r5/fresh/NAS100/market-evidence.json             --output result/vt31-nas100-r5-reference-5y-validation-v1.json             | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "result/vt31-nas100-r5-reference-5y-validation-v1.json"
+              ).read_text()
+          )
+          assert p["reference_variant"] == (
+              "REARM_ADAPTIVE_ACTIVITY_L_SCORE_PROTECT_"
+              "RISK_SCALAR_060"
+          )
+          assert p["window"]["start_date"] == "2017-07-01"
+          assert p["window"]["end_exclusive_date"] == "2022-07-01"
+          assert len(p["five_annual_blocks"]) == 5
+          g=p["governance"]
+          assert g["parameters_retuned_inside_5y"] is False
+          assert g["reference_variant_preselected"] is True
+          assert g["source_evidence_consumed"] is True
+          assert g["opens_new_holdout"] is False
+          assert g["may_be_called_fresh"] is False
+          assert g["policy_promoted"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "r8=10402199719" > result/source-artifacts.txt
+          echo "r6=10389112524" >> result/source-artifacts.txt
+          echo "r5=10380044761" >> result/source-artifacts.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-reference-5y-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
