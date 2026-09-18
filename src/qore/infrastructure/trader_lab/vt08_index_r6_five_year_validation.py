@@ -23,7 +23,7 @@ import argparse
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
@@ -33,7 +33,6 @@ from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_specialist_risk_round6 as r6
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round1 as r1
-from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round2 as r2
 from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
@@ -51,6 +50,114 @@ PRIMARY_DD_MAX = Decimal("6")
 SECONDARY_PF_MIN = Decimal("1.30")
 SECONDARY_DD_MAX = Decimal("8")
 _NY = ZoneInfo("America/New_York")
+
+
+
+def _load_cibo_m15_5y(
+    root: Path,
+    *,
+    symbol: str,
+) -> tuple[tuple[Vt08IndexC2R1Bar, ...], dict[str, Any]]:
+    manifest = r1._read_json(r1._single(root, "symbol-consumption-manifest.json"))
+    if manifest.get("identity") != r1.SOURCE_IDENTITY:
+        raise ValueError(f"CIBO source identity drift for {symbol}")
+    if manifest.get("canonical_symbol") != symbol:
+        raise ValueError(f"CIBO canonical symbol drift for {symbol}")
+    if not bool(manifest.get("read_only")):
+        raise ValueError(f"CIBO source must be read-only for {symbol}")
+    if bool(manifest.get("live_authorized")) or bool(
+        manifest.get("real_capital_authorized")
+    ):
+        raise ValueError(f"CIBO source authority drift for {symbol}")
+
+    context_start_local = datetime.combine(
+        START_DATE - timedelta(days=7),
+        time.min,
+        tzinfo=_NY,
+    )
+    end_local = datetime.combine(
+        END_DATE_EXCLUSIVE,
+        time.min,
+        tzinfo=_NY,
+    )
+    start_dt = context_start_local.astimezone(UTC)
+    end_dt = end_local.astimezone(UTC)
+
+    buckets: dict[datetime, list[tuple[datetime, dict[str, Any]]]] = defaultdict(list)
+    retained_rows = 0
+    for year in range(start_dt.year, end_dt.year + 1):
+        path = root / "RAW_M5_LEDGER" / f"{year}.jsonl"
+        if not path.is_file():
+            raise ValueError(f"missing raw CIBO M5 partition {year} for {symbol}")
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                decoded = json.loads(line)
+                if not isinstance(decoded, dict):
+                    raise ValueError("raw CIBO M5 row must be an object")
+                row = cast(dict[str, Any], decoded)
+                if row.get("schema") != r1.RAW_SCHEMA:
+                    raise ValueError(f"raw CIBO schema drift for {symbol}")
+                if row.get("identity") != r1.SOURCE_IDENTITY:
+                    raise ValueError(f"raw CIBO identity drift for {symbol}")
+                if row.get("canonical_symbol") != symbol:
+                    raise ValueError(f"raw CIBO symbol drift for {symbol}")
+                opened = r1._parse_time(row.get("opened_at"))
+                if opened < start_dt or opened >= end_dt:
+                    continue
+                if opened.minute % 5 != 0 or opened.second != 0:
+                    raise ValueError(f"unaligned raw M5 timestamp for {symbol}")
+                retained_rows += 1
+                bucket = opened.replace(
+                    minute=(opened.minute // 15) * 15,
+                    second=0,
+                    microsecond=0,
+                )
+                buckets[bucket].append((opened, row))
+
+    bars: list[Vt08IndexC2R1Bar] = []
+    bucket_sizes: dict[str, int] = {"1": 0, "2": 0, "3": 0}
+    for bucket in sorted(buckets):
+        entries = sorted(buckets[bucket], key=lambda item: item[0])
+        if len(entries) not in (1, 2, 3):
+            raise ValueError(f"unexpected M5 multiplicity in {symbol} M15 bucket")
+        bucket_sizes[str(len(entries))] += 1
+        rows = [item[1] for item in entries]
+        opens = [r1._price(row["open_relative"]) for row in rows]
+        highs = [r1._price(row["high_relative"]) for row in rows]
+        lows = [r1._price(row["low_relative"]) for row in rows]
+        closes = [r1._price(row["close_relative"]) for row in rows]
+        bars.append(
+            Vt08IndexC2R1Bar(
+                opened_at=bucket,
+                closed_at=bucket + timedelta(minutes=15),
+                open=opens[0],
+                high=max(highs),
+                low=min(lows),
+                close=closes[-1],
+            )
+        )
+
+    if not bars:
+        raise ValueError(f"no reconstructed 5Y M15 bars for {symbol}")
+    return tuple(bars), {
+        "source_run_id": r1.SOURCE_CIBO_RUN_ID,
+        "source_git_sha": r1.SOURCE_CIBO_GIT_SHA,
+        "source_identity": r1.SOURCE_IDENTITY,
+        "reconstruction_policy": (
+            "5Y_AGGREGATE_ALL_OBSERVED_PROVIDER_M5_WITHIN_M15_NO_INTERPOLATION"
+        ),
+        "context_start_utc": start_dt.isoformat(),
+        "end_utc_exclusive": end_dt.isoformat(),
+        "raw_m5_rows_loaded": retained_rows,
+        "m15_buckets": len(bars),
+        "m15_bucket_size_counts": bucket_sizes,
+        "synthetic_prices": 0,
+        "interpolated_prices": 0,
+        "first_m15": bars[0].opened_at.isoformat(),
+        "last_m15": bars[-1].opened_at.isoformat(),
+    }
 
 
 def _build_surface_5y(
@@ -248,7 +355,7 @@ def build_report(
     opened_by_symbol: dict[str, tuple[datetime, ...]] = {}
     provenance: dict[str, Any] = {}
     for symbol in r1.SYMBOLS:
-        bars, source = r2._load_cibo_m15_available(roots[symbol], symbol=symbol)
+        bars, source = _load_cibo_m15_5y(roots[symbol], symbol=symbol)
         bars_by_symbol[symbol] = bars
         opened_by_symbol[symbol] = tuple(
             bar.opened_at.astimezone(UTC) for bar in bars
