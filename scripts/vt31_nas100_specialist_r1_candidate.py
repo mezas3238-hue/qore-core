@@ -33,6 +33,12 @@ from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
     validate_memory,
 )
+from qore.infrastructure.traders.vt31_nas100_episodic_memory import (
+    episodic_memory_fingerprint,
+)
+from qore.infrastructure.traders.vt31_nas100_long_term_memory import (
+    long_term_memory_fingerprint,
+)
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
     Nas100ReasoningState,
     reason,
@@ -74,12 +80,23 @@ def contract_payload() -> dict[str, object]:
         "entry_families": ["breaker", "fair-value-gap", "order-block"],
         "execution_policy_fingerprint": policy.fingerprint(),
         "embedded_cognitive_memory": {
-            "memory_fingerprint": memory_fingerprint(),
+            "architecture": "THREE_MEMORY_MODEL",
+            "bundle_fingerprint": memory_fingerprint(),
+            "long_term_memory_fingerprint": long_term_memory_fingerprint(),
+            "episodic_research_memory_fingerprint": (
+                episodic_memory_fingerprint()
+            ),
+            "working_memory": {
+                "persistent": False,
+                "rebuilt_each_decision": True,
+                "historical_outcome_labels_allowed": False,
+            },
             "external_cibo_runtime_dependency": False,
             "memory_location": "inside-VT31-specialist",
             "memory_sources": [
                 "consumed-CIBO-Atlas-NAS100",
                 "consumed-VT31-laboratory-evidence",
+                "causal-current-NAS100-M1",
             ],
             "runtime_mutation": False,
         },
@@ -520,6 +537,15 @@ def _state_snapshot(
         "reasoning_support": list(reasoning.supporting_evidence),
         "reasoning_contradictions": list(reasoning.contradictions),
         "reasoning_uncertainty": list(reasoning.uncertainty),
+        "long_term_memory_used": list(reasoning.long_term_memory_used),
+        "episodic_memory_used": list(reasoning.episodic_memory_used),
+        "working_memory_fingerprint": reasoning.working_memory_fingerprint,
+        "long_term_memory_fingerprint": (
+            reasoning.long_term_memory_fingerprint
+        ),
+        "episodic_memory_fingerprint": (
+            reasoning.episodic_memory_fingerprint
+        ),
         "cognitive_memory_fingerprint": reasoning.memory_fingerprint,
         "stop_plan": "SOURCE_SWING_EXTREME",
         "target_plan": target_plan,
@@ -835,8 +861,17 @@ def self_test() -> None:
     assert runtime["future_bar_lookup"] is False
     assert runtime["cross_index_required"] is False
     memory = cast(dict[str, object], contract["embedded_cognitive_memory"])
+    assert memory["architecture"] == "THREE_MEMORY_MODEL"
     assert memory["external_cibo_runtime_dependency"] is False
-    assert memory["memory_fingerprint"] == memory_fingerprint()
+    assert memory["bundle_fingerprint"] == memory_fingerprint()
+    assert (
+        memory["long_term_memory_fingerprint"]
+        == long_term_memory_fingerprint()
+    )
+    assert (
+        memory["episodic_research_memory_fingerprint"]
+        == episodic_memory_fingerprint()
+    )
     assert contract["initial_stop"] == (
         "source-methodological-swing-extreme-no-buffer"
     )
