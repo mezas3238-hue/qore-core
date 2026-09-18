@@ -24,6 +24,7 @@ No R11/R16/R17/R20/R21/R22/R23 memory or labels are inputs.
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Sequence
@@ -624,6 +625,37 @@ def build(
             resolved_counts[f"{level}:{item['preferred_posture']}"] += 1
 
     output.mkdir(parents=True, exist_ok=True)
+
+    # Physical snapshot of the CIBO master-memory ledgers used to derive this
+    # specialist memory.  Originals remain immutable; only these derived-copy
+    # files may be reorganized by later specialist-memory versions.
+    snapshot = output / "master-snapshot"
+    snapshot.mkdir(parents=True, exist_ok=True)
+    snapshot_files: list[str] = []
+    for name in (
+        "MARKET_JOURNEY_LEDGER.jsonl",
+        "STRUCTURE_TOUCH_LEDGER.jsonl",
+        "PRE_DEPARTURE_SEQUENCE_LEDGER.jsonl",
+        "DEPARTURE_TIMING_LEDGER.jsonl",
+        "TARGET_DESTINATION_LEDGER.jsonl",
+        "DAILY_PATH_LEDGER.jsonl",
+        "TRADER_MARKET_SYNC_LEDGER.jsonl",
+        "journey-manifest.json",
+    ):
+        source = _single(journey_root, name)
+        destination = snapshot / f"journey-{name}"
+        shutil.copy2(source, destination)
+        snapshot_files.append(destination.name)
+    for name in (
+        "TARGET_DESTINATION_LEDGER_V2.jsonl",
+        "TARGET_DESTINATION_EPISODE_V2.jsonl",
+        "target-destination-v2-manifest.json",
+    ):
+        source = _single(target_root, name)
+        destination = snapshot / f"target-{name}"
+        shutil.copy2(source, destination)
+        snapshot_files.append(destination.name)
+
     raw_path = output / "turtle-soup-xauusd-specialist-raw-memory.jsonl"
     observation_path = output / "turtle-soup-xauusd-specialist-observations.jsonl"
     _write_jsonl(raw_path, raw_rows)
@@ -646,6 +678,8 @@ def build(
             "journey_run_id": MASTER_JOURNEY_RUN_ID,
             "target_run_id": MASTER_TARGET_RUN_ID,
             "target_artifact_id": MASTER_TARGET_ARTIFACT_ID,
+            "physical_master_snapshot_in_specialist_artifact": True,
+            "snapshot_files": snapshot_files,
         },
         "specialist_contract": {
             "strategy": "TURTLE_SOUP_XAUUSD",
