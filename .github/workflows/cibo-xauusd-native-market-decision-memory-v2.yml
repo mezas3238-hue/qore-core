@@ -104,6 +104,7 @@ jobs:
           assert m['post_hoc_rxx_labels_used'] is False
           assert m['native_market_lifecycle_simulated'] is True
           assert p['reproduction']['memory_observations'] > 0
+          assert p['decision_index_summary']['geometry']['signatures'] > 0
           g=p['governance']
           assert g['fresh_holdout_consumed'] is False
           assert g['rule_promoted'] is False
@@ -117,6 +118,7 @@ jobs:
             cibo-xauusd-native-memory-v2-report.json \
             cibo-xauusd-native-memory-v2-observations.json \
             cibo-xauusd-native-memory-v2-hierarchy.json \
+            cibo-xauusd-native-memory-v2-decision-index.json \
             stdout.json git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
