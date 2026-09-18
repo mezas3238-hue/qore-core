@@ -2029,6 +2029,79 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
 
+        audjpy_r42_anchor = current_audjpy_r42_anchor(cycle_at)
+        if audjpy_r42_anchor is not None and not new_order_blocked:
+            audjpy_r42_anchor_key = (
+                f"R42_AUDJPY|{audjpy_r42_anchor.isoformat()}"
+            )
+            if audjpy_r42_anchor_key not in state.processed_anchors:
+                try:
+                    audjpy_r42_live_state = audjpy_r42_store.reconcile(
+                        mt5,
+                        now=cycle_at,
+                    )
+                    audjpy_r42_signal, reason = build_audjpy_r42_live_signal(
+                        mt5,
+                        now=cycle_at,
+                        memory_bundle=audjpy_r42_memory,
+                        state=audjpy_r42_live_state,
+                    )
+                    if audjpy_r42_signal is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
+                                "symbol": "AUDJPY",
+                                "decision_at": audjpy_r42_anchor.isoformat(),
+                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                                "reason": reason,
+                                "strategy_drawdown_r": str(
+                                    audjpy_r42_live_state.drawdown_r
+                                ),
+                                "last_trailing_exit_at": (
+                                    None
+                                    if audjpy_r42_live_state.trailing_exit_at is None
+                                    else audjpy_r42_live_state.trailing_exit_at.isoformat()
+                                ),
+                            },
+                        )
+                    else:
+                        _process_audjpy_r42_candidate(
+                            signal=audjpy_r42_signal,
+                            now=cycle_at,
+                            mode=mode,
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=provider,
+                            capital_budget=capital,
+                            account_equity=account_state.equity,
+                            audjpy_r42_store=audjpy_r42_store,
+                            log_path=log_path,
+                        )
+                    processed_anchor = audjpy_r42_anchor_key
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=audjpy_r42_anchor_key,
+                        reconciled_at=cycle_at,
+                        heartbeat_at=cycle_at,
+                    )
+                    store.store(state)
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "AUDJPY_R42_ANCHOR_FAIL_CLOSED",
+                            "symbol": "AUDJPY",
+                            "decision_at": audjpy_r42_anchor.isoformat(),
+                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                        },
+                    )
+
         if processed_anchor is None:
             state = state.with_cycle(
                 highest_closed_balance=str(highest),
