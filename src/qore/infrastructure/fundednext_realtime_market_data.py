@@ -209,6 +209,41 @@ class FundedNextRealtimeMarketData:
             captured_at=now,
         )
 
+    def refresh_many(
+        self,
+        api: Any,
+        *,
+        symbols: tuple[str, ...],
+        now: datetime | None = None,
+    ) -> dict[str, str | None]:
+        """Continuously refresh recent M5 bars and verify live tick freshness."""
+        observed = (now or self._now_fn()).astimezone(UTC)
+        result: dict[str, str | None] = {}
+        for symbol in symbols:
+            if symbol not in self._history:
+                result[symbol] = f"{symbol} market-data cache not warmed"
+                continue
+            try:
+                recent = self._read_rates(
+                    api,
+                    symbol=symbol,
+                    count=RECENT_M5_REFRESH_BARS,
+                )
+                self._merge(symbol, recent)
+                tick_at = self._tick_observed_at(api, symbol=symbol)
+                age = abs((observed - tick_at).total_seconds())
+                if age > self._sla_seconds:
+                    result[symbol] = (
+                        f"{symbol} tick stale: {age:.3f}s > "
+                        f"{self._sla_seconds:.1f}s"
+                    )
+                else:
+                    result[symbol] = None
+            except MarketDataSlaError as error:
+                result[symbol] = str(error)
+        return result
+
+
     def latest_closed_rates(
         self,
         api: Any,
