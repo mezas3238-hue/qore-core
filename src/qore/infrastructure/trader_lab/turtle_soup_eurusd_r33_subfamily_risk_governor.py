@@ -342,6 +342,7 @@ def _run_family_set(
     busy_until = EVAL_OPEN
     trailing_exit_at: datetime | None = None
     trades: list[r26.RuntimeTrade] = []
+    attributed: list[tuple[r26.RuntimeTrade, str, str | None]] = []
     counts: Counter[str] = Counter()
 
     for setup in setups:
@@ -419,6 +420,7 @@ def _run_family_set(
         if "TRAIL" in runtime.exit_reason:
             trailing_exit_at = runtime.exit_at
         trades.append(runtime)
+        attributed.append((runtime, decision.source, decision.family))
         counts["EXECUTE"] += 1
         counts[f"SOURCE_{decision.source}"] += 1
         if decision.family is not None:
@@ -445,10 +447,38 @@ def _run_family_set(
             }
         )
 
+    def attributed_stats(
+        *,
+        source: str | None = None,
+        family: str | None = None,
+    ) -> dict[str, Any]:
+        selected = [
+            trade
+            for trade, trade_source, trade_family in attributed
+            if (source is None or trade_source == source)
+            and (family is None or trade_family == family)
+        ]
+        return {
+            "trades": len(selected),
+            "gross": r26._stat(selected, "gross_r"),
+            "net_005": r26._stat(selected, "net_005_r"),
+            "net_010": r26._stat(selected, "net_010_r"),
+        }
+
     return {
         "family_set": family_set,
         "allowed_families": list(allowed_families),
         "decision_counts": dict(counts),
+        "forensics": {
+            "by_source": {
+                source: attributed_stats(source=source)
+                for source in ("R30_CORE", "R33_STRUCTURAL_EXPANSION")
+            },
+            "by_family": {
+                family: attributed_stats(family=family)
+                for family in allowed_families
+            },
+        },
         "fixed_trade_stats": {
             "gross": r26._stat(trades, "gross_r"),
             "net_005": r26._stat(trades, "net_005_r"),
