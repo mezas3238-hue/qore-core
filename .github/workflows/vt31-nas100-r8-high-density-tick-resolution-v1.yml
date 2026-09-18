@@ -1,0 +1,150 @@
+name: QORE VT31 NAS100 R8 High Density Tick Resolution V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_high_density_tick_resolution_v1.py
+      - .github/workflows/vt31-nas100-r8-high-density-tick-resolution-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and static gate
+        run: |
+          set -euo pipefail
+          pip install -e ".[dev]"
+          python -m py_compile \
+            scripts/vt31_nas100_high_density_tick_resolution_v1.py
+          ruff check \
+            scripts/vt31_nas100_high_density_tick_resolution_v1.py
+
+      - name: Recover immutable R8 ambiguity manifest
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10540447083/zip" > source.zip
+          unzip -q source.zip -d source
+          test "$(cat source/git-sha.txt)" = "be38ff92fb9c6af66004040667e4e9c270e6a67a"
+          (cd source && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path("source/high-density-tick-manifest-r8.json").read_text()
+          )
+          assert p["research_only"] is True
+          assert p["opens_new_holdout"] is False
+          assert p["partition"] == "r8_fresh"
+          assert p["market"] == "NAS100"
+          assert p["provider"] == "USTEC"
+          assert p["window_count"] == 55
+          assert p["sha256"] == (
+              "8014f420cc518e4897f1e5e3917cb93ca51b0beff41e8009331f22227137509a"
+          )
+          PY
+
+      - name: Recover immutable prior 437-window BID ASK evidence
+        run: |
+          set -euo pipefail
+          mkdir -p old
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429417732/zip" > old.zip
+          echo "71255ebcdeeb9b278ca0f1aea3e98dd4fc1a75bb10f4b3020529a79e3aeee2ed  old.zip" \
+            | sha256sum -c -
+          unzip -q old.zip -d old
+          test -f old/acquisition/vt31-historical-tick-acquisition-summary.json
+          test -d old/acquisition/windows
+          test "$(cat old/acquisition/git-sha.txt)" = "3d939789f8dd5b7e4c59920bd8e37e76189100a5"
+          (cd old/acquisition && sha256sum -c SHA256SUMS)
+
+      - name: Recover immutable 49-window R8 acquisition
+        run: |
+          set -euo pipefail
+          mkdir -p new
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10540189029/zip" > new.zip
+          unzip -q new.zip -d new
+          test -f new/acquisition/high-density-tick-acquisition-summary.json
+          test -d new/acquisition/windows
+          test "$(cat new/acquisition/git-sha.txt)" = "8700f6cb84163363d51f48aec378ed94fb7a7dd9"
+          test "$(cat new/acquisition/source-tick-manifest-artifact-id.txt)" = "10540447083"
+          (cd new/acquisition && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path("new/acquisition/high-density-tick-acquisition-summary.json").read_text()
+          )
+          assert p["source_window_count"] == 49
+          assert p["available"] == 49
+          assert all(p[k] == 0 for k in ("partial","empty","probe_failure"))
+          assert len(p["results"]) == 49
+          PY
+
+      - name: Resolve all R8 high-density ambiguity
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/vt31_nas100_high_density_tick_resolution_v1.py \
+            --manifest source/high-density-tick-manifest-r8.json \
+            --acquisition-dir old/acquisition \
+            --acquisition-dir new/acquisition \
+            --output result/high-density-tick-resolution-r8.json \
+            | tee result/summary.json
+
+      - name: Governance and coverage gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path("result/high-density-tick-resolution-r8.json").read_text()
+          )
+          assert p["research_only"] is True
+          assert p["opens_new_holdout"] is False
+          assert p["source_window_count"] == 55
+          assert p["tick_evidence_available_count"] == 55
+          assert sum(p["counts"].values()) == 55
+          assert p["governance"]["missing_ticks_imputed"] is False
+          assert p["governance"]["same_ms_cross_stream_order_guessed"] is False
+          assert p["governance"]["same_ms_multi_order_fill_guessed"] is False
+          assert p["governance"]["policy_promoted"] is False
+          print(json.dumps(p["counts"], sort_keys=True))
+          PY
+
+      - name: Bind resolution artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10540447083" > result/source-manifest-artifact-id.txt
+          echo "10429417732" > result/source-prior-ticks-artifact-id.txt
+          echo "10540189029" > result/source-new-ticks-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r8-high-density-tick-resolution-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
