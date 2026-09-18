@@ -33,11 +33,14 @@ from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
     validate_memory,
 )
-from qore.infrastructure.traders.vt31_nas100_episodic_memory import (
-    episodic_memory_fingerprint,
+from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+    cibo_market_memory_fingerprint,
 )
-from qore.infrastructure.traders.vt31_nas100_long_term_memory import (
-    long_term_memory_fingerprint,
+from qore.infrastructure.traders.vt31_nas100_strategy_identity_memory import (
+    strategy_identity_fingerprint,
+)
+from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
+    trader_experience_fingerprint,
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
     Nas100ReasoningState,
@@ -80,13 +83,18 @@ def contract_payload() -> dict[str, object]:
         "entry_families": ["breaker", "fair-value-gap", "order-block"],
         "execution_policy_fingerprint": policy.fingerprint(),
         "embedded_cognitive_memory": {
-            "architecture": "THREE_MEMORY_MODEL",
+            "architecture": "THREE_PERSISTENT_MEMORIES_PLUS_SITUATION",
             "bundle_fingerprint": memory_fingerprint(),
-            "long_term_memory_fingerprint": long_term_memory_fingerprint(),
-            "episodic_research_memory_fingerprint": (
-                episodic_memory_fingerprint()
+            "strategy_identity_memory_fingerprint": (
+                strategy_identity_fingerprint()
             ),
-            "working_memory": {
+            "cibo_market_memory_fingerprint": (
+                cibo_market_memory_fingerprint()
+            ),
+            "trader_experience_memory_fingerprint": (
+                trader_experience_fingerprint()
+            ),
+            "situation_model": {
                 "persistent": False,
                 "rebuilt_each_decision": True,
                 "historical_outcome_labels_allowed": False,
@@ -94,9 +102,10 @@ def contract_payload() -> dict[str, object]:
             "external_cibo_runtime_dependency": False,
             "memory_location": "inside-VT31-specialist",
             "memory_sources": [
-                "consumed-CIBO-Atlas-NAS100",
-                "consumed-VT31-laboratory-evidence",
-                "causal-current-NAS100-M1",
+                "VT31-strategy-identity",
+                "governed-CIBO-NAS100-market-dossier",
+                "consumed-VT31-trader-experience",
+                "causal-current-NAS100-situation",
             ],
             "runtime_mutation": False,
         },
@@ -861,16 +870,23 @@ def self_test() -> None:
     assert runtime["future_bar_lookup"] is False
     assert runtime["cross_index_required"] is False
     memory = cast(dict[str, object], contract["embedded_cognitive_memory"])
-    assert memory["architecture"] == "THREE_MEMORY_MODEL"
+    assert (
+        memory["architecture"]
+        == "THREE_PERSISTENT_MEMORIES_PLUS_SITUATION"
+    )
     assert memory["external_cibo_runtime_dependency"] is False
     assert memory["bundle_fingerprint"] == memory_fingerprint()
     assert (
-        memory["long_term_memory_fingerprint"]
-        == long_term_memory_fingerprint()
+        memory["strategy_identity_memory_fingerprint"]
+        == strategy_identity_fingerprint()
     )
     assert (
-        memory["episodic_research_memory_fingerprint"]
-        == episodic_memory_fingerprint()
+        memory["cibo_market_memory_fingerprint"]
+        == cibo_market_memory_fingerprint()
+    )
+    assert (
+        memory["trader_experience_memory_fingerprint"]
+        == trader_experience_fingerprint()
     )
     assert contract["initial_stop"] == (
         "source-methodological-swing-extreme-no-buffer"
