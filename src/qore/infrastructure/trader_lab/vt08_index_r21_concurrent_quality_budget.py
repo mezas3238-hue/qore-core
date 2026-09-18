@@ -33,7 +33,6 @@ from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
-from qore.infrastructure.trader_lab import vt08_index_r13_rolling_drawdown_governor as r13
 from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_validation as r15
 from qore.infrastructure.trader_lab import vt08_index_r20_static_quality_portfolio as r20
 
