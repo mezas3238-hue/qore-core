@@ -1,7 +1,396 @@
 {
   "identity": "TURTLE_SOUP_AUDJPY_R27_STATUS",
   "quality_result": "success",
-  "r27_result": "failure",
-  "workflow_run_id": 35383194629,
-  "workflow_sha": "02cec51959918f766b2d64d784c656ab38b1aaf4"
+  "r27_result": "success",
+  "report": {
+    "behavior": {
+      "by_memory_level": {
+        "anatomy_regime": {
+          "gross": {
+            "max_drawdown_r": "13.92871869586523252623576316",
+            "max_losing_streak": 7,
+            "mean_r": "0.09692762217819317658011645639",
+            "profit_factor": "1.255086977061550398663778139",
+            "total_r": "30.33834574177446426957645085",
+            "trades": 313
+          },
+          "net_005": {
+            "max_drawdown_r": "18.62871869586523252623576316",
+            "max_losing_streak": 7,
+            "mean_r": "0.04692762217819317658011645626",
+            "profit_factor": "1.117603305683758349978372489",
+            "total_r": "14.68834574177446426957645081",
+            "trades": 313
+          },
+          "net_010": {
+            "max_drawdown_r": "25.50375843388434338985789327",
+            "max_losing_streak": 7,
+            "mean_r": "-0.003072377821806823419883543665",
+            "profit_factor": "0.9926561784063911081931430232",
+            "total_r": "-0.9616542582255357304235491673",
+            "trades": 313
+          }
+        }
+      },
+      "by_posture": {
+        "PROTECT": {
+          "gross": {
+            "max_drawdown_r": "0",
+            "max_losing_streak": 0,
+            "mean_r": "0.5343517179690886662803409265",
+            "profit_factor": null,
+            "total_r": "3.206110307814531997682045559",
+            "trades": 6
+          },
+          "net_005": {
+            "max_drawdown_r": "0",
+            "max_losing_streak": 0,
+            "mean_r": "0.4843517179690886662803409265",
+            "profit_factor": null,
+            "total_r": "2.906110307814531997682045559",
+            "trades": 6
+          },
+          "net_010": {
+            "max_drawdown_r": "0",
+            "max_losing_streak": 0,
+            "mean_r": "0.4343517179690886662803409267",
+            "profit_factor": null,
+            "total_r": "2.606110307814531997682045560",
+            "trades": 6
+          }
+        },
+        "STATIC": {
+          "gross": {
+            "max_drawdown_r": "15.05079379109469017180079127",
+            "max_losing_streak": 7,
+            "mean_r": "0.08837861704872942108108926805",
+            "profit_factor": "1.228129772687016455614507702",
+            "total_r": "27.13223543395993227189440529",
+            "trades": 307
+          },
+          "net_005": {
+            "max_drawdown_r": "20.07031307683578307732514953",
+            "max_losing_streak": 7,
+            "mean_r": "0.03837861704872942108108926792",
+            "profit_factor": "1.094335322693092086260643881",
+            "total_r": "11.78223543395993227189440525",
+            "trades": 307
+          },
+          "net_010": {
+            "max_drawdown_r": "27.52031307683578307732514950",
+            "max_losing_streak": 7,
+            "mean_r": "-0.01162138295127057891891073194",
+            "profit_factor": "0.9727542136512301407885338143",
+            "total_r": "-3.567764566040067728105594705",
+            "trades": 307
+          }
+        }
+      },
+      "by_target_rank": {
+        "1": {
+          "gross": {
+            "max_drawdown_r": "10.72025948136372195221763626",
+            "max_losing_streak": 7,
+            "mean_r": "0.1075979327474563567205298447",
+            "profit_factor": "1.294821005242575637639869756",
+            "total_r": "31.52619429500471251911524451",
+            "trades": 293
+          },
+          "net_005": {
+            "max_drawdown_r": "15.12025948136372195221763627",
+            "max_losing_streak": 7,
+            "mean_r": "0.05759793274745635672052984468",
+            "profit_factor": "1.150281271383695265888966419",
+            "total_r": "16.87619429500471251911524449",
+            "trades": 293
+          },
+          "net_010": {
+            "max_drawdown_r": "21.84553266841753214149775928",
+            "max_losing_streak": 7,
+            "mean_r": "0.007597932747456356720529844648",
+            "profit_factor": "1.018906528001280130016053971",
+            "total_r": "2.226194295004712519115244482",
+            "trades": 293
+          }
+        },
+        "2": {
+          "gross": {
+            "max_drawdown_r": "6.673470225022675242479100708",
+            "max_losing_streak": 5,
+            "mean_r": "-0.0593924276615124124769396831",
+            "profit_factor": "0.9010126205641459792051005283",
+            "total_r": "-1.187848553230248249538793662",
+            "trades": 20
+          },
+          "net_005": {
+            "max_drawdown_r": "7.373470225022675242479100708",
+            "max_losing_streak": 5,
+            "mean_r": "-0.1093924276615124124769396831",
+            "profit_factor": "0.8263612259341072817826354238",
+            "total_r": "-2.187848553230248249538793662",
+            "trades": 20
+          },
+          "net_010": {
+            "max_drawdown_r": "8.073470225022675242479100708",
+            "max_losing_streak": 5,
+            "mean_r": "-0.1593924276615124124769396831",
+            "profit_factor": "0.7584963217249811932167580561",
+            "total_r": "-3.187848553230248249538793662",
+            "trades": 20
+          }
+        }
+      },
+      "by_target_route": {
+        "ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY:H1": {
+          "gross": {
+            "max_drawdown_r": "3.000000000000000000000000000",
+            "max_losing_streak": 3,
+            "mean_r": "0.1757594654231094844038253961",
+            "profit_factor": "1.351518930846218968807650792",
+            "total_r": "2.812151446769751750461206338",
+            "trades": 16
+          },
+          "net_005": {
+            "max_drawdown_r": "3.173470225022675242479100708",
+            "max_losing_streak": 3,
+            "mean_r": "0.1257594654231094844038253961",
+            "profit_factor": "1.239541838901160922673953136",
+            "total_r": "2.012151446769751750461206338",
+            "trades": 16
+          },
+          "net_010": {
+            "max_drawdown_r": "3.673470225022675242479100708",
+            "max_losing_streak": 3,
+            "mean_r": "0.07575946542310948440382539612",
+            "profit_factor": "1.137744482587471789825137084",
+            "total_r": "1.212151446769751750461206338",
+            "trades": 16
+          }
+        },
+        "ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY:H1+PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H4": {
+          "gross": {
+            "max_drawdown_r": "4",
+            "max_losing_streak": 4,
+            "mean_r": "-1",
+            "profit_factor": "0",
+            "total_r": "-4",
+            "trades": 4
+          },
+          "net_005": {
+            "max_drawdown_r": "4.20",
+            "max_losing_streak": 4,
+            "mean_r": "-1.05",
+            "profit_factor": "0E+2",
+            "total_r": "-4.20",
+            "trades": 4
+          },
+          "net_010": {
+            "max_drawdown_r": "4.40",
+            "max_losing_streak": 4,
+            "mean_r": "-1.10",
+            "profit_factor": "0E+2",
+            "total_r": "-4.40",
+            "trades": 4
+          }
+        },
+        "ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY:H1+PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H4+SOURCE_OPPOSITE_BOUNDARY:H4": {
+          "gross": {
+            "max_drawdown_r": "2.815243540475520979785671884",
+            "max_losing_streak": 2,
+            "mean_r": "0.2728130748479105417141768309",
+            "profit_factor": "1.979107794315821232713330286",
+            "total_r": "3.273756898174926500570121971",
+            "trades": 12
+          },
+          "net_005": {
+            "max_drawdown_r": "3.065243540475520979785671884",
+            "max_losing_streak": 2,
+            "mean_r": "0.2228130748479105417141768309",
+            "profit_factor": "1.754528612488448925446814629",
+            "total_r": "2.673756898174926500570121971",
+            "trades": 12
+          },
+          "net_010": {
+            "max_drawdown_r": "3.315243540475520979785671884",
+            "max_losing_streak": 2,
+            "mean_r": "0.1728130748479105417141768309",
+            "profit_factor": "1.553945417610859397069213565",
+            "total_r": "2.073756898174926500570121971",
+            "trades": 12
+          }
+        },
+        "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H1": {
+          "gross": {
+            "max_drawdown_r": "4.122848643109182028799087402",
+            "max_losing_streak": 2,
+            "mean_r": "-0.1151948665035692638950414376",
+            "profit_factor": "0.6544154004892922083148756872",
+            "total_r": "-2.764676796085662333480994502",
+            "trades": 24
+          },
+          "net_005": {
+            "max_drawdown_r": "4.822848643109182028799087402",
+            "max_losing_streak": 2,
+            "mean_r": "-0.1651948665035692638950414376",
+            "profit_factor": "0.5285578033039680385964294993",
+            "total_r": "-3.964676796085662333480994502",
+            "trades": 24
+          },
+          "net_010": {
+            "max_drawdown_r": "5.522848643109182028799087402",
+            "max_losing_streak": 2,
+            "mean_r": "-0.2151948665035692638950414376",
+            "profit_factor": "0.4170581442612214369637326433",
+            "total_r": "-5.164676796085662333480994502",
+            "trades": 24
+          }
+        },
+        "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H1+SOURCE_OPPOSITE_BOUNDARY:H1": {
+          "gross": {
+            "max_drawdown_r": "9.235719537786090853638802881",
+            "max_losing_streak": 6,
+            "mean_r": "0.1206891602837176978678059028",
+            "profit_factor": "1.324481672856831517828796935",
+            "total_r": "31.01711419291544835202611703",
+            "trades": 257
+          },
+          "net_005": {
+            "max_drawdown_r": "11.24748025571913687039932610",
+            "max_losing_streak": 6,
+            "mean_r": "0.07068916028371769786780590276",
+            "profit_factor": "1.181048157752118368342468259",
+            "total_r": "18.16711419291544835202611701",
+            "trades": 257
+          },
+          "net_010": {
+            "max_drawdown_r": "17.40263413369381786666275099",
+            "max_losing_streak": 6,
+            "mean_r": "0.02068916028371769786780590270",
+            "profit_factor": "1.050569782457488497372508132",
+            "total_r": "5.317114192915448352026116994",
+            "trades": 257
+          }
+        }
+      },
+      "decision_counts": {
+        "ABSTAIN_NOT_STRUCTURALLY_REARMED": 1,
+        "ABSTAIN_NO_ACTIVE_DOL": 1,
+        "ABSTAIN_NO_CIBO_EPISODE": 5,
+        "ABSTAIN_NO_STRUCTURAL_SPECIALIST_AUTHORITY": 2452,
+        "ABSTAIN_SINGLE_POSITION_BUSY": 18,
+        "EXECUTE": 313,
+        "LEVEL_anatomy_regime": 313,
+        "POSTURE_PROTECT": 6,
+        "POSTURE_STATIC": 307,
+        "RANK_1": 293,
+        "RANK_2": 20
+      },
+      "exit_reason_counts": {
+        "GAP_STOP": 5,
+        "STOP": 110,
+        "STOP_FIRST": 1,
+        "TARGET": 191,
+        "TIME_24H": 5,
+        "TRAIL_STOP": 1
+      },
+      "gross": {
+        "max_drawdown_r": "13.92871869586523252623576316",
+        "max_losing_streak": 7,
+        "mean_r": "0.09692762217819317658011645639",
+        "profit_factor": "1.255086977061550398663778139",
+        "total_r": "30.33834574177446426957645085",
+        "trades": 313
+      },
+      "net_005": {
+        "max_drawdown_r": "18.62871869586523252623576316",
+        "max_losing_streak": 7,
+        "mean_r": "0.04692762217819317658011645626",
+        "profit_factor": "1.117603305683758349978372489",
+        "total_r": "14.68834574177446426957645081",
+        "trades": 313
+      },
+      "net_010": {
+        "max_drawdown_r": "25.50375843388434338985789327",
+        "max_losing_streak": 7,
+        "mean_r": "-0.003072377821806823419883543665",
+        "profit_factor": "0.9926561784063911081931430232",
+        "total_r": "-0.9616542582255357304235491673",
+        "trades": 313
+      },
+      "trail_moves": 1
+    },
+    "decision_contract": {
+      "actual_strategy_entry": true,
+      "authority_is_structural": true,
+      "calendar_year_regime_rule": false,
+      "context_only_can_authorize": false,
+      "exact_protected_swing": true,
+      "gross_r_authorizes_trade": false,
+      "management_is_structural_non_inferiority": true,
+      "net_r_authorizes_trade": false,
+      "profit_factor_authorizes_trade": false,
+      "regime_is_pre_entry": true,
+      "structural_rearm": true,
+      "target_from_active_cibo_dol_ladder": true,
+      "target_support_is_protected_swing_reachability": true
+    },
+    "decision_sources": {
+      "master_memory_remains_immutable": true,
+      "r22_memory_used": false,
+      "r23_memory_used": false,
+      "r25_result_used": false,
+      "r26_result_used_as_decision_input": false,
+      "specialist_memory": "TURTLE_SOUP_AUDJPY_SPECIALIST_COGNITIVE_MEMORY_V2",
+      "strategy": "TURTLE_SOUP_AUDJPY"
+    },
+    "governance": {
+      "candidate_promoted": false,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_only": true,
+      "same_consumed_2y_window": true
+    },
+    "identity": "TURTLE_SOUP_AUDJPY_R27_STRUCTURAL_SPECIALIST_BRAIN_V1",
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13948,
+        "H1:exact-c2": 23804,
+        "H1:invalid-entry-geometry": 2754,
+        "H1:no-causal-cisd": 9856,
+        "H1:no-exact-c2": 38153,
+        "H1:opposite-boundary-already-touched": 156,
+        "H1:signal": 11038,
+        "H1:source-cycles": 61957,
+        "H4:causal-cisd": 3857,
+        "H4:exact-c2": 5873,
+        "H4:invalid-entry-geometry": 964,
+        "H4:no-causal-cisd": 2016,
+        "H4:no-exact-c2": 9470,
+        "H4:opposite-boundary-already-touched": 28,
+        "H4:signal": 2865,
+        "H4:source-cycles": 15343
+      },
+      "retained_bars": 745468,
+      "setups_10y": 13903
+    },
+    "schema": "qore.turtle_soup_audjpy_r27.structural_specialist_brain.v1",
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "duration_years": 2,
+      "open": "2024-09-17T00:00:00+00:00"
+    }
+  },
+  "sha256sums": [
+    "5a497542e761415201b48f2866fb041e47cea65d9ce5aa878b7cb0e6daa8f6fe  git-sha.txt",
+    "caed7168de6023195524602596054b95a2f306a026e4bb00929c679d57973c78  r27-structural-specialist-brain-report.json",
+    "870b03e482e55c7ba2f74c5bc2f4e817c5f10ca8e35d39640a75de0eb5732ac3  r27-structural-specialist-brain-trades.json",
+    "7cfbbe0dc3015b1ae284e82937366d1963494e6033dbdd2f22f77fd69073dc88  turtle-soup-audjpy-specialist-cognitive-memory-v2-report.json",
+    "3be83f09a0968308fa5bc2fb8afe8de8e8820e96f010fe15f6b38de74511246b  turtle-soup-audjpy-specialist-cognitive-memory-v2.json",
+    "4fb9c6d1c9c4537bb5e0de7f4a728ee0725677422ac396cbd63fb606a52c1b11  turtle-soup-audjpy-specialist-observations-v2.jsonl"
+  ],
+  "workflow_run_id": 35383377176,
+  "workflow_sha": "e0bec233ed40197a1e969786b24a9dc8a1e5869f"
 }
