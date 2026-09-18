@@ -19,7 +19,7 @@ import json
 from copy import deepcopy
 from datetime import UTC, datetime
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 from uuid import NAMESPACE_URL, uuid5
 
 from qore.infrastructure.cibo_executive_memory import (
@@ -87,7 +87,7 @@ def _dossier_cached() -> dict[str, Any]:
         raise ValueError("NAS100 dossier cannot promote rules")
     if governance.get("fresh_holdout_opened") is not False:
         raise ValueError("NAS100 fresh holdout unexpectedly opened")
-    return dossier
+    return cast(dict[str, Any], dossier)
 
 
 def dossier_payload() -> dict[str, Any]:
