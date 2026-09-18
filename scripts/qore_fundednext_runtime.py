@@ -1350,6 +1350,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         state_dir / "r38-gbpjpy-state.json"
     )
     gbpjpy_r38_store.reconcile(mt5, now=datetime.now(UTC))
+    audjpy_r42_memory = load_audjpy_r42_memory(
+        root
+        / "runtime_data"
+        / "audjpy"
+        / "r42-causal-authority-memory.json"
+    )
+    audjpy_r42_store = R42AudJpyLiveStateStore(
+        state_dir / "r42-audjpy-state.json"
+    )
+    audjpy_r42_store.reconcile(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
@@ -1492,6 +1502,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 "TURTLE_SOUP_EURUSD_R38",
                 "TURTLE_SOUP_GBPUSD_R43",
                 "TURTLE_SOUP_GBPJPY_R38",
+                "TURTLE_SOUP_AUDJPY_R42",
             ],
             "single_mt5_writer": True,
             "account_wide_risk_active": True,
@@ -1507,6 +1518,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "gbpjpy_r38_policy": "CONFIDENCE_100_050_010",
             "gbpjpy_r38_fragility_policy": ["1", "0.25", "0.10", "0.05"],
             "gbpjpy_r38_memory_sha256": "16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f",
+            "audjpy_r42_enabled": True,
+            "audjpy_r42_identity": "TURTLE_SOUP_AUDJPY_R42",
+            "audjpy_r42_certification": "TURTLE_SOUP_AUDJPY_R43_FINAL_CERTIFICATION_SUITE_V1",
+            "audjpy_r42_strategy_timezone": "America/New_York",
+            "audjpy_r42_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "audjpy_r42_single_position_busy": True,
+            "audjpy_r42_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+            "audjpy_r42_base_risk_fraction": "0.002",
+            "audjpy_r42_ensemble": "R38_FROZEN_SIGNAL_BASELINE",
+            "audjpy_r42_policy": "AUDJPY_CONFIDENCE_100_075_025",
+            "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
+            "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
+            "audjpy_r42_memory_sha256": "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6",
             "order_submission_authorized": activation.authorization.order_submission_authorized,
         },
     )
