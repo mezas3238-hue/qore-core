@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Sequence
+from collections.abc import Sequence
 
 from qore.infrastructure.market_data import OhlcSnapshot
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
