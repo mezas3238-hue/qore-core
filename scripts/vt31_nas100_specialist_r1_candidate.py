@@ -495,14 +495,101 @@ def _state_snapshot(
         decision_at,
     )
 
+    current_range_state = (
+        "unavailable"
+        if current_path_ratio is None
+        else (
+            "compressed"
+            if current_path_ratio < Decimal("0.75")
+            else (
+                "normal"
+                if current_path_ratio <= Decimal("1.25")
+                else "expanded"
+            )
+        )
+    )
+    breach_side = "high" if source.side.value == "short" else "low"
+    confirmation_latency = int(
+        (
+            source.structure.confirmation_at - source.structure.raid_at
+        ).total_seconds()
+        // 60
+    )
+    selected_candidates = [
+        candidate
+        for candidate in source.candidates
+        if candidate.family == executable.selected_family
+        and candidate.formed_at <= decision_at
+    ]
+    selected_formed_at = (
+        min(candidate.formed_at for candidate in selected_candidates)
+        if selected_candidates
+        else decision_at
+    )
+    entry_evidence_age = int(
+        (decision_at - selected_formed_at).total_seconds() // 60
+    )
+    risk_ref = (
+        executable.initial_risk / reference_width
+        if reference_width > 0
+        else None
+    )
+    planned_target_r = (
+        abs(executable.target_price - executable.entry_price)
+        / executable.initial_risk
+        if executable.initial_risk > 0
+        else None
+    )
+    destination_distance_ref = (
+        abs(executable.target_price - executable.entry_price)
+        / reference_width
+        if reference_width > 0
+        else None
+    )
+
     reasoning = reason(
         Nas100ReasoningState(
+            as_of=decision_at.astimezone(UTC).isoformat(),
+            weekday=decision_local.strftime("%A"),
+            session="NY_AM_SILVER_BULLET",
             decision_minute_ny=decision_minute,
-            last_structure_event_family=last_family,
-            last_structure_event_age_minutes=last_age,
-            reference_reclaim_age_minutes=reclaim_age,
+            side=executable.side.value,
+            setup_family="VT31_AM_SILVER_BULLET_R2_2",
+            confirmation_state="confirmed",
+            prior_day_state="UNRESOLVED_IN_DIRECT_RUNTIME",
+            h4_state="UNRESOLVED_IN_DIRECT_RUNTIME",
+            h1_state="UNRESOLVED_IN_DIRECT_RUNTIME",
+            range_state=current_range_state,
+            volatility_state=reference_volatility_state,
             current_path_vs_previous=current_path_ratio,
             reference_width_vs_prior5=ref_ratio,
+            first_breach_side=breach_side,
+            double_sided_before_decision=False,
+            reference_reclaimed=reclaim_at is not None,
+            reference_reclaim_age_minutes=reclaim_age,
+            last_structure_event_family=last_family,
+            last_structure_event_age_minutes=last_age,
+            recent_liquidity_event_count_10m=None,
+            displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
+            entry_evidence_family=executable.selected_family.value,
+            confirmation_latency_minutes=confirmation_latency,
+            entry_evidence_freshness=(
+                "fresh-0-5m"
+                if entry_evidence_age <= 5
+                else "older-than-5m"
+            ),
+            stop_plan="SOURCE_SWING_EXTREME",
+            risk_ref=risk_ref,
+            planned_target_r=planned_target_r,
+            structural_destination="OPPOSITE_09_REFERENCE_BOUNDARY",
+            destination_distance_ref=destination_distance_ref,
+            journey_stage="POST_CONFIRMATION_PRE_EXECUTION",
+            dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY",
+            dol2_state="RESEARCH_ONLY_UNCALIBRATED",
+            dol3_state="RESEARCH_ONLY_UNCALIBRATED",
+            extension_capacity_state="RESEARCH_ONLY_UNCALIBRATED",
+            exhaustion_state="UNKNOWN",
+            cross_index_state="OPTIONAL_CONTEXT_NOT_REQUIRED",
         )
     )
     abstain_reasons = list(reasoning.contradictions)
@@ -546,14 +633,27 @@ def _state_snapshot(
         "reasoning_support": list(reasoning.supporting_evidence),
         "reasoning_contradictions": list(reasoning.contradictions),
         "reasoning_uncertainty": list(reasoning.uncertainty),
-        "long_term_memory_used": list(reasoning.long_term_memory_used),
-        "episodic_memory_used": list(reasoning.episodic_memory_used),
-        "working_memory_fingerprint": reasoning.working_memory_fingerprint,
-        "long_term_memory_fingerprint": (
-            reasoning.long_term_memory_fingerprint
+        "reasoning_wait_reasons": (
+            list(reasoning.uncertainty)
+            if reasoning.action == "WAIT"
+            else []
         ),
-        "episodic_memory_fingerprint": (
-            reasoning.episodic_memory_fingerprint
+        "journey_capacity_state": reasoning.journey_capacity_state,
+        "management_context_state": reasoning.management_context_state,
+        "strategy_memory_used": list(reasoning.strategy_memory_used),
+        "cibo_market_memory_used": list(reasoning.cibo_market_memory_used),
+        "trader_experience_memory_used": list(
+            reasoning.trader_experience_memory_used
+        ),
+        "situation_fingerprint": reasoning.situation_fingerprint,
+        "strategy_memory_fingerprint": (
+            reasoning.strategy_memory_fingerprint
+        ),
+        "cibo_market_memory_fingerprint": (
+            reasoning.cibo_market_memory_fingerprint
+        ),
+        "trader_experience_memory_fingerprint": (
+            reasoning.trader_experience_memory_fingerprint
         ),
         "cognitive_memory_fingerprint": reasoning.memory_fingerprint,
         "stop_plan": "SOURCE_SWING_EXTREME",
