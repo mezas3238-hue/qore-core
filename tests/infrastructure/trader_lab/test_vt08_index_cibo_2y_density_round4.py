@@ -9,13 +9,13 @@ from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 
-def _bar(at: datetime, o: str, h: str, l: str, c: str) -> Vt08IndexC2R1Bar:
+def _bar(at: datetime, o: str, h: str, low: str, c: str) -> Vt08IndexC2R1Bar:
     return Vt08IndexC2R1Bar(
         opened_at=at,
         closed_at=at + timedelta(minutes=15),
         open=Decimal(o),
         high=Decimal(h),
-        low=Decimal(l),
+        low=Decimal(low),
         close=Decimal(c),
     )
 
