@@ -35,18 +35,20 @@ def _situation(
     reclaim_age: int = 3,
     path_ratio: str = "0.62",
     ref_ratio: str = "0.68",
+    side: str = "short",
+    h1_state: str = "bearish",
 ) -> Nas100SituationModel:
     return Nas100SituationModel(
         as_of="2020-01-02T15:12:00+00:00",
         weekday="Thursday",
         session="NY_AM_SILVER_BULLET",
         decision_minute_ny=minute,
-        side="short",
+        side=side,
         setup_family="VT31_AM_SILVER_BULLET_R2_2",
         confirmation_state="confirmed",
         prior_day_state="bullish",
         h4_state="mixed",
-        h1_state="bearish",
+        h1_state=h1_state,
         premarket_state="rotation",
         cash_open_state="bearish",
         position_in_prior_day_range="upper-third",
@@ -200,4 +202,33 @@ def test_cached_runtime_views_are_stable_identity_objects() -> None:
     assert (
         trader_experience_runtime_view()
         is trader_experience_runtime_view()
+    )
+
+
+def test_noncompressed_short_h1_mixed_is_low_dd_fallback() -> None:
+    decision = reason(
+        _situation(
+            ref_ratio="1.05",
+            side="short",
+            h1_state="mixed",
+        )
+    )
+    assert decision.action == "EXECUTE"
+    assert decision.target_plan == "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER"
+    assert "EXPERIENCE:LOW_DD_NONCOMPRESSED_SHORT_H1_MIXED" in (
+        decision.supporting_evidence
+    )
+
+
+def test_noncompressed_state_outside_low_dd_gate_abstains() -> None:
+    decision = reason(
+        _situation(
+            ref_ratio="1.05",
+            side="short",
+            h1_state="bearish",
+        )
+    )
+    assert decision.action == "ABSTAIN"
+    assert "EXPERIENCE:NONCOMPRESSED_REFERENCE_OUTSIDE_LOW_DD_GATE" in (
+        decision.contradictions
     )
