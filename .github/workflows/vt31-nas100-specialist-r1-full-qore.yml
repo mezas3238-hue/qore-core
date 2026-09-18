@@ -1,0 +1,37 @@
+name: QORE VT31 NAS100 Specialist R1 Full QORE
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
+      - docs/research/VT31_NAS100_SPECIALIST_R1_FREEZE_CONTRACT.md
+      - .github/workflows/vt31-nas100-specialist-r1-full-qore.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Candidate self-test
+        run: python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
+      - name: Focused specialist tests
+        run: pytest -q tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy project gate
+        run: mypy src tests
+      - name: Full project gate
+        run: pytest --cov=src/qore --cov-report=term-missing
