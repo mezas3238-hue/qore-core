@@ -24,11 +24,11 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round1 as r1
+from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
+from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_reset as r8
 from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
 from qore.infrastructure.trader_lab import vt08_index_r13_rolling_drawdown_governor as r13
 from qore.infrastructure.trader_lab import vt08_index_r14_candidate_freeze as freeze
-from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
-from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_reset as r8
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
