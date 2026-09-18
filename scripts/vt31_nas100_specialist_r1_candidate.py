@@ -627,6 +627,19 @@ def _state_snapshot(
             None if ref_ratio is None else format(ref_ratio, "f")
         ),
         "reference_volatility_state": reference_volatility_state,
+        "risk_ref": None if risk_ref is None else format(risk_ref, "f"),
+        "planned_target_r": (
+            None
+            if planned_target_r is None
+            else format(planned_target_r, "f")
+        ),
+        "destination_distance_ref": (
+            None
+            if destination_distance_ref is None
+            else format(destination_distance_ref, "f")
+        ),
+        "confirmation_latency_minutes": confirmation_latency,
+        "entry_evidence_age_minutes": entry_evidence_age,
         "action": reasoning.action,
         "abstain_reasons": abstain_reasons,
         "reasoning_thesis": reasoning.thesis,
@@ -907,6 +920,13 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 "current_path_vs_previous",
                 "reference_width_vs_prior5",
                 "reference_volatility_state",
+                "risk_ref",
+                "planned_target_r",
+                "destination_distance_ref",
+                "confirmation_latency_minutes",
+                "entry_evidence_age_minutes",
+                "journey_capacity_state",
+                "management_context_state",
                 "target_plan",
             )
         }
