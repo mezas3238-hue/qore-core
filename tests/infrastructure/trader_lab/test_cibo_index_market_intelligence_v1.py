@@ -44,7 +44,7 @@ def _detail(symbol: str, events: int, m5: int) -> dict[str, Any]:
 
 
 def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
-    market_rows = [
+    market_rows: list[dict[str, Any]] = [
         {
             "symbol": symbol,
             "identity": mod.JOURNEY_IDENTITY,
@@ -64,7 +64,7 @@ def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
             "source_boundary_type": "PRIOR_BODY",
         },
     ]
-    structure_rows = [
+    structure_rows: list[dict[str, Any]] = [
         {
             "symbol": symbol,
             "structure_type": "PRIOR_HIGH_LOW",
@@ -75,7 +75,7 @@ def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
             "penetration_depth_ticks": "4",
         }
     ]
-    departure_rows = [
+    departure_rows: list[dict[str, Any]] = [
         {
             "symbol": symbol,
             "session_bucket": "new-york",
@@ -95,7 +95,7 @@ def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
             "minutes_structure_creation_to_first_touch": 120,
         },
     ]
-    sequence_rows = [
+    sequence_rows: list[dict[str, Any]] = [
         {
             "symbol": symbol,
             "sequence_status": "DETERMINISTIC_SUPPORTED_SUBSET",
@@ -111,7 +111,7 @@ def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
             "sequence": [{"state": "LIQUIDITY_RAID"}],
         },
     ]
-    target_rows = [
+    target_rows: list[dict[str, Any]] = [
         {
             "symbol": symbol,
             "candidate_type": "OPPOSITE_SOURCE_BOUNDARY",
@@ -131,7 +131,7 @@ def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
             "candidate_distance_ticks": "12",
         },
     ]
-    daily_rows = [
+    daily_rows: list[dict[str, Any]] = [
         {
             "symbol": symbol,
             "weekday": "Tuesday",
@@ -170,7 +170,7 @@ def _journey_root(root: Path, symbol: str, m5: int, events: int) -> Path:
         ),
         "TRADER_MARKET_SYNC_LEDGER": (
             "TRADER_MARKET_SYNC_LEDGER.jsonl",
-            [],
+            list[dict[str, Any]](),
         ),
     }
     hashes: dict[str, str] = {}
