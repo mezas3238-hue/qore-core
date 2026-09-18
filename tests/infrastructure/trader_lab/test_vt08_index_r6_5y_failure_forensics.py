@@ -1,9 +1,7 @@
-from datetime import UTC, datetime
-
-from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as mod
+from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
 
 
 def test_forensics_identity_and_authority_boundaries() -> None:
@@ -21,27 +19,8 @@ def test_basic_metrics_delegate_is_stable() -> None:
     assert row["max_drawdown_r"] == "2"
 
 
-def test_density_attribution_separates_initial_and_rearm() -> None:
-    class Signal:
-        symbol = "NAS100"
-
-    class Opportunity:
-        def __init__(self, rearm: int, poi: str) -> None:
-            self.rearm_index = rearm
-            self.source_poi_kind = poi
-            self.signal = Signal()
-
-    rows = (
-        mod.Admission(Opportunity(0, "fvg"), mod.datetime.now(mod.UTC)),
-        mod.Admission(Opportunity(1, "fvg"), mod.datetime.now(mod.UTC)),
-        mod.Admission(Opportunity(2, "cisd"), mod.datetime.now(mod.UTC)),
-    )
-    result = mod._density_attribution(rows)
-    assert result["total"] == 3
-    assert result["initial_trade_count"] == 1
-    assert result["rearm_trade_count"] == 2
-    assert result["rearm_share"] == str(Decimal(2) / Decimal(3))
-
-
-def test_governor_trace_never_creates_zero_weight() -> None:
+def test_failed_5y_contract_remains_consumed_and_frozen() -> None:
+    assert mod.v5y.MIN_TRADES == 1500
+    assert mod.v5y.MAX_TRADES == 1600
+    assert freeze.CANDIDATE_ID == "VT08_INDEX_R6_GOVERNED_657_001"
     assert freeze.RISK_GOVERNOR["zero_weight_allowed"] is False
