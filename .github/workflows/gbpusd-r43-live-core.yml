@@ -17,6 +17,21 @@ on:
       - 'scripts/build_audjpy_r42_live_memory.py'
       - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_*.py'
       - 'src/qore/infrastructure/trader_lab/cibo_audjpy_*.py'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/gbpusd-r43-live-core.yml'
+      - 'src/qore/infrastructure/r43_gbpusd_live.py'
+      - 'src/qore/infrastructure/account_wide_risk.py'
+      - 'scripts/qore_fundednext_runtime.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_*.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_gbpusd_*.py'
+      - 'runtime_data/gbpusd/**'
+      - 'tests/infrastructure/test_r43_gbpusd_live.py'
+      - 'scripts/build_audjpy_r42_live_memory.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_*.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_audjpy_*.py'
 
 permissions:
   contents: write
