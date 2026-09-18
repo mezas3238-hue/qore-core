@@ -369,7 +369,7 @@ def _last_structure_event_family(
         return "none", None
     events.sort(key=lambda item: (item[0], item[1]))
     event_at, _, family = events[-1]
-    age = int((decision_at - event_at).total_seconds() // 60)
+    age = max(0, int((decision_at - event_at).total_seconds() // 60))
     return family, age
 
 
