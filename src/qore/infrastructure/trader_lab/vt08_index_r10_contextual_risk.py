@@ -18,6 +18,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_r6_five_year_validation as v5y
 from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_reset as r8
@@ -99,10 +101,10 @@ def _schemes() -> tuple[RiskScheme, ...]:
 
 def _base_stream(
     *,
-    opportunities_by_symbol: dict[str, tuple[Any, ...]],
+    opportunities_by_symbol: dict[str, tuple[r4.ExpandedOpportunity, ...]],
     bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
-) -> tuple[tuple[Any, Any], ...]:
-    selected: list[tuple[Any, Any]] = []
+) -> tuple[tuple[r4.ExpandedOpportunity, r5.ManagedTrade], ...]:
+    selected: list[tuple[r4.ExpandedOpportunity, r5.ManagedTrade]] = []
     for symbol in ("NAS100", "SP500", "US30"):
         selected.extend(
             r8._sequential(
@@ -118,7 +120,7 @@ def _base_stream(
 
 
 def _context(
-    opportunity: Any,
+    opportunity: r4.ExpandedOpportunity,
     *,
     indexed: dict[datetime, Vt08IndexC2R1Bar],
 ) -> Context:
@@ -140,7 +142,7 @@ def _context(
 
 
 def _weighted_metrics(
-    outcomes: Sequence[Any],
+    outcomes: Sequence[r5.ManagedTrade],
     contexts: Sequence[Context],
     *,
     scheme: RiskScheme,
@@ -155,7 +157,7 @@ def _weighted_metrics(
 
 
 def _context_breakdown(
-    outcomes: Sequence[Any],
+    outcomes: Sequence[r5.ManagedTrade],
     contexts: Sequence[Context],
 ) -> dict[str, Any]:
     def report(indices: Sequence[int]) -> dict[str, Any]:
@@ -179,7 +181,7 @@ def _context_breakdown(
 
 
 def _candidate(
-    outcomes: Sequence[Any],
+    outcomes: Sequence[r5.ManagedTrade],
     contexts: Sequence[Context],
     *,
     scheme: RiskScheme,
@@ -239,7 +241,7 @@ def build_report(
     }
     bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]] = {}
     indexed_by_symbol: dict[str, dict[datetime, Vt08IndexC2R1Bar]] = {}
-    opportunities_by_symbol: dict[str, tuple[Any, ...]] = {}
+    opportunities_by_symbol: dict[str, tuple[r4.ExpandedOpportunity, ...]] = {}
     provenance: dict[str, Any] = {}
     for symbol in ("NAS100", "SP500", "US30"):
         bars, source = v5y._load_cibo_m15_5y(roots[symbol], symbol=symbol)
