@@ -24,6 +24,10 @@ on:
       - .github/workflows/vt31-nas100-specialist-r1-full-qore.yml
   workflow_dispatch:
 
+concurrency:
+  group: -github-workflows-vt31-nas100-specialist-r1-full-qore-yml-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
