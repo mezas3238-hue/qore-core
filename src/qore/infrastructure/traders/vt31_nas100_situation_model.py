@@ -30,10 +30,16 @@ class Nas100SituationModel:
     prior_day_state: str
     h4_state: str
     h1_state: str
+    premarket_state: str
+    cash_open_state: str
+    position_in_prior_day_range: str
     range_state: str
     volatility_state: str
     current_path_vs_previous: Decimal | None
     reference_width_vs_prior5: Decimal | None
+    raid_depth_ref: Decimal | None
+    recent_path_efficiency: Decimal | None
+    recent_overlap_rate: Decimal | None
 
     # Liquidity / sequence
     first_breach_side: str
@@ -86,6 +92,9 @@ class Nas100SituationModel:
         for value in (
             self.current_path_vs_previous,
             self.reference_width_vs_prior5,
+            self.raid_depth_ref,
+            self.recent_path_efficiency,
+            self.recent_overlap_rate,
             self.risk_ref,
             self.planned_target_r,
             self.destination_distance_ref,
