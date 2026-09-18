@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
 from qore.infrastructure.trader_lab import vt08_index_r12_contextual_management as mod
 
 
