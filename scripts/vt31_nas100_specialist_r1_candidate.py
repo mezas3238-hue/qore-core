@@ -29,6 +29,14 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research
     _wall,
     load_market_evidence,
 )
+from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
+    memory_fingerprint,
+    validate_memory,
+)
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
+    Nas100ReasoningState,
+    reason,
+)
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
     Vt31R22EntryEvidence,
     Vt31R22ExecutableSetup,
@@ -65,6 +73,16 @@ def contract_payload() -> dict[str, object]:
         "source_model": "strict-first-side-raid->structural-close->PD-array",
         "entry_families": ["breaker", "fair-value-gap", "order-block"],
         "execution_policy_fingerprint": policy.fingerprint(),
+        "embedded_cognitive_memory": {
+            "memory_fingerprint": memory_fingerprint(),
+            "external_cibo_runtime_dependency": False,
+            "memory_location": "inside-VT31-specialist",
+            "memory_sources": [
+                "consumed-CIBO-Atlas-NAS100",
+                "consumed-VT31-laboratory-evidence",
+            ],
+            "runtime_mutation": False,
+        },
         "runtime_intelligence": {
             "source": "NAS100-closed-M1-only",
             "date_level_cibo_lookup": False,
@@ -451,27 +469,18 @@ def _state_snapshot(
         decision_at,
     )
 
-    execute = (
-        last_family == "reference-liquidity-sweep"
-        and current_path_compressed
-        and decision_minute < LATE_STATE_CUTOFF_MINUTE
-        and not stale_8_14
+    reasoning = reason(
+        Nas100ReasoningState(
+            decision_minute_ny=decision_minute,
+            last_structure_event_family=last_family,
+            last_structure_event_age_minutes=last_age,
+            reference_reclaim_age_minutes=reclaim_age,
+            current_path_vs_previous=current_path_ratio,
+            reference_width_vs_prior5=ref_ratio,
+        )
     )
-    abstain_reasons: list[str] = []
-    if last_family != "reference-liquidity-sweep":
-        abstain_reasons.append("last-event-not-reference-liquidity-sweep")
-    if not current_path_compressed:
-        abstain_reasons.append("current-path-not-compressed")
-    if decision_minute >= LATE_STATE_CUTOFF_MINUTE:
-        abstain_reasons.append("compressed-reference-sweep-state-too-late")
-    if stale_8_14:
-        abstain_reasons.append("reference-reclaim-stale-8-14m")
-
-    target_plan = (
-        "FULL_STRUCTURAL_BOUNDARY"
-        if reference_volatility_state == "compressed"
-        else "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER"
-    )
+    abstain_reasons = list(reasoning.contradictions)
+    target_plan = reasoning.target_plan
     return {
         "decision_at": decision_at.astimezone(UTC).isoformat(),
         "decision_minute_ny": decision_minute,
@@ -505,8 +514,13 @@ def _state_snapshot(
             None if ref_ratio is None else format(ref_ratio, "f")
         ),
         "reference_volatility_state": reference_volatility_state,
-        "action": "EXECUTE" if execute else "ABSTAIN",
+        "action": reasoning.action,
         "abstain_reasons": abstain_reasons,
+        "reasoning_thesis": reasoning.thesis,
+        "reasoning_support": list(reasoning.supporting_evidence),
+        "reasoning_contradictions": list(reasoning.contradictions),
+        "reasoning_uncertainty": list(reasoning.uncertainty),
+        "cognitive_memory_fingerprint": reasoning.memory_fingerprint,
         "stop_plan": "SOURCE_SWING_EXTREME",
         "target_plan": target_plan,
     }
@@ -812,6 +826,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
 
 
 def self_test() -> None:
+    validate_memory()
     contract = contract_payload()
     assert contract["candidate_id"] == CANDIDATE_ID
     assert contract["market"] == MARKET
@@ -819,6 +834,9 @@ def self_test() -> None:
     assert runtime["date_level_cibo_lookup"] is False
     assert runtime["future_bar_lookup"] is False
     assert runtime["cross_index_required"] is False
+    memory = cast(dict[str, object], contract["embedded_cognitive_memory"])
+    assert memory["external_cibo_runtime_dependency"] is False
+    assert memory["memory_fingerprint"] == memory_fingerprint()
     assert contract["initial_stop"] == (
         "source-methodological-swing-extreme-no-buffer"
     )
