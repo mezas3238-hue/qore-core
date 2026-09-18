@@ -1,8 +1,8 @@
 """Resident QORE FundedNext runtime for VT08, R34 XAUUSD and R38 EURUSD.
 
 The VPS/MT5 installation is assumed to exist already. This is the single-writer
-24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; R34 and
-R38 evaluate every New York H1/H4 boundary using broker-to-UTC normalization.
+24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; R34,
+R38 and R43 evaluate every New York H1/H4 boundary using broker-to-UTC normalization.
 Sovereign Account-Wide Risk remains above all traders.
 """
 
@@ -108,6 +108,15 @@ from qore.infrastructure.r38_eurusd_live import (
     current_anchor as current_r38_anchor,
     load_cognitive as load_r38_cognitive,
     manage_open_position as manage_r38_open_position,
+)
+from qore.infrastructure.r43_gbpusd_live import (
+    R43LiveSignal,
+    R43LiveStateStore,
+    build_live_signal as build_r43_live_signal,
+    build_r43_risk_request,
+    current_anchor as current_r43_anchor,
+    load_memory as load_r43_memory,
+    manage_open_position as manage_r43_open_position,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     OWNER_FOREX_ENTRY_ANCHORS,
@@ -867,6 +876,128 @@ def _process_r38_candidate(
     )
 
 
+
+def _process_r43_candidate(
+    *,
+    signal: R43LiveSignal,
+    now: datetime,
+    mode: str,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    account_equity: Decimal,
+    r43_store: R43LiveStateStore,
+    log_path: Path,
+) -> None:
+    spec = gateway.read_symbol("GBPUSD", now=now)
+    request, base_risk_usd = build_r43_risk_request(
+        request_id=f"r43-{signal.signal_fingerprint[:24]}",
+        signal=signal,
+        provider_spec=spec,
+        account_equity=account_equity,
+        now=now,
+    )
+    open_stop, floating_loss, pending_stop = _broker_risk(transport)
+    account_state = gateway.read_account(now=now)
+    snapshot = AccountRiskSnapshot(
+        account_binding_id=account_binding_id,
+        equity=account_equity,
+        margin_used=account_state.margin,
+        free_margin=account_state.free_margin,
+        open_stop_worst_case_loss=open_stop,
+        open_floating_loss=floating_loss,
+        pending_broker_worst_case_loss=pending_stop,
+        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+        provider_budget=provider_budget,
+        reconciled_at=now,
+    )
+    if risk.recovery_required:
+        risk.complete_boot_reconciliation(snapshot, now=now)
+    authorization = risk.authorize(request, snapshot, now=now)
+    if authorization.decision is RiskDecision.REJECT:
+        _log(
+            log_path,
+            {
+                "event": "R43_RISK_REJECT",
+                "symbol": "GBPUSD",
+                "reason": authorization.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+    submission = build_account_bound_submission(
+        authorization,
+        switch=ExecutionSafetySwitchSnapshot(
+            state=ExecutionSwitchState.ENABLED,
+            observed_at=now,
+            reason="qore R43 certified runtime safety gate enabled",
+        ),
+        authorized_at=now,
+        submitted_at=now,
+    )
+    shadow = gateway.shadow_check(submission, now=now)
+    if not shadow.broker_valid:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R43_SHADOW_REJECT",
+                "symbol": "GBPUSD",
+                "reason": shadow.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+    event = {
+        "symbol": "GBPUSD",
+        "signal_fingerprint": signal.signal_fingerprint,
+        "timeframe": signal.timeframe,
+        "target_rank": signal.target_rank,
+        "target_route": signal.target_route,
+        "decision_source": signal.decision_source,
+        "family": signal.family,
+        "classification": signal.classification,
+        "posture": signal.posture,
+        "structural_scale": str(signal.structural_scale),
+        "side_overlay_scale": str(signal.side_overlay_scale),
+        "rank_overlay_scale": str(signal.rank_overlay_scale),
+        "drawdown_scale": str(signal.drawdown_scale),
+        "risk_scale": str(signal.risk_scale),
+        "risk_usd": str(authorization.monetary_stop_loss),
+        "volume": str(authorization.authorized_volume),
+    }
+    if mode == "shadow":
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R43_SHADOW_PASS",
+                **event,
+                "retcode": shadow.retcode,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=now)
+    risk.record_full_fill(authorization.authorization_id)
+    client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
+    r43_store.mark_open(
+        client_order_id=client_order_id,
+        signal=signal,
+        base_risk_usd=base_risk_usd,
+    )
+    _log(
+        log_path,
+        {
+            "event": "R43_LIVE_SUBMIT_ACCEPTED",
+            **event,
+            "risk_authorization": authorization.authorization_id,
+            "provider_order_ref": provider_ref,
+        },
+    )
+
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
     sha = _git_sha(root)
     if not mt5.initialize():
@@ -916,6 +1047,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     r38_store = R38LiveStateStore(state_dir / "r38-state.json")
     r38_store.reconcile(mt5, now=datetime.now(UTC))
+    r43_memory = load_r43_memory(
+        root
+        / "runtime_data"
+        / "gbpusd"
+        / "r43-r32-regime-memory.json"
+    )
+    r43_store = R43LiveStateStore(state_dir / "r43-state.json")
+    r43_store.reconcile(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
@@ -1080,6 +1219,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "event": "R38_POSITION_MANAGEMENT",
                     "symbol": "EURUSD",
                     "reason": r38_manage_reason,
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
+        r43_live_state, r43_manage_reason = manage_r43_open_position(
+            mt5,
+            now=cycle_at,
+            store=r43_store,
+        )
+        if r43_manage_reason not in {
+            "no-open-r43-position",
+            "r43-stop-unchanged",
+            "r43-position-awaiting-reconcile",
+            "r43-24h-exit-due",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "R43_POSITION_MANAGEMENT",
+                    "symbol": "GBPUSD",
+                    "reason": r43_manage_reason,
+                    "strategy_drawdown_r": str(r43_live_state.drawdown_r),
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
@@ -1319,6 +1479,72 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             "event": "R38_ANCHOR_FAIL_CLOSED",
                             "symbol": "EURUSD",
                             "decision_at": r38_anchor.isoformat(),
+                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                        },
+                    )
+
+        r43_anchor = current_r43_anchor(cycle_at)
+        if r43_anchor is not None and not new_order_blocked:
+            r43_anchor_key = f"R43_GBPUSD|{r43_anchor.isoformat()}"
+            if r43_anchor_key not in state.processed_anchors:
+                try:
+                    r43_live_state = r43_store.reconcile(mt5, now=cycle_at)
+                    r43_signal, reason = build_r43_live_signal(
+                        mt5,
+                        now=cycle_at,
+                        memory_bundle=r43_memory,
+                        state=r43_live_state,
+                    )
+                    if r43_signal is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "R43_CAUSAL_ABSTAIN",
+                                "symbol": "GBPUSD",
+                                "decision_at": r43_anchor.isoformat(),
+                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                                "reason": reason,
+                                "strategy_drawdown_r": str(r43_live_state.drawdown_r),
+                                "last_trailing_exit_at": (
+                                    None
+                                    if r43_live_state.trailing_exit_at is None
+                                    else r43_live_state.trailing_exit_at.isoformat()
+                                ),
+                            },
+                        )
+                    else:
+                        _process_r43_candidate(
+                            signal=r43_signal,
+                            now=cycle_at,
+                            mode=mode,
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=provider,
+                            capital_budget=capital,
+                            account_equity=account_state.equity,
+                            r43_store=r43_store,
+                            log_path=log_path,
+                        )
+                    processed_anchor = r43_anchor_key
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=r43_anchor_key,
+                        reconciled_at=cycle_at,
+                        heartbeat_at=cycle_at,
+                    )
+                    store.store(state)
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "R43_ANCHOR_FAIL_CLOSED",
+                            "symbol": "GBPUSD",
+                            "decision_at": r43_anchor.isoformat(),
                             "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                             "reason": type(error).__name__,
                             "message": str(error),
