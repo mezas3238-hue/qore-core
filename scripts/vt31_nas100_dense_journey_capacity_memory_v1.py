@@ -184,14 +184,21 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "capacity_status": (
                 "labeled" if capacity_status == "labeled" else capacity_status
             ),
-            "max_dol_rank": capacity.get("max_dol_rank"),
+            "max_dol_rank": capacity.get(
+                "max_distinct_active_dol_rank_touched_before_invalidation"
+            ),
             "mfe_r_before_invalidation": capacity.get(
-                "mfe_r_before_invalidation"
+                "max_favorable_r_before_invalidation"
             ),
             "mae_r_before_invalidation": capacity.get(
-                "mae_r_before_invalidation"
+                "max_adverse_r_before_invalidation"
             ),
-            "invalidated_at": capacity.get("invalidated_at"),
+            "invalidated_at": (
+                capacity.get("journey_end_at")
+                if capacity.get("journey_end_reason")
+                == "methodological-invalidation"
+                else None
+            ),
             "used_for_runtime_decision": False,
         }
         rows.append(row)
