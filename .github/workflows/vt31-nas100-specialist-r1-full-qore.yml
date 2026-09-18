@@ -9,6 +9,7 @@ on:
       - tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
       - tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
       - tests/infrastructure/test_vt31_nas100_cibo_causal_structure.py
+      - tests/infrastructure/test_vt31_nas100_market_context_runtime.py
       - tests/infrastructure/test_vt31_nas100_position_intelligence.py
       - src/qore/infrastructure/traders/vt31_nas100_cognitive_memory.py
       - src/qore/infrastructure/traders/vt31_nas100_strategy_identity_memory.py
@@ -17,6 +18,7 @@ on:
       - src/qore/infrastructure/traders/vt31_nas100_trader_experience_memory.py
       - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
       - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py
       - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
       - docs/research/VT31_NAS100_SPECIALIST_R1_FREEZE_CONTRACT.md
       - .github/workflows/vt31-nas100-specialist-r1-full-qore.yml
@@ -72,6 +74,7 @@ jobs:
             tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py \
             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py \
             tests/infrastructure/test_vt31_nas100_cibo_causal_structure.py \
+            tests/infrastructure/test_vt31_nas100_market_context_runtime.py \
             tests/infrastructure/test_vt31_nas100_position_intelligence.py
       - name: Ruff production and specialist surface
         run: |
