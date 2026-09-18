@@ -120,7 +120,6 @@ def _query_row(
     target: native.NativeTarget,
     entry: Decimal,
 ) -> dict[str, Any]:
-    context = setup.context
     side = setup.context.signal.side
     stop = setup.context.signal.protected_swing
     risk = entry - stop if side is Side.LONG else stop - entry
