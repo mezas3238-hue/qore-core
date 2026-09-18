@@ -159,7 +159,7 @@ _ACCOUNT_REF = "fundednext-stellar-instant-live"
 _IDLE_LOOP_SECONDS = 1.0
 _BOUNDARY_ARM_SECONDS = 10.0
 _BOUNDARY_POLL_SECONDS = 0.10
-_ANCHOR_GRACE = timedelta(seconds=30)
+_ANCHOR_GRACE = timedelta(seconds=2)
 _HISTORY_DAYS = 14
 _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
 _DISCOVERY_DAYS = 7
@@ -259,7 +259,44 @@ def _m15_bars(symbol: str, decision_at: datetime) -> tuple[Vt08B01Bar, ...]:
     bars = tuple(retained[key] for key in sorted(retained))
     if not bars:
         raise RuntimeError(f"m15-data-unavailable-after-clock-normalization-{symbol}")
+    expected_current = decision_at.astimezone(UTC)
+    expected_closed = expected_current - timedelta(minutes=15)
+    if expected_current not in retained:
+        raise RuntimeError(f"vt08-current-m15-unavailable-{symbol}")
+    if expected_closed not in retained:
+        raise RuntimeError(f"vt08-latest-closed-m15-unavailable-{symbol}")
     return bars
+
+
+def _vt08_boundary_ready(symbol: str, anchor: datetime) -> tuple[bool, str | None]:
+    rows = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 2)
+    if rows is None or len(rows) < 2:
+        return False, f"{symbol} recent M15 unavailable"
+    opened = {
+        normalise_fundednext_server_epoch(int(row["time"]))
+        for row in rows
+    }
+    expected_current = anchor.astimezone(UTC)
+    expected_closed = expected_current - timedelta(minutes=15)
+    if expected_current not in opened or expected_closed not in opened:
+        latest = max(opened, default=None)
+        return (
+            False,
+            f"{symbol} exact M15 boundary unavailable; latest="
+            f"{None if latest is None else latest.isoformat()}",
+        )
+    tick = mt5.symbol_info_tick(symbol)
+    if tick is None:
+        return False, f"{symbol} tick unavailable"
+    tick_at = normalise_fundednext_server_epoch(int(tick.time))
+    observed = datetime.now(UTC)
+    age = abs((observed - tick_at).total_seconds())
+    if age > MARKET_DATA_SLA_SECONDS:
+        return False, (
+            f"{symbol} tick stale: {age:.3f}s > "
+            f"{MARKET_DATA_SLA_SECONDS:.1f}s"
+        )
+    return True, None
 
 
 def _current_anchor(now: datetime) -> datetime | None:
