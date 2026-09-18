@@ -25,34 +25,88 @@ OBSERVE
 information available at the same timestamp, the specialist must make the same
 decision and explain it.
 
-## 2. Knowledge model: memory is not an oracle
+## 2. Three-memory cognitive architecture
 
-The specialist now separates two forms of CIBO information.
+VT31_NAS100 carries three explicitly separated memories.
 
-### A. Historical knowledge
+### A. Long-Term Semantic Memory
 
-Consumed-only aggregate priors learned from the CIBO Atlas market laboratory:
+Persistent, immutable-at-runtime NAS100 knowledge distilled from consumed CIBO
+Atlas evidence:
 
-- sequence frequencies;
-- breach / confirmation / departure timing distributions;
-- structure families observed before completed departures;
-- stop mismatch statistics;
-- destination and extension distributions;
-- temporal stability by consumed partition.
+- sequence / departure timing priors;
+- liquidity and structure behavior;
+- stop / premature-management lessons;
+- structural destinations and conditional extension behavior.
 
-This layer may inform reasoning but may **never** perform a date-level lookup.
+This memory contains no historical date-to-outcome map and performs no runtime
+CIBO lookup.
 
-### B. Runtime observation
+### B. Episodic / Research Memory
 
-Only information observable no later than the decision timestamp:
+Persistent development memory distilled from the VT31 laboratory:
 
-- Market State V2 causal features;
-- causal Context V3 features;
-- CIBO structure events whose formation and first touch are already observed;
-- SP500 / US30 breach and confirmation states only when their timestamps are
-  already in the past at the NAS100 decision.
+- supported mechanisms;
+- rejected / falsified hypotheses;
+- failure lessons;
+- consumed-evidence governance;
+- unresolved warnings that must block premature freeze.
 
-Post-outcome CIBO fields are prohibited runtime inputs.
+This is the specialist's memory of what the research program already learned,
+including what must not be tried again as if it were new evidence.
+
+### C. Working Memory
+
+Ephemeral causal state rebuilt at every decision from market information known
+at that timestamp:
+
+- decision time;
+- latest observed structure/liquidity event;
+- event age / sequence freshness;
+- current path compression;
+- reference volatility state;
+- current thesis-relevant state.
+
+Working Memory is never populated from future bars, terminal PnL, or historical
+date-level outcomes.
+
+### Cognitive flow
+
+```text
+LONG-TERM SEMANTIC MEMORY
+        +
+EPISODIC / RESEARCH MEMORY
+        +
+WORKING MEMORY (NOW)
+        ↓
+REASONING ENGINE
+        ↓
+THESIS
+SUPPORT
+CONTRADICTIONS
+UNCERTAINTY
+        ↓
+EXECUTE / WAIT / ABSTAIN
+        ↓
+STOP / TARGET / MANAGEMENT
+```
+
+Every reasoning decision records the fingerprints of all three memory layers
+(the working-memory fingerprint is per decision) plus the composite cognitive
+memory fingerprint.
+
+The architecture is deliberately **internal**:
+
+```text
+external CIBO runtime dependency = FALSE
+date-level historical lookup     = FALSE
+future-bar lookup                = FALSE
+runtime long-term retraining     = FALSE
+```
+
+CIBO remains the research teacher. VT31 receives a new long-term/episodic
+memory version only through an explicit research, revalidation and fingerprint
+change cycle.
 
 ## 3. Immutable CIBO Intelligence Bridge
 
