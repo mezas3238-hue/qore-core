@@ -148,7 +148,7 @@ jobs:
           retention-days: 90
 
   publish-status:
-    if: always()
+    if: ${{ always() && github.event_name != 'pull_request' }}
     needs: [quality, specialist_memory]
     runs-on: ubuntu-latest
     steps:
