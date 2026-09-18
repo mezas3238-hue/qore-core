@@ -28,7 +28,7 @@ from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_correcte
 SCHEMA = "qore.trader_lab.vt08_index_cibo_2y_tuning_round3.v1"
 IDENTITY = "VT08_INDEX_CIBO_2Y_TUNING_ROUND3_ANCHOR_COMPLETE"
 ANCHORS = tuple(v7.EXECUTABLE_H4_ANCHORS_NY)
-ACTIVITY_FLOORS = (100, 150, 200, 250, 300, 350, 400)
+ACTIVITY_FLOORS = (100, 200, 300, 400, 500, 600, 700, 800)
 PF_GOAL = Decimal("1.15")
 DD_GOAL = Decimal("12")
 
@@ -98,7 +98,7 @@ def _goal(candidate: dict[str, Any]) -> bool:
     primary = cast(dict[str, Any], candidate["primary_stress"])
     secondary = cast(dict[str, Any], candidate["secondary_stress"])
     return (
-        int(primary["sample"]) >= 200
+        int(primary["sample"]) >= 600
         and Decimal(str(primary["profit_factor"])) >= PF_GOAL
         and Decimal(str(primary["max_drawdown_r"])) <= DD_GOAL
         and Decimal(str(secondary["profit_factor"])) >= Decimal("1.05")
@@ -174,7 +174,7 @@ def build_report(
     tier_best = _tier_best(candidates)
 
     # Prefer the highest activity floor with a candidate that meets the economic
-    # goal. If none meets it, expose the ranked >=200 candidate for diagnosis.
+    # goal. If none meets it, expose the ranked >=600 candidate when available,\n    # otherwise expose the highest-activity ranked candidate for density diagnosis.
     best: dict[str, Any] | None = None
     for floor in reversed(ACTIVITY_FLOORS):
         candidate = tier_best[str(floor)]
@@ -182,7 +182,7 @@ def build_report(
             best = candidate
             break
     if best is None:
-        best = tier_best["200"] or (candidates[0] if candidates else None)
+        best = tier_best["600"] or (candidates[0] if candidates else None)
 
     benchmarks = [
         _benchmark(
@@ -262,7 +262,7 @@ def build_report(
         "benchmarks": benchmarks,
         "search_contract": {
             "minimum_candidate_sample": 100,
-            "preferred_minimum_sample": 200,
+            "preferred_minimum_sample": 600,
             "profit_factor_primary_goal": format(PF_GOAL, "f"),
             "max_drawdown_primary_goal_r": format(DD_GOAL, "f"),
             "profit_factor_secondary_floor": "1.05",
