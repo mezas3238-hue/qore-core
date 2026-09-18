@@ -20,9 +20,10 @@ import json
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import vt31_nas100_entry_intelligence_oco_lab_v1 as oco
+
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _day,
     load_market_evidence,
