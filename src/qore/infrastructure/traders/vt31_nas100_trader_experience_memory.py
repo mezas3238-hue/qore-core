@@ -35,6 +35,7 @@ _LAB_BINDINGS: Final = {
     "intelligence_policy_lab_v2b_run": 35290200552,
     "direct_m1_wfo_run": 35291106350,
     "state_equivalence_run": 35291288678,
+    "handoff_cross_fold_intelligence_run": 35301231110,
 }
 
 _SUPPORTED: Final = {
@@ -62,6 +63,13 @@ _SUPPORTED: Final = {
         "legacy Eight-Ledger structure timestamps are retained only as "
         "consumed aggregate research; runtime CIBO structure state uses "
         "closed-M1 causal V2 timestamps and never backdates a reclaim/touch"
+    ),
+    "low_dd_reference_gate": (
+        "consumed R5/R6/R8 low-drawdown research supports a compressed "
+        "09-reference as the primary executable state; outside compression, "
+        "the only retained calibration fallback is SHORT with mixed H1 state. "
+        "This gate is development-calibration evidence and still requires "
+        "independent 2Y validation before any freeze"
     ),
 }
 
