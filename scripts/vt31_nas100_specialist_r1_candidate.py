@@ -587,6 +587,9 @@ def _state_snapshot(
         "reasoning_support": list(reasoning.supporting_evidence),
         "reasoning_contradictions": list(reasoning.contradictions),
         "reasoning_uncertainty": list(reasoning.uncertainty),
+        "reasoning_context_observations": list(
+            reasoning.context_observations
+        ),
         "reasoning_wait_reasons": (
             list(reasoning.uncertainty)
             if reasoning.action == "WAIT"
