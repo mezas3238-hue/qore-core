@@ -15,6 +15,7 @@ import itertools
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -278,15 +279,18 @@ def build_report(
         "SP500": sp500_root,
         "US30": us30_root,
     }
-    bars_by_symbol = {}
-    indexed_by_symbol = {}
-    opportunities_by_symbol = {}
-    provenance = {}
+    bars_by_symbol: dict[str, Sequence[v5y.Vt08IndexC2R1Bar]] = {}
+    indexed_by_symbol: dict[
+        str,
+        dict[object, v5y.Vt08IndexC2R1Bar],
+    ] = {}
+    opportunities_by_symbol: dict[str, tuple[Any, ...]] = {}
+    provenance: dict[str, Any] = {}
     for symbol in ("NAS100", "SP500", "US30"):
         bars, source = v5y._load_cibo_m15_5y(roots[symbol], symbol=symbol)
         bars_by_symbol[symbol] = bars
         indexed_by_symbol[symbol] = {
-            bar.opened_at.astimezone(r10.UTC): bar for bar in bars
+            bar.opened_at.astimezone(UTC): bar for bar in bars
         }
         opportunities_by_symbol[symbol] = r8._opportunities(
             symbol=symbol,
