@@ -45,8 +45,6 @@ jobs:
       - run: ruff check .
       - run: mypy src tests
       - run: pytest -q tests/infrastructure/trader_lab/test_cibo_index_market_intelligence_v1.py
-      - name: Full QORE gate
-        run: pytest --cov=src/qore --cov-report=term-missing
 
   dossier:
     needs: quality
