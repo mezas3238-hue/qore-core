@@ -206,7 +206,7 @@
     "c07938a69eef7244e5c7d0b68a0ca586965ad1423e867d8a20e69729ba7feec8  turtle-soup-audjpy-specialist-observations.jsonl",
     "6b2cb655bee2a74355a0febe4bdc06d13984fcf56dc1a63eaf3cd4d2424cec7d  turtle-soup-audjpy-specialist-cognitive-memory.json",
     "f9d69c373179cba5f1fa53a4e37d4a7bd1decb4e9c244edf31488bfb4c8454b0  stdout.json",
-    "d1ce351dfe0db332b76c3f0307f20a85eb5e1622c8898aa645a70c70b4ce4f6f  git-sha.txt",
+    "75784ad5b4215d758a267472383b2a5284a94659385a2ad6c9e03ddaf69fde16  git-sha.txt",
     "eebe44a3798334a83a1ac5f4190c0f631638bc28db2cc268543ffb186666d5bb  master-snapshot/journey-DAILY_PATH_LEDGER.jsonl",
     "8abe0eed84495fd9891fb510c86794b5d9fa00bbf77bb67a665328070714d294  master-snapshot/journey-DEPARTURE_TIMING_LEDGER.jsonl",
     "7acfb1ed96e6b5e7c709263b2669a550d4bc90c73de5bed01850b66ea839c4c7  master-snapshot/journey-MARKET_JOURNEY_LEDGER.jsonl",
@@ -220,6 +220,6 @@
     "bdfc678736c9b1fc08faab07b80f54061843a7fe4ba4e498a3598cd78e88cb09  master-snapshot/target-target-destination-v2-manifest.json"
   ],
   "specialist_memory_result": "success",
-  "workflow_run_id": 35382117098,
-  "workflow_sha": "74285e4c6af3ae1cfc5bce0877ffcb2e26956ae0"
+  "workflow_run_id": 35382166428,
+  "workflow_sha": "6fb6898650a45e76d1173fe27470b3d291f659c4"
 }
