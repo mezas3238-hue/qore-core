@@ -149,7 +149,7 @@ def _verify_freeze(root: Path) -> dict[str, Any]:
     path = _single(root, "r38-candidate-freeze-manifest.json")
     if _sha256(path) != FREEZE_MANIFEST_SHA256:
         raise ValueError("R38 freeze manifest hash drift")
-    freeze = json.loads(path.read_text())
+    freeze: dict[str, Any] = json.loads(path.read_text())
     if freeze["identity"] != CANDIDATE_IDENTITY:
         raise ValueError("R38 freeze candidate identity drift")
     if freeze["status"] != "FROZEN_FOR_FINAL_ROBUSTNESS":
