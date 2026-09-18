@@ -13,7 +13,7 @@ import json
 import sys
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -354,7 +354,7 @@ def run(source_root: Path, output: Path) -> dict[str, Any]:
         selected_internal = next(item for item in results if item["policy"] == selected["policy"])
         with (output / "r40-5y-corrected-trades.jsonl").open("w", encoding="utf-8") as handle:
             for row in selected_internal["_rows"]:
-                handle.write(json.dumps(row.__dict__, sort_keys=True) + "\n")
+                handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
 
     report: dict[str, Any] = {
         "schema": "qore.turtle_soup_gbpusd.r40_5y_structural_risk_correction.v1",
