@@ -23,8 +23,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import vt31_nas100_entry_intelligence_oco_lab_v1 as oco
-import vt31_nas100_specialist_r1_candidate as specialist
-
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _day,
     load_market_evidence,
