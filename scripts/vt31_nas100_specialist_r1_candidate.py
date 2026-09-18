@@ -326,8 +326,9 @@ def _state_snapshot(
     session_prefix: tuple[object, ...],
     source: Vt31R22SourceSetup,
     executable: Vt31R22ExecutableSetup,
+    observation_at: datetime,
 ) -> dict[str, object]:
-    decision_at = executable.decision_at
+    decision_at = observation_at
     decision_local = decision_at.astimezone(
         __import__("zoneinfo").ZoneInfo("America/New_York")
     )
@@ -939,6 +940,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 <= _wall(getattr(item, "opened_at"))
                 < (11, 0, 0)
             )
+            observation_at = cast(datetime, getattr(bar, "closed_at"))
             state = _state_snapshot(
                 day_bars,
                 previous_path_range,
@@ -947,6 +949,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 session_prefix,
                 evaluation.setup,
                 executable,
+                observation_at,
             )
             reasoning_trace.append(
                 {
@@ -955,6 +958,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
                     "entry_family": executable.selected_family.value,
                     "entry": format(executable.entry_price, "f"),
                     "stop": format(executable.stop_price, "f"),
+                    "setup_formed_at": executable.decision_at.astimezone(
+                        UTC
+                    ).isoformat(),
                     "structural_boundary": format(
                         executable.target_price,
                         "f",
@@ -977,7 +983,21 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 raise ValueError(f"unsupported intelligence action: {action}")
 
             selected_source = evaluation.setup
-            selected = executable
+            selected = Vt31R22ExecutableSetup(
+                side=executable.side,
+                entry_price=executable.entry_price,
+                stop_price=executable.stop_price,
+                target_price=executable.target_price,
+                three_r_price=executable.three_r_price,
+                selected_family=executable.selected_family,
+                candidate_families=executable.candidate_families,
+                decision_at=observation_at,
+                pending_expires_at=executable.pending_expires_at,
+                source_setup=executable.source_setup,
+                execution_policy_fingerprint=(
+                    executable.execution_policy_fingerprint
+                ),
+            )
             selected_state = state
             break
 
