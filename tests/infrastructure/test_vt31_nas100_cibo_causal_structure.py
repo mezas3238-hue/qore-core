@@ -84,11 +84,24 @@ def _source(
         extreme_candle_low=Decimal("109"),
         extreme_candle_close=Decimal("110.5"),
     )
+    if candidate is None:
+        candidate = Vt31R22EntryEvidence(
+            family=Vt31R22EntryFamily.BREAKER,
+            formed_at=raid_at + timedelta(minutes=1),
+            source_candle_open=Decimal("109.5"),
+            source_candle_high=Decimal("111"),
+            source_candle_low=Decimal("109"),
+            source_candle_close=Decimal("110.5"),
+            zone_lower=Decimal("109.5"),
+            zone_upper=Decimal("110.5"),
+            zone_class=Vt31R22EvidenceClass.SOURCE_FORMALIZATION,
+            source_timestamps=(raid_at.isoformat(),),
+        )
     return Vt31R22SourceSetup(
         side=DemoTradingSetupSide.SHORT,
         reference=reference,
         structure=structure,
-        candidates=(() if candidate is None else (candidate,)),
+        candidates=(candidate,),
         target_price=Decimal("100"),
         pending_expires_at=raid_at + timedelta(hours=1),
         source_fingerprint="a" * 64,
