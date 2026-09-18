@@ -33,7 +33,7 @@ FIVE_YEAR_SECONDARY_TOTAL_R = "40.61231950566482647157373413"
 FIVE_YEAR_POSITIVE_YEAR_BUCKETS = 5
 
 TARGET_R = "2.5"
-SCHEME = {
+SCHEME: dict[str, str | int] = {
     "aligned_weight": "0.25",
     "rolling_trades": 60,
     "c2_cap": "0.50",
@@ -51,12 +51,12 @@ SCHEME_ID = "R14-A0.25-D1.75x0.15-H2.50x0.10-L2x0.20"
 
 def frozen_refined_scheme() -> r14.RefinedScheme:
     return r14.RefinedScheme(
-        aligned_weight=Decimal(SCHEME["aligned_weight"]),
-        warn_dd_r=Decimal(SCHEME["warn_dd_r"]),
-        warn_multiplier=Decimal(SCHEME["warn_multiplier"]),
-        hard_dd_r=Decimal(SCHEME["hard_dd_r"]),
-        hard_multiplier=Decimal(SCHEME["hard_multiplier"]),
-        loss_multiplier=Decimal(SCHEME["loss_multiplier"]),
+        aligned_weight=Decimal(str(SCHEME["aligned_weight"])),
+        warn_dd_r=Decimal(str(SCHEME["warn_dd_r"])),
+        warn_multiplier=Decimal(str(SCHEME["warn_multiplier"])),
+        hard_dd_r=Decimal(str(SCHEME["hard_dd_r"])),
+        hard_multiplier=Decimal(str(SCHEME["hard_multiplier"])),
+        loss_multiplier=Decimal(str(SCHEME["loss_multiplier"])),
     )
 
 
