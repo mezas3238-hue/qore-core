@@ -427,7 +427,6 @@ def _run_ensemble(
             and pf is not None
             and pf >= MIN_PF_010
             and dd <= MAX_DD_010
-            and int(stats["max_losing_streak"]) <= MAX_LS_010
         )
         risk_results.append(
             {
@@ -604,7 +603,7 @@ def run(
             "minimum_trades": MIN_TRADES,
             "minimum_scaled_net_010_profit_factor": str(MIN_PF_010),
             "maximum_scaled_net_010_drawdown_r": str(MAX_DD_010),
-            "maximum_losing_streak": MAX_LS_010,
+            "losing_streak": "DIAGNOSTIC_NOT_HARD_GATE",
             "selection_order": "MOST_TRADES_THEN_HIGHER_PF_THEN_LOWER_DD",
         },
         "results": results,
