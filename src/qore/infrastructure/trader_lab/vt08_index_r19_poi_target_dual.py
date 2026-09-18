@@ -136,6 +136,77 @@ def _sequential_symbol(
     return tuple(selected)
 
 
+def _preload_window(
+    roots: dict[str, Path],
+    *,
+    recent_two_year: bool,
+) -> dict[
+    str,
+    tuple[
+        tuple[Vt08IndexC2R1Bar, ...],
+        tuple[r4.ExpandedOpportunity, ...],
+    ],
+]:
+    data: dict[
+        str,
+        tuple[
+            tuple[Vt08IndexC2R1Bar, ...],
+            tuple[r4.ExpandedOpportunity, ...],
+        ],
+    ] = {}
+    for symbol in ("NAS100", "SP500", "US30"):
+        if recent_two_year:
+            bars, _source = r2y._load_cibo_m15_2y(
+                roots[symbol],
+                symbol=symbol,
+            )
+            opportunities = r2y._opportunities_2y(
+                symbol=symbol,
+                bars=bars,
+            )
+        else:
+            bars, _source = v5y._load_cibo_m15_5y(
+                roots[symbol],
+                symbol=symbol,
+            )
+            opportunities = r8._opportunities(
+                symbol=symbol,
+                bars=bars,
+            )
+        data[symbol] = (tuple(bars), tuple(opportunities))
+    return data
+
+
+def _stream_from_preloaded(
+    data: dict[
+        str,
+        tuple[
+            tuple[Vt08IndexC2R1Bar, ...],
+            tuple[r4.ExpandedOpportunity, ...],
+        ],
+    ],
+    *,
+    targets: PoiTargets,
+) -> tuple[tuple[r4.ExpandedOpportunity, r5.ManagedTrade], ...]:
+    selected: list[tuple[r4.ExpandedOpportunity, r5.ManagedTrade]] = []
+    for symbol in ("NAS100", "SP500", "US30"):
+        bars, opportunities = data[symbol]
+        selected.extend(
+            _sequential_symbol(
+                opportunities,
+                bars=bars,
+                targets=targets,
+            )
+        )
+    selected.sort(
+        key=lambda item: (
+            item[0].signal.signal_at,
+            item[0].signal.symbol,
+        )
+    )
+    return tuple(selected)
+
+
 def _stream_for_window(
     roots: dict[str, Path],
     *,
@@ -203,19 +274,30 @@ def _metric_pass(
     )
 
 
-def _candidate(
-    roots: dict[str, Path],
+def _candidate_from_preloaded(
+    five_data: dict[
+        str,
+        tuple[
+            tuple[Vt08IndexC2R1Bar, ...],
+            tuple[r4.ExpandedOpportunity, ...],
+        ],
+    ],
+    two_data: dict[
+        str,
+        tuple[
+            tuple[Vt08IndexC2R1Bar, ...],
+            tuple[r4.ExpandedOpportunity, ...],
+        ],
+    ],
     *,
     targets: PoiTargets,
 ) -> dict[str, Any]:
-    five_stream = _stream_for_window(
-        roots,
-        recent_two_year=False,
+    five_stream = _stream_from_preloaded(
+        five_data,
         targets=targets,
     )
-    two_stream = _stream_for_window(
-        roots,
-        recent_two_year=True,
+    two_stream = _stream_from_preloaded(
+        two_data,
         targets=targets,
     )
     five_primary = _metrics(five_stream, stress=PRIMARY_STRESS)
@@ -299,8 +381,14 @@ def build_report(
         "SP500": sp500_root,
         "US30": us30_root,
     }
+    five_data = _preload_window(roots, recent_two_year=False)
+    two_data = _preload_window(roots, recent_two_year=True)
     rows = [
-        _candidate(roots, targets=targets)
+        _candidate_from_preloaded(
+            five_data,
+            two_data,
+            targets=targets,
+        )
         for targets in _maps()
     ]
     rows.sort(key=_rank, reverse=True)
