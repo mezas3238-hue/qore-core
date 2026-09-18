@@ -9,6 +9,7 @@ No live, real-capital or production authority is granted here.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from hashlib import sha256
 from typing import Any
 
@@ -50,12 +51,12 @@ SCHEME_ID = "R14-A0.25-D1.75x0.15-H2.50x0.10-L2x0.20"
 
 def frozen_refined_scheme() -> r14.RefinedScheme:
     return r14.RefinedScheme(
-        aligned_weight=r14.Decimal(SCHEME["aligned_weight"]),
-        warn_dd_r=r14.Decimal(SCHEME["warn_dd_r"]),
-        warn_multiplier=r14.Decimal(SCHEME["warn_multiplier"]),
-        hard_dd_r=r14.Decimal(SCHEME["hard_dd_r"]),
-        hard_multiplier=r14.Decimal(SCHEME["hard_multiplier"]),
-        loss_multiplier=r14.Decimal(SCHEME["loss_multiplier"]),
+        aligned_weight=Decimal(SCHEME["aligned_weight"]),
+        warn_dd_r=Decimal(SCHEME["warn_dd_r"]),
+        warn_multiplier=Decimal(SCHEME["warn_multiplier"]),
+        hard_dd_r=Decimal(SCHEME["hard_dd_r"]),
+        hard_multiplier=Decimal(SCHEME["hard_multiplier"]),
+        loss_multiplier=Decimal(SCHEME["loss_multiplier"]),
     )
 
 
