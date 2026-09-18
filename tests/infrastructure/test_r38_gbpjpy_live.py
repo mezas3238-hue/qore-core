@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -236,7 +237,9 @@ def test_r38_gbpjpy_core_three_flag_overlay_is_exact(
     assert final == Decimal("0.05")
 
 
-def test_r38_gbpjpy_expansion_fragility_flags_do_not_suppress_or_rescale() -> None:
+def test_r38_gbpjpy_expansion_fragility_flags_do_not_suppress_or_rescale(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     decision = r35.Decision(
         target=native.NativeTarget(
             rank=1,
