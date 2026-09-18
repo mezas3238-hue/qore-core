@@ -79,7 +79,7 @@ def main() -> int:
             window_start=datetime.fromisoformat(args.window_start),
             window_end=datetime.fromisoformat(args.window_end),
         )
-        payload = metrics.as_json()
+        payload: dict[str, Any] = metrics.as_json()
         payload["nominal_worst_day_percent_at_0_20pct_per_1r"] = str(
             nominal_equity_percent(metrics.worst_closed_day_r)
         )
