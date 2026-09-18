@@ -212,6 +212,20 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
         support.append("CIBO:WEEKDAY_CONTEXT_AVAILABLE_ASSOCIATION_ONLY")
         market_used.append(f"by_weekday.{state.weekday}")
 
+    reference_compressed = state.volatility_state == "compressed"
+    noncompressed_low_dd_fallback = (
+        state.side == "short" and state.h1_state == "mixed"
+    )
+    experience_used.append("low_dd_reference_gate")
+    if reference_compressed:
+        support.append("EXPERIENCE:LOW_DD_COMPRESSED_REFERENCE_CORE")
+    elif noncompressed_low_dd_fallback:
+        support.append("EXPERIENCE:LOW_DD_NONCOMPRESSED_SHORT_H1_MIXED")
+    else:
+        contradictions.append(
+            "EXPERIENCE:NONCOMPRESSED_REFERENCE_OUTSIDE_LOW_DD_GATE"
+        )
+
     plan = _target_plan(state)
     experience_used.append("dynamic_destination_management")
     experience_used.append("universal_partial_runner")
