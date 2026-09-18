@@ -128,6 +128,15 @@ from qore.infrastructure.r38_gbpjpy_live import (
     load_memory as load_gbpjpy_r38_memory,
     manage_open_position as manage_gbpjpy_r38_open_position,
 )
+from qore.infrastructure.r42_audjpy_live import (
+    R42AudJpyLiveSignal,
+    R42AudJpyLiveStateStore,
+    build_live_signal as build_audjpy_r42_live_signal,
+    build_r42_audjpy_risk_request,
+    current_anchor as current_audjpy_r42_anchor,
+    load_memory as load_audjpy_r42_memory,
+    manage_open_position as manage_audjpy_r42_open_position,
+)
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     OWNER_FOREX_ENTRY_ANCHORS,
     Vt08B01Bar,
@@ -432,6 +441,7 @@ def _manage_h4_exits(
             TraderLineage.R38_EURUSD,
             TraderLineage.R43_GBPUSD,
             TraderLineage.R38_GBPJPY,
+            TraderLineage.R42_AUDJPY,
         }:
             signal_anchor = source.transitioned_at.astimezone(UTC).replace(
                 minute=0, second=0, microsecond=0
@@ -443,8 +453,10 @@ def _manage_h4_exits(
                 exit_label = "R38_24H"
             elif lineage is TraderLineage.R43_GBPUSD:
                 exit_label = "R43_24H"
-            else:
+            elif lineage is TraderLineage.R38_GBPJPY:
                 exit_label = "GBPJPY_R38_24H"
+            else:
+                exit_label = "AUDJPY_R42_24H"
         else:
             due = h4_containment_exit_at(_signal_anchor(source.transitioned_at))
             exit_label = "VT08_H4"
