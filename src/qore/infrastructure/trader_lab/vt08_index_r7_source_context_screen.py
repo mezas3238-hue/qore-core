@@ -150,7 +150,7 @@ def _metrics(values: Sequence[Decimal]) -> dict[str, Any]:
 
 def _governed(
     admissions: Sequence[fx.Admission],
-    outcomes: Sequence[Any],
+    outcomes: Sequence[r5.ManagedTrade],
     *,
     stress: Decimal,
 ) -> tuple[fx.GovernedTrace, ...]:
@@ -184,7 +184,7 @@ def _year_stability(
 
 def _candidate_row(
     admissions: Sequence[fx.Admission],
-    outcomes: Sequence[Any],
+    outcomes: Sequence[r5.ManagedTrade],
     features: Sequence[Feature],
     screen: Screen,
 ) -> dict[str, Any]:
