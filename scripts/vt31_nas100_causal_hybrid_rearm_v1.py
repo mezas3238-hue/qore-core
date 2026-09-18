@@ -84,6 +84,36 @@ REARM_MONTHLY_BUDGETS = (
     Decimal("0.25"),
     Decimal("0.30"),
 )
+ADAPTIVE_REARM_BUDGET_PROFILES: dict[str, dict[str, object]] = {
+    "ACTIVITY_A": {
+        "sparse_max": 9,
+        "balanced_max": 11,
+        "sparse_budget": Decimal("0.25"),
+        "balanced_budget": Decimal("0.18"),
+        "dense_budget": Decimal("0.10"),
+    },
+    "ACTIVITY_B": {
+        "sparse_max": 9,
+        "balanced_max": 11,
+        "sparse_budget": Decimal("0.30"),
+        "balanced_budget": Decimal("0.20"),
+        "dense_budget": Decimal("0.10"),
+    },
+    "ACTIVITY_C": {
+        "sparse_max": 8,
+        "balanced_max": 10,
+        "sparse_budget": Decimal("0.30"),
+        "balanced_budget": Decimal("0.20"),
+        "dense_budget": Decimal("0.10"),
+    },
+    "ACTIVITY_D": {
+        "sparse_max": 10,
+        "balanced_max": 12,
+        "sparse_budget": Decimal("0.25"),
+        "balanced_budget": Decimal("0.15"),
+        "dense_budget": Decimal("0.08"),
+    },
+}
 
 
 def _risk_class(score: int) -> str:
@@ -153,6 +183,93 @@ def _budgeted_rearm_rows(
                 "authorized_count": 0,
                 "budget_denied_count": 0,
                 "remaining_budget_r": format(monthly_budget, "f"),
+            }
+
+        risk_class = cast(str, raw_row["rearm_risk_class"])
+        risk = risk_map[risk_class]
+        remaining = Decimal(
+            cast(str, ledger[month]["remaining_budget_r"])
+        )
+        if risk > remaining:
+            ledger[month]["budget_denied_count"] = (
+                int(ledger[month]["budget_denied_count"]) + 1
+            )
+            continue
+
+        selected.append(
+            _weighted_rearm(
+                raw_row,
+                risk=risk,
+                score=int(cast(int, raw_row["rearm_quality_score"])),
+                risk_class=risk_class,
+                mode=mode,
+            )
+        )
+        remaining -= risk
+        ledger[month]["authorized_count"] = (
+            int(ledger[month]["authorized_count"]) + 1
+        )
+        ledger[month]["remaining_budget_r"] = format(remaining, "f")
+
+    return selected, ledger
+
+
+def _previous_month(month: str) -> str:
+    year_text, month_text = month.split("-")
+    year = int(year_text)
+    value = int(month_text)
+    if value == 1:
+        return f"{year - 1:04d}-12"
+    return f"{year:04d}-{value - 1:02d}"
+
+
+def _adaptive_budgeted_rearm_rows(
+    raw_rows: list[dict[str, object]],
+    *,
+    risk_map: dict[str, Decimal],
+    first_rows: list[dict[str, object]],
+    profile: dict[str, object],
+    mode: str,
+) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
+    """Allocate this month's rearm capital from prior-month base activity."""
+    base_counts: Counter[str] = Counter(
+        cast(str, row["local_date"])[:7]
+        for row in first_rows
+    )
+    selected: list[dict[str, object]] = []
+    ledger: dict[str, dict[str, object]] = {}
+
+    sparse_max = int(cast(int, profile["sparse_max"]))
+    balanced_max = int(cast(int, profile["balanced_max"]))
+    sparse_budget = cast(Decimal, profile["sparse_budget"])
+    balanced_budget = cast(Decimal, profile["balanced_budget"])
+    dense_budget = cast(Decimal, profile["dense_budget"])
+
+    for raw_row in sorted(
+        raw_rows,
+        key=lambda row: cast(str, row["signal_at"]),
+    ):
+        month = cast(str, raw_row["local_date"])[:7]
+        if month not in ledger:
+            prior_month = _previous_month(month)
+            prior_base_count = base_counts.get(prior_month, 0)
+            if prior_base_count <= sparse_max:
+                budget = sparse_budget
+                activity_state = "SPARSE"
+            elif prior_base_count <= balanced_max:
+                budget = balanced_budget
+                activity_state = "BALANCED"
+            else:
+                budget = dense_budget
+                activity_state = "DENSE"
+            ledger[month] = {
+                "prior_month": prior_month,
+                "prior_month_base_trade_count": prior_base_count,
+                "activity_state": activity_state,
+                "opening_budget_r": format(budget, "f"),
+                "authorized_count": 0,
+                "budget_denied_count": 0,
+                "remaining_budget_r": format(budget, "f"),
             }
 
         risk_class = cast(str, raw_row["rearm_risk_class"])
@@ -570,6 +687,70 @@ def replay(
             },
         }
 
+    for profile_name, profile in ADAPTIVE_REARM_BUDGET_PROFILES.items():
+        mode = "SCORE_PROTECT"
+        rearm_rows, activity_ledger = _adaptive_budgeted_rearm_rows(
+            rearm_raw_by_mode[mode],
+            risk_map=RISK_PROFILES["REARM_CONSERVATIVE"],
+            first_rows=first_rows,
+            profile=profile,
+            mode=mode,
+        )
+        combined = sorted(
+            [*first_rows, *rearm_rows],
+            key=lambda row: cast(str, row["signal_at"]),
+        )
+        variant = f"REARM_ADAPTIVE_{profile_name}_SCORE_PROTECT"
+        metrics = _capital_metrics(combined)
+        mc = _monte_carlo(combined, variant=variant)
+        trade_count = len(combined)
+        variants[variant] = {
+            "trade_count": trade_count,
+            "base_trade_count": len(first_rows),
+            "rearm_trade_count": len(rearm_rows),
+            "metrics": metrics,
+            "monte_carlo": mc,
+            "activity_budget_profile": {
+                key: (
+                    format(value, "f")
+                    if isinstance(value, Decimal)
+                    else value
+                )
+                for key, value in profile.items()
+            },
+            "monthly_activity_budget_ledger": activity_ledger,
+            "density": {
+                "at_least_300": trade_count >= 300,
+                "inside_300_350": 300 <= trade_count <= 350,
+            },
+            "development_objectives": {
+                "density_300_350": 300 <= trade_count <= 350,
+                "profit_factor_at_least_2": (
+                    metrics["profit_factor"] is not None
+                    and Decimal(cast(str, metrics["profit_factor"]))
+                    >= Decimal("2")
+                ),
+                "observed_dd_at_most_10r": (
+                    Decimal(cast(str, metrics["max_drawdown_r"]))
+                    <= Decimal("10")
+                ),
+                "stretch_observed_dd_at_most_5r": (
+                    Decimal(cast(str, metrics["max_drawdown_r"]))
+                    <= Decimal("5")
+                ),
+                "mc_positive_at_least_0_90": (
+                    Decimal(
+                        cast(str, mc["positive_terminal_probability"])
+                    )
+                    >= Decimal("0.90")
+                ),
+                "mc_p95_dd_at_most_15r": (
+                    Decimal(cast(str, mc["p95_max_drawdown_r"]))
+                    <= Decimal("15")
+                ),
+            },
+        }
+
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
@@ -617,6 +798,9 @@ def replay(
             "monthly_rearm_budget_is_capital_governance": True,
             "monthly_rearm_budget_uses_terminal_pnl": False,
             "monthly_rearm_budget_uses_fold_identity": False,
+            "adaptive_rearm_budget_uses_prior_activity_only": True,
+            "adaptive_rearm_budget_uses_terminal_pnl": False,
+            "adaptive_rearm_budget_uses_fold_identity": False,
             "first_swing_is_universal": False,
             "qore_risk_remains_sovereign": True,
             "consumed_evidence_only": True,
