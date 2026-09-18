@@ -7,7 +7,9 @@ position on one symbol MUST NOT block a valid position on another symbol.
 Risk may resize concurrent signals but may not suppress them merely because
 another index is already open.
 
-The portfolio-level drawdown ceiling is six R across all three markets.\n\nOwner density contract (18-Sep-2026):
+The portfolio-level drawdown ceiling is six R across all three markets.
+
+Owner density contract (18-Sep-2026):
 - 5Y must naturally produce roughly 2,300-2,500 trades across the three markets.
 - 2Y must produce at least 1,000 trades.
 Density may not be manufactured by suppressing valid signals or by trivial
