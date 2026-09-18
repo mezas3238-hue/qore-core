@@ -457,9 +457,11 @@ def load_memory(
         "artifact_digest": MEMORY_SOURCE_ARTIFACT_DIGEST,
         "observations_sha256": MEMORY_SOURCE_OBSERVATIONS_SHA256,
     }
-    for key, value in expected_source.items():
-        if source.get(key) != value:
-            raise ValueError(f"GBPJPY R38 live memory source {key} drift")
+    for source_key, value in expected_source.items():
+        if source.get(source_key) != value:
+            raise ValueError(
+                f"GBPJPY R38 live memory source {source_key} drift"
+            )
     if payload.get("selected_ensemble") != SELECTED_ENSEMBLE:
         raise ValueError("GBPJPY R38 ensemble drift")
     if payload.get("selected_policy") != SELECTED_POLICY:
@@ -507,10 +509,13 @@ def load_memory(
         for row in rows:
             if not isinstance(row, dict):
                 raise ValueError(f"GBPJPY R38 {scheme} profile type drift")
-            key = (str(row["signature"]), str(row["target_family"]))
-            if key in memory:
+            profile_key = (
+                str(row["signature"]),
+                str(row["target_family"]),
+            )
+            if profile_key in memory:
                 raise ValueError(f"GBPJPY R38 {scheme} duplicate profile")
-            memory[key] = r34.Profile(
+            memory[profile_key] = r34.Profile(
                 observations=int(row["observations"]),
                 distinct_quarters=int(row["distinct_quarters"]),
                 reach_rate=Decimal(str(row["reach_rate"])),
