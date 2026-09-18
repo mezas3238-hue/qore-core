@@ -30,10 +30,10 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - name: Ruff
         run: |
-          ruff check --ignore E501,I001             src/qore/infrastructure/r43_gbpusd_live.py             src/qore/infrastructure/account_wide_risk.py             tests/infrastructure/test_r43_gbpusd_live.py
+          ruff check --ignore E501,I001 src/qore/infrastructure/r43_gbpusd_live.py src/qore/infrastructure/account_wide_risk.py scripts/qore_fundednext_runtime.py tests/infrastructure/test_r43_gbpusd_live.py
       - name: Mypy
         run: |
-          mypy --disable-error-code attr-defined             src/qore/infrastructure/r43_gbpusd_live.py
+          mypy --disable-error-code attr-defined src/qore/infrastructure/r43_gbpusd_live.py scripts/qore_fundednext_runtime.py
       - name: Focused tests
         run: |
           pytest -q --no-cov             tests/infrastructure/test_r43_gbpusd_live.py             tests/infrastructure/test_account_wide_risk.py
