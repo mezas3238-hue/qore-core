@@ -58,10 +58,10 @@ def _read_json(path: Path) -> dict[str, Any]:
 def _account_fingerprint(account: object) -> str:
     material = "|".join(
         (
-            str(getattr(account, "login")),
-            str(getattr(account, "server")),
-            str(getattr(account, "company")),
-            str(getattr(account, "currency")),
+            str(account.login),
+            str(account.server),
+            str(account.company),
+            str(account.currency),
         )
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
