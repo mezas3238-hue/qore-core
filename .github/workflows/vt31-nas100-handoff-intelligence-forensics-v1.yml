@@ -8,6 +8,7 @@ on:
       - scripts/vt31_nas100_specialist_r1_candidate.py
       - scripts/vt31_nas100_handoff_intelligence_forensics_v1.py
       - scripts/vt31_nas100_position_intelligence_forensics_v1.py
+      - scripts/vt31_nas100_cross_fold_intelligence_memory_v1.py
       - src/qore/infrastructure/traders/vt31_nas100_*.py
       - .github/workflows/vt31-nas100-handoff-intelligence-forensics-v1.yml
   workflow_dispatch:
@@ -147,5 +148,91 @@ jobs:
         with:
           name: qore-vt31-nas100-handoff-forensics-${{ matrix.partition }}-${{ github.sha }}
           path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+
+  aggregate-memory:
+    needs: consumed-fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install -e .[dev]
+
+      - name: Static aggregate gate
+        run: |
+          set -euo pipefail
+          ruff check scripts/vt31_nas100_cross_fold_intelligence_memory_v1.py
+
+      - name: Download fold artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-handoff-forensics-*-${{ github.sha }}
+          path: aggregate-input
+          merge-multiple: true
+
+      - name: Build cross-fold intelligence memory
+        run: |
+          set -euo pipefail
+          mkdir -p aggregate-result
+          python scripts/vt31_nas100_cross_fold_intelligence_memory_v1.py \
+            aggregate-input \
+            --output aggregate-result/VT31_NAS100_CROSS_FOLD_INTELLIGENCE_MEMORY_V1.json \
+            | tee aggregate-result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "aggregate-result/"
+                  "VT31_NAS100_CROSS_FOLD_INTELLIGENCE_MEMORY_V1.json"
+              ).read_text()
+          )
+          governance = payload["governance"]
+          assert payload["market"] == "NAS100"
+          assert payload["partitions"] == ["r8_fresh", "r6", "r5"]
+          assert governance["classification_basis"] == (
+              "structural-journey-preservation-not-pnl"
+          )
+          assert governance["requires_all_consumed_folds"] is True
+          assert governance["xauusd_parameters_copied"] is False
+          assert governance["operating_policy_selection_allowed"] is False
+          assert governance["opens_new_holdout"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          for row in payload["context_management_states"]:
+              assert row["operating_policy_authorized"] is False
+          print(json.dumps({
+              "capacity_by_fold": payload["capacity_by_fold"],
+              "position_intelligence_by_fold": payload[
+                  "position_intelligence_by_fold"
+              ],
+              "context_management_state_counts": payload[
+                  "context_management_state_counts"
+              ],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind aggregate memory
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > aggregate-result/git-sha.txt
+          (cd aggregate-result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd aggregate-result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-cross-fold-intelligence-memory-${{ github.sha }}
+          path: aggregate-result/
           if-no-files-found: error
           retention-days: 90
