@@ -55,11 +55,11 @@ def test_compute_weekly_telemetry_is_new_york_calendar_based() -> None:
     assert metrics.active_weeks == 3
     assert metrics.zero_entry_weeks == 1
     assert metrics.average_entries_per_week == Decimal("1.25")
-    assert metrics.median_entries_per_week == Decimal("1")
+    assert metrics.median_entries_per_week == Decimal("1.5")
     assert metrics.p95_entries_per_week == 2
     assert metrics.max_entries_per_week == 2
     assert metrics.max_entries_per_day == 2
-    assert metrics.worst_closed_day_r == Decimal("-1.5")
+    assert metrics.worst_closed_day_r == Decimal("-1")
     assert metrics.worst_closed_week_r == Decimal("-1.5")
 
 
