@@ -47,23 +47,23 @@ def test_round3_uses_every_frozen_v7_executable_anchor() -> None:
 
 
 def test_round3_goal_requires_activity_pf_dd_stress_and_stability() -> None:
-    passing = _candidate(sample=250, pf="1.20", dd="10")
+    passing = _candidate(sample=650, pf="1.20", dd="10")
     assert mod._goal(passing) is True
 
-    assert mod._goal(_candidate(sample=199, pf="1.50", dd="5")) is False
-    assert mod._goal(_candidate(sample=250, pf="1.14", dd="5")) is False
-    assert mod._goal(_candidate(sample=250, pf="1.50", dd="12.01")) is False
+    assert mod._goal(_candidate(sample=599, pf="1.50", dd="5")) is False
+    assert mod._goal(_candidate(sample=650, pf="1.14", dd="5")) is False
+    assert mod._goal(_candidate(sample=650, pf="1.50", dd="12.01")) is False
     assert mod._goal(
-        _candidate(sample=250, pf="1.50", dd="5", pf10="1.04")
+        _candidate(sample=650, pf="1.50", dd="5", pf10="1.04")
     ) is False
     assert mod._goal(
-        _candidate(sample=250, pf="1.50", dd="5", dd10="15.01")
+        _candidate(sample=650, pf="1.50", dd="5", dd10="15.01")
     ) is False
     assert mod._goal(
-        _candidate(sample=250, pf="1.50", dd="5", halves=1)
+        _candidate(sample=650, pf="1.50", dd="5", halves=1)
     ) is False
     assert mod._goal(
-        _candidate(sample=250, pf="1.50", dd="5", quarters=5)
+        _candidate(sample=650, pf="1.50", dd="5", quarters=5)
     ) is False
 
 
@@ -82,13 +82,13 @@ def test_activity_tiers_do_not_hide_frequency() -> None:
 
 
 def test_rank_prefers_stability_before_pf() -> None:
-    stable = _candidate(sample=250, pf="1.20", dd="10")
-    unstable = _candidate(sample=250, pf="2.00", dd="2", halves=1, quarters=4)
+    stable = _candidate(sample=650, pf="1.20", dd="10")
+    unstable = _candidate(sample=650, pf="2.00", dd="2", halves=1, quarters=4)
     assert mod._rank(stable) > mod._rank(unstable)
 
 
 def test_round3_contract_goals_are_explicit() -> None:
     assert mod.PF_GOAL == Decimal("1.15")
     assert mod.DD_GOAL == Decimal("12")
-    assert mod.ACTIVITY_FLOORS == (100, 150, 200, 250, 300, 350, 400)
+    assert mod.ACTIVITY_FLOORS == (100, 200, 300, 400, 500, 600, 700, 800)
     assert mod.IDENTITY == "VT08_INDEX_CIBO_2Y_TUNING_ROUND3_ANCHOR_COMPLETE"
