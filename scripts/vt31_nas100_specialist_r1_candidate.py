@@ -134,6 +134,12 @@ def contract_payload() -> dict[str, object]:
                 "conditional_timing": "decision-before-10:30-NY",
                 "sequence_freshness": "reject first-reference-reclaim age 8-14m",
             },
+            "low_dd_reference_gate": {
+                "primary_state": "09-reference-volatility=compressed",
+                "noncompressed_fallback": "SHORT-and-H1=mixed",
+                "evidence_scope": "consumed-R5/R6/R8-development",
+                "status": "2Y-calibration-required-before-freeze",
+            },
         },
         "entry": "earliest-source-valid-R2.2-executable-confluence",
         "initial_stop": "source-methodological-swing-extreme-no-buffer",
