@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -35,6 +35,7 @@ from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_rese
 from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_validation as r15
 from qore.infrastructure.trader_lab import vt08_index_r26_formation_health_governor as r26
 from qore.infrastructure.trader_lab import vt08_index_r29_candidate_freeze as freeze
+from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 SCHEMA = "qore.trader_lab.vt08_index_r31_source_complete_structural_concurrency.v1"
 IDENTITY = "VT08_INDEX_R31_SOURCE_COMPLETE_STRUCTURAL_CONCURRENCY_001"
@@ -53,13 +54,13 @@ def _build_source_complete_stream(
     roots: dict[str, Path],
 ) -> tuple[
     tuple[tuple[Any, r5.ManagedTrade], ...],
-    dict[str, tuple[Any, ...]],
-    dict[str, tuple[object, ...]],
+    dict[str, tuple[Vt08IndexC2R1Bar, ...]],
+    dict[str, tuple[datetime, ...]],
     dict[str, Any],
 ]:
     stream: list[tuple[Any, r5.ManagedTrade]] = []
-    bars_by_symbol: dict[str, tuple[Any, ...]] = {}
-    opened_by_symbol: dict[str, tuple[object, ...]] = {}
+    bars_by_symbol: dict[str, tuple[Vt08IndexC2R1Bar, ...]] = {}
+    opened_by_symbol: dict[str, tuple[datetime, ...]] = {}
     provenance: dict[str, Any] = {}
     policy = r8._target_policy(TARGET_R)
 
