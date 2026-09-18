@@ -11,12 +11,12 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict\nfrom collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 IDENTITY = "TURTLE_SOUP_AUDJPY_R41_5Y_STRUCTURAL_FRAGILITY_CORRECTION_V1"
 SOURCE_IDENTITY = "TURTLE_SOUP_AUDJPY_R40_FROZEN_R39_5Y_VALIDATION_V1"
