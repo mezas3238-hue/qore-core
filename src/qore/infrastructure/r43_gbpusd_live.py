@@ -417,6 +417,36 @@ def mt5_evidence(
     return Evidence(symbol=SYMBOL, digits=int(info.digits), bars=bars), snapshot.current_rate.open
 
 
+def mt5_management_evidence(
+    api: Any,
+    *,
+    now: datetime,
+    market_data: FundedNextRealtimeMarketData | None = None,
+) -> Evidence:
+    info = api.symbol_info(SYMBOL)
+    if info is None:
+        raise RuntimeError("R43 symbol info unavailable")
+    engine = market_data or DEFAULT_FUNDEDNEXT_REALTIME_MARKET_DATA
+    rates = engine.latest_closed_rates(
+        api,
+        symbol=SYMBOL,
+        history_bars=HISTORY_M5_BARS,
+        now=now,
+    )
+    bars = tuple(
+        Bar(
+            opened_at=rate.opened_at,
+            closed_at=rate.opened_at + timedelta(minutes=5),
+            open=rate.open,
+            high=rate.high,
+            low=rate.low,
+            close=rate.close,
+        )
+        for rate in rates
+    )
+    return Evidence(symbol=SYMBOL, digits=int(info.digits), bars=bars)
+
+
 def load_memory(
     path: Path,
 ) -> tuple[tuple[str, ...], str, dict[tuple[str, str], r32.Profile]]:
@@ -1046,6 +1076,8 @@ def manage_open_position(
     *,
     now: datetime,
     store: R43LiveStateStore,
+    market_data: FundedNextRealtimeMarketData | None = None,
+    mutations_enabled: bool = True,
 ) -> tuple[R43LiveState, str]:
     state = store.reconcile(api, now=now)
     opened = state.open_trade
@@ -1065,7 +1097,11 @@ def manage_open_position(
     entry_at = datetime.fromisoformat(opened.entry_at)
     if now >= entry_at + timedelta(hours=24):
         return state, "r43-24h-exit-due"
-    evidence, _ = mt5_evidence(api, now=now)
+    evidence = mt5_management_evidence(
+        api,
+        now=now,
+        market_data=market_data,
+    )
     expected = certified_stop_for_open_trade(opened, evidence, now=now)
     broker_stop = Decimal(str(position.sl))
     stored_stop = Decimal(opened.current_stop)
@@ -1095,6 +1131,8 @@ def manage_open_position(
     checked = api.order_check(request)
     if checked is None or int(checked.retcode) != 0:
         raise RuntimeError("R43 certified stop modification order_check rejected")
+    if not mutations_enabled:
+        return state, f"r43-shadow-stop-check-pass:{expected}"
     result = api.order_send(request)
     if result is None or int(result.retcode) not in {
         int(api.TRADE_RETCODE_DONE),
