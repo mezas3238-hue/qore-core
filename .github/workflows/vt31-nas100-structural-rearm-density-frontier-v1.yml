@@ -9,6 +9,14 @@ on:
       - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
       - src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
       - .github/workflows/vt31-nas100-structural-rearm-density-frontier-v1.yml
+  pull_request:
+    branches:
+      - agent/vt31-nas100-r1-holdout-001
+    paths:
+      - scripts/vt31_nas100_structural_rearm_density_frontier_v1.py
+      - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
+      - src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
+      - .github/workflows/vt31-nas100-structural-rearm-density-frontier-v1.yml
   workflow_dispatch:
 
 concurrency:
