@@ -1,9 +1,10 @@
-"""Resident QORE FundedNext runtime for VT08, R34 XAUUSD and R38 EURUSD.
+"""Resident QORE FundedNext runtime for all certified live adapters.
 
 The VPS/MT5 installation is assumed to exist already. This is the single-writer
-24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; R34,
-R38 and R43 evaluate every New York H1/H4 boundary using broker-to-UTC normalization.
-Sovereign Account-Wide Risk remains above all traders.
+24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; Turtle
+Soup XAUUSD R34, EURUSD R38, GBPUSD R43 and GBPJPY R38 evaluate every New York
+H1/H4 boundary using broker-to-UTC normalization. Sovereign Account-Wide Risk
+remains above all traders.
 """
 
 from __future__ import annotations
@@ -117,6 +118,15 @@ from qore.infrastructure.r43_gbpusd_live import (
     current_anchor as current_r43_anchor,
     load_memory as load_r43_memory,
     manage_open_position as manage_r43_open_position,
+)
+from qore.infrastructure.r38_gbpjpy_live import (
+    R38GbpJpyLiveSignal,
+    R38GbpJpyLiveStateStore,
+    build_live_signal as build_gbpjpy_r38_live_signal,
+    build_r38_gbpjpy_risk_request,
+    current_anchor as current_gbpjpy_r38_anchor,
+    load_memory as load_gbpjpy_r38_memory,
+    manage_open_position as manage_gbpjpy_r38_open_position,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     OWNER_FOREX_ENTRY_ANCHORS,
@@ -421,6 +431,7 @@ def _manage_h4_exits(
             TraderLineage.R34_XAUUSD,
             TraderLineage.R38_EURUSD,
             TraderLineage.R43_GBPUSD,
+            TraderLineage.R38_GBPJPY,
         }:
             signal_anchor = source.transitioned_at.astimezone(UTC).replace(
                 minute=0, second=0, microsecond=0
@@ -430,8 +441,10 @@ def _manage_h4_exits(
                 exit_label = "R34_24H"
             elif lineage is TraderLineage.R38_EURUSD:
                 exit_label = "R38_24H"
-            else:
+            elif lineage is TraderLineage.R43_GBPUSD:
                 exit_label = "R43_24H"
+            else:
+                exit_label = "GBPJPY_R38_24H"
         else:
             due = h4_containment_exit_at(_signal_anchor(source.transitioned_at))
             exit_label = "VT08_H4"
@@ -1003,6 +1016,131 @@ def _process_r43_candidate(
         },
     )
 
+
+def _process_gbpjpy_r38_candidate(
+    *,
+    signal: R38GbpJpyLiveSignal,
+    now: datetime,
+    mode: str,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    account_equity: Decimal,
+    gbpjpy_r38_store: R38GbpJpyLiveStateStore,
+    log_path: Path,
+) -> None:
+    spec = gateway.read_symbol("GBPJPY", now=now)
+    request, base_risk_usd = build_r38_gbpjpy_risk_request(
+        request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
+        signal=signal,
+        provider_spec=spec,
+        account_equity=account_equity,
+        now=now,
+    )
+    open_stop, floating_loss, pending_stop = _broker_risk(transport)
+    account_state = gateway.read_account(now=now)
+    snapshot = AccountRiskSnapshot(
+        account_binding_id=account_binding_id,
+        equity=account_equity,
+        margin_used=account_state.margin,
+        free_margin=account_state.free_margin,
+        open_stop_worst_case_loss=open_stop,
+        open_floating_loss=floating_loss,
+        pending_broker_worst_case_loss=pending_stop,
+        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+        provider_budget=provider_budget,
+        reconciled_at=now,
+    )
+    if risk.recovery_required:
+        risk.complete_boot_reconciliation(snapshot, now=now)
+    authorization = risk.authorize(request, snapshot, now=now)
+    if authorization.decision is RiskDecision.REJECT:
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_RISK_REJECT",
+                "symbol": "GBPJPY",
+                "reason": authorization.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+
+    submission = build_account_bound_submission(
+        authorization,
+        switch=ExecutionSafetySwitchSnapshot(
+            state=ExecutionSwitchState.ENABLED,
+            observed_at=now,
+            reason="qore GBPJPY R38 certified runtime safety gate enabled",
+        ),
+        authorized_at=now,
+        submitted_at=now,
+    )
+    shadow = gateway.shadow_check(submission, now=now)
+    if not shadow.broker_valid:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_SHADOW_REJECT",
+                "symbol": "GBPJPY",
+                "reason": shadow.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+
+    event = {
+        "symbol": "GBPJPY",
+        "signal_fingerprint": signal.signal_fingerprint,
+        "timeframe": signal.timeframe,
+        "target_rank": signal.target_rank,
+        "target_route": signal.target_route,
+        "source_scheme": signal.source_scheme,
+        "authority_tier": signal.authority_tier,
+        "classification": signal.classification,
+        "posture": signal.posture,
+        "base_risk_scale": str(signal.base_risk_scale),
+        "fragility_flags": list(signal.fragility_flags),
+        "structural_overlay_scale": str(signal.structural_overlay_scale),
+        "risk_scale": str(signal.risk_scale),
+        "risk_usd": str(authorization.monetary_stop_loss),
+        "volume": str(authorization.authorized_volume),
+    }
+    if mode == "shadow":
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_SHADOW_PASS",
+                **event,
+                "retcode": shadow.retcode,
+            },
+        )
+        return
+
+    provider_ref = gateway.submit_live(submission, now=now)
+    risk.record_full_fill(authorization.authorization_id)
+    client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
+    gbpjpy_r38_store.mark_open(
+        client_order_id=client_order_id,
+        signal=signal,
+        base_risk_usd=base_risk_usd,
+    )
+    _log(
+        log_path,
+        {
+            "event": "GBPJPY_R38_LIVE_SUBMIT_ACCEPTED",
+            **event,
+            "risk_authorization": authorization.authorization_id,
+            "provider_order_ref": provider_ref,
+        },
+    )
+
+
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
     sha = _git_sha(root)
     if not mt5.initialize():
@@ -1060,6 +1198,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     r43_store = R43LiveStateStore(state_dir / "r43-state.json")
     r43_store.reconcile(mt5, now=datetime.now(UTC))
+    gbpjpy_r38_memory = load_gbpjpy_r38_memory(
+        root
+        / "runtime_data"
+        / "gbpjpy"
+        / "r38-confidence-tier-memory.json"
+    )
+    gbpjpy_r38_store = R38GbpJpyLiveStateStore(
+        state_dir / "r38-gbpjpy-state.json"
+    )
+    gbpjpy_r38_store.reconcile(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
@@ -1196,6 +1344,28 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r43_short_overlay_scale": "0.005",
             "r43_rank2_overlay_scale": "0.25",
             "r43_memory_sha256": "e4a79978c0144e0b97c19ce3ee18040e62a02efe891b204fc724e4a0016734ae",
+            "loaded_traders": [
+                "VT08",
+                "TURTLE_SOUP_XAUUSD_R34",
+                "TURTLE_SOUP_EURUSD_R38",
+                "TURTLE_SOUP_GBPUSD_R43",
+                "TURTLE_SOUP_GBPJPY_R38",
+            ],
+            "single_mt5_writer": True,
+            "account_wide_risk_active": True,
+            "gbpjpy_r38_enabled": True,
+            "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
+            "gbpjpy_r38_certification": "TURTLE_SOUP_GBPJPY_R39_FINAL_CERTIFICATION_SUITE_V1",
+            "gbpjpy_r38_strategy_timezone": "America/New_York",
+            "gbpjpy_r38_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "gbpjpy_r38_single_position_busy": True,
+            "gbpjpy_r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+            "gbpjpy_r38_base_risk_fraction": "0.002",
+            "gbpjpy_r38_ensemble": "R35_RANGE_DIRECTION_MINIMAL_ROBUST",
+            "gbpjpy_r38_policy": "CONFIDENCE_100_050_010",
+            "gbpjpy_r38_fragility_policy": ["1", "0.25", "0.10", "0.05"],
+            "gbpjpy_r38_memory_sha256": "16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f",
+            "order_submission_authorized": activation.authorization.order_submission_authorized,
         },
     )
     last_lifecycle: str | None = None
@@ -1256,6 +1426,32 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "symbol": "GBPUSD",
                     "reason": r43_manage_reason,
                     "strategy_drawdown_r": str(r43_live_state.drawdown_r),
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
+        gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = (
+            manage_gbpjpy_r38_open_position(
+                mt5,
+                now=cycle_at,
+                store=gbpjpy_r38_store,
+                mutations_enabled=mode == "live",
+            )
+        )
+        if gbpjpy_r38_manage_reason not in {
+            "no-open-gbpjpy-r38-position",
+            "gbpjpy-r38-stop-unchanged",
+            "gbpjpy-r38-position-awaiting-reconcile",
+            "gbpjpy-r38-24h-exit-due",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "GBPJPY_R38_POSITION_MANAGEMENT",
+                    "symbol": "GBPJPY",
+                    "reason": gbpjpy_r38_manage_reason,
+                    "strategy_drawdown_r": str(
+                        gbpjpy_r38_live_state.drawdown_r
+                    ),
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
@@ -1561,6 +1757,80 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             "event": "R43_ANCHOR_FAIL_CLOSED",
                             "symbol": "GBPUSD",
                             "decision_at": r43_anchor.isoformat(),
+                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                        },
+                    )
+
+
+        gbpjpy_r38_anchor = current_gbpjpy_r38_anchor(cycle_at)
+        if gbpjpy_r38_anchor is not None and not new_order_blocked:
+            gbpjpy_r38_anchor_key = (
+                f"R38_GBPJPY|{gbpjpy_r38_anchor.isoformat()}"
+            )
+            if gbpjpy_r38_anchor_key not in state.processed_anchors:
+                try:
+                    gbpjpy_r38_live_state = gbpjpy_r38_store.reconcile(
+                        mt5,
+                        now=cycle_at,
+                    )
+                    gbpjpy_r38_signal, reason = build_gbpjpy_r38_live_signal(
+                        mt5,
+                        now=cycle_at,
+                        memory_bundle=gbpjpy_r38_memory,
+                        state=gbpjpy_r38_live_state,
+                    )
+                    if gbpjpy_r38_signal is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "GBPJPY_R38_CAUSAL_ABSTAIN",
+                                "symbol": "GBPJPY",
+                                "decision_at": gbpjpy_r38_anchor.isoformat(),
+                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                                "reason": reason,
+                                "strategy_drawdown_r": str(
+                                    gbpjpy_r38_live_state.drawdown_r
+                                ),
+                                "last_trailing_exit_at": (
+                                    None
+                                    if gbpjpy_r38_live_state.trailing_exit_at is None
+                                    else gbpjpy_r38_live_state.trailing_exit_at.isoformat()
+                                ),
+                            },
+                        )
+                    else:
+                        _process_gbpjpy_r38_candidate(
+                            signal=gbpjpy_r38_signal,
+                            now=cycle_at,
+                            mode=mode,
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=provider,
+                            capital_budget=capital,
+                            account_equity=account_state.equity,
+                            gbpjpy_r38_store=gbpjpy_r38_store,
+                            log_path=log_path,
+                        )
+                    processed_anchor = gbpjpy_r38_anchor_key
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=gbpjpy_r38_anchor_key,
+                        reconciled_at=cycle_at,
+                        heartbeat_at=cycle_at,
+                    )
+                    store.store(state)
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "GBPJPY_R38_ANCHOR_FAIL_CLOSED",
+                            "symbol": "GBPJPY",
+                            "decision_at": gbpjpy_r38_anchor.isoformat(),
                             "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                             "reason": type(error).__name__,
                             "message": str(error),
