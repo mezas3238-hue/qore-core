@@ -4,8 +4,9 @@ Consumed development evidence only.
 
 Trade authorization, entry, stop, target, lifecycle, ACTIVITY_L rearm admission,
 and one-trade-per-source semantics are unchanged. This lab only changes the
-capital allocated at decision time using contexts independently observed as
-stable across R5/R6/R8 and the consumed 2022-2024 interval.
+capital allocated at decision time using cross-period causal forensics. Stable
+positive contexts may receive bounded emphasis; regime-unstable or repeatedly
+weak families may receive bounded protection without changing trade admission.
 
 The rules never use terminal PnL, fold identity, date labels, or target trade
 count. Nominal monthly budgets remain admission budgets; context multipliers
@@ -67,6 +68,36 @@ PROFILES = {
         "scout": Decimal("0.60"),
         "rearm": Decimal("0.60"),
     },
+    "ALLOC_E_CORE_FAMILY_070": {
+        "core_breaker": Decimal("1.10"),
+        "core_fvg": Decimal("0.70"),
+        "core_order_block": Decimal("0.50"),
+        "weak_secondary": Decimal("0.50"),
+        "other_secondary": Decimal("0.75"),
+        "secondary_fvg_h1_mixed": Decimal("1.00"),
+        "scout": Decimal("0.50"),
+        "rearm": Decimal("0.50"),
+    },
+    "ALLOC_F_CORE_FAMILY_060": {
+        "core_breaker": Decimal("1.15"),
+        "core_fvg": Decimal("0.60"),
+        "core_order_block": Decimal("0.50"),
+        "weak_secondary": Decimal("0.50"),
+        "other_secondary": Decimal("0.75"),
+        "secondary_fvg_h1_mixed": Decimal("1.00"),
+        "scout": Decimal("0.50"),
+        "rearm": Decimal("0.50"),
+    },
+    "ALLOC_G_CORE_FAMILY_050": {
+        "core_breaker": Decimal("1.20"),
+        "core_fvg": Decimal("0.50"),
+        "core_order_block": Decimal("0.50"),
+        "weak_secondary": Decimal("0.50"),
+        "other_secondary": Decimal("0.75"),
+        "secondary_fvg_h1_mixed": Decimal("1.00"),
+        "scout": Decimal("0.50"),
+        "rearm": Decimal("0.50"),
+    },
 }
 
 
@@ -81,6 +112,16 @@ def _multiplier(
     if tier == "CORE":
         if family == "breaker":
             return profile["core_breaker"], "CORE_BREAKER_STABLE_POSITIVE"
+        if family == "fair-value-gap" and "core_fvg" in profile:
+            return (
+                profile["core_fvg"],
+                "CORE_FVG_REGIME_UNSTABLE_PROTECTION",
+            )
+        if family == "order-block" and "core_order_block" in profile:
+            return (
+                profile["core_order_block"],
+                "CORE_ORDER_BLOCK_REPEATED_WEAKNESS_PROTECTION",
+            )
         return Decimal("1.00"), "CORE_UNCHANGED"
 
     if tier == "SCOUT":
