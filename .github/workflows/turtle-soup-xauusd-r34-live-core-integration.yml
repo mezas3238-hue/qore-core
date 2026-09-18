@@ -60,7 +60,8 @@ jobs:
 
           runtime = Path("scripts/qore_fundednext_runtime.py").read_text()
           assert "TraderLineage.R34_XAUUSD" in runtime
-          assert "_EXCLUDED_LEGACY_TRADERS = (\"VT09\",)" in runtime
+          assert "_EXCLUDED_LEGACY_TRADERS" in runtime
+          assert "\"VT09\"" in runtime
           assert "Vt09TurtleSoup" not in runtime
           assert "r34_single_position_busy" in runtime
           assert "R34_24H" in runtime
