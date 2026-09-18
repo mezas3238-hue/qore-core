@@ -32,8 +32,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
-import vt31_nas100_structural_rearm_density_frontier_v1 as frontier
 import vt31_nas100_specialist_r1_candidate as specialist
+import vt31_nas100_structural_rearm_density_frontier_v1 as frontier
 
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _day,
