@@ -1,0 +1,190 @@
+name: QORE VT31 NAS100 R8 High Density Tick Manifest V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_high_density_tick_manifest_r8_v1.py
+      - .github/workflows/vt31-nas100-r8-high-density-tick-manifest-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-r8-high-density-tick-manifest-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  manifest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/vt31_nas100_high_density_tick_manifest_r8_v1.py
+          ruff check \
+            scripts/vt31_nas100_high_density_tick_manifest_r8_v1.py
+
+      - name: Recover immutable consumed R8 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result existing
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > evidence.zip
+          unzip -q evidence.zip -d evidence
+          path="evidence/fresh/NAS100/market-evidence.json"
+          test -f "$path"
+          actual="$(sha256sum "$path" | awk '{print $1}')"
+          test "$actual" = "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+
+      - name: Build R8 high-density ambiguity manifest
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_high_density_tick_manifest_r8_v1.py \
+            evidence/fresh/NAS100/market-evidence.json \
+            --output result/high-density-tick-manifest-r8.json \
+            | tee result/summary.json
+
+      - name: Recover immutable historical tick manifest
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10425626147/zip" > existing.zip
+          unzip -q existing.zip -d existing
+          test -f existing/vt31-historical-tick-windows.json
+          test -f existing/SHA256SUMS
+          (cd existing && sha256sum -c SHA256SUMS)
+
+      - name: Compare against previously acquired tick minutes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          new=json.loads(
+              Path("result/high-density-tick-manifest-r8.json").read_text()
+          )
+          old=json.loads(
+              Path("existing/vt31-historical-tick-windows.json").read_text()
+          )
+          by_minute={
+              (
+                  row["market"],
+                  row["provider"],
+                  row["tick_window_open_ms"],
+                  row["tick_window_close_ms"],
+              ): row
+              for row in old["windows"]
+          }
+          overlap=[]
+          missing=[]
+          for row in new["windows"]:
+              key=(
+                  row["market"],
+                  row["provider"],
+                  row["tick_window_open_ms"],
+                  row["tick_window_close_ms"],
+              )
+              previous=by_minute.get(key)
+              if previous is None:
+                  missing.append(row)
+              else:
+                  overlap.append({
+                      "new_window_id":row["window_id"],
+                      "existing_window_id":previous["window_id"],
+                      "classification":row["classification"],
+                      "ny_date":row["ny_date"],
+                      "tick_window_open_ms":row["tick_window_open_ms"],
+                  })
+
+          missing_manifest={
+              "schema":(
+                  "qore.vt31.nas100."
+                  "high_density_missing_tick_manifest.r8.v1"
+              ),
+              "research_only":True,
+              "opens_new_holdout":False,
+              "candidate_status":"RESEARCH_NOT_CERTIFIED",
+              "source_manifest_sha256":new["sha256"],
+              "window_count":len(missing),
+              "windows":missing,
+          }
+          report={
+              "new_window_count":new["window_count"],
+              "overlap_existing_count":len(overlap),
+              "missing_tick_count":len(missing),
+              "overlap":overlap,
+          }
+          Path("result/high-density-tick-overlap-r8.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          Path(
+              "result/high-density-missing-tick-manifest-r8.json"
+          ).write_text(
+              json.dumps(missing_manifest,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps({
+              "new_window_count":new["window_count"],
+              "counts":new["counts"],
+              "overlap_existing_count":len(overlap),
+              "missing_tick_count":len(missing),
+          },sort_keys=True))
+          PY
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          m=json.loads(
+              Path("result/high-density-tick-manifest-r8.json").read_text()
+          )
+          missing=json.loads(
+              Path(
+                  "result/high-density-missing-tick-manifest-r8.json"
+              ).read_text()
+          )
+          assert m["research_only"] is True
+          assert m["opens_new_holdout"] is False
+          assert m["partition"] == "r8_fresh"
+          assert m["market"] == "NAS100"
+          assert 1 <= m["window_count"] <= 1000
+          assert missing["research_only"] is True
+          assert missing["opens_new_holdout"] is False
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10402199719" > result/source-r8-evidence-artifact-id.txt
+          echo "10425626147" > result/source-existing-tick-manifest-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r8-high-density-tick-manifest-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
