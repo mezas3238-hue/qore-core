@@ -70,7 +70,19 @@ def _signal(*, scale: str = "1", side: str = "long") -> R38GbpJpyLiveSignal:
         entry, stop, target = "205.120", "204.920", "205.620"
     else:
         entry, stop, target = "205.118", "205.318", "204.618"
-    base = Decimal(scale)
+    requested = Decimal(scale)
+    if requested == Decimal("0.05"):
+        base = Decimal("1")
+        overlay = Decimal("0.05")
+        flags = (
+            "CORE_SOURCE_OPPOSITE_BOUNDARY_H1",
+            "CORE_CLOSE_LOCATION_Q4",
+            "CORE_H4_BODY_WITH",
+        )
+    else:
+        base = requested
+        overlay = Decimal("1")
+        flags = ()
     return R38GbpJpyLiveSignal(
         signal_fingerprint="a" * 64,
         entry_at=datetime(2026, 9, 18, 15, 0, tzinfo=UTC),
@@ -86,9 +98,9 @@ def _signal(*, scale: str = "1", side: str = "long") -> R38GbpJpyLiveSignal:
         classification=r35.MAJORITY,
         posture=native.POSTURE_STATIC,
         base_risk_scale=base,
-        fragility_flags=(),
-        structural_overlay_scale=Decimal("1"),
-        risk_scale=base,
+        fragility_flags=flags,
+        structural_overlay_scale=overlay,
+        risk_scale=base * overlay,
         ladder=(
             R38GbpJpyDol(
                 1,
