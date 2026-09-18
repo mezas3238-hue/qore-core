@@ -150,7 +150,7 @@ def _protective_swings(
     *,
     side: str,
     initial_stop: Decimal,
-    target: Decimal,
+    research_destination: Decimal,
     ladder: tuple[tuple[str, Decimal], ...],
 ) -> list[ProtectionEvent]:
     events: list[ProtectionEvent] = []
@@ -178,7 +178,7 @@ def _protective_swings(
             side=side,
             current_stop=initial_stop,
             candidate=level,
-            target=target,
+            target=research_destination,
         ):
             continue
         confirmations += 1
@@ -211,7 +211,7 @@ def _dol_lock_events(
     *,
     side: str,
     initial_stop: Decimal,
-    target: Decimal,
+    research_destination: Decimal,
     ladder: tuple[tuple[str, Decimal], ...],
 ) -> list[ProtectionEvent]:
     events: list[ProtectionEvent] = []
@@ -225,7 +225,7 @@ def _dol_lock_events(
                 side=side,
                 current_stop=initial_stop,
                 candidate=level,
-                target=target,
+                target=research_destination,
             ):
                 continue
             events.append(
@@ -481,19 +481,20 @@ def build(
             initial_stop=setup.stop_price,
         )
         causal_path = path[: original_end + 1]
+        research_destination = ladder[-1][1]
         events = [
             *_protective_swings(
                 causal_path,
                 side=side,
                 initial_stop=setup.stop_price,
-                target=setup.target_price,
+                research_destination=research_destination,
                 ladder=ladder,
             ),
             *_dol_lock_events(
                 causal_path,
                 side=side,
                 initial_stop=setup.stop_price,
-                target=setup.target_price,
+                research_destination=research_destination,
                 ladder=ladder,
             ),
         ]
@@ -519,6 +520,10 @@ def build(
                     "confirmations": event.confirmations,
                     "dol_rank_when_observed": event.dol_rank_when_observed,
                     "original_journey_end_reason": original_reason,
+                    "research_extension_destination": format(
+                        research_destination,
+                        "f",
+                    ),
                     **classification,
                     "pre_entry_context": context,
                     "timing_class": "POST_ENTRY_COUNTERFACTUAL_RESEARCH",
@@ -564,6 +569,7 @@ def build(
         "governance": {
             "structural_labels_not_direct_pnl_optimization": True,
             "xauusd_thresholds_copied": False,
+            "deepest_dol_used_only_as_counterfactual_research_destination": True,
             "contextual_policy_selection_allowed": False,
             "opens_new_holdout": False,
             "live_authorized": False,
