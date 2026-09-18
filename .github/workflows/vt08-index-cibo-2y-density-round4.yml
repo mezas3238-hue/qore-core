@@ -1,0 +1,170 @@
+name: VT08 Index CIBO 2Y Density Round4
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-cibo-2y-density-round4.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_cibo_2y_density_round4.py
+      - tests/infrastructure/trader_lab/test_vt08_index_cibo_2y_density_round4.py
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py             tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ["V7_RULE_FINGERPRINT"]
+          PY
+
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_cibo_2y_density_round4.py
+
+  density:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute Round4 density expansion
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_cibo_2y_density_round4             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-cibo-2y-density-round4.json
+
+      - name: Verify density governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("artifacts/report/vt08-index-cibo-2y-density-round4.json").read_text()
+          )
+          assert report["identity"] == "VT08_INDEX_CIBO_2Y_DENSITY_ROUND4"
+          assert report["owner_density_contract"]["minimum_trades_2y_three_markets"] == 600
+          assert report["strategy"]["frozen_v7_candidate_id"] == (
+              "VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001"
+          )
+          assert report["strategy"]["v7_mutated"] is False
+          assert report["strategy"]["initial_stop"] == "PROTECTED_SWING"
+          assert report["window"]["fresh_certification_holdout"] is False
+          assert len(report["variant_reports"]) == 6
+          governance = report["governance"]
+          assert governance["research_only"] is True
+          assert governance["fresh_holdout_claim"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Build human summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/report")
+          report = json.loads(
+              (root / "vt08-index-cibo-2y-density-round4.json").read_text()
+          )
+          lines = [
+              "# VT08 Index CIBO 2Y Density Round 4",
+              "",
+              "- owner density hard gate: >=600 trades / 2Y / 3 markets",
+              f"- raw-density variants: {report['density_variant_count']}",
+              f"- one-position-per-symbol density variants: {report['sequential_density_variant_count']}",
+              f"- economic density candidates PF>=1.30 and DD<=12R: {report['economic_density_candidate_count']}",
+              "",
+          ]
+          for row in report["variant_reports"]:
+              lines.append(f"## {row['variant']}")
+              lines.append(f"- opportunities: {row['opportunity_count']}")
+              lines.append(
+                  f"- by market: {json.dumps(row['by_market_opportunity_count'], sort_keys=True)}"
+              )
+              best = row["best_fixed_target"]
+              if best is not None:
+                  p = best["primary"]
+                  s = best["secondary"]
+                  overlap = best["overlap"]
+                  lines += [
+                      f"- best fixed target: {best['target_r']}R",
+                      f"- independent n: {p['sample']}",
+                      f"- one-active-position n: {overlap['one_active_position_per_symbol_count']}",
+                      f"- PF05: {p['profit_factor']}",
+                      f"- DD05: {p['max_drawdown_r']}R",
+                      f"- PF10: {s['profit_factor']}",
+                      f"- DD10: {s['max_drawdown_r']}R",
+                  ]
+              lines.append("")
+          lines.append("Consumed tuning evidence only; no certification claim.")
+          (root / "VT08_INDEX_CIBO_2Y_DENSITY_ROUND4_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-2y-density-round4-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
