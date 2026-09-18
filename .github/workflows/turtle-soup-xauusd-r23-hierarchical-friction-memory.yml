@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - agent/turtle-soup-xauusd-r3-forensics-001
+      - agent/turtle-soup-xauusd-r23-friction-eval-001
     paths:
       - '.github/workflows/turtle-soup-xauusd-r23-hierarchical-friction-memory.yml'
       - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r23_hierarchical_friction_memory.py'
