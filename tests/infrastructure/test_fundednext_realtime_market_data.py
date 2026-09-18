@@ -55,11 +55,13 @@ class _FakeApi:
         anchor: datetime,
         boundary_delay_seconds: float,
         tick_lag_seconds: float = 0.0,
+        tick_unavailable_until_seconds: float | None = None,
     ) -> None:
         self.clock = clock
         self.anchor = anchor
         self.boundary_delay_seconds = boundary_delay_seconds
         self.tick_lag_seconds = tick_lag_seconds
+        self.tick_unavailable_until_seconds = tick_unavailable_until_seconds
         first = anchor - timedelta(minutes=5 * 2_000)
         self.rows = tuple(
             _row(first + timedelta(minutes=5 * index))
@@ -96,7 +98,13 @@ class _FakeApi:
         )
         return available[-count:]
 
-    def symbol_info_tick(self, _symbol: str) -> SimpleNamespace:
+    def symbol_info_tick(self, _symbol: str) -> SimpleNamespace | None:
+        if (
+            self.tick_unavailable_until_seconds is not None
+            and self.clock.now()
+            < self.anchor + timedelta(seconds=self.tick_unavailable_until_seconds)
+        ):
+            return None
         observed = self.clock.now() - timedelta(seconds=self.tick_lag_seconds)
         return SimpleNamespace(time=_server_epoch(observed))
 
@@ -178,6 +186,34 @@ def test_continuous_refresh_keeps_incremental_cache_complete() -> None:
     assert recent == expected
     assert api.copy_counts[0] == 2_000
     assert all(count == 8 for count in api.copy_counts[1:])
+
+
+def test_transient_tick_unavailable_is_retried_inside_same_two_second_deadline() -> None:
+    anchor = datetime(2026, 9, 18, 20, 0, tzinfo=UTC)
+    clock = _FakeClock(anchor - timedelta(seconds=1))
+    api = _FakeApi(
+        clock=clock,
+        anchor=anchor,
+        boundary_delay_seconds=0.0,
+        tick_unavailable_until_seconds=0.60,
+    )
+    engine = _engine(clock)
+    engine.warm(api, symbol="EURUSD", history_bars=2_000)
+
+    clock.value = anchor + timedelta(milliseconds=100)
+    result = engine.prime_anchor_group(
+        api,
+        anchor=anchor,
+        symbols={"EURUSD": 2_000},
+    )
+    assert result == {"EURUSD": None}
+    snapshot = engine.snapshot(
+        api,
+        symbol="EURUSD",
+        anchor=anchor,
+        history_bars=2_000,
+    )
+    assert 0.60 <= (snapshot.captured_at - anchor).total_seconds() <= 2.0
 
 def test_late_boundary_bar_is_fail_closed_and_never_accepted_later() -> None:
     anchor = datetime(2026, 9, 18, 20, 0, tzinfo=UTC)
