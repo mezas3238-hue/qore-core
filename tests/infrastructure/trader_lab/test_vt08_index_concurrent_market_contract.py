@@ -27,11 +27,15 @@ def test_portfolio_drawdown_ceiling_is_six_r() -> None:
 
 
 def test_density_ranges_are_architectural() -> None:
-    assert contract.validates_trade_count(years=5, sample=1500)
-    assert contract.validates_trade_count(years=5, sample=1600)
-    assert not contract.validates_trade_count(years=5, sample=1499)
-    assert contract.validates_trade_count(years=2, sample=600)
-    assert contract.validates_trade_count(years=2, sample=700)
+    assert contract.FIVE_YEAR_TRADE_RANGE == (2300, 2500)
+    assert contract.TWO_YEAR_MIN_TRADES == 1000
+    assert contract.validates_trade_count(years=5, sample=2300)
+    assert contract.validates_trade_count(years=5, sample=2500)
+    assert not contract.validates_trade_count(years=5, sample=2299)
+    assert not contract.validates_trade_count(years=5, sample=2501)
+    assert contract.validates_trade_count(years=2, sample=1000)
+    assert contract.validates_trade_count(years=2, sample=1200)
+    assert not contract.validates_trade_count(years=2, sample=999)
 
 
 def test_contract_grants_no_live_authority() -> None:
