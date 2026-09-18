@@ -201,6 +201,12 @@ EVAL_END_EXCLUSIVE_DATE = (
     else None
 )
 INCLUDE_TRADE_ROWS = os.getenv("QORE_INCLUDE_TRADE_ROWS") == "1"
+FIXED_ACTIVITY_PROFILE = os.getenv("QORE_FIXED_ACTIVITY_PROFILE")
+FIXED_GLOBAL_RISK_SCALAR = (
+    Decimal(os.environ["QORE_FIXED_GLOBAL_RISK_SCALAR"])
+    if os.environ.get("QORE_FIXED_GLOBAL_RISK_SCALAR")
+    else None
+)
 
 
 def _inside_eval_window(local_day: date) -> bool:
@@ -819,15 +825,25 @@ def replay(
             },
         }
 
-    adaptive_items = (
-        (
-            (name, profile)
-            for name, profile in ADAPTIVE_REARM_BUDGET_PROFILES.items()
-            if name in DD6_FRONTIER_PROFILES
+    if FIXED_ACTIVITY_PROFILE is not None:
+        if FIXED_ACTIVITY_PROFILE not in ADAPTIVE_REARM_BUDGET_PROFILES:
+            raise ValueError("unknown fixed activity profile")
+        adaptive_items = (
+            (
+                FIXED_ACTIVITY_PROFILE,
+                ADAPTIVE_REARM_BUDGET_PROFILES[FIXED_ACTIVITY_PROFILE],
+            ),
         )
-        if DD6_FRONTIER_ONLY
-        else ADAPTIVE_REARM_BUDGET_PROFILES.items()
-    )
+    else:
+        adaptive_items = (
+            (
+                (name, profile)
+                for name, profile in ADAPTIVE_REARM_BUDGET_PROFILES.items()
+                if name in DD6_FRONTIER_PROFILES
+            )
+            if DD6_FRONTIER_ONLY
+            else ADAPTIVE_REARM_BUDGET_PROFILES.items()
+        )
     for profile_name, profile in adaptive_items:
         mode = "SCORE_PROTECT"
         rearm_rows, activity_ledger = _adaptive_budgeted_rearm_rows(
@@ -897,11 +913,14 @@ def replay(
         }
 
         if profile_name in {"ACTIVITY_K", "ACTIVITY_L", "ACTIVITY_M"}:
-            scalars = (
-                DD6_FRONTIER_SCALARS
-                if DD6_FRONTIER_ONLY
-                else GLOBAL_RISK_SCALARS
-            )
+            if FIXED_GLOBAL_RISK_SCALAR is not None:
+                scalars = (FIXED_GLOBAL_RISK_SCALAR,)
+            else:
+                scalars = (
+                    DD6_FRONTIER_SCALARS
+                    if DD6_FRONTIER_ONLY
+                    else GLOBAL_RISK_SCALARS
+                )
             for scalar in scalars:
                 scaled = _scale_capital_rows(combined, scalar=scalar)
                 scalar_tag = format(scalar, "f").replace(".", "")
@@ -1064,6 +1083,12 @@ def replay(
             "global_risk_scalar_uses_terminal_pnl": False,
             "global_risk_scalar_uses_fold_identity": False,
             "global_risk_scalar_changes_trade_count": False,
+            "fixed_activity_profile": FIXED_ACTIVITY_PROFILE,
+            "fixed_global_risk_scalar": (
+                None
+                if FIXED_GLOBAL_RISK_SCALAR is None
+                else format(FIXED_GLOBAL_RISK_SCALAR, "f")
+            ),
             "dd6_frontier_only": DD6_FRONTIER_ONLY,
             "evaluation_window_uses_date_only_not_outcome": True,
             "warmup_context_retained_before_evaluation_window": True,
