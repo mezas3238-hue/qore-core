@@ -688,14 +688,28 @@ def _journey_capacity_label(
     reached: list[str] = []
     invalidated_at: datetime | None = None
 
-    for index in range(fill_index, len(day_bars)):
+    fill_high = _d(getattr(filled, "high"))
+    fill_low = _d(getattr(filled, "low"))
+    fill_stop_hit = (
+        fill_low <= stop if side == "long" else fill_high >= stop
+    )
+    fill_dol_hit = any(
+        fill_high >= level if side == "long" else fill_low <= level
+        for _, level in ladder
+    )
+    if fill_stop_hit or fill_dol_hit:
+        return {
+            "status": "censored-fill-bar-capacity-path",
+            "filled_at": filled_at.astimezone(UTC).isoformat(),
+        }
+
+    for index in range(fill_index + 1, len(day_bars)):
         bar = day_bars[index]
         if baseline._local_minute(bar) >= LIFECYCLE_MINUTE:
             break
-        if index > fill_index:
-            previous = day_bars[index - 1]
-            if getattr(bar, "opened_at") != getattr(previous, "closed_at"):
-                return {"status": "censored-gap-after-fill"}
+        previous = day_bars[index - 1]
+        if getattr(bar, "opened_at") != getattr(previous, "closed_at"):
+            return {"status": "censored-gap-after-fill"}
 
         high = _d(getattr(bar, "high"))
         low = _d(getattr(bar, "low"))
