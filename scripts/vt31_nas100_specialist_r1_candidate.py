@@ -806,9 +806,14 @@ def replay(evidence_path: Path) -> dict[str, object]:
             continue
 
         prefix = list(reference)
+        previous_path_range, prior_ref_median = context_by_day[local_day]
         selected_source: Vt31R22SourceSetup | None = None
         selected: Vt31R22ExecutableSetup | None = None
-        selected_session_prefix: tuple[object, ...] = ()
+        selected_state: dict[str, object] | None = None
+        saw_source = False
+        saw_wait = False
+        hard_abstain = False
+
         for bar in session:
             prefix.append(bar)
             evaluation = evaluate_vt31_r2_2_source(
@@ -819,56 +824,73 @@ def replay(evidence_path: Path) -> dict[str, object]:
             )
             if evaluation.setup is None:
                 continue
+
+            saw_source = True
             executable, _ = make_executable_setup(
                 evaluation.setup,
                 policy,
             )
             if executable is None:
                 status_counts["source-not-executable"] += 1
+                hard_abstain = True
                 break
-            selected_source = evaluation.setup
-            selected = executable
-            selected_session_prefix = tuple(
+
+            session_prefix = tuple(
                 item
                 for item in prefix
                 if (10, 0, 0)
                 <= _wall(getattr(item, "opened_at"))
                 < (11, 0, 0)
             )
+            state = _state_snapshot(
+                day_bars,
+                previous_path_range,
+                prior_ref_median,
+                session_prefix,
+                evaluation.setup,
+                executable,
+            )
+            reasoning_trace.append(
+                {
+                    "local_date": local_day.isoformat(),
+                    "side": executable.side.value,
+                    "entry_family": executable.selected_family.value,
+                    "entry": format(executable.entry_price, "f"),
+                    "stop": format(executable.stop_price, "f"),
+                    "structural_boundary": format(
+                        executable.target_price,
+                        "f",
+                    ),
+                    **state,
+                    "outcome_fields_used_for_decision": False,
+                }
+            )
+
+            action = cast(str, state["action"])
+            if action == "WAIT":
+                saw_wait = True
+                status_counts["intelligence-wait-observation"] += 1
+                continue
+            if action == "ABSTAIN":
+                status_counts["intelligence-abstain"] += 1
+                hard_abstain = True
+                break
+            if action != "EXECUTE":
+                raise ValueError(f"unsupported intelligence action: {action}")
+
+            selected_source = evaluation.setup
+            selected = executable
+            selected_state = state
             break
 
-        if selected is None or selected_source is None:
-            status_counts["no-source-setup"] += 1
+        if selected is None or selected_source is None or selected_state is None:
+            if saw_wait and not hard_abstain:
+                status_counts["intelligence-wait-expired"] += 1
+            elif not saw_source and not hard_abstain:
+                status_counts["no-source-setup"] += 1
             continue
 
-        previous_path_range, prior_ref_median = context_by_day[local_day]
-        state = _state_snapshot(
-            day_bars,
-            previous_path_range,
-            prior_ref_median,
-            selected_session_prefix,
-            selected_source,
-            selected,
-        )
-        reasoning_trace.append(
-            {
-                "local_date": local_day.isoformat(),
-                "side": selected.side.value,
-                "entry_family": selected.selected_family.value,
-                "entry": format(selected.entry_price, "f"),
-                "stop": format(selected.stop_price, "f"),
-                "structural_boundary": format(
-                    selected.target_price,
-                    "f",
-                ),
-                **state,
-                "outcome_fields_used_for_decision": False,
-            }
-        )
-        if state["action"] != "EXECUTE":
-            status_counts["intelligence-abstain"] += 1
-            continue
-
+        state = selected_state
         target_plan_counts[cast(str, state["target_plan"])] += 1
         outcome = _simulate_selected_plan(day_bars, selected, state)
         status = cast(str, outcome["status"])
