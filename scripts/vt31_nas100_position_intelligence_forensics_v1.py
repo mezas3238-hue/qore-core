@@ -17,6 +17,7 @@ Each event is judged by structural journey preservation rather than by PnL:
 The lab does not select SUPPORTIVE/MIXED/CAUTIOUS thresholds and does not open
 fresh holdout evidence.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
