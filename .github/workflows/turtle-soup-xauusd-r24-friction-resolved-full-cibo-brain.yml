@@ -1,0 +1,142 @@
+name: QORE Turtle Soup XAUUSD R24 Friction Resolved Full CIBO Brain
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-xauusd-r23-friction-eval-001
+    paths:
+      - '.github/workflows/turtle-soup-xauusd-r24-friction-resolved-full-cibo-brain.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r24_friction_resolved_full_cibo_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r24_friction_resolved_full_cibo_brain.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  DOSSIER_RUN_ID: '35291722997'
+  DOSSIER_ARTIFACT: 'qore-cibo-xauusd-market-intelligence-v1-8068f78df709b9a1702f14264f76c653140c9c1f'
+  R23_RUN_ID: '35297724497'
+  R23_ARTIFACT: 'qore-turtle-soup-xauusd-r23-hierarchical-friction-1fef0d1de804b28d963f3380a1eefd2efb1be195'
+  R22_RUN_ID: '35295022613'
+  R22_ARTIFACT: 'qore-turtle-soup-xauusd-r22-subtype-resolved-0de991ccffe8aeed6e1cb726dbdbc98091e43ab6'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r24_friction_resolved_full_cibo_brain.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r24_friction_resolved_full_cibo_brain.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r24_friction_resolved_full_cibo_brain.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r24_friction_resolved_full_cibo_brain.py
+
+  replay-2y:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable consumed XAUUSD M5 corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable consumed XAUUSD Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download official CIBO XAUUSD 10Y intelligence dossier
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.DOSSIER_ARTIFACT }}
+          path: cibo-dossier
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DOSSIER_RUN_ID }}
+      - name: Download frozen R23 hierarchical friction memory
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R23_ARTIFACT }}
+          path: r23-memory
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R23_RUN_ID }}
+      - name: Download immutable R22 reference
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R22_ARTIFACT }}
+          path: r22-reference
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R22_RUN_ID }}
+      - name: Run friction-resolved 2Y replay
+        run: |
+          mkdir -p r24-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_xauusd_r24_friction_resolved_full_cibo_brain \
+            source-xauusd target-xauusd cibo-dossier r23-memory r22-reference r24-output \
+            > r24-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r24-output/git-sha.txt
+      - name: Enforce R23 memory and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r24-output/r24-friction-resolved-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_XAUUSD_R24_FRICTION_RESOLVED_FULL_CIBO_BRAIN_V1'
+          assert p['window']['open']=='2024-09-17T00:00:00+00:00'
+          assert p['window']['close']=='2026-09-17T00:00:00+00:00'
+          assert p['reproduction']['retained_bars']==707716
+          assert p['r23_memory']['identity']=='TURTLE_SOUP_XAUUSD_R23_HIERARCHICAL_FRICTION_MEMORY_V1'
+          assert p['r23_memory']['stress_friction_r']=='0.10'
+          d=p['decision_contract']
+          assert d['cautious_mixed_hierarchical_resolution'] is True
+          assert d['unresolved_waits_new_event'] is True
+          assert d['base_target_kept_when_resilient_010'] is True
+          assert d['alternate_rank_used_only_when_resilient_010'] is True
+          assert d['no_resilient_rank_causes_abstention'] is True
+          assert d['realized_pnl_target_selection'] is False
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_promoted'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash immutable R24 result
+        run: |
+          cd r24-output
+          sha256sum \
+            r24-friction-resolved-report.json \
+            r24-friction-resolved-trades.json \
+            stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-xauusd-r24-friction-resolved-${{ github.sha }}
+          path: r24-output
+          if-no-files-found: error
+          retention-days: 90
