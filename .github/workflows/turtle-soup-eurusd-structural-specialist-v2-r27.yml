@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/turtle-soup-eurusd-structural-specialist-v2-r27.yml'
       - 'src/qore/infrastructure/trader_lab/turtle_soup_eurusd_specialist_cognitive_memory_v2.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r26_specialist_memory_brain.py'
       - 'src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r27_structural_specialist_brain.py'
       - 'tests/infrastructure/trader_lab/test_turtle_soup_eurusd_specialist_cognitive_memory_v2.py'
 
@@ -35,10 +36,10 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - name: Ruff focused gate
         run: |
-          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_specialist_cognitive_memory_v2.py             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r27_structural_specialist_brain.py             tests/infrastructure/trader_lab/test_turtle_soup_eurusd_specialist_cognitive_memory_v2.py
+          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_specialist_cognitive_memory_v2.py             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r26_specialist_memory_brain.py             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r27_structural_specialist_brain.py             tests/infrastructure/trader_lab/test_turtle_soup_eurusd_specialist_cognitive_memory_v2.py
       - name: Mypy focused gate
         run: |
-          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_specialist_cognitive_memory_v2.py             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r27_structural_specialist_brain.py
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_specialist_cognitive_memory_v2.py             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r26_specialist_memory_brain.py             src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r27_structural_specialist_brain.py
       - name: Focused tests
         run: |
           pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_eurusd_specialist_cognitive_memory_v2.py
