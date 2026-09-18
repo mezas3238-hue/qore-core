@@ -17,7 +17,6 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import MetaTrader5 as mt5  # type: ignore
 
@@ -45,6 +44,10 @@ from qore.infrastructure.fundednext_live_guard import (
 from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
+)
+from qore.infrastructure.fundednext_mt5_clock import (
+    NEW_YORK_TZ,
+    normalise_fundednext_server_epoch,
 )
 from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
 from qore.infrastructure.fundednext_live_safety import (
@@ -119,6 +122,7 @@ _ACCOUNT_REF = "fundednext-stellar-instant-live"
 _LOOP_SECONDS = 10
 _ANCHOR_GRACE = timedelta(seconds=30)
 _HISTORY_DAYS = 14
+_HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
 _DISCOVERY_DAYS = 7
 
 
