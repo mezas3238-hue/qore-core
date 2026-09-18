@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 from qore.infrastructure.trader_lab import (
     turtle_soup_gbpusd_r32_causal_memory_defragmentation as r32,
 )
 
-from scripts import build_gbpusd_r43_live_memory as builder
+_SPEC = importlib.util.spec_from_file_location(
+    "build_gbpusd_r43_live_memory",
+    Path("scripts/build_gbpusd_r43_live_memory.py"),
+)
+assert _SPEC is not None and _SPEC.loader is not None
+builder = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(builder)
 
 
 def test_live_memory_source_binding_is_exact() -> None:
