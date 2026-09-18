@@ -1,0 +1,182 @@
+name: VT08 Index R6 Frozen 5Y Validation
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r6-five-year-validation.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r6_five_year_validation.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r6_five_year_validation.py
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  R6_FREEZE_COMMIT: 699d7519bd7355cb18d4fb98ce5825b605516511
+  R6_CANDIDATE_ID: VT08_INDEX_R6_GOVERNED_657_001
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify frozen R6 candidate unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$R6_FREEZE_COMMIT" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/vt08_index_r6_governed_candidate_freeze.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
+          assert freeze.CANDIDATE_ID == os.environ["R6_CANDIDATE_ID"]
+          assert freeze.FIXED_DENSITY == 657
+          assert freeze.SOURCE_RUN_ID == 35334226488
+          assert freeze.SOURCE_ARTIFACT_ID == 10542845347
+          PY
+
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r6_five_year_validation.py
+
+  validate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute exact frozen R6 five-year replay
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r6_five_year_validation             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-r6-five-year-validation.json
+
+      - name: Verify no retuning and fixed contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("artifacts/report/vt08-index-r6-five-year-validation.json").read_text()
+          )
+          assert report["identity"] == "VT08_INDEX_R6_GOVERNED_657_5Y_VALIDATION_001"
+          assert report["candidate"]["candidate_id"] == "VT08_INDEX_R6_GOVERNED_657_001"
+          assert report["candidate"]["rules_changed_for_5y"] is False
+          assert report["window"]["start_date"] == "2018-09-15"
+          assert report["window"]["end_date_exclusive"] == "2023-09-15"
+          assert report["window"]["years"] == 5
+          assert report["window"]["fresh_certification_holdout"] is False
+          assert report["hard_contract"]["minimum_trades"] == 1500
+          assert report["hard_contract"]["maximum_trades"] == 1600
+          assert report["governance"]["candidate_frozen_before_replay"] is True
+          assert report["governance"]["retuning_permitted"] is False
+          assert report["governance"]["live_authorized"] is False
+          assert report["governance"]["real_capital_authorized"] is False
+          assert report["governance"]["production_authorized"] is False
+          PY
+
+      - name: Build human summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/report")
+          report = json.loads(
+              (root / "vt08-index-r6-five-year-validation.json").read_text()
+          )
+          p = report["governed_primary"]
+          s = report["governed_secondary"]
+          d = report["decision"]
+          lines = [
+              "# VT08 INDEX R6 — Frozen 5Y Validation",
+              "",
+              f"- candidate: {report['candidate']['candidate_id']}",
+              "- exact replay: yes; retuning: no",
+              "- window: 2018-09-15 -> 2023-09-15",
+              f"- trades: {report['trade_count']} (required 1500-1600)",
+              f"- trades by market: {json.dumps(report['trade_count_by_market'], sort_keys=True)}",
+              "",
+              "## Primary stress -0.05R/trade",
+              f"- PF: {p['profit_factor']}",
+              f"- DD: {p['max_drawdown_r']}R",
+              f"- total: {p['total_r']}R",
+              "",
+              "## Secondary stress -0.10R/trade",
+              f"- PF: {s['profit_factor']}",
+              f"- DD: {s['max_drawdown_r']}R",
+              f"- total: {s['total_r']}R",
+              "",
+              "## Decision",
+              f"- density pass: {d['density_pass']}",
+              f"- performance pass: {d['performance_pass']}",
+              f"- no-zero-risk pass: {d['no_zero_risk_pass']}",
+              f"- 5Y contract pass: {d['five_year_contract_pass']}",
+              "",
+              "## Primary by market",
+          ]
+          for market, row in report["governed_primary_by_market"].items():
+              lines.append(
+                  f"- {market}: n={row['sample']} PF={row['profit_factor']} "
+                  f"DD={row['max_drawdown_r']}R total={row['total_r']}R"
+              )
+          lines += ["", "## Primary by year"]
+          for year, row in report["governed_primary_by_year"].items():
+              lines.append(
+                  f"- {year}: n={row['sample']} PF={row['profit_factor']} "
+                  f"DD={row['max_drawdown_r']}R total={row['total_r']}R"
+              )
+          (root / "VT08_INDEX_R6_FROZEN_5Y_VALIDATION_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r6-frozen-5y-validation-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
