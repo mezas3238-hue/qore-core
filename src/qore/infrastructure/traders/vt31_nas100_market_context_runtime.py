@@ -7,10 +7,10 @@ descriptive situation inputs, not standalone entry rules.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from collections.abc import Sequence
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.market_data import OhlcSnapshot
