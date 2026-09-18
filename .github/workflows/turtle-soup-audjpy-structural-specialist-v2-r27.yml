@@ -23,7 +23,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_cognitive_memory_v2.py'
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 env:
