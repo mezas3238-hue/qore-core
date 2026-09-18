@@ -85,6 +85,7 @@ def _serialize_memory(
             "validated": profile.validated,
         }
         for (signature, target_family), profile in sorted(memory.items())
+        if profile.validated
     ]
     return {
         "fields": list(fields),
@@ -152,6 +153,7 @@ def build(source_root: Path, output: Path) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "schema": "qore.turtle_soup_audjpy.r42.live_memory.v1",
         "identity": IDENTITY,
+        "representation": "VALIDATED_AUTHORITY_PROFILES_ONLY_FAIL_CLOSED",
         "source": {
             "run_id": SOURCE_RUN_ID,
             "artifact_id": SOURCE_ARTIFACT_ID,
