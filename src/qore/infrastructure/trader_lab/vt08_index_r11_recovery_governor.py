@@ -15,16 +15,18 @@ import itertools
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_r6_five_year_validation as v5y
 from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_reset as r8
 from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
+from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 SCHEMA = "qore.trader_lab.vt08_index_r11_recovery_governor.v1"
 IDENTITY = "VT08_INDEX_R11_RECOVERY_GOVERNOR_001"
@@ -279,12 +281,15 @@ def build_report(
         "SP500": sp500_root,
         "US30": us30_root,
     }
-    bars_by_symbol: dict[str, Sequence[v5y.Vt08IndexC2R1Bar]] = {}
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]] = {}
     indexed_by_symbol: dict[
         str,
-        dict[object, v5y.Vt08IndexC2R1Bar],
+        dict[datetime, Vt08IndexC2R1Bar],
     ] = {}
-    opportunities_by_symbol: dict[str, tuple[Any, ...]] = {}
+    opportunities_by_symbol: dict[
+        str,
+        tuple[r4.ExpandedOpportunity, ...],
+    ] = {}
     provenance: dict[str, Any] = {}
     for symbol in ("NAS100", "SP500", "US30"):
         bars, source = v5y._load_cibo_m15_5y(roots[symbol], symbol=symbol)
