@@ -174,7 +174,9 @@ def build_report(
     tier_best = _tier_best(candidates)
 
     # Prefer the highest activity floor with a candidate that meets the economic
-    # goal. If none meets it, expose the ranked >=600 candidate when available,\n    # otherwise expose the highest-activity ranked candidate for density diagnosis.
+    # goal. If none meets it, expose the ranked >=600 candidate when available,
+    # otherwise expose the highest-activity ranked candidate for density
+    # diagnosis.
     best: dict[str, Any] | None = None
     for floor in reversed(ACTIVITY_FLOORS):
         candidate = tier_best[str(floor)]
