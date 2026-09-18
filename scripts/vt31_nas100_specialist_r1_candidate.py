@@ -540,6 +540,34 @@ def _state_snapshot(
             None if ref_ratio is None else format(ref_ratio, "f")
         ),
         "reference_volatility_state": reference_volatility_state,
+        "prior_day_state": higher_context.prior_day_state,
+        "prior_day_body_fraction": (
+            None
+            if higher_context.prior_day_body_fraction is None
+            else format(higher_context.prior_day_body_fraction, "f")
+        ),
+        "h4_state": higher_context.h4_state,
+        "h1_state": higher_context.h1_state,
+        "premarket_state": higher_context.premarket_state,
+        "cash_open_state": higher_context.cash_open_state,
+        "position_in_prior_day_range": (
+            higher_context.position_in_prior_day_range
+        ),
+        "raid_depth_ref": (
+            None
+            if higher_context.raid_depth_ref is None
+            else format(higher_context.raid_depth_ref, "f")
+        ),
+        "recent_path_efficiency": (
+            None
+            if higher_context.recent_path_efficiency is None
+            else format(higher_context.recent_path_efficiency, "f")
+        ),
+        "recent_overlap_rate": (
+            None
+            if higher_context.recent_overlap_rate is None
+            else format(higher_context.recent_overlap_rate, "f")
+        ),
         "risk_ref": None if risk_ref is None else format(risk_ref, "f"),
         "planned_target_r": (
             None
