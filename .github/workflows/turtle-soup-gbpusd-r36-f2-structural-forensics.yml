@@ -1,0 +1,173 @@
+name: QORE Turtle Soup GBPUSD R36 F2 Structural Forensics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpusd-r36-f2-structural-forensics.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r36_f2_structural_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r36_f2_structural_forensics.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-GBPUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  V2_RUN_ID: '35339237432'
+  V2_ARTIFACT: 'qore-turtle-soup-gbpusd-structural-specialist-v2-r27-b7005f4dab80376f3bdd5ce199e37f425ab99633'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r36_f2_structural_forensics.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r36_f2_structural_forensics.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r36_f2_structural_forensics.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r36_f2_structural_forensics.py
+
+  replay_job:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable GBPUSD raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download immutable Cognitive V2 observations
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.V2_ARTIFACT }}
+          path: cognitive-v2
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V2_RUN_ID }}
+      - name: Run fixed R36 F2 structural forensics
+        run: |
+          mkdir -p r36-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r36_f2_structural_forensics \
+            source-gbpusd target-gbpusd cognitive-v2 r36-output \
+            > r36-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r36-output/git-sha.txt
+      - name: Enforce R36 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r36-output/r36-f2-structural-forensics-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPUSD_R36_F2_STRUCTURAL_FORENSICS_V1'
+          c=p['experiment_contract']
+          assert c['fresh_holdout_consumed'] is False
+          assert c['r32_regime_route_types_core'] is True
+          assert c['expansion_only_when_r32_abstains'] is True
+          assert c['actual_active_cibo_dol_price_used'] is True
+          assert c['entry_changed'] is False
+          assert c['c2_changed'] is False
+          assert c['cisd_changed'] is False
+          assert c['protected_swing_changed'] is False
+          assert c['structural_rearm_changed'] is False
+          assert c['risk_governor_suppresses_trades'] is False
+          assert c['risk_governor_pretrade_state_only'] is True
+          a=p['predeclared_acceptance']
+          assert a['minimum_trades']==350
+          assert a['minimum_scaled_net_010_profit_factor']=='1.90'
+          assert a['maximum_scaled_net_010_drawdown_r']=='6.0'
+          g=p['governance']
+          assert g['candidate_replaced'] is False
+          assert g['fresh_holdout_consumed'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash R36 evidence
+        run: |
+          cd r36-output
+          sha256sum r36-f2-structural-forensics-report.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r36-f2-structural-forensics-${{ github.sha }}
+          path: r36-output
+          if-no-files-found: error
+          retention-days: 90
+
+  publish_status:
+    if: always()
+    needs: [quality, replay_job]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
+      - name: Download successful research artifact
+        if: needs.replay_job.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r36-f2-structural-forensics-${{ github.sha }}
+          path: published-result
+      - name: Write auditable status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          RESEARCH_RESULT: ${{ needs.replay_job.result }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_GBPUSD_R36_F2_STRUCTURAL_FORENSICS_STATUS',
+            'workflow_run_id':int(os.environ['RUN_ID']),
+            'workflow_sha':os.environ['RUN_SHA'],
+            'quality_result':os.environ['QUALITY_RESULT'],
+            'research_result':os.environ['RESEARCH_RESULT'],
+          }
+          matches=list(Path('published-result').rglob('r36-f2-structural-forensics-report.json'))
+          if len(matches)==1:
+            out['r36_report']=json.loads(matches[0].read_text())
+          sums=list(Path('published-result').rglob('SHA256SUMS.txt'))
+          if len(sums)==1:
+            out['sha256sums']=sums[0].read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-GBPUSD-R36-F2-STRUCTURAL-FORENSICS-LATEST.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Commit status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-GBPUSD-R36-F2-STRUCTURAL-FORENSICS-LATEST.json
+          git commit -m "research(gbpusd): record TURTLE_SOUP_GBPUSD_R36_F2_STRUCTURAL_FORENSICS_STATUS" || exit 0
+          git push origin HEAD:agent/turtle-soup-gbpusd-specialist-memory-v1-001

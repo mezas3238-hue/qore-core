@@ -1,0 +1,297 @@
+{
+  "identity": "TURTLE_SOUP_GBPUSD_R39_FROZEN_5Y_STATUS",
+  "quality_result": "success",
+  "r39_report": {
+    "annual_blocks": [
+      {
+        "close": "2022-09-17T00:00:00+00:00",
+        "max_drawdown_scaled_r": "6.115399403568943352467932480",
+        "max_losing_streak": 7,
+        "mean_scaled_net_010_r": "-0.02767935641686273032785953316",
+        "open": "2021-09-17T00:00:00+00:00",
+        "positive_total": false,
+        "profit_factor_scaled_net_010": "0.6467226142504966918561839377",
+        "total_scaled_net_010_r": "-5.259077719203918762293311301",
+        "trades": 190
+      },
+      {
+        "close": "2023-09-17T00:00:00+00:00",
+        "max_drawdown_scaled_r": "5.423421235721924834762952796",
+        "max_losing_streak": 5,
+        "mean_scaled_net_010_r": "0.01993530874499993306667682251",
+        "open": "2022-09-17T00:00:00+00:00",
+        "positive_total": true,
+        "profit_factor_scaled_net_010": "1.338170021142929103777653189",
+        "total_scaled_net_010_r": "3.329196560414988822135029360",
+        "trades": 167
+      },
+      {
+        "close": "2024-09-17T00:00:00+00:00",
+        "max_drawdown_scaled_r": "2.892882162554826681869733481",
+        "max_losing_streak": 7,
+        "mean_scaled_net_010_r": "-0.006560898003596098888571184375",
+        "open": "2023-09-17T00:00:00+00:00",
+        "positive_total": false,
+        "profit_factor_scaled_net_010": "0.8910307278015886966767433090",
+        "total_scaled_net_010_r": "-1.154718048632913404388528450",
+        "trades": 176
+      },
+      {
+        "close": "2025-09-17T00:00:00+00:00",
+        "max_drawdown_scaled_r": "3.62742344462642347782351723",
+        "max_losing_streak": 6,
+        "mean_scaled_net_010_r": "0.1480979814986077564955226078",
+        "open": "2024-09-17T00:00:00+00:00",
+        "positive_total": true,
+        "profit_factor_scaled_net_010": "2.930483832537773593220211822",
+        "total_scaled_net_010_r": "28.13861648473547373414929549",
+        "trades": 190
+      },
+      {
+        "close": "2026-09-17T00:00:00+00:00",
+        "max_drawdown_scaled_r": "4.203988871936958973046180502",
+        "max_losing_streak": 5,
+        "mean_scaled_net_010_r": "0.03235973777429337623577767559",
+        "open": "2025-09-17T00:00:00+00:00",
+        "positive_total": true,
+        "profit_factor_scaled_net_010": "1.277818742374468036384929535",
+        "total_scaled_net_010_r": "5.954191750469981227383092308",
+        "trades": 184
+      }
+    ],
+    "candidate_identity": "TURTLE_SOUP_GBPUSD_R37_STRUCTURAL_QUALITY_CANDIDATE_001",
+    "decision_counts": {
+      "ABSTAIN_NOT_STRUCTURALLY_REARMED": 1,
+      "ABSTAIN_NO_ACTIVE_DOL": 2,
+      "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 5782,
+      "ABSTAIN_NO_CIBO_EPISODE": 11,
+      "ABSTAIN_SINGLE_POSITION_BUSY": 47,
+      "CLASS_MAJORITY_VALIDATED_010": 396,
+      "CLASS_R37_STRUCTURAL_EXPANSION_SUBFAMILY": 451,
+      "CLASS_ROBUST_VALIDATED_010": 60,
+      "EXECUTE": 907,
+      "FAMILY_EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": 81,
+      "FAMILY_OTHER_SESSION_D1_BODY_OPPOSED": 370,
+      "RISK_SCALE_0.0250": 191,
+      "RISK_SCALE_0.0625": 323,
+      "RISK_SCALE_0.0750": 32,
+      "RISK_SCALE_0.10": 18,
+      "RISK_SCALE_0.1875": 40,
+      "RISK_SCALE_0.25": 235,
+      "RISK_SCALE_0.75": 45,
+      "RISK_SCALE_1": 23,
+      "SOURCE_R32_REGIME_CORE": 456,
+      "SOURCE_R37_STRUCTURAL_EXPANSION": 451
+    },
+    "forensics": {
+      "by_classification": {
+        "MAJORITY_VALIDATED_010": {
+          "max_drawdown_scaled_r": "1.527456277618265385847016144",
+          "max_losing_streak": 6,
+          "mean_scaled_net_010_r": "0.005428390408741249412439067384",
+          "profit_factor_scaled_net_010": "1.150913985607879474243447678",
+          "total_scaled_net_010_r": "2.149642601861534767325870684",
+          "trades": 396
+        },
+        "R37_STRUCTURAL_EXPANSION_SUBFAMILY": {
+          "max_drawdown_scaled_r": "8.16316985729782061851033192",
+          "max_losing_streak": 5,
+          "mean_scaled_net_010_r": "0.05002798958030765880155561122",
+          "profit_factor_scaled_net_010": "1.518116880339149542575882931",
+          "total_scaled_net_010_r": "22.56262330071875411950158066",
+          "trades": 451
+        },
+        "ROBUST_VALIDATED_010": {
+          "max_drawdown_scaled_r": "6.348395501193179312316754282",
+          "max_losing_streak": 6,
+          "mean_scaled_net_010_r": "0.1049323854200553788359687692",
+          "profit_factor_scaled_net_010": "1.464838656116803683160778184",
+          "total_scaled_net_010_r": "6.295943125203322730158126152",
+          "trades": 60
+        }
+      },
+      "by_family": {
+        "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+          "max_drawdown_scaled_r": "3.630996694786079437577046984",
+          "max_losing_streak": 2,
+          "mean_scaled_net_010_r": "0.02353926847679924301520148626",
+          "profit_factor_scaled_net_010": "1.177205378397443910382647259",
+          "total_scaled_net_010_r": "1.906680746620738684231320387",
+          "trades": 81
+        },
+        "OTHER_SESSION_D1_BODY_OPPOSED": {
+          "max_drawdown_scaled_r": "5.32612921658511195824549920",
+          "max_losing_streak": 5,
+          "mean_scaled_net_010_r": "0.05582687176783247414937908178",
+          "profit_factor_scaled_net_010": "1.629991762166132773791443065",
+          "total_scaled_net_010_r": "20.65594255409801543527026026",
+          "trades": 370
+        }
+      },
+      "by_side": {
+        "long": {
+          "max_drawdown_scaled_r": "3.799407993397402741780422020",
+          "max_losing_streak": 6,
+          "mean_scaled_net_010_r": "0.05648832706217405770671850417",
+          "profit_factor_scaled_net_010": "1.770405356831555508295162888",
+          "total_scaled_net_010_r": "25.58921215916484814114348239",
+          "trades": 453
+        },
+        "short": {
+          "max_drawdown_scaled_r": "7.099351600542912001209436528",
+          "max_losing_streak": 6,
+          "mean_scaled_net_010_r": "0.01193611645070212219348479084",
+          "profit_factor_scaled_net_010": "1.142153937570092652174429198",
+          "total_scaled_net_010_r": "5.418996868618763475842095040",
+          "trades": 454
+        }
+      },
+      "by_source": {
+        "R32_REGIME_CORE": {
+          "max_drawdown_scaled_r": "5.644475581159390372581425812",
+          "max_losing_streak": 6,
+          "mean_scaled_net_010_r": "0.01852102133128258223132455447",
+          "profit_factor_scaled_net_010": "1.303923554499537527841779785",
+          "total_scaled_net_010_r": "8.445585727064857497483996837",
+          "trades": 456
+        },
+        "R37_STRUCTURAL_EXPANSION": {
+          "max_drawdown_scaled_r": "8.16316985729782061851033192",
+          "max_losing_streak": 5,
+          "mean_scaled_net_010_r": "0.05002798958030765880155561122",
+          "profit_factor_scaled_net_010": "1.518116880339149542575882931",
+          "total_scaled_net_010_r": "22.56262330071875411950158066",
+          "trades": 451
+        }
+      },
+      "by_target_rank": {
+        "1": {
+          "max_drawdown_scaled_r": "6.07293501632409367072099009",
+          "max_losing_streak": 7,
+          "mean_scaled_net_010_r": "0.03362006053843000724813116767",
+          "profit_factor_scaled_net_010": "1.464955292772185964235787534",
+          "total_scaled_net_010_r": "28.98049218412666624788906653",
+          "trades": 862
+        },
+        "2": {
+          "max_drawdown_scaled_r": "3.483080215298525157680087258",
+          "max_losing_streak": 4,
+          "mean_scaled_net_010_r": "0.04506037430348767486881135367",
+          "profit_factor_scaled_net_010": "1.225145520461562289420847846",
+          "total_scaled_net_010_r": "2.027716843656945369096510915",
+          "trades": 45
+        }
+      }
+    },
+    "frozen_contract": {
+      "actual_active_cibo_dol_price_used": true,
+      "c2": "EXACT_SWEEP_AND_CLOSE_BACK_INSIDE",
+      "cisd": "CAUSAL",
+      "core_majority_scale": "0.25",
+      "core_robust_scale": "1",
+      "drawdown_deep_scale": "0.25",
+      "drawdown_first_r": "1",
+      "drawdown_governor": "DD_1_3_SCALE_075_025",
+      "drawdown_middle_scale": "0.75",
+      "drawdown_second_r": "3",
+      "entry": "NEXT_SOURCE_OPEN",
+      "expansion_target_rank": 1,
+      "f2_strong_mode": "PRISK_Q2_OR_H1_BALANCED",
+      "f2_strong_scale": "1",
+      "f2_weak_scale": "0.10",
+      "f5_scale": "1",
+      "families": [
+        "OTHER_SESSION_D1_BODY_OPPOSED",
+        "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION"
+      ],
+      "family_set": "R37_G25_FIXED",
+      "r32_core": "R32_REGIME_ROUTE_TYPES",
+      "risk_governor_pretrade_context_only": true,
+      "signals_suppressed": false,
+      "single_position_busy": true,
+      "stop": "EXACT_PROTECTED_SWING_NEVER_WIDEN",
+      "structural_policy": "SQ3_H1_BALANCED",
+      "structural_rearm": true
+    },
+    "governance": {
+      "candidate_certified": false,
+      "candidate_frozen": true,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "merge_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_R39_FROZEN_R37_5Y_VALIDATION_V1",
+    "memory_binding": {
+      "memory_summary": {
+        "classification_counts": {
+          "MAJORITY_VALIDATED_010": 15,
+          "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 4153,
+          "NOT_VALIDATED_010": 73,
+          "ROBUST_VALIDATED_010": 5
+        },
+        "profiles": 4246,
+        "structurally_supported_profiles": 93,
+        "validated_profiles": 20
+      },
+      "rules_reoptimized_for_5y": false,
+      "scheme": "R32_REGIME_ROUTE_TYPES"
+    },
+    "predeclared_acceptance": {
+      "maximum_drawdown_scaled_net_010_r": "6.0",
+      "minimum_profit_factor_scaled_net_010": "1.50",
+      "minimum_trades": 800,
+      "total_must_be_positive": true
+    },
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13788,
+        "H1:exact-c2": 23936,
+        "H1:invalid-entry-geometry": 2997,
+        "H1:no-causal-cisd": 10148,
+        "H1:no-exact-c2": 37904,
+        "H1:opposite-boundary-already-touched": 179,
+        "H1:signal": 10612,
+        "H1:source-cycles": 61840,
+        "H4:causal-cisd": 3854,
+        "H4:exact-c2": 5814,
+        "H4:invalid-entry-geometry": 1160,
+        "H4:no-causal-cisd": 1960,
+        "H4:no-exact-c2": 9417,
+        "H4:opposite-boundary-already-touched": 26,
+        "H4:signal": 2668,
+        "H4:source-cycles": 15231
+      },
+      "retained_bars": 745274,
+      "setups_10y": 13280
+    },
+    "result": {
+      "acceptance_pass": false,
+      "max_drawdown_scaled_r": "6.300579139307606225622175385",
+      "max_losing_streak": 7,
+      "mean_scaled_net_010_r": "0.03418766155213187609369964436",
+      "positive_annual_blocks": 3,
+      "profit_factor_scaled_net_010": "1.434678989899972078384376552",
+      "total_scaled_net_010_r": "31.00820902778361161698557743",
+      "trades": 907
+    },
+    "schema": "qore.turtle_soup_gbpusd.r39_frozen_r37_5y_validation.v1",
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "consumed_robustness_validation": true,
+      "fresh_holdout": false,
+      "open": "2021-09-17T00:00:00+00:00"
+    }
+  },
+  "sha256sums": [
+    "ba315d13aedf8ba65bce43d628a97b44925ccf810d55a39bfcf60f4a29544690  r39-5y-validation-report.json",
+    "693a55aa4f1bed4c211976e0aa54b469c62902caec88d7490268567af32ed8c0  r39-5y-scaled-trades.jsonl",
+    "6d9103d52a39082d3b641dcbd573fb43c9d40abae7369e9d596ec6ac4493a277  stdout.json",
+    "2f3b8e355a65a3fe114ed5d0846e338b60ae3504e5485b7c524549068278b884  git-sha.txt"
+  ],
+  "validation_result": "success",
+  "workflow_run_id": 35353073610,
+  "workflow_sha": "e02d9384fbe6521040fc2779a085c43b8d5f0f92"
+}

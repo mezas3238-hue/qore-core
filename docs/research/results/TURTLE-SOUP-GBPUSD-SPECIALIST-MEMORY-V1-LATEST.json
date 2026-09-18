@@ -1,0 +1,222 @@
+{
+  "identity": "TURTLE_SOUP_GBPUSD_SPECIALIST_MEMORY_V1_STATUS",
+  "quality_result": "success",
+  "report": {
+    "authoritative_resolution_counts": {
+      "NO_AUTHORITATIVE_MEMORY": 38706,
+      "anatomy:LET_RUN": 77,
+      "anatomy:PROTECT": 128,
+      "anatomy:STATIC": 201
+    },
+    "cognitive_identity": "TURTLE_SOUP_GBPUSD_SPECIALIST_COGNITIVE_MEMORY_V1",
+    "cognitive_summary": {
+      "anatomy": {
+        "classification_counts": {
+          "LET_RUN": {
+            "MAJORITY_POSITIVE_010": 6,
+            "NEGATIVE_010": 45,
+            "ROBUST_POSITIVE_010": 3,
+            "UNRESOLVED": 16038
+          },
+          "PROTECT": {
+            "MAJORITY_POSITIVE_010": 7,
+            "NEGATIVE_010": 43,
+            "ROBUST_POSITIVE_010": 2,
+            "UNRESOLVED": 16040
+          },
+          "STATIC": {
+            "MAJORITY_POSITIVE_010": 5,
+            "NEGATIVE_010": 46,
+            "ROBUST_POSITIVE_010": 2,
+            "UNRESOLVED": 16039
+          }
+        },
+        "decision_authority": "AUTHORITATIVE",
+        "preferred_posture_counts": {
+          "LET_RUN": 2,
+          "PROTECT": 4,
+          "STATIC": 5
+        },
+        "signatures": 16092
+      },
+      "causal_core": {
+        "classification_counts": {
+          "LET_RUN": {
+            "UNRESOLVED": 27219
+          },
+          "PROTECT": {
+            "UNRESOLVED": 27219
+          },
+          "STATIC": {
+            "UNRESOLVED": 27219
+          }
+        },
+        "decision_authority": "AUTHORITATIVE",
+        "preferred_posture_counts": {},
+        "signatures": 27219
+      },
+      "compact_anatomy": {
+        "classification_counts": {
+          "LET_RUN": {
+            "MAJORITY_POSITIVE_010": 23,
+            "NEGATIVE_010": 215,
+            "ROBUST_POSITIVE_010": 9,
+            "UNRESOLVED": 489
+          },
+          "PROTECT": {
+            "MAJORITY_POSITIVE_010": 22,
+            "NEGATIVE_010": 220,
+            "ROBUST_POSITIVE_010": 6,
+            "UNRESOLVED": 488
+          },
+          "STATIC": {
+            "MAJORITY_POSITIVE_010": 33,
+            "NEGATIVE_010": 201,
+            "ROBUST_POSITIVE_010": 9,
+            "UNRESOLVED": 493
+          }
+        },
+        "decision_authority": "CONTEXT_ONLY",
+        "preferred_posture_counts": {
+          "LET_RUN": 14,
+          "PROTECT": 11,
+          "STATIC": 29
+        },
+        "signatures": 736
+      },
+      "exact": {
+        "classification_counts": {
+          "LET_RUN": {
+            "UNRESOLVED": 38647
+          },
+          "PROTECT": {
+            "UNRESOLVED": 38647
+          },
+          "STATIC": {
+            "UNRESOLVED": 38647
+          }
+        },
+        "decision_authority": "AUTHORITATIVE",
+        "preferred_posture_counts": {},
+        "signatures": 38647
+      }
+    },
+    "governance": {
+      "candidate_promoted": false,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_memory_only": true
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_SPECIALIST_MEMORY_V1",
+    "master_memory_contract": {
+      "derived_copy_only": true,
+      "journey_run_id": 35175979474,
+      "master_is_immutable": true,
+      "master_modified": false,
+      "physical_master_snapshot_in_specialist_artifact": true,
+      "raw_m5_artifact_id": 10475449182,
+      "raw_m5_run_id": 35166210458,
+      "snapshot_files": [
+        "journey-MARKET_JOURNEY_LEDGER.jsonl",
+        "journey-STRUCTURE_TOUCH_LEDGER.jsonl",
+        "journey-PRE_DEPARTURE_SEQUENCE_LEDGER.jsonl",
+        "journey-DEPARTURE_TIMING_LEDGER.jsonl",
+        "journey-TARGET_DESTINATION_LEDGER.jsonl",
+        "journey-DAILY_PATH_LEDGER.jsonl",
+        "journey-TRADER_MARKET_SYNC_LEDGER.jsonl",
+        "journey-journey-manifest.json",
+        "target-TARGET_DESTINATION_LEDGER_V2.jsonl",
+        "target-TARGET_DESTINATION_EPISODE_V2.jsonl",
+        "target-target-destination-v2-manifest.json"
+      ],
+      "target_artifact_id": 10489089220,
+      "target_run_id": 35204892665
+    },
+    "raw_identity": "TURTLE_SOUP_GBPUSD_SPECIALIST_RAW_MEMORY_V1",
+    "reproduction": {
+      "counters": {
+        "NO_ACTIVE_DOL": 3,
+        "OBSERVATION": 39112
+      },
+      "funnel": {
+        "H1:causal-cisd": 13788,
+        "H1:exact-c2": 23936,
+        "H1:invalid-entry-geometry": 2997,
+        "H1:no-causal-cisd": 10148,
+        "H1:no-exact-c2": 37904,
+        "H1:opposite-boundary-already-touched": 179,
+        "H1:signal": 10612,
+        "H1:source-cycles": 61840,
+        "H4:causal-cisd": 3854,
+        "H4:exact-c2": 5814,
+        "H4:invalid-entry-geometry": 1160,
+        "H4:no-causal-cisd": 1960,
+        "H4:no-exact-c2": 9417,
+        "H4:opposite-boundary-already-touched": 26,
+        "H4:signal": 2668,
+        "H4:source-cycles": 15231
+      },
+      "master_behavior_events_copied": 125669,
+      "retained_m5_bars": 745274,
+      "specialist_decision_observations": 39112,
+      "turtle_setup_episode_bindings": 13258,
+      "turtle_setups_10y": 13280
+    },
+    "schema": "qore.turtle_soup_gbpusd.specialist_memory_report.v1",
+    "specialist_contract": {
+      "active_cibo_dol_ladder_rebuilt": true,
+      "actual_strategy_entry_used": true,
+      "authoritative_levels": [
+        "exact",
+        "causal_core",
+        "anatomy"
+      ],
+      "context_only_levels": [
+        "compact_anatomy"
+      ],
+      "exact_protected_swing_used": true,
+      "friction_005_modeled": true,
+      "friction_010_modeled": true,
+      "generic_destination_fallback_authorizes_trade": false,
+      "postures": [
+        "STATIC",
+        "LET_RUN",
+        "PROTECT"
+      ],
+      "r11_memory_used": false,
+      "r16_memory_used": false,
+      "r17_memory_used": false,
+      "r20_memory_used": false,
+      "r21_memory_used": false,
+      "r22_memory_used": false,
+      "r23_memory_used": false,
+      "r25_result_used_as_training_label": false,
+      "strategy": "TURTLE_SOUP_GBPUSD"
+    }
+  },
+  "sha256sums": [
+    "a897cf225aa76f2e9f8ebff33533e5a9ce7a80c5fdfb1953e263b22a60c2bba2  turtle-soup-gbpusd-specialist-memory-report.json",
+    "42ed1ccfab941df9c927e193c8ab87903a85174e4f18d2813a476db6272d672b  turtle-soup-gbpusd-specialist-raw-memory.jsonl",
+    "9897a60c7a313a5d4da078f2e717880db46991505c89baea99bc8f70cf141166  turtle-soup-gbpusd-specialist-observations.jsonl",
+    "e199f8154b91f7698ca0ea625ae023a5cff413d8f60beab71c7b7591a583edb6  turtle-soup-gbpusd-specialist-cognitive-memory.json",
+    "34d4e5606f2ef4b024da1b307a2dabef4840909430562053e8a85ca61b5dc657  stdout.json",
+    "ba617b491b9ab1199719ea9f210fb500f07b9fb73d3ce20a5b5c46068fd5f756  git-sha.txt",
+    "41b377c7fae65efde0fea4bb7c6e6a5ca0f363519bd0880140ecdf3b557ec597  master-snapshot/journey-DAILY_PATH_LEDGER.jsonl",
+    "2dff43535c50ef59dc101fb1dc5aa5f09ebf98b1d97563b7d0edb016c9a9cac4  master-snapshot/journey-DEPARTURE_TIMING_LEDGER.jsonl",
+    "8cc6b739d705b386a48c29c782b9d87ae55dd2752a5b9953a63572073007be35  master-snapshot/journey-MARKET_JOURNEY_LEDGER.jsonl",
+    "3695f1cc0a08986f32a18e2a6ecf6557b467a74099a7286389064bcf57311c7d  master-snapshot/journey-PRE_DEPARTURE_SEQUENCE_LEDGER.jsonl",
+    "403e6943f8c83869e9fe781bdf365592c4b8a0eac6195ccc60f1386629d6c6bc  master-snapshot/journey-STRUCTURE_TOUCH_LEDGER.jsonl",
+    "08b7ab269313c5b6df939feee299f9c5e80655d613090736c86dc863f29687b5  master-snapshot/journey-TARGET_DESTINATION_LEDGER.jsonl",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  master-snapshot/journey-TRADER_MARKET_SYNC_LEDGER.jsonl",
+    "e443b2b057d56e6496cf92b23c9107f1266af031ff94d66ef150baa2e9276774  master-snapshot/journey-journey-manifest.json",
+    "a1c7250bd54c51773e57aaff3e339b7927a5a5fc37c41492fd940a04240f59f8  master-snapshot/target-TARGET_DESTINATION_EPISODE_V2.jsonl",
+    "e024e86652101cc2076d65b97cf323a2817c4686a9cddc85c65ed654cd1938f2  master-snapshot/target-TARGET_DESTINATION_LEDGER_V2.jsonl",
+    "f53e0b6a3c7897e12651f701b0db42fd9983e974387dd93f4e380939bf0b4340  master-snapshot/target-target-destination-v2-manifest.json"
+  ],
+  "specialist_memory_result": "success",
+  "workflow_run_id": 35339025259,
+  "workflow_sha": "771d62cd5f2745ca9c67dfb3b90b61b3441bb38b"
+}

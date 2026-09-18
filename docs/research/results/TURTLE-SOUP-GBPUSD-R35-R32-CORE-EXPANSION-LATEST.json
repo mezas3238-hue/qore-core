@@ -1,0 +1,1828 @@
+{
+  "identity": "TURTLE_SOUP_GBPUSD_R35_R32_CORE_EXPANSION_STATUS",
+  "quality_result": "success",
+  "r35_report": {
+    "experiment_contract": {
+      "actual_active_cibo_dol_price_used": true,
+      "c2_changed": false,
+      "cisd_changed": false,
+      "entry_changed": false,
+      "expansion_only_when_r32_abstains": true,
+      "expansion_posture": "STATIC",
+      "expansion_target_rank": 1,
+      "family_consumed_development_evidence": {
+        "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+          "positive_chronological_quintiles": 5,
+          "rank1_10y_n": 179,
+          "rank1_10y_pf_010": "1.5857921165191966",
+          "recent_2y_n": 40,
+          "recent_2y_pf_010": "1.532441198185952",
+          "recent_2y_total_net_010_r": "8.213029884167417"
+        },
+        "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE": {
+          "positive_chronological_quintiles": 5,
+          "rank1_10y_n": 104,
+          "rank1_10y_pf_010": "1.6485185851113895",
+          "recent_2y_n": 19,
+          "recent_2y_pf_010": "2.1367802057172844",
+          "recent_2y_total_net_010_r": "9.010616435202754"
+        },
+        "H4_MID_PROTECTED_RISK": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 436,
+          "rank1_10y_pf_010": "1.0329911873491517",
+          "recent_2y_n": 97,
+          "recent_2y_pf_010": "1.3387055684603766",
+          "recent_2y_total_net_010_r": "18.947641234383013"
+        },
+        "MID_CISD_H1_BODY_OPPOSED": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 785,
+          "rank1_10y_pf_010": "1.0433666548957585",
+          "recent_2y_n": 166,
+          "recent_2y_pf_010": "1.0457643778326158",
+          "recent_2y_total_net_010_r": "5.150479282674789"
+        },
+        "OTHER_SESSION_D1_BODY_OPPOSED": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 964,
+          "rank1_10y_pf_010": "1.0615174895634618",
+          "recent_2y_n": 177,
+          "recent_2y_pf_010": "1.0892230097931852",
+          "recent_2y_total_net_010_r": "8.273841623763378"
+        },
+        "OTHER_SESSION_H4_BODY_OPPOSED": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 816,
+          "rank1_10y_pf_010": "1.1013381399102131",
+          "recent_2y_n": 156,
+          "recent_2y_pf_010": "1.0558037177250033",
+          "recent_2y_total_net_010_r": "4.684006260823885"
+        }
+      },
+      "family_sets_predeclared": {
+        "R35_G2456": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "R35_G25": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION"
+        ],
+        "R35_G256": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "R35_G26": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "R35_G456": [
+          "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "R35_G56": [
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ]
+      },
+      "fresh_holdout_consumed": false,
+      "governors_predeclared": {
+        "DD_1P5_3_SCALE_075_050": {
+          "deep_scale": "0.50",
+          "first_drawdown_r": "1.5",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "3"
+        },
+        "DD_1_3_SCALE_075_025": {
+          "deep_scale": "0.25",
+          "first_drawdown_r": "1",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "3"
+        },
+        "DD_2_4_SCALE_075_025": {
+          "deep_scale": "0.25",
+          "first_drawdown_r": "2",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "4"
+        },
+        "DD_2_4_SCALE_075_050": {
+          "deep_scale": "0.50",
+          "first_drawdown_r": "2",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "4"
+        },
+        "FIXED_1R": {
+          "deep_scale": "1",
+          "first_drawdown_r": "999",
+          "middle_scale": "1",
+          "second_drawdown_r": "1000"
+        }
+      },
+      "protected_swing_changed": false,
+      "r32_memory_summary": {
+        "classification_counts": {
+          "MAJORITY_VALIDATED_010": 15,
+          "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 4153,
+          "NOT_VALIDATED_010": 73,
+          "ROBUST_VALIDATED_010": 5
+        },
+        "profiles": 4246,
+        "structurally_supported_profiles": 93,
+        "validated_profiles": 20
+      },
+      "r32_regime_route_types_core": true,
+      "r33_family_forensics": {
+        "falsified_for_recent_regime": [
+          "OTHER_SESSION_H4_BODY_OPPOSED"
+        ],
+        "retained_positive": [
+          "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "unstable_low_edge": [
+          "MID_CISD_H1_BODY_OPPOSED"
+        ],
+        "weak_but_not_falsified": [
+          "OTHER_SESSION_D1_BODY_OPPOSED"
+        ]
+      },
+      "risk_governor_pretrade_state_only": true,
+      "risk_governor_suppresses_trades": false,
+      "structural_rearm_changed": false
+    },
+    "governance": {
+      "candidate_replaced": false,
+      "candidate_replacement_allowed_only_if_acceptance_pass": true,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "r33_r34_results_used_for_family_forensics_only": true,
+      "real_capital_authorized": false,
+      "research_only": true
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_R35_R32_CORE_EXPANSION_LAB_V1",
+    "predeclared_acceptance": {
+      "losing_streak": "DIAGNOSTIC_NOT_HARD_GATE",
+      "maximum_scaled_net_010_drawdown_r": "6.0",
+      "minimum_scaled_net_010_profit_factor": "1.90",
+      "minimum_trades": 350,
+      "selection_order": "MOST_TRADES_THEN_HIGHER_PF_THEN_LOWER_DD"
+    },
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13788,
+        "H1:exact-c2": 23936,
+        "H1:invalid-entry-geometry": 2997,
+        "H1:no-causal-cisd": 10148,
+        "H1:no-exact-c2": 37904,
+        "H1:opposite-boundary-already-touched": 179,
+        "H1:signal": 10612,
+        "H1:source-cycles": 61840,
+        "H4:causal-cisd": 3854,
+        "H4:exact-c2": 5814,
+        "H4:invalid-entry-geometry": 1160,
+        "H4:no-causal-cisd": 1960,
+        "H4:no-exact-c2": 9417,
+        "H4:opposite-boundary-already-touched": 26,
+        "H4:signal": 2668,
+        "H4:source-cycles": 15231
+      },
+      "retained_bars": 745274,
+      "setups_10y": 13280
+    },
+    "results": [
+      {
+        "allowed_families": [
+          "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "decision_counts": {
+          "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 2429,
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 18,
+          "EXECUTE": 311,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": 38,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LATE_CLOSE": 4,
+          "FAMILY_H4_MID_PROTECTED_RISK": 93,
+          "RANK_1": 296,
+          "RANK_2": 15,
+          "SOURCE_R32_REGIME_CORE": 176,
+          "SOURCE_R35_STRUCTURAL_EXPANSION": 135
+        },
+        "family_set": "R35_G456",
+        "fixed_trade_stats": {
+          "gross": {
+            "max_drawdown_r": "8.08600780133626848955316109",
+            "max_losing_streak": 5,
+            "mean_r": "0.3016563501146805880276910413",
+            "profit_factor": "1.803624988889381955886591789",
+            "total_r": "93.81512488566566287661191385",
+            "trades": 311
+          },
+          "net_005": {
+            "max_drawdown_r": "8.63600780133626848955316109",
+            "max_losing_streak": 5,
+            "mean_r": "0.2516563501146805880276910413",
+            "profit_factor": "1.637388249263586956365512720",
+            "total_r": "78.26512488566566287661191385",
+            "trades": 311
+          },
+          "net_010": {
+            "max_drawdown_r": "10.23520764377651322237250427",
+            "max_losing_streak": 6,
+            "mean_r": "0.2016563501146805880276910413",
+            "profit_factor": "1.485285264141022153432463420",
+            "total_r": "62.71512488566566287661191385",
+            "trades": 311
+          }
+        },
+        "forensics": {
+          "by_family": {
+            "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+              "gross": {
+                "max_drawdown_r": "2.96806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.3006034653814407412464046597",
+                "profit_factor": "1.815923691749624869097384076",
+                "total_r": "11.42293168449474816736337707",
+                "trades": 38
+              },
+              "net_005": {
+                "max_drawdown_r": "3.71806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2506034653814407412464046597",
+                "profit_factor": "1.647818481938418242677780753",
+                "total_r": "9.52293168449474816736337707",
+                "trades": 38
+              },
+              "net_010": {
+                "max_drawdown_r": "4.468065920208300857699888960",
+                "max_losing_streak": 2,
+                "mean_r": "0.2006034653814407412464046597",
+                "profit_factor": "1.494185816565245715787871158",
+                "total_r": "7.622931684494748167363377069",
+                "trades": 38
+              },
+              "trades": 38
+            },
+            "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE": {
+              "gross": {
+                "max_drawdown_r": "1",
+                "max_losing_streak": 1,
+                "mean_r": "0.4135780561046910173231968085",
+                "profit_factor": "2.468624117596249734984413156",
+                "total_r": "1.654312224418764069292787234",
+                "trades": 4
+              },
+              "net_005": {
+                "max_drawdown_r": "1.05",
+                "max_losing_streak": 1,
+                "mean_r": "0.3635780561046910173231968085",
+                "profit_factor": "2.185802844652600506358692496",
+                "total_r": "1.454312224418764069292787234",
+                "trades": 4
+              },
+              "net_010": {
+                "max_drawdown_r": "1.10",
+                "max_losing_streak": 1,
+                "mean_r": "0.3135780561046910173231968085",
+                "profit_factor": "1.945625333833903587768392455",
+                "total_r": "1.254312224418764069292787234",
+                "trades": 4
+              },
+              "trades": 4
+            },
+            "H4_MID_PROTECTED_RISK": {
+              "gross": {
+                "max_drawdown_r": "6.60927817617318257523123081",
+                "max_losing_streak": 6,
+                "mean_r": "0.3111430218085746715107769840",
+                "profit_factor": "1.608539994754113568508986701",
+                "total_r": "28.93630102819744445050225951",
+                "trades": 93
+              },
+              "net_005": {
+                "max_drawdown_r": "8.03533536262068731030641304",
+                "max_losing_streak": 6,
+                "mean_r": "0.2611430218085746715107769838",
+                "profit_factor": "1.485233154235839242362254830",
+                "total_r": "24.28630102819744445050225949",
+                "trades": 93
+              },
+              "net_010": {
+                "max_drawdown_r": "10.13533536262068731030641302",
+                "max_losing_streak": 6,
+                "mean_r": "0.2111430218085746715107769840",
+                "profit_factor": "1.373020583724138903652389240",
+                "total_r": "19.63630102819744445050225951",
+                "trades": 93
+              },
+              "trades": 93
+            }
+          },
+          "by_source": {
+            "R32_REGIME_CORE": {
+              "gross": {
+                "max_drawdown_r": "4.11816305469556243550051599",
+                "max_losing_streak": 4,
+                "mean_r": "0.294327158798606285167349375",
+                "profit_factor": "1.958168443692341017458057204",
+                "total_r": "51.80157994855470618945349000",
+                "trades": 176
+              },
+              "net_005": {
+                "max_drawdown_r": "4.44832269096480380761865790",
+                "max_losing_streak": 4,
+                "mean_r": "0.244327158798606285167349375",
+                "profit_factor": "1.756895176240777848797707542",
+                "total_r": "43.00157994855470618945349000",
+                "trades": 176
+              },
+              "net_010": {
+                "max_drawdown_r": "5.648322690964803807618657923",
+                "max_losing_streak": 5,
+                "mean_r": "0.1943271587986062851673493748",
+                "profit_factor": "1.571545500619808142401686418",
+                "total_r": "34.20157994855470618945348996",
+                "trades": 176
+              },
+              "trades": 176
+            },
+            "R35_STRUCTURAL_EXPANSION": {
+              "gross": {
+                "max_drawdown_r": "7.00000000000000000000000000",
+                "max_losing_streak": 7,
+                "mean_r": "0.3112114439785996791641364728",
+                "profit_factor": "1.670320459292388654258795420",
+                "total_r": "42.01354493711095668715842383",
+                "trades": 135
+              },
+              "net_005": {
+                "max_drawdown_r": "7.35000000000000000000000000",
+                "max_losing_streak": 7,
+                "mean_r": "0.2612114439785996791641364729",
+                "profit_factor": "1.534480585238675256460349715",
+                "total_r": "35.26354493711095668715842384",
+                "trades": 135
+              },
+              "net_010": {
+                "max_drawdown_r": "8.44581171190577493235754012",
+                "max_losing_streak": 7,
+                "mean_r": "0.2112114439785996791641364728",
+                "profit_factor": "1.410899416912297993945161887",
+                "total_r": "28.51354493711095668715842383",
+                "trades": 135
+              },
+              "trades": 135
+            }
+          }
+        },
+        "risk_governors": [
+          {
+            "acceptance_pass": false,
+            "governor": "FIXED_1R",
+            "stats": {
+              "max_drawdown_scaled_r": "10.23520764377651322237250427",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.2016563501146805880276910413",
+              "minimum_risk_scale": "1",
+              "profit_factor_scaled_net_010": "1.485285264141022153432463420",
+              "risk_scale_counts": {
+                "1": 311
+              },
+              "total_scaled_net_010_r": "62.71512488566566287661191385",
+              "trades": 311
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "7.841082984193055204556928224",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1323190715499240788006258485",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.408487048477829274570274787",
+              "risk_scale_counts": {
+                "0.50": 93,
+                "0.75": 90,
+                "1": 128
+              },
+              "total_scaled_net_010_r": "41.15123125202638850699463889",
+              "trades": 311
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1P5_3_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "6.889905468153681277001519022",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1308624107225653926638942762",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.431009361411791308812567608",
+              "risk_scale_counts": {
+                "0.50": 125,
+                "0.75": 80,
+                "1": 106
+              },
+              "total_scaled_net_010_r": "40.69820973471783711847111990",
+              "trades": 311
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "6.52808264568418462731565520",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.07747529085851182925317053514",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.314033276559736593935060553",
+              "risk_scale_counts": {
+                "0.25": 141,
+                "0.75": 70,
+                "1": 100
+              },
+              "total_scaled_net_010_r": "24.09481545699717889773603643",
+              "trades": 311
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1_3_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "5.43416625287019261728490425",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.06399214429626702024498316164",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.287434734771096946245811036",
+              "risk_scale_counts": {
+                "0.25": 160,
+                "0.75": 106,
+                "1": 45
+              },
+              "total_scaled_net_010_r": "19.90155687613904329618976327",
+              "trades": 311
+            }
+          }
+        ]
+      },
+      {
+        "allowed_families": [
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "decision_counts": {
+          "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 2432,
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 18,
+          "EXECUTE": 308,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": 38,
+          "FAMILY_H4_MID_PROTECTED_RISK": 94,
+          "RANK_1": 293,
+          "RANK_2": 15,
+          "SOURCE_R32_REGIME_CORE": 176,
+          "SOURCE_R35_STRUCTURAL_EXPANSION": 132
+        },
+        "family_set": "R35_G56",
+        "fixed_trade_stats": {
+          "gross": {
+            "max_drawdown_r": "8.08600780133626848955316109",
+            "max_losing_streak": 5,
+            "mean_r": "0.2959766644845678532705166448",
+            "profit_factor": "1.781734687874620400908525308",
+            "total_r": "91.16081266124689880731912661",
+            "trades": 308
+          },
+          "net_005": {
+            "max_drawdown_r": "8.67043976163394553630901344",
+            "max_losing_streak": 5,
+            "mean_r": "0.2459766644845678532705166448",
+            "profit_factor": "1.617881054109927906741497202",
+            "total_r": "75.76081266124689880731912661",
+            "trades": 308
+          },
+          "net_010": {
+            "max_drawdown_r": "11.01270702334332900011401145",
+            "max_losing_streak": 6,
+            "mean_r": "0.1959766644845678532705166448",
+            "profit_factor": "1.467887570437133778221718718",
+            "total_r": "60.36081266124689880731912661",
+            "trades": 308
+          }
+        },
+        "forensics": {
+          "by_family": {
+            "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+              "gross": {
+                "max_drawdown_r": "2.96806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.3006034653814407412464046597",
+                "profit_factor": "1.815923691749624869097384076",
+                "total_r": "11.42293168449474816736337707",
+                "trades": 38
+              },
+              "net_005": {
+                "max_drawdown_r": "3.71806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2506034653814407412464046597",
+                "profit_factor": "1.647818481938418242677780753",
+                "total_r": "9.52293168449474816736337707",
+                "trades": 38
+              },
+              "net_010": {
+                "max_drawdown_r": "4.468065920208300857699888960",
+                "max_losing_streak": 2,
+                "mean_r": "0.2006034653814407412464046597",
+                "profit_factor": "1.494185816565245715787871158",
+                "total_r": "7.622931684494748167363377069",
+                "trades": 38
+              },
+              "trades": 38
+            },
+            "H4_MID_PROTECTED_RISK": {
+              "gross": {
+                "max_drawdown_r": "7.60927817617318257523123081",
+                "max_losing_streak": 6,
+                "mean_r": "0.2971946917893345154308751011",
+                "profit_factor": "1.575408629477548577497693301",
+                "total_r": "27.93630102819744445050225950",
+                "trades": 94
+              },
+              "net_005": {
+                "max_drawdown_r": "9.08533536262068731030641303",
+                "max_losing_streak": 6,
+                "mean_r": "0.2471946917893345154308751011",
+                "profit_factor": "1.454715134508050234022216716",
+                "total_r": "23.23630102819744445050225950",
+                "trades": 94
+              },
+              "net_010": {
+                "max_drawdown_r": "11.23533536262068731030641302",
+                "max_losing_streak": 6,
+                "mean_r": "0.1971946917893345154308751012",
+                "profit_factor": "1.344917026594891039671975322",
+                "total_r": "18.53630102819744445050225951",
+                "trades": 94
+              },
+              "trades": 94
+            }
+          },
+          "by_source": {
+            "R32_REGIME_CORE": {
+              "gross": {
+                "max_drawdown_r": "4.11816305469556243550051599",
+                "max_losing_streak": 4,
+                "mean_r": "0.294327158798606285167349375",
+                "profit_factor": "1.958168443692341017458057204",
+                "total_r": "51.80157994855470618945349000",
+                "trades": 176
+              },
+              "net_005": {
+                "max_drawdown_r": "4.44832269096480380761865790",
+                "max_losing_streak": 4,
+                "mean_r": "0.244327158798606285167349375",
+                "profit_factor": "1.756895176240777848797707542",
+                "total_r": "43.00157994855470618945349000",
+                "trades": 176
+              },
+              "net_010": {
+                "max_drawdown_r": "5.648322690964803807618657923",
+                "max_losing_streak": 5,
+                "mean_r": "0.1943271587986062851673493748",
+                "profit_factor": "1.571545500619808142401686418",
+                "total_r": "34.20157994855470618945348996",
+                "trades": 176
+              },
+              "trades": 176
+            },
+            "R35_STRUCTURAL_EXPANSION": {
+              "gross": {
+                "max_drawdown_r": "7.15811043014476928686650117",
+                "max_losing_streak": 7,
+                "mean_r": "0.2981760053991832774080730045",
+                "profit_factor": "1.629240620396956649991017129",
+                "total_r": "39.35923271269219261786563659",
+                "trades": 132
+              },
+              "net_005": {
+                "max_drawdown_r": "8.35811043014476928686650117",
+                "max_losing_streak": 7,
+                "mean_r": "0.2481760053991832774080730045",
+                "profit_factor": "1.497854728366822553846767199",
+                "total_r": "32.75923271269219261786563660",
+                "trades": 132
+              },
+              "net_010": {
+                "max_drawdown_r": "9.60885840747591498577569623",
+                "max_losing_streak": 7,
+                "mean_r": "0.1981760053991832774080730045",
+                "profit_factor": "1.378206317205398082672505430",
+                "total_r": "26.15923271269219261786563659",
+                "trades": 132
+              },
+              "trades": 132
+            }
+          }
+        },
+        "risk_governors": [
+          {
+            "acceptance_pass": false,
+            "governor": "FIXED_1R",
+            "stats": {
+              "max_drawdown_scaled_r": "11.01270702334332900011401145",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1959766644845678532705166448",
+              "minimum_risk_scale": "1",
+              "profit_factor_scaled_net_010": "1.467887570437133778221718718",
+              "risk_scale_counts": {
+                "1": 308
+              },
+              "total_scaled_net_010_r": "60.36081266124689880731912661",
+              "trades": 308
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "8.19818879325703966536502097",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1254859635151213940031754206",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.391072097650230591711514534",
+              "risk_scale_counts": {
+                "0.50": 105,
+                "0.75": 79,
+                "1": 124
+              },
+              "total_scaled_net_010_r": "38.64967676265738935297802954",
+              "trades": 308
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1P5_3_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "7.31864802958314905648989198",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1258827153741089135163976712",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.417549642269968170767829555",
+              "risk_scale_counts": {
+                "0.50": 131,
+                "0.75": 74,
+                "1": 103
+              },
+              "total_scaled_net_010_r": "38.77187633522554536305048274",
+              "trades": 308
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "6.75877714356798608941646321",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.07682302226163099504677896607",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.314009503584625056980097216",
+              "risk_scale_counts": {
+                "0.25": 143,
+                "0.75": 68,
+                "1": 97
+              },
+              "total_scaled_net_010_r": "23.66149085658234647440792155",
+              "trades": 308
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1_3_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "5.50692705682880799344214301",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.06493059629346533919401513776",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.292082425442713910747655605",
+              "risk_scale_counts": {
+                "0.25": 162,
+                "0.75": 101,
+                "1": 45
+              },
+              "total_scaled_net_010_r": "19.99862365838732447175666243",
+              "trades": 308
+            }
+          }
+        ]
+      },
+      {
+        "allowed_families": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "decision_counts": {
+          "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 2274,
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 32,
+          "EXECUTE": 452,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": 38,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LATE_CLOSE": 4,
+          "FAMILY_H4_MID_PROTECTED_RISK": 92,
+          "FAMILY_OTHER_SESSION_D1_BODY_OPPOSED": 146,
+          "RANK_1": 438,
+          "RANK_2": 14,
+          "SOURCE_R32_REGIME_CORE": 172,
+          "SOURCE_R35_STRUCTURAL_EXPANSION": 280
+        },
+        "family_set": "R35_G2456",
+        "fixed_trade_stats": {
+          "gross": {
+            "max_drawdown_r": "9.99867817881593187467250446",
+            "max_losing_streak": 6,
+            "mean_r": "0.2373663654332504685706864201",
+            "profit_factor": "1.583788579313398451258303694",
+            "total_r": "107.2895971758292117939502619",
+            "trades": 452
+          },
+          "net_005": {
+            "max_drawdown_r": "12.59867817881593187467250445",
+            "max_losing_streak": 6,
+            "mean_r": "0.1873663654332504685706864203",
+            "profit_factor": "1.438153605475595122291680453",
+            "total_r": "84.68959717582921179395026199",
+            "trades": 452
+          },
+          "net_010": {
+            "max_drawdown_r": "15.21225842572951212158608471",
+            "max_losing_streak": 8,
+            "mean_r": "0.1373663654332504685706864203",
+            "profit_factor": "1.305460315014533047543134387",
+            "total_r": "62.08959717582921179395026197",
+            "trades": 452
+          }
+        },
+        "forensics": {
+          "by_family": {
+            "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+              "gross": {
+                "max_drawdown_r": "2.96806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.3006034653814407412464046597",
+                "profit_factor": "1.815923691749624869097384076",
+                "total_r": "11.42293168449474816736337707",
+                "trades": 38
+              },
+              "net_005": {
+                "max_drawdown_r": "3.71806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2506034653814407412464046597",
+                "profit_factor": "1.647818481938418242677780753",
+                "total_r": "9.52293168449474816736337707",
+                "trades": 38
+              },
+              "net_010": {
+                "max_drawdown_r": "4.468065920208300857699888960",
+                "max_losing_streak": 2,
+                "mean_r": "0.2006034653814407412464046597",
+                "profit_factor": "1.494185816565245715787871158",
+                "total_r": "7.622931684494748167363377069",
+                "trades": 38
+              },
+              "trades": 38
+            },
+            "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE": {
+              "gross": {
+                "max_drawdown_r": "1",
+                "max_losing_streak": 1,
+                "mean_r": "0.4135780561046910173231968085",
+                "profit_factor": "2.468624117596249734984413156",
+                "total_r": "1.654312224418764069292787234",
+                "trades": 4
+              },
+              "net_005": {
+                "max_drawdown_r": "1.05",
+                "max_losing_streak": 1,
+                "mean_r": "0.3635780561046910173231968085",
+                "profit_factor": "2.185802844652600506358692496",
+                "total_r": "1.454312224418764069292787234",
+                "trades": 4
+              },
+              "net_010": {
+                "max_drawdown_r": "1.10",
+                "max_losing_streak": 1,
+                "mean_r": "0.3135780561046910173231968085",
+                "profit_factor": "1.945625333833903587768392455",
+                "total_r": "1.254312224418764069292787234",
+                "trades": 4
+              },
+              "trades": 4
+            },
+            "H4_MID_PROTECTED_RISK": {
+              "gross": {
+                "max_drawdown_r": "6.00000000000000000000000000",
+                "max_losing_streak": 6,
+                "mean_r": "0.3253945763934504831576332555",
+                "profit_factor": "1.643094823101254084838721610",
+                "total_r": "29.93630102819744445050225951",
+                "trades": 92
+              },
+              "net_005": {
+                "max_drawdown_r": "6.98533536262068731030641303",
+                "max_losing_streak": 6,
+                "mean_r": "0.2753945763934504831576332554",
+                "profit_factor": "1.517059068100528558390378232",
+                "total_r": "25.33630102819744445050225950",
+                "trades": 92
+              },
+              "net_010": {
+                "max_drawdown_r": "9.03533536262068731030641303",
+                "max_losing_streak": 6,
+                "mean_r": "0.2253945763934504831576332554",
+                "profit_factor": "1.402323718381458985273339364",
+                "total_r": "20.73630102819744445050225950",
+                "trades": 92
+              },
+              "trades": 92
+            },
+            "OTHER_SESSION_D1_BODY_OPPOSED": {
+              "gross": {
+                "max_drawdown_r": "18.59367866371537719922105826",
+                "max_losing_streak": 4,
+                "mean_r": "0.07203236857048157178574404",
+                "profit_factor": "1.148036023150127523482256373",
+                "total_r": "10.51672581129030948071862984",
+                "trades": 146
+              },
+              "net_005": {
+                "max_drawdown_r": "22.28539950711196433364877165",
+                "max_losing_streak": 5,
+                "mean_r": "0.02203236857048157178574403998",
+                "profit_factor": "1.043063590448290340755262289",
+                "total_r": "3.216725811290309480718629837",
+                "trades": 146
+              },
+              "net_010": {
+                "max_drawdown_r": "26.83539950711196433364877165",
+                "max_losing_streak": 5,
+                "mean_r": "-0.02796763142951842821425596001",
+                "profit_factor": "0.9479387708663507392837912421",
+                "total_r": "-4.083274188709690519281370162",
+                "trades": 146
+              },
+              "trades": 146
+            }
+          },
+          "by_source": {
+            "R32_REGIME_CORE": {
+              "gross": {
+                "max_drawdown_r": "4.11816305469556243550051599",
+                "max_losing_streak": 4,
+                "mean_r": "0.3125542234152787536399605135",
+                "profit_factor": "2.052801348530178535054868086",
+                "total_r": "53.75932642742794562607320832",
+                "trades": 172
+              },
+              "net_005": {
+                "max_drawdown_r": "4.44832269096480380761865790",
+                "max_losing_streak": 4,
+                "mean_r": "0.2625542234152787536399605134",
+                "profit_factor": "1.841533674629028410300919549",
+                "total_r": "45.15932642742794562607320830",
+                "trades": 172
+              },
+              "net_010": {
+                "max_drawdown_r": "5.648322690964803807618657922",
+                "max_losing_streak": 5,
+                "mean_r": "0.2125542234152787536399605133",
+                "profit_factor": "1.646604000833815942872503994",
+                "total_r": "36.55932642742794562607320828",
+                "trades": 172
+              },
+              "trades": 172
+            },
+            "R35_STRUCTURAL_EXPANSION": {
+              "gross": {
+                "max_drawdown_r": "12.13849897500336493537167232",
+                "max_losing_streak": 6,
+                "mean_r": "0.1911795383871473791709894772",
+                "profit_factor": "1.403337003073302597943810259",
+                "total_r": "53.53027074840126616787705363",
+                "trades": 280
+              },
+              "net_005": {
+                "max_drawdown_r": "15.22389267308517617218020604",
+                "max_losing_streak": 6,
+                "mean_r": "0.1411795383871473791709894773",
+                "profit_factor": "1.283118776082048021584369748",
+                "total_r": "39.53027074840126616787705365",
+                "trades": 280
+              },
+              "net_010": {
+                "max_drawdown_r": "20.52389267308517617218020604",
+                "max_losing_streak": 6,
+                "mean_r": "0.09117953838714737917098947732",
+                "profit_factor": "1.174000638890163300271716113",
+                "total_r": "25.53027074840126616787705365",
+                "trades": 280
+              },
+              "trades": 280
+            }
+          }
+        },
+        "risk_governors": [
+          {
+            "acceptance_pass": false,
+            "governor": "FIXED_1R",
+            "stats": {
+              "max_drawdown_scaled_r": "15.21225842572951212158608471",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1373663654332504685706864203",
+              "minimum_risk_scale": "1",
+              "profit_factor_scaled_net_010": "1.305460315014533047543134387",
+              "risk_scale_counts": {
+                "1": 452
+              },
+              "total_scaled_net_010_r": "62.08959717582921179395026197",
+              "trades": 452
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "9.653065895626531091571812895",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1093521510812863980849339146",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.370708644477177944038631096",
+              "risk_scale_counts": {
+                "0.50": 253,
+                "0.75": 81,
+                "1": 118
+              },
+              "total_scaled_net_010_r": "49.42717228874145193439012939",
+              "trades": 452
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1P5_3_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "9.190521444943394277048137045",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1020103585757516838094863444",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.357403951190837346163268468",
+              "risk_scale_counts": {
+                "0.50": 284,
+                "0.75": 63,
+                "1": 105
+              },
+              "total_scaled_net_010_r": "46.10868207623976108188782767",
+              "trades": 452
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "7.60247590481344857834052801",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.08479806426355454055092595066",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.463358292966319646616769190",
+              "risk_scale_counts": {
+                "0.25": 335,
+                "0.75": 40,
+                "1": 77
+              },
+              "total_scaled_net_010_r": "38.32872504712665232901852970",
+              "trades": 452
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1_3_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "6.443270791999388339674871696",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.07447875227285050124162507148",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.429238181729885267554972448",
+              "risk_scale_counts": {
+                "0.25": 338,
+                "0.75": 67,
+                "1": 47
+              },
+              "total_scaled_net_010_r": "33.66439602732842656121453231",
+              "trades": 452
+            }
+          }
+        ]
+      },
+      {
+        "allowed_families": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "decision_counts": {
+          "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 2277,
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 32,
+          "EXECUTE": 449,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": 38,
+          "FAMILY_H4_MID_PROTECTED_RISK": 93,
+          "FAMILY_OTHER_SESSION_D1_BODY_OPPOSED": 146,
+          "RANK_1": 435,
+          "RANK_2": 14,
+          "SOURCE_R32_REGIME_CORE": 172,
+          "SOURCE_R35_STRUCTURAL_EXPANSION": 277
+        },
+        "family_set": "R35_G256",
+        "fixed_trade_stats": {
+          "gross": {
+            "max_drawdown_r": "9.99867817881593187467250446",
+            "max_losing_streak": 6,
+            "mean_r": "0.2330407237225177009457850218",
+            "profit_factor": "1.569737790443453228356719933",
+            "total_r": "104.6352849514104477246574748",
+            "trades": 449
+          },
+          "net_005": {
+            "max_drawdown_r": "12.59867817881593187467250445",
+            "max_losing_streak": 6,
+            "mean_r": "0.1830407237225177009457850217",
+            "profit_factor": "1.425585675478410211734313041",
+            "total_r": "82.18528495141044772465747475",
+            "trades": 449
+          },
+          "net_010": {
+            "max_drawdown_r": "15.21225842572951212158608471",
+            "max_losing_streak": 8,
+            "mean_r": "0.1330407237225177009457850217",
+            "profit_factor": "1.294205619657780000891633093",
+            "total_r": "59.73528495141044772465747473",
+            "trades": 449
+          }
+        },
+        "forensics": {
+          "by_family": {
+            "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+              "gross": {
+                "max_drawdown_r": "2.96806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.3006034653814407412464046597",
+                "profit_factor": "1.815923691749624869097384076",
+                "total_r": "11.42293168449474816736337707",
+                "trades": 38
+              },
+              "net_005": {
+                "max_drawdown_r": "3.71806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2506034653814407412464046597",
+                "profit_factor": "1.647818481938418242677780753",
+                "total_r": "9.52293168449474816736337707",
+                "trades": 38
+              },
+              "net_010": {
+                "max_drawdown_r": "4.468065920208300857699888960",
+                "max_losing_streak": 2,
+                "mean_r": "0.2006034653814407412464046597",
+                "profit_factor": "1.494185816565245715787871158",
+                "total_r": "7.622931684494748167363377069",
+                "trades": 38
+              },
+              "trades": 38
+            },
+            "H4_MID_PROTECTED_RISK": {
+              "gross": {
+                "max_drawdown_r": "6.60927817617318257523123081",
+                "max_losing_streak": 6,
+                "mean_r": "0.3111430218085746715107769840",
+                "profit_factor": "1.608539994754113568508986701",
+                "total_r": "28.93630102819744445050225951",
+                "trades": 93
+              },
+              "net_005": {
+                "max_drawdown_r": "8.03533536262068731030641303",
+                "max_losing_streak": 6,
+                "mean_r": "0.2611430218085746715107769839",
+                "profit_factor": "1.485233154235839242362254830",
+                "total_r": "24.28630102819744445050225950",
+                "trades": 93
+              },
+              "net_010": {
+                "max_drawdown_r": "10.13533536262068731030641302",
+                "max_losing_streak": 6,
+                "mean_r": "0.2111430218085746715107769840",
+                "profit_factor": "1.373020583724138903652389240",
+                "total_r": "19.63630102819744445050225951",
+                "trades": 93
+              },
+              "trades": 93
+            },
+            "OTHER_SESSION_D1_BODY_OPPOSED": {
+              "gross": {
+                "max_drawdown_r": "18.59367866371537719922105826",
+                "max_losing_streak": 4,
+                "mean_r": "0.07203236857048157178574404",
+                "profit_factor": "1.148036023150127523482256373",
+                "total_r": "10.51672581129030948071862984",
+                "trades": 146
+              },
+              "net_005": {
+                "max_drawdown_r": "22.28539950711196433364877165",
+                "max_losing_streak": 5,
+                "mean_r": "0.02203236857048157178574403998",
+                "profit_factor": "1.043063590448290340755262289",
+                "total_r": "3.216725811290309480718629837",
+                "trades": 146
+              },
+              "net_010": {
+                "max_drawdown_r": "26.83539950711196433364877165",
+                "max_losing_streak": 5,
+                "mean_r": "-0.02796763142951842821425596001",
+                "profit_factor": "0.9479387708663507392837912421",
+                "total_r": "-4.083274188709690519281370162",
+                "trades": 146
+              },
+              "trades": 146
+            }
+          },
+          "by_source": {
+            "R32_REGIME_CORE": {
+              "gross": {
+                "max_drawdown_r": "4.11816305469556243550051599",
+                "max_losing_streak": 4,
+                "mean_r": "0.3125542234152787536399605135",
+                "profit_factor": "2.052801348530178535054868086",
+                "total_r": "53.75932642742794562607320832",
+                "trades": 172
+              },
+              "net_005": {
+                "max_drawdown_r": "4.44832269096480380761865790",
+                "max_losing_streak": 4,
+                "mean_r": "0.2625542234152787536399605134",
+                "profit_factor": "1.841533674629028410300919549",
+                "total_r": "45.15932642742794562607320830",
+                "trades": 172
+              },
+              "net_010": {
+                "max_drawdown_r": "5.648322690964803807618657922",
+                "max_losing_streak": 5,
+                "mean_r": "0.2125542234152787536399605133",
+                "profit_factor": "1.646604000833815942872503994",
+                "total_r": "36.55932642742794562607320828",
+                "trades": 172
+              },
+              "trades": 172
+            },
+            "R35_STRUCTURAL_EXPANSION": {
+              "gross": {
+                "max_drawdown_r": "12.13849897500336493537167232",
+                "max_losing_streak": 6,
+                "mean_r": "0.1836677203031859281537338137",
+                "profit_factor": "1.383702976130545423765708390",
+                "total_r": "50.87595852398250209858426639",
+                "trades": 277
+              },
+              "net_005": {
+                "max_drawdown_r": "15.04745589147598076988135547",
+                "max_losing_streak": 6,
+                "mean_r": "0.1336677203031859281537338138",
+                "profit_factor": "1.265518226374336790762252436",
+                "total_r": "37.02595852398250209858426641",
+                "trades": 277
+              },
+              "net_010": {
+                "max_drawdown_r": "22.10069717472908728014867092",
+                "max_losing_streak": 6,
+                "mean_r": "0.08366772030318592815373381375",
+                "profit_factor": "1.158199053016036218961406275",
+                "total_r": "23.17595852398250209858426641",
+                "trades": 277
+              },
+              "trades": 277
+            }
+          }
+        },
+        "risk_governors": [
+          {
+            "acceptance_pass": false,
+            "governor": "FIXED_1R",
+            "stats": {
+              "max_drawdown_scaled_r": "15.21225842572951212158608471",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1330407237225177009457850217",
+              "minimum_risk_scale": "1",
+              "profit_factor_scaled_net_010": "1.294205619657780000891633093",
+              "risk_scale_counts": {
+                "1": 449
+              },
+              "total_scaled_net_010_r": "59.73528495141044772465747473",
+              "trades": 449
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "9.653065895626531091571812895",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1066030886506913164610891397",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.363984011641699407212083268",
+              "risk_scale_counts": {
+                "0.50": 260,
+                "0.75": 79,
+                "1": 110
+              },
+              "total_scaled_net_010_r": "47.86478680416040109102902373",
+              "trades": 449
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1P5_3_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "9.190521444943394277048137045",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.09947866959489086001672226149",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.349575246728298223401546266",
+              "risk_scale_counts": {
+                "0.50": 286,
+                "0.75": 69,
+                "1": 94
+              },
+              "total_scaled_net_010_r": "44.66592264810599614750829541",
+              "trades": 449
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "7.60247590481344857834052801",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.08582532461950919131364656209",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.477555817022470994810430090",
+              "risk_scale_counts": {
+                "0.25": 336,
+                "0.75": 36,
+                "1": 77
+              },
+              "total_scaled_net_010_r": "38.53557075415962689982730638",
+              "trades": 449
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1_3_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "6.443270791999388339674871696",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.07718614979463292778486747795",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.407860601010834476546541850",
+              "risk_scale_counts": {
+                "0.25": 308,
+                "0.75": 88,
+                "1": 53
+              },
+              "total_scaled_net_010_r": "34.65658125779018457540549760",
+              "trades": 449
+            }
+          }
+        ]
+      },
+      {
+        "allowed_families": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION"
+        ],
+        "decision_counts": {
+          "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 2365,
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 19,
+          "EXECUTE": 374,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": 39,
+          "FAMILY_OTHER_SESSION_D1_BODY_OPPOSED": 158,
+          "RANK_1": 360,
+          "RANK_2": 14,
+          "SOURCE_R32_REGIME_CORE": 177,
+          "SOURCE_R35_STRUCTURAL_EXPANSION": 197
+        },
+        "family_set": "R35_G25",
+        "fixed_trade_stats": {
+          "gross": {
+            "max_drawdown_r": "7.798907671291970638629560083",
+            "max_losing_streak": 5,
+            "mean_r": "0.2352626572932679950975392841",
+            "profit_factor": "1.619178516432988960568821243",
+            "total_r": "87.98823382768223016647969224",
+            "trades": 374
+          },
+          "net_005": {
+            "max_drawdown_r": "9.248907671291970638629560083",
+            "max_losing_streak": 5,
+            "mean_r": "0.1852626572932679950975392841",
+            "profit_factor": "1.463900136387154434265180968",
+            "total_r": "69.28823382768223016647969224",
+            "trades": 374
+          },
+          "net_010": {
+            "max_drawdown_r": "10.69890767129197063862956008",
+            "max_losing_streak": 6,
+            "mean_r": "0.1352626572932679950975392841",
+            "profit_factor": "1.322222350189334654677156258",
+            "total_r": "50.58823382768223016647969224",
+            "trades": 374
+          }
+        },
+        "forensics": {
+          "by_family": {
+            "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+              "gross": {
+                "max_drawdown_r": "2.96806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2973335540402992626740116408",
+                "profit_factor": "1.828286329112262231734746714",
+                "total_r": "11.59600860757167124428645399",
+                "trades": 39
+              },
+              "net_005": {
+                "max_drawdown_r": "3.71806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2473335540402992626740116408",
+                "profit_factor": "1.656191061739569472400439047",
+                "total_r": "9.64600860757167124428645399",
+                "trades": 39
+              },
+              "net_010": {
+                "max_drawdown_r": "4.468065920208300857699888960",
+                "max_losing_streak": 2,
+                "mean_r": "0.1973335540402992626740116408",
+                "profit_factor": "1.498923308700496106112481416",
+                "total_r": "7.696008607571671244286453992",
+                "trades": 39
+              },
+              "trades": 39
+            },
+            "OTHER_SESSION_D1_BODY_OPPOSED": {
+              "gross": {
+                "max_drawdown_r": "13.26075382102976268590735390",
+                "max_losing_streak": 4,
+                "mean_r": "0.1306293487567642422102121820",
+                "profit_factor": "1.271422734512684935047191558",
+                "total_r": "20.63943710356875026921352476",
+                "trades": 158
+              },
+              "net_005": {
+                "max_drawdown_r": "14.71075382102976268590735390",
+                "max_losing_streak": 5,
+                "mean_r": "0.08062934875676424221021218203",
+                "profit_factor": "1.159348310236695112620339226",
+                "total_r": "12.73943710356875026921352476",
+                "trades": 158
+              },
+              "net_010": {
+                "max_drawdown_r": "18.18576513791044662207695365",
+                "max_losing_streak": 5,
+                "mean_r": "0.03062934875676424221021218206",
+                "profit_factor": "1.057658919036629686704025660",
+                "total_r": "4.839437103568750269213524766",
+                "trades": 158
+              },
+              "trades": 158
+            }
+          },
+          "by_source": {
+            "R32_REGIME_CORE": {
+              "gross": {
+                "max_drawdown_r": "4.11816305469556243550051599",
+                "max_losing_streak": 4,
+                "mean_r": "0.3149875034832870545366085507",
+                "profit_factor": "2.070869037475283512269354957",
+                "total_r": "55.75278811654180865297971348",
+                "trades": 177
+              },
+              "net_005": {
+                "max_drawdown_r": "4.44832269096480380761865790",
+                "max_losing_streak": 4,
+                "mean_r": "0.2649875034832870545366085507",
+                "profit_factor": "1.857249306613365659180586377",
+                "total_r": "46.90278811654180865297971348",
+                "trades": 177
+              },
+              "net_010": {
+                "max_drawdown_r": "5.648322690964803807618657922",
+                "max_losing_streak": 5,
+                "mean_r": "0.2149875034832870545366085505",
+                "profit_factor": "1.660174268563638837983063821",
+                "total_r": "38.05278811654180865297971344",
+                "trades": 177
+              },
+              "trades": 177
+            },
+            "R35_STRUCTURAL_EXPANSION": {
+              "gross": {
+                "max_drawdown_r": "13.54485298885581816072232579",
+                "max_losing_streak": 4,
+                "mean_r": "0.1636317041174640685964465926",
+                "profit_factor": "1.358005875551767753967607353",
+                "total_r": "32.23544571114042151349997875",
+                "trades": 197
+              },
+              "net_005": {
+                "max_drawdown_r": "15.48251682536624391033995486",
+                "max_losing_streak": 4,
+                "mean_r": "0.1136317041174640685964465926",
+                "profit_factor": "1.236514832723463135117002187",
+                "total_r": "22.38544571114042151349997875",
+                "trades": 197
+              },
+              "net_010": {
+                "max_drawdown_r": "20.95484944279817390782328333",
+                "max_losing_streak": 5,
+                "mean_r": "0.06363170411746406859644659264",
+                "profit_factor": "1.126165214051506990107480869",
+                "total_r": "12.53544571114042151349997875",
+                "trades": 197
+              },
+              "trades": 197
+            }
+          }
+        },
+        "risk_governors": [
+          {
+            "acceptance_pass": false,
+            "governor": "FIXED_1R",
+            "stats": {
+              "max_drawdown_scaled_r": "10.69890767129197063862956008",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1352626572932679950975392841",
+              "minimum_risk_scale": "1",
+              "profit_factor_scaled_net_010": "1.322222350189334654677156258",
+              "risk_scale_counts": {
+                "1": 374
+              },
+              "total_scaled_net_010_r": "50.58823382768223016647969224",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "7.293737482331119942528863609",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1049708524071563112425135180",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.372992707473263586471811378",
+              "risk_scale_counts": {
+                "0.50": 206,
+                "0.75": 68,
+                "1": 100
+              },
+              "total_scaled_net_010_r": "39.25909880027646040470005572",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1P5_3_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "7.396899496715762064397262849",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1035411437615500530840102551",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.382104923383085786349526992",
+              "risk_scale_counts": {
+                "0.50": 233,
+                "0.75": 47,
+                "1": 94
+              },
+              "total_scaled_net_010_r": "38.72438776681971985341983542",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "6.24027828193990535341223508",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.08922096180070152864533254142",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.495477335277920546010815499",
+              "risk_scale_counts": {
+                "0.25": 263,
+                "0.75": 40,
+                "1": 71
+              },
+              "total_scaled_net_010_r": "33.36863971346237171335437049",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1_3_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "5.27149091632421966466956655",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.09058741402557856546000127479",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.501094906917702960221870731",
+              "risk_scale_counts": {
+                "0.25": 253,
+                "0.75": 66,
+                "1": 55
+              },
+              "total_scaled_net_010_r": "33.87969284556638348204047677",
+              "trades": 374
+            }
+          }
+        ]
+      },
+      {
+        "allowed_families": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "decision_counts": {
+          "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 2314,
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 30,
+          "EXECUTE": 414,
+          "FAMILY_H4_MID_PROTECTED_RISK": 93,
+          "FAMILY_OTHER_SESSION_D1_BODY_OPPOSED": 149,
+          "RANK_1": 400,
+          "RANK_2": 14,
+          "SOURCE_R32_REGIME_CORE": 172,
+          "SOURCE_R35_STRUCTURAL_EXPANSION": 242
+        },
+        "family_set": "R35_G26",
+        "fixed_trade_stats": {
+          "gross": {
+            "max_drawdown_r": "10.52018183638444359215052047",
+            "max_losing_streak": 6,
+            "mean_r": "0.2410826520013764127914008751",
+            "profit_factor": "1.584853209490006826374745366",
+            "total_r": "99.8082179285698348956399623",
+            "trades": 414
+          },
+          "net_005": {
+            "max_drawdown_r": "13.77018183638444359215052044",
+            "max_losing_streak": 6,
+            "mean_r": "0.1910826520013764127914008752",
+            "profit_factor": "1.440810025643338948087952098",
+            "total_r": "79.10821792856983489563996235",
+            "trades": 414
+          },
+          "net_010": {
+            "max_drawdown_r": "17.02018183638444359215052044",
+            "max_losing_streak": 8,
+            "mean_r": "0.1410826520013764127914008752",
+            "profit_factor": "1.309506536099956495159151456",
+            "total_r": "58.40821792856983489563996235",
+            "trades": 414
+          }
+        },
+        "forensics": {
+          "by_family": {
+            "H4_MID_PROTECTED_RISK": {
+              "gross": {
+                "max_drawdown_r": "6.60927817617318257523123081",
+                "max_losing_streak": 6,
+                "mean_r": "0.3111430218085746715107769840",
+                "profit_factor": "1.608539994754113568508986701",
+                "total_r": "28.93630102819744445050225951",
+                "trades": 93
+              },
+              "net_005": {
+                "max_drawdown_r": "8.03533536262068731030641303",
+                "max_losing_streak": 6,
+                "mean_r": "0.2611430218085746715107769839",
+                "profit_factor": "1.485233154235839242362254830",
+                "total_r": "24.28630102819744445050225950",
+                "trades": 93
+              },
+              "net_010": {
+                "max_drawdown_r": "10.13533536262068731030641302",
+                "max_losing_streak": 6,
+                "mean_r": "0.2111430218085746715107769840",
+                "profit_factor": "1.373020583724138903652389240",
+                "total_r": "19.63630102819744445050225951",
+                "trades": 93
+              },
+              "trades": 93
+            },
+            "OTHER_SESSION_D1_BODY_OPPOSED": {
+              "gross": {
+                "max_drawdown_r": "18.59367866371537719922105826",
+                "max_losing_streak": 4,
+                "mean_r": "0.1148496004895600323427147282",
+                "profit_factor": "1.237537403904376330629003972",
+                "total_r": "17.11259047294444481906449450",
+                "trades": 149
+              },
+              "net_005": {
+                "max_drawdown_r": "22.28539950711196433364877165",
+                "max_losing_streak": 4,
+                "mean_r": "0.06484960048956003234271472819",
+                "profit_factor": "1.127563814638199989659726192",
+                "total_r": "9.66259047294444481906449450",
+                "trades": 149
+              },
+              "net_010": {
+                "max_drawdown_r": "26.83539950711196433364877165",
+                "max_losing_streak": 4,
+                "mean_r": "0.01484960048956003234271472817",
+                "profit_factor": "1.027820075817869597966972236",
+                "total_r": "2.212590472944444819064494497",
+                "trades": 149
+              },
+              "trades": 149
+            }
+          },
+          "by_source": {
+            "R32_REGIME_CORE": {
+              "gross": {
+                "max_drawdown_r": "4.11816305469556243550051599",
+                "max_losing_streak": 4,
+                "mean_r": "0.3125542234152787536399605135",
+                "profit_factor": "2.052801348530178535054868086",
+                "total_r": "53.75932642742794562607320832",
+                "trades": 172
+              },
+              "net_005": {
+                "max_drawdown_r": "4.44832269096480380761865790",
+                "max_losing_streak": 4,
+                "mean_r": "0.2625542234152787536399605134",
+                "profit_factor": "1.841533674629028410300919549",
+                "total_r": "45.15932642742794562607320830",
+                "trades": 172
+              },
+              "net_010": {
+                "max_drawdown_r": "5.648322690964803807618657922",
+                "max_losing_streak": 5,
+                "mean_r": "0.2125542234152787536399605133",
+                "profit_factor": "1.646604000833815942872503994",
+                "total_r": "36.55932642742794562607320828",
+                "trades": 172
+              },
+              "trades": 172
+            },
+            "R35_STRUCTURAL_EXPANSION": {
+              "gross": {
+                "max_drawdown_r": "12.02947470127192462018795699",
+                "max_losing_streak": 6,
+                "mean_r": "0.1902846756245532614444907190",
+                "profit_factor": "1.385049818891137008055409552",
+                "total_r": "46.04889150114188926956675400",
+                "trades": 242
+              },
+              "net_005": {
+                "max_drawdown_r": "13.87947470127192462018795698",
+                "max_losing_streak": 6,
+                "mean_r": "0.1402846756245532614444907190",
+                "profit_factor": "1.269868511842320106712676129",
+                "total_r": "33.94889150114188926956675400",
+                "trades": 242
+              },
+              "net_010": {
+                "max_drawdown_r": "18.70316265548696999732800901",
+                "max_losing_streak": 6,
+                "mean_r": "0.09028467562455326144449071909",
+                "profit_factor": "1.165304648934333990012542473",
+                "total_r": "21.84889150114188926956675402",
+                "trades": 242
+              },
+              "trades": 242
+            }
+          }
+        },
+        "risk_governors": [
+          {
+            "acceptance_pass": false,
+            "governor": "FIXED_1R",
+            "stats": {
+              "max_drawdown_scaled_r": "17.02018183638444359215052044",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1410826520013764127914008752",
+              "minimum_risk_scale": "1",
+              "profit_factor_scaled_net_010": "1.309506536099956495159151456",
+              "risk_scale_counts": {
+                "1": 414
+              },
+              "total_scaled_net_010_r": "58.40821792856983489563996235",
+              "trades": 414
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "10.55739256445764646189052710",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1131600626365505282956731798",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.380882371881742289950712497",
+              "risk_scale_counts": {
+                "0.50": 235,
+                "0.75": 75,
+                "1": 104
+              },
+              "total_scaled_net_010_r": "46.84826593153191871440869644",
+              "trades": 414
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1P5_3_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "10.09448315027086001233035491",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.1019887943938024398159109100",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.353896759491508032257235127",
+              "risk_scale_counts": {
+                "0.50": 263,
+                "0.75": 63,
+                "1": 88
+              },
+              "total_scaled_net_010_r": "42.22336087903421008378711673",
+              "trades": 414
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "8.055186684484480716054629644",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.08726163014616857289651793452",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.442937595113415541185768327",
+              "risk_scale_counts": {
+                "0.25": 279,
+                "0.75": 57,
+                "1": 78
+              },
+              "total_scaled_net_010_r": "36.12631488051378917915842489",
+              "trades": 414
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1_3_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "6.895251644663121207315980628",
+              "max_losing_streak": 8,
+              "mean_scaled_net_010_r": "0.07680212491370810920631472179",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.447559376990373705608242148",
+              "risk_scale_counts": {
+                "0.25": 318,
+                "0.75": 52,
+                "1": 44
+              },
+              "total_scaled_net_010_r": "31.79607971427515721141429482",
+              "trades": 414
+            }
+          }
+        ]
+      }
+    ],
+    "schema": "qore.turtle_soup_gbpusd.r35_r32_core_expansion.v1",
+    "selected": null,
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "open": "2024-09-17T00:00:00+00:00",
+      "same_consumed_development_window": true
+    }
+  },
+  "research_result": "success",
+  "sha256sums": [
+    "21b6fb9900aa60ede36ff98dcec52d27c842eaed495f978b14fc921db5145e04  r35-r32-core-expansion-report.json",
+    "cfab8ffb39b9a6a0330be29cae10df8a0d4b632efcc02694a4d4379fd4bb2009  stdout.json",
+    "14855682f9d4246016cf3308c9c1aa0226181d6237fa48062829853d76380b34  git-sha.txt"
+  ],
+  "workflow_run_id": 35351319424,
+  "workflow_sha": "5f8c2cb6cfc74b9cbd464df88b36bbd94c08678b"
+}

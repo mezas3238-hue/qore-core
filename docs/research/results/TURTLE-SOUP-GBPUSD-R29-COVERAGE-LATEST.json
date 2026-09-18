@@ -1,0 +1,277 @@
+{
+  "identity": "TURTLE_SOUP_GBPUSD_R29_COVERAGE_STATUS",
+  "quality_result": "success",
+  "r29_report": {
+    "experiment_contract": {
+      "c2_changed": false,
+      "cisd_changed": false,
+      "fallback_reason": "NEAREST_ACTIVE_DOL_MINIMUM_JOURNEY_EXTRAPOLATION",
+      "fallback_requires_anatomy_structural_support": true,
+      "fallback_requires_same_target_regime_journey_validation": true,
+      "fallback_target_rank": 1,
+      "fresh_holdout_consumed": false,
+      "protected_swing_changed": false,
+      "r28_rules_relaxed": false,
+      "regime_model_changed": false,
+      "variants": [
+        "R28_BASELINE",
+        "R29_ROBUST_REGIME_RANK1_POSTURE_AGREE",
+        "R29_VALIDATED_REGIME_RANK1_POSTURE_AGREE",
+        "R29_ROBUST_REGIME_RANK1",
+        "R29_VALIDATED_REGIME_RANK1"
+      ]
+    },
+    "governance": {
+      "candidate_replaced": false,
+      "candidate_replacement_allowed_only_if_acceptance_pass": true,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_only": true
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_R29_COVERAGE_EXPANSION_LAB_V1",
+    "predeclared_acceptance": {
+      "maximum_net_010_drawdown_r": "8.0",
+      "maximum_net_010_losing_streak": 3,
+      "minimum_net_010_profit_factor": "1.80",
+      "minimum_trades": 250,
+      "selection_order": "MOST_TRADES_THEN_HIGHER_PF_THEN_LOWER_DD"
+    },
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13788,
+        "H1:exact-c2": 23936,
+        "H1:invalid-entry-geometry": 2997,
+        "H1:no-causal-cisd": 10148,
+        "H1:no-exact-c2": 37904,
+        "H1:opposite-boundary-already-touched": 179,
+        "H1:signal": 10612,
+        "H1:source-cycles": 61840,
+        "H4:causal-cisd": 3854,
+        "H4:exact-c2": 5814,
+        "H4:invalid-entry-geometry": 1160,
+        "H4:no-causal-cisd": 1960,
+        "H4:no-exact-c2": 9417,
+        "H4:opposite-boundary-already-touched": 26,
+        "H4:signal": 2668,
+        "H4:source-cycles": 15231
+      },
+      "retained_bars": 745274,
+      "setups_10y": 13280
+    },
+    "results": [
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2672,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 4,
+          "EXECUTE": 82,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 75,
+          "RANK_1": 82,
+          "SOURCE_R28_AUTHORITATIVE": 82
+        },
+        "gross": {
+          "max_drawdown_r": "5.387272727272727272727272728",
+          "max_losing_streak": 3,
+          "mean_r": "0.16220622008261053812554093",
+          "profit_factor": "1.398168911282794082001658281",
+          "total_r": "13.30091004677406412629435626",
+          "trades": 82
+        },
+        "net_005": {
+          "max_drawdown_r": "5.887272727272727272727272728",
+          "max_losing_streak": 3,
+          "mean_r": "0.1122062200826105381255409298",
+          "profit_factor": "1.262095399208909377279666098",
+          "total_r": "9.20091004677406412629435624",
+          "trades": 82
+        },
+        "net_010": {
+          "max_drawdown_r": "6.387272727272727272727272727",
+          "max_losing_streak": 3,
+          "mean_r": "0.06220622008261053812554092990",
+          "profit_factor": "1.138444930489306229418682922",
+          "total_r": "5.100910046774064126294356252",
+          "trades": 82
+        },
+        "variant": "R28_BASELINE"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2643,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 7,
+          "EXECUTE": 108,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 101,
+          "RANK_1": 108,
+          "SOURCE_R28_AUTHORITATIVE": 81,
+          "SOURCE_REGIME_JOURNEY_CORROBORATED_RANK1": 27
+        },
+        "gross": {
+          "max_drawdown_r": "6.938498621669028518415202772",
+          "max_losing_streak": 5,
+          "mean_r": "0.1603094151343996442519555032",
+          "profit_factor": "1.381309163165055615124781754",
+          "total_r": "17.31341683451516157921119435",
+          "trades": 108
+        },
+        "net_005": {
+          "max_drawdown_r": "7.988498621669028518415202772",
+          "max_losing_streak": 5,
+          "mean_r": "0.1103094151343996442519555034",
+          "profit_factor": "1.249729969307616432526410031",
+          "total_r": "11.91341683451516157921119437",
+          "trades": 108
+        },
+        "net_010": {
+          "max_drawdown_r": "9.038498621669028518415202772",
+          "max_losing_streak": 5,
+          "mean_r": "0.06030941513439964425195550348",
+          "profit_factor": "1.130152955470603148612275117",
+          "total_r": "6.513416834515161579211194376",
+          "trades": 108
+        },
+        "variant": "R29_ROBUST_REGIME_RANK1_POSTURE_AGREE"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2637,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 7,
+          "EXECUTE": 114,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 107,
+          "RANK_1": 114,
+          "SOURCE_R28_AUTHORITATIVE": 81,
+          "SOURCE_REGIME_JOURNEY_CORROBORATED_RANK1": 33
+        },
+        "gross": {
+          "max_drawdown_r": "6.929877932013856104622099324",
+          "max_losing_streak": 5,
+          "mean_r": "0.1617125888192611223612620264",
+          "profit_factor": "1.397266625057504234883901844",
+          "total_r": "18.43523512539576794918387101",
+          "trades": 114
+        },
+        "net_005": {
+          "max_drawdown_r": "8.129877932013856104622099324",
+          "max_losing_streak": 5,
+          "mean_r": "0.1117125888192611223612620264",
+          "profit_factor": "1.261207757989284959867655280",
+          "total_r": "12.73523512539576794918387101",
+          "trades": 114
+        },
+        "net_010": {
+          "max_drawdown_r": "9.329877932013856104622099324",
+          "max_losing_streak": 5,
+          "mean_r": "0.06171258881926112236126202646",
+          "profit_factor": "1.137463573507287675310797190",
+          "total_r": "7.035235125395767949183871016",
+          "trades": 114
+        },
+        "variant": "R29_VALIDATED_REGIME_RANK1_POSTURE_AGREE"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2643,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 7,
+          "EXECUTE": 108,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 101,
+          "RANK_1": 108,
+          "SOURCE_R28_AUTHORITATIVE": 81,
+          "SOURCE_REGIME_JOURNEY_CORROBORATED_RANK1": 27
+        },
+        "gross": {
+          "max_drawdown_r": "6.938498621669028518415202772",
+          "max_losing_streak": 5,
+          "mean_r": "0.1603094151343996442519555032",
+          "profit_factor": "1.381309163165055615124781754",
+          "total_r": "17.31341683451516157921119435",
+          "trades": 108
+        },
+        "net_005": {
+          "max_drawdown_r": "7.988498621669028518415202772",
+          "max_losing_streak": 5,
+          "mean_r": "0.1103094151343996442519555034",
+          "profit_factor": "1.249729969307616432526410031",
+          "total_r": "11.91341683451516157921119437",
+          "trades": 108
+        },
+        "net_010": {
+          "max_drawdown_r": "9.038498621669028518415202772",
+          "max_losing_streak": 5,
+          "mean_r": "0.06030941513439964425195550348",
+          "profit_factor": "1.130152955470603148612275117",
+          "total_r": "6.513416834515161579211194376",
+          "trades": 108
+        },
+        "variant": "R29_ROBUST_REGIME_RANK1"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2637,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 7,
+          "EXECUTE": 114,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 107,
+          "RANK_1": 114,
+          "SOURCE_R28_AUTHORITATIVE": 81,
+          "SOURCE_REGIME_JOURNEY_CORROBORATED_RANK1": 33
+        },
+        "gross": {
+          "max_drawdown_r": "6.929877932013856104622099324",
+          "max_losing_streak": 5,
+          "mean_r": "0.1617125888192611223612620264",
+          "profit_factor": "1.397266625057504234883901844",
+          "total_r": "18.43523512539576794918387101",
+          "trades": 114
+        },
+        "net_005": {
+          "max_drawdown_r": "8.129877932013856104622099324",
+          "max_losing_streak": 5,
+          "mean_r": "0.1117125888192611223612620264",
+          "profit_factor": "1.261207757989284959867655280",
+          "total_r": "12.73523512539576794918387101",
+          "trades": 114
+        },
+        "net_010": {
+          "max_drawdown_r": "9.329877932013856104622099324",
+          "max_losing_streak": 5,
+          "mean_r": "0.06171258881926112236126202646",
+          "profit_factor": "1.137463573507287675310797190",
+          "total_r": "7.035235125395767949183871016",
+          "trades": 114
+        },
+        "variant": "R29_VALIDATED_REGIME_RANK1"
+      }
+    ],
+    "schema": "qore.turtle_soup_gbpusd.r29_coverage_expansion_lab.v1",
+    "selected_result": null,
+    "selected_variant": null,
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "open": "2024-09-17T00:00:00+00:00",
+      "same_consumed_development_window": true
+    }
+  },
+  "research_result": "success",
+  "sha256sums": [
+    "6486e1746b8b53bb02f59de4d0115a093f5289d5ddb7ae16f74e36fdbc60b1bf  r29-coverage-expansion-lab-report.json",
+    "d48ca11d09d8c2464d07ba75866a76d7237dada37907951efdcccaebeb6c1615  stdout.json",
+    "9caa888ad1996c2f2701bc6a681cdbab4be979b61e7aa59a69eed8a68aad9cea  git-sha.txt"
+  ],
+  "workflow_run_id": 35339839663,
+  "workflow_sha": "edfc2d9fd81d8427b2d4f4672b74699128e8851a"
+}

@@ -1,0 +1,329 @@
+{
+  "identity": "TURTLE_SOUP_GBPUSD_R30_NEAREST_DOL_STATUS",
+  "quality_result": "success",
+  "r30_report": {
+    "experiment_contract": {
+      "c2_changed": false,
+      "cisd_changed": false,
+      "economic_magnitude_ranks_targets": false,
+      "entry_changed": false,
+      "fresh_holdout_consumed": false,
+      "nearest_dol_reason": "MINIMUM_JOURNEY_EXTRAPOLATION",
+      "nearest_validated_dol_policy": true,
+      "protected_swing_changed": false,
+      "recovery_requires_anatomy_structure": true,
+      "recovery_requires_rank1": true,
+      "recovery_requires_same_target_regime_journey_validation": true,
+      "regime_model_changed": false,
+      "variant_rules": {
+        "R30_NEAREST_VALIDATED_BASELINE": {
+          "minimum_observations": null,
+          "minimum_reach": null
+        },
+        "R30_OBS12_REACH055_CONTEXT_VALIDATED": {
+          "minimum_observations": 12,
+          "minimum_reach": "0.55"
+        },
+        "R30_OBS12_REACH060_CONTEXT_VALIDATED": {
+          "minimum_observations": 12,
+          "minimum_reach": "0.60"
+        },
+        "R30_OBS16_REACH055_CONTEXT_VALIDATED": {
+          "minimum_observations": 16,
+          "minimum_reach": "0.55"
+        },
+        "R30_OBS8_REACH065_CONTEXT_VALIDATED": {
+          "minimum_observations": 8,
+          "minimum_reach": "0.65"
+        }
+      }
+    },
+    "governance": {
+      "candidate_replaced": false,
+      "candidate_replacement_allowed_only_if_acceptance_pass": true,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_only": true
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_R30_NEAREST_DOL_COVERAGE_LAB_V1",
+    "predeclared_acceptance": {
+      "maximum_net_010_drawdown_r": "8.0",
+      "maximum_net_010_losing_streak": 3,
+      "minimum_net_010_profit_factor": "1.80",
+      "minimum_trades": 250,
+      "selection_order": "MOST_TRADES_THEN_HIGHER_PF_THEN_LOWER_DD"
+    },
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13788,
+        "H1:exact-c2": 23936,
+        "H1:invalid-entry-geometry": 2997,
+        "H1:no-causal-cisd": 10148,
+        "H1:no-exact-c2": 37904,
+        "H1:opposite-boundary-already-touched": 179,
+        "H1:signal": 10612,
+        "H1:source-cycles": 61840,
+        "H4:causal-cisd": 3854,
+        "H4:exact-c2": 5814,
+        "H4:invalid-entry-geometry": 1160,
+        "H4:no-causal-cisd": 1960,
+        "H4:no-exact-c2": 9417,
+        "H4:opposite-boundary-already-touched": 26,
+        "H4:signal": 2668,
+        "H4:source-cycles": 15231
+      },
+      "retained_bars": 745274,
+      "setups_10y": 13280
+    },
+    "results": [
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2672,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 4,
+          "EXECUTE": 82,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 75,
+          "RANK_1": 82,
+          "SOURCE_R28_VALIDATED_NEAREST_DOL": 82
+        },
+        "gross": {
+          "max_drawdown_r": "5.387272727272727272727272728",
+          "max_losing_streak": 3,
+          "mean_r": "0.16220622008261053812554093",
+          "profit_factor": "1.398168911282794082001658281",
+          "total_r": "13.30091004677406412629435626",
+          "trades": 82
+        },
+        "net_005": {
+          "max_drawdown_r": "5.887272727272727272727272728",
+          "max_losing_streak": 3,
+          "mean_r": "0.1122062200826105381255409298",
+          "profit_factor": "1.262095399208909377279666098",
+          "total_r": "9.20091004677406412629435624",
+          "trades": 82
+        },
+        "net_010": {
+          "max_drawdown_r": "6.387272727272727272727272727",
+          "max_losing_streak": 3,
+          "mean_r": "0.06220622008261053812554092990",
+          "profit_factor": "1.138444930489306229418682922",
+          "total_r": "5.100910046774064126294356252",
+          "trades": 82
+        },
+        "rule": {
+          "context_validation_required": true,
+          "minimum_anatomy_observations": null,
+          "minimum_anatomy_reach": null,
+          "minimum_distinct_quarters": 4,
+          "recovery_target_rank": 1
+        },
+        "variant": "R30_NEAREST_VALIDATED_BASELINE"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2646,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 5,
+          "EXECUTE": 107,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 100,
+          "RANK_1": 107,
+          "SOURCE_R28_VALIDATED_NEAREST_DOL": 81,
+          "SOURCE_RECOVERED_RANK1_OBS16_REACH055": 26
+        },
+        "gross": {
+          "max_drawdown_r": "5.387272727272727272727272728",
+          "max_losing_streak": 4,
+          "mean_r": "0.2128623780882205064296143579",
+          "profit_factor": "1.563696687152497027665721488",
+          "total_r": "22.77627445543959418796873629",
+          "trades": 107
+        },
+        "net_005": {
+          "max_drawdown_r": "6.061329331046312178387650086",
+          "max_losing_streak": 4,
+          "mean_r": "0.1628623780882205064296143580",
+          "profit_factor": "1.410462713347562365969805508",
+          "total_r": "17.42627445543959418796873631",
+          "trades": 107
+        },
+        "net_010": {
+          "max_drawdown_r": "6.761329331046312178387650085",
+          "max_losing_streak": 4,
+          "mean_r": "0.1128623780882205064296143580",
+          "profit_factor": "1.270896616736888660028004463",
+          "total_r": "12.07627445543959418796873631",
+          "trades": 107
+        },
+        "rule": {
+          "context_validation_required": true,
+          "minimum_anatomy_observations": 16,
+          "minimum_anatomy_reach": "0.55",
+          "minimum_distinct_quarters": 4,
+          "recovery_target_rank": 1
+        },
+        "variant": "R30_OBS16_REACH055_CONTEXT_VALIDATED"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2641,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 4,
+          "EXECUTE": 113,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 106,
+          "RANK_1": 113,
+          "SOURCE_R28_VALIDATED_NEAREST_DOL": 82,
+          "SOURCE_RECOVERED_RANK1_OBS12_REACH060": 31
+        },
+        "gross": {
+          "max_drawdown_r": "5.300584589859952178792758500",
+          "max_losing_streak": 3,
+          "mean_r": "0.2115847759032236468681115716",
+          "profit_factor": "1.622548064092367425740375621",
+          "total_r": "23.90907967706427209609660759",
+          "trades": 113
+        },
+        "net_005": {
+          "max_drawdown_r": "5.950584589859952178792758503",
+          "max_losing_streak": 3,
+          "mean_r": "0.1615847759032236468681115716",
+          "profit_factor": "1.452290795934186759424767598",
+          "total_r": "18.25907967706427209609660759",
+          "trades": 113
+        },
+        "net_010": {
+          "max_drawdown_r": "6.600584589859952178792758503",
+          "max_losing_streak": 3,
+          "mean_r": "0.1115847759032236468681115719",
+          "profit_factor": "1.296635544629975936984709274",
+          "total_r": "12.60907967706427209609660763",
+          "trades": 113
+        },
+        "rule": {
+          "context_validation_required": true,
+          "minimum_anatomy_observations": 12,
+          "minimum_anatomy_reach": "0.60",
+          "minimum_distinct_quarters": 4,
+          "recovery_target_rank": 1
+        },
+        "variant": "R30_OBS12_REACH060_CONTEXT_VALIDATED"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2622,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 5,
+          "EXECUTE": 131,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 124,
+          "RANK_1": 131,
+          "SOURCE_R28_VALIDATED_NEAREST_DOL": 81,
+          "SOURCE_RECOVERED_RANK1_OBS12_REACH055": 50
+        },
+        "gross": {
+          "max_drawdown_r": "4.84406285072951739618406285",
+          "max_losing_streak": 3,
+          "mean_r": "0.2132004178047977551162216389",
+          "profit_factor": "1.601856211350328824543078381",
+          "total_r": "27.92925473242850592022503470",
+          "trades": 131
+        },
+        "net_005": {
+          "max_drawdown_r": "5.394062850729517396184062852",
+          "max_losing_streak": 3,
+          "mean_r": "0.1632004178047977551162216389",
+          "profit_factor": "1.438366979152875993206440207",
+          "total_r": "21.37925473242850592022503470",
+          "trades": 131
+        },
+        "net_010": {
+          "max_drawdown_r": "6.343418458106119269084348037",
+          "max_losing_streak": 3,
+          "mean_r": "0.1132004178047977551162216389",
+          "profit_factor": "1.289029995141878544897135370",
+          "total_r": "14.82925473242850592022503470",
+          "trades": 131
+        },
+        "rule": {
+          "context_validation_required": true,
+          "minimum_anatomy_observations": 12,
+          "minimum_anatomy_reach": "0.55",
+          "minimum_distinct_quarters": 4,
+          "recovery_target_rank": 1
+        },
+        "variant": "R30_OBS12_REACH055_CONTEXT_VALIDATED"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2640,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 4,
+          "EXECUTE": 114,
+          "POSTURE_PROTECT": 7,
+          "POSTURE_STATIC": 107,
+          "RANK_1": 114,
+          "SOURCE_R28_VALIDATED_NEAREST_DOL": 82,
+          "SOURCE_RECOVERED_RANK1_OBS8_REACH065": 32
+        },
+        "gross": {
+          "max_drawdown_r": "3.81715006305170239596469105",
+          "max_losing_streak": 3,
+          "mean_r": "0.1992957379952587714759711243",
+          "profit_factor": "1.607394621249351258945932411",
+          "total_r": "22.71971413145949994826070817",
+          "trades": 114
+        },
+        "net_005": {
+          "max_drawdown_r": "4.744304828347328219970718279",
+          "max_losing_streak": 3,
+          "mean_r": "0.1492957379952587714759711245",
+          "profit_factor": "1.432848885944569131856732865",
+          "total_r": "17.01971413145949994826070819",
+          "trades": 114
+        },
+        "net_010": {
+          "max_drawdown_r": "5.894304828347328219970718279",
+          "max_losing_streak": 4,
+          "mean_r": "0.09929573799525877147597112447",
+          "profit_factor": "1.273127788049825834154654191",
+          "total_r": "11.31971413145949994826070819",
+          "trades": 114
+        },
+        "rule": {
+          "context_validation_required": true,
+          "minimum_anatomy_observations": 8,
+          "minimum_anatomy_reach": "0.65",
+          "minimum_distinct_quarters": 4,
+          "recovery_target_rank": 1
+        },
+        "variant": "R30_OBS8_REACH065_CONTEXT_VALIDATED"
+      }
+    ],
+    "schema": "qore.turtle_soup_gbpusd.r30_nearest_dol_coverage_lab.v1",
+    "selected_result": null,
+    "selected_variant": null,
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "open": "2024-09-17T00:00:00+00:00",
+      "same_consumed_development_window": true
+    }
+  },
+  "research_result": "success",
+  "sha256sums": [
+    "ac331a409355e7cd0665a92cc1735b797ea3abf7410b8fbe89806c54ca6d659a  r30-nearest-dol-coverage-lab-report.json",
+    "2c93965121278926b498b74aefd572a98d2ff96f9e1dc2e40d64838de654a79c  stdout.json",
+    "bce354c8d7c523731868e5a8506afc7c993883314aa5d65a0fe8a7e84e6a5cca  git-sha.txt"
+  ],
+  "workflow_run_id": 35339846081,
+  "workflow_sha": "a31ec403910672072949f41075cb20edfbb54aeb"
+}

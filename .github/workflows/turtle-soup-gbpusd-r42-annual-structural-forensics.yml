@@ -1,0 +1,134 @@
+name: QORE Turtle Soup GBPUSD R42 Annual Structural Forensics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpusd-r42-annual-structural-forensics.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r42_annual_structural_contribution_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r42_annual_structural_contribution_forensics.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  R39_RUN_ID: '35353073610'
+  R39_ARTIFACT: 'qore-turtle-soup-gbpusd-r39-frozen-r37-5y-e02d9384fbe6521040fc2779a085c43b8d5f0f92'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r42_annual_structural_contribution_forensics.py             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r42_annual_structural_contribution_forensics.py
+      - run: |
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r42_annual_structural_contribution_forensics.py
+      - run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r42_annual_structural_contribution_forensics.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R39_ARTIFACT }}
+          path: r39-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R39_RUN_ID }}
+      - name: Run annual structural contribution forensics
+        run: |
+          mkdir -p r42-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r42_annual_structural_contribution_forensics             r39-source r42-output > r42-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r42-output/git-sha.txt
+      - name: Enforce forensic governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r42-output/r42-annual-structural-forensics-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPUSD_R42_ANNUAL_STRUCTURAL_CONTRIBUTION_FORENSICS_V1'
+          assert p['baseline']['signals_suppressed'] is False
+          assert p['baseline']['calendar_time_used_as_rule'] is False
+          g=p['governance']
+          assert g['research_only'] is True
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_certified'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash R42 evidence
+        run: |
+          cd r42-output
+          sha256sum r42-annual-structural-forensics-report.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r42-annual-structural-forensics-${{ github.sha }}
+          path: r42-output
+          if-no-files-found: error
+          retention-days: 90
+
+  publish_status:
+    if: always()
+    needs: [quality, forensics]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
+      - name: Download successful R42 artifact
+        if: needs.forensics.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r42-annual-structural-forensics-${{ github.sha }}
+          path: published-result
+      - name: Write auditable R42 status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          FORENSICS_RESULT: ${{ needs.forensics.result }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_GBPUSD_R42_ANNUAL_STRUCTURAL_FORENSICS_STATUS',
+            'workflow_run_id':int(os.environ['RUN_ID']),
+            'workflow_sha':os.environ['RUN_SHA'],
+            'quality_result':os.environ['QUALITY_RESULT'],
+            'forensics_result':os.environ['FORENSICS_RESULT'],
+          }
+          matches=list(Path('published-result').rglob('r42-annual-structural-forensics-report.json'))
+          if len(matches)==1:
+            out['r42_report']=json.loads(matches[0].read_text())
+          sums=list(Path('published-result').rglob('SHA256SUMS.txt'))
+          if len(sums)==1:
+            out['sha256sums']=sums[0].read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-GBPUSD-R42-ANNUAL-STRUCTURAL-FORENSICS-LATEST.json').write_text(
+            json.dumps(out,indent=2,sort_keys=True)+'\n'
+          )
+          PY
+      - name: Commit status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-GBPUSD-R42-ANNUAL-STRUCTURAL-FORENSICS-LATEST.json
+          git commit -m "research(gbpusd): record R42 annual structural forensics" || exit 0
+          git push origin HEAD:agent/turtle-soup-gbpusd-specialist-memory-v1-001

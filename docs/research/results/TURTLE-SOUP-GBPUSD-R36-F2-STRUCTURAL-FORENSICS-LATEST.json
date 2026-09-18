@@ -1,0 +1,2809 @@
+{
+  "identity": "TURTLE_SOUP_GBPUSD_R36_F2_STRUCTURAL_FORENSICS_STATUS",
+  "quality_result": "success",
+  "r36_report": {
+    "experiment_contract": {
+      "actual_active_cibo_dol_price_used": true,
+      "c2_changed": false,
+      "cisd_changed": false,
+      "entry_changed": false,
+      "expansion_only_when_r32_abstains": true,
+      "expansion_posture": "STATIC",
+      "expansion_target_rank": 1,
+      "family_consumed_development_evidence": {
+        "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+          "positive_chronological_quintiles": 5,
+          "rank1_10y_n": 179,
+          "rank1_10y_pf_010": "1.5857921165191966",
+          "recent_2y_n": 40,
+          "recent_2y_pf_010": "1.532441198185952",
+          "recent_2y_total_net_010_r": "8.213029884167417"
+        },
+        "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE": {
+          "positive_chronological_quintiles": 5,
+          "rank1_10y_n": 104,
+          "rank1_10y_pf_010": "1.6485185851113895",
+          "recent_2y_n": 19,
+          "recent_2y_pf_010": "2.1367802057172844",
+          "recent_2y_total_net_010_r": "9.010616435202754"
+        },
+        "H4_MID_PROTECTED_RISK": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 436,
+          "rank1_10y_pf_010": "1.0329911873491517",
+          "recent_2y_n": 97,
+          "recent_2y_pf_010": "1.3387055684603766",
+          "recent_2y_total_net_010_r": "18.947641234383013"
+        },
+        "MID_CISD_H1_BODY_OPPOSED": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 785,
+          "rank1_10y_pf_010": "1.0433666548957585",
+          "recent_2y_n": 166,
+          "recent_2y_pf_010": "1.0457643778326158",
+          "recent_2y_total_net_010_r": "5.150479282674789"
+        },
+        "OTHER_SESSION_D1_BODY_OPPOSED": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 964,
+          "rank1_10y_pf_010": "1.0615174895634618",
+          "recent_2y_n": 177,
+          "recent_2y_pf_010": "1.0892230097931852",
+          "recent_2y_total_net_010_r": "8.273841623763378"
+        },
+        "OTHER_SESSION_H4_BODY_OPPOSED": {
+          "positive_chronological_quintiles": 4,
+          "rank1_10y_n": 816,
+          "rank1_10y_pf_010": "1.1013381399102131",
+          "recent_2y_n": 156,
+          "recent_2y_pf_010": "1.0558037177250033",
+          "recent_2y_total_net_010_r": "4.684006260823885"
+        }
+      },
+      "family_sets_predeclared": {
+        "R36_G25_REPRODUCTION": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION"
+        ]
+      },
+      "fresh_holdout_consumed": false,
+      "governors_predeclared": {
+        "DD_1P5_3_SCALE_075_050": {
+          "deep_scale": "0.50",
+          "first_drawdown_r": "1.5",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "3"
+        },
+        "DD_1_3_SCALE_075_025": {
+          "deep_scale": "0.25",
+          "first_drawdown_r": "1",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "3"
+        },
+        "DD_2_4_SCALE_075_025": {
+          "deep_scale": "0.25",
+          "first_drawdown_r": "2",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "4"
+        },
+        "DD_2_4_SCALE_075_050": {
+          "deep_scale": "0.50",
+          "first_drawdown_r": "2",
+          "middle_scale": "0.75",
+          "second_drawdown_r": "4"
+        },
+        "FIXED_1R": {
+          "deep_scale": "1",
+          "first_drawdown_r": "999",
+          "middle_scale": "1",
+          "second_drawdown_r": "1000"
+        }
+      },
+      "protected_swing_changed": false,
+      "r32_memory_summary": {
+        "classification_counts": {
+          "MAJORITY_VALIDATED_010": 15,
+          "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 4153,
+          "NOT_VALIDATED_010": 73,
+          "ROBUST_VALIDATED_010": 5
+        },
+        "profiles": 4246,
+        "structurally_supported_profiles": 93,
+        "validated_profiles": 20
+      },
+      "r32_regime_route_types_core": true,
+      "r33_family_forensics": {
+        "falsified_for_recent_regime": [
+          "OTHER_SESSION_H4_BODY_OPPOSED"
+        ],
+        "retained_positive": [
+          "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION",
+          "H4_MID_PROTECTED_RISK"
+        ],
+        "unstable_low_edge": [
+          "MID_CISD_H1_BODY_OPPOSED"
+        ],
+        "weak_but_not_falsified": [
+          "OTHER_SESSION_D1_BODY_OPPOSED"
+        ]
+      },
+      "risk_governor_pretrade_state_only": true,
+      "risk_governor_suppresses_trades": false,
+      "structural_rearm_changed": false
+    },
+    "governance": {
+      "candidate_replaced": false,
+      "candidate_replacement_allowed_only_if_acceptance_pass": true,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "r33_r34_r35_results_used_for_consumed_development_forensics_only": true,
+      "real_capital_authorized": false,
+      "research_only": true
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_R36_F2_STRUCTURAL_FORENSICS_V1",
+    "predeclared_acceptance": {
+      "losing_streak": "DIAGNOSTIC_NOT_HARD_GATE",
+      "maximum_scaled_net_010_drawdown_r": "6.0",
+      "minimum_scaled_net_010_profit_factor": "1.90",
+      "minimum_trades": 350,
+      "selection_order": "MOST_TRADES_THEN_HIGHER_PF_THEN_LOWER_DD"
+    },
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13788,
+        "H1:exact-c2": 23936,
+        "H1:invalid-entry-geometry": 2997,
+        "H1:no-causal-cisd": 10148,
+        "H1:no-exact-c2": 37904,
+        "H1:opposite-boundary-already-touched": 179,
+        "H1:signal": 10612,
+        "H1:source-cycles": 61840,
+        "H4:causal-cisd": 3854,
+        "H4:exact-c2": 5814,
+        "H4:invalid-entry-geometry": 1160,
+        "H4:no-causal-cisd": 1960,
+        "H4:no-exact-c2": 9417,
+        "H4:opposite-boundary-already-touched": 26,
+        "H4:signal": 2668,
+        "H4:source-cycles": 15231
+      },
+      "retained_bars": 745274,
+      "setups_10y": 13280
+    },
+    "results": [
+      {
+        "allowed_families": [
+          "OTHER_SESSION_D1_BODY_OPPOSED",
+          "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION"
+        ],
+        "decision_counts": {
+          "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY": 2365,
+          "ABSTAIN_NO_CIBO_EPISODE": 6,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 19,
+          "EXECUTE": 374,
+          "FAMILY_EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": 39,
+          "FAMILY_OTHER_SESSION_D1_BODY_OPPOSED": 158,
+          "RANK_1": 360,
+          "RANK_2": 14,
+          "SOURCE_R32_REGIME_CORE": 177,
+          "SOURCE_R36_STRUCTURAL_EXPANSION": 197
+        },
+        "family_set": "R36_G25_REPRODUCTION",
+        "fixed_trade_stats": {
+          "gross": {
+            "max_drawdown_r": "7.798907671291970638629560083",
+            "max_losing_streak": 5,
+            "mean_r": "0.2352626572932679950975392841",
+            "profit_factor": "1.619178516432988960568821243",
+            "total_r": "87.98823382768223016647969224",
+            "trades": 374
+          },
+          "net_005": {
+            "max_drawdown_r": "9.248907671291970638629560083",
+            "max_losing_streak": 5,
+            "mean_r": "0.1852626572932679950975392841",
+            "profit_factor": "1.463900136387154434265180968",
+            "total_r": "69.28823382768223016647969224",
+            "trades": 374
+          },
+          "net_010": {
+            "max_drawdown_r": "10.69890767129197063862956008",
+            "max_losing_streak": 6,
+            "mean_r": "0.1352626572932679950975392841",
+            "profit_factor": "1.322222350189334654677156258",
+            "total_r": "50.58823382768223016647969224",
+            "trades": 374
+          }
+        },
+        "forensics": {
+          "by_family": {
+            "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION": {
+              "gross": {
+                "max_drawdown_r": "2.96806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2973335540402992626740116408",
+                "profit_factor": "1.828286329112262231734746714",
+                "total_r": "11.59600860757167124428645399",
+                "trades": 39
+              },
+              "net_005": {
+                "max_drawdown_r": "3.71806592020830085769988896",
+                "max_losing_streak": 2,
+                "mean_r": "0.2473335540402992626740116408",
+                "profit_factor": "1.656191061739569472400439047",
+                "total_r": "9.64600860757167124428645399",
+                "trades": 39
+              },
+              "net_010": {
+                "max_drawdown_r": "4.468065920208300857699888960",
+                "max_losing_streak": 2,
+                "mean_r": "0.1973335540402992626740116408",
+                "profit_factor": "1.498923308700496106112481416",
+                "total_r": "7.696008607571671244286453992",
+                "trades": 39
+              },
+              "trades": 39
+            },
+            "OTHER_SESSION_D1_BODY_OPPOSED": {
+              "gross": {
+                "max_drawdown_r": "13.26075382102976268590735390",
+                "max_losing_streak": 4,
+                "mean_r": "0.1306293487567642422102121820",
+                "profit_factor": "1.271422734512684935047191558",
+                "total_r": "20.63943710356875026921352476",
+                "trades": 158
+              },
+              "net_005": {
+                "max_drawdown_r": "14.71075382102976268590735390",
+                "max_losing_streak": 5,
+                "mean_r": "0.08062934875676424221021218203",
+                "profit_factor": "1.159348310236695112620339226",
+                "total_r": "12.73943710356875026921352476",
+                "trades": 158
+              },
+              "net_010": {
+                "max_drawdown_r": "18.18576513791044662207695365",
+                "max_losing_streak": 5,
+                "mean_r": "0.03062934875676424221021218206",
+                "profit_factor": "1.057658919036629686704025660",
+                "total_r": "4.839437103568750269213524766",
+                "trades": 158
+              },
+              "trades": 158
+            }
+          },
+          "by_source": {
+            "R32_REGIME_CORE": {
+              "gross": {
+                "max_drawdown_r": "4.11816305469556243550051599",
+                "max_losing_streak": 4,
+                "mean_r": "0.3149875034832870545366085507",
+                "profit_factor": "2.070869037475283512269354957",
+                "total_r": "55.75278811654180865297971348",
+                "trades": 177
+              },
+              "net_005": {
+                "max_drawdown_r": "4.44832269096480380761865790",
+                "max_losing_streak": 4,
+                "mean_r": "0.2649875034832870545366085507",
+                "profit_factor": "1.857249306613365659180586377",
+                "total_r": "46.90278811654180865297971348",
+                "trades": 177
+              },
+              "net_010": {
+                "max_drawdown_r": "5.648322690964803807618657922",
+                "max_losing_streak": 5,
+                "mean_r": "0.2149875034832870545366085505",
+                "profit_factor": "1.660174268563638837983063821",
+                "total_r": "38.05278811654180865297971344",
+                "trades": 177
+              },
+              "trades": 177
+            },
+            "R36_STRUCTURAL_EXPANSION": {
+              "gross": {
+                "max_drawdown_r": "13.54485298885581816072232579",
+                "max_losing_streak": 4,
+                "mean_r": "0.1636317041174640685964465926",
+                "profit_factor": "1.358005875551767753967607353",
+                "total_r": "32.23544571114042151349997875",
+                "trades": 197
+              },
+              "net_005": {
+                "max_drawdown_r": "15.48251682536624391033995486",
+                "max_losing_streak": 4,
+                "mean_r": "0.1136317041174640685964465926",
+                "profit_factor": "1.236514832723463135117002187",
+                "total_r": "22.38544571114042151349997875",
+                "trades": 197
+              },
+              "net_010": {
+                "max_drawdown_r": "20.95484944279817390782328333",
+                "max_losing_streak": 5,
+                "mean_r": "0.06363170411746406859644659264",
+                "profit_factor": "1.126165214051506990107480869",
+                "total_r": "12.53544571114042151349997875",
+                "trades": 197
+              },
+              "trades": 197
+            }
+          }
+        },
+        "r36_f2_structural_forensics": {
+          "calendar_time_not_used_as_rule": true,
+          "family": "OTHER_SESSION_D1_BODY_OPPOSED",
+          "interactions": {
+            "close_location_bucket+rejection_wick_bucket": {
+              "q2:<=0.50|q3:<=0.50": {
+                "max_drawdown_r": "4.051923076923076923076923077",
+                "max_losing_streak": 3,
+                "mean_r": "0.4357391395593459592291905166",
+                "positive_equal_count_terciles": 3,
+                "profit_factor": "1.675745189690964321799279410",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.051923076923076923076923077",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.800759504037927810537629659",
+                    "profit_factor": "2.310333733880245508152484896",
+                    "total_r": "7.206835536341350294838666931",
+                    "trades": 9
+                  },
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.1931412024269167126309983452",
+                    "profit_factor": "1.292638185495328352471209614",
+                    "total_r": "1.931412024269167126309983452",
+                    "trades": 10
+                  },
+                  {
+                    "max_drawdown_r": "3.075675675675675675675675676",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.3498187486610515396497874595",
+                    "profit_factor": "1.530028407062199302499677970",
+                    "total_r": "3.498187486610515396497874595",
+                    "trades": 10
+                  }
+                ],
+                "total_r": "12.63643504722103281764652498",
+                "trades": 29
+              },
+              "q3:<=0.75|q3:<=0.50": {
+                "max_drawdown_r": "4.400000000000000000000000000",
+                "max_losing_streak": 4,
+                "mean_r": "-0.1421266460594891768380121586",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.7442703946334450797378327941",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.300000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.5166666666666666666666666668",
+                    "profit_factor": "0.3737373737373737373737373736",
+                    "total_r": "-2.066666666666666666666666667",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "0.080769230769230769230769231",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.8602063105736601899110372202",
+                    "profit_factor": "54.25086684503610699449278030",
+                    "total_r": "4.301031552868300949555186101",
+                    "trades": 5
+                  },
+                  {
+                    "max_drawdown_r": "4.40",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.844827586206896551724137931",
+                    "profit_factor": "0.03996865203761755485893416927",
+                    "total_r": "-4.224137931034482758620689655",
+                    "trades": 5
+                  }
+                ],
+                "total_r": "-1.989773044832848475732170221",
+                "trades": 14
+              },
+              "q3:<=0.75|q4:>0.50": {
+                "max_drawdown_r": "3.386486486486486486486486486",
+                "max_losing_streak": 4,
+                "mean_r": "0.1820188694613473018139352871",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.351655862096619923150571908",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.386486486486486486486486486",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.517202593614525335525574981",
+                    "profit_factor": "2.152800961670929964725679175",
+                    "total_r": "5.172025936145253355255749810",
+                    "trades": 10
+                  },
+                  {
+                    "max_drawdown_r": "2.558730158730158730158730159",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.1192623049986354664483412983",
+                    "profit_factor": "1.216840554542973575360620542",
+                    "total_r": "1.192623049986354664483412983",
+                    "trades": 10
+                  },
+                  {
+                    "max_drawdown_r": "2.650177304964539007092198582",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.0904082902291188965321104179",
+                    "profit_factor": "0.8368572206391839461074699226",
+                    "total_r": "-0.904082902291188965321104179",
+                    "trades": 10
+                  }
+                ],
+                "total_r": "5.460566083840419054418058613",
+                "trades": 30
+              },
+              "q4:>0.75|q3:<=0.50": {
+                "max_drawdown_r": "8.649698504623539656529562803",
+                "max_losing_streak": 2,
+                "mean_r": "-0.2891442087529748601768093689",
+                "positive_equal_count_terciles": 0,
+                "profit_factor": "0.3444793288782515535975055527",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.138083538083538083538083538",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.2229571148688795747619277031",
+                    "profit_factor": "0.4639282484026939186052011509",
+                    "total_r": "-1.783656918951036598095421625",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "2.981699346405228758169934640",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.2874346679398793151519622935",
+                    "profit_factor": "0.3031886837821107511467580761",
+                    "total_r": "-2.299477343519034521215698348",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "3.831600342319212665810868635",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.3494967729282555983454571388",
+                    "profit_factor": "0.2851202371922044579297467616",
+                    "total_r": "-3.145470956354300385109114249",
+                    "trades": 9
+                  }
+                ],
+                "total_r": "-7.228605218824371504420234223",
+                "trades": 25
+              },
+              "q4:>0.75|q4:>0.50": {
+                "max_drawdown_r": "9.404054349894818429429056584",
+                "max_losing_streak": 5,
+                "mean_r": "-0.1696892947577922365367359417",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.6547903587245227731158111485",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.300000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.09126997821785815950888022358",
+                    "profit_factor": "1.165945414941560290016145861",
+                    "total_r": "1.095239738614297914106562683",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "2.99375",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.2288951853748635757875480346",
+                    "profit_factor": "0.3757404035230993387612326330",
+                    "total_r": "-2.746742224498362909450576415",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "5.029552804613878923448395268",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.3714426771163712933315400142",
+                    "profit_factor": "0.3343277423591441622558962447",
+                    "total_r": "-4.457312125396455519978480170",
+                    "trades": 12
+                  }
+                ],
+                "total_r": "-6.108814611280520515322493901",
+                "trades": 36
+              }
+            },
+            "exact_equal_liquidity+protected_risk_range_bucket": {
+              "no|q2:<=0.50": {
+                "max_drawdown_r": "6.251923076923076923076923077",
+                "max_losing_streak": 4,
+                "mean_r": "0.685517825779707160811893138",
+                "positive_equal_count_terciles": 3,
+                "profit_factor": "2.090596541013170483109829992",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "6.251923076923076923076923077",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.4648079055091250213201432714",
+                    "profit_factor": "1.664011293584464316171633244",
+                    "total_r": "5.112886960600375234521575985",
+                    "trades": 11
+                  },
+                  {
+                    "max_drawdown_r": "2.20000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "1.327915885962454019390910575",
+                    "profit_factor": "3.8972710239180814968528958",
+                    "total_r": "15.93499063154944823269092690",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "5.275675675675675675675675676",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.2454371925116605967669797457",
+                    "profit_factor": "1.334687080697718995591336016",
+                    "total_r": "2.945246310139927161203756948",
+                    "trades": 12
+                  }
+                ],
+                "total_r": "23.99312390228975062841625983",
+                "trades": 35
+              },
+              "no|q3:<=1.0": {
+                "max_drawdown_r": "19.87507344830916377656739468",
+                "max_losing_streak": 7,
+                "mean_r": "-0.1414108330459583220614423438",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.7150740269843970258751159166",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "7.406683011585228531443212667",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.05875582072997148890952863189",
+                    "profit_factor": "1.132790205663722649455217414",
+                    "total_r": "2.056453725549002111833502116",
+                    "trades": 35
+                  },
+                  {
+                    "max_drawdown_r": "5.276101302599585912483060826",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.1465583695166551642356405785",
+                    "profit_factor": "0.6817939367488071590708430026",
+                    "total_r": "-5.276101302599585912483060826",
+                    "trades": 36
+                  },
+                  {
+                    "max_drawdown_r": "13.30887864401332724341312764",
+                    "max_losing_streak": 7,
+                    "mean_r": "-0.33086976552408212944235478",
+                    "profit_factor": "0.4338090493175553881985033350",
+                    "total_r": "-11.91131155886695665992477208",
+                    "trades": 36
+                  }
+                ],
+                "total_r": "-15.13095913591754046057433079",
+                "trades": 107
+              }
+            },
+            "h1_body_alignment+h4_body_alignment": {
+              "opposed|opposed": {
+                "max_drawdown_r": "6.59705882352941176470588235",
+                "max_losing_streak": 4,
+                "mean_r": "0.3732411455334845599579555426",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.600317926382527613918390034",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "1.665853658536585365853658537",
+                    "max_losing_streak": 1,
+                    "mean_r": "1.69436689987648175801485906",
+                    "profit_factor": "4.594111605798597668516367703",
+                    "total_r": "11.86056829913537230610401342",
+                    "trades": 7
+                  },
+                  {
+                    "max_drawdown_r": "3.300000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.2937643607310726875944267248",
+                    "profit_factor": "1.534117019511041250171684954",
+                    "total_r": "2.350114885848581500755413798",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "6.597058823529411764705882353",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.7032671047142261159783062161",
+                    "profit_factor": "0.1475550245888168291172045865",
+                    "total_r": "-5.626136837713808927826449729",
+                    "trades": 8
+                  }
+                ],
+                "total_r": "8.58454634727014487903297748",
+                "trades": 23
+              },
+              "opposed|with": {
+                "max_drawdown_r": "6.016050021482732119407681742",
+                "max_losing_streak": 4,
+                "mean_r": "0.1369256828675902638174660163",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.186716840273986723387453658",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.40",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.608305647840531561461794020",
+                    "profit_factor": "0.3548273431994362226920366455",
+                    "total_r": "-4.258139534883720930232558140",
+                    "trades": 7
+                  },
+                  {
+                    "max_drawdown_r": "3.658730158730158730158730159",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.01541578379985874131073194314",
+                    "profit_factor": "0.975474889409315638823835545",
+                    "total_r": "-0.107910486599011189175123602",
+                    "trades": 7
+                  },
+                  {
+                    "max_drawdown_r": "3.30",
+                    "max_losing_streak": 3,
+                    "mean_r": "1.034498480243161094224924012",
+                    "profit_factor": "2.645793036750483558994197291",
+                    "total_r": "7.241489361702127659574468085",
+                    "trades": 7
+                  }
+                ],
+                "total_r": "2.875439340219395540166786343",
+                "trades": 21
+              },
+              "with|opposed": {
+                "max_drawdown_r": "12.71675092475360211906185631",
+                "max_losing_streak": 3,
+                "mean_r": "0.1258170720726708896215294954",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.285135615185762652927205911",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "1.020927216041694502680332142",
+                    "profit_factor": "6.523048873668183375155895197",
+                    "total_r": "18.37668988875050104824597856",
+                    "trades": 18
+                  },
+                  {
+                    "max_drawdown_r": "4.440091463414634146341463415",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.075712057751115793805116800",
+                    "profit_factor": "0.8451344273272631490349883636",
+                    "total_r": "-1.362817039520084288492102400",
+                    "trades": 18
+                  },
+                  {
+                    "max_drawdown_r": "10.42156546418088625162238548",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.5312596781701851489773554684",
+                    "profit_factor": "0.1686533519368413591843716758",
+                    "total_r": "-10.09393388523351783056975390",
+                    "trades": 19
+                  }
+                ],
+                "total_r": "6.919938963996898929184122246",
+                "trades": 55
+              },
+              "with|with": {
+                "max_drawdown_r": "16.77536628202002566597899780",
+                "max_losing_streak": 5,
+                "mean_r": "-0.2144911646192705013650062293",
+                "positive_equal_count_terciles": 0,
+                "profit_factor": "0.5689846409280125183815641092",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "8.070827276586438890103811569",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.1723640189142054584251470648",
+                    "profit_factor": "0.7046028637330901090373515684",
+                    "total_r": "-3.274916359369903710077794231",
+                    "trades": 19
+                  },
+                  {
+                    "max_drawdown_r": "7.013628135154542715370261580",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.3538714322720382690807043235",
+                    "profit_factor": "0.2429082393140454528979301178",
+                    "total_r": "-6.723557213168727112533382147",
+                    "trades": 19
+                  },
+                  {
+                    "max_drawdown_r": "6.913702549696550673141591398",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.1221006987689529128279592464",
+                    "profit_factor": "0.7254916745846498946957007251",
+                    "total_r": "-2.442013975379058256559184927",
+                    "trades": 20
+                  }
+                ],
+                "total_r": "-12.44048754791768907917036130",
+                "trades": 58
+              }
+            },
+            "protected_risk_range_bucket+h4_range_state": {
+              "q2:<=0.50|compressed": {
+                "max_drawdown_r": "5.27567567567567567567567568",
+                "max_losing_streak": 4,
+                "mean_r": "0.380714333804596757873070872",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.576839899703934481625864958",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "5.151923076923076923076923077",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.2853966346153846153846153846",
+                    "profit_factor": "0.6540646853146853146853146853",
+                    "total_r": "-2.283173076923076923076923077",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "1.100000000000000000000000000",
+                    "max_losing_streak": 1,
+                    "mean_r": "1.29708838721420894319742132",
+                    "profit_factor": "5.716685044415305247990622982",
+                    "total_r": "10.37670709771367154557937056",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "5.275675675675675675675675676",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.1582582582582582582582582582",
+                    "profit_factor": "1.184977184977184977184977185",
+                    "total_r": "1.424324324324324324324324324",
+                    "trades": 9
+                  }
+                ],
+                "total_r": "9.51785834511491894682677180",
+                "trades": 25
+              },
+              "q3:<=1.0|balanced": {
+                "max_drawdown_r": "11.46764433920923062376699745",
+                "max_losing_streak": 4,
+                "mean_r": "-0.2736614222172300932986439386",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.4618536190332808465405016304",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.353956553956553956553956554",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.01994431571044474270280721892",
+                    "profit_factor": "1.054058514861985750241695131",
+                    "total_r": "0.239331788525336912433686627",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "6.384023573486435214706441950",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.5320019644572029345588701625",
+                    "profit_factor": "0.1802942130899026668004063010",
+                    "total_r": "-6.384023573486435214706441950",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "3.980780837076415149777070406",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.3062139105443396269059284928",
+                    "profit_factor": "0.3968513883217552803368075141",
+                    "total_r": "-3.980780837076415149777070406",
+                    "trades": 13
+                  }
+                ],
+                "total_r": "-10.12547262203751345204982573",
+                "trades": 37
+              },
+              "q3:<=1.0|compressed": {
+                "max_drawdown_r": "12.95038178655087800747310945",
+                "max_losing_streak": 8,
+                "mean_r": "-0.1277411030495084769741371616",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.7434490256961604349685700625",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.968424601292919934049869510",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.1220598952483364580599570144",
+                    "profit_factor": "1.313517259575734047082152692",
+                    "total_r": "2.441197904966729161199140288",
+                    "trades": 20
+                  },
+                  {
+                    "max_drawdown_r": "4.195587301367933779000972678",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.03972063680844842339132172265",
+                    "profit_factor": "0.9105468551736977905435803562",
+                    "total_r": "-0.794412736168968467826434453",
+                    "trades": 20
+                  },
+                  {
+                    "max_drawdown_r": "11.14662238805463740596935005",
+                    "max_losing_streak": 8,
+                    "mean_r": "-0.4655625675884134655910467768",
+                    "profit_factor": "0.2950169882151339759500467803",
+                    "total_r": "-9.311251351768269311820935537",
+                    "trades": 20
+                  }
+                ],
+                "total_r": "-7.664466182970508618448229698",
+                "trades": 60
+              }
+            },
+            "side+timeframe": {
+              "long|H1": {
+                "max_drawdown_r": "10.50633695045404240118330334",
+                "max_losing_streak": 6,
+                "mean_r": "0.1719981626284956417185963081",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.367198641839125968110210136",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.435680862790019127484141478",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.5898934807467748951415991953",
+                    "profit_factor": "2.814310541112613575517747524",
+                    "total_r": "10.02818917269517321740718632",
+                    "trades": 17
+                  },
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.4809774700164284554178109036",
+                    "profit_factor": "2.238881362163527839712543235",
+                    "total_r": "8.176616990279283742102785361",
+                    "trades": 17
+                  },
+                  {
+                    "max_drawdown_r": "10.50633695045404240118330333",
+                    "max_losing_streak": 6,
+                    "mean_r": "-0.5144945392384824216746090906",
+                    "profit_factor": "0.2427627948691645809232667908",
+                    "total_r": "-9.260901706292683590142963630",
+                    "trades": 18
+                  }
+                ],
+                "total_r": "8.94390445668177336936700802",
+                "trades": 52
+              },
+              "long|H4": {
+                "max_drawdown_r": "7.984746580440627216904928304",
+                "max_losing_streak": 4,
+                "mean_r": "-0.06858674935410164553231829939",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.8800375230715023531804445799",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.947273688070464933992856481",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.4497521534609513576357142255",
+                    "profit_factor": "0.3646333687656813517607230482",
+                    "total_r": "-4.947273688070464933992856481",
+                    "trades": 11
+                  },
+                  {
+                    "max_drawdown_r": "3.564076858813700918964076859",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.2522438358814312434782644575",
+                    "profit_factor": "0.3807576217846408958387670830",
+                    "total_r": "-2.774682194695743678260909032",
+                    "trades": 11
+                  },
+                  {
+                    "max_drawdown_r": "4.460869565217391304347826087",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.4962357412800776645170237847",
+                    "profit_factor": "1.827059568800129440861706308",
+                    "total_r": "5.458593154080854309687261632",
+                    "trades": 11
+                  }
+                ],
+                "total_r": "-2.263362728685354302566503880",
+                "trades": 33
+              },
+              "short|H1": {
+                "max_drawdown_r": "16.30984829406666375746344090",
+                "max_losing_streak": 4,
+                "mean_r": "-0.1043889837053416567395019310",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.8220642323204403578303944366",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.658399980433878738963484726",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.447325463587308217654666252",
+                    "profit_factor": "1.903687805226885288191244955",
+                    "total_r": "8.94650927174616435309332504",
+                    "trades": 20
+                  },
+                  {
+                    "max_drawdown_r": "9.305726312302378270368143311",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.4224602286585971743879723830",
+                    "profit_factor": "0.4091465333446193365203183455",
+                    "total_r": "-8.449204573171943487759447659",
+                    "trades": 20
+                  },
+                  {
+                    "max_drawdown_r": "8.506454891107486227150801749",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.3380321860447360134851996619",
+                    "profit_factor": "0.3853960253732072482087278875",
+                    "total_r": "-6.760643720894720269703993238",
+                    "trades": 20
+                  }
+                ],
+                "total_r": "-6.263339022320499404370115857",
+                "trades": 60
+              },
+              "short|H4": {
+                "max_drawdown_r": "2.20",
+                "max_losing_streak": 2,
+                "mean_r": "0.3401718767609869697525489595",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.802908766054929583110634685",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.00224778493757551349174385825",
+                    "profit_factor": "0.9959131182953172481968293486",
+                    "total_r": "-0.008991139750302053966975433",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "1.10",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.4949935815147625160462130935",
+                    "profit_factor": "1.899988330026840938265841988",
+                    "total_r": "1.979974326059050064184852374",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "1.107766990291262135922330097",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.4902502423168165193130519066",
+                    "profit_factor": "3.212785931578970266838051989",
+                    "total_r": "2.451251211584082596565259533",
+                    "trades": 5
+                  }
+                ],
+                "total_r": "4.422234397892830606783136474",
+                "trades": 13
+              }
+            },
+            "timeframe+cisd_progress_bucket": {
+              "H1|q1:<=0.25": {
+                "max_drawdown_r": "6.814393738379658594207705840",
+                "max_losing_streak": 3,
+                "mean_r": "-0.1868379137301842153142378228",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "0.6609951256029647227288055997",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.01628547610690467833324976175",
+                    "profit_factor": "1.039156335994743488888687952",
+                    "total_r": "0.130283808855237426665998094",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "2.558730158730158730158730159",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.07832106446756128284790705168",
+                    "profit_factor": "1.142401935395565968814376458",
+                    "total_r": "0.6265685157404902627832564134",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "5.240962254120148856990962254",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.6551202817650186071238702818",
+                    "profit_factor": "0.04709777197815475327437049924",
+                    "total_r": "-5.240962254120148856990962254",
+                    "trades": 8
+                  }
+                ],
+                "total_r": "-4.484109929524421167541707746",
+                "trades": 24
+              },
+              "H1|q2:<=0.50": {
+                "max_drawdown_r": "5.072393923520167627029858565",
+                "max_losing_streak": 3,
+                "mean_r": "0.00402701639319877551873217738",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.009152309984542671633482222",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.1743973261347549772597210926",
+                    "profit_factor": "1.422781396690315096387202649",
+                    "total_r": "1.395178609078039818077768741",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "3.972393923520167627029858565",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.4127848726239289993557438149",
+                    "profit_factor": "0.3995856398197396373007362693",
+                    "total_r": "-3.302278980991431994845950519",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.2230861979714846183040540236",
+                    "profit_factor": "1.91262535533789162033476646",
+                    "total_r": "2.007775781743361564736486212",
+                    "trades": 9
+                  }
+                ],
+                "total_r": "0.1006754098299693879683044345",
+                "trades": 25
+              },
+              "H1|q3:<=0.75": {
+                "max_drawdown_r": "7.65321594521887992174125704",
+                "max_losing_streak": 4,
+                "mean_r": "0.3316797419003341012698248554",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.562850471103597262760914906",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.631127253161151466236211999",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.4516057794590590511770062549",
+                    "profit_factor": "1.738991275478460265562373872",
+                    "total_r": "4.064452015131531460593056294",
+                    "trades": 9
+                  },
+                  {
+                    "max_drawdown_r": "2.20000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "1.430644078144078144078144078",
+                    "profit_factor": "6.852634865134865134865134864",
+                    "total_r": "12.87579670329670329670329670",
+                    "trades": 9
+                  },
+                  {
+                    "max_drawdown_r": "7.653215945218879921741257031",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.7653215945218879921741257031",
+                    "profit_factor": "0.1303163698614909179839480647",
+                    "total_r": "-7.653215945218879921741257031",
+                    "trades": 10
+                  }
+                ],
+                "total_r": "9.28703277320935483555509595",
+                "trades": 28
+              },
+              "H1|q4:>0.75": {
+                "max_drawdown_r": "9.417968325297268260483393629",
+                "max_losing_streak": 6,
+                "mean_r": "-0.0635152234043894025995657274",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.8819410588538009340913472315",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.252142779251935589400603395",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.6540850460130581063180539245",
+                    "profit_factor": "2.635212615032645265795134811",
+                    "total_r": "7.194935506143639169498593170",
+                    "trades": 11
+                  },
+                  {
+                    "max_drawdown_r": "4.506399489053764711509514122",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.2288195183733619180298156315",
+                    "profit_factor": "0.5007574144581194515713113493",
+                    "total_r": "-2.745834220480343016357787578",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "8.926914466574031187278060831",
+                    "max_losing_streak": 6,
+                    "mean_r": "-0.5560111754014104370104671709",
+                    "profit_factor": "0.2528284474549386754416218838",
+                    "total_r": "-6.672134104816925244125606051",
+                    "trades": 12
+                  }
+                ],
+                "total_r": "-2.223032819153629090984800459",
+                "trades": 35
+              },
+              "H4|q2:<=0.50": {
+                "max_drawdown_r": "6.555371900826446280991735537",
+                "max_losing_streak": 4,
+                "mean_r": "0.09347491539875915196585608137",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.146778792774911065070352525",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.3084763539282990083905415713",
+                    "profit_factor": "0.5793504264614104431038069482",
+                    "total_r": "-1.850858123569794050343249428",
+                    "trades": 6
+                  },
+                  {
+                    "max_drawdown_r": "4.355371900826446280991735537",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.682096867192004612723428791",
+                    "profit_factor": "0.06986790837453916446805164852",
+                    "total_r": "-4.092581203152027676340572746",
+                    "trades": 6
+                  },
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "1.102780388471177944862155388",
+                    "profit_factor": "3.339231127060074428495481127",
+                    "total_r": "7.719462719298245614035087719",
+                    "trades": 7
+                  }
+                ],
+                "total_r": "1.776023392576423887351265546",
+                "trades": 19
+              },
+              "H4|q3:<=0.75": {
+                "max_drawdown_r": "3.30",
+                "max_losing_streak": 3,
+                "mean_r": "-0.1905665482473627952959955491",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.6535153668229767358254626380",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.30",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.4629807692307692307692307692",
+                    "profit_factor": "0.4388111888111888111888111888",
+                    "total_r": "-1.851923076923076923076923077",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "1.100000000000000000000000000",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.0064985157930286709682006435",
+                    "profit_factor": "1.023630966520104258066184158",
+                    "total_r": "0.025994063172114683872802574",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "1.10",
+                    "max_losing_streak": 1,
+                    "mean_r": "-0.1152173913043478260869565218",
+                    "profit_factor": "0.7905138339920948616600790514",
+                    "total_r": "-0.460869565217391304347826087",
+                    "trades": 4
+                  }
+                ],
+                "total_r": "-2.286798578968353543551946589",
+                "trades": 12
+              },
+              "H4|q4:>0.75": {
+                "max_drawdown_r": "3.307766990291262135922330097",
+                "max_losing_streak": 4,
+                "mean_r": "0.1679533001431881941848034484",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.414332474630925453612832663",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "1.10",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.7456903100399931482874442365",
+                    "profit_factor": "3.513944553209999679875666221",
+                    "total_r": "2.982761240159972593149776946",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "1.100000000000000000000000000",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.4904055255623199874070954208",
+                    "profit_factor": "3.076635775996794734948612531",
+                    "total_r": "2.452027627811599937035477104",
+                    "trades": 5
+                  },
+                  {
+                    "max_drawdown_r": "3.307766990291262135922330097",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.6166885331933875623196011546",
+                    "profit_factor": "0.06781745055886529323570708953",
+                    "total_r": "-3.083442665966937811598005773",
+                    "trades": 5
+                  }
+                ],
+                "total_r": "2.351346202004634718587248277",
+                "trades": 14
+              }
+            },
+            "timeframe+protected_risk_range_bucket": {
+              "H1|q2:<=0.50": {
+                "max_drawdown_r": "6.67907801418439716312056738",
+                "max_losing_streak": 6,
+                "mean_r": "0.5624455102717586229261330841",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.862842544166902432898045072",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "6.60",
+                    "max_losing_streak": 6,
+                    "mean_r": "0.529423337502605795288722118",
+                    "profit_factor": "1.721940914776280629939166524",
+                    "total_r": "4.764810037523452157598499062",
+                    "trades": 9
+                  },
+                  {
+                    "max_drawdown_r": "2.20000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "1.722255194888714202725295732",
+                    "profit_factor": "5.697059622423766007432624724",
+                    "total_r": "15.50029675399842782452766159",
+                    "trades": 9
+                  },
+                  {
+                    "max_drawdown_r": "6.600000000000000000000000000",
+                    "max_losing_streak": 6,
+                    "mean_r": "-0.5643420015760441292356185973",
+                    "profit_factor": "0.3403794786773510177765496914",
+                    "total_r": "-5.079078014184397163120567376",
+                    "trades": 9
+                  }
+                ],
+                "total_r": "15.18602877733748281900559327",
+                "trades": 27
+              },
+              "H1|q3:<=1.0": {
+                "max_drawdown_r": "11.49801180142523175284097717",
+                "max_losing_streak": 4,
+                "mean_r": "-0.08379487604527568973855598767",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.8214378658601950047881464415",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.327272727272727272727272727",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.1174631442684694630076614382",
+                    "profit_factor": "1.319364264540431907662436866",
+                    "total_r": "2.819115462443267112183874518",
+                    "trades": 24
+                  },
+                  {
+                    "max_drawdown_r": "2.993750000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.03769731955303220445150776171",
+                    "profit_factor": "0.9252284570848948010879184893",
+                    "total_r": "-0.904735669272772906836186281",
+                    "trades": 24
+                  },
+                  {
+                    "max_drawdown_r": "9.787838253344357733509127823",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.3212562297790247822504910135",
+                    "profit_factor": "0.3974874177526203092468159699",
+                    "total_r": "-8.031405744475619556262275338",
+                    "trades": 25
+                  }
+                ],
+                "total_r": "-6.117025951305125350914587100",
+                "trades": 73
+              },
+              "H4|q3:<=1.0": {
+                "max_drawdown_r": "10.01366968000108441137252366",
+                "max_losing_streak": 4,
+                "mean_r": "-0.2492927568116243254366763819",
+                "positive_equal_count_terciles": 0,
+                "profit_factor": "0.5245282941233177669152519540",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.743554549313711617376538842",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.1958902678593603509353643543",
+                    "profit_factor": "0.6484426882394664680060558879",
+                    "total_r": "-2.350683214312324211224372252",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "4.145239882661424418834401919",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.3454366568884520349028668266",
+                    "profit_factor": "0.2582601742760442203621164938",
+                    "total_r": "-4.145239882661424418834401919",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "4.400000000000000000000000000",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.2065513456870605904717979648",
+                    "profit_factor": "0.6244520987507989264149127914",
+                    "total_r": "-2.478616148244727085661575577",
+                    "trades": 12
+                  }
+                ],
+                "total_r": "-8.974539245218475715720349747",
+                "trades": 36
+              }
+            }
+          },
+          "minimum_interaction_n": 12,
+          "minimum_single_feature_n": 8,
+          "single_features": {
+            "cisd_progress_bucket": {
+              "q1:<=0.25": {
+                "max_drawdown_r": "6.496093084784887352377640481",
+                "max_losing_streak": 3,
+                "mean_r": "-0.1666323710371859970284656955",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "0.6850590925414010365441370014",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.01628547610690467833324976175",
+                    "profit_factor": "1.039156335994743488888687952",
+                    "total_r": "0.130283808855237426665998094",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "2.558730158730158730158730159",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.0915959073134045033632894255",
+                    "profit_factor": "1.166538013297099097024162592",
+                    "total_r": "0.732767258507236026906315404",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "5.240962254120148856990962253",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.5587622603657914865871062093",
+                    "profit_factor": "0.08566175576506847649382620276",
+                    "total_r": "-5.028860343292123379283955884",
+                    "trades": 9
+                  }
+                ],
+                "total_r": "-4.165809275929649925711642387",
+                "trades": 25
+              },
+              "q2:<=0.50": {
+                "max_drawdown_r": "9.034772784417150617465273892",
+                "max_losing_streak": 4,
+                "mean_r": "0.04265224550923621080271749955",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.081242372398545163433747618",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "5.288694650370667200961731116",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.1446766832025002614416500589",
+                    "profit_factor": "0.7369514850863631610151817112",
+                    "total_r": "-2.025473564835003660183100824",
+                    "trades": 14
+                  },
+                  {
+                    "max_drawdown_r": "5.928915662650602409638554217",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.2740150168351506951244956227",
+                    "profit_factor": "0.5848257320679534922356126929",
+                    "total_r": "-4.110225252527260426867434340",
+                    "trades": 15
+                  },
+                  {
+                    "max_drawdown_r": "2.855284552845528455284552845",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.5341598413179104908246736763",
+                    "profit_factor": "2.456799567230664974976382755",
+                    "total_r": "8.012397619768657362370105144",
+                    "trades": 15
+                  }
+                ],
+                "total_r": "1.876698802406393275319569980",
+                "trades": 44
+              },
+              "q3:<=0.75": {
+                "max_drawdown_r": "8.378162369249972145053159985",
+                "max_losing_streak": 4,
+                "mean_r": "0.1750058548560250323000787339",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.303040441309134255065071401",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "5.615254237288135593220338983",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.1701945337083426567320102475",
+                    "profit_factor": "1.251423742978233470172287866",
+                    "total_r": "2.212528938208454537516133217",
+                    "trades": 13
+                  },
+                  {
+                    "max_drawdown_r": "2.20000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.9182145854690862874168929808",
+                    "profit_factor": "3.712906729795027667368092898",
+                    "total_r": "11.93678961109812173641960875",
+                    "trades": 13
+                  },
+                  {
+                    "max_drawdown_r": "7.149084355065574981932592600",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.5106488825046839272808994714",
+                    "profit_factor": "0.2778702671650934361684249898",
+                    "total_r": "-7.149084355065574981932592600",
+                    "trades": 14
+                  }
+                ],
+                "total_r": "7.000234194241001292003149355",
+                "trades": 40
+              },
+              "q4:>0.75": {
+                "max_drawdown_r": "11.51817056019768804904163724",
+                "max_losing_streak": 8,
+                "mean_r": "0.002618640466347053624539751306",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.005236238312030138081714679",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.695697328565647206777142237",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.6832097051805611010191816688",
+                    "profit_factor": "2.956749615224442050330699315",
+                    "total_r": "10.93135528288897761630690670",
+                    "trades": 16
+                  },
+                  {
+                    "max_drawdown_r": "3.523159057987246688469751952",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.06546657057838180831130294119",
+                    "profit_factor": "0.8432118977512560031231892715",
+                    "total_r": "-1.047465129254108932980847059",
+                    "trades": 16
+                  },
+                  {
+                    "max_drawdown_r": "10.91035713254096899887606660",
+                    "max_losing_streak": 8,
+                    "mean_r": "-0.5738574571049331209249183426",
+                    "profit_factor": "0.2028209184838568552202267625",
+                    "total_r": "-9.755576770783863055723611824",
+                    "trades": 17
+                  }
+                ],
+                "total_r": "0.128313382851005627602447814",
+                "trades": 49
+              }
+            },
+            "close_location_bucket": {
+              "q2:<=0.50": {
+                "max_drawdown_r": "4.17567567567567567567567568",
+                "max_losing_streak": 3,
+                "mean_r": "0.4656262368621758196489622952",
+                "positive_equal_count_terciles": 3,
+                "profit_factor": "1.735199321361330241550993098",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.051923076923076923076923077",
+                    "max_losing_streak": 3,
+                    "mean_r": "1.103278755052010865964354336",
+                    "profit_factor": "3.206557510104021731928708673",
+                    "total_r": "12.13606630557211952560789770",
+                    "trades": 11
+                  },
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.07558291129719701148272576836",
+                    "profit_factor": "1.107975587567424302118179669",
+                    "total_r": "0.831412024269167126309983452",
+                    "trades": 11
+                  },
+                  {
+                    "max_drawdown_r": "4.175675675675675675675675676",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.2180170442373195814998067814",
+                    "profit_factor": "1.311452920339027973571152545",
+                    "total_r": "2.398187486610515396497874595",
+                    "trades": 11
+                  }
+                ],
+                "total_r": "15.36566581645180204841575574",
+                "trades": 33
+              },
+              "q3:<=0.75": {
+                "max_drawdown_r": "8.391980991463163487614097810",
+                "max_losing_streak": 5,
+                "mean_r": "0.08582446087204848791607000225",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.171588883238486509787447890",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "6.368213160896087725356018039",
+                    "max_losing_streak": 5,
+                    "mean_r": "0.3280814795883957677912765506",
+                    "profit_factor": "1.716290352867410405903203577",
+                    "total_r": "5.577385153002728052451701360",
+                    "trades": 17
+                  },
+                  {
+                    "max_drawdown_r": "3.300000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.1536483456160676750587586365",
+                    "profit_factor": "1.335702267732584836262833996",
+                    "total_r": "2.612021875473150475998896820",
+                    "trades": 17
+                  },
+                  {
+                    "max_drawdown_r": "5.950177304964539007092198582",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.2242564425883179791018251804",
+                    "profit_factor": "0.6165271224809985939918496496",
+                    "total_r": "-3.812359524001405644731028067",
+                    "trades": 17
+                  }
+                ],
+                "total_r": "4.377047504474472883719570115",
+                "trades": 51
+              },
+              "q4:>0.75": {
+                "max_drawdown_r": "21.43789153865704222464275807",
+                "max_losing_streak": 6,
+                "mean_r": "-0.2271773522088902658232129135",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.5433715262388375449720946281",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.338469850689140806087194627",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.1351434579054710152693322265",
+                    "profit_factor": "1.313107095696741454790668987",
+                    "total_r": "3.108299531825833351194641210",
+                    "trades": 23
+                  },
+                  {
+                    "max_drawdown_r": "8.308324248612356332906915471",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.3395792041502377401316939070",
+                    "profit_factor": "0.2590999182176631124399405665",
+                    "total_r": "-8.149900899605705763160653769",
+                    "trades": 24
+                  },
+                  {
+                    "max_drawdown_r": "11.08799063905133646148210430",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.4619996099604723525617543458",
+                    "profit_factor": "0.2297843460536258300512315559",
+                    "total_r": "-11.08799063905133646148210430",
+                    "trades": 24
+                  }
+                ],
+                "total_r": "-16.12959200683120887344811686",
+                "trades": 71
+              }
+            },
+            "d1_range_state": {
+              "balanced": {
+                "max_drawdown_r": "9.396384619630807406401436912",
+                "max_losing_streak": 4,
+                "mean_r": "0.1076533693892125797434344693",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.209764388162770219086178452",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "8.463914728631553765906804352",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.3086932321750483240902026876",
+                    "profit_factor": "1.649208864463220089935215056",
+                    "total_r": "8.643410500901353074525675253",
+                    "trades": 28
+                  },
+                  {
+                    "max_drawdown_r": "5.845117142229516104469417627",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.09324824726908082325176473161",
+                    "profit_factor": "1.182583980666731681891567306",
+                    "total_r": "2.610950923534263051049412485",
+                    "trades": 28
+                  },
+                  {
+                    "max_drawdown_r": "6.297811733641260933641325582",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.07898137127649140811166401114",
+                    "profit_factor": "0.8572867398114382594685862237",
+                    "total_r": "-2.211478395741759427126592312",
+                    "trades": 28
+                  }
+                ],
+                "total_r": "9.04288302869385669844849542",
+                "trades": 84
+              },
+              "compressed": {
+                "max_drawdown_r": "14.71732278125890015288776325",
+                "max_losing_streak": 7,
+                "mean_r": "-0.1628826005544905702003046089",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.7470383855024957053707390542",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.300000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.5165239872461894192577653815",
+                    "profit_factor": "2.017395732454615522780446964",
+                    "total_r": "6.714811834200462450350949959",
+                    "trades": 13
+                  },
+                  {
+                    "max_drawdown_r": "4.880338339956444624054242160",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.3202926956037632303970001113",
+                    "profit_factor": "0.5470608344997287650951513578",
+                    "total_r": "-4.484097738452685225558001558",
+                    "trades": 14
+                  },
+                  {
+                    "max_drawdown_r": "9.280537280701754385964912280",
+                    "max_losing_streak": 7,
+                    "mean_r": "-0.6363500513201350430718169546",
+                    "profit_factor": "0.1001110385371827673731881449",
+                    "total_r": "-8.908900718481890603005437365",
+                    "trades": 14
+                  }
+                ],
+                "total_r": "-6.678186622734113378212488966",
+                "trades": 41
+              },
+              "expanded": {
+                "max_drawdown_r": "3.756237911025145067698259188",
+                "max_losing_streak": 2,
+                "mean_r": "0.02293676144996299581796782984",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.050891289905424807824034583",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.557068062827225130890052356",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.201221355692686736515963847",
+                    "profit_factor": "1.457321262937924401172645107",
+                    "total_r": "2.012213556926867365159638470",
+                    "trades": 10
+                  },
+                  {
+                    "max_drawdown_r": "1.658963071655661530936659330",
+                    "max_losing_streak": 1,
+                    "mean_r": "-0.01672318104550205020620626339",
+                    "profit_factor": "0.9589456671329305891933477140",
+                    "total_r": "-0.1839549915005225522682688973",
+                    "trades": 11
+                  },
+                  {
+                    "max_drawdown_r": "3.756237911025145067698259188",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.09948019991159354061058172891",
+                    "profit_factor": "0.8025355430326263554797475456",
+                    "total_r": "-1.094282199027528946716399018",
+                    "trades": 11
+                  }
+                ],
+                "total_r": "0.733976366398815866174970555",
+                "trades": 32
+              }
+            },
+            "exact_equal_liquidity": {
+              "no": {
+                "max_drawdown_r": "18.25243180457711328874362032",
+                "max_losing_streak": 4,
+                "mean_r": "0.03806479460757942500176858593",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.071252361958607455190224686",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "11.45860608850830545452013574",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.4396408033443475795852802392",
+                    "profit_factor": "1.923216331972828714308283787",
+                    "total_r": "22.42168097056172655884929220",
+                    "trades": 51
+                  },
+                  {
+                    "max_drawdown_r": "7.224493207901139194853186990",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.08154441973978980846269357677",
+                    "profit_factor": "0.8462584639684899999420419523",
+                    "total_r": "-4.240309826469070040060065992",
+                    "trades": 52
+                  },
+                  {
+                    "max_drawdown_r": "16.22742048769642935257402055",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.2361793842291893392983672185",
+                    "profit_factor": "0.6030293560215425449772618803",
+                    "total_r": "-12.28132797991784564351509536",
+                    "trades": 52
+                  }
+                ],
+                "total_r": "5.900043164174810875274130819",
+                "trades": 155
+              }
+            },
+            "h1_body_alignment": {
+              "opposed": {
+                "max_drawdown_r": "6.065853658536585365853658537",
+                "max_losing_streak": 5,
+                "mean_r": "0.2604542201702168277090855416",
+                "positive_equal_count_terciles": 3,
+                "profit_factor": "1.385858103955876781791237839",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "6.065853658536585365853658537",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.6827821788130061541771536381",
+                    "profit_factor": "2.086244375384327972554562606",
+                    "total_r": "9.558950503382086158480150933",
+                    "trades": 14
+                  },
+                  {
+                    "max_drawdown_r": "4.494444444444444444444444445",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.0159205106746090352647729696",
+                    "profit_factor": "1.024121985870619750401171166",
+                    "total_r": "0.238807660119135528971594544",
+                    "trades": 15
+                  },
+                  {
+                    "max_drawdown_r": "5.500000000000000000000000000",
+                    "max_losing_streak": 5,
+                    "mean_r": "0.1108151682658879154498678904",
+                    "profit_factor": "1.151111593089847157431638033",
+                    "total_r": "1.662227523988318731748018356",
+                    "trades": 15
+                  }
+                ],
+                "total_r": "11.45998568748954041919976383",
+                "trades": 44
+              },
+              "with": {
+                "max_drawdown_r": "21.65600632382770327762810759",
+                "max_losing_streak": 4,
+                "mean_r": "-0.04885441224708663849545344288",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.8960977774863563567184360403",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "6.492752429971720088666477206",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.3766339929704571115578883389",
+                    "profit_factor": "1.966816326902719494570816939",
+                    "total_r": "13.93545773990691312764186854",
+                    "trades": 37
+                  },
+                  {
+                    "max_drawdown_r": "6.920058463215127190499168758",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.1786184295705327228833930579",
+                    "profit_factor": "0.6161083132136473130111108523",
+                    "total_r": "-6.787500323680243469568936200",
+                    "trades": 38
+                  },
+                  {
+                    "max_drawdown_r": "15.03351494575894667061729439",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.3333817368459857844226097734",
+                    "profit_factor": "0.3978166534809333877868067475",
+                    "total_r": "-12.66850600014745980805917139",
+                    "trades": 38
+                  }
+                ],
+                "total_r": "-5.520548583920790149986239046",
+                "trades": 113
+              }
+            },
+            "h1_range_state": {
+              "balanced": {
+                "max_drawdown_r": "4.283854055841189414120835539",
+                "max_losing_streak": 4,
+                "mean_r": "0.4952479075675724998985080693",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "2.137011436396582100593578684",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.9559762948261929383133319222",
+                    "profit_factor": "3.607208076798708013581814333",
+                    "total_r": "8.603786653435736444819987300",
+                    "trades": 9
+                  },
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.09685919890527259496622767619",
+                    "profit_factor": "0.7433026815708517680729581159",
+                    "total_r": "-0.8717327901474533546960490857",
+                    "trades": 9
+                  },
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.6134887548603746907034287735",
+                    "profit_factor": "2.115434099746135801278961407",
+                    "total_r": "6.134887548603746907034287735",
+                    "trades": 10
+                  }
+                ],
+                "total_r": "13.86694141189202999715822594",
+                "trades": 28
+              },
+              "compressed": {
+                "max_drawdown_r": "24.46278619214303450058602823",
+                "max_losing_streak": 6,
+                "mean_r": "-0.07006678619716582045779699435",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.8740020235890120483574991728",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "10.35860608850830545452013574",
+                    "max_losing_streak": 5,
+                    "mean_r": "0.3075388551792707828262840921",
+                    "profit_factor": "1.629310093362535132035030036",
+                    "total_r": "13.22417077270864366153021596",
+                    "trades": 43
+                  },
+                  {
+                    "max_drawdown_r": "7.755763409765088020235420252",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.05632333526056944187788277598",
+                    "profit_factor": "0.8955210074310326264817107286",
+                    "total_r": "-2.421903416204486000748959367",
+                    "trades": 43
+                  },
+                  {
+                    "max_drawdown_r": "19.84088277593854849983706886",
+                    "max_losing_streak": 6,
+                    "mean_r": "-0.4614158785101988023217922991",
+                    "profit_factor": "0.2796048613880103419121185285",
+                    "total_r": "-19.84088277593854849983706886",
+                    "trades": 43
+                  }
+                ],
+                "total_r": "-9.038615419434390839055812271",
+                "trades": 129
+              }
+            },
+            "h4_body_alignment": {
+              "opposed": {
+                "max_drawdown_r": "17.52383012144356735989996305",
+                "max_losing_streak": 3,
+                "mean_r": "0.1823352571046461241546468319",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.363117480107566369895662426",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.300000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.9495282453216178396361718527",
+                    "profit_factor": "4.194883272493914142775825293",
+                    "total_r": "24.68773437836206383054046817",
+                    "trades": 26
+                  },
+                  {
+                    "max_drawdown_r": "3.583569724284199363732767763",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.2312116553909288528636933550",
+                    "profit_factor": "1.455416896982132588973941455",
+                    "total_r": "6.011503040164150174456027231",
+                    "trades": 26
+                  },
+                  {
+                    "max_drawdown_r": "16.69099270876292959527563626",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.6035093373058951924733109504",
+                    "profit_factor": "0.1305601365624275573083470527",
+                    "total_r": "-16.29475210725917019677939566",
+                    "trades": 27
+                  }
+                ],
+                "total_r": "14.40448531126704380821709972",
+                "trades": 79
+              },
+              "with": {
+                "max_drawdown_r": "17.91087902280100339942176727",
+                "max_losing_streak": 8,
+                "mean_r": "-0.1210765595911176397342224680",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.7839052376948952507750754167",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "12.47082727658643889010381157",
+                    "max_losing_streak": 8,
+                    "mean_r": "-0.1762398546970183499741056082",
+                    "profit_factor": "0.7237367765707484883899468878",
+                    "total_r": "-4.582236222122477099326745813",
+                    "trades": 26
+                  },
+                  {
+                    "max_drawdown_r": "9.459143381087567058104036707",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.3638132069649064253116937195",
+                    "profit_factor": "0.3889745890477596434516647096",
+                    "total_r": "-9.459143381087567058104036707",
+                    "trades": 26
+                  },
+                  {
+                    "max_drawdown_r": "6.600000000000000000000000000",
+                    "max_losing_streak": 6,
+                    "mean_r": "0.1657900516856203932750817615",
+                    "profit_factor": "1.367034073240776240992722627",
+                    "total_r": "4.476331395511750618427207561",
+                    "trades": 27
+                  }
+                ],
+                "total_r": "-9.565048207698293539003574973",
+                "trades": 79
+              }
+            },
+            "h4_range_state": {
+              "balanced": {
+                "max_drawdown_r": "14.76480441056285036448351236",
+                "max_losing_streak": 7,
+                "mean_r": "-0.02942620924717773703435763327",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.9455416708816107640661876192",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.353956553956553956553956554",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.4928317897527802699859513806",
+                    "profit_factor": "2.337454692585670140586874636",
+                    "total_r": "7.392476846291704049789270709",
+                    "trades": 15
+                  },
+                  {
+                    "max_drawdown_r": "10.70694570821959356991204125",
+                    "max_losing_streak": 7,
+                    "mean_r": "-0.3105865040047630281175928735",
+                    "profit_factor": "0.6149754082585582296062898263",
+                    "total_r": "-4.658797560071445421763893102",
+                    "trades": 15
+                  },
+                  {
+                    "max_drawdown_r": "4.068969813454367905682582217",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.2705239134895504529714314071",
+                    "profit_factor": "0.3932798973421313716616707906",
+                    "total_r": "-4.057858702343256794571471106",
+                    "trades": 15
+                  }
+                ],
+                "total_r": "-1.324179416122998166546093497",
+                "trades": 45
+              },
+              "compressed": {
+                "max_drawdown_r": "11.75774199545696150335007377",
+                "max_losing_streak": 6,
+                "mean_r": "-0.01313877903751779973101672203",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "0.9756761264954963495732275724",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "9.204649534551751497966179189",
+                    "max_losing_streak": 6,
+                    "mean_r": "0.08385204759555113732524945542",
+                    "profit_factor": "1.156718752797942242972235824",
+                    "total_r": "2.599413475462085257082733118",
+                    "trades": 31
+                  },
+                  {
+                    "max_drawdown_r": "3.040307798262343716889171435",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.1732227638233174347587457686",
+                    "profit_factor": "1.440851113487823973525573380",
+                    "total_r": "5.369905678522840477521118828",
+                    "trades": 31
+                  },
+                  {
+                    "max_drawdown_r": "11.75774199545696150335007377",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.2876363869847374659162319943",
+                    "profit_factor": "0.5817674556636250716164193337",
+                    "total_r": "-9.204364383511598909319423819",
+                    "trades": 32
+                  }
+                ],
+                "total_r": "-1.235045229526673174715571871",
+                "trades": 94
+              },
+              "expanded": {
+                "max_drawdown_r": "3.728915662650602409638554217",
+                "max_losing_streak": 3,
+                "mean_r": "0.4956307278247020626036737982",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.960317879531177301062015971",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "1.100000000000000000000000000",
+                    "max_losing_streak": 1,
+                    "mean_r": "1.861037889103641874417094811",
+                    "profit_factor": "9.459263132289281247350430964",
+                    "total_r": "9.305189445518209372085474056",
+                    "trades": 5
+                  },
+                  {
+                    "max_drawdown_r": "3.728915662650602409638554217",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.7457831325301204819277108434",
+                    "profit_factor": "0.1525191675794085432639649507",
+                    "total_r": "-3.728915662650602409638554217",
+                    "trades": 5
+                  },
+                  {
+                    "max_drawdown_r": "2.241666666666666666666666667",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.3716374269005847953216374268",
+                    "profit_factor": "1.828931063718776495141198721",
+                    "total_r": "1.858187134502923976608187134",
+                    "trades": 5
+                  }
+                ],
+                "total_r": "7.434460917370530939055106973",
+                "trades": 15
+              }
+            },
+            "m5_volatility_state": {
+              "balanced": {
+                "max_drawdown_r": "10.38741379171864595524523875",
+                "max_losing_streak": 5,
+                "mean_r": "-0.0391510244754130313056163898",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.9335948263047451773595313538",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "4.607676884786041123506137500",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.3526578864875305811463943602",
+                    "profit_factor": "1.793694756693347414988843755",
+                    "total_r": "7.053157729750611622927887204",
+                    "trades": 20
+                  },
+                  {
+                    "max_drawdown_r": "6.681293032331257040636959090",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.3120805246324358679048638275",
+                    "profit_factor": "0.5271507202538850486289942008",
+                    "total_r": "-6.241610492648717358097276550",
+                    "trades": 20
+                  },
+                  {
+                    "max_drawdown_r": "8.797058823529411764705882353",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.1580304352813338071583797020",
+                    "profit_factor": "0.7621490248787699275999736649",
+                    "total_r": "-3.160608705626676143167594041",
+                    "trades": 20
+                  }
+                ],
+                "total_r": "-2.349061468524781878336983388",
+                "trades": 60
+              },
+              "compressed": {
+                "max_drawdown_r": "15.43244920729088779442102221",
+                "max_losing_streak": 4,
+                "mean_r": "0.1082895018581523960803813293",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.204737327577814243109786521",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.300000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.6383435526874021079276912384",
+                    "profit_factor": "2.607550155577248898169552111",
+                    "total_r": "15.95858881718505269819228096",
+                    "trades": 25
+                  },
+                  {
+                    "max_drawdown_r": "3.896974744458849054583878581",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.2136317067084063543641954469",
+                    "profit_factor": "1.441387823777699079264866626",
+                    "total_r": "5.340792667710158859104886172",
+                    "trades": 25
+                  },
+                  {
+                    "max_drawdown_r": "15.43244920729088779442102220",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.5271067538213512740507426968",
+                    "profit_factor": "0.2530371934510846376229437452",
+                    "total_r": "-13.17766884553378185126856742",
+                    "trades": 25
+                  }
+                ],
+                "total_r": "8.12171263936142970602859970",
+                "trades": 75
+              },
+              "expanded": {
+                "max_drawdown_r": "5.857068062827225130890052356",
+                "max_losing_streak": 4,
+                "mean_r": "-0.07287859135439241775736361677",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "0.8196183297315359638459539628",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "5.857068062827225130890052356",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.8367240089753178758414360509",
+                    "profit_factor": "0.1125654450261780104712041885",
+                    "total_r": "-5.857068062827225130890052356",
+                    "trades": 7
+                  },
+                  {
+                    "max_drawdown_r": "1.803759398496240601503759399",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.01858897358875898894861714457",
+                    "profit_factor": "1.057052161773256930668605739",
+                    "total_r": "0.130122815121312922640320012",
+                    "trades": 7
+                  },
+                  {
+                    "max_drawdown_r": "0.0077669902912621359223300971",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.5154520297386598771984665969",
+                    "profit_factor": "531.9155906308196735144205946",
+                    "total_r": "4.123616237909279017587732775",
+                    "trades": 8
+                  }
+                ],
+                "total_r": "-1.603329009796633190661999569",
+                "trades": 22
+              }
+            },
+            "protected_risk_range_bucket": {
+              "q2:<=0.50": {
+                "max_drawdown_r": "7.351923076923076923076923077",
+                "max_losing_streak": 4,
+                "mean_r": "0.6359201083969375174560072172",
+                "positive_equal_count_terciles": 3,
+                "profit_factor": "1.991044324774448079152219040",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "7.351923076923076923076923077",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.3344072467166979362101313321",
+                    "profit_factor": "1.456009881886406276650179089",
+                    "total_r": "4.012886960600375234521575985",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "2.20000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "1.327915885962454019390910575",
+                    "profit_factor": "3.8972710239180814968528958",
+                    "total_r": "15.93499063154944823269092690",
+                    "trades": 12
+                  },
+                  {
+                    "max_drawdown_r": "5.275675675675675675675675676",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.2454371925116605967669797457",
+                    "profit_factor": "1.334687080697718995591336016",
+                    "total_r": "2.945246310139927161203756948",
+                    "trades": 12
+                  }
+                ],
+                "total_r": "22.89312390228975062841625982",
+                "trades": 36
+              },
+              "q3:<=1.0": {
+                "max_drawdown_r": "19.80840678164249710990072801",
+                "max_losing_streak": 7,
+                "mean_r": "-0.1384547265736110189599535491",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.7159617126284393937380769033",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "7.406683011585228531443212667",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.05636613884100763441961748303",
+                    "profit_factor": "1.130798794174695342094080766",
+                    "total_r": "2.029180998276274839106229389",
+                    "trades": 36
+                  },
+                  {
+                    "max_drawdown_r": "5.276101302599585912483060826",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.1465583695166551642356405785",
+                    "profit_factor": "0.6817939367488071590708430026",
+                    "total_r": "-5.276101302599585912483060826",
+                    "trades": 36
+                  },
+                  {
+                    "max_drawdown_r": "13.24221197734666057674646097",
+                    "max_losing_streak": 7,
+                    "mean_r": "-0.3201255376270348646826514976",
+                    "profit_factor": "0.4369779751904355172060788326",
+                    "total_r": "-11.84464489220028999325810541",
+                    "trades": 37
+                  }
+                ],
+                "total_r": "-15.09156519652360106663493685",
+                "trades": 109
+              },
+              "q4:<=2.0": {
+                "max_drawdown_r": "2.167240637107188979767541972",
+                "max_losing_streak": 1,
+                "mean_r": "-0.2485546739588854378867642475",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.3974432146451262111836018242",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "1.10",
+                    "max_losing_streak": 1,
+                    "mean_r": "-0.1217391304347826086956521739",
+                    "profit_factor": "0.7786561264822134387351778656",
+                    "total_r": "-0.2434782608695652173913043478",
+                    "trades": 2
+                  },
+                  {
+                    "max_drawdown_r": "1.923762376237623762376237624",
+                    "max_losing_streak": 1,
+                    "mean_r": "-0.6412541254125412541254125413",
+                    "profit_factor": "0.1255625562556255625562556255",
+                    "total_r": "-1.923762376237623762376237624",
+                    "trades": 3
+                  },
+                  {
+                    "max_drawdown_r": "0",
+                    "max_losing_streak": 0,
+                    "mean_r": "0.05960108181203515889114266397",
+                    "profit_factor": null,
+                    "total_r": "0.1788032454361054766734279919",
+                    "trades": 3
+                  }
+                ],
+                "total_r": "-1.988437391671083503094113980",
+                "trades": 8
+              }
+            },
+            "rejection_wick_bucket": {
+              "q2:<=0.25": {
+                "max_drawdown_r": "11.87678697806086341118188252",
+                "max_losing_streak": 5,
+                "mean_r": "0.07737208371561840390378087435",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.134814994352971461347496978",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "1.100000000000000000000000000",
+                    "max_losing_streak": 1,
+                    "mean_r": "1.556620700502869528709834661",
+                    "profit_factor": "10.9057680941091697281534933",
+                    "total_r": "10.89634490352008670096884263",
+                    "trades": 7
+                  },
+                  {
+                    "max_drawdown_r": "6.387898089171974522292993631",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.6409872611464968152866242039",
+                    "profit_factor": "0.2230457440648523451071221771",
+                    "total_r": "-5.127898089171974522292993631",
+                    "trades": 8
+                  },
+                  {
+                    "max_drawdown_r": "5.500000000000000000000000000",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.4986111111111111111111111111",
+                    "profit_factor": "0.2747474747474747474747474747",
+                    "total_r": "-3.988888888888888888888888889",
+                    "trades": 8
+                  }
+                ],
+                "total_r": "1.779557925459223289786960110",
+                "trades": 23
+              },
+              "q3:<=0.50": {
+                "max_drawdown_r": "9.390006615006615006615006615",
+                "max_losing_streak": 6,
+                "mean_r": "0.05026554093476195349256059613",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.091128638156782272475209835",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "9.390006615006615006615006615",
+                    "max_losing_streak": 6,
+                    "mean_r": "0.1804908029549709688995847433",
+                    "profit_factor": "1.327427093816364126489501558",
+                    "total_r": "3.970797665009361315790864353",
+                    "trades": 22
+                  },
+                  {
+                    "max_drawdown_r": "4.480769230769230769230769231",
+                    "max_losing_streak": 5,
+                    "mean_r": "0.07402475579267301124953099561",
+                    "profit_factor": "1.139775194076471300054371756",
+                    "total_r": "1.702569383231479258739212899",
+                    "trades": 23
+                  },
+                  {
+                    "max_drawdown_r": "6.785490316418431987620133863",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.09805696802943598856678072683",
+                    "profit_factor": "0.8291431617668918381033366114",
+                    "total_r": "-2.255310264677027737035956717",
+                    "trades": 23
+                  }
+                ],
+                "total_r": "3.418056783563812837494120537",
+                "trades": 68
+              },
+              "q4:>0.50": {
+                "max_drawdown_r": "8.015514202199652730266747781",
+                "max_losing_streak": 6,
+                "mean_r": "-0.009821947385456082740976292258",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.9804886106922475907419512996",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "5.586486486486486486486486486",
+                    "max_losing_streak": 6,
+                    "mean_r": "0.2848757124890705122437414769",
+                    "profit_factor": "1.565306752720876150576317801",
+                    "total_r": "6.267265674759551269362312492",
+                    "trades": 22
+                  },
+                  {
+                    "max_drawdown_r": "3.503588881310140056072508528",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.07064178065963673840759833782",
+                    "profit_factor": "0.8430182652008072479831148048",
+                    "total_r": "-1.554119174512008244967163432",
+                    "trades": 22
+                  },
+                  {
+                    "max_drawdown_r": "7.583774142909203038712751942",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.2436997739858020220590720159",
+                    "profit_factor": "0.5618924370912580145842151058",
+                    "total_r": "-5.361395027687644485299584350",
+                    "trades": 22
+                  }
+                ],
+                "total_r": "-0.648248527440101460904435289",
+                "trades": 66
+              }
+            },
+            "side": {
+              "long": {
+                "max_drawdown_r": "11.17901753929348094962561762",
+                "max_losing_streak": 4,
+                "mean_r": "0.07859460856466375372706475465",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.154554931643712265605003745",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "7.822167349276505613970627965",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.3750131561486679358709633646",
+                    "profit_factor": "1.788685464681606251902762379",
+                    "total_r": "10.50036837216270220438697421",
+                    "trades": 28
+                  },
+                  {
+                    "max_drawdown_r": "3.728915662650602409638554217",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.002435959957173106574104445286",
+                    "profit_factor": "0.9938445718541408483653313564",
+                    "total_r": "-0.068206878800846984074924468",
+                    "trades": 28
+                  },
+                  {
+                    "max_drawdown_r": "11.17901753929348094962561761",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.1293661988057046949486739853",
+                    "profit_factor": "0.8007621600247789920809153847",
+                    "total_r": "-3.751619765365436153511545575",
+                    "trades": 29
+                  }
+                ],
+                "total_r": "6.680541727996419066800504145",
+                "trades": 85
+              },
+              "short": {
+                "max_drawdown_r": "14.58106715390387954482766192",
+                "max_losing_streak": 4,
+                "mean_r": "-0.02522061129352970955598601877",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.9547726451105321171142982487",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "5.427272727272727272727272727",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.2631535738883915983960215522",
+                    "profit_factor": "1.521957501927388294339216302",
+                    "total_r": "6.315685773321398361504517253",
+                    "trades": 24
+                  },
+                  {
+                    "max_drawdown_r": "6.536980767042221463525662911",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.004696000453642044907895734125",
+                    "profit_factor": "0.9926815577345838261175650903",
+                    "total_r": "-0.112704010887409077789497619",
+                    "trades": 24
+                  },
+                  {
+                    "max_drawdown_r": "8.689897557074424038748807523",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.3217634554744663232520799605",
+                    "profit_factor": "0.3909578816180896924624331827",
+                    "total_r": "-8.044086386861658081301999012",
+                    "trades": 25
+                  }
+                ],
+                "total_r": "-1.841104624427668797586979370",
+                "trades": 73
+              }
+            },
+            "target_rank": {
+              "1": {
+                "max_drawdown_r": "18.18576513791044662207695365",
+                "max_losing_streak": 5,
+                "mean_r": "0.03062934875676424221021218206",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "1.057658919036629686704025660",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "12.55860608850830545452013574",
+                    "max_losing_streak": 5,
+                    "mean_r": "0.4306616969863269093485003746",
+                    "profit_factor": "1.921059061513447528669185800",
+                    "total_r": "22.39440824328899928612201948",
+                    "trades": 52
+                  },
+                  {
+                    "max_drawdown_r": "7.224493207901139194853186991",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.1007605627635673592464163395",
+                    "profit_factor": "0.8138017225584071060190938501",
+                    "total_r": "-5.340309826469070040060065992",
+                    "trades": 53
+                  },
+                  {
+                    "max_drawdown_r": "16.16075382102976268590735389",
+                    "max_losing_streak": 4,
+                    "mean_r": "-0.2304653077971920561669514849",
+                    "profit_factor": "0.6051842296347086728465906476",
+                    "total_r": "-12.21466131325117897684842870",
+                    "trades": 53
+                  }
+                ],
+                "total_r": "4.839437103568750269213524766",
+                "trades": 158
+              }
+            },
+            "target_route_types": {
+              "ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY": {
+                "max_drawdown_r": "2.20",
+                "max_losing_streak": 2,
+                "mean_r": "0.5392403632304394041958815745",
+                "positive_equal_count_terciles": 3,
+                "profit_factor": "2.960874048110688742530478453",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "2.20",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.668598178137651821862348178",
+                    "profit_factor": "2.215633051159366948840633051",
+                    "total_r": "2.674392712550607287449392712",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "0",
+                    "max_losing_streak": 0,
+                    "mean_r": "0.8889516500666154299901252842",
+                    "profit_factor": null,
+                    "total_r": "3.555806600266461719960501137",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "1.100000000000000000000000000",
+                    "max_losing_streak": 1,
+                    "mean_r": "0.06017126148705096073517126148",
+                    "profit_factor": "1.218804587225639857218804587",
+                    "total_r": "0.2406850459482038429406850459",
+                    "trades": 4
+                  }
+                ],
+                "total_r": "6.470884358765272850350578894",
+                "trades": 12
+              },
+              "ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY+PRIOR_CANDLE_DIRECTIONAL_BOUNDARY+SOURCE_OPPOSITE_BOUNDARY": {
+                "max_drawdown_r": "9.280537280701754385964912280",
+                "max_losing_streak": 7,
+                "mean_r": "-0.8436852073365231259968102073",
+                "positive_equal_count_terciles": 0,
+                "profit_factor": "0.06257199184830763778132199185",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "3.30",
+                    "max_losing_streak": 3,
+                    "mean_r": "-1.10",
+                    "profit_factor": "0E+2",
+                    "total_r": "-3.30",
+                    "trades": 3
+                  },
+                  {
+                    "max_drawdown_r": "4.40",
+                    "max_losing_streak": 4,
+                    "mean_r": "-1.10",
+                    "profit_factor": "0E+2",
+                    "total_r": "-4.40",
+                    "trades": 4
+                  },
+                  {
+                    "max_drawdown_r": "2.200000000000000000000000000",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.3951343201754385964912280702",
+                    "profit_factor": "0.2815739633173843700159489633",
+                    "total_r": "-1.580537280701754385964912281",
+                    "trades": 4
+                  }
+                ],
+                "total_r": "-9.280537280701754385964912280",
+                "trades": 11
+              },
+              "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY": {
+                "max_drawdown_r": "6.491963275816626731463138524",
+                "max_losing_streak": 7,
+                "mean_r": "-0.3329861963118597085717497332",
+                "positive_equal_count_terciles": 1,
+                "profit_factor": "0.1801788460448966746569566890",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "1.186486486486486486486486486",
+                    "max_losing_streak": 2,
+                    "mean_r": "-0.07258924112582649168015021674",
+                    "profit_factor": "0.6941000089230546478171346222",
+                    "total_r": "-0.3629462056291324584007510837",
+                    "trades": 5
+                  },
+                  {
+                    "max_drawdown_r": "0.09595596666921489182784190812",
+                    "max_losing_streak": 2,
+                    "mean_r": "0.00325386844497662583722466043",
+                    "profit_factor": "1.110472139529847148953100345",
+                    "total_r": "0.01952321066985975502334796258",
+                    "trades": 6
+                  },
+                  {
+                    "max_drawdown_r": "5.541666666666666666666666667",
+                    "max_losing_streak": 5,
+                    "mean_r": "-0.8862237237237237237237237238",
+                    "profit_factor": "0.04047957732168258484047957731",
+                    "total_r": "-5.317342342342342342342342343",
+                    "trades": 6
+                  }
+                ],
+                "total_r": "-5.660765337301615045719745464",
+                "trades": 17
+              },
+              "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY+SOURCE_OPPOSITE_BOUNDARY": {
+                "max_drawdown_r": "11.22707013928942940637579492",
+                "max_losing_streak": 7,
+                "mean_r": "0.133705649679369369401272445",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.251671941275815482159645434",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "11.22707013928942940637579492",
+                    "max_losing_streak": 7,
+                    "mean_r": "0.4450199149321953967945102703",
+                    "profit_factor": "1.959351853747589870346081965",
+                    "total_r": "16.91075676742342507819139027",
+                    "trades": 38
+                  },
+                  {
+                    "max_drawdown_r": "5.496282821197216794991582613",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.05529825721329964277655335795",
+                    "profit_factor": "1.098028728696303912194799134",
+                    "total_r": "2.156632031318686068285580960",
+                    "trades": 39
+                  },
+                  {
+                    "max_drawdown_r": "9.343411478687420343565011547",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.09121880604962216143408634849",
+                    "profit_factor": "0.8382939347302152592759378364",
+                    "total_r": "-3.557533435935264295929367591",
+                    "trades": 39
+                  }
+                ],
+                "total_r": "15.50985536280684685054760362",
+                "trades": 116
+              }
+            },
+            "timeframe": {
+              "H1": {
+                "max_drawdown_r": "20.90365681960387312931314299",
+                "max_losing_streak": 4,
+                "mean_r": "0.02393361994965423183032939446",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.045008305600194785347634157",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "8.063128462271516914066673824",
+                    "max_losing_streak": 3,
+                    "mean_r": "0.5128296876876037181216354422",
+                    "profit_factor": "2.229945096575454998677110341",
+                    "total_r": "18.97469844444133757050051136",
+                    "trades": 37
+                  },
+                  {
+                    "max_drawdown_r": "7.650219909025160276482969196",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.01317695954442831451907555559",
+                    "profit_factor": "1.023327631729370700344774907",
+                    "total_r": "0.487547503143847637205795557",
+                    "trades": 37
+                  },
+                  {
+                    "max_drawdown_r": "17.75260249903951407958884734",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.4416231714006292432291951242",
+                    "profit_factor": "0.2775813689462763511441587683",
+                    "total_r": "-16.78168051322391124270941472",
+                    "trades": 38
+                  }
+                ],
+                "total_r": "2.680565434361273964996892179",
+                "trades": 112
+              },
+              "H4": {
+                "max_drawdown_r": "6.720475083124588407834257181",
+                "max_losing_streak": 5,
+                "mean_r": "0.04693199280885818052644853465",
+                "positive_equal_count_terciles": 2,
+                "profit_factor": "1.088569011611178840003672229",
+                "terciles": [
+                  {
+                    "max_drawdown_r": "5.50",
+                    "max_losing_streak": 5,
+                    "mean_r": "0.09491396654921887174833469733",
+                    "profit_factor": "1.182843635664062734537749938",
+                    "total_r": "1.423709498238283076225020460",
+                    "trades": 15
+                  },
+                  {
+                    "max_drawdown_r": "4.145239882661424418834401919",
+                    "max_losing_streak": 3,
+                    "mean_r": "-0.2473697336740269340447424409",
+                    "profit_factor": "0.5235887848762969099863693575",
+                    "total_r": "-3.710546005110404010671136613",
+                    "trades": 15
+                  },
+                  {
+                    "max_drawdown_r": "4.400000000000000000000000000",
+                    "max_losing_streak": 4,
+                    "mean_r": "0.2778567610049748274164217968",
+                    "profit_factor": "1.505194110918136049848039630",
+                    "total_r": "4.445708176079597238662748748",
+                    "trades": 16
+                  }
+                ],
+                "total_r": "2.158871669207476304216632594",
+                "trades": 46
+              }
+            }
+          },
+          "temporal_check": "EQUAL_COUNT_TERCILES",
+          "trades": 158
+        },
+        "risk_governors": [
+          {
+            "acceptance_pass": false,
+            "governor": "FIXED_1R",
+            "stats": {
+              "max_drawdown_scaled_r": "10.69890767129197063862956008",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1352626572932679950975392841",
+              "minimum_risk_scale": "1",
+              "profit_factor_scaled_net_010": "1.322222350189334654677156258",
+              "risk_scale_counts": {
+                "1": 374
+              },
+              "total_scaled_net_010_r": "50.58823382768223016647969224",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "7.293737482331119942528863609",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1049708524071563112425135180",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.372992707473263586471811378",
+              "risk_scale_counts": {
+                "0.50": 206,
+                "0.75": 68,
+                "1": 100
+              },
+              "total_scaled_net_010_r": "39.25909880027646040470005572",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1P5_3_SCALE_075_050",
+            "stats": {
+              "max_drawdown_scaled_r": "7.396899496715762064397262849",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.1035411437615500530840102551",
+              "minimum_risk_scale": "0.50",
+              "profit_factor_scaled_net_010": "1.382104923383085786349526992",
+              "risk_scale_counts": {
+                "0.50": 233,
+                "0.75": 47,
+                "1": 94
+              },
+              "total_scaled_net_010_r": "38.72438776681971985341983542",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_2_4_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "6.24027828193990535341223508",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.08922096180070152864533254142",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.495477335277920546010815499",
+              "risk_scale_counts": {
+                "0.25": 263,
+                "0.75": 40,
+                "1": 71
+              },
+              "total_scaled_net_010_r": "33.36863971346237171335437049",
+              "trades": 374
+            }
+          },
+          {
+            "acceptance_pass": false,
+            "governor": "DD_1_3_SCALE_075_025",
+            "stats": {
+              "max_drawdown_scaled_r": "5.27149091632421966466956655",
+              "max_losing_streak": 6,
+              "mean_scaled_net_010_r": "0.09058741402557856546000127479",
+              "minimum_risk_scale": "0.25",
+              "profit_factor_scaled_net_010": "1.501094906917702960221870731",
+              "risk_scale_counts": {
+                "0.25": 253,
+                "0.75": 66,
+                "1": 55
+              },
+              "total_scaled_net_010_r": "33.87969284556638348204047677",
+              "trades": 374
+            }
+          }
+        ]
+      }
+    ],
+    "schema": "qore.turtle_soup_gbpusd.r36_f2_structural_forensics.v1",
+    "selected": null,
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "open": "2024-09-17T00:00:00+00:00",
+      "same_consumed_development_window": true
+    }
+  },
+  "research_result": "success",
+  "sha256sums": [
+    "c9a7b8015350e487fd98bd13b755944b4445e9b2a973ecc465341edefc709529  r36-f2-structural-forensics-report.json",
+    "339a0b966725500eb882c4d392aaf711b16adf3f76938e79b2f5f3351e43e50b  stdout.json",
+    "3171b24ca1249f22526901cae5b27fa9a8835f5ec764d96483e80a4a03e06359  git-sha.txt"
+  ],
+  "workflow_run_id": 35351751419,
+  "workflow_sha": "cc8abf8c42a27e91ab1bf3e0a06486c0ea160f04"
+}

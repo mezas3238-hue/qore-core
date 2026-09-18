@@ -1,0 +1,163 @@
+name: QORE Turtle Soup GBPUSD R39 Frozen R37 5Y Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpusd-r39-frozen-r37-5y-validation.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r39_frozen_r37_5y_validation.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r39_frozen_r37_5y_validation.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-GBPUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  V2_RUN_ID: '35339237432'
+  V2_ARTIFACT: 'qore-turtle-soup-gbpusd-structural-specialist-v2-r27-b7005f4dab80376f3bdd5ce199e37f425ab99633'
+  FREEZE_RUN_ID: '35352628190'
+  FREEZE_ARTIFACT: 'qore-turtle-soup-gbpusd-r38-candidate-freeze-ca8117643986e9c1fbb8e4ee3ddac5d06e3a6ce7'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r39_frozen_r37_5y_validation.py             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r39_frozen_r37_5y_validation.py
+      - run: |
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r39_frozen_r37_5y_validation.py
+      - run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r39_frozen_r37_5y_validation.py
+
+  validate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.V2_ARTIFACT }}
+          path: cognitive-v2
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V2_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FREEZE_ARTIFACT }}
+          path: freeze-r38
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FREEZE_RUN_ID }}
+      - name: Run exact frozen 5Y validation
+        run: |
+          mkdir -p r39-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r39_frozen_r37_5y_validation             source-gbpusd target-gbpusd cognitive-v2 freeze-r38 r39-output             > r39-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r39-output/git-sha.txt
+      - name: Enforce frozen governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r39-output/r39-5y-validation-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPUSD_R39_FROZEN_R37_5Y_VALIDATION_V1'
+          assert p['window']['open']=='2021-09-17T00:00:00+00:00'
+          assert p['window']['close']=='2026-09-17T00:00:00+00:00'
+          assert p['memory_binding']['rules_reoptimized_for_5y'] is False
+          a=p['predeclared_acceptance']
+          assert a['minimum_trades']==800
+          assert a['minimum_profit_factor_scaled_net_010']=='1.50'
+          assert a['maximum_drawdown_scaled_net_010_r']=='6.0'
+          g=p['governance']
+          assert g['candidate_frozen'] is True
+          assert g['candidate_certified'] is False
+          assert g['fresh_holdout_consumed'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash 5Y evidence
+        run: |
+          cd r39-output
+          sha256sum r39-5y-validation-report.json r39-5y-scaled-trades.jsonl stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r39-frozen-r37-5y-${{ github.sha }}
+          path: r39-output
+          if-no-files-found: error
+          retention-days: 90
+
+  publish_status:
+    if: always()
+    needs: [quality, validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
+      - name: Download successful 5Y artifact
+        if: needs.validate.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r39-frozen-r37-5y-${{ github.sha }}
+          path: published-result
+      - name: Write auditable status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_GBPUSD_R39_FROZEN_5Y_STATUS',
+            'workflow_run_id':int(os.environ['RUN_ID']),
+            'workflow_sha':os.environ['RUN_SHA'],
+            'quality_result':os.environ['QUALITY_RESULT'],
+            'validation_result':os.environ['VALIDATE_RESULT'],
+          }
+          matches=list(Path('published-result').rglob('r39-5y-validation-report.json'))
+          if len(matches)==1:
+            out['r39_report']=json.loads(matches[0].read_text())
+          sums=list(Path('published-result').rglob('SHA256SUMS.txt'))
+          if len(sums)==1:
+            out['sha256sums']=sums[0].read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-GBPUSD-R39-FROZEN-5Y-LATEST.json').write_text(
+            json.dumps(out,indent=2,sort_keys=True)+'\n'
+          )
+          PY
+      - name: Commit status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-GBPUSD-R39-FROZEN-5Y-LATEST.json
+          git commit -m "research(gbpusd): record R39 frozen 5Y result" || exit 0
+          git push origin HEAD:agent/turtle-soup-gbpusd-specialist-memory-v1-001

@@ -1,0 +1,157 @@
+name: QORE Turtle Soup GBPUSD R45 Final Certification Suite
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpusd-r45-final-certification-suite.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r45_final_certification_suite.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r45_final_certification_suite.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  R43_RUN_ID: '35357443440'
+  R43_ARTIFACT: 'qore-turtle-soup-gbpusd-r43-rank2-fragility-2748596bd132e6577e87851849a338b9a7a9c42e'
+  R39_RUN_ID: '35353073610'
+  R39_ARTIFACT: 'qore-turtle-soup-gbpusd-r39-frozen-r37-5y-e02d9384fbe6521040fc2779a085c43b8d5f0f92'
+  FREEZE_RUN_ID: '35357779125'
+  FREEZE_ARTIFACT: 'qore-turtle-soup-gbpusd-r44-candidate-freeze-2247dc004a83b81b2e0f3787d9953a23ad75f9c6'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r45_final_certification_suite.py             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r45_final_certification_suite.py
+      - run: |
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r45_final_certification_suite.py
+      - run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r45_final_certification_suite.py
+
+  certify:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R43_ARTIFACT }}
+          path: r43-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R43_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R39_ARTIFACT }}
+          path: r39-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R39_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FREEZE_ARTIFACT }}
+          path: freeze-r44
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FREEZE_RUN_ID }}
+      - name: Run frozen final certification suite
+        run: |
+          mkdir -p r45-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r45_final_certification_suite             r43-source r39-source freeze-r44 r45-output > r45-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r45-output/git-sha.txt
+      - name: Enforce certification governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r45-output/r45-final-certification-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_SUITE_V1'
+          c=p['certification_contract']
+          assert c['rules_reoptimized_after_r44_freeze'] is False
+          assert c['fresh_holdout_consumed'] is False
+          assert c['all_five_annual_blocks_required_positive'] is True
+          assert c['fail_closed'] is True
+          assert p['frozen_5y']['trades']==907
+          assert p['frozen_5y']['positive_annual_blocks']==5
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          assert g['production_authorized'] is False
+          PY
+      - name: Hash R45 certification evidence
+        run: |
+          cd r45-output
+          sha256sum r45-final-certification-report.json r45-certification-manifest.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r45-final-certification-${{ github.sha }}
+          path: r45-output
+          if-no-files-found: error
+          retention-days: 90
+
+  publish_status:
+    if: always()
+    needs: [quality, certify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
+      - name: Download successful certification artifact
+        if: needs.certify.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r45-final-certification-${{ github.sha }}
+          path: published-result
+      - name: Write auditable R45 status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          CERTIFY_RESULT: ${{ needs.certify.result }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_STATUS',
+            'workflow_run_id':int(os.environ['RUN_ID']),
+            'workflow_sha':os.environ['RUN_SHA'],
+            'quality_result':os.environ['QUALITY_RESULT'],
+            'certify_result':os.environ['CERTIFY_RESULT'],
+          }
+          reports=list(Path('published-result').rglob('r45-final-certification-report.json'))
+          if len(reports)==1:
+            out['r45_report']=json.loads(reports[0].read_text())
+          manifests=list(Path('published-result').rglob('r45-certification-manifest.json'))
+          if len(manifests)==1:
+            out['certification_manifest']=json.loads(manifests[0].read_text())
+          sums=list(Path('published-result').rglob('SHA256SUMS.txt'))
+          if len(sums)==1:
+            out['sha256sums']=sums[0].read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-GBPUSD-R45-FINAL-CERTIFICATION-LATEST.json').write_text(
+            json.dumps(out,indent=2,sort_keys=True)+'\n'
+          )
+          PY
+      - name: Commit status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-GBPUSD-R45-FINAL-CERTIFICATION-LATEST.json
+          git commit -m "research(gbpusd): record R45 final certification status" || exit 0
+          git push origin HEAD:agent/turtle-soup-gbpusd-specialist-memory-v1-001
