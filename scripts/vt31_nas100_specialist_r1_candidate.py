@@ -1,0 +1,872 @@
+"""Frozen-candidate implementation for the intelligent NAS100 VT31 specialist.
+
+The specialist reconstructs its decision state directly from NAS100 M1 evidence.
+It does not query CIBO by date.  CIBO Atlas was the consumed historical learning
+source used to define the causal state machine; runtime observation is rebuilt
+from closed bars.
+
+Research-only candidate.  No holdout is opened by this module.
+"""
+# ruff: noqa: B009
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from collections import Counter, defaultdict
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from pathlib import Path
+from statistics import median
+from typing import Any, cast
+
+import vt31_nas100_intelligence_policy_lab_v2b as v2b
+import vt31_nas100_r1_candidate as baseline
+
+from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
+    _day,
+    _metrics,
+    _wall,
+    load_market_evidence,
+)
+from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
+    Vt31R22EntryEvidence,
+    Vt31R22ExecutableSetup,
+    Vt31R22ExecutionPolicy,
+    Vt31R22SourceSetup,
+    evaluate_vt31_r2_2_source,
+    make_executable_setup,
+)
+
+SCHEMA = "qore.vt31.nas100.specialist_r1.replay.v1"
+CANDIDATE_ID = "VT31_NAS100_SPECIALIST_R1"
+MARKET = "NAS100"
+FRICTION = Decimal("0.05")
+COMPRESSION_THRESHOLD = Decimal("0.75")
+LATE_STATE_CUTOFF_MINUTE = 10 * 60 + 30
+PARTIAL_TARGET_R = Decimal("1.25")
+PARTIAL_FRACTION = Decimal("0.50")
+CIBO_EIGHT_LEDGER_RUN_ID = 35175782935
+CIBO_EIGHT_LEDGER_ARTIFACT_ID = 10478487667
+CIBO_EIGHT_LEDGER_DIGEST = (
+    "sha256:17c8d1909152d87ed67a05cd986fa9cca39b2ac92598d36822c38e8afccde192"
+)
+
+
+def contract_payload() -> dict[str, object]:
+    policy = Vt31R22ExecutionPolicy()
+    return {
+        "candidate_id": CANDIDATE_ID,
+        "market": MARKET,
+        "timezone": "America/New_York",
+        "methodology": "VT31-AM-Silver-Bullet-R2.2-specialized-NAS100",
+        "reference": "09:00-10:00-NY-frozen-M1",
+        "source_setup_window": "10:00-11:00-NY",
+        "source_model": "strict-first-side-raid->structural-close->PD-array",
+        "entry_families": ["breaker", "fair-value-gap", "order-block"],
+        "execution_policy_fingerprint": policy.fingerprint(),
+        "runtime_intelligence": {
+            "source": "NAS100-closed-M1-only",
+            "date_level_cibo_lookup": False,
+            "future_bar_lookup": False,
+            "cross_index_required": False,
+            "last_structure_state": (
+                "rebuild-CIBO-equivalent-source-zone/local-liquidity/"
+                "reference-liquidity event timeline through decision"
+            ),
+            "entry_state": {
+                "last_observed_structure_event": "reference-liquidity-sweep",
+                "current_path_volatility_state": (
+                    "compressed:<0.75x previous admitted NY 00:00-16:00 range"
+                ),
+                "conditional_timing": "decision-before-10:30-NY",
+                "sequence_freshness": "reject first-reference-reclaim age 8-14m",
+            },
+        },
+        "entry": "earliest-source-valid-R2.2-executable-confluence",
+        "initial_stop": "source-methodological-swing-extreme-no-buffer",
+        "target_intelligence": {
+            "reference_volatility_definition": (
+                "09:00-reference-width / median(last-up-to-5 admitted prior "
+                "09:00-reference-widths)"
+            ),
+            "compressed_reference": {
+                "condition": "<0.75",
+                "action": "full-opposite-frozen-09-boundary",
+                "management": "single-BE-at-source-3R-next-bar;no-trailing",
+            },
+            "normal_or_expanded_reference": {
+                "condition": ">=0.75",
+                "action": (
+                    "50%-at-1.25R + 50%-runner-to-opposite-frozen-09-boundary"
+                ),
+                "runner_management": "move-runner-to-BE-next-bar-after-partial",
+            },
+            "boundary_closer_than_partial": "full-exit-at-boundary",
+        },
+        "pending_expiry": "11:00-NY",
+        "filled_lifecycle": "16:00-NY",
+        "same_bar_ambiguity": "censor/fail-closed",
+        "friction_r_per_trade": format(FRICTION, "f"),
+        "cross_index": (
+            "optional-context-telemetry-only;not-required-so-SP500/US30 "
+            "fresh-holdouts-remain-independent"
+        ),
+        "historical_learning_binding": {
+            "cibo_run_id": CIBO_EIGHT_LEDGER_RUN_ID,
+            "cibo_artifact_id": CIBO_EIGHT_LEDGER_ARTIFACT_ID,
+            "cibo_digest": CIBO_EIGHT_LEDGER_DIGEST,
+            "market_state_run": 35284479467,
+            "cibo_bridge_run": 35288950361,
+            "market_understanding_run": 35289940990,
+            "policy_lab_run": 35290200552,
+        },
+        "development_gates": {
+            "per_fold_terminal_sample": ">=30",
+            "per_fold_stressed_mean_r": ">0",
+            "per_fold_stressed_profit_factor": ">=1.15",
+            "per_fold_max_drawdown_r": "<=20",
+            "per_fold_max_losing_streak": "<=15",
+            "per_fold_mc_positive_terminal_probability": ">=0.70",
+            "per_fold_mc_p95_max_drawdown_r": "<=20",
+        },
+        "holdout_order": (
+            "implementation->focused/static/full-QORE->exact-SHA+fingerprint-"
+            "freeze->one-shot-2015-04-19..2016-04-19-holdout"
+        ),
+        "holdout_retuning": False,
+        "research_only": True,
+        "candidate_frozen": False,
+        "live_authorized": False,
+        "real_capital_authorized": False,
+        "production_authorized": False,
+    }
+
+
+def contract_fingerprint() -> str:
+    encoded = json.dumps(
+        contract_payload(),
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _d(value: object) -> Decimal:
+    return Decimal(str(value))
+
+
+def _slice(
+    bars: tuple[object, ...],
+    start: tuple[int, int, int],
+    end: tuple[int, int, int],
+) -> tuple[object, ...]:
+    return tuple(
+        bar
+        for bar in bars
+        if start <= _wall(getattr(bar, "opened_at")) < end
+    )
+
+
+def _interval_range(bars: tuple[object, ...]) -> Decimal | None:
+    if not bars:
+        return None
+    return max(_d(getattr(bar, "high")) for bar in bars) - min(
+        _d(getattr(bar, "low")) for bar in bars
+    )
+
+
+def _admitted_day(day_bars: tuple[object, ...]) -> bool:
+    return (
+        len(_slice(day_bars, (9, 0, 0), (10, 0, 0))) == 60
+        and len(_slice(day_bars, (10, 0, 0), (11, 0, 0))) == 60
+    )
+
+
+def _local_swing_indices(
+    path: tuple[object, ...],
+) -> tuple[list[int], list[int]]:
+    highs: list[int] = []
+    lows: list[int] = []
+    for index in range(2, len(path) - 2):
+        high = _d(getattr(path[index], "high"))
+        low = _d(getattr(path[index], "low"))
+        if high >= max(
+            _d(getattr(path[index - 2], "high")),
+            _d(getattr(path[index - 1], "high")),
+        ) and high > max(
+            _d(getattr(path[index + 1], "high")),
+            _d(getattr(path[index + 2], "high")),
+        ):
+            highs.append(index)
+        if low <= min(
+            _d(getattr(path[index - 2], "low")),
+            _d(getattr(path[index - 1], "low")),
+        ) and low < min(
+            _d(getattr(path[index + 1], "low")),
+            _d(getattr(path[index + 2], "low")),
+        ):
+            lows.append(index)
+    return highs, lows
+
+
+def _local_sweep_events(
+    path: tuple[object, ...],
+) -> list[tuple[datetime, int, str]]:
+    events: list[tuple[datetime, int, str]] = []
+    highs, lows = _local_swing_indices(path)
+    for index, bar in enumerate(path):
+        prior_highs = [item for item in highs if item <= index - 2]
+        prior_lows = [item for item in lows if item <= index - 2]
+        if prior_highs:
+            level = _d(getattr(path[prior_highs[-1]], "high"))
+            if (
+                _d(getattr(bar, "high")) > level
+                and _d(getattr(bar, "close")) < level
+            ):
+                events.append(
+                    (
+                        cast(datetime, getattr(bar, "opened_at")),
+                        1,
+                        "local-liquidity-sweep",
+                    )
+                )
+        if prior_lows:
+            level = _d(getattr(path[prior_lows[-1]], "low"))
+            if (
+                _d(getattr(bar, "low")) < level
+                and _d(getattr(bar, "close")) > level
+            ):
+                events.append(
+                    (
+                        cast(datetime, getattr(bar, "opened_at")),
+                        1,
+                        "local-liquidity-sweep",
+                    )
+                )
+    return events
+
+
+def _reference_sweep_events(
+    path: tuple[object, ...],
+    source: Vt31R22SourceSetup,
+) -> list[tuple[datetime, int, str]]:
+    events: list[tuple[datetime, int, str]] = []
+    for bar in path:
+        high = _d(getattr(bar, "high"))
+        low = _d(getattr(bar, "low"))
+        close = _d(getattr(bar, "close"))
+        opened_at = cast(datetime, getattr(bar, "opened_at"))
+        if high > source.reference.high and close < source.reference.high:
+            events.append(
+                (opened_at, 2, "reference-liquidity-sweep")
+            )
+        if low < source.reference.low and close > source.reference.low:
+            events.append(
+                (opened_at, 2, "reference-liquidity-sweep")
+            )
+    return events
+
+
+def _zone_touch(
+    bar: object,
+    candidate: Vt31R22EntryEvidence,
+) -> bool:
+    return (
+        _d(getattr(bar, "high")) >= candidate.zone_lower
+        and _d(getattr(bar, "low")) <= candidate.zone_upper
+    )
+
+
+def _source_zone_events(
+    path: tuple[object, ...],
+    source: Vt31R22SourceSetup,
+    decision_at: datetime,
+) -> list[tuple[datetime, int, str]]:
+    events: list[tuple[datetime, int, str]] = []
+    for candidate in source.candidates:
+        if candidate.formed_at > decision_at:
+            continue
+        eligible = [
+            bar
+            for bar in path
+            if cast(datetime, getattr(bar, "closed_at"))
+            >= candidate.formed_at
+        ]
+        touched = next(
+            (bar for bar in eligible if _zone_touch(bar, candidate)),
+            None,
+        )
+        if touched is None:
+            continue
+        touch_at = cast(datetime, getattr(touched, "opened_at"))
+        if touch_at <= decision_at:
+            events.append((touch_at, 0, candidate.family.value))
+    return events
+
+
+def _last_structure_event_family(
+    session_prefix: tuple[object, ...],
+    source: Vt31R22SourceSetup,
+    decision_at: datetime,
+) -> tuple[str, int | None]:
+    path = tuple(
+        bar
+        for bar in session_prefix
+        if cast(datetime, getattr(bar, "closed_at"))
+        >= source.structure.raid_at
+    )
+    events = [
+        *_source_zone_events(path, source, decision_at),
+        *_local_sweep_events(path),
+        *_reference_sweep_events(path, source),
+    ]
+    if not events:
+        return "none", None
+    events.sort(key=lambda item: (item[0], item[1]))
+    event_at, _, family = events[-1]
+    age = int((decision_at - event_at).total_seconds() // 60)
+    return family, age
+
+
+def _first_reference_reclaim_at(
+    session_prefix: tuple[object, ...],
+    source: Vt31R22SourceSetup,
+) -> datetime | None:
+    for bar in session_prefix:
+        closed_at = cast(datetime, getattr(bar, "closed_at"))
+        if closed_at < source.structure.raid_at:
+            continue
+        close = _d(getattr(bar, "close"))
+        if source.side.value == "short" and close < source.reference.high:
+            return closed_at
+        if source.side.value == "long" and close > source.reference.low:
+            return closed_at
+    return None
+
+
+def _reference_width(day_bars: tuple[object, ...]) -> Decimal | None:
+    reference = _slice(day_bars, (9, 0, 0), (10, 0, 0))
+    if len(reference) != 60:
+        return None
+    return _interval_range(reference)
+
+
+def _prior_context(
+    local_day: date,
+    by_day: dict[date, tuple[object, ...]],
+) -> tuple[Decimal | None, Decimal | None]:
+    prior_admitted = [
+        day
+        for day in sorted(by_day)
+        if day < local_day and _admitted_day(by_day[day])
+    ]
+    if not prior_admitted:
+        return None, None
+    previous_day = by_day[prior_admitted[-1]]
+    previous_path_range = _interval_range(
+        _slice(previous_day, (0, 0, 0), (16, 0, 0))
+    )
+    widths = [
+        width
+        for day in prior_admitted[-5:]
+        if (width := _reference_width(by_day[day])) is not None
+        and width > 0
+    ]
+    prior_ref_median = median(widths) if widths else None
+    return previous_path_range, prior_ref_median
+
+
+def _state_snapshot(
+    local_day: date,
+    day_bars: tuple[object, ...],
+    by_day: dict[date, tuple[object, ...]],
+    session_prefix: tuple[object, ...],
+    source: Vt31R22SourceSetup,
+    executable: Vt31R22ExecutableSetup,
+) -> dict[str, object]:
+    decision_at = executable.decision_at
+    decision_local = decision_at.astimezone(
+        __import__("zoneinfo").ZoneInfo("America/New_York")
+    )
+    decision_minute = decision_local.hour * 60 + decision_local.minute
+
+    previous_path_range, prior_ref_median = _prior_context(
+        local_day,
+        by_day,
+    )
+    current_path = tuple(
+        bar
+        for bar in day_bars
+        if (0, 0, 0)
+        <= _wall(getattr(bar, "opened_at"))
+        < (16, 0, 0)
+        and cast(datetime, getattr(bar, "closed_at")) <= decision_at
+    )
+    current_path_range = _interval_range(current_path)
+    current_path_ratio = (
+        current_path_range / previous_path_range
+        if current_path_range is not None
+        and previous_path_range is not None
+        and previous_path_range > 0
+        else None
+    )
+    current_path_compressed = (
+        current_path_ratio is not None
+        and current_path_ratio < COMPRESSION_THRESHOLD
+    )
+
+    reference_width = source.reference.high - source.reference.low
+    ref_ratio = (
+        reference_width / prior_ref_median
+        if prior_ref_median is not None and prior_ref_median > 0
+        else None
+    )
+    reference_volatility_state = (
+        "unavailable"
+        if ref_ratio is None
+        else (
+            "compressed"
+            if ref_ratio < COMPRESSION_THRESHOLD
+            else (
+                "normal"
+                if ref_ratio <= Decimal("1.25")
+                else "expanded"
+            )
+        )
+    )
+
+    reclaim_at = _first_reference_reclaim_at(session_prefix, source)
+    reclaim_age = (
+        int((decision_at - reclaim_at).total_seconds() // 60)
+        if reclaim_at is not None
+        else None
+    )
+    stale_8_14 = (
+        reclaim_age is not None and 8 <= reclaim_age < 15
+    )
+    last_family, last_age = _last_structure_event_family(
+        session_prefix,
+        source,
+        decision_at,
+    )
+
+    execute = (
+        last_family == "reference-liquidity-sweep"
+        and current_path_compressed
+        and decision_minute < LATE_STATE_CUTOFF_MINUTE
+        and not stale_8_14
+    )
+    abstain_reasons: list[str] = []
+    if last_family != "reference-liquidity-sweep":
+        abstain_reasons.append("last-event-not-reference-liquidity-sweep")
+    if not current_path_compressed:
+        abstain_reasons.append("current-path-not-compressed")
+    if decision_minute >= LATE_STATE_CUTOFF_MINUTE:
+        abstain_reasons.append("compressed-reference-sweep-state-too-late")
+    if stale_8_14:
+        abstain_reasons.append("reference-reclaim-stale-8-14m")
+
+    target_plan = (
+        "FULL_STRUCTURAL_BOUNDARY"
+        if reference_volatility_state == "compressed"
+        else "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER"
+    )
+    return {
+        "decision_at": decision_at.astimezone(UTC).isoformat(),
+        "decision_minute_ny": decision_minute,
+        "last_structure_event_family": last_family,
+        "last_structure_event_age_minutes": last_age,
+        "reference_reclaim_age_minutes": reclaim_age,
+        "sequence_stale_8_14": stale_8_14,
+        "previous_admitted_path_range": (
+            None
+            if previous_path_range is None
+            else format(previous_path_range, "f")
+        ),
+        "current_path_range": (
+            None
+            if current_path_range is None
+            else format(current_path_range, "f")
+        ),
+        "current_path_vs_previous": (
+            None
+            if current_path_ratio is None
+            else format(current_path_ratio, "f")
+        ),
+        "current_path_compressed": current_path_compressed,
+        "reference_width": format(reference_width, "f"),
+        "prior5_reference_width_median": (
+            None
+            if prior_ref_median is None
+            else format(prior_ref_median, "f")
+        ),
+        "reference_width_vs_prior5": (
+            None if ref_ratio is None else format(ref_ratio, "f")
+        ),
+        "reference_volatility_state": reference_volatility_state,
+        "action": "EXECUTE" if execute else "ABSTAIN",
+        "abstain_reasons": abstain_reasons,
+        "stop_plan": "SOURCE_SWING_EXTREME",
+        "target_plan": target_plan,
+    }
+
+
+def _simulate_selected_plan(
+    day_bars: tuple[object, ...],
+    executable: Vt31R22ExecutableSetup,
+    state: dict[str, object],
+) -> dict[str, object]:
+    if state["target_plan"] == "FULL_STRUCTURAL_BOUNDARY":
+        outcome = baseline._simulate(day_bars, executable)
+        if outcome.get("status") == "terminal":
+            outcome["target_plan"] = state["target_plan"]
+        return outcome
+    outcome = v2b._simulate_partial_runner(
+        day_bars,
+        executable,
+        PARTIAL_TARGET_R,
+    )
+    if outcome.get("status") == "terminal":
+        outcome["target_plan"] = state["target_plan"]
+    return outcome
+
+
+def _monte_carlo(
+    trades: list[dict[str, object]],
+) -> dict[str, object]:
+    values = [
+        Decimal(cast(str, trade["r_multiple"])) - FRICTION
+        for trade in trades
+    ]
+    n = len(values)
+    if n == 0:
+        return {
+            "paths": 10000,
+            "block_length": 5,
+            "positive_terminal_probability": "0",
+            "p95_max_drawdown_r": "0",
+        }
+    domain = (
+        b"qore:vt31-nas100-specialist-r1:"
+        + contract_fingerprint().encode()
+    )
+    terminals: list[Decimal] = []
+    drawdowns: list[Decimal] = []
+    for path_index in range(10000):
+        sampled: list[Decimal] = []
+        block_index = 0
+        while len(sampled) < n:
+            digest = hashlib.sha256(
+                domain
+                + b":"
+                + str(path_index).encode()
+                + b":"
+                + str(block_index).encode()
+            ).digest()
+            start = int.from_bytes(digest, "big") % n
+            sampled.extend(
+                values[(start + offset) % n]
+                for offset in range(5)
+            )
+            block_index += 1
+        equity = Decimal(0)
+        peak = Decimal(0)
+        max_dd = Decimal(0)
+        for value in sampled[:n]:
+            equity += value
+            peak = max(peak, equity)
+            max_dd = max(max_dd, peak - equity)
+        terminals.append(equity)
+        drawdowns.append(max_dd)
+    terminals.sort()
+    drawdowns.sort()
+    return {
+        "algorithm": "sha256-moving-block-bootstrap-v1",
+        "paths": 10000,
+        "block_length": 5,
+        "positive_terminal_probability": format(
+            Decimal(sum(value > 0 for value in terminals))
+            / Decimal(10000),
+            "f",
+        ),
+        "p05_terminal_r": format(
+            terminals[(len(terminals) - 1) * 5 // 100],
+            "f",
+        ),
+        "p50_terminal_r": format(
+            terminals[(len(terminals) - 1) * 50 // 100],
+            "f",
+        ),
+        "p95_max_drawdown_r": format(
+            drawdowns[(len(drawdowns) - 1) * 95 // 100],
+            "f",
+        ),
+    }
+
+
+def _block_metrics(
+    trades: list[dict[str, object]],
+    halfyear: bool,
+) -> dict[str, dict[str, object]]:
+    groups: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for trade in trades:
+        local_date = cast(str, trade["local_date"])
+        month = int(local_date[5:7])
+        key = (
+            f"{local_date[:4]}-H{1 if month <= 6 else 2}"
+            if halfyear
+            else f"{local_date[:4]}-Q{(month - 1) // 3 + 1}"
+        )
+        groups[key].append(trade)
+    return {
+        key: _metrics(group, friction=FRICTION)
+        for key, group in sorted(groups.items())
+    }
+
+
+def replay(evidence_path: Path) -> dict[str, object]:
+    series, account, evidence, checked, evidence_sha, provider = (
+        load_market_evidence(evidence_path)
+    )
+    if not series or getattr(series[0], "instrument").symbol != MARKET:
+        raise ValueError("VT31_NAS100_SPECIALIST_R1 requires NAS100 evidence")
+
+    raw_by_day: dict[date, list[object]] = defaultdict(list)
+    for bar in series:
+        raw_by_day[_day(getattr(bar, "opened_at"))].append(bar)
+    by_day: dict[date, tuple[object, ...]] = {
+        day: tuple(sorted(bars, key=lambda bar: getattr(bar, "opened_at")))
+        for day, bars in raw_by_day.items()
+    }
+
+    policy = Vt31R22ExecutionPolicy()
+    trades: list[dict[str, object]] = []
+    reasoning_trace: list[dict[str, object]] = []
+    status_counts: Counter[str] = Counter()
+    target_plan_counts: Counter[str] = Counter()
+
+    for local_day in sorted(by_day):
+        day_bars = by_day[local_day]
+        reference = _slice(day_bars, (9, 0, 0), (10, 0, 0))
+        session = _slice(day_bars, (10, 0, 0), (11, 0, 0))
+        if len(reference) != 60 or len(session) != 60:
+            status_counts["incomplete-day"] += 1
+            continue
+
+        prefix = list(reference)
+        selected_source: Vt31R22SourceSetup | None = None
+        selected: Vt31R22ExecutableSetup | None = None
+        selected_session_prefix: tuple[object, ...] = ()
+        for bar in session:
+            prefix.append(bar)
+            evaluation = evaluate_vt31_r2_2_source(
+                instrument=getattr(bar, "instrument"),
+                as_of=getattr(bar, "closed_at"),
+                m1_candles=cast(Any, tuple(prefix)),
+                evidence_fingerprint=evidence,
+            )
+            if evaluation.setup is None:
+                continue
+            executable, _ = make_executable_setup(
+                evaluation.setup,
+                policy,
+            )
+            if executable is None:
+                status_counts["source-not-executable"] += 1
+                break
+            selected_source = evaluation.setup
+            selected = executable
+            selected_session_prefix = tuple(
+                item
+                for item in prefix
+                if (10, 0, 0)
+                <= _wall(getattr(item, "opened_at"))
+                < (11, 0, 0)
+            )
+            break
+
+        if selected is None or selected_source is None:
+            status_counts["no-source-setup"] += 1
+            continue
+
+        state = _state_snapshot(
+            local_day,
+            day_bars,
+            by_day,
+            selected_session_prefix,
+            selected_source,
+            selected,
+        )
+        reasoning_trace.append(
+            {
+                "local_date": local_day.isoformat(),
+                "side": selected.side.value,
+                "entry_family": selected.selected_family.value,
+                "entry": format(selected.entry_price, "f"),
+                "stop": format(selected.stop_price, "f"),
+                "structural_boundary": format(
+                    selected.target_price,
+                    "f",
+                ),
+                **state,
+                "outcome_fields_used_for_decision": False,
+            }
+        )
+        if state["action"] != "EXECUTE":
+            status_counts["intelligence-abstain"] += 1
+            continue
+
+        target_plan_counts[cast(str, state["target_plan"])] += 1
+        outcome = _simulate_selected_plan(day_bars, selected, state)
+        status = cast(str, outcome["status"])
+        status_counts[status] += 1
+        if status != "terminal":
+            continue
+        outcome["intelligence_state"] = {
+            key: state[key]
+            for key in (
+                "decision_minute_ny",
+                "last_structure_event_family",
+                "last_structure_event_age_minutes",
+                "reference_reclaim_age_minutes",
+                "current_path_vs_previous",
+                "reference_width_vs_prior5",
+                "reference_volatility_state",
+                "target_plan",
+            )
+        }
+        trades.append(outcome)
+
+    trades.sort(key=lambda trade: cast(str, trade["signal_at"]))
+    stress = _metrics(trades, friction=FRICTION)
+    mc = _monte_carlo(trades)
+    gates = {
+        "terminal_sample_at_least_30": int(stress["sample"]) >= 30,
+        "stressed_mean_positive": (
+            stress["mean_r"] is not None
+            and Decimal(cast(str, stress["mean_r"])) > 0
+        ),
+        "stressed_profit_factor_at_least_1_15": (
+            stress["profit_factor"] is not None
+            and Decimal(cast(str, stress["profit_factor"]))
+            >= Decimal("1.15")
+        ),
+        "stressed_max_drawdown_at_most_20r": (
+            Decimal(cast(str, stress["max_drawdown_r"]))
+            <= Decimal(20)
+        ),
+        "max_losing_streak_at_most_15": (
+            int(stress["max_losing_streak"]) <= 15
+        ),
+        "mc_positive_terminal_probability_at_least_0_70": (
+            Decimal(cast(str, mc["positive_terminal_probability"]))
+            >= Decimal("0.70")
+        ),
+        "mc_p95_max_drawdown_at_most_20r": (
+            Decimal(cast(str, mc["p95_max_drawdown_r"]))
+            <= Decimal(20)
+        ),
+    }
+    return {
+        "schema": SCHEMA,
+        "candidate_id": CANDIDATE_ID,
+        "contract": contract_payload(),
+        "contract_fingerprint": contract_fingerprint(),
+        "evidence": {
+            "account_fingerprint": account,
+            "evidence_fingerprint": evidence,
+            "checked_at": checked.astimezone(UTC).isoformat(),
+            "evidence_software_sha": evidence_sha,
+            "provider_symbol_name": provider,
+            "bar_count": len(series),
+            "first_opened_at": getattr(series[0], "opened_at")
+            .astimezone(UTC)
+            .isoformat(),
+            "last_closed_at": getattr(series[-1], "closed_at")
+            .astimezone(UTC)
+            .isoformat(),
+        },
+        "market_days": len(by_day),
+        "status_counts": dict(sorted(status_counts.items())),
+        "target_plan_counts": dict(sorted(target_plan_counts.items())),
+        "stress_0_05r": stress,
+        "halfyear_stress": _block_metrics(trades, halfyear=True),
+        "quarter_stress": _block_metrics(trades, halfyear=False),
+        "monte_carlo": mc,
+        "development_gates": gates,
+        "passes_development_gates": all(gates.values()),
+        "trade_count": len(trades),
+        "trades": trades,
+        "reasoning_trace": reasoning_trace,
+        "research_only": True,
+        "candidate_frozen": False,
+        "opens_new_holdout": False,
+        "live_authorized": False,
+        "real_capital_authorized": False,
+        "production_authorized": False,
+    }
+
+
+def self_test() -> None:
+    contract = contract_payload()
+    assert contract["candidate_id"] == CANDIDATE_ID
+    assert contract["market"] == MARKET
+    runtime = cast(dict[str, object], contract["runtime_intelligence"])
+    assert runtime["date_level_cibo_lookup"] is False
+    assert runtime["future_bar_lookup"] is False
+    assert runtime["cross_index_required"] is False
+    assert contract["initial_stop"] == (
+        "source-methodological-swing-extreme-no-buffer"
+    )
+    assert len(contract_fingerprint()) == 64
+    assert COMPRESSION_THRESHOLD == Decimal("0.75")
+    assert PARTIAL_TARGET_R == Decimal("1.25")
+    print(
+        json.dumps(
+            {
+                "candidate_id": CANDIDATE_ID,
+                "contract_fingerprint": contract_fingerprint(),
+            },
+            sort_keys=True,
+        )
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("evidence", nargs="?", type=Path)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    if args.self_test:
+        self_test()
+        return
+    if args.evidence is None or args.output is None:
+        parser.error("evidence and --output are required")
+    payload = replay(args.evidence)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
+        json.dumps(payload, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(
+        json.dumps(
+            {
+                "candidate_id": CANDIDATE_ID,
+                "contract_fingerprint": payload["contract_fingerprint"],
+                "stress_0_05r": payload["stress_0_05r"],
+                "monte_carlo": payload["monte_carlo"],
+                "development_gates": payload["development_gates"],
+                "passes_development_gates": payload[
+                    "passes_development_gates"
+                ],
+                "target_plan_counts": payload["target_plan_counts"],
+            },
+            sort_keys=True,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
