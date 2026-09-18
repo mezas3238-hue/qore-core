@@ -127,21 +127,17 @@ def replay(path: Path) -> dict[str, object]:
 
     for local_day in sorted(by_day):
         day_bars = by_day[local_day]
-        core, _ = _core_selection(
+        core, core_state = _core_selection(
             day_bars,
             context_by_day[local_day],
             evidence=evidence,
         )
-        if core is None:
+        if core is None or core_state is None:
             continue
         outcome = specialist._simulate_selected_plan(
             day_bars,
             core,
-            cast(dict[str, object], _core_selection(
-                day_bars,
-                context_by_day[local_day],
-                evidence=evidence,
-            )[1]),
+            core_state,
         )
         if outcome.get("status") != "no-fill":
             continue
