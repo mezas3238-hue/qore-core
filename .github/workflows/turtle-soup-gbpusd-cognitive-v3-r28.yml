@@ -1,0 +1,202 @@
+name: QORE Turtle Soup GBPUSD Cognitive V3 R28
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpusd-cognitive-v3-r28.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_specialist_cognitive_memory_v3.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r28_validated_specialist_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_specialist_cognitive_memory_v3.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-GBPUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  V2_RUN_ID: '35339237432'
+  V2_SHA: 'b7005f4dab80376f3bdd5ce199e37f425ab99633'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_specialist_cognitive_memory_v3.py             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r28_validated_specialist_brain.py             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_specialist_cognitive_memory_v3.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_specialist_cognitive_memory_v3.py             src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r28_validated_specialist_brain.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_specialist_cognitive_memory_v3.py
+
+  cognitive_v3_and_r28:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable GBPUSD raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download structural Cognitive V2 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-structural-specialist-v2-r27-${{ env.V2_SHA }}
+          path: structural-v2
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V2_RUN_ID }}
+      - name: Build Cognitive Memory V3 economic validation overlay
+        run: |
+          mkdir -p cognitive-v3
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_specialist_cognitive_memory_v3             structural-v2 cognitive-v3 > cognitive-v3/stdout.json
+      - name: Enforce V3 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('cognitive-v3/turtle-soup-gbpusd-specialist-cognitive-memory-v3-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPUSD_SPECIALIST_COGNITIVE_MEMORY_V3'
+          d=p['decision_contract']
+          assert d['causal_structure_frozen_before_economic_validation'] is True
+          assert d['regime_definition_frozen_before_economic_validation'] is True
+          assert d['target_support_frozen_before_economic_validation'] is True
+          assert d['management_posture_frozen_before_economic_validation'] is True
+          assert d['economic_validation_uses_full_lifecycle'] is True
+          assert d['economic_validation_friction_r']=='0.10'
+          assert d['calendar_year_rule'] is False
+          assert d['economic_mean_magnitude_used_for_target_ranking'] is False
+          assert d['r27_result_used_as_input'] is False
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_promoted'] is False
+          PY
+      - name: Run R28 replay
+        run: |
+          mkdir -p r28-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r28_validated_specialist_brain             source-gbpusd target-gbpusd cognitive-v3 r28-output             > r28-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r28-output/git-sha.txt
+      - name: Enforce R28 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r28-output/r28-validated-specialist-brain-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPUSD_R28_VALIDATED_SPECIALIST_BRAIN_V1'
+          d=p['decision_sources']
+          assert d['master_memory_remains_immutable'] is True
+          assert d['r26_result_used_as_decision_input'] is False
+          assert d['r27_result_used_as_decision_input'] is False
+          c=p['decision_contract']
+          assert c['causal_structure_precedes_economic_validation'] is True
+          assert c['situation_definition_uses_economic_results'] is False
+          assert c['regime_definition_uses_economic_results'] is False
+          assert c['management_posture_selected_by_economic_results'] is False
+          assert c['economic_validation_uses_full_lifecycle_net_010'] is True
+          assert c['economic_mean_magnitude_ranks_targets'] is False
+          assert c['calendar_year_regime_rule'] is False
+          assert c['context_only_can_authorize'] is False
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_promoted'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Package and hash evidence
+        run: |
+          mkdir -p package
+          cp cognitive-v3/turtle-soup-gbpusd-specialist-cognitive-memory-v3-report.json package/
+          cp cognitive-v3/turtle-soup-gbpusd-specialist-cognitive-memory-v3.json package/
+          cp r28-output/r28-validated-specialist-brain-report.json package/
+          cp r28-output/r28-validated-specialist-brain-trades.json package/
+          cp r28-output/git-sha.txt package/
+          cd package
+          sha256sum * > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-cognitive-v3-r28-${{ github.sha }}
+          path: package
+          if-no-files-found: error
+          retention-days: 90
+
+  publish_status:
+    if: always()
+    needs: [quality, cognitive_v3_and_r28]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
+      - name: Download successful V3/R28 artifact
+        if: needs.cognitive_v3_and_r28.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-cognitive-v3-r28-${{ github.sha }}
+          path: published-r28
+      - name: Write auditable R28 status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          R28_RESULT: ${{ needs.cognitive_v3_and_r28.result }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_GBPUSD_COGNITIVE_V3_R28_STATUS',
+            'workflow_run_id': int(os.environ['RUN_ID']),
+            'workflow_sha': os.environ['RUN_SHA'],
+            'quality_result': os.environ['QUALITY_RESULT'],
+            'r28_result': os.environ['R28_RESULT'],
+          }
+          for key, fn in [
+            ('v3_report','turtle-soup-gbpusd-specialist-cognitive-memory-v3-report.json'),
+            ('r28_report','r28-validated-specialist-brain-report.json'),
+          ]:
+            matches=list(Path('published-r28').rglob(fn))
+            if len(matches)==1:
+              out[key]=json.loads(matches[0].read_text())
+          sums=list(Path('published-r28').rglob('SHA256SUMS.txt'))
+          if len(sums)==1:
+            out['sha256sums']=sums[0].read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-GBPUSD-COGNITIVE-V3-R28-LATEST.json').write_text(
+            json.dumps(out,indent=2,sort_keys=True)+'\n'
+          )
+          PY
+      - name: Commit R28 status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-GBPUSD-COGNITIVE-V3-R28-LATEST.json
+          git commit -m "research(gbpusd): record cognitive V3 R28 result" || exit 0
+          git push origin HEAD:agent/turtle-soup-gbpusd-specialist-memory-v1-001
