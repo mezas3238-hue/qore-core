@@ -41,7 +41,13 @@ from qore.infrastructure.trader_lab import turtle_soup_audjpy_r1 as r1
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_r2_cibo_full as r2
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_r3_cibo_journey as r3
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_r26_specialist_memory_brain as r26
+from qore.infrastructure.trader_lab import (
+    turtle_soup_audjpy_r32_causal_memory_defragmentation as r32,
+)
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_r34_coarse_causal_memory as r34
+from qore.infrastructure.trader_lab import (
+    turtle_soup_audjpy_r38_structural_fragility_risk_correction as r38,
+)
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_specialist_cognitive_memory_v2 as v2
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_specialist_memory_v1 as v1
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
