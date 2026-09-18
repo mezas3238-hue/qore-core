@@ -7,9 +7,9 @@ subsumed into a two-year calibration interval:
 
 - market: NAS100
 - calibration id: `VT31_NAS100_2Y_CALIBRATION_001`
-- start: `2014-04-19T00:00:00Z`
+- start: `2014-04-14T00:00:00Z`
 - end-exclusive: `2016-04-19T00:00:00Z`
-- calendar span: 731 days
+- calendar span: 736 days
 
 The **first successful acquisition** opens that historical interval. From that
 moment onward the full two-year interval is permanently classified:
