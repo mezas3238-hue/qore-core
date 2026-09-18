@@ -16,8 +16,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_specialist_risk_round6 as r6
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round1 as r1
@@ -34,7 +35,7 @@ SECONDARY_STRESS = Decimal("0.10")
 
 @dataclass(frozen=True, slots=True)
 class Admission:
-    opportunity: Any
+    opportunity: r4.ExpandedOpportunity
     baseline_exit_at: datetime
 
     @property
@@ -68,7 +69,7 @@ def _admissions(
     for symbol in r1.SYMBOLS:
         bars = bars_by_symbol[symbol]
         opened = tuple(bar.opened_at.astimezone(UTC) for bar in bars)
-        candidates: list[tuple[Any, r5.ManagedTrade]] = []
+        candidates: list[tuple[r4.ExpandedOpportunity, r5.ManagedTrade]] = []
         for opportunity in v5y._build_surface_5y(symbol=symbol, bars=bars):
             outcome = r5._manage_trade(
                 opportunity.signal,
@@ -453,9 +454,11 @@ def build_report(
 
     management_cells = breakdowns["market_side"]
     for cell, row in management_cells.items():
-        row["frozen_policy_id"] = str(
-            freeze.MANAGEMENT_BY_CELL[cell]["policy_id"]
+        payload = cast(
+            dict[str, object],
+            freeze.MANAGEMENT_BY_CELL[cell],
         )
+        row["frozen_policy_id"] = str(payload["policy_id"])
 
     return {
         "schema": SCHEMA,
