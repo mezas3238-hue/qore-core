@@ -431,7 +431,7 @@ def mt5_management_evidence(
         api,
         symbol=SYMBOL,
         history_bars=HISTORY_M5_BARS,
-        now=now,
+        now=datetime.now(UTC),
     )
     bars = tuple(
         Bar(
