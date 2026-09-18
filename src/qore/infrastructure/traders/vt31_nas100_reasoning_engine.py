@@ -1,11 +1,18 @@
-"""Deterministic three-memory reasoning engine for VT31_NAS100.
+"""Deterministic pre-trade reasoning engine for VT31_NAS100.
 
-The engine combines:
-- Long-Term Semantic Memory: internalized CIBO NAS100 knowledge;
-- Episodic/Research Memory: lessons from VT31 development;
-- Working Memory: causal state of the market now.
+Architecture:
+Strategy Identity Memory
++ governed CIBO Market Memory
++ Trader Experience / Lab Memory
++ current causal Situation Model
+-> reasoning
+-> ENTER / WAIT / ABSTAIN
+-> destination / management intent.
 
-There is no runtime CIBO query.
+CIBO aggregate associations inform reasoning but cannot independently promote a
+runtime rule. The current economic policy is deliberately preserved while the
+new journey-capacity and contextual-management layers are researched on
+consumed evidence.
 """
 from __future__ import annotations
 
@@ -13,19 +20,23 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
 
+from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+    cibo_market_memory_fingerprint,
+    dossier_payload,
+)
 from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
 )
-from qore.infrastructure.traders.vt31_nas100_episodic_memory import (
-    episodic_memory_fingerprint,
-    episodic_memory_payload,
+from qore.infrastructure.traders.vt31_nas100_situation_model import (
+    Nas100SituationModel,
 )
-from qore.infrastructure.traders.vt31_nas100_long_term_memory import (
-    long_term_memory_fingerprint,
-    long_term_memory_payload,
+from qore.infrastructure.traders.vt31_nas100_strategy_identity_memory import (
+    strategy_identity_fingerprint,
+    strategy_identity_payload,
 )
-from qore.infrastructure.traders.vt31_nas100_working_memory import (
-    Nas100WorkingMemory,
+from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
+    trader_experience_fingerprint,
+    trader_experience_payload,
 )
 
 Action = Literal["EXECUTE", "WAIT", "ABSTAIN"]
@@ -34,7 +45,7 @@ TargetPlan = Literal[
     "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER",
 ]
 
-Nas100ReasoningState = Nas100WorkingMemory
+Nas100ReasoningState = Nas100SituationModel
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,106 +53,170 @@ class Nas100ReasoningDecision:
     action: Action
     target_plan: TargetPlan
     thesis: str
+    journey_capacity_state: str
+    management_context_state: str
     supporting_evidence: tuple[str, ...]
     contradictions: tuple[str, ...]
     uncertainty: tuple[str, ...]
-    long_term_memory_used: tuple[str, ...]
-    episodic_memory_used: tuple[str, ...]
-    working_memory_fingerprint: str
-    long_term_memory_fingerprint: str
-    episodic_memory_fingerprint: str
+    strategy_memory_used: tuple[str, ...]
+    cibo_market_memory_used: tuple[str, ...]
+    trader_experience_memory_used: tuple[str, ...]
+    situation_fingerprint: str
+    strategy_memory_fingerprint: str
+    cibo_market_memory_fingerprint: str
+    trader_experience_memory_fingerprint: str
     memory_fingerprint: str
 
 
-def reason(state: Nas100WorkingMemory) -> Nas100ReasoningDecision:
-    """Interpret current causal state through all three memory stores."""
-    long_term = long_term_memory_payload()
-    episodic = episodic_memory_payload()
-
-    structure_knowledge = long_term["structure_knowledge"]
-    sequence_knowledge = long_term["sequence_knowledge"]
-    destination_knowledge = long_term["destination_knowledge"]
-    supported = episodic["supported_mechanisms"]
-    rejected = episodic["rejected_hypotheses"]
-
-    assert isinstance(structure_knowledge, dict)
-    assert isinstance(sequence_knowledge, dict)
-    assert isinstance(destination_knowledge, dict)
-    assert isinstance(supported, dict)
-    assert isinstance(rejected, dict)
-
-    support: list[str] = []
-    contradictions: list[str] = []
-    uncertainty: list[str] = []
-    long_term_used: list[str] = []
-    episodic_used: list[str] = []
-
-    if state.last_structure_event_family == "reference-liquidity-sweep":
-        support.append("LONG_TERM:REFERENCE_LIQUIDITY_STATE_SUPPORTED")
-        long_term_used.append("structure_knowledge")
-        episodic_used.append("reference_liquidity_state")
-    else:
-        contradictions.append("LATEST_STRUCTURE_NOT_REFERENCE_LIQUIDITY_SWEEP")
-        long_term_used.append("structure_knowledge")
-
-    path_compressed = (
-        state.current_path_vs_previous is not None
-        and state.current_path_vs_previous < Decimal("0.75")
-    )
-    if path_compressed:
-        support.append("WORKING:CURRENT_PATH_COMPRESSION_PRESENT")
-        episodic_used.append("context_required")
-    else:
-        contradictions.append("WORKING:CURRENT_PATH_COMPRESSION_ABSENT")
-        episodic_used.append("context_required")
-
-    reclaim_age = state.reference_reclaim_age_minutes
-    stale = reclaim_age is not None and 8 <= reclaim_age < 15
-    if stale:
-        contradictions.append("EPISODIC:SEQUENCE_FRESHNESS_STALE_8_14")
-        long_term_used.append("sequence_knowledge")
-        episodic_used.append("sequence_freshness")
-    elif reclaim_age is None:
-        uncertainty.append("WORKING:REFERENCE_RECLAIM_AGE_UNAVAILABLE")
-        long_term_used.append("sequence_knowledge")
-    else:
-        support.append("WORKING:SEQUENCE_NOT_IN_KNOWN_STALE_8_14_STATE")
-        long_term_used.append("sequence_knowledge")
-        episodic_used.append("sequence_freshness")
-
-    if state.decision_minute_ny >= 10 * 60 + 30:
-        contradictions.append("WORKING:COMPRESSED_REFERENCE_SWEEP_STATE_TOO_LATE")
-
+def _target_plan(state: Nas100SituationModel) -> TargetPlan:
     reference_compressed = (
         state.reference_width_vs_prior5 is not None
         and state.reference_width_vs_prior5 < Decimal("0.75")
     )
-    target_plan: TargetPlan = (
+    return (
         "FULL_STRUCTURAL_BOUNDARY"
         if reference_compressed
         else "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER"
     )
-    long_term_used.append("destination_knowledge")
-    episodic_used.append("dynamic_destination_management")
-    episodic_used.append("universal_target_plan")
 
+
+def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
+    """Reason from the three memories before constructing the operation."""
+    strategy = strategy_identity_payload()
+    market = dossier_payload()
+    experience = trader_experience_payload()
+
+    support: list[str] = []
+    contradictions: list[str] = []
+    uncertainty: list[str] = []
+    strategy_used: list[str] = []
+    market_used: list[str] = []
+    experience_used: list[str] = []
+
+    # Strategy Identity is the first authority: the market brain cannot turn a
+    # non-VT31 event into VT31.
+    strategy_used.extend(
+        [
+            "source_identity",
+            "invalidation_identity",
+            "destination_identity",
+            "lifecycle",
+        ]
+    )
+    if state.confirmation_state != "confirmed":
+        uncertainty.append("STRATEGY:SOURCE_CONFIRMATION_NOT_COMPLETE")
+    if state.entry_evidence_family not in {
+        "breaker",
+        "fair-value-gap",
+        "order-block",
+    }:
+        uncertainty.append("STRATEGY:ENTRY_EVIDENCE_NOT_ACTIONABLE")
+
+    # General CIBO memory informs what a NAS100 journey historically looks like.
+    journey = market["journey_memory"]
+    target_memory = market["target_destination_memory"]
+    structure_memory = market["structure_memory"]
+    market_used.extend(
+        [
+            "journey_memory",
+            "structure_memory",
+            "target_destination_memory",
+            "by_weekday",
+        ]
+    )
+    assert isinstance(journey, dict)
+    assert isinstance(target_memory, dict)
+    assert isinstance(structure_memory, dict)
+
+    # Trader Experience says the latest reference-liquidity event, compression,
+    # and freshness are meaningful jointly. They are not promoted independently.
+    if state.last_structure_event_family == "reference-liquidity-sweep":
+        support.append("CIBO:REFERENCE_LIQUIDITY_EVENT_OBSERVED")
+        experience_used.append("reference_liquidity_context")
+    elif state.decision_minute_ny < 10 * 60 + 30:
+        uncertainty.append("SITUATION:REFERENCE_LIQUIDITY_STATE_NOT_YET_PRESENT")
+    else:
+        contradictions.append("SITUATION:NO_REFERENCE_LIQUIDITY_STATE_BY_CUTOFF")
+
+    if state.current_path_vs_previous is None:
+        uncertainty.append("SITUATION:PATH_VOLATILITY_CONTEXT_UNAVAILABLE")
+    elif state.current_path_vs_previous < Decimal("0.75"):
+        support.append("SITUATION:CURRENT_PATH_COMPRESSED")
+        experience_used.append("context_is_multidimensional")
+    else:
+        contradictions.append("SITUATION:CURRENT_PATH_NOT_COMPRESSED")
+        experience_used.append("context_is_multidimensional")
+
+    reclaim_age = state.reference_reclaim_age_minutes
+    stale = reclaim_age is not None and 8 <= reclaim_age < 15
+    if stale:
+        uncertainty.append("EXPERIENCE:SEQUENCE_STALE_8_14_REQUIRES_REEVALUATION")
+        experience_used.append("sequence_freshness")
+    elif reclaim_age is None:
+        uncertainty.append("SITUATION:REFERENCE_RECLAIM_AGE_UNAVAILABLE")
+    else:
+        support.append("SITUATION:SEQUENCE_OUTSIDE_KNOWN_STALE_8_14_STATE")
+        experience_used.append("sequence_freshness")
+
+    if state.decision_minute_ny >= 10 * 60 + 30:
+        contradictions.append("EXPERIENCE:CURRENT_SELECTED_STATE_TOO_LATE")
+
+    # Weekday is remembered as association-only context, never a prohibition.
+    weekday_table = market.get("by_weekday")
+    if isinstance(weekday_table, dict) and state.weekday in weekday_table:
+        support.append("CIBO:WEEKDAY_CONTEXT_AVAILABLE_ASSOCIATION_ONLY")
+        market_used.append(f"by_weekday.{state.weekday}")
+
+    plan = _target_plan(state)
+    experience_used.append("dynamic_destination_management")
+    experience_used.append("universal_partial_runner")
     if state.reference_width_vs_prior5 is None:
-        uncertainty.append("WORKING:REFERENCE_VOLATILITY_UNAVAILABLE")
+        uncertainty.append("SITUATION:REFERENCE_VOLATILITY_CONTEXT_UNAVAILABLE")
 
-    hard_block = bool(contradictions)
-    action: Action = "ABSTAIN" if hard_block else "EXECUTE"
+    # Capacity memory currently supports DOL1 as structural destination and
+    # aggregate extension priors. It is not yet calibrated enough to authorize
+    # deeper DOL ranks, so deeper capacity remains explicitly unresolved.
+    journey_capacity_state = (
+        "DOL1_STRUCTURAL_SUPPORTED__DEEPER_DOL_RESEARCH_UNCALIBRATED"
+    )
+    experience_used.append("journey_capacity_memory")
+
+    # Do not copy Turtle Soup SUPPORTIVE/MIXED/CAUTIOUS thresholds. VT31 must
+    # learn its own management-state mapping first.
+    management_context_state = "UNRESOLVED_VT31_CONTEXTUAL_MANAGEMENT"
+    experience_used.append("contextual_position_management")
+
+    transient_wait = any(
+        reason_code in uncertainty
+        for reason_code in (
+            "STRATEGY:SOURCE_CONFIRMATION_NOT_COMPLETE",
+            "STRATEGY:ENTRY_EVIDENCE_NOT_ACTIONABLE",
+            "SITUATION:REFERENCE_LIQUIDITY_STATE_NOT_YET_PRESENT",
+            "EXPERIENCE:SEQUENCE_STALE_8_14_REQUIRES_REEVALUATION",
+        )
+    )
+    if contradictions:
+        action: Action = "ABSTAIN"
+    elif transient_wait:
+        action = "WAIT"
+    else:
+        action = "EXECUTE"
 
     return Nas100ReasoningDecision(
         action=action,
-        target_plan=target_plan,
+        target_plan=plan,
         thesis="REVERSAL_DELIVERY_TOWARD_OPPOSITE_09_REFERENCE_BOUNDARY",
+        journey_capacity_state=journey_capacity_state,
+        management_context_state=management_context_state,
         supporting_evidence=tuple(support),
         contradictions=tuple(contradictions),
         uncertainty=tuple(uncertainty),
-        long_term_memory_used=tuple(dict.fromkeys(long_term_used)),
-        episodic_memory_used=tuple(dict.fromkeys(episodic_used)),
-        working_memory_fingerprint=state.fingerprint(),
-        long_term_memory_fingerprint=long_term_memory_fingerprint(),
-        episodic_memory_fingerprint=episodic_memory_fingerprint(),
+        strategy_memory_used=tuple(dict.fromkeys(strategy_used)),
+        cibo_market_memory_used=tuple(dict.fromkeys(market_used)),
+        trader_experience_memory_used=tuple(dict.fromkeys(experience_used)),
+        situation_fingerprint=state.fingerprint(),
+        strategy_memory_fingerprint=strategy_identity_fingerprint(),
+        cibo_market_memory_fingerprint=cibo_market_memory_fingerprint(),
+        trader_experience_memory_fingerprint=trader_experience_fingerprint(),
         memory_fingerprint=memory_fingerprint(),
     )
