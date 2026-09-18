@@ -22,7 +22,7 @@ jobs:
 
       - name: Ruff integration delta
         run: |
-          ruff check --ignore E501,I001             scripts/build_audjpy_r42_live_memory.py             scripts/qore_fundednext_runtime.py             src/qore/infrastructure/account_wide_risk.py             src/qore/infrastructure/r42_audjpy_live.py             tests/infrastructure/test_r42_audjpy_live.py             tests/infrastructure/test_audjpy_r42_runtime_integration.py
+          ruff check --ignore E501,I001             scripts/build_audjpy_r42_live_memory.py             scripts/fundednext_mt5_order_check_probe.py             scripts/qore_fundednext_runtime.py             src/qore/infrastructure/account_wide_risk.py             src/qore/infrastructure/r42_audjpy_live.py             tests/infrastructure/test_r42_audjpy_live.py             tests/infrastructure/test_audjpy_r42_runtime_integration.py
 
       - name: Mypy integration delta
         run: |
@@ -30,7 +30,7 @@ jobs:
 
       - name: Runtime syntax
         run: |
-          python -m py_compile             scripts/qore_fundednext_runtime.py             src/qore/infrastructure/r42_audjpy_live.py
+          python -m py_compile             scripts/fundednext_mt5_order_check_probe.py             scripts/qore_fundednext_runtime.py             src/qore/infrastructure/r42_audjpy_live.py
 
       - name: AUDJPY focused and memory binding
         run: |
