@@ -32,7 +32,7 @@ jobs:
             snapshot_artifact: 10524979671
             snapshot_digest: 3db46450b38f60bc06a41a8e5710f7ace2e795e07593d859218ab8e740b3174d
             evidence_artifact: 10389112524
-            evidence_digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9f
+            evidence_digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
           - partition: r5
             snapshot_artifact: 10525742835
             snapshot_digest: f00ca4d61b52462b4b23e16fda34f0244ef16a30a0b18564df84fb4dcade792a
