@@ -338,9 +338,10 @@ class R43LiveStateStore:
                 + Decimal(str(getattr(item, "commission", 0)))
                 + Decimal(str(getattr(item, "swap", 0)))
                 + Decimal(str(getattr(item, "fee", 0)))
-            )
-            for item in matching
-        , Decimal(0))
+                for item in matching
+            ),
+            Decimal(0),
+        )
         base_risk = Decimal(opened.base_risk_usd)
         if base_risk <= 0:
             raise ValueError("R43 base risk must be positive")
