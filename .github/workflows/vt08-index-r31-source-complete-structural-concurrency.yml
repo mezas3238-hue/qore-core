@@ -1,0 +1,137 @@
+name: VT08 Index R31 Source Complete Structural Concurrency
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r31-source-complete-structural-concurrency.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r31_source_complete_structural_concurrency.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r31_source_complete_structural_concurrency.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r31_source_complete_structural_concurrency.py
+
+  research:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R31 source-complete structural concurrency
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r31_source_complete_structural_concurrency \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r31-source-complete-structural-concurrency.json
+
+      - name: Verify research-only architecture
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(Path("artifacts/report/vt08-index-r31-source-complete-structural-concurrency.json").read_text())
+          assert report["identity"] == "VT08_INDEX_R31_SOURCE_COMPLETE_STRUCTURAL_CONCURRENCY_001"
+          assert 2300 <= report["sample"] <= 2500
+          assert report["density_pass"] is True
+          a=report["experimental_architecture"]
+          assert a["same_symbol_structural_concurrency_under_test"] is True
+          assert a["permanent_max_active_positions_per_symbol_changed"] is False
+          assert a["distinct_structural_identity_required"] is True
+          g=report["governance"]
+          assert g["no_trivial_scaling_as_edge_substitute"] is True
+          assert g["all_structural_signals_preserved"] is True
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Build summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root=Path("artifacts/report")
+          r=json.loads((root/"vt08-index-r31-source-complete-structural-concurrency.json").read_text())
+          gp=r["governed"]["primary"]
+          gs=r["governed"]["secondary"]
+          d=r["governed"]["diagnostics"]
+          lines=[
+              "# VT08 INDEX R31 Source Complete Structural Concurrency",
+              "",
+              f"- sample: {r['sample']}",
+              f"- density pass: {r['density_pass']}",
+              f"- raw PF05: {r['raw_primary']['profit_factor']}",
+              f"- raw total05: {r['raw_primary']['total_r']}R",
+              f"- raw edge pass: {r['raw_edge_pass']}",
+              f"- governed PF05: {gp['profit_factor']}",
+              f"- governed realized DD05: {gp['max_drawdown_r']}R",
+              f"- governed PF10: {gs['profit_factor']}",
+              f"- governed realized DD10: {gs['max_drawdown_r']}R",
+              f"- conservative DD05: {r['primary_conservative_mark_to_market']['max_drawdown_r']}R",
+              f"- conservative DD10: {r['secondary_conservative_mark_to_market']['max_drawdown_r']}R",
+              f"- mean effective weight: {d['mean_effective_weight']}",
+              f"- max concurrent positions: {d['max_concurrent_open_positions']}",
+              f"- governed gate pass: {r['governed_gate_pass']}",
+              f"- promotion gate pass: {r['promotion_gate_pass']}",
+          ]
+          (root/"VT08_INDEX_R31_SOURCE_COMPLETE_STRUCTURAL_CONCURRENCY_SUMMARY.md").write_text(
+              "\n".join(lines)+"\n"
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r31-source-complete-structural-concurrency-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
