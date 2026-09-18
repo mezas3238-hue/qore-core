@@ -82,7 +82,7 @@ def _first_rows(
     ],
     *,
     evidence: str,
-    alt_partial_r: Decimal,
+    alt_partial_r: Decimal | None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
@@ -201,14 +201,38 @@ def _first_rows(
             )
             status[f"core-{outcome['status']}"] += 1
             if outcome.get("status") == "terminal":
-                trades.append(
-                    hybrid._weighted(
-                        outcome,
-                        tier="CORE",
-                        risk=hybrid.CORE_RISK,
-                        reason="CORE_EXECUTE",
-                    )
+                weighted = hybrid._weighted(
+                    outcome,
+                    tier="CORE",
+                    risk=hybrid.CORE_RISK,
+                    reason="CORE_EXECUTE",
                 )
+                weighted.update(
+                    {
+                        "reference_volatility_state": core_state.get(
+                            "reference_volatility_state"
+                        ),
+                        "current_path_vs_previous": core_state.get(
+                            "current_path_vs_previous"
+                        ),
+                        "h1_state": core_state.get("h1_state"),
+                        "h4_state": core_state.get("h4_state"),
+                        "prior_day_state": core_state.get("prior_day_state"),
+                        "premarket_state": core_state.get("premarket_state"),
+                        "cash_open_state": core_state.get("cash_open_state"),
+                        "last_structure_event_family": core_state.get(
+                            "last_structure_event_family"
+                        ),
+                        "reference_reclaim_age_minutes": core_state.get(
+                            "reference_reclaim_age_minutes"
+                        ),
+                        "confirmation_latency_minutes": core_state.get(
+                            "confirmation_latency_minutes"
+                        ),
+                        "risk_ref": core_state.get("risk_ref"),
+                    }
+                )
+                trades.append(weighted)
             continue
 
         if (
@@ -233,10 +257,14 @@ def _first_rows(
         if selected is None:
             continue
 
-        outcome = v2b._simulate_partial_runner(
-            day_bars,
-            selected,
-            alt_partial_r,
+        outcome = (
+            specialist.baseline._simulate(day_bars, selected)
+            if alt_partial_r is None
+            else v2b._simulate_partial_runner(
+                day_bars,
+                selected,
+                alt_partial_r,
+            )
         )
         status[f"alt-outcome-{outcome['status']}"] += 1
         if outcome.get("status") != "terminal":
@@ -246,14 +274,54 @@ def _first_rows(
         key = "scout_count" if alt_tier == "SCOUT" else "secondary_count"
         budget_ledger[month][key] = int(budget_ledger[month][key]) + 1
         budget_ledger[month]["remaining_budget_r"] = format(alt_budget, "f")
-        trades.append(
-            hybrid._weighted(
-                outcome,
-                tier=alt_tier,
-                risk=alt_risk,
-                reason=cast(str, alt_reason),
-            )
+        session_prefix = tuple(
+            bar
+            for bar in session
+            if cast(datetime, getattr(bar, "closed_at"))
+            <= selected.decision_at
         )
+        alt_state = specialist._state_snapshot(
+            day_bars,
+            previous_path_range,
+            prior_ref_median,
+            prior_admitted_day_bars,
+            session_prefix,
+            timeline.source,
+            selected,
+            selected.decision_at,
+        )
+        weighted = hybrid._weighted(
+            outcome,
+            tier=alt_tier,
+            risk=alt_risk,
+            reason=cast(str, alt_reason),
+        )
+        weighted.update(
+            {
+                "reference_volatility_state": alt_state.get(
+                    "reference_volatility_state"
+                ),
+                "current_path_vs_previous": alt_state.get(
+                    "current_path_vs_previous"
+                ),
+                "h1_state": alt_state.get("h1_state"),
+                "h4_state": alt_state.get("h4_state"),
+                "prior_day_state": alt_state.get("prior_day_state"),
+                "premarket_state": alt_state.get("premarket_state"),
+                "cash_open_state": alt_state.get("cash_open_state"),
+                "last_structure_event_family": alt_state.get(
+                    "last_structure_event_family"
+                ),
+                "reference_reclaim_age_minutes": alt_state.get(
+                    "reference_reclaim_age_minutes"
+                ),
+                "confirmation_latency_minutes": alt_state.get(
+                    "confirmation_latency_minutes"
+                ),
+                "risk_ref": alt_state.get("risk_ref"),
+            }
+        )
+        trades.append(weighted)
 
     trades.sort(key=lambda row: cast(str, row["signal_at"]))
     return trades, {
