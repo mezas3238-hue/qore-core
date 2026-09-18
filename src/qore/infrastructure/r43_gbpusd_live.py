@@ -413,9 +413,10 @@ def load_memory(
     path: Path,
 ) -> tuple[tuple[str, ...], str, dict[tuple[str, str], r32.Profile]]:
     raw = path.read_bytes()
-    if hashlib.sha256(raw).hexdigest() != MEMORY_SHA256:
+    canonical = raw.replace(b"\r\n", b"\n")
+    if hashlib.sha256(canonical).hexdigest() != MEMORY_SHA256:
         raise ValueError("R43 live memory hash drift")
-    payload = json.loads(raw)
+    payload = json.loads(canonical)
     if not isinstance(payload, dict) or payload.get("identity") != MEMORY_IDENTITY:
         raise ValueError("R43 live memory identity drift")
     source = payload.get("source")
