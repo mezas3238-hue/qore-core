@@ -127,6 +127,10 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _int(value: object) -> int:
+    return int(str(value))
+
+
 def _decimal(value: object) -> Decimal:
     return Decimal(str(value))
 
@@ -188,13 +192,13 @@ def _validate_matrix(
         raise ValueError("matrix manifest unexpectedly allows rule promotion")
     if bool(summary.get("rule_promotion_allowed")):
         raise ValueError("journey summary unexpectedly allows rule promotion")
-    if int(matrix.get("source_m5_run_id", 0)) != SOURCE_M5_RUN_ID:
+    if _int(matrix.get("source_m5_run_id", 0)) != SOURCE_M5_RUN_ID:
         raise ValueError("matrix M5 source drift")
-    if int(matrix.get("source_journey_run_id", 0)) != SOURCE_JOURNEY_RUN_ID:
+    if _int(matrix.get("source_journey_run_id", 0)) != SOURCE_JOURNEY_RUN_ID:
         raise ValueError("matrix Journey source drift")
-    if int(matrix.get("source_target_run_id", 0)) != SOURCE_TARGET_RUN_ID:
+    if _int(matrix.get("source_target_run_id", 0)) != SOURCE_TARGET_RUN_ID:
         raise ValueError("matrix Target source drift")
-    if int(summary.get("source_run_id", 0)) != SOURCE_JOURNEY_RUN_ID:
+    if _int(summary.get("source_run_id", 0)) != SOURCE_JOURNEY_RUN_ID:
         raise ValueError("journey summary source drift")
     if summary.get("cross_index_evidence_tier") != EVIDENCE_TIER:
         raise ValueError("cross-index evidence tier drift")
@@ -228,7 +232,7 @@ def _validate_journey(
     ledger_counts = cast(dict[str, Any], manifest["ledger_counts"])
     if _int(ledger_counts.get("MARKET_JOURNEY_LEDGER", 0)) != _int(expected["events"]):
         raise ValueError(f"market Journey ledger count drift for {symbol}")
-    if int(ledger_counts.get("TRADER_MARKET_SYNC_LEDGER", -1)) != 0:
+    if _int(ledger_counts.get("TRADER_MARKET_SYNC_LEDGER", -1)) != 0:
         raise ValueError(f"general Journey unexpectedly contains trader sync for {symbol}")
 
     ledger_hashes = cast(dict[str, Any], manifest["ledger_sha256"])
@@ -255,11 +259,11 @@ def _validate_target(root: Path, *, symbol: str) -> dict[str, Any]:
         raise ValueError(f"Target V2 identity drift for {symbol}")
     if manifest.get("symbol") != symbol:
         raise ValueError(f"Target V2 symbol drift for {symbol}")
-    if int(manifest.get("source_journey_run_id", 0)) != SOURCE_JOURNEY_RUN_ID:
+    if _int(manifest.get("source_journey_run_id", 0)) != SOURCE_JOURNEY_RUN_ID:
         raise ValueError(f"Target V2 Journey source drift for {symbol}")
     if manifest.get("source_journey_git_sha") != SOURCE_JOURNEY_GIT_SHA:
         raise ValueError(f"Target V2 Journey SHA drift for {symbol}")
-    if int(manifest.get("source_m5_run_id", 0)) != SOURCE_M5_RUN_ID:
+    if _int(manifest.get("source_m5_run_id", 0)) != SOURCE_M5_RUN_ID:
         raise ValueError(f"Target V2 M5 source drift for {symbol}")
     if _int(manifest.get("retained_m5_bars", 0)) != _int(expected["m5"]):
         raise ValueError(f"Target V2 M5 count drift for {symbol}")
