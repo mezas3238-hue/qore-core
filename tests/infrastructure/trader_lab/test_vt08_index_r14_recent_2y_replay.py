@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab import vt08_index_r14_candidate_freeze as freeze
 from qore.infrastructure.trader_lab import vt08_index_r14_recent_2y_replay as mod
 
 
@@ -14,5 +15,5 @@ def test_r14_recent_2y_window_and_stress_contract() -> None:
 
 
 def test_r14_recent_2y_is_no_retuning_reproduction() -> None:
-    assert mod.freeze.CANDIDATE_ID == "VT08_INDEX_R14_ROLLING_1574_001"
-    assert mod.freeze.TARGET_R == "2.5"
+    assert freeze.CANDIDATE_ID == "VT08_INDEX_R14_ROLLING_1574_001"
+    assert freeze.TARGET_R == "2.5"
