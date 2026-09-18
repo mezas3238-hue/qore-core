@@ -5,6 +5,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import cast
 
 from qore.infrastructure.trader_lab import (
     turtle_soup_gbpusd_r32_causal_memory_defragmentation as r32,
@@ -86,7 +87,7 @@ def main() -> None:
         json.dumps(
             {
                 "identity": payload["identity"],
-                "profiles": len(payload["profiles"]),
+                "profiles": len(cast(list[object], payload["profiles"])),
                 "scheme": payload["scheme"],
             },
             sort_keys=True,
