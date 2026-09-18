@@ -1,9 +1,9 @@
-"""Resident QORE FundedNext runtime for VT08 Forex and certified R34 XAUUSD.
+"""Resident QORE FundedNext runtime for VT08, R34 XAUUSD and R38 EURUSD.
 
 The VPS/MT5 installation is assumed to exist already. This is the single-writer
-24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; R34
-evaluates every New York H1/H4 boundary using the broker-to-New-York normalized
-M5 feed. Sovereign Account-Wide Risk remains above both traders.
+24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; R34 and
+R38 evaluate every New York H1/H4 boundary using broker-to-UTC normalization.
+Sovereign Account-Wide Risk remains above all traders.
 """
 
 from __future__ import annotations
@@ -99,6 +99,15 @@ from qore.infrastructure.r34_xauusd_live import (
     build_r34_risk_request,
     current_anchor as current_r34_anchor,
     load_cognitive as load_r34_cognitive,
+)
+from qore.infrastructure.r38_eurusd_live import (
+    R38LiveSignal,
+    R38LiveStateStore,
+    build_live_signal as build_r38_live_signal,
+    build_r38_risk_request,
+    current_anchor as current_r38_anchor,
+    load_cognitive as load_r38_cognitive,
+    manage_open_position as manage_r38_open_position,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     OWNER_FOREX_ENTRY_ANCHORS,
@@ -774,6 +783,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     r34_store = R34LiveStateStore(state_dir / "r34-state.json")
     r34_store.reconcile(mt5, now=datetime.now(UTC))
+    r38_cognitive = load_r38_cognitive(
+        root
+        / "var"
+        / "r38"
+        / "cognitive-v3"
+        / "turtle-soup-eurusd-specialist-cognitive-memory-v3.json"
+    )
+    r38_store = R38LiveStateStore(state_dir / "r38-state.json")
+    r38_store.reconcile(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
@@ -891,6 +909,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r34_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "r34_single_position_busy": True,
             "r34_lifecycle": "STATIC_SL_TP_PLUS_24H_EXIT",
+            "r38_enabled": True,
+            "r38_identity": "TURTLE_SOUP_EURUSD_R38",
+            "r38_certification": "TURTLE_SOUP_EURUSD_R39_FINAL_CERTIFICATION_SUITE_V1",
+            "r38_strategy_timezone": "America/New_York",
+            "r38_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "r38_single_position_busy": True,
+            "r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+            "r38_base_risk_fraction": "0.002",
         },
     )
     last_lifecycle: str | None = None
@@ -913,6 +939,26 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             now=cycle_at,
         )
         r34_live_state = r34_store.reconcile(mt5, now=cycle_at)
+        r38_live_state, r38_manage_reason = manage_r38_open_position(
+            mt5,
+            now=cycle_at,
+            store=r38_store,
+        )
+        if r38_manage_reason not in {
+            "no-open-r38-position",
+            "r38-stop-unchanged",
+            "r38-position-awaiting-reconcile",
+            "r38-24h-exit-due",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "R38_POSITION_MANAGEMENT",
+                    "symbol": "EURUSD",
+                    "reason": r38_manage_reason,
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
         highest = max(highest, account_state.balance)
         provider = evaluate_stellar_instant_budget(
             StellarInstantAccountSnapshot(
