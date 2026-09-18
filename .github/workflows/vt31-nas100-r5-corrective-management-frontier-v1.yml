@@ -1,0 +1,210 @@
+name: QORE VT31 NAS100 R5 Corrective Management Frontier V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
+      - .github/workflows/vt31-nas100-r5-corrective-management-frontier-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
+          ruff check             scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
+
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Run corrective management frontier
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_corrective_management_frontier_v1.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/corrective-${PARTITION}.json"             | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=os.environ["PARTITION"]
+          g=json.loads(
+              Path(f"result/corrective-{p}.json").read_text()
+          )["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["entry_logic_changed"] is False
+          assert g["authorization_logic_changed"] is False
+          assert g["structural_stop_changed"] is False
+          assert g["global_risk_scalar_changed"] is False
+          assert g["management_only_frontier"] is True
+          assert g["uses_terminal_pnl_at_runtime"] is False
+          assert g["uses_fold_identity_at_runtime"] is False
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          PY
+
+      - name: Bind
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$ARTIFACT_ID" > result/source-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0               | sort -z               | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-corrective-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-r5-corrective-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("corrective-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          common=set.intersection(*[
+              set(p["variants"]) for p in folds.values()
+          ])
+          variants={}
+          for name in sorted(common):
+              rows=[]
+              for fold,p in sorted(folds.items()):
+                  item=p["variants"][name]
+                  rows.append({
+                      "partition":fold,
+                      "trade_count":item["trade_count"],
+                      "metrics":item["metrics"],
+                      "monte_carlo":item["monte_carlo"],
+                      "objectives":item["objectives"],
+                  })
+              variants[name]={
+                  "folds":rows,
+                  "all_pf_ge_1_50":all(
+                      r["metrics"]["profit_factor"] is not None
+                      and float(r["metrics"]["profit_factor"])>=1.50
+                      for r in rows
+                  ),
+                  "all_dd_le_6":all(
+                      float(r["metrics"]["max_drawdown_r"])<=6.0
+                      for r in rows
+                  ),
+                  "all_mc_positive_ge_0_90":all(
+                      float(r["monte_carlo"]["positive_terminal_probability"])>=0.90
+                      for r in rows
+                  ),
+                  "all_mc_p95_dd_le_15":all(
+                      float(r["monte_carlo"]["p95_max_drawdown_r"])<=15.0
+                      for r in rows
+                  ),
+                  "holdout_density_300_350":any(
+                      r["partition"]=="consumed_holdout"
+                      and 300<=r["trade_count"]<=350
+                      for r in rows
+                  ),
+              }
+
+          report={
+              "schema":"qore.vt31.nas100.r5.corrective_management_frontier.aggregate.v1",
+              "variants":variants,
+              "development_passing":[
+                  name for name,v in variants.items()
+                  if v["all_pf_ge_1_50"]
+                  and v["all_dd_le_6"]
+                  and v["all_mc_positive_ge_0_90"]
+                  and v["all_mc_p95_dd_le_15"]
+                  and v["holdout_density_300_350"]
+              ],
+              "consumed_holdout_used_only_for_development":True,
+              "fresh_certification_pending_other_unseen_interval":True,
+              "policy_promoted":False,
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(report,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-corrective-aggregate-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
