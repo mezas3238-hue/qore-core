@@ -360,8 +360,6 @@ def replay(
         status[f"oco-{selection_status}"] += 1
         if selected is None:
             continue
-        status["oco-selected"] += 1
-
         (
             previous_path_range,
             prior_ref_median,
