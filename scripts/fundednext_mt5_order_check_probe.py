@@ -2,7 +2,7 @@
 
 This probe never calls order_send and does not fabricate a VT-08 signal. It
 verifies the canonical payload shape for every direction that the certified live
-portfolio is allowed to use: AUDJPY short, GBPUSD short, GBPJPY long and short.
+portfolio is allowed to use, including certified EURUSD R38 long and short.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from qore.infrastructure.fundednext_live_mt5 import MetaTrader5FundedNextLiveTra
 from qore.infrastructure.fundednext_mt5 import FundedNextMt5OrderPlan
 from qore.infrastructure.order_intent import OrderSide, OrderType
 
-_MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY", "XAUUSD")
+_MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD")
 _SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
 
