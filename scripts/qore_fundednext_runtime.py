@@ -113,6 +113,7 @@ from qore.infrastructure.vt08_forex_fundednext_sizing import (
 
 _NY = ZoneInfo("America/New_York")
 _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
+_EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
 _LOOP_SECONDS = 10
