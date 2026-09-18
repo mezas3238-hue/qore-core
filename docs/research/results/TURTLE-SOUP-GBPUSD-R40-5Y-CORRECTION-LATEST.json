@@ -1,0 +1,809 @@
+{
+  "correction_result": "success",
+  "identity": "TURTLE_SOUP_GBPUSD_R40_5Y_CORRECTION_STATUS",
+  "quality_result": "success",
+  "r40_report": {
+    "correction_contract": {
+      "drawdown_governor_recomputed_causally": true,
+      "entry_changed": false,
+      "families_changed": false,
+      "fresh_holdout_consumed": false,
+      "frozen_structural_scale_preserved": true,
+      "lifecycle_changed": false,
+      "overlays_predeclared": {
+        "R40_FRAGILITY_075_050_025": {
+          "combine": "COUNT_075_050_025",
+          "f5": "0.75",
+          "majority": "0.75",
+          "rank2": "0.75",
+          "short": "0.75"
+        },
+        "R40_SHORT025_F5_050": {
+          "combine": "MIN",
+          "f5": "0.50",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.25"
+        },
+        "R40_SHORT050_F5_050": {
+          "combine": "MIN",
+          "f5": "0.50",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.50"
+        },
+        "R40_SHORT050_F5_050_RANK2_050": {
+          "combine": "MIN",
+          "f5": "0.50",
+          "majority": "1",
+          "rank2": "0.50",
+          "short": "0.50"
+        },
+        "R40_SHORT_025": {
+          "combine": "MIN",
+          "f5": "1",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.25"
+        },
+        "R40_SHORT_050": {
+          "combine": "MIN",
+          "f5": "1",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.50"
+        }
+      },
+      "preentry_attributes_only": true,
+      "signals_suppressed": false,
+      "stop_changed": false,
+      "structural_risk_overlay_only": true,
+      "target_changed": false
+    },
+    "governance": {
+      "candidate_certified": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "merge_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false
+    },
+    "identity": "TURTLE_SOUP_GBPUSD_R40_5Y_STRUCTURAL_RISK_CORRECTION_V1",
+    "predeclared_acceptance": {
+      "maximum_drawdown_r": "6.0",
+      "minimum_profit_factor": "1.50",
+      "minimum_trades": 800,
+      "total_must_be_positive": true
+    },
+    "results": [
+      {
+        "acceptance_pass": true,
+        "annual_blocks": [
+          {
+            "close": "2022-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.172111617051357377566584536",
+            "max_losing_streak": 7,
+            "mean_r": "-0.01051802488900910038416181322",
+            "open": "2021-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.8850670572124178580845155880",
+            "total_r": "-1.998424728911729072990744511",
+            "trades": 190
+          },
+          {
+            "close": "2023-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.597467538376141821617190636",
+            "max_losing_streak": 5,
+            "mean_r": "0.03015933793143371203751243508",
+            "open": "2022-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.617706139292134611530142828",
+            "total_r": "5.036609434549429910264576659",
+            "trades": 167
+          },
+          {
+            "close": "2024-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.884198542227825458423907125",
+            "max_losing_streak": 7,
+            "mean_r": "-0.008758719152314629145587612085",
+            "open": "2023-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.8281610230091931194446111501",
+            "total_r": "-1.541534570807374729623419727",
+            "trades": 176
+          },
+          {
+            "close": "2025-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.85405757221669028700767890",
+            "max_losing_streak": 6,
+            "mean_r": "0.1308990948574476839017537409",
+            "open": "2024-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "2.829076573832962163997793763",
+            "total_r": "24.87082802291505994133321077",
+            "trades": 190
+          },
+          {
+            "close": "2026-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.61803441605988810234495478",
+            "max_losing_streak": 5,
+            "mean_r": "0.06390236718033467747293477",
+            "open": "2025-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.521832234823193861386988344",
+            "total_r": "11.75803556118158065501999768",
+            "trades": 184
+          }
+        ],
+        "flag_counts": {
+          "CORE_MAJORITY": 396,
+          "F5": 81,
+          "RANK_2": 45,
+          "SHORT": 454
+        },
+        "policy": "R40_SHORT_050",
+        "policy_parameters": {
+          "combine": "MIN",
+          "f5": "1",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.50"
+        },
+        "positive_annual_blocks": 3,
+        "risk_scale_counts": {
+          "0.012500": 75,
+          "0.0250": 65,
+          "0.031250": 109,
+          "0.037500": 30,
+          "0.0500": 20,
+          "0.0625": 116,
+          "0.0750": 30,
+          "0.093750": 51,
+          "0.10": 21,
+          "0.1250": 111,
+          "0.1875": 53,
+          "0.25": 95,
+          "0.3750": 34,
+          "0.50": 24,
+          "0.75": 43,
+          "1": 30
+        },
+        "stats": {
+          "max_drawdown_r": "5.159696243055266248038979650",
+          "max_losing_streak": 7,
+          "mean_r": "0.04203474500432962150386286753",
+          "profit_factor": "1.539700555090069290777954984",
+          "total_r": "38.12551371892696670400362085",
+          "trades": 907
+        }
+      },
+      {
+        "acceptance_pass": true,
+        "annual_blocks": [
+          {
+            "close": "2022-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.203936959577222359902321652",
+            "max_losing_streak": 7,
+            "mean_r": "-0.005982262138527645267681471926",
+            "open": "2021-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.9245323416920742165586729902",
+            "total_r": "-1.136629806320252600859479666",
+            "trades": 190
+          },
+          {
+            "close": "2023-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.914368407094554662870396508",
+            "max_losing_streak": 5,
+            "mean_r": "0.01314339718588903216780790128",
+            "open": "2022-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.306098386060568442828721760",
+            "total_r": "2.194947330043468372023919514",
+            "trades": 167
+          },
+          {
+            "close": "2024-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.769222373986810179861265345",
+            "max_losing_streak": 7,
+            "mean_r": "-0.001349136688958054056236528949",
+            "open": "2023-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.9757286796065136662387931192",
+            "total_r": "-0.2374480572566175138976290951",
+            "trades": 176
+          },
+          {
+            "close": "2025-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.707414402946992303198643450",
+            "max_losing_streak": 6,
+            "mean_r": "0.1041279598278833547277780914",
+            "open": "2024-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "2.525613076242887502626233385",
+            "total_r": "19.78431236729783739827783737",
+            "trades": 190
+          },
+          {
+            "close": "2026-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.46312529830102898451879267",
+            "max_losing_streak": 5,
+            "mean_r": "0.06780524569932090620287198853",
+            "open": "2025-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.647318605904784719798769617",
+            "total_r": "12.47616520867504674132844589",
+            "trades": 184
+          }
+        ],
+        "flag_counts": {
+          "CORE_MAJORITY": 396,
+          "F5": 81,
+          "RANK_2": 45,
+          "SHORT": 454
+        },
+        "policy": "R40_SHORT_025",
+        "policy_parameters": {
+          "combine": "MIN",
+          "f5": "1",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.25"
+        },
+        "positive_annual_blocks": 3,
+        "risk_scale_counts": {
+          "0.006250": 65,
+          "0.015625": 86,
+          "0.018750": 39,
+          "0.0250": 76,
+          "0.046875": 73,
+          "0.0625": 187,
+          "0.0750": 37,
+          "0.10": 24,
+          "0.1875": 123,
+          "0.25": 115,
+          "0.75": 52,
+          "1": 30
+        },
+        "stats": {
+          "max_drawdown_r": "4.351660883615990401788846919",
+          "max_losing_streak": 7,
+          "mean_r": "0.03647337049883074134164618963",
+          "profit_factor": "1.514831398769184119095272488",
+          "total_r": "33.08134704243948239687309399",
+          "trades": 907
+        }
+      },
+      {
+        "acceptance_pass": false,
+        "annual_blocks": [
+          {
+            "close": "2022-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.165601375716120304084856476",
+            "max_losing_streak": 7,
+            "mean_r": "-0.0208321125037690542320255604",
+            "open": "2021-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.7092769733435951349600819937",
+            "total_r": "-3.958101375716120304084856476",
+            "trades": 190
+          },
+          {
+            "close": "2023-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.521620080749023177549394026",
+            "max_losing_streak": 5,
+            "mean_r": "0.02646368593944849880520968378",
+            "open": "2022-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.551310932280104973102505551",
+            "total_r": "4.419435551887899300470017192",
+            "trades": 167
+          },
+          {
+            "close": "2024-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.229398762434458716074612104",
+            "max_losing_streak": 7,
+            "mean_r": "-0.008108351378184089430974115301",
+            "open": "2023-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.8032186550977145592545184012",
+            "total_r": "-1.427069842560399739851444293",
+            "trades": 176
+          },
+          {
+            "close": "2025-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.85405757221669028700767890",
+            "max_losing_streak": 6,
+            "mean_r": "0.1068629256297573343662480657",
+            "open": "2024-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "2.651563511244851317853695242",
+            "total_r": "20.30395586965389352958713249",
+            "trades": 190
+          },
+          {
+            "close": "2026-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.52607179923745819580289870",
+            "max_losing_streak": 5,
+            "mean_r": "0.06230370671999569938442031196",
+            "open": "2025-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.551184569066031086262169947",
+            "total_r": "11.46388203647920868673333740",
+            "trades": 184
+          }
+        ],
+        "flag_counts": {
+          "CORE_MAJORITY": 396,
+          "F5": 81,
+          "RANK_2": 45,
+          "SHORT": 454
+        },
+        "policy": "R40_SHORT050_F5_050",
+        "policy_parameters": {
+          "combine": "MIN",
+          "f5": "0.50",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.50"
+        },
+        "positive_annual_blocks": 3,
+        "risk_scale_counts": {
+          "0.012500": 77,
+          "0.0250": 71,
+          "0.031250": 121,
+          "0.037500": 35,
+          "0.0500": 13,
+          "0.0625": 126,
+          "0.0750": 27,
+          "0.093750": 52,
+          "0.10": 18,
+          "0.1250": 135,
+          "0.1875": 53,
+          "0.25": 65,
+          "0.3750": 47,
+          "0.50": 20,
+          "0.75": 24,
+          "1": 23
+        },
+        "stats": {
+          "max_drawdown_r": "5.253962760683971341249538439",
+          "max_losing_streak": 7,
+          "mean_r": "0.03396042143301486380689546450",
+          "profit_factor": "1.497005495498512479973741642",
+          "total_r": "30.80210223974448147285418630",
+          "trades": 907
+        }
+      },
+      {
+        "acceptance_pass": true,
+        "annual_blocks": [
+          {
+            "close": "2022-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.286751746988330998072783526",
+            "max_losing_streak": 7,
+            "mean_r": "-0.009994236838592211049914887116",
+            "open": "2021-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.8726913027668326094438911310",
+            "total_r": "-1.898904999332520099483828552",
+            "trades": 190
+          },
+          {
+            "close": "2023-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.838520949467436018802599898",
+            "max_losing_streak": 5,
+            "mean_r": "0.01223881499059675244367789495",
+            "open": "2022-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.308709714258688381858350527",
+            "total_r": "2.043882103429657658094208456",
+            "trades": 167
+          },
+          {
+            "close": "2024-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.507597329317323606655648858",
+            "max_losing_streak": 7,
+            "mean_r": "-0.009338261829551901049793717676",
+            "open": "2023-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.7430211243702563450634330332",
+            "total_r": "-1.643534082001134584763694311",
+            "trades": 176
+          },
+          {
+            "close": "2025-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.16814317998700447105642553",
+            "max_losing_streak": 6,
+            "mean_r": "0.08810045834956699844365512547",
+            "open": "2024-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "2.660894648609883182569662024",
+            "total_r": "16.73908708641772970429447384",
+            "trades": 190
+          },
+          {
+            "close": "2026-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.37116268147859907797673659",
+            "max_losing_streak": 5,
+            "mean_r": "0.07379449901246676793522177076",
+            "open": "2025-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.765111509603399308857683818",
+            "total_r": "13.57818781829388530008080582",
+            "trades": 184
+          }
+        ],
+        "flag_counts": {
+          "CORE_MAJORITY": 396,
+          "F5": 81,
+          "RANK_2": 45,
+          "SHORT": 454
+        },
+        "policy": "R40_SHORT025_F5_050",
+        "policy_parameters": {
+          "combine": "MIN",
+          "f5": "0.50",
+          "majority": "1",
+          "rank2": "1",
+          "short": "0.25"
+        },
+        "positive_annual_blocks": 3,
+        "risk_scale_counts": {
+          "0.006250": 74,
+          "0.015625": 108,
+          "0.018750": 28,
+          "0.0250": 87,
+          "0.046875": 50,
+          "0.0625": 229,
+          "0.0750": 26,
+          "0.10": 26,
+          "0.1250": 28,
+          "0.1875": 80,
+          "0.25": 101,
+          "0.3750": 11,
+          "0.50": 7,
+          "0.75": 25,
+          "1": 27
+        },
+        "stats": {
+          "max_drawdown_r": "4.954313734915138417023684104",
+          "max_losing_streak": 7,
+          "mean_r": "0.03177366915855305179517305979",
+          "profit_factor": "1.516861747081516460541862289",
+          "total_r": "28.81871792680761797822196523",
+          "trades": 907
+        }
+      },
+      {
+        "acceptance_pass": false,
+        "annual_blocks": [
+          {
+            "close": "2022-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.463743661520569452842079596",
+            "max_losing_streak": 7,
+            "mean_r": "-0.01559157484600354332567210856",
+            "open": "2021-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.8296844918584732369020931691",
+            "total_r": "-2.962399220740673231877700626",
+            "trades": 190
+          },
+          {
+            "close": "2023-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.934500515531631873201567937",
+            "max_losing_streak": 5,
+            "mean_r": "0.01243054780681177131280763744",
+            "open": "2022-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.279324788093714899074236764",
+            "total_r": "2.075901483737565809238875452",
+            "trades": 167
+          },
+          {
+            "close": "2024-09-17T00:00:00+00:00",
+            "max_drawdown_r": "1.937470181984502105225498803",
+            "max_losing_streak": 7,
+            "mean_r": "-0.007439668537577761920447299125",
+            "open": "2023-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.8215903439983410241913281200",
+            "total_r": "-1.309381662613686097998724646",
+            "trades": 176
+          },
+          {
+            "close": "2025-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.85405757221669028700767890",
+            "max_losing_streak": 6,
+            "mean_r": "0.1037146226511775992122547432",
+            "open": "2024-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "2.639582459993985875371275143",
+            "total_r": "19.70577830372374385032840120",
+            "trades": 190
+          },
+          {
+            "close": "2026-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.57729462532441471754202914",
+            "max_losing_streak": 5,
+            "mean_r": "0.05640308198259112495723007592",
+            "open": "2025-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.529248504714795643551581772",
+            "total_r": "10.37816708479676699213033397",
+            "trades": 184
+          }
+        ],
+        "flag_counts": {
+          "CORE_MAJORITY": 396,
+          "F5": 81,
+          "RANK_2": 45,
+          "SHORT": 454
+        },
+        "policy": "R40_SHORT050_F5_050_RANK2_050",
+        "policy_parameters": {
+          "combine": "MIN",
+          "f5": "0.50",
+          "majority": "1",
+          "rank2": "0.50",
+          "short": "0.50"
+        },
+        "positive_annual_blocks": 3,
+        "risk_scale_counts": {
+          "0.012500": 75,
+          "0.0250": 65,
+          "0.031250": 113,
+          "0.037500": 30,
+          "0.0500": 20,
+          "0.0625": 109,
+          "0.0750": 30,
+          "0.093750": 58,
+          "0.10": 21,
+          "0.1250": 140,
+          "0.1875": 55,
+          "0.25": 60,
+          "0.3750": 57,
+          "0.50": 31,
+          "0.75": 25,
+          "1": 18
+        },
+        "stats": {
+          "max_drawdown_r": "4.866164985352111648710792977",
+          "max_losing_streak": 7,
+          "mean_r": "0.03074759204950795735592192432",
+          "profit_factor": "1.437167260788187170384283601",
+          "total_r": "27.88806598890371732182118536",
+          "trades": 907
+        }
+      },
+      {
+        "acceptance_pass": false,
+        "annual_blocks": [
+          {
+            "close": "2022-09-17T00:00:00+00:00",
+            "max_drawdown_r": "5.339230343077635600943293080",
+            "max_losing_streak": 7,
+            "mean_r": "-0.02616119199382096462927371725",
+            "open": "2021-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.6392762551641005959978408344",
+            "total_r": "-4.970626478825983279562006278",
+            "trades": 190
+          },
+          {
+            "close": "2023-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.548781315914291312455812585",
+            "max_losing_streak": 5,
+            "mean_r": "0.01734092877106980468888463052",
+            "open": "2022-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.358093333805583962803860018",
+            "total_r": "2.895935104768657383043733297",
+            "trades": 167
+          },
+          {
+            "close": "2024-09-17T00:00:00+00:00",
+            "max_drawdown_r": "2.782225706541774015943567991",
+            "max_losing_streak": 7,
+            "mean_r": "-0.01053598901291176697684636315",
+            "open": "2023-09-17T00:00:00+00:00",
+            "positive_total": false,
+            "profit_factor": "0.7837086875146858584247175762",
+            "total_r": "-1.854334066272470987924959914",
+            "trades": 176
+          },
+          {
+            "close": "2025-09-17T00:00:00+00:00",
+            "max_drawdown_r": "3.05134085488768735850348109",
+            "max_losing_streak": 6,
+            "mean_r": "0.1235185963365543742529588984",
+            "open": "2024-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "2.772722509959745069193816267",
+            "total_r": "23.46853330394533110806219070",
+            "trades": 190
+          },
+          {
+            "close": "2026-09-17T00:00:00+00:00",
+            "max_drawdown_r": "4.36986419032685205508231421",
+            "max_losing_streak": 5,
+            "mean_r": "0.06057005927662278883080385788",
+            "open": "2025-09-17T00:00:00+00:00",
+            "positive_total": true,
+            "profit_factor": "1.500363659609363559780406504",
+            "total_r": "11.14489090689859314486790985",
+            "trades": 184
+          }
+        ],
+        "flag_counts": {
+          "CORE_MAJORITY": 396,
+          "F5": 81,
+          "RANK_2": 45,
+          "SHORT": 454
+        },
+        "policy": "R40_FRAGILITY_075_050_025",
+        "policy_parameters": {
+          "combine": "COUNT_075_050_025",
+          "f5": "0.75",
+          "majority": "0.75",
+          "rank2": "0.75",
+          "short": "0.75"
+        },
+        "positive_annual_blocks": 3,
+        "risk_scale_counts": {
+          "0.015625": 5,
+          "0.018750": 77,
+          "0.0250": 72,
+          "0.031250": 124,
+          "0.046875": 129,
+          "0.056250": 33,
+          "0.0750": 39,
+          "0.093750": 47,
+          "0.10": 20,
+          "0.1250": 53,
+          "0.140625": 46,
+          "0.1875": 116,
+          "0.25": 37,
+          "0.3750": 12,
+          "0.50": 7,
+          "0.5625": 36,
+          "0.75": 36,
+          "1": 18
+        },
+        "stats": {
+          "max_drawdown_r": "5.779486622504175339653532298",
+          "max_losing_streak": 7,
+          "mean_r": "0.03383064914058889456283006356",
+          "profit_factor": "1.465251498205013520296400247",
+          "total_r": "30.68439877051412736848686765",
+          "trades": 907
+        }
+      }
+    ],
+    "schema": "qore.turtle_soup_gbpusd.r40_5y_structural_risk_correction.v1",
+    "selected": {
+      "acceptance_pass": true,
+      "annual_blocks": [
+        {
+          "close": "2022-09-17T00:00:00+00:00",
+          "max_drawdown_r": "4.172111617051357377566584536",
+          "max_losing_streak": 7,
+          "mean_r": "-0.01051802488900910038416181322",
+          "open": "2021-09-17T00:00:00+00:00",
+          "positive_total": false,
+          "profit_factor": "0.8850670572124178580845155880",
+          "total_r": "-1.998424728911729072990744511",
+          "trades": 190
+        },
+        {
+          "close": "2023-09-17T00:00:00+00:00",
+          "max_drawdown_r": "4.597467538376141821617190636",
+          "max_losing_streak": 5,
+          "mean_r": "0.03015933793143371203751243508",
+          "open": "2022-09-17T00:00:00+00:00",
+          "positive_total": true,
+          "profit_factor": "1.617706139292134611530142828",
+          "total_r": "5.036609434549429910264576659",
+          "trades": 167
+        },
+        {
+          "close": "2024-09-17T00:00:00+00:00",
+          "max_drawdown_r": "2.884198542227825458423907125",
+          "max_losing_streak": 7,
+          "mean_r": "-0.008758719152314629145587612085",
+          "open": "2023-09-17T00:00:00+00:00",
+          "positive_total": false,
+          "profit_factor": "0.8281610230091931194446111501",
+          "total_r": "-1.541534570807374729623419727",
+          "trades": 176
+        },
+        {
+          "close": "2025-09-17T00:00:00+00:00",
+          "max_drawdown_r": "2.85405757221669028700767890",
+          "max_losing_streak": 6,
+          "mean_r": "0.1308990948574476839017537409",
+          "open": "2024-09-17T00:00:00+00:00",
+          "positive_total": true,
+          "profit_factor": "2.829076573832962163997793763",
+          "total_r": "24.87082802291505994133321077",
+          "trades": 190
+        },
+        {
+          "close": "2026-09-17T00:00:00+00:00",
+          "max_drawdown_r": "3.61803441605988810234495478",
+          "max_losing_streak": 5,
+          "mean_r": "0.06390236718033467747293477",
+          "open": "2025-09-17T00:00:00+00:00",
+          "positive_total": true,
+          "profit_factor": "1.521832234823193861386988344",
+          "total_r": "11.75803556118158065501999768",
+          "trades": 184
+        }
+      ],
+      "flag_counts": {
+        "CORE_MAJORITY": 396,
+        "F5": 81,
+        "RANK_2": 45,
+        "SHORT": 454
+      },
+      "policy": "R40_SHORT_050",
+      "policy_parameters": {
+        "combine": "MIN",
+        "f5": "1",
+        "majority": "1",
+        "rank2": "1",
+        "short": "0.50"
+      },
+      "positive_annual_blocks": 3,
+      "risk_scale_counts": {
+        "0.012500": 75,
+        "0.0250": 65,
+        "0.031250": 109,
+        "0.037500": 30,
+        "0.0500": 20,
+        "0.0625": 116,
+        "0.0750": 30,
+        "0.093750": 51,
+        "0.10": 21,
+        "0.1250": 111,
+        "0.1875": 53,
+        "0.25": 95,
+        "0.3750": 34,
+        "0.50": 24,
+        "0.75": 43,
+        "1": 30
+      },
+      "stats": {
+        "max_drawdown_r": "5.159696243055266248038979650",
+        "max_losing_streak": 7,
+        "mean_r": "0.04203474500432962150386286753",
+        "profit_factor": "1.539700555090069290777954984",
+        "total_r": "38.12551371892696670400362085",
+        "trades": 907
+      }
+    },
+    "source_binding": {
+      "artifact_digest": "sha256:825b2858d9d471dc85c83d6783536e1b97c597d38333c7c2adae0d0a00552683",
+      "artifact_id": 10550866581,
+      "git_sha": "e02d9384fbe6521040fc2779a085c43b8d5f0f92",
+      "report_sha256": "ba315d13aedf8ba65bce43d628a97b44925ccf810d55a39bfcf60f4a29544690",
+      "run_id": 35353073610,
+      "trades_sha256": "693a55aa4f1bed4c211976e0aa54b469c62902caec88d7490268567af32ed8c0"
+    },
+    "source_r39": {
+      "acceptance_pass": false,
+      "max_drawdown_r": "6.300579139307606225622175385",
+      "positive_annual_blocks": 3,
+      "profit_factor": "1.434678989899972078384376552",
+      "trades": 907
+    }
+  },
+  "sha256sums": [
+    "406eeaa9d0594094e085825882a7abc01a50ad697d3a21698fc4cde3d8c57ab3  r40-5y-correction-report.json",
+    "ddc3312e7153765322d252ffb851a70889a1fcc594a280ddb2e33bcfa20ad753  stdout.json",
+    "31be7cdba8acad10d934a5750e9100be5e0258e7c6d6b9f7c0c17ad49c4b2cc2  git-sha.txt",
+    "018bdb2078a26e24560fcc90195ec667992f82c45cd8c5cf2da349c37526c592  r40-5y-corrected-trades.jsonl"
+  ],
+  "workflow_run_id": 35353420139,
+  "workflow_sha": "79b2ca70f80fd22adcdcc2265e1f088923b028fd"
+}
