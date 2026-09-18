@@ -13,12 +13,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.ctrader_demo_lab_probe import CTraderDemoLabProbeError
-from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
-    _connect_and_resolve_market,
-)
-from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
-
 from vt31_historical_tick_batch_acquisition import (
     _canonical_sha,
     _collect_with_retry,
@@ -28,6 +22,12 @@ from vt31_historical_tick_probe import (
     _enable_research_tick_messages,
     _projection,
 )
+
+from qore.infrastructure.ctrader_demo_lab_probe import CTraderDemoLabProbeError
+from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
+    _connect_and_resolve_market,
+)
+from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
 
 SCHEMA = "qore.vt31.nas100.high_density_tick_acquisition.v1"
 MARKET = "NAS100"
