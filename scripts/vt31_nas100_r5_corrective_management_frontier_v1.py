@@ -83,6 +83,7 @@ def _first_rows(
     *,
     evidence: str,
     alt_partial_r: Decimal | None,
+    secondary_route_policy: str = "ORIGINAL",
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
@@ -257,6 +258,93 @@ def _first_rows(
         if selected is None:
             continue
 
+        session_prefix = tuple(
+            bar
+            for bar in session
+            if cast(datetime, getattr(bar, "closed_at"))
+            <= selected.decision_at
+        )
+        selected_source = timeline.source
+        alt_state = specialist._state_snapshot(
+            day_bars,
+            previous_path_range,
+            prior_ref_median,
+            prior_admitted_day_bars,
+            session_prefix,
+            selected_source,
+            selected,
+            selected.decision_at,
+        )
+
+        if alt_tier == "SECONDARY" and secondary_route_policy != "ORIGINAL":
+            family = selected.selected_family.value
+            breaker_bad_context = (
+                family == "breaker"
+                and (
+                    alt_state.get("h1_state") == "mixed"
+                    or alt_state.get("reference_volatility_state") == "expanded"
+                    or alt_state.get("last_structure_event_family") == "breaker"
+                )
+            )
+            cash_bullish = alt_state.get("cash_open_state") == "bullish"
+            should_route = (
+                breaker_bad_context
+                if secondary_route_policy == "RENEW_BREAKER_CONTEXT"
+                else cash_bullish
+                if secondary_route_policy == "RENEW_CASH_BULLISH"
+                else breaker_bad_context or cash_bullish
+                if secondary_route_policy in {
+                    "RENEW_STABLE_NEGATIVE",
+                    "ABSTAIN_STABLE_NEGATIVE",
+                }
+                else False
+            )
+            if should_route:
+                status[f"route-{secondary_route_policy}"] += 1
+                if secondary_route_policy == "ABSTAIN_STABLE_NEGATIVE":
+                    continue
+                renewed = frontier._next_executable_after(
+                    reference=reference,
+                    session=session,
+                    after_at=selected.decision_at,
+                    evidence=evidence,
+                    policy=policy,
+                )
+                if renewed is None:
+                    status["route-no-renewed-event"] += 1
+                    continue
+                renewed_source, renewed_selected = renewed
+                rejected_at = selected.decision_at
+                if not (
+                    renewed_source.structure.raid_at > rejected_at
+                    and renewed_source.structure.confirmation_at > rejected_at
+                    and renewed_selected.decision_at > rejected_at
+                ):
+                    status["route-renewal-invariant-failed"] += 1
+                    continue
+                selected_source = renewed_source
+                selected = renewed_selected
+                session_prefix = tuple(
+                    bar
+                    for bar in session
+                    if cast(datetime, getattr(bar, "closed_at"))
+                    <= selected.decision_at
+                )
+                alt_state = specialist._state_snapshot(
+                    day_bars,
+                    previous_path_range,
+                    prior_ref_median,
+                    prior_admitted_day_bars,
+                    session_prefix,
+                    selected_source,
+                    selected,
+                    selected.decision_at,
+                )
+                alt_reason = (
+                    f"{alt_reason}:NEW_RAID_CONFIRMATION_DECISION"
+                )
+                status["route-renewed-event-selected"] += 1
+
         outcome = (
             specialist.baseline._simulate(day_bars, selected)
             if alt_partial_r is None
@@ -274,22 +362,6 @@ def _first_rows(
         key = "scout_count" if alt_tier == "SCOUT" else "secondary_count"
         budget_ledger[month][key] = int(budget_ledger[month][key]) + 1
         budget_ledger[month]["remaining_budget_r"] = format(alt_budget, "f")
-        session_prefix = tuple(
-            bar
-            for bar in session
-            if cast(datetime, getattr(bar, "closed_at"))
-            <= selected.decision_at
-        )
-        alt_state = specialist._state_snapshot(
-            day_bars,
-            previous_path_range,
-            prior_ref_median,
-            prior_admitted_day_bars,
-            session_prefix,
-            timeline.source,
-            selected,
-            selected.decision_at,
-        )
         weighted = hybrid._weighted(
             outcome,
             tier=alt_tier,
@@ -327,6 +399,7 @@ def _first_rows(
     return trades, {
         "status_counts": dict(sorted(status.items())),
         "monthly_alt_budget_ledger": budget_ledger,
+        "secondary_route_policy": secondary_route_policy,
     }
 
 
