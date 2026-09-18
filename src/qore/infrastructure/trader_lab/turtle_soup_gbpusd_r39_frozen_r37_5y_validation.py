@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from qore.infrastructure.trader_lab import (
     cibo_market_atlas_journey_extractor_v1 as journey,
@@ -91,7 +91,7 @@ def _single(root: Path, name: str) -> Path:
 
 
 def _load_freeze(root: Path) -> dict[str, Any]:
-    manifest = json.loads(_single(root, "r38-candidate-freeze-manifest.json").read_text())
+    manifest = cast(dict[str, Any], json.loads(_single(root, "r38-candidate-freeze-manifest.json").read_text()))
     if manifest["identity"] != CANDIDATE_IDENTITY:
         raise ValueError("candidate identity drift")
     if manifest["status"] != "FROZEN_FOR_5Y_VALIDATION":
