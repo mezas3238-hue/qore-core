@@ -145,20 +145,20 @@ def _stream_for_window(
     selected: list[tuple[r4.ExpandedOpportunity, r5.ManagedTrade]] = []
     for symbol in ("NAS100", "SP500", "US30"):
         if recent_two_year:
-            bars, _source = r15.r2y._load_cibo_m15_2y(
+            bars, _source = r2y._load_cibo_m15_2y(
                 roots[symbol],
                 symbol=symbol,
             )
-            opportunities = r15.r2y._opportunities_2y(
+            opportunities = r2y._opportunities_2y(
                 symbol=symbol,
                 bars=bars,
             )
         else:
-            bars, _source = r15.v5y._load_cibo_m15_5y(
+            bars, _source = v5y._load_cibo_m15_5y(
                 roots[symbol],
                 symbol=symbol,
             )
-            opportunities = r15.r8._opportunities(
+            opportunities = r8._opportunities(
                 symbol=symbol,
                 bars=bars,
             )
