@@ -23,7 +23,6 @@ No R11/R16/R17/R20/R21/R22/R23 memory or labels are inputs.
 """
 from __future__ import annotations
 
-import bisect
 import json
 import sys
 from collections import Counter, defaultdict
