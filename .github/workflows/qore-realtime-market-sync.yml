@@ -1,0 +1,80 @@
+name: QORE Realtime MT5 Market Sync
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/qore-mt5-realtime-market-sync-001
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - name: Ruff focused realtime gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/fundednext_realtime_market_data.py \
+            src/qore/infrastructure/r34_xauusd_live.py \
+            src/qore/infrastructure/r38_eurusd_live.py \
+            src/qore/infrastructure/r43_gbpusd_live.py \
+            src/qore/infrastructure/r38_gbpjpy_live.py \
+            scripts/qore_fundednext_runtime.py \
+            tests/infrastructure/test_fundednext_realtime_market_data.py \
+            tests/infrastructure/test_r34_xauusd_live.py \
+            tests/infrastructure/test_r38_eurusd_live.py \
+            tests/infrastructure/test_r43_gbpusd_live.py \
+            tests/infrastructure/test_r38_gbpjpy_live.py
+      - name: Mypy focused realtime gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/fundednext_realtime_market_data.py \
+            src/qore/infrastructure/r34_xauusd_live.py \
+            src/qore/infrastructure/r38_eurusd_live.py \
+            src/qore/infrastructure/r43_gbpusd_live.py \
+            src/qore/infrastructure/r38_gbpjpy_live.py \
+            scripts/qore_fundednext_runtime.py
+      - name: Focused realtime tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_fundednext_realtime_market_data.py \
+            tests/infrastructure/test_fundednext_mt5_clock.py \
+            tests/infrastructure/test_r34_xauusd_live.py \
+            tests/infrastructure/test_r38_eurusd_live.py \
+            tests/infrastructure/test_r43_gbpusd_live.py \
+            tests/infrastructure/test_r38_gbpjpy_live.py \
+            tests/infrastructure/test_account_wide_risk.py
+      - name: Runtime syntax
+        run: |
+          python -m py_compile \
+            scripts/qore_fundednext_runtime.py \
+            src/qore/infrastructure/fundednext_realtime_market_data.py \
+            src/qore/infrastructure/r34_xauusd_live.py \
+            src/qore/infrastructure/r38_eurusd_live.py \
+            src/qore/infrastructure/r43_gbpusd_live.py \
+            src/qore/infrastructure/r38_gbpjpy_live.py
+
+  full-qore-gate:
+    needs: focused
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src tests
+      - name: Pytest
+        run: pytest -q --no-cov
