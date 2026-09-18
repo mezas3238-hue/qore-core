@@ -350,11 +350,8 @@ def _build_variant_surface(
     for opened in sorted(h4):
         if opened.astimezone(_NY).hour not in anchors:
             continue
-        if not r1._in_partition(
-            opened,
-            start_date=r1.START_DATE,
-            end_date_exclusive=r1.END_DATE_EXCLUSIVE,
-        ):
+        local_date = opened.astimezone(_NY).date()
+        if not (r1.START_DATE <= local_date < r1.END_DATE_EXCLUSIVE):
             continue
         opportunities.extend(
             _opportunities_for_h4(
@@ -565,6 +562,28 @@ def build_report(
         for row in reports
         if int(row["opportunity_count"]) >= DENSITY_HARD_GATE
     ]
+    sequential_density_variants: list[str] = []
+    economic_density_candidates: list[dict[str, Any]] = []
+    for row in reports:
+        for target_row in cast(list[dict[str, Any]], row["target_results"]):
+            primary = cast(dict[str, Any], target_row["primary"])
+            overlap = cast(dict[str, Any], target_row["overlap"])
+            sequential = int(overlap["one_active_position_per_symbol_count"])
+            if sequential >= DENSITY_HARD_GATE:
+                if str(row["variant"]) not in sequential_density_variants:
+                    sequential_density_variants.append(str(row["variant"]))
+                pf = Decimal(str(primary["profit_factor"] or "0"))
+                dd = Decimal(str(primary["max_drawdown_r"]))
+                if pf >= Decimal("1.30") and dd <= Decimal("12"):
+                    economic_density_candidates.append(
+                        {
+                            "variant": row["variant"],
+                            "target_r": target_row["target_r"],
+                            "primary": primary,
+                            "secondary": target_row["secondary"],
+                            "overlap": overlap,
+                        }
+                    )
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
@@ -594,6 +613,10 @@ def build_report(
         "variant_reports": reports,
         "density_variant_count": len(density_variants),
         "density_variants": [row["variant"] for row in density_variants],
+        "sequential_density_variant_count": len(sequential_density_variants),
+        "sequential_density_variants": sequential_density_variants,
+        "economic_density_candidate_count": len(economic_density_candidates),
+        "economic_density_candidates": economic_density_candidates,
         "governance": {
             "research_only": True,
             "tuning_window_consumed": True,
@@ -628,6 +651,12 @@ def main() -> None:
                 "identity": IDENTITY,
                 "density_variant_count": report["density_variant_count"],
                 "density_variants": report["density_variants"],
+                "sequential_density_variant_count": (
+                    report["sequential_density_variant_count"]
+                ),
+                "economic_density_candidate_count": (
+                    report["economic_density_candidate_count"]
+                ),
             },
             sort_keys=True,
         )
