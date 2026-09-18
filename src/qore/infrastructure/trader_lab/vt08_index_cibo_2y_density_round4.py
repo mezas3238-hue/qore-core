@@ -311,7 +311,7 @@ def _opportunities_for_h4(
         result,
         key=lambda value: (
             value.signal.signal_at,
-            priority.get(value.source_poi_kind, 99),
+            poi_priority.get(value.source_poi_kind, 99),
             value.rearm_index,
         ),
     ):
