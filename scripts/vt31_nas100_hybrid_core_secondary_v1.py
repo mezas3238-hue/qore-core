@@ -208,6 +208,29 @@ def compose(core_root: Path, oco_root: Path) -> dict[str, object]:
     budget_ledger: dict[str, dict[str, object]] = defaultdict(dict)
 
     for local_date in all_dates:
+        month = local_date[:7]
+        if month != current_month:
+            if current_month is not None:
+                carry = min(
+                    available_secondary_budget,
+                    SECONDARY_CARRY_CAP,
+                )
+            available_secondary_budget = SECONDARY_MONTHLY_BUDGET + carry
+            current_month = month
+            budget_ledger[month] = {
+                "opening_budget_r": format(
+                    available_secondary_budget,
+                    "f",
+                ),
+                "base_budget_r": format(SECONDARY_MONTHLY_BUDGET, "f"),
+                "carry_in_r": format(carry, "f"),
+                "executed_secondary": 0,
+                "remaining_budget_r": format(
+                    available_secondary_budget,
+                    "f",
+                ),
+            }
+
         if local_date in core_by_date:
             item = core_by_date[local_date]
             at = str(item["signal_at"])
@@ -228,25 +251,6 @@ def compose(core_root: Path, oco_root: Path) -> dict[str, object]:
 
         item = secondary_by_date[local_date]
         at = str(item["decision_at"])
-        month = local_date[:7]
-        if month != current_month:
-            if current_month is not None:
-                carry = min(
-                    available_secondary_budget,
-                    SECONDARY_CARRY_CAP,
-                )
-            available_secondary_budget = SECONDARY_MONTHLY_BUDGET + carry
-            current_month = month
-            budget_ledger[month] = {
-                "opening_budget_r": format(
-                    available_secondary_budget,
-                    "f",
-                ),
-                "base_budget_r": format(SECONDARY_MONTHLY_BUDGET, "f"),
-                "carry_in_r": format(carry, "f"),
-                "executed_secondary": 0,
-            }
-
         if available_secondary_budget < SECONDARY_RISK:
             continue
 
