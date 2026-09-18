@@ -155,7 +155,21 @@ ADAPTIVE_REARM_BUDGET_PROFILES: dict[str, dict[str, object]] = {
         "balanced_budget": Decimal("0.20"),
         "dense_budget": Decimal("0.02"),
     },
+    "ACTIVITY_K": {
+        "sparse_max": 8,
+        "balanced_max": 10,
+        "sparse_budget": Decimal("0.30"),
+        "balanced_budget": Decimal("0.18"),
+        "dense_budget": Decimal("0.04"),
+    },
 }
+
+GLOBAL_RISK_SCALARS = (
+    Decimal("0.75"),
+    Decimal("0.70"),
+    Decimal("0.68"),
+    Decimal("0.65"),
+)
 
 
 def _risk_class(score: int) -> str:
@@ -201,6 +215,28 @@ def _capital_metrics(
         for row in rows
     ]
     return _metrics(converted, friction=Decimal(0))
+
+
+def _scale_capital_rows(
+    rows: list[dict[str, object]],
+    *,
+    scalar: Decimal,
+) -> list[dict[str, object]]:
+    scaled: list[dict[str, object]] = []
+    for row in rows:
+        updated = dict(row)
+        updated["capital_weighted_net_r"] = format(
+            Decimal(cast(str, row["capital_weighted_net_r"])) * scalar,
+            "f",
+        )
+        if "requested_risk_r" in row:
+            updated["requested_risk_r"] = format(
+                Decimal(cast(str, row["requested_risk_r"])) * scalar,
+                "f",
+            )
+        updated["global_risk_scalar"] = format(scalar, "f")
+        scaled.append(updated)
+    return scaled
 
 
 def _budgeted_rearm_rows(
@@ -776,6 +812,10 @@ def replay(
                     Decimal(cast(str, metrics["max_drawdown_r"]))
                     <= Decimal("10")
                 ),
+                "observed_dd_at_most_6r": (
+                    Decimal(cast(str, metrics["max_drawdown_r"]))
+                    <= Decimal("6")
+                ),
                 "stretch_observed_dd_at_most_5r": (
                     Decimal(cast(str, metrics["max_drawdown_r"]))
                     <= Decimal("5")
@@ -792,6 +832,101 @@ def replay(
                 ),
             },
         }
+
+        if profile_name == "ACTIVITY_K":
+            for scalar in GLOBAL_RISK_SCALARS:
+                scaled = _scale_capital_rows(combined, scalar=scalar)
+                scalar_tag = format(scalar, "f").replace(".", "")
+                scaled_variant = (
+                    "REARM_ADAPTIVE_ACTIVITY_K_SCORE_PROTECT_"
+                    f"RISK_SCALAR_{scalar_tag}"
+                )
+                scaled_metrics = _capital_metrics(scaled)
+                scaled_mc = _monte_carlo(
+                    scaled,
+                    variant=scaled_variant,
+                )
+                variants[scaled_variant] = {
+                    "trade_count": trade_count,
+                    "base_trade_count": len(first_rows),
+                    "rearm_trade_count": len(rearm_rows),
+                    "metrics": scaled_metrics,
+                    "monte_carlo": scaled_mc,
+                    "global_risk_scalar": format(scalar, "f"),
+                    "activity_budget_profile": {
+                        key: (
+                            format(value, "f")
+                            if isinstance(value, Decimal)
+                            else value
+                        )
+                        for key, value in profile.items()
+                    },
+                    "monthly_activity_budget_ledger": activity_ledger,
+                    "density": {
+                        "at_least_300": trade_count >= 300,
+                        "inside_300_350": 300 <= trade_count <= 350,
+                    },
+                    "development_objectives": {
+                        "density_300_350": 300 <= trade_count <= 350,
+                        "profit_factor_at_least_2": (
+                            scaled_metrics["profit_factor"] is not None
+                            and Decimal(
+                                cast(
+                                    str,
+                                    scaled_metrics["profit_factor"],
+                                )
+                            )
+                            >= Decimal("2")
+                        ),
+                        "observed_dd_at_most_10r": (
+                            Decimal(
+                                cast(
+                                    str,
+                                    scaled_metrics["max_drawdown_r"],
+                                )
+                            )
+                            <= Decimal("10")
+                        ),
+                        "observed_dd_at_most_6r": (
+                            Decimal(
+                                cast(
+                                    str,
+                                    scaled_metrics["max_drawdown_r"],
+                                )
+                            )
+                            <= Decimal("6")
+                        ),
+                        "stretch_observed_dd_at_most_5r": (
+                            Decimal(
+                                cast(
+                                    str,
+                                    scaled_metrics["max_drawdown_r"],
+                                )
+                            )
+                            <= Decimal("5")
+                        ),
+                        "mc_positive_at_least_0_90": (
+                            Decimal(
+                                cast(
+                                    str,
+                                    scaled_mc[
+                                        "positive_terminal_probability"
+                                    ],
+                                )
+                            )
+                            >= Decimal("0.90")
+                        ),
+                        "mc_p95_dd_at_most_15r": (
+                            Decimal(
+                                cast(
+                                    str,
+                                    scaled_mc["p95_max_drawdown_r"],
+                                )
+                            )
+                            <= Decimal("15")
+                        ),
+                    },
+                }
 
     return {
         "schema": SCHEMA,
@@ -843,6 +978,9 @@ def replay(
             "adaptive_rearm_budget_uses_prior_activity_only": True,
             "adaptive_rearm_budget_uses_terminal_pnl": False,
             "adaptive_rearm_budget_uses_fold_identity": False,
+            "global_risk_scalar_uses_terminal_pnl": False,
+            "global_risk_scalar_uses_fold_identity": False,
+            "global_risk_scalar_changes_trade_count": False,
             "first_swing_is_universal": False,
             "qore_risk_remains_sovereign": True,
             "consumed_evidence_only": True,
