@@ -108,9 +108,9 @@ jobs:
           assert payload["evidence_purpose"] == "VT31_NAS100_2Y_CALIBRATION_001"
           assert payload["candidate_id"] == "VT31_NAS100_SPECIALIST_R1"
           assert payload["market"] == "NAS100"
-          assert payload["calibration_start_at"] == "2014-04-19T00:00:00+00:00"
+          assert payload["calibration_start_at"] == "2014-04-14T00:00:00+00:00"
           assert payload["calibration_end_exclusive"] == "2016-04-19T00:00:00+00:00"
-          assert payload["requested_calendar_days"] == 731
+          assert payload["requested_calendar_days"] == 736
           assert payload["coverage_sufficient"] is True
           assert payload["consumed_for_tuning_after_this_run"] is True
           assert payload["may_be_called_fresh_again"] is False
