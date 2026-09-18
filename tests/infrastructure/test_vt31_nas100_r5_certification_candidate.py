@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from typing import cast
 
 
 def _self_test() -> dict[str, object]:
@@ -16,7 +17,7 @@ def _self_test() -> dict[str, object]:
         capture_output=True,
         text=True,
     )
-    return json.loads(completed.stdout)
+    return cast(dict[str, object], json.loads(completed.stdout))
 
 
 def test_vt31_nas100_r5_contract_is_frozen_exactly() -> None:
