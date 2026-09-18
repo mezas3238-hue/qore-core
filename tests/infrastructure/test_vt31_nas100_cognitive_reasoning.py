@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     dossier_payload,
+    dossier_runtime_view,
     market_memory_manifest,
 )
 from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
@@ -18,10 +19,12 @@ from qore.infrastructure.traders.vt31_nas100_situation_model import (
 from qore.infrastructure.traders.vt31_nas100_strategy_identity_memory import (
     strategy_identity_fingerprint,
     strategy_identity_payload,
+    strategy_identity_runtime_view,
 )
 from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
     trader_experience_fingerprint,
     trader_experience_payload,
+    trader_experience_runtime_view,
 )
 
 
@@ -169,3 +172,32 @@ def test_weekday_memory_is_context_not_prohibition() -> None:
         decision.supporting_evidence
     )
     assert decision.action == "EXECUTE"
+
+
+def test_public_memory_payloads_are_defensive_copies() -> None:
+    strategy_before = strategy_identity_fingerprint()
+    cibo_before = dossier_runtime_view()["identity"]
+    experience_before = trader_experience_fingerprint()
+
+    strategy_copy = strategy_identity_payload()
+    strategy_copy["market"] = "MUTATED"
+    dossier_copy = dossier_payload()
+    dossier_copy["market"] = "MUTATED"
+    experience_copy = trader_experience_payload()
+    experience_copy["market"] = "MUTATED"
+
+    assert strategy_identity_runtime_view()["market"] == "NAS100"
+    assert dossier_runtime_view()["market"] == "NAS100"
+    assert trader_experience_runtime_view()["market"] == "NAS100"
+    assert strategy_identity_fingerprint() == strategy_before
+    assert dossier_runtime_view()["identity"] == cibo_before
+    assert trader_experience_fingerprint() == experience_before
+
+
+def test_cached_runtime_views_are_stable_identity_objects() -> None:
+    assert strategy_identity_runtime_view() is strategy_identity_runtime_view()
+    assert dossier_runtime_view() is dossier_runtime_view()
+    assert (
+        trader_experience_runtime_view()
+        is trader_experience_runtime_view()
+    )
