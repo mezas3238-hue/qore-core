@@ -93,6 +93,8 @@ SLIPPAGE_SCENARIOS: dict[str, dict[str, Any]] = {
     "NORMAL": {
         "TARGET": Decimal("0.005"),
         "STOP": Decimal("0.020"),
+        "TRAIL_STOP": Decimal("0.020"),
+        "STOP_FIRST": Decimal("0.020"),
         "GAP_STOP": Decimal("0.030"),
         "TIME_24H": Decimal("0.010"),
         "min_pf": Decimal("1.35"),
@@ -101,6 +103,8 @@ SLIPPAGE_SCENARIOS: dict[str, dict[str, Any]] = {
     "ADVERSE": {
         "TARGET": Decimal("0.010"),
         "STOP": Decimal("0.050"),
+        "TRAIL_STOP": Decimal("0.050"),
+        "STOP_FIRST": Decimal("0.050"),
         "GAP_STOP": Decimal("0.080"),
         "TIME_24H": Decimal("0.025"),
         "min_pf": Decimal("1.30"),
@@ -109,6 +113,8 @@ SLIPPAGE_SCENARIOS: dict[str, dict[str, Any]] = {
     "SEVERE": {
         "TARGET": Decimal("0.020"),
         "STOP": Decimal("0.100"),
+        "TRAIL_STOP": Decimal("0.100"),
+        "STOP_FIRST": Decimal("0.100"),
         "GAP_STOP": Decimal("0.150"),
         "TIME_24H": Decimal("0.050"),
         "min_pf": Decimal("1.20"),
@@ -443,7 +449,14 @@ def _slippage(trades: list[Trade]) -> dict[str, Any]:
         scenarios[name] = {
             "adverse_r_by_exit": {
                 exit_reason: str(rule[exit_reason])
-                for exit_reason in ("TARGET", "STOP", "GAP_STOP", "TIME_24H")
+                for exit_reason in (
+                    "TARGET",
+                    "STOP",
+                    "TRAIL_STOP",
+                    "STOP_FIRST",
+                    "GAP_STOP",
+                    "TIME_24H",
+                )
             },
             "stats": stats,
             "gate": {
