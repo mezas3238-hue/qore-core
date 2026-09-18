@@ -1475,6 +1475,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     last_lifecycle: str | None = None
     logged_market_data_boundaries: set[tuple[str, str]] = set()
+    last_boundary_capture: datetime | None = None
+    vt08_boundary_results: dict[
+        str,
+        tuple[Vt08B01Candidate | None, str],
+    ] = {}
+    vt08_boundary_failures: dict[str, str] = {}
 
     while True:
         cycle_at = _arm_to_hour_boundary(datetime.now(UTC))
@@ -1485,12 +1491,62 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 symbols=tuple(turtle_history_bars),
                 now=cycle_at,
             )
-        else:
-            market_status = turtle_market_data.prime_anchor_group(
-                mt5,
+        elif turtle_anchor != last_boundary_capture:
+            vt08_anchor = _current_anchor(cycle_at)
+            vt08_boundary_results = {}
+            vt08_boundary_failures = {}
+            vt08_pending = set(_MARKETS) if vt08_anchor is not None else set()
+            vt08_pending_reason: dict[str, str] = {}
+            deadline = turtle_anchor + timedelta(seconds=MARKET_DATA_SLA_SECONDS)
+
+            while True:
+                turtle_pending = set(
+                    turtle_market_data.prime_anchor_once(
+                        mt5,
+                        anchor=turtle_anchor,
+                        symbols=turtle_history_bars,
+                    )
+                )
+                for symbol in tuple(vt08_pending):
+                    ready, pending_reason = _vt08_boundary_ready(
+                        symbol,
+                        vt08_anchor if vt08_anchor is not None else turtle_anchor,
+                    )
+                    if not ready:
+                        if pending_reason is not None:
+                            vt08_pending_reason[symbol] = pending_reason
+                        continue
+                    try:
+                        vt08_boundary_results[symbol] = _causal_candidate(
+                            symbol,
+                            vt08_anchor if vt08_anchor is not None else turtle_anchor,
+                        )
+                    except Exception as error:
+                        vt08_boundary_failures[symbol] = (
+                            f"{type(error).__name__}: {error}"
+                        )
+                    vt08_pending.remove(symbol)
+
+                if not turtle_pending and not vt08_pending:
+                    break
+                remaining = (deadline - datetime.now(UTC)).total_seconds()
+                if remaining <= 0:
+                    break
+                time.sleep(min(_BOUNDARY_POLL_SECONDS, remaining))
+
+            market_status = turtle_market_data.finalize_anchor_group(
                 anchor=turtle_anchor,
                 symbols=turtle_history_bars,
             )
+            for symbol in vt08_pending:
+                detail = vt08_pending_reason.get(
+                    symbol,
+                    f"{symbol} VT08 boundary evidence unavailable",
+                )
+                vt08_boundary_failures[symbol] = (
+                    f"{detail}; hard_sla={MARKET_DATA_SLA_SECONDS:.1f}s"
+                )
+
             for symbol, failure in market_status.items():
                 log_key = (symbol, turtle_anchor.isoformat())
                 if log_key in logged_market_data_boundaries:
@@ -1535,6 +1591,32 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
                 logged_market_data_boundaries.add(log_key)
+
+            if vt08_anchor is not None:
+                for symbol in _MARKETS:
+                    failure = vt08_boundary_failures.get(symbol)
+                    if failure is not None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT08_MARKET_DATA_SLA_FAIL_CLOSED",
+                                "symbol": symbol,
+                                "decision_at": vt08_anchor.isoformat(),
+                                "sla_seconds": MARKET_DATA_SLA_SECONDS,
+                                "message": failure,
+                            },
+                        )
+                    elif symbol in vt08_boundary_results:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT08_MARKET_DATA_BOUNDARY_READY",
+                                "symbol": symbol,
+                                "decision_at": vt08_anchor.isoformat(),
+                                "sla_seconds": MARKET_DATA_SLA_SECONDS,
+                            },
+                        )
+            last_boundary_capture = turtle_anchor
 
         account_state = gateway.read_account(now=cycle_at)
         gateway.reconcile_unknown(now=cycle_at)
@@ -1732,12 +1814,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 if anchor_key in state.processed_anchors:
                     continue
                 try:
-                    candidate, reason = _causal_candidate(symbol, anchor)
+                    failure = vt08_boundary_failures.get(symbol)
+                    captured = vt08_boundary_results.get(symbol)
+                    if failure is not None:
+                        candidate = None
+                        reason = f"market-data-sla-fail:{failure}"
+                    elif captured is None:
+                        raise RuntimeError("vt08-boundary-capture-missing")
+                    else:
+                        candidate, reason = captured
                     if candidate is None:
                         _log(
                             log_path,
                             {
-                                "event": "VT08_CAUSAL_ABSTAIN",
+                                "event": (
+                                    "VT08_MARKET_DATA_SLA_FAIL_CLOSED"
+                                    if reason.startswith("market-data-sla-fail:")
+                                    else "VT08_CAUSAL_ABSTAIN"
+                                ),
                                 "symbol": symbol,
                                 "decision_at": anchor.isoformat(),
                                 "reason": reason,
