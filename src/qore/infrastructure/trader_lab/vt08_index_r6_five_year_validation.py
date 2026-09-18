@@ -1,0 +1,396 @@
+"""VT08 Index R6 frozen candidate — five-year out-of-tuning validation replay.
+
+This module replays the exact frozen VT08_INDEX_R6_GOVERNED_657_001 contract
+without tuning on a contiguous five-year window that starts immediately after
+the 2Y tuning window:
+
+    2018-09-15 <= New York source date < 2023-09-15
+
+The window is out-of-tuning but NOT claimed fresh for certification because
+parts of the same historical period were consumed by earlier VT08 research.
+
+Hard validation contract:
+- preserve the frozen R6 opportunity generator, management map and governor;
+- 1500 <= executed trades <= 1600;
+- governed PF >= 1.50 and governed DD <= 6R at -0.05R/trade;
+- governed PF >= 1.30 and governed DD <= 8R at -0.10R/trade;
+- no zero-risk trades and no post-hoc rule changes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from collections import defaultdict
+from collections.abc import Sequence
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from pathlib import Path
+from typing import Any, cast
+from zoneinfo import ZoneInfo
+
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_specialist_risk_round6 as r6
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round1 as r1
+from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round2 as r2
+from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
+from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
+from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
+
+SCHEMA = "qore.trader_lab.vt08_index_r6_five_year_validation.v1"
+IDENTITY = "VT08_INDEX_R6_GOVERNED_657_5Y_VALIDATION_001"
+START_DATE = date(2018, 9, 15)
+END_DATE_EXCLUSIVE = date(2023, 9, 15)
+MIN_TRADES = 1500
+MAX_TRADES = 1600
+PRIMARY_STRESS = Decimal("0.05")
+SECONDARY_STRESS = Decimal("0.10")
+PRIMARY_PF_MIN = Decimal("1.50")
+PRIMARY_DD_MAX = Decimal("6")
+SECONDARY_PF_MIN = Decimal("1.30")
+SECONDARY_DD_MAX = Decimal("8")
+_NY = ZoneInfo("America/New_York")
+
+
+def _build_surface_5y(
+    *,
+    symbol: str,
+    bars: Sequence[Vt08IndexC2R1Bar],
+) -> tuple[r4.ExpandedOpportunity, ...]:
+    indexed = {bar.opened_at.astimezone(UTC): bar for bar in bars}
+    h4 = v6._build_h4(indexed)
+    opportunities: list[r4.ExpandedOpportunity] = []
+    for opened in sorted(h4):
+        local_date = opened.astimezone(_NY).date()
+        if not (START_DATE <= local_date < END_DATE_EXCLUSIVE):
+            continue
+        if opened.astimezone(_NY).hour not in r4.V7_ANCHORS:
+            continue
+        opportunities.extend(
+            r4._opportunities_for_h4(
+                symbol=symbol,
+                indexed=indexed,
+                h4=h4,
+                h4_opened_at=opened,
+                multi_poi=True,
+                rearm=True,
+            )
+        )
+    opportunities.sort(
+        key=lambda item: (
+            item.signal.signal_at,
+            item.signal.symbol,
+            item.signal.entry,
+            item.signal.stop,
+        )
+    )
+    return tuple(opportunities)
+
+
+def _frozen_admissions_5y(
+    *,
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+) -> tuple[v6.CandidateSignal, ...]:
+    baseline_policy = r5.Policy(
+        target_r=Decimal("2.5"),
+        soft_close_loss_r=None,
+        soft_close_until_mfe_r=None,
+        deadline_bars=None,
+        deadline_min_mfe_r=None,
+        trail_name="OFF",
+        trail_steps=(),
+    )
+    selected: list[v6.CandidateSignal] = []
+    for symbol in r1.SYMBOLS:
+        bars = bars_by_symbol[symbol]
+        opened = tuple(bar.opened_at.astimezone(UTC) for bar in bars)
+        candidates = [
+            (
+                item.signal,
+                r5._manage_trade(
+                    item.signal,
+                    bars=bars,
+                    opened=opened,
+                    policy=baseline_policy,
+                ),
+            )
+            for item in _build_surface_5y(symbol=symbol, bars=bars)
+        ]
+        last_exit: datetime | None = None
+        for signal, outcome in sorted(
+            candidates,
+            key=lambda item: item[0].signal_at,
+        ):
+            if last_exit is not None and signal.signal_at < last_exit:
+                continue
+            selected.append(signal)
+            last_exit = outcome.exited_at
+    selected.sort(key=lambda signal: (signal.signal_at, signal.symbol))
+    return tuple(selected)
+
+
+def _frozen_policy_map() -> dict[str, r5.Policy]:
+    policies = {policy.policy_id: policy for policy in r5._policy_grid()}
+    result: dict[str, r5.Policy] = {}
+    for cell, payload in freeze.MANAGEMENT_BY_CELL.items():
+        policy_id = str(payload["policy_id"])
+        policy = policies.get(policy_id)
+        if policy is None:
+            raise ValueError(f"frozen R6 policy missing from grid: {cell} {policy_id}")
+        result[cell] = policy
+    return result
+
+
+def _managed_outcomes(
+    signals: Sequence[v6.CandidateSignal],
+    *,
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    opened_by_symbol: dict[str, tuple[datetime, ...]],
+) -> tuple[r5.ManagedTrade, ...]:
+    policy_by_cell = _frozen_policy_map()
+    outcomes: list[r5.ManagedTrade] = []
+    for signal in signals:
+        cell = f"{signal.symbol}:{signal.side.value}"
+        policy = policy_by_cell[cell]
+        outcomes.append(
+            r5._manage_trade(
+                signal,
+                bars=bars_by_symbol[signal.symbol],
+                opened=opened_by_symbol[signal.symbol],
+                policy=policy,
+            )
+        )
+    return tuple(outcomes)
+
+
+def _frozen_governor() -> r6.RiskGovernor:
+    weights = cast(dict[str, str], freeze.RISK_GOVERNOR["market_weights"])
+    return r6.RiskGovernor(
+        nas100_weight=Decimal(weights["NAS100"]),
+        sp500_weight=Decimal(weights["SP500"]),
+        us30_weight=Decimal(weights["US30"]),
+        warn_dd_r=Decimal(str(freeze.RISK_GOVERNOR["warn_dd_r"])),
+        warn_multiplier=Decimal(str(freeze.RISK_GOVERNOR["warn_multiplier"])),
+        hard_dd_r=Decimal(str(freeze.RISK_GOVERNOR["hard_dd_r"])),
+        hard_multiplier=Decimal(str(freeze.RISK_GOVERNOR["hard_multiplier"])),
+        loss_streak_trigger=int(freeze.RISK_GOVERNOR["loss_streak_trigger"]),
+        loss_streak_multiplier=Decimal(
+            str(freeze.RISK_GOVERNOR["loss_streak_multiplier"])
+        ),
+    )
+
+
+def _by_market(
+    signals: Sequence[v6.CandidateSignal],
+    values: Sequence[Decimal],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for symbol in r1.SYMBOLS:
+        subset = tuple(
+            value
+            for signal, value in zip(signals, values, strict=True)
+            if signal.symbol == symbol
+        )
+        result[symbol] = r6._basic_metrics(subset)
+    return result
+
+
+def _by_year(
+    signals: Sequence[v6.CandidateSignal],
+    values: Sequence[Decimal],
+) -> dict[str, Any]:
+    grouped: dict[int, list[Decimal]] = defaultdict(list)
+    for signal, value in zip(signals, values, strict=True):
+        grouped[signal.signal_at.astimezone(_NY).year].append(value)
+    return {
+        str(year): r6._basic_metrics(tuple(grouped[year]))
+        for year in sorted(grouped)
+    }
+
+
+def _half_metrics(
+    signals: Sequence[v6.CandidateSignal],
+    values: Sequence[Decimal],
+) -> dict[str, Any]:
+    midpoint = datetime(2021, 3, 15, tzinfo=_NY)
+    first = tuple(
+        value
+        for signal, value in zip(signals, values, strict=True)
+        if signal.signal_at.astimezone(_NY) < midpoint
+    )
+    second = tuple(
+        value
+        for signal, value in zip(signals, values, strict=True)
+        if signal.signal_at.astimezone(_NY) >= midpoint
+    )
+    return {
+        "first_half": r6._basic_metrics(first),
+        "second_half": r6._basic_metrics(second),
+    }
+
+
+def build_report(
+    *,
+    nas100_root: Path,
+    sp500_root: Path,
+    us30_root: Path,
+) -> dict[str, Any]:
+    roots = {
+        "NAS100": nas100_root,
+        "SP500": sp500_root,
+        "US30": us30_root,
+    }
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]] = {}
+    opened_by_symbol: dict[str, tuple[datetime, ...]] = {}
+    provenance: dict[str, Any] = {}
+    for symbol in r1.SYMBOLS:
+        bars, source = r2._load_cibo_m15_available(roots[symbol], symbol=symbol)
+        bars_by_symbol[symbol] = bars
+        opened_by_symbol[symbol] = tuple(
+            bar.opened_at.astimezone(UTC) for bar in bars
+        )
+        provenance[symbol] = source
+
+    signals = _frozen_admissions_5y(bars_by_symbol=bars_by_symbol)
+    outcomes = _managed_outcomes(
+        signals,
+        bars_by_symbol=bars_by_symbol,
+        opened_by_symbol=opened_by_symbol,
+    )
+    governor = _frozen_governor()
+
+    raw_primary = tuple(
+        outcome.r_multiple - PRIMARY_STRESS for outcome in outcomes
+    )
+    raw_secondary = tuple(
+        outcome.r_multiple - SECONDARY_STRESS for outcome in outcomes
+    )
+    governed_primary, primary_diag = r6._governed_values(
+        signals,
+        outcomes,
+        governor=governor,
+        stress=PRIMARY_STRESS,
+    )
+    governed_secondary, secondary_diag = r6._governed_values(
+        signals,
+        outcomes,
+        governor=governor,
+        stress=SECONDARY_STRESS,
+    )
+
+    primary_metrics = r6._basic_metrics(governed_primary)
+    secondary_metrics = r6._basic_metrics(governed_secondary)
+    density_pass = MIN_TRADES <= len(signals) <= MAX_TRADES
+    performance_pass = (
+        Decimal(str(primary_metrics["profit_factor"] or "0")) >= PRIMARY_PF_MIN
+        and Decimal(str(primary_metrics["max_drawdown_r"])) <= PRIMARY_DD_MAX
+        and Decimal(str(secondary_metrics["profit_factor"] or "0"))
+        >= SECONDARY_PF_MIN
+        and Decimal(str(secondary_metrics["max_drawdown_r"])) <= SECONDARY_DD_MAX
+    )
+    no_zero_risk = (
+        int(primary_diag["zero_weight_trades"]) == 0
+        and int(secondary_diag["zero_weight_trades"]) == 0
+    )
+
+    return {
+        "schema": SCHEMA,
+        "identity": IDENTITY,
+        "candidate": {
+            "candidate_id": freeze.CANDIDATE_ID,
+            "rule_fingerprint": freeze.RULE_FINGERPRINT,
+            "source_run_id": freeze.SOURCE_RUN_ID,
+            "source_artifact_id": freeze.SOURCE_ARTIFACT_ID,
+            "management_id": freeze.MANAGEMENT_ID,
+            "governor_id": freeze.GOVERNOR_ID,
+            "rules_changed_for_5y": False,
+        },
+        "window": {
+            "start_date": START_DATE.isoformat(),
+            "end_date_exclusive": END_DATE_EXCLUSIVE.isoformat(),
+            "years": 5,
+            "relation_to_tuning": "OUT_OF_TUNING",
+            "fresh_certification_holdout": False,
+            "historical_status": "PARTIALLY_CONSUMED_BY_PRIOR_VT08_RESEARCH",
+        },
+        "hard_contract": {
+            "minimum_trades": MIN_TRADES,
+            "maximum_trades": MAX_TRADES,
+            "primary_pf_minimum": str(PRIMARY_PF_MIN),
+            "primary_dd_max_r": str(PRIMARY_DD_MAX),
+            "secondary_pf_minimum": str(SECONDARY_PF_MIN),
+            "secondary_dd_max_r": str(SECONDARY_DD_MAX),
+            "zero_risk_trades_allowed": False,
+        },
+        "trade_count": len(signals),
+        "trade_count_by_market": {
+            symbol: sum(signal.symbol == symbol for signal in signals)
+            for symbol in r1.SYMBOLS
+        },
+        "raw_primary": r6._basic_metrics(raw_primary),
+        "raw_secondary": r6._basic_metrics(raw_secondary),
+        "governed_primary": primary_metrics,
+        "governed_secondary": secondary_metrics,
+        "governor_primary_diagnostics": primary_diag,
+        "governor_secondary_diagnostics": secondary_diag,
+        "governed_primary_by_market": _by_market(signals, governed_primary),
+        "governed_secondary_by_market": _by_market(signals, governed_secondary),
+        "governed_primary_by_year": _by_year(signals, governed_primary),
+        "governed_secondary_by_year": _by_year(signals, governed_secondary),
+        "governed_primary_halves": _half_metrics(signals, governed_primary),
+        "governed_secondary_halves": _half_metrics(signals, governed_secondary),
+        "decision": {
+            "density_pass": density_pass,
+            "performance_pass": performance_pass,
+            "no_zero_risk_pass": no_zero_risk,
+            "five_year_contract_pass": (
+                density_pass and performance_pass and no_zero_risk
+            ),
+        },
+        "provenance": provenance,
+        "governance": {
+            "research_validation_only": True,
+            "candidate_frozen_before_replay": True,
+            "retuning_permitted": False,
+            "fresh_holdout_claim": False,
+            "live_authorized": False,
+            "real_capital_authorized": False,
+            "production_authorized": False,
+        },
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--nas100-root", type=Path, required=True)
+    parser.add_argument("--sp500-root", type=Path, required=True)
+    parser.add_argument("--us30-root", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    report = build_report(
+        nas100_root=args.nas100_root,
+        sp500_root=args.sp500_root,
+        us30_root=args.us30_root,
+    )
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(
+        json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    print(
+        json.dumps(
+            {
+                "identity": IDENTITY,
+                "trade_count": report["trade_count"],
+                "governed_primary": report["governed_primary"],
+                "governed_secondary": report["governed_secondary"],
+                "decision": report["decision"],
+            },
+            sort_keys=True,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
