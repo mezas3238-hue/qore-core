@@ -44,7 +44,6 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
     Vt31R22ExecutableSetup,
     Vt31R22ExecutionPolicy,
-    Vt31R22SourceSetup,
     evaluate_vt31_r2_2_source,
     make_executable_setup,
 )
