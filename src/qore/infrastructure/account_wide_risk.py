@@ -30,6 +30,7 @@ class TraderLineage(StrEnum):
     R38_EURUSD = "R38_EURUSD"
     R43_GBPUSD = "R43_GBPUSD"
     R38_GBPJPY = "R38_GBPJPY"
+    R42_AUDJPY = "R42_AUDJPY"
 
 
 class RiskDecision(StrEnum):
