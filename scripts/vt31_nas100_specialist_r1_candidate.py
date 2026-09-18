@@ -713,6 +713,22 @@ def _journey_capacity_label(
 
         high = _d(getattr(bar, "high"))
         low = _d(getattr(bar, "low"))
+        stop_hit = low <= stop if side == "long" else high >= stop
+        ranks_this_bar = [
+            rank
+            for rank, (_, level) in enumerate(ladder, start=1)
+            if (high >= level if side == "long" else low <= level)
+        ]
+        new_rank = max(ranks_this_bar, default=max_rank)
+        if stop_hit and new_rank > max_rank:
+            return {
+                "status": "censored-same-bar-capacity-stop",
+                "filled_at": filled_at.astimezone(UTC).isoformat(),
+            }
+        if stop_hit:
+            invalidated_at = cast(datetime, getattr(bar, "closed_at"))
+            break
+
         favorable_price = high if side == "long" else low
         adverse_price = low if side == "long" else high
         favorable_r = (
@@ -728,24 +744,9 @@ def _journey_capacity_label(
         max_favorable_r = max(max_favorable_r, favorable_r)
         max_adverse_r = max(max_adverse_r, adverse_r)
 
-        stop_hit = low <= stop if side == "long" else high >= stop
-        ranks_this_bar = [
-            rank
-            for rank, (_, level) in enumerate(ladder, start=1)
-            if (high >= level if side == "long" else low <= level)
-        ]
-        new_rank = max(ranks_this_bar, default=max_rank)
-        if stop_hit and new_rank > max_rank:
-            return {
-                "status": "censored-same-bar-capacity-stop",
-                "filled_at": filled_at.astimezone(UTC).isoformat(),
-            }
         if new_rank > max_rank:
             max_rank = new_rank
             reached = [name for name, _ in ladder[:max_rank]]
-        if stop_hit:
-            invalidated_at = cast(datetime, getattr(bar, "closed_at"))
-            break
 
     eligible = [
         bar
