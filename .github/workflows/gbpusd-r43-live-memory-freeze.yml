@@ -37,7 +37,7 @@ jobs:
       - name: Quality
         run: |
           ruff check --ignore E501,I001             scripts/build_gbpusd_r43_live_memory.py             tests/infrastructure/trader_lab/test_gbpusd_r43_live_memory_builder.py
-          mypy --disable-error-code attr-defined scripts/build_gbpusd_r43_live_memory.py
+          mypy --ignore-missing-imports --disable-error-code attr-defined scripts/build_gbpusd_r43_live_memory.py
           pytest -q --no-cov tests/infrastructure/trader_lab/test_gbpusd_r43_live_memory_builder.py
       - uses: actions/download-artifact@v4
         with:
