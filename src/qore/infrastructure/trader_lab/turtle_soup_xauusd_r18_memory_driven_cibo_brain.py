@@ -123,12 +123,12 @@ def _target_depth_decision(
             return 2, "RANK2_LATE_CONFIRMATION_CAPACITY"
         return 2, "RANK2_COMPRESSION_RELEASE_CAPACITY"
 
-    if _displacement_context(setup):
-        return 1, "RANK1_DISPLACEMENT_SUPPORTED"
     if friday and (late or compression):
         return 1, "RANK1_FRIDAY_DEPTH_CONSERVATIVE"
     if not session_support and (late or compression):
         return 1, "RANK1_SESSION_DEPTH_CONSERVATIVE"
+    if _displacement_context(setup):
+        return 1, "RANK1_DISPLACEMENT_SUPPORTED"
     return 1, "RANK1_BASE_STRUCTURAL_DESTINATION"
 
 
