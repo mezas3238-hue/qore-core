@@ -85,6 +85,12 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     strategy = strategy_identity_payload()
     market = dossier_payload()
     experience = trader_experience_payload()
+    source_identity = strategy["source_identity"]
+    supported_mechanisms = experience["supported_mechanisms"]
+    rejected_hypotheses = experience["rejected_hypotheses"]
+    assert isinstance(source_identity, dict)
+    assert isinstance(supported_mechanisms, dict)
+    assert isinstance(rejected_hypotheses, dict)
 
     support: list[str] = []
     contradictions: list[str] = []
