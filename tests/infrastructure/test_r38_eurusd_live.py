@@ -111,11 +111,13 @@ def test_r38_source_open_drift_over_certified_stress_fails_closed() -> None:
         )
 
 
-def test_r38_new_york_anchor_is_hourly_and_short_grace_only() -> None:
-    assert current_anchor(datetime(2026, 9, 18, 6, 0, 30, tzinfo=UTC)) == datetime(
-        2026, 9, 18, 6, 0, tzinfo=UTC
-    )
-    assert current_anchor(datetime(2026, 9, 18, 6, 0, 46, tzinfo=UTC)) is None
+def test_r38_new_york_anchor_has_hard_two_second_grace() -> None:
+    assert current_anchor(
+        datetime(2026, 9, 18, 6, 0, 1, 900_000, tzinfo=UTC)
+    ) == datetime(2026, 9, 18, 6, 0, tzinfo=UTC)
+    assert current_anchor(
+        datetime(2026, 9, 18, 6, 0, 2, 1_000, tzinfo=UTC)
+    ) is None
 
 
 def test_r38_structural_overlays_are_exact(monkeypatch: pytest.MonkeyPatch) -> None:
