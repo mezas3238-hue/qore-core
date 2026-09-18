@@ -11,7 +11,8 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-from collections import Counter, defaultdict\nfrom collections.abc import Sequence
+from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
