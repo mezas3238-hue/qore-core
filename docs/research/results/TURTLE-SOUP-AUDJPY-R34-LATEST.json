@@ -1,0 +1,344 @@
+{
+  "identity": "TURTLE_SOUP_AUDJPY_R34_STATUS",
+  "quality_result": "success",
+  "r34_result": "success",
+  "report": {
+    "experiment_contract": {
+      "actual_dol_price_always_used": true,
+      "c2_changed": false,
+      "cisd_changed": false,
+      "economic_validation": "FULL_LIFECYCLE_010_EQUAL_COUNT_TERCILES_2_OF_3",
+      "entry_changed": false,
+      "fresh_holdout_consumed": false,
+      "minimum_distinct_quarters": 4,
+      "minimum_observations": 20,
+      "minimum_static_protected_swing_reach": "0.50",
+      "nearest_validated_dol_policy": true,
+      "protected_swing_changed": false,
+      "regime_features_pre_entry_only": true,
+      "route_family_only_pools_memory": true,
+      "schemes_predeclared": {
+        "R34_DIRECTION_REGIME_ROUTE_TYPES": {
+          "fields": [
+            "timeframe",
+            "side",
+            "prior_body_alignment",
+            "h4_range_state",
+            "d1_range_state",
+            "m5_volatility_state"
+          ],
+          "route_family_mode": "TYPES_ONLY"
+        },
+        "R34_MINIMAL_ROUTE_TYPES": {
+          "fields": [
+            "timeframe",
+            "prior_body_alignment",
+            "d1_range_state"
+          ],
+          "route_family_mode": "TYPES_ONLY"
+        },
+        "R34_RANGE_ROUTE_TYPES": {
+          "fields": [
+            "h4_range_state",
+            "d1_range_state",
+            "m5_volatility_state"
+          ],
+          "route_family_mode": "TYPES_ONLY"
+        },
+        "R34_TIMEFRAME_REGIME_ROUTE_TYPES": {
+          "fields": [
+            "timeframe",
+            "h4_range_state",
+            "d1_range_state"
+          ],
+          "route_family_mode": "TYPES_ONLY"
+        }
+      },
+      "structural_rearm_changed": false
+    },
+    "governance": {
+      "candidate_replaced": false,
+      "candidate_replacement_allowed_only_if_acceptance_pass": true,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_only": true
+    },
+    "identity": "TURTLE_SOUP_AUDJPY_R34_CAUSAL_MEMORY_DEFRAGMENTATION_LAB_V1",
+    "predeclared_acceptance": {
+      "maximum_net_010_drawdown_r": "6.0",
+      "maximum_net_010_losing_streak": 3,
+      "minimum_net_010_profit_factor": "1.90",
+      "minimum_trades": 350,
+      "selection_order": "MOST_TRADES_THEN_HIGHER_PF_THEN_LOWER_DD"
+    },
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13948,
+        "H1:exact-c2": 23804,
+        "H1:invalid-entry-geometry": 2754,
+        "H1:no-causal-cisd": 9856,
+        "H1:no-exact-c2": 38153,
+        "H1:opposite-boundary-already-touched": 156,
+        "H1:signal": 11038,
+        "H1:source-cycles": 61957,
+        "H4:causal-cisd": 3857,
+        "H4:exact-c2": 5873,
+        "H4:invalid-entry-geometry": 964,
+        "H4:no-causal-cisd": 2016,
+        "H4:no-exact-c2": 9470,
+        "H4:opposite-boundary-already-touched": 28,
+        "H4:signal": 2865,
+        "H4:source-cycles": 15343
+      },
+      "observations": 40980,
+      "retained_bars": 745468,
+      "setups_10y": 13903
+    },
+    "results": [
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_ACTIVE_DOL": 1,
+          "ABSTAIN_NO_CIBO_EPISODE": 5,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2654,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 7,
+          "EXECUTE": 123,
+          "POSTURE_STATIC": 123,
+          "RANK_1": 123,
+          "SOURCE_R34_POOLED_CAUSAL_MEMORY": 123
+        },
+        "fields": [
+          "timeframe",
+          "h4_range_state",
+          "d1_range_state"
+        ],
+        "gross": {
+          "max_drawdown_r": "7.104497556954332870808438350",
+          "max_losing_streak": 6,
+          "mean_r": "0.2057365698704415046635920620",
+          "profit_factor": "1.463297877405891514242983360",
+          "total_r": "25.30559809406430507362182363",
+          "trades": 123
+        },
+        "memory_summary": {
+          "classification_counts": {
+            "MAJORITY_VALIDATED_010": 9,
+            "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 411,
+            "NOT_VALIDATED_010": 29
+          },
+          "profiles": 449,
+          "structurally_supported_profiles": 38,
+          "validated_profiles": 9
+        },
+        "net_005": {
+          "max_drawdown_r": "7.954497556954332870808438350",
+          "max_losing_streak": 6,
+          "mean_r": "0.1557365698704415046635920620",
+          "profit_factor": "1.333427709806758889115080085",
+          "total_r": "19.15559809406430507362182363",
+          "trades": 123
+        },
+        "net_010": {
+          "max_drawdown_r": "8.804497556954332870808438350",
+          "max_losing_streak": 6,
+          "mean_r": "0.1057365698704415046635920620",
+          "profit_factor": "1.215473286880349863020429130",
+          "total_r": "13.00559809406430507362182362",
+          "trades": 123
+        },
+        "route_family_mode": "TYPES_ONLY",
+        "scheme": "R34_TIMEFRAME_REGIME_ROUTE_TYPES"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_ACTIVE_DOL": 1,
+          "ABSTAIN_NO_CIBO_EPISODE": 5,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2571,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 1,
+          "EXECUTE": 212,
+          "POSTURE_PROTECT": 2,
+          "POSTURE_STATIC": 210,
+          "RANK_1": 181,
+          "RANK_2": 31,
+          "SOURCE_R34_POOLED_CAUSAL_MEMORY": 212
+        },
+        "fields": [
+          "timeframe",
+          "side",
+          "prior_body_alignment",
+          "h4_range_state",
+          "d1_range_state",
+          "m5_volatility_state"
+        ],
+        "gross": {
+          "max_drawdown_r": "9.35878783562729431060287604",
+          "max_losing_streak": 5,
+          "mean_r": "0.2696611034256658633080679568",
+          "profit_factor": "1.588174104533234298436504970",
+          "total_r": "57.16815392624116302131040685",
+          "trades": 212
+        },
+        "memory_summary": {
+          "classification_counts": {
+            "MAJORITY_VALIDATED_010": 17,
+            "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 3465,
+            "NOT_VALIDATED_010": 49,
+            "ROBUST_VALIDATED_010": 4
+          },
+          "profiles": 3535,
+          "structurally_supported_profiles": 70,
+          "validated_profiles": 21
+        },
+        "net_005": {
+          "max_drawdown_r": "11.00878783562729431060287604",
+          "max_losing_streak": 5,
+          "mean_r": "0.2196611034256658633080679569",
+          "profit_factor": "1.456121362209342910648622439",
+          "total_r": "46.56815392624116302131040687",
+          "trades": 212
+        },
+        "net_010": {
+          "max_drawdown_r": "12.65878783562729431060287604",
+          "max_losing_streak": 5,
+          "mean_r": "0.1696611034256658633080679569",
+          "profit_factor": "1.336074955868443788833295020",
+          "total_r": "35.96815392624116302131040687",
+          "trades": 212
+        },
+        "route_family_mode": "TYPES_ONLY",
+        "scheme": "R34_DIRECTION_REGIME_ROUTE_TYPES"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_ACTIVE_DOL": 1,
+          "ABSTAIN_NO_CIBO_EPISODE": 5,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2720,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 1,
+          "EXECUTE": 63,
+          "POSTURE_STATIC": 63,
+          "RANK_1": 52,
+          "RANK_2": 11,
+          "SOURCE_R34_POOLED_CAUSAL_MEMORY": 63
+        },
+        "fields": [
+          "timeframe",
+          "prior_body_alignment",
+          "d1_range_state"
+        ],
+        "gross": {
+          "max_drawdown_r": "4.000000000000000000000000000",
+          "max_losing_streak": 4,
+          "mean_r": "0.1885648611339944137200942370",
+          "profit_factor": "1.449052297201346473021289041",
+          "total_r": "11.87958625144164806436593693",
+          "trades": 63
+        },
+        "memory_summary": {
+          "classification_counts": {
+            "MAJORITY_VALIDATED_010": 4,
+            "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 278,
+            "NOT_VALIDATED_010": 25,
+            "ROBUST_VALIDATED_010": 2
+          },
+          "profiles": 309,
+          "structurally_supported_profiles": 31,
+          "validated_profiles": 6
+        },
+        "net_005": {
+          "max_drawdown_r": "4.648631146877562169013856393",
+          "max_losing_streak": 4,
+          "mean_r": "0.1385648611339944137200942370",
+          "profit_factor": "1.313959746941859987042105381",
+          "total_r": "8.72958625144164806436593693",
+          "trades": 63
+        },
+        "net_010": {
+          "max_drawdown_r": "5.548631146877562169013856393",
+          "max_losing_streak": 4,
+          "mean_r": "0.08856486113399441372009423689",
+          "profit_factor": "1.191377999509110702766862471",
+          "total_r": "5.579586251441648064365936924",
+          "trades": 63
+        },
+        "route_family_mode": "TYPES_ONLY",
+        "scheme": "R34_MINIMAL_ROUTE_TYPES"
+      },
+      {
+        "acceptance_pass": false,
+        "decision_counts": {
+          "ABSTAIN_NO_ACTIVE_DOL": 1,
+          "ABSTAIN_NO_CIBO_EPISODE": 5,
+          "ABSTAIN_NO_VALIDATED_MEMORY": 2627,
+          "ABSTAIN_SINGLE_POSITION_BUSY": 14,
+          "EXECUTE": 143,
+          "POSTURE_STATIC": 143,
+          "RANK_1": 111,
+          "RANK_2": 32,
+          "SOURCE_R34_POOLED_CAUSAL_MEMORY": 143
+        },
+        "fields": [
+          "h4_range_state",
+          "d1_range_state",
+          "m5_volatility_state"
+        ],
+        "gross": {
+          "max_drawdown_r": "15.75918044614597231923413141",
+          "max_losing_streak": 7,
+          "mean_r": "-0.001874444396576646161016719937",
+          "profit_factor": "0.9961839872289817938524565994",
+          "total_r": "-0.268045548710460401025390951",
+          "trades": 143
+        },
+        "memory_summary": {
+          "classification_counts": {
+            "MAJORITY_VALIDATED_010": 11,
+            "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 803,
+            "NOT_VALIDATED_010": 46,
+            "ROBUST_VALIDATED_010": 6
+          },
+          "profiles": 866,
+          "structurally_supported_profiles": 63,
+          "validated_profiles": 17
+        },
+        "net_005": {
+          "max_drawdown_r": "19.10918044614597231923413141",
+          "max_losing_streak": 7,
+          "mean_r": "-0.05187444439657664616101671990",
+          "profit_factor": "0.8994740016128015665512627942",
+          "total_r": "-7.418045548710460401025390946",
+          "trades": 143
+        },
+        "net_010": {
+          "max_drawdown_r": "22.45918044614597231923413141",
+          "max_losing_streak": 7,
+          "mean_r": "-0.1018744443965766461610167199",
+          "profit_factor": "0.8117622194066134084526153218",
+          "total_r": "-14.56804554871046040102539094",
+          "trades": 143
+        },
+        "route_family_mode": "TYPES_ONLY",
+        "scheme": "R34_RANGE_ROUTE_TYPES"
+      }
+    ],
+    "schema": "qore.turtle_soup_audjpy.r34_causal_memory_defragmentation.v1",
+    "selected_result": null,
+    "selected_scheme": null,
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "open": "2024-09-17T00:00:00+00:00",
+      "same_consumed_development_window": true
+    }
+  },
+  "sha256sums": [
+    "32fb3abd64901e3df2faa40bc38df39a339acab9c7f6be2102bc802d2325c834  r34-causal-memory-defragmentation-report.json",
+    "4f5f86cb0128f66b48974ab78b665808dd0afdadec7a54808488d7ffeb5ff6f0  stdout.json",
+    "f8d4c2ae320ff9de7cff2c2b2164170810c3557d7d15b174e96fcb7904f02acf  git-sha.txt"
+  ],
+  "workflow_run_id": 35389387960,
+  "workflow_sha": "122112c247772e372d916359b6e9f8189b64df10"
+}
