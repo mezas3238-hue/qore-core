@@ -79,4 +79,4 @@ def test_audjpy_has_independent_state_and_processed_anchor() -> None:
     assert "audjpy_r42_store" in text
     assert "audjpy_r42_memory" in text
 
-# Frozen-base CI trigger.
+# Frozen-base CI trigger v2.
