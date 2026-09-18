@@ -7,10 +7,6 @@ on:
     paths:
       - scripts/vt31_nas100_r5_core_context_forensics_v2.py
       - .github/workflows/vt31-nas100-r5-core-context-forensics-v2.yml
-  pull_request:
-    paths:
-      - scripts/vt31_nas100_r5_core_context_forensics_v2.py
-      - .github/workflows/vt31-nas100-r5-core-context-forensics-v2.yml
   workflow_dispatch:
 
 permissions:
