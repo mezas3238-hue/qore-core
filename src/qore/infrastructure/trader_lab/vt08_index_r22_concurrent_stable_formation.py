@@ -33,6 +33,7 @@ from typing import Any
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
+from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
 from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_validation as r15
 from qore.infrastructure.trader_lab import vt08_index_r17_formation_quality_forensics as r17
 
@@ -336,7 +337,7 @@ def _assign(
 
             # Context is not used for R22 sizing; keep only structural metadata
             # required by the shared AssignedTrade carrier.
-            context = r15.r10.Context(
+            context = r10.Context(
                 previous_source_day_body_opposed=False,
                 rearm=int(opportunity.rearm_index) > 0,
                 c2_expansion=False,
