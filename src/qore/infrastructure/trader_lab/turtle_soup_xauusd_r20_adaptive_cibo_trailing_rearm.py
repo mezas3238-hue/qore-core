@@ -705,19 +705,19 @@ def _paired(
         trade: r3.RoutedTrade = item["trade"]
         return (trade.episode_id, trade.entry_at, trade.target)
 
-    l = {key(item): item["trade"] for item in left}
-    r = {key(item): item["trade"] for item in right}
-    shared = set(l) & set(r)
+    left_map = {key(item): item["trade"] for item in left}
+    right_map = {key(item): item["trade"] for item in right}
+    shared = set(left_map) & set(right_map)
     delta = sum(
-        (r[k].gross_r - l[k].gross_r for k in shared),
+        (right_map[k].gross_r - left_map[k].gross_r for k in shared),
         Decimal(0),
     )
     return {
         "shared_same_entry_target": len(shared),
         "gross_r_delta_right_minus_left": str(delta),
-        "improved": sum(r[k].gross_r > l[k].gross_r for k in shared),
-        "worsened": sum(r[k].gross_r < l[k].gross_r for k in shared),
-        "unchanged": sum(r[k].gross_r == l[k].gross_r for k in shared),
+        "improved": sum(right_map[k].gross_r > left_map[k].gross_r for k in shared),
+        "worsened": sum(right_map[k].gross_r < left_map[k].gross_r for k in shared),
+        "unchanged": sum(right_map[k].gross_r == left_map[k].gross_r for k in shared),
     }
 
 
