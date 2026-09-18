@@ -29,6 +29,9 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research
     _wall,
     load_market_evidence,
 )
+from qore.infrastructure.traders.vt31_nas100_cibo_causal_structure import (
+    last_causal_structure_event,
+)
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
 )
@@ -115,9 +118,10 @@ def contract_payload() -> dict[str, object]:
             "future_bar_lookup": False,
             "cross_index_required": False,
             "last_structure_state": (
-                "rebuild-CIBO-equivalent-source-zone/local-liquidity/"
-                "reference-liquidity event timeline through decision"
+                "causal-v2:closed-M1-only;liquidity-reclaims-at-bar-close;"
+                "PD-array-touch-not-before-formation"
             ),
+            "legacy_cibo_structure_timestamp_semantics_allowed": False,
             "entry_state": {
                 "last_observed_structure_event": "reference-liquidity-sweep",
                 "current_path_volatility_state": (
@@ -359,18 +363,13 @@ def _last_structure_event_family(
         for bar in session_prefix
         if cast(datetime, getattr(bar, "closed_at"))
         >= source.structure.raid_at
+        and cast(datetime, getattr(bar, "closed_at")) <= decision_at
     )
-    events = [
-        *_source_zone_events(path, source, decision_at),
-        *_local_sweep_events(path),
-        *_reference_sweep_events(path, source),
-    ]
-    if not events:
-        return "none", None
-    events.sort(key=lambda item: (item[0], item[1]))
-    event_at, _, family = events[-1]
-    age = max(0, int((decision_at - event_at).total_seconds() // 60))
-    return family, age
+    return last_causal_structure_event(
+        cast(Any, path),
+        source,
+        decision_at,
+    )
 
 
 def _first_reference_reclaim_at(
