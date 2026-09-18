@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_tuning_round1 as r1
+from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 SCHEMA = "qore.trader_lab.vt08_index_cibo_2y_tuning_round2.v1"
@@ -201,9 +202,13 @@ def build_report(
         <= Decimal("12")
     ]
 
-    all_15 = {symbol: "1.5" for symbol in r1.SYMBOLS}
-    all_20 = {symbol: "2.0" for symbol in r1.SYMBOLS}
-    nas_us_15 = {"NAS100": "1.5", "SP500": None, "US30": "1.5"}
+    all_15: dict[str, str | None] = {symbol: "1.5" for symbol in r1.SYMBOLS}
+    all_20: dict[str, str | None] = {symbol: "2.0" for symbol in r1.SYMBOLS}
+    nas_us_15: dict[str, str | None] = {
+        "NAS100": "1.5",
+        "SP500": None,
+        "US30": "1.5",
+    }
     benchmarks = [
         _benchmark(
             all_rows,
@@ -253,8 +258,8 @@ def build_report(
             "fresh_certification_holdout": False,
         },
         "strategy": {
-            "base_candidate_id": r1.v7.CANDIDATE_ID,
-            "base_rule_fingerprint": r1.v7.RULE_FINGERPRINT,
+            "base_candidate_id": v7.CANDIDATE_ID,
+            "base_rule_fingerprint": v7.RULE_FINGERPRINT,
             "v7_setup_identity_changed": False,
             "stop_changed": False,
             "lifecycle_changed": False,
