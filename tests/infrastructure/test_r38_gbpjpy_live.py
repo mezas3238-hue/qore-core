@@ -176,11 +176,9 @@ def test_r38_gbpjpy_source_open_drift_over_certified_stress_fails_closed() -> No
 def test_r38_gbpjpy_broker_minimum_stop_level_fails_closed() -> None:
     now = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
     spec = _spec()
-    strict = Mt5SymbolSpecification(
-        **{
-            **spec.__dict__,
-            "minimum_stop_distance_points": Decimal("250"),
-        }
+    strict = replace(
+        spec,
+        minimum_stop_distance_points=Decimal("250"),
     )
     with pytest.raises(ValueError, match="stops level"):
         build_r38_gbpjpy_risk_request(
@@ -259,16 +257,16 @@ def test_r38_gbpjpy_expansion_fragility_flags_do_not_suppress_or_rescale() -> No
     setup.context.signal = type("Signal", (), {})()
     from qore.infrastructure import r38_gbpjpy_live as live
 
-    original = live.v1._setup_context
-    try:
-        live.v1._setup_context = lambda _setup: {"close_location_bucket": "q4:>0.75"}  # type: ignore[assignment]
-        base, flags, overlay, final = _risk_scale_for(
-            setup=setup,  # type: ignore[arg-type]
-            regime={"h4_body_alignment": "with"},
-            decision=decision,
-        )
-    finally:
-        live.v1._setup_context = original  # type: ignore[assignment]
+    monkeypatch.setattr(
+        live.v1,
+        "_setup_context",
+        lambda _setup: {"close_location_bucket": "q4:>0.75"},
+    )
+    base, flags, overlay, final = _risk_scale_for(
+        setup=setup,  # type: ignore[arg-type]
+        regime={"h4_body_alignment": "with"},
+        decision=decision,
+    )
     assert base == Decimal("0.50")
     assert flags == ()
     assert overlay == Decimal("1")
