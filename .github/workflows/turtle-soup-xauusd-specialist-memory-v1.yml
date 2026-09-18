@@ -98,6 +98,8 @@ jobs:
           assert m['raw_m5_run_id']==35166210458
           assert m['journey_run_id']==35175979474
           assert m['target_run_id']==35204892665
+          assert m['physical_master_snapshot_in_specialist_artifact'] is True
+          assert len(m['snapshot_files'])==11
           s=p['specialist_contract']
           assert s['actual_strategy_entry_used'] is True
           assert s['exact_protected_swing_used'] is True
@@ -125,6 +127,7 @@ jobs:
             turtle-soup-xauusd-specialist-observations.jsonl \
             turtle-soup-xauusd-specialist-cognitive-memory.json \
             stdout.json git-sha.txt > SHA256SUMS.txt
+          find master-snapshot -type f -print0 | sort -z | xargs -0 sha256sum >> SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: qore-turtle-soup-xauusd-specialist-memory-v1-${{ github.sha }}
