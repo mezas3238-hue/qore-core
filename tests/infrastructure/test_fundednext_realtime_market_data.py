@@ -188,6 +188,25 @@ def test_stale_tick_fails_closed_even_when_boundary_bars_exist() -> None:
     assert result["XAUUSD"] is not None
 
 
+
+def test_unwarmed_cache_fails_immediately_without_boundary_history_download() -> None:
+    anchor = datetime(2026, 9, 18, 20, 0, tzinfo=UTC)
+    clock = _FakeClock(anchor + timedelta(milliseconds=100))
+    api = _FakeApi(
+        clock=clock,
+        anchor=anchor,
+        boundary_delay_seconds=0.0,
+    )
+    engine = _engine(clock)
+
+    result = engine.prime_anchor_group(
+        api,
+        anchor=anchor,
+        symbols={"EURUSD": 2_000},
+    )
+    assert "cache not warmed before boundary" in str(result["EURUSD"])
+    assert api.copy_counts == []
+
 def test_sla_cannot_be_relaxed_above_two_seconds() -> None:
     assert MARKET_DATA_SLA_SECONDS == 2.0
     with pytest.raises(ValueError, match=r"within \(0, 2\]"):
