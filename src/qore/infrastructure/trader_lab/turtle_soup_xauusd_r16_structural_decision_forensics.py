@@ -18,7 +18,6 @@ import json
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
