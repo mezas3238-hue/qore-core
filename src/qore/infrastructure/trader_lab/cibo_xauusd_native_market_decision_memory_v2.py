@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import bisect
 import json
-import math
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Sequence
@@ -395,7 +394,6 @@ def _simulate(
             stop_exit=True,
             trail_moves=0,
         )
-    rr = reward / risk_price
     left = bisect.bisect_left(opens, entry_at)
     right = bisect.bisect_left(opens, entry_at + timedelta(hours=24))
     path = bars[left:right]
@@ -413,7 +411,6 @@ def _simulate(
 
     current_stop = initial_stop
     pending: Decimal | None = None
-    pending_reason: str | None = None
     observed: list[Bar] = []
     conquered: set[int] = set()
     trail_moves = 0
@@ -430,7 +427,6 @@ def _simulate(
             current_stop = pending
             trail_moves += 1
         pending = None
-        pending_reason = None
 
         if side is Side.LONG:
             if bar.open <= current_stop:
@@ -484,7 +480,6 @@ def _simulate(
                     ):
                         if pending is None:
                             pending = earlier.level
-                            pending_reason = "DOL_LOCK"
                         else:
                             pending = _better_stop(side, pending, earlier.level)
 
@@ -506,7 +501,6 @@ def _simulate(
             ):
                 if pending is None:
                     pending = swing
-                    pending_reason = "SWING_LOCK"
                 else:
                     pending = _better_stop(side, pending, swing)
 
