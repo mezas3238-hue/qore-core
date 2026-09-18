@@ -171,7 +171,9 @@ class FundedNextRealtimeMarketData:
         history_bars: int,
     ) -> FundedNextM5Snapshot | None:
         if symbol not in self._history:
-            self.warm(api, symbol=symbol, history_bars=history_bars)
+            raise MarketDataSlaError(
+                f"{symbol} market-data cache not warmed before boundary"
+            )
         recent = self._read_rates(
             api,
             symbol=symbol,
