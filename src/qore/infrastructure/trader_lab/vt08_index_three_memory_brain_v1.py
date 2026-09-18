@@ -587,7 +587,7 @@ def build_situation_model(
     experience_dimensions: list[tuple[str, str, dict[str, Any]]] = []
     unknown: list[str] = []
 
-    market_lookups = (
+    market_lookups: list[tuple[str, str, Any]] = [
         ("market.side", observation.side, matrix_detail.get("by_side")),
         ("market.session", observation.session, matrix_detail.get("by_session")),
         (
@@ -595,22 +595,22 @@ def build_situation_model(
             observation.weekday_new_york,
             matrix_detail.get("by_weekday"),
         ),
-    )
+    ]
     if observation.prior_body_alignment is not None:
-        market_lookups += (
+        market_lookups.append(
             (
                 "market.prior-body-alignment",
                 observation.prior_body_alignment,
                 matrix_detail.get("by_prior_body_alignment"),
-            ),
+            )
         )
     if observation.fvg_after_raid is not None:
-        market_lookups += (
+        market_lookups.append(
             (
                 "market.fvg-after-raid",
                 "FVG_PRESENT" if observation.fvg_after_raid else "FVG_ABSENT",
                 matrix_detail.get("by_fvg_presence"),
-            ),
+            )
         )
     for name, value, table in market_lookups:
         found = _lookup_dimension(table, name=name, value=value, unknown=unknown)
