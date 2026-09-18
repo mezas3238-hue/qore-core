@@ -351,30 +351,44 @@ def _fixed_admissions(
     bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
 ) -> tuple[v6.CandidateSignal, ...]:
     selected: list[v6.CandidateSignal] = []
+    baseline_policy = Policy(
+        target_r=BASELINE_TARGET_R,
+        soft_close_loss_r=None,
+        soft_close_until_mfe_r=None,
+        deadline_bars=None,
+        deadline_min_mfe_r=None,
+        trail_name="OFF",
+        trail_steps=(),
+    )
     for symbol in r1.SYMBOLS:
+        bars = bars_by_symbol[symbol]
+        opened = tuple(bar.opened_at.astimezone(UTC) for bar in bars)
         surface = r4._build_variant_surface(
             variant=r4.ExpansionVariant.MULTI_POI_REARM,
             symbol=symbol,
-            bars=bars_by_symbol[symbol],
+            bars=bars,
         )
-        indexed = {
-            bar.opened_at.astimezone(UTC): bar for bar in bars_by_symbol[symbol]
-        }
-        candidates: list[v6.ModeledV6Trade] = []
-        for item in surface.opportunities:
-            trade = v6._model_trade(
-                r1._retarget(item.signal, BASELINE_TARGET_R),
-                indexed=indexed,
-                end_date_exclusive=r1.END_DATE_EXCLUSIVE,
+        candidates = [
+            (
+                item.signal,
+                _manage_trade(
+                    item.signal,
+                    bars=bars,
+                    opened=opened,
+                    policy=baseline_policy,
+                ),
             )
-            if trade is not None:
-                candidates.append(trade)
+            for item in surface.opportunities
+        ]
         last_exit: datetime | None = None
-        for trade in sorted(candidates, key=lambda item: item.signal.signal_at):
-            if last_exit is not None and trade.signal.signal_at < last_exit:
+        for signal, outcome in sorted(
+            candidates,
+            key=lambda item: item[0].signal_at,
+        ):
+            if last_exit is not None and signal.signal_at < last_exit:
                 continue
-            selected.append(trade.signal)
-            last_exit = trade.exited_at
+            selected.append(signal)
+            last_exit = outcome.exited_at
     selected.sort(key=lambda signal: (signal.signal_at, signal.symbol))
     if len(selected) != FIXED_DENSITY:
         raise ValueError(
