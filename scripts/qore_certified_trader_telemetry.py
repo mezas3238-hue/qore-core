@@ -61,7 +61,7 @@ def main() -> int:
     args = _parser().parse_args()
     if args.command == "show":
         baselines = load_certified_baselines(args.baseline)
-        payload = {
+        show_payload = {
             key: {
                 "identity": item.identity,
                 "symbol": item.symbol,
@@ -69,7 +69,7 @@ def main() -> int:
             }
             for key, item in sorted(baselines.items())
         }
-        print(json.dumps(payload, indent=2, sort_keys=True))
+        print(json.dumps(show_payload, indent=2, sort_keys=True))
         return 0
 
     if args.command == "derive":
@@ -79,14 +79,14 @@ def main() -> int:
             window_start=datetime.fromisoformat(args.window_start),
             window_end=datetime.fromisoformat(args.window_end),
         )
-        payload: dict[str, Any] = metrics.as_json()
-        payload["nominal_worst_day_percent_at_0_20pct_per_1r"] = str(
+        derived_payload: dict[str, Any] = dict(metrics.as_json())
+        derived_payload["nominal_worst_day_percent_at_0_20pct_per_1r"] = str(
             nominal_equity_percent(metrics.worst_closed_day_r)
         )
-        payload["nominal_worst_week_percent_at_0_20pct_per_1r"] = str(
+        derived_payload["nominal_worst_week_percent_at_0_20pct_per_1r"] = str(
             nominal_equity_percent(metrics.worst_closed_week_r)
         )
-        print(json.dumps(payload, indent=2, sort_keys=True))
+        print(json.dumps(derived_payload, indent=2, sort_keys=True))
         return 0
 
     if args.command == "compare":
