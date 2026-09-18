@@ -209,6 +209,51 @@ class FundedNextRealtimeMarketData:
             captured_at=now,
         )
 
+    def latest_closed_rates(
+        self,
+        api: Any,
+        *,
+        symbol: str,
+        history_bars: int,
+        now: datetime | None = None,
+    ) -> tuple[FundedNextM5Rate, ...]:
+        """Refresh incremental data and return only fully closed M5 bars."""
+        if symbol not in self._history:
+            raise MarketDataSlaError(
+                f"{symbol} market-data cache not warmed before management"
+            )
+        recent = self._read_rates(
+            api,
+            symbol=symbol,
+            count=RECENT_M5_REFRESH_BARS,
+        )
+        self._merge(symbol, recent)
+        observed = (now or self._now_fn()).astimezone(UTC)
+        tick_at = self._tick_observed_at(api, symbol=symbol)
+        if abs((observed - tick_at).total_seconds()) > self._sla_seconds:
+            raise MarketDataSlaError(f"{symbol} tick stale beyond 2.0s")
+        boundary = observed.replace(
+            minute=(observed.minute // 5) * 5,
+            second=0,
+            microsecond=0,
+        )
+        expected_latest_closed = boundary - timedelta(minutes=5)
+        retained = self._history[symbol]
+        if expected_latest_closed not in retained:
+            raise MarketDataSlaError(
+                f"{symbol} latest closed M5 unavailable; "
+                f"expected={expected_latest_closed.isoformat()}"
+            )
+        closed = tuple(
+            retained[key]
+            for key in sorted(retained)
+            if key <= expected_latest_closed
+        )
+        if len(closed) < MIN_HISTORY_BARS:
+            raise MarketDataSlaError(f"{symbol} cached M5 history unavailable")
+        return closed[-history_bars:]
+
+
     def prime_anchor_group(
         self,
         api: Any,
