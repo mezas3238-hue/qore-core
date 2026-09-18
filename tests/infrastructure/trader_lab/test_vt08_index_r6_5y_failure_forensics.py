@@ -1,3 +1,6 @@
+from datetime import UTC, datetime
+
+from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as mod
@@ -41,4 +44,4 @@ def test_density_attribution_separates_initial_and_rearm() -> None:
 
 
 def test_governor_trace_never_creates_zero_weight() -> None:
-    assert mod.freeze.RISK_GOVERNOR["zero_weight_allowed"] is False
+    assert freeze.RISK_GOVERNOR["zero_weight_allowed"] is False
