@@ -179,3 +179,79 @@ jobs:
           path: r42-output
           if-no-files-found: error
           retention-days: 90
+
+
+  certify-r43:
+    needs: [quality, correction, freeze-r42]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused R43 quality
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r43_final_certification_suite.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r43_final_certification_suite.py
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r43_final_certification_suite.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r43_final_certification_suite.py
+      - name: Download exact official R41 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r41-5y-fragility-correction-2976255f2459a17603b0b9385b4c249a720463b8
+          path: r41-official
+          github-token: ${{ github.token }}
+          run-id: '35399430491'
+      - name: Download exact official R42 freeze
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r42-final-freeze-4581556209f07f6672bcba15df70ea2bc9d0f775
+          path: r42-freeze
+          github-token: ${{ github.token }}
+          run-id: '35400010014'
+      - name: Run R43 final certification suite
+        run: |
+          mkdir -p r43-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_audjpy_r43_final_certification_suite \
+            r41-official r42-freeze r43-output > r43-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > r43-output/git-sha.txt
+      - name: Enforce certification gates
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r43-output/r43-final-certification-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_AUDJPY_R43_FINAL_CERTIFICATION_SUITE_V1'
+          assert p['candidate_identity']=='TURTLE_SOUP_AUDJPY_R42_FINAL_CANDIDATE_001'
+          assert p['r41_5y']['trades']==1039
+          assert p['r41_5y']['max_drawdown_scaled_r']=='5.293573269867727808258117465'
+          assert p['r41_2y_recheck']['trades']==422
+          assert p['r41_2y_recheck']['profit_factor_scaled_net_010']=='2.316526174177060282046559780'
+          assert all(p['gate_results'].values())
+          assert p['certification']['status']=='TRADER_CERTIFICADO'
+          assert p['certification']['certified'] is True
+          assert p['governance']['fresh_holdout_consumed'] is False
+          assert p['governance']['live_authorized'] is False
+          assert p['governance']['real_capital_authorized'] is False
+          assert p['governance']['merge_authorized'] is False
+          m=json.loads(Path('r43-output/r43-certification-manifest.json').read_text())
+          assert m['all_gates_pass'] is True
+          assert m['status']=='TRADER_CERTIFICADO'
+          PY
+      - name: Hash R43 certification evidence
+        run: |
+          cd r43-output
+          sha256sum r43-final-certification-report.json r43-certification-manifest.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r43-final-certification-${{ env.EVIDENCE_SHA }}
+          path: r43-output
+          if-no-files-found: error
+          retention-days: 90
