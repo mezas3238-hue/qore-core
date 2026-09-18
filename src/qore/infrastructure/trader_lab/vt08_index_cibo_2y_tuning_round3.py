@@ -16,7 +16,7 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
-from datetime import UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
