@@ -21,7 +21,7 @@ def test_basic_metrics_delegate_is_stable() -> None:
 
 
 def test_failed_5y_contract_remains_consumed_and_frozen() -> None:
-    assert mod.v5y.MIN_TRADES == 1500
-    assert mod.v5y.MAX_TRADES == 1600
+    assert v5y.MIN_TRADES == 1500
+    assert v5y.MAX_TRADES == 1600
     assert freeze.CANDIDATE_ID == "VT08_INDEX_R6_GOVERNED_657_001"
     assert freeze.RISK_GOVERNOR["zero_weight_allowed"] is False
