@@ -519,12 +519,12 @@ def build_report(
     governors = _governor_grid()
     final_rows: list[dict[str, Any]] = []
     for management_row in finalists:
-        management = cast(dict[str, Any], management_row["management"])
-        management_id = str(management["management_id"])
+        management_payload = cast(dict[str, Any], management_row["management"])
+        management_id = str(management_payload["management_id"])
         outcomes = management_outcomes[management_id]
         for governor in governors:
             row: dict[str, Any] = {
-                "management": management,
+                "management": management_payload,
                 "governor": governor.payload(),
                 "raw": management_row["raw"],
                 "governed": _governed_report(signals, outcomes, governor),
