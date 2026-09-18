@@ -18,7 +18,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_specialist_memory_v1.py'
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 env:
@@ -141,3 +141,52 @@ jobs:
           path: specialist-memory-output
           if-no-files-found: error
           retention-days: 90
+
+  publish-status:
+    if: always()
+    needs: [quality, specialist-memory]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
+      - name: Download successful specialist artifact
+        if: needs.specialist-memory.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-specialist-memory-v1-${{ github.sha }}
+          path: published-memory
+      - name: Write auditable status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          MEMORY_RESULT: ${{ needs.specialist-memory.result }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_GBPUSD_SPECIALIST_MEMORY_V1_STATUS',
+            'workflow_run_id': int(os.environ['RUN_ID']),
+            'workflow_sha': os.environ['RUN_SHA'],
+            'quality_result': os.environ['QUALITY_RESULT'],
+            'specialist_memory_result': os.environ['MEMORY_RESULT'],
+          }
+          report=Path('published-memory/turtle-soup-gbpusd-specialist-memory-report.json')
+          sums=Path('published-memory/SHA256SUMS.txt')
+          if report.exists():
+            payload=json.loads(report.read_text())
+            out['report']=payload
+          if sums.exists():
+            out['sha256sums']=sums.read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-GBPUSD-SPECIALIST-MEMORY-V1-LATEST.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Commit status to research branch
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-GBPUSD-SPECIALIST-MEMORY-V1-LATEST.json
+          git commit -m "research(gbpusd): record specialist memory V1 workflow result" || exit 0
+          git push origin HEAD:agent/turtle-soup-gbpusd-specialist-memory-v1-001
