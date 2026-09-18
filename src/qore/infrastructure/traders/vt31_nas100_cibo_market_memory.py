@@ -11,6 +11,7 @@ Runtime reasoning reads this in-process governed memory. It does not call an
 external CIBO service and it never performs date-level historical outcome
 lookups.
 """
+# ruff: noqa: E501
 from __future__ import annotations
 
 import hashlib
