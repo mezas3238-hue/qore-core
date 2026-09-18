@@ -146,7 +146,7 @@ def _choose_layer(
     regime: dict[str, str],
     fields: Sequence[str],
     route_mode: str,
-    memory: dict[tuple[str, str], r34.Profile],
+    memory: dict[tuple[str, str], Any],
     allowed_classes: Sequence[str],
     scheme: str,
     is_core: bool,
@@ -198,7 +198,7 @@ def _choose(
         tuple[
             tuple[str, ...],
             str,
-            dict[tuple[str, str], r34.Profile],
+            dict[tuple[str, str], Any],
             dict[str, Any],
         ],
     ],
@@ -224,7 +224,7 @@ def _choose(
 def _runtime_decision(decision: Decision) -> r26.SpecialistDecision:
     return r26.SpecialistDecision(
         target=decision.target,
-        memory_level=f"r35:{decision.source_scheme}",
+        memory_level=f"r36:{decision.source_scheme}",
         classification=decision.classification,
         posture=decision.posture,
         mean_net_010_r=Decimal(0),
@@ -320,7 +320,7 @@ def _run_ensemble(
         tuple[
             tuple[str, ...],
             str,
-            dict[tuple[str, str], r34.Profile],
+            dict[tuple[str, str], Any],
             dict[str, Any],
         ],
     ],
