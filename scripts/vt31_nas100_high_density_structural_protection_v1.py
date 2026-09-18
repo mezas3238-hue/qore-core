@@ -57,6 +57,24 @@ VARIANTS = (
     "CONTEXT_0_2_1",
 )
 
+EXPOSURE_PROFILES = {
+    "FULL_RISK": {
+        "SUPPORTIVE": Decimal("1.0"),
+        "MIXED": Decimal("1.0"),
+        "CAUTIOUS": Decimal("1.0"),
+    },
+    "S1_M05_C025": {
+        "SUPPORTIVE": Decimal("1.0"),
+        "MIXED": Decimal("0.5"),
+        "CAUTIOUS": Decimal("0.25"),
+    },
+    "S1_M075_C025": {
+        "SUPPORTIVE": Decimal("1.0"),
+        "MIXED": Decimal("0.75"),
+        "CAUTIOUS": Decimal("0.25"),
+    },
+}
+
 
 def _d(value: object) -> Decimal:
     return Decimal(str(value))
@@ -279,7 +297,43 @@ def _simulate_single_structural_trail(
     }
 
 
+def _exposure_adjusted_trades(
+    trades: list[dict[str, object]],
+    profile: dict[str, Decimal],
+) -> list[dict[str, object]]:
+    adjusted: list[dict[str, object]] = []
+    for trade in trades:
+        context = str(trade["management_context"])
+        weight = profile[context]
+        gross = Decimal(cast(str, trade["r_multiple"]))
+        # _metrics/_monte_carlo subtract 0.05R per trade. Encode the gross so
+        # that the resulting net is weight * (gross - 0.05R).
+        encoded_gross = (
+            weight * gross
+            + specialist.FRICTION * (Decimal("1") - weight)
+        )
+        row = dict(trade)
+        row["r_multiple"] = format(encoded_gross, "f")
+        row["exposure_weight"] = format(weight, "f")
+        adjusted.append(row)
+    return adjusted
+
+
 def _bundle(trades: list[dict[str, object]]) -> dict[str, object]:
+    exposure_profiles = {}
+    for name, profile in EXPOSURE_PROFILES.items():
+        adjusted = _exposure_adjusted_trades(trades, profile)
+        exposure_profiles[name] = {
+            "weights": {
+                key: format(value, "f")
+                for key, value in profile.items()
+            },
+            "stress_0_05r_base": _metrics(
+                adjusted,
+                friction=specialist.FRICTION,
+            ),
+            "monte_carlo_base": specialist._monte_carlo(adjusted),
+        }
     return {
         "sample": len(trades),
         "stress_0_05r": _metrics(
@@ -294,6 +348,7 @@ def _bundle(trades: list[dict[str, object]]) -> dict[str, object]:
                 ).items()
             )
         ),
+        "exposure_profiles": exposure_profiles,
     }
 
 
