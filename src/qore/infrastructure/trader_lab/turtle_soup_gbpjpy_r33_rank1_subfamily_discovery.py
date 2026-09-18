@@ -210,8 +210,8 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
     while remaining and len(selected) < MAX_FAMILIES:
         ranked: list[tuple[int, Decimal, int, dict[str, Any]]] = []
         for item in remaining:
-            members = set(item["member_keys"])
-            incremental = len(members - covered)
+            member_key_set: set[str] = set(item["member_keys"])
+            incremental = len(member_key_set - covered)
             if incremental < MIN_INCREMENTAL_OBSERVATIONS:
                 continue
             ranked.append(
@@ -235,7 +235,7 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
                 tuple(x[3]["values"]),
             ),
         )
-        members = set(winner["member_keys"])
+        winner_member_keys: set[str] = set(winner["member_keys"])
         family = {
             key: value
             for key, value in winner.items()
@@ -244,7 +244,7 @@ def build(v2_root: Path, output: Path) -> dict[str, Any]:
         family["family_id"] = f"GBPJPY_F{len(selected) + 1}"
         family["incremental_observations_at_selection"] = len(winner_member_keys - covered)
         selected.append(family)
-        covered.update(members)
+        covered.update(winner_member_keys)
         remaining = [item for item in remaining if item is not winner]
 
     output.mkdir(parents=True, exist_ok=True)
