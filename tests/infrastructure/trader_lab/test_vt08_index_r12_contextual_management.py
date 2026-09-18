@@ -18,9 +18,9 @@ def test_r12_pair_space_is_bounded() -> None:
 
 
 def test_r12_strong_context_definition_is_pre_entry() -> None:
-    strong = mod.r10.Context(True, False, False, False)
-    rearm = mod.r10.Context(False, True, False, False)
-    weak = mod.r10.Context(False, False, False, False)
+    strong = r10.Context(True, False, False, False)
+    rearm = r10.Context(False, True, False, False)
+    weak = r10.Context(False, False, False, False)
     assert mod._is_strong(strong)
     assert mod._is_strong(rearm)
     assert not mod._is_strong(weak)
