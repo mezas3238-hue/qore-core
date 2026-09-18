@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/cibo-market-atlas-20y-v1-001
+      - agent/turtle-soup-xauusd-r3-forensics-001
     paths:
       - '.github/workflows/cibo-xauusd-market-intelligence-v1.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_xauusd_market_intelligence_v1.py'

@@ -24,6 +24,7 @@ from qore.infrastructure.trader_lab import cibo_market_atlas_journey_extractor_v
 from qore.infrastructure.trader_lab import ict_turtle_soup_behavior_lab as behavior
 from qore.infrastructure.trader_lab import ict_turtle_soup_behavior_lab_fast_runner as fast
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
+    Bar,
     Side,
     SourceCandle,
     build_daily,
@@ -79,7 +80,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _frames(bars: Sequence[Any]) -> dict[str, tuple[SourceCandle, ...]]:
+def _frames(bars: tuple[Bar, ...]) -> dict[str, tuple[SourceCandle, ...]]:
     h4 = build_h4(bars)
     return {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
 

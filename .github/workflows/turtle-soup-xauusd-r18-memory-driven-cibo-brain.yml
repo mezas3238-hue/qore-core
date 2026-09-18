@@ -1,0 +1,118 @@
+name: QORE Turtle Soup XAUUSD R18 Memory Driven CIBO Brain
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-xauusd-r3-forensics-001
+    paths:
+      - '.github/workflows/turtle-soup-xauusd-r18-memory-driven-cibo-brain.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r18_memory_driven_cibo_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r18_memory_driven_cibo_brain.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r18_memory_driven_cibo_brain.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r18_memory_driven_cibo_brain.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r18_memory_driven_cibo_brain.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r18_memory_driven_cibo_brain.py
+
+  replay-2y:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable consumed XAUUSD M5 corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable consumed XAUUSD Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Run memory-driven CIBO brain 2Y replay
+        run: |
+          mkdir -p r18-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_xauusd_r18_memory_driven_cibo_brain \
+            source-xauusd target-xauusd r18-output > r18-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r18-output/git-sha.txt
+      - name: Enforce brain architecture and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r18-output/r18-memory-brain-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_XAUUSD_R18_MEMORY_DRIVEN_CIBO_BRAIN_V1'
+          assert p['window']['open']=='2024-09-17T00:00:00+00:00'
+          assert p['window']['close']=='2026-09-17T00:00:00+00:00'
+          assert p['reproduction']['retained_bars']==707716
+          b=p['brain_contract']
+          assert b['r3_pnl_router_used'] is False
+          assert b['entry_mode']=='NEXT_SOURCE_OPEN'
+          assert b['generic_retest_used'] is False
+          assert b['protected_swing_exact_stop'] is True
+          assert b['low_capacity_stop_is_widened'] is False
+          assert b['low_capacity_stop_causes_abstention'] is True
+          assert b['known_invalid_respected'] is True
+          assert b['conflicted_respected'] is True
+          assert b['target_is_active_cibo_dol'] is True
+          assert b['maximum_target_rank']==2
+          assert b['pnl_score_used'] is False
+          assert b['profit_probability_used'] is False
+          assert b['year_as_trade_feature'] is False
+          assert b['post_entry_information_used_for_decision'] is False
+          assert p['behavior']['executed_trades'] > 0
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['brain_promoted'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash immutable R18 result
+        run: |
+          cd r18-output
+          sha256sum r18-memory-brain-report.json r18-memory-brain-trades.json r18-memory-brain-decisions.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-xauusd-r18-memory-brain-${{ github.sha }}
+          path: r18-output
+          if-no-files-found: error
+          retention-days: 90
