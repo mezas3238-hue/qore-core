@@ -12,6 +12,8 @@ on:
       - 'src/qore/infrastructure/fundednext_live_guard.py'
       - 'src/qore/infrastructure/fundednext_live_mt5.py'
       - 'scripts/qore_fundednext_runtime.py'
+      - 'scripts/fundednext_mt5_no_send_probe.py'
+      - 'scripts/fundednext_mt5_order_check_probe.py'
       - 'tests/infrastructure/test_r34_xauusd_live.py'
 
 permissions:
@@ -65,4 +67,8 @@ jobs:
           assert "Vt09TurtleSoup" not in runtime
           assert "r34_single_position_busy" in runtime
           assert "R34_24H" in runtime
+          no_send = Path("scripts/fundednext_mt5_no_send_probe.py").read_text()
+          order_check = Path("scripts/fundednext_mt5_order_check_probe.py").read_text()
+          assert "XAUUSD" in no_send
+          assert "XAUUSD" in order_check
           PY
