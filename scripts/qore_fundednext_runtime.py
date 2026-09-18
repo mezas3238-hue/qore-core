@@ -1153,6 +1153,136 @@ def _process_gbpjpy_r38_candidate(
     )
 
 
+def _process_audjpy_r42_candidate(
+    *,
+    signal: R42AudJpyLiveSignal,
+    now: datetime,
+    mode: str,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    account_equity: Decimal,
+    audjpy_r42_store: R42AudJpyLiveStateStore,
+    log_path: Path,
+) -> None:
+    spec = gateway.read_symbol("AUDJPY", now=now)
+    request, base_risk_usd = build_r42_audjpy_risk_request(
+        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+        signal=signal,
+        provider_spec=spec,
+        account_equity=account_equity,
+        now=now,
+    )
+    open_stop, floating_loss, pending_stop = _broker_risk(transport)
+    account_state = gateway.read_account(now=now)
+    snapshot = AccountRiskSnapshot(
+        account_binding_id=account_binding_id,
+        equity=account_equity,
+        margin_used=account_state.margin,
+        free_margin=account_state.free_margin,
+        open_stop_worst_case_loss=open_stop,
+        open_floating_loss=floating_loss,
+        pending_broker_worst_case_loss=pending_stop,
+        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+        provider_budget=provider_budget,
+        reconciled_at=now,
+    )
+    if risk.recovery_required:
+        risk.complete_boot_reconciliation(snapshot, now=now)
+    authorization = risk.authorize(request, snapshot, now=now)
+    if authorization.decision is RiskDecision.REJECT:
+        _log(
+            log_path,
+            {
+                "event": "AUDJPY_R42_RISK_REJECT",
+                "symbol": "AUDJPY",
+                "reason": authorization.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+
+    submission = build_account_bound_submission(
+        authorization,
+        switch=ExecutionSafetySwitchSnapshot(
+            state=ExecutionSwitchState.ENABLED,
+            observed_at=now,
+            reason="qore AUDJPY R42 certified runtime safety gate enabled",
+        ),
+        authorized_at=now,
+        submitted_at=now,
+    )
+    shadow = gateway.shadow_check(submission, now=now)
+    if not shadow.broker_valid:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "AUDJPY_R42_SHADOW_REJECT",
+                "symbol": "AUDJPY",
+                "reason": shadow.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+
+    event = {
+        "symbol": "AUDJPY",
+        "signal_fingerprint": signal.signal_fingerprint,
+        "timeframe": signal.timeframe,
+        "target_rank": signal.target_rank,
+        "target_route": signal.target_route,
+        "source_scheme": signal.source_scheme,
+        "authority_tier": signal.authority_tier,
+        "classification": signal.classification,
+        "posture": signal.posture,
+        "base_risk_scale": str(signal.base_risk_scale),
+        "first_layer_fragility_flags": list(
+            signal.first_layer_fragility_flags
+        ),
+        "first_layer_overlay_scale": str(signal.first_layer_overlay_scale),
+        "second_layer_fragility_flags": list(
+            signal.second_layer_fragility_flags
+        ),
+        "second_layer_overlay_scale": str(signal.second_layer_overlay_scale),
+        "risk_scale": str(signal.risk_scale),
+        "risk_usd": str(authorization.monetary_stop_loss),
+        "volume": str(authorization.authorized_volume),
+    }
+    if mode == "shadow":
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "AUDJPY_R42_SHADOW_PASS",
+                **event,
+                "retcode": shadow.retcode,
+            },
+        )
+        return
+
+    provider_ref = gateway.submit_live(submission, now=now)
+    risk.record_full_fill(authorization.authorization_id)
+    client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
+    audjpy_r42_store.mark_open(
+        client_order_id=client_order_id,
+        signal=signal,
+        base_risk_usd=base_risk_usd,
+    )
+    _log(
+        log_path,
+        {
+            "event": "AUDJPY_R42_LIVE_SUBMIT_ACCEPTED",
+            **event,
+            "risk_authorization": authorization.authorization_id,
+            "provider_order_ref": provider_ref,
+        },
+    )
+
+
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
     sha = _git_sha(root)
     if not mt5.initialize():
