@@ -1,0 +1,166 @@
+name: QORE VT31 NAS100 Causal Hybrid Rearm Admission V2
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_causal_hybrid_rearm_admission_v2.py
+      - .github/workflows/vt31-nas100-causal-hybrid-rearm-admission-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+          - partition: r8_fresh
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_causal_hybrid_rearm_admission_v2.py
+          ruff check scripts/vt31_nas100_causal_hybrid_rearm_admission_v2.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d evidence
+          path="evidence/fresh/NAS100/market-evidence.json"
+          test -f "$path"
+          actual="$(sha256sum "$path" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run admission scan
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_causal_hybrid_rearm_admission_v2.py             evidence/fresh/NAS100/market-evidence.json             --partition "$PARTITION"             --output "result/admission-${PARTITION}.json"             | tee result/summary.json
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=os.environ["PARTITION"]
+          g=json.loads(Path(f"result/admission-{p}.json").read_text())["governance"]
+          assert g["admission_uses_terminal_outcome"] is False
+          assert g["admission_uses_fold_identity"] is False
+          assert g["admission_uses_target_trade_count"] is False
+          assert g["admission_uses_future_bars"] is False
+          assert g["quality_score_is_pre_entry"] is True
+          assert g["consumed_evidence_only"] is True
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          PY
+      - name: Bind
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$ARTIFACT_ID" > result/source-evidence-artifact-id.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-rearm-admission-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-rearm-admission-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          folds={}
+          for path in Path("input").glob("admission-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8_fresh"}
+          names=sorted(next(iter(folds.values()))["variants"])
+          variants={}
+          for name in names:
+              rows=[]
+              for fold,p in sorted(folds.items()):
+                  item=p["variants"][name]
+                  rows.append({
+                      "partition":fold,
+                      "trade_count":item["trade_count"],
+                      "base_trade_count":item["base_trade_count"],
+                      "rearm_trade_count":item["rearm_trade_count"],
+                      "metrics":item["metrics"],
+                      "mc":item["monte_carlo"],
+                      "objectives":item["objectives"],
+                  })
+              variants[name]={
+                  "folds":rows,
+                  "all_density_300_350":all(300<=r["trade_count"]<=350 for r in rows),
+                  "all_pf_ge_2":all(r["metrics"]["profit_factor"] is not None and float(r["metrics"]["profit_factor"])>=2 for r in rows),
+                  "all_dd_le_10":all(float(r["metrics"]["max_drawdown_r"])<=10 for r in rows),
+                  "all_dd_le_5":all(float(r["metrics"]["max_drawdown_r"])<=5 for r in rows),
+                  "all_mc_positive_ge_0_90":all(float(r["mc"]["positive_terminal_probability"])>=0.90 for r in rows),
+                  "all_mc_p95_dd_le_15":all(float(r["mc"]["p95_max_drawdown_r"])<=15 for r in rows),
+              }
+          report={
+              "schema":"qore.vt31.nas100.causal_hybrid_rearm_admission.aggregate.v2",
+              "variants":variants,
+              "passing":[
+                  name for name,v in variants.items()
+                  if v["all_density_300_350"]
+                  and v["all_pf_ge_2"]
+                  and v["all_dd_le_10"]
+                  and v["all_mc_positive_ge_0_90"]
+                  and v["all_mc_p95_dd_le_15"]
+              ],
+              "stretch_dd5":[
+                  name for name,v in variants.items()
+                  if v["all_density_300_350"]
+                  and v["all_pf_ge_2"]
+                  and v["all_dd_le_5"]
+              ],
+              "policy_promoted":False,
+              "opens_new_holdout":False,
+          }
+          Path("result/aggregate.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-rearm-admission-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
