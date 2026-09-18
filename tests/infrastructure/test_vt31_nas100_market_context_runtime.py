@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID
 
 from qore.infrastructure.market_data import (
@@ -86,16 +87,16 @@ def test_future_bar_cannot_change_causal_higher_context() -> None:
         prior_admitted_day_bars=prior,
         decision_at=decision_at,
         side="short",
-        reference_high=110,
-        reference_low=100,
+        reference_high=Decimal("110"),
+        reference_low=Decimal("100"),
     )
     after = build_higher_context(
         day_bars=tuple([*current, future]),
         prior_admitted_day_bars=prior,
         decision_at=decision_at,
         side="short",
-        reference_high=110,
-        reference_low=100,
+        reference_high=Decimal("110"),
+        reference_low=Decimal("100"),
     )
 
     assert before == after
