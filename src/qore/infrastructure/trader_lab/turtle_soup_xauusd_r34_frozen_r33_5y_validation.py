@@ -176,7 +176,7 @@ def _annual_blocks(rows: Sequence[ScaledTrade]) -> list[dict[str, Any]]:
         datetime(2026, 9, 17, tzinfo=UTC),
     ]
     result: list[dict[str, Any]] = []
-    for start, end in zip(boundaries, boundaries[1:], strict=True):
+    for start, end in zip(boundaries[:-1], boundaries[1:], strict=True):
         members = [
             row
             for row in rows
