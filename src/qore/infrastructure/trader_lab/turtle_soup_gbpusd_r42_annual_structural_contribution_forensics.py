@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from qore.infrastructure.trader_lab import (
     turtle_soup_gbpusd_r37_structural_quality_governor as r37,
