@@ -1,7 +1,415 @@
 {
+  "cognitive_v3_report": {
+    "decision_contract": {
+      "calendar_year_rule": false,
+      "causal_structure_frozen_before_economic_validation": true,
+      "combined_mean_must_be_positive": true,
+      "economic_mean_magnitude_used_for_target_ranking": false,
+      "economic_validation_friction_r": "0.10",
+      "economic_validation_uses_full_lifecycle": true,
+      "management_posture_frozen_before_economic_validation": true,
+      "minimum_positive_terciles": 2,
+      "r27_result_used_as_input": false,
+      "regime_definition_frozen_before_economic_validation": true,
+      "target_support_frozen_before_economic_validation": true,
+      "temporal_validation": "EQUAL_COUNT_CHRONOLOGICAL_TERCILES"
+    },
+    "economic_validation_counts": {
+      "MAJORITY_VALIDATED_010": 27,
+      "NOT_EVALUATED_STRUCTURALLY_UNSUPPORTED": 100831,
+      "NOT_VALIDATED_010": 90,
+      "ROBUST_VALIDATED_010": 13
+    },
+    "governance": {
+      "candidate_promoted": false,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_only": true
+    },
+    "identity": "TURTLE_SOUP_AUDJPY_SPECIALIST_COGNITIVE_MEMORY_V3",
+    "reproduction": {
+      "observations": 40980
+    },
+    "schema": "qore.turtle_soup_audjpy.specialist_cognitive_memory.v3",
+    "source_v2": {
+      "artifact_digest": "sha256:ed5a0928e83be7af171864c37335d8f3edeb9af096f29eb9e0a23078745b255c",
+      "artifact_id": 10562458144,
+      "identity": "TURTLE_SOUP_AUDJPY_SPECIALIST_COGNITIVE_MEMORY_V2",
+      "run_id": 35383377176
+    },
+    "validated_profiles_by_level": {
+      "anatomy_regime": 15,
+      "regime_journey": 25
+    }
+  },
   "identity": "TURTLE_SOUP_AUDJPY_R28_STATUS",
   "quality_result": "success",
-  "r28_result": "failure",
-  "workflow_run_id": 35383777191,
-  "workflow_sha": "a062b6bed7976d69cf3439bd299c25de40e208f3"
+  "r28_result": "success",
+  "report": {
+    "behavior": {
+      "by_classification": {
+        "MAJORITY_VALIDATED_010": {
+          "gross": {
+            "max_drawdown_r": "9.466278005322239848253429769",
+            "max_losing_streak": 6,
+            "mean_r": "0.1265822461179382417171272543",
+            "profit_factor": "1.298817105589886996840431551",
+            "total_r": "9.113921720491553403633162309",
+            "trades": 72
+          },
+          "net_005": {
+            "max_drawdown_r": "10.91627800532223984825342977",
+            "max_losing_streak": 6,
+            "mean_r": "0.07658224611793824171712725428",
+            "profit_factor": "1.172310053765361043863536322",
+            "total_r": "5.513921720491553403633162308",
+            "trades": 72
+          },
+          "net_010": {
+            "max_drawdown_r": "12.81576858519170834390363058",
+            "max_losing_streak": 6,
+            "mean_r": "0.02658224611793824171712725429",
+            "profit_factor": "1.057131991656464280705467532",
+            "total_r": "1.913921720491553403633162309",
+            "trades": 72
+          }
+        },
+        "ROBUST_VALIDATED_010": {
+          "gross": {
+            "max_drawdown_r": "2.000000000000000000000000000",
+            "max_losing_streak": 2,
+            "mean_r": "0.2640266540594204289909312624",
+            "profit_factor": "1.675681114689699592471415488",
+            "total_r": "4.488453119010147292845831460",
+            "trades": 17
+          },
+          "net_005": {
+            "max_drawdown_r": "2.100000000000000000000000000",
+            "max_losing_streak": 2,
+            "mean_r": "0.2140266540594204289909312624",
+            "profit_factor": "1.524057033602284589504543625",
+            "total_r": "3.638453119010147292845831460",
+            "trades": 17
+          },
+          "net_010": {
+            "max_drawdown_r": "2.200000000000000000000000000",
+            "max_losing_streak": 2,
+            "mean_r": "0.1640266540594204289909312624",
+            "profit_factor": "1.384993527279507515777530970",
+            "total_r": "2.788453119010147292845831460",
+            "trades": 17
+          }
+        }
+      },
+      "by_memory_level": {
+        "anatomy_regime": {
+          "gross": {
+            "max_drawdown_r": "7.368571378632550667633933928",
+            "max_losing_streak": 5,
+            "mean_r": "0.1528356723539516932188650985",
+            "profit_factor": "1.366217784140430403366742140",
+            "total_r": "13.60237483950170069647899377",
+            "trades": 89
+          },
+          "net_005": {
+            "max_drawdown_r": "8.518571378632550667633933928",
+            "max_losing_streak": 5,
+            "mean_r": "0.1028356723539516932188650985",
+            "profit_factor": "1.235020630508114104458374748",
+            "total_r": "9.152374839501700696478993769",
+            "trades": 89
+          },
+          "net_010": {
+            "max_drawdown_r": "10.54374957720297245919186997",
+            "max_losing_streak": 5,
+            "mean_r": "0.05283567235395169321886509852",
+            "profit_factor": "1.115415932245834168567156229",
+            "total_r": "4.702374839501700696478993768",
+            "trades": 89
+          }
+        }
+      },
+      "by_posture": {
+        "STATIC": {
+          "gross": {
+            "max_drawdown_r": "7.368571378632550667633933928",
+            "max_losing_streak": 5,
+            "mean_r": "0.1528356723539516932188650985",
+            "profit_factor": "1.366217784140430403366742140",
+            "total_r": "13.60237483950170069647899377",
+            "trades": 89
+          },
+          "net_005": {
+            "max_drawdown_r": "8.518571378632550667633933928",
+            "max_losing_streak": 5,
+            "mean_r": "0.1028356723539516932188650985",
+            "profit_factor": "1.235020630508114104458374748",
+            "total_r": "9.152374839501700696478993769",
+            "trades": 89
+          },
+          "net_010": {
+            "max_drawdown_r": "10.54374957720297245919186997",
+            "max_losing_streak": 5,
+            "mean_r": "0.05283567235395169321886509852",
+            "profit_factor": "1.115415932245834168567156229",
+            "total_r": "4.702374839501700696478993768",
+            "trades": 89
+          }
+        }
+      },
+      "by_target_rank": {
+        "1": {
+          "gross": {
+            "max_drawdown_r": "7.160112164131040093615807040",
+            "max_losing_streak": 4,
+            "mean_r": "0.1941015612754294342271106104",
+            "profit_factor": "1.506186424502590485337366886",
+            "total_r": "14.75171865693263700126040639",
+            "trades": 76
+          },
+          "net_005": {
+            "max_drawdown_r": "8.160112164131040093615807040",
+            "max_losing_streak": 4,
+            "mean_r": "0.1441015612754294342271106105",
+            "profit_factor": "1.358568898964118143165682155",
+            "total_r": "10.95171865693263700126040640",
+            "trades": 76
+          },
+          "net_010": {
+            "max_drawdown_r": "9.160112164131040093615807040",
+            "max_losing_streak": 4,
+            "mean_r": "0.09410156127542943422711061036",
+            "profit_factor": "1.223891013410234610951801631",
+            "total_r": "7.151718656932637001260406387",
+            "trades": 76
+          }
+        },
+        "2": {
+          "gross": {
+            "max_drawdown_r": "5.522388059701492537313432836",
+            "max_losing_streak": 5,
+            "mean_r": "-0.08841106287930279267549327854",
+            "profit_factor": "0.8563320228211329619023234224",
+            "total_r": "-1.149343817430936304781412621",
+            "trades": 13
+          },
+          "net_005": {
+            "max_drawdown_r": "5.922388059701492537313432836",
+            "max_losing_streak": 5,
+            "mean_r": "-0.1384110628793027926754932785",
+            "profit_factor": "0.7857924026867932970498318308",
+            "total_r": "-1.799343817430936304781412621",
+            "trades": 13
+          },
+          "net_010": {
+            "max_drawdown_r": "6.322388059701492537313432836",
+            "max_losing_streak": 5,
+            "mean_r": "-0.1884110628793027926754932785",
+            "profit_factor": "0.7216654752919390562748394749",
+            "total_r": "-2.449343817430936304781412621",
+            "trades": 13
+          }
+        }
+      },
+      "by_target_route": {
+        "ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY:H1": {
+          "gross": {
+            "max_drawdown_r": "2.522388059701492537313432836",
+            "max_losing_streak": 2,
+            "mean_r": "0.3167395758410070772465097088",
+            "profit_factor": "1.712664045642265923804646845",
+            "total_r": "2.850656182569063695218587379",
+            "trades": 9
+          },
+          "net_005": {
+            "max_drawdown_r": "2.772388059701492537313432836",
+            "max_losing_streak": 2,
+            "mean_r": "0.2667395758410070772465097088",
+            "profit_factor": "1.571584805373586594099663662",
+            "total_r": "2.400656182569063695218587379",
+            "trades": 9
+          },
+          "net_010": {
+            "max_drawdown_r": "3.022388059701492537313432836",
+            "max_losing_streak": 2,
+            "mean_r": "0.2167395758410070772465097088",
+            "profit_factor": "1.443330950583878112549678950",
+            "total_r": "1.950656182569063695218587379",
+            "trades": 9
+          }
+        },
+        "ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY:H1+PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H4": {
+          "gross": {
+            "max_drawdown_r": "4",
+            "max_losing_streak": 4,
+            "mean_r": "-1",
+            "profit_factor": "0",
+            "total_r": "-4",
+            "trades": 4
+          },
+          "net_005": {
+            "max_drawdown_r": "4.20",
+            "max_losing_streak": 4,
+            "mean_r": "-1.05",
+            "profit_factor": "0E+2",
+            "total_r": "-4.20",
+            "trades": 4
+          },
+          "net_010": {
+            "max_drawdown_r": "4.40",
+            "max_losing_streak": 4,
+            "mean_r": "-1.10",
+            "profit_factor": "0E+2",
+            "total_r": "-4.40",
+            "trades": 4
+          }
+        },
+        "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H1+SOURCE_OPPOSITE_BOUNDARY:H1": {
+          "gross": {
+            "max_drawdown_r": "7.160112164131040093615807040",
+            "max_losing_streak": 4,
+            "mean_r": "0.1941015612754294342271106104",
+            "profit_factor": "1.506186424502590485337366886",
+            "total_r": "14.75171865693263700126040639",
+            "trades": 76
+          },
+          "net_005": {
+            "max_drawdown_r": "8.160112164131040093615807040",
+            "max_losing_streak": 4,
+            "mean_r": "0.1441015612754294342271106105",
+            "profit_factor": "1.358568898964118143165682155",
+            "total_r": "10.95171865693263700126040640",
+            "trades": 76
+          },
+          "net_010": {
+            "max_drawdown_r": "9.160112164131040093615807040",
+            "max_losing_streak": 4,
+            "mean_r": "0.09410156127542943422711061036",
+            "profit_factor": "1.223891013410234610951801631",
+            "total_r": "7.151718656932637001260406387",
+            "trades": 76
+          }
+        }
+      },
+      "decision_counts": {
+        "ABSTAIN_NOT_ECONOMICALLY_VALIDATED": 2693,
+        "ABSTAIN_NO_ACTIVE_DOL": 1,
+        "ABSTAIN_NO_CIBO_EPISODE": 5,
+        "ABSTAIN_SINGLE_POSITION_BUSY": 2,
+        "EXECUTE": 89,
+        "LEVEL_anatomy_regime": 89,
+        "POSTURE_STATIC": 89,
+        "RANK_1": 76,
+        "RANK_2": 13,
+        "VALIDATION_MAJORITY_VALIDATED_010": 72,
+        "VALIDATION_ROBUST_VALIDATED_010": 17
+      },
+      "exit_reason_counts": {
+        "GAP_STOP": 3,
+        "STOP": 32,
+        "TARGET": 53,
+        "TIME_24H": 1
+      },
+      "gross": {
+        "max_drawdown_r": "7.368571378632550667633933928",
+        "max_losing_streak": 5,
+        "mean_r": "0.1528356723539516932188650985",
+        "profit_factor": "1.366217784140430403366742140",
+        "total_r": "13.60237483950170069647899377",
+        "trades": 89
+      },
+      "net_005": {
+        "max_drawdown_r": "8.518571378632550667633933928",
+        "max_losing_streak": 5,
+        "mean_r": "0.1028356723539516932188650985",
+        "profit_factor": "1.235020630508114104458374748",
+        "total_r": "9.152374839501700696478993769",
+        "trades": 89
+      },
+      "net_010": {
+        "max_drawdown_r": "10.54374957720297245919186997",
+        "max_losing_streak": 5,
+        "mean_r": "0.05283567235395169321886509852",
+        "profit_factor": "1.115415932245834168567156229",
+        "total_r": "4.702374839501700696478993768",
+        "trades": 89
+      },
+      "trail_moves": 0
+    },
+    "decision_contract": {
+      "actual_strategy_entry": true,
+      "calendar_year_regime_rule": false,
+      "causal_structure_precedes_economic_validation": true,
+      "context_only_can_authorize": false,
+      "economic_mean_magnitude_ranks_targets": false,
+      "economic_validation_uses_full_lifecycle_net_010": true,
+      "exact_protected_swing": true,
+      "management_posture_selected_by_economic_results": false,
+      "regime_definition_uses_economic_results": false,
+      "situation_definition_uses_economic_results": false,
+      "structural_rearm": true,
+      "target_from_active_cibo_dol_ladder": true
+    },
+    "decision_sources": {
+      "master_memory_remains_immutable": true,
+      "r22_memory_used": false,
+      "r23_memory_used": false,
+      "r25_result_used": false,
+      "r26_result_used_as_decision_input": false,
+      "r27_result_used_as_decision_input": false,
+      "specialist_memory": "TURTLE_SOUP_AUDJPY_SPECIALIST_COGNITIVE_MEMORY_V3",
+      "strategy": "TURTLE_SOUP_AUDJPY"
+    },
+    "governance": {
+      "candidate_promoted": false,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_only": true,
+      "same_consumed_2y_window": true
+    },
+    "identity": "TURTLE_SOUP_AUDJPY_R28_VALIDATED_SPECIALIST_BRAIN_V1",
+    "reproduction": {
+      "funnel": {
+        "H1:causal-cisd": 13948,
+        "H1:exact-c2": 23804,
+        "H1:invalid-entry-geometry": 2754,
+        "H1:no-causal-cisd": 9856,
+        "H1:no-exact-c2": 38153,
+        "H1:opposite-boundary-already-touched": 156,
+        "H1:signal": 11038,
+        "H1:source-cycles": 61957,
+        "H4:causal-cisd": 3857,
+        "H4:exact-c2": 5873,
+        "H4:invalid-entry-geometry": 964,
+        "H4:no-causal-cisd": 2016,
+        "H4:no-exact-c2": 9470,
+        "H4:opposite-boundary-already-touched": 28,
+        "H4:signal": 2865,
+        "H4:source-cycles": 15343
+      },
+      "retained_bars": 745468,
+      "setups_10y": 13903
+    },
+    "schema": "qore.turtle_soup_audjpy_r28.validated_specialist_brain.v1",
+    "window": {
+      "close": "2026-09-17T00:00:00+00:00",
+      "duration_years": 2,
+      "open": "2024-09-17T00:00:00+00:00"
+    }
+  },
+  "sha256sums": [
+    "105e3a8a44dc86a5a11f4c26086e35ee11c2bda55cdb43223e572f3e595cdcff  git-sha.txt",
+    "b0edd0e2fac2d74e4b050c9e2769e217c1ef1d4e2cccbb5b01834a5e1d378036  r28-validated-specialist-brain-report.json",
+    "f61555214397ab94ae7dddc46e69cf884af74ee53429beb792a18cf79956e4f7  r28-validated-specialist-brain-trades.json",
+    "b404feaaebc059b233490f9749080182ac860eb0712513bb9fccb2d5fdc8252c  turtle-soup-audjpy-specialist-cognitive-memory-v3-report.json",
+    "6b6aa1f8a0bcd764d3300ebddd33e9fcde79988a5e6e40d33e2070484e5539b7  turtle-soup-audjpy-specialist-cognitive-memory-v3.json"
+  ],
+  "workflow_run_id": 35384122071,
+  "workflow_sha": "9af85896a295ce61c6893a2968ff01edf9e8ddd1"
 }
