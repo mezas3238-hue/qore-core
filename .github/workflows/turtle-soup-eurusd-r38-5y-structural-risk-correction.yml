@@ -1,0 +1,120 @@
+name: QORE Turtle Soup EURUSD R38 5Y Structural Risk Correction
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-eurusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-eurusd-r38-5y-structural-risk-correction.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r38_5y_structural_risk_correction.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_eurusd_r38_5y_structural_risk_correction.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-EURUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  R28_RUN_ID: '35319457546'
+  R28_ARTIFACT: 'qore-turtle-soup-eurusd-cognitive-v3-r28-e6879bbdd3844751af075269ddd93db6d3f9b9e1'
+  FREEZE_RUN_ID: '35326864091'
+  FREEZE_ARTIFACT: 'qore-turtle-soup-eurusd-r36-candidate-freeze-4fef686b9fc669ad64a5a85fb2c899fae9b42a74'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check --ignore E501,I001 src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r38_5y_structural_risk_correction.py tests/infrastructure/trader_lab/test_turtle_soup_eurusd_r38_5y_structural_risk_correction.py
+      - run: mypy --disable-error-code attr-defined src/qore/infrastructure/trader_lab/turtle_soup_eurusd_r38_5y_structural_risk_correction.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_eurusd_r38_5y_structural_risk_correction.py
+
+  replay-5y:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-eurusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-eurusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R28_ARTIFACT }}
+          path: cognitive-v3
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R28_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FREEZE_ARTIFACT }}
+          path: r36-freeze
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FREEZE_RUN_ID }}
+      - name: Run exact R38 correction
+        run: |
+          mkdir -p r38-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_eurusd_r38_5y_structural_risk_correction source-eurusd target-eurusd cognitive-v3 r36-freeze r38-output > r38-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r38-output/git-sha.txt
+      - name: Enforce R38 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r38-output/r38-5y-correction-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_EURUSD_R38_5Y_STRUCTURAL_RISK_CORRECTION_V1'
+          assert p['window']['fresh_holdout'] is False
+          assert p['window']['historical_status']=='CONSUMED_FORENSIC_CORRECTION'
+          c=p['correction_contract']
+          assert c['r36_signal_contract_preserved'] is True
+          assert c['signals_suppressed'] is False
+          assert c['structural_risk_overlay_only'] is True
+          assert c['entry_changed'] is False
+          assert c['c2_changed'] is False
+          assert c['cisd_changed'] is False
+          assert c['protected_swing_changed'] is False
+          assert c['family_set_changed'] is False
+          assert c['base_fragility_governor_changed'] is False
+          assert c['fresh_holdout_consumed'] is False
+          assert c['f5_short_overlay_scale']=='0.10'
+          assert c['unstable_long_route_overlay_scale']=='0.50'
+          a=p['predeclared_acceptance']
+          assert a['minimum_trades']==800
+          assert a['minimum_scaled_net_010_profit_factor']=='1.50'
+          assert a['maximum_scaled_net_010_drawdown_r']=='6.0'
+          g=p['governance']
+          assert g['r37_5y_consumed_forensics'] is True
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_certified'] is False
+          PY
+      - name: Hash R38 evidence
+        run: |
+          cd r38-output
+          sha256sum r38-5y-correction-report.json r38-5y-corrected-trades.jsonl stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-eurusd-r38-5y-structural-risk-correction-${{ github.sha }}
+          path: r38-output
+          if-no-files-found: error
+          retention-days: 90
