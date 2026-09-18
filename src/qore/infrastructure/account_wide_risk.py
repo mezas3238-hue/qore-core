@@ -29,7 +29,6 @@ class TraderLineage(StrEnum):
     R34_XAUUSD = "R34_XAUUSD"
     R38_EURUSD = "R38_EURUSD"
     R43_GBPUSD = "R43_GBPUSD"
-    R43_GBPUSD = "R43_GBPUSD"
 
 
 class RiskDecision(StrEnum):
