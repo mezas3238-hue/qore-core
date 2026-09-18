@@ -70,7 +70,13 @@ def main() -> None:
             if spec is None:
                 raise SystemExit(f"symbol unavailable: {symbol}")
             volume = spec.minimum_volume
-            distance = max(spec.point * Decimal("100"), spec.tick_size * Decimal("20"))
+            base_distance = max(
+                spec.point * Decimal("100"),
+                spec.tick_size * Decimal("20"),
+                spec.point * spec.minimum_stop_distance_points,
+            )
+            spread_distance = abs(spec.ask - spec.bid)
+            distance = spread_distance + base_distance
             for side_text in sorted(CERTIFIED_LIVE_DIRECTIONS[symbol]):
                 side = OrderSide.BUY if side_text == "long" else OrderSide.SELL
                 entry = spec.ask if side is OrderSide.BUY else spec.bid
