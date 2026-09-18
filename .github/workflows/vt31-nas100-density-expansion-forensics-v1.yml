@@ -29,13 +29,13 @@ jobs:
         include:
           - partition: r5
             artifact_id: "10380044761"
-            evidence_sha256: "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
           - partition: r6
             artifact_id: "10389112524"
-            evidence_sha256: "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
           - partition: r8_fresh
             artifact_id: "10402199719"
-            evidence_sha256: "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01c16fa23"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
     env:
       GH_TOKEN: ${{ github.token }}
       PARTITION: ${{ matrix.partition }}
