@@ -10,6 +10,7 @@ entry authorization.
 
 No terminal outcome, fold identity, or future state selects the target.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
