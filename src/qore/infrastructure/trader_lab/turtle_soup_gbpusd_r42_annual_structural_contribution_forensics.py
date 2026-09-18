@@ -11,7 +11,7 @@ import hashlib
 import json
 import sys
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -137,7 +137,7 @@ def run(source_root: Path, output: Path) -> dict[str,Any]:
     trades=_load(source_root)
     rows=_baseline_contributions(trades)
 
-    feature_getters={
+    feature_getters: dict[str, Callable[[Trade], str]] = {
         "side":lambda t:t.side,
         "source":lambda t:t.source,
         "family":lambda t:"NONE" if t.family is None else t.family,
@@ -155,11 +155,11 @@ def run(source_root: Path, output: Path) -> dict[str,Any]:
     groups:dict[str,dict[str,dict[int,list[Decimal]]]]=defaultdict(
         lambda:defaultdict(lambda:defaultdict(list))
     )
-    for trade,value in rows:
+    for trade, contribution in rows:
         year=_year_index(trade.entry_at)
-        annual_total[year].append(value)
+        annual_total[year].append(contribution)
         for feature,getter in feature_getters.items():
-            groups[feature][getter(trade)][year].append(value)
+            groups[feature][getter(trade)][year].append(contribution)
 
     annual={
         str(y):_stats(annual_total[y])
@@ -168,10 +168,10 @@ def run(source_root: Path, output: Path) -> dict[str,Any]:
     diagnostics:dict[str,dict[str,Any]]={}
     for feature,values in groups.items():
         diagnostics[feature]={}
-        for value,by_year in values.items():
+        for segment_value,by_year in values.items():
             yearly={str(y):_stats(by_year.get(y,[])) for y in range(1,6)}
-            totals=[Decimal(yearly[str(y)]["total_r"]) for y in range(1,6)]
-            diagnostics[feature][value]={
+            totals=[Decimal(str(yearly[str(y)]["total_r"])) for y in range(1,6)]
+            diagnostics[feature][segment_value]={
                 "yearly":yearly,
                 "positive_years":sum(v>0 for v in totals),
                 "negative_years":sum(v<0 for v in totals),
