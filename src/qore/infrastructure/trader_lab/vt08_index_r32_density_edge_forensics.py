@@ -27,6 +27,7 @@ from datetime import UTC
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
 from qore.infrastructure.trader_lab import vt08_index_concurrent_market_contract as contract
@@ -42,6 +43,7 @@ IDENTITY = "VT08_INDEX_R32_DENSITY_EDGE_FORENSICS_001"
 PRIMARY_STRESS = Decimal("0.05")
 SECONDARY_STRESS = Decimal("0.10")
 TARGET_R = Decimal("2.5")
+_NY = ZoneInfo("America/New_York")
 
 
 def _sequential_admitted_ids(
@@ -187,7 +189,7 @@ def build_report(
         return str(row["opportunity"].signal.symbol)
 
     def anchor(row: dict[str, Any]) -> str:
-        return str(row["opportunity"].signal.h4_opened_at.astimezone(r8._NY).hour)
+        return str(row["opportunity"].signal.h4_opened_at.astimezone(_NY).hour)
 
     def model_kind(row: dict[str, Any]) -> str:
         return str(row["opportunity"].signal.model_kind.value)
