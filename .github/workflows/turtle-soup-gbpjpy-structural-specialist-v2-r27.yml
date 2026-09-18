@@ -1,0 +1,168 @@
+name: QORE Turtle Soup GBPJPY Structural Specialist V2 R27
+# EXECUTION_RETRIGGER_GBPJPY_V2_R27 — GitHub-only research execution
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/turtle-soup-gbpjpy-structural-specialist-v2-r27.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r26_specialist_memory_brain.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r27_structural_specialist_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py'
+  push:
+    branches:
+      - agent/turtle-soup-gbpjpy-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpjpy-structural-specialist-v2-r27.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r26_specialist_memory_brain.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r27_structural_specialist_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-GBPJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-GBPJPY-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  SPECIALIST_V1_RUN_ID: '35340201605'
+  SPECIALIST_V1_SHA: '7554dc0d024d4fea63b9a8b1dcf38a5d41a3ea9c'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001             src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py             src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r26_specialist_memory_brain.py             src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r27_structural_specialist_brain.py             tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py             src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r26_specialist_memory_brain.py             src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r27_structural_specialist_brain.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_specialist_cognitive_memory_v2.py
+
+  structural-memory-and-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable GBPJPY raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-gbpjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-gbpjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download official Specialist Memory V1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpjpy-specialist-memory-v1-${{ env.SPECIALIST_V1_SHA }}
+          path: specialist-v1
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SPECIALIST_V1_RUN_ID }}
+      - name: Build regime-aware structural cognitive memory V2
+        run: |
+          mkdir -p cognitive-v2
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpjpy_specialist_cognitive_memory_v2             source-gbpjpy specialist-v1 cognitive-v2             > cognitive-v2/stdout.json
+      - name: Enforce cognitive V2 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('cognitive-v2/turtle-soup-gbpjpy-specialist-cognitive-memory-v2-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPJPY_SPECIALIST_COGNITIVE_MEMORY_V2'
+          m=p['master_contract']
+          assert m['cibo_master_modified'] is False
+          assert m['specialist_raw_memory_v1_modified'] is False
+          d=p['decision_contract']
+          assert d['situation_separate_from_target'] is True
+          assert d['regime_similarity_uses_calendar_year'] is False
+          assert d['regime_features_are_pre_entry_only'] is True
+          assert d['economic_fields_authorize_trade'] is False
+          assert d['gross_r_authorizes_trade'] is False
+          assert d['net_r_authorizes_trade'] is False
+          assert d['profit_factor_authorizes_trade'] is False
+          g=p['governance']
+          assert g['r26_result_used_as_decision_input'] is False
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_promoted'] is False
+          PY
+      - name: Run R27 structural replay
+        run: |
+          mkdir -p r27-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpjpy_r27_structural_specialist_brain             source-gbpjpy target-gbpjpy cognitive-v2 r27-output             > r27-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > r27-output/git-sha.txt
+      - name: Enforce R27 decision contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r27-output/r27-structural-specialist-brain-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPJPY_R27_STRUCTURAL_SPECIALIST_BRAIN_V1'
+          d=p['decision_sources']
+          assert d['master_memory_remains_immutable'] is True
+          assert d['r22_memory_used'] is False
+          assert d['r23_memory_used'] is False
+          assert d['r25_result_used'] is False
+          assert d['r26_result_used_as_decision_input'] is False
+          c=p['decision_contract']
+          assert c['authority_is_structural'] is True
+          assert c['gross_r_authorizes_trade'] is False
+          assert c['net_r_authorizes_trade'] is False
+          assert c['profit_factor_authorizes_trade'] is False
+          assert c['calendar_year_regime_rule'] is False
+          assert c['regime_is_pre_entry'] is True
+          assert c['context_only_can_authorize'] is False
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_promoted'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash immutable V2 and R27 evidence
+        run: |
+          mkdir -p package
+          cp cognitive-v2/turtle-soup-gbpjpy-specialist-cognitive-memory-v2-report.json package/
+          cp cognitive-v2/turtle-soup-gbpjpy-specialist-cognitive-memory-v2.json package/
+          cp cognitive-v2/turtle-soup-gbpjpy-specialist-observations-v2.jsonl package/
+          cp r27-output/r27-structural-specialist-brain-report.json package/
+          cp r27-output/r27-structural-specialist-brain-trades.json package/
+          cp r27-output/git-sha.txt package/
+          cd package
+          sha256sum * > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpjpy-structural-specialist-v2-r27-${{ env.EVIDENCE_SHA }}
+          path: package
+          if-no-files-found: error
+          retention-days: 90

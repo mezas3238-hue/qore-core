@@ -1,0 +1,114 @@
+{
+  "schema": "qore.ict_ts_cibo_diagnostics.hypothesis_registry.v1",
+  "identity": "ICT_TS_CIBO_DIAGNOSTICS_V1",
+  "parent_identity": "ICT_TS_BEHAVIOR_LAB_V1",
+  "issue": 600,
+  "governance": {
+    "evidence_status": "CONSUMED_DIAGNOSTIC_ONLY",
+    "pnl_used_for_filter_selection": false,
+    "candidate_rule_created": false,
+    "demo_eligible": false,
+    "live_authorized": false,
+    "real_capital_authorized": false,
+    "production_authorized": false
+  },
+  "evidence_sources": [
+    {
+      "evidence_id": "TSLAB_FX_2016_2018",
+      "identity": "ICT_TS_BEHAVIOR_LAB_V1",
+      "run": 35125861002,
+      "head_sha": "4d09a43aa5795624b4a7cb29bb2503ae586c5a4f",
+      "event_count": 189579,
+      "status": "CONSUMED_DIAGNOSTIC_ONLY"
+    },
+    {
+      "evidence_id": "R5_HOLDOUT_2016_2018",
+      "identity": "ICT_TURTLE_SOUP_R5_D1_AUTHENTIC_IDEAL_C2__H4_AUTHENTIC_IDEAL_C2__POSITIONAL_DAILY_DOL",
+      "run": 35118222306,
+      "head_sha": "9beb2f8147db2b9fb780bc4cc28e2cdb05b7851e",
+      "trade_count": 12,
+      "status": "CONSUMED"
+    }
+  ],
+  "entries": [
+    {
+      "hypothesis_id": "CIBO_TS_E1_001",
+      "title": "D1 full-C1 traversal before entry association",
+      "evidence_tier": "E1_ASSOCIATION",
+      "source_evidence_ids": [
+        "TSLAB_FX_2016_2018",
+        "R5_HOLDOUT_2016_2018"
+      ],
+      "observed": {
+        "gross_winners": "5/5",
+        "gross_losers": "3/7",
+        "hard_stops": "0/3"
+      },
+      "mechanism": null,
+      "pre_entry_variables": [
+        "D1_opposite_reference_hit_before_entry"
+      ],
+      "prediction": null,
+      "falsifier": null,
+      "independent_test_evidence": null,
+      "status": "EXPLORATORY_ASSOCIATION_ONLY",
+      "operating_rule_authorized": false,
+      "notes": "Must not be hard-coded. Requires causal mechanism and preregistered independent diagnostic test before E2 promotion."
+    },
+    {
+      "hypothesis_id": "CIBO_TS_E0_002",
+      "title": "D1 and H4 reclaim saturation in R5",
+      "evidence_tier": "E0_OBSERVATION",
+      "source_evidence_ids": [
+        "R5_HOLDOUT_2016_2018"
+      ],
+      "observed": {
+        "D1_reclaim": "12/12",
+        "H4_reclaim": "12/12"
+      },
+      "mechanism": null,
+      "prediction": null,
+      "falsifier": null,
+      "status": "OBSERVED_NON_DISCRIMINATING_IN_R5",
+      "operating_rule_authorized": false
+    },
+    {
+      "hypothesis_id": "CIBO_TS_E0_003",
+      "title": "H4 FVG saturation in R5",
+      "evidence_tier": "E0_OBSERVATION",
+      "source_evidence_ids": [
+        "R5_HOLDOUT_2016_2018"
+      ],
+      "observed": {
+        "H4_FVG_present": "12/12"
+      },
+      "mechanism": null,
+      "prediction": null,
+      "falsifier": null,
+      "status": "OBSERVED_NON_DISCRIMINATING_IN_R5",
+      "operating_rule_authorized": false
+    },
+    {
+      "hypothesis_id": "CIBO_TS_E1_004",
+      "title": "Hard-stop loss concentration",
+      "evidence_tier": "E1_ASSOCIATION",
+      "source_evidence_ids": [
+        "R5_HOLDOUT_2016_2018"
+      ],
+      "observed": {
+        "hard_stop_count": 3,
+        "gross_stop_total_r": -3.0,
+        "gross_non_stop_total_r": 0.27,
+        "cluster_symbol": "GBPJPY",
+        "cluster_side": "LONG"
+      },
+      "mechanism": null,
+      "prediction": null,
+      "falsifier": null,
+      "independent_test_evidence": null,
+      "status": "FORENSIC_CLUSTER_ONLY",
+      "operating_rule_authorized": false,
+      "notes": "Does not authorize removing GBPJPY or LONG. CIBO must identify a pre-entry market-state mechanism before any E2 hypothesis exists."
+    }
+  ]
+}

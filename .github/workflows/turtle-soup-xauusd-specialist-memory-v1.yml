@@ -1,0 +1,136 @@
+name: QORE Turtle Soup XAUUSD Specialist Memory V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-xauusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-xauusd-specialist-memory-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_specialist_memory_v1.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_specialist_memory_v1.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  JOURNEY_RUN_ID: '35175979474'
+  JOURNEY_ARTIFACT: 'qore-cibo-market-journey-XAUUSD-9cc0f17a2f30846d61b242132547f39391909656'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_specialist_memory_v1.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_specialist_memory_v1.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_specialist_memory_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_specialist_memory_v1.py
+
+  specialist-memory:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable CIBO XAUUSD raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable CIBO Journey V1
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.JOURNEY_ARTIFACT }}
+          path: journey-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.JOURNEY_RUN_ID }}
+      - name: Download immutable CIBO Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Build specialist raw and cognitive memories
+        run: |
+          mkdir -p specialist-memory-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_xauusd_specialist_memory_v1 \
+            source-xauusd journey-xauusd target-xauusd specialist-memory-output \
+            > specialist-memory-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > specialist-memory-output/git-sha.txt
+      - name: Enforce specialist memory contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('specialist-memory-output/turtle-soup-xauusd-specialist-memory-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_XAUUSD_SPECIALIST_MEMORY_V1'
+          m=p['master_memory_contract']
+          assert m['master_is_immutable'] is True
+          assert m['master_modified'] is False
+          assert m['derived_copy_only'] is True
+          assert m['raw_m5_run_id']==35166210458
+          assert m['journey_run_id']==35175979474
+          assert m['target_run_id']==35204892665
+          assert m['physical_master_snapshot_in_specialist_artifact'] is True
+          assert len(m['snapshot_files'])==11
+          s=p['specialist_contract']
+          assert s['actual_strategy_entry_used'] is True
+          assert s['exact_protected_swing_used'] is True
+          assert s['active_cibo_dol_ladder_rebuilt'] is True
+          assert s['generic_destination_fallback_authorizes_trade'] is False
+          for key in ('r11_memory_used','r16_memory_used','r17_memory_used','r20_memory_used','r21_memory_used','r22_memory_used','r23_memory_used','r25_result_used_as_training_label'):
+              assert s[key] is False
+          r=p['reproduction']
+          assert r['retained_m5_bars']==707716
+          assert r['master_behavior_events_copied']==111925
+          assert r['turtle_setups_10y'] > 0
+          assert r['specialist_decision_observations'] > 0
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_promoted'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash immutable specialist memory
+        run: |
+          cd specialist-memory-output
+          sha256sum \
+            turtle-soup-xauusd-specialist-memory-report.json \
+            turtle-soup-xauusd-specialist-raw-memory.jsonl \
+            turtle-soup-xauusd-specialist-observations.jsonl \
+            turtle-soup-xauusd-specialist-cognitive-memory.json \
+            stdout.json git-sha.txt > SHA256SUMS.txt
+          find master-snapshot -type f -print0 | sort -z | xargs -0 sha256sum >> SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-xauusd-specialist-memory-v1-${{ github.sha }}
+          path: specialist-memory-output
+          if-no-files-found: error
+          retention-days: 90

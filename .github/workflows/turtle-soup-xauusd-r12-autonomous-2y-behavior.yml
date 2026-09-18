@@ -1,0 +1,92 @@
+name: QORE Turtle Soup XAUUSD R12 Autonomous 2Y Behavior
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-xauusd-r3-forensics-001
+    paths:
+      - '.github/workflows/turtle-soup-xauusd-r12-autonomous-2y-behavior.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r12_autonomous_2y_behavior.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r12_autonomous_2y_behavior.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check --ignore E501,I001 src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r12_autonomous_2y_behavior.py tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r12_autonomous_2y_behavior.py
+      - run: mypy src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r12_autonomous_2y_behavior.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r12_autonomous_2y_behavior.py
+
+  autonomous-2y:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Run autonomous two-year trader behavior
+        run: |
+          mkdir -p r12-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_xauusd_r12_autonomous_2y_behavior source-xauusd target-xauusd r12-output > r12-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r12-output/git-sha.txt
+      - name: Enforce freedom and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r12-output/r12-autonomous-2y-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_XAUUSD_R12_AUTONOMOUS_2Y_BEHAVIOR_V2'
+          assert p['window']['open']=='2024-09-17T00:00:00+00:00'
+          assert p['window']['close']=='2026-09-17T00:00:00+00:00'
+          assert p['window']['years']==2
+          assert p['freedom_contract']['restricted_to_r11_positive_candidates'] is False
+          assert p['freedom_contract']['external_side_filter'] is False
+          assert p['freedom_contract']['external_timeframe_filter'] is False
+          assert p['freedom_contract']['external_session_filter'] is False
+          assert p['two_year_behavior']['executed_trades'] > 0
+          assert p['governance']['fresh_holdout_consumed'] is False
+          assert p['governance']['live_authorized'] is False
+          assert p['governance']['real_capital_authorized'] is False
+          PY
+      - name: Hash result
+        run: |
+          cd r12-output
+          sha256sum r12-autonomous-2y-report.json r12-autonomous-2y-trades.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-xauusd-r12-autonomous-2y-${{ github.sha }}
+          path: r12-output
+          if-no-files-found: error
+          retention-days: 90

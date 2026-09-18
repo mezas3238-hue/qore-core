@@ -1,0 +1,117 @@
+name: QORE Turtle Soup GBPJPY R38 5Y Structural Fragility Correction
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/turtle-soup-gbpjpy-r38-5y-structural-fragility-correction.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py'
+  push:
+    branches:
+      - agent/turtle-soup-gbpjpy-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpjpy-r38-5y-structural-fragility-correction.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  R37_RUN_ID: '35371203863'
+  R37_ARTIFACT: 'qore-turtle-soup-gbpjpy-r37-frozen-r36-5y-validation-eb62226e05f63cf94c1940634de676c55285e6dd'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r38_5y_structural_fragility_correction.py
+
+  correction:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download exact R37 5Y evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R37_ARTIFACT }}
+          path: r37-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R37_RUN_ID }}
+      - name: Apply pre-entry structural fragility correction
+        run: |
+          mkdir -p r38-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpjpy_r38_5y_structural_fragility_correction \
+            r37-source r38-output > r38-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > r38-output/git-sha.txt
+      - name: Enforce causal correction governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r38-output/r38-5y-structural-fragility-correction-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPJPY_R38_5Y_STRUCTURAL_FRAGILITY_CORRECTION_V1'
+          c=p['correction_contract']
+          assert c['signal_count_preserved'] is True
+          assert c['signals_suppressed'] is False
+          assert c['entry_changed'] is False
+          assert c['c2_changed'] is False
+          assert c['cisd_changed'] is False
+          assert c['dol_changed'] is False
+          assert c['protected_swing_changed'] is False
+          assert c['date_filter_added'] is False
+          assert c['post_entry_information_used_for_risk'] is False
+          assert c['fragility_policy_0_1_2_3plus']==['1','0.25','0.10','0.05']
+          a=p['predeclared_acceptance']
+          assert a['5y']['minimum_trades']==800
+          assert a['5y']['minimum_pf']=='1.50'
+          assert a['5y']['maximum_dd_r']=='6.0'
+          assert a['5y']['required_positive_annual_blocks']==5
+          assert a['2y_recheck']['minimum_trades']==350
+          assert a['2y_recheck']['minimum_pf']=='1.90'
+          assert a['2y_recheck']['maximum_dd_r']=='6.0'
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['trader_certified'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash corrected evidence
+        run: |
+          cd r38-output
+          sha256sum r38-5y-structural-fragility-correction-report.json r38-5y-corrected-trades.jsonl stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpjpy-r38-5y-fragility-${{ env.EVIDENCE_SHA }}
+          path: r38-output
+          if-no-files-found: error
+          retention-days: 90

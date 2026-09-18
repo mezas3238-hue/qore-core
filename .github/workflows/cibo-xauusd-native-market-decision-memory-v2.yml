@@ -1,0 +1,128 @@
+name: QORE CIBO XAUUSD Native Market Decision Memory V2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-xauusd-cibo-native-memory-v2-001
+    paths:
+      - '.github/workflows/cibo-xauusd-native-market-decision-memory-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_xauusd_native_market_decision_memory_v2.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_xauusd_native_market_decision_memory_v2.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  JOURNEY_RUN_ID: '35175979474'
+  JOURNEY_ARTIFACT: 'qore-cibo-market-journey-XAUUSD-9cc0f17a2f30846d61b242132547f39391909656'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/cibo_xauusd_native_market_decision_memory_v2.py \
+            tests/infrastructure/trader_lab/test_cibo_xauusd_native_market_decision_memory_v2.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/cibo_xauusd_native_market_decision_memory_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_xauusd_native_market_decision_memory_v2.py
+
+  memory:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable XAUUSD raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable CIBO Journey V1
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.JOURNEY_ARTIFACT }}
+          path: journey-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.JOURNEY_RUN_ID }}
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Build CIBO-native decision memory
+        run: |
+          mkdir -p native-memory-output
+          python -m qore.infrastructure.trader_lab.cibo_xauusd_native_market_decision_memory_v2 \
+            source-xauusd journey-xauusd target-xauusd native-memory-output \
+            > native-memory-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > native-memory-output/git-sha.txt
+      - name: Enforce native memory contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('native-memory-output/cibo-xauusd-native-memory-v2-report.json').read_text())
+          assert p['identity']=='CIBO_XAUUSD_NATIVE_MARKET_DECISION_MEMORY_V2'
+          assert p['reproduction']['retained_bars']==707716
+          assert p['reproduction']['behavior_events']==111925
+          s=p['source_contract']
+          assert s['raw_m5_only'] is True
+          assert s['journey_v1'] is True
+          assert s['target_destination_v2'] is True
+          for key in ('r11_used','r16_used','r17_used','r20_used','r21_used','r22_used','r23_used'):
+              assert s[key] is False
+          m=p['memory_contract']
+          assert m['stress_friction_r']=='0.10'
+          assert m['post_hoc_rxx_labels_used'] is False
+          assert m['native_market_lifecycle_simulated'] is True
+          assert p['reproduction']['memory_observations'] > 0
+          assert p['decision_index_summary']['geometry']['signatures'] > 0
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['rule_promoted'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash immutable native memory
+        run: |
+          cd native-memory-output
+          sha256sum \
+            cibo-xauusd-native-memory-v2-report.json \
+            cibo-xauusd-native-memory-v2-observations.json \
+            cibo-xauusd-native-memory-v2-hierarchy.json \
+            cibo-xauusd-native-memory-v2-decision-index.json \
+            stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-xauusd-native-memory-v2-${{ github.sha }}
+          path: native-memory-output
+          if-no-files-found: error
+          retention-days: 90

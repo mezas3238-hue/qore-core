@@ -1,0 +1,105 @@
+name: QORE CIBO Market Atlas Journey Summary V1
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-atlas-journey-summary-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_summary_v1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_summary_v1.py'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  JOURNEY_RUN_ID: '35175979474'
+  JOURNEY_GIT_SHA: '9cc0f17a2f30846d61b242132547f39391909656'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_summary_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_summary_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_summary_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_summary_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_summary_v1.py
+      - name: Governance assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_summary_v1.py').read_text()
+          assert 'E1_ASSOCIATION_ONLY' in text
+          assert 'rule_promotion_allowed": False' in text
+          assert 'live_authorized": False' in text
+          assert 'real_capital_authorized": False' in text
+          PY
+
+  summarize:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable Journey artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-market-journey-*-${{ env.JOURNEY_GIT_SHA }}
+          path: journeys
+          merge-multiple: false
+          repository: ${{ github.repository }}
+          run-id: ${{ env.JOURNEY_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Journey statistical summary
+        run: |
+          AGGREGATE_ROOT="$(dirname "$(find journeys -type f -name CROSS_INDEX_JOURNEY_LEDGER.jsonl -print -quit)")"
+          test -n "$AGGREGATE_ROOT"
+          python -m qore.infrastructure.trader_lab.cibo_market_atlas_journey_summary_v1 \
+            journeys "$AGGREGATE_ROOT" summary
+      - name: Verify authoritative totals and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('summary/cibo-journey-10y-summary.json').read_text())
+          assert payload['totals']['retained_m5_bars'] == 8726985
+          assert payload['totals']['episodes'] == 1425723
+          assert payload['totals']['structure_touches'] == 2919269
+          assert payload['cross_index']['rows'] == 108558
+          assert payload['rule_promotion_allowed'] is False
+          assert payload['demo_eligible'] is False
+          assert payload['live_authorized'] is False
+          assert payload['real_capital_authorized'] is False
+          assert payload['production_authorized'] is False
+          PY
+      - name: Upload immutable Journey summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-market-journey-summary-${{ github.sha }}
+          path: summary
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,104 @@
+name: QORE Turtle Soup XAUUSD R14 Upstream Journey Capacity Forensics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-xauusd-r3-forensics-001
+    paths:
+      - '.github/workflows/turtle-soup-xauusd-r14-upstream-journey-capacity-forensics.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r14_upstream_journey_capacity_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r14_upstream_journey_capacity_forensics.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  R12_RUN_ID: '35286658128'
+  R12_ARTIFACT: 'qore-turtle-soup-xauusd-r12-autonomous-2y-3bd9b1263c75da51582b960db36841e539dfa4d2'
+  R13_RUN_ID: '35287633083'
+  R13_ARTIFACT: 'qore-turtle-soup-xauusd-r13-intelligence-alignment-98053fa59de97e35f400046fc93ad0289613e3f2'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check --ignore E501,I001 src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r14_upstream_journey_capacity_forensics.py tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r14_upstream_journey_capacity_forensics.py
+      - run: mypy src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r14_upstream_journey_capacity_forensics.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r14_upstream_journey_capacity_forensics.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable R12 autonomous 2Y artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R12_ARTIFACT }}
+          path: r12
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R12_RUN_ID }}
+      - name: Download immutable R13 alignment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R13_ARTIFACT }}
+          path: r13
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R13_RUN_ID }}
+      - name: Download immutable CIBO Target Destination V2 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: targets
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Run R14 upstream journey capacity forensics
+        run: |
+          mkdir -p r14-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_xauusd_r14_upstream_journey_capacity_forensics r12 r13 targets r14-output > r14-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r14-output/git-sha.txt
+      - name: Enforce forensic reproduction and governance
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+          p=json.loads(Path('r14-output/r14-upstream-capacity-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_XAUUSD_R14_UPSTREAM_JOURNEY_CAPACITY_GEOMETRY_FORENSICS_V1'
+          loss=p['cohorts']['unknown_upstream_losses']
+          win=p['cohorts']['unknown_wins']
+          assert loss['trades']==622
+          assert win['trades']==342
+          assert Decimal(loss['nearest_dol_r_median']) > Decimal(win['nearest_dol_r_median'])
+          assert Decimal(loss['selected_rr_median']) > Decimal(win['selected_rr_median'])
+          assert Decimal(loss['protected_risk_entry_fraction_median']) < Decimal(win['protected_risk_entry_fraction_median'])
+          assert Decimal(loss['selected_target_entry_fraction_median']) > Decimal(win['selected_target_entry_fraction_median'])
+          assert p['governance']['fresh_holdout_consumed'] is False
+          assert p['governance']['no_threshold_promoted'] is True
+          assert p['governance']['live_authorized'] is False
+          PY
+      - name: Hash immutable R14 result
+        run: |
+          cd r14-output
+          sha256sum r14-upstream-capacity-report.json r14-upstream-losses-enriched.json r14-unknown-wins-enriched.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-xauusd-r14-upstream-capacity-${{ github.sha }}
+          path: r14-output
+          if-no-files-found: error
+          retention-days: 90

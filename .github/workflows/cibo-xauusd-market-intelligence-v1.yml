@@ -1,0 +1,148 @@
+name: QORE CIBO XAUUSD Market Intelligence V1
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+      - agent/turtle-soup-xauusd-r3-forensics-001
+    paths:
+      - '.github/workflows/cibo-xauusd-market-intelligence-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_xauusd_market_intelligence_v1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_xauusd_market_intelligence_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-xauusd-market-intelligence-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_M5_GIT_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_JOURNEY_GIT_SHA: '9cc0f17a2f30846d61b242132547f39391909656'
+  SOURCE_TARGET_RUN_ID: '35204892665'
+  SOURCE_TARGET_GIT_SHA: '2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/cibo_xauusd_market_intelligence_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_xauusd_market_intelligence_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/cibo_xauusd_market_intelligence_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_xauusd_market_intelligence_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_xauusd_market_intelligence_v1.py
+      - name: Governance assertions
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.trader_lab import cibo_xauusd_market_intelligence_v1 as x
+          assert x.IDENTITY == 'CIBO_XAUUSD_MARKET_INTELLIGENCE_DOSSIER_V1'
+          assert x.SYMBOL == 'XAUUSD'
+          assert x.EVIDENCE_TIER == 'E1_ASSOCIATION_ONLY'
+          assert x.SOURCE_M5_RUN_ID == 35166210458
+          assert x.SOURCE_JOURNEY_RUN_ID == 35175979474
+          assert x.TARGET_IDENTITY == 'CIBO_TARGET_DESTINATION_V2_SUPPORTED_REFERENCE_UNIVERSE'
+          PY
+
+  dossier:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable XAUUSD 10Y M5 source
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-XAUUSD-${{ env.SOURCE_M5_GIT_SHA }}
+          path: raw-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Download immutable XAUUSD Journey V1 source
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-journey-XAUUSD-${{ env.SOURCE_JOURNEY_GIT_SHA }}
+          path: journey-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Download immutable XAUUSD Target Destination V2 source
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-target-destination-v2-XAUUSD-${{ env.SOURCE_TARGET_GIT_SHA }}
+          path: target-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_TARGET_RUN_ID }}
+      - name: Build XAUUSD Market Intelligence Dossier V1
+        run: |
+          python -m qore.infrastructure.trader_lab.cibo_xauusd_market_intelligence_v1 \
+            raw-source journey-source target-source dossier \
+            --target-workflow-run-id "${SOURCE_TARGET_RUN_ID}" \
+            --target-git-sha "${SOURCE_TARGET_GIT_SHA}"
+      - name: Enforce dossier provenance and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('dossier')
+          manifest = json.loads(
+              (root / 'xauusd-market-intelligence-manifest-v1.json').read_text()
+          )
+          dossier = json.loads(
+              (root / 'xauusd-market-intelligence-dossier-v1.json').read_text()
+          )
+          assert manifest['identity'] == 'CIBO_XAUUSD_MARKET_INTELLIGENCE_DOSSIER_V1'
+          assert manifest['symbol'] == 'XAUUSD'
+          assert manifest['retained_m5_bars'] == 707716
+          assert manifest['behavior_events'] == 111925
+          assert manifest['resolved_departures'] == 40641
+          assert manifest['target_workflow_run_id'] == 35204892665
+          assert manifest['target_git_sha'] == '2f510461b3360e91d5ee70a72716a76cd6561f16'
+          assert manifest['evidence_status'] == 'CONSUMED_RESEARCH_EVIDENCE'
+          assert manifest['highest_automatic_evidence_tier'] == 'E1_ASSOCIATION_ONLY'
+          assert manifest['rule_promotion_allowed'] is False
+          assert manifest['demo_eligible'] is False
+          assert manifest['live_authorized'] is False
+          assert manifest['real_capital_authorized'] is False
+          assert manifest['production_authorized'] is False
+
+          assert dossier['identity'] == manifest['identity']
+          assert dossier['behavior_events'] == 111925
+          assert dossier['target_destination_v2']['complete_all_dol_claim'] is False
+          assert dossier['exact_c2']['c3_status'].startswith('UNRESOLVED_')
+          assert dossier['regime_scope'].startswith('UNRESOLVED_')
+          assert dossier['stop_recovery_scope'].startswith('UNRESOLVED_')
+          assert dossier['rule_promotion_allowed'] is False
+          assert dossier['live_authorized'] is False
+          PY
+      - name: Upload immutable XAUUSD intelligence dossier
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-xauusd-market-intelligence-v1-${{ github.sha }}
+          path: dossier
+          if-no-files-found: error
+          retention-days: 90

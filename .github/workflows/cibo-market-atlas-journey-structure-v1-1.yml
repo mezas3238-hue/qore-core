@@ -1,0 +1,194 @@
+name: QORE CIBO Market Atlas Journey Structure V1.1
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-atlas-journey-structure-v1-1.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_structure_v1_1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_structure_v1_1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-market-atlas-journey-structure-v1-1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_GIT_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  CROSS_INDEX_SOURCE_RUN_ID: '35175979474'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_structure_v1_1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_structure_v1_1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_structure_v1_1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_structure_v1_1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_structure_v1_1.py
+      - name: Governance assertions
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.trader_lab import cibo_market_atlas_journey_structure_v1_1 as j
+          assert j.SOURCE_RUN_ID == 35166210458
+          assert j.IDENTITY == 'CIBO_MARKET_JOURNEY_LAYER_V1_1_EQUAL_LIQUIDITY'
+          assert j.EQUAL_LIQUIDITY_DETECTOR == 'ICT_TS_BEHAVIOR_LAB_EXACT_EQUAL_V1'
+          PY
+
+  journey:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        symbol:
+          - AUDJPY
+          - AUDUSD
+          - EURUSD
+          - GBPJPY
+          - GBPUSD
+          - USDCAD
+          - USDJPY
+          - NAS100
+          - SP500
+          - US30
+          - XAUUSD
+          - XAGUSD
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable 10Y source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-${{ env.SOURCE_GIT_SHA }}
+          path: source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Build Journey V1.1 structure ledgers
+        run: |
+          python -m qore.infrastructure.trader_lab.cibo_market_atlas_journey_structure_v1_1 \
+            source journey
+      - name: Enforce V1.1 manifest
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(Path('journey/journey-manifest.json').read_text())
+          assert manifest['identity'] == 'CIBO_MARKET_JOURNEY_LAYER_V1_1_EQUAL_LIQUIDITY'
+          assert manifest['source_run_id'] == 35166210458
+          assert manifest['symbol'] == os.environ['EXPECTED_SYMBOL']
+          assert manifest['retained_m5_bars'] > 0
+          assert manifest['behavior_event_count'] > 0
+          assert manifest['equal_liquidity_structure_rows'] >= 0
+          assert manifest['ledger_counts']['STRUCTURE_TOUCH_LEDGER'] >= manifest['behavior_event_count']
+          assert manifest['rule_promotion_allowed'] is False
+          assert manifest['live_authorized'] is False
+          assert manifest['real_capital_authorized'] is False
+          assert manifest['production_authorized'] is False
+          PY
+      - name: Upload immutable Journey V1.1 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-market-journey-v1-1-equal-${{ matrix.symbol }}-${{ github.sha }}
+          path: journey
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all Journey V1.1 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-market-journey-v1-1-equal-*-${{ github.sha }}
+          path: journeys
+      - name: Build V1.1 authoritative index
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          manifests = {}
+          for path in Path('journeys').rglob('journey-manifest.json'):
+              payload = json.loads(path.read_text())
+              manifests[payload['symbol']] = payload
+          expected = {'AUDJPY','AUDUSD','EURUSD','GBPJPY','GBPUSD','USDCAD','USDJPY','NAS100','SP500','US30','XAUUSD','XAGUSD'}
+          assert set(manifests) == expected
+          rows = []
+          for symbol in sorted(manifests):
+              manifest = manifests[symbol]
+              rows.append({
+                  'symbol': symbol,
+                  'retained_m5_bars': manifest['retained_m5_bars'],
+                  'behavior_event_count': manifest['behavior_event_count'],
+                  'equal_liquidity_structure_rows': manifest['equal_liquidity_structure_rows'],
+                  'ledger_counts': manifest['ledger_counts'],
+                  'ledger_sha256': manifest['ledger_sha256'],
+              })
+          index = {
+              'schema': 'qore.cibo_market_atlas.journey_structure_10y_index.v1_1',
+              'identity': 'CIBO_MARKET_JOURNEY_LAYER_V1_1_EQUAL_LIQUIDITY',
+              'source_run_id': 35166210458,
+              'source_git_sha': 'ab782b8e9f890f86a2b6500070f0556b4b685e3d',
+              'symbols': rows,
+              'total_equal_liquidity_structure_rows': sum(
+                  row['equal_liquidity_structure_rows'] for row in rows
+              ),
+              'cross_index_reused_from_run': 35175979474,
+              'cross_index_rows': 108558,
+              'cross_index_reuse_reason': 'STRUCTURE_ONLY_EXTENSION_DOES_NOT_CHANGE_DEPARTURE_TIMESTAMPS',
+              'evidence_status': 'CONSUMED_RESEARCH_EVIDENCE',
+              'rule_promotion_allowed': False,
+              'demo_eligible': False,
+              'live_authorized': False,
+              'real_capital_authorized': False,
+              'production_authorized': False,
+          }
+          Path('aggregate').mkdir()
+          out = Path('aggregate/journey-structure-v1-1-index.json')
+          out.write_text(json.dumps(index, indent=2, sort_keys=True) + '\n')
+          Path('aggregate/journey-structure-v1-1-index.sha256').write_text(
+              hashlib.sha256(out.read_bytes()).hexdigest() + '\n'
+          )
+          PY
+      - name: Upload authoritative V1.1 aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-market-journey-v1-1-equal-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,92 @@
+name: QORE Turtle Soup GBPJPY R33 Subfamily Discovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/turtle-soup-gbpjpy-r33-subfamily-discovery.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py'
+  push:
+    branches:
+      - agent/turtle-soup-gbpjpy-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpjpy-r33-subfamily-discovery.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  V2_RUN_ID: '35349300927'
+  V2_ARTIFACT: 'qore-turtle-soup-gbpjpy-structural-specialist-v2-r27-00fb870826e0cbd30179fe44cbdd6707448be0da'
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpjpy_r33_rank1_subfamily_discovery.py
+      - name: Download exact Cognitive V2 R27 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.V2_ARTIFACT }}
+          path: v2-r27
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V2_RUN_ID }}
+      - name: Discover and freeze GBPJPY rank1 subfamilies
+        run: |
+          mkdir -p r33-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpjpy_r33_rank1_subfamily_discovery \
+            v2-r27 r33-output > r33-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > r33-output/git-sha.txt
+      - name: Enforce family governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r33-output/r33-rank1-subfamily-discovery-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_GBPJPY_R33_RANK1_SUBFAMILY_DISCOVERY_V1'
+          c=p['candidate_contract']
+          assert c['features_are_pre_entry_only'] is True
+          assert c['calendar_fields_forbidden'] is True
+          assert c['target_route_not_a_family_feature'] is True
+          assert c['target_rank_fixed_to_one'] is True
+          assert c['required_positive_chronological_quintiles']==5
+          assert p['governance']['fresh_holdout_consumed'] is False
+          f=json.loads(Path('r33-output/r33-rank1-subfamily-freeze.json').read_text())
+          assert f['status']=='FROZEN_FOR_2Y_ENSEMBLE_REPLAY'
+          assert f['fresh_holdout_status']=='SEALED_UNTOUCHED'
+          PY
+      - name: Hash R33 evidence
+        run: |
+          cd r33-output
+          sha256sum r33-rank1-subfamily-discovery-report.json r33-rank1-subfamily-freeze.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpjpy-r33-subfamily-discovery-${{ env.EVIDENCE_SHA }}
+          path: r33-output
+          if-no-files-found: error
+          retention-days: 90
+
+# R33_FRONTIER_RETRIGGER

@@ -1,0 +1,136 @@
+name: QORE Turtle Soup XAUUSD R11 Situation Recognition Engine
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-xauusd-r3-forensics-001
+    paths:
+      - '.github/workflows/turtle-soup-xauusd-r11-situation-recognition-engine.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r11_situation_recognition_engine.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r11_situation_recognition_lab.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r11_situation_recognition_engine.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r11_situation_recognition_lab.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r11_situation_recognition_engine.py \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r11_situation_recognition_lab.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r11_situation_recognition_engine.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r11_situation_recognition_lab.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r11_situation_recognition_engine.py \
+            src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r11_situation_recognition_lab.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r11_situation_recognition_engine.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r11_situation_recognition_lab.py
+
+  recognition-audit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable consumed XAUUSD M5 corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable consumed XAUUSD Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Execute R11 situation recognition audit
+        run: |
+          mkdir -p r11-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_xauusd_r11_situation_recognition_lab \
+            source-xauusd target-xauusd r11-output > r11-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r11-output/git-sha.txt
+      - name: Enforce reproduction and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r11-output/situation-recognition-report.json').read_text())
+          e=json.loads(Path('r11-output/engine-manifest.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_XAUUSD_R11_SITUATION_RECOGNITION_LAB_V1'
+          assert p['engine_identity']=='TURTLE_SOUP_XAUUSD_R11_SITUATION_RECOGNITION_ENGINE_V1'
+          assert p['reproduction']['retained_bars']==707716
+          assert p['reproduction']['recognized_trades']==5885
+          assert p['reproduction']['robust_invalid_exact']==273
+          assert p['reproduction']['break_a_exact']==151
+          assert p['reproduction']['break_b_exact']==88
+          assert p['reproduction']['break_a_pre_entry_candidate_exact']==31
+          assert p['reproduction']['break_a_binary_auditable_candidate_exact']==30
+          assert p['recognition_contract']['engine_receives_post_entry_information'] is False
+          assert p['recognition_contract']['post_entry_path_used_only_after_recognition_as_label'] is True
+          assert p['recognition_contract']['pnl_used_for_recognition'] is False
+          assert p['recognition_contract']['pnl_used_for_audit'] is False
+          assert p['recognition_contract']['year_or_date_used_by_engine'] is False
+          assert p['recognition_contract']['frozen_anchor_recalibration'] is False
+          assert p['recognition_contract']['evidence_family_membership_exact_r7_r8_buckets'] is True
+          assert p['recognition_contract']['continuous_values_can_broaden_evidence_family'] is False
+          assert p['recognition_contract']['structurally_valid_candidate_is_operating_permission'] is False
+          assert p['recognition_contract']['post_entry_other_diagnostic_can_remove_pre_entry_candidate'] is False
+          assert e['reasoning_contract']['pnl_score'] is False
+          assert e['reasoning_contract']['probability_of_profit'] is False
+          assert e['reasoning_contract']['automatic_threshold_search'] is False
+          assert e['reasoning_contract']['later_period_recalibration'] is False
+          assert e['reasoning_contract']['evidence_family_membership_uses_exact_r7_r8_buckets'] is True
+          assert e['reasoning_contract']['continuous_values_can_define_evidence_family_membership'] is False
+          assert e['reasoning_contract']['year_or_date_operating_input'] is False
+          assert e['reasoning_contract']['post_entry_input'] is False
+          assert e['reasoning_contract']['structurally_valid_candidate_is_operating_permission'] is False
+          assert p['governance']['candidate_promoted'] is False
+          assert p['governance']['fresh_holdout_consumed'] is False
+          assert p['governance']['demo_eligible'] is False
+          assert p['governance']['live_authorized'] is False
+          assert p['governance']['real_capital_authorized'] is False
+          assert p['governance']['production_authorized'] is False
+          PY
+      - name: Hash immutable R11 result
+        run: |
+          cd r11-output
+          sha256sum situation-recognition-report.json recognized-cases.json engine-manifest.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-xauusd-r11-situation-recognition-${{ github.sha }}
+          path: r11-output
+          if-no-files-found: error
+          retention-days: 90

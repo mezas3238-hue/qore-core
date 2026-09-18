@@ -1,0 +1,76 @@
+name: QORE ICT Turtle Soup R1 Mechanics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/ict-turtle-soup-r1-cisd-session-001
+    paths:
+      - src/qore/infrastructure/trader_lab/ict_turtle_soup_r1.py
+      - tests/infrastructure/trader_lab/test_ict_turtle_soup_r1.py
+      - docs/research/ICT-TURTLE-SOUP-R1-SOURCE-ADJUDICATION.md
+      - docs/research/ICT-TURTLE-SOUP-R1-PRE-ECONOMIC-FREEZE.md
+      - docs/research/ICT-TURTLE-SOUP-R1-DATA-WF-FREEZE.md
+      - .github/workflows/ict-turtle-soup-r1.yml
+
+concurrency:
+  group: qore-ict-turtle-soup-r1-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mechanics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact R1 head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install QORE dev dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Ruff focused gate
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_r1.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_r1.py
+
+      - name: Mypy focused gate
+        run: mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_r1.py
+
+      - name: Focused adversarial tests
+        run: pytest -q tests/infrastructure/trader_lab/test_ict_turtle_soup_r1.py
+
+      - name: Full QORE regression gate
+        run: pytest -q
+
+      - name: Governance invariant
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("docs/research/ICT-TURTLE-SOUP-R1-SOURCE-ADJUDICATION.md").read_text()
+          freeze = Path("docs/research/ICT-TURTLE-SOUP-R1-PRE-ECONOMIC-FREEZE.md").read_text()
+          wf = Path("docs/research/ICT-TURTLE-SOUP-R1-DATA-WF-FREEZE.md").read_text()
+          module = Path("src/qore/infrastructure/trader_lab/ict_turtle_soup_r1.py").read_text()
+          assert "ICT_TURTLE_SOUP_R1_CISD_SESSION" in source
+          assert "before any ICT Turtle Soup R1 economic replay" in freeze
+          assert 'identity="ICT_TURTLE_SOUP_R1_CISD_SESSION"' in module
+          assert "WF1" in wf and "WF6" in wf
+          assert "2026-09-16T00:00:00 America/New_York" in wf
+          assert "0.05R/trade" in wf and "0.10R/trade" in wf
+          for text in (freeze, wf):
+              assert "DEMO_ELIGIBLE=false" in text
+              assert "LIVE_AUTHORIZED=false" in text
+              assert "REAL_CAPITAL_AUTHORIZED=false" in text
+              assert "PRODUCTION_AUTHORIZED=false" in text
+          PY
