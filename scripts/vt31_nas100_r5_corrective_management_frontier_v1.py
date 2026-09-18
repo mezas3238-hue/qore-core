@@ -65,6 +65,12 @@ ACTIVITY_L = {
 }
 REARM_RISK_MAP = engine.RISK_PROFILES["REARM_CONSERVATIVE"]
 VARIANTS = {
+    "ALT_P050_REARM_SCORE": (Decimal("0.50"), None),
+    "ALT_P075_REARM_SCORE": (Decimal("0.75"), None),
+    "ALT_P050_REARM_P050": (Decimal("0.50"), Decimal("0.50")),
+    "ALT_P075_REARM_P050": (Decimal("0.75"), Decimal("0.50")),
+    "ALT_P050_REARM_P075": (Decimal("0.50"), Decimal("0.75")),
+    "ALT_P075_REARM_P075": (Decimal("0.75"), Decimal("0.75")),
     "ALT_P100_REARM_SCORE": (Decimal("1.00"), None),
     "ALT_P125_REARM_SCORE": (Decimal("1.25"), None),
     "ALT_P100_REARM_P100": (Decimal("1.00"), Decimal("1.00")),
