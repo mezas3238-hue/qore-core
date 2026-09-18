@@ -155,7 +155,7 @@ _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
 _EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
-_IDLE_LOOP_SECONDS = 10.0
+_IDLE_LOOP_SECONDS = 1.0
 _BOUNDARY_ARM_SECONDS = 3.0
 _BOUNDARY_POLL_SECONDS = 0.10
 _ANCHOR_GRACE = timedelta(seconds=30)
@@ -1430,7 +1430,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     while True:
         cycle_at = _arm_to_hour_boundary(datetime.now(UTC))
         turtle_anchor = current_r34_anchor(cycle_at)
-        if turtle_anchor is not None:
+        if turtle_anchor is None:
+            turtle_market_data.refresh_many(
+                mt5,
+                symbols=tuple(turtle_history_bars),
+                now=cycle_at,
+            )
+        else:
             market_status = turtle_market_data.prime_anchor_group(
                 mt5,
                 anchor=turtle_anchor,
@@ -1501,6 +1507,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             mt5,
             now=cycle_at,
             store=r38_store,
+            market_data=turtle_market_data,
+            mutations_enabled=mode == "live",
         )
         if r38_manage_reason not in {
             "no-open-r38-position",
@@ -1521,6 +1529,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             mt5,
             now=cycle_at,
             store=r43_store,
+            market_data=turtle_market_data,
+            mutations_enabled=mode == "live",
         )
         if r43_manage_reason not in {
             "no-open-r43-position",
@@ -1543,6 +1553,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 mt5,
                 now=cycle_at,
                 store=gbpjpy_r38_store,
+                market_data=turtle_market_data,
                 mutations_enabled=mode == "live",
             )
         )
