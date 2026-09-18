@@ -1,4 +1,5 @@
 """Diagnose causal-state equivalence between research snapshot and raw-M1 specialist."""
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
