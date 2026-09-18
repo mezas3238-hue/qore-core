@@ -116,10 +116,15 @@ def _period_breakdowns(
     )
     result: dict[str, Any] = {}
     for name in dimensions:
-        result[name] = _breakdown(
-            rows,
-            labeler=lambda item, context, key=name: _labels(item, context)[key],
-        )
+        def single_label(
+            item: r15.AssignedTrade,
+            context: r10.Context,
+            *,
+            key: str = name,
+        ) -> str:
+            return _labels(item, context)[key]
+
+        result[name] = _breakdown(rows, labeler=single_label)
     for left, right in (
         ("quality_tier", "side"),
         ("quality_tier", "anchor"),
@@ -127,12 +132,17 @@ def _period_breakdowns(
         ("source_day", "side"),
     ):
         key = f"{left}__{right}"
-        result[key] = _breakdown(
-            rows,
-            labeler=lambda item, context, a=left, b=right: (
-                f"{_labels(item, context)[a]}|{_labels(item, context)[b]}"
-            ),
-        )
+        def cross_label(
+            item: r15.AssignedTrade,
+            context: r10.Context,
+            *,
+            a: str = left,
+            b: str = right,
+        ) -> str:
+            labels = _labels(item, context)
+            return f"{labels[a]}|{labels[b]}"
+
+        result[key] = _breakdown(rows, labeler=cross_label)
     return result
 
 
