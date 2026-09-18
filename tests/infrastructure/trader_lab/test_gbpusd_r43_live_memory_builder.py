@@ -7,16 +7,18 @@ from qore.infrastructure.trader_lab import (
     turtle_soup_gbpusd_r32_causal_memory_defragmentation as r32,
 )
 
-_SPEC = importlib.util.spec_from_file_location(
-    "build_gbpusd_r43_live_memory",
-    Path("scripts/build_gbpusd_r43_live_memory.py"),
-)
-assert _SPEC is not None and _SPEC.loader is not None
-builder = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(builder)
+
+def _builder():
+    path = Path(__file__).parents[3] / "scripts" / "build_gbpusd_r43_live_memory.py"
+    spec = importlib.util.spec_from_file_location("gbpusd_r43_live_memory_builder", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_live_memory_source_binding_is_exact() -> None:
+    builder = _builder()
     assert builder.SOURCE_RUN_ID == 35339237432
     assert builder.SOURCE_ARTIFACT_ID == 10544098544
     assert builder.SCHEME == "R32_REGIME_ROUTE_TYPES"
@@ -26,6 +28,7 @@ def test_live_memory_source_binding_is_exact() -> None:
 
 
 def test_live_memory_scheme_is_frozen() -> None:
+    builder = _builder()
     fields, route_mode = r32.SCHEMES[builder.SCHEME]
     assert route_mode == "TYPES_ONLY"
     assert fields == (
