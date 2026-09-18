@@ -29,22 +29,22 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research
     _wall,
     load_market_evidence,
 )
+from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+    cibo_market_memory_fingerprint,
+)
 from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
     validate_memory,
 )
-from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
-    cibo_market_memory_fingerprint,
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
+    Nas100ReasoningState,
+    reason,
 )
 from qore.infrastructure.traders.vt31_nas100_strategy_identity_memory import (
     strategy_identity_fingerprint,
 )
 from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
     trader_experience_fingerprint,
-)
-from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
-    Nas100ReasoningState,
-    reason,
 )
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
     Vt31R22EntryEvidence,
