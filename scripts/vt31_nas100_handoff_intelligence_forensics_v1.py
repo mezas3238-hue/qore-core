@@ -138,6 +138,67 @@ def _entry_sequences(
     }
 
 
+def _capacity_group(
+    rows: list[dict[str, Any]],
+) -> dict[str, object]:
+    ranks = [
+        int(row["max_distinct_active_dol_rank_touched_before_invalidation"])
+        for row in rows
+    ]
+    return {
+        "n": len(rows),
+        "rank_median": None if not ranks else str(median(ranks)),
+        "dol1_reach_rate": _rate(sum(rank >= 1 for rank in ranks), len(ranks)),
+        "dol2_reach_rate": _rate(sum(rank >= 2 for rank in ranks), len(ranks)),
+        "dol3_reach_rate": _rate(sum(rank >= 3 for rank in ranks), len(ranks)),
+        "dol4plus_reach_rate": _rate(
+            sum(rank >= 4 for rank in ranks),
+            len(ranks),
+        ),
+        "mfe_r_median": _median(
+            [
+                _d(row["max_favorable_r_before_invalidation"])
+                for row in rows
+            ]
+        ),
+        "mae_r_median": _median(
+            [
+                _d(row["max_adverse_r_before_invalidation"])
+                for row in rows
+            ]
+        ),
+        "risk_ref_median": _median([_d(row["risk_ref"]) for row in rows]),
+    }
+
+
+def _capacity_context_tables(
+    rows: list[dict[str, Any]],
+) -> dict[str, object]:
+    dimensions = (
+        "h4_state",
+        "h1_state",
+        "premarket_state",
+        "cash_open_state",
+        "position_in_prior_day_range",
+        "reference_volatility_state",
+        "last_structure_event_family",
+    )
+    result: dict[str, object] = {}
+    for dimension in dimensions:
+        groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in rows:
+            context = row.get("pre_entry_context")
+            if not isinstance(context, dict):
+                continue
+            groups[str(context.get(dimension, "unavailable"))].append(row)
+        result[dimension] = {
+            key: _capacity_group(group)
+            for key, group in sorted(groups.items())
+            if len(group) >= 5
+        }
+    return result
+
+
 def build(replay: dict[str, Any]) -> dict[str, object]:
     if replay.get("research_only") is not True:
         raise ValueError("forensics requires research-only replay")
@@ -148,6 +209,10 @@ def build(replay: dict[str, Any]) -> dict[str, object]:
 
     trades = cast(list[dict[str, Any]], replay["trades"])
     trace = cast(list[dict[str, Any]], replay["reasoning_trace"])
+    capacity_rows = cast(
+        list[dict[str, Any]],
+        replay.get("journey_capacity_observations", []),
+    )
 
     losses = [trade for trade in trades if _d(trade["r_multiple"]) <= 0]
     loss_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -169,42 +234,18 @@ def build(replay: dict[str, Any]) -> dict[str, object]:
         for family, rows in sorted(loss_groups.items())
     }
 
-    risk_values = [
-        value for trade in trades if (value := _risk_ref(trade)) is not None
-    ]
+    risk_values = [_d(row["risk_ref"]) for row in capacity_rows]
     q1 = _quantile(risk_values, Decimal("0.25"))
     q2 = _quantile(risk_values, Decimal("0.50"))
     q3 = _quantile(risk_values, Decimal("0.75"))
     geometry: dict[str, object] = {}
     if q1 is not None and q2 is not None and q3 is not None:
         groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for trade in trades:
-            risk = _risk_ref(trade)
-            if risk is None:
-                continue
-            groups[_risk_bucket(risk, q1, q2, q3)].append(trade)
+        for row in capacity_rows:
+            risk = _d(row["risk_ref"])
+            groups[_risk_bucket(risk, q1, q2, q3)].append(row)
         for bucket, rows in sorted(groups.items()):
-            boundaries = [
-                (row, boundary)
-                for row in rows
-                if (boundary := _boundary_r(row)) is not None
-            ]
-            boundary_reached = sum(
-                _d(row["mfe_r"]) >= boundary
-                for row, boundary in boundaries
-            )
-            geometry[bucket] = {
-                "n": len(rows),
-                "risk_ref_median": _median(
-                    [cast(Decimal, _risk_ref(row)) for row in rows]
-                ),
-                "mfe_r_median": _median([_d(row["mfe_r"]) for row in rows]),
-                "mae_r_median": _median([_d(row["mae_r"]) for row in rows]),
-                "structural_boundary_reached_rate": _rate(
-                    boundary_reached,
-                    len(boundaries),
-                ),
-            }
+            geometry[bucket] = _capacity_group(rows)
 
     boundaries = [
         (trade, boundary)
@@ -226,6 +267,12 @@ def build(replay: dict[str, Any]) -> dict[str, object]:
         bool(row.get("reasoning_uncertainty")) for row in trace
     )
 
+    capacity_rank_counts = Counter(
+        int(row["max_distinct_active_dol_rank_touched_before_invalidation"])
+        for row in capacity_rows
+    )
+    capacity_summary = _capacity_group(capacity_rows)
+
     return {
         "identity": IDENTITY,
         "candidate_id": replay["candidate_id"],
@@ -238,19 +285,26 @@ def build(replay: dict[str, Any]) -> dict[str, object]:
         },
         "entry_wait_forensics": _entry_sequences(trace),
         "journey_capacity": {
-            "structural_boundary_assessed": len(boundaries),
-            "structural_boundary_reached": reached,
-            "structural_boundary_reached_rate": _rate(
-                reached, len(boundaries)
+            "label": (
+                "MAX_DISTINCT_ACTIVE_DOL_RANK_TOUCHED_BEFORE_INVALIDATION"
             ),
-            "partial_milestone_reached_count": partial,
-            "protection_exit_count": protection,
+            "labeled_opportunities": len(capacity_rows),
+            "rank_counts": {
+                str(key): value
+                for key, value in sorted(capacity_rank_counts.items())
+            },
+            "overall": capacity_summary,
             "risk_ref_quantile_boundaries": {
                 "q25": _fmt(q1),
                 "q50": _fmt(q2),
                 "q75": _fmt(q3),
             },
             "by_invalidation_geometry_quantile": geometry,
+            "by_pre_entry_context": _capacity_context_tables(capacity_rows),
+            "legacy_selected_trade_boundary_assessed": len(boundaries),
+            "legacy_selected_trade_boundary_reached": reached,
+            "partial_milestone_reached_count": partial,
+            "protection_exit_count": protection,
         },
         "intelligence_metrics": {
             "reasoning_events": len(trace),
