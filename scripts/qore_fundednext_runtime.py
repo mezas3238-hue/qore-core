@@ -417,16 +417,21 @@ def _manage_h4_exits(
         if source is None:
             continue
         lineage = lineages.get(source.risk_authorization_id)
-        if lineage in {TraderLineage.R34_XAUUSD, TraderLineage.R38_EURUSD}:
+        if lineage in {
+            TraderLineage.R34_XAUUSD,
+            TraderLineage.R38_EURUSD,
+            TraderLineage.R43_GBPUSD,
+        }:
             signal_anchor = source.transitioned_at.astimezone(UTC).replace(
                 minute=0, second=0, microsecond=0
             )
             due = signal_anchor + timedelta(hours=24)
-            exit_label = (
-                "R34_24H"
-                if lineage is TraderLineage.R34_XAUUSD
-                else "R38_24H"
-            )
+            if lineage is TraderLineage.R34_XAUUSD:
+                exit_label = "R34_24H"
+            elif lineage is TraderLineage.R38_EURUSD:
+                exit_label = "R38_24H"
+            else:
+                exit_label = "R43_24H"
         else:
             due = h4_containment_exit_at(_signal_anchor(source.transitioned_at))
             exit_label = "VT08_H4"
@@ -1180,6 +1185,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r38_single_position_busy": True,
             "r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
             "r38_base_risk_fraction": "0.002",
+            "r43_enabled": True,
+            "r43_identity": "TURTLE_SOUP_GBPUSD_R43",
+            "r43_certification": "TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_SUITE_V1",
+            "r43_strategy_timezone": "America/New_York",
+            "r43_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "r43_single_position_busy": True,
+            "r43_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+            "r43_base_risk_fraction": "0.002",
+            "r43_short_overlay_scale": "0.005",
+            "r43_rank2_overlay_scale": "0.25",
+            "r43_memory_sha256": "e4a79978c0144e0b97c19ce3ee18040e62a02efe891b204fc724e4a0016734ae",
         },
     )
     last_lifecycle: str | None = None
