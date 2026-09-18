@@ -78,3 +78,5 @@ def test_audjpy_has_independent_state_and_processed_anchor() -> None:
     assert 'f"R42_AUDJPY|{audjpy_r42_anchor.isoformat()}"' in text
     assert "audjpy_r42_store" in text
     assert "audjpy_r42_memory" in text
+
+# Frozen-base CI trigger.
