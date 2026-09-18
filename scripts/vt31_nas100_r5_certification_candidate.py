@@ -34,6 +34,8 @@ from typing import cast
 
 # Lock the imported research engine to the exact frozen frontier subset.
 os.environ["QORE_DD6_FRONTIER_ONLY"] = "1"
+os.environ["QORE_FIXED_ACTIVITY_PROFILE"] = "ACTIVITY_L"
+os.environ["QORE_FIXED_GLOBAL_RISK_SCALAR"] = "0.60"
 os.environ.pop("QORE_EVAL_START_DATE", None)
 os.environ.pop("QORE_EVAL_END_EXCLUSIVE_DATE", None)
 os.environ["QORE_INCLUDE_TRADE_ROWS"] = "1"
@@ -126,6 +128,11 @@ def contract_payload() -> dict[str, object]:
             },
         },
         "global_risk_scalar": "0.60",
+        "certification_engine_scope": {
+            "activity_profiles_evaluated": ["ACTIVITY_L"],
+            "global_risk_scalars_evaluated": ["0.60"],
+            "alternative_variants_scanned_on_holdout": False,
+        },
         "selection_order": (
             "base/alternate selection -> structural rearm selection -> "
             "global risk scalar"
