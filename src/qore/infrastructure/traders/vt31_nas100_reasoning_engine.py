@@ -22,7 +22,7 @@ from typing import Literal
 
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
-    dossier_payload,
+    dossier_runtime_view,
 )
 from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
@@ -32,11 +32,11 @@ from qore.infrastructure.traders.vt31_nas100_situation_model import (
 )
 from qore.infrastructure.traders.vt31_nas100_strategy_identity_memory import (
     strategy_identity_fingerprint,
-    strategy_identity_payload,
+    strategy_identity_runtime_view,
 )
 from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
     trader_experience_fingerprint,
-    trader_experience_payload,
+    trader_experience_runtime_view,
 )
 
 Action = Literal["EXECUTE", "WAIT", "ABSTAIN"]
@@ -83,9 +83,9 @@ def _target_plan(state: Nas100SituationModel) -> TargetPlan:
 
 def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     """Reason from the three memories before constructing the operation."""
-    strategy = strategy_identity_payload()
-    market = dossier_payload()
-    experience = trader_experience_payload()
+    strategy = strategy_identity_runtime_view()
+    market = dossier_runtime_view()
+    experience = trader_experience_runtime_view()
     source_identity = strategy["source_identity"]
     supported_mechanisms = experience["supported_mechanisms"]
     rejected_hypotheses = experience["rejected_hypotheses"]
