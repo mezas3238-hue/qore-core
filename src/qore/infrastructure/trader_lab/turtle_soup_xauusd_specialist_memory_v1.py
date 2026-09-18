@@ -502,7 +502,7 @@ def build(
     raw_rows: list[dict[str, Any]] = []
     for event in events:
         episode_id = journey._episode_id(event)
-        setup = setup_by_episode.get(episode_id)
+        setup_match = setup_by_episode.get(episode_id)
         raw_rows.append(
             {
                 "schema": "qore.turtle_soup_xauusd.specialist_raw_memory.v1",
@@ -514,15 +514,15 @@ def build(
                 "master_journey_run_id": MASTER_JOURNEY_RUN_ID,
                 "master_target_run_id": MASTER_TARGET_RUN_ID,
                 "master_target_artifact_id": MASTER_TARGET_ARTIFACT_ID,
-                "turtle_setup_recognized": setup is not None,
+                "turtle_setup_recognized": setup_match is not None,
                 "specialist_role": (
                     "TURTLE_SETUP"
-                    if setup is not None
+                    if setup_match is not None
                     else "MARKET_CONTEXT"
                 ),
                 "master_event": behavior.event_dict(event),
                 "turtle_context": (
-                    None if setup is None else _setup_context(setup)
+                    None if setup_match is None else _setup_context(setup_match)
                 ),
             }
         )
