@@ -352,35 +352,39 @@ def _reference_width(day_bars: tuple[object, ...]) -> Decimal | None:
     return _interval_range(reference)
 
 
-def _prior_context(
-    local_day: date,
+def _context_map(
     by_day: dict[date, tuple[object, ...]],
-) -> tuple[Decimal | None, Decimal | None]:
-    prior_admitted = [
-        day
-        for day in sorted(by_day)
-        if day < local_day and _admitted_day(by_day[day])
-    ]
-    if not prior_admitted:
-        return None, None
-    previous_day = by_day[prior_admitted[-1]]
-    previous_path_range = _interval_range(
-        _slice(previous_day, (0, 0, 0), (16, 0, 0))
-    )
-    widths = [
-        width
-        for day in prior_admitted[-5:]
-        if (width := _reference_width(by_day[day])) is not None
-        and width > 0
-    ]
-    prior_ref_median = median(widths) if widths else None
-    return previous_path_range, prior_ref_median
+) -> dict[date, tuple[Decimal | None, Decimal | None]]:
+    result: dict[date, tuple[Decimal | None, Decimal | None]] = {}
+    admitted_ranges: list[Decimal | None] = []
+    admitted_widths: list[Decimal] = []
+    for local_day in sorted(by_day):
+        previous_path_range = (
+            admitted_ranges[-1] if admitted_ranges else None
+        )
+        prior_ref_median = (
+            median(admitted_widths[-5:]) if admitted_widths else None
+        )
+        result[local_day] = (previous_path_range, prior_ref_median)
+
+        day_bars = by_day[local_day]
+        if not _admitted_day(day_bars):
+            continue
+        admitted_ranges.append(
+            _interval_range(
+                _slice(day_bars, (0, 0, 0), (16, 0, 0))
+            )
+        )
+        width = _reference_width(day_bars)
+        if width is not None and width > 0:
+            admitted_widths.append(width)
+    return result
 
 
 def _state_snapshot(
-    local_day: date,
     day_bars: tuple[object, ...],
-    by_day: dict[date, tuple[object, ...]],
+    previous_path_range: Decimal | None,
+    prior_ref_median: Decimal | None,
     session_prefix: tuple[object, ...],
     source: Vt31R22SourceSetup,
     executable: Vt31R22ExecutableSetup,
@@ -391,10 +395,6 @@ def _state_snapshot(
     )
     decision_minute = decision_local.hour * 60 + decision_local.minute
 
-    previous_path_range, prior_ref_median = _prior_context(
-        local_day,
-        by_day,
-    )
     current_path = tuple(
         bar
         for bar in day_bars
@@ -640,6 +640,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
         for day, bars in raw_by_day.items()
     }
 
+    context_by_day = _context_map(by_day)
+
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
     reasoning_trace: list[dict[str, object]] = []
@@ -690,10 +692,11 @@ def replay(evidence_path: Path) -> dict[str, object]:
             status_counts["no-source-setup"] += 1
             continue
 
+        previous_path_range, prior_ref_median = context_by_day[local_day]
         state = _state_snapshot(
-            local_day,
             day_bars,
-            by_day,
+            previous_path_range,
+            prior_ref_median,
             selected_session_prefix,
             selected_source,
             selected,
