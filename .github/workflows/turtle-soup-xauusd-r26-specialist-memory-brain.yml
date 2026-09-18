@@ -1,13 +1,14 @@
 name: QORE Turtle Soup XAUUSD R26 Specialist Memory Brain
 
 on:
-  workflow_run:
-    workflows:
-      - QORE Turtle Soup XAUUSD Specialist Memory V1
-    types:
-      - completed
+  workflow_dispatch:
+  push:
     branches:
       - agent/turtle-soup-xauusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-xauusd-r26-specialist-memory-brain.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r26_specialist_memory_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_xauusd_r26_specialist_memory_brain.py'
 
 permissions:
   contents: read
@@ -18,13 +19,11 @@ env:
   SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
   TARGET_RUN_ID: '35204892665'
   TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
-  EXPECTED_SPECIALIST_SHA: '7f2867b198f023bf0d4260c6943431f4a9160006'
+  SPECIALIST_RUN_ID: '35304421155'
+  EXPECTED_SPECIALIST_SHA: '8a5c174e854400c54d7849cc29ba3a4d357afdbb'
 
 jobs:
   quality:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_sha == '7f2867b198f023bf0d4260c6943431f4a9160006'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -81,7 +80,7 @@ jobs:
           name: qore-turtle-soup-xauusd-specialist-memory-v1-${{ env.EXPECTED_SPECIALIST_SHA }}
           path: specialist-memory
           github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ env.SPECIALIST_RUN_ID }}
       - name: Run R26 specialist-memory 2Y replay
         run: |
           mkdir -p r26-output
