@@ -6,6 +6,7 @@ used for a later fresh holdout.  The fresh holdout remains sealed here.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -30,8 +31,27 @@ def _single(root: Path, name: str) -> Path:
     return matches[0]
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def freeze(r28_root: Path, output: Path) -> dict[str, Any]:
     report_path = _single(r28_root, "r28-validated-specialist-brain-report.json")
+    cognitive_path = _single(
+        r28_root, "turtle-soup-xauusd-specialist-cognitive-memory-v3.json"
+    )
+    git_sha_path = _single(r28_root, "git-sha.txt")
+    if git_sha_path.read_text().strip() != R28_GIT_SHA:
+        raise ValueError("unexpected R28 git binding")
+    if _sha256(report_path) != R28_REPORT_SHA256:
+        raise ValueError("R28 report SHA-256 drift")
+    if _sha256(cognitive_path) != COGNITIVE_V3_SHA256:
+        raise ValueError("Cognitive Memory V3 SHA-256 drift")
+
     report = json.loads(report_path.read_text())
     if report["identity"] != R28_IDENTITY:
         raise ValueError("unexpected R28 identity")
