@@ -75,6 +75,15 @@ RISK_PROFILES: dict[str, dict[str, Decimal]] = {
     },
 }
 MANAGEMENT_MODES = ("BASELINE_REARM", "SCORE_PROTECT")
+REARM_MONTHLY_BUDGETS = (
+    Decimal("0.10"),
+    Decimal("0.12"),
+    Decimal("0.15"),
+    Decimal("0.18"),
+    Decimal("0.20"),
+    Decimal("0.25"),
+    Decimal("0.30"),
+)
 
 
 def _risk_class(score: int) -> str:
@@ -120,6 +129,59 @@ def _capital_metrics(
         for row in rows
     ]
     return _metrics(converted, friction=Decimal(0))
+
+
+def _budgeted_rearm_rows(
+    raw_rows: list[dict[str, object]],
+    *,
+    risk_map: dict[str, Decimal],
+    monthly_budget: Decimal,
+    mode: str,
+) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
+    """Authorize rearms chronologically from a causal monthly capital budget."""
+    selected: list[dict[str, object]] = []
+    ledger: dict[str, dict[str, object]] = {}
+
+    for raw_row in sorted(
+        raw_rows,
+        key=lambda row: cast(str, row["signal_at"]),
+    ):
+        month = cast(str, raw_row["local_date"])[:7]
+        if month not in ledger:
+            ledger[month] = {
+                "opening_budget_r": format(monthly_budget, "f"),
+                "authorized_count": 0,
+                "budget_denied_count": 0,
+                "remaining_budget_r": format(monthly_budget, "f"),
+            }
+
+        risk_class = cast(str, raw_row["rearm_risk_class"])
+        risk = risk_map[risk_class]
+        remaining = Decimal(
+            cast(str, ledger[month]["remaining_budget_r"])
+        )
+        if risk > remaining:
+            ledger[month]["budget_denied_count"] = (
+                int(ledger[month]["budget_denied_count"]) + 1
+            )
+            continue
+
+        selected.append(
+            _weighted_rearm(
+                raw_row,
+                risk=risk,
+                score=int(cast(int, raw_row["rearm_quality_score"])),
+                risk_class=risk_class,
+                mode=mode,
+            )
+        )
+        remaining -= risk
+        ledger[month]["authorized_count"] = (
+            int(ledger[month]["authorized_count"]) + 1
+        )
+        ledger[month]["remaining_budget_r"] = format(remaining, "f")
+
+    return selected, ledger
 
 
 def _monte_carlo(
@@ -184,19 +246,19 @@ def _monte_carlo(
             "f",
         ),
         "p05_terminal_r": format(
-            terminals[(n - 1) * 5 // 100],
+            terminals[(len(terminals) - 1) * 5 // 100],
             "f",
         ),
         "p50_terminal_r": format(
-            terminals[(n - 1) * 50 // 100],
+            terminals[(len(terminals) - 1) * 50 // 100],
             "f",
         ),
         "p95_max_drawdown_r": format(
-            drawdowns[(n - 1) * 95 // 100],
+            drawdowns[(len(drawdowns) - 1) * 95 // 100],
             "f",
         ),
         "p99_max_drawdown_r": format(
-            drawdowns[(n - 1) * 99 // 100],
+            drawdowns[(len(drawdowns) - 1) * 99 // 100],
             "f",
         ),
     }
@@ -447,6 +509,67 @@ def replay(
                 },
             }
 
+    conservative = RISK_PROFILES["REARM_CONSERVATIVE"]
+    for monthly_budget in REARM_MONTHLY_BUDGETS:
+        mode = "SCORE_PROTECT"
+        rearm_rows, budget_ledger = _budgeted_rearm_rows(
+            rearm_raw_by_mode[mode],
+            risk_map=conservative,
+            monthly_budget=monthly_budget,
+            mode=mode,
+        )
+        combined = sorted(
+            [*first_rows, *rearm_rows],
+            key=lambda row: cast(str, row["signal_at"]),
+        )
+        budget_tag = format(monthly_budget, "f").replace(".", "")
+        variant = (
+            "REARM_CONSERVATIVE_SCORE_PROTECT_"
+            f"MONTHLY_BUDGET_{budget_tag}"
+        )
+        metrics = _capital_metrics(combined)
+        mc = _monte_carlo(combined, variant=variant)
+        trade_count = len(combined)
+        variants[variant] = {
+            "trade_count": trade_count,
+            "base_trade_count": len(first_rows),
+            "rearm_trade_count": len(rearm_rows),
+            "metrics": metrics,
+            "monte_carlo": mc,
+            "monthly_rearm_budget_r": format(monthly_budget, "f"),
+            "monthly_budget_ledger": budget_ledger,
+            "density": {
+                "at_least_300": trade_count >= 300,
+                "inside_300_350": 300 <= trade_count <= 350,
+            },
+            "development_objectives": {
+                "density_300_350": 300 <= trade_count <= 350,
+                "profit_factor_at_least_2": (
+                    metrics["profit_factor"] is not None
+                    and Decimal(cast(str, metrics["profit_factor"]))
+                    >= Decimal("2")
+                ),
+                "observed_dd_at_most_10r": (
+                    Decimal(cast(str, metrics["max_drawdown_r"]))
+                    <= Decimal("10")
+                ),
+                "stretch_observed_dd_at_most_5r": (
+                    Decimal(cast(str, metrics["max_drawdown_r"]))
+                    <= Decimal("5")
+                ),
+                "mc_positive_at_least_0_90": (
+                    Decimal(
+                        cast(str, mc["positive_terminal_probability"])
+                    )
+                    >= Decimal("0.90")
+                ),
+                "mc_p95_dd_at_most_15r": (
+                    Decimal(cast(str, mc["p95_max_drawdown_r"]))
+                    <= Decimal("15")
+                ),
+            },
+        }
+
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
@@ -491,6 +614,9 @@ def replay(
             "rearm_quality_uses_terminal_pnl": False,
             "rearm_quality_uses_future_bars": False,
             "risk_modulation_reduces_trade_count": False,
+            "monthly_rearm_budget_is_capital_governance": True,
+            "monthly_rearm_budget_uses_terminal_pnl": False,
+            "monthly_rearm_budget_uses_fold_identity": False,
             "first_swing_is_universal": False,
             "qore_risk_remains_sovereign": True,
             "consumed_evidence_only": True,
