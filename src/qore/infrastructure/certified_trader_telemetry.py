@@ -17,14 +17,15 @@ The same engine is reusable for future certified market specialists.
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 from zoneinfo import ZoneInfo
-import json
 
 NEW_YORK = ZoneInfo("America/New_York")
 BASELINE_SCHEMA = "qore.certified-trader.weekly-telemetry-baselines.v1"
