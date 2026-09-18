@@ -499,7 +499,7 @@ def _run_variant(
     setups: Sequence[r3.Setup],
     evidence: Any,
     opens: Sequence[datetime],
-    episodes: dict[str, Sequence[r3.TargetCandidate]],
+    episodes: dict[str, list[r3.TargetCandidate]],
     source_index: dict[tuple[datetime, str, str, Decimal], str],
     recognition_ctx: dict[str, Any],
     memory_store: Any,
@@ -744,8 +744,8 @@ def run(
         raise ValueError("unexpected R18 reference identity")
 
     episodes_raw, source_index = repair._load_targets_fail_closed(target_root)
-    episodes: dict[str, Sequence[r3.TargetCandidate]] = {
-        key: value for key, value in episodes_raw.items()
+    episodes: dict[str, list[r3.TargetCandidate]] = {
+        key: list(value) for key, value in episodes_raw.items()
     }
 
     original_open, original_close = r1.EVAL_OPEN, r1.EVAL_CLOSE
