@@ -320,7 +320,18 @@ class FundedNextRealtimeMarketData:
                     history_bars=symbols[symbol],
                 )
             except MarketDataSlaError as error:
-                self._failures[key] = str(error)
+                message = str(error)
+                if any(
+                    token in message
+                    for token in (
+                        "M5 history unavailable",
+                        "tick unavailable",
+                        "tick timestamp unavailable",
+                    )
+                ):
+                    pending.append(symbol)
+                    continue
+                self._failures[key] = message
                 continue
             if snapshot is None:
                 pending.append(symbol)
