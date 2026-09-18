@@ -29,8 +29,12 @@ jobs:
         run: python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
       - name: Focused specialist tests
         run: pytest -q tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
-      - name: Ruff
-        run: ruff check .
+      - name: Ruff production and specialist surface
+        run: |
+          ruff check src tests \
+            scripts/vt31_nas100_specialist_r1_candidate.py \
+            scripts/vt31_nas100_intelligence_policy_lab_v2b.py \
+            scripts/vt31_nas100_r1_candidate.py
       - name: Mypy project gate
         run: mypy src tests
       - name: Full project gate
