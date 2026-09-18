@@ -48,16 +48,10 @@ from qore.infrastructure.trader_lab import (
     turtle_soup_xauusd_r26_specialist_memory_brain as r26,
 )
 from qore.infrastructure.trader_lab import (
-    turtle_soup_xauusd_r27_structural_specialist_brain as r27,
-)
-from qore.infrastructure.trader_lab import (
     turtle_soup_xauusd_r28_validated_specialist_brain as r28,
 )
 from qore.infrastructure.trader_lab import (
     turtle_soup_xauusd_specialist_cognitive_memory_v2 as v2,
-)
-from qore.infrastructure.trader_lab import (
-    turtle_soup_xauusd_specialist_cognitive_memory_v3 as v3,
 )
 from qore.infrastructure.trader_lab import (
     turtle_soup_xauusd_specialist_memory_v1 as v1,
