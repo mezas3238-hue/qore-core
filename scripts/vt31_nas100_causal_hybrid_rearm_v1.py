@@ -113,6 +113,27 @@ ADAPTIVE_REARM_BUDGET_PROFILES: dict[str, dict[str, object]] = {
         "balanced_budget": Decimal("0.15"),
         "dense_budget": Decimal("0.08"),
     },
+    "ACTIVITY_E": {
+        "sparse_max": 8,
+        "balanced_max": 10,
+        "sparse_budget": Decimal("0.30"),
+        "balanced_budget": Decimal("0.20"),
+        "dense_budget": Decimal("0.08"),
+    },
+    "ACTIVITY_F": {
+        "sparse_max": 8,
+        "balanced_max": 10,
+        "sparse_budget": Decimal("0.30"),
+        "balanced_budget": Decimal("0.20"),
+        "dense_budget": Decimal("0.06"),
+    },
+    "ACTIVITY_G": {
+        "sparse_max": 8,
+        "balanced_max": 10,
+        "sparse_budget": Decimal("0.25"),
+        "balanced_budget": Decimal("0.18"),
+        "dense_budget": Decimal("0.08"),
+    },
 }
 
 
