@@ -1,0 +1,90 @@
+name: QORE R38 EURUSD Live Core Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-eurusd-r38-live-core-integration-001
+    paths:
+      - '.github/workflows/turtle-soup-eurusd-r38-live-core-integration.yml'
+      - 'src/qore/infrastructure/r38_eurusd_live.py'
+      - 'src/qore/infrastructure/account_wide_risk.py'
+      - 'src/qore/infrastructure/fundednext_live_guard.py'
+      - 'src/qore/infrastructure/fundednext_live_mt5.py'
+      - 'src/qore/infrastructure/fundednext_mt5_clock.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_eurusd_native_market_decision_memory_v2.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_eurusd_*.py'
+      - 'scripts/qore_fundednext_runtime.py'
+      - 'scripts/fundednext_mt5_no_send_probe.py'
+      - 'scripts/fundednext_mt5_order_check_probe.py'
+      - 'tests/infrastructure/test_r38_eurusd_live.py'
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001             src/qore/infrastructure/r38_eurusd_live.py             src/qore/infrastructure/account_wide_risk.py             src/qore/infrastructure/fundednext_live_guard.py             src/qore/infrastructure/fundednext_live_mt5.py             src/qore/infrastructure/fundednext_mt5_clock.py             scripts/qore_fundednext_runtime.py             tests/infrastructure/test_r38_eurusd_live.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined             src/qore/infrastructure/r38_eurusd_live.py             src/qore/infrastructure/fundednext_mt5_clock.py             scripts/qore_fundednext_runtime.py
+      - name: Focused integration tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/test_r38_eurusd_live.py             tests/infrastructure/test_r34_xauusd_live.py             tests/infrastructure/test_fundednext_mt5_clock.py             tests/infrastructure/test_account_wide_risk.py             tests/infrastructure/test_account_wide_risk_ledger.py             tests/infrastructure/test_fundednext_execution_bridge.py             tests/infrastructure/test_fundednext_live_safety.py             tests/infrastructure/test_fundednext_live_mt5.py             tests/infrastructure/test_fundednext_mt5.py             tests/infrastructure/test_fundednext_operational.py
+      - name: Enforce R38 production governance
+        run: |
+          python - <<'PY'
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.account_wide_risk import TraderLineage
+          from qore.infrastructure.fundednext_live_guard import CERTIFIED_LIVE_DIRECTIONS
+          from qore.infrastructure.r38_eurusd_live import (
+              BASE_RISK_FRACTION,
+              CERTIFICATION_ARTIFACT_DIGEST,
+              CERTIFICATION_ARTIFACT_ID,
+              CERTIFICATION_IDENTITY,
+              CERTIFICATION_RUN_ID,
+              COGNITIVE_SHA256,
+              FAMILY_SET,
+              GOVERNOR,
+              IDENTITY,
+          )
+
+          assert IDENTITY == "TURTLE_SOUP_EURUSD_R38"
+          assert CERTIFICATION_IDENTITY == "TURTLE_SOUP_EURUSD_R39_FINAL_CERTIFICATION_SUITE_V1"
+          assert CERTIFICATION_RUN_ID == 35329170426
+          assert CERTIFICATION_ARTIFACT_ID == 10539754975
+          assert CERTIFICATION_ARTIFACT_DIGEST == "sha256:cc8bd114c81bb7c6ae46632d7737dc6c976fc4e091fa08d5159a95de562cba15"
+          assert COGNITIVE_SHA256 == "a35d259eacf8fa6b3829e18a9964cb5dedad327292e52d242f04aeaaf5502930"
+          assert FAMILY_SET == "R36_F235_FROZEN"
+          assert GOVERNOR == "FRAGILITY_050_025_010"
+          assert BASE_RISK_FRACTION == Decimal("0.002")
+          assert TraderLineage.R38_EURUSD.value == "R38_EURUSD"
+          assert CERTIFIED_LIVE_DIRECTIONS["EURUSD"] == frozenset({"long", "short"})
+
+          runtime = Path("scripts/qore_fundednext_runtime.py").read_text()
+          assert "TraderLineage.R38_EURUSD" in Path("src/qore/infrastructure/r38_eurusd_live.py").read_text()
+          assert '"r38_strategy_timezone": "America/New_York"' in runtime
+          assert '"r38_single_position_busy": True' in runtime
+          assert "R38_24H" in runtime
+          assert "manage_r38_open_position" in runtime
+          assert "R38_EURUSD|" in runtime
+          assert '"VT09"' in runtime
+          assert "Vt09TurtleSoup" not in runtime
+
+          no_send = Path("scripts/fundednext_mt5_no_send_probe.py").read_text()
+          order_check = Path("scripts/fundednext_mt5_order_check_probe.py").read_text()
+          assert "EURUSD" in no_send
+          assert "EURUSD" in order_check
+          PY
