@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,10 +17,12 @@ from qore.infrastructure.r38_eurusd_live import (
     R38Dol,
     R38LiveSignal,
     R38OpenTrade,
+    R38LiveState,
     _risk_scale_for,
     build_r38_risk_request,
     certified_stop_for_open_trade,
     current_anchor,
+    manage_open_position,
 )
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Bar,
@@ -234,3 +237,64 @@ def test_r38_static_posture_never_uses_swing_trailing() -> None:
         evidence,
         now=at + timedelta(minutes=15),
     ) == Decimal("1.0980")
+
+
+def test_r38_shadow_position_management_never_sends_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import r38_eurusd_live as live
+
+    now = datetime(2026, 9, 18, 20, 5, tzinfo=UTC)
+    opened = R38OpenTrade(
+        client_order_id="qore-r38-shadow-test",
+        signal_fingerprint="e" * 64,
+        entry_at=(now - timedelta(hours=1)).isoformat(),
+        side="long",
+        entry_price="1.1000",
+        initial_stop="1.0980",
+        current_stop="1.0980",
+        take_profit="1.1050",
+        posture="PROTECT",
+        target_rank=1,
+        target_route="TEST",
+        ladder=(R38Dol(1, "1.1050", "TEST"),),
+        base_risk_usd="4",
+        risk_scale="1",
+    )
+    state = R38LiveState(open_trade=opened)
+    magic = live._magic(opened.client_order_id)
+    sent: list[object] = []
+
+    class Store:
+        def reconcile(self, _api: object, *, now: datetime) -> R38LiveState:
+            return state
+
+    api = SimpleNamespace(
+        TRADE_ACTION_SLTP=6,
+        positions_get=lambda: (
+            SimpleNamespace(
+                magic=magic,
+                sl=1.0980,
+                type=0,
+                ticket=123,
+            ),
+        ),
+        symbol_info=lambda _symbol: SimpleNamespace(trade_tick_size=0.00001),
+        order_check=lambda _request: SimpleNamespace(retcode=0),
+        order_send=lambda request: sent.append(request),
+    )
+    monkeypatch.setattr(live, "mt5_management_evidence", lambda *_a, **_k: object())
+    monkeypatch.setattr(
+        live,
+        "certified_stop_for_open_trade",
+        lambda *_a, **_k: Decimal("1.0990"),
+    )
+
+    _next, reason = manage_open_position(
+        api,
+        now=now,
+        store=Store(),  # type: ignore[arg-type]
+        mutations_enabled=False,
+    )
+    assert reason == "r38-shadow-stop-check-pass:1.0990"
+    assert sent == []
