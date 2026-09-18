@@ -22,11 +22,11 @@ from typing import Any
 
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
 from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
-from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
-from qore.infrastructure.trader_lab import vt08_index_r13_rolling_drawdown_governor as r13
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_r6_five_year_validation as v5y
 from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_reset as r8
+from qore.infrastructure.trader_lab import vt08_index_r10_contextual_risk as r10
+from qore.infrastructure.trader_lab import vt08_index_r13_rolling_drawdown_governor as r13
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 SCHEMA = "qore.trader_lab.vt08_index_r14_rolling_refinement.v1"
