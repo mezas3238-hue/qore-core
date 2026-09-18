@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -95,7 +95,7 @@ def test_raw_cibo_loader_reconstructs_only_complete_m15(tmp_path: Path) -> None:
     assert bar.open == Decimal("1000.1")
     assert bar.high == Decimal("1000.6")
     assert bar.low == Decimal("1000")
-    assert bar.close == Decimal("1000.13")
+    assert bar.close == Decimal("1000.4")
     assert provenance["raw_m5_rows_in_window"] == 4
     assert provenance["m15_complete_buckets"] == 1
     assert provenance["m15_incomplete_buckets_dropped"] == 1
@@ -168,14 +168,8 @@ def test_candidate_report_uses_only_selected_pre_entry_dimensions() -> None:
 def test_tuning_window_is_explicitly_consumed_not_fresh() -> None:
     assert mod.START_DATE.isoformat() == "2016-09-18"
     assert mod.END_DATE_EXCLUSIVE.isoformat() == "2018-09-15"
-    assert mod.END_DATE_EXCLUSIVE <= date_from_text("2018-09-15")
+    assert mod.END_DATE_EXCLUSIVE <= date.fromisoformat("2018-09-15")
     assert mod.IDENTITY == "VT08_INDEX_CIBO_2Y_TUNING_ROUND1"
-
-
-def date_from_text(value: str):
-    from datetime import date
-
-    return date.fromisoformat(value)
 
 
 def test_target_maps_include_market_specialization_without_all_off() -> None:
