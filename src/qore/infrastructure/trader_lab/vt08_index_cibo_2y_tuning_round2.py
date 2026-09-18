@@ -11,7 +11,6 @@ This is still consumed tuning evidence, not certification.
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 from collections import defaultdict
 from collections.abc import Sequence
