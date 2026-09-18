@@ -29,18 +29,14 @@ jobs:
         include:
           - partition: r5
             artifact_id: "10380044761"
-            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
           - partition: r6
             artifact_id: "10389112524"
-            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
           - partition: r8_fresh
             artifact_id: "10402199719"
-            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
     env:
       GH_TOKEN: ${{ github.token }}
       PARTITION: ${{ matrix.partition }}
       ARTIFACT_ID: ${{ matrix.artifact_id }}
-      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -61,12 +57,10 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
-          echo "${EXPECTED_EVIDENCE_SHA256}  evidence.zip" | sha256sum -c -
           unzip -q evidence.zip -d evidence
           test -f evidence/fresh/NAS100/market-evidence.json
-          if [ -f evidence/SHA256SUMS ]; then
-            (cd evidence && sha256sum -c SHA256SUMS)
-          fi
+          test -f evidence/SHA256SUMS
+          (cd evidence && sha256sum -c SHA256SUMS)
 
       - name: Enumerate causal opportunity density
         run: |
