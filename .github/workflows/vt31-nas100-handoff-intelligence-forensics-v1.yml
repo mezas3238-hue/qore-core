@@ -7,6 +7,7 @@ on:
     paths:
       - scripts/vt31_nas100_specialist_r1_candidate.py
       - scripts/vt31_nas100_handoff_intelligence_forensics_v1.py
+      - scripts/vt31_nas100_position_intelligence_forensics_v1.py
       - src/qore/infrastructure/traders/vt31_nas100_*.py
       - .github/workflows/vt31-nas100-handoff-intelligence-forensics-v1.yml
   workflow_dispatch:
@@ -52,7 +53,7 @@ jobs:
       - name: Static architecture gate
         run: |
           set -euo pipefail
-          ruff check             scripts/vt31_nas100_specialist_r1_candidate.py             scripts/vt31_nas100_handoff_intelligence_forensics_v1.py             src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py             src/qore/infrastructure/traders/vt31_nas100_cognitive_memory.py             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             src/qore/infrastructure/traders/vt31_nas100_strategy_identity_memory.py             src/qore/infrastructure/traders/vt31_nas100_trader_experience_memory.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
+          ruff check             scripts/vt31_nas100_specialist_r1_candidate.py             scripts/vt31_nas100_handoff_intelligence_forensics_v1.py             scripts/vt31_nas100_position_intelligence_forensics_v1.py             src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py             src/qore/infrastructure/traders/vt31_nas100_cognitive_memory.py             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             src/qore/infrastructure/traders/vt31_nas100_strategy_identity_memory.py             src/qore/infrastructure/traders/vt31_nas100_trader_experience_memory.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
           python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
 
       - name: Recover immutable consumed NAS100 fold
@@ -78,6 +79,11 @@ jobs:
           set -euo pipefail
           python scripts/vt31_nas100_handoff_intelligence_forensics_v1.py             "result/replay-${PARTITION}.json"             --output "result/handoff-forensics-${PARTITION}.json"             | tee "result/handoff-summary-${PARTITION}.json"
 
+      - name: Run position-intelligence counterfactuals
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_position_intelligence_forensics_v1.py             evidence/fresh/NAS100/market-evidence.json             "result/replay-${PARTITION}.json"             --output "result/position-intelligence-${PARTITION}.json"             | tee "result/position-intelligence-summary-${PARTITION}.json"
+
       - name: Governance gate
         run: |
           python - <<'PY'
@@ -92,6 +98,9 @@ jobs:
           report = json.loads(
               Path(f"result/handoff-forensics-{partition}.json").read_text()
           )
+          position = json.loads(
+              Path(f"result/position-intelligence-{partition}.json").read_text()
+          )
           assert replay["research_only"] is True
           assert replay["opens_new_holdout"] is False
           assert replay["live_authorized"] is False
@@ -104,12 +113,25 @@ jobs:
           assert report["intelligence_metrics"][
               "execute_contradiction_count"
           ] == 0
+          assert position["governance"][
+              "structural_labels_not_direct_pnl_optimization"
+          ] is True
+          assert position["governance"]["xauusd_thresholds_copied"] is False
+          assert position["governance"][
+              "contextual_policy_selection_allowed"
+          ] is False
+          assert position["governance"]["opens_new_holdout"] is False
           print(json.dumps({
               "partition": partition,
               "status_counts": replay["status_counts"],
               "stress": replay["stress_0_05r"],
               "intelligence_metrics": report["intelligence_metrics"],
               "journey_capacity": report["journey_capacity"],
+              "position_intelligence": {
+                  "protection_events": position["protection_events"],
+                  "classification_counts": position["classification_counts"],
+                  "by_event_type": position["by_event_type"],
+              },
           }, sort_keys=True))
           PY
 
