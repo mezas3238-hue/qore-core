@@ -301,7 +301,7 @@ def _opportunities_for_h4(
             rearm_index += 1
             cursor = continuation_index + 1
 
-    priority = {
+    poi_priority = {
         v6.PoiKind.FVG.value: 0,
         v6.PoiKind.RELEVANT_SWING.value: 1,
         v6.PoiKind.CISD.value: 2,
