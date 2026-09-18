@@ -50,7 +50,6 @@ from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
     trader_experience_fingerprint,
 )
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
-    Vt31R22EntryEvidence,
     Vt31R22ExecutableSetup,
     Vt31R22ExecutionPolicy,
     Vt31R22SourceSetup,
@@ -229,128 +228,6 @@ def _admitted_day(day_bars: tuple[object, ...]) -> bool:
         len(_slice(day_bars, (9, 0, 0), (10, 0, 0))) == 60
         and len(_slice(day_bars, (10, 0, 0), (11, 0, 0))) == 60
     )
-
-
-def _local_swing_indices(
-    path: tuple[object, ...],
-) -> tuple[list[int], list[int]]:
-    highs: list[int] = []
-    lows: list[int] = []
-    for index in range(2, len(path) - 2):
-        high = _d(getattr(path[index], "high"))
-        low = _d(getattr(path[index], "low"))
-        if high >= max(
-            _d(getattr(path[index - 2], "high")),
-            _d(getattr(path[index - 1], "high")),
-        ) and high > max(
-            _d(getattr(path[index + 1], "high")),
-            _d(getattr(path[index + 2], "high")),
-        ):
-            highs.append(index)
-        if low <= min(
-            _d(getattr(path[index - 2], "low")),
-            _d(getattr(path[index - 1], "low")),
-        ) and low < min(
-            _d(getattr(path[index + 1], "low")),
-            _d(getattr(path[index + 2], "low")),
-        ):
-            lows.append(index)
-    return highs, lows
-
-
-def _local_sweep_events(
-    path: tuple[object, ...],
-) -> list[tuple[datetime, int, str]]:
-    events: list[tuple[datetime, int, str]] = []
-    highs, lows = _local_swing_indices(path)
-    for index, bar in enumerate(path):
-        prior_highs = [item for item in highs if item <= index - 2]
-        prior_lows = [item for item in lows if item <= index - 2]
-        if prior_highs:
-            level = _d(getattr(path[prior_highs[-1]], "high"))
-            if (
-                _d(getattr(bar, "high")) > level
-                and _d(getattr(bar, "close")) < level
-            ):
-                events.append(
-                    (
-                        cast(datetime, getattr(bar, "opened_at")),
-                        1,
-                        "local-liquidity-sweep",
-                    )
-                )
-        if prior_lows:
-            level = _d(getattr(path[prior_lows[-1]], "low"))
-            if (
-                _d(getattr(bar, "low")) < level
-                and _d(getattr(bar, "close")) > level
-            ):
-                events.append(
-                    (
-                        cast(datetime, getattr(bar, "opened_at")),
-                        1,
-                        "local-liquidity-sweep",
-                    )
-                )
-    return events
-
-
-def _reference_sweep_events(
-    path: tuple[object, ...],
-    source: Vt31R22SourceSetup,
-) -> list[tuple[datetime, int, str]]:
-    events: list[tuple[datetime, int, str]] = []
-    for bar in path:
-        high = _d(getattr(bar, "high"))
-        low = _d(getattr(bar, "low"))
-        close = _d(getattr(bar, "close"))
-        opened_at = cast(datetime, getattr(bar, "opened_at"))
-        if high > source.reference.high and close < source.reference.high:
-            events.append(
-                (opened_at, 2, "reference-liquidity-sweep")
-            )
-        if low < source.reference.low and close > source.reference.low:
-            events.append(
-                (opened_at, 2, "reference-liquidity-sweep")
-            )
-    return events
-
-
-def _zone_touch(
-    bar: object,
-    candidate: Vt31R22EntryEvidence,
-) -> bool:
-    return (
-        _d(getattr(bar, "high")) >= candidate.zone_lower
-        and _d(getattr(bar, "low")) <= candidate.zone_upper
-    )
-
-
-def _source_zone_events(
-    path: tuple[object, ...],
-    source: Vt31R22SourceSetup,
-    decision_at: datetime,
-) -> list[tuple[datetime, int, str]]:
-    events: list[tuple[datetime, int, str]] = []
-    for candidate in source.candidates:
-        if candidate.formed_at > decision_at:
-            continue
-        eligible = [
-            bar
-            for bar in path
-            if cast(datetime, getattr(bar, "closed_at"))
-            >= candidate.formed_at
-        ]
-        touched = next(
-            (bar for bar in eligible if _zone_touch(bar, candidate)),
-            None,
-        )
-        if touched is None:
-            continue
-        touch_at = cast(datetime, getattr(touched, "opened_at"))
-        if touch_at <= decision_at:
-            events.append((touch_at, 0, candidate.family.value))
-    return events
 
 
 def _last_structure_event_family(
