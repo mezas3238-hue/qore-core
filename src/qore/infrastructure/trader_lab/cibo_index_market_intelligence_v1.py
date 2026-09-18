@@ -269,7 +269,7 @@ def _validate_target(root: Path, *, symbol: str) -> dict[str, Any]:
         raise ValueError(f"Target V2 M5 count drift for {symbol}")
     if _int(manifest.get("market_journey_rows", 0)) != _int(expected["events"]):
         raise ValueError(f"Target V2 Journey row drift for {symbol}")
-    if _int(manifest.get("resolved_departures", 0)) != int(
+    if _int(manifest.get("resolved_departures", 0)) != _int(
         expected["resolved_departures"]
     ):
         raise ValueError(f"Target V2 departure count drift for {symbol}")
