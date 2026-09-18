@@ -1,0 +1,211 @@
+name: QORE VT31 NAS100 High Density Capacity Risk V2
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_high_density_capacity_risk_v2.py
+      - scripts/vt31_nas100_high_density_structural_protection_v1.py
+      - scripts/vt31_nas100_entry_intelligence_oco_lab_v1.py
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - src/qore/infrastructure/traders/vt31_nas100_*.py
+      - .github/workflows/vt31-nas100-high-density-capacity-risk-v2.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-nas100-high-density-capacity-risk-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+          - partition: r8_fresh
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_high_density_capacity_risk_v2.py
+          ruff check             scripts/vt31_nas100_high_density_capacity_risk_v2.py             scripts/vt31_nas100_high_density_structural_protection_v1.py
+
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d evidence
+          path="evidence/fresh/NAS100/market-evidence.json"
+          test -f "$path"
+          actual="$(sha256sum "$path" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Run capacity-weighted risk lab
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_high_density_capacity_risk_v2.py             evidence/fresh/NAS100/market-evidence.json             --output "result/capacity-risk-${PARTITION}.json"             | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/capacity-risk-{p}.json").read_text()
+          )
+          g = payload["governance"]
+          assert g["entry_filtering"] is False
+          assert g["trade_count_reduced_by_risk_policy"] is False
+          assert g["risk_score_uses_terminal_pnl"] is False
+          assert g["risk_score_uses_post_outcome_fields"] is False
+          assert g["qore_risk_remains_sovereign"] is True
+          assert g["consumed_evidence_only"] is True
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-capacity-risk-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-capacity-risk-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate cross-fold objective
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds = []
+          for path in sorted(Path("input").glob("capacity-risk-*.json")):
+              payload = json.loads(path.read_text())
+              folds.append({
+                  "file": path.name,
+                  "oco_selected_setup_count": payload[
+                      "oco_selected_setup_count"
+                  ],
+                  "risk_tier_counts": payload["risk_tier_counts"],
+                  "variants": payload["variants"],
+              })
+          assert len(folds) == 3, folds
+
+          variant_names = (
+              "BASELINE_MANAGEMENT",
+              "CAUTIOUS_FIRST_SWING",
+              "NON_SUPPORTIVE_FIRST_SWING",
+          )
+          summary = {}
+          for variant in variant_names:
+              rows = []
+              for fold in folds:
+                  item = fold["variants"][variant]
+                  rows.append({
+                      "file": fold["file"],
+                      "trades": item["trade_count"],
+                      "metrics": item["capital_weighted_metrics"],
+                      "mc": item["monte_carlo"],
+                      "passes": item["passes_development_gates"],
+                  })
+              summary[variant] = {
+                  "folds": rows,
+                  "all_folds_density_at_least_250": all(
+                      row["trades"] >= 250 for row in rows
+                  ),
+                  "all_folds_pf_at_least_1_50": all(
+                      float(row["metrics"]["profit_factor"]) >= 1.50
+                      for row in rows
+                  ),
+                  "all_folds_dd_at_most_10r": all(
+                      float(row["metrics"]["max_drawdown_r"]) <= 10.0
+                      for row in rows
+                  ),
+                  "all_folds_mc_p95_dd_at_most_20r": all(
+                      float(row["mc"]["p95_max_drawdown_r"]) <= 20.0
+                      for row in rows
+                  ),
+                  "all_folds_pass": all(row["passes"] for row in rows),
+              }
+
+          report = {
+              "schema": "qore.vt31.nas100.high_density_capacity_risk.aggregate.v2",
+              "folds": folds,
+              "variants": summary,
+              "target": {
+                  "r5_trade_density": "approximately-300-to-350",
+                  "profit_factor_floor": "1.50",
+                  "observed_drawdown_ceiling_r": "10",
+                  "mc_p95_drawdown_ceiling_r": "20",
+              },
+              "policy_promoted": False,
+              "opens_new_holdout": False,
+              "live_authorized": False,
+              "production_authorized": False,
+          }
+          Path("result/capacity-risk-aggregate.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-capacity-risk-aggregate-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
