@@ -95,7 +95,7 @@ jobs:
           python -m qore.infrastructure.trader_lab.turtle_soup_gbpjpy_specialist_memory_v1 \
             source-gbpjpy journey-gbpjpy target-gbpjpy specialist-memory-output \
             > specialist-memory-output/stdout.json
-          printf '%s\n' "$GITHUB_SHA" > specialist-memory-output/git-sha.txt
+          printf '%s\n' "$EVIDENCE_SHA" > specialist-memory-output/git-sha.txt
       - name: Enforce specialist memory contract
         run: |
           python - <<'PY'
