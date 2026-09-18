@@ -638,6 +638,140 @@ def _simulate_selected_plan(
     return outcome
 
 
+def _journey_capacity_label(
+    day_bars: tuple[object, ...],
+    setup: Vt31R22ExecutableSetup,
+) -> dict[str, object]:
+    """Post-outcome structural label; never a runtime decision input."""
+    fill_index = v2b._fill_index(day_bars, setup)
+    if fill_index is None:
+        return {"status": "no-fill"}
+
+    side = setup.side.value
+    entry = setup.entry_price
+    stop = setup.stop_price
+    boundary = setup.target_price
+    risk = setup.initial_risk
+    width = setup.source_setup.reference.high - setup.source_setup.reference.low
+    if risk <= 0 or width <= 0:
+        return {"status": "censored-invalid-geometry"}
+
+    direction = Decimal(1) if side == "long" else Decimal(-1)
+    ladder = (
+        ("DOL1_BOUNDARY", boundary),
+        (
+            "DOL2_PLUS_0_25_REF",
+            boundary + direction * width * Decimal("0.25"),
+        ),
+        (
+            "DOL3_PLUS_0_50_REF",
+            boundary + direction * width * Decimal("0.50"),
+        ),
+        ("DOL4_PLUS_1_00_REF", boundary + direction * width),
+        (
+            "DOL5_PLUS_1_50_REF",
+            boundary + direction * width * Decimal("1.50"),
+        ),
+        (
+            "DOL6_PLUS_2_00_REF",
+            boundary + direction * width * Decimal("2.00"),
+        ),
+    )
+
+    filled = day_bars[fill_index]
+    filled_at = cast(datetime, getattr(filled, "closed_at"))
+    max_favorable_r = Decimal(0)
+    max_adverse_r = Decimal(0)
+    max_rank = 0
+    reached: list[str] = []
+    invalidated_at: datetime | None = None
+
+    for index in range(fill_index, len(day_bars)):
+        bar = day_bars[index]
+        if baseline._local_minute(bar) >= LIFECYCLE_MINUTE:
+            break
+        if index > fill_index:
+            previous = day_bars[index - 1]
+            if getattr(bar, "opened_at") != getattr(previous, "closed_at"):
+                return {"status": "censored-gap-after-fill"}
+
+        high = _d(getattr(bar, "high"))
+        low = _d(getattr(bar, "low"))
+        favorable_price = high if side == "long" else low
+        adverse_price = low if side == "long" else high
+        favorable_r = (
+            (favorable_price - entry) / risk
+            if side == "long"
+            else (entry - favorable_price) / risk
+        )
+        adverse_r = (
+            (entry - adverse_price) / risk
+            if side == "long"
+            else (adverse_price - entry) / risk
+        )
+        max_favorable_r = max(max_favorable_r, favorable_r)
+        max_adverse_r = max(max_adverse_r, adverse_r)
+
+        stop_hit = low <= stop if side == "long" else high >= stop
+        ranks_this_bar = [
+            rank
+            for rank, (_, level) in enumerate(ladder, start=1)
+            if (high >= level if side == "long" else low <= level)
+        ]
+        new_rank = max(ranks_this_bar, default=max_rank)
+        if stop_hit and new_rank > max_rank:
+            return {
+                "status": "censored-same-bar-capacity-stop",
+                "filled_at": filled_at.astimezone(UTC).isoformat(),
+            }
+        if new_rank > max_rank:
+            max_rank = new_rank
+            reached = [name for name, _ in ladder[:max_rank]]
+        if stop_hit:
+            invalidated_at = cast(datetime, getattr(bar, "closed_at"))
+            break
+
+    eligible = [
+        bar
+        for bar in day_bars[fill_index:]
+        if baseline._local_minute(bar) < LIFECYCLE_MINUTE
+    ]
+    if not eligible:
+        return {"status": "censored-no-lifecycle-close"}
+    lifecycle_exit_at = (
+        invalidated_at
+        if invalidated_at is not None
+        else cast(datetime, getattr(eligible[-1], "closed_at"))
+    )
+    return {
+        "status": "labeled",
+        "local_date": _day(setup.decision_at).isoformat(),
+        "side": side,
+        "entry_family": setup.selected_family.value,
+        "signal_at": setup.decision_at.astimezone(UTC).isoformat(),
+        "filled_at": filled_at.astimezone(UTC).isoformat(),
+        "journey_end_at": lifecycle_exit_at.astimezone(UTC).isoformat(),
+        "journey_end_reason": (
+            "methodological-invalidation"
+            if invalidated_at is not None
+            else "16:00-lifecycle"
+        ),
+        "max_distinct_active_dol_rank_touched_before_invalidation": max_rank,
+        "dol_names_reached": reached,
+        "max_favorable_r_before_invalidation": format(max_favorable_r, "f"),
+        "max_adverse_r_before_invalidation": format(max_adverse_r, "f"),
+        "minutes_fill_to_journey_end": str(
+            int((lifecycle_exit_at - filled_at).total_seconds() // 60)
+        ),
+        "reference_width": format(width, "f"),
+        "initial_risk": format(risk, "f"),
+        "risk_ref": format(risk / width, "f"),
+        "structural_boundary_r": format(abs(boundary - entry) / risk, "f"),
+        "timing_class": "POST_OUTCOME_RESEARCH_LABEL",
+        "used_for_runtime_decision": False,
+    }
+
+
 def _monte_carlo(
     trades: list[dict[str, object]],
 ) -> dict[str, object]:
@@ -750,6 +884,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
 
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
+    capacity_observations: list[dict[str, object]] = []
     reasoning_trace: list[dict[str, object]] = []
     status_counts: Counter[str] = Counter()
     target_plan_counts: Counter[str] = Counter()
@@ -853,6 +988,31 @@ def replay(evidence_path: Path) -> dict[str, object]:
             continue
 
         state = selected_state
+        capacity = _journey_capacity_label(day_bars, selected)
+        if capacity.get("status") == "labeled":
+            capacity["pre_entry_context"] = {
+                key: state.get(key)
+                for key in (
+                    "prior_day_state",
+                    "h4_state",
+                    "h1_state",
+                    "premarket_state",
+                    "cash_open_state",
+                    "position_in_prior_day_range",
+                    "reference_volatility_state",
+                    "current_path_vs_previous",
+                    "raid_depth_ref",
+                    "recent_path_efficiency",
+                    "recent_overlap_rate",
+                    "reference_reclaim_age_minutes",
+                    "last_structure_event_family",
+                    "last_structure_event_age_minutes",
+                    "confirmation_latency_minutes",
+                    "entry_evidence_age_minutes",
+                )
+            }
+            capacity_observations.append(capacity)
+
         target_plan_counts[cast(str, state["target_plan"])] += 1
         outcome = _simulate_selected_plan(day_bars, selected, state)
         status = cast(str, outcome["status"])
@@ -941,6 +1101,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
         "passes_development_gates": all(gates.values()),
         "trade_count": len(trades),
         "trades": trades,
+        "journey_capacity_observations": capacity_observations,
         "reasoning_trace": reasoning_trace,
         "research_only": True,
         "candidate_frozen": False,
