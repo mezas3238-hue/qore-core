@@ -31,7 +31,6 @@ import math
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Sequence
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
