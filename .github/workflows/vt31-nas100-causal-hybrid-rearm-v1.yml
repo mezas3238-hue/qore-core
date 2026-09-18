@@ -11,7 +11,7 @@ on:
 
 concurrency:
   group: vt31-nas100-causal-hybrid-rearm-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
