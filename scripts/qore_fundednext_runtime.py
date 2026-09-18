@@ -1481,8 +1481,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 )
                 for symbol in tuple(vt08_pending):
                     ready, pending_reason = _vt08_boundary_ready(
-                        symbol,
-                        vt08_anchor if vt08_anchor is not None else turtle_anchor,
+                        mt5,
+                        symbol=symbol,
+                        anchor=(
+                            vt08_anchor
+                            if vt08_anchor is not None
+                            else turtle_anchor
+                        ),
                     )
                     if not ready:
                         if pending_reason is not None:
