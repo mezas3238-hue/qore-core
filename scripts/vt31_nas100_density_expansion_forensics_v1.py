@@ -13,6 +13,7 @@ Purpose:
 
 No holdout is opened. No date-level outcome lookup enters runtime reasoning.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
