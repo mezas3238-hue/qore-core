@@ -501,6 +501,29 @@ def _rearm_rows(
                 "first_tier": first_row["tier"],
                 "first_exit_reason": first_row.get("exit_reason"),
                 "first_requested_risk_r": first_row["requested_risk_r"],
+                "entry_family": setup.selected_family.value,
+                "side": setup.side.value,
+                "reference_volatility_state": state.get(
+                    "reference_volatility_state"
+                ),
+                "current_path_vs_previous": state.get(
+                    "current_path_vs_previous"
+                ),
+                "h1_state": state.get("h1_state"),
+                "h4_state": state.get("h4_state"),
+                "prior_day_state": state.get("prior_day_state"),
+                "premarket_state": state.get("premarket_state"),
+                "cash_open_state": state.get("cash_open_state"),
+                "last_structure_event_family": state.get(
+                    "last_structure_event_family"
+                ),
+                "reference_reclaim_age_minutes": state.get(
+                    "reference_reclaim_age_minutes"
+                ),
+                "confirmation_latency_minutes": state.get(
+                    "confirmation_latency_minutes"
+                ),
+                "risk_ref": state.get("risk_ref"),
                 "used_for_runtime_decision": False,
             }
         )
