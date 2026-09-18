@@ -7,8 +7,8 @@ on:
       - agent/turtle-soup-gbpusd-specialist-memory-v1-001
     paths:
       - '.github/workflows/turtle-soup-gbpusd-r34-corrective-ensemble.yml'
-      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r33_subfamily_risk_governor.py'
-      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r33_subfamily_risk_governor.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r34_corrective_ensemble.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r34_corrective_ensemble.py'
 
 permissions:
   contents: write
@@ -35,16 +35,16 @@ jobs:
       - name: Ruff focused gate
         run: |
           ruff check --ignore E501,I001 \
-            src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r33_subfamily_risk_governor.py \
-            tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r33_subfamily_risk_governor.py
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r34_corrective_ensemble.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r34_corrective_ensemble.py
       - name: Mypy focused gate
         run: |
           mypy --disable-error-code attr-defined \
-            src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r33_subfamily_risk_governor.py
+            src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r34_corrective_ensemble.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r33_subfamily_risk_governor.py
+            tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r34_corrective_ensemble.py
 
   replay_job:
     needs: quality
@@ -77,19 +77,19 @@ jobs:
           path: cognitive-v3
           github-token: ${{ github.token }}
           run-id: ${{ env.R28_RUN_ID }}
-      - name: Run fixed R33 experiments
+      - name: Run fixed R34 experiments
         run: |
-          mkdir -p r33-output
-          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r33_subfamily_risk_governor \
-            source-gbpusd target-gbpusd cognitive-v3 r33-output \
-            > r33-output/stdout.json
-          printf '%s\n' "$GITHUB_SHA" > r33-output/git-sha.txt
+          mkdir -p r34-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r34_corrective_ensemble \
+            source-gbpusd target-gbpusd cognitive-v3 r34-output \
+            > r34-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r34-output/git-sha.txt
       - name: Enforce R34 governance
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          p=json.loads(Path('r33-output/r34-corrective-ensemble-report.json').read_text())
+          p=json.loads(Path('r34-output/r34-corrective-ensemble-report.json').read_text())
           assert p['identity']=='TURTLE_SOUP_GBPUSD_R34_CORRECTIVE_ENSEMBLE_LAB_V1'
           c=p['experiment_contract']
           assert c['fresh_holdout_consumed'] is False
@@ -115,14 +115,14 @@ jobs:
           assert g['live_authorized'] is False
           assert g['real_capital_authorized'] is False
           PY
-      - name: Hash R33 evidence
+      - name: Hash R34 evidence
         run: |
-          cd r33-output
+          cd r34-output
           sha256sum r34-corrective-ensemble-report.json stdout.json git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: qore-turtle-soup-gbpusd-r34-corrective-ensemble-${{ github.sha }}
-          path: r33-output
+          path: r34-output
           if-no-files-found: error
           retention-days: 90
 
@@ -134,13 +134,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: agent/turtle-soup-gbpusd-specialist-memory-v1-001
-      - name: Download successful R33 artifact
+      - name: Download successful R34 artifact
         if: needs.replay_job.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: qore-turtle-soup-gbpusd-r34-corrective-ensemble-${{ github.sha }}
-          path: published-r33
-      - name: Write auditable R33 status
+          path: published-r34
+      - name: Write auditable R34 status
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
           REPLAY_RESULT: ${{ needs.replay_job.result }}
@@ -158,17 +158,17 @@ jobs:
             'quality_result':os.environ['QUALITY_RESULT'],
             'replay_result':os.environ['REPLAY_RESULT'],
           }
-          matches=list(Path('published-r33').rglob('r34-corrective-ensemble-report.json'))
+          matches=list(Path('published-r34').rglob('r34-corrective-ensemble-report.json'))
           if len(matches)==1:
             out['r34_report']=json.loads(matches[0].read_text())
-          sums=list(Path('published-r33').rglob('SHA256SUMS.txt'))
+          sums=list(Path('published-r34').rglob('SHA256SUMS.txt'))
           if len(sums)==1:
             out['sha256sums']=sums[0].read_text().splitlines()
           Path('docs/research/results/TURTLE-SOUP-GBPUSD-R34-CORRECTIVE-LATEST.json').write_text(
             json.dumps(out,indent=2,sort_keys=True)+'\n'
           )
           PY
-      - name: Commit R33 status
+      - name: Commit R34 status
         run: |
           git config user.name 'qore-research-bot'
           git config user.email 'qore-research-bot@users.noreply.github.com'
