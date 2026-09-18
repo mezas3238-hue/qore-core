@@ -141,7 +141,15 @@ jobs:
               })
           assert len(folds)==3,folds
 
-          names=("WAIT_NONE","WAIT_1025","WAIT_1020")
+          names=(
+              "WAIT_NONE_B060",
+              "WAIT_1025_B060",
+              "WAIT_1020_B060",
+              "WAIT_1020_B075",
+              "WAIT_1015_B075",
+              "WAIT_1010_B075",
+              "WAIT_1015_B090",
+          )
           variants={}
           for name in names:
               rows=[]
