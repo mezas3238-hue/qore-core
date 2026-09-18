@@ -69,8 +69,11 @@ def freeze(source_root: Path, output: Path) -> dict[str, Any]:
         raise ValueError("fresh holdout drift")
     if contract["risk_governor_suppresses_trades"] is not False:
         raise ValueError("trade suppression drift")
-    if contract["structural_risk_policy_preentry_only"] if "structural_risk_policy_preentry_only" in contract else False:
-        pass
+    governance = report["governance"]
+    if governance["structural_risk_policy_preentry_only"] is not True:
+        raise ValueError("structural risk causality drift")
+    if governance["risk_governor_suppresses_trades"] is not False:
+        raise ValueError("governor suppression drift")
 
     manifest: dict[str, Any] = {
         "schema": "qore.turtle_soup_gbpusd.r38_candidate_freeze.v1",
