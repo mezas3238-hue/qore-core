@@ -38,6 +38,7 @@ from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     build_h4,
     build_m15,
     causal_cisd,
+    _h4_open_for,
 )
 
 IDENTITY = "TURTLE_SOUP_XAUUSD_R34"
@@ -474,7 +475,7 @@ def build_live_signal(
     complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
     h4 = build_h4(complete)
-    if r1._h4_open_for(anchor) == anchor:
+    if _h4_open_for(anchor) == anchor:
         frames.append(("H4", h4))
     frames.append(("H1", build_h1(complete)))
     for timeframe, candles in frames:
