@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from functools import lru_cache
 
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
@@ -65,6 +66,7 @@ def memory_payload() -> dict[str, object]:
     }
 
 
+@lru_cache(maxsize=1)
 def memory_fingerprint() -> str:
     encoded = json.dumps(
         memory_payload(),
