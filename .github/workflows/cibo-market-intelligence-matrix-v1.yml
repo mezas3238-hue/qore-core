@@ -1,0 +1,151 @@
+name: QORE CIBO 12-Market Intelligence Matrix V1
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-intelligence-matrix-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_intelligence_matrix_v1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_intelligence_matrix_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-market-intelligence-matrix-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_M5_GIT_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_JOURNEY_GIT_SHA: '9cc0f17a2f30846d61b242132547f39391909656'
+  SOURCE_TARGET_RUN_ID: '35204892665'
+  SOURCE_TARGET_GIT_SHA: '2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check --ignore E501 \
+            src/qore/infrastructure/trader_lab/cibo_market_intelligence_matrix_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_intelligence_matrix_v1.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/cibo_market_intelligence_matrix_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov tests/infrastructure/trader_lab/test_cibo_market_intelligence_matrix_v1.py
+      - name: Governance assertions
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.trader_lab import cibo_market_intelligence_matrix_v1 as m
+          assert m.IDENTITY == 'CIBO_12_MARKET_INTELLIGENCE_MATRIX_V1'
+          assert len(m.SYMBOLS) == 12
+          assert m.EVIDENCE_TIER == 'E1_ASSOCIATION_ONLY'
+          assert m.SOURCE_M5_RUN_ID == 35166210458
+          assert m.SOURCE_JOURNEY_RUN_ID == 35175979474
+          assert m.SOURCE_TARGET_RUN_ID == 35204892665
+          PY
+
+  matrix:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable 12-market M5 sources
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-market-atlas-10y-windowed-*-${{ env.SOURCE_M5_GIT_SHA }}
+          path: raw-root
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Normalize raw artifact discovery marker
+        run: |
+          find raw-root -mindepth 1 -maxdepth 1 -type d -print0 | \
+            while IFS= read -r -d '' dir; do
+              if [ -f "$dir/symbol-consumption-manifest.json" ]; then
+                cp "$dir/symbol-consumption-manifest.json" "$dir/manifest.json"
+              fi
+            done
+      - name: Download immutable Journey V1 sources
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-market-journey-*-${{ env.SOURCE_JOURNEY_GIT_SHA }}
+          path: journey-root
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Download immutable Target Destination V2 sources
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-target-destination-v2-*-${{ env.SOURCE_TARGET_GIT_SHA }}
+          path: target-root
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_TARGET_RUN_ID }}
+      - name: Build CIBO 12-market intelligence matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.cibo_market_intelligence_matrix_v1 \
+            raw-root journey-root target-root matrix-output
+      - name: Enforce matrix provenance and governance
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          from pathlib import Path
+
+          root = Path('matrix-output')
+          manifest = json.loads((root / 'cibo-12-market-intelligence-matrix-v1-manifest.json').read_text())
+          matrix = json.loads((root / 'cibo-12-market-intelligence-matrix-v1.json').read_text())
+          with (root / 'cibo-12-market-intelligence-matrix-v1.csv').open() as handle:
+              rows = list(csv.DictReader(handle))
+          assert manifest['identity'] == 'CIBO_12_MARKET_INTELLIGENCE_MATRIX_V1'
+          assert manifest['markets'] == 12
+          assert len(matrix['headline_rows']) == 12
+          assert len(matrix['market_detail']) == 12
+          assert len(rows) == 12
+          assert matrix['c3_status'].startswith('UNRESOLVED_')
+          assert matrix['evidence_tier'] == 'E1_ASSOCIATION_ONLY'
+          assert matrix['rule_promotion_allowed'] is False
+          assert matrix['demo_eligible'] is False
+          assert matrix['live_authorized'] is False
+          assert matrix['real_capital_authorized'] is False
+          assert matrix['production_authorized'] is False
+          for symbol in matrix['symbols']:
+              detail = matrix['market_detail'][symbol]
+              assert detail['by_side']
+              assert detail['by_timeframe']
+              assert detail['by_session']
+              assert detail['by_weekday']
+              assert detail['by_year']
+              assert detail['by_quarter']
+              assert detail['by_prior_body_alignment']
+              assert detail['target_destination_v2']['complete_all_dol_claim'] is False
+          PY
+      - name: Upload immutable CIBO matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-12-market-intelligence-matrix-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

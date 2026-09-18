@@ -1,0 +1,56 @@
+name: QORE CIBO Market Atlas Journey Contract V1
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-atlas-journey-contract-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_contract_v1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_contract_v1.py'
+      - 'docs/research/CIBO-MARKET-ATLAS-JOURNEY-LAYER-V1.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_contract_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_contract_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_contract_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_contract_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_journey_contract_v1.py
+      - name: Governance assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          doc = Path('docs/research/CIBO-MARKET-ATLAS-JOURNEY-LAYER-V1.md').read_text()
+          module = Path('src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_contract_v1.py').read_text()
+          assert 'OUTCOME_ONLY=true' in doc
+          assert 'MARKET_JOURNEY_LEDGER' in doc
+          assert 'STRUCTURE_TOUCH_LEDGER' in doc
+          assert 'TARGET_DESTINATION_LEDGER' in doc
+          assert 'CROSS_INDEX_JOURNEY_LEDGER' in doc
+          assert 'NAS100 -> USTEC' in doc
+          assert 'SP500 -> US500' in doc
+          assert 'EvidenceRole.OUTCOME_ONLY' in module
+          PY

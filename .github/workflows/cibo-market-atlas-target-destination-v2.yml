@@ -1,0 +1,378 @@
+name: QORE CIBO Market Atlas Target Destination V2
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-atlas-target-destination-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_target_destination_v2.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_target_destination_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-market-atlas-target-destination-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_M5_GIT_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_JOURNEY_GIT_SHA: '9cc0f17a2f30846d61b242132547f39391909656'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_target_destination_v2.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_target_destination_v2.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_target_destination_v2.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_target_destination_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_target_destination_v2.py
+      - name: Governance assertions
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as t
+          assert t.IDENTITY == 'CIBO_TARGET_DESTINATION_V2_SUPPORTED_REFERENCE_UNIVERSE'
+          assert t.CANDIDATE_UNIVERSE == 'SUPPORTED_REFERENCE_FAMILY_V2_BOUNDED'
+          assert t.SOURCE_JOURNEY_RUN_ID == 35175979474
+          assert t.SOURCE_JOURNEY_GIT_SHA == '9cc0f17a2f30846d61b242132547f39391909656'
+          assert t.SOURCE_M5_RUN_ID == 35166210458
+          assert t.SOURCE_M5_GIT_SHA == 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+          PY
+
+  target_destination:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        symbol:
+          - AUDJPY
+          - AUDUSD
+          - EURUSD
+          - GBPJPY
+          - GBPUSD
+          - USDCAD
+          - USDJPY
+          - NAS100
+          - SP500
+          - US30
+          - XAUUSD
+          - XAGUSD
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable 10Y M5 source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-${{ env.SOURCE_M5_GIT_SHA }}
+          path: raw-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Download immutable Journey V1 source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-journey-${{ matrix.symbol }}-${{ env.SOURCE_JOURNEY_GIT_SHA }}
+          path: journey-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Build Target Destination V2 ledgers
+        run: |
+          python -m qore.infrastructure.trader_lab.cibo_market_atlas_target_destination_v2 \
+            raw-source journey-source target-v2
+      - name: Enforce manifest and anti-leakage audit
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime
+          from decimal import Decimal
+          from pathlib import Path
+
+          root = Path('target-v2')
+          manifest = json.loads((root / 'target-destination-v2-manifest.json').read_text())
+          assert manifest['identity'] == 'CIBO_TARGET_DESTINATION_V2_SUPPORTED_REFERENCE_UNIVERSE'
+          assert manifest['candidate_universe'] == 'SUPPORTED_REFERENCE_FAMILY_V2_BOUNDED'
+          assert manifest['source_journey_run_id'] == 35175979474
+          assert manifest['source_journey_git_sha'] == '9cc0f17a2f30846d61b242132547f39391909656'
+          assert manifest['source_m5_run_id'] == 35166210458
+          assert manifest['source_m5_git_sha'] == 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+          assert manifest['symbol'] == os.environ['EXPECTED_SYMBOL']
+          assert manifest['retained_m5_bars'] > 0
+          assert manifest['market_journey_rows'] > 0
+          assert manifest['resolved_departures'] > 0
+          assert manifest['anchor_failures'] == 0
+          assert manifest['episode_rows'] == manifest['resolved_departures']
+          assert manifest['candidate_rows'] > 0
+          assert manifest['candidate_types'] == [
+              'SOURCE_OPPOSITE_BOUNDARY',
+              'PRIOR_CANDLE_DIRECTIONAL_BOUNDARY',
+              'ACTIVE_SWING_3_DIRECTIONAL_BOUNDARY',
+          ]
+          assert manifest['source_timeframes'] == ['H1', 'H4', 'D1']
+          assert manifest['active_untouched_required'] is True
+          assert manifest['complete_all_dol_claim'] is False
+          assert manifest['rule_promotion_allowed'] is False
+          assert manifest['demo_eligible'] is False
+          assert manifest['live_authorized'] is False
+          assert manifest['real_capital_authorized'] is False
+          assert manifest['production_authorized'] is False
+
+          allowed_types = set(manifest['candidate_types'])
+          allowed_timeframes = set(manifest['source_timeframes'])
+          candidate_ids = set()
+          with (root / 'TARGET_DESTINATION_LEDGER_V2.jsonl').open() as handle:
+              for line in handle:
+                  row = json.loads(line)
+                  candidate_ids.add(row['candidate_id'])
+                  assert row['candidate_type'] in allowed_types
+                  assert row['source_timeframe'] in allowed_timeframes
+                  assert row['candidate_universe'] == manifest['candidate_universe']
+                  assert row['active_untouched_at_departure'] is True
+                  assert row['causal_feature'] is True
+                  assert row['result_fields_outcome_only'] is True
+                  departure = datetime.fromisoformat(row['departure_at'])
+                  known_at = datetime.fromisoformat(row['candidate_known_at'])
+                  assert known_at <= departure
+                  anchor = Decimal(row['departure_anchor_price'])
+                  price = Decimal(row['candidate_price'])
+                  if row['side'] == 'long':
+                      assert price > anchor
+                  elif row['side'] == 'short':
+                      assert price < anchor
+                  else:
+                      raise AssertionError(f"unsupported side: {row['side']}")
+                  if row['touch_within_24h']:
+                      assert row['touch_m5_opened_at'] is not None
+                      assert row['time_to_touch_minutes'] is not None
+                      assert 0 <= row['time_to_touch_minutes'] < 24 * 60
+                      assert row['touch_order_group'] is not None
+                  else:
+                      assert row['touch_m5_opened_at'] is None
+                      assert row['time_to_touch_minutes'] is None
+                      assert row['touch_order_group'] is None
+
+          with (root / 'TARGET_DESTINATION_EPISODE_V2.jsonl').open() as handle:
+              episode_count = 0
+              for line in handle:
+                  row = json.loads(line)
+                  episode_count += 1
+                  assert row['complete_all_dol_claim'] is False
+                  assert row['causal_candidate_selection'] is True
+                  assert row['outcomes_are_post_departure'] is True
+                  assert row['touched_candidate_count_24h'] <= row['active_candidate_count']
+                  assert set(row['first_touch_candidate_ids']) <= candidate_ids
+                  if row['first_touch_tied']:
+                      assert len(row['first_touch_candidate_ids']) > 1
+                  if row['first_touch_candidate_ids']:
+                      assert row['first_touch_m5_opened_at'] is not None
+              assert episode_count == manifest['episode_rows']
+          PY
+      - name: Upload immutable Target Destination V2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-target-destination-v2-${{ matrix.symbol }}-${{ github.sha }}
+          path: target-v2
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: target_destination
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all Target Destination V2 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-target-destination-v2-*-${{ github.sha }}
+          path: targets
+      - name: Build authoritative index and descriptive summary
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from collections import Counter, defaultdict
+          from pathlib import Path
+          from statistics import median
+
+          expected = {
+              'AUDJPY','AUDUSD','EURUSD','GBPJPY','GBPUSD','USDCAD','USDJPY',
+              'NAS100','SP500','US30','XAUUSD','XAGUSD',
+          }
+          manifests = {}
+          roots = {}
+          for path in Path('targets').rglob('target-destination-v2-manifest.json'):
+              payload = json.loads(path.read_text())
+              manifests[payload['symbol']] = payload
+              roots[payload['symbol']] = path.parent
+          assert set(manifests) == expected
+
+          symbol_rows = []
+          summaries = {}
+          for symbol in sorted(expected):
+              manifest = manifests[symbol]
+              root = roots[symbol]
+              type_counts = Counter()
+              timeframe_counts = Counter()
+              type_touches = Counter()
+              timeframe_touches = Counter()
+              type_times = defaultdict(list)
+              type_distances = defaultdict(list)
+              tied_candidate_rows = 0
+              with (root / 'TARGET_DESTINATION_LEDGER_V2.jsonl').open() as handle:
+                  for line in handle:
+                      row = json.loads(line)
+                      kind = row['candidate_type']
+                      timeframe = row['source_timeframe']
+                      type_counts[kind] += 1
+                      timeframe_counts[timeframe] += 1
+                      type_distances[kind].append(float(row['candidate_distance_ticks']))
+                      if row['touch_within_24h']:
+                          type_touches[kind] += 1
+                          timeframe_touches[timeframe] += 1
+                          type_times[kind].append(row['time_to_touch_minutes'])
+                      if row['touch_order_ambiguous_within_m5']:
+                          tied_candidate_rows += 1
+
+              episodes_with_touch = 0
+              first_touch_ties = 0
+              active_counts = []
+              with (root / 'TARGET_DESTINATION_EPISODE_V2.jsonl').open() as handle:
+                  for line in handle:
+                      row = json.loads(line)
+                      active_counts.append(row['active_candidate_count'])
+                      if row['touched_candidate_count_24h'] > 0:
+                          episodes_with_touch += 1
+                      if row['first_touch_tied']:
+                          first_touch_ties += 1
+
+              family_summary = {}
+              for kind in sorted(type_counts):
+                  count = type_counts[kind]
+                  touched = type_touches[kind]
+                  family_summary[kind] = {
+                      'candidate_rows': count,
+                      'touched_within_24h': touched,
+                      'touch_rate_24h': touched / count if count else None,
+                      'median_time_to_touch_minutes': (
+                          median(type_times[kind]) if type_times[kind] else None
+                      ),
+                      'median_distance_ticks': median(type_distances[kind]),
+                  }
+              timeframe_summary = {}
+              for timeframe in sorted(timeframe_counts):
+                  count = timeframe_counts[timeframe]
+                  touched = timeframe_touches[timeframe]
+                  timeframe_summary[timeframe] = {
+                      'candidate_rows': count,
+                      'touched_within_24h': touched,
+                      'touch_rate_24h': touched / count if count else None,
+                  }
+
+              summary = {
+                  'symbol': symbol,
+                  'resolved_departures': manifest['resolved_departures'],
+                  'episode_rows': manifest['episode_rows'],
+                  'candidate_rows': manifest['candidate_rows'],
+                  'episodes_with_any_target_touch_24h': episodes_with_touch,
+                  'episodes_with_any_target_touch_rate_24h': (
+                      episodes_with_touch / manifest['episode_rows']
+                  ),
+                  'median_active_candidates_per_episode': median(active_counts),
+                  'first_touch_tied_episode_rows': first_touch_ties,
+                  'tied_candidate_rows': tied_candidate_rows,
+                  'candidate_family': family_summary,
+                  'timeframe': timeframe_summary,
+              }
+              summaries[symbol] = summary
+              symbol_rows.append({
+                  'symbol': symbol,
+                  'retained_m5_bars': manifest['retained_m5_bars'],
+                  'market_journey_rows': manifest['market_journey_rows'],
+                  'resolved_departures': manifest['resolved_departures'],
+                  'episode_rows': manifest['episode_rows'],
+                  'candidate_rows': manifest['candidate_rows'],
+                  'target_ledger_sha256': manifest['target_ledger_sha256'],
+                  'episode_ledger_sha256': manifest['episode_ledger_sha256'],
+              })
+
+          aggregate = Path('aggregate')
+          aggregate.mkdir()
+          index = {
+              'schema': 'qore.cibo_market_atlas.target_destination_10y_index.v2',
+              'identity': 'CIBO_TARGET_DESTINATION_V2_SUPPORTED_REFERENCE_UNIVERSE',
+              'candidate_universe': 'SUPPORTED_REFERENCE_FAMILY_V2_BOUNDED',
+              'source_m5_run_id': 35166210458,
+              'source_m5_git_sha': 'ab782b8e9f890f86a2b6500070f0556b4b685e3d',
+              'source_journey_run_id': 35175979474,
+              'source_journey_git_sha': '9cc0f17a2f30846d61b242132547f39391909656',
+              'symbols': symbol_rows,
+              'complete_all_dol_claim': False,
+              'evidence_status': 'CONSUMED_RESEARCH_EVIDENCE',
+              'rule_promotion_allowed': False,
+              'demo_eligible': False,
+              'live_authorized': False,
+              'real_capital_authorized': False,
+              'production_authorized': False,
+          }
+          index_path = aggregate / 'target-destination-v2-index.json'
+          index_path.write_text(json.dumps(index, indent=2, sort_keys=True) + '\n')
+          summary_path = aggregate / 'target-destination-v2-summary.json'
+          summary_path.write_text(
+              json.dumps(
+                  {
+                      'schema': 'qore.cibo_market_atlas.target_destination_summary.v2',
+                      'identity': index['identity'],
+                      'classification': 'DESCRIPTIVE_CONSUMED_RESEARCH_EVIDENCE',
+                      'not_win_rate_or_operating_edge': True,
+                      'complete_all_dol_claim': False,
+                      'symbols': summaries,
+                  },
+                  indent=2,
+                  sort_keys=True,
+              ) + '\n'
+          )
+          xau_path = aggregate / 'xauusd-target-destination-v2-summary.json'
+          xau_path.write_text(json.dumps(summaries['XAUUSD'], indent=2, sort_keys=True) + '\n')
+          for path in (index_path, summary_path, xau_path):
+              (aggregate / f'{path.name}.sha256').write_text(
+                  hashlib.sha256(path.read_bytes()).hexdigest() + '\n'
+              )
+          PY
+      - name: Upload authoritative Target Destination V2 aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-target-destination-v2-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90

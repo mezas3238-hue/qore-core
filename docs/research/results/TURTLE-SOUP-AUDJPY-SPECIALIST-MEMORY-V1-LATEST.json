@@ -1,0 +1,225 @@
+{
+  "identity": "TURTLE_SOUP_AUDJPY_SPECIALIST_MEMORY_V1_STATUS",
+  "quality_result": "success",
+  "report": {
+    "authoritative_resolution_counts": {
+      "NO_AUTHORITATIVE_MEMORY": 40178,
+      "anatomy:LET_RUN": 180,
+      "anatomy:PROTECT": 240,
+      "anatomy:STATIC": 382
+    },
+    "cognitive_identity": "TURTLE_SOUP_AUDJPY_SPECIALIST_COGNITIVE_MEMORY_V1",
+    "cognitive_summary": {
+      "anatomy": {
+        "classification_counts": {
+          "LET_RUN": {
+            "MAJORITY_POSITIVE_010": 13,
+            "NEGATIVE_010": 47,
+            "ROBUST_POSITIVE_010": 4,
+            "UNRESOLVED": 15779
+          },
+          "PROTECT": {
+            "MAJORITY_POSITIVE_010": 10,
+            "NEGATIVE_010": 51,
+            "ROBUST_POSITIVE_010": 5,
+            "UNRESOLVED": 15777
+          },
+          "STATIC": {
+            "MAJORITY_POSITIVE_010": 8,
+            "NEGATIVE_010": 52,
+            "ROBUST_POSITIVE_010": 4,
+            "UNRESOLVED": 15779
+          }
+        },
+        "decision_authority": "AUTHORITATIVE",
+        "preferred_posture_counts": {
+          "LET_RUN": 5,
+          "PROTECT": 5,
+          "STATIC": 9
+        },
+        "signatures": 15843
+      },
+      "causal_core": {
+        "classification_counts": {
+          "LET_RUN": {
+            "NEGATIVE_010": 1,
+            "UNRESOLVED": 29307
+          },
+          "PROTECT": {
+            "NEGATIVE_010": 1,
+            "UNRESOLVED": 29307
+          },
+          "STATIC": {
+            "NEGATIVE_010": 1,
+            "UNRESOLVED": 29307
+          }
+        },
+        "decision_authority": "AUTHORITATIVE",
+        "preferred_posture_counts": {},
+        "signatures": 29308
+      },
+      "compact_anatomy": {
+        "classification_counts": {
+          "LET_RUN": {
+            "MAJORITY_POSITIVE_010": 22,
+            "NEGATIVE_010": 212,
+            "ROBUST_POSITIVE_010": 9,
+            "UNRESOLVED": 515
+          },
+          "PROTECT": {
+            "MAJORITY_POSITIVE_010": 14,
+            "NEGATIVE_010": 231,
+            "ROBUST_POSITIVE_010": 5,
+            "UNRESOLVED": 508
+          },
+          "STATIC": {
+            "MAJORITY_POSITIVE_010": 37,
+            "NEGATIVE_010": 198,
+            "ROBUST_POSITIVE_010": 5,
+            "UNRESOLVED": 518
+          }
+        },
+        "decision_authority": "CONTEXT_ONLY",
+        "preferred_posture_counts": {
+          "LET_RUN": 10,
+          "PROTECT": 12,
+          "STATIC": 32
+        },
+        "signatures": 758
+      },
+      "exact": {
+        "classification_counts": {
+          "LET_RUN": {
+            "UNRESOLVED": 40544
+          },
+          "PROTECT": {
+            "UNRESOLVED": 40544
+          },
+          "STATIC": {
+            "UNRESOLVED": 40544
+          }
+        },
+        "decision_authority": "AUTHORITATIVE",
+        "preferred_posture_counts": {},
+        "signatures": 40544
+      }
+    },
+    "governance": {
+      "candidate_promoted": false,
+      "demo_eligible": false,
+      "fresh_holdout_consumed": false,
+      "live_authorized": false,
+      "production_authorized": false,
+      "real_capital_authorized": false,
+      "research_memory_only": true
+    },
+    "identity": "TURTLE_SOUP_AUDJPY_SPECIALIST_MEMORY_V1",
+    "master_memory_contract": {
+      "derived_copy_only": true,
+      "journey_run_id": 35175979474,
+      "master_is_immutable": true,
+      "master_modified": false,
+      "physical_master_snapshot_in_specialist_artifact": true,
+      "raw_m5_artifact_id": 10476530915,
+      "raw_m5_run_id": 35166210458,
+      "snapshot_files": [
+        "journey-MARKET_JOURNEY_LEDGER.jsonl",
+        "journey-STRUCTURE_TOUCH_LEDGER.jsonl",
+        "journey-PRE_DEPARTURE_SEQUENCE_LEDGER.jsonl",
+        "journey-DEPARTURE_TIMING_LEDGER.jsonl",
+        "journey-TARGET_DESTINATION_LEDGER.jsonl",
+        "journey-DAILY_PATH_LEDGER.jsonl",
+        "journey-TRADER_MARKET_SYNC_LEDGER.jsonl",
+        "journey-journey-manifest.json",
+        "target-TARGET_DESTINATION_LEDGER_V2.jsonl",
+        "target-TARGET_DESTINATION_EPISODE_V2.jsonl",
+        "target-target-destination-v2-manifest.json"
+      ],
+      "target_artifact_id": 10489761448,
+      "target_run_id": 35204892665
+    },
+    "raw_identity": "TURTLE_SOUP_AUDJPY_SPECIALIST_RAW_MEMORY_V1",
+    "reproduction": {
+      "counters": {
+        "NO_ACTIVE_DOL": 2,
+        "OBSERVATION": 40980
+      },
+      "funnel": {
+        "H1:causal-cisd": 13948,
+        "H1:exact-c2": 23804,
+        "H1:invalid-entry-geometry": 2754,
+        "H1:no-causal-cisd": 9856,
+        "H1:no-exact-c2": 38153,
+        "H1:opposite-boundary-already-touched": 156,
+        "H1:signal": 11038,
+        "H1:source-cycles": 61957,
+        "H4:causal-cisd": 3857,
+        "H4:exact-c2": 5873,
+        "H4:invalid-entry-geometry": 964,
+        "H4:no-causal-cisd": 2016,
+        "H4:no-exact-c2": 9470,
+        "H4:opposite-boundary-already-touched": 28,
+        "H4:signal": 2865,
+        "H4:source-cycles": 15343
+      },
+      "master_behavior_events_copied": 126031,
+      "retained_m5_bars": 745468,
+      "specialist_decision_observations": 40980,
+      "turtle_setup_episode_bindings": 13869,
+      "turtle_setups_10y": 13903
+    },
+    "schema": "qore.turtle_soup_audjpy.specialist_memory_report.v1",
+    "specialist_contract": {
+      "active_cibo_dol_ladder_rebuilt": true,
+      "actual_strategy_entry_used": true,
+      "authoritative_levels": [
+        "exact",
+        "causal_core",
+        "anatomy"
+      ],
+      "context_only_levels": [
+        "compact_anatomy"
+      ],
+      "exact_protected_swing_used": true,
+      "friction_005_modeled": true,
+      "friction_010_modeled": true,
+      "generic_destination_fallback_authorizes_trade": false,
+      "postures": [
+        "STATIC",
+        "LET_RUN",
+        "PROTECT"
+      ],
+      "r11_memory_used": false,
+      "r16_memory_used": false,
+      "r17_memory_used": false,
+      "r20_memory_used": false,
+      "r21_memory_used": false,
+      "r22_memory_used": false,
+      "r23_memory_used": false,
+      "r25_result_used_as_training_label": false,
+      "strategy": "TURTLE_SOUP_AUDJPY"
+    }
+  },
+  "sha256sums": [
+    "65615a90b1a89b607c17856082f740b43d7c0f4ddd57e8487af7ff000e0e9326  turtle-soup-audjpy-specialist-memory-report.json",
+    "ca3589059097e606708eefc3fd6179be8ce08856cf3f6c95bbd7b3d82ce0c16d  turtle-soup-audjpy-specialist-raw-memory.jsonl",
+    "c07938a69eef7244e5c7d0b68a0ca586965ad1423e867d8a20e69729ba7feec8  turtle-soup-audjpy-specialist-observations.jsonl",
+    "6b2cb655bee2a74355a0febe4bdc06d13984fcf56dc1a63eaf3cd4d2424cec7d  turtle-soup-audjpy-specialist-cognitive-memory.json",
+    "f9d69c373179cba5f1fa53a4e37d4a7bd1decb4e9c244edf31488bfb4c8454b0  stdout.json",
+    "75784ad5b4215d758a267472383b2a5284a94659385a2ad6c9e03ddaf69fde16  git-sha.txt",
+    "eebe44a3798334a83a1ac5f4190c0f631638bc28db2cc268543ffb186666d5bb  master-snapshot/journey-DAILY_PATH_LEDGER.jsonl",
+    "8abe0eed84495fd9891fb510c86794b5d9fa00bbf77bb67a665328070714d294  master-snapshot/journey-DEPARTURE_TIMING_LEDGER.jsonl",
+    "7acfb1ed96e6b5e7c709263b2669a550d4bc90c73de5bed01850b66ea839c4c7  master-snapshot/journey-MARKET_JOURNEY_LEDGER.jsonl",
+    "425ad5ef61092dd1175b8be6f4c6c219e6bb0ce141895f3af53fef4e9e4d272d  master-snapshot/journey-PRE_DEPARTURE_SEQUENCE_LEDGER.jsonl",
+    "0d8863de3138122f3cd8d0a63339d66b872ca4250c8db1d0e151774f9b018198  master-snapshot/journey-STRUCTURE_TOUCH_LEDGER.jsonl",
+    "b7eba153c7bca659ecc50a9703a34471bfffc1d0c8eae9fe733a9a8325afb46f  master-snapshot/journey-TARGET_DESTINATION_LEDGER.jsonl",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  master-snapshot/journey-TRADER_MARKET_SYNC_LEDGER.jsonl",
+    "3ad89618d00c5a1ecba83551dea1e144806928bdf299451dde6bedbb83931469  master-snapshot/journey-journey-manifest.json",
+    "4b0a8f0c109bce2f5a3a2463f4d9ea54260f2886a84013621ff43c99bfed0bcf  master-snapshot/target-TARGET_DESTINATION_EPISODE_V2.jsonl",
+    "144dd907f2e360c479102d160269f1b62ffe451e0d71beb2a03e10d7f78f850f  master-snapshot/target-TARGET_DESTINATION_LEDGER_V2.jsonl",
+    "bdfc678736c9b1fc08faab07b80f54061843a7fe4ba4e498a3598cd78e88cb09  master-snapshot/target-target-destination-v2-manifest.json"
+  ],
+  "specialist_memory_result": "success",
+  "workflow_run_id": 35382166428,
+  "workflow_sha": "6fb6898650a45e76d1173fe27470b3d291f659c4"
+}

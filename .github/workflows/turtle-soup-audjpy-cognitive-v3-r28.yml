@@ -1,0 +1,204 @@
+name: QORE Turtle Soup AUDJPY Cognitive V3 R28
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-cognitive-v3-r28.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_cognitive_memory_v3.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r28_validated_specialist_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_cognitive_memory_v3.py'
+  push:
+    branches:
+      - agent/turtle-soup-audjpy-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-cognitive-v3-r28.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_cognitive_memory_v3.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r28_validated_specialist_brain.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_cognitive_memory_v3.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-AUDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-AUDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  V2_RUN_ID: '35383377176'
+  V2_ARTIFACT: 'qore-turtle-soup-audjpy-structural-specialist-v2-r27-e0bec233ed40197a1e969786b24a9dc8a1e5869f'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_cognitive_memory_v3.py \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r28_validated_specialist_brain.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_cognitive_memory_v3.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_cognitive_memory_v3.py \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r28_validated_specialist_brain.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_cognitive_memory_v3.py
+
+  cognitive-v3-r28:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable AUDJPY raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-audjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-audjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download exact Cognitive V2 R27 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.V2_ARTIFACT }}
+          path: v2-r27
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V2_RUN_ID }}
+      - name: Build economically validated Cognitive V3
+        run: |
+          mkdir -p cognitive-v3
+          python -m qore.infrastructure.trader_lab.turtle_soup_audjpy_specialist_cognitive_memory_v3 \
+            v2-r27 cognitive-v3 > cognitive-v3/stdout.json
+      - name: Enforce Cognitive V3 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('cognitive-v3/turtle-soup-audjpy-specialist-cognitive-memory-v3-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_AUDJPY_SPECIALIST_COGNITIVE_MEMORY_V3'
+          assert p['source_v2']['run_id']==35383377176
+          assert p['source_v2']['artifact_id']==10562458144
+          assert p['source_v2']['artifact_digest']=='sha256:ed5a0928e83be7af171864c37335d8f3edeb9af096f29eb9e0a23078745b255c'
+          d=p['decision_contract']
+          assert d['causal_structure_frozen_before_economic_validation'] is True
+          assert d['regime_definition_frozen_before_economic_validation'] is True
+          assert d['target_support_frozen_before_economic_validation'] is True
+          assert d['management_posture_frozen_before_economic_validation'] is True
+          assert d['economic_mean_magnitude_used_for_target_ranking'] is False
+          assert d['r27_result_used_as_input'] is False
+          assert p['governance']['fresh_holdout_consumed'] is False
+          PY
+      - name: Run R28 validated specialist replay
+        run: |
+          mkdir -p r28-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_audjpy_r28_validated_specialist_brain \
+            source-audjpy target-audjpy cognitive-v3 r28-output > r28-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > r28-output/git-sha.txt
+      - name: Enforce R28 decision contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r28-output/r28-validated-specialist-brain-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_AUDJPY_R28_VALIDATED_SPECIALIST_BRAIN_V1'
+          d=p['decision_contract']
+          assert d['causal_structure_precedes_economic_validation'] is True
+          assert d['situation_definition_uses_economic_results'] is False
+          assert d['regime_definition_uses_economic_results'] is False
+          assert d['management_posture_selected_by_economic_results'] is False
+          assert d['economic_mean_magnitude_ranks_targets'] is False
+          assert d['calendar_year_regime_rule'] is False
+          assert d['actual_strategy_entry'] is True
+          assert d['exact_protected_swing'] is True
+          assert d['target_from_active_cibo_dol_ladder'] is True
+          assert p['governance']['fresh_holdout_consumed'] is False
+          assert p['governance']['candidate_promoted'] is False
+          PY
+      - name: Hash V3 and R28 evidence
+        run: |
+          mkdir -p package
+          cp cognitive-v3/turtle-soup-audjpy-specialist-cognitive-memory-v3-report.json package/
+          cp cognitive-v3/turtle-soup-audjpy-specialist-cognitive-memory-v3.json package/
+          cp r28-output/r28-validated-specialist-brain-report.json package/
+          cp r28-output/r28-validated-specialist-brain-trades.json package/
+          cp r28-output/git-sha.txt package/
+          cd package
+          sha256sum * > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-cognitive-v3-r28-${{ env.EVIDENCE_SHA }}
+          path: package
+          if-no-files-found: error
+          retention-days: 90
+
+
+  publish-status:
+    if: ${{ always() && github.event_name != 'pull_request' }}
+    needs: [quality, cognitive-v3-r28]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-audjpy-specialist-memory-v1-001
+      - name: Download successful R28 artifact
+        if: needs.cognitive-v3-r28.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-cognitive-v3-r28-${{ env.EVIDENCE_SHA }}
+          path: published-r28
+      - name: Write auditable R28 status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          R28_RESULT: ${{ needs.cognitive-v3-r28.result }}
+          RUN_SHA: ${{ env.EVIDENCE_SHA }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={'identity':'TURTLE_SOUP_AUDJPY_R28_STATUS','workflow_run_id':int(os.environ['RUN_ID']),'workflow_sha':os.environ['RUN_SHA'],'quality_result':os.environ['QUALITY_RESULT'],'r28_result':os.environ['R28_RESULT']}
+          report=Path('published-r28/r28-validated-specialist-brain-report.json')
+          v3=Path('published-r28/turtle-soup-audjpy-specialist-cognitive-memory-v3-report.json')
+          sums=Path('published-r28/SHA256SUMS.txt')
+          if report.exists(): out['report']=json.loads(report.read_text())
+          if v3.exists(): out['cognitive_v3_report']=json.loads(v3.read_text())
+          if sums.exists(): out['sha256sums']=sums.read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-AUDJPY-R28-LATEST.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Commit R28 status
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-AUDJPY-R28-LATEST.json
+          git commit -m "research(audjpy): record R28 validated replay result" || exit 0
+          git push origin HEAD:agent/turtle-soup-audjpy-specialist-memory-v1-001

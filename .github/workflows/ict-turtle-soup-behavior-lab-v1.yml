@@ -1,0 +1,118 @@
+name: QORE ICT Turtle Soup Behavior Lab V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/ict-turtle-soup-behavior-lab-v1-001
+    paths:
+      - '.github/workflows/ict-turtle-soup-behavior-lab-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py'
+      - 'src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab_fast_runner.py'
+      - 'tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py'
+      - 'docs/research/ICT-TURTLE-SOUP-BEHAVIOR-LAB-V1-*.md'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE development dependencies
+        run: pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab_fast_runner.py \
+            tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py
+      - name: Mypy focused gate
+        run: |
+          mypy src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab.py \
+            src/qore/infrastructure/trader_lab/ict_turtle_soup_behavior_lab_fast_runner.py
+      - name: Focused Behavior Lab tests
+        run: pytest -q tests/infrastructure/trader_lab/test_ict_turtle_soup_behavior_lab.py
+      - name: Research-only governance assertion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('docs/research/ICT-TURTLE-SOUP-BEHAVIOR-LAB-V1-FREEZE.md').read_text()
+          for flag in (
+              'DEMO_ELIGIBLE=false',
+              'LIVE_AUTHORIZED=false',
+              'REAL_CAPITAL_AUTHORIZED=false',
+              'PRODUCTION_AUTHORIZED=false',
+          ):
+              assert flag in text
+          PY
+
+  consumed-fx-pilot:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE
+        run: pip install -e .
+      - name: Download consumed R5 2016-2018 symbol artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: mezas3238-hue/qore-core
+          run-id: 35118222306
+          pattern: qore-ict-ts-r5-*-9beb2f8147db2b9fb780bc4cc28e2cdb05b7851e
+          path: consumed-r5
+          merge-multiple: false
+      - name: Verify seven consumed market-evidence inputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          paths = sorted(Path('consumed-r5').glob('**/market-evidence.json'))
+          print('\n'.join(str(p) for p in paths))
+          assert len(paths) == 7, len(paths)
+          PY
+      - name: Execute frozen Behavior Lab V1 with indexed windows
+        run: |
+          mapfile -t evidence < <(find consumed-r5 -name market-evidence.json -type f | sort)
+          python -m qore.infrastructure.trader_lab.ict_turtle_soup_behavior_lab_fast_runner \
+            behavior-lab-output "${evidence[@]}" \
+            --asset-class fx \
+            --provider ctrader-demo \
+            --evidence-prefix r5-consumed-2016-2018
+      - name: Enforce diagnostic-only output governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('behavior-lab-output/summary.json').read_text())
+          assert payload['identity'] == 'ICT_TS_BEHAVIOR_LAB_V1'
+          assert payload['evidence_status'] == 'CONSUMED_DIAGNOSTIC_ONLY'
+          assert payload['session_filter_applied'] is False
+          assert payload['pnl_used_for_filter_selection'] is False
+          assert payload['demo_eligible'] is False
+          assert payload['live_authorized'] is False
+          assert payload['real_capital_authorized'] is False
+          assert payload['production_authorized'] is False
+          assert payload['event_count'] > 0
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+      - name: Hash immutable pilot output
+        run: |
+          cd behavior-lab-output
+          sha256sum * > SHA256SUMS.txt
+          printf '%s\n' '${{ github.sha }}' > git-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-ict-ts-behavior-lab-v1-fx-pilot-${{ github.sha }}
+          path: behavior-lab-output
+          if-no-files-found: error
+          retention-days: 90

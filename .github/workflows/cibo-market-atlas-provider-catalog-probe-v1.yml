@@ -1,0 +1,165 @@
+name: QORE CIBO Market Atlas Provider Catalog Probe V1
+
+on:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-atlas-provider-catalog-probe-v1.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify DEMO read-only credential inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Capture enabled provider catalog and index candidates
+        shell: bash
+        run: |
+          mkdir -p artifacts/provider-catalog
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from typing import Iterable, cast
+
+          from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
+          from qore.infrastructure.trader_lab.cibo_market_atlas_m5_availability_v1 import _credentials
+          from qore.kernel.result import Failure
+
+          def norm(value: str) -> str:
+              return ''.join(ch for ch in value.upper() if ch.isalnum())
+
+          def relevant(name: str) -> bool:
+              value = norm(name)
+              tokens = (
+                  'NAS', 'NDX', 'TECH100', 'USTEC', 'USTECH', 'US100',
+                  'SP500', 'SPX500', 'US500', 'SPX', 'SANDP500',
+                  'US30', 'DJ30', 'DOW30',
+              )
+              return any(token in value for token in tokens)
+
+          client = SpotwareCTraderOpenApiClient(credentials=_credentials())
+          try:
+              ready = client.connect_and_authenticate()
+              if isinstance(ready, Failure):
+                  raise RuntimeError(f'authentication failed: {ready.error}')
+              account_id = client.account_id
+              result = client.request(
+                  'ProtoOASymbolsListReq',
+                  {'ctidTraderAccountId': account_id, 'includeArchivedSymbols': False},
+                  client_msg_id='cibo-atlas-provider-catalog',
+                  timeout_seconds=30.0,
+              )
+              if isinstance(result, Failure):
+                  raise RuntimeError(f'symbol list failed: {result.error}')
+              native = tuple(cast(Iterable[object], getattr(result.value, 'symbol', ())))
+              rows = []
+              candidate_ids = []
+              for item in native:
+                  name = str(getattr(item, 'symbolName', ''))
+                  symbol_id = int(getattr(item, 'symbolId'))
+                  enabled = getattr(item, 'enabled', None) is True
+                  row = {
+                      'symbol_id': symbol_id,
+                      'symbol_name': name,
+                      'enabled': enabled,
+                      'normalized_name': norm(name),
+                      'index_candidate': enabled and relevant(name),
+                  }
+                  rows.append(row)
+                  if row['index_candidate']:
+                      candidate_ids.append(symbol_id)
+              rows.sort(key=lambda item: (not item['enabled'], item['symbol_name'], item['symbol_id']))
+
+              details_payload = []
+              if candidate_ids:
+                  details = client.request(
+                      'ProtoOASymbolByIdReq',
+                      {'ctidTraderAccountId': account_id, 'symbolId': candidate_ids},
+                      client_msg_id='cibo-atlas-provider-index-details',
+                      timeout_seconds=30.0,
+                  )
+                  if isinstance(details, Failure):
+                      raise RuntimeError(f'symbol details failed: {details.error}')
+                  for item in cast(Iterable[object], getattr(details.value, 'symbol', ())):
+                      descriptor = getattr(item, 'DESCRIPTOR', None)
+                      field_names = [] if descriptor is None else [field.name for field in descriptor.fields]
+                      details_payload.append(
+                          {
+                              'symbol_id': int(getattr(item, 'symbolId')),
+                              'digits': int(getattr(item, 'digits')),
+                              'pip_position': int(getattr(item, 'pipPosition', 0)),
+                              'descriptor_fields': field_names,
+                              'schedule_text': str(getattr(item, 'schedule', '')),
+                              'native_text': str(item),
+                          }
+                      )
+
+              payload = {
+                  'schema': 'qore.cibo_market_atlas.provider_catalog_probe.v1',
+                  'read_only': True,
+                  'account_id_redacted': True,
+                  'enabled_symbol_count': sum(1 for row in rows if row['enabled']),
+                  'catalog': rows,
+                  'index_candidate_details': details_payload,
+                  'governance': {
+                      'demo_eligible': False,
+                      'live_authorized': False,
+                      'real_capital_authorized': False,
+                      'production_authorized': False,
+                  },
+              }
+              Path('artifacts/provider-catalog/provider-symbol-catalog.json').write_text(
+                  json.dumps(payload, indent=2, sort_keys=True) + '\n'
+              )
+          finally:
+              client.close()
+          PY
+      - name: Bind git SHA and hash catalog
+        shell: bash
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > artifacts/provider-catalog/git-sha.txt
+          cd artifacts/provider-catalog
+          sha256sum provider-symbol-catalog.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-provider-catalog-${{ github.sha }}
+          path: artifacts/provider-catalog
+          if-no-files-found: error
+          retention-days: 90

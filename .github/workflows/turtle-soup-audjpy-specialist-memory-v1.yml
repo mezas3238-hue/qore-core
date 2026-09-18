@@ -1,0 +1,198 @@
+name: QORE Turtle Soup AUDJPY Specialist Memory V1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-specialist-memory-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_memory_v1.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_memory_v1.py'
+  push:
+    branches:
+      - agent/turtle-soup-audjpy-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-specialist-memory-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_memory_v1.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_memory_v1.py'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-AUDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  JOURNEY_RUN_ID: '35175979474'
+  JOURNEY_ARTIFACT: 'qore-cibo-market-journey-AUDJPY-9cc0f17a2f30846d61b242132547f39391909656'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-AUDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_memory_v1.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_memory_v1.py
+      - name: Mypy focused gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_specialist_memory_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_specialist_memory_v1.py
+
+  specialist_memory:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable CIBO AUDJPY raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-audjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable CIBO Journey V1
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.JOURNEY_ARTIFACT }}
+          path: journey-audjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.JOURNEY_RUN_ID }}
+      - name: Download immutable CIBO Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-audjpy
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Build specialist raw and cognitive memories
+        run: |
+          mkdir -p specialist-memory-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_audjpy_specialist_memory_v1 \
+            source-audjpy journey-audjpy target-audjpy specialist-memory-output \
+            > specialist-memory-output/stdout.json
+          printf '%s\n' "$EVIDENCE_SHA" > specialist-memory-output/git-sha.txt
+      - name: Enforce specialist memory contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('specialist-memory-output/turtle-soup-audjpy-specialist-memory-report.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_AUDJPY_SPECIALIST_MEMORY_V1'
+          m=p['master_memory_contract']
+          assert m['master_is_immutable'] is True
+          assert m['master_modified'] is False
+          assert m['derived_copy_only'] is True
+          assert m['raw_m5_run_id']==35166210458
+          assert m['journey_run_id']==35175979474
+          assert m['target_run_id']==35204892665
+          assert m['physical_master_snapshot_in_specialist_artifact'] is True
+          assert len(m['snapshot_files'])==11
+          s=p['specialist_contract']
+          assert s['actual_strategy_entry_used'] is True
+          assert s['exact_protected_swing_used'] is True
+          assert s['active_cibo_dol_ladder_rebuilt'] is True
+          assert s['generic_destination_fallback_authorizes_trade'] is False
+          for key in ('r11_memory_used','r16_memory_used','r17_memory_used','r20_memory_used','r21_memory_used','r22_memory_used','r23_memory_used','r25_result_used_as_training_label'):
+              assert s[key] is False
+          r=p['reproduction']
+          assert r['retained_m5_bars']==745468
+          assert r['master_behavior_events_copied']==126031
+          assert r['turtle_setups_10y'] > 0
+          assert r['specialist_decision_observations'] > 0
+          g=p['governance']
+          assert g['fresh_holdout_consumed'] is False
+          assert g['candidate_promoted'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash immutable specialist memory
+        run: |
+          cd specialist-memory-output
+          sha256sum \
+            turtle-soup-audjpy-specialist-memory-report.json \
+            turtle-soup-audjpy-specialist-raw-memory.jsonl \
+            turtle-soup-audjpy-specialist-observations.jsonl \
+            turtle-soup-audjpy-specialist-cognitive-memory.json \
+            stdout.json git-sha.txt > SHA256SUMS.txt
+          find master-snapshot -type f -print0 | sort -z | xargs -0 sha256sum >> SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-specialist-memory-v1-${{ env.EVIDENCE_SHA }}
+          path: specialist-memory-output
+          if-no-files-found: error
+          retention-days: 90
+
+  publish-status:
+    if: ${{ always() && github.event_name != 'pull_request' }}
+    needs: [quality, specialist_memory]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/turtle-soup-audjpy-specialist-memory-v1-001
+      - name: Download successful specialist artifact
+        if: needs.specialist_memory.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-specialist-memory-v1-${{ env.EVIDENCE_SHA }}
+          path: published-memory
+      - name: Write auditable status
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          MEMORY_RESULT: ${{ needs.specialist_memory.result }}
+          RUN_SHA: ${{ env.EVIDENCE_SHA }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p docs/research/results
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out={
+            'identity':'TURTLE_SOUP_AUDJPY_SPECIALIST_MEMORY_V1_STATUS',
+            'workflow_run_id': int(os.environ['RUN_ID']),
+            'workflow_sha': os.environ['RUN_SHA'],
+            'quality_result': os.environ['QUALITY_RESULT'],
+            'specialist_memory_result': os.environ['MEMORY_RESULT'],
+          }
+          report=Path('published-memory/turtle-soup-audjpy-specialist-memory-report.json')
+          sums=Path('published-memory/SHA256SUMS.txt')
+          if report.exists():
+            payload=json.loads(report.read_text())
+            out['report']=payload
+          if sums.exists():
+            out['sha256sums']=sums.read_text().splitlines()
+          Path('docs/research/results/TURTLE-SOUP-AUDJPY-SPECIALIST-MEMORY-V1-LATEST.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Commit status to research branch
+        run: |
+          git config user.name 'qore-research-bot'
+          git config user.email 'qore-research-bot@users.noreply.github.com'
+          git add docs/research/results/TURTLE-SOUP-AUDJPY-SPECIALIST-MEMORY-V1-LATEST.json
+          git commit -m "research(audjpy): record specialist memory V1 workflow result" || exit 0
+          git push origin HEAD:agent/turtle-soup-audjpy-specialist-memory-v1-001
+# AUDJPY specialist memory CI trigger

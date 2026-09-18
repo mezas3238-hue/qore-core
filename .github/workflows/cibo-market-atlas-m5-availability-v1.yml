@@ -1,0 +1,182 @@
+name: QORE CIBO Market Atlas M5 Availability V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-market-atlas-20y-v1-001
+    paths:
+      - '.github/workflows/cibo-market-atlas-m5-availability-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_market_atlas_m5_availability_v1.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_market_atlas_m5_availability_v1.py'
+      - 'docs/research/CIBO-MARKET-ATLAS-20Y-V1-FREEZE.md'
+
+concurrency:
+  group: qore-cibo-market-atlas-m5-availability-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore B009 \
+            src/qore/infrastructure/trader_lab/cibo_market_atlas_m5_availability_v1.py \
+            tests/infrastructure/trader_lab/test_cibo_market_atlas_m5_availability_v1.py
+      - name: Mypy focused gate
+        run: mypy src/qore/infrastructure/trader_lab/cibo_market_atlas_m5_availability_v1.py
+      - name: Focused availability tests
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_cibo_market_atlas_m5_availability_v1.py
+      - name: Governance assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('docs/research/CIBO-MARKET-ATLAS-20Y-V1-FREEZE.md').read_text()
+          module = Path('src/qore/infrastructure/trader_lab/cibo_market_atlas_m5_availability_v1.py').read_text()
+          assert 'EARLIEST_CONTIGUOUS_VERIFIED_M5 -> CURRENT_FROZEN_CLOSE' in text
+          assert 'RAW_M5_LEDGER' in text
+          assert 'FORWARD_PATH_LEDGER' in text
+          assert 'OUTCOME_ONLY=true' in text
+          assert 'PROBE_FLOOR = datetime(1970, 1, 1, tzinfo=UTC)' in module
+          assert 'DEMO_ELIGIBLE=false' in text
+          assert 'LIVE_AUTHORIZED=false' in text
+          assert 'REAL_CAPITAL_AUTHORIZED=false' in text
+          assert 'PRODUCTION_AUTHORIZED=false' in text
+          PY
+
+  discover:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        symbol: [AUDJPY, AUDUSD, EURUSD, GBPJPY, GBPUSD, USDCAD, USDJPY, NAS100, SP500, US30, XAUUSD, XAGUSD]
+    env:
+      QORE_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify DEMO read-only credential inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Probe deepest verified M5 availability
+        run: |
+          mkdir -p "artifacts/${QORE_SYMBOL}"
+          python -m qore.infrastructure.trader_lab.cibo_market_atlas_m5_availability_v1 \
+            "$QORE_SYMBOL" "artifacts/${QORE_SYMBOL}" \
+            > "artifacts/${QORE_SYMBOL}/stdout.json"
+      - name: Enforce research-only manifest
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(Path(f"artifacts/{os.environ['QORE_SYMBOL']}/availability.json").read_text())
+          assert p['identity'] == 'CIBO_MARKET_ATLAS_20Y_V1'
+          assert p['read_only'] is True
+          assert p['demo_eligible'] is False
+          assert p['live_authorized'] is False
+          assert p['real_capital_authorized'] is False
+          assert p['production_authorized'] is False
+          PY
+      - name: Hash immutable symbol manifest
+        shell: bash
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > "artifacts/${QORE_SYMBOL}/git-sha.txt"
+          cd "artifacts/${QORE_SYMBOL}"
+          sha256sum availability.json monthly-probes.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-m5-availability-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-market-atlas-m5-availability-*-${{ github.sha }}
+          path: artifacts/input
+      - name: Build exact twelve-market availability atlas
+        run: |
+          mkdir -p artifacts/aggregate
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files = sorted(Path('artifacts/input').rglob('availability.json'))
+          assert len(files) == 12, len(files)
+          rows = [json.loads(path.read_text()) for path in files]
+          symbols = sorted(row['symbol_requested'] for row in rows)
+          expected = sorted(['AUDJPY','AUDUSD','EURUSD','GBPJPY','GBPUSD','USDCAD','USDJPY','NAS100','SP500','US30','XAUUSD','XAGUSD'])
+          assert symbols == expected, symbols
+          available = [row for row in rows if row['symbol_status'] == 'AVAILABLE']
+          payload = {
+              'schema': 'qore.cibo_market_atlas.m5_availability.aggregate.v1',
+              'identity': 'CIBO_MARKET_ATLAS_20Y_V1',
+              'symbol_count': len(rows),
+              'available_symbol_count': len(available),
+              'symbols': rows,
+              'demo_eligible': False,
+              'live_authorized': False,
+              'real_capital_authorized': False,
+              'production_authorized': False,
+          }
+          Path('artifacts/aggregate/market-availability-manifest.json').write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + '\n'
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/aggregate/git-sha.txt
+          cd artifacts/aggregate
+          sha256sum market-availability-manifest.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-m5-availability-aggregate-${{ github.sha }}
+          path: artifacts/aggregate
+          if-no-files-found: error
+          retention-days: 90
