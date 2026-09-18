@@ -1,0 +1,86 @@
+name: QORE Turtle Soup GBPUSD R38 Candidate Freeze
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-gbpusd-r38-candidate-freeze.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r38_candidate_freeze.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r38_candidate_freeze.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35352145888'
+  SOURCE_ARTIFACT: 'qore-turtle-soup-gbpusd-r37-structural-quality-governor-75b70f877794f018a41e02f91626262079bbf15d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check --ignore E501,I001 src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r38_candidate_freeze.py tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r38_candidate_freeze.py
+      - run: mypy --disable-error-code attr-defined src/qore/infrastructure/trader_lab/turtle_soup_gbpusd_r38_candidate_freeze.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_turtle_soup_gbpusd_r38_candidate_freeze.py
+
+  freeze:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: r37-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Freeze exact R37 candidate
+        run: |
+          mkdir -p freeze-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_gbpusd_r38_candidate_freeze r37-source freeze-output > freeze-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > freeze-output/freeze-code-sha.txt
+      - name: Enforce freeze governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('freeze-output/r38-candidate-freeze-manifest.json').read_text())
+          assert p['status']=='FROZEN_FOR_5Y_VALIDATION'
+          assert p['consumed_2y_result']['trades']==374
+          assert p['consumed_2y_result']['profit_factor_scaled_net_010']=='1.914184192504076803125810726'
+          assert p['consumed_2y_result']['max_drawdown_scaled_r']=='4.650727254116239059338971594'
+          assert p['frozen_contract']['structural_policy']=='SQ3_H1_BALANCED'
+          assert p['frozen_contract']['drawdown_governor']=='DD_1_3_SCALE_075_025'
+          assert p['frozen_contract']['signals_suppressed'] is False
+          assert p['next_stage']['fresh_holdout_status']=='SEALED_UNTOUCHED'
+          g=p['governance']
+          assert g['candidate_frozen'] is True
+          assert g['candidate_certified'] is False
+          assert g['fresh_holdout_consumed'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          PY
+      - name: Hash freeze evidence
+        run: |
+          cd freeze-output
+          sha256sum r38-candidate-freeze-manifest.json stdout.json freeze-code-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-gbpusd-r38-candidate-freeze-${{ github.sha }}
+          path: freeze-output
+          if-no-files-found: error
+          retention-days: 90
