@@ -33,31 +33,36 @@ Silver Bullet / VT31 remains the trading methodology:
 
 ## NAS100 specialist intelligence
 
-### Internalized CIBO + laboratory memory
+### Three persistent memories + causal Situation Model
 
 VT31 does **not** consult CIBO at runtime.
 
-CIBO is the historical teacher. Its consumed NAS100 knowledge, together with
-the adjudicated VT31 laboratory findings, is distilled into a versioned
-`VT31_NAS100 Cognitive Memory` that ships inside the specialist.
+The specialist carries exactly three persistent governed memories:
 
-The specialist therefore carries:
+1. **Strategy / Identity Memory** — what VT31 is, what AM Silver Bullet looks
+   for, source-valid setup families, methodological invalidation and lifecycle.
+   Market statistics and PnL cannot rewrite this memory retrospectively.
+2. **CIBO NAS100 Market Memory** — the governed NAS100 market dossier retained
+   in `CiboMemoryStore`, including the full dossier as
+   `LONG_TERM_ARCHIVE` plus MARKET/RESEARCH sections with provenance,
+   evidence refs, freshness and association-only limitations.
+3. **VT31_NAS100 Trader Experience / Lab Memory** — consumed lessons from
+   VT31 interacting with NAS100: supported mechanisms, rejected hypotheses,
+   loss/journey/capacity forensics and unresolved warnings.
 
-- NAS100 sequence/departure timing priors;
-- structure/liquidity behavior priors;
-- stop and premature-management lessons;
-- destination/extension priors;
-- supported laboratory mechanisms;
-- falsified/rejected hypotheses;
-- unresolved research warnings;
-- immutable evidence bindings and a memory fingerprint.
+The **Market Situation Model** is separate. It is ephemeral and rebuilt from
+causal market evidence at every observation/reasoning timestamp.
 
 Runtime architecture:
 
 ```text
-INTERNALIZED LONG-TERM MEMORY
+STRATEGY / IDENTITY MEMORY
         +
-CURRENT NAS100 M1 WORKING MEMORY
+CIBO NAS100 MARKET MEMORY
+        +
+VT31 NAS100 EXPERIENCE MEMORY
+        +
+CURRENT CAUSAL SITUATION MODEL
         ↓
 REASONING ENGINE
         ↓
@@ -65,12 +70,14 @@ THESIS / SUPPORT / CONTRADICTIONS / UNCERTAINTY
         ↓
 EXECUTE / WAIT / ABSTAIN
         ↓
-STOP / TARGET / MANAGEMENT PLAN
+STOP / DOL / TARGET-DEPTH / MANAGEMENT
+        ↓
+STRUCTURAL REARM
 ```
 
-There is no CIBO API call, no ledger lookup, no date-level historical lookup
-and no mutable online rewriting of this long-term memory. A new memory version
-requires an explicit research/revalidation cycle and a new fingerprint.
+There is no CIBO API call, no date-level historical outcome lookup and no
+mutable online rewriting of the three persistent memories. A memory revision
+requires explicit research, revalidation and a new fingerprint.
 
 The candidate reconstructs its intelligence from **closed NAS100 M1 bars only**.
 It does not query a CIBO ledger by date and it does not require SP500/US30 data.
