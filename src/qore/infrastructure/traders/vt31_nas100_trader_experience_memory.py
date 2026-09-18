@@ -13,10 +13,11 @@ from __future__ import annotations
 import hashlib
 import json
 from copy import deepcopy
+from functools import lru_cache
 from typing import Final
 
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
-    dossier_payload,
+    dossier_runtime_view,
 )
 
 SCHEMA: Final = "qore.vt31.nas100.trader_experience_memory.v1"
@@ -97,36 +98,45 @@ _UNRESOLVED: Final = {
 }
 
 
-def trader_experience_payload() -> dict[str, object]:
-    dossier = dossier_payload()
+@lru_cache(maxsize=1)
+def _trader_experience_cached() -> dict[str, object]:
+    dossier = dossier_runtime_view()
     overlay = dossier["trader_overlay_research_source"]
     assert isinstance(overlay, dict)
-    return deepcopy(
-        {
-            "schema": SCHEMA,
-            "memory_class": "TRADER_EXPERIENCE_LAB",
-            "trader_id": TRADER_ID,
-            "market": MARKET,
-            "laboratory_bindings": _LAB_BINDINGS,
-            "strategy_market_overlay": overlay,
-            "supported_mechanisms": _SUPPORTED,
-            "rejected_hypotheses": _REJECTED,
-            "unresolved": _UNRESOLVED,
-            "experience_governance": {
-                "consumed_evidence_only": True,
-                "contains_per_date_outcome_map": False,
-                "runtime_self_training_allowed": False,
-                "pnl_direct_rule_promotion_allowed": False,
-                "strategy_identity_rewrite_allowed": False,
-                "fresh_holdout_opened": False,
-            },
-        }
-    )
+    return {
+        "schema": SCHEMA,
+        "memory_class": "TRADER_EXPERIENCE_LAB",
+        "trader_id": TRADER_ID,
+        "market": MARKET,
+        "laboratory_bindings": _LAB_BINDINGS,
+        "strategy_market_overlay": deepcopy(overlay),
+        "supported_mechanisms": _SUPPORTED,
+        "rejected_hypotheses": _REJECTED,
+        "unresolved": _UNRESOLVED,
+        "experience_governance": {
+            "consumed_evidence_only": True,
+            "contains_per_date_outcome_map": False,
+            "runtime_self_training_allowed": False,
+            "pnl_direct_rule_promotion_allowed": False,
+            "strategy_identity_rewrite_allowed": False,
+            "fresh_holdout_opened": False,
+        },
+    }
 
 
+def trader_experience_payload() -> dict[str, object]:
+    return deepcopy(_trader_experience_cached())
+
+
+def trader_experience_runtime_view() -> dict[str, object]:
+    """Read-only-by-contract internal view of immutable experience memory."""
+    return _trader_experience_cached()
+
+
+@lru_cache(maxsize=1)
 def trader_experience_fingerprint() -> str:
     encoded = json.dumps(
-        trader_experience_payload(),
+        _trader_experience_cached(),
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
