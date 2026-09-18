@@ -1,0 +1,88 @@
+name: QORE Turtle Soup AUDJPY R39 Candidate Freeze
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-r39-candidate-freeze.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r39_candidate_freeze.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r39_candidate_freeze.py'
+  push:
+    branches:
+      - agent/turtle-soup-audjpy-specialist-memory-v1-001
+    paths:
+      - '.github/workflows/turtle-soup-audjpy-r39-candidate-freeze.yml'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r39_candidate_freeze.py'
+      - 'tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r39_candidate_freeze.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  R38_RUN_ID: '35396621959'
+  R38_ARTIFACT: 'qore-turtle-soup-audjpy-r38-fragility-risk-389ab392fda4cf216fdf078a9386a4812316f430'
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r39_candidate_freeze.py \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r39_candidate_freeze.py
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/trader_lab/turtle_soup_audjpy_r39_candidate_freeze.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_turtle_soup_audjpy_r39_candidate_freeze.py
+      - name: Download exact passing R38 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R38_ARTIFACT }}
+          path: r38-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R38_RUN_ID }}
+      - name: Freeze exact R38 candidate
+        run: |
+          mkdir -p r39-output
+          python -m qore.infrastructure.trader_lab.turtle_soup_audjpy_r39_candidate_freeze \
+            r38-source r39-output > r39-output/stdout.json
+          printf '%s\n' "$GITHUB_SHA" > r39-output/git-sha.txt
+      - name: Enforce freeze governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('r39-output/r39-candidate-freeze-manifest.json').read_text())
+          assert p['identity']=='TURTLE_SOUP_AUDJPY_R39_STRUCTURAL_RISK_CANDIDATE_001'
+          assert p['status']=='FROZEN_FOR_5Y_VALIDATION'
+          assert p['development_2y_result']['trades']==422
+          assert p['development_2y_result']['profit_factor_scaled_net_010']=='1.914983646549167839637883832'
+          assert p['development_2y_result']['max_drawdown_scaled_r']=='5.04830244641349726210448727'
+          assert p['next_stage']['fresh_holdout_status']=='SEALED_UNTOUCHED'
+          g=p['governance']
+          assert g['candidate_frozen'] is True
+          assert g['trader_certified'] is False
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          assert g['merge_authorized'] is False
+          PY
+      - name: Hash frozen evidence
+        run: |
+          cd r39-output
+          sha256sum r39-candidate-freeze-manifest.json stdout.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-turtle-soup-audjpy-r39-candidate-freeze-${{ github.sha }}
+          path: r39-output
+          if-no-files-found: error
+          retention-days: 90
