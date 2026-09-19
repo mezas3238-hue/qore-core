@@ -1,0 +1,302 @@
+name: QORE VT31 NAS100 R5 ALLOC_G Regime Root Cause V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_alloc_g_regime_root_cause_forensics_v1.py
+      - .github/workflows/vt31-nas100-r5-alloc-g-regime-root-cause-v1.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_r5_alloc_g_regime_root_cause_forensics_v1.py
+      - .github/workflows/vt31-nas100-r5-alloc-g-regime-root-cause-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_r5_alloc_g_regime_root_cause_forensics_v1.py
+          ruff check scripts/vt31_nas100_r5_alloc_g_regime_root_cause_forensics_v1.py
+
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Run ALLOC_G regime root-cause diagnostics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_alloc_g_regime_root_cause_forensics_v1.py \
+            "input/${EVIDENCE_PATH}" \
+            --partition "$PARTITION" \
+            --output "result/regime-root-cause-${PARTITION}.json" \
+            > "result/summary-${PARTITION}.json"
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition=os.environ["PARTITION"]
+          p=json.loads(Path(f"result/regime-root-cause-{partition}.json").read_text())
+          assert p["allocation_profile"] == "ALLOC_G_CORE_FAMILY_050"
+          g=p["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["diagnostic_only"] is True
+          assert g["decision_time_state_only"] is True
+          assert g["calendar_blocks_diagnostic_only"] is True
+          assert g["calendar_blocks_used_at_runtime"] is False
+          assert g["trade_authorization_changed"] is False
+          assert g["uses_terminal_pnl_at_runtime"] is False
+          assert g["uses_fold_identity_at_runtime"] is False
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-regime-root-cause-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-r5-regime-root-cause-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate causal regime diagnostics
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("regime-root-cause-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          consumed=folds["consumed_holdout"]
+          weak=consumed["consumed_blocks"]["Y1_WEAK_2022-07-18_2023-07-18"]
+          recovery=consumed["consumed_blocks"]["Y2_RECOVERY_2023-07-18_2024-07-18"]
+
+          def d(value):
+              return Decimal(str(value))
+
+          inversions=[]
+          persistent_negative=[]
+          robust_positive=[]
+
+          specs=sorted(weak["interactions"])
+          for spec in specs:
+              keys=set(weak["interactions"][spec])
+              keys |= set(recovery["interactions"][spec])
+              for fold in ("r5","r6","r8"):
+                  keys |= set(folds[fold]["overall"]["interactions"][spec])
+
+              for key in sorted(keys):
+                  weak_m=weak["interactions"][spec].get(key)
+                  recovery_m=recovery["interactions"][spec].get(key)
+                  history={
+                      fold:folds[fold]["overall"]["interactions"][spec].get(key)
+                      for fold in ("r5","r6","r8")
+                  }
+                  consumed_all=consumed["overall"]["interactions"][spec].get(key)
+
+                  weak_sample=0 if weak_m is None else int(weak_m["sample"])
+                  weak_mean=None if weak_m is None else d(weak_m["mean_r"])
+                  weak_total=None if weak_m is None else d(weak_m["total_r"])
+                  recovery_sample=(
+                      0 if recovery_m is None else int(recovery_m["sample"])
+                  )
+                  recovery_mean=(
+                      None if recovery_m is None else d(recovery_m["mean_r"])
+                  )
+
+                  history_positive=[
+                      fold for fold,m in history.items()
+                      if m is not None
+                      and int(m["sample"]) >= 5
+                      and d(m["mean_r"]) > 0
+                  ]
+                  history_negative=[
+                      fold for fold,m in history.items()
+                      if m is not None
+                      and int(m["sample"]) >= 5
+                      and d(m["mean_r"]) < 0
+                  ]
+
+                  record={
+                      "spec":spec,
+                      "key":key,
+                      "weak_y1":weak_m,
+                      "recovery_y2":recovery_m,
+                      "r5":history["r5"],
+                      "r6":history["r6"],
+                      "r8":history["r8"],
+                      "consumed_overall":consumed_all,
+                  }
+
+                  if (
+                      weak_sample >= 8
+                      and weak_mean is not None
+                      and weak_mean < 0
+                      and recovery_sample >= 5
+                      and recovery_mean is not None
+                      and recovery_mean > 0
+                      and len(history_positive) >= 2
+                  ):
+                      record["history_positive_folds"]=history_positive
+                      record["weak_y1_total_r"]=str(weak_total)
+                      inversions.append(record)
+
+                  negative_votes=len(history_negative)
+                  if (
+                      consumed_all is not None
+                      and int(consumed_all["sample"]) >= 8
+                      and d(consumed_all["mean_r"]) < 0
+                  ):
+                      negative_votes += 1
+                  if (
+                      weak_sample >= 8
+                      and weak_mean is not None
+                      and weak_mean < 0
+                      and negative_votes >= 3
+                  ):
+                      record["negative_votes"]=negative_votes
+                      persistent_negative.append(record)
+
+                  all_positive=True
+                  for m in [*history.values(), consumed_all]:
+                      if (
+                          m is None
+                          or int(m["sample"]) < 5
+                          or d(m["mean_r"]) <= 0
+                      ):
+                          all_positive=False
+                          break
+                  if all_positive:
+                      robust_positive.append(record)
+
+          inversions.sort(
+              key=lambda item: d(item["weak_y1"]["total_r"])
+          )
+          persistent_negative.sort(
+              key=lambda item: d(item["weak_y1"]["total_r"])
+          )
+          robust_positive.sort(
+              key=lambda item: d(item["consumed_overall"]["mean_r"]),
+              reverse=True,
+          )
+
+          report={
+              "schema":"qore.vt31.nas100.r5.alloc_g_regime_root_cause.aggregate.v1",
+              "allocation_profile":"ALLOC_G_CORE_FAMILY_050",
+              "overall":{
+                  fold:{
+                      "trade_count":payload["overall"]["trade_count"],
+                      "metrics":payload["overall"]["metrics"],
+                  }
+                  for fold,payload in sorted(folds.items())
+              },
+              "consumed_weak_y1":{
+                  "trade_count":weak["trade_count"],
+                  "metrics":weak["metrics"],
+              },
+              "consumed_recovery_y2":{
+                  "trade_count":recovery["trade_count"],
+                  "metrics":recovery["metrics"],
+              },
+              "regime_inversions":inversions[:60],
+              "persistent_negative_contexts":persistent_negative[:60],
+              "robust_positive_contexts":robust_positive[:60],
+              "counts":{
+                  "regime_inversions":len(inversions),
+                  "persistent_negative_contexts":len(persistent_negative),
+                  "robust_positive_contexts":len(robust_positive),
+              },
+              "governance":{
+                  "diagnostic_only":True,
+                  "calendar_labels_not_runtime_rules":True,
+                  "policy_promoted":False,
+                  "opens_new_holdout":False,
+                  "candidate_certified":False,
+              },
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(report,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-regime-root-cause-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
