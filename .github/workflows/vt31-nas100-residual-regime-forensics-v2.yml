@@ -1,0 +1,190 @@
+name: QORE VT31 NAS100 Residual Regime Forensics V2
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_residual_regime_forensics_v2.py
+      - .github/workflows/vt31-nas100-residual-regime-forensics-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_residual_regime_forensics_v2.py
+          ruff check scripts/vt31_nas100_residual_regime_forensics_v2.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run residual regime forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_residual_regime_forensics_v2.py \
+            "input/${EVIDENCE_PATH}" \
+            --partition "$PARTITION" \
+            --output "result/residual-regime-${PARTITION}.json" \
+            | tee "result/summary-${PARTITION}.json"
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path(f"result/residual-regime-{os.environ['PARTITION']}.json").read_text())
+          g=p["governance"]
+          assert g["diagnostic_only"] is True
+          assert g["current_reference_stack_replayed"] is True
+          assert g["h4_h1_excluded_from_primary_causal_features"] is True
+          assert g["calendar_blocks_used_at_runtime"] is False
+          assert g["uses_terminal_pnl_at_runtime"] is False
+          assert g["uses_fold_identity_at_runtime"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["policy_promoted"] is False
+          assert g["candidate_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-residual-regime-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-residual-regime-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate residual states
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("residual-regime-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          def flatten(analysis):
+              out={}
+              for field,states in analysis["single_features"].items():
+                  for state,item in states.items():
+                      out[f"single:{field}:{state}"]=item
+              for family,states in analysis["interactions"].items():
+                  for state,item in states.items():
+                      out[f"interaction:{family}:{state}"]=item
+              return out
+
+          overall={fold:flatten(p["overall"]) for fold,p in folds.items()}
+          y1=flatten(folds["consumed_holdout"]["consumed_blocks"]["Y1_WEAK"])
+          y2=flatten(folds["consumed_holdout"]["consumed_blocks"]["Y2_RECOVERY"])
+          common=set.intersection(*(set(v) for v in overall.values()))
+
+          stable_negative=[]
+          y1_crossfold_supported=[]
+          y1_only_divergence=[]
+          for state in sorted(common):
+              per={}
+              stable=True
+              for fold in ("r5","r6","r8","consumed_holdout"):
+                  item=overall[fold][state]
+                  mean=Decimal(str(item["metrics"]["mean_r"]))
+                  sample=int(item["sample"])
+                  per[fold]={"sample":sample,"mean_r":str(mean),"total_r":item["metrics"]["total_r"],"loss_rate":item["loss_rate"],"loss_path_counts":item["loss_path_counts"]}
+                  stable=stable and sample>=12 and mean<0
+              if stable:
+                  stable_negative.append({"state":state,"per_fold":per})
+
+              if state in y1 and state in y2:
+                  y1i=y1[state]; y2i=y2[state]
+                  y1m=Decimal(str(y1i["metrics"]["mean_r"]))
+                  y2m=Decimal(str(y2i["metrics"]["mean_r"]))
+                  y1s=int(y1i["sample"]); y2s=int(y2i["sample"])
+                  cross=[Decimal(str(overall[f][state]["metrics"]["mean_r"])) for f in ("r5","r6","r8")]
+                  nonpos=sum(m<=0 for m in cross)
+                  positive=sum(m>0 for m in cross)
+                  base={"state":state,"y1":{"sample":y1s,"mean_r":str(y1m),"total_r":y1i["metrics"]["total_r"],"loss_rate":y1i["loss_rate"],"loss_path_counts":y1i["loss_path_counts"]},"y2":{"sample":y2s,"mean_r":str(y2m),"total_r":y2i["metrics"]["total_r"],"loss_rate":y2i["loss_rate"],"loss_path_counts":y2i["loss_path_counts"]},"crossfold_means":{f:str(Decimal(str(overall[f][state]["metrics"]["mean_r"]))) for f in ("r5","r6","r8")}}
+                  if y1s>=12 and y2s>=12 and y1m<0 and nonpos>=2:
+                      y1_crossfold_supported.append(base)
+                  if y1s>=12 and y2s>=12 and y1m<0 and y2m>0 and positive>=2:
+                      y1_only_divergence.append(base)
+
+          def rank(items):
+              return sorted(items,key=lambda x:(Decimal(x.get("y1",{}).get("mean_r","0")),x["state"]))
+
+          report={
+              "schema":"qore.vt31.nas100.residual_regime_forensics.aggregate.v2",
+              "reference_stack":folds["consumed_holdout"]["reference_stack"],
+              "overall_metrics":{fold:p["overall"]["metrics"] for fold,p in sorted(folds.items())},
+              "consumed_blocks":{name:block["metrics"] for name,block in folds["consumed_holdout"]["consumed_blocks"].items()},
+              "stable_4of4_negative_states":stable_negative,
+              "y1_negative_with_crossfold_support":rank(y1_crossfold_supported),
+              "y1_only_divergence_do_not_runtime_gate":rank(y1_only_divergence),
+              "governance":{"diagnostic_only":True,"calendar_not_runtime":True,"opens_new_holdout":False,"policy_promoted":False,"candidate_certified":False},
+          }
+          Path("result/aggregate.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-residual-regime-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
