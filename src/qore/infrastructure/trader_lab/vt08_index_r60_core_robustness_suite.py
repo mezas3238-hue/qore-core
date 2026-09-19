@@ -26,7 +26,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure import research_block_bootstrap as core_bootstrap
@@ -43,6 +43,9 @@ from qore.infrastructure.research_temporal_evaluation import (
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r6_5y_failure_forensics as fx,
+)
+from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
+    Vt08IndexC2R1Bar,
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r15_concurrent_portfolio_validation as r15,
@@ -104,10 +107,14 @@ SOURCE_FREEZE_ARTIFACT_DIGEST = (
 SOURCE_FREEZE_HEAD_SHA = "02c20f78ad8177ea8256f090bd9382775568bcab"
 
 
+def dependency_contract_matches() -> bool:
+    return freeze.dependency_contract_matches()
+
+
 def _candidate(
     stream: Sequence[Any],
     *,
-    bars_by_symbol: dict[str, Sequence[Any]],
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
 ) -> tuple[r15.AssignedTrade, ...]:
     base, _base_diagnostics = r58._exact_r47(
         stream,
@@ -117,7 +124,7 @@ def _candidate(
         base,
         bars_by_symbol=bars_by_symbol,
     )
-    if int(diagnostics["suppressed_trade_count"]) != 0:
+    if int(str(diagnostics["suppressed_trade_count"])) != 0:
         raise ValueError("R60 candidate unexpectedly suppressed signals")
     return candidate
 
@@ -127,13 +134,16 @@ def _verify_freeze(
     *,
     expected: dict[str, object],
     years: int,
-    bars_by_symbol: dict[str, Sequence[Any]],
-    opened_by_symbol: dict[str, Sequence[Any]],
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    opened_by_symbol: dict[str, tuple[datetime, ...]],
 ) -> None:
     metrics = r47._window_metrics(
         tuple(assigned),
         bars_by_symbol=bars_by_symbol,
-        opened_by_symbol=opened_by_symbol,
+        opened_by_symbol=cast(
+            dict[str, tuple[Any, ...]],
+            opened_by_symbol,
+        ),
         years=years,
     )
     if len(assigned) != int(str(expected["sample"])):
@@ -153,8 +163,8 @@ def _stress_metrics(
     assigned: Sequence[r15.AssignedTrade],
     *,
     stress: Decimal,
-    bars_by_symbol: dict[str, Sequence[Any]],
-    opened_by_symbol: dict[str, Sequence[Any]],
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    opened_by_symbol: dict[str, tuple[datetime, ...]],
 ) -> dict[str, object]:
     realized = fx._metrics(
         r15._realized_values(tuple(assigned), stress=stress)
@@ -176,8 +186,8 @@ def _stress_metrics(
 def _stress_ladder(
     assigned: Sequence[r15.AssignedTrade],
     *,
-    bars_by_symbol: dict[str, Sequence[Any]],
-    opened_by_symbol: dict[str, Sequence[Any]],
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    opened_by_symbol: dict[str, tuple[datetime, ...]],
 ) -> dict[str, object]:
     rows = {
         str(stress): _stress_metrics(
@@ -250,7 +260,7 @@ def _nearest_float(values: Sequence[float], quantile_bps: int) -> float:
 
 def _core_monte_carlo(
     assigned: Sequence[r15.AssignedTrade],
-) -> dict[str, object]:
+) -> dict[str, Any]:
     values = tuple(
         float(value)
         for value in r15._realized_values(
@@ -493,8 +503,8 @@ def _wfo(
 def _window(
     *,
     assigned: Sequence[r15.AssignedTrade],
-    bars_by_symbol: dict[str, Sequence[Any]],
-    opened_by_symbol: dict[str, Sequence[Any]],
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    opened_by_symbol: dict[str, tuple[datetime, ...]],
     folds: tuple[ResearchWalkForwardFold, ...],
 ) -> dict[str, object]:
     concentration = overlay._concentration(tuple(assigned))
@@ -526,7 +536,7 @@ def build_report(
     sp500_root: Path,
     us30_root: Path,
 ) -> dict[str, object]:
-    if not freeze.dependency_contract_matches():
+    if not dependency_contract_matches():
         raise ValueError("R60 frozen R59/R58 dependency drift")
 
     roots = {
@@ -542,20 +552,28 @@ def build_report(
     )
     five = _candidate(five_stream, bars_by_symbol=five_bars)
     two = _candidate(two_stream, bars_by_symbol=two_bars)
+    five_opened_typed = cast(
+        dict[str, tuple[datetime, ...]],
+        five_opened,
+    )
+    two_opened_typed = cast(
+        dict[str, tuple[datetime, ...]],
+        two_opened,
+    )
 
     _verify_freeze(
         five,
         expected=freeze.FIVE_YEAR,
         years=5,
         bars_by_symbol=five_bars,
-        opened_by_symbol=five_opened,
+        opened_by_symbol=five_opened_typed,
     )
     _verify_freeze(
         two,
         expected=freeze.RECENT_TWO_YEAR,
         years=2,
         bars_by_symbol=two_bars,
-        opened_by_symbol=two_opened,
+        opened_by_symbol=two_opened_typed,
     )
 
     five_result = _window(
