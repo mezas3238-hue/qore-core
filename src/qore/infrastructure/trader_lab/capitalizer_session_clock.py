@@ -11,7 +11,6 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 
-
 NEW_YORK = ZoneInfo("America/New_York")
 
 
