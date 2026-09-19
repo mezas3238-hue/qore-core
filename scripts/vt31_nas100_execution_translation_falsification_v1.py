@@ -27,7 +27,7 @@ import hashlib
 import json
 import random
 from collections import Counter, defaultdict
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
@@ -168,7 +168,6 @@ def _make_research_setup(
 
 def _scan_variant(
     *,
-    day_bars: tuple[object, ...],
     reference: tuple[object, ...],
     session: tuple[object, ...],
     evidence: str,
@@ -177,8 +176,6 @@ def _scan_variant(
     variant: str,
 ) -> tuple[Vt31R22SourceSetup, Vt31R22ExecutableSetup] | None:
     prefix: list[object] = list(reference)
-    source_fingerprint: str | None = None
-
     for bar in session:
         prefix.append(bar)
         evaluation = evaluate_vt31_r2_2_source(
@@ -193,13 +190,6 @@ def _scan_variant(
             continue
 
         source = evaluation.setup
-        if source_fingerprint is None:
-            source_fingerprint = source.source_fingerprint
-        elif source.source_fingerprint != source_fingerprint:
-            # A source identity change cannot be silently traversed while
-            # waiting for a family that was absent from the prior source.
-            return None
-
         setup = _make_research_setup(
             source,
             family=family,
@@ -401,7 +391,6 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             for depth_name, depth in PRICE_DEPTHS.items():
                 variant = f"{family_name}_{depth_name}"
                 selected = _scan_variant(
-                    day_bars=day_bars,
                     reference=reference,
                     session=session,
                     evidence=evidence,
