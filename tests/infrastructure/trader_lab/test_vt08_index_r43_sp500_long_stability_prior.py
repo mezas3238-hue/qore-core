@@ -4,6 +4,9 @@ from qore.infrastructure.trader_lab import (
     vt08_index_concurrent_market_contract as contract,
 )
 from qore.infrastructure.trader_lab import (
+    vt08_index_r42_hierarchical_nas100_prior as r42,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r43_sp500_long_stability_prior as mod,
 )
 
@@ -22,5 +25,5 @@ def test_r43_sp500_long_prior_is_moderate_and_nonzero() -> None:
 
 
 def test_r43_preserves_r42_nas100_hierarchy() -> None:
-    assert mod.r42.NAS100_MARKET_MULTIPLIER == Decimal("0.50")
-    assert mod.r42.NAS100_SHORT_TOTAL_MULTIPLIER == Decimal("0.25")
+    assert r42.NAS100_MARKET_MULTIPLIER == Decimal("0.50")
+    assert r42.NAS100_SHORT_TOTAL_MULTIPLIER == Decimal("0.25")
