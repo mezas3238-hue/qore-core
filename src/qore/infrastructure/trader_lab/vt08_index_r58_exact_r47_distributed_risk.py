@@ -102,7 +102,7 @@ def _verify_r47_exact(
         opened_by_symbol=opened_by_symbol,
         years=years,
     )
-    if len(assigned) != int(expected["sample"]):
+    if len(assigned) != int(str(expected["sample"])):
         raise ValueError("R58 R47 base sample drift")
     if str(metrics["secondary"]["profit_factor"]) != str(
         expected["secondary_pf"]
