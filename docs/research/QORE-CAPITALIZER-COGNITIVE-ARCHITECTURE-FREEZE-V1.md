@@ -26,11 +26,17 @@ edge.
 
 ## Opportunity budget
 
-- Maximum executed opportunities per session: 2.
-- Maximum theoretical daily executions: 6.
+Owner amendment — 19-Sep-2026:
+
+- Maximum executed opportunities per session: 3.
+- Maximum theoretical daily executions: 9.
 - The maximum is never a quota.
 - Zero executions is valid.
-- A second trade in the same session requires a genuinely new causal opportunity.
+- Positive realized session PnL is not, by itself, a stop condition.
+- A second or third trade in the same session requires a genuinely new causal opportunity.
+- The flow may continue while the session is positive until the governed session profit objective is reached, subject to the three-execution ceiling and QORE RISK sovereignty.
+- The cognitive layer must not invent a numeric profit objective; objective-reached state comes from governed CORE/Risk state.
+- Every scalp must be closed inside the same session; no Capitalizer position may roll into the next session.
 - Revenge, same-source retry, and unchanged-thesis re-entry are forbidden.
 
 ## Strategy identity
@@ -126,7 +132,7 @@ cognitive layer must never invent a new strategy at runtime.
 16. Session cognition retains causal handoff from Asia -> London -> New York.
 17. Daily Journey retains consumed liquidity, failed hypotheses, current exposure and remaining
     destinations.
-18. Maximum two executions per session is a hard opportunity-budget ceiling, not a target.
+18. Maximum three executions per session is a hard opportunity-budget ceiling, not a target; positive session PnL alone does not stop valid fresh opportunities before the governed profit objective.
 19. Capitalization Governor may recommend NORMAL, CAUTIOUS, HIGH_SELECTIVITY, STOP_SESSION or
     STOP_DAY, but cannot bypass QORE RISK.
 20. QORE RISK remains final capital authority.
@@ -219,7 +225,7 @@ They may **not** change:
 - Strategy Identity;
 - entry methodology;
 - causal reasoning semantics;
-- the two-opportunity session ceiling;
+- the three-opportunity session ceiling;
 - loss/rearm sovereignty;
 - market/session cognition rules selected by the frozen candidate.
 
