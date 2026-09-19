@@ -26,7 +26,10 @@ class CapitalizerPortfolioState:
     session_profit_objective_reached: bool = False
 
     def __post_init__(self) -> None:
-        if not isinstance(self.session_realized_r, Decimal) or not self.session_realized_r.is_finite():
+        if (
+            not isinstance(self.session_realized_r, Decimal)
+            or not self.session_realized_r.is_finite()
+        ):
             raise ValueError("session_realized_r must be finite")
 
 
