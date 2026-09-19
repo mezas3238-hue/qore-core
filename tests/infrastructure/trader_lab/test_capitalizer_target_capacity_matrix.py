@@ -20,7 +20,7 @@ def _write_report(
 ) -> None:
     target = root / session.value.lower() / symbol.lower()
     target.mkdir(parents=True)
-    payload = {
+    payload: dict[str, object] = {
         "identity": "QORE_CAPITALIZER_TARGET_CAPACITY_FORENSICS_V1",
         "hypothesis_id": "QORE_CAPITALIZER_HYPOTHESIS_CIBO_DEPARTURE_ALIGNMENT_V1",
         "symbol": symbol,
