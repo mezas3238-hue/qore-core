@@ -505,8 +505,8 @@ def test_position_intelligence_exits_invalidation_and_cannot_grant_reentry() -> 
     from qore.infrastructure.trader_lab.capitalizer_position_intelligence import (
         CapitalizerOpenPositionState,
         CapitalizerPositionAction,
-        reason_open_position,
         rearm_is_genuinely_new,
+        reason_open_position,
     )
 
     position = CapitalizerOpenPositionState(
