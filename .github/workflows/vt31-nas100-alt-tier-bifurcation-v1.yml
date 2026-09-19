@@ -1,0 +1,158 @@
+name: QORE VT31 NAS100 Alt Tier Bifurcation V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_alt_tier_bifurcation_forensics_v1.py
+      - .github/workflows/vt31-nas100-alt-tier-bifurcation-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_alt_tier_bifurcation_forensics_v1.py
+          ruff check scripts/vt31_nas100_alt_tier_bifurcation_forensics_v1.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run alt-tier bifurcation forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_alt_tier_bifurcation_forensics_v1.py \
+            "input/${EVIDENCE_PATH}" \
+            --partition "$PARTITION" \
+            --output "result/alt-tier-${PARTITION}.json" \
+            | tee "result/summary-${PARTITION}.json"
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path(f"result/alt-tier-{os.environ['PARTITION']}.json").read_text())
+          g=p["governance"]
+          assert g["diagnostic_only"] is True
+          assert g["exact_improved_stack_replayed"] is True
+          assert g["whole_tier_penalty_forbidden"] is True
+          assert g["searches_crossfold_subconditions_only"] is True
+          assert g["h4_h1_excluded_from_primary_causal_features"] is True
+          assert g["uses_terminal_pnl_at_runtime"] is False
+          assert g["uses_calendar_date_at_runtime"] is False
+          assert g["uses_fold_identity_at_runtime"] is False
+          assert g["trade_policy_changed"] is False
+          assert g["opens_new_holdout"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-alt-tier-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-alt-tier-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate stable alt-tier subconditions
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("alt-tier-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          stable=[]
+          for tier in ("REARM","SCOUT","SECONDARY"):
+              common=set.intersection(*(set(folds[f]["focus"][tier]["conditions"]) for f in ("r5","r6","r8","consumed_holdout")))
+              for condition in sorted(common):
+                  per={}; good=True
+                  for fold in ("r5","r6","r8","consumed_holdout"):
+                      item=folds[fold]["focus"][tier]["conditions"][condition]
+                      sample=int(item["sample"])
+                      mean=Decimal(str(item["metrics"]["mean_r"]))
+                      per[fold]={"sample":sample,"mean_r":str(mean),"total_r":item["metrics"]["total_r"],"loss_rate":item["loss_rate"],"loss_path_counts":item["loss_path_counts"]}
+                      good=good and sample>=8 and mean<0
+                  if good:
+                      stable.append({"tier":tier,"condition":condition,"per_fold":per})
+
+          def impact(item):
+              return Decimal(str(item["per_fold"]["consumed_holdout"]["total_r"]))
+          stable=sorted(stable,key=lambda x:(impact(x),x["tier"],x["condition"]))
+          report={
+              "schema":"qore.vt31.nas100.alt_tier_bifurcation_forensics.aggregate.v1",
+              "overall_metrics":{f:p["overall_metrics"] for f,p in sorted(folds.items())},
+              "tier_metrics":{f:{tier:p["focus"][tier]["overall"] for tier in ("REARM","SCOUT","SECONDARY")} for f,p in sorted(folds.items())},
+              "stable_4of4_negative_subconditions":stable,
+              "governance":{"diagnostic_only":True,"opens_new_holdout":False,"policy_promoted":False,"candidate_certified":False},
+          }
+          Path("result/aggregate.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-alt-tier-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
