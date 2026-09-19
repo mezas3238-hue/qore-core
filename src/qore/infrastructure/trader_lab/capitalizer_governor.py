@@ -7,6 +7,7 @@ or capital authorization; QORE RISK remains sovereign.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizationPosture
 
@@ -21,6 +22,12 @@ class CapitalizerPortfolioState:
     core_exposure_saturated: bool = False
     uncertainty_high: bool = False
     execution_environment_degraded: bool = False
+    session_realized_r: Decimal = Decimal("0")
+    session_profit_objective_reached: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.session_realized_r, Decimal) or not self.session_realized_r.is_finite():
+            raise ValueError("session_realized_r must be finite")
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +55,11 @@ def recommend_capitalization_posture(
         return CapitalizerGovernorRecommendation(
             posture=CapitalizationPosture.STOP_SESSION,
             reasons=("UPSTREAM_SESSION_STOP_REQUIRED",),
+        )
+    if state.session_profit_objective_reached:
+        return CapitalizerGovernorRecommendation(
+            posture=CapitalizationPosture.STOP_SESSION,
+            reasons=("UPSTREAM_SESSION_PROFIT_OBJECTIVE_REACHED",),
         )
 
     severe_selectivity: list[str] = []
