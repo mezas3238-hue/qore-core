@@ -21,8 +21,8 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import hashlib
 import math
-import random
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import date, datetime
@@ -142,18 +142,21 @@ def _moving_block_bootstrap(
     source = tuple(float(value) for value in values)
     if len(source) < block_length:
         raise ValueError("bootstrap source shorter than block length")
-    rng = random.Random(seed)
     max_start = len(source) - block_length
     terminals: list[float] = []
     drawdowns: list[float] = []
     losing_streaks: list[float] = []
     positive = 0
 
-    for _ in range(paths):
+    for path_index in range(paths):
         sample: list[float] = []
+        block_index = 0
         while len(sample) < len(source):
-            start = rng.randint(0, max_start)
+            material = f"{seed}:{path_index}:{block_index}".encode()
+            digest = hashlib.sha256(material).digest()
+            start = int.from_bytes(digest[:8], "big") % (max_start + 1)
             sample.extend(source[start : start + block_length])
+            block_index += 1
         sample = sample[: len(source)]
         terminal = sum(sample)
         positive += int(terminal > 0.0)
@@ -164,7 +167,7 @@ def _moving_block_bootstrap(
     positive_fraction = positive / paths
     p95_dd = _quantile(drawdowns, 0.95)
     return {
-        "algorithm": "MOVING_BLOCK_BOOTSTRAP_CONTIGUOUS_TRADES",
+        "algorithm": "MOVING_BLOCK_BOOTSTRAP_SHA256_INDEXED",
         "seed": seed,
         "paths": paths,
         "block_length": block_length,
