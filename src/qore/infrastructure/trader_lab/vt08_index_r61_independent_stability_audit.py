@@ -65,6 +65,10 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r53_cisd_reaction_quality_forensics as r53,
 )
 from qore.infrastructure.trader_lab import (
+    vt08_index_r58_exact_r47_distributed_risk as r58,
+)
+from qore.infrastructure.trader_lab import vt08_index_market_journey_atlas as journey
+from qore.infrastructure.trader_lab import (
     vt08_index_r55_distributed_causal_risk as canonical_overlay,
 )
 from qore.infrastructure.trader_lab import (
@@ -99,7 +103,7 @@ _NY = ZoneInfo("America/New_York")
 
 
 def dependency_contract_matches() -> bool:
-    rules = freeze.r58.RULES
+    rules = r58.RULES
     return (
         freeze.dependency_contract_matches()
         and str(rules["max_requested_weight_r"]) == str(MAX_REQUESTED_WEIGHT)
@@ -122,7 +126,7 @@ def dependency_contract_matches() -> bool:
 def _reaction_bars(
     bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
 ) -> tuple[
-    dict[str, tuple[r53.journey.Bar, ...]],
+    dict[str, tuple[journey.Bar, ...]],
     dict[str, tuple[datetime, ...]],
 ]:
     converted = {
@@ -139,7 +143,7 @@ def _reaction_bars(
 def _independent_late_revalidation(
     item: r15.AssignedTrade,
     *,
-    bars: Sequence[r53.journey.Bar],
+    bars: Sequence[journey.Bar],
     opened: Sequence[datetime],
 ) -> tuple[bool, int]:
     opportunity = item.opportunity
@@ -178,7 +182,7 @@ def _independent_requested_weight(
     item: r15.AssignedTrade,
     *,
     h4_by_symbol: dict[str, dict[datetime, Vt08IndexC2R1Bar]],
-    reaction_bars: dict[str, tuple[r53.journey.Bar, ...]],
+    reaction_bars: dict[str, tuple[journey.Bar, ...]],
     reaction_opened: dict[str, tuple[datetime, ...]],
 ) -> tuple[Decimal, tuple[str, ...], int]:
     opportunity = item.opportunity
@@ -742,7 +746,7 @@ def _window(
         "window_pass": (
             bool(match["pass"])
             and exact_economics
-            and int(diagnostics["causal_timestamp_violation_count"]) == 0
+            and int(str(diagnostics["causal_timestamp_violation_count"])) == 0
             and bool(stability["material_cohort_stability_pass"])
             and bool(halves["pass"])
         ),
