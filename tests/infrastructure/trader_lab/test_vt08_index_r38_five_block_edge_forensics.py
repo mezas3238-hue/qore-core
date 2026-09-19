@@ -12,7 +12,7 @@ def test_r38_preserves_density_contract() -> None:
 
 
 def test_r38_uses_exact_five_year_boundaries() -> None:
-    boundaries = mod.r35._annual_boundaries()
+    boundaries = r35._annual_boundaries()
     assert len(boundaries) == 6
     assert boundaries[0].isoformat() == "2018-09-15"
     assert boundaries[-1].isoformat() == "2023-09-15"
