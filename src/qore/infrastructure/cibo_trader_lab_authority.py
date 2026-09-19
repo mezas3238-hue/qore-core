@@ -69,6 +69,7 @@ from qore.infrastructure.trader_lab.stage_evidence import (
 )
 from qore.infrastructure.traders.contracts import DemoTradingTraderCode
 from qore.infrastructure.traders.evaluators import cohort_evaluators
+from qore.infrastructure.traders import vt08_index_specialist_contract as vt08_index
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
@@ -165,8 +166,26 @@ def _manifest_values(candidate: TraderLabCandidateBinding) -> dict[str, str]:
     return values
 
 
+def _is_vt08_index_specialist(values: dict[str, str]) -> bool:
+    return (
+        values.get("trader.code") == vt08_index.TRADER_CODE
+        and values.get("trader.methodology_id") == vt08_index.METHODOLOGY_ID
+    )
+
+
+def _validate_vt08_index_specialist(values: dict[str, str]) -> None:
+    if not vt08_index.manifest_matches(values):
+        raise CiboTraderLabAuthorityValidationError(
+            "CIBO VT08 Index specialist manifest does not match frozen R58 identity"
+        )
+
+
 def _derived_qualified_timeframes(values: dict[str, str]) -> tuple[str, ...]:
-    """Derive timeframes from the exact first-cohort evaluator methodology."""
+    """Derive timeframes from exact generic or specialist methodology identity."""
+
+    if _is_vt08_index_specialist(values):
+        _validate_vt08_index_specialist(values)
+        return vt08_index.TIMEFRAMES
 
     trader_code = values["trader.code"]
     evaluator = next(
@@ -177,7 +196,9 @@ def _derived_qualified_timeframes(values: dict[str, str]) -> tuple[str, ...]:
         raise CiboTraderLabAuthorityValidationError(
             "CIBO first-DEMO review requires an exact first-cohort evaluator"
         )
-    methodology_id, methodology_version, methodology_fingerprint = evaluator.methodology()
+    methodology_id, methodology_version, methodology_fingerprint = (
+        evaluator.methodology()
+    )
     if methodology_id.value != values["trader.methodology_id"]:
         raise CiboTraderLabAuthorityValidationError(
             "CIBO methodology id does not match the frozen evaluator"
@@ -194,6 +215,14 @@ def _derived_qualified_timeframes(values: dict[str, str]) -> tuple[str, ...]:
         return (evaluator.timeframe, "H4")
     return (evaluator.timeframe,)
 
+
+def _derived_qualified_markets(
+    values: dict[str, str],
+) -> tuple[CiboTradeableMarketRef, ...]:
+    if _is_vt08_index_specialist(values):
+        _validate_vt08_index_specialist(values)
+        return tuple(CiboTradeableMarketRef(item) for item in vt08_index.MARKETS)
+    return (CiboTradeableMarketRef(values["trader.instrument"]),)
 
 def _identity(
     candidate: TraderLabCandidateBinding,
@@ -293,9 +322,7 @@ def build_cibo_profile_from_trader_lab(
                 values["trader.config_fingerprint"]
             ),
             specialty=CiboSpecialtyCode(values["trader.methodology_id"]),
-            qualified_markets=(
-                CiboTradeableMarketRef(values["trader.instrument"]),
-            ),
+            qualified_markets=_derived_qualified_markets(values),
             qualified_timeframes=tuple(
                 CiboTimeframeCode(item.lower()) for item in expected_timeframes
             ),
@@ -417,6 +444,7 @@ def issue_cibo_trader_lab_approval(
             CiboTimeframeCode(item.lower())
             for item in _derived_qualified_timeframes(values)
         )
+        expected_markets = _derived_qualified_markets(values)
         expected_identity = _identity(candidate, trader_code=values["trader.code"])
         if review.profile.trader_identity != expected_identity:
             raise CiboTraderLabAuthorityBlockedError(
@@ -432,6 +460,10 @@ def issue_cibo_trader_lab_approval(
         if review.profile.qualified_timeframes != expected_timeframes:
             raise CiboTraderLabAuthorityBlockedError(
                 "CIBO review timeframes do not match the frozen Trader methodology"
+            )
+        if review.profile.qualified_markets != expected_markets:
+            raise CiboTraderLabAuthorityBlockedError(
+                "CIBO review markets do not match the frozen Trader methodology"
             )
         if review.recommendation is not (
             CiboDevelopmentRecommendation.RECOMMEND_PROMOTION
