@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/vt31-nas100-intelligence-pilot-001
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
     paths:
       - scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
       - scripts/vt31_nas100_r5_causal_targeted_management_frontier_v1.py
