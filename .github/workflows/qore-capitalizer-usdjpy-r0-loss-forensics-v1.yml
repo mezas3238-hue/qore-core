@@ -103,6 +103,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_r0_root_cause_forensics \
             m5-source journey-source target-source forensic-output
+      - name: Run Cognitive V2 structural development replay
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_v2_development \
+            m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
           python - <<'PY'
@@ -166,6 +170,32 @@ jobs:
           assert root['worst_streak_length'] > 0
           assert len(root['by_state']) >= 3
           assert len(root['annual']) >= 5
+
+          cognitive = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-cognitive-v2-development-v1.json'
+              ).read_text()
+          )
+          assert cognitive['identity'] == (
+              'QORE_CAPITALIZER_COGNITIVE_V2_DEVELOPMENT_REPLAY_V1'
+          )
+          assert cognitive['development_only'] is True
+          assert cognitive['causal_features_only'] is True
+          assert cognitive['numeric_threshold_optimization_used'] is False
+          assert cognitive['position_intelligence_changed'] is False
+          assert cognitive['execution_costs_applied'] is False
+          assert cognitive['portfolio_cross_market_allocator_applied'] is False
+          assert cognitive['candidate_frozen'] is False
+          assert cognitive['fresh_holdout_claimed'] is False
+          assert cognitive['rule_promotion_allowed'] is False
+          names = {row['name'] for row in cognitive['ablations']}
+          assert names == {
+              'FRESHNESS_ONLY',
+              'JOURNEY_CONFLICT_ONLY',
+              'STRUCTURAL_V2',
+              'STRUCTURAL_V2_MAX2_SESSION',
+          }
           PY
       - name: Upload immutable R0 forensics
         uses: actions/upload-artifact@v4
