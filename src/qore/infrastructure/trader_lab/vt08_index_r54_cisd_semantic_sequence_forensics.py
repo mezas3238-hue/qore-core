@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from qore.infrastructure.trader_lab import vt08_index_cibo_semantic_v2 as semantic
-from qore.infrastructure.trader_lab import vt08_index_r17_formation_quality_forensics as r17
 from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
+from qore.infrastructure.trader_lab import vt08_index_r17_formation_quality_forensics as r17
 
 SCHEMA = "qore.trader_lab.vt08_index_r54_cisd_semantic_sequence_forensics.v1"
 IDENTITY = "VT08_INDEX_R54_CISD_SEMANTIC_SEQUENCE_FORENSICS_001"
