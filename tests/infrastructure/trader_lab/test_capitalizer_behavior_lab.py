@@ -29,6 +29,7 @@ from qore.infrastructure.trader_lab.capitalizer_cost_stress import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_situation_model import (
     CapitalizerExecutionState,
+    CapitalizerSituationModel,
 )
 
 
