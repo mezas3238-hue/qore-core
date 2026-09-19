@@ -15,8 +15,12 @@ from qore.infrastructure.trader_lab.capitalizer_context_brains import (
     CapitalizerMarketBrainState,
     CapitalizerSessionBrainState,
 )
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_situation_model import (
     CapitalizerSituationModel,
+)
+from qore.infrastructure.trader_lab.capitalizer_target_context import (
+    CapitalizerTargetContext,
 )
 
 
@@ -29,6 +33,8 @@ def extract_behavior_features(
     situation: CapitalizerSituationModel,
     market_brain: CapitalizerMarketBrainState,
     session_brain: CapitalizerSessionBrainState,
+    target_context: CapitalizerTargetContext | None = None,
+    side: CapitalizerSide | None = None,
 ) -> tuple[CapitalizerFeatureValue, ...]:
     """Build canonical pre-entry features from one exact causal snapshot."""
 
@@ -40,6 +46,15 @@ def extract_behavior_features(
         raise ValueError("session brain must match situation session")
     if market_brain.microstructure.decision_at != situation.observed_at:
         raise ValueError("microstructure decision time must match situation observed_at")
+    if target_context is not None:
+        if side is None:
+            raise ValueError("target context requires explicit hypothesis side")
+        if target_context.symbol != situation.symbol:
+            raise ValueError("target context symbol must match situation symbol")
+        if target_context.side is not side:
+            raise ValueError("target context side must match hypothesis side")
+        if target_context.departure_at != situation.observed_at:
+            raise ValueError("target context must be exact at decision/departure time")
 
     observed_at: datetime = situation.observed_at
     handoff = session_brain.prior_handoff
@@ -62,7 +77,21 @@ def extract_behavior_features(
         "SESSION_PHASE": session_brain.phase.value,
         "STATE_FAMILY_ID": market_brain.state_family_id,
         "STRATEGY_TRIGGER_READY": _bool_token(situation.strategy_trigger_ready),
+        "TARGET_CONTEXT_PRESENT": _bool_token(target_context is not None),
     }
+    if target_context is not None:
+        raw["TARGET_ACTIVE_CANDIDATE_COUNT"] = str(target_context.active_candidate_count)
+        raw["TARGET_FAMILIES"] = ">".join(target_context.families) or "EMPTY"
+        raw["TARGET_TIMEFRAMES"] = ">".join(target_context.timeframes) or "EMPTY"
+        nearest = target_context.nearest_distance_ticks
+        raw["TARGET_NEAREST_DISTANCE_TICKS"] = (
+            "UNKNOWN" if nearest is None else str(nearest)
+        )
+    else:
+        raw["TARGET_ACTIVE_CANDIDATE_COUNT"] = "0"
+        raw["TARGET_FAMILIES"] = "EMPTY"
+        raw["TARGET_TIMEFRAMES"] = "EMPTY"
+        raw["TARGET_NEAREST_DISTANCE_TICKS"] = "UNKNOWN"
     if experience is not None:
         raw["EXPERIENCE_STRENGTH"] = experience.calibration.strength.value
         raw["EXPERIENCE_OBSERVATIONS"] = str(experience.calibration.observations)
