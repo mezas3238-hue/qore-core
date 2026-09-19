@@ -144,10 +144,14 @@ def _candidate_reasoning_authorization(
     prior_ref_median: Decimal | None,
     prior_admitted_day_bars: tuple[object, ...],
     policy: Vt31R22ExecutionPolicy,
-) -> tuple[Vt31R22ExecutableSetup, dict[str, object]] | None:
+) -> tuple[
+    Vt31R22ExecutableSetup | None,
+    dict[str, object] | None,
+    str,
+]:
     raw_setup = oco._candidate_order(source, candidate, policy)
     if raw_setup is None:
-        return None
+        return None, None, "INVALID_GEOMETRY"
 
     active_from = max(candidate.formed_at, source_authorized_at)
     for bar in session:
@@ -186,11 +190,11 @@ def _candidate_reasoning_authorization(
         if action == "WAIT":
             continue
         if action == "ABSTAIN":
-            return None
+            return None, None, "ABSTAIN"
         if action != "EXECUTE":
             raise ValueError(action)
-        return setup, state
-    return None
+        return setup, state, "EXECUTE"
+    return None, None, "WAIT_EXPIRED"
 
 
 def _select_reasoned_oco(
@@ -217,26 +221,27 @@ def _select_reasoned_oco(
     censored_second_side = False
 
     for candidate in timeline.candidates:
-        result = _candidate_reasoning_authorization(
-            variant=variant,
-            day_bars=day_bars,
-            session=session,
-            source=timeline.source,
-            candidate=candidate,
-            source_authorized_at=source_authorized_at,
-            invalidated_at=timeline.both_sides_swept_at,
-            previous_path_range=previous_path_range,
-            prior_ref_median=prior_ref_median,
-            prior_admitted_day_bars=prior_admitted_day_bars,
-            policy=policy,
+        setup, state, authorization_status = (
+            _candidate_reasoning_authorization(
+                variant=variant,
+                day_bars=day_bars,
+                session=session,
+                source=timeline.source,
+                candidate=candidate,
+                source_authorized_at=source_authorized_at,
+                invalidated_at=timeline.both_sides_swept_at,
+                previous_path_range=previous_path_range,
+                prior_ref_median=prior_ref_median,
+                prior_admitted_day_bars=prior_admitted_day_bars,
+                policy=policy,
+            )
         )
         family = candidate.family.value
-        if result is None:
-            counts[f"candidate-{family}-not-authorized"] += 1
+        counts[
+            f"candidate-{family}-{authorization_status.lower()}"
+        ] += 1
+        if setup is None or state is None:
             continue
-
-        setup, state = result
-        counts[f"candidate-{family}-authorized"] += 1
         fill_index, reason = activation._fill_after_authorization(
             day_bars,
             setup,
