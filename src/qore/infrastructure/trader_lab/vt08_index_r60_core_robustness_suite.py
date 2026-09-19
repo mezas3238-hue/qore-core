@@ -552,10 +552,7 @@ def build_report(
     )
     five = _candidate(five_stream, bars_by_symbol=five_bars)
     two = _candidate(two_stream, bars_by_symbol=two_bars)
-    five_opened_typed = cast(
-        dict[str, tuple[datetime, ...]],
-        five_opened,
-    )
+    five_opened_typed = five_opened
     two_opened_typed = cast(
         dict[str, tuple[datetime, ...]],
         two_opened,
