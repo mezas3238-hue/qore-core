@@ -50,7 +50,7 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import vt08_index_r48_candidate_freeze as freeze
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
-# Quality rebind after shared lint repair.
+# Quality rebind after shared lint and strict-test repair.
 SCHEMA = "qore.trader_lab.vt08_index_r49_frozen_robustness.v1"
 IDENTITY = "VT08_INDEX_R49_R47_FROZEN_ROBUSTNESS_001"
 CANDIDATE_ID = freeze.CANDIDATE_ID
