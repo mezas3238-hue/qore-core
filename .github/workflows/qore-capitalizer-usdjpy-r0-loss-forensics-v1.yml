@@ -21,6 +21,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_v1.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
@@ -34,6 +35,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py'
       - 'docs/research/QORE-CAPITALIZER-COGNITIVE-ARCHITECTURE-FREEZE-V1.md'
   workflow_dispatch:
 
@@ -82,6 +84,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py \
             src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_cognitive_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
@@ -94,7 +97,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py
+            tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_contract.py \
             src/qore/infrastructure/trader_lab/capitalizer_governor.py \
@@ -209,6 +213,10 @@ jobs:
       - name: Run targeted joint-state categorical ablations
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_joint_state_ablation \
+            m5-source journey-source target-source forensic-output
+      - name: Run three-scalp session-flow viability
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_session_flow_viability \
             m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
@@ -512,6 +520,28 @@ jobs:
               'DROP_OLDER_PRIOR_STRICT_RECLAIM',
               'DROP_OLDER_PRIOR_ALL_RECLAIM_PHASES',
               'DROP_OLDER_NONSWING_STRICT_RECLAIM',
+          }
+
+          flow = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-session-flow-viability-v1.json'
+              ).read_text()
+          )
+          assert flow['identity'] == 'QORE_CAPITALIZER_SESSION_FLOW_VIABILITY_V1'
+          assert flow['max_executions_per_session'] == 3
+          assert flow['same_session_exit_verified'] is True
+          assert flow['positive_pnl_is_not_stop_condition'] is True
+          assert flow['governed_profit_objective_not_modeled'] is True
+          assert flow['development_only'] is True
+          assert flow['candidate_frozen'] is False
+          assert flow['fresh_holdout_claimed'] is False
+          assert flow['rule_selected'] is False
+          assert flow['promotion_allowed'] is False
+          assert {row['name'] for row in flow['variants']} == {
+              'MAX2',
+              'MAX3_ANY_VALID',
+              'MAX3_POSITIVE_REALIZED_CONTINUATION',
           }
           PY
       - name: Upload immutable R0 forensics
