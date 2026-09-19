@@ -67,7 +67,7 @@ def test_structural_v2_blocks_repeat_and_mixed_without_touching_rejection() -> N
 def test_session_ceiling_is_chronological_and_never_a_quota() -> None:
     trades = tuple(
         _trade(index=index, side=CapitalizerSide.LONG, event="HIGH_ACCEPTANCE")
-        for index in range(3)
+        for index in range(4)
     )
     state_index = {
         (trade.signal_at.isoformat(), trade.side): "NO_RECLAIM_FRESH"
@@ -82,7 +82,7 @@ def test_session_ceiling_is_chronological_and_never_a_quota() -> None:
         apply_session_ceiling=True,
     )
 
-    assert selected == trades[:2]
+    assert selected == trades[:3]
     assert late == 0
     assert conflict == 0
     assert budget == 1
