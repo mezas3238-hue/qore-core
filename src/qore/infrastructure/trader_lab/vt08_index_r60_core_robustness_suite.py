@@ -42,6 +42,9 @@ from qore.infrastructure.research_temporal_evaluation import (
     ResearchWalkForwardFold,
 )
 from qore.infrastructure.trader_lab import (
+    vt08_index_r6_5y_failure_forensics as fx,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r15_concurrent_portfolio_validation as r15,
 )
 from qore.infrastructure.trader_lab import (
@@ -61,9 +64,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r59_candidate_freeze as freeze,
-)
-from qore.infrastructure.trader_lab import (
-    vt08_index_r6_5y_failure_forensics as fx,
 )
 
 SCHEMA = "qore.trader_lab.vt08_index_r60_core_robustness_suite.v1"
