@@ -93,7 +93,10 @@ def _bar_from_row(row: dict[str, Any]) -> CapitalizerM5Bar:
         raise ValueError("raw M5 row requires integer digits")
     if volume is not None and type(volume) is not int:
         raise ValueError("raw M5 volume must be int or null")
-    opened_at = datetime.fromisoformat(opened_raw).astimezone(UTC)
+    parsed_opened_at = datetime.fromisoformat(opened_raw)
+    if parsed_opened_at.tzinfo is None or parsed_opened_at.utcoffset() is None:
+        raise ValueError("raw M5 opened_at must be timezone-aware")
+    opened_at = parsed_opened_at.astimezone(UTC)
     return CapitalizerM5Bar(
         symbol=symbol,
         opened_at=opened_at,
