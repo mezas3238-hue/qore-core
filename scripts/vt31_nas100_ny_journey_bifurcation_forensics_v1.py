@@ -33,12 +33,10 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
 
-import vt31_nas100_r1_candidate as baseline
 import vt31_nas100_specialist_r1_candidate as specialist
 
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _day,
-    _wall,
     load_market_evidence,
 )
 from qore.infrastructure.traders import vt31_silver_bullet_r2_2 as silver
@@ -205,7 +203,7 @@ def _overlap_rate(bars: tuple[object, ...]) -> Decimal:
         return Decimal(0)
     overlaps = 0
     eligible = 0
-    for previous, current in zip(bars, bars[1:]):
+    for previous, current in zip(bars, bars[1:], strict=False):
         p_low = _d(getattr(previous, "low"))
         p_high = _d(getattr(previous, "high"))
         c_low = _d(getattr(current, "low"))
