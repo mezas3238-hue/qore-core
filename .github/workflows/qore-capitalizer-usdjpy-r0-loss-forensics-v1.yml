@@ -16,6 +16,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_h1_boundary_type_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py'
@@ -68,6 +69,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_h1_boundary_type_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py \
@@ -88,7 +90,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_h1_boundary_type_forensics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py
+            src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
@@ -172,6 +175,10 @@ jobs:
       - name: Run causal reclaim-phase residual-DD forensics
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_reclaim_phase_forensics \
+            m5-source journey-source target-source forensic-output
+      - name: Write exact residual-DD causal trace
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_residual_dd_trace \
             m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
@@ -410,6 +417,25 @@ jobs:
               'DROP_RECLAIM_PHASE_MIXED',
               'DROP_RECLAIM_NOT_STRICTLY_PRIOR',
           }
+
+          trace = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-residual-dd-trace-v1.json'
+              ).read_text()
+          )
+          assert trace['identity'] == (
+              'QORE_CAPITALIZER_RESIDUAL_DD_CAUSAL_TRACE_V1'
+          )
+          assert trace['diagnostic_only'] is True
+          assert trace['causal_annotations_only'] is True
+          assert trace['outcome_used_as_label_only'] is True
+          assert trace['numeric_threshold_optimization_used'] is False
+          assert trace['candidate_frozen'] is False
+          assert trace['fresh_holdout_claimed'] is False
+          assert trace['rule_selected'] is False
+          assert trace['promotion_allowed'] is False
+          assert trace['trace_trades'] > 0
           PY
       - name: Upload immutable R0 forensics
         uses: actions/upload-artifact@v4
