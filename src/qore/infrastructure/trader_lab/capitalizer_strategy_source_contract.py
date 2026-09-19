@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from re import fullmatch
 
-
 CAPITALIZER_SOURCE_CONTRACT_ID = "QORE_CAPITALIZER_SOURCE_CONTRACT_V1"
 
 
