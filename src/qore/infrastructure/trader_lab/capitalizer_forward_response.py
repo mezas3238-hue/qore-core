@@ -27,7 +27,6 @@ from qore.infrastructure.trader_lab.capitalizer_microstructure_discovery import 
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
 
-
 HORIZON_BARS = (1, 2, 3, 6, 12)
 
 
