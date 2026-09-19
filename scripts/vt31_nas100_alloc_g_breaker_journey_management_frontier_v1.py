@@ -12,6 +12,7 @@ The decision uses only bars closed by the checkpoint. Protection becomes
 active on the next M1. Future Journey labels and terminal PnL are research
 labels only and are never consulted by the management decision.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
