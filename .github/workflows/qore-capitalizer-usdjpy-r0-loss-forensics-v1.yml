@@ -6,6 +6,8 @@ on:
       - agent/qore-capitalizer-cognitive-v1-001
     paths:
       - '.github/workflows/qore-capitalizer-usdjpy-r0-loss-forensics-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_contract.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_governor.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_r0_loss_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_r0_root_cause_forensics.py'
@@ -19,6 +21,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_v1.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py'
@@ -31,6 +34,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py'
+      - 'docs/research/QORE-CAPITALIZER-COGNITIVE-ARCHITECTURE-FREEZE-V1.md'
   workflow_dispatch:
 
 permissions:
@@ -287,7 +291,7 @@ jobs:
               'FRESHNESS_ONLY',
               'JOURNEY_CONFLICT_ONLY',
               'STRUCTURAL_V2',
-              'STRUCTURAL_V2_MAX2_SESSION',
+              'STRUCTURAL_V2_MAX3_SESSION',
           }
 
           lifecycle = json.loads(
