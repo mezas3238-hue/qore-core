@@ -5,6 +5,7 @@ validation. This script can evaluate either one immutable evidence package or a
 stitched set of the immutable R8/R6/R5 NAS100 packages. It does not open fresh
 evidence, retune parameters, change authorization, or promote a candidate.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
