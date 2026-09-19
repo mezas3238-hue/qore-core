@@ -7,6 +7,37 @@ $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $Root
 
+# Deployment is fail-closed: quiesce the previous resident runtime and watchdog
+# before validating or rebinding a new exact SHA. Existing tasks are recreated
+# later in this installer. If closeout fails, they remain disabled rather than
+# allowing a mixed-SHA process to restart.
+$RuntimeTaskName = "QORE-FundedNext-Runtime"
+$WatchdogTaskName = "QORE-FundedNext-Watchdog"
+$RulesRefreshTaskName = "QORE-FundedNext-Rules-Refresh"
+foreach ($TaskName in @($RuntimeTaskName, $WatchdogTaskName, $RulesRefreshTaskName)) {
+    $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if ($null -ne $ExistingTask) {
+        Disable-ScheduledTask -TaskName $TaskName | Out-Null
+        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    }
+}
+$StopDeadline = [DateTimeOffset]::UtcNow.AddSeconds(30)
+do {
+    $RuntimeProcesses = @(
+        Get-CimInstance Win32_Process |
+            Where-Object {
+                $_.Name -eq "python.exe" -and
+                $_.CommandLine -match "qore_fundednext_runtime\.py"
+            }
+    )
+    if ($RuntimeProcesses.Count -eq 0) { break }
+    Start-Sleep -Milliseconds 500
+} while ([DateTimeOffset]::UtcNow -lt $StopDeadline)
+if ($RuntimeProcesses.Count -ne 0) {
+    throw "Prior QORE runtime could not be quiesced for exact-SHA deployment"
+}
+Remove-Item "$Root\var\fundednext\runtime.lock" -Force -ErrorAction SilentlyContinue
+
 if ($ActivateLive) {
     throw "LIVE activation remains a separate Owner-governance event; installer is SHADOW only"
 }
@@ -80,6 +111,10 @@ $Activation = [ordered]@{
     order_submission_authorized = $false
 }
 $Activation | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $ActivationPath
+
+Write-Host "Rebinding retained capital/runtime state to the exact SHADOW SHA without changing economics..."
+python "$Root\scripts\rebind_fundednext_shadow_state.py" --root "$Root"
+if ($LASTEXITCODE -ne 0) { throw "retained SHADOW state SHA rebind failed" }
 
 if (-not (Test-Path $SafetyPath)) {
     $Safety = [ordered]@{

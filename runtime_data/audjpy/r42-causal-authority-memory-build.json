@@ -1,0 +1,26 @@
+{
+  "identity": "TURTLE_SOUP_AUDJPY_R42_LIVE_MEMORY_V1",
+  "source_run_id": 35383377176,
+  "source_artifact_id": 10562458144,
+  "source_artifact_digest": "sha256:ed5a0928e83be7af171864c37335d8f3edeb9af096f29eb9e0a23078745b255c",
+  "source_git_sha": "e0bec233ed40197a1e969786b24a9dc8a1e5869f",
+  "observations_sha256": "4fb9c6d1c9c4537bb5e0de7f4a728ee0725677422ac396cbd63fb606a52c1b11",
+  "certification_identity": "TURTLE_SOUP_AUDJPY_R43_FINAL_CERTIFICATION_SUITE_V1",
+  "certification_run_id": 35400542409,
+  "certification_artifact_id": 10570670638,
+  "certification_git_sha": "e4801f5bb2c5b2eb2c03f8ae83593f226101f8c9",
+  "selected_ensemble": "R38_FROZEN_SIGNAL_BASELINE",
+  "selected_policy": "AUDJPY_CONFIDENCE_100_075_025",
+  "representation": "VALIDATED_AUTHORITY_PROFILES_ONLY_FAIL_CLOSED",
+  "profiles": {
+    "R32_CORE_ROUTE_TYPES": 26,
+    "R34_DIRECTION_REGIME_ROUTE_TYPES": 21,
+    "R34_TIMEFRAME_REGIME_ROUTE_TYPES": 9
+  },
+  "full_profiles": {
+    "R32_CORE_ROUTE_TYPES": 8092,
+    "R34_DIRECTION_REGIME_ROUTE_TYPES": 3535,
+    "R34_TIMEFRAME_REGIME_ROUTE_TYPES": 449
+  },
+  "memory_sha256": "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6"
+}

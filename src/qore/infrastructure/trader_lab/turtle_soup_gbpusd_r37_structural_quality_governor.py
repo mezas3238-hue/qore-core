@@ -1,0 +1,938 @@
+"""R37 GBPUSD structural-quality risk governor on the R35 G25 ensemble.
+
+R37 keeps the exact R35 G25 executions and uses only pre-entry structural information to scale risk. R36 showed protected-risk q2 F2 contexts were stable and high-quality while q3 F2 contexts were weak. R32 classification strength is also known before entry. No trade is suppressed and the sealed holdout remains untouched.  Expansion always uses the actual nearest active rank-1 CIBO DOL,
+STATIC lifecycle, exact C2/CISD, and the exact Protected Swing stop.
+
+Risk governors never suppress a trade.  They only scale the risk unit from
+information known before the trade: current scaled-equity drawdown.  This keeps
+operation count genuine while limiting capital drawdown.
+
+Fresh holdout remains sealed.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from collections import Counter
+from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+
+from qore.infrastructure.trader_lab import (
+    cibo_market_atlas_journey_extractor_v1 as journey,
+)
+from qore.infrastructure.trader_lab import (
+    cibo_gbpusd_native_market_decision_memory_v2 as native,
+)
+from qore.infrastructure.trader_lab import turtle_soup_gbpusd_r1 as r1
+from qore.infrastructure.trader_lab import turtle_soup_gbpusd_r3_cibo_journey as r3
+from qore.infrastructure.trader_lab import (
+    turtle_soup_gbpusd_r3_cibo_journey_binding_repair as repair,
+)
+from qore.infrastructure.trader_lab import (
+    turtle_soup_gbpusd_r26_specialist_memory_brain as r26,
+)
+from qore.infrastructure.trader_lab import (
+    turtle_soup_gbpusd_r32_causal_memory_defragmentation as r32,
+)
+from qore.infrastructure.trader_lab import (
+    turtle_soup_gbpusd_specialist_cognitive_memory_v2 as v2,
+)
+from qore.infrastructure.trader_lab import (
+    turtle_soup_gbpusd_specialist_memory_v1 as v1,
+)
+from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
+    SourceCandle,
+    build_daily,
+    build_h1,
+    build_h4,
+)
+
+IDENTITY = "TURTLE_SOUP_GBPUSD_R37_STRUCTURAL_QUALITY_GOVERNOR_V1"
+EVAL_OPEN = r26.EVAL_OPEN
+EVAL_CLOSE = r26.EVAL_CLOSE
+
+MIN_TRADES = 350
+MIN_PF_010 = Decimal("1.90")
+MAX_DD_010 = Decimal("6.0")
+
+F1 = "OTHER_SESSION_H4_BODY_OPPOSED"
+F2 = "OTHER_SESSION_D1_BODY_OPPOSED"
+F3 = "MID_CISD_H1_BODY_OPPOSED"
+F4 = "EXACT_EQUAL_LIQUIDITY_LATE_CLOSE"
+F5 = "EXACT_EQUAL_LIQUIDITY_LARGE_REJECTION"
+F6 = "H4_MID_PROTECTED_RISK"
+
+FAMILY_SETS: dict[str, tuple[str, ...]] = {
+    "R37_G25_FIXED": (F2, F5),
+}
+
+FAMILY_DEV_EVIDENCE: dict[str, dict[str, Any]] = {
+    F1: {
+        "rank1_10y_n": 816,
+        "rank1_10y_pf_010": "1.1013381399102131",
+        "positive_chronological_quintiles": 4,
+        "recent_2y_n": 156,
+        "recent_2y_total_net_010_r": "4.684006260823885",
+        "recent_2y_pf_010": "1.0558037177250033",
+    },
+    F2: {
+        "rank1_10y_n": 964,
+        "rank1_10y_pf_010": "1.0615174895634618",
+        "positive_chronological_quintiles": 4,
+        "recent_2y_n": 177,
+        "recent_2y_total_net_010_r": "8.273841623763378",
+        "recent_2y_pf_010": "1.0892230097931852",
+    },
+    F3: {
+        "rank1_10y_n": 785,
+        "rank1_10y_pf_010": "1.0433666548957585",
+        "positive_chronological_quintiles": 4,
+        "recent_2y_n": 166,
+        "recent_2y_total_net_010_r": "5.150479282674789",
+        "recent_2y_pf_010": "1.0457643778326158",
+    },
+    F4: {
+        "rank1_10y_n": 104,
+        "rank1_10y_pf_010": "1.6485185851113895",
+        "positive_chronological_quintiles": 5,
+        "recent_2y_n": 19,
+        "recent_2y_total_net_010_r": "9.010616435202754",
+        "recent_2y_pf_010": "2.1367802057172844",
+    },
+    F5: {
+        "rank1_10y_n": 179,
+        "rank1_10y_pf_010": "1.5857921165191966",
+        "positive_chronological_quintiles": 5,
+        "recent_2y_n": 40,
+        "recent_2y_total_net_010_r": "8.213029884167417",
+        "recent_2y_pf_010": "1.532441198185952",
+    },
+    F6: {
+        "rank1_10y_n": 436,
+        "rank1_10y_pf_010": "1.0329911873491517",
+        "positive_chronological_quintiles": 4,
+        "recent_2y_n": 97,
+        "recent_2y_total_net_010_r": "18.947641234383013",
+        "recent_2y_pf_010": "1.3387055684603766",
+    },
+}
+
+GOVERNORS: dict[str, tuple[Decimal, Decimal, Decimal, Decimal]] = {
+    # (first_dd, second_dd, middle_scale, deep_scale)
+    "FIXED_1R": (
+        Decimal("999"),
+        Decimal("1000"),
+        Decimal("1"),
+        Decimal("1"),
+    ),
+    "DD_2_4_SCALE_075_050": (
+        Decimal("2"),
+        Decimal("4"),
+        Decimal("0.75"),
+        Decimal("0.50"),
+    ),
+    "DD_1P5_3_SCALE_075_050": (
+        Decimal("1.5"),
+        Decimal("3"),
+        Decimal("0.75"),
+        Decimal("0.50"),
+    ),
+    "DD_2_4_SCALE_075_025": (
+        Decimal("2"),
+        Decimal("4"),
+        Decimal("0.75"),
+        Decimal("0.25"),
+    ),
+    "DD_1_3_SCALE_075_025": (
+        Decimal("1"),
+        Decimal("3"),
+        Decimal("0.75"),
+        Decimal("0.25"),
+    ),
+}
+
+STRUCTURAL_POLICIES: dict[str, dict[str, Any]] = {
+    "SQ1_BALANCED": {
+        "core_robust": Decimal("1"),
+        "core_majority": Decimal("0.50"),
+        "f5": Decimal("1"),
+        "f2_strong": Decimal("1"),
+        "f2_weak": Decimal("0.25"),
+        "f2_strong_mode": "PRISK_Q2",
+    },
+    "SQ2_DEFENSIVE": {
+        "core_robust": Decimal("1"),
+        "core_majority": Decimal("0.25"),
+        "f5": Decimal("1"),
+        "f2_strong": Decimal("1"),
+        "f2_weak": Decimal("0.10"),
+        "f2_strong_mode": "PRISK_Q2",
+    },
+    "SQ3_H1_BALANCED": {
+        "core_robust": Decimal("1"),
+        "core_majority": Decimal("0.25"),
+        "f5": Decimal("1"),
+        "f2_strong": Decimal("1"),
+        "f2_weak": Decimal("0.10"),
+        "f2_strong_mode": "PRISK_Q2_OR_H1_BALANCED",
+    },
+    "SQ4_CLOSE_Q2": {
+        "core_robust": Decimal("1"),
+        "core_majority": Decimal("0.25"),
+        "f5": Decimal("1"),
+        "f2_strong": Decimal("1"),
+        "f2_weak": Decimal("0.10"),
+        "f2_strong_mode": "PRISK_Q2_OR_CLOSE_Q2",
+    },
+    "SQ5_CORE_HALF_F2_TENTH": {
+        "core_robust": Decimal("1"),
+        "core_majority": Decimal("0.50"),
+        "f5": Decimal("1"),
+        "f2_strong": Decimal("1"),
+        "f2_weak": Decimal("0.10"),
+        "f2_strong_mode": "PRISK_Q2",
+    },
+}
+
+
+
+@dataclass(frozen=True, slots=True)
+class Decision:
+    target: native.NativeTarget
+    posture: str
+    classification: str
+    observations: int
+    source: str
+    family: str | None
+
+
+def _single(root: Path, name: str) -> Path:
+    matches = list(root.rglob(name))
+    if len(matches) != 1:
+        raise ValueError(f"expected exactly one {name}, got {len(matches)}")
+    return matches[0]
+
+
+def _load_cognitive(root: Path) -> dict[str, Any]:
+    payload = json.loads(
+        _single(
+            root,
+            "turtle-soup-gbpusd-specialist-cognitive-memory-v3.json",
+        ).read_text()
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Cognitive V3 must be an object")
+    return payload
+
+
+def _matched_families(
+    setup: r3.Setup,
+    regime: dict[str, str],
+) -> tuple[str, ...]:
+    """GBPUSD-only structural families frozen from consumed rank-1 forensics."""
+    ctx = v1._setup_context(setup)
+    matched: list[str] = []
+
+    if ctx["session"] == "other" and regime["h4_body_alignment"] == "opposed":
+        matched.append(F1)
+
+    if ctx["session"] == "other" and regime["d1_body_alignment"] == "opposed":
+        matched.append(F2)
+
+    if (
+        ctx["cisd_progress_bucket"] == "q2:<=0.50"
+        and regime["h1_body_alignment"] == "opposed"
+    ):
+        matched.append(F3)
+
+    if (
+        ctx["exact_equal_liquidity"] == "yes"
+        and ctx["close_location_bucket"] == "q3:<=0.75"
+    ):
+        matched.append(F4)
+
+    if (
+        ctx["exact_equal_liquidity"] == "yes"
+        and ctx["rejection_wick_bucket"] == "q4:>0.50"
+    ):
+        matched.append(F5)
+
+    if (
+        ctx["timeframe"] == "H4"
+        and ctx["protected_risk_range_bucket"] == "q2:<=0.50"
+    ):
+        matched.append(F6)
+
+    return tuple(matched)
+
+
+def _choose(
+    *,
+    setup: r3.Setup,
+    ladder: Sequence[native.NativeTarget],
+    regime: dict[str, str],
+    allowed_families: Sequence[str],
+    fields: Sequence[str],
+    route_mode: str,
+    memory: dict[tuple[str, str], r32.Profile],
+) -> Decision | None:
+    baseline = r32._choose(
+        setup=setup,
+        ladder=ladder,
+        regime=regime,
+        fields=fields,
+        route_mode=route_mode,
+        memory=memory,
+    )
+    if baseline is not None:
+        return Decision(
+            target=baseline.target,
+            posture=baseline.posture,
+            classification=baseline.classification,
+            observations=baseline.observations,
+            source="R32_REGIME_CORE",
+            family=None,
+        )
+
+    matched = [
+        family
+        for family in _matched_families(setup, regime)
+        if family in allowed_families
+    ]
+    if not matched:
+        return None
+    target = next((item for item in ladder if item.rank == 1), None)
+    if target is None:
+        return None
+    family = sorted(matched)[0]
+    return Decision(
+        target=target,
+        posture=native.POSTURE_STATIC,
+        classification="R37_STRUCTURAL_EXPANSION_SUBFAMILY",
+        observations=int(FAMILY_DEV_EVIDENCE[family]["rank1_10y_n"]),
+        source="R37_STRUCTURAL_EXPANSION",
+        family=family,
+    )
+
+def _runtime_decision(decision: Decision) -> r26.SpecialistDecision:
+    return r26.SpecialistDecision(
+        target=decision.target,
+        memory_level=decision.source,
+        classification=decision.classification,
+        posture=decision.posture,
+        mean_net_010_r=Decimal(0),
+        observations=decision.observations,
+    )
+
+
+def _risk_scale(
+    drawdown: Decimal,
+    governor: tuple[Decimal, Decimal, Decimal, Decimal],
+) -> Decimal:
+    first, second, middle, deep = governor
+    if drawdown < first:
+        return Decimal("1")
+    if drawdown < second:
+        return middle
+    return deep
+
+
+def _scaled_stat(
+    trades: Sequence[r26.RuntimeTrade],
+    governor_name: str,
+) -> dict[str, Any]:
+    governor = GOVERNORS[governor_name]
+    equity = Decimal(0)
+    peak = Decimal(0)
+    max_dd = Decimal(0)
+    gains = Decimal(0)
+    losses = Decimal(0)
+    losing_streak = 0
+    max_losing_streak = 0
+    scales: Counter[str] = Counter()
+
+    for trade in trades:
+        pretrade_dd = peak - equity
+        scale = _risk_scale(pretrade_dd, governor)
+        scales[str(scale)] += 1
+        contribution = trade.net_010_r * scale
+        equity += contribution
+        peak = max(peak, equity)
+        max_dd = max(max_dd, peak - equity)
+        if contribution > 0:
+            gains += contribution
+            losing_streak = 0
+        elif contribution < 0:
+            losses += -contribution
+            losing_streak += 1
+            max_losing_streak = max(max_losing_streak, losing_streak)
+
+    pf = None if losses == 0 else gains / losses
+    n = len(trades)
+    return {
+        "trades": n,
+        "total_scaled_net_010_r": str(equity),
+        "mean_scaled_net_010_r": (
+            None if n == 0 else str(equity / Decimal(n))
+        ),
+        "profit_factor_scaled_net_010": None if pf is None else str(pf),
+        "max_drawdown_scaled_r": str(max_dd),
+        "max_losing_streak": max_losing_streak,
+        "risk_scale_counts": dict(scales),
+        "minimum_risk_scale": min(
+            (Decimal(key) for key in scales),
+            default=Decimal(0),
+        ).to_eng_string(),
+    }
+
+
+def _f2_is_strong(features: dict[str, str], mode: str) -> bool:
+    prisk = features["protected_risk_range_bucket"] == "q2:<=0.50"
+    if mode == "PRISK_Q2":
+        return prisk
+    if mode == "PRISK_Q2_OR_H1_BALANCED":
+        return prisk or features["h1_range_state"] == "balanced"
+    if mode == "PRISK_Q2_OR_CLOSE_Q2":
+        return prisk or features["close_location_bucket"] == "q2:<=0.50"
+    raise ValueError(f"unknown F2 strong mode {mode}")
+
+
+def _structural_scale(
+    source: str,
+    family: str | None,
+    features: dict[str, str],
+    policy: dict[str, Any],
+) -> Decimal:
+    if source == "R32_REGIME_CORE":
+        if features["classification"] == "ROBUST_VALIDATED_010":
+            return Decimal(str(policy["core_robust"]))
+        return Decimal(str(policy["core_majority"]))
+    if family == F5:
+        return Decimal(str(policy["f5"]))
+    if family == F2:
+        key = "f2_strong" if _f2_is_strong(features, str(policy["f2_strong_mode"])) else "f2_weak"
+        return Decimal(str(policy[key]))
+    raise ValueError("unexpected structural-risk source")
+
+
+def _quality_scaled_stat(
+    attributed: Sequence[tuple[r26.RuntimeTrade, str, str | None, dict[str, str]]],
+    policy_name: str,
+    governor_name: str,
+) -> dict[str, Any]:
+    policy = STRUCTURAL_POLICIES[policy_name]
+    governor = GOVERNORS[governor_name]
+    equity = Decimal(0)
+    peak = Decimal(0)
+    max_dd = Decimal(0)
+    gains = Decimal(0)
+    losses = Decimal(0)
+    streak = 0
+    max_streak = 0
+    scale_counts: Counter[str] = Counter()
+    source_scales: Counter[str] = Counter()
+
+    for trade, source, family, features in attributed:
+        structural = _structural_scale(source, family, features, policy)
+        pretrade_dd = peak - equity
+        dd_scale = _risk_scale(pretrade_dd, governor)
+        scale = structural * dd_scale
+        scale_counts[str(scale)] += 1
+        source_scales[f"{source}|{family or 'CORE'}|{structural}"] += 1
+        contribution = trade.net_010_r * scale
+        equity += contribution
+        peak = max(peak, equity)
+        max_dd = max(max_dd, peak - equity)
+        if contribution > 0:
+            gains += contribution
+            streak = 0
+        elif contribution < 0:
+            losses += -contribution
+            streak += 1
+            max_streak = max(max_streak, streak)
+
+    pf = None if losses == 0 else gains / losses
+    return {
+        "trades": len(attributed),
+        "total_scaled_net_010_r": str(equity),
+        "mean_scaled_net_010_r": None if not attributed else str(equity / Decimal(len(attributed))),
+        "profit_factor_scaled_net_010": None if pf is None else str(pf),
+        "max_drawdown_scaled_r": str(max_dd),
+        "max_losing_streak": max_streak,
+        "risk_scale_counts": dict(scale_counts),
+        "source_structural_scale_counts": dict(source_scales),
+        "minimum_risk_scale": min((Decimal(k) for k in scale_counts), default=Decimal(0)).to_eng_string(),
+    }
+
+
+def _run_family_set(
+    *,
+    family_set: str,
+    allowed_families: Sequence[str],
+    fields: Sequence[str],
+    route_mode: str,
+    memory: dict[tuple[str, str], r32.Profile],
+    setups: Sequence[r3.Setup],
+    evidence: Any,
+    opens: Sequence[datetime],
+    tick: Decimal,
+    target_rows: dict[str, list[dict[str, Any]]],
+    source_index: dict[tuple[datetime, str, str, Decimal], str],
+    frames: dict[str, tuple[SourceCandle, ...]],
+    frame_closes: dict[str, tuple[datetime, ...]],
+) -> dict[str, Any]:
+    busy_until = EVAL_OPEN
+    trailing_exit_at: datetime | None = None
+    trades: list[r26.RuntimeTrade] = []
+    attributed: list[tuple[r26.RuntimeTrade, str, str | None, dict[str, str]]] = []
+    counts: Counter[str] = Counter()
+
+    for setup in setups:
+        signal = setup.context.signal
+        if not (EVAL_OPEN <= signal.entry_at < EVAL_CLOSE):
+            continue
+        if not r26._structurally_rearmed(setup, trailing_exit_at):
+            counts["ABSTAIN_NOT_STRUCTURALLY_REARMED"] += 1
+            continue
+        episode_id = source_index.get(
+            (
+                signal.cisd_at,
+                signal.side.value,
+                setup.context.timeframe,
+                signal.target,
+            )
+        )
+        if episode_id is None:
+            counts["ABSTAIN_NO_CIBO_EPISODE"] += 1
+            continue
+        fill = r3._entry(setup, evidence, opens, "NEXT_SOURCE_OPEN")
+        if fill is None:
+            counts["ABSTAIN_NO_ENTRY"] += 1
+            continue
+        entry_at, entry = fill
+        ladder = v1._active_ladder(
+            target_rows.get(episode_id, ()),
+            at=entry_at,
+            side=signal.side,
+            entry=entry,
+            tick=tick,
+        )
+        if not ladder:
+            counts["ABSTAIN_NO_ACTIVE_DOL"] += 1
+            continue
+
+        regime = v2._regime_context(
+            row={
+                "strategy_entry_at": entry_at.isoformat(),
+                "side": signal.side.value,
+            },
+            bars=evidence.bars,
+            opens=opens,
+            frames=frames,
+            frame_closes=frame_closes,
+        )
+        decision = _choose(
+            setup=setup,
+            ladder=ladder,
+            regime=regime,
+            allowed_families=allowed_families,
+            fields=fields,
+            route_mode=route_mode,
+            memory=memory,
+        )
+        if decision is None:
+            counts["ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY"] += 1
+            continue
+
+        runtime = r26._simulate(
+            setup,
+            decision=_runtime_decision(decision),
+            ladder=ladder,
+            entry_at=entry_at,
+            entry=entry,
+            evidence=evidence,
+            opens=opens,
+        )
+        if runtime is None:
+            counts["ABSTAIN_INVALID_GEOMETRY"] += 1
+            continue
+        if runtime.entry_at < busy_until:
+            counts["ABSTAIN_SINGLE_POSITION_BUSY"] += 1
+            continue
+
+        busy_until = runtime.exit_at
+        if "TRAIL" in runtime.exit_reason:
+            trailing_exit_at = runtime.exit_at
+        trades.append(runtime)
+        ctx = v1._setup_context(setup)
+        feature_row = {
+            "side": signal.side.value,
+            "timeframe": str(ctx["timeframe"]),
+            "cisd_progress_bucket": str(ctx["cisd_progress_bucket"]),
+            "protected_risk_range_bucket": str(ctx["protected_risk_range_bucket"]),
+            "close_location_bucket": str(ctx["close_location_bucket"]),
+            "rejection_wick_bucket": str(ctx["rejection_wick_bucket"]),
+            "exact_equal_liquidity": str(ctx["exact_equal_liquidity"]),
+            "h1_body_alignment": str(regime.get("h1_body_alignment", "na")),
+            "h4_body_alignment": str(regime.get("h4_body_alignment", "na")),
+            "h1_range_state": str(regime.get("h1_range_state", "na")),
+            "h4_range_state": str(regime.get("h4_range_state", "na")),
+            "d1_range_state": str(regime.get("d1_range_state", "na")),
+            "m5_volatility_state": str(regime.get("m5_volatility_state", "na")),
+            "target_route_types": r32._route_family(decision.target.route, "TYPES_ONLY"),
+            "target_rank": str(decision.target.rank),
+            "classification": decision.classification,
+        }
+        attributed.append((runtime, decision.source, decision.family, feature_row))
+        counts["EXECUTE"] += 1
+        counts[f"SOURCE_{decision.source}"] += 1
+        if decision.family is not None:
+            counts[f"FAMILY_{decision.family}"] += 1
+        counts[f"RANK_{runtime.target_rank}"] += 1
+
+    risk_results: list[dict[str, Any]] = []
+    for governor_name in GOVERNORS:
+        stat = _scaled_stat(trades, governor_name)
+        pf_raw = stat["profit_factor_scaled_net_010"]
+        pf = None if pf_raw is None else Decimal(str(pf_raw))
+        dd = Decimal(str(stat["max_drawdown_scaled_r"]))
+        passed = bool(
+            len(trades) >= MIN_TRADES
+            and pf is not None
+            and pf >= MIN_PF_010
+            and dd <= MAX_DD_010
+        )
+        risk_results.append(
+            {
+                "governor": governor_name,
+                "stats": stat,
+                "acceptance_pass": passed,
+            }
+        )
+
+    quality_risk_results: list[dict[str, Any]] = []
+    for policy_name in STRUCTURAL_POLICIES:
+        for governor_name in ("FIXED_1R", "DD_1P5_3_SCALE_075_050", "DD_1_3_SCALE_075_025"):
+            stat = _quality_scaled_stat(attributed, policy_name, governor_name)
+            pf_raw = stat["profit_factor_scaled_net_010"]
+            pf = None if pf_raw is None else Decimal(str(pf_raw))
+            dd = Decimal(str(stat["max_drawdown_scaled_r"]))
+            passed = bool(
+                len(attributed) >= MIN_TRADES
+                and pf is not None
+                and pf >= MIN_PF_010
+                and dd <= MAX_DD_010
+            )
+            quality_risk_results.append({
+                "policy": policy_name,
+                "drawdown_governor": governor_name,
+                "stats": stat,
+                "acceptance_pass": passed,
+            })
+
+    def attributed_stats(
+        *,
+        source: str | None = None,
+        family: str | None = None,
+    ) -> dict[str, Any]:
+        selected = [
+            trade
+            for trade, trade_source, trade_family, _features in attributed
+            if (source is None or trade_source == source)
+            and (family is None or trade_family == family)
+        ]
+        return {
+            "trades": len(selected),
+            "gross": r26._stat(selected, "gross_r"),
+            "net_005": r26._stat(selected, "net_005_r"),
+            "net_010": r26._stat(selected, "net_010_r"),
+        }
+
+    def segment_stat(items: Sequence[r26.RuntimeTrade]) -> dict[str, Any]:
+        stat = r26._stat(items, "net_010_r")
+        n = len(items)
+        thirds: list[dict[str, Any]] = []
+        for part in range(3):
+            lo = (n * part) // 3
+            hi = (n * (part + 1)) // 3
+            subset = list(items[lo:hi])
+            thirds.append(r26._stat(subset, "net_010_r"))
+        positive_thirds = sum(
+            Decimal(str(item["total_r"])) > 0
+            for item in thirds
+            if int(item["trades"]) > 0
+        )
+        return {
+            **stat,
+            "positive_equal_count_terciles": positive_thirds,
+            "terciles": thirds,
+        }
+
+    diagnostic_features = (
+        "side",
+        "timeframe",
+        "cisd_progress_bucket",
+        "protected_risk_range_bucket",
+        "close_location_bucket",
+        "rejection_wick_bucket",
+        "exact_equal_liquidity",
+        "h1_body_alignment",
+        "h4_body_alignment",
+        "h1_range_state",
+        "h4_range_state",
+        "d1_range_state",
+        "m5_volatility_state",
+        "target_route_types",
+        "target_rank",
+    )
+    f2_rows = [
+        (trade, features)
+        for trade, source, family, features in attributed
+        if source == "R37_STRUCTURAL_EXPANSION" and family == F2
+    ]
+    f2_segments: dict[str, dict[str, Any]] = {}
+    for feature in diagnostic_features:
+        values = sorted({features[feature] for _, features in f2_rows})
+        f2_segments[feature] = {}
+        for value in values:
+            members = [trade for trade, features in f2_rows if features[feature] == value]
+            if len(members) < 8:
+                continue
+            f2_segments[feature][value] = segment_stat(members)
+
+    # Predeclared two-way structural interactions; no calendar-time filters.
+    interactions = (
+        ("side", "timeframe"),
+        ("timeframe", "protected_risk_range_bucket"),
+        ("timeframe", "cisd_progress_bucket"),
+        ("h1_body_alignment", "h4_body_alignment"),
+        ("protected_risk_range_bucket", "h4_range_state"),
+        ("close_location_bucket", "rejection_wick_bucket"),
+        ("exact_equal_liquidity", "protected_risk_range_bucket"),
+    )
+    f2_interactions: dict[str, dict[str, Any]] = {}
+    for left, right in interactions:
+        key = f"{left}+{right}"
+        f2_interactions[key] = {}
+        values = sorted({f"{features[left]}|{features[right]}" for _, features in f2_rows})
+        for value in values:
+            members = [
+                trade
+                for trade, features in f2_rows
+                if f"{features[left]}|{features[right]}" == value
+            ]
+            if len(members) < 12:
+                continue
+            f2_interactions[key][value] = segment_stat(members)
+
+    return {
+        "family_set": family_set,
+        "allowed_families": list(allowed_families),
+        "decision_counts": dict(counts),
+        "forensics": {
+            "by_source": {
+                source: attributed_stats(source=source)
+                for source in ("R32_REGIME_CORE", "R37_STRUCTURAL_EXPANSION")
+            },
+            "by_family": {
+                family: attributed_stats(family=family)
+                for family in allowed_families
+            },
+        },
+        "fixed_trade_stats": {
+            "gross": r26._stat(trades, "gross_r"),
+            "net_005": r26._stat(trades, "net_005_r"),
+            "net_010": r26._stat(trades, "net_010_r"),
+        },
+        "risk_governors": risk_results,
+        "structural_quality_governors": quality_risk_results,
+        "r36_f2_structural_forensics": {
+            "family": F2,
+            "trades": len(f2_rows),
+            "single_features": f2_segments,
+            "interactions": f2_interactions,
+            "minimum_single_feature_n": 8,
+            "minimum_interaction_n": 12,
+            "temporal_check": "EQUAL_COUNT_TERCILES",
+            "calendar_time_not_used_as_rule": True,
+        },
+    }
+
+
+def run(
+    raw_root: Path,
+    target_root: Path,
+    v2_root: Path,
+    output: Path,
+) -> dict[str, Any]:
+    evidence, provenance = journey.load_raw_m5(raw_root)
+    if evidence.symbol != "GBPUSD" or int(provenance["retained_bars"]) != 745274:
+        raise ValueError("unexpected GBPUSD corpus")
+    observations = r32._load_observations(v2_root)
+    fields, route_mode = r32.SCHEMES["R32_REGIME_ROUTE_TYPES"]
+    memory, memory_summary = r32._build_memory(
+        observations,
+        fields=fields,
+        route_mode=route_mode,
+    )
+    target_rows = r26._load_targets(target_root)
+    _episodes, source_index = repair._load_targets_fail_closed(target_root)
+
+    original_open, original_close = r1.EVAL_OPEN, r1.EVAL_CLOSE
+    try:
+        r1.EVAL_OPEN, r1.EVAL_CLOSE = r3.EVAL_OPEN, r3.EVAL_CLOSE
+        setups, funnel = r3._build_setups(evidence)
+    finally:
+        r1.EVAL_OPEN, r1.EVAL_CLOSE = original_open, original_close
+
+    opens = tuple(bar.opened_at for bar in evidence.bars)
+    tick = Decimal(1).scaleb(-evidence.digits)
+    h4 = build_h4(evidence.bars)
+    frames: dict[str, tuple[SourceCandle, ...]] = {
+        "H1": build_h1(evidence.bars),
+        "H4": h4,
+        "D1": build_daily(h4),
+    }
+    frame_closes = {
+        timeframe: tuple(candle.closed_at for candle in candles)
+        for timeframe, candles in frames.items()
+    }
+
+    results = [
+        _run_family_set(
+            family_set=name,
+            allowed_families=families,
+            fields=fields,
+            route_mode=route_mode,
+            memory=memory,
+            setups=setups,
+            evidence=evidence,
+            opens=opens,
+            tick=tick,
+            target_rows=target_rows,
+            source_index=source_index,
+            frames=frames,
+            frame_closes=frame_closes,
+        )
+        for name, families in FAMILY_SETS.items()
+    ]
+
+    passing: list[dict[str, Any]] = []
+    for result in results:
+        for risk in result["structural_quality_governors"]:
+            if risk["acceptance_pass"]:
+                passing.append({
+                    "family_set": result["family_set"],
+                    "policy": risk["policy"],
+                    "drawdown_governor": risk["drawdown_governor"],
+                    "stats": risk["stats"],
+                })
+
+    def ranking(item: dict[str, Any]) -> tuple[int, Decimal, Decimal]:
+        stats = item["stats"]
+        return (
+            int(stats["trades"]),
+            Decimal(str(stats["profit_factor_scaled_net_010"])),
+            -Decimal(str(stats["max_drawdown_scaled_r"])),
+        )
+
+    selected = max(passing, key=ranking) if passing else None
+    payload = {
+        "schema": "qore.turtle_soup_gbpusd.r37_structural_quality_governor.v1",
+        "identity": IDENTITY,
+        "window": {
+            "open": EVAL_OPEN.isoformat(),
+            "close": EVAL_CLOSE.isoformat(),
+            "same_consumed_development_window": True,
+        },
+        "experiment_contract": {
+            "fresh_holdout_consumed": False,
+            "r32_regime_route_types_core": True,
+            "r32_memory_summary": memory_summary,
+            "expansion_only_when_r32_abstains": True,
+            "expansion_target_rank": 1,
+            "actual_active_cibo_dol_price_used": True,
+            "expansion_posture": native.POSTURE_STATIC,
+            "entry_changed": False,
+            "c2_changed": False,
+            "cisd_changed": False,
+            "protected_swing_changed": False,
+            "structural_rearm_changed": False,
+            "risk_governor_suppresses_trades": False,
+            "risk_governor_pretrade_state_only": True,
+            "r33_family_forensics": {"falsified_for_recent_regime": [F1], "unstable_low_edge": [F3], "weak_but_not_falsified": [F2], "retained_positive": [F4, F5, F6]},
+            "family_sets_predeclared": {
+                name: list(families)
+                for name, families in FAMILY_SETS.items()
+            },
+            "family_consumed_development_evidence": FAMILY_DEV_EVIDENCE,
+            "structural_policies_predeclared": {name: {k: str(v) for k, v in policy.items()} for name, policy in STRUCTURAL_POLICIES.items()},
+            "governors_predeclared": {
+                name: {
+                    "first_drawdown_r": str(rule[0]),
+                    "second_drawdown_r": str(rule[1]),
+                    "middle_scale": str(rule[2]),
+                    "deep_scale": str(rule[3]),
+                }
+                for name, rule in GOVERNORS.items()
+            },
+        },
+        "predeclared_acceptance": {
+            "minimum_trades": MIN_TRADES,
+            "minimum_scaled_net_010_profit_factor": str(MIN_PF_010),
+            "maximum_scaled_net_010_drawdown_r": str(MAX_DD_010),
+            "losing_streak": "DIAGNOSTIC_NOT_HARD_GATE",
+            "selection_order": "MOST_TRADES_THEN_HIGHER_PF_THEN_LOWER_DD",
+        },
+        "results": results,
+        "selected": selected,
+        "reproduction": {
+            "retained_bars": int(provenance["retained_bars"]),
+            "setups_10y": len(setups),
+            "funnel": funnel,
+        },
+        "governance": {
+            "research_only": True,
+            "candidate_replacement_allowed_only_if_acceptance_pass": True,
+            "candidate_replaced": False,
+            "r33_r34_r35_r36_results_used_for_consumed_development_forensics_only": True,
+            "structural_risk_policy_preentry_only": True,
+            "risk_governor_suppresses_trades": False,
+            "fresh_holdout_consumed": False,
+            "demo_eligible": False,
+            "live_authorized": False,
+            "real_capital_authorized": False,
+            "production_authorized": False,
+        },
+    }
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "r37-structural-quality-governor-report.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    )
+    return payload
+
+
+def main() -> None:
+    if len(sys.argv) != 5:
+        raise SystemExit(
+            "usage: module RAW_ROOT TARGET_ROOT COGNITIVE_V2_ROOT OUTPUT_DIR"
+        )
+    print(
+        json.dumps(
+            run(
+                Path(sys.argv[1]),
+                Path(sys.argv[2]),
+                Path(sys.argv[3]),
+                Path(sys.argv[4]),
+            ),
+            sort_keys=True,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
