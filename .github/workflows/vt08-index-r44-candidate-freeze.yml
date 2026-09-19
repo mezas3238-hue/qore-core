@@ -1,0 +1,59 @@
+name: VT08 Index R44 Candidate Freeze
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r44-candidate-freeze.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r44_candidate_freeze.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r44_candidate_freeze.py
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r44_candidate_freeze.py
+
+      - name: Emit immutable R44 freeze evidence
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r44_candidate_freeze \
+            --out artifacts/report/vt08-index-r44-candidate-freeze.json
+
+      - name: Verify frozen authority and source
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(Path("artifacts/report/vt08-index-r44-candidate-freeze.json").read_text())
+          assert report["candidate_id"] == "VT08_INDEX_R43_SOURCE_COMPLETE_2448_001"
+          assert report["source"]["run_id"] == 35418460354
+          assert report["source"]["artifact_id"] == 10576224564
+          assert report["five_year"]["sample"] == 2448
+          assert report["dependency_contract_matches"] is True
+          assert len(report["rule_fingerprint"]) == 64
+          g=report["governance"]
+          assert g["candidate_frozen"] is True
+          assert g["two_year_retuning_permitted"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r44-candidate-freeze-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
