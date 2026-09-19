@@ -61,6 +61,7 @@ def factor_exposures(
     for position in positions:
         factors = _FACTOR_MAP[position.symbol]
         direction = Decimal("1") if position.side is CapitalizerSide.LONG else Decimal("-1")
+        legs: tuple[tuple[str, Decimal], ...]
         if len(factors) == 1:
             legs = ((factors[0], direction * position.risk_r),)
         else:
