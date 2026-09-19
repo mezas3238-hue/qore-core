@@ -1,0 +1,549 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+
+import pytest
+
+from qore.infrastructure.trader_lab.capitalizer_behavior_lab import (
+    CapitalizerBehaviorEpisode,
+    CapitalizerBehaviorOutcome,
+    CapitalizerBehaviorSnapshot,
+    CapitalizerFeatureValue,
+    behavior_episode_fingerprint,
+)
+from qore.infrastructure.trader_lab.capitalizer_behavior_metrics import (
+    build_behavior_report,
+    compute_behavior_metrics,
+)
+from qore.infrastructure.trader_lab.capitalizer_contract import (
+    CapitalizerSession,
+    EvidenceStrength,
+    ExecutionQuality,
+    MarketState,
+)
+from qore.infrastructure.trader_lab.capitalizer_cost_stress import (
+    CapitalizerCostStressSpec,
+    apply_cost_stress,
+)
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_situation_model import (
+    CapitalizerExecutionState,
+    CapitalizerSituationModel,
+)
+
+_NOW = datetime(2026, 9, 19, 10, 0, tzinfo=UTC)
+
+
+def _execution() -> CapitalizerExecutionState:
+    return CapitalizerExecutionState(
+        spread_points=Decimal("0.1"),
+        commission_cost_r=Decimal("0.02"),
+        expected_slippage_r=Decimal("0.01"),
+        quote_age_ms=25,
+        observed_latency_ms=15,
+        quality=ExecutionQuality.GOOD,
+    )
+
+
+def _episode(
+    *,
+    episode_id: str,
+    net_r: Decimal,
+    minute: int,
+    symbol: str = "USDJPY",
+    session: CapitalizerSession = CapitalizerSession.ASIA,
+) -> CapitalizerBehaviorEpisode:
+    decision_at = _NOW + timedelta(minutes=minute)
+    gross_r = net_r + Decimal("0.03")
+    snapshot = CapitalizerBehaviorSnapshot(
+        episode_id=episode_id,
+        symbol=symbol,
+        session=session,
+        decision_at=decision_at,
+        hypothesis_id=f"H-{episode_id}",
+        source_event_id=f"E-{episode_id}",
+        event_generation=1,
+        side=CapitalizerSide.LONG,
+        market_state=MarketState.DISPLACEMENT,
+        state_family_id=f"{session.value}_{symbol}_DISPLACEMENT",
+        evidence_strength=EvidenceStrength.HIGH,
+        execution=_execution(),
+        features=(
+            CapitalizerFeatureValue(
+                name="DISPLACEMENT_STATE",
+                value="CONFIRMED",
+                observed_at=decision_at,
+            ),
+            CapitalizerFeatureValue(
+                name="SESSION_PHASE",
+                value="ACTIVE",
+                observed_at=decision_at - timedelta(seconds=1),
+            ),
+        ),
+    )
+    return CapitalizerBehaviorEpisode(
+        snapshot=snapshot,
+        outcome=CapitalizerBehaviorOutcome(
+            episode_id=episode_id,
+            closed_at=decision_at + timedelta(minutes=2),
+            gross_r=gross_r,
+            explicit_cost_r=Decimal("0.03"),
+            net_r=net_r,
+            exit_reason="STRUCTURAL_EXIT",
+            loss_cause_tags=("FAILED_DELIVERY",) if net_r < 0 else (),
+        ),
+    )
+
+
+def test_behavior_snapshot_rejects_future_feature() -> None:
+    decision_at = _NOW
+    with pytest.raises(ValueError, match="future feature"):
+        CapitalizerBehaviorSnapshot(
+            episode_id="EP-FUTURE",
+            symbol="USDJPY",
+            session=CapitalizerSession.ASIA,
+            decision_at=decision_at,
+            hypothesis_id="H-FUTURE",
+            source_event_id="E-FUTURE",
+            event_generation=1,
+            side=CapitalizerSide.LONG,
+            market_state=MarketState.DISPLACEMENT,
+            state_family_id="ASIA_USDJPY_DISPLACEMENT",
+            evidence_strength=EvidenceStrength.HIGH,
+            execution=_execution(),
+            features=(
+                CapitalizerFeatureValue(
+                    name="FUTURE_FEATURE",
+                    value="LEAK",
+                    observed_at=decision_at + timedelta(microseconds=1),
+                ),
+            ),
+        )
+
+
+def test_outcome_is_physically_separate_and_cannot_predate_decision() -> None:
+    snapshot = _episode(
+        episode_id="EP-1",
+        net_r=Decimal("0.5"),
+        minute=0,
+    ).snapshot
+    outcome = CapitalizerBehaviorOutcome(
+        episode_id="EP-1",
+        closed_at=snapshot.decision_at - timedelta(seconds=1),
+        gross_r=Decimal("0.53"),
+        explicit_cost_r=Decimal("0.03"),
+        net_r=Decimal("0.50"),
+        exit_reason="INVALID",
+    )
+    with pytest.raises(ValueError, match="cannot predate"):
+        CapitalizerBehaviorEpisode(snapshot=snapshot, outcome=outcome)
+
+
+def test_behavior_episode_fingerprint_is_deterministic() -> None:
+    episode = _episode(episode_id="EP-FP", net_r=Decimal("0.4"), minute=0)
+    assert behavior_episode_fingerprint(episode) == behavior_episode_fingerprint(episode)
+    assert len(behavior_episode_fingerprint(episode)) == 64
+
+
+def test_metrics_compute_net_pf_drawdown_and_losing_streak() -> None:
+    episodes = (
+        _episode(episode_id="A", net_r=Decimal("1.0"), minute=0),
+        _episode(episode_id="B", net_r=Decimal("-0.5"), minute=1),
+        _episode(episode_id="C", net_r=Decimal("-0.25"), minute=2),
+        _episode(episode_id="D", net_r=Decimal("0.5"), minute=3),
+    )
+    metrics = compute_behavior_metrics(episodes)
+    assert metrics.trades == 4
+    assert metrics.wins == 2
+    assert metrics.losses == 2
+    assert metrics.flats == 0
+    assert metrics.total_r == Decimal("0.75")
+    assert metrics.gross_profit_r == Decimal("1.5")
+    assert metrics.gross_loss_r == Decimal("0.75")
+    assert metrics.profit_factor == Decimal("2")
+    assert metrics.max_drawdown_r == Decimal("0.75")
+    assert metrics.max_losing_streak == 2
+
+
+def test_behavior_report_separates_session_and_market_cells() -> None:
+    episodes = (
+        _episode(episode_id="A1", net_r=Decimal("0.4"), minute=0),
+        _episode(
+            episode_id="L1",
+            net_r=Decimal("0.3"),
+            minute=10,
+            symbol="EURUSD",
+            session=CapitalizerSession.LONDON,
+        ),
+        _episode(
+            episode_id="N1",
+            net_r=Decimal("-0.2"),
+            minute=20,
+            symbol="XAUUSD",
+            session=CapitalizerSession.NEW_YORK,
+        ),
+    )
+    report = build_behavior_report(episodes)
+    assert report.total.trades == 3
+    session_counts = {item.session: item.metrics.trades for item in report.by_session}
+    assert session_counts == {
+        CapitalizerSession.ASIA: 1,
+        CapitalizerSession.LONDON: 1,
+        CapitalizerSession.NEW_YORK: 1,
+    }
+    cells = {(item.session, item.symbol): item.metrics.trades for item in report.by_session_market}
+    assert cells[(CapitalizerSession.ASIA, "USDJPY")] == 1
+    assert cells[(CapitalizerSession.LONDON, "EURUSD")] == 1
+    assert cells[(CapitalizerSession.NEW_YORK, "XAUUSD")] == 1
+
+
+def test_cost_stress_can_destroy_marginal_scalping_edge_without_changing_snapshot() -> None:
+    episode = _episode(episode_id="EDGE", net_r=Decimal("0.05"), minute=0)
+    stressed = apply_cost_stress(
+        (episode,),
+        spec=CapitalizerCostStressSpec(
+            additional_spread_r=Decimal("0.02"),
+            additional_commission_r=Decimal("0.02"),
+            additional_slippage_r=Decimal("0.02"),
+        ),
+    )
+    assert stressed[0].snapshot is episode.snapshot
+    assert stressed[0].outcome.net_r == Decimal("-0.01")
+    assert stressed[0].outcome.explicit_cost_r == Decimal("0.09")
+
+
+def test_execution_portability_fails_closed_until_every_environment_qualifies() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_execution_portability import (
+        CapitalizerEnvironmentQualification,
+        CapitalizerEnvironmentStatus,
+        CapitalizerExecutionEnvironment,
+        evaluate_execution_portability,
+    )
+
+    qualifications = (
+        CapitalizerEnvironmentQualification(
+            environment=CapitalizerExecutionEnvironment.IC_MARKETS_RAW,
+            profile_fingerprint="1" * 64,
+            status=CapitalizerEnvironmentStatus.QUALIFIED,
+            evidence_fingerprint="a" * 64,
+        ),
+        CapitalizerEnvironmentQualification(
+            environment=CapitalizerExecutionEnvironment.FTMO,
+            profile_fingerprint="2" * 64,
+            status=CapitalizerEnvironmentStatus.QUALIFIED,
+            evidence_fingerprint="b" * 64,
+        ),
+        CapitalizerEnvironmentQualification(
+            environment=CapitalizerExecutionEnvironment.FUNDEDNEXT,
+            profile_fingerprint="3" * 64,
+            status=CapitalizerEnvironmentStatus.REJECTED,
+            evidence_fingerprint="c" * 64,
+        ),
+    )
+    decision = evaluate_execution_portability(qualifications)
+    assert decision.qualified is False
+    assert "NOT_QUALIFIED:FUNDEDNEXT:REJECTED" in decision.reasons
+    assert "MISSING:ADVERSE_PORTABILITY_ENVELOPE" in decision.reasons
+
+
+def test_execution_portability_requires_same_candidate_to_survive_all_target_domains() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_execution_portability import (
+        MANDATORY_EXECUTION_ENVIRONMENTS,
+        CapitalizerEnvironmentQualification,
+        CapitalizerEnvironmentStatus,
+        evaluate_execution_portability,
+    )
+
+    qualifications = tuple(
+        CapitalizerEnvironmentQualification(
+            environment=environment,
+            profile_fingerprint=f"{index:x}" * 64,
+            status=CapitalizerEnvironmentStatus.QUALIFIED,
+            evidence_fingerprint=f"{index + 8:x}" * 64,
+        )
+        for index, environment in enumerate(MANDATORY_EXECUTION_ENVIRONMENTS, start=1)
+    )
+    decision = evaluate_execution_portability(qualifications)
+    assert decision.qualified is True
+    assert decision.reasons == ()
+
+
+def test_source_contract_separates_sourced_rules_from_qore_operationalization() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_strategy_source_contract import (
+        FROZEN_CAPITALIZER_SOURCE_CONTRACT,
+        CapitalizerRuleProvenance,
+    )
+
+    contract = FROZEN_CAPITALIZER_SOURCE_CONTRACT
+    assert contract.runtime_mutation_allowed is False
+    assert contract.economic_edge_claimed is False
+    assert any(
+        rule.provenance is CapitalizerRuleProvenance.SOURCE_SUPPORTED
+        for rule in contract.rules
+    )
+    qore_rules = tuple(
+        rule
+        for rule in contract.rules
+        if rule.provenance is CapitalizerRuleProvenance.QORE_OPERATIONALIZATION
+    )
+    assert qore_rules
+    assert all(rule.source_ids == () for rule in qore_rules)
+
+
+def test_feature_extractor_uses_only_exact_causal_brain_state() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_context_brains import (
+        CapitalizerMarketBrainState,
+        CapitalizerSessionBrainState,
+        CapitalizerSessionPhase,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_feature_extractor import (
+        extract_behavior_features,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_microstructure import (
+        CapitalizerMicroEvent,
+        CapitalizerMicroEventKind,
+        CapitalizerMicrostructureTrace,
+    )
+
+    situation = _episode(
+        episode_id="FEATURES",
+        net_r=Decimal("0.20"),
+        minute=30,
+    ).snapshot
+    causal = _NOW + timedelta(minutes=30)
+    trace = CapitalizerMicrostructureTrace(
+        decision_at=causal,
+        events=(
+            CapitalizerMicroEvent(
+                event_id="MICRO-1",
+                kind=CapitalizerMicroEventKind.LIQUIDITY_TAKEN,
+                observed_at=causal - timedelta(seconds=5),
+                value_token="LOW",
+            ),
+            CapitalizerMicroEvent(
+                event_id="MICRO-2",
+                kind=CapitalizerMicroEventKind.DISPLACEMENT_CONFIRMED,
+                observed_at=causal,
+                value_token="UP",
+            ),
+        ),
+    )
+    market_brain = CapitalizerMarketBrainState(
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        state_family_id="ASIA_USDJPY_DISPLACEMENT",
+        microstructure=trace,
+    )
+    session_brain = CapitalizerSessionBrainState(
+        session=CapitalizerSession.ASIA,
+        phase=CapitalizerSessionPhase.ACTIVE,
+    )
+    live_situation = CapitalizerSituationModel(
+        symbol=situation.symbol,
+        session=situation.session,
+        observed_at=situation.decision_at,
+        hypothesis_id=situation.hypothesis_id,
+        source_event_id=situation.source_event_id,
+        event_generation=situation.event_generation,
+        market_state=situation.market_state,
+        evidence_strength=situation.evidence_strength,
+        execution=situation.execution,
+        strategy_trigger_ready=True,
+        displacement_confirmed=True,
+        destination_available=True,
+        late_entry=False,
+        correlated_exposure_blocked=False,
+    )
+    features = extract_behavior_features(
+        situation=live_situation,
+        market_brain=market_brain,
+        session_brain=session_brain,
+    )
+    names = tuple(feature.name for feature in features)
+    assert names == tuple(sorted(names))
+    by_name = {feature.name: feature.value for feature in features}
+    assert by_name["MICRO_PATH"] == "LIQUIDITY_TAKEN>DISPLACEMENT_CONFIRMED"
+    assert by_name["HANDOFF_PRESENT"] == "FALSE"
+    assert all(feature.observed_at <= live_situation.observed_at for feature in features)
+
+
+def test_behavior_forensics_exposes_density_ceiling_and_repeated_loss_causes() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_behavior_forensics import (
+        build_behavior_forensics,
+    )
+
+    episodes = (
+        _episode(episode_id="D1-A", net_r=Decimal("-0.2"), minute=0),
+        _episode(episode_id="D1-B", net_r=Decimal("-0.2"), minute=1),
+        _episode(episode_id="D1-C", net_r=Decimal("-0.2"), minute=2),
+    )
+    report = build_behavior_forensics(episodes)
+    asia = next(
+        item
+        for item in report.session_density
+        if item.session is CapitalizerSession.ASIA
+    )
+    assert asia.trades == 3
+    assert asia.max_trades_in_one_session_day == 3
+    assert asia.ceiling_violations == 1
+    assert report.repeated_same_cause_streaks == 2
+    failure = next(item for item in report.loss_causes if item.tag == "FAILED_DELIVERY")
+    assert failure.losing_trades == 3
+    assert failure.appearances_in_losing_streaks == 2
+
+
+def test_consumed_atlas_lineage_covers_every_initial_capitalizer_market() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_research_lineage import (
+        CAPITALIZER_CONSUMED_LINEAGE,
+        CONSUMED_END_EXCLUSIVE,
+        CONSUMED_START,
+        validate_consumed_lineage_coverage,
+    )
+
+    validate_consumed_lineage_coverage()
+    assert len(CAPITALIZER_CONSUMED_LINEAGE) == 9
+    assert CONSUMED_START.year == 2016
+    assert CONSUMED_END_EXCLUSIVE.year == 2026
+    assert all(item.research_evidence_consumed for item in CAPITALIZER_CONSUMED_LINEAGE)
+    assert all(not item.fresh_holdout_eligible for item in CAPITALIZER_CONSUMED_LINEAGE)
+    assert sum(item.retained_m5_bars for item in CAPITALIZER_CONSUMED_LINEAGE) > 6_500_000
+
+
+def test_data_readiness_accepts_exact_consumed_atlas_manifest(tmp_path: Path) -> None:
+    import json
+
+    from qore.infrastructure.trader_lab.capitalizer_data_readiness import (
+        build_data_readiness_report,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_research_lineage import (
+        CAPITALIZER_CONSUMED_LINEAGE,
+    )
+
+    symbols = []
+    for item in CAPITALIZER_CONSUMED_LINEAGE:
+        symbols.append(
+            {
+                "canonical_symbol": item.symbol,
+                "retained_bars": item.retained_m5_bars,
+                "earliest_observed_m5": "2016-09-18T21:00:00+00:00",
+                "latest_observed_m5": "2026-09-16T23:55:00+00:00",
+                "raw_integrity_status": "CLEAN_PROVIDER_PAYLOAD",
+                "research_evidence_consumed": True,
+                "partitions": [
+                    {
+                        "contradictory_bars": 0,
+                        "timestamp_alignment_errors": 0,
+                        "out_of_window_bars": 0,
+                    }
+                ],
+            }
+        )
+    index = tmp_path / "ten-year-consumption-index.json"
+    index.write_text(
+        json.dumps(
+            {
+                "identity": "CIBO_MARKET_ATLAS_10Y_CONSUMPTION_V1",
+                "schema": "qore.cibo_market_atlas.m5_consumption.aggregate.v1",
+                "research_evidence_consumed": True,
+                "symbols": symbols,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_data_readiness_report(index)
+    assert report.all_markets_ready_for_development is True
+    assert report.ready_markets == 9
+    assert report.market_count == 9
+    assert report.fresh_holdout_eligible is False
+    assert report.retained_m5_bars > 6_500_000
+
+
+def test_feature_extractor_exposes_only_exact_directional_target_context() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_context_brains import (
+        CapitalizerMarketBrainState,
+        CapitalizerSessionBrainState,
+        CapitalizerSessionPhase,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_feature_extractor import (
+        extract_behavior_features,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_microstructure import (
+        CapitalizerMicrostructureTrace,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_target_context import (
+        CapitalizerTargetCandidate,
+        CapitalizerTargetContext,
+    )
+
+    decision_at = _NOW
+    situation = CapitalizerSituationModel(
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        observed_at=decision_at,
+        hypothesis_id="H-TARGET",
+        source_event_id="E-TARGET",
+        event_generation=1,
+        market_state=MarketState.DISPLACEMENT,
+        evidence_strength=EvidenceStrength.HIGH,
+        execution=_execution(),
+        strategy_trigger_ready=True,
+        displacement_confirmed=True,
+        destination_available=True,
+        late_entry=False,
+        correlated_exposure_blocked=False,
+    )
+    market_brain = CapitalizerMarketBrainState(
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        state_family_id="ASIA_USDJPY_TARGET_CONTEXT",
+        microstructure=CapitalizerMicrostructureTrace(
+            decision_at=decision_at,
+            events=(),
+        ),
+    )
+    session_brain = CapitalizerSessionBrainState(
+        session=CapitalizerSession.ASIA,
+        phase=CapitalizerSessionPhase.ACTIVE,
+    )
+    context = CapitalizerTargetContext(
+        symbol="USDJPY",
+        side=CapitalizerSide.LONG,
+        departure_at=decision_at,
+        candidates=(
+            CapitalizerTargetCandidate(
+                candidate_id="DOL-1",
+                family="PRIOR_CANDLE_DIRECTIONAL_BOUNDARY",
+                timeframe="H1",
+                price=Decimal("147.10"),
+                distance_ticks=Decimal("100"),
+                known_at=decision_at - timedelta(minutes=30),
+                structural_opened_at=decision_at - timedelta(hours=1),
+            ),
+        ),
+    )
+
+    features = extract_behavior_features(
+        situation=situation,
+        market_brain=market_brain,
+        session_brain=session_brain,
+        target_context=context,
+        side=CapitalizerSide.LONG,
+    )
+    by_name = {feature.name: feature.value for feature in features}
+    assert by_name["TARGET_CONTEXT_PRESENT"] == "TRUE"
+    assert by_name["TARGET_ACTIVE_CANDIDATE_COUNT"] == "1"
+    assert by_name["TARGET_FAMILIES"] == "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY"
+    assert by_name["TARGET_TIMEFRAMES"] == "H1"
+    assert by_name["TARGET_NEAREST_DISTANCE_TICKS"] == "100"
+
+    with pytest.raises(ValueError, match="side must match"):
+        extract_behavior_features(
+            situation=situation,
+            market_brain=market_brain,
+            session_brain=session_brain,
+            target_context=context,
+            side=CapitalizerSide.SHORT,
+        )
