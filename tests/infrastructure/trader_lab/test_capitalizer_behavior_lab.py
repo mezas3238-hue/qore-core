@@ -32,7 +32,6 @@ from qore.infrastructure.trader_lab.capitalizer_situation_model import (
     CapitalizerSituationModel,
 )
 
-
 _NOW = datetime(2026, 9, 19, 10, 0, tzinfo=UTC)
 
 
@@ -250,10 +249,9 @@ def test_execution_portability_fails_closed_until_every_environment_qualifies() 
 
 def test_execution_portability_requires_same_candidate_to_survive_all_target_domains() -> None:
     from qore.infrastructure.trader_lab.capitalizer_execution_portability import (
+        MANDATORY_EXECUTION_ENVIRONMENTS,
         CapitalizerEnvironmentQualification,
         CapitalizerEnvironmentStatus,
-        CapitalizerExecutionEnvironment,
-        MANDATORY_EXECUTION_ENVIRONMENTS,
         evaluate_execution_portability,
     )
 
@@ -273,8 +271,8 @@ def test_execution_portability_requires_same_candidate_to_survive_all_target_dom
 
 def test_source_contract_separates_sourced_rules_from_qore_operationalization() -> None:
     from qore.infrastructure.trader_lab.capitalizer_strategy_source_contract import (
-        CapitalizerRuleProvenance,
         FROZEN_CAPITALIZER_SOURCE_CONTRACT,
+        CapitalizerRuleProvenance,
     )
 
     contract = FROZEN_CAPITALIZER_SOURCE_CONTRACT
