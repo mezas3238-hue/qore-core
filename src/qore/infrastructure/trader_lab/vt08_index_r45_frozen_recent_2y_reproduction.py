@@ -21,21 +21,51 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.trader_lab import vt08_index_cibo_2y_density_round4 as r4
-from qore.infrastructure.trader_lab import vt08_index_cibo_2y_management_round5 as r5
-from qore.infrastructure.trader_lab import vt08_index_concurrent_market_contract as contract
-from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
-from qore.infrastructure.trader_lab import vt08_index_r6_five_year_validation as r6
-from qore.infrastructure.trader_lab import vt08_index_r8_priority_poi_rearm_reset as r8
-from qore.infrastructure.trader_lab import vt08_index_r14_recent_2y_replay as r2y
-from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_validation as r15
-from qore.infrastructure.trader_lab import vt08_index_r31_source_complete_structural_concurrency as r31
-from qore.infrastructure.trader_lab import vt08_index_r34_hybrid_formation_poi_health as r34
-from qore.infrastructure.trader_lab import vt08_index_r42_hierarchical_nas100_prior as r42
-from qore.infrastructure.trader_lab import vt08_index_r43_sp500_long_stability_prior as r43
-from qore.infrastructure.trader_lab import vt08_index_r44_candidate_freeze as freeze
-from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
-from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
+from qore.infrastructure.trader_lab import (
+    vt08_index_cibo_2y_density_round4 as r4,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_cibo_2y_management_round5 as r5,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_concurrent_market_contract as contract,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r6_5y_failure_forensics as fx,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r6_five_year_validation as r6,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r8_priority_poi_rearm_reset as r8,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r14_recent_2y_replay as r2y,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r15_concurrent_portfolio_validation as r15,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r31_source_complete_structural_concurrency as r31,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r34_hybrid_formation_poi_health as r34,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r42_hierarchical_nas100_prior as r42,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r43_sp500_long_stability_prior as r43,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r44_candidate_freeze as freeze,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_v6_ttrades_source_faithful as v6,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_v7_ttrades_source_corrected as v7,
+)
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
