@@ -83,7 +83,7 @@ class CapitalizerMicrostructureSummary:
     rule_promotion_allowed: bool = False
 
 
-def _events(
+def classify_microstructure_events(
     current: CapitalizerM5Bar,
     previous: CapitalizerM5Bar,
 ) -> tuple[CapitalizerMicrostructureEvent, ...]:
@@ -134,7 +134,7 @@ def _observation(
         session=session,
         bar_opened_at=current.opened_at,
         decision_at=current.closed_at,
-        events=_events(current, previous),
+        events=classify_microstructure_events(current, previous),
         range_price=current_range,
         body_price=current.body,
         body_fraction=body_fraction,
