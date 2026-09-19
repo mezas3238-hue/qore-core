@@ -6,9 +6,9 @@ from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_contract import (
+    MAX_EXECUTIONS_PER_SESSION,
     CapitalizerDecision,
     CapitalizerSession,
-    MAX_EXECUTIONS_PER_SESSION,
 )
 
 
