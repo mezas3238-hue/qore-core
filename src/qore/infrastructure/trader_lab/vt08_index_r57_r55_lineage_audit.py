@@ -2,7 +2,7 @@
 
 R57 preserves the R55 and R56 evidence but checks whether the development
 candidate was actually layered on the exact frozen R47 allocator lineage.
-It changes no strategy rule and creates no candidate.
+It changes no strategy rule and creates no candidate. The audit is fail-closed.
 """
 
 from __future__ import annotations
