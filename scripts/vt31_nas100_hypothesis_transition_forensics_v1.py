@@ -19,6 +19,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
+from zoneinfo import ZoneInfo
 
 import vt31_nas100_causal_hybrid_rearm_v1 as capital
 import vt31_nas100_hypothesis_lifecycle_frontier_v1 as lifecycle
@@ -43,6 +44,7 @@ FRICTION = Decimal("0.05")
 EXPECTED_SOURCE_SHA256 = lifecycle.EXPECTED_SOURCE_SHA256
 EXPECTED_METHODOLOGY_ID = lifecycle.EXPECTED_METHODOLOGY_ID
 MIN_STATE_SAMPLE = 10
+NY = ZoneInfo("America/New_York")
 
 FEATURE_FIELDS = (
     "execution_role",
@@ -146,38 +148,6 @@ def _rejection_class(status: str) -> str:
     if status.startswith("REJECT_AMBIGUOUS"):
         return "AMBIGUOUS"
     return status
-
-
-def _maturity_observed_at(
-    session: tuple[object, ...],
-    source: Vt31R22SourceSetup,
-) -> datetime:
-    bars_required, _, _, _ = lifecycle._maturity_contract(
-        "breaker",
-        "FAMILY",
-    )
-    # Family-specific count.
-    family_setup = None
-    # Caller always has an executable setup; this fallback is never used.
-    del family_setup
-    confirmation_index = next(
-        index
-        for index, bar in enumerate(session)
-        if cast(datetime, getattr(bar, "closed_at"))
-        == source.structure.confirmation_at
-    )
-    return cast(
-        datetime,
-        getattr(
-            session[
-                min(
-                    len(session) - 1,
-                    confirmation_index + bars_required,
-                )
-            ],
-            "closed_at",
-        ),
-    )
 
 
 def _rejection_decision_at(
@@ -375,8 +345,8 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
                 market_setup.target_price - market_setup.entry_price
             ) / market_setup.initial_risk
             minute = (
-                authorization_at.astimezone(lifecycle.specialist.NY).hour * 60
-                + authorization_at.astimezone(lifecycle.specialist.NY).minute
+                authorization_at.astimezone(NY).hour * 60
+                + authorization_at.astimezone(NY).minute
                 - 10 * 60
             )
 
