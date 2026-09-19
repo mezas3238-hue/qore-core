@@ -1172,32 +1172,74 @@ def _process_audjpy_r42_candidate(
     account_equity: Decimal,
     audjpy_r42_store: R42AudJpyLiveStateStore,
     log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
 ) -> None:
-    spec = gateway.read_symbol("AUDJPY", now=now)
+    deadline = signal.entry_at.astimezone(UTC) + AUDJPY_R42_ENTRY_SLA
+
+    def stage_time(stage: str) -> datetime | None:
+        observed = datetime.now(UTC)
+        if observed > deadline:
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_SLA_FAIL_CLOSED",
+                    "symbol": "AUDJPY",
+                    "stage": stage,
+                    "signal_fingerprint": signal.signal_fingerprint,
+                    "entry_at": signal.entry_at.isoformat(),
+                    "deadline_at": deadline.isoformat(),
+                    "observed_at": observed.isoformat(),
+                    "latency_ms": int(
+                        (observed - signal.entry_at).total_seconds() * 1000
+                    ),
+                    "order_send_called": False,
+                },
+            )
+            return None
+        return observed
+
+    processing_at = stage_time("before-symbol-read")
+    if processing_at is None:
+        return
+    spec = gateway.read_symbol("AUDJPY", now=processing_at)
+
+    request_at = stage_time("before-risk-request")
+    if request_at is None:
+        return
     request, base_risk_usd = build_r42_audjpy_risk_request(
         request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
         signal=signal,
         provider_spec=spec,
         account_equity=account_equity,
-        now=now,
+        now=request_at,
     )
-    open_stop, floating_loss, pending_stop = _broker_risk(transport)
-    account_state = gateway.read_account(now=now)
-    snapshot = AccountRiskSnapshot(
-        account_binding_id=account_binding_id,
-        equity=account_equity,
-        margin_used=account_state.margin,
-        free_margin=account_state.free_margin,
-        open_stop_worst_case_loss=open_stop,
-        open_floating_loss=floating_loss,
-        pending_broker_worst_case_loss=pending_stop,
-        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-        provider_budget=provider_budget,
-        reconciled_at=now,
-    )
+
+    if preflight_snapshot is None:
+        open_stop, floating_loss, pending_stop = _broker_risk(transport)
+        account_state = gateway.read_account(now=request_at)
+        snapshot = AccountRiskSnapshot(
+            account_binding_id=account_binding_id,
+            equity=account_equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+            provider_budget=provider_budget,
+            reconciled_at=request_at,
+        )
+    else:
+        snapshot = preflight_snapshot
+        if snapshot.account_binding_id != account_binding_id:
+            raise RuntimeError("AUDJPY R42 preflight account binding drift")
+
+    authorize_at = stage_time("before-account-wide-risk")
+    if authorize_at is None:
+        return
     if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=now)
-    authorization = risk.authorize(request, snapshot, now=now)
+        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
             log_path,
@@ -1206,21 +1248,37 @@ def _process_audjpy_r42_candidate(
                 "symbol": "AUDJPY",
                 "reason": authorization.reason,
                 "signal_fingerprint": signal.signal_fingerprint,
+                "latency_ms": int(
+                    (authorize_at - signal.entry_at).total_seconds() * 1000
+                ),
             },
         )
         return
 
+    submission_at = stage_time("before-submission-build")
+    if submission_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
             state=ExecutionSwitchState.ENABLED,
-            observed_at=now,
+            observed_at=submission_at,
             reason="qore AUDJPY R42 certified runtime safety gate enabled",
         ),
-        authorized_at=now,
-        submitted_at=now,
+        authorized_at=submission_at,
+        submitted_at=submission_at,
     )
-    shadow = gateway.shadow_check(submission, now=now)
+
+    shadow_at = stage_time("before-broker-order-check")
+    if shadow_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
+    shadow = gateway.shadow_check(submission, now=shadow_at)
+    checked_at = stage_time("after-broker-order-check")
+    if checked_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
         _log(
@@ -1256,6 +1314,11 @@ def _process_audjpy_r42_candidate(
         "risk_scale": str(signal.risk_scale),
         "risk_usd": str(authorization.monetary_stop_loss),
         "volume": str(authorization.authorized_volume),
+        "boundary_tick_at": signal.boundary_tick_at.isoformat(),
+        "latency_ms": int(
+            (checked_at - signal.entry_at).total_seconds() * 1000
+        ),
+        "entry_sla_ms": int(AUDJPY_R42_ENTRY_SLA.total_seconds() * 1000),
     }
     if mode == "shadow":
         risk.cancel(authorization.authorization_id)
@@ -1269,7 +1332,11 @@ def _process_audjpy_r42_candidate(
         )
         return
 
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = stage_time("before-order-send")
+    if send_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     audjpy_r42_store.mark_open(
@@ -1277,6 +1344,7 @@ def _process_audjpy_r42_candidate(
         signal=signal,
         base_risk_usd=base_risk_usd,
     )
+    accepted_at = datetime.now(UTC)
     _log(
         log_path,
         {
@@ -1284,6 +1352,14 @@ def _process_audjpy_r42_candidate(
             **event,
             "risk_authorization": authorization.authorization_id,
             "provider_order_ref": provider_ref,
+            "order_send_started_at": send_at.isoformat(),
+            "provider_ack_at": accepted_at.isoformat(),
+            "send_started_latency_ms": int(
+                (send_at - signal.entry_at).total_seconds() * 1000
+            ),
+            "provider_ack_latency_ms": int(
+                (accepted_at - signal.entry_at).total_seconds() * 1000
+            ),
         },
     )
 
