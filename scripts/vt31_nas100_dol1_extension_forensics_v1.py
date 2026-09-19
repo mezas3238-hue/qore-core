@@ -51,7 +51,7 @@ def _bucket(
 ) -> str:
     if value is None:
         return "missing"
-    for cut, label in zip(cuts, labels):
+    for cut, label in zip(cuts, labels, strict=True):
         if value <= cut:
             return label
     return labels[-1]
