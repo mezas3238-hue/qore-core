@@ -173,6 +173,10 @@ def build_forward_responses(root: Path) -> tuple[CapitalizerForwardResponse, ...
         )
         if not directional:
             continue
+        if len({_EVENT_SIDE[event] for event in directional}) != 1:
+            # A two-sided outside event that supports opposite directional hypotheses is
+            # diagnostically ambiguous at this decision instant and is not labeled.
+            continue
 
         for count in HORIZON_BARS:
             future = _exact_contiguous_future(bars, source_index=index, count=count)
