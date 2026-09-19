@@ -18,7 +18,6 @@ from re import fullmatch
 from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
     EvidenceStrength,
-    ExecutionQuality,
     MarketState,
     market_is_allowed,
 )
