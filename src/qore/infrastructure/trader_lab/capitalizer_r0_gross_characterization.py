@@ -152,7 +152,11 @@ def _nearest_target(
     entry: Decimal,
 ) -> Decimal | None:
     if side is CapitalizerSide.LONG:
-        prices = tuple(candidate.price for candidate in context.candidates if candidate.price > entry)
+        prices = tuple(
+            candidate.price
+            for candidate in context.candidates
+            if candidate.price > entry
+        )
         return min(prices) if prices else None
     prices = tuple(candidate.price for candidate in context.candidates if candidate.price < entry)
     return max(prices) if prices else None
