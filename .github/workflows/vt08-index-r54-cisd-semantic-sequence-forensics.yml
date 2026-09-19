@@ -1,0 +1,102 @@
+name: VT08 Index R54 CISD Semantic Sequence Forensics
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r54-cisd-semantic-sequence-forensics.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r54_cisd_semantic_sequence_forensics.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r54_cisd_semantic_sequence_forensics.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r54_cisd_semantic_sequence_forensics.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download official R46 source-complete feature matrix
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-r46-cross-window-transport-forensics-5ae49f183f117f53f69e9aaac4a4a35bb30a9d81
+          path: artifacts/r46
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35438709936
+
+      - name: Download official R53 reaction forensics
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-r53-cisd-reaction-quality-forensics-4c17590f15f60a85e84ac51cd2dbf5a591540894
+          path: artifacts/r53
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35454021207
+
+      - name: Execute R54 semantic sequence forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r54_cisd_semantic_sequence_forensics \
+            --r46 artifacts/r46/vt08-index-r46-cross-window-transport-forensics.json \
+            --r53 artifacts/r53/vt08-index-r53-cisd-reaction-quality-forensics.json \
+            --out artifacts/report/vt08-index-r54-cisd-semantic-sequence-forensics.json
+
+      - name: Verify R54 governance and source population
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r54-cisd-semantic-sequence-forensics.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R54_CISD_SEMANTIC_SEQUENCE_FORENSICS_001"
+          )
+          assert report["five_year"]["cisd_sample"] == 2068
+          assert report["recent_two_year"]["cisd_sample"] == 899
+          assert report["source_candidate"]["candidate_modified"] is False
+          g = report["governance"]
+          assert g["forensics_only"] is True
+          assert g["consumed_evidence_only"] is True
+          assert g["existing_core_labs_reused"] is True
+          assert g["grid_search_used"] is False
+          assert g["post_entry_outcome_used_as_predictor"] is False
+          assert g["candidate_created"] is False
+          assert g["risk_retuned"] is False
+          assert g["signal_suppressed"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Upload R54 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r54-cisd-semantic-sequence-forensics-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
