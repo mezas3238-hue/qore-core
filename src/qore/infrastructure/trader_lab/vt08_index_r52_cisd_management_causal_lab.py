@@ -46,7 +46,8 @@ from qore.infrastructure.trader_lab import vt08_index_r48_candidate_freeze as fr
 from qore.infrastructure.trader_lab import vt08_index_r51_concentration_robustness as r51
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
-# Quality rebind after shared lint repair.\nSCHEMA = "qore.trader_lab.vt08_index_r52_cisd_management_causal_lab.v1"
+# Quality rebind after shared lint repair.
+SCHEMA = "qore.trader_lab.vt08_index_r52_cisd_management_causal_lab.v1"
 IDENTITY = "VT08_INDEX_R52_CISD_MANAGEMENT_CAUSAL_LAB_001"
 PRIMARY_STRESS = Decimal("0.05")
 SECONDARY_STRESS = Decimal("0.10")
