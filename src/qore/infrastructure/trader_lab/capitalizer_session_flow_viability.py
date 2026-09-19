@@ -180,17 +180,9 @@ def _third_execution_cell(
     )
 
 
-def build_session_flow_viability_report(
-    *,
-    m5_root: Path,
-    journey_root: Path,
-    target_root: Path,
+def _build_report_from_baseline(
+    baseline: tuple[CapitalizerR0Trade, ...],
 ) -> CapitalizerSessionFlowViabilityReport:
-    baseline, _, _ = _baseline(
-        m5_root=m5_root,
-        journey_root=journey_root,
-        target_root=target_root,
-    )
     _assert_same_session_exit(baseline)
     grouped: dict[str, int] = defaultdict(int)
     for trade in baseline:
@@ -236,6 +228,41 @@ def build_session_flow_viability_report(
     )
 
 
+
+
+
+def build_session_flow_viability_report(
+    *,
+    m5_root: Path,
+    journey_root: Path,
+    target_root: Path,
+) -> CapitalizerSessionFlowViabilityReport:
+    baseline, _, _ = _baseline(
+        m5_root=m5_root,
+        journey_root=journey_root,
+        target_root=target_root,
+    )
+    return _build_report_from_baseline(baseline)
+
+
+def _write_baseline_trade_ledger(
+    baseline: tuple[CapitalizerR0Trade, ...],
+    output: Path,
+) -> None:
+    symbol = baseline[0].symbol
+    path = output / f"capitalizer-{symbol.lower()}-session-flow-trades-v1.jsonl"
+    rows = sorted(baseline, key=lambda item: (item.entry_at, item.exit_at))
+    with path.open("w", encoding="utf-8") as handle:
+        for trade in rows:
+            row = {
+                "symbol": trade.symbol,
+                "entry_at": trade.entry_at.isoformat(),
+                "exit_at": trade.exit_at.isoformat(),
+                "realized_gross_r": str(trade.realized_gross_r),
+            }
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Capitalizer session-flow viability")
     parser.add_argument("m5_root", type=Path)
@@ -243,12 +270,14 @@ def main() -> None:
     parser.add_argument("target_root", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    report = build_session_flow_viability_report(
+    baseline, _, _ = _baseline(
         m5_root=args.m5_root,
         journey_root=args.journey_root,
         target_root=args.target_root,
     )
+    report = _build_report_from_baseline(baseline)
     args.output.mkdir(parents=True, exist_ok=True)
+    _write_baseline_trade_ledger(baseline, args.output)
     path = args.output / f"capitalizer-{report.symbol.lower()}-session-flow-viability-v1.json"
     path.write_text(
         json.dumps(asdict(report), indent=2, sort_keys=True) + "\n",
