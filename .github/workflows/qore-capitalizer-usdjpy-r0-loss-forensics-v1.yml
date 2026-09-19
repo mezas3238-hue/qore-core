@@ -143,6 +143,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_h1_episode_multiplicity_forensics \
             m5-source journey-source target-source forensic-output
+      - name: Run H1 source-boundary age residual-DD forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_h1_source_age_forensics \
+            m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
           python - <<'PY'
@@ -309,6 +313,29 @@ jobs:
               'DROP_MULTI_EPISODE_ALL',
               'DROP_MULTI_EPISODE_RECLAIM_ONLY',
               'DROP_MULTI_EPISODE_NORECLAIM_ONLY',
+          }
+
+          source_age = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-h1-source-age-v1.json'
+              ).read_text()
+          )
+          assert source_age['identity'] == (
+              'QORE_CAPITALIZER_H1_SOURCE_AGE_FORENSICS_V1'
+          )
+          assert source_age['development_only'] is True
+          assert source_age['structural_timeframe_relation_only'] is True
+          assert source_age['numeric_threshold_optimization_used'] is False
+          assert source_age['costs_applied'] is False
+          assert source_age['candidate_frozen'] is False
+          assert source_age['fresh_holdout_claimed'] is False
+          assert source_age['rule_selected'] is False
+          assert source_age['promotion_allowed'] is False
+          assert {row['name'] for row in source_age['ablations']} == {
+              'DROP_OLDER_H1_SOURCE_ALL',
+              'DROP_OLDER_H1_SOURCE_RECLAIM_ONLY',
+              'DROP_OLDER_H1_SOURCE_NORECLAIM_ONLY',
           }
           PY
       - name: Upload immutable R0 forensics
