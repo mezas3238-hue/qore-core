@@ -3,8 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
-
 from qore.infrastructure.trader_lab.capitalizer_atlas_m5_reader import CapitalizerM5Bar
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_r0_gross_characterization import CapitalizerR0Trade
@@ -100,7 +98,7 @@ def test_acceptance_state_uses_all_exact_h1_episodes_and_prior_m5_only() -> None
     assert state == "RECLAIM_MIXED_REPEAT"
 
 
-def test_acceptance_state_rejects_future_journey_information() -> None:
+def test_acceptance_state_ignores_future_journey_information() -> None:
     start = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
     bars = (
         _bar(start, open_="100.10", high="100.20", low="100.00", close="100.10"),
@@ -128,11 +126,11 @@ def test_acceptance_state_rejects_future_journey_information() -> None:
         )
     }
 
-    with pytest.raises(ValueError, match="future journey state"):
-        _acceptance_state(
-            trade=trade,
-            bars=bars,
-            by_close=_bars_by_close(bars),
-            episode_index=episode_index,
-            sequences=sequences,
-        )
+    state = _acceptance_state(
+        trade=trade,
+        bars=bars,
+        by_close=_bars_by_close(bars),
+        episode_index=episode_index,
+        sequences=sequences,
+    )
+    assert state == "NO_RECLAIM_REPEAT"

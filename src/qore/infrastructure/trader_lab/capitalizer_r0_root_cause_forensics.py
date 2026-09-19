@@ -258,10 +258,14 @@ def _reclaim_tag(
         sequence = sequences.get(episode_id)
         if sequence is None:
             raise ValueError("acceptance trade departure episode requires causal sequence")
-        for _, observed_at in sequence:
-            if observed_at > trade.signal_at:
-                raise ValueError("future journey state cannot enter root-cause cognition")
-        reclaim_states.append(any(state == "RECLAIM" for state, _ in sequence))
+        causal_sequence = tuple(
+            (state, observed_at)
+            for state, observed_at in sequence
+            if observed_at <= trade.signal_at
+        )
+        reclaim_states.append(
+            any(state == "RECLAIM" for state, _ in causal_sequence)
+        )
 
     if all(reclaim_states):
         return "RECLAIM_ALL"
