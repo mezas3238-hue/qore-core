@@ -142,26 +142,16 @@ CAPITALIZER_SOURCE_RULES: tuple[CapitalizerSourceRule, ...] = (
         source_ids=("ICT_HIGH_PROBABILITY_SCALPING", "TTRADES_SCALPING_MODEL"),
     ),
     CapitalizerSourceRule(
-        rule_id="LIQUIDITY_EVENT_PRECEDES_MICRO_DECISION",
-        provenance=CapitalizerRuleProvenance.SOURCE_SUPPORTED,
-        statement="A liquidity/break interaction is interpreted before lower-timeframe execution.",
-        source_ids=("ICT_HIGH_PROBABILITY_SCALPING", "TTRADES_FAILURE_TO_MANIPULATE"),
-    ),
-    CapitalizerSourceRule(
-        rule_id="SESSION_CONTEXT_IS_EXPLICIT",
-        provenance=CapitalizerRuleProvenance.SOURCE_SUPPORTED,
-        statement="Asia, London and New York are explicit contextual regimes for intraday study.",
-        source_ids=(
-            "ICT_ASIAN_KILLZONE",
-            "ICT_LONDON_KILLZONE",
-            "ICT_NEW_YORK_KILLZONE",
-        ),
-    ),
-    CapitalizerSourceRule(
         rule_id="FAILURE_CAN_RECLASSIFY_TRANSITION",
         provenance=CapitalizerRuleProvenance.SOURCE_SUPPORTED,
         statement="Failure of the expected manipulation/reversal can carry continuation information.",
         source_ids=("TTRADES_FAILURE_TO_MANIPULATE",),
+    ),
+    CapitalizerSourceRule(
+        rule_id="LIQUIDITY_EVENT_PRECEDES_MICRO_DECISION",
+        provenance=CapitalizerRuleProvenance.SOURCE_SUPPORTED,
+        statement="A liquidity/break interaction is interpreted before lower-timeframe execution.",
+        source_ids=("ICT_HIGH_PROBABILITY_SCALPING", "TTRADES_FAILURE_TO_MANIPULATE"),
     ),
     CapitalizerSourceRule(
         rule_id="QORE_ACCEPTANCE_REJECTION_STATE_MACHINE",
@@ -180,6 +170,16 @@ CAPITALIZER_SOURCE_RULES: tuple[CapitalizerSourceRule, ...] = (
             "capitalization constraint, not a claim attributed to ICT or TTrades."
         ),
         source_ids=(),
+    ),
+    CapitalizerSourceRule(
+        rule_id="SESSION_CONTEXT_IS_EXPLICIT",
+        provenance=CapitalizerRuleProvenance.SOURCE_SUPPORTED,
+        statement="Asia, London and New York are explicit contextual regimes for intraday study.",
+        source_ids=(
+            "ICT_ASIAN_KILLZONE",
+            "ICT_LONDON_KILLZONE",
+            "ICT_NEW_YORK_KILLZONE",
+        ),
     ),
 )
 
