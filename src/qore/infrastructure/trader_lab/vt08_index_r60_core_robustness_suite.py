@@ -23,7 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
