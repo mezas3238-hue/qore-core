@@ -1614,9 +1614,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
             "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
             "audjpy_r42_memory_sha256": "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6",
-            "audjpy_r42_entry_sla_seconds": "2.0",
-            "audjpy_r42_boundary_arm_lead_seconds": "10.0",
-            "audjpy_r42_feed_refresh_seconds": "1.0",
+            "audjpy_r42_entry_sla_seconds": str(
+                AUDJPY_R42_ENTRY_SLA.total_seconds()
+            ),
+            "audjpy_r42_boundary_arm_lead_seconds": str(
+                AUDJPY_R42_BOUNDARY_ARM_LEAD.total_seconds()
+            ),
+            "audjpy_r42_feed_refresh_seconds": str(
+                AUDJPY_R42_FEED_REFRESH_SECONDS
+            ),
             "audjpy_r42_boundary_retry_ms": 75,
             "audjpy_r42_history_preload_once": True,
             "audjpy_r42_incremental_cache": True,
@@ -2362,78 +2368,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
 
-        audjpy_r42_anchor = current_audjpy_r42_anchor(cycle_at)
-        if audjpy_r42_anchor is not None and not new_order_blocked:
-            audjpy_r42_anchor_key = (
-                f"R42_AUDJPY|{audjpy_r42_anchor.isoformat()}"
-            )
-            if audjpy_r42_anchor_key not in state.processed_anchors:
-                try:
-                    audjpy_r42_live_state = audjpy_r42_store.reconcile(
-                        mt5,
-                        now=cycle_at,
-                    )
-                    audjpy_r42_signal, reason = build_audjpy_r42_live_signal(
-                        mt5,
-                        now=cycle_at,
-                        memory_bundle=audjpy_r42_memory,
-                        state=audjpy_r42_live_state,
-                    )
-                    if audjpy_r42_signal is None:
-                        _log(
-                            log_path,
-                            {
-                                "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
-                                "symbol": "AUDJPY",
-                                "decision_at": audjpy_r42_anchor.isoformat(),
-                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
-                                "reason": reason,
-                                "strategy_drawdown_r": str(
-                                    audjpy_r42_live_state.drawdown_r
-                                ),
-                                "last_trailing_exit_at": (
-                                    None
-                                    if audjpy_r42_live_state.trailing_exit_at is None
-                                    else audjpy_r42_live_state.trailing_exit_at.isoformat()
-                                ),
-                            },
-                        )
-                    else:
-                        _process_audjpy_r42_candidate(
-                            signal=audjpy_r42_signal,
-                            now=cycle_at,
-                            mode=mode,
-                            gateway=gateway,
-                            transport=transport,
-                            risk=risk,
-                            account_binding_id=fingerprint,
-                            provider_budget=provider,
-                            capital_budget=capital,
-                            account_equity=account_state.equity,
-                            audjpy_r42_store=audjpy_r42_store,
-                            log_path=log_path,
-                        )
-                    processed_anchor = audjpy_r42_anchor_key
-                    state = state.with_cycle(
-                        highest_closed_balance=str(highest),
-                        active_mll=str(previous_mll),
-                        processed_anchor=audjpy_r42_anchor_key,
-                        reconciled_at=cycle_at,
-                        heartbeat_at=cycle_at,
-                    )
-                    store.store(state)
-                except Exception as error:
-                    _log(
-                        log_path,
-                        {
-                            "event": "AUDJPY_R42_ANCHOR_FAIL_CLOSED",
-                            "symbol": "AUDJPY",
-                            "decision_at": audjpy_r42_anchor.isoformat(),
-                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
-                            "reason": type(error).__name__,
-                            "message": str(error),
-                        },
-                    )
 
         if processed_anchor is None:
             state = state.with_cycle(
@@ -2444,7 +2378,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 heartbeat_at=cycle_at,
             )
             store.store(state)
-        time.sleep(_LOOP_SECONDS)
+        cycle_elapsed = time.monotonic() - cycle_started
+        time.sleep(max(0.05, _LOOP_SECONDS - cycle_elapsed))
 
 
 def main() -> None:
