@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 CAPITALIZER_IDENTITY = "QORE_CAPITALIZER_COGNITIVE_SCALPER_V1"
 MAX_EXECUTIONS_PER_SESSION = 2
 
