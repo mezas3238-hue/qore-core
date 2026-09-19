@@ -301,6 +301,24 @@ def _first_rows(
                 or (family == "order-block" and side == "long")
             )
             cash_bullish = alt_state.get("cash_open_state") == "bullish"
+            risk_ref_raw = alt_state.get("risk_ref")
+            risk_ref_value = (
+                None
+                if risk_ref_raw is None
+                else Decimal(str(risk_ref_raw))
+            )
+            fvg_premarket_rotation = (
+                family == "fair-value-gap"
+                and alt_state.get("premarket_state") == "rotation"
+            )
+            order_block_low_risk_ref = (
+                family == "order-block"
+                and risk_ref_value is not None
+                and risk_ref_value < Decimal("0.30")
+            )
+            persistent_negative_state = (
+                fvg_premarket_rotation or order_block_low_risk_ref
+            )
             should_route = (
                 breaker_bad_context
                 if secondary_route_policy == "RENEW_BREAKER_CONTEXT"
@@ -318,6 +336,15 @@ def _first_rows(
                 }
                 else family == "breaker"
                 if secondary_route_policy == "RENEW_ALL_SECONDARY_BREAKER"
+                else fvg_premarket_rotation
+                if secondary_route_policy == "RENEW_FVG_PREMARKET_ROTATION"
+                else order_block_low_risk_ref
+                if secondary_route_policy == "RENEW_OB_LOW_RISK_REF"
+                else persistent_negative_state
+                if secondary_route_policy in {
+                    "RENEW_CAUSAL_PERSISTENT_NEGATIVE",
+                    "ABSTAIN_CAUSAL_PERSISTENT_NEGATIVE",
+                }
                 else False
             )
             if should_route:
@@ -325,6 +352,7 @@ def _first_rows(
                 if secondary_route_policy in {
                     "ABSTAIN_STABLE_NEGATIVE",
                     "ABSTAIN_EXACT_STABLE_NEGATIVE",
+                    "ABSTAIN_CAUSAL_PERSISTENT_NEGATIVE",
                 }:
                     continue
                 renewed = frontier._next_executable_after(
