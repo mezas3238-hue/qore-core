@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -245,8 +246,8 @@ def _pre_departure_sequences(
 def _reclaim_tag(
     *,
     trade: CapitalizerR0Trade,
-    episode_index: dict[tuple[str, CapitalizerSide], tuple[str, ...]],
-    sequences: dict[str, tuple[tuple[str, datetime], ...]],
+    episode_index: Mapping[tuple[str, CapitalizerSide], tuple[str, ...]],
+    sequences: Mapping[str, tuple[tuple[str, datetime], ...]],
 ) -> str:
     episode_ids = episode_index.get((trade.signal_at.isoformat(), trade.side))
     if not episode_ids:
@@ -274,8 +275,8 @@ def _acceptance_state(
     trade: CapitalizerR0Trade,
     bars: tuple[CapitalizerM5Bar, ...],
     by_close: dict[str, int],
-    episode_index: dict[tuple[str, CapitalizerSide], tuple[str, ...]],
-    sequences: dict[str, tuple[tuple[str, datetime], ...]],
+    episode_index: Mapping[tuple[str, CapitalizerSide], tuple[str, ...]],
+    sequences: Mapping[str, tuple[tuple[str, datetime], ...]],
 ) -> str:
     source_index = by_close.get(trade.signal_at.isoformat())
     if source_index is None or source_index < 2:
