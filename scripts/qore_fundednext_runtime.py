@@ -1441,6 +1441,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         state_dir / "r42-audjpy-state.json"
     )
     audjpy_r42_store.reconcile(mt5, now=datetime.now(UTC))
+    audjpy_r42_cache = R42AudJpyM5Cache()
+    audjpy_r42_cache.preload(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
@@ -1612,6 +1614,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
             "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
             "audjpy_r42_memory_sha256": "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6",
+            "audjpy_r42_entry_sla_seconds": "2.0",
+            "audjpy_r42_boundary_arm_lead_seconds": "10.0",
+            "audjpy_r42_feed_refresh_seconds": "1.0",
+            "audjpy_r42_boundary_retry_ms": 75,
+            "audjpy_r42_history_preload_once": True,
+            "audjpy_r42_incremental_cache": True,
             "order_submission_authorized": activation.authorization.order_submission_authorized,
         },
     )
@@ -1708,6 +1716,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 now=cycle_at,
                 store=audjpy_r42_store,
                 mutations_enabled=mode == "live",
+                cache=audjpy_r42_cache,
             )
         )
         if audjpy_r42_manage_reason not in {
