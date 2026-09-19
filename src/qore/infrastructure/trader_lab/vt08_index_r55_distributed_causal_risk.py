@@ -39,6 +39,7 @@ from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_v
 from qore.infrastructure.trader_lab import vt08_index_r17_formation_quality_forensics as r17
 from qore.infrastructure.trader_lab import vt08_index_r22_concurrent_stable_formation as r22
 from qore.infrastructure.trader_lab import vt08_index_r24_open_position_pressure as r24
+from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.trader_lab import (
     vt08_index_r31_source_complete_structural_concurrency as r31,
 )
