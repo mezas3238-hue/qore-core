@@ -632,3 +632,53 @@ def test_market_and_session_brains_bind_exact_context() -> None:
             state_family_id="INVALID",
             microstructure=trace,
         )
+
+
+def test_cibo_advisory_can_only_preserve_or_demote_capitalizer_decision() -> None:
+    from datetime import UTC, datetime
+    from uuid import UUID
+
+    from qore.infrastructure.cibo_executive_brain import CiboExecutiveDirectiveKind
+    from qore.infrastructure.trader_lab.capitalizer_cibo_seam import (
+        CapitalizerCiboAdvisory,
+        constrain_with_cibo,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_reasoning import (
+        CapitalizerReasoningDecision,
+    )
+
+    execute = CapitalizerReasoningDecision(
+        decision=CapitalizerDecision.EXECUTE,
+        hypothesis_id="H-CIBO",
+        source_event_id="E-CIBO",
+        reasons=("BASE_EXECUTE",),
+        adversarial_findings=(),
+    )
+    wait = CapitalizerReasoningDecision(
+        decision=CapitalizerDecision.WAIT,
+        hypothesis_id="H-WAIT",
+        source_event_id="E-WAIT",
+        reasons=("BASE_WAIT",),
+        adversarial_findings=(),
+    )
+    defer = CapitalizerCiboAdvisory(
+        synthesis_id=UUID("00000000-0000-0000-0000-000000000123"),
+        directive=CiboExecutiveDirectiveKind.DEFER,
+        synthesized_at=datetime(2026, 9, 19, 10, 0, tzinfo=UTC),
+        evidence_count=1,
+        uncertainty_kind="bounded",
+        limitations=(),
+    )
+    recommend = CapitalizerCiboAdvisory(
+        synthesis_id=UUID("00000000-0000-0000-0000-000000000124"),
+        directive=CiboExecutiveDirectiveKind.RECOMMEND,
+        synthesized_at=datetime(2026, 9, 19, 10, 0, tzinfo=UTC),
+        evidence_count=1,
+        uncertainty_kind="bounded",
+        limitations=(),
+    )
+
+    assert constrain_with_cibo(base=execute, advisory=defer).decision is CapitalizerDecision.WAIT
+    assert constrain_with_cibo(base=wait, advisory=recommend).decision is CapitalizerDecision.WAIT
+    assert defer.grants_execution_authority is False
+    assert defer.grants_capital_authority is False
