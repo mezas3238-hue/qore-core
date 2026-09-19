@@ -393,3 +393,20 @@ def test_behavior_forensics_exposes_density_ceiling_and_repeated_loss_causes() -
     failure = next(item for item in report.loss_causes if item.tag == "FAILED_DELIVERY")
     assert failure.losing_trades == 3
     assert failure.appearances_in_losing_streaks == 2
+
+
+def test_consumed_atlas_lineage_covers_every_initial_capitalizer_market() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_research_lineage import (
+        CAPITALIZER_CONSUMED_LINEAGE,
+        CONSUMED_END_EXCLUSIVE,
+        CONSUMED_START,
+        validate_consumed_lineage_coverage,
+    )
+
+    validate_consumed_lineage_coverage()
+    assert len(CAPITALIZER_CONSUMED_LINEAGE) == 9
+    assert CONSUMED_START.year == 2016
+    assert CONSUMED_END_EXCLUSIVE.year == 2026
+    assert all(item.research_evidence_consumed for item in CAPITALIZER_CONSUMED_LINEAGE)
+    assert all(not item.fresh_holdout_eligible for item in CAPITALIZER_CONSUMED_LINEAGE)
+    assert sum(item.retained_m5_bars for item in CAPITALIZER_CONSUMED_LINEAGE) > 6_500_000
