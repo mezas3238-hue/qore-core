@@ -410,7 +410,7 @@ def test_consumed_atlas_lineage_covers_every_initial_capitalizer_market() -> Non
     assert sum(item.retained_m5_bars for item in CAPITALIZER_CONSUMED_LINEAGE) > 6_500_000
 
 
-def test_data_readiness_accepts_exact_consumed_atlas_manifest(tmp_path) -> None:
+def test_data_readiness_accepts_exact_consumed_atlas_manifest(tmp_path: Path) -> None:
     import json
 
     from qore.infrastructure.trader_lab.capitalizer_data_readiness import (
