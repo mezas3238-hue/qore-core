@@ -204,3 +204,101 @@ def test_microstructure_matrix_requires_exact_nine_cell_coverage(tmp_path: Path)
         "LONDON": 20,
         "NEW_YORK": 30,
     }
+
+
+def test_forward_response_is_outcome_only_and_uses_future_bars_after_decision(
+    tmp_path: Path,
+) -> None:
+    from qore.infrastructure.trader_lab.capitalizer_forward_response import (
+        CapitalizerForwardEvent,
+        build_forward_responses,
+        summarize_forward_responses,
+    )
+
+    start = datetime(2026, 7, 1, 20, 0, tzinfo=_NY)
+    rows = (
+        _row(
+            start,
+            low=10_000_000,
+            open_=10_005_000,
+            high=10_010_000,
+            close=10_005_000,
+        ),
+        _row(
+            start + timedelta(minutes=5),
+            low=10_002_000,
+            open_=10_006_000,
+            high=10_015_000,
+            close=10_008_000,
+        ),
+        _row(
+            start + timedelta(minutes=10),
+            low=9_995_000,
+            open_=10_007_000,
+            high=10_009_000,
+            close=10_000_000,
+        ),
+        _row(
+            start + timedelta(minutes=15),
+            low=9_990_000,
+            open_=10_000_000,
+            high=10_004_000,
+            close=9_995_000,
+        ),
+        _row(
+            start + timedelta(minutes=20),
+            low=9_988_000,
+            open_=9_995_000,
+            high=10_000_000,
+            close=9_990_000,
+        ),
+    )
+    _write_rows(tmp_path, rows)
+
+    responses = build_forward_responses(tmp_path)
+    rejection = tuple(
+        item
+        for item in responses
+        if item.event is CapitalizerForwardEvent.HIGH_RAID_REJECTION
+    )
+    assert rejection
+    assert all(item.outcome_only for item in rejection)
+    five = next(item for item in rejection if item.horizon_minutes == 5)
+    assert five.decision_at.endswith("+00:00")
+    assert five.favorable_range_units > 0
+    report = summarize_forward_responses(responses)
+    assert report.causal_feature_allowed is False
+    assert report.rule_promotion_allowed is False
+
+
+def test_forward_response_censors_opposite_direction_outside_bar(tmp_path: Path) -> None:
+    from qore.infrastructure.trader_lab.capitalizer_forward_response import (
+        build_forward_responses,
+    )
+
+    start = datetime(2026, 7, 1, 20, 0, tzinfo=_NY)
+    rows = (
+        _row(
+            start,
+            low=10_000_000,
+            open_=10_005_000,
+            high=10_010_000,
+            close=10_005_000,
+        ),
+        _row(
+            start + timedelta(minutes=5),
+            low=9_990_000,
+            open_=10_005_000,
+            high=10_020_000,
+            close=10_005_000,
+        ),
+        _row(
+            start + timedelta(minutes=10),
+            low=10_000_000,
+            open_=10_005_000,
+            high=10_010_000,
+            close=10_006_000,
+        ),
+    )
+    _write_rows(tmp_path, rows)
+    assert build_forward_responses(tmp_path) == ()
