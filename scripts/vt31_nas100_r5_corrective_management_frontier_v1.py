@@ -173,6 +173,7 @@ def _first_rows(
     secondary_partial_scope: str = "ALL",
     core_breaker_protection_confirmations: int | None = None,
     core_breaker_protection_scope: str = "NONE",
+    reasoning_sovereign_alt_scope: str = "NONE",
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
@@ -404,6 +405,40 @@ def _first_rows(
             <= selected.decision_at
         )
         selected_source = timeline.source
+        if reasoning_sovereign_alt_scope not in {"NONE", "ABSTAIN", "ALL"}:
+            raise ValueError(
+                "reasoning_sovereign_alt_scope must be NONE, ABSTAIN or ALL"
+            )
+        sovereign_alt = (
+            reasoning_sovereign_alt_scope == "ALL"
+            or (
+                reasoning_sovereign_alt_scope == "ABSTAIN"
+                and alt_reason == "CORE_CAUSAL_ABSTAIN"
+            )
+        )
+        if sovereign_alt:
+            renewed = frontier._next_executable_after(
+                reference=reference,
+                session=session,
+                after_at=alt_authorized_at,
+                evidence=evidence,
+                policy=policy,
+            )
+            if renewed is None:
+                status["sovereign-alt-no-new-event"] += 1
+                continue
+            renewed_source, renewed_selected = renewed
+            if not (
+                renewed_source.structure.raid_at > alt_authorized_at
+                and renewed_source.structure.confirmation_at > alt_authorized_at
+                and renewed_selected.decision_at > alt_authorized_at
+            ):
+                status["sovereign-alt-renewal-invariant-failed"] += 1
+                continue
+            selected_source = renewed_source
+            selected = renewed_selected
+            status["sovereign-alt-new-event-selected"] += 1
+
         alt_state = specialist._state_snapshot(
             day_bars,
             previous_path_range,
@@ -414,6 +449,13 @@ def _first_rows(
             selected,
             selected.decision_at,
         )
+
+        if sovereign_alt:
+            sovereign_action = str(alt_state["action"])
+            status[f"sovereign-alt-action-{sovereign_action.lower()}"] += 1
+            if sovereign_action != "EXECUTE":
+                continue
+            alt_reason = f"{alt_reason}:SOVEREIGN_NEW_EVENT_EXECUTE"
 
         if alt_tier == "SECONDARY" and secondary_route_policy != "ORIGINAL":
             family = selected.selected_family.value
@@ -664,6 +706,7 @@ def _first_rows(
         "core_breaker_protection_confirmations": (
             core_breaker_protection_confirmations
         ),
+        "reasoning_sovereign_alt_scope": reasoning_sovereign_alt_scope,
     }
 
 
@@ -677,6 +720,7 @@ def _rearm_rows(
     *,
     evidence: str,
     rearm_partial_r: Decimal | None,
+    reasoning_sovereign_rearm: bool = False,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     policy = Vt31R22ExecutionPolicy()
     raw_rows: list[dict[str, object]] = []
@@ -734,6 +778,12 @@ def _rearm_rows(
             setup,
             observation_at,
         )
+        if reasoning_sovereign_rearm:
+            sovereign_action = str(state["action"])
+            status[f"sovereign-rearm-action-{sovereign_action.lower()}"] += 1
+            if sovereign_action != "EXECUTE":
+                continue
+
         score, reasons = quality._quality_score(state, setup)
         risk_class = engine._risk_class(score)
 
@@ -807,6 +857,7 @@ def _rearm_rows(
     return weighted, {
         "status_counts": dict(sorted(status.items())),
         "activity_budget_ledger": activity_ledger,
+        "reasoning_sovereign_rearm": reasoning_sovereign_rearm,
     }
 
 
