@@ -13,7 +13,6 @@ from qore.infrastructure.trader_lab.capitalizer_memory import (
     CapitalizerSessionLedger,
 )
 
-
 _NEXT_SESSION: dict[CapitalizerSession, CapitalizerSession] = {
     CapitalizerSession.ASIA: CapitalizerSession.LONDON,
     CapitalizerSession.LONDON: CapitalizerSession.NEW_YORK,
