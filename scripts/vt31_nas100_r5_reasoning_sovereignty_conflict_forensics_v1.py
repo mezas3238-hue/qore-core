@@ -11,6 +11,7 @@ streaks.
 Post-outcome data is diagnostic only. Runtime causality is restricted to the
 reasoning state observed before the fallback authorization.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
@@ -21,7 +22,6 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
 
-import vt31_nas100_causal_hybrid_rearm_v1 as engine
 import vt31_nas100_r5_causal_allocation_frontier_v1 as allocation
 import vt31_nas100_r5_corrective_management_frontier_v1 as corrective
 import vt31_nas100_r5_loss_sequence_root_cause_forensics_v1 as lossfx
