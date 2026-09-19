@@ -153,9 +153,12 @@ def _next_reasoned_event(
 
     for bar in session:
         closed_at = cast(datetime, getattr(bar, "closed_at"))
+        # Preserve the complete causal M1 history.  The cursor limits which
+        # source events may be admitted; it must never erase already observed
+        # session bars from the evaluator.
+        prefix.append(bar)
         if closed_at <= after_at:
             continue
-        prefix.append(bar)
 
         evaluation = evaluate_vt31_r2_2_source(
             instrument=getattr(bar, "instrument"),
@@ -173,16 +176,21 @@ def _next_reasoned_event(
             continue
 
         source = evaluation.setup
+        if (
+            source.structure.raid_at <= after_at
+            or source.structure.confirmation_at <= after_at
+        ):
+            # This is the pre-cursor hypothesis still visible in the complete
+            # history.  It is intentionally not reusable after ABSTAIN/exit.
+            continue
+
         if first_source_raid is None:
             first_source_raid = source.structure.raid_at
         elif source.structure.raid_at != first_source_raid:
-            # A new source appeared while the previous WAIT hypothesis evolved.
-            # Treat the new source as a new causal episode at this timestamp.
-            return {
-                "status": "ROLLED_TO_NEW_SOURCE",
-                "decision_at": closed_at,
-                "reason": "NEW_SOURCE_DURING_WAIT",
-            }
+            # A genuinely new source replaced a WAIT hypothesis.  Continue
+            # reasoning on the new source without advancing the cursor past it.
+            first_source_raid = source.structure.raid_at
+            saw_wait = False
 
         executable, _ = make_executable_setup(source, policy)
         if executable is None:
@@ -567,6 +575,7 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             "wait_keeps_observing_same_source": True,
             "abstain_kills_current_source": True,
             "new_event_requires_new_raid_confirmation_decision": True,
+            "full_session_history_preserved_across_cursor": True,
             "same_source_secondary_disabled": True,
             "scout_after_wait_disabled": True,
             "post_exit_event_requires_structural_rearm": True,
