@@ -9,7 +9,7 @@ numeric optimization thresholds:
 - disagreement among exact H1 Journey episodes about reclaim state is treated as causal
   conflict, not as confidence.
 
-The module also applies the already-frozen maximum-two-executions-per-session ceiling as a
+The module also applies the already-frozen maximum-three-executions-per-session ceiling as a
 separate ablation. Gross R0 lifecycle is intentionally retained so cognition and position
 management are not conflated. Costs, provider portability, holdout, and certification remain
 future stages.
@@ -237,7 +237,7 @@ def build_cognitive_v2_development_report(
             apply_session_ceiling=False,
         ),
         _ablation(
-            name="STRUCTURAL_V2_MAX2_SESSION",
+            name="STRUCTURAL_V2_MAX3_SESSION",
             trades=trades,
             state_index=state_index,
             block_late_acceptance_repeat=True,
