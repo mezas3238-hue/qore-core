@@ -10,6 +10,11 @@ It decomposes losing streaks into:
 - contexts over-represented inside severe losing sequences.
 
 Post-outcome fields are diagnostic labels only and are never runtime inputs.
+
+Primary streak falsification intentionally excludes H4/H1 trend state. Silver
+Bullet is frozen to its native M1/reference/session anatomy; higher-timeframe
+descriptions may exist elsewhere in VT31 memory but are not causal variables
+in this streak root-cause lab.
 """
 from __future__ import annotations
 
@@ -42,8 +47,6 @@ FEATURE_FIELDS = (
     "tier",
     "entry_family",
     "side",
-    "h1_state",
-    "h4_state",
     "reference_volatility_state",
     "prior_day_state",
     "premarket_state",
