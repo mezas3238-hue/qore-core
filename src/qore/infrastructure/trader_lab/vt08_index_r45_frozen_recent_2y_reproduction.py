@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Sequence
 from datetime import UTC, date
 from decimal import Decimal
 from pathlib import Path
@@ -139,12 +140,12 @@ def _build_source_complete_stream_2y(
     roots: dict[str, Path],
 ) -> tuple[
     tuple[tuple[r4.ExpandedOpportunity, r5.ManagedTrade], ...],
-    dict[str, tuple[Vt08IndexC2R1Bar, ...]],
+    dict[str, Sequence[Vt08IndexC2R1Bar]],
     dict[str, tuple[Any, ...]],
     dict[str, Any],
 ]:
     stream: list[tuple[r4.ExpandedOpportunity, r5.ManagedTrade]] = []
-    bars_by_symbol: dict[str, tuple[Vt08IndexC2R1Bar, ...]] = {}
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]] = {}
     opened_by_symbol: dict[str, tuple[Any, ...]] = {}
     provenance: dict[str, Any] = {}
     policy = r8._target_policy(Decimal(freeze.TARGET_R))
