@@ -1,0 +1,152 @@
+name: QORE VT31 NAS100 R5 ALLOC_G Robustness Validation V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_alloc_g_robustness_validation_v1.py
+      - .github/workflows/vt31-nas100-r5-alloc-g-robustness-validation-v1.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_r5_alloc_g_robustness_validation_v1.py
+      - .github/workflows/vt31-nas100-r5-alloc-g-robustness-validation-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_r5_alloc_g_robustness_validation_v1.py
+          ruff check scripts/vt31_nas100_r5_alloc_g_robustness_validation_v1.py
+
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/holdout input/r8 input/r6 input/r5 result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10557487418/zip" > holdout.zip
+          unzip -q holdout.zip -d input/holdout
+          test -f input/holdout/NAS100/market-evidence.json
+          echo "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09  input/holdout/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          test -f input/r8/fresh/NAS100/market-evidence.json
+          echo "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb  input/r8/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          test -f input/r6/fresh/NAS100/market-evidence.json
+          echo "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581  input/r6/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          test -f input/r5/fresh/NAS100/market-evidence.json
+          echo "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7  input/r5/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+      - name: Validate consumed 2Y ALLOC_G
+        run: |
+          set -euo pipefail
+          QORE_DD6_FRONTIER_ONLY=1 \
+          QORE_EVAL_START_DATE=2022-07-18 \
+          QORE_EVAL_END_EXCLUSIVE_DATE=2024-07-18 \
+          QORE_INCLUDE_TRADE_ROWS=1 \
+          python scripts/vt31_nas100_r5_alloc_g_robustness_validation_v1.py \
+            --evidence input/holdout/NAS100/market-evidence.json \
+            --window-label consumed_2y \
+            --start 2022-07-18 \
+            --end-exclusive 2024-07-18 \
+            --annual-years 2 \
+            --density-min 300 \
+            --density-max 350 \
+            --pf-min 1.50 \
+            --output result/alloc-g-consumed-2y.json \
+            | tee result/summary-2y.json
+
+      - name: Validate consumed 5Y ALLOC_G
+        run: |
+          set -euo pipefail
+          QORE_DD6_FRONTIER_ONLY=1 \
+          QORE_EVAL_START_DATE=2017-07-01 \
+          QORE_EVAL_END_EXCLUSIVE_DATE=2022-07-01 \
+          QORE_INCLUDE_TRADE_ROWS=1 \
+          python scripts/vt31_nas100_r5_alloc_g_robustness_validation_v1.py \
+            --r8 input/r8/fresh/NAS100/market-evidence.json \
+            --r6 input/r6/fresh/NAS100/market-evidence.json \
+            --r5 input/r5/fresh/NAS100/market-evidence.json \
+            --window-label consumed_5y \
+            --start 2017-07-01 \
+            --end-exclusive 2022-07-01 \
+            --annual-years 5 \
+            --density-min 800 \
+            --density-max 900 \
+            --pf-min 2.00 \
+            --output result/alloc-g-consumed-5y.json \
+            | tee result/summary-5y.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for name in ("alloc-g-consumed-2y.json", "alloc-g-consumed-5y.json"):
+              p=json.loads(Path("result", name).read_text())
+              assert p["profile"] == "ALLOC_G_CORE_FAMILY_050"
+              assert p["window"]["fresh"] is False
+              g=p["governance"]
+              assert g["consumed_evidence_only"] is True
+              assert g["profile_frozen_before_validation"] is True
+              assert g["parameters_retuned_inside_validation"] is False
+              assert g["uses_terminal_pnl_at_runtime"] is False
+              assert g["uses_fold_identity_at_runtime"] is False
+              assert g["uses_calendar_time_as_runtime_rule"] is False
+              assert g["opens_new_holdout"] is False
+              assert g["may_be_called_fresh"] is False
+              assert g["policy_promoted"] is False
+              assert g["candidate_certified"] is False
+              assert g["live_authorized"] is False
+              assert g["real_capital_authorized"] is False
+              assert g["production_authorized"] is False
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          cat > result/source-artifacts.txt <<'EOF'
+          consumed_holdout=10557487418
+          r8=10402199719
+          r6=10389112524
+          r5=10380044761
+          EOF
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-alloc-g-robustness-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
