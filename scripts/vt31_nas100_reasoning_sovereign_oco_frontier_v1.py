@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -138,6 +139,7 @@ def _candidate_reasoning_authorization(
     session: tuple[object, ...],
     source: Vt31R22SourceSetup,
     candidate: Vt31R22EntryEvidence,
+    source_candidates: tuple[Vt31R22EntryEvidence, ...],
     source_authorized_at: datetime,
     invalidated_at: datetime | None,
     previous_path_range: Decimal | None,
@@ -149,10 +151,6 @@ def _candidate_reasoning_authorization(
     dict[str, object] | None,
     str,
 ]:
-    raw_setup = oco._candidate_order(source, candidate, policy)
-    if raw_setup is None:
-        return None, None, "INVALID_GEOMETRY"
-
     active_from = max(candidate.formed_at, source_authorized_at)
     for bar in session:
         closed_at = cast(datetime, getattr(bar, "closed_at"))
@@ -163,6 +161,21 @@ def _candidate_reasoning_authorization(
         if invalidated_at is not None and closed_at >= invalidated_at:
             break
 
+        source_view = replace(
+            source,
+            candidates=tuple(
+                item
+                for item in source_candidates
+                if item.formed_at <= closed_at
+            ),
+        )
+        raw_setup = oco._candidate_order(
+            source_view,
+            candidate,
+            policy,
+        )
+        if raw_setup is None:
+            return None, None, "INVALID_GEOMETRY"
         setup = activation._activation_setup(raw_setup, closed_at)
         session_prefix = tuple(
             item
@@ -178,7 +191,7 @@ def _candidate_reasoning_authorization(
             prior_ref_median,
             prior_admitted_day_bars,
             session_prefix,
-            source,
+            source_view,
             setup,
             closed_at,
         )
@@ -228,6 +241,7 @@ def _select_reasoned_oco(
                 session=session,
                 source=timeline.source,
                 candidate=candidate,
+                source_candidates=timeline.candidates,
                 source_authorized_at=source_authorized_at,
                 invalidated_at=timeline.both_sides_swept_at,
                 previous_path_range=previous_path_range,
