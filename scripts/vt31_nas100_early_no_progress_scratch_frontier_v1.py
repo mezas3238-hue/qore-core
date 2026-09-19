@@ -88,6 +88,12 @@ def _scratch_row(
     updated["scratch_adverse_close_r"] = format(ADVERSE_CLOSE_R, "f")
     updated["scratch_applied"] = False
 
+    required_geometry = ("entry", "initial_stop", "structural_target")
+    if any(field not in row for field in required_geometry):
+        updated["scratch_geometry_available"] = False
+        return updated, "missing-geometry-preserved"
+    updated["scratch_geometry_available"] = True
+
     side = str(row["side"])
     entry = _d(row["entry"])
     stop = _d(row["initial_stop"])
