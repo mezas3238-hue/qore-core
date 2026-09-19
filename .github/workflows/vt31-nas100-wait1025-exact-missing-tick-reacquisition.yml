@@ -1,0 +1,174 @@
+name: QORE VT31 NAS100 WAIT1025 Exact Missing Tick Reacquisition
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - .github/workflows/vt31-nas100-wait1025-exact-missing-tick-reacquisition.yml
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+
+jobs:
+  acquire:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r5
+            coverage_artifact: "10540538126"
+            expected_count: "11"
+          - partition: r6
+            coverage_artifact: "10540069697"
+            expected_count: "56"
+          - partition: r8_fresh
+            coverage_artifact: "10540563197"
+            expected_count: "4"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      COVERAGE_ARTIFACT: ${{ matrix.coverage_artifact }}
+      EXPECTED_COUNT: ${{ matrix.expected_count }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install existing acquisition lab
+        run: |
+          set -euo pipefail
+          pip install -e ".[ctrader]" ruff
+          python -m py_compile scripts/vt31_nas100_manifest_tick_acquisition_v1.py
+          ruff check scripts/vt31_nas100_manifest_tick_acquisition_v1.py
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py)" = "3e66f4532c67e62ab2eef7ac376bb86ef7011f73"
+
+      - name: Recover governed missing manifest
+        run: |
+          set -euo pipefail
+          mkdir -p source acquisition
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${COVERAGE_ARTIFACT}/zip" > source.zip
+          unzip -q source.zip -d source
+          (cd source && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("source/missing-manifest.json").read_text())
+          assert p["research_only"] is True
+          assert p["opens_new_holdout"] is False
+          assert p["partition"] == os.environ["PARTITION"]
+          assert p["variant"] == "WAIT_1025_B060"
+          assert p["window_count"] == int(os.environ["EXPECTED_COUNT"])
+          assert len(p["windows"]) == int(os.environ["EXPECTED_COUNT"])
+          PY
+
+      - name: Verify cTrader historical credentials
+        run: |
+          set -euo pipefail
+          for name in             QORE_CTRADER_CLIENT_ID             QORE_CTRADER_CLIENT_SECRET             QORE_CTRADER_ACCESS_TOKEN             QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire exact predeclared windows
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_manifest_tick_acquisition_v1.py             --manifest source/missing-manifest.json             --partition "$PARTITION"             --expected-count "$EXPECTED_COUNT"             --output-dir acquisition             | tee acquisition-summary.txt
+
+      - name: Validate inventory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("acquisition/manifest-tick-acquisition-summary.json").read_text())
+          expected=int(os.environ["EXPECTED_COUNT"])
+          assert p["research_only"] is True
+          assert p["opens_new_holdout"] is False
+          assert p["partition"] == os.environ["PARTITION"]
+          assert p["source_window_count"] == expected
+          assert len(p["results"]) == expected
+          assert sum(p[k] for k in ("available","partial","empty","probe_failure")) == expected
+          print(json.dumps({
+            "partition":p["partition"],
+            "available":p["available"],
+            "partial":p["partial"],
+            "empty":p["empty"],
+            "probe_failure":p["probe_failure"],
+          },sort_keys=True))
+          PY
+
+      - name: Bind acquisition
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > acquisition/git-sha.txt
+          echo "$COVERAGE_ARTIFACT" > acquisition/source-coverage-artifact-id.txt
+          (cd acquisition && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd acquisition && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt31-nas100-wait1025-exact-missing-ticks-${{ matrix.partition }}-${{ github.sha }}
+          path: |
+            acquisition/
+            acquisition-summary.txt
+          retention-days: 90
+
+  aggregate:
+    needs: acquire
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-wait1025-exact-missing-ticks-*-${{ github.sha }}
+          path: input
+
+      - name: Aggregate
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows={}
+          for path in Path("input").glob("*/acquisition/manifest-tick-acquisition-summary.json"):
+              p=json.loads(path.read_text())
+              rows[p["partition"]]={k:p[k] for k in ("source_window_count","available","partial","empty","probe_failure")}
+          assert set(rows)=={"r5","r6","r8_fresh"}, rows
+          report={
+            "schema":"qore.vt31.nas100.wait1025_exact_missing_tick_reacquisition.aggregate.v1",
+            "folds":rows,
+            "all_available":all(v["available"]==v["source_window_count"] for v in rows.values()),
+            "research_only":True,
+            "opens_new_holdout":False,
+          }
+          Path("result/aggregate.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-wait1025-exact-missing-ticks-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
