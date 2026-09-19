@@ -65,9 +65,27 @@ def test_profitable_swing_lock_uses_only_confirmed_prior_bar_information() -> No
     start = datetime(2026, 1, 6, 1, 0, tzinfo=UTC)
     bars = (
         _bar(start, open_="100", high="100.8", low="99.8", close="100.6"),
-        _bar(start + timedelta(minutes=5), open_="100.6", high="101.4", low="100.4", close="101.1"),
-        _bar(start + timedelta(minutes=10), open_="101.1", high="101.3", low="100.2", close="100.9"),
-        _bar(start + timedelta(minutes=15), open_="100.9", high="101.5", low="100.5", close="101.2"),
+        _bar(
+            start + timedelta(minutes=5),
+            open_="100.6",
+            high="101.4",
+            low="100.4",
+            close="101.1",
+        ),
+        _bar(
+            start + timedelta(minutes=10),
+            open_="101.1",
+            high="101.3",
+            low="100.2",
+            close="100.9",
+        ),
+        _bar(
+            start + timedelta(minutes=15),
+            open_="100.9",
+            high="101.5",
+            low="100.5",
+            close="101.2",
+        ),
         _bar(start + timedelta(minutes=20), open_="101.2", high="101.3", low="100.1", close="100.4"),
         _bar(start + timedelta(minutes=25), open_="100.4", high="100.5", low="98.8", close="99.1"),
     )
