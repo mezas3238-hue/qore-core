@@ -20,6 +20,21 @@ def _require_non_negative(value: Decimal, *, field_name: str) -> None:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalizerCausalObservation:
+    """One fact that existed no later than the decision timestamp."""
+
+    name: str
+    observed_at: datetime
+    value_token: str
+
+    def __post_init__(self) -> None:
+        if not self.name or not self.value_token:
+            raise ValueError("causal observation name/value must be non-empty")
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("causal observation timestamp must be timezone-aware")
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalizerExecutionState:
     """Decision-time execution environment; never an assumed broker constant."""
 
@@ -63,7 +78,7 @@ class CapitalizerSituationModel:
     late_entry: bool
     correlated_exposure_blocked: bool
     contradictions: tuple[str, ...] = ()
-    observations: tuple[str, ...] = ()
+    observations: tuple[CapitalizerCausalObservation, ...] = ()
     failure_state_fingerprint: str | None = None
 
     def __post_init__(self) -> None:
@@ -79,3 +94,6 @@ class CapitalizerSituationModel:
             raise ValueError("event_generation must be >= 1")
         if self.failure_state_fingerprint == "":
             raise ValueError("failure_state_fingerprint cannot be empty")
+        for observation in self.observations:
+            if observation.observed_at > self.observed_at:
+                raise ValueError("future observation cannot enter the Situation Model")
