@@ -123,6 +123,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_position_lifecycle_forensics \
             m5-source journey-source target-source forensic-output
+      - name: Run natural-H1 departure timing forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_departure_timing_forensics \
+            m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
           python - <<'PY'
@@ -240,6 +244,32 @@ jobs:
               'SWING_IMPROVE',
               'PROFITABLE_SWING_LOCK',
               'RECLAIM_FRESH_PROFITABLE_SWING_LOCK',
+          }
+
+          timing = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-departure-timing-v1.json'
+              ).read_text()
+          )
+          assert timing['identity'] == (
+              'QORE_CAPITALIZER_DEPARTURE_TIMING_FORENSICS_V1'
+          )
+          assert timing['h1_duration_minutes'] == 60
+          assert timing['timing_features_causal'] is True
+          assert timing['optimized_numeric_threshold_used'] is False
+          assert timing['boundary_semantics'] == 'SOURCE_TIMEFRAME_DURATION'
+          assert timing['target_changed'] is False
+          assert timing['candidate_frozen'] is False
+          assert timing['costs_applied'] is False
+          assert timing['fresh_holdout_claimed'] is False
+          assert timing['rule_selected'] is False
+          assert timing['promotion_allowed'] is False
+          assert {row['name'] for row in timing['ablations']} == {
+              'DROP_SOURCE_CROSS_H1',
+              'DROP_CISD_CROSS_H1',
+              'DROP_NORECLAIM_SOURCE_CROSS_H1',
+              'DROP_NORECLAIM_CISD_CROSS_H1',
           }
           PY
       - name: Upload immutable R0 forensics
