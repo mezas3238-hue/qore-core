@@ -515,7 +515,14 @@ def _checkpoint_row(
     )
 
     ladder = _dol_ladder(setup)
-    future = path[checkpoint_index:]
+    dol_rank_at_checkpoint = _deepest_dol(
+        observed,
+        side=side,
+        ladder=ladder,
+    )
+    # The decision exists only after checkpoint_bar closes.  Future labels
+    # therefore start on the next M1 bar; never reuse checkpoint-bar range.
+    future = path[checkpoint_index + 1 :]
     deepest = _deepest_dol(
         future,
         side=side,
@@ -585,6 +592,7 @@ def _checkpoint_row(
         "remaining_to_dol1_r": format(remaining, "f"),
         "remaining_to_dol1_r_bucket": _bucket_remaining(remaining),
         "checkpoint_clock_bucket": _clock_bucket(checkpoint_at),
+        "dol_rank_at_checkpoint": dol_rank_at_checkpoint,
         "future_deepest_dol_rank": deepest,
         "future_journey_label": _journey_label(
             deepest,
@@ -678,12 +686,32 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             status["no-fill"] += 1
             continue
 
+        fill_bar = day_bars[fill_index]
+        if _touches_stop(
+            fill_bar,
+            setup.side.value,
+            setup.stop_price,
+        ):
+            status["fill-bar-stop-path-censored"] += 1
+            continue
+        if _touches_level(
+            fill_bar,
+            setup.side.value,
+            setup.target_price,
+        ):
+            status["fill-bar-dol1-path-censored"] += 1
+            continue
+
+        # Exact intrabar ordering inside the fill M1 is unknowable from OHLC.
+        # Journey checkpoints therefore begin with the first complete M1 bar
+        # after the fill bar.
         path = tuple(
             bar
-            for bar in day_bars[fill_index:]
+            for bar in day_bars[fill_index + 1 :]
             if specialist.baseline._local_minute(bar) < LIFECYCLE_MINUTE
         )
         if not path:
+            status["no-fully-post-fill-m1"] += 1
             continue
 
         for checkpoint in CHECKPOINTS:
@@ -697,8 +725,13 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             if row is None:
                 status[f"checkpoint-{checkpoint}-not-earned"] += 1
                 continue
+            if int(cast(int, row["dol_rank_at_checkpoint"])) > 0:
+                status[
+                    f"checkpoint-{checkpoint}-dol1-already-reached"
+                ] += 1
+                continue
             observations.append(row)
-            status[f"checkpoint-{checkpoint}-earned"] += 1
+            status[f"checkpoint-{checkpoint}-earned-pre-dol1"] += 1
 
     by_checkpoint: dict[str, object] = {}
     for checkpoint in CHECKPOINTS:
@@ -740,6 +773,9 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             "h4_primary_causal_feature": False,
             "h1_trend_primary_causal_feature": False,
             "checkpoint_requires_closed_m1": True,
+            "fill_bar_path_ambiguity_fail_closed": True,
+            "pre_dol1_checkpoint_only": True,
+            "future_starts_after_checkpoint_bar": True,
             "future_journey_labels_research_only": True,
             "future_labels_allowed_at_runtime": False,
             "uses_terminal_pnl_at_runtime": False,
