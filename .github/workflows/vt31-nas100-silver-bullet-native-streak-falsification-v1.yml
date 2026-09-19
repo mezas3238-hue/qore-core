@@ -7,6 +7,10 @@ on:
     paths:
       - scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py
       - .github/workflows/vt31-nas100-silver-bullet-native-streak-falsification-v1.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py
+      - .github/workflows/vt31-nas100-silver-bullet-native-streak-falsification-v1.yml
   workflow_dispatch:
 
 permissions:
