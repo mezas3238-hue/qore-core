@@ -407,6 +407,7 @@ def _observation(
     run: Any,
     item: Any,
     window: str,
+    evidence_ordinal: int,
 ) -> ResearchReturnObservation:
     token = f"{window}:{item.symbol}:{item.trade_id}"
     signal_at = item.signal_at.astimezone(UTC)
@@ -464,7 +465,9 @@ def _observation(
         ),
         source_result=gross.value,
         capital_basis=_CAPITAL,
-        observed_at=PROCESS_EVIDENCE_AT,
+        observed_at=PROCESS_EVIDENCE_AT + timedelta(
+            microseconds=evidence_ordinal
+        ),
     )
     if isinstance(observation, Failure):
         raise ValueError(
@@ -557,8 +560,9 @@ def build_binding(
             run=binding.run,
             item=item,
             window=window,
+            evidence_ordinal=index,
         )
-        for window, item in all_items
+        for index, (window, item) in enumerate(all_items)
     )
     performance = build_research_performance_statistics(
         snapshot_id=ResearchPerformanceSnapshotId(
