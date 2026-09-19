@@ -211,3 +211,60 @@ def test_cost_stress_can_destroy_marginal_scalping_edge_without_changing_snapsho
     assert stressed[0].snapshot is episode.snapshot
     assert stressed[0].outcome.net_r == Decimal("-0.01")
     assert stressed[0].outcome.explicit_cost_r == Decimal("0.09")
+
+
+def test_execution_portability_fails_closed_until_every_environment_qualifies() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_execution_portability import (
+        CapitalizerEnvironmentQualification,
+        CapitalizerEnvironmentStatus,
+        CapitalizerExecutionEnvironment,
+        evaluate_execution_portability,
+    )
+
+    qualifications = (
+        CapitalizerEnvironmentQualification(
+            environment=CapitalizerExecutionEnvironment.IC_MARKETS_RAW,
+            profile_fingerprint="1" * 64,
+            status=CapitalizerEnvironmentStatus.QUALIFIED,
+            evidence_fingerprint="a" * 64,
+        ),
+        CapitalizerEnvironmentQualification(
+            environment=CapitalizerExecutionEnvironment.FTMO,
+            profile_fingerprint="2" * 64,
+            status=CapitalizerEnvironmentStatus.QUALIFIED,
+            evidence_fingerprint="b" * 64,
+        ),
+        CapitalizerEnvironmentQualification(
+            environment=CapitalizerExecutionEnvironment.FUNDEDNEXT,
+            profile_fingerprint="3" * 64,
+            status=CapitalizerEnvironmentStatus.REJECTED,
+            evidence_fingerprint="c" * 64,
+        ),
+    )
+    decision = evaluate_execution_portability(qualifications)
+    assert decision.qualified is False
+    assert "NOT_QUALIFIED:FUNDEDNEXT:REJECTED" in decision.reasons
+    assert "MISSING:ADVERSE_PORTABILITY_ENVELOPE" in decision.reasons
+
+
+def test_execution_portability_requires_same_candidate_to_survive_all_target_domains() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_execution_portability import (
+        CapitalizerEnvironmentQualification,
+        CapitalizerEnvironmentStatus,
+        CapitalizerExecutionEnvironment,
+        MANDATORY_EXECUTION_ENVIRONMENTS,
+        evaluate_execution_portability,
+    )
+
+    qualifications = tuple(
+        CapitalizerEnvironmentQualification(
+            environment=environment,
+            profile_fingerprint=f"{index:x}" * 64,
+            status=CapitalizerEnvironmentStatus.QUALIFIED,
+            evidence_fingerprint=f"{index + 8:x}" * 64,
+        )
+        for index, environment in enumerate(MANDATORY_EXECUTION_ENVIRONMENTS, start=1)
+    )
+    decision = evaluate_execution_portability(qualifications)
+    assert decision.qualified is True
+    assert decision.reasons == ()
