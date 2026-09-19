@@ -1,0 +1,211 @@
+name: QORE Capitalizer 9-Market Target Capacity V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-target-capacity-matrix-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_target_context.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-target-capacity-matrix-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_TARGET_RUN_ID: '35204892665'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check --ignore E501 \
+            src/qore/infrastructure/trader_lab/capitalizer_target_context.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
+            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_target_context.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
+            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py
+
+  scan:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symbol: USDJPY
+            m5: qore-cibo-market-atlas-10y-windowed-USDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-USDJPY-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-USDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: AUDJPY
+            m5: qore-cibo-market-atlas-10y-windowed-AUDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-AUDJPY-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-AUDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: AUDUSD
+            m5: qore-cibo-market-atlas-10y-windowed-AUDUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-AUDUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-AUDUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: GBPJPY
+            m5: qore-cibo-market-atlas-10y-windowed-GBPJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-GBPJPY-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-GBPJPY-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: EURUSD
+            m5: qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-EURUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-EURUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: GBPUSD
+            m5: qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-GBPUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-GBPUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: XAUUSD
+            m5: qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-XAUUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: USDCAD
+            m5: qore-cibo-market-atlas-10y-windowed-USDCAD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-USDCAD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-USDCAD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: NAS100
+            m5: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-NAS100-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-NAS100-2f510461b3360e91d5ee70a72716a76cd6561f16
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable consumed M5
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.m5 }}
+          path: m5-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Download immutable consumed Journey
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.journey }}
+          path: journey-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Download immutable consumed Target V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: target-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_TARGET_RUN_ID }}
+      - name: Build causal target-capacity report
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_target_capacity_forensics \
+            m5-source journey-source target-source cell-output
+      - name: Enforce no-threshold/no-outcome cell governance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ.get('MATRIX_SYMBOL')
+          files = list(Path('cell-output').glob('capitalizer-*-target-capacity-v1.json'))
+          assert len(files) == 1
+          result = json.loads(files[0].read_text())
+          assert result['symbol'] == symbol
+          assert result['minimum_r_filter_defined'] is False
+          assert result['final_stop_contract_defined'] is False
+          assert result['target_outcomes_used'] is False
+          assert result['economic_candidate'] is False
+          assert result['rule_promotion_allowed'] is False
+          PY
+        env:
+          MATRIX_SYMBOL: ${{ matrix.symbol }}
+      - name: Upload immutable target-capacity cell
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-target-capacity-cell-${{ matrix.symbol }}-${{ github.sha }}
+          path: cell-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download all nine capacity cells
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-target-capacity-cell-*-${{ github.sha }}
+          path: matrix-input
+          merge-multiple: false
+      - name: Build nine-market capacity matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_target_capacity_matrix \
+            matrix-input matrix-output
+      - name: Enforce matrix governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path('matrix-output/capitalizer-target-capacity-matrix-v1.json').read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_TARGET_CAPACITY_MATRIX_V1'
+          assert result['market_count'] == 9
+          assert result['complete_frozen_universe'] is True
+          assert result['aligned_departure_events'] > 0
+          assert result['geometry_observations'] > 0
+          assert result['minimum_r_filter_defined'] is False
+          assert result['final_stop_contract_defined'] is False
+          assert result['target_outcomes_used'] is False
+          assert result['economic_candidate'] is False
+          assert result['rule_promotion_allowed'] is False
+          PY
+      - name: Upload immutable target-capacity matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-target-capacity-matrix-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90
