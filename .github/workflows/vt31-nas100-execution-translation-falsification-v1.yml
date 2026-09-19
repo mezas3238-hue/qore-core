@@ -1,0 +1,272 @@
+name: QORE VT31 NAS100 Execution Translation Falsification V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_execution_translation_falsification_v1.py
+      - .github/workflows/vt31-nas100-execution-translation-falsification-v1.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_execution_translation_falsification_v1.py
+      - .github/workflows/vt31-nas100-execution-translation-falsification-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Freeze Silver Bullet and static gate
+        run: |
+          set -euo pipefail
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py)" = "3e66f4532c67e62ab2eef7ac376bb86ef7011f73"
+          python -m py_compile scripts/vt31_nas100_execution_translation_falsification_v1.py
+          ruff check scripts/vt31_nas100_execution_translation_falsification_v1.py
+
+      - name: Recover immutable M1 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Run execution-translation falsification
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_execution_translation_falsification_v1.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/execution-translation-${PARTITION}.json"             | tee "result/summary-${PARTITION}.json"
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/execution-translation-{partition}.json").read_text()
+          )
+          freeze = payload["silver_bullet_freeze"]
+          assert freeze["source_sha256"] == "bd729056fadc30d20045e4677240b3a6cbb65123ced317e7413b6ffe81936ddf"
+          assert freeze["methodology_id"] == "ttrades-am-silver-bullet-nq-r2.2"
+          assert freeze["source_module_modified_by_lab"] is False
+          space = payload["qore_translation_space"]
+          assert space["source_rule"] is False
+          assert space["stop_changed"] is False
+          assert space["target_changed"] is False
+          assert space["three_r_breakeven_changed"] is False
+          g = payload["governance"]
+          assert g["silver_bullet_modified"] is False
+          assert g["silver_bullet_source_frozen"] is True
+          assert g["only_source_unresolved_execution_choices_varied"] is True
+          assert g["h4_used_as_primary_causal_feature"] is False
+          assert g["h1_trend_used_as_primary_causal_feature"] is False
+          assert g["grid_is_falsification_not_selection"] is True
+          assert g["variant_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-execution-translation-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-execution-translation-*-${{ github.sha }}
+          path: input/translation
+          merge-multiple: true
+
+      - name: Recover current VT31 streak evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/current result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10576800360/zip" > current.zip
+          unzip -q current.zip -d input/current
+          test -f input/current/aggregate.json
+
+      - name: Aggregate falsification
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          folds = {}
+          for path in Path("input/translation").glob(
+              "execution-translation-*.json"
+          ):
+              payload = json.loads(path.read_text())
+              folds[payload["partition"]] = payload
+          assert set(folds) == {"r5", "r6", "r8", "consumed_holdout"}
+
+          names = ("r5", "r6", "r8", "consumed_holdout")
+          variants = tuple(folds["r5"]["variants"])
+          summary = {}
+          complete = []
+
+          for variant in variants:
+              per_fold = {
+                  fold: folds[fold]["variants"][variant]
+                  for fold in names
+              }
+              density_all = all(
+                  300 <= int(per_fold[fold]["trade_count"]) <= 350
+                  for fold in names
+              )
+              pf_all = all(
+                  per_fold[fold]["metrics"]["profit_factor"] is not None
+                  and Decimal(
+                      str(per_fold[fold]["metrics"]["profit_factor"])
+                  ) >= Decimal("1.50")
+                  for fold in names
+              )
+              positive_all = all(
+                  Decimal(str(per_fold[fold]["metrics"]["total_r"])) > 0
+                  for fold in names
+              )
+              streak_all = all(
+                  int(per_fold[fold]["max_losing_streak"]) <= 8
+                  for fold in names
+              )
+              item = {
+                  "per_fold": per_fold,
+                  "density_300_350_all": density_all,
+                  "pf_ge_1_50_all": pf_all,
+                  "positive_all": positive_all,
+                  "max_losing_streak_le_8_all": streak_all,
+              }
+              summary[variant] = item
+              if density_all and pf_all and positive_all and streak_all:
+                  complete.append(variant)
+
+          current = json.loads(
+              Path("input/current/aggregate.json").read_text()
+          )
+          current_streaks = current["longest_losing_streak_by_fold"]
+          translation_streaks = {
+              fold: folds[fold]["variants"]["ANY_MIDPOINT"][
+                  "max_losing_streak"
+              ]
+              for fold in names
+          }
+
+          report = {
+              "schema": (
+                  "qore.vt31.nas100.execution_translation_falsification."
+                  "aggregate.v1"
+              ),
+              "variant_summary": summary,
+              "complete_solution_variants": complete,
+              "current_translation_null_model_by_fold": {
+                  fold: folds[fold][
+                      "current_translation_streak_null_model"
+                  ]
+                  for fold in names
+              },
+              "streak_engineering_bound_300_trades": folds[
+                  "consumed_holdout"
+              ]["streak_engineering_bound_300_trades"],
+              "current_qore_translation_max_streak_by_fold": (
+                  translation_streaks
+              ),
+              "current_vt31_alloc_g_max_streak_by_fold": current_streaks,
+              "alloc_g_minus_translation_streak": {
+                  fold: (
+                      int(current_streaks[fold])
+                      - int(translation_streaks[fold])
+                  )
+                  for fold in names
+              },
+              "interpretation": {
+                  "simple_price_or_family_choice_is_complete_solution": (
+                      bool(complete)
+                  ),
+                  "grid_is_falsification_not_policy_selection": True,
+              },
+              "governance": {
+                  "silver_bullet_modified": False,
+                  "falsification_only": True,
+                  "variant_promoted": False,
+                  "opens_new_holdout": False,
+                  "candidate_certified": False,
+                  "live_authorized": False,
+                  "real_capital_authorized": False,
+                  "production_authorized": False,
+              },
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - name: Bind artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-execution-translation-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
