@@ -136,10 +136,16 @@ def _join_window(
     r46_rows: Sequence[dict[str, Any]],
     window_id: str,
 ) -> list[dict[str, Any]]:
+    cisd_rows = [
+        row for row in r46_rows
+        if str(row["poi"]) == "cisd"
+    ]
     index = {
         (str(row["symbol"]), str(row["timestamp"])): row
-        for row in r46_rows
+        for row in cisd_rows
     }
+    if len(index) != len(cisd_rows):
+        raise ValueError(f"R54 duplicate CISD join key in {window_id}")
     joined: list[dict[str, Any]] = []
     for reaction_row in r53_rows:
         key = (str(reaction_row["symbol"]), str(reaction_row["timestamp"]))
