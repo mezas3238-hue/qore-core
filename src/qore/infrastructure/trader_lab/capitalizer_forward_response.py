@@ -22,7 +22,7 @@ from qore.infrastructure.trader_lab.capitalizer_atlas_m5_reader import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_microstructure_discovery import (
     CapitalizerMicrostructureEvent,
-    _events,
+    classify_microstructure_events,
     designated_session,
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
@@ -164,7 +164,7 @@ def build_forward_responses(root: Path) -> tuple[CapitalizerForwardResponse, ...
         if current.range <= 0:
             continue
 
-        observed = set(_events(current, previous))
+        observed = set(classify_microstructure_events(current, previous))
         directional = tuple(
             event
             for event in CapitalizerForwardEvent
