@@ -13,6 +13,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_position_lifecycle_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_departure_timing_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py'
@@ -20,6 +21,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_position_lifecycle_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_departure_timing_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py'
   workflow_dispatch:
 
 permissions:
@@ -59,13 +61,15 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_position_lifecycle_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_departure_timing_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_cognitive_v2_development.py \
             tests/infrastructure/trader_lab/test_capitalizer_position_lifecycle_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_departure_timing_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_r0_loss_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py \
@@ -73,7 +77,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_cognitive_v2_development.py \
             src/qore/infrastructure/trader_lab/capitalizer_position_lifecycle_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_departure_timing_forensics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py
+            src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
@@ -81,7 +86,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_cognitive_v2_development.py \
             tests/infrastructure/trader_lab/test_capitalizer_position_lifecycle_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_departure_timing_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py
 
   forensics:
     needs: quality

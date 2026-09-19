@@ -21,6 +21,7 @@ from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
@@ -140,10 +141,10 @@ def _worst_drawdown(
     boundaries: Mapping[str, tuple[str, datetime]],
 ) -> CapitalizerH1SourceAgeDrawdown:
     ordered = tuple(sorted(trades, key=lambda item: (item.entry_at, item.exit_at)))
-    equity = 0
-    peak = 0
+    equity = Decimal("0")
+    peak = Decimal("0")
     peak_index = 0
-    worst = 0
+    worst = Decimal("0")
     worst_peak_index = 0
     worst_trough_index = 0
 
