@@ -14,7 +14,6 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-
 PRICE_SCALE = Decimal(100_000)
 BAR_DURATION = timedelta(minutes=5)
 EXPECTED_SCHEMA = "qore.cibo_market_atlas.raw_m5.v1"
