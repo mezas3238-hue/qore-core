@@ -22,7 +22,6 @@ from qore.infrastructure.trader_lab.capitalizer_research_lineage import (
     validate_consumed_lineage_coverage,
 )
 
-
 EXPECTED_IDENTITY = "CIBO_MARKET_ATLAS_10Y_CONSUMPTION_V1"
 EXPECTED_SCHEMA = "qore.cibo_market_atlas.m5_consumption.aggregate.v1"
 
