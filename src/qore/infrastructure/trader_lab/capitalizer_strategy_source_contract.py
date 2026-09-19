@@ -143,7 +143,9 @@ CAPITALIZER_SOURCE_RULES: tuple[CapitalizerSourceRule, ...] = (
     CapitalizerSourceRule(
         rule_id="FAILURE_CAN_RECLASSIFY_TRANSITION",
         provenance=CapitalizerRuleProvenance.SOURCE_SUPPORTED,
-        statement="Failure of the expected manipulation/reversal can carry continuation information.",
+        statement=(
+            "Failure of the expected manipulation/reversal can carry continuation information."
+        ),
         source_ids=("TTRADES_FAILURE_TO_MANIPULATE",),
     ),
     CapitalizerSourceRule(
