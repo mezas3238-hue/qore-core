@@ -147,23 +147,24 @@ def _next_reasoned_event(
     policy: Vt31R22ExecutionPolicy,
 ) -> dict[str, object]:
     """Resolve one causal source episode strictly after after_at."""
-    prefix: list[object] = list(reference)
+    # Event identity and market understanding have different causal scopes.
+    # A new source event must be detected only from bars after the cursor,
+    # while Situation Model / Reasoning must retain every session bar observed
+    # up to the decision.
+    event_prefix: list[object] = list(reference)
     saw_wait = False
     first_source_raid: datetime | None = None
 
     for bar in session:
         closed_at = cast(datetime, getattr(bar, "closed_at"))
-        # Preserve the complete causal M1 history.  The cursor limits which
-        # source events may be admitted; it must never erase already observed
-        # session bars from the evaluator.
-        prefix.append(bar)
         if closed_at <= after_at:
             continue
+        event_prefix.append(bar)
 
         evaluation = evaluate_vt31_r2_2_source(
             instrument=getattr(bar, "instrument"),
             as_of=closed_at,
-            m1_candles=cast(Any, tuple(prefix)),
+            m1_candles=cast(Any, tuple(event_prefix)),
             evidence_fingerprint=evidence,
         )
         if evaluation.setup is None:
@@ -202,8 +203,9 @@ def _next_reasoned_event(
 
         session_prefix = tuple(
             item
-            for item in prefix
-            if (10, 0, 0)
+            for item in session
+            if cast(datetime, getattr(item, "closed_at")) <= closed_at
+            and (10, 0, 0)
             <= _wall(getattr(item, "opened_at"))
             < (11, 0, 0)
         )
@@ -575,7 +577,8 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             "wait_keeps_observing_same_source": True,
             "abstain_kills_current_source": True,
             "new_event_requires_new_raid_confirmation_decision": True,
-            "full_session_history_preserved_across_cursor": True,
+            "event_detection_resets_after_cursor": True,
+            "situation_model_preserves_full_session_history": True,
             "same_source_secondary_disabled": True,
             "scout_after_wait_disabled": True,
             "post_exit_event_requires_structural_rearm": True,
