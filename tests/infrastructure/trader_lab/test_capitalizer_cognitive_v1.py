@@ -297,3 +297,59 @@ def test_high_selectivity_requires_high_evidence_before_execute() -> None:
     )
     assert evaluation.final_decision is CapitalizerDecision.WAIT
     assert evaluation.ledger_after.executions == 0
+
+
+def test_session_handoff_preserves_causal_day_state() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_exposure_graph import factor_exposures
+    from qore.infrastructure.trader_lab.capitalizer_memory import CapitalizerDailyJourney
+    from qore.infrastructure.trader_lab.capitalizer_session_handoff import build_session_handoff
+
+    ledger = CapitalizerSessionLedger(CapitalizerSession.ASIA).record_decision(
+        decision=CapitalizerDecision.EXECUTE,
+        hypothesis_id="ASIA-H-1",
+        source_event_id="ASIA-E-1",
+    )
+    journey = CapitalizerDailyJourney(
+        completed_sessions=(CapitalizerSession.ASIA,),
+        consumed_destinations=frozenset({"ASIA_HIGH"}),
+        dominant_factors=("JPY_WEAKNESS",),
+        realized_r=Decimal("0.35"),
+    )
+    exposures = factor_exposures(
+        (
+            CapitalizerExposurePosition(
+                symbol="USDJPY",
+                side=CapitalizerSide.LONG,
+                risk_r=Decimal("0.10"),
+            ),
+        )
+    )
+    handoff = build_session_handoff(
+        from_session=CapitalizerSession.ASIA,
+        to_session=CapitalizerSession.LONDON,
+        ledger=ledger,
+        journey=journey,
+        loss_memory=CapitalizerLossMemory(),
+        factor_exposure_state=exposures,
+    )
+    assert handoff.prior_executions == 1
+    assert handoff.consumed_destinations == frozenset({"ASIA_HIGH"})
+    assert handoff.dominant_factors == ("JPY_WEAKNESS",)
+    assert handoff.realized_day_r == Decimal("0.35")
+
+
+def test_session_handoff_cannot_move_backward() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_memory import CapitalizerDailyJourney
+    from qore.infrastructure.trader_lab.capitalizer_session_handoff import build_session_handoff
+
+    with pytest.raises(ValueError, match="Asia -> London -> New York"):
+        build_session_handoff(
+            from_session=CapitalizerSession.LONDON,
+            to_session=CapitalizerSession.ASIA,
+            ledger=CapitalizerSessionLedger(CapitalizerSession.LONDON),
+            journey=CapitalizerDailyJourney(
+                completed_sessions=(CapitalizerSession.LONDON,)
+            ),
+            loss_memory=CapitalizerLossMemory(),
+            factor_exposure_state=(),
+        )
