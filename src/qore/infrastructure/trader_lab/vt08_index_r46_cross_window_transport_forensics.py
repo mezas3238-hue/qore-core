@@ -14,7 +14,7 @@ import argparse
 import heapq
 import json
 from collections import defaultdict, deque
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
