@@ -32,6 +32,9 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_r6_5y_failure_forensics as fx,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r15_concurrent_portfolio_validation as r15,
 )
 from qore.infrastructure.trader_lab import (
@@ -66,9 +69,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r59_candidate_freeze as freeze,
-)
-from qore.infrastructure.trader_lab import (
-    vt08_index_r6_5y_failure_forensics as fx,
 )
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
