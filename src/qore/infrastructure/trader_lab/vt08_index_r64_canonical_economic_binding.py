@@ -128,6 +128,8 @@ EXPECTED_TOTAL_R = (
 
 PROCESS_FROZEN_AT = datetime(2026, 9, 19, 20, 10, tzinfo=UTC)
 PROCESS_RUN_CREATED_AT = datetime(2026, 9, 19, 20, 11, tzinfo=UTC)
+PROCESS_EVIDENCE_AT = datetime(2026, 9, 19, 20, 12, tzinfo=UTC)
+PROCESS_PERFORMANCE_AT = datetime(2026, 9, 19, 20, 13, tzinfo=UTC)
 
 _SOURCE = ExternalSourceDescriptor(
     adapter_id=AdapterId(UUID("77600000-0000-0000-0000-000000000001")),
@@ -462,7 +464,7 @@ def _observation(
         ),
         source_result=gross.value,
         capital_basis=_CAPITAL,
-        observed_at=exited_at,
+        observed_at=PROCESS_EVIDENCE_AT,
     )
     if isinstance(observation, Failure):
         raise ValueError(
@@ -563,10 +565,7 @@ def build_binding(
             _uid("performance-snapshot")
         ),
         observations=observations,
-        observed_at=max(
-            PROCESS_RUN_CREATED_AT,
-            max(item.observed_at for item in observations),
-        ),
+        observed_at=PROCESS_PERFORMANCE_AT,
     )
     if isinstance(performance, Failure):
         raise ValueError(
