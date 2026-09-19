@@ -76,6 +76,9 @@ jobs:
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10587907814/zip" > missing.zip
           unzip -q missing.zip -d missing
           (cd missing/acquisition && sha256sum -c SHA256SUMS)
+          cp \
+            missing/acquisition/manifest-tick-acquisition-summary.json \
+            missing/acquisition/high-density-tick-acquisition-summary.json
           python - <<'PY'
           import json
           from pathlib import Path
