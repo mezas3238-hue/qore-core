@@ -185,7 +185,7 @@ def build_report(
     def side(row: dict[str, Any]) -> str:
         return str(row["opportunity"].signal.side.value)
 
-    def symbol(row: dict[str, Any]) -> str:
+    def market_label(row: dict[str, Any]) -> str:
         return str(row["opportunity"].signal.symbol)
 
     def anchor(row: dict[str, Any]) -> str:
@@ -222,7 +222,7 @@ def build_report(
             "secondary": _metrics(rows, stress=SECONDARY_STRESS),
         },
         "by_year": _breakdown(rows, labeler=_year),
-        "by_market": _breakdown(rows, labeler=symbol),
+        "by_market": _breakdown(rows, labeler=market_label),
         "by_side": _breakdown(rows, labeler=side),
         "by_anchor": _breakdown(rows, labeler=anchor),
         "by_poi": _breakdown(rows, labeler=poi),
