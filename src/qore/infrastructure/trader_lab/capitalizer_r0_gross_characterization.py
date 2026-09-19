@@ -14,7 +14,7 @@ Frozen characterization mechanics:
 - same-M5 stop/target ambiguity: STOP_FIRST;
 - unresolved at session end: mark-to-market at final same-session M5 close.
 
-No spread/commission/slippage is applied here. No maximum-two portfolio selection is applied.
+No spread/commission/slippage is applied here. No maximum-three portfolio selection is applied.
 Those belong to later portfolio/execution layers after the geometry is characterized.
 """
 
