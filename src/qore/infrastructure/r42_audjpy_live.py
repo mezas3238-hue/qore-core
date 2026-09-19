@@ -22,10 +22,12 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
@@ -129,7 +131,14 @@ SECOND_LAYER_POLICY = (
 BASE_RISK_FRACTION = Decimal("0.002")
 MAX_SOURCE_ENTRY_DRIFT_R = Decimal("0.10")
 BROKER_RISK_BUFFER = Decimal("1.02")
-ANCHOR_GRACE = timedelta(seconds=45)
+ENTRY_SLA = timedelta(seconds=2)
+BOUNDARY_ARM_LEAD = timedelta(seconds=10)
+BOUNDARY_RETRY_SECONDS = 0.075
+NORMAL_FEED_REFRESH_SECONDS = 1.0
+RECENT_M5_BARS = 8
+BOUNDARY_RECENT_M5_BARS = 4
+MAX_BROKER_TICK_AGE = timedelta(seconds=2)
+ANCHOR_GRACE = ENTRY_SLA
 HISTORY_M5_BARS = 15_000
 _STATE_SCHEMA = "qore.turtle_soup_audjpy.r42.live_state.v1"
 _STRATEGY_TZ = NEW_YORK_TZ
