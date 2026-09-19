@@ -135,7 +135,10 @@ def _profiles() -> tuple[MarketSidePoiProfile, ...]:
 
 def _group_key(opportunity: r4.ExpandedOpportunity) -> str:
     signal = opportunity.signal
-    return (\n        f"{signal.symbol}|{signal.side.value}|"\n        f"{opportunity.source_poi_kind}"\n    )
+    return (
+        f"{signal.symbol}|{signal.side.value}|"
+        f"{opportunity.source_poi_kind}"
+    )
 
 
 def _assign(
@@ -596,7 +599,8 @@ def main() -> None:
             sort_keys=True,
             allow_nan=False,
         )
-        + "\n",
+        + "
+",
         encoding="utf-8",
     )
     print(
