@@ -11,10 +11,14 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py'
   workflow_dispatch:
 
 permissions:
@@ -49,10 +53,14 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py \
             src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py \
             src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
-            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py
       - name: Mypy
         run: |
           mypy \
@@ -149,6 +157,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_cross_market_economic_falsification \
             m5-source journey-source target-source cell-output
+      - name: Build session-flow viability cell
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_session_flow_viability \
+            m5-source journey-source target-source cell-output
       - name: Enforce no-threshold/no-outcome cell governance
         run: |
           python - <<'PY'
@@ -196,6 +208,30 @@ jobs:
               'DROP_NORECLAIM_CISD_CROSS_H1',
               'DROP_NORECLAIM_CISD_CROSS_H1_PROFITABLE_SWING_LOCK',
           }
+
+          flow_files = list(
+              Path('cell-output').glob(
+                  'capitalizer-*-session-flow-viability-v1.json'
+              )
+          )
+          assert len(flow_files) == 1
+          flow = json.loads(flow_files[0].read_text())
+          assert flow['symbol'] == symbol
+          assert flow['identity'] == 'QORE_CAPITALIZER_SESSION_FLOW_VIABILITY_V1'
+          assert flow['max_executions_per_session'] == 3
+          assert flow['same_session_exit_verified'] is True
+          assert flow['positive_pnl_is_not_stop_condition'] is True
+          assert flow['governed_profit_objective_not_modeled'] is True
+          assert flow['candidate_frozen'] is False
+          assert flow['fresh_holdout_claimed'] is False
+          assert flow['rule_selected'] is False
+          assert flow['promotion_allowed'] is False
+          ledgers = list(
+              Path('cell-output').glob(
+                  'capitalizer-*-session-flow-trades-v1.jsonl'
+              )
+          )
+          assert len(ledgers) == 1
           PY
         env:
           MATRIX_SYMBOL: ${{ matrix.symbol }}
@@ -231,6 +267,10 @@ jobs:
       - name: Build nine-market economic falsification matrix
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_cross_market_economic_matrix \
+            matrix-input matrix-output
+      - name: Build portfolio three-scalp session-flow viability
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_portfolio_session_flow_viability \
             matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
@@ -270,6 +310,38 @@ jobs:
           assert economic['fresh_holdout_claimed'] is False
           assert economic['rule_selected'] is False
           assert economic['promotion_allowed'] is False
+
+          flow = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-portfolio-session-flow-viability-v1.json'
+              ).read_text()
+          )
+          assert flow['identity'] == (
+              'QORE_CAPITALIZER_PORTFOLIO_SESSION_FLOW_VIABILITY_V1'
+          )
+          assert flow['market_count'] == 9
+          assert flow['complete_frozen_universe'] is True
+          assert flow['max_executions_per_session'] == 3
+          assert flow['same_session_exit_verified'] is True
+          assert flow['positive_pnl_is_not_stop_condition'] is True
+          assert flow['simultaneous_ordering_sensitivity_tested'] is True
+          assert flow['qore_risk_allocator_applied'] is False
+          assert flow['cross_market_exposure_allocator_applied'] is False
+          assert flow['governed_profit_objective_not_modeled'] is True
+          assert flow['candidate_frozen'] is False
+          assert flow['fresh_holdout_claimed'] is False
+          assert flow['rule_selected'] is False
+          assert flow['promotion_allowed'] is False
+          assert {row['name'] for row in flow['variants']} == {
+              'MAX2',
+              'MAX3_ANY_VALID',
+              'MAX3_POSITIVE_REALIZED_CONTINUATION',
+          }
+          assert {row['tie_policy'] for row in flow['variants']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
           PY
       - name: Upload immutable target-capacity matrix
         uses: actions/upload-artifact@v4
