@@ -560,6 +560,7 @@ def build_report(
         "governance": {
             "development_only": True,
             "consumed_window": True,
+            "preregistered_before_r38_result": True,
             "fresh_holdout_claim": False,
             "new_dimension": (
                 "preallocation_causal_market_side_poi_completed_trade_health"
