@@ -253,3 +253,47 @@ def test_capitalization_governor_is_non_authoritative_and_fail_closed() -> None:
     assert stopped.grants_capital_authority is False
     assert selective.posture is CapitalizationPosture.HIGH_SELECTIVITY
     assert selective.grants_capital_authority is False
+
+
+def test_cognitive_engine_records_execute_and_preserves_risk_sovereignty() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_cognitive_engine import evaluate_capitalizer
+    from qore.infrastructure.trader_lab.capitalizer_governor import CapitalizerPortfolioState
+
+    evaluation = evaluate_capitalizer(
+        situation=_situation(),
+        ledger=CapitalizerSessionLedger(CapitalizerSession.ASIA),
+        loss_memory=CapitalizerLossMemory(),
+        portfolio_state=CapitalizerPortfolioState(),
+    )
+    assert evaluation.final_decision is CapitalizerDecision.EXECUTE
+    assert evaluation.ledger_after.executions == 1
+    assert evaluation.grants_capital_authority is False
+
+
+def test_governor_stop_day_forces_abstain_and_kills_current_hypothesis() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_cognitive_engine import evaluate_capitalizer
+    from qore.infrastructure.trader_lab.capitalizer_governor import CapitalizerPortfolioState
+
+    evaluation = evaluate_capitalizer(
+        situation=_situation(),
+        ledger=CapitalizerSessionLedger(CapitalizerSession.ASIA),
+        loss_memory=CapitalizerLossMemory(),
+        portfolio_state=CapitalizerPortfolioState(day_stop_required=True),
+    )
+    assert evaluation.final_decision is CapitalizerDecision.ABSTAIN
+    assert "H-1" in evaluation.ledger_after.killed_hypotheses
+    assert "E-1" in evaluation.ledger_after.killed_source_events
+
+
+def test_high_selectivity_requires_high_evidence_before_execute() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_cognitive_engine import evaluate_capitalizer
+    from qore.infrastructure.trader_lab.capitalizer_governor import CapitalizerPortfolioState
+
+    evaluation = evaluate_capitalizer(
+        situation=_situation(evidence_strength=EvidenceStrength.MEDIUM),
+        ledger=CapitalizerSessionLedger(CapitalizerSession.ASIA),
+        loss_memory=CapitalizerLossMemory(),
+        portfolio_state=CapitalizerPortfolioState(loss_cluster_active=True),
+    )
+    assert evaluation.final_decision is CapitalizerDecision.WAIT
+    assert evaluation.ledger_after.executions == 0
