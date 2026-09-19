@@ -1,0 +1,27 @@
+name: VT08 Index R63 Specialist Authority Contract
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r63-specialist-authority-contract.yml
+      - src/qore/infrastructure/cibo_trader_lab_authority.py
+      - src/qore/infrastructure/traders/vt08_index_specialist_contract.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r63_specialist_authority_contract.py
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r63_specialist_authority_contract.py

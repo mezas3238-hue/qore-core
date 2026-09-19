@@ -1,0 +1,102 @@
+name: VT08 Index R41 Weighted Residual Forensics
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r41-weighted-residual-forensics.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r41_weighted_residual_forensics.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r41_weighted_residual_forensics.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r41_weighted_residual_forensics.py
+
+  research:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R41 residual forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r41_weighted_residual_forensics \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r41-weighted-residual-forensics.json
+
+      - name: Verify R41 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(Path("artifacts/report/vt08-index-r41-weighted-residual-forensics.json").read_text())
+          assert report["identity"] == "VT08_INDEX_R41_WEIGHTED_RESIDUAL_FORENSICS_001"
+          assert report["sample"] == 2448
+          g=report["governance"]
+          assert g["forensics_only"] is True
+          assert g["r40_reconstructed_exactly"] is True
+          assert g["trading_rule_changed"] is False
+          assert g["risk_rule_changed"] is False
+          assert g["trade_suppression_performed"] is False
+          assert g["calendar_or_year_feature_proposed_for_runtime"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Upload R41 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r41-weighted-residual-forensics-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

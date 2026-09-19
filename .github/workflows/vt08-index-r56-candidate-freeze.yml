@@ -1,0 +1,52 @@
+name: VT08 Index R56 Candidate Freeze
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r56-candidate-freeze.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r56_candidate_freeze.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r56_candidate_freeze.py
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r56_candidate_freeze.py
+      - name: Materialize immutable freeze
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r56_candidate_freeze \
+            --out artifacts/report/vt08-index-r56-candidate-freeze.json
+      - name: Verify freeze contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("artifacts/report/vt08-index-r56-candidate-freeze.json")
+          report = json.loads(p.read_text())
+          assert report["dependency_contract_matches"] is True
+          assert report["candidate_id"] == (
+              "VT08_INDEX_R55_DISTRIBUTED_CAUSAL_RISK_001"
+          )
+          assert report["governance"]["candidate_frozen"] is True
+          assert report["governance"]["certified"] is False
+          assert report["governance"]["live_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r56-candidate-freeze-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

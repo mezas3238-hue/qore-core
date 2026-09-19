@@ -2,9 +2,9 @@
 
 ``DEMO_ELIGIBLE`` requires evidence-backed completion of the full mandatory
 chain (REPLAY -> FAST_FORWARD -> OOS -> STRESS -> MONTE_CARLO -> RISK_REVIEW ->
-CIBO_REVIEW -> INDEPENDENT_VALIDATION) plus explicit economic evaluation
-evidence. CIBO may recommend but can never self-promote; Risk review cannot be
-skipped; independent validation is a distinct final gate; and the Lab grants no
+CIBO_REVIEW -> INDEPENDENT_VALIDATION -> ECONOMIC_EVIDENCE). CIBO may recommend
+but can never self-promote; Risk review cannot be skipped; independent
+validation reaches only ``INDEPENDENTLY_VALIDATED``; and the Lab grants no
 execution or Production authority.
 
 Risk, CIBO, and independent validation are governed by external authorities with
@@ -43,19 +43,6 @@ _BLOCKING_STATES = frozenset(
         TraderLabState.SUSPENDED,
     }
 )
-
-#: Mandatory stages governed by external authorities (no in-repo producer).
-_EXTERNAL_GOVERNED_STAGES = frozenset(
-    {
-        TraderLabStage.RISK_REVIEW,
-        TraderLabStage.CIBO_REVIEW,
-        TraderLabStage.INDEPENDENT_VALIDATION,
-    }
-)
-
-#: Mandatory stages the Lab can legitimately produce/verify in-repo.
-_IN_REPO_STAGES = frozenset(MANDATORY_STAGES) - _EXTERNAL_GOVERNED_STAGES
-
 
 class TraderLabPromotionStatus(StrEnum):
     """Closed promotion-decision outcomes."""
@@ -126,8 +113,16 @@ def evaluate_demo_eligibility(
             reasons=(f"candidate is in terminal blocking state {state.value}",),
         )
     if state is not TraderLabState.DEMO_ELIGIBLE:
+        if state is TraderLabState.INDEPENDENTLY_VALIDATED:
+            return TraderLabPromotionDecision(
+                candidate=lifecycle.candidate,
+                status=TraderLabPromotionStatus.NOT_ELIGIBLE_MISSING_ECONOMIC_EVIDENCE,
+                reasons=(
+                    "economic evidence has not completed its explicit lifecycle stage",
+                ),
+            )
         completed = set(lifecycle.completed_stages)
-        if _IN_REPO_STAGES <= completed:
+        if TraderLabStage.MONTE_CARLO in completed:
             return TraderLabPromotionDecision(
                 candidate=lifecycle.candidate,
                 status=TraderLabPromotionStatus.EXTERNAL_EVIDENCE_DEPENDENT,
@@ -154,6 +149,12 @@ def evaluate_demo_eligibility(
             reasons=(
                 "economic evaluation evidence is required for demo eligibility",
             ),
+        )
+    if lifecycle.qualifications[-1].stage is not TraderLabStage.ECONOMIC_EVIDENCE:
+        return TraderLabPromotionDecision(
+            candidate=lifecycle.candidate,
+            status=TraderLabPromotionStatus.NOT_ELIGIBLE_INCOMPLETE,
+            reasons=("lifecycle does not terminate in economic evidence",),
         )
     # Deep-validate the economic reference (exact runtime types, self-
     # authenticating digest, token syntax) before trusting its kind or lineage.

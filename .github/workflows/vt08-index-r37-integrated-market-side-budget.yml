@@ -1,0 +1,102 @@
+name: VT08 Index R37 Integrated Market Side Budget
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r37-integrated-market-side-budget.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r37_integrated_market_side_budget.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r37_integrated_market_side_budget.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r37_integrated_market_side_budget.py
+
+  research:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R37 integrated market-side budget
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r37_integrated_market_side_budget \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r37-integrated-market-side-budget.json
+
+      - name: Verify R37 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(Path("artifacts/report/vt08-index-r37-integrated-market-side-budget.json").read_text())
+          assert report["identity"] == "VT08_INDEX_R37_INTEGRATED_MARKET_SIDE_BUDGET_001"
+          assert 2300 <= report["sample"] <= 2500
+          assert report["evaluated_profile_count"] == 72
+          g=report["governance"]
+          assert g["calendar_or_year_feature_used_for_runtime"] is False
+          assert g["health_uses_only_prior_completed_raw_outcomes"] is True
+          assert g["future_outcome_used_for_current_risk"] is False
+          assert g["all_structural_signals_preserved"] is True
+          assert g["signal_suppression_allowed"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Upload R37 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r37-integrated-market-side-budget-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

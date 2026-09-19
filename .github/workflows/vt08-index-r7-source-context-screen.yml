@@ -1,0 +1,118 @@
+name: VT08 Index R7 Source Context Screen
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r7-source-context-screen.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r7_source_context_screen.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r7_source_context_screen.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r7_source_context_screen.py
+
+  screen:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Execute bounded R7 source-context screen
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r7_source_context_screen             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-r7-source-context-screen.json
+      - name: Verify governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("artifacts/report/vt08-index-r7-source-context-screen.json").read_text())
+          assert report["identity"] == "VT08_INDEX_R7_SOURCE_CONTEXT_SCREEN_001"
+          assert report["window"]["status"] == "CONSUMED_DEVELOPMENT"
+          assert report["window"]["fresh_certification_holdout"] is False
+          assert report["screen_count"] == 31
+          g=report["governance"]
+          assert g["bounded_causal_screen"] is True
+          assert g["post_entry_features_used"] is False
+          assert g["candidate_promoted"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+      - name: Build summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("artifacts/report")
+          report=json.loads((root/"vt08-index-r7-source-context-screen.json").read_text())
+          best=report["best"]
+          lines=[
+            "# VT08 INDEX R7 Source Context Screen",
+            "",
+            f"- screens: {report['screen_count']}",
+            f"- goal candidates: {report['goal_candidate_count']}",
+            f"- opposed share: {report['feature_evidence']['previous_source_day_body_opposed_share']}",
+            "",
+            "## Best",
+            f"- screen: {best['screen']['screen_id']}",
+            f"- sample: {best['sample']}",
+            f"- raw PF: {best['raw_primary']['profit_factor']}",
+            f"- raw DD: {best['raw_primary']['max_drawdown_r']}R",
+            f"- governed PF05: {best['governed_primary']['profit_factor']}",
+            f"- governed DD05: {best['governed_primary']['max_drawdown_r']}R",
+            f"- governed PF10: {best['governed_secondary']['profit_factor']}",
+            f"- governed DD10: {best['governed_secondary']['max_drawdown_r']}R",
+            f"- positive raw years: {best['positive_raw_years']}",
+            f"- goal pass: {best['goal_pass']}",
+          ]
+          (root/"VT08_INDEX_R7_SOURCE_CONTEXT_SCREEN_SUMMARY.md").write_text("\n".join(lines)+"\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r7-source-context-screen-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,218 @@
+name: VT08 Index Market Journey Atlas
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-market-journey-atlas.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_market_journey_atlas.py
+      - tests/infrastructure/trader_lab/test_vt08_index_market_journey_atlas.py
+      - docs/research/VT08-INDEX-MARKET-JOURNEY-ATLAS-001.md
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" -- \
+            src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ['V7_RULE_FINGERPRINT']
+          PY
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - name: Focused journey atlas tests
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_market_journey_atlas.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  lab:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+
+      - name: Download validated deep-behavior windows
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-deep-behavior-lab-0d926a5e187c9ae20d5a089b715e50f529a2159e
+          path: artifacts/deep
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35131922460
+
+      - name: Download consumed 2018-20 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v7-fresh-*-c58751a753ef14841bd971e8abfed0388d122a02
+          path: artifacts/w2018
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35082269231
+
+      - name: Download consumed 2020-22 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v6-fresh-*-0f992b3709c3d5d5d938e722ce434653c487734b
+          path: artifacts/w2020
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35054539866
+
+      - name: Download consumed 2022-23 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v3-fresh-decision-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/w2022
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+
+      - name: Download consumed 2023-24 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-r2-decision-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/w2023
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+
+      - name: Download consumed 2024-26 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-v2-source-executable-*-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/w2024
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Execute journey atlas across all consumed windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/report/windows
+
+          resolve_triplet() {
+            root="$1"
+            nas="$(find "$root" -path '*NAS100*' -name market-evidence.json -print -quit)"
+            sp="$(find "$root" -path '*SP500*' -name market-evidence.json -print -quit)"
+            us="$(find "$root" -path '*US30*' -name market-evidence.json -print -quit)"
+            test -n "$nas" && test -n "$sp" && test -n "$us"
+            printf '%s\n%s\n%s\n' "$nas" "$sp" "$us"
+          }
+
+          mapfile -t w18 < <(resolve_triplet artifacts/w2018)
+          mapfile -t w20 < <(resolve_triplet artifacts/w2020)
+          mapfile -t w24 < <(resolve_triplet artifacts/w2024)
+
+          run_atlas() {
+            id="$1"; nas="$2"; sp="$3"; us="$4"
+            python -m qore.infrastructure.trader_lab.vt08_index_market_journey_atlas window \
+              --input "artifacts/deep/windows/${id}.json" \
+              --nas100 "$nas" --sp500 "$sp" --us30 "$us" \
+              --out "artifacts/report/windows/${id}.json"
+          }
+
+          run_atlas w2018_2020 "${w18[0]}" "${w18[1]}" "${w18[2]}"
+          run_atlas w2020_2022 "${w20[0]}" "${w20[1]}" "${w20[2]}"
+          run_atlas w2022_2023 \
+            artifacts/w2022/truncated/NAS100.json \
+            artifacts/w2022/truncated/SP500.json \
+            artifacts/w2022/truncated/US30.json
+          run_atlas w2023_2024 \
+            artifacts/w2023/truncated/NAS100.json \
+            artifacts/w2023/truncated/SP500.json \
+            artifacts/w2023/truncated/US30.json
+          run_atlas w2024_2026 "${w24[0]}" "${w24[1]}" "${w24[2]}"
+
+          python -m qore.infrastructure.trader_lab.vt08_index_market_journey_atlas combine \
+            artifacts/report/windows/*.json \
+            --out artifacts/report/market-journey-atlas.json
+
+      - name: Build journey summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root=Path('artifacts/report')
+          atlas=json.loads((root/'market-journey-atlas.json').read_text())
+          lines=['# VT08 Index Market Journey / Target Atlas','']
+          lines.append(f"Trades reconstructed: {atlas['trade_count']}")
+          lines += ['', '## Market journey']
+          for market,payload in atlas['market_summary'].items():
+              overall=payload['overall']
+              lines.append(
+                  f"- {market}: n={overall['sample']} stop_rate={overall['stop_rate']} "
+                  f"hit_1R={overall['hit_rate_by_r']['1']} hit_2R={overall['hit_rate_by_r']['2']} "
+                  f"hit_3R={overall['hit_rate_by_r']['3']} stopped_then_2R_24h={overall['stopped_then_2r_24h_rate']}"
+              )
+          lines += ['', '## Source-day weekday behavior']
+          for market,weekdays in atlas['source_day_weekday_summary'].items():
+              lines.append(f"### {market}")
+              for weekday,payload in weekdays.items():
+                  lines.append(
+                      f"- {weekday}: n={payload['sample']} range_ratio={payload['median_range_ratio']} "
+                      f"directional_efficiency={payload['median_directional_efficiency']} "
+                      f"regimes={payload['regime_mix']}"
+                  )
+          lines += ['', '## Structure definition status']
+          for key,value in atlas['structure_definition_status'].items():
+              lines.append(f"- {key}: {value}")
+          lines += ['', 'Diagnostic only. No journey statistic changes V7 or authorizes target/stop/entry changes.']
+          (root/'market-journey-summary.md').write_text('\n'.join(lines)+'\n')
+          PY
+
+      - name: Verify journey governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('artifacts/report/market-journey-atlas.json').read_text())
+          assert p['candidate_id']=='VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001'
+          assert p['rule_fingerprint']=='a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308'
+          g=p['governance']
+          assert g['diagnostic_only'] is True
+          assert g['consumed_evidence_only'] is True
+          assert g['changes_v7'] is False
+          assert g['structures_are_descriptive_not_entry_rules'] is True
+          assert g['target_atlas_is_descriptive_not_target_selection'] is True
+          assert g['fresh_validation_required_for_any_new_rule'] is True
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          assert g['production_authorized'] is False
+          status=p['structure_definition_status']
+          assert status['order_block'].startswith('UNRESOLVED')
+          assert status['breaker_block'].startswith('UNRESOLVED')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-market-journey-atlas-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,236 @@
+name: VT08 Index Full CIBO Market Dossiers V1
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-full-cibo-market-dossiers-v1.yml
+      - src/qore/infrastructure/trader_lab/cibo_index_market_intelligence_v1.py
+      - tests/infrastructure/trader_lab/test_cibo_index_market_intelligence_v1.py
+      - docs/research/CIBO-INDEX-MARKET-INTELLIGENCE-DOSSIER-V1.md
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py             tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ["V7_RULE_FINGERPRINT"]
+          PY
+
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_cibo_index_market_intelligence_v1.py
+
+  dossier:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -e ".[dev]"
+
+      - name: Download 12-market intelligence matrix
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-12-market-intelligence-matrix-v1-0bb28ade6d66de32dfb5390b2c66d318159ad082
+          path: artifacts/matrix
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35235739642
+
+      - name: Download Journey summary
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-journey-summary-2bdd2fb3e050322fea49b2030e6844e3c9a1f289
+          path: artifacts/journey-summary
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35200408430
+
+      - name: Download NAS100 Journey
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-journey-NAS100-9cc0f17a2f30846d61b242132547f39391909656
+          path: artifacts/journey/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35175979474
+
+      - name: Download SP500 Journey
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-journey-SP500-9cc0f17a2f30846d61b242132547f39391909656
+          path: artifacts/journey/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35175979474
+
+      - name: Download US30 Journey
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-journey-US30-9cc0f17a2f30846d61b242132547f39391909656
+          path: artifacts/journey/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35175979474
+
+      - name: Download NAS100 Target V2
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-target-destination-v2-NAS100-2f510461b3360e91d5ee70a72716a76cd6561f16
+          path: artifacts/target/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35204892665
+
+      - name: Download SP500 Target V2
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-target-destination-v2-SP500-2f510461b3360e91d5ee70a72716a76cd6561f16
+          path: artifacts/target/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35204892665
+
+      - name: Download US30 Target V2
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-target-destination-v2-US30-2f510461b3360e91d5ee70a72716a76cd6561f16
+          path: artifacts/target/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35204892665
+
+      - name: Build full index market dossiers
+        run: |
+          python -m qore.infrastructure.trader_lab.cibo_index_market_intelligence_v1             --matrix-root artifacts/matrix             --journey-summary-root artifacts/journey-summary             --nas100-journey-root artifacts/journey/NAS100             --sp500-journey-root artifacts/journey/SP500             --us30-journey-root artifacts/journey/US30             --nas100-target-root artifacts/target/NAS100             --sp500-target-root artifacts/target/SP500             --us30-target-root artifacts/target/US30             --output artifacts/full-index-dossiers
+
+      - name: Verify dossier package
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/full-index-dossiers")
+          package = json.loads(
+              (root / "CIBO_INDEX_MARKET_INTELLIGENCE_PACKAGE_V1.json").read_text()
+          )
+          assert package["identity"] == "CIBO_INDEX_MARKET_INTELLIGENCE_DOSSIER_V1"
+          assert package["symbols"] == ["NAS100", "SP500", "US30"]
+          assert package["total_retained_m5_bars"] == 2095377
+          assert package["total_behavior_events"] == 322675
+          assert package["total_resolved_departures"] == 108558
+          assert package["full_market_memory_ready"] is True
+          assert package["vt08_outcomes_used"] is False
+          assert package["evidence_tier"] == "E1_ASSOCIATION_ONLY"
+          assert package["rule_promotion_allowed"] is False
+          assert package["fresh_holdout_opened"] is False
+          assert package["live_authorized"] is False
+          assert package["real_capital_authorized"] is False
+          assert package["production_authorized"] is False
+
+          expected = {
+              "nas100": (701457, 110471, 39060),
+              "sp500": (693064, 102863, 31445),
+              "us30": (700856, 109341, 38053),
+          }
+          for symbol, values in expected.items():
+              dossier = json.loads(
+                  (root / f"{symbol}-market-intelligence-dossier-v1.json").read_text()
+              )
+              assert dossier["retained_m5_bars"] == values[0]
+              assert dossier["behavior_events"] == values[1]
+              assert dossier["resolved_departures"] == values[2]
+              assert dossier["journey"]["rows"] == values[1]
+              assert dossier["journey"]["resolved_departures"] == values[2]
+              assert dossier["memory_role"] == (
+                  "general-market-memory-independent-of-vt08-outcomes"
+              )
+              assert dossier["target_destination_v2"]["summary"]["complete_all_dol_claim"] is False
+              assert dossier["cross_index"]["causal_leader_claim"] is False
+              assert dossier["rule_promotion_allowed"] is False
+          PY
+
+      - name: Build human summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/full-index-dossiers")
+          package = json.loads(
+              (root / "CIBO_INDEX_MARKET_INTELLIGENCE_PACKAGE_V1.json").read_text()
+          )
+          lines = [
+              "# CIBO Index Market Intelligence Dossier V1",
+              "",
+              f"- retained M5: {package['total_retained_m5_bars']:,}",
+              f"- behavior events: {package['total_behavior_events']:,}",
+              f"- resolved departures: {package['total_resolved_departures']:,}",
+              "- VT08 outcomes used: NO",
+              "- evidence tier: E1_ASSOCIATION_ONLY",
+              "- rule promotion: NO",
+              "",
+          ]
+          for symbol in ("nas100", "sp500", "us30"):
+              dossier = json.loads(
+                  (root / f"{symbol}-market-intelligence-dossier-v1.json").read_text()
+              )
+              lines += [
+                  f"## {dossier['symbol']}",
+                  f"- retained M5: {dossier['retained_m5_bars']:,}",
+                  f"- behavior events: {dossier['behavior_events']:,}",
+                  f"- resolved departures: {dossier['resolved_departures']:,}",
+                  f"- structure touches: {dossier['structure_touch']['rows']:,}",
+                  f"- departure timing rows: {dossier['departure_timing']['rows']:,}",
+                  f"- pre-departure sequences: {dossier['pre_departure_sequences']['rows']:,}",
+                  f"- daily paths: {dossier['daily_path']['rows']:,}",
+                  f"- Target V1 rows: {dossier['target_destination_v1']['rows']:,}",
+                  f"- Target V2 candidate rows: {dossier['target_destination_v2']['summary']['candidate_rows']:,}",
+                  "",
+              ]
+          lines += [
+              "Research-only general market memory. No VT08 rule has been selected.",
+          ]
+          (root / "CIBO_INDEX_MARKET_INTELLIGENCE_SUMMARY_V1.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-index-market-intelligence-dossier-v1-${{ github.sha }}
+          path: artifacts/full-index-dossiers
+          if-no-files-found: error
+          retention-days: 90

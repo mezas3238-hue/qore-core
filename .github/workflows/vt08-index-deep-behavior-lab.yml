@@ -1,0 +1,257 @@
+name: VT08 Index Deep Behavior Lab
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-deep-behavior-lab.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_deep_behavior_lab.py
+      - src/qore/infrastructure/trader_lab/vt08_index_market_pattern_discovery.py
+      - tests/infrastructure/trader_lab/test_vt08_index_deep_behavior_lab.py
+      - tests/infrastructure/trader_lab/test_vt08_index_market_pattern_discovery.py
+      - docs/research/VT08-INDEX-DEEP-BEHAVIOR-LAB-001.md
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" -- \
+            src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ['V7_RULE_FINGERPRINT']
+          PY
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - name: Focused deep behavior tests
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_deep_behavior_lab.py \
+            tests/infrastructure/trader_lab/test_vt08_index_market_pattern_discovery.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  lab:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+
+      - name: Download consumed 2018-20 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v7-fresh-*-c58751a753ef14841bd971e8abfed0388d122a02
+          path: artifacts/w2018
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35082269231
+
+      - name: Download consumed 2020-22 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v6-fresh-*-0f992b3709c3d5d5d938e722ce434653c487734b
+          path: artifacts/w2020
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35054539866
+
+      - name: Download consumed 2022-23 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v3-fresh-decision-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/w2022
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+
+      - name: Download consumed 2023-24 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-r2-decision-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/w2023
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+
+      - name: Download consumed 2024-26 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-v2-source-executable-*-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/w2024
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Execute deep behavior windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/report/windows
+
+          resolve_triplet() {
+            root="$1"
+            nas="$(find "$root" -path '*NAS100*' -name market-evidence.json -print -quit)"
+            sp="$(find "$root" -path '*SP500*' -name market-evidence.json -print -quit)"
+            us="$(find "$root" -path '*US30*' -name market-evidence.json -print -quit)"
+            test -n "$nas" && test -n "$sp" && test -n "$us"
+            printf '%s\n%s\n%s\n' "$nas" "$sp" "$us"
+          }
+
+          mapfile -t w18 < <(resolve_triplet artifacts/w2018)
+          mapfile -t w20 < <(resolve_triplet artifacts/w2020)
+          mapfile -t w24 < <(resolve_triplet artifacts/w2024)
+
+          run_window() {
+            id="$1"; nas="$2"; sp="$3"; us="$4"; start="$5"; end="$6"; sha="$7"; days="$8"
+            python -m qore.infrastructure.trader_lab.vt08_index_deep_behavior_lab window \
+              --nas100 "$nas" --sp500 "$sp" --us30 "$us" \
+              --start-date "$start" --end-date-exclusive "$end" \
+              --expected-software-sha "$sha" --minimum-evidence-days "$days" \
+              --window-id "$id" --out "artifacts/report/windows/${id}.json"
+          }
+
+          run_window w2018_2020 "${w18[0]}" "${w18[1]}" "${w18[2]}" \
+            2018-09-15 2020-09-15 c58751a753ef14841bd971e8abfed0388d122a02 760
+          run_window w2020_2022 "${w20[0]}" "${w20[1]}" "${w20[2]}" \
+            2020-09-15 2022-09-15 0f992b3709c3d5d5d938e722ce434653c487734b 730
+          run_window w2022_2023 \
+            artifacts/w2022/truncated/NAS100.json artifacts/w2022/truncated/SP500.json artifacts/w2022/truncated/US30.json \
+            2022-09-15 2023-09-15 106a34282fe8eac2f8c466bcc8502d4ec8d73855 350
+          run_window w2023_2024 \
+            artifacts/w2023/truncated/NAS100.json artifacts/w2023/truncated/SP500.json artifacts/w2023/truncated/US30.json \
+            2023-09-15 2024-08-13 58dd289646de8814449f836ad617a51342eba0da 300
+          run_window w2024_2026 "${w24[0]}" "${w24[1]}" "${w24[2]}" \
+            2024-08-13 2026-09-12 a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 700
+
+          python -m qore.infrastructure.trader_lab.vt08_index_deep_behavior_lab combine \
+            artifacts/report/windows/*.json \
+            --out artifacts/report/deep-behavior-master.json
+
+      - name: Discover market-specific patterns
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_market_pattern_discovery \
+            --input artifacts/report/deep-behavior-master.json \
+            --out artifacts/report/market-pattern-discovery.json
+
+      - name: Build human-readable diagnostic summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root=Path('artifacts/report')
+          p=json.loads((root/'deep-behavior-master.json').read_text())
+          patterns=json.loads((root/'market-pattern-discovery.json').read_text())
+          cube=p['cohort_cube']
+          summary={
+              'schema':'qore.trader_lab.vt08_index_deep_behavior_summary.v1',
+              'candidate_id':p['candidate_id'],
+              'rule_fingerprint':p['rule_fingerprint'],
+              'metrics_primary':p['metrics_primary'],
+              'metrics_secondary':p['metrics_secondary'],
+              'windows':p['windows'],
+              'by_symbol':cube['symbol'],
+              'by_anchor':cube['anchor'],
+              'by_model':cube['model'],
+              'by_poi':cube['poi'],
+              'by_range_regime':cube['prior_h4_range_regime'],
+              'by_peer_alignment':cube['peer_alignment'],
+              'by_relative_strength_rank':cube['relative_strength_rank'],
+              'opportunity_funnel':p['opportunity_funnel'],
+              'stop_taxonomy':p['stop_taxonomy'],
+              'target_surface':p['target_surface'],
+              'top_drawdown_episodes':p['drawdown_episodes'][:10],
+              'top_correlated_loss_clusters':p['correlated_loss_clusters'][:10],
+              'pattern_discovery':{
+                  'market_count':patterns['market_count'],
+                  'cross_market_same_context':patterns['cross_market_same_context'][:20],
+              },
+              'governance':p['governance'],
+          }
+          (root/'behavior-summary.json').write_text(json.dumps(summary,sort_keys=True,separators=(',',':'))+'\n')
+
+          lines=['# VT08 Index Deep Behavior Lab — Diagnostic Summary','']
+          m=p['metrics_primary']
+          lines += [f"Primary -0.05R: n={m['sample']} total={m['total_r']} mean={m['mean_r']} PF={m['profit_factor']} DD={m['max_drawdown_r']}", '']
+          lines += ['## Windows']
+          for w in p['windows']:
+              lines.append(f"- {w['window_id']}: n={w['sample']} mean={w['mean_r']} PF={w['profit_factor']} DD={w['max_drawdown_r']}")
+          lines += ['', '## Markets']
+          for k,v in cube['symbol'].items():
+              lines.append(f"- {k}: n={v['sample']} mean={v['mean_r']} PF={v['profit_factor']} DD={v['max_drawdown_r']}")
+          lines += ['', '## Anchors']
+          for k,v in cube['anchor'].items():
+              lines.append(f"- {k}: n={v['sample']} mean={v['mean_r']} PF={v['profit_factor']} DD={v['max_drawdown_r']}")
+          lines += ['', '## Models']
+          for k,v in cube['model'].items():
+              lines.append(f"- {k}: n={v['sample']} mean={v['mean_r']} PF={v['profit_factor']} DD={v['max_drawdown_r']}")
+          lines += ['', '## Target surface (-0.05R)']
+          for k,v in p['target_surface'].items():
+              q=v['primary']
+              lines.append(f"- {k}R: n={q['sample']} mean={q['mean_r']} PF={q['profit_factor']} DD={q['max_drawdown_r']}")
+          lines += ['', '## Pattern Discovery']
+          for market, payload in patterns['markets'].items():
+              fingerprint=payload['fingerprint']['performance']
+              lines.append(
+                  f"- {market}: states={len(payload['state_patterns'])} "
+                  f"loss_precursors={len(payload['loss_precursors'])} "
+                  f"expansion_precursors={len(payload['expansion_precursors'])} "
+                  f"mean={fingerprint['mean_r']} stop_rate={fingerprint['stop_rate']}"
+              )
+          lines += ['', 'Diagnostic only. All source periods are consumed evidence; discovered patterns are probabilistic hypotheses, never automatic trading rules.']
+          (root/'behavior-summary.md').write_text('\n'.join(lines)+'\n')
+          PY
+
+      - name: Verify research governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('artifacts/report/deep-behavior-master.json').read_text())
+          patterns=json.loads(Path('artifacts/report/market-pattern-discovery.json').read_text())
+          assert p['candidate_id']=='VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001'
+          assert p['rule_fingerprint']=='a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308'
+          g=p['governance']
+          assert g['diagnostic_only'] is True
+          assert g['consumed_evidence_only'] is True
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          assert g['production_authorized'] is False
+          pg=patterns['governance']
+          assert pg['diagnostic_only'] is True
+          assert pg['patterns_are_probabilistic_not_deterministic'] is True
+          assert pg['automatic_rule_promotion_forbidden'] is True
+          assert pg['new_candidate_identity_required_for_any_rule_change'] is True
+          assert pg['fresh_validation_required_after_freeze'] is True
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-deep-behavior-lab-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

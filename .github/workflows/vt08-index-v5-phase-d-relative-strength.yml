@@ -1,0 +1,74 @@
+name: VT08 Index V5 Phase D Relative Strength
+
+on:
+  push:
+    branches: [agent/vt08-index-v5-phase-d-relative-strength-001]
+    paths:
+      - .github/workflows/vt08-index-v5-phase-d-relative-strength.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_v5_phase_d_relative_strength.py
+      - tests/infrastructure/trader_lab/test_vt08_index_v5_phase_d_relative_strength.py
+      - docs/research/VT08-INDEX-V5-PHASE-D-RELATIVE-STRENGTH-PREREGISTRATION-001.md
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_v5_phase_d_relative_strength.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  falsification:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - name: Download frozen V4 census
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v4-root-cause-forensics-27d4742cda6f691b359d106c2b6fe8eb2b044fc4
+          path: artifacts/v4
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34805546975
+      - name: Execute preregistered Phase D D1 falsification
+        run: |
+          mkdir -p artifacts/v5-phase-d
+          python -m qore.infrastructure.trader_lab.vt08_index_v5_phase_d_relative_strength \
+            --census-csv artifacts/v4/vt08-index-v4-regime-feature-census.csv \
+            --output-json artifacts/v5-phase-d/vt08-index-v5-phase-d-relative-strength.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/v5-phase-d/git-sha.txt
+      - name: Enforce holdout remains sealed before candidate freeze
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('artifacts/v5-phase-d/vt08-index-v5-phase-d-relative-strength.json')
+          report = json.loads(path.read_text())
+          assert report['holdout_open_permitted'] is False
+          assert report['live_authorized'] is False
+          assert report['real_capital_authorized'] is False
+          assert report['production_authorized'] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v5-phase-d-${{ github.sha }}
+          path: artifacts/v5-phase-d
+          if-no-files-found: error
+          retention-days: 90

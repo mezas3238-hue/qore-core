@@ -1,0 +1,107 @@
+name: VT08 Index R52 CISD Management Causal Lab
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r52-cisd-management-causal-lab.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r52_cisd_management_causal_lab.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r52_cisd_management_causal_lab.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r52_cisd_management_causal_lab.py
+
+  causal-lab:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute three preregistered CISD mechanisms
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r52_cisd_management_causal_lab \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r52-cisd-management-causal-lab.json
+
+      - name: Verify research governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(Path("artifacts/report/vt08-index-r52-cisd-management-causal-lab.json").read_text())
+          assert report["identity"] == "VT08_INDEX_R52_CISD_MANAGEMENT_CAUSAL_LAB_001"
+          assert report["hypothesis_count"] == 3
+          assert report["five_year"]["sample"] == 2448
+          assert report["recent_two_year"]["sample"] == 1017
+          g=report["governance"]
+          assert g["diagnostic_only"] is True
+          assert g["candidate_selected"] is False
+          assert g["combinatorial_grid_used"] is False
+          assert g["entries_changed"] is False
+          assert g["stops_changed"] is False
+          assert g["cisd_management_only"] is True
+          assert g["source_complete_density_preserved"] is True
+          assert g["fresh_holdout_claim"] is False
+          assert g["certified"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Upload R52 causal evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r52-cisd-management-causal-lab-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

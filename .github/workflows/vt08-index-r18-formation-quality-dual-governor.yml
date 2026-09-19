@@ -1,0 +1,145 @@
+name: VT08 Index R18 Formation Quality Dual Governor
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r18-formation-quality-dual-governor.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r18_formation_quality_dual_governor.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r18_formation_quality_dual_governor.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r18_formation_quality_dual_governor.py
+
+  dual:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R18 formation-quality dual-window governor
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r18_formation_quality_dual_governor             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-r18-formation-quality-dual-governor.json
+
+      - name: Verify governance and hard contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          r=json.loads(Path("artifacts/report/vt08-index-r18-formation-quality-dual-governor.json").read_text())
+          assert r["identity"] == "VT08_INDEX_R18_FORMATION_QUALITY_DUAL_GOVERNOR_001"
+          c=r["contract"]
+          assert c["five_year_density"] == [1500,1600]
+          assert c["two_year_density"] == [600,700]
+          assert c["primary_pf_minimum"] == "1.50"
+          assert c["primary_dd_max_r"] == "6"
+          assert c["minimum_effective_weight"] == "0.025"
+          assert c["same_scheme_required_both_windows"] is True
+          g=r["governance"]
+          assert g["r17_cross_window_features_only"] is True
+          assert g["all_trades_preserved"] is True
+          assert g["zero_risk_allowed"] is False
+          assert g["same_rules_both_windows"] is True
+          assert g["fresh_holdout_claim"] is False
+          assert g["candidate_promoted"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Build summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root=Path("artifacts/report")
+          r=json.loads((root/"vt08-index-r18-formation-quality-dual-governor.json").read_text())
+          b=r["best"]
+          f=b["five_year"]["primary"]
+          t=b["recent_two_year"]["primary"]
+          fs=b["five_year"]["secondary"]
+          ts=b["recent_two_year"]["secondary"]
+          lines=[
+              "# VT08 INDEX R18 Formation Quality Dual Governor",
+              "",
+              f"- schemes: {r['scheme_count']}",
+              f"- dual candidates: {r['dual_window_candidate_count']}",
+              f"- best scheme: {b['scheme']['scheme_id']}",
+              f"- dual pass: {b['dual_window_pass']}",
+              "",
+              "## 5Y",
+              f"- trades: {b['five_year']['sample']}",
+              f"- PF05: {f['profit_factor']}",
+              f"- DD05: {f['max_drawdown_r']}R",
+              f"- total05: {f['total_r']}R",
+              f"- PF10: {fs['profit_factor']}",
+              f"- DD10: {fs['max_drawdown_r']}R",
+              f"- pass: {b['five_year_pass']}",
+              "",
+              "## Recent 2Y",
+              f"- trades: {b['recent_two_year']['sample']}",
+              f"- PF05: {t['profit_factor']}",
+              f"- DD05: {t['max_drawdown_r']}R",
+              f"- total05: {t['total_r']}R",
+              f"- PF10: {ts['profit_factor']}",
+              f"- DD10: {ts['max_drawdown_r']}R",
+              f"- pass: {b['recent_two_year_pass']}",
+          ]
+          (root/"VT08_INDEX_R18_FORMATION_QUALITY_DUAL_GOVERNOR_SUMMARY.md").write_text("\n".join(lines)+"\n")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r18-formation-quality-dual-governor-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

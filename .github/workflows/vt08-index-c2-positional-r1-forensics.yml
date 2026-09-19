@@ -1,0 +1,95 @@
+name: VT08 Index C2 Positional R1 Forensics
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-c2-positional-r1-forensics-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-c2-positional-r1-forensics-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-forensics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout exact forensics head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused forensics gate
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_c2_positional_r1_forensics.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download exact frozen R1 replay artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-c2-positional-r1-5232540cdb444473ddf0bfae01beb2e672cea344
+          path: retained-r1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34772299203
+
+      - name: Run immutable post-result forensics
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_c2_positional_r1_forensics \
+            --replay retained-r1/vt08-index-c2-positional-r1.json \
+            --out artifacts/vt08-index-c2-positional-r1-forensics.json
+
+      - name: Verify no promotion authority
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/vt08-index-c2-positional-r1-forensics.json").read_text()
+          )
+          assert payload["research_only"] is True
+          assert payload["consumed_evidence"] is True
+          assert payload["methodology_mutation"] is False
+          assert payload["source_replay_head"] == "5232540cdb444473ddf0bfae01beb2e672cea344"
+          assert payload["source_freeze_commit"] == "31bee8643cb09659a66e9ed793c1cb2bf9ba6353"
+          adjudication = payload["diagnostic_adjudication"]
+          assert adjudication["retrospective_subset_selection_authorized"] is False
+          assert adjudication["methodology_change_authorized"] is False
+          assert adjudication["fresh_unseen_validation_required_before_promotion"] is True
+          assert adjudication["demo_eligible"] is False
+          assert adjudication["live_authorized"] is False
+          assert adjudication["production_authorized"] is False
+          PY
+
+      - name: Bind git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload forensics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-c2-positional-r1-forensics-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,196 @@
+{
+  "initialize": true,
+  "server": "pyright 1.1.414",
+  "symbols": {
+    "first_cohort_backtest.py:run_first_cohort_backtest": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 1,
+      "position": {
+        "column": 6,
+        "line": 542
+      },
+      "reference_count": 2
+    },
+    "first_cohort_characterization.py:run_characterization": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 2,
+      "position": {
+        "column": 6,
+        "line": 734
+      },
+      "reference_count": 4
+    },
+    "first_cohort_eleven_market_dossier.py:build_eleven_market_dossiers": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 9,
+      "position": {
+        "column": 6,
+        "line": 274
+      },
+      "reference_count": 12
+    },
+    "first_cohort_eleven_market_research_dossier.py:build_eleven_market_research_dossiers": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 8,
+      "position": {
+        "column": 6,
+        "line": 211
+      },
+      "reference_count": 11
+    },
+    "first_cohort_failure_analysis.py:run_failure_analysis": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 4,
+      "position": {
+        "column": 6,
+        "line": 407
+      },
+      "reference_count": 6
+    },
+    "first_cohort_hypothesis_register.py:run_hypothesis_register": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 2,
+      "position": {
+        "column": 6,
+        "line": 194
+      },
+      "reference_count": 5
+    },
+    "first_cohort_market_story_forensics.py:run_market_story_forensics": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 3,
+      "position": {
+        "column": 6,
+        "line": 213
+      },
+      "reference_count": 6
+    },
+    "first_cohort_market_thesis_evidence.py:build_market_thesis_evidence": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 6,
+      "position": {
+        "column": 6,
+        "line": 293
+      },
+      "reference_count": 9
+    },
+    "first_cohort_story_forensics.py:_frame_sequence": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 1,
+      "position": {
+        "column": 6,
+        "line": 668
+      },
+      "reference_count": 2
+    },
+    "first_cohort_story_forensics.py:run_story_forensics": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 7,
+      "position": {
+        "column": 6,
+        "line": 942
+      },
+      "reference_count": 13
+    },
+    "first_cohort_story_forensics.py:validate_story_episode_contract": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 6,
+      "position": {
+        "column": 6,
+        "line": 706
+      },
+      "reference_count": 14
+    },
+    "first_cohort_walk_forward.py:run_walk_forward": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 1,
+      "position": {
+        "column": 6,
+        "line": 217
+      },
+      "reference_count": 2
+    },
+    "story_forensics_eleven_market_thesis.py:build_eleven_market_thesis_panel": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 8,
+      "position": {
+        "column": 6,
+        "line": 178
+      },
+      "reference_count": 10
+    },
+    "story_forensics_filmstrip_renderer.py:render_filmstrip_html": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 8,
+      "position": {
+        "column": 6,
+        "line": 117
+      },
+      "reference_count": 11
+    },
+    "story_forensics_lightweight_renderer.py:render_story_html": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 10,
+      "position": {
+        "column": 6,
+        "line": 126
+      },
+      "reference_count": 14
+    },
+    "story_forensics_market_board.py:render_market_board_html": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 2,
+      "position": {
+        "column": 6,
+        "line": 102
+      },
+      "reference_count": 4
+    },
+    "story_forensics_review_panel.py:build_review_panel": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 6,
+      "position": {
+        "column": 6,
+        "line": 201
+      },
+      "reference_count": 8
+    },
+    "story_forensics_session_replay.py:render_session_story_html": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 2,
+      "position": {
+        "column": 6,
+        "line": 63
+      },
+      "reference_count": 4
+    },
+    "story_forensics_visual_package.py:build_visual_package": {
+      "definition_count": 1,
+      "hover_resolved": true,
+      "incoming_call_count": 6,
+      "position": {
+        "column": 6,
+        "line": 249
+      },
+      "reference_count": 8
+    }
+  }
+}

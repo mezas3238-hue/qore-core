@@ -1,0 +1,228 @@
+name: VT08 Index Three Memory Brain V2 Full CIBO
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-three-memory-brain-v2.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_three_memory_brain_v2.py
+      - tests/infrastructure/trader_lab/test_vt08_index_three_memory_brain_v2.py
+      - docs/research/VT08-INDEX-THREE-MEMORY-BRAIN-V2-FULL-CIBO.md
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+  FULL_MARKET_GIT_SHA: 3ee6b4786ce42bbfcdbd3a3f3572d3f485cd7165
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py             tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ["V7_RULE_FINGERPRINT"]
+          PY
+
+      - name: Verify full CIBO dossier builder unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$FULL_MARKET_GIT_SHA" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/cibo_index_market_intelligence_v1.py             tests/infrastructure/trader_lab/test_cibo_index_market_intelligence_v1.py             docs/research/CIBO-INDEX-MARKET-INTELLIGENCE-DOSSIER-V1.md
+
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_three_memory_brain_v2.py
+
+  memory:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -e ".[dev]"
+
+      - name: Download full CIBO index market dossiers
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-index-market-intelligence-dossier-v1-3ee6b4786ce42bbfcdbd3a3f3572d3f485cd7165
+          path: artifacts/full-market
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35300432246
+
+      - name: Download validated VT08 trader experience
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-market-dossiers-68cb3aa906106e8db99ca66204a734d665632b20
+          path: artifacts/experience
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35288271920
+
+      - name: Build Three-Memory Brain V2
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_three_memory_brain_v2             --full-market-root artifacts/full-market             --experience-root artifacts/experience             --out-dir artifacts/three-memory-v2
+
+      - name: Verify full memory binding
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_index_three_memory_brain_v2 import (
+              Vt08IndexSituationInput,
+              build_memory_store,
+              build_situation_model,
+          )
+
+          root = Path("artifacts/three-memory-v2")
+          manifest = json.loads(
+              (root / "VT08_INDEX_THREE_MEMORY_V2_MANIFEST.json").read_text()
+          )
+          assert manifest["items"] == 12
+          assert manifest["kind_counts"] == {
+              "long-term-archive": 2,
+              "market": 4,
+              "research": 1,
+              "semantic": 1,
+              "trader": 4,
+          }
+          assert manifest["full_cibo_market_memory"] is True
+          assert manifest["full_market_artifact_id"] == 10529467508
+          assert manifest["market_memory_markets"] == ["NAS100", "SP500", "US30"]
+          assert manifest["trader_experience_markets"] == ["NAS100", "SP500", "US30"]
+          assert manifest["reasoning_policy_selected"] is False
+          assert manifest["target_depth_policy_selected"] is False
+          assert manifest["position_policy_selected"] is False
+          assert manifest["contextual_trailing_policy_selected"] is False
+          assert manifest["structural_rearm_policy_selected"] is False
+          assert manifest["specialists_frozen"] is False
+          assert manifest["fresh_holdout_opened"] is False
+          assert manifest["live_authorized"] is False
+          assert manifest["real_capital_authorized"] is False
+          assert manifest["production_authorized"] is False
+
+          index = json.loads(
+              (root / "VT08_INDEX_THREE_MEMORY_V2_INDEX.json").read_text()
+          )
+          expected = {
+              "nas100": (701457, 110471, 39060, 761),
+              "sp500": (693064, 102863, 31445, 747),
+              "us30": (700856, 109341, 38053, 786),
+          }
+          for symbol, values in expected.items():
+              market = index[f"{symbol}.market.full-cibo"]
+              experience = index[f"vt08.index.{symbol}.experience"]
+              assert market["retained_m5_bars"] == values[0]
+              assert market["behavior_events"] == values[1]
+              assert market["resolved_departures"] == values[2]
+              assert market["memory_role"] == (
+                  "general-market-memory-independent-of-vt08-outcomes"
+              )
+              assert experience["overall"]["sample"] == values[3]
+
+          store, _ = build_memory_store(
+              full_market_root=Path("artifacts/full-market"),
+              experience_root=Path("artifacts/experience"),
+          )
+          for symbol in ("NAS100", "SP500", "US30"):
+              model = build_situation_model(
+                  store,
+                  Vt08IndexSituationInput(
+                      symbol=symbol,
+                      side="long",
+                      anchor_hour_new_york=6,
+                      weekday_new_york="Monday",
+                      session="new-york",
+                      model_kind="same-c2-intracandle",
+                      poi_kind="fvg",
+                      prior_h4_range_regime="normal",
+                      prior_body_alignment="aligned",
+                      fvg_after_raid=True,
+                  ),
+              )
+              assert model.market_memory_status == "FULL_CIBO_INDEX_DOSSIER_V1_PRESENT"
+              assert model.full_market_memory["symbol"] == symbol
+              assert model.decision_authority is False
+              assert model.automatic_rule_promotion is False
+          PY
+
+      - name: Build human summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/three-memory-v2")
+          manifest = json.loads(
+              (root / "VT08_INDEX_THREE_MEMORY_V2_MANIFEST.json").read_text()
+          )
+          index = json.loads(
+              (root / "VT08_INDEX_THREE_MEMORY_V2_INDEX.json").read_text()
+          )
+          lines = [
+              "# VT08 Index Three-Memory Brain V2",
+              "",
+              "- Strategy Identity Memory: PRESENT / FROZEN V7",
+              "- Full CIBO Market Memory: PRESENT",
+              "- VT08 Trader Experience Memory: PRESENT",
+              f"- governed memory items: {manifest['items']}",
+              f"- full market artifact: {manifest['full_market_artifact_id']}",
+              "- reasoning policy selected: NO",
+              "- target-depth policy selected: NO",
+              "- contextual trailing policy selected: NO",
+              "- structural rearm policy selected: NO",
+              "- fresh holdout opened: NO",
+              "",
+          ]
+          for symbol in ("nas100", "sp500", "us30"):
+              market = index[f"{symbol}.market.full-cibo"]
+              experience = index[f"vt08.index.{symbol}.experience"]
+              lines += [
+                  f"## {market['symbol']}",
+                  f"- CIBO retained M5: {market['retained_m5_bars']:,}",
+                  f"- CIBO behavior events: {market['behavior_events']:,}",
+                  f"- CIBO resolved departures: {market['resolved_departures']:,}",
+                  f"- VT08 experience episodes: {experience['overall']['sample']:,}",
+                  "",
+              ]
+          lines += [
+              "Full market knowledge is independent of VT08 outcomes and remains E1 association-only.",
+          ]
+          (root / "VT08_INDEX_THREE_MEMORY_V2_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-three-memory-brain-v2-${{ github.sha }}
+          path: artifacts/three-memory-v2
+          if-no-files-found: error
+          retention-days: 90
