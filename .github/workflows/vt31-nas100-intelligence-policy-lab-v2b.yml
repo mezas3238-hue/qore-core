@@ -1,0 +1,136 @@
+name: QORE VT31 NAS100 Intelligence Policy Lab V2B
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_intelligence_policy_lab_v2b.py
+      - .github/workflows/vt31-nas100-intelligence-policy-lab-v2b.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  policy-fold:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r8_fresh
+            snapshot_artifact: 10525323968
+            snapshot_digest: 155d83e49dec26d0d54c7bc998cda1b8f223ae77c308758f6fd22f9e5e0a48e0
+            evidence_artifact: 10402199719
+            evidence_digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - partition: r6
+            snapshot_artifact: 10524979671
+            snapshot_digest: 3db46450b38f60bc06a41a8e5710f7ace2e795e07593d859218ab8e740b3174d
+            evidence_artifact: 10389112524
+            evidence_digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - partition: r5
+            snapshot_artifact: 10525742835
+            snapshot_digest: f00ca4d61b52462b4b23e16fda34f0244ef16a30a0b18564df84fb4dcade792a
+            evidence_artifact: 10380044761
+            evidence_digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PARTITION: ${{ matrix.partition }}
+      SNAPSHOT_ARTIFACT: ${{ matrix.snapshot_artifact }}
+      SNAPSHOT_DIGEST: ${{ matrix.snapshot_digest }}
+      EVIDENCE_ARTIFACT: ${{ matrix.evidence_artifact }}
+      EVIDENCE_DIGEST: ${{ matrix.evidence_digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install research runtime
+        run: pip install -e .[dev]
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_intelligence_policy_lab_v2b.py
+          ruff check scripts/vt31_nas100_intelligence_policy_lab_v2b.py
+
+      - name: Recover immutable Market Understanding snapshot
+        run: |
+          set -euo pipefail
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SNAPSHOT_ARTIFACT}" --jq .digest)"
+          test "$digest" = "sha256:${SNAPSHOT_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SNAPSHOT_ARTIFACT}/zip" > snapshot.zip
+          echo "${SNAPSHOT_DIGEST}  snapshot.zip" | sha256sum -c -
+          mkdir snapshot
+          unzip -q snapshot.zip -d snapshot
+          (cd snapshot && sha256sum -c SHA256SUMS)
+          test -f "snapshot/vt31-nas100-market-understanding-${PARTITION}.json"
+
+      - name: Recover immutable consumed NAS100 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          mkdir evidence
+          unzip -q evidence.zip -d evidence
+          if [ -f evidence/SHA256SUMS ]; then
+            (cd evidence && sha256sum -c SHA256SUMS)
+          fi
+          test -f evidence/fresh/NAS100/market-evidence.json
+
+      - name: Run finite V2B policy lab
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_nas100_intelligence_policy_lab_v2b.py             --snapshot "snapshot/vt31-nas100-market-understanding-${PARTITION}.json"             --evidence evidence/fresh/NAS100/market-evidence.json             --output "result/vt31-nas100-intelligence-policy-v2b-${PARTITION}.json"             | tee result/summary.json
+
+      - name: Governance validation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/vt31-nas100-intelligence-policy-v2b-{partition}.json").read_text()
+          )
+          assert payload["schema"] == "qore.vt31.nas100.intelligence_policy_lab.v2b"
+          assert payload["research_only"] is True
+          assert payload["selection_prohibited"] is True
+          assert payload["candidate_frozen"] is False
+          assert payload["opens_new_holdout"] is False
+          assert payload["live_authorized"] is False
+          assert payload["production_authorized"] is False
+          policy = payload["fixed_entry_state_policy"]
+          assert policy["future_lookup"] is False
+          family = payload["finite_family_contract"]
+          assert family["automatic_best-aggregate-selection"] is False
+          assert len(payload["variant_reports"]) == 8
+          for trace in payload["decision_trace"]:
+              assert trace["outcome_fields_used_for_decision"] is False
+          print("VT31_NAS100 Intelligence V2B governance PASS")
+          PY
+
+      - name: Bind immutable result
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          echo "${SNAPSHOT_ARTIFACT} sha256:${SNAPSHOT_DIGEST}" > result/snapshot-source.txt
+          echo "${EVIDENCE_ARTIFACT} sha256:${EVIDENCE_DIGEST}" > result/evidence-source.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-intelligence-policy-v2b-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

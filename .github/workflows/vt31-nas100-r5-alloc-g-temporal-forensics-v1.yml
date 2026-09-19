@@ -1,0 +1,184 @@
+name: QORE VT31 NAS100 R5 ALLOC_G Temporal Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_alloc_g_temporal_forensics_v1.py
+      - .github/workflows/vt31-nas100-r5-alloc-g-temporal-forensics-v1.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_r5_alloc_g_temporal_forensics_v1.py
+      - .github/workflows/vt31-nas100-r5-alloc-g-temporal-forensics-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_r5_alloc_g_temporal_forensics_v1.py
+          ruff check scripts/vt31_nas100_r5_alloc_g_temporal_forensics_v1.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run ALLOC_G temporal forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_alloc_g_temporal_forensics_v1.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/alloc-g-temporal-${PARTITION}.json"             | tee result/summary.json
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          partition=os.environ["PARTITION"]
+          payload=json.loads(
+              Path(f"result/alloc-g-temporal-{partition}.json").read_text()
+          )
+          assert payload["profile"] == "ALLOC_G_CORE_FAMILY_050"
+          governance=payload["governance"]
+          assert governance["consumed_evidence_only"] is True
+          assert governance["allocation_profile_fixed_before_temporal_analysis"] is True
+          assert governance["trade_authorization_changed"] is False
+          assert governance["entry_changed"] is False
+          assert governance["stop_changed"] is False
+          assert governance["target_changed"] is False
+          assert governance["lifecycle_changed"] is False
+          assert governance["rearm_admission_changed"] is False
+          assert governance["terminal_pnl_used_only_for_evaluation"] is True
+          assert governance["uses_fold_identity_at_runtime"] is False
+          assert governance["diagnostic_only"] is True
+          assert governance["policy_promoted"] is False
+          assert governance["opens_new_holdout"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-alloc-g-temporal-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-r5-alloc-g-temporal-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate temporal diagnostics
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("alloc-g-temporal-*.json"):
+              payload=json.loads(path.read_text())
+              folds[payload["partition"]]=payload
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          hold=folds["consumed_holdout"]
+          owner_blocks=hold["owner_holdout_blocks"]
+          negative_owner_blocks=[
+              name for name,item in owner_blocks.items()
+              if float(item["metrics"]["total_r"]) <= 0
+          ]
+          negative_calendar_halves=[
+              name for name,item in hold["calendar_half"].items()
+              if float(item["total_r"]) <= 0
+          ]
+          negative_calendar_quarters=[
+              name for name,item in hold["calendar_quarter"].items()
+              if float(item["total_r"]) <= 0
+          ]
+
+          report={
+              "schema":"qore.vt31.nas100.r5.alloc_g_temporal_forensics.aggregate.v1",
+              "profile":"ALLOC_G_CORE_FAMILY_050",
+              "overall":{
+                  fold:{
+                      "trade_count":payload["trade_count"],
+                      "metrics":payload["overall"],
+                  }
+                  for fold,payload in sorted(folds.items())
+              },
+              "consumed_holdout_owner_blocks":owner_blocks,
+              "consumed_holdout_calendar_year":hold["calendar_year"],
+              "consumed_holdout_calendar_half":hold["calendar_half"],
+              "consumed_holdout_calendar_quarter":hold["calendar_quarter"],
+              "consumed_holdout_by_tier":hold["by_tier"],
+              "consumed_holdout_by_tier_family":hold["by_tier_family"],
+              "consumed_holdout_by_side":hold["by_side"],
+              "negative_owner_blocks":negative_owner_blocks,
+              "negative_calendar_halves":negative_calendar_halves,
+              "negative_calendar_quarters":negative_calendar_quarters,
+              "diagnostic_only":True,
+              "policy_promoted":False,
+              "opens_new_holdout":False,
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-alloc-g-temporal-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90

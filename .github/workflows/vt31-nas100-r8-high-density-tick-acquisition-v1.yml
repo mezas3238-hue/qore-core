@@ -1,0 +1,146 @@
+name: QORE VT31 NAS100 R8 High Density Tick Acquisition V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_high_density_tick_acquisition_r8_v1.py
+      - .github/workflows/vt31-nas100-r8-high-density-tick-acquisition-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  acquire:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research runtime
+        run: |
+          set -euo pipefail
+          pip install -e ".[ctrader]" ruff
+          python -m py_compile \
+            scripts/vt31_nas100_high_density_tick_acquisition_r8_v1.py
+          ruff check \
+            scripts/vt31_nas100_high_density_tick_acquisition_r8_v1.py
+
+      - name: Recover immutable R8 missing-window manifest
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10540447083/zip" > source.zip
+          unzip -q source.zip -d source
+          test "$(cat source/git-sha.txt)" = "be38ff92fb9c6af66004040667e4e9c270e6a67a"
+          (cd source && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "source/high-density-missing-tick-manifest-r8.json"
+              ).read_text()
+          )
+          assert p["research_only"] is True
+          assert p["opens_new_holdout"] is False
+          assert p["window_count"] == 49
+          assert p["source_manifest_sha256"] == (
+              "8014f420cc518e4897f1e5e3917cb93ca51b0beff41e8009331f22227137509a"
+          )
+          assert {row["partition"] for row in p["windows"]} == {"r8_fresh"}
+          assert {row["market"] for row in p["windows"]} == {"NAS100"}
+          assert {row["provider"] for row in p["windows"]} == {"USTEC"}
+          PY
+
+      - name: Verify cTrader historical credentials
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(
+              python -m qore.infrastructure.ctrader_demo_account_discovery
+            )"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire exact unresolved R8 BID ASK windows
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_high_density_tick_acquisition_r8_v1.py \
+            --manifest source/high-density-missing-tick-manifest-r8.json \
+            --output-dir acquisition \
+            | tee acquisition-summary.txt
+
+      - name: Validate acquisition inventory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "acquisition/high-density-tick-acquisition-summary.json"
+              ).read_text()
+          )
+          assert p["research_only"] is True
+          assert p["opens_new_holdout"] is False
+          assert p["source_window_count"] == 49
+          classified=sum(
+              p[key]
+              for key in ("available","partial","empty","probe_failure")
+          )
+          assert classified == 49
+          assert len(p["results"]) == 49
+          print(json.dumps({
+              key:p[key]
+              for key in ("available","partial","empty","probe_failure")
+          }, sort_keys=True))
+          PY
+
+      - name: Bind acquisition
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > acquisition/git-sha.txt
+          echo "10540447083" > acquisition/source-tick-manifest-artifact-id.txt
+          (
+            cd acquisition
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd acquisition && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt31-nas100-r8-high-density-ticks-${{ github.sha }}
+          path: |
+            acquisition/
+            acquisition-summary.txt
+          if-no-files-found: error
+          retention-days: 90

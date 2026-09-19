@@ -1,0 +1,239 @@
+name: QORE VT31 NAS100 2Y Calibration
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - scripts/vt31_nas100_2y_calibration_probe.py
+      - src/qore/infrastructure/traders/vt31_nas100_*.py
+      - tests/infrastructure/test_vt31_nas100_*.py
+      - .github/workflows/vt31-nas100-2y-calibration.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-nas100-2y-calibration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research and cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Static causal gate
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_2y_calibration_probe.py --self-test
+          python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
+          ruff check             scripts/vt31_nas100_2y_calibration_probe.py             scripts/vt31_nas100_specialist_r1_candidate.py             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_trader_experience_memory.py
+          pytest -q             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py             tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
+
+      - name: Resolve immutable 2Y calibration evidence
+        id: evidence
+        run: |
+          set -euo pipefail
+          artifact_name="qore-vt31-nas100-2y-calibration-evidence-v1"
+          count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}&per_page=100"             --jq '[.artifacts[] | select(.expired == false)] | length')"
+          if [ "$count" -gt 1 ]; then
+            echo "Ambiguous calibration evidence: expected at most one live artifact"
+            exit 1
+          fi
+          mkdir -p calibration/NAS100
+          if [ "$count" = "1" ]; then
+            artifact_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}&per_page=100"               --jq '[.artifacts[] | select(.expired == false)][0].id')"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > calibration-evidence.zip
+            unzip -q calibration-evidence.zip -d calibration
+            echo "acquire=false" >> "$GITHUB_OUTPUT"
+            echo "artifact_id=${artifact_id}" >> "$GITHUB_OUTPUT"
+          else
+            echo "acquire=true" >> "$GITHUB_OUTPUT"
+            echo "artifact_id=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify historical-data credentials
+        if: steps.evidence.outputs.acquire == 'true'
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire 2Y calibration evidence once
+        if: steps.evidence.outputs.acquire == 'true'
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_2y_calibration_probe.py             > calibration/NAS100/market-evidence.json
+          sha256sum calibration/NAS100/market-evidence.json             > calibration/EVIDENCE-SHA256SUMS
+
+      - name: Validate immutable calibration evidence contract
+        run: |
+          set -euo pipefail
+          test -f calibration/NAS100/market-evidence.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("calibration/NAS100/market-evidence.json")
+          payload = json.loads(path.read_text())
+          assert payload["evidence_purpose"] == "VT31_NAS100_2Y_CALIBRATION_001"
+          assert payload["candidate_id"] == "VT31_NAS100_SPECIALIST_R1"
+          assert payload["market"] == "NAS100"
+          assert payload["calibration_start_at"] == "2014-04-14T00:00:00+00:00"
+          assert payload["calibration_end_exclusive"] == "2016-04-19T00:00:00+00:00"
+          assert payload["requested_calendar_days"] == 736
+          assert payload["coverage_sufficient"] is True
+          assert payload["consumed_for_tuning_after_this_run"] is True
+          assert payload["may_be_called_fresh_again"] is False
+          assert payload["final_certification_requires_other_unseen_evidence"] is True
+          PY
+          if [ -f calibration/EVIDENCE-SHA256SUMS ]; then
+            (cd calibration && sha256sum -c EVIDENCE-SHA256SUMS)
+          fi
+
+      - name: Upload canonical evidence on first acquisition
+        if: steps.evidence.outputs.acquire == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-2y-calibration-evidence-v1
+          path: calibration/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Replay current intelligent specialist on consumed 2Y calibration
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/vt31_nas100_specialist_r1_candidate.py             calibration/NAS100/market-evidence.json             --output result/replay.json             | tee result/replay-summary.json
+
+      - name: Build low-DD calibration report
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          evidence_path = Path("calibration/NAS100/market-evidence.json")
+          replay = json.loads(Path("result/replay.json").read_text())
+          evidence = json.loads(evidence_path.read_text())
+          stress = replay["stress_0_05r"]
+          mc = replay["monte_carlo"]
+          halfyears = replay["halfyear_stress"]
+          eligible_halfyears = [
+              row for row in halfyears.values()
+              if int(row["sample"]) >= 5
+          ]
+          positive_halfyears = sum(
+              float(row["mean_r"]) > 0 for row in eligible_halfyears
+          )
+          objectives = {
+              "sample_at_least_40": int(stress["sample"]) >= 40,
+              "stressed_mean_positive": float(stress["mean_r"]) > 0,
+              "stressed_profit_factor_at_least_1_75": (
+                  float(stress["profit_factor"]) >= 1.75
+              ),
+              "observed_max_drawdown_at_most_12r": (
+                  float(stress["max_drawdown_r"]) <= 12.0
+              ),
+              "max_losing_streak_at_most_10": (
+                  int(stress["max_losing_streak"]) <= 10
+              ),
+              "mc_positive_terminal_at_least_0_80": (
+                  float(mc["positive_terminal_probability"]) >= 0.80
+              ),
+              "mc_p95_drawdown_at_most_20r": (
+                  float(mc["p95_max_drawdown_r"]) <= 20.0
+              ),
+              "positive_eligible_halfyears_at_least_3_of_4": (
+                  len(eligible_halfyears) >= 4
+                  and positive_halfyears >= 3
+              ),
+          }
+          report = {
+              "schema": "qore.vt31.nas100.2y_calibration_report.v1",
+              "calibration_id": "VT31_NAS100_2Y_CALIBRATION_001",
+              "candidate_id": replay["candidate_id"],
+              "software_sha": os.environ["GITHUB_SHA"],
+              "contract_fingerprint": replay["contract_fingerprint"],
+              "evidence_sha256": hashlib.sha256(
+                  evidence_path.read_bytes()
+              ).hexdigest(),
+              "evidence_acquisition_sha": evidence["software_sha"],
+              "window": {
+                  "start_at": evidence["calibration_start_at"],
+                  "end_exclusive": evidence["calibration_end_exclusive"],
+                  "calendar_days": evidence["requested_calendar_days"],
+                  "status": "CONSUMED_FOR_TUNING",
+                  "fresh_reuse_allowed": False,
+              },
+              "stress_0_05r": stress,
+              "monte_carlo": mc,
+              "halfyear_stress": halfyears,
+              "quarter_stress": replay["quarter_stress"],
+              "target_plan_counts": replay["target_plan_counts"],
+              "status_counts": replay["status_counts"],
+              "low_dd_objectives": objectives,
+              "passes_all_low_dd_objectives": all(objectives.values()),
+              "candidate_frozen": False,
+              "calibration_can_continue": True,
+              "final_certification_requires_other_unseen_evidence": True,
+              "live_authorized": False,
+              "production_authorized": False,
+          }
+          Path("result/2y-calibration-report.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps({
+              "stress": stress,
+              "monte_carlo": mc,
+              "low_dd_objectives": objectives,
+              "passes_all_low_dd_objectives": report[
+                  "passes_all_low_dd_objectives"
+              ],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind calibration result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "CONSUMED_FOR_TUNING" > result/window-status.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-2y-calibration-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

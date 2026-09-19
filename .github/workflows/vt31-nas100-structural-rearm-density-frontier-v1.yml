@@ -1,0 +1,206 @@
+name: QORE VT31 NAS100 Structural Rearm Density Frontier V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_structural_rearm_density_frontier_v1.py
+      - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
+      - src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
+      - .github/workflows/vt31-nas100-structural-rearm-density-frontier-v1.yml
+  pull_request:
+    branches:
+      - agent/vt31-nas100-r1-holdout-001
+    paths:
+      - scripts/vt31_nas100_structural_rearm_density_frontier_v1.py
+      - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
+      - src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
+      - .github/workflows/vt31-nas100-structural-rearm-density-frontier-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-nas100-structural-rearm-density-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+          - partition: r8_fresh
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static causal gate
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/vt31_nas100_structural_rearm_density_frontier_v1.py
+          ruff check \
+            scripts/vt31_nas100_structural_rearm_density_frontier_v1.py
+
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d evidence
+          path="evidence/fresh/NAS100/market-evidence.json"
+          test -f "$path"
+          actual="$(sha256sum "$path" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Replay structural rearm frontier
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_structural_rearm_density_frontier_v1.py \
+            evidence/fresh/NAS100/market-evidence.json \
+            --partition "$PARTITION" \
+            --output "result/rearm-${PARTITION}.json" \
+            | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=os.environ["PARTITION"]
+          payload=json.loads(
+              Path(f"result/rearm-{p}.json").read_text()
+          )
+          g=payload["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["opens_new_holdout"] is False
+          assert g["one_trade_max_per_source_event"] is True
+          assert g["new_raid_required_after_previous_exit"] is True
+          assert g["new_confirmation_required_after_previous_exit"] is True
+          assert g["new_decision_required_after_previous_exit"] is True
+          assert g["cooldown_rule_used"] is False
+          assert g["duplicate_fill_density_used"] is False
+          assert g["micro_entry_density_used"] is False
+          assert g["future_outcome_used_to_form_event"] is False
+          assert g["terminal_pnl_used_to_authorize_event"] is False
+          assert g["policy_promoted"] is False
+          assert payload["market"] == "NAS100"
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$ARTIFACT_ID" > result/source-evidence-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-rearm-frontier-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-rearm-frontier-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate 300-350 frontier
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("rearm-*.json"):
+              payload=json.loads(path.read_text())
+              folds[payload["partition"]]=payload
+          assert set(folds)=={"r5","r6","r8_fresh"}, folds.keys()
+
+          report={
+              "schema":(
+                  "qore.vt31.nas100."
+                  "structural_rearm_density_frontier.aggregate.v1"
+              ),
+              "objective":{
+                  "trade_count_2y_equivalent":"300-350",
+                  "stretch_observed_dd_r":"4-5",
+                  "profit_factor":"high-cross-fold",
+              },
+              "folds":{
+                  name:{
+                      "terminal_trade_count":p["terminal_trade_count"],
+                      "rearm_trade_count":p["rearm_trade_count"],
+                      "events_per_day":p["events_per_day"],
+                      "metrics":p["terminal_metrics"],
+                      "density_frontier":p["density_frontier"],
+                  }
+                  for name,p in sorted(folds.items())
+              },
+              "all_folds_at_least_300":all(
+                  p["terminal_trade_count"] >= 300
+                  for p in folds.values()
+              ),
+              "all_folds_inside_300_350":all(
+                  300 <= p["terminal_trade_count"] <= 350
+                  for p in folds.values()
+              ),
+              "policy_promoted":False,
+              "opens_new_holdout":False,
+              "live_authorized":False,
+              "production_authorized":False,
+          }
+          Path("result/rearm-frontier-aggregate.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(report,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-rearm-frontier-aggregate-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

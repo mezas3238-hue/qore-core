@@ -1,0 +1,242 @@
+name: QORE VT31 NAS100 Handoff Intelligence Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - scripts/vt31_nas100_handoff_intelligence_forensics_v1.py
+      - scripts/vt31_nas100_position_intelligence_forensics_v1.py
+      - scripts/vt31_nas100_cross_fold_intelligence_memory_v1.py
+      - src/qore/infrastructure/traders/vt31_nas100_*.py
+      - .github/workflows/vt31-nas100-handoff-intelligence-forensics-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: -github-workflows-vt31-nas100-handoff-intelligence-forensics-v1-yml-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  consumed-fold:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r8_fresh
+            evidence_artifact: 10402199719
+            evidence_digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - partition: r6
+            evidence_artifact: 10389112524
+            evidence_digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - partition: r5
+            evidence_artifact: 10380044761
+            evidence_digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PARTITION: ${{ matrix.partition }}
+      EVIDENCE_ARTIFACT: ${{ matrix.evidence_artifact }}
+      EVIDENCE_DIGEST: ${{ matrix.evidence_digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install -e .[dev]
+
+      - name: Static architecture gate
+        run: |
+          set -euo pipefail
+          ruff check             scripts/vt31_nas100_specialist_r1_candidate.py             scripts/vt31_nas100_handoff_intelligence_forensics_v1.py             scripts/vt31_nas100_position_intelligence_forensics_v1.py             src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py             src/qore/infrastructure/traders/vt31_nas100_cognitive_memory.py             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             src/qore/infrastructure/traders/vt31_nas100_strategy_identity_memory.py             src/qore/infrastructure/traders/vt31_nas100_trader_experience_memory.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
+          python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
+
+      - name: Recover immutable consumed NAS100 fold
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          mkdir evidence
+          unzip -q evidence.zip -d evidence
+          if [ -f evidence/SHA256SUMS ]; then
+            (cd evidence && sha256sum -c SHA256SUMS)
+          fi
+          test -f evidence/fresh/NAS100/market-evidence.json
+
+      - name: Replay three-memory specialist
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/vt31_nas100_specialist_r1_candidate.py             evidence/fresh/NAS100/market-evidence.json             --output "result/replay-${PARTITION}.json"
+
+      - name: Run loss journey and intelligence forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_handoff_intelligence_forensics_v1.py             "result/replay-${PARTITION}.json"             --output "result/handoff-forensics-${PARTITION}.json"             | tee "result/handoff-summary-${PARTITION}.json"
+
+      - name: Run position-intelligence counterfactuals
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_position_intelligence_forensics_v1.py             evidence/fresh/NAS100/market-evidence.json             "result/replay-${PARTITION}.json"             --output "result/position-intelligence-${PARTITION}.json"             | tee "result/position-intelligence-summary-${PARTITION}.json"
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ["PARTITION"]
+          replay = json.loads(
+              Path(f"result/replay-{partition}.json").read_text()
+          )
+          report = json.loads(
+              Path(f"result/handoff-forensics-{partition}.json").read_text()
+          )
+          position = json.loads(
+              Path(f"result/position-intelligence-{partition}.json").read_text()
+          )
+          assert replay["research_only"] is True
+          assert replay["opens_new_holdout"] is False
+          assert replay["live_authorized"] is False
+          assert replay["production_authorized"] is False
+          assert report["governance"]["rule_selection_allowed"] is False
+          assert report["governance"]["opens_new_holdout"] is False
+          assert report["governance"][
+              "risk_buckets_are_nas100_quantiles_not_xauusd_thresholds"
+          ] is True
+          assert report["intelligence_metrics"][
+              "execute_contradiction_count"
+          ] == 0
+          assert position["governance"][
+              "structural_labels_not_direct_pnl_optimization"
+          ] is True
+          assert position["governance"]["xauusd_thresholds_copied"] is False
+          assert position["governance"][
+              "contextual_policy_selection_allowed"
+          ] is False
+          assert position["governance"]["opens_new_holdout"] is False
+          print(json.dumps({
+              "partition": partition,
+              "status_counts": replay["status_counts"],
+              "stress": replay["stress_0_05r"],
+              "intelligence_metrics": report["intelligence_metrics"],
+              "journey_capacity": report["journey_capacity"],
+              "position_intelligence": {
+                  "protection_events": position["protection_events"],
+                  "classification_counts": position["classification_counts"],
+                  "by_event_type": position["by_event_type"],
+              },
+          }, sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          echo "${EVIDENCE_ARTIFACT} sha256:${EVIDENCE_DIGEST}" > result/evidence-source.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-handoff-forensics-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+
+  aggregate-memory:
+    needs: consumed-fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install -e .[dev]
+
+      - name: Static aggregate gate
+        run: |
+          set -euo pipefail
+          ruff check scripts/vt31_nas100_cross_fold_intelligence_memory_v1.py
+
+      - name: Download fold artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-handoff-forensics-*-${{ github.sha }}
+          path: aggregate-input
+          merge-multiple: true
+
+      - name: Build cross-fold intelligence memory
+        run: |
+          set -euo pipefail
+          mkdir -p aggregate-result
+          python scripts/vt31_nas100_cross_fold_intelligence_memory_v1.py \
+            aggregate-input \
+            --output aggregate-result/VT31_NAS100_CROSS_FOLD_INTELLIGENCE_MEMORY_V1.json \
+            | tee aggregate-result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "aggregate-result/"
+                  "VT31_NAS100_CROSS_FOLD_INTELLIGENCE_MEMORY_V1.json"
+              ).read_text()
+          )
+          governance = payload["governance"]
+          assert payload["market"] == "NAS100"
+          assert payload["partitions"] == ["r8_fresh", "r6", "r5"]
+          assert governance["classification_basis"] == (
+              "structural-journey-preservation-not-pnl"
+          )
+          assert governance["requires_all_consumed_folds"] is True
+          assert governance["xauusd_parameters_copied"] is False
+          assert governance["operating_policy_selection_allowed"] is False
+          assert governance["opens_new_holdout"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          for row in payload["context_management_states"]:
+              assert row["operating_policy_authorized"] is False
+          print(json.dumps({
+              "capacity_by_fold": payload["capacity_by_fold"],
+              "position_intelligence_by_fold": payload[
+                  "position_intelligence_by_fold"
+              ],
+              "context_management_state_counts": payload[
+                  "context_management_state_counts"
+              ],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind aggregate memory
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > aggregate-result/git-sha.txt
+          (cd aggregate-result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd aggregate-result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-cross-fold-intelligence-memory-${{ github.sha }}
+          path: aggregate-result/
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,93 @@
+name: QORE VT31 NAS100 R5 Consumed Holdout Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_consumed_holdout_forensics_v1.py
+      - scripts/vt31_nas100_r5_certification_candidate.py
+      - scripts/vt31_nas100_causal_hybrid_rearm_v1.py
+      - .github/workflows/vt31-nas100-r5-consumed-holdout-forensics-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  forensics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/vt31_nas100_r5_consumed_holdout_forensics_v1.py
+          ruff check             scripts/vt31_nas100_r5_consumed_holdout_forensics_v1.py
+
+      - name: Recover permanently consumed final holdout
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10557487418/zip" > holdout.zip
+          unzip -q holdout.zip -d input
+          test -f input/NAS100/market-evidence.json
+          if [ -f input/EVIDENCE-SHA256SUMS ]; then
+            (cd input && sha256sum -c EVIDENCE-SHA256SUMS)
+          fi
+
+      - name: Run causal forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_consumed_holdout_forensics_v1.py             input/NAS100/market-evidence.json             --output result/vt31-nas100-r5-consumed-holdout-forensics-v1.json             | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "result/vt31-nas100-r5-consumed-holdout-forensics-v1.json"
+              ).read_text()
+          )
+          g=p["governance"]
+          assert g["diagnostic_only"] is True
+          assert g["uses_consumed_holdout"] is True
+          assert g["may_retune_against_this_interval_for_development"] is True
+          assert g["may_call_interval_fresh_again"] is False
+          assert g["may_certify_on_this_interval_again"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Bind
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "10557487418" > result/source-holdout-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0               | sort -z               | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-consumed-holdout-forensics-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

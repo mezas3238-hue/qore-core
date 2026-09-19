@@ -1,0 +1,122 @@
+name: QORE VT31 NAS100 CIBO Market Dossier V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_cibo_market_dossier_v1.py
+      - src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py
+      - .github/workflows/vt31-nas100-cibo-market-dossier-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CIBO_ARTIFACT_ID: "10478487667"
+  CIBO_ARTIFACT_DIGEST: "17c8d1909152d87ed67a05cd986fa9cca39b2ac92598d36822c38e8afccde192"
+
+jobs:
+  dossier:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          ruff check             scripts/vt31_nas100_cibo_market_dossier_v1.py             src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py
+          mypy             scripts/vt31_nas100_cibo_market_dossier_v1.py             src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py
+
+      - name: Recover immutable CIBO Eight-Ledger bundle
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CIBO_ARTIFACT_ID}/zip" > cibo-eight-ledger.zip
+          echo "${CIBO_ARTIFACT_DIGEST}  cibo-eight-ledger.zip" | sha256sum -c -
+          mkdir cibo
+          unzip -q cibo-eight-ledger.zip -d cibo
+          test -f cibo/CIBO_ATLAS_VT31_EIGHT_LEDGER_SUMMARY.json
+          test -f cibo/SHA256SUMS
+          (cd cibo && sha256sum -c SHA256SUMS)
+
+      - name: Build official NAS100 market dossier
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/vt31_nas100_cibo_market_dossier_v1.py             cibo             --output result/CIBO_NAS100_MARKET_INTELLIGENCE_DOSSIER_V1.json             | tee result/summary.json
+
+      - name: Temporary canonical dossier audit payload
+        run: |
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+          path = Path("result/CIBO_NAS100_MARKET_INTELLIGENCE_DOSSIER_V1.json")
+          print("DOSSIER_B64=" + base64.b64encode(path.read_bytes()).decode("ascii"))
+          PY
+
+      - name: Bind dossier to embedded governed memory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+              DOSSIER_FINGERPRINT,
+              dossier_payload,
+              market_memory_manifest,
+          )
+
+          generated = json.loads(
+              Path(
+                  "result/CIBO_NAS100_MARKET_INTELLIGENCE_DOSSIER_V1.json"
+              ).read_text()
+          )
+          embedded = dossier_payload()
+
+          assert generated["identity"] == "CIBO_NAS100_MARKET_INTELLIGENCE_DOSSIER_V1"
+          assert generated["market"] == "NAS100"
+          assert generated["evidence_tier"] == "E1_ASSOCIATION_ONLY"
+          assert generated["governance"]["rule_promotion_allowed"] is False
+          assert generated["governance"]["fresh_holdout_opened"] is False
+          assert generated["dossier_fingerprint_sha256"] == DOSSIER_FINGERPRINT, (
+              generated["dossier_fingerprint_sha256"],
+              DOSSIER_FINGERPRINT,
+          )
+          assert generated == embedded, "embedded CIBO memory must equal official dossier exactly"
+
+          manifest = market_memory_manifest()
+          assert manifest["governed_cibo_memory_store"] is True
+          assert manifest["external_cibo_runtime_dependency"] is False
+          assert manifest["fresh_holdout_opened"] is False
+          print(json.dumps({
+              "dossier_fingerprint": DOSSIER_FINGERPRINT,
+              "memory_fingerprint": manifest["memory_fingerprint"],
+              "items": manifest["items"],
+              "kind_counts": manifest["kind_counts"],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind immutable result
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          echo "${CIBO_ARTIFACT_ID} sha256:${CIBO_ARTIFACT_DIGEST}" > result/evidence-source.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-cibo-market-dossier-v1-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,223 @@
+name: QORE VT31 NAS100 Hybrid Core Secondary V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_hybrid_core_secondary_v1.py
+      - .github/workflows/vt31-nas100-hybrid-core-secondary-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-nas100-hybrid-core-secondary-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r5
+            core_artifact: "10532312706"
+            oco_artifact: "10532808113"
+          - partition: r6
+            core_artifact: "10531743831"
+            oco_artifact: "10532698112"
+          - partition: r8_fresh
+            core_artifact: "10532486395"
+            oco_artifact: "10533245927"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      CORE_ARTIFACT: ${{ matrix.core_artifact }}
+      OCO_ARTIFACT: ${{ matrix.oco_artifact }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research runtime
+        run: pip install -e ".[dev]"
+
+      - name: Static hybrid gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_hybrid_core_secondary_v1.py
+          ruff check scripts/vt31_nas100_hybrid_core_secondary_v1.py
+
+      - name: Recover exact CORE artifact
+        run: |
+          set -euo pipefail
+          mkdir -p core
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CORE_ARTIFACT}/zip" > core.zip
+          unzip -q core.zip -d core
+          if [ -f core/SHA256SUMS ]; then
+            (cd core && sha256sum -c SHA256SUMS)
+          fi
+          test "$(find core -name 'vt31-nas100-specialist-r1-*.json' -type f | wc -l)" -eq 1
+
+      - name: Recover exact OCO artifact
+        run: |
+          set -euo pipefail
+          mkdir -p oco
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${OCO_ARTIFACT}/zip" > oco.zip
+          unzip -q oco.zip -d oco
+          if [ -f oco/SHA256SUMS ]; then
+            (cd oco && sha256sum -c SHA256SUMS)
+          fi
+          test "$(find oco -name 'oco-*.json' -type f | wc -l)" -eq 1
+
+      - name: Compose hybrid capital intelligence
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/vt31_nas100_hybrid_core_secondary_v1.py             core oco             --output "result/hybrid-${PARTITION}.json"             | tee result/summary.json
+
+      - name: Development objective gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/hybrid-{partition}.json").read_text()
+          )
+          assert payload["identity"] == "VT31_NAS100_HYBRID_CORE_SECONDARY_V1"
+          assert payload["market"] == "NAS100"
+          assert payload["passes_development_gates"] is True, payload[
+              "development_gates"
+          ]
+          assert 250 <= payload["trade_count"] <= 300
+          assert payload["core_trade_count"] >= 30
+          assert payload["secondary_trade_count"] > 0
+          assert payload["governance"]["consumed_evidence_only"] is True
+          assert payload["governance"]["opens_new_holdout"] is False
+          assert payload["governance"]["live_authorized"] is False
+          assert payload["governance"]["real_capital_authorized"] is False
+          assert payload["governance"]["production_authorized"] is False
+          assert payload["capital_policy"][
+              "risk_authorization_remains_external_qore_risk"
+          ] is True
+          print(json.dumps({
+              "partition": partition,
+              "trades": payload["trade_count"],
+              "core": payload["core_trade_count"],
+              "secondary": payload["secondary_trade_count"],
+              "metrics": payload["capital_weighted_metrics"],
+              "mc": payload["monte_carlo"],
+              "gates": payload["development_gates"],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind fold result
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          printf "CORE artifact %s\nOCO artifact %s\n"             "${CORE_ARTIFACT}" "${OCO_ARTIFACT}"             > result/evidence-sources.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-hybrid-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-hybrid-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate three-fold objective
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = []
+          for path in sorted(Path("input").glob("hybrid-*.json")):
+              p = json.loads(path.read_text())
+              rows.append({
+                  "file": path.name,
+                  "trade_count": p["trade_count"],
+                  "core_trade_count": p["core_trade_count"],
+                  "secondary_trade_count": p["secondary_trade_count"],
+                  "metrics": p["capital_weighted_metrics"],
+                  "monte_carlo": p["monte_carlo"],
+                  "gates": p["development_gates"],
+                  "passes": p["passes_development_gates"],
+              })
+          assert len(rows) == 3, rows
+          report = {
+              "schema": "qore.vt31.nas100.hybrid_cross_fold.v1",
+              "identity": "VT31_NAS100_HYBRID_CORE_SECONDARY_V1",
+              "target_trade_band": [250, 300],
+              "folds": rows,
+              "all_folds_pass": all(row["passes"] for row in rows),
+              "all_folds_trade_band": all(
+                  250 <= row["trade_count"] <= 300 for row in rows
+              ),
+              "all_folds_pf_at_least_2": all(
+                  float(row["metrics"]["profit_factor"]) >= 2.0
+                  for row in rows
+              ),
+              "all_folds_dd_at_most_10r": all(
+                  float(row["metrics"]["max_drawdown_r"]) <= 10.0
+                  for row in rows
+              ),
+              "all_folds_mc_p95_dd_at_most_15r": all(
+                  float(row["monte_carlo"]["p95_max_drawdown_r"]) <= 15.0
+                  for row in rows
+              ),
+              "governance": {
+                  "consumed_evidence_only": True,
+                  "capital_weighted_pf_explicit": True,
+                  "raw_trade_count_literal": True,
+                  "live_authorized": False,
+                  "production_authorized": False,
+              },
+          }
+          assert report["all_folds_pass"] is True, report
+          Path("result/cross-fold.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - name: Bind aggregate
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-hybrid-cross-fold-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

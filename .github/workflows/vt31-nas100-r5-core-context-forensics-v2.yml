@@ -1,0 +1,200 @@
+name: QORE VT31 NAS100 R5 CORE Context Forensics V2
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_core_context_forensics_v2.py
+      - .github/workflows/vt31-nas100-r5-core-context-forensics-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_r5_core_context_forensics_v2.py
+          ruff check scripts/vt31_nas100_r5_core_context_forensics_v2.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run CORE context forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_core_context_forensics_v2.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/core-context-${PARTITION}.json"             | tee result/summary.json
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=os.environ["PARTITION"]
+          g=json.loads(Path(f"result/core-context-{p}.json").read_text())["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["core_only"] is True
+          assert g["decision_time_context_only"] is True
+          assert g["diagnostic_only"] is True
+          assert g["uses_terminal_pnl_at_runtime"] is False
+          assert g["uses_fold_identity_at_runtime"] is False
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-core-context-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-r5-core-context-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate causal CORE factors
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("core-context-*.json"):
+              payload=json.loads(path.read_text())
+              folds[payload["partition"]]=payload
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          report={}
+          names=next(iter(folds.values()))["interactions"].keys()
+          for name in names:
+              common=set.intersection(*[
+                  set(payload["interactions"][name]) for payload in folds.values()
+              ])
+              rows=[]
+              for key in sorted(common):
+                  per_fold={}
+                  samples=[]
+                  pfs=[]
+                  means=[]
+                  for fold,payload in sorted(folds.items()):
+                      metrics=payload["interactions"][name][key]
+                      per_fold[fold]=metrics
+                      samples.append(int(metrics["sample"]))
+                      pf=metrics["profit_factor"]
+                      pfs.append(None if pf is None else float(pf))
+                      means.append(float(metrics["mean_r"]))
+                  hold=per_fold["consumed_holdout"]
+                  dev=[per_fold[x] for x in ("r5","r6","r8")]
+                  if min(samples)>=8 and all(
+                      pf is not None and pf>=1.20 for pf in pfs
+                  ) and all(mean>0 for mean in means):
+                      status="STABLE_POSITIVE"
+                  elif min(samples)>=8 and all(
+                      pf is not None and pf<1.0 for pf in pfs
+                  ) and all(mean<0 for mean in means):
+                      status="STABLE_NEGATIVE"
+                  elif (
+                      min(samples)>=8
+                      and hold["profit_factor"] is not None
+                      and float(hold["profit_factor"])<1.0
+                      and float(hold["mean_r"])<0
+                      and all(
+                          item["profit_factor"] is not None
+                          and float(item["profit_factor"])>1.0
+                          and float(item["mean_r"])>0
+                          for item in dev
+                      )
+                  ):
+                      status="HOLDOUT_BREAK"
+                  else:
+                      status="MIXED_OR_SPARSE"
+                  rows.append({"key":key,"status":status,"folds":per_fold})
+              report[name]=rows
+
+          payload={
+              "schema":"qore.vt31.nas100.r5.core_context_forensics.aggregate.v2",
+              "interactions":report,
+              "stable_positive":[
+                  {"interaction":name,**row}
+                  for name,rows in report.items()
+                  for row in rows if row["status"]=="STABLE_POSITIVE"
+              ],
+              "stable_negative":[
+                  {"interaction":name,**row}
+                  for name,rows in report.items()
+                  for row in rows if row["status"]=="STABLE_NEGATIVE"
+              ],
+              "holdout_breaks":[
+                  {"interaction":name,**row}
+                  for name,rows in report.items()
+                  for row in rows if row["status"]=="HOLDOUT_BREAK"
+              ],
+              "diagnostic_only":True,
+              "policy_promoted":False,
+              "opens_new_holdout":False,
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-core-context-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90

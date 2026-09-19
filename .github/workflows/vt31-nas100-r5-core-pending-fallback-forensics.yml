@@ -1,0 +1,72 @@
+name: QORE VT31 NAS100 R5 CORE Pending Fallback Forensics
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_core_pending_fallback_forensics.py
+      - .github/workflows/vt31-nas100-r5-core-pending-fallback-forensics.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-r5-core-pending-fallback-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  r5:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_r5_core_pending_fallback_forensics.py
+          ruff check scripts/vt31_nas100_r5_core_pending_fallback_forensics.py
+      - name: Recover immutable R5 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > evidence.zip
+          unzip -q evidence.zip -d evidence
+          path="evidence/fresh/NAS100/market-evidence.json"
+          test -f "$path"
+          actual="$(sha256sum "$path" | awk '{print $1}')"
+          test "$actual" = "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+      - name: Run pending fallback forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_core_pending_fallback_forensics.py             evidence/fresh/NAS100/market-evidence.json             --output result/pending-fallback-r5.json             | tee result/summary.json
+      - name: Governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/pending-fallback-r5.json").read_text())
+          g=p["governance"]
+          assert g["authorization_uses_terminal_outcome"] is False
+          assert g["authorization_is_elapsed_time_after_core_execute"] is True
+          assert g["same_strategy_source_event"] is True
+          assert g["consumed_evidence_only"] is True
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-core-pending-fallback-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,166 @@
+name: QORE VT31 NAS100 R5 Secondary Context Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_secondary_context_forensics_v1.py
+      - scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
+      - .github/workflows/vt31-nas100-r5-secondary-context-forensics-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          python -m py_compile             scripts/vt31_nas100_r5_secondary_context_forensics_v1.py             scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
+          ruff check             scripts/vt31_nas100_r5_secondary_context_forensics_v1.py             scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
+      - name: Recover consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+      - name: Run context forensics
+        run: |
+          python scripts/vt31_nas100_r5_secondary_context_forensics_v1.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/context-${PARTITION}.json"             | tee result/summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-secondary-context-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-r5-secondary-context-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate stable contexts
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("context-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          all_rows={}
+          for name in next(iter(folds.values()))["interactions"]:
+              common=set.intersection(*[
+                  set(p["interactions"][name]) for p in folds.values()
+              ])
+              rows=[]
+              for key in sorted(common):
+                  per_fold={}
+                  samples=[]
+                  pfs=[]
+                  means=[]
+                  for fold,p in sorted(folds.items()):
+                      m=p["interactions"][name][key]
+                      per_fold[fold]=m
+                      samples.append(int(m["sample"]))
+                      pfs.append(
+                          None if m["profit_factor"] is None
+                          else float(m["profit_factor"])
+                      )
+                      means.append(float(m["mean_r"]))
+                  stable_positive=(
+                      min(samples)>=10
+                      and all(pf is not None and pf>=1.20 for pf in pfs)
+                      and all(mean>0 for mean in means)
+                  )
+                  stable_negative=(
+                      min(samples)>=10
+                      and all(pf is not None and pf<1.0 for pf in pfs)
+                      and all(mean<0 for mean in means)
+                  )
+                  rows.append({
+                      "key":key,
+                      "status":(
+                          "STABLE_POSITIVE"
+                          if stable_positive else
+                          "STABLE_NEGATIVE"
+                          if stable_negative else
+                          "MIXED_OR_SPARSE"
+                      ),
+                      "folds":per_fold,
+                  })
+              all_rows[name]=rows
+
+          payload={
+              "schema":"qore.vt31.nas100.r5.secondary_context_forensics.aggregate.v1",
+              "interactions":all_rows,
+              "stable_positive":[
+                  {"interaction":name,**row}
+                  for name,rows in all_rows.items()
+                  for row in rows
+                  if row["status"]=="STABLE_POSITIVE"
+              ],
+              "stable_negative":[
+                  {"interaction":name,**row}
+                  for name,rows in all_rows.items()
+                  for row in rows
+                  if row["status"]=="STABLE_NEGATIVE"
+              ],
+              "policy_promoted":False,
+              "opens_new_holdout":False,
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-secondary-context-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90

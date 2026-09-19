@@ -1,0 +1,89 @@
+name: QORE VT31 NAS100 Specialist State Equivalence
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_specialist_state_equivalence.py
+      - .github/workflows/vt31-nas100-specialist-state-equivalence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  equivalence:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r8_fresh
+            snapshot_artifact: 10525323968
+            snapshot_digest: 155d83e49dec26d0d54c7bc998cda1b8f223ae77c308758f6fd22f9e5e0a48e0
+            evidence_artifact: 10402199719
+            evidence_digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - partition: r6
+            snapshot_artifact: 10524979671
+            snapshot_digest: 3db46450b38f60bc06a41a8e5710f7ace2e795e07593d859218ab8e740b3174d
+            evidence_artifact: 10389112524
+            evidence_digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - partition: r5
+            snapshot_artifact: 10525742835
+            snapshot_digest: f00ca4d61b52462b4b23e16fda34f0244ef16a30a0b18564df84fb4dcade792a
+            evidence_artifact: 10380044761
+            evidence_digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PARTITION: ${{ matrix.partition }}
+      SNAPSHOT_ARTIFACT: ${{ matrix.snapshot_artifact }}
+      SNAPSHOT_DIGEST: ${{ matrix.snapshot_digest }}
+      EVIDENCE_ARTIFACT: ${{ matrix.evidence_artifact }}
+      EVIDENCE_DIGEST: ${{ matrix.evidence_digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -e .[dev]
+      - name: Static validation
+        run: |
+          python -m py_compile scripts/vt31_nas100_specialist_state_equivalence.py
+          ruff check scripts/vt31_nas100_specialist_state_equivalence.py
+      - name: Recover snapshot
+        run: |
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SNAPSHOT_ARTIFACT}/zip" > snapshot.zip
+          echo "${SNAPSHOT_DIGEST}  snapshot.zip" | sha256sum -c -
+          mkdir snapshot
+          unzip -q snapshot.zip -d snapshot
+          (cd snapshot && sha256sum -c SHA256SUMS)
+      - name: Recover evidence
+        run: |
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          mkdir evidence
+          unzip -q evidence.zip -d evidence
+          if [ -f evidence/SHA256SUMS ]; then
+            (cd evidence && sha256sum -c SHA256SUMS)
+          fi
+      - name: Compare state
+        run: |
+          mkdir result
+          python scripts/vt31_nas100_specialist_state_equivalence.py             --snapshot "snapshot/vt31-nas100-market-understanding-${PARTITION}.json"             --evidence evidence/fresh/NAS100/market-evidence.json             --output "result/state-equivalence-${PARTITION}.json"             | tee result/summary.json
+      - name: Bind and upload
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-state-equivalence-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

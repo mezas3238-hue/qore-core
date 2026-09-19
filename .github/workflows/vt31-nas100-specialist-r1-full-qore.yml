@@ -1,0 +1,79 @@
+name: QORE VT31 NAS100 Specialist R1 Full QORE
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - tests/infrastructure/test_vt31_nas100_*.py
+      - src/qore/infrastructure/traders/vt31_nas100_*.py
+      - docs/research/VT31_NAS100_SPECIALIST_R1_FREEZE_CONTRACT.md
+      - docs/research/VT31_NAS100_SUPER_INTELLIGENCE_ARCHITECTURE_V2.md
+      - .github/workflows/vt31-nas100-specialist-r1-full-qore.yml
+  workflow_dispatch:
+
+concurrency:
+  group: -github-workflows-vt31-nas100-specialist-r1-full-qore-yml-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Candidate self-test
+        run: python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
+      - name: Three-memory identity gate
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
+              memory_fingerprint,
+              validate_memory,
+          )
+          from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+              cibo_market_memory_fingerprint,
+          )
+          from qore.infrastructure.traders.vt31_nas100_strategy_identity_memory import (
+              strategy_identity_fingerprint,
+          )
+          from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
+              trader_experience_fingerprint,
+          )
+
+          validate_memory()
+          values = {
+              "strategy_identity": strategy_identity_fingerprint(),
+              "cibo_market": cibo_market_memory_fingerprint(),
+              "trader_experience": trader_experience_fingerprint(),
+              "cognitive_bundle": memory_fingerprint(),
+          }
+          assert all(len(value) == 64 for value in values.values())
+          assert len(set(values.values())) == 4
+          print(values)
+          PY
+      - name: Focused specialist tests
+        run: |
+          pytest -q \
+            tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py \
+            tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py \
+            tests/infrastructure/test_vt31_nas100_cibo_causal_structure.py \
+            tests/infrastructure/test_vt31_nas100_market_context_runtime.py \
+            tests/infrastructure/test_vt31_nas100_position_intelligence.py
+      - name: Ruff production and specialist surface
+        run: |
+          ruff check src tests \
+            scripts/vt31_nas100_specialist_r1_candidate.py
+      - name: Mypy project gate
+        run: mypy src tests
+      - name: Full project gate
+        run: pytest --cov=src/qore --cov-report=term-missing

@@ -1,0 +1,158 @@
+name: QORE VT31 NAS100 R5 Cross Period Factor Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_cross_period_factor_forensics_v1.py
+      - .github/workflows/vt31-nas100-r5-cross-period-factor-forensics-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          python -m py_compile             scripts/vt31_nas100_r5_cross_period_factor_forensics_v1.py
+          ruff check             scripts/vt31_nas100_r5_cross_period_factor_forensics_v1.py
+      - name: Recover consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+      - name: Run factor forensics
+        run: |
+          python scripts/vt31_nas100_r5_cross_period_factor_forensics_v1.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/factors-${PARTITION}.json"             | tee result/summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-factors-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-r5-factors-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate stable factors
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("factors-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          report={}
+          names=next(iter(folds.values()))["interactions"].keys()
+          for name in names:
+              common=set.intersection(*[
+                  set(p["interactions"][name]) for p in folds.values()
+              ])
+              rows=[]
+              for key in sorted(common):
+                  per_fold={}
+                  samples=[]
+                  pfs=[]
+                  means=[]
+                  for fold,p in sorted(folds.items()):
+                      m=p["interactions"][name][key]
+                      per_fold[fold]=m
+                      samples.append(int(m["sample"]))
+                      pf=m["profit_factor"]
+                      pfs.append(None if pf is None else float(pf))
+                      means.append(float(m["mean_r"]))
+                  if min(samples)>=8 and all(
+                      pf is not None and pf>=1.20 for pf in pfs
+                  ) and all(mean>0 for mean in means):
+                      status="STABLE_POSITIVE"
+                  elif min(samples)>=8 and all(
+                      pf is not None and pf<1.0 for pf in pfs
+                  ) and all(mean<0 for mean in means):
+                      status="STABLE_NEGATIVE"
+                  else:
+                      status="MIXED_OR_SPARSE"
+                  rows.append({
+                      "key":key,
+                      "status":status,
+                      "folds":per_fold,
+                  })
+              report[name]=rows
+
+          payload={
+              "schema":"qore.vt31.nas100.r5.cross_period_factor_forensics.aggregate.v1",
+              "interactions":report,
+              "stable_positive":[
+                  {"interaction":name,**row}
+                  for name,rows in report.items()
+                  for row in rows
+                  if row["status"]=="STABLE_POSITIVE"
+              ],
+              "stable_negative":[
+                  {"interaction":name,**row}
+                  for name,rows in report.items()
+                  for row in rows
+                  if row["status"]=="STABLE_NEGATIVE"
+              ],
+              "policy_promoted":False,
+              "opens_new_holdout":False,
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-factors-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90

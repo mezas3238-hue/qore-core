@@ -1,0 +1,144 @@
+name: QORE VT31 NAS100 Stale Renewal Forensics
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_stale_sequence_renewal_forensics.py
+      - .github/workflows/vt31-nas100-stale-renewal-forensics.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_stale_sequence_renewal_forensics.py
+      - .github/workflows/vt31-nas100-stale-renewal-forensics.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  renewal-forensics:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r8_fresh
+            state_artifact: 10523467443
+            state_digest: 81e4d0f4dcbdfa68d88f025f26789162c8c49c097e93844a2032dd225581f297
+            evidence_artifact: 10402199719
+            evidence_digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - partition: r6
+            state_artifact: 10523433888
+            state_digest: 59123e3f8a8a128448f158cb798b15abfd1b683efdff7435973024fca8f99b9f
+            evidence_artifact: 10389112524
+            evidence_digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - partition: r5
+            state_artifact: 10523314097
+            state_digest: 4050271b86fa04d866ffd557056c32d5a563f583be2e288244d2f23c93d8abe3
+            evidence_artifact: 10380044761
+            evidence_digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PARTITION: ${{ matrix.partition }}
+      STATE_ARTIFACT: ${{ matrix.state_artifact }}
+      STATE_DIGEST: ${{ matrix.state_digest }}
+      EVIDENCE_ARTIFACT: ${{ matrix.evidence_artifact }}
+      EVIDENCE_DIGEST: ${{ matrix.evidence_digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install research runtime
+        run: pip install -e .[dev]
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_stale_sequence_renewal_forensics.py
+          ruff check scripts/vt31_nas100_stale_sequence_renewal_forensics.py
+
+      - name: Recover immutable Market State V2
+        run: |
+          set -euo pipefail
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${STATE_ARTIFACT}" --jq .digest)"
+          test "$digest" = "sha256:${STATE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${STATE_ARTIFACT}/zip" > state.zip
+          echo "${STATE_DIGEST}  state.zip" | sha256sum -c -
+          mkdir state
+          unzip -q state.zip -d state
+          (cd state && sha256sum -c SHA256SUMS)
+          test -f "state/vt31-nas100-market-state-v2-${PARTITION}.json"
+
+      - name: Recover immutable consumed NAS100 evidence
+        run: |
+          set -euo pipefail
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}" --jq .digest)"
+          test "$digest" = "sha256:${EVIDENCE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          mkdir evidence
+          unzip -q evidence.zip -d evidence
+          if [ -f evidence/SHA256SUMS ]; then
+            (cd evidence && sha256sum -c SHA256SUMS)
+          fi
+          test -f evidence/fresh/NAS100/market-evidence.json
+
+      - name: Run stale-sequence renewal forensics
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_nas100_stale_sequence_renewal_forensics.py \
+            --market-state "state/vt31-nas100-market-state-v2-${PARTITION}.json" \
+            --evidence evidence/fresh/NAS100/market-evidence.json \
+            --output "result/vt31-nas100-stale-renewal-${PARTITION}.json" \
+            | tee result/summary.json
+
+      - name: Governance validation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/vt31-nas100-stale-renewal-{partition}.json").read_text()
+          )
+          assert payload["schema"] == "qore.vt31.nas100.stale_sequence_renewal_forensics.v1"
+          assert payload["research_only"] is True
+          assert payload["runtime_policy_selected"] is False
+          assert payload["candidate_frozen"] is False
+          assert payload["opens_new_holdout"] is False
+          assert payload["live_authorized"] is False
+          assert payload["production_authorized"] is False
+          governance = payload["causal_governance"]
+          assert governance["date_level_outcome_lookup"] is False
+          assert governance["future_outcome_used_by_event_detector"] is False
+          assert governance["old_stale_entry_is_never_delayed_or_backfilled"] is True
+          print("VT31_NAS100 stale renewal governance PASS")
+          PY
+
+      - name: Bind immutable result
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          echo "market-state-run=35284479467" > result/source-market-state-run.txt
+          echo "${STATE_ARTIFACT} sha256:${STATE_DIGEST}" > result/state-artifact.txt
+          echo "${EVIDENCE_ARTIFACT} sha256:${EVIDENCE_DIGEST}" > result/evidence-artifact.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-stale-renewal-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

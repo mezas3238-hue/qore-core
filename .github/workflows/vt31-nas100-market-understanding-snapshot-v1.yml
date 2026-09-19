@@ -1,0 +1,123 @@
+name: QORE VT31 NAS100 Market Understanding Snapshot V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_market_understanding_snapshot_v1.py
+      - .github/workflows/vt31-nas100-market-understanding-snapshot-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  snapshot-fold:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r8_fresh
+            bridge_artifact: 10525486699
+            bridge_digest: a9b5693095b15f6bd9067d935c1472081b1a61e56ba2d5d58514d645a5487b99
+            context_artifact: 10524987758
+            context_digest: c1096a7c67d08732368f8b0629ed322c57bcce3d9136032d9419f86f03218af3
+          - partition: r6
+            bridge_artifact: 10525421953
+            bridge_digest: 6bc95bc5f6a836c373b33d7ab6dba05f2b6c5caf89e89fdb08351529a33b0aa0
+            context_artifact: 10525247580
+            context_digest: db83d862b7a72d1ef78157f6de6851ddab2ebd6f0c34241933e54fd265f9131e
+          - partition: r5
+            bridge_artifact: 10525736274
+            bridge_digest: 26716fb1e2546e0176bd12170a13d4a5ea06bb1f44f1d30ef4028040af020fe5
+            context_artifact: 10525022828
+            context_digest: a5511d9661d59d6fa74527a51cb7ffc243e736808096ce6d7f6b671f0b9e3e72
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PARTITION: ${{ matrix.partition }}
+      BRIDGE_ARTIFACT: ${{ matrix.bridge_artifact }}
+      BRIDGE_DIGEST: ${{ matrix.bridge_digest }}
+      CONTEXT_ARTIFACT: ${{ matrix.context_artifact }}
+      CONTEXT_DIGEST: ${{ matrix.context_digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: pip install -e .[dev]
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_market_understanding_snapshot_v1.py
+          ruff check scripts/vt31_nas100_market_understanding_snapshot_v1.py
+      - name: Recover immutable bridge
+        run: |
+          set -euo pipefail
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${BRIDGE_ARTIFACT}" --jq .digest)"
+          test "$digest" = "sha256:${BRIDGE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${BRIDGE_ARTIFACT}/zip" > bridge.zip
+          echo "${BRIDGE_DIGEST}  bridge.zip" | sha256sum -c -
+          mkdir bridge
+          unzip -q bridge.zip -d bridge
+          (cd bridge && sha256sum -c SHA256SUMS)
+      - name: Recover corrected Context V3
+        run: |
+          set -euo pipefail
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CONTEXT_ARTIFACT}" --jq .digest)"
+          test "$digest" = "sha256:${CONTEXT_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CONTEXT_ARTIFACT}/zip" > context.zip
+          echo "${CONTEXT_DIGEST}  context.zip" | sha256sum -c -
+          mkdir context
+          unzip -q context.zip -d context
+          (cd context && sha256sum -c SHA256SUMS)
+      - name: Compose snapshot
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_nas100_market_understanding_snapshot_v1.py             --bridge "bridge/vt31-nas100-cibo-intelligence-bridge-${PARTITION}.json"             --context "context/vt31-nas100-market-context-v3-${PARTITION}.json"             --output "result/vt31-nas100-market-understanding-${PARTITION}.json"             | tee result/summary.json
+      - name: Governance validation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=os.environ["PARTITION"]
+          payload=json.loads(Path(f"result/vt31-nas100-market-understanding-{p}.json").read_text())
+          assert payload["schema"]=="qore.vt31.nas100.market_understanding_snapshot.v1"
+          assert payload["research_only"] is True
+          assert payload["runtime_policy_selected"] is False
+          assert payload["candidate_frozen"] is False
+          assert payload["opens_new_holdout"] is False
+          assert payload["live_authorized"] is False
+          assert payload["production_authorized"] is False
+          c=payload["causal_contract"]
+          assert c["snapshot_contains_only_predecision_runtime_inputs"] is True
+          assert c["research_labels_are_segregated_and_policy_prohibited"] is True
+          assert c["date_level_outcome_lookup"] is False
+          assert c["future_bar_lookup"] is False
+          assert payload["snapshot_count"] > 0
+          assert payload["missing_context_count"] == 0
+          print("VT31_NAS100 Market Understanding Snapshot governance PASS")
+          PY
+      - name: Bind immutable result
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          echo "${BRIDGE_ARTIFACT} sha256:${BRIDGE_DIGEST}" > result/bridge-source.txt
+          echo "${CONTEXT_ARTIFACT} sha256:${CONTEXT_DIGEST}" > result/context-source.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-market-understanding-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

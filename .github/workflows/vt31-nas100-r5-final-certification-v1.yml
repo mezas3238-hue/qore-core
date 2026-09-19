@@ -1,0 +1,245 @@
+name: QORE VT31 NAS100 R5 Final Certification V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_r5_certification_candidate.py
+      - scripts/vt31_nas100_r5_final_holdout_probe.py
+      - scripts/vt31_nas100_r5_final_certification_suite_v1.py
+      - scripts/vt31_nas100_causal_hybrid_rearm_v1.py
+      - tests/infrastructure/test_vt31_nas100_r5_certification_candidate.py
+      - docs/research/VT31_NAS100_R5_FINAL_CERTIFICATION_CONTRACT.md
+      - .github/workflows/vt31-nas100-r5-final-certification-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-nas100-r5-final-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+
+jobs:
+  full-qore-before-open:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Frozen candidate self-test
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_certification_candidate.py --self-test
+          python scripts/vt31_nas100_r5_final_holdout_probe.py --self-test
+          python -m py_compile             scripts/vt31_nas100_r5_certification_candidate.py             scripts/vt31_nas100_r5_final_holdout_probe.py             scripts/vt31_nas100_r5_final_certification_suite_v1.py             scripts/vt31_nas100_causal_hybrid_rearm_v1.py
+
+      - name: Focused certification tests
+        run: |
+          pytest -q             tests/infrastructure/test_vt31_nas100_r5_certification_candidate.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py             tests/infrastructure/test_vt31_nas100_cibo_causal_structure.py             tests/infrastructure/test_vt31_nas100_market_context_runtime.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py
+
+      - name: Ruff
+        run: |
+          ruff check src tests             scripts/vt31_nas100_r5_certification_candidate.py             scripts/vt31_nas100_r5_final_holdout_probe.py             scripts/vt31_nas100_r5_final_certification_suite_v1.py             scripts/vt31_nas100_causal_hybrid_rearm_v1.py
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Full QORE project gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  certify:
+    needs: full-qore-before-open
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Resolve one-shot immutable final holdout
+        id: evidence
+        run: |
+          set -euo pipefail
+          artifact_name="qore-vt31-nas100-r5-final-holdout-evidence-v1"
+          count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}&per_page=100"             --jq '[.artifacts[] | select(.expired == false)] | length')"
+          if [ "$count" -gt 1 ]; then
+            echo "Ambiguous final holdout evidence: expected at most one live artifact"
+            exit 1
+          fi
+          mkdir -p holdout/NAS100 result
+          if [ "$count" = "1" ]; then
+            artifact_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}&per_page=100"               --jq '[.artifacts[] | select(.expired == false)][0].id')"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > final-holdout.zip
+            unzip -q final-holdout.zip -d holdout
+            echo "acquire=false" >> "$GITHUB_OUTPUT"
+            echo "artifact_id=${artifact_id}" >> "$GITHUB_OUTPUT"
+          else
+            echo "acquire=true" >> "$GITHUB_OUTPUT"
+            echo "artifact_id=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify historical-data credentials
+        if: steps.evidence.outputs.acquire == 'true'
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Open final holdout exactly once
+        if: steps.evidence.outputs.acquire == 'true'
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_final_holdout_probe.py             > holdout/NAS100/market-evidence.json
+          (
+            cd holdout
+            sha256sum NAS100/market-evidence.json > EVIDENCE-SHA256SUMS
+          )
+
+      - name: Validate immutable final holdout contract
+        run: |
+          set -euo pipefail
+          test -f holdout/NAS100/market-evidence.json
+          if [ -f holdout/EVIDENCE-SHA256SUMS ]; then
+            (cd holdout && sha256sum -c EVIDENCE-SHA256SUMS)
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          evidence=json.loads(
+              Path("holdout/NAS100/market-evidence.json").read_text()
+          )
+          frozen=json.loads(
+              subprocess.run(
+                  [
+                      sys.executable,
+                      "scripts/vt31_nas100_r5_certification_candidate.py",
+                      "--self-test",
+                  ],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              ).stdout
+          )
+          assert evidence["evidence_purpose"] == "VT31_NAS100_R5_FINAL_HOLDOUT_001"
+          assert evidence["candidate_id"] == "VT31_NAS100_R5"
+          assert evidence["candidate_contract_fingerprint"] == frozen["contract_fingerprint"]
+          assert evidence["final_holdout_start_at"] == "2022-07-18T00:00:00+00:00"
+          assert evidence["final_holdout_end_exclusive"] == "2024-07-18T00:00:00+00:00"
+          assert evidence["requested_calendar_days"] == 731
+          assert evidence["coverage_sufficient"] is True
+          assert evidence["selected_before_open"] is True
+          assert evidence["may_be_called_fresh_again"] is False
+          assert evidence["retuning_on_same_interval_allowed"] is False
+          PY
+
+      - name: Persist canonical final holdout on first acquisition
+        if: steps.evidence.outputs.acquire == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-final-holdout-evidence-v1
+          path: holdout/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Run frozen final certification suite
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_r5_final_certification_suite_v1.py             holdout/NAS100/market-evidence.json             --output result/vt31-nas100-r5-final-certification-v1.json             | tee result/summary.json
+
+      - name: Bind exact certification SHA
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path=Path("result/vt31-nas100-r5-final-certification-v1.json")
+          payload=json.loads(path.read_text())
+          payload["certification_sha"]=os.environ["GITHUB_SHA"]
+          payload["certification_run_id"]=os.environ["GITHUB_RUN_ID"]
+          payload["source_evidence_artifact_id"]=(
+              os.environ.get("SOURCE_ARTIFACT_ID") or "created-this-run"
+          )
+          path.write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$GITHUB_RUN_ID" > result/run-id.txt
+          echo "${{ steps.evidence.outputs.artifact_id }}" > result/reused-evidence-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0               | sort -z               | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+        env:
+          SOURCE_ARTIFACT_ID: ${{ steps.evidence.outputs.artifact_id }}
+
+      - name: Upload certification result
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-r5-final-certification-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Final certification gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "result/vt31-nas100-r5-final-certification-v1.json"
+              ).read_text()
+          )
+          assert p["candidate_id"] == "VT31_NAS100_R5"
+          assert p["trader_certified"] is True
+          assert p["certification_decision"] == "TRADER_CERTIFIED"
+          assert all(p["certification_gates"].values())
+          g=p["governance"]
+          assert g["parameter_scan_on_holdout"] is False
+          assert g["retuning_after_holdout_open"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["order_submission_authorized"] is False
+          PY

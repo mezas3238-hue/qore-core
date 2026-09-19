@@ -1,0 +1,130 @@
+name: QORE VT31 NAS100 Intelligence Pilot
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_intelligence_pilot.py
+      - .github/workflows/vt31-nas100-intelligence-pilot.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CIBO_ARTIFACT_ID: 10478487667
+  CIBO_DIGEST: 17c8d1909152d87ed67a05cd986fa9cca39b2ac92598d36822c38e8afccde192
+
+jobs:
+  intelligence-fold:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r8_fresh
+            artifact_id: 10402199719
+            digest: 9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+          - partition: r6
+            artifact_id: 10389112524
+            digest: 9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9
+          - partition: r5
+            artifact_id: 10380044761
+            digest: 828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PARTITION: ${{ matrix.partition }}
+      EVIDENCE_ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EVIDENCE_DIGEST: ${{ matrix.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research runtime
+        run: pip install -e .[dev]
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_intelligence_pilot.py
+          ruff check scripts/vt31_nas100_intelligence_pilot.py
+          python scripts/vt31_nas100_intelligence_pilot.py --self-test
+      - name: Recover immutable CIBO knowledge bundle
+        run: |
+          set -euo pipefail
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CIBO_ARTIFACT_ID}" --jq .digest)"
+          test "$digest" = "sha256:${CIBO_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CIBO_ARTIFACT_ID}/zip" > cibo.zip
+          echo "${CIBO_DIGEST}  cibo.zip" | sha256sum -c -
+          mkdir cibo
+          unzip -q cibo.zip -d cibo
+          (cd cibo && sha256sum -c SHA256SUMS)
+          test -f cibo/CIBO_ATLAS_VT31_EIGHT_LEDGER_SUMMARY.json
+          test -f cibo/DEPARTURE_TIMING_LEDGER.jsonl
+          test -f cibo/TRADER_MARKET_SYNC_LEDGER.jsonl
+          test -f cibo/TARGET_DESTINATION_LEDGER.jsonl
+      - name: Recover immutable consumed NAS100 fold
+        run: |
+          set -euo pipefail
+          digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT_ID}" --jq .digest)"
+          test "$digest" = "sha256:${EVIDENCE_DIGEST}"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${EVIDENCE_ARTIFACT_ID}/zip" > evidence.zip
+          echo "${EVIDENCE_DIGEST}  evidence.zip" | sha256sum -c -
+          mkdir evidence
+          unzip -q evidence.zip -d evidence
+          if [ -f evidence/SHA256SUMS ]; then
+            (cd evidence && sha256sum -c SHA256SUMS)
+          fi
+          test -f evidence/fresh/NAS100/market-evidence.json
+      - name: Run VT31_NAS100 intelligence pilot
+        run: |
+          set -euo pipefail
+          mkdir result
+          python scripts/vt31_nas100_intelligence_pilot.py --ledger-dir cibo --evidence evidence/fresh/NAS100/market-evidence.json --output "result/vt31-nas100-intelligence-${PARTITION}.json" | tee result/summary.json
+      - name: Governance and capability validation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ['PARTITION']
+          payload = json.loads(
+              Path(f'result/vt31-nas100-intelligence-{partition}.json').read_text()
+          )
+          assert payload['schema'] == 'qore.vt31.nas100.intelligence_pilot.v1'
+          assert payload['market'] == 'NAS100'
+          assert payload['research_only'] is True
+          assert payload['opens_new_holdout'] is False
+          assert payload['fresh_holdout_consumed'] is False
+          assert payload['live_authorized'] is False
+          assert payload['production_authorized'] is False
+          assert payload['capability']['causal_decision_trace'] is True
+          assert payload['capability']['date_level_outcome_lookup'] is False
+          assert payload['knowledge']['binding']['artifact_id'] == 10478487667
+          print(json.dumps({
+              'partition': partition,
+              'capability': payload['capability'],
+              'stress_0_05r': payload['stress_0_05r'],
+              'baseline_comparison': payload['baseline_comparison'],
+          }, sort_keys=True))
+          PY
+      - name: Bind immutable result
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          echo "${PARTITION}" > result/partition.txt
+          echo "${CIBO_ARTIFACT_ID} sha256:${CIBO_DIGEST}" > result/cibo-evidence.txt
+          echo "${EVIDENCE_ARTIFACT_ID} sha256:${EVIDENCE_DIGEST}" > result/market-evidence.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-intelligence-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

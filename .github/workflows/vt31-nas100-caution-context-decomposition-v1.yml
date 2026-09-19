@@ -1,0 +1,278 @@
+name: QORE VT31 NAS100 CAUTIOUS Context Decomposition V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_caution_context_decomposition_v1.py
+      - scripts/vt31_nas100_entry_intelligence_oco_lab_v1.py
+      - scripts/vt31_nas100_high_density_management_intelligence_v1.py
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - src/qore/infrastructure/traders/vt31_nas100_*.py
+      - .github/workflows/vt31-nas100-caution-context-decomposition-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-nas100-cautious-decomposition-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+          - partition: r8_fresh
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static causal gate
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/vt31_nas100_caution_context_decomposition_v1.py
+          ruff check \
+            scripts/vt31_nas100_caution_context_decomposition_v1.py
+
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d evidence
+          path="evidence/fresh/NAS100/market-evidence.json"
+          test -f "$path"
+          actual="$(sha256sum "$path" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Decompose CAUTIOUS context
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_caution_context_decomposition_v1.py \
+            evidence/fresh/NAS100/market-evidence.json \
+            --partition "$PARTITION" \
+            --output "result/caution-${PARTITION}.json" \
+            | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/caution-{p}.json").read_text()
+          )
+          g = payload["governance"]
+          assert g["subtype_definition_uses_terminal_pnl"] is False
+          assert g["subtype_definition_uses_future_bars"] is False
+          assert g["post_outcome_used_for_runtime_decision"] is False
+          assert g[
+              "terminal_outcomes_used_only_for_research_evaluation"
+          ] is True
+          assert g["consumed_evidence_only"] is True
+          assert g["policy_promoted"] is False
+          assert g["opens_new_holdout"] is False
+          assert payload["market"] == "NAS100"
+          assert payload["cautious_terminal_count"] > 0
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$ARTIFACT_ID" > result/source-evidence-artifact-id.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-caution-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-caution-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate cross-fold associations
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds = {}
+          for path in sorted(Path("input").glob("caution-*.json")):
+              payload = json.loads(path.read_text())
+              folds[payload["partition"]] = payload
+          assert set(folds) == {"r5", "r6", "r8_fresh"}, folds.keys()
+
+          fold_summary = {
+              name: {
+                  "cautious_terminal_count": payload[
+                      "cautious_terminal_count"
+                  ],
+                  "summary": payload["cautious_summary"],
+                  "loss_cluster_count": len(
+                      payload["loss_clusters_min_3"]
+                  ),
+              }
+              for name, payload in sorted(folds.items())
+          }
+
+          association_rows = []
+          interaction_names = sorted(
+              next(iter(folds.values()))["by_interaction"]
+          )
+          for interaction in interaction_names:
+              keys = set.intersection(
+                  *[
+                      set(payload["by_interaction"][interaction])
+                      for payload in folds.values()
+                  ]
+              )
+              for key in sorted(keys):
+                  per_fold = {}
+                  sufficient = True
+                  positive = True
+                  negative = True
+                  for fold_name, payload in sorted(folds.items()):
+                      summary = payload["by_interaction"][interaction][key]
+                      metrics = summary["terminal_metrics"]
+                      sample = int(metrics["sample"])
+                      pf_raw = metrics["profit_factor"]
+                      mean = float(metrics["mean_r"])
+                      pf = None if pf_raw is None else float(pf_raw)
+                      per_fold[fold_name] = {
+                          "sample": sample,
+                          "mean_r": metrics["mean_r"],
+                          "profit_factor": pf_raw,
+                          "max_drawdown_r": metrics["max_drawdown_r"],
+                          "dol1_rate": summary["dol1_rate"],
+                          "dol2_rate": summary["dol2_rate"],
+                      }
+                      sufficient = sufficient and sample >= 12
+                      positive = (
+                          positive
+                          and mean > 0.0
+                          and pf is not None
+                          and pf >= 1.15
+                      )
+                      negative = (
+                          negative
+                          and mean < 0.0
+                          and pf is not None
+                          and pf < 1.0
+                      )
+
+                  if not sufficient:
+                      status = "SPARSE"
+                  elif positive:
+                      status = "CONSISTENT_POSITIVE_ASSOCIATION"
+                  elif negative:
+                      status = "CONSISTENT_NEGATIVE_ASSOCIATION"
+                  else:
+                      status = "MIXED_OR_UNSTABLE"
+
+                  association_rows.append(
+                      {
+                          "interaction": interaction,
+                          "structural_key": key,
+                          "status": status,
+                          "folds": per_fold,
+                          "runtime_rule_authorized": False,
+                      }
+                  )
+
+          report = {
+              "schema": (
+                  "qore.vt31.nas100."
+                  "caution_context_decomposition.aggregate.v1"
+              ),
+              "fold_summary": fold_summary,
+              "cross_fold_associations": association_rows,
+              "consistent_positive_count": sum(
+                  row["status"] == "CONSISTENT_POSITIVE_ASSOCIATION"
+                  for row in association_rows
+              ),
+              "consistent_negative_count": sum(
+                  row["status"] == "CONSISTENT_NEGATIVE_ASSOCIATION"
+                  for row in association_rows
+              ),
+              "governance": {
+                  "groups_defined_without_terminal_pnl": True,
+                  "association_is_not_runtime_rule": True,
+                  "policy_promoted": False,
+                  "opens_new_holdout": False,
+                  "live_authorized": False,
+                  "production_authorized": False,
+              },
+          }
+          Path("result/caution-context-aggregate.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - name: Bind aggregate
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-caution-aggregate-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

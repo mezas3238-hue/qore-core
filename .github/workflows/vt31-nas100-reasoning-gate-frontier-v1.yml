@@ -1,0 +1,234 @@
+name: QORE VT31 NAS100 Reasoning Gate Frontier V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_reasoning_gate_frontier_v1.py
+      - .github/workflows/vt31-nas100-reasoning-gate-frontier-v1.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_reasoning_gate_frontier_v1.py
+      - .github/workflows/vt31-nas100-reasoning-gate-frontier-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_reasoning_gate_frontier_v1.py
+          ruff check scripts/vt31_nas100_reasoning_gate_frontier_v1.py
+
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Run reasoning gate frontier
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_reasoning_gate_frontier_v1.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/reasoning-gate-${PARTITION}.json"             | tee "result/summary-${PARTITION}.json"
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/reasoning-gate-{p}.json").read_text()
+          )
+          g = payload["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["predeclared_variants_only"] is True
+          assert g["pre_entry_causal_features_only"] is True
+          assert g["reasoning_sovereign_for_every_execution"] is True
+          assert g["same_source_secondary_disabled"] is True
+          assert g["scout_after_wait_disabled"] is True
+          assert g["new_source_required_after_abstain"] is True
+          assert g["post_exit_structural_rearm_required"] is True
+          assert g["uses_terminal_pnl_at_runtime"] is False
+          assert g["uses_fold_identity_at_runtime"] is False
+          assert g["uses_calendar_time_at_runtime"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["policy_promoted"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-reasoning-gate-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-reasoning-gate-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate frontier
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          folds = {}
+          for path in Path("input").glob("reasoning-gate-*.json"):
+              payload = json.loads(path.read_text())
+              folds[payload["partition"]] = payload
+          assert set(folds) == {"r5", "r6", "r8", "consumed_holdout"}
+
+          names = ("r5", "r6", "r8", "consumed_holdout")
+          variants = tuple(folds["r5"]["variants"])
+          report_variants = {}
+
+          for variant in variants:
+              per_fold = {
+                  fold: folds[fold]["variants"][variant]
+                  for fold in names
+              }
+              report_variants[variant] = {
+                  "per_fold": {
+                      fold: {
+                          "trade_count": per_fold[fold]["trade_count"],
+                          "metrics": per_fold[fold]["metrics"],
+                          "monte_carlo": per_fold[fold]["monte_carlo"],
+                          "annual_metrics": per_fold[fold]["annual_metrics"],
+                          "loss_path_counts": per_fold[fold][
+                              "loss_path_counts"
+                          ],
+                          "hard_reason_counts": per_fold[fold][
+                              "hard_reason_counts"
+                          ],
+                      }
+                      for fold in names
+                  },
+                  "density_300_350_all": all(
+                      300 <= int(per_fold[fold]["trade_count"]) <= 350
+                      for fold in names
+                  ),
+                  "pf_ge_1_50_all": all(
+                      Decimal(str(per_fold[fold]["metrics"]["profit_factor"]))
+                      >= Decimal("1.50")
+                      for fold in names
+                  ),
+                  "positive_all": all(
+                      Decimal(str(per_fold[fold]["metrics"]["total_r"])) > 0
+                      for fold in names
+                  ),
+                  "max_losing_streak_le_12_all": all(
+                      int(
+                          per_fold[fold]["metrics"]["max_losing_streak"]
+                      ) <= 12
+                      for fold in names
+                  ),
+                  "mc_positive_ge_090_all": all(
+                      Decimal(
+                          str(
+                              per_fold[fold]["monte_carlo"][
+                                  "positive_terminal_probability"
+                              ]
+                          )
+                      )
+                      >= Decimal("0.90")
+                      for fold in names
+                  ),
+              }
+
+          report = {
+              "schema": (
+                  "qore.vt31.nas100.reasoning_gate_frontier.aggregate.v1"
+              ),
+              "variants": report_variants,
+              "development_passing": [
+                  name
+                  for name, item in report_variants.items()
+                  if item["density_300_350_all"]
+                  and item["pf_ge_1_50_all"]
+                  and item["positive_all"]
+                  and item["max_losing_streak_le_12_all"]
+                  and item["mc_positive_ge_090_all"]
+              ],
+              "governance": {
+                  "development_only": True,
+                  "opens_new_holdout": False,
+                  "policy_promoted": False,
+                  "candidate_certified": False,
+              },
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-reasoning-gate-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
