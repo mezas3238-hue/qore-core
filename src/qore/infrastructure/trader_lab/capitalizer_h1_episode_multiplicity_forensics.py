@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -142,8 +143,8 @@ def _journey_boundaries(
 def _multiplicity_tags(
     trade: CapitalizerR0Trade,
     *,
-    episode_index: dict[tuple[str, CapitalizerSide], tuple[str, ...]],
-    boundaries: dict[str, tuple[str, datetime]],
+    episode_index: Mapping[tuple[str, CapitalizerSide], tuple[str, ...]],
+    boundaries: Mapping[str, tuple[str, datetime]],
 ) -> tuple[str, str]:
     episodes = episode_index.get((trade.signal_at.isoformat(), trade.side))
     if not episodes:
@@ -232,8 +233,8 @@ def _worst_drawdown(
     trades: tuple[CapitalizerR0Trade, ...],
     *,
     state_index: dict[tuple[str, CapitalizerSide], str],
-    episode_index: dict[tuple[str, CapitalizerSide], tuple[str, ...]],
-    boundaries: dict[str, tuple[str, datetime]],
+    episode_index: Mapping[tuple[str, CapitalizerSide], tuple[str, ...]],
+    boundaries: Mapping[str, tuple[str, datetime]],
 ) -> CapitalizerH1MultiplicityDrawdown:
     ordered = tuple(sorted(trades, key=lambda item: (item.entry_at, item.exit_at)))
     equity = Decimal("0")
