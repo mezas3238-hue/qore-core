@@ -234,3 +234,22 @@ def test_exposure_graph_reveals_repeated_jpy_factor() -> None:
     by_factor = {item.factor: item for item in exposures}
     assert by_factor["JPY"].net_r == Decimal("-0.30")
     assert by_factor["JPY"].gross_r == Decimal("0.30")
+
+
+def test_capitalization_governor_is_non_authoritative_and_fail_closed() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizationPosture
+    from qore.infrastructure.trader_lab.capitalizer_governor import (
+        CapitalizerPortfolioState,
+        recommend_capitalization_posture,
+    )
+
+    stopped = recommend_capitalization_posture(
+        CapitalizerPortfolioState(day_stop_required=True)
+    )
+    selective = recommend_capitalization_posture(
+        CapitalizerPortfolioState(loss_cluster_active=True)
+    )
+    assert stopped.posture is CapitalizationPosture.STOP_DAY
+    assert stopped.grants_capital_authority is False
+    assert selective.posture is CapitalizationPosture.HIGH_SELECTIVITY
+    assert selective.grants_capital_authority is False
