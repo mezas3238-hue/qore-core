@@ -15,8 +15,8 @@ from qore.infrastructure.trader_lab.capitalizer_behavior_lab import (
     canonical_behavior_episodes,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import (
-    CapitalizerSession,
     MAX_EXECUTIONS_PER_SESSION,
+    CapitalizerSession,
 )
 
 
