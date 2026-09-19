@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -9,6 +10,7 @@ from qore.infrastructure.trader_lab.capitalizer_position_lifecycle_forensics imp
     CapitalizerLifecycleMode,
     _bar_indices,
     _simulate_trade,
+    _state_family,
     _strict_prior_mfe_r,
 )
 from qore.infrastructure.trader_lab.capitalizer_r0_gross_characterization import (
@@ -121,7 +123,13 @@ def test_strict_prior_mfe_excludes_the_stop_bar() -> None:
     start = datetime(2026, 1, 6, 1, 0, tzinfo=UTC)
     bars = (
         _bar(start, open_="100", high="100.2", low="99.8", close="100.1"),
-        _bar(start + timedelta(minutes=5), open_="100.1", high="104.0", low="98.9", close="99.2"),
+        _bar(
+            start + timedelta(minutes=5),
+            open_="100.1",
+            high="104.0",
+            low="98.9",
+            close="99.2",
+        ),
     )
     trade = CapitalizerR0Trade(
         symbol="USDJPY",
@@ -148,3 +156,21 @@ def test_strict_prior_mfe_excludes_the_stop_bar() -> None:
         by_open=by_open,
         by_close=by_close,
     ) == Decimal("0.2")
+
+
+def test_state_family_separates_reclaim_from_rejection_route() -> None:
+    start = datetime(2026, 1, 6, 1, 0, tzinfo=UTC)
+    acceptance = _long_trade(
+        entry_at=start,
+        exit_at=start + timedelta(minutes=30),
+    )
+    state_index = {
+        (acceptance.signal_at.isoformat(), acceptance.side): "RECLAIM_ALL_FRESH"
+    }
+    assert _state_family(acceptance, state_index) == "RECLAIM_ALL_FRESH"
+
+    rejection = replace(
+        acceptance,
+        event_labels=("LOW_RAID_REJECTION",),
+    )
+    assert _state_family(rejection, {}) == "REJECTION_ROUTE"

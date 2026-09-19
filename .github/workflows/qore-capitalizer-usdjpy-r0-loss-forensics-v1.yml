@@ -233,9 +233,13 @@ jobs:
           assert lifecycle['fresh_holdout_claimed'] is False
           assert lifecycle['rule_selected'] is False
           assert lifecycle['promotion_allowed'] is False
+          assert lifecycle['state_family_counts']['RECLAIM_ALL_FRESH'] > 0
+          assert lifecycle['state_family_counts']['NO_RECLAIM_FRESH'] > 0
+          assert lifecycle['state_family_counts']['REJECTION_ROUTE'] > 0
           assert {row['mode'] for row in lifecycle['ablations']} == {
               'SWING_IMPROVE',
               'PROFITABLE_SWING_LOCK',
+              'RECLAIM_FRESH_PROFITABLE_SWING_LOCK',
           }
           PY
       - name: Upload immutable R0 forensics

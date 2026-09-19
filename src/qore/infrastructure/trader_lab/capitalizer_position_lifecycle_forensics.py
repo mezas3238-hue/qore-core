@@ -9,6 +9,9 @@ Two ablations are diagnostic only:
   confirmed swing that improves risk. The stop may improve or hold, never widen.
 - PROFITABLE_SWING_LOCK: same, but only when the confirmed swing is beyond entry and therefore
   locks non-negative economic territory.
+- RECLAIM_FRESH_PROFITABLE_SWING_LOCK: apply profitable swing protection only to the causal
+  RECLAIM_ALL_FRESH route, while continuation-without-reclaim and rejection routes remain
+  untouched.
 
 A pivot is known only after the following M5 bar closes. The stop update becomes eligible for
 the *next* M5 bar, never the bar that confirms it. This prevents intrabar lookahead.
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from decimal import Decimal
@@ -34,6 +38,7 @@ from qore.infrastructure.trader_lab.capitalizer_atlas_m5_reader import (
     iter_atlas_m5,
 )
 from qore.infrastructure.trader_lab.capitalizer_cognitive_v2_development import (
+    _asia_session_day,
     _root_state_index,
     select_development_trades,
 )
@@ -89,6 +94,7 @@ class CapitalizerPositionLifecycleReport:
     symbol: str
     structural_v2_metrics: CapitalizerR0Metrics
     loss_diagnostic: CapitalizerLifecycleLossDiagnostic
+    state_family_counts: dict[str, int]
     ablations: tuple[CapitalizerLifecycleAblation, ...]
     annual: tuple[CapitalizerLifecycleAnnual, ...]
     evidence_status: str = "CONSUMED_RESEARCH_EVIDENCE"
@@ -394,7 +400,7 @@ def _loss_diagnostic(
 
 def _ablation(
     *,
-    mode: CapitalizerLifecycleMode,
+    name: str,
     original: tuple[CapitalizerR0Trade, ...],
     simulated: tuple[CapitalizerR0Trade, ...],
 ) -> CapitalizerLifecycleAblation:
@@ -411,7 +417,7 @@ def _ablation(
         if before.realized_gross_r > 0 and after.realized_gross_r < before.realized_gross_r:
             degraded_wins += 1
     return CapitalizerLifecycleAblation(
-        mode=mode.value,
+        mode=name,
         metrics=summarize_r0(simulated).metrics,
         changed_outcomes=changed,
         improved_losing_outcomes=improved_losses,
@@ -419,8 +425,21 @@ def _ablation(
     )
 
 
+def _state_family(
+    trade: CapitalizerR0Trade,
+    state_index: dict[tuple[str, CapitalizerSide], str],
+) -> str:
+    key = (trade.signal_at.isoformat(), trade.side)
+    state = state_index.get(key)
+    if state is not None:
+        return state
+    if any("ACCEPTANCE" in label for label in trade.event_labels):
+        raise ValueError("acceptance trade requires causal state family")
+    return "REJECTION_ROUTE"
+
+
 def _year(trade: CapitalizerR0Trade) -> int:
-    return trade.entry_at.year
+    return int(_asia_session_day(trade)[:4])
 
 
 def build_position_lifecycle_report(
@@ -453,14 +472,14 @@ def build_position_lifecycle_report(
 
     bars = tuple(iter_atlas_m5(m5_root))
     by_open, by_close = _bar_indices(bars)
-    simulated_by_mode: dict[CapitalizerLifecycleMode, tuple[CapitalizerR0Trade, ...]] = {
-        CapitalizerLifecycleMode.ORIGINAL: structural
+    simulated_by_mode: dict[str, tuple[CapitalizerR0Trade, ...]] = {
+        CapitalizerLifecycleMode.ORIGINAL.value: structural
     }
     for mode in (
         CapitalizerLifecycleMode.SWING_IMPROVE,
         CapitalizerLifecycleMode.PROFITABLE_SWING_LOCK,
     ):
-        simulated_by_mode[mode] = tuple(
+        simulated_by_mode[mode.value] = tuple(
             _simulate_trade(
                 trade,
                 bars=bars,
@@ -470,16 +489,27 @@ def build_position_lifecycle_report(
             for trade in structural
         )
 
+    selective_name = "RECLAIM_FRESH_PROFITABLE_SWING_LOCK"
+    simulated_by_mode[selective_name] = tuple(
+        _simulate_trade(
+            trade,
+            bars=bars,
+            by_open=by_open,
+            mode=CapitalizerLifecycleMode.PROFITABLE_SWING_LOCK,
+        )
+        if _state_family(trade, state_index) == "RECLAIM_ALL_FRESH"
+        else trade
+        for trade in structural
+    )
+
     ablations = tuple(
         _ablation(
-            mode=mode,
+            name=name,
             original=structural,
-            simulated=simulated_by_mode[mode],
+            simulated=simulated,
         )
-        for mode in (
-            CapitalizerLifecycleMode.SWING_IMPROVE,
-            CapitalizerLifecycleMode.PROFITABLE_SWING_LOCK,
-        )
+        for name, simulated in simulated_by_mode.items()
+        if name != CapitalizerLifecycleMode.ORIGINAL.value
     )
 
     annual: list[CapitalizerLifecycleAnnual] = []
@@ -492,7 +522,7 @@ def build_position_lifecycle_report(
             annual.append(
                 CapitalizerLifecycleAnnual(
                     year=year,
-                    mode=mode.value,
+                    mode=mode,
                     metrics=summarize_r0(subset).metrics,
                 )
             )
@@ -506,6 +536,14 @@ def build_position_lifecycle_report(
             bars=bars,
             by_open=by_open,
             by_close=by_close,
+        ),
+        state_family_counts=dict(
+            sorted(
+                Counter(
+                    _state_family(trade, state_index)
+                    for trade in structural
+                ).items()
+            )
         ),
         ablations=ablations,
         annual=tuple(annual),
