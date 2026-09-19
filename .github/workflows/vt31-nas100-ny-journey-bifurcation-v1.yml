@@ -103,6 +103,11 @@ jobs:
           assert g["h4_primary_causal_feature"] is False
           assert g["h1_trend_primary_causal_feature"] is False
           assert g["checkpoint_requires_closed_m1"] is True
+          assert g["fill_bar_path_ambiguity_fail_closed"] is True
+          assert g["pre_dol1_checkpoint_only"] is True
+          assert g["future_starts_after_checkpoint_bar"] is True
+          assert g["future_replay_stops_at_invalidation"] is True
+          assert g["future_same_bar_stop_new_dol_censored"] is True
           assert g["future_journey_labels_research_only"] is True
           assert g["future_labels_allowed_at_runtime"] is False
           assert g["uses_terminal_pnl_at_runtime"] is False
