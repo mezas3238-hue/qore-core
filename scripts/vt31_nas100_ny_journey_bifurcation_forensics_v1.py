@@ -32,6 +32,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 import vt31_nas100_specialist_r1_candidate as specialist
 
@@ -54,6 +55,7 @@ from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
 SCHEMA = "qore.vt31.nas100.ny_journey_bifurcation_forensics.v1"
 IDENTITY = "VT31_NAS100_NY_JOURNEY_BIFURCATION_FORENSICS_V1"
 MARKET = "NAS100"
+NY = ZoneInfo("America/New_York")
 LIFECYCLE_MINUTE = 16 * 60
 EXPECTED_SOURCE_SHA256 = (
     "bd729056fadc30d20045e4677240b3a6cbb65123ced317e7413b6ffe81936ddf"
@@ -404,7 +406,7 @@ def _bucket_remaining(value: Decimal) -> str:
 
 
 def _clock_bucket(value: datetime) -> str:
-    local = value.astimezone(specialist._NY)
+    local = value.astimezone(NY)
     minute = local.hour * 60 + local.minute
     if minute < 10 * 60 + 15:
         return "10_00_10_14"
