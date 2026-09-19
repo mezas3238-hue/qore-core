@@ -24,12 +24,24 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.trader_lab import (\n    vt08_index_concurrent_market_contract as contract,\n)
-from qore.infrastructure.trader_lab import (\n    vt08_index_r6_5y_failure_forensics as fx,\n)
-from qore.infrastructure.trader_lab import (\n    vt08_index_r15_concurrent_portfolio_validation as r15,\n)
-from qore.infrastructure.trader_lab import (\n    vt08_index_r31_source_complete_structural_concurrency as r31,\n)
-from qore.infrastructure.trader_lab import (\n    vt08_index_r34_hybrid_formation_poi_health as r34,\n)
-from qore.infrastructure.trader_lab import (\n    vt08_index_r35_five_year_temporal_contract as r35,\n)
+from qore.infrastructure.trader_lab import (
+    vt08_index_concurrent_market_contract as contract,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r6_5y_failure_forensics as fx,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r15_concurrent_portfolio_validation as r15,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r31_source_complete_structural_concurrency as r31,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r34_hybrid_formation_poi_health as r34,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r35_five_year_temporal_contract as r35,
+)
 
 SCHEMA = "qore.trader_lab.vt08_index_r36_causal_market_side_health.v1"
 IDENTITY = "VT08_INDEX_R36_CAUSAL_MARKET_SIDE_HEALTH_001"
