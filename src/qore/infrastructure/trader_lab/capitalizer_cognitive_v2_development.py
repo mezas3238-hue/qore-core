@@ -25,6 +25,7 @@ from datetime import timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.trader_lab.capitalizer_atlas_m5_reader import iter_atlas_m5
 from qore.infrastructure.trader_lab.capitalizer_contract import (
     MAX_EXECUTIONS_PER_SESSION,
 )
@@ -42,7 +43,6 @@ from qore.infrastructure.trader_lab.capitalizer_r0_root_cause_forensics import (
     _is_acceptance,
     _pre_departure_sequences,
 )
-from qore.infrastructure.trader_lab.capitalizer_atlas_m5_reader import iter_atlas_m5
 
 IDENTITY = "QORE_CAPITALIZER_COGNITIVE_V2_DEVELOPMENT_REPLAY_V1"
 NEW_YORK = ZoneInfo("America/New_York")

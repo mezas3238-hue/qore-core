@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab.capitalizer_cognitive_v2_development import (
+    select_development_trades,
+)
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_r0_gross_characterization import (
     CapitalizerR0Trade,
-)
-from qore.infrastructure.trader_lab.capitalizer_cognitive_v2_development import (
-    select_development_trades,
 )
 
 
