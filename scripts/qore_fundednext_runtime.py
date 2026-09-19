@@ -1626,7 +1626,250 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     last_lifecycle: str | None = None
 
     while True:
+        cycle_started = time.monotonic()
         cycle_at = datetime.now(UTC)
+        try:
+            audjpy_r42_cache.refresh_incremental(mt5, now=cycle_at)
+        except Exception as error:
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_INCREMENTAL_FEED_FAIL_CLOSED",
+                    "symbol": "AUDJPY",
+                    "reason": type(error).__name__,
+                    "message": str(error),
+                    "observed_at": cycle_at.isoformat(),
+                },
+            )
+
+        audjpy_arm_anchor = audjpy_r42_boundary_to_arm(cycle_at)
+        if audjpy_arm_anchor is not None:
+            audjpy_anchor_key = (
+                f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
+            )
+            if audjpy_anchor_key not in state.processed_anchors:
+                arm_started_at = datetime.now(UTC)
+                _log(
+                    log_path,
+                    {
+                        "event": "AUDJPY_R42_BOUNDARY_ARMED",
+                        "symbol": "AUDJPY",
+                        "decision_at": audjpy_arm_anchor.isoformat(),
+                        "armed_at": arm_started_at.isoformat(),
+                        "lead_ms": int(
+                            (
+                                audjpy_arm_anchor - arm_started_at
+                            ).total_seconds()
+                            * 1000
+                        ),
+                        "maintenance_frozen": True,
+                        "risk_preflight_only": True,
+                    },
+                )
+                try:
+                    arm_account = gateway.read_account(now=arm_started_at)
+                    gateway.reconcile_unknown(now=arm_started_at)
+                    arm_r42_state = audjpy_r42_store.reconcile(
+                        mt5,
+                        now=arm_started_at,
+                    )
+                    arm_highest = max(highest, arm_account.balance)
+                    arm_provider = evaluate_stellar_instant_budget(
+                        StellarInstantAccountSnapshot(
+                            initial_balance=PILOT_INITIAL_BALANCE,
+                            balance=arm_account.balance,
+                            equity=arm_account.equity,
+                            highest_closed_balance=arm_highest,
+                            previous_active_mll=previous_mll,
+                        )
+                    )
+                    arm_open_stop, arm_floating_loss, arm_pending_stop = (
+                        _broker_risk(transport)
+                    )
+                    arm_aggregate = (
+                        arm_open_stop
+                        + arm_pending_stop
+                        + risk.active_reserved_stop_risk()
+                    )
+                    arm_posture = request_cibo_posture(
+                        initial_balance=PILOT_INITIAL_BALANCE,
+                        balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        current_aggregate_risk=arm_aggregate,
+                    )
+                    arm_capital = evaluate_qore_operational_capital_budget(
+                        provider_budget=arm_provider,
+                        initial_balance=PILOT_INITIAL_BALANCE,
+                        balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        highest_closed_balance=arm_highest,
+                        current_aggregate_stop_risk=arm_aggregate,
+                        requested_posture=arm_posture,
+                    )
+                    arm_snapshot = AccountRiskSnapshot(
+                        account_binding_id=fingerprint,
+                        equity=arm_account.equity,
+                        margin_used=arm_account.margin,
+                        free_margin=arm_account.free_margin,
+                        open_stop_worst_case_loss=arm_open_stop,
+                        open_floating_loss=arm_floating_loss,
+                        pending_broker_worst_case_loss=arm_pending_stop,
+                        qore_authorizable_headroom=(
+                            arm_capital.qore_authorizable_headroom
+                        ),
+                        provider_budget=arm_provider,
+                        reconciled_at=arm_started_at,
+                    )
+                    accepted_times = [
+                        item.transitioned_at
+                        for item in mutation_ledger.records()
+                        if item.state is FundedNextMt5MutationState.ACCEPTED
+                    ]
+                    arm_last_activity = max(
+                        accepted_times,
+                        default=activation.authorization.activation_timestamp,
+                    )
+                    arm_lifecycle = inactivity_state(
+                        last_activity_at=arm_last_activity,
+                        now=arm_started_at,
+                    )
+                    arm_blocked = (
+                        arm_capital.decision is CapitalBudgetDecision.REJECT
+                        or arm_lifecycle is InactivityState.BLOCKED
+                        or exit_ledger.has_unresolved
+                        or gateway.has_unresolved_mutations
+                    )
+
+                    boundary_snapshot = await_audjpy_r42_boundary_snapshot(
+                        mt5,
+                        cache=audjpy_r42_cache,
+                        anchor=audjpy_arm_anchor,
+                    )
+                    boundary_observed = boundary_snapshot.observed_at
+                    if arm_blocked:
+                        _log(
+                            log_path,
+                            {
+                                "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
+                                "symbol": "AUDJPY",
+                                "decision_at": audjpy_arm_anchor.isoformat(),
+                                "reason": "preflight-new-order-blocked",
+                                "observed_at": boundary_observed.isoformat(),
+                                "latency_ms": int(
+                                    (
+                                        boundary_observed
+                                        - audjpy_arm_anchor
+                                    ).total_seconds()
+                                    * 1000
+                                ),
+                            },
+                        )
+                    else:
+                        audjpy_signal, reason = build_audjpy_r42_live_signal(
+                            mt5,
+                            now=boundary_observed,
+                            memory_bundle=audjpy_r42_memory,
+                            state=arm_r42_state,
+                            boundary_snapshot=boundary_snapshot,
+                        )
+                        if audjpy_signal is None:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
+                                    "symbol": "AUDJPY",
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "reason": reason,
+                                    "observed_at": boundary_observed.isoformat(),
+                                    "latency_ms": int(
+                                        (
+                                            boundary_observed
+                                            - audjpy_arm_anchor
+                                        ).total_seconds()
+                                        * 1000
+                                    ),
+                                    "hard_sla_seconds": 2.0,
+                                },
+                            )
+                        else:
+                            _process_audjpy_r42_candidate(
+                                signal=audjpy_signal,
+                                now=boundary_observed,
+                                mode=mode,
+                                gateway=gateway,
+                                transport=transport,
+                                risk=risk,
+                                account_binding_id=fingerprint,
+                                provider_budget=arm_provider,
+                                capital_budget=arm_capital,
+                                account_equity=arm_account.equity,
+                                audjpy_r42_store=audjpy_r42_store,
+                                log_path=log_path,
+                                preflight_snapshot=arm_snapshot,
+                            )
+                except Exception as error:
+                    freeze_until = audjpy_arm_anchor + AUDJPY_R42_ENTRY_SLA
+                    remaining = (
+                        freeze_until - datetime.now(UTC)
+                    ).total_seconds()
+                    if remaining > 0:
+                        time.sleep(remaining)
+                    _log(
+                        log_path,
+                        {
+                            "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
+                            "symbol": "AUDJPY",
+                            "decision_at": audjpy_arm_anchor.isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                            "hard_sla_seconds": 2.0,
+                            "order_send_called": False,
+                        },
+                    )
+                completed_at = datetime.now(UTC)
+                state = state.with_cycle(
+                    highest_closed_balance=str(highest),
+                    active_mll=str(previous_mll),
+                    processed_anchor=audjpy_anchor_key,
+                    reconciled_at=completed_at,
+                    heartbeat_at=completed_at,
+                )
+                store.store(state)
+                continue
+
+        current_hour = cycle_at.replace(
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        current_hour_key = f"R42_AUDJPY|{current_hour.isoformat()}"
+        late_delta = cycle_at - current_hour
+        if (
+            timedelta(0) <= late_delta <= AUDJPY_R42_ENTRY_SLA
+            and current_hour_key not in state.processed_anchors
+        ):
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_SLA_FAIL_CLOSED",
+                    "symbol": "AUDJPY",
+                    "stage": "boundary-not-prearmed",
+                    "decision_at": current_hour.isoformat(),
+                    "observed_at": cycle_at.isoformat(),
+                    "latency_ms": int(late_delta.total_seconds() * 1000),
+                    "order_send_called": False,
+                },
+            )
+            state = state.with_cycle(
+                highest_closed_balance=str(highest),
+                active_mll=str(previous_mll),
+                processed_anchor=current_hour_key,
+                reconciled_at=cycle_at,
+                heartbeat_at=cycle_at,
+            )
+            store.store(state)
+            continue
+
         account_state = gateway.read_account(now=cycle_at)
         gateway.reconcile_unknown(now=cycle_at)
         _manage_h4_exits(
