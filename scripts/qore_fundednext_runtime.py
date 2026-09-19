@@ -129,11 +129,16 @@ from qore.infrastructure.r38_gbpjpy_live import (
     manage_open_position as manage_gbpjpy_r38_open_position,
 )
 from qore.infrastructure.r42_audjpy_live import (
+    BOUNDARY_ARM_LEAD as AUDJPY_R42_BOUNDARY_ARM_LEAD,
+    ENTRY_SLA as AUDJPY_R42_ENTRY_SLA,
+    NORMAL_FEED_REFRESH_SECONDS as AUDJPY_R42_FEED_REFRESH_SECONDS,
     R42AudJpyLiveSignal,
     R42AudJpyLiveStateStore,
+    R42AudJpyM5Cache,
+    await_boundary_snapshot as await_audjpy_r42_boundary_snapshot,
+    boundary_to_arm as audjpy_r42_boundary_to_arm,
     build_live_signal as build_audjpy_r42_live_signal,
     build_r42_audjpy_risk_request,
-    current_anchor as current_audjpy_r42_anchor,
     load_memory as load_audjpy_r42_memory,
     manage_open_position as manage_audjpy_r42_open_position,
 )
@@ -156,7 +161,7 @@ _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
 _EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
-_LOOP_SECONDS = 10
+_LOOP_SECONDS = AUDJPY_R42_FEED_REFRESH_SECONDS
 _ANCHOR_GRACE = timedelta(seconds=30)
 _HISTORY_DAYS = 14
 _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
