@@ -85,8 +85,12 @@ def test_strategy_identity_is_fail_closed_and_has_no_authority() -> None:
     assert identity.runtime_mutation_allowed is False
     assert identity.risk_authority is False
     assert identity.production_authority is False
+    assert identity.max_executions_per_session == 3
+    assert identity.positions_must_close_within_session is True
     with pytest.raises(ValueError, match="session execution ceiling"):
-        CapitalizerStrategyIdentity(max_executions_per_session=3)
+        CapitalizerStrategyIdentity(max_executions_per_session=2)
+    with pytest.raises(ValueError, match="same session"):
+        CapitalizerStrategyIdentity(positions_must_close_within_session=False)
 
 
 def test_session_universe_is_frozen() -> None:
@@ -156,7 +160,7 @@ def test_abstain_kills_hypothesis_and_source_event() -> None:
     assert "SOURCE_EVENT_ALREADY_KILLED" in decision.reasons
 
 
-def test_session_budget_is_hard_ceiling_of_two_executions() -> None:
+def test_session_budget_is_hard_ceiling_of_three_executions() -> None:
     ledger = CapitalizerSessionLedger(CapitalizerSession.ASIA)
     ledger = ledger.record_decision(
         decision=CapitalizerDecision.EXECUTE,
@@ -168,14 +172,25 @@ def test_session_budget_is_hard_ceiling_of_two_executions() -> None:
         hypothesis_id="H-2",
         source_event_id="E-2",
     )
-    decision = reason_capitalizer_opportunity(
+    third = reason_capitalizer_opportunity(
         situation=_situation(hypothesis_id="H-3", source_event_id="E-3"),
         ledger=ledger,
         loss_memory=CapitalizerLossMemory(),
     )
+    assert third.decision is CapitalizerDecision.EXECUTE
+    ledger = ledger.record_decision(
+        decision=third.decision,
+        hypothesis_id="H-3",
+        source_event_id="E-3",
+    )
+    fourth = reason_capitalizer_opportunity(
+        situation=_situation(hypothesis_id="H-4", source_event_id="E-4"),
+        ledger=ledger,
+        loss_memory=CapitalizerLossMemory(),
+    )
     assert ledger.execution_budget_remaining == 0
-    assert decision.decision is CapitalizerDecision.ABSTAIN
-    assert "SESSION_EXECUTION_BUDGET_EXHAUSTED" in decision.reasons
+    assert fourth.decision is CapitalizerDecision.ABSTAIN
+    assert "SESSION_EXECUTION_BUDGET_EXHAUSTED" in fourth.reasons
 
 
 def test_unresolved_same_failure_state_blocks_repetition() -> None:
@@ -253,6 +268,36 @@ def test_capitalization_governor_is_non_authoritative_and_fail_closed() -> None:
     assert stopped.grants_capital_authority is False
     assert selective.posture is CapitalizationPosture.HIGH_SELECTIVITY
     assert selective.grants_capital_authority is False
+
+
+def test_positive_session_pnl_does_not_stop_valid_flow_before_objective() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizationPosture
+    from qore.infrastructure.trader_lab.capitalizer_governor import (
+        CapitalizerPortfolioState,
+        recommend_capitalization_posture,
+    )
+
+    recommendation = recommend_capitalization_posture(
+        CapitalizerPortfolioState(session_realized_r=Decimal("1.25"))
+    )
+    assert recommendation.posture is CapitalizationPosture.NORMAL
+
+
+def test_governed_profit_objective_stops_session_without_numeric_target_in_cognition() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizationPosture
+    from qore.infrastructure.trader_lab.capitalizer_governor import (
+        CapitalizerPortfolioState,
+        recommend_capitalization_posture,
+    )
+
+    recommendation = recommend_capitalization_posture(
+        CapitalizerPortfolioState(
+            session_realized_r=Decimal("1.25"),
+            session_profit_objective_reached=True,
+        )
+    )
+    assert recommendation.posture is CapitalizationPosture.STOP_SESSION
+    assert recommendation.reasons == ("UPSTREAM_SESSION_PROFIT_OBJECTIVE_REACHED",)
 
 
 def test_cognitive_engine_records_execute_and_preserves_risk_sovereignty() -> None:
