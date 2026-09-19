@@ -133,6 +133,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_departure_timing_forensics \
             m5-source journey-source target-source forensic-output
+      - name: Run H1 episode multiplicity residual-DD forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_h1_episode_multiplicity_forensics \
+            m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
           python - <<'PY'
@@ -276,6 +280,29 @@ jobs:
               'DROP_CISD_CROSS_H1',
               'DROP_NORECLAIM_SOURCE_CROSS_H1',
               'DROP_NORECLAIM_CISD_CROSS_H1',
+          }
+
+          multiplicity = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-h1-multiplicity-v1.json'
+              ).read_text()
+          )
+          assert multiplicity['identity'] == (
+              'QORE_CAPITALIZER_H1_EPISODE_MULTIPLICITY_FORENSICS_V1'
+          )
+          assert multiplicity['development_only'] is True
+          assert multiplicity['categorical_causal_feature_only'] is True
+          assert multiplicity['numeric_threshold_optimization_used'] is False
+          assert multiplicity['costs_applied'] is False
+          assert multiplicity['candidate_frozen'] is False
+          assert multiplicity['fresh_holdout_claimed'] is False
+          assert multiplicity['rule_selected'] is False
+          assert multiplicity['promotion_allowed'] is False
+          assert {row['name'] for row in multiplicity['ablations']} == {
+              'DROP_MULTI_EPISODE_ALL',
+              'DROP_MULTI_EPISODE_RECLAIM_ONLY',
+              'DROP_MULTI_EPISODE_NORECLAIM_ONLY',
           }
           PY
       - name: Upload immutable R0 forensics
