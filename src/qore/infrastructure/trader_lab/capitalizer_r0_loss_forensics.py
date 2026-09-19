@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -129,7 +130,7 @@ def _group(
     trades: tuple[CapitalizerR0Trade, ...],
     *,
     dimension: str,
-    key_fn,
+    key_fn: Callable[[CapitalizerR0Trade], object],
 ) -> tuple[CapitalizerR0SliceMetrics, ...]:
     grouped: dict[str, list[CapitalizerR0Trade]] = defaultdict(list)
     for trade in trades:
