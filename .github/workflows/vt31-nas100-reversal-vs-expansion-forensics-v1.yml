@@ -103,6 +103,8 @@ jobs:
           g = payload["governance"]
           assert g["silver_bullet_modified"] is False
           assert g["m1_source_confirmation_only"] is True
+          assert g["source_native_population_includes_non_executable_translation"] is True
+          assert g["execution_translation_is_feature_not_admission_gate"] is True
           assert g["h4_primary_causal_feature"] is False
           assert g["h1_trend_primary_causal_feature"] is False
           assert g["future_journey_label_research_only"] is True
