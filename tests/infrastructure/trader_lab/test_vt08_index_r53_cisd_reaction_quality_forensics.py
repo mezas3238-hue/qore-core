@@ -17,7 +17,7 @@ def test_r53_hypothesis_is_narrow_and_frozen() -> None:
 
 def test_r53_latest_liquidity_reaction_is_causal_and_fresh() -> None:
     signal_at = datetime(2026, 9, 19, 14, 15, tzinfo=UTC)
-    structures = (
+    structures: tuple[dict[str, object], ...] = (
         {
             "kind": "order-block",
             "side": "bullish",
@@ -46,7 +46,7 @@ def test_r53_latest_liquidity_reaction_is_causal_and_fresh() -> None:
 
 def test_r53_structure_retest_is_not_promoted_by_classifier() -> None:
     signal_at = datetime(2026, 9, 19, 14, 15, tzinfo=UTC)
-    structures = (
+    structures: tuple[dict[str, object], ...] = (
         {
             "kind": "order-block",
             "side": "bearish",
@@ -63,7 +63,7 @@ def test_r53_structure_retest_is_not_promoted_by_classifier() -> None:
 
 def test_r53_future_structure_is_fail_closed() -> None:
     signal_at = datetime(2026, 9, 19, 14, 15, tzinfo=UTC)
-    structures = (
+    structures: tuple[dict[str, object], ...] = (
         {
             "kind": "liquidity-sweep",
             "side": "bullish",

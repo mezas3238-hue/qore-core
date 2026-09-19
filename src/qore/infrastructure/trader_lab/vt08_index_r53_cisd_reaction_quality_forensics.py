@@ -331,7 +331,7 @@ def _verify_frozen_baseline(
     metrics = fx._metrics(
         r15._realized_values(tuple(assigned), stress=SECONDARY_STRESS)
     )
-    if len(assigned) != int(expected["sample"]):
+    if len(assigned) != int(str(expected["sample"])):
         raise ValueError("R53 frozen sample drift")
     if Decimal(str(metrics["total_r"])) != Decimal(
         str(expected["secondary_total_r"])
@@ -348,7 +348,7 @@ def build_report(
     nas100_root: Path,
     sp500_root: Path,
     us30_root: Path,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     if not freeze.dependency_contract_matches():
         raise ValueError("R53 frozen R47 dependency contract drift")
 
