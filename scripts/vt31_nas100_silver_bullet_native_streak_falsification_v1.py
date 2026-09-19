@@ -36,7 +36,6 @@ import vt31_nas100_specialist_r1_candidate as specialist
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _day,
     _metrics,
-    _wall,
     load_market_evidence,
 )
 from qore.infrastructure.traders import vt31_silver_bullet_r2_2 as silver
