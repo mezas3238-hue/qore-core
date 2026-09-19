@@ -617,6 +617,7 @@ def await_boundary_snapshot(
     clock = now_fn or (lambda: datetime.now(UTC))
     deadline = anchor.astimezone(UTC) + ENTRY_SLA
     last_reason = "boundary-data-not-ready"
+    last_preboundary_refresh: datetime | None = None
     while True:
         observed = clock().astimezone(UTC)
         if observed > deadline:
@@ -624,6 +625,18 @@ def await_boundary_snapshot(
                 f"AUDJPY R42 hard 2s SLA expired:{last_reason}"
             )
         if observed < anchor:
+            if (
+                last_preboundary_refresh is None
+                or (
+                    observed - last_preboundary_refresh
+                ).total_seconds() >= NORMAL_FEED_REFRESH_SECONDS
+            ):
+                cache.refresh_incremental(
+                    api,
+                    now=observed,
+                    count=RECENT_M5_BARS,
+                )
+                last_preboundary_refresh = observed
             remaining = (anchor - observed).total_seconds()
             sleep_fn(min(BOUNDARY_RETRY_SECONDS, max(0.001, remaining)))
             continue
