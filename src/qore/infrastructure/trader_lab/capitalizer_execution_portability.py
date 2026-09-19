@@ -104,12 +104,16 @@ def evaluate_execution_portability(
         by_environment[qualification.environment] = qualification
 
     for environment in MANDATORY_EXECUTION_ENVIRONMENTS:
-        qualification = by_environment.get(environment)
-        if qualification is None:
+        environment_qualification = by_environment.get(environment)
+        if environment_qualification is None:
             reasons.append(f"MISSING:{environment.value}")
-        elif qualification.status is not CapitalizerEnvironmentStatus.QUALIFIED:
+        elif (
+            environment_qualification.status
+            is not CapitalizerEnvironmentStatus.QUALIFIED
+        ):
             reasons.append(
-                f"NOT_QUALIFIED:{environment.value}:{qualification.status.value}"
+                "NOT_QUALIFIED:"
+                f"{environment.value}:{environment_qualification.status.value}"
             )
 
     extras = tuple(
