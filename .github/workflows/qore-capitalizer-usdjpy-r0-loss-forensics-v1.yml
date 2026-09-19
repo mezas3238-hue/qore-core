@@ -14,6 +14,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_departure_timing_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_h1_boundary_type_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py'
@@ -22,6 +23,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_departure_timing_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py'
   workflow_dispatch:
 
 permissions:
@@ -62,6 +64,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_departure_timing_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_h1_boundary_type_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py \
@@ -69,7 +72,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_position_lifecycle_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_departure_timing_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_r0_loss_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py \
@@ -78,7 +82,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_position_lifecycle_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_departure_timing_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_h1_episode_multiplicity_forensics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py
+            src/qore/infrastructure/trader_lab/capitalizer_h1_source_age_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_h1_boundary_type_forensics.py
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
@@ -87,7 +92,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_position_lifecycle_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_departure_timing_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_h1_episode_multiplicity_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py
 
   forensics:
     needs: quality
@@ -152,6 +158,10 @@ jobs:
       - name: Run H1 source-boundary age residual-DD forensics
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_h1_source_age_forensics \
+            m5-source journey-source target-source forensic-output
+      - name: Run H1 source-boundary type residual-DD forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_h1_boundary_type_forensics \
             m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
@@ -342,6 +352,30 @@ jobs:
               'DROP_OLDER_H1_SOURCE_ALL',
               'DROP_OLDER_H1_SOURCE_RECLAIM_ONLY',
               'DROP_OLDER_H1_SOURCE_NORECLAIM_ONLY',
+          }
+
+          boundary_type = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-h1-boundary-type-v1.json'
+              ).read_text()
+          )
+          assert boundary_type['identity'] == (
+              'QORE_CAPITALIZER_H1_BOUNDARY_TYPE_FORENSICS_V1'
+          )
+          assert boundary_type['development_only'] is True
+          assert boundary_type['categorical_causal_feature_only'] is True
+          assert boundary_type['numeric_threshold_optimization_used'] is False
+          assert boundary_type['costs_applied'] is False
+          assert boundary_type['candidate_frozen'] is False
+          assert boundary_type['fresh_holdout_claimed'] is False
+          assert boundary_type['rule_selected'] is False
+          assert boundary_type['promotion_allowed'] is False
+          assert {row['name'] for row in boundary_type['ablations']} == {
+              'DROP_RECLAIM_SWING_ONLY',
+              'DROP_RECLAIM_MIXED_ONLY',
+              'DROP_RECLAIM_ANY_SWING_SOURCE',
+              'DROP_RECLAIM_PRIOR_ONLY',
           }
           PY
       - name: Upload immutable R0 forensics
