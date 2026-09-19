@@ -9,8 +9,12 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_target_context.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py'
   workflow_dispatch:
 
 permissions:
@@ -43,14 +47,20 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_target_context.py \
             src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
-            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py
+            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py
       - name: Mypy
         run: |
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_target_context.py \
             src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
@@ -133,6 +143,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_target_capacity_forensics \
             m5-source journey-source target-source cell-output
+      - name: Build cross-market economic falsification cell
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cross_market_economic_falsification \
+            m5-source journey-source target-source cell-output
       - name: Enforce no-threshold/no-outcome cell governance
         run: |
           python - <<'PY'
@@ -150,6 +164,36 @@ jobs:
           assert result['target_outcomes_used'] is False
           assert result['economic_candidate'] is False
           assert result['rule_promotion_allowed'] is False
+
+          economic_files = list(
+              Path('cell-output').glob(
+                  'capitalizer-*-cross-market-economic-v1.json'
+              )
+          )
+          assert len(economic_files) == 1
+          economic = json.loads(economic_files[0].read_text())
+          assert economic['symbol'] == symbol
+          assert economic['identity'] == (
+              'QORE_CAPITALIZER_CROSS_MARKET_ECONOMIC_FALSIFICATION_V1'
+          )
+          assert economic['cross_market_falsification_only'] is True
+          assert economic['market_specific_tuning_used'] is False
+          assert economic['numeric_threshold_optimization_used'] is False
+          assert economic['h1_duration_minutes'] == 60
+          assert economic['timing_boundary_semantics'] == (
+              'SOURCE_TIMEFRAME_DURATION'
+          )
+          assert economic['candidate_frozen'] is False
+          assert economic['fresh_holdout_claimed'] is False
+          assert economic['rule_selected'] is False
+          assert economic['promotion_allowed'] is False
+          assert {row['name'] for row in economic['variants']} == {
+              'R0_GROSS',
+              'STRUCTURAL_V2',
+              'STRUCTURAL_V2_PROFITABLE_SWING_LOCK',
+              'DROP_NORECLAIM_CISD_CROSS_H1',
+              'DROP_NORECLAIM_CISD_CROSS_H1_PROFITABLE_SWING_LOCK',
+          }
           PY
         env:
           MATRIX_SYMBOL: ${{ matrix.symbol }}
@@ -182,6 +226,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_target_capacity_matrix \
             matrix-input matrix-output
+      - name: Build nine-market economic falsification matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cross_market_economic_matrix \
+            matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
           python - <<'PY'
@@ -201,6 +249,25 @@ jobs:
           assert result['target_outcomes_used'] is False
           assert result['economic_candidate'] is False
           assert result['rule_promotion_allowed'] is False
+
+          economic = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-cross-market-economic-matrix-v1.json'
+              ).read_text()
+          )
+          assert economic['identity'] == (
+              'QORE_CAPITALIZER_CROSS_MARKET_ECONOMIC_MATRIX_V1'
+          )
+          assert economic['market_count'] == 9
+          assert economic['complete_frozen_universe'] is True
+          assert economic['cross_market_falsification_only'] is True
+          assert economic['market_specific_tuning_used'] is False
+          assert economic['numeric_threshold_optimization_used'] is False
+          assert economic['candidate_frozen'] is False
+          assert economic['fresh_holdout_claimed'] is False
+          assert economic['rule_selected'] is False
+          assert economic['promotion_allowed'] is False
           PY
       - name: Upload immutable target-capacity matrix
         uses: actions/upload-artifact@v4
