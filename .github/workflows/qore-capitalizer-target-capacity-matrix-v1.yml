@@ -65,7 +65,9 @@ jobs:
         run: |
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
-            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py
+            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py
 
   scan:
     needs: quality
