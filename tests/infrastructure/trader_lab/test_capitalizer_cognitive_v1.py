@@ -353,3 +353,71 @@ def test_session_handoff_cannot_move_backward() -> None:
             loss_memory=CapitalizerLossMemory(),
             factor_exposure_state=(),
         )
+
+
+def test_future_observation_is_rejected_from_situation_model() -> None:
+    from datetime import timedelta
+
+    from qore.infrastructure.trader_lab.capitalizer_situation_model import (
+        CapitalizerCausalObservation,
+    )
+
+    decision_time = datetime(2026, 9, 19, 10, 0, tzinfo=UTC)
+    future = CapitalizerCausalObservation(
+        name="future_bar",
+        observed_at=decision_time + timedelta(seconds=1),
+        value_token="KNOWN_LATER",
+    )
+    with pytest.raises(ValueError, match="future observation"):
+        CapitalizerSituationModel(
+            symbol="USDJPY",
+            session=CapitalizerSession.ASIA,
+            observed_at=decision_time,
+            hypothesis_id="H-FUTURE",
+            source_event_id="E-FUTURE",
+            event_generation=1,
+            market_state=MarketState.DISPLACEMENT,
+            evidence_strength=EvidenceStrength.HIGH,
+            execution=_execution(),
+            strategy_trigger_ready=True,
+            displacement_confirmed=True,
+            destination_available=True,
+            late_entry=False,
+            correlated_exposure_blocked=False,
+            observations=(future,),
+        )
+
+
+def test_confidence_is_evidence_bound_not_a_free_percentage() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_confidence import (
+        CapitalizerEvidenceCalibration,
+        CapitalizerEvidenceSource,
+        CapitalizerKnowledgeState,
+        assess_knowledge_state,
+    )
+
+    calibration = CapitalizerEvidenceCalibration(
+        state_family_id="ASIA_USDJPY_DISPLACEMENT",
+        source=CapitalizerEvidenceSource.WALK_FORWARD,
+        source_fingerprint="a" * 64,
+        observations=120,
+        mean_r=Decimal("0.08"),
+        strength=EvidenceStrength.HIGH,
+    )
+    assert (
+        assess_knowledge_state(calibration=calibration, contradictions=())
+        is CapitalizerKnowledgeState.KNOWN
+    )
+    assert (
+        assess_knowledge_state(calibration=calibration, contradictions=("DOL_CONFLICT",))
+        is CapitalizerKnowledgeState.CONFLICTED
+    )
+    with pytest.raises(ValueError, match="canonical sha256"):
+        CapitalizerEvidenceCalibration(
+            state_family_id="BAD",
+            source=CapitalizerEvidenceSource.DEVELOPMENT_REPLAY,
+            source_fingerprint="not-a-sha",
+            observations=1,
+            mean_r=Decimal("0"),
+            strength=EvidenceStrength.LOW,
+        )
