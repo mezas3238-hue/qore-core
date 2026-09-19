@@ -268,3 +268,127 @@ def test_execution_portability_requires_same_candidate_to_survive_all_target_dom
     decision = evaluate_execution_portability(qualifications)
     assert decision.qualified is True
     assert decision.reasons == ()
+
+
+def test_source_contract_separates_sourced_rules_from_qore_operationalization() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_strategy_source_contract import (
+        CapitalizerRuleProvenance,
+        FROZEN_CAPITALIZER_SOURCE_CONTRACT,
+    )
+
+    contract = FROZEN_CAPITALIZER_SOURCE_CONTRACT
+    assert contract.runtime_mutation_allowed is False
+    assert contract.economic_edge_claimed is False
+    assert any(
+        rule.provenance is CapitalizerRuleProvenance.SOURCE_SUPPORTED
+        for rule in contract.rules
+    )
+    qore_rules = tuple(
+        rule
+        for rule in contract.rules
+        if rule.provenance is CapitalizerRuleProvenance.QORE_OPERATIONALIZATION
+    )
+    assert qore_rules
+    assert all(rule.source_ids == () for rule in qore_rules)
+
+
+def test_feature_extractor_uses_only_exact_causal_brain_state() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_context_brains import (
+        CapitalizerMarketBrainState,
+        CapitalizerSessionBrainState,
+        CapitalizerSessionPhase,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_feature_extractor import (
+        extract_behavior_features,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_microstructure import (
+        CapitalizerMicroEvent,
+        CapitalizerMicroEventKind,
+        CapitalizerMicrostructureTrace,
+    )
+
+    situation = _episode(
+        episode_id="FEATURES",
+        net_r=Decimal("0.20"),
+        minute=30,
+    ).snapshot
+    causal = _NOW + timedelta(minutes=30)
+    trace = CapitalizerMicrostructureTrace(
+        decision_at=causal,
+        events=(
+            CapitalizerMicroEvent(
+                event_id="MICRO-1",
+                kind=CapitalizerMicroEventKind.LIQUIDITY_TAKEN,
+                observed_at=causal - timedelta(seconds=5),
+                value_token="LOW",
+            ),
+            CapitalizerMicroEvent(
+                event_id="MICRO-2",
+                kind=CapitalizerMicroEventKind.DISPLACEMENT_CONFIRMED,
+                observed_at=causal,
+                value_token="UP",
+            ),
+        ),
+    )
+    market_brain = CapitalizerMarketBrainState(
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        state_family_id="ASIA_USDJPY_DISPLACEMENT",
+        microstructure=trace,
+    )
+    session_brain = CapitalizerSessionBrainState(
+        session=CapitalizerSession.ASIA,
+        phase=CapitalizerSessionPhase.ACTIVE,
+    )
+    live_situation = CapitalizerSituationModel(
+        symbol=situation.symbol,
+        session=situation.session,
+        observed_at=situation.decision_at,
+        hypothesis_id=situation.hypothesis_id,
+        source_event_id=situation.source_event_id,
+        event_generation=situation.event_generation,
+        market_state=situation.market_state,
+        evidence_strength=situation.evidence_strength,
+        execution=situation.execution,
+        strategy_trigger_ready=True,
+        displacement_confirmed=True,
+        destination_available=True,
+        late_entry=False,
+        correlated_exposure_blocked=False,
+    )
+    features = extract_behavior_features(
+        situation=live_situation,
+        market_brain=market_brain,
+        session_brain=session_brain,
+    )
+    names = tuple(feature.name for feature in features)
+    assert names == tuple(sorted(names))
+    by_name = {feature.name: feature.value for feature in features}
+    assert by_name["MICRO_PATH"] == "LIQUIDITY_TAKEN>DISPLACEMENT_CONFIRMED"
+    assert by_name["HANDOFF_PRESENT"] == "FALSE"
+    assert all(feature.observed_at <= live_situation.observed_at for feature in features)
+
+
+def test_behavior_forensics_exposes_density_ceiling_and_repeated_loss_causes() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_behavior_forensics import (
+        build_behavior_forensics,
+    )
+
+    episodes = (
+        _episode(episode_id="D1-A", net_r=Decimal("-0.2"), minute=0),
+        _episode(episode_id="D1-B", net_r=Decimal("-0.2"), minute=1),
+        _episode(episode_id="D1-C", net_r=Decimal("-0.2"), minute=2),
+    )
+    report = build_behavior_forensics(episodes)
+    asia = next(
+        item
+        for item in report.session_density
+        if item.session is CapitalizerSession.ASIA
+    )
+    assert asia.trades == 3
+    assert asia.max_trades_in_one_session_day == 3
+    assert asia.ceiling_violations == 1
+    assert report.repeated_same_cause_streaks == 2
+    failure = next(item for item in report.loss_causes if item.tag == "FAILED_DELIVERY")
+    assert failure.losing_trades == 3
+    assert failure.appearances_in_losing_streaks == 2
