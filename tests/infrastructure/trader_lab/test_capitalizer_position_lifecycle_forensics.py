@@ -86,8 +86,20 @@ def test_profitable_swing_lock_uses_only_confirmed_prior_bar_information() -> No
             low="100.5",
             close="101.2",
         ),
-        _bar(start + timedelta(minutes=20), open_="101.2", high="101.3", low="100.1", close="100.4"),
-        _bar(start + timedelta(minutes=25), open_="100.4", high="100.5", low="98.8", close="99.1"),
+        _bar(
+            start + timedelta(minutes=20),
+            open_="101.2",
+            high="101.3",
+            low="100.1",
+            close="100.4",
+        ),
+        _bar(
+            start + timedelta(minutes=25),
+            open_="100.4",
+            high="100.5",
+            low="98.8",
+            close="99.1",
+        ),
     )
     trade = _long_trade(entry_at=bars[0].opened_at, exit_at=bars[-1].closed_at)
     by_open, _ = _bar_indices(bars)
