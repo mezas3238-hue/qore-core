@@ -18,6 +18,7 @@ from pathlib import Path
 from statistics import median
 
 from qore.infrastructure.trader_lab.capitalizer_atlas_m5_reader import (
+    BAR_DURATION,
     CapitalizerM5Bar,
     iter_atlas_m5,
 )
@@ -163,7 +164,8 @@ def scan_microstructure(root: Path) -> tuple[CapitalizerM5MicroObservation, ...]
             expected_session = designated_session(current.symbol)
         if previous is not None:
             observed_session = capitalizer_session_at(current.opened_at)
-            if observed_session is expected_session:
+            is_contiguous_m5 = current.opened_at - previous.opened_at == BAR_DURATION
+            if observed_session is expected_session and is_contiguous_m5:
                 result.append(
                     _observation(
                         current,
