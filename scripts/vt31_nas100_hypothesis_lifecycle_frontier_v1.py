@@ -581,12 +581,9 @@ def _run_variant(
                         decision_at = cast(datetime, maturity[key])
                 # The rejection is known no later than the last observed bar.
                 if maturity_mode != "IMMEDIATE":
-                    _, bars_required, _, _ = (
+                    bars_required, _, _, _ = _maturity_contract(
                         current.selected_family.value,
-                        *_maturity_contract(
-                            current.selected_family.value,
-                            maturity_mode,
-                        ),
+                        maturity_mode,
                     )
                     confirmation_index = next(
                         index
