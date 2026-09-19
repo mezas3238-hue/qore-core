@@ -14,7 +14,6 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     allowed_markets,
 )
 
-
 M5_RUN_ID = 35166210458
 M5_GIT_SHA = "ab782b8e9f890f86a2b6500070f0556b4b685e3d"
 JOURNEY_RUN_ID = 35175979474
