@@ -31,6 +31,8 @@ from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_v
 from qore.infrastructure.trader_lab import (
     vt08_index_r31_source_complete_structural_concurrency as r31,
 )
+from qore.infrastructure.trader_lab import vt08_index_r34_hybrid_formation_poi_health as r34
+from qore.infrastructure.trader_lab import vt08_index_r43_sp500_long_stability_prior as r43
 from qore.infrastructure.trader_lab import vt08_index_r45_frozen_recent_2y_reproduction as r45
 from qore.infrastructure.trader_lab import (
     vt08_index_r46_cross_window_transport_forensics as r46,
@@ -313,9 +315,12 @@ def _r47_window(
     stream: Sequence[tuple[Any, Any]],
     bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
 ) -> tuple[r15.AssignedTrade, ...]:
-    r43_assigned, _trace = r46._frozen_assignment(stream)
+    _base_row, baseline = r34._row(
+        stream,
+        overlay=r43.BASE_POI_OVERLAY,
+    )
     assigned, diagnostics = r47._apply_transport_rules(
-        r43_assigned,
+        baseline,
         bars_by_symbol=bars_by_symbol,
     )
     if int(diagnostics["suppressed_trade_count"]) != 0:
