@@ -378,6 +378,7 @@ def test_behavior_forensics_exposes_density_ceiling_and_repeated_loss_causes() -
         _episode(episode_id="D1-A", net_r=Decimal("-0.2"), minute=0),
         _episode(episode_id="D1-B", net_r=Decimal("-0.2"), minute=1),
         _episode(episode_id="D1-C", net_r=Decimal("-0.2"), minute=2),
+        _episode(episode_id="D1-D", net_r=Decimal("-0.2"), minute=3),
     )
     report = build_behavior_forensics(episodes)
     asia = next(
@@ -385,13 +386,13 @@ def test_behavior_forensics_exposes_density_ceiling_and_repeated_loss_causes() -
         for item in report.session_density
         if item.session is CapitalizerSession.ASIA
     )
-    assert asia.trades == 3
-    assert asia.max_trades_in_one_session_day == 3
+    assert asia.trades == 4
+    assert asia.max_trades_in_one_session_day == 4
     assert asia.ceiling_violations == 1
-    assert report.repeated_same_cause_streaks == 2
+    assert report.repeated_same_cause_streaks == 3
     failure = next(item for item in report.loss_causes if item.tag == "FAILED_DELIVERY")
-    assert failure.losing_trades == 3
-    assert failure.appearances_in_losing_streaks == 2
+    assert failure.losing_trades == 4
+    assert failure.appearances_in_losing_streaks == 3
 
 
 def test_consumed_atlas_lineage_covers_every_initial_capitalizer_market() -> None:
