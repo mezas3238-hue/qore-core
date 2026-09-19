@@ -90,11 +90,17 @@ def _row(
     event: str,
     tag: str,
 ) -> dict[str, Any] | None:
-    for row in payload["aggregates"]:
+    aggregates = payload.get("aggregates")
+    if not isinstance(aggregates, list):
+        raise ValueError("forensics aggregates must be a list")
+    for raw in aggregates:
+        if not isinstance(raw, dict):
+            raise ValueError("forensics aggregate row must be an object")
+        row: dict[str, Any] = raw
         if (
-            row["event"] == event
-            and row["context_tag"] == tag
-            and int(row["horizon_minutes"]) == 15
+            row.get("event") == event
+            and row.get("context_tag") == tag
+            and int(row.get("horizon_minutes", 0)) == 15
         ):
             return row
     return None
