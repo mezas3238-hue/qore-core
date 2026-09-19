@@ -1,0 +1,135 @@
+name: QORE VT31 NAS100 Family Reasoning Cross-Fold V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_family_reasoning_cross_fold_v1.py
+      - .github/workflows/vt31-nas100-family-reasoning-cross-fold-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_family_reasoning_cross_fold_v1.py
+          ruff check scripts/vt31_nas100_family_reasoning_cross_fold_v1.py
+
+      - name: Recover immutable regime forensics
+        run: |
+          set -euo pipefail
+          mkdir -p input/r5 input/r6 input/r8 input/consumed result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10574704188/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          test -f input/r5/regime-root-cause-r5.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10574409491/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          test -f input/r6/regime-root-cause-r6.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10574649315/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          test -f input/r8/regime-root-cause-r8.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10573998386/zip" > consumed.zip
+          unzip -q consumed.zip -d input/consumed
+          test -f input/consumed/regime-root-cause-consumed_holdout.json
+
+      - name: Verify upstream identity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected = {
+              "r5": "09329cb5a5ced0d3e3c55d6035c52aaddc016739f8169084532e1a63c87a2565",
+              "r6": "0a6a432607f168dff8d2158db390b088929f903b21393273b9c92b3bdeb58d06",
+              "r8": "d46559e2e8c52fd25a3b2a0fdd32de75f03b5d583409dfb5c2b5107b150784e2",
+              "consumed": "e2359aca73000aa0c17b9e0d54496fbe86a7f5de0c9d2c48b54e7dca79ccb4f7",
+          }
+          paths = {
+              "r5": Path("input/r5/regime-root-cause-r5.json"),
+              "r6": Path("input/r6/regime-root-cause-r6.json"),
+              "r8": Path("input/r8/regime-root-cause-r8.json"),
+              "consumed": Path(
+                  "input/consumed/regime-root-cause-consumed_holdout.json"
+              ),
+          }
+          for name, path in paths.items():
+              payload = json.loads(path.read_text())
+              assert payload["evidence"]["evidence_fingerprint"] == expected[name]
+              assert payload["governance"]["consumed_evidence_only"] is True
+          PY
+
+      - name: Run cross-fold family reasoning
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_family_reasoning_cross_fold_v1.py             --r5 input/r5/regime-root-cause-r5.json             --r6 input/r6/regime-root-cause-r6.json             --r8 input/r8/regime-root-cause-r8.json             --consumed-holdout input/consumed/regime-root-cause-consumed_holdout.json             --output result/family-reasoning-cross-fold.json             | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("result/family-reasoning-cross-fold.json").read_text()
+          )
+          g = payload["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["pre_entry_interactions_only"] is True
+          assert g["fold_identity_used_only_for_research_validation"] is True
+          assert g["fold_identity_allowed_at_runtime"] is False
+          assert g["terminal_pnl_allowed_at_runtime"] is False
+          assert g["calendar_date_allowed_as_runtime_rule"] is False
+          assert g["minimum_sample_predeclared"] is True
+          assert g["interaction_set_predeclared"] is True
+          assert g["opens_new_holdout"] is False
+          assert g["policy_promoted"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Bind result
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          cat > result/source-artifacts.txt <<'EOF'
+          r5=10574704188
+          r6=10574409491
+          r8=10574649315
+          consumed_holdout=10573998386
+          EOF
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-family-reasoning-cross-fold-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
