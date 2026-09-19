@@ -39,7 +39,6 @@ from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_v
 from qore.infrastructure.trader_lab import vt08_index_r17_formation_quality_forensics as r17
 from qore.infrastructure.trader_lab import vt08_index_r22_concurrent_stable_formation as r22
 from qore.infrastructure.trader_lab import vt08_index_r24_open_position_pressure as r24
-from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.trader_lab import (
     vt08_index_r31_source_complete_structural_concurrency as r31,
 )
@@ -56,6 +55,7 @@ from qore.infrastructure.trader_lab import vt08_index_r48_candidate_freeze as fr
 from qore.infrastructure.trader_lab import (
     vt08_index_r53_cisd_reaction_quality_forensics as r53,
 )
+from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
 SCHEMA = "qore.trader_lab.vt08_index_r55_distributed_causal_risk.v1"
