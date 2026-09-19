@@ -72,7 +72,7 @@ def _concentration(
     assigned: Sequence[r15.AssignedTrade],
 ) -> dict[str, Any]:
     ordered = _ordered(assigned)
-    rows = [
+    rows: list[dict[str, Any]] = [
         {
             "trade_id": item.trade_id,
             "weight": item.weight,
