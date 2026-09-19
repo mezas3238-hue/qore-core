@@ -2,7 +2,7 @@ from qore.infrastructure.trader_lab import (
     vt08_index_concurrent_market_contract as contract,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r38_five_block_edge_forensics as mod,
+    vt08_index_r35_five_year_temporal_contract as r35,
 )
 
 
