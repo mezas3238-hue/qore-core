@@ -85,7 +85,7 @@ def _d(value: object) -> Decimal:
 
 def _variant_fingerprint(name: str) -> str:
     return hashlib.sha256(
-        f"{IDENTITY}:{name}".encode("utf-8")
+        f"{IDENTITY}:{name}".encode()
     ).hexdigest()
 
 
