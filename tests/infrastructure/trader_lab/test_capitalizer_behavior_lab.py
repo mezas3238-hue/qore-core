@@ -458,3 +458,91 @@ def test_data_readiness_accepts_exact_consumed_atlas_manifest(tmp_path) -> None:
     assert report.market_count == 9
     assert report.fresh_holdout_eligible is False
     assert report.retained_m5_bars > 6_500_000
+
+
+def test_feature_extractor_exposes_only_exact_directional_target_context() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_context_brains import (
+        CapitalizerMarketBrainState,
+        CapitalizerSessionBrainState,
+        CapitalizerSessionPhase,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_feature_extractor import (
+        extract_behavior_features,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_microstructure import (
+        CapitalizerMicrostructureTrace,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_target_context import (
+        CapitalizerTargetCandidate,
+        CapitalizerTargetContext,
+    )
+
+    decision_at = _NOW
+    situation = CapitalizerSituationModel(
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        observed_at=decision_at,
+        hypothesis_id="H-TARGET",
+        source_event_id="E-TARGET",
+        event_generation=1,
+        market_state=MarketState.DISPLACEMENT,
+        evidence_strength=EvidenceStrength.HIGH,
+        execution=_execution(),
+        strategy_trigger_ready=True,
+        displacement_confirmed=True,
+        destination_available=True,
+        late_entry=False,
+        correlated_exposure_blocked=False,
+    )
+    market_brain = CapitalizerMarketBrainState(
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        state_family_id="ASIA_USDJPY_TARGET_CONTEXT",
+        microstructure=CapitalizerMicrostructureTrace(
+            decision_at=decision_at,
+            events=(),
+        ),
+    )
+    session_brain = CapitalizerSessionBrainState(
+        session=CapitalizerSession.ASIA,
+        phase=CapitalizerSessionPhase.ACTIVE,
+    )
+    context = CapitalizerTargetContext(
+        symbol="USDJPY",
+        side=CapitalizerSide.LONG,
+        departure_at=decision_at,
+        candidates=(
+            CapitalizerTargetCandidate(
+                candidate_id="DOL-1",
+                family="PRIOR_CANDLE_DIRECTIONAL_BOUNDARY",
+                timeframe="H1",
+                price=Decimal("147.10"),
+                distance_ticks=Decimal("100"),
+                known_at=decision_at - timedelta(minutes=30),
+                structural_opened_at=decision_at - timedelta(hours=1),
+            ),
+        ),
+    )
+
+    features = extract_behavior_features(
+        situation=situation,
+        market_brain=market_brain,
+        session_brain=session_brain,
+        target_context=context,
+        side=CapitalizerSide.LONG,
+    )
+    by_name = {feature.name: feature.value for feature in features}
+    assert by_name["TARGET_CONTEXT_PRESENT"] == "TRUE"
+    assert by_name["TARGET_ACTIVE_CANDIDATE_COUNT"] == "1"
+    assert by_name["TARGET_FAMILIES"] == "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY"
+    assert by_name["TARGET_TIMEFRAMES"] == "H1"
+    assert by_name["TARGET_NEAREST_DISTANCE_TICKS"] == "100"
+
+    with pytest.raises(ValueError, match="side must match"):
+        extract_behavior_features(
+            situation=situation,
+            market_brain=market_brain,
+            session_brain=session_brain,
+            target_context=context,
+            side=CapitalizerSide.SHORT,
+        )
