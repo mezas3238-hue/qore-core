@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 CAPITALIZER_IDENTITY = "QORE_CAPITALIZER_COGNITIVE_SCALPER_V1"
-MAX_EXECUTIONS_PER_SESSION = 2
+MAX_EXECUTIONS_PER_SESSION = 3
 
 
 class CapitalizerSession(StrEnum):
@@ -76,18 +76,21 @@ class CapitalizerStrategyIdentity:
     runtime_mutation_allowed: bool = False
     risk_authority: bool = False
     production_authority: bool = False
+    positions_must_close_within_session: bool = True
 
     def __post_init__(self) -> None:
         if self.identity != CAPITALIZER_IDENTITY:
             raise ValueError("capitalizer identity is frozen")
         if self.max_executions_per_session != MAX_EXECUTIONS_PER_SESSION:
-            raise ValueError("session execution ceiling is frozen at two")
+            raise ValueError("session execution ceiling is frozen at three")
         if self.runtime_mutation_allowed:
             raise ValueError("strategy identity cannot self-mutate at runtime")
         if self.risk_authority:
             raise ValueError("Capitalizer cognitive cannot own capital authority")
         if self.production_authority:
             raise ValueError("Capitalizer cognitive cannot own production authority")
+        if not self.positions_must_close_within_session:
+            raise ValueError("Capitalizer scalper positions must close within the same session")
 
 
 def allowed_markets(session: CapitalizerSession) -> frozenset[str]:
