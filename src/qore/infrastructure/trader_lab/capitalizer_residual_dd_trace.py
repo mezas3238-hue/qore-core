@@ -28,9 +28,9 @@ from qore.infrastructure.trader_lab.capitalizer_h1_boundary_type_forensics impor
 )
 from qore.infrastructure.trader_lab.capitalizer_h1_episode_multiplicity_forensics import (
     _baseline,
+    _journey_boundaries,
 )
 from qore.infrastructure.trader_lab.capitalizer_h1_source_age_forensics import (
-    _journey_boundaries,
     _source_age_state,
 )
 from qore.infrastructure.trader_lab.capitalizer_position_lifecycle_forensics import (
