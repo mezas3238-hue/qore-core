@@ -187,3 +187,56 @@ Before any use:
 - REAL_CAPITAL_AUTHORIZED = FALSE
 - PRODUCTION_AUTHORIZED = FALSE
 - VPS_MUTATED = FALSE
+
+
+## Universal execution portability requirement
+
+The Owner requires the Capitalizer to be certifiable for use across the intended operating
+domains, not only one low-cost RAW broker.
+
+Mandatory execution environments for the initial certification program:
+
+- IC Markets RAW;
+- FTMO;
+- FundedNext;
+- an adverse provider-neutral portability envelope whose frozen spread/commission/slippage/
+  latency assumptions are at least as demanding as the approved research specification.
+
+The same frozen strategy/cognitive candidate must survive every mandatory environment. Passing
+IC Markets RAW while failing FTMO or FundedNext is **not** full Capitalizer certification.
+
+Provider profiles are execution evidence, not strategy variants. They may change:
+
+- spread cost;
+- commission;
+- slippage;
+- latency;
+- fill-quality assumptions;
+- provider/account restrictions.
+
+They may **not** change:
+
+- Strategy Identity;
+- entry methodology;
+- causal reasoning semantics;
+- the two-opportunity session ceiling;
+- loss/rearm sovereignty;
+- market/session cognition rules selected by the frozen candidate.
+
+No provider may receive a retrospectively optimized strategy variant merely to obtain a pass.
+
+The fail-closed portability law is:
+
+```text
+IC_MARKETS_RAW QUALIFIED
+AND FTMO QUALIFIED
+AND FUNDEDNEXT QUALIFIED
+AND ADVERSE_PORTABILITY_ENVELOPE QUALIFIED
+    -> EXECUTION_PORTABILITY_QUALIFIED
+
+otherwise
+    -> CAPITALIZER_FULL_CERTIFICATION_BLOCKED
+```
+
+Additional brokers/funding programs may later be added as new execution profiles without
+changing the strategy identity, but each requires its own evidence before use.
