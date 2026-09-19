@@ -18,11 +18,11 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Iterable
 
 from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
