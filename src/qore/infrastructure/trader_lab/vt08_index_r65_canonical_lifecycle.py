@@ -426,7 +426,7 @@ def _stress_reference(
 
 
 def _monte_carlo_reference(
-    candidate: object,
+    candidate: TraderLabCandidateBinding,
     frozen_oos: ResearchFrozenOosEvidence,
 ) -> tuple[TraderLabEvidenceReference, dict[str, str | int | bool]]:
     frame = build_research_sampling_frame(
