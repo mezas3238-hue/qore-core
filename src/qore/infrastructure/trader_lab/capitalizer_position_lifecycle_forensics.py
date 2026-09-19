@@ -514,7 +514,7 @@ def build_position_lifecycle_report(
 
     annual: list[CapitalizerLifecycleAnnual] = []
     years = sorted({_year(item) for item in structural})
-    for mode, simulated in simulated_by_mode.items():
+    for mode_name, simulated in simulated_by_mode.items():
         for year in years:
             subset = tuple(item for item in simulated if _year(item) == year)
             if not subset:
@@ -522,7 +522,7 @@ def build_position_lifecycle_report(
             annual.append(
                 CapitalizerLifecycleAnnual(
                     year=year,
-                    mode=mode,
+                    mode=mode_name,
                     metrics=summarize_r0(subset).metrics,
                 )
             )
