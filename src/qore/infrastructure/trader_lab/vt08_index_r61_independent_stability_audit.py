@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.trader_lab import vt08_index_market_journey_atlas as journey
 from qore.infrastructure.trader_lab import (
     vt08_index_r6_5y_failure_forensics as fx,
 )
@@ -65,11 +66,10 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r53_cisd_reaction_quality_forensics as r53,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r58_exact_r47_distributed_risk as r58,
-)
-from qore.infrastructure.trader_lab import vt08_index_market_journey_atlas as journey
-from qore.infrastructure.trader_lab import (
     vt08_index_r55_distributed_causal_risk as canonical_overlay,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r58_exact_r47_distributed_risk as r58,
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r59_candidate_freeze as freeze,
