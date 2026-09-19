@@ -429,6 +429,221 @@ def _magic(client_order_id: str) -> int:
     return int.from_bytes(digest[:4], "big") & 0x7FFFFFFF
 
 
+@dataclass(frozen=True, slots=True)
+class R42AudJpyBoundarySnapshot:
+    anchor: datetime
+    evidence: Evidence
+    current_open: Decimal
+    broker_tick_at: datetime
+    observed_at: datetime
+
+
+class R42AudJpyM5Cache:
+    """Resident M5 cache: one historical preload, then recent incremental reads only."""
+
+    def __init__(self, *, max_bars: int = HISTORY_M5_BARS) -> None:
+        if max_bars < 2_000:
+            raise ValueError("AUDJPY R42 cache requires at least 2000 M5 bars")
+        self._max_bars = max_bars
+        self._bars: dict[datetime, Bar] = {}
+        self._digits: int | None = None
+        self._preloaded = False
+        self._preload_calls = 0
+        self._incremental_calls = 0
+        self._last_refresh_at: datetime | None = None
+
+    @property
+    def preloaded(self) -> bool:
+        return self._preloaded
+
+    @property
+    def preload_calls(self) -> int:
+        return self._preload_calls
+
+    @property
+    def incremental_calls(self) -> int:
+        return self._incremental_calls
+
+    @property
+    def last_refresh_at(self) -> datetime | None:
+        return self._last_refresh_at
+
+    def _ingest(self, rows: Any) -> None:
+        for row in rows:
+            opened = normalise_fundednext_server_epoch(int(row["time"]))
+            self._bars[opened] = Bar(
+                opened_at=opened,
+                closed_at=opened + timedelta(minutes=5),
+                open=Decimal(str(row["open"])),
+                high=Decimal(str(row["high"])),
+                low=Decimal(str(row["low"])),
+                close=Decimal(str(row["close"])),
+            )
+        if len(self._bars) > self._max_bars:
+            keys = sorted(self._bars)
+            for key in keys[: len(keys) - self._max_bars]:
+                del self._bars[key]
+
+    def preload(self, api: Any, *, now: datetime) -> None:
+        if self._preloaded:
+            raise RuntimeError("AUDJPY R42 historical M5 preload may run only once")
+        rows = api.copy_rates_from_pos(
+            SYMBOL,
+            api.TIMEFRAME_M5,
+            0,
+            HISTORY_M5_BARS,
+        )
+        if rows is None or len(rows) < 2_000:
+            raise RuntimeError("AUDJPY R42 M5 historical preload unavailable")
+        info = api.symbol_info(SYMBOL)
+        if info is None:
+            raise RuntimeError("AUDJPY R42 symbol info unavailable during preload")
+        self._digits = int(info.digits)
+        self._ingest(rows)
+        self._preloaded = True
+        self._preload_calls += 1
+        self._last_refresh_at = now.astimezone(UTC)
+
+    def refresh_incremental(
+        self,
+        api: Any,
+        *,
+        now: datetime,
+        count: int = RECENT_M5_BARS,
+    ) -> None:
+        if not self._preloaded:
+            raise RuntimeError("AUDJPY R42 M5 cache not preloaded")
+        if count <= 0 or count > 64:
+            raise ValueError("AUDJPY R42 incremental bar count invalid")
+        rows = api.copy_rates_from_pos(SYMBOL, api.TIMEFRAME_M5, 0, count)
+        if rows is None or len(rows) < 2:
+            raise RuntimeError("AUDJPY R42 incremental M5 refresh unavailable")
+        self._ingest(rows)
+        self._incremental_calls += 1
+        self._last_refresh_at = now.astimezone(UTC)
+
+    def evidence(self) -> Evidence:
+        if not self._preloaded or self._digits is None:
+            raise RuntimeError("AUDJPY R42 M5 cache not ready")
+        bars = tuple(self._bars[key] for key in sorted(self._bars))
+        if len(bars) < 2_000:
+            raise RuntimeError("AUDJPY R42 M5 cache underfilled")
+        return Evidence(symbol=SYMBOL, digits=self._digits, bars=bars)
+
+    def boundary_snapshot(
+        self,
+        api: Any,
+        *,
+        anchor: datetime,
+        observed_at: datetime,
+    ) -> R42AudJpyBoundarySnapshot:
+        if anchor.tzinfo is None or anchor.utcoffset() is None:
+            raise ValueError("AUDJPY R42 anchor must be timezone-aware")
+        anchor = anchor.astimezone(UTC)
+        observed = observed_at.astimezone(UTC)
+        deadline = anchor + ENTRY_SLA
+        if observed < anchor:
+            raise RuntimeError("AUDJPY R42 boundary not reached")
+        if observed > deadline:
+            raise TimeoutError("AUDJPY R42 hard 2s entry SLA expired")
+
+        prior_open = anchor - timedelta(minutes=5)
+        prior = self._bars.get(prior_open)
+        current = self._bars.get(anchor)
+        if prior is None or prior.closed_at != anchor:
+            raise RuntimeError("AUDJPY R42 exact newly-closed M5 unavailable")
+        if current is None or current.opened_at != anchor:
+            raise RuntimeError("AUDJPY R42 exact new M5 unavailable")
+
+        tick = api.symbol_info_tick(SYMBOL)
+        if tick is None:
+            raise RuntimeError("AUDJPY R42 broker tick unavailable")
+        raw_msc = int(getattr(tick, "time_msc", 0) or 0)
+        if raw_msc <= 0:
+            raw_seconds = int(getattr(tick, "time", 0) or 0)
+            if raw_seconds <= 0:
+                raise RuntimeError("AUDJPY R42 broker tick timestamp unavailable")
+            broker_tick_at = datetime.fromtimestamp(raw_seconds, tz=UTC)
+        else:
+            broker_tick_at = datetime.fromtimestamp(raw_msc / 1000, tz=UTC)
+        tick_age = observed - broker_tick_at
+        if tick_age < timedelta(seconds=-0.5):
+            raise RuntimeError("AUDJPY R42 broker tick is from the future")
+        if tick_age > MAX_BROKER_TICK_AGE:
+            raise RuntimeError("AUDJPY R42 broker tick older than 2s")
+
+        return R42AudJpyBoundarySnapshot(
+            anchor=anchor,
+            evidence=self.evidence(),
+            current_open=current.open,
+            broker_tick_at=broker_tick_at,
+            observed_at=observed,
+        )
+
+
+def next_hour_boundary(now: datetime) -> datetime:
+    current = now.astimezone(UTC)
+    base = current.replace(minute=0, second=0, microsecond=0)
+    return base + timedelta(hours=1)
+
+
+def boundary_to_arm(now: datetime) -> datetime | None:
+    current = now.astimezone(UTC)
+    anchor = next_hour_boundary(current)
+    remaining = anchor - current
+    if timedelta(0) < remaining <= BOUNDARY_ARM_LEAD:
+        return anchor
+    return None
+
+
+def await_boundary_snapshot(
+    api: Any,
+    *,
+    cache: R42AudJpyM5Cache,
+    anchor: datetime,
+    now_fn: Callable[[], datetime] | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> R42AudJpyBoundarySnapshot:
+    """Wait only inside the pre-armed boundary window; never accept after T+2s."""
+
+    clock = now_fn or (lambda: datetime.now(UTC))
+    deadline = anchor.astimezone(UTC) + ENTRY_SLA
+    last_reason = "boundary-data-not-ready"
+    while True:
+        observed = clock().astimezone(UTC)
+        if observed > deadline:
+            raise TimeoutError(
+                f"AUDJPY R42 hard 2s SLA expired:{last_reason}"
+            )
+        if observed < anchor:
+            remaining = (anchor - observed).total_seconds()
+            sleep_fn(min(BOUNDARY_RETRY_SECONDS, max(0.001, remaining)))
+            continue
+
+        cache.refresh_incremental(
+            api,
+            now=observed,
+            count=BOUNDARY_RECENT_M5_BARS,
+        )
+        checked_at = clock().astimezone(UTC)
+        if checked_at > deadline:
+            raise TimeoutError("AUDJPY R42 hard 2s SLA expired after feed read")
+        try:
+            return cache.boundary_snapshot(
+                api,
+                anchor=anchor,
+                observed_at=checked_at,
+            )
+        except (RuntimeError, TimeoutError) as error:
+            last_reason = str(error)
+            remaining = (deadline - checked_at).total_seconds()
+            if remaining <= 0:
+                raise TimeoutError(
+                    f"AUDJPY R42 hard 2s SLA expired:{last_reason}"
+                ) from error
+            sleep_fn(min(BOUNDARY_RETRY_SECONDS, remaining))
+
+
 def current_anchor(now: datetime) -> datetime | None:
     """Return the current AUDJPY R42 H1 anchor on the New York strategy clock."""
     local = now.astimezone(_STRATEGY_TZ)
