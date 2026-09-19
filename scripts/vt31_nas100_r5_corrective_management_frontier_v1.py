@@ -81,6 +81,44 @@ VARIANTS = {
 }
 
 
+def _causal_negative_management_state(
+    *,
+    tier: str,
+    family: str,
+    state: dict[str, object],
+) -> bool:
+    """Decision-time contexts negative across all four consumed ALLOC_G windows."""
+    risk_ref_raw = state.get("risk_ref")
+    risk_ref = None if risk_ref_raw is None else Decimal(str(risk_ref_raw))
+    current_path_raw = state.get("current_path_vs_previous")
+    current_path = (
+        None
+        if current_path_raw is None
+        else Decimal(str(current_path_raw))
+    )
+    return bool(
+        (
+            family == "fair-value-gap"
+            and state.get("premarket_state") == "rotation"
+        )
+        or (
+            family == "fair-value-gap"
+            and state.get("h1_state") == "bullish"
+        )
+        or (
+            family == "order-block"
+            and risk_ref is not None
+            and risk_ref < Decimal("0.30")
+        )
+        or (
+            family == "order-block"
+            and current_path is not None
+            and current_path < Decimal("0.75")
+        )
+        or (tier == "SECONDARY" and family == "breaker")
+    )
+
+
 def _first_rows(
     by_day: dict[date, tuple[object, ...]],
     context_by_day: dict[
@@ -93,6 +131,7 @@ def _first_rows(
     secondary_route_policy: str = "ORIGINAL",
     secondary_be_r: Decimal | None = None,
     secondary_be_scope: str = "NONE",
+    secondary_partial_scope: str = "ALL",
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
@@ -439,13 +478,30 @@ def _first_rows(
                     three_r_price=boundary,
                 )
 
+        selected_partial_r = alt_partial_r
+        if alt_partial_r is not None and secondary_partial_scope != "ALL":
+            if secondary_partial_scope != "CAUSAL_NEGATIVE":
+                raise ValueError(
+                    f"unsupported secondary_partial_scope={secondary_partial_scope}"
+                )
+            selected_partial_r = (
+                alt_partial_r
+                if _causal_negative_management_state(
+                    tier=alt_tier,
+                    family=selected.selected_family.value,
+                    state=alt_state,
+                )
+                else None
+            )
+        partial_applied = selected_partial_r is not None
+
         outcome = (
             specialist.baseline._simulate(day_bars, managed_selected)
-            if alt_partial_r is None
+            if selected_partial_r is None
             else v2b._simulate_partial_runner(
                 day_bars,
                 managed_selected,
-                alt_partial_r,
+                selected_partial_r,
             )
         )
         status[f"alt-outcome-{outcome['status']}"] += 1
@@ -492,6 +548,13 @@ def _first_rows(
                     else format(secondary_be_r, "f")
                 ),
                 "secondary_be_applied": be_applied,
+                "secondary_partial_scope": secondary_partial_scope,
+                "secondary_partial_r": (
+                    None
+                    if selected_partial_r is None
+                    else format(selected_partial_r, "f")
+                ),
+                "secondary_partial_applied": partial_applied,
             }
         )
         trades.append(weighted)
@@ -505,6 +568,7 @@ def _first_rows(
         "secondary_be_r": (
             None if secondary_be_r is None else format(secondary_be_r, "f")
         ),
+        "secondary_partial_scope": secondary_partial_scope,
     }
 
 
