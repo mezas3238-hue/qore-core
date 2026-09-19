@@ -410,3 +410,53 @@ def test_consumed_atlas_lineage_covers_every_initial_capitalizer_market() -> Non
     assert all(item.research_evidence_consumed for item in CAPITALIZER_CONSUMED_LINEAGE)
     assert all(not item.fresh_holdout_eligible for item in CAPITALIZER_CONSUMED_LINEAGE)
     assert sum(item.retained_m5_bars for item in CAPITALIZER_CONSUMED_LINEAGE) > 6_500_000
+
+
+def test_data_readiness_accepts_exact_consumed_atlas_manifest(tmp_path) -> None:
+    import json
+
+    from qore.infrastructure.trader_lab.capitalizer_data_readiness import (
+        build_data_readiness_report,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_research_lineage import (
+        CAPITALIZER_CONSUMED_LINEAGE,
+    )
+
+    symbols = []
+    for item in CAPITALIZER_CONSUMED_LINEAGE:
+        symbols.append(
+            {
+                "canonical_symbol": item.symbol,
+                "retained_bars": item.retained_m5_bars,
+                "earliest_observed_m5": "2016-09-18T21:00:00+00:00",
+                "latest_observed_m5": "2026-09-16T23:55:00+00:00",
+                "raw_integrity_status": "CLEAN_PROVIDER_PAYLOAD",
+                "research_evidence_consumed": True,
+                "partitions": [
+                    {
+                        "contradictory_bars": 0,
+                        "timestamp_alignment_errors": 0,
+                        "out_of_window_bars": 0,
+                    }
+                ],
+            }
+        )
+    index = tmp_path / "ten-year-consumption-index.json"
+    index.write_text(
+        json.dumps(
+            {
+                "identity": "CIBO_MARKET_ATLAS_10Y_CONSUMPTION_V1",
+                "schema": "qore.cibo_market_atlas.m5_consumption.aggregate.v1",
+                "research_evidence_consumed": True,
+                "symbols": symbols,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_data_readiness_report(index)
+    assert report.all_markets_ready_for_development is True
+    assert report.ready_markets == 9
+    assert report.market_count == 9
+    assert report.fresh_holdout_eligible is False
+    assert report.retained_m5_bars > 6_500_000
