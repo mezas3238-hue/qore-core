@@ -1,0 +1,100 @@
+name: QORE VT31 NAS100 DOL1 Extension Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_dol1_extension_forensics_v1.py
+      - .github/workflows/vt31-nas100-dol1-extension-forensics-v1.yml
+  pull_request:
+    paths:
+      - scripts/vt31_nas100_dol1_extension_forensics_v1.py
+      - .github/workflows/vt31-nas100-dol1-extension-forensics-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_dol1_extension_forensics_v1.py
+          ruff check scripts/vt31_nas100_dol1_extension_forensics_v1.py
+
+      - name: Recover immutable CIBO NAS100 atlas
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10478487667/zip" > atlas.zip
+          unzip -q atlas.zip -d input
+          test -f input/TARGET_DESTINATION_LEDGER.jsonl
+          test -f input/MARKET_JOURNEY_LEDGER.jsonl
+          echo "93c726bb0b09192c05659cfe1255d1deae7a17931115506fad82403397625367  input/TARGET_DESTINATION_LEDGER.jsonl" | sha256sum -c -
+          echo "fbaf31c8336516ac8bba15b5d8786260a056e4f1cf036eb9c758485fef6e7db1  input/MARKET_JOURNEY_LEDGER.jsonl" | sha256sum -c -
+
+      - name: Run DOL1 extension forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_dol1_extension_forensics_v1.py             input/TARGET_DESTINATION_LEDGER.jsonl             input/MARKET_JOURNEY_LEDGER.jsonl             --output result/dol1-extension-forensics.json             | tee result/summary.json
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("result/dol1-extension-forensics.json").read_text()
+          )
+          g = payload["governance"]
+          assert g["cibo_consumed_research_only"] is True
+          assert g["dol1_state_is_causal_at_boundary_touch"] is True
+          assert g["future_extension_is_research_label_only"] is True
+          assert g["future_extension_allowed_at_runtime"] is False
+          assert g["post_departure_pivot_used_as_runtime_feature"] is False
+          assert g["silver_bullet_modified"] is False
+          assert g["minimum_sample_per_partition"] == 10
+          assert g["requires_direction_3_of_3"] is True
+          assert g["opens_new_holdout"] is False
+          assert g["policy_promoted"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Bind artifact
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          cat > result/source-artifact.txt <<'EOF'
+          artifact_id=10478487667
+          artifact_digest=sha256:17c8d1909152d87ed67a05cd986fa9cca39b2ac92598d36822c38e8afccde192
+          EOF
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-dol1-extension-forensics-${{ github.sha }}
+          path: result/
+          retention-days: 90
