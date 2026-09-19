@@ -119,6 +119,45 @@ def _causal_negative_management_state(
     )
 
 
+def _core_breaker_fragile_state(
+    *,
+    state: dict[str, object],
+    side: str,
+) -> bool:
+    """Causal regime-fragility score using decision-time state only."""
+    latency_raw = state.get("confirmation_latency_minutes")
+    latency = None if latency_raw is None else int(latency_raw)
+    reclaim_raw = state.get("reference_reclaim_age_minutes")
+    reclaim_age = None if reclaim_raw is None else int(reclaim_raw)
+    path_raw = state.get("current_path_vs_previous")
+    current_path = None if path_raw is None else Decimal(str(path_raw))
+
+    robust = 0
+    fragile = 0
+
+    if state.get("h1_state") == "mixed":
+        robust += 1
+    if state.get("reference_volatility_state") == "compressed":
+        robust += 1
+    if latency is not None and 6 <= latency <= 10:
+        robust += 1
+    if reclaim_age is not None and reclaim_age <= 4:
+        robust += 1
+    if current_path is not None and current_path < Decimal("0.75"):
+        robust += 1
+
+    if state.get("cash_open_state") == "bullish":
+        fragile += 1
+    if latency is not None and 3 <= latency <= 5:
+        fragile += 1
+    if side == "short":
+        fragile += 1
+    if state.get("premarket_state") == "bearish":
+        fragile += 1
+
+    return fragile > robust
+
+
 def _first_rows(
     by_day: dict[date, tuple[object, ...]],
     context_by_day: dict[
@@ -132,6 +171,8 @@ def _first_rows(
     secondary_be_r: Decimal | None = None,
     secondary_be_scope: str = "NONE",
     secondary_partial_scope: str = "ALL",
+    core_breaker_protection_confirmations: int | None = None,
+    core_breaker_protection_scope: str = "NONE",
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     policy = Vt31R22ExecutionPolicy()
     trades: list[dict[str, object]] = []
@@ -243,11 +284,51 @@ def _first_rows(
             break
 
         if core_selected is not None and core_state is not None:
-            outcome = specialist._simulate_selected_plan(
-                day_bars,
-                core_selected,
-                core_state,
+            if (
+                core_breaker_protection_confirmations is not None
+                and core_breaker_protection_confirmations not in {1, 2}
+            ):
+                raise ValueError(
+                    "core_breaker_protection_confirmations must be 1 or 2"
+                )
+            if core_breaker_protection_scope not in {"NONE", "FRAGILE", "ALL"}:
+                raise ValueError(
+                    f"unsupported core_breaker_protection_scope="
+                    f"{core_breaker_protection_scope}"
+                )
+
+            core_family = core_selected.selected_family.value
+            core_fragile = _core_breaker_fragile_state(
+                state=core_state,
+                side=core_selected.side.value,
             )
+            protection_eligible = (
+                core_breaker_protection_confirmations is not None
+                and core_family == "breaker"
+                and core_state.get("target_plan") == "FULL_STRUCTURAL_BOUNDARY"
+                and (
+                    core_breaker_protection_scope == "ALL"
+                    or (
+                        core_breaker_protection_scope == "FRAGILE"
+                        and core_fragile
+                    )
+                )
+            )
+            if protection_eligible:
+                outcome = protection._simulate_single_structural_trail(
+                    day_bars,
+                    core_selected,
+                    required_confirmations=(
+                        core_breaker_protection_confirmations
+                    ),
+                )
+                status["core-breaker-protection-applied"] += 1
+            else:
+                outcome = specialist._simulate_selected_plan(
+                    day_bars,
+                    core_selected,
+                    core_state,
+                )
             status[f"core-{outcome['status']}"] += 1
             if outcome.get("status") == "terminal":
                 weighted = hybrid._weighted(
@@ -279,6 +360,16 @@ def _first_rows(
                             "confirmation_latency_minutes"
                         ),
                         "risk_ref": core_state.get("risk_ref"),
+                        "core_breaker_fragile_state": core_fragile,
+                        "core_breaker_protection_scope": (
+                            core_breaker_protection_scope
+                        ),
+                        "core_breaker_protection_confirmations": (
+                            core_breaker_protection_confirmations
+                        ),
+                        "core_breaker_protection_applied": (
+                            protection_eligible
+                        ),
                     }
                 )
                 trades.append(weighted)
@@ -569,6 +660,10 @@ def _first_rows(
             None if secondary_be_r is None else format(secondary_be_r, "f")
         ),
         "secondary_partial_scope": secondary_partial_scope,
+        "core_breaker_protection_scope": core_breaker_protection_scope,
+        "core_breaker_protection_confirmations": (
+            core_breaker_protection_confirmations
+        ),
     }
 
 
