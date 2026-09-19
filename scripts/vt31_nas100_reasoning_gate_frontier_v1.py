@@ -147,11 +147,15 @@ def _next_event(
     prefix: list[object] = list(reference)
     saw_wait = False
 
+    active_source_raid: datetime | None = None
+
     for bar in session:
         closed_at = cast(datetime, getattr(bar, "closed_at"))
+        # Keep all causal session history in the evaluator.  after_at gates
+        # source admission, not what the market-state reconstruction remembers.
+        prefix.append(bar)
         if closed_at <= after_at:
             continue
-        prefix.append(bar)
 
         evaluation = evaluate_vt31_r2_2_source(
             instrument=getattr(bar, "instrument"),
@@ -168,6 +172,19 @@ def _next_event(
             continue
 
         source = evaluation.setup
+        if (
+            source.structure.raid_at <= after_at
+            or source.structure.confirmation_at <= after_at
+        ):
+            continue
+
+        if (
+            active_source_raid is not None
+            and source.structure.raid_at != active_source_raid
+        ):
+            saw_wait = False
+        active_source_raid = source.structure.raid_at
+
         executable, _ = make_executable_setup(source, policy)
         if executable is None:
             return {
