@@ -295,6 +295,11 @@ def _first_rows(
                     or alt_state.get("last_structure_event_family") == "breaker"
                 )
             )
+            side = selected.side.value
+            exact_stable_negative = (
+                family == "breaker"
+                or (family == "order-block" and side == "long")
+            )
             cash_bullish = alt_state.get("cash_open_state") == "bullish"
             should_route = (
                 breaker_bad_context
@@ -306,11 +311,21 @@ def _first_rows(
                     "RENEW_STABLE_NEGATIVE",
                     "ABSTAIN_STABLE_NEGATIVE",
                 }
+                else exact_stable_negative
+                if secondary_route_policy in {
+                    "RENEW_EXACT_STABLE_NEGATIVE",
+                    "ABSTAIN_EXACT_STABLE_NEGATIVE",
+                }
+                else family == "breaker"
+                if secondary_route_policy == "RENEW_ALL_SECONDARY_BREAKER"
                 else False
             )
             if should_route:
                 status[f"route-{secondary_route_policy}"] += 1
-                if secondary_route_policy == "ABSTAIN_STABLE_NEGATIVE":
+                if secondary_route_policy in {
+                    "ABSTAIN_STABLE_NEGATIVE",
+                    "ABSTAIN_EXACT_STABLE_NEGATIVE",
+                }:
                     continue
                 renewed = frontier._next_executable_after(
                     reference=reference,
