@@ -20,7 +20,6 @@ from qore.infrastructure.trader_lab.capitalizer_session_clock import (
     capitalizer_session_at,
 )
 
-
 _NY = ZoneInfo("America/New_York")
 
 
