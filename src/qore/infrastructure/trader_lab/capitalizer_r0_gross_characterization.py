@@ -80,8 +80,8 @@ class CapitalizerR0Trade:
     same_bar_stop_target_ambiguity: bool
 
     def __post_init__(self) -> None:
-        if self.entry_at <= self.signal_at:
-            raise ValueError("R0 entry must occur after signal confirmation")
+        if self.entry_at < self.signal_at:
+            raise ValueError("R0 entry cannot precede signal confirmation")
         if self.exit_at < self.entry_at:
             raise ValueError("R0 exit cannot predate entry")
         if self.initial_risk_price <= 0:
