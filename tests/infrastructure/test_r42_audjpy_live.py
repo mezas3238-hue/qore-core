@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -11,6 +12,11 @@ from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.r42_audjpy_live import (
     BASE_RISK_FRACTION,
+    BOUNDARY_ARM_LEAD,
+    BOUNDARY_RETRY_SECONDS,
+    ENTRY_SLA,
+    MAX_BROKER_TICK_AGE,
+    NORMAL_FEED_REFRESH_SECONDS,
     CERTIFICATION_ARTIFACT_ID,
     CERTIFICATION_IDENTITY,
     CERTIFICATION_RUN_ID,
@@ -20,6 +26,7 @@ from qore.infrastructure.r42_audjpy_live import (
     MEMORY_SHA256,
     R42AudJpyDol,
     R42AudJpyLiveSignal,
+    R42AudJpyM5Cache,
     R42AudJpyLiveState,
     R42AudJpyOpenTrade,
     SECOND_LAYER_POLICY,
@@ -81,6 +88,7 @@ def _signal(
     return R42AudJpyLiveSignal(
         signal_fingerprint="a" * 64,
         entry_at=datetime(2026, 9, 18, 15, 0, tzinfo=UTC),
+        boundary_tick_at=datetime(2026, 9, 18, 15, 0, tzinfo=UTC),
         timeframe="H1",
         side=side,
         certified_entry=Decimal(entry),
@@ -199,13 +207,176 @@ def test_r42_audjpy_broker_stop_level_fails_closed() -> None:
         )
 
 
-def test_r42_audjpy_anchor_is_hourly_and_short_grace_only() -> None:
-    assert current_anchor(
-        datetime(2026, 9, 18, 15, 0, 30, tzinfo=UTC)
-    ) == datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    assert current_anchor(
-        datetime(2026, 9, 18, 15, 0, 46, tzinfo=UTC)
-    ) is None
+def test_r42_audjpy_risk_request_rejects_after_two_seconds() -> None:
+    anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
+    with pytest.raises(ValueError, match="hard 2s entry SLA expired"):
+        build_r42_audjpy_risk_request(
+            request_id="r42-audjpy-late",
+            signal=_signal(),
+            provider_spec=_spec(),
+            account_equity=Decimal("2000"),
+            now=anchor + timedelta(seconds=2, milliseconds=1),
+        )
+
+
+def test_r42_audjpy_risk_request_rejects_stale_broker_tick() -> None:
+    anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
+    stale = replace(
+        _signal(),
+        boundary_tick_at=anchor - timedelta(seconds=2, milliseconds=1),
+    )
+    with pytest.raises(ValueError, match="broker tick older than 2s"):
+        build_r42_audjpy_risk_request(
+            request_id="r42-audjpy-stale-tick",
+            signal=stale,
+            provider_spec=_spec(),
+            account_equity=Decimal("2000"),
+            now=anchor,
+        )
+
+
+class _FakeM5Api:
+    TIMEFRAME_M5 = 5
+
+    def __init__(self, rows: list[dict[str, object]], *, tick_at: datetime) -> None:
+        self.rows = rows
+        self.tick_at = tick_at
+        self.copy_counts: list[int] = []
+
+    def copy_rates_from_pos(
+        self,
+        _symbol: str,
+        _timeframe: int,
+        _start: int,
+        count: int,
+    ) -> list[dict[str, object]]:
+        self.copy_counts.append(count)
+        return self.rows[-count:]
+
+    def symbol_info(self, _symbol: str) -> SimpleNamespace:
+        return SimpleNamespace(digits=3)
+
+    def symbol_info_tick(self, _symbol: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            time=int(self.tick_at.timestamp()),
+            time_msc=int(self.tick_at.timestamp() * 1000),
+        )
+
+
+def _m5_row(at: datetime, price: Decimal) -> dict[str, object]:
+    return {
+        "time": int(at.timestamp()),
+        "open": float(price),
+        "high": float(price + Decimal("0.010")),
+        "low": float(price - Decimal("0.010")),
+        "close": float(price),
+    }
+
+
+def test_r42_audjpy_cache_preloads_once_then_reads_recent_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import r42_audjpy_live as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
+    start = anchor - timedelta(minutes=5 * 2000)
+    rows = [
+        _m5_row(start + timedelta(minutes=5 * index), Decimal("110"))
+        for index in range(2000)
+    ]
+    api = _FakeM5Api(rows, tick_at=anchor)
+    cache = R42AudJpyM5Cache()
+    cache.preload(api, now=anchor - timedelta(seconds=10))
+    assert cache.preload_calls == 1
+    assert api.copy_counts == [15000]
+    with pytest.raises(RuntimeError, match="preload may run only once"):
+        cache.preload(api, now=anchor - timedelta(seconds=9))
+
+    api.rows.append(_m5_row(anchor, Decimal("110.120")))
+    cache.refresh_incremental(api, now=anchor, count=4)
+    assert cache.incremental_calls == 1
+    assert api.copy_counts[-1] == 4
+    snapshot = cache.boundary_snapshot(
+        api,
+        anchor=anchor,
+        observed_at=anchor + timedelta(milliseconds=200),
+    )
+    assert snapshot.anchor == anchor
+    assert snapshot.current_open == Decimal("110.12")
+
+
+def test_r42_audjpy_boundary_snapshot_requires_exact_new_and_closed_m5(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import r42_audjpy_live as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
+    start = anchor - timedelta(minutes=5 * 2000)
+    rows = [
+        _m5_row(start + timedelta(minutes=5 * index), Decimal("110"))
+        for index in range(2000)
+    ]
+    api = _FakeM5Api(rows, tick_at=anchor)
+    cache = R42AudJpyM5Cache()
+    cache.preload(api, now=anchor - timedelta(seconds=10))
+    with pytest.raises(RuntimeError, match="exact new M5 unavailable"):
+        cache.boundary_snapshot(
+            api,
+            anchor=anchor,
+            observed_at=anchor + timedelta(milliseconds=100),
+        )
+
+
+def test_r42_audjpy_boundary_snapshot_rejects_tick_older_than_two_seconds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import r42_audjpy_live as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
+    start = anchor - timedelta(minutes=5 * 2000)
+    rows = [
+        _m5_row(start + timedelta(minutes=5 * index), Decimal("110"))
+        for index in range(2000)
+    ]
+    rows.append(_m5_row(anchor, Decimal("110.120")))
+    api = _FakeM5Api(
+        rows,
+        tick_at=anchor - timedelta(seconds=2, milliseconds=1),
+    )
+    cache = R42AudJpyM5Cache()
+    cache.preload(api, now=anchor - timedelta(seconds=10))
+    with pytest.raises(RuntimeError, match="broker tick older than 2s"):
+        cache.boundary_snapshot(
+            api,
+            anchor=anchor,
+            observed_at=anchor,
+        )
+
+
+def test_r42_audjpy_anchor_has_hard_two_second_sla() -> None:
+    anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
+    assert current_anchor(anchor + timedelta(seconds=1, milliseconds=999)) == anchor
+    assert current_anchor(anchor + timedelta(seconds=2, milliseconds=1)) is None
+    assert ENTRY_SLA == timedelta(seconds=2)
+    assert BOUNDARY_ARM_LEAD == timedelta(seconds=10)
+    assert BOUNDARY_RETRY_SECONDS == pytest.approx(0.075)
+    assert NORMAL_FEED_REFRESH_SECONDS == pytest.approx(1.0)
+    assert MAX_BROKER_TICK_AGE == timedelta(seconds=2)
 
 
 def test_r42_audjpy_dual_fragility_overlay_is_exact(
