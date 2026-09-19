@@ -600,7 +600,7 @@ def main() -> None:
             sort_keys=True,
             allow_nan=False,
         )
-        + "\\n",
+        + "\n",
         encoding="utf-8",
     )
     print(
