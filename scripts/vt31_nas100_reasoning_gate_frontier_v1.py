@@ -144,23 +144,20 @@ def _next_event(
     evidence: str,
     policy: Vt31R22ExecutionPolicy,
 ) -> dict[str, object]:
-    prefix: list[object] = list(reference)
+    event_prefix: list[object] = list(reference)
     saw_wait = False
-
     active_source_raid: datetime | None = None
 
     for bar in session:
         closed_at = cast(datetime, getattr(bar, "closed_at"))
-        # Keep all causal session history in the evaluator.  after_at gates
-        # source admission, not what the market-state reconstruction remembers.
-        prefix.append(bar)
         if closed_at <= after_at:
             continue
+        event_prefix.append(bar)
 
         evaluation = evaluate_vt31_r2_2_source(
             instrument=getattr(bar, "instrument"),
             as_of=closed_at,
-            m1_candles=cast(Any, tuple(prefix)),
+            m1_candles=cast(Any, tuple(event_prefix)),
             evidence_fingerprint=evidence,
         )
         if evaluation.setup is None:
@@ -194,8 +191,9 @@ def _next_event(
 
         session_prefix = tuple(
             item
-            for item in prefix
-            if (10, 0, 0)
+            for item in session
+            if cast(datetime, getattr(item, "closed_at")) <= closed_at
+            and (10, 0, 0)
             <= _wall(getattr(item, "opened_at"))
             < (11, 0, 0)
         )
@@ -467,6 +465,8 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             "same_source_secondary_disabled": True,
             "scout_after_wait_disabled": True,
             "new_source_required_after_abstain": True,
+            "event_detection_resets_after_cursor": True,
+            "situation_model_preserves_full_session_history": True,
             "post_exit_structural_rearm_required": True,
             "uses_terminal_pnl_at_runtime": False,
             "uses_fold_identity_at_runtime": False,
