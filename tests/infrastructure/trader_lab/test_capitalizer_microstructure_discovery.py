@@ -159,3 +159,48 @@ def test_microstructure_scanner_skips_non_contiguous_gap(tmp_path: Path) -> None
         ),
     )
     assert scan_microstructure(tmp_path) == ()
+
+
+def test_microstructure_matrix_requires_exact_nine_cell_coverage(tmp_path: Path) -> None:
+    from qore.infrastructure.trader_lab.capitalizer_contract import allowed_markets
+    from qore.infrastructure.trader_lab.capitalizer_microstructure_discovery import (
+        CapitalizerMicrostructureEvent,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_microstructure_matrix import (
+        build_microstructure_matrix,
+    )
+
+    event_counts = {event.value: 1 for event in CapitalizerMicrostructureEvent}
+    event_rates = {event.value: "0.1" for event in CapitalizerMicrostructureEvent}
+    for session in CapitalizerSession:
+        for symbol in allowed_markets(session):
+            cell = tmp_path / f"{session.value.lower()}-{symbol.lower()}"
+            cell.mkdir()
+            (cell / f"capitalizer-{symbol.lower()}-microstructure-v1.json").write_text(
+                json.dumps(
+                    {
+                        "identity": "QORE_CAPITALIZER_M5_MICROSTRUCTURE_DISCOVERY_V1",
+                        "symbol": symbol,
+                        "session": session.value,
+                        "observations": 10,
+                        "event_counts": event_counts,
+                        "event_rates": event_rates,
+                        "median_range_price": "0.01",
+                        "median_body_fraction": "0.5",
+                        "median_previous_range_ratio": "1",
+                        "research_only": True,
+                        "rule_promotion_allowed": False,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+    matrix = build_microstructure_matrix(tmp_path)
+    assert len(matrix.cells) == 9
+    assert matrix.complete_frozen_universe is True
+    assert matrix.total_observations == 90
+    assert matrix.session_observations == {
+        "ASIA": 40,
+        "LONDON": 20,
+        "NEW_YORK": 30,
+    }
