@@ -25,8 +25,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.trader_lab import vt08_index_concurrent_market_contract as contract
 from qore.infrastructure.trader_lab import vt08_index_market_journey_atlas as journey
+from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_r15_concurrent_portfolio_validation as r15
 from qore.infrastructure.trader_lab import (
     vt08_index_r31_source_complete_structural_concurrency as r31,
@@ -39,7 +39,6 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r47_transport_safe_structural_demotion as r47,
 )
 from qore.infrastructure.trader_lab import vt08_index_r48_candidate_freeze as freeze
-from qore.infrastructure.trader_lab import vt08_index_r6_5y_failure_forensics as fx
 from qore.infrastructure.trader_lab import vt08_index_reaction_structure_atlas as reaction
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
 
