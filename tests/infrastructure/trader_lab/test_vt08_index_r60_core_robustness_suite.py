@@ -15,7 +15,7 @@ def test_r60_is_bound_to_frozen_r58() -> None:
     assert r60.CANDIDATE_RULE_FINGERPRINT == (
         "e959c8578a7ac71658cd19daf6d61815dfe277ecd06d8100c2655b30a62f48fa"
     )
-    assert r60.freeze.dependency_contract_matches() is True
+    assert r60.dependency_contract_matches() is True
 
 
 def test_r60_preregistration_is_fixed() -> None:
