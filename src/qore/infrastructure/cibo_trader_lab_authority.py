@@ -67,9 +67,9 @@ from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabStage,
     validate_trader_lab_evidence_reference,
 )
+from qore.infrastructure.traders import vt08_index_specialist_contract as vt08_index
 from qore.infrastructure.traders.contracts import DemoTradingTraderCode
 from qore.infrastructure.traders.evaluators import cohort_evaluators
-from qore.infrastructure.traders import vt08_index_specialist_contract as vt08_index
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
