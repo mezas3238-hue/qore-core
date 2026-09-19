@@ -14,7 +14,7 @@ permissions:
   actions: read
 
 env:
-  GH_TOKEN: \${{ github.token }}
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   fold:
@@ -42,10 +42,10 @@ jobs:
             evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
             evidence_path: "NAS100/market-evidence.json"
     env:
-      PARTITION: \${{ matrix.partition }}
-      ARTIFACT_ID: \${{ matrix.artifact_id }}
-      EXPECTED_EVIDENCE_SHA256: \${{ matrix.evidence_sha256 }}
-      EVIDENCE_PATH: \${{ matrix.evidence_path }}
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
     steps:
       - uses: actions/checkout@v4
 
@@ -66,20 +66,20 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p input result
-          gh api "/repos/\${GITHUB_REPOSITORY}/actions/artifacts/\${ARTIFACT_ID}/zip" > evidence.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
           unzip -q evidence.zip -d input
-          test -f "input/\${EVIDENCE_PATH}"
-          actual="$(sha256sum "input/\${EVIDENCE_PATH}" | awk '{print $1}')"
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
           test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
 
       - name: Run Breaker Journey management frontier
         run: |
           set -euo pipefail
           python scripts/vt31_nas100_alloc_g_breaker_journey_management_frontier_v1.py \
-            "input/\${EVIDENCE_PATH}" \
+            "input/${EVIDENCE_PATH}" \
             --partition "$PARTITION" \
-            --output "result/breaker-journey-\${PARTITION}.json" \
-            | tee "result/summary-\${PARTITION}.json"
+            --output "result/breaker-journey-${PARTITION}.json" \
+            | tee "result/summary-${PARTITION}.json"
 
       - name: Governance gate
         run: |
@@ -119,7 +119,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-vt31-nas100-breaker-journey-\${{ matrix.partition }}-\${{ github.sha }}
+          name: qore-vt31-nas100-breaker-journey-${{ matrix.partition }}-${{ github.sha }}
           path: result/
           retention-days: 90
 
@@ -130,7 +130,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: qore-vt31-nas100-breaker-journey-*-\${{ github.sha }}
+          pattern: qore-vt31-nas100-breaker-journey-*-${{ github.sha }}
           path: input
           merge-multiple: true
 
@@ -211,6 +211,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-vt31-nas100-breaker-journey-aggregate-\${{ github.sha }}
+          name: qore-vt31-nas100-breaker-journey-aggregate-${{ github.sha }}
           path: result/
           retention-days: 90
