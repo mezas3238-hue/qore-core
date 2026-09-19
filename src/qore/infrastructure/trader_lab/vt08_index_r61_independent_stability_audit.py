@@ -680,8 +680,8 @@ def _source_leakage_audit() -> dict[str, object]:
     forbidden = (
         "outcome.r_multiple",
         "exited_at",
-        "datetime.now",
-        "date.today",
+        "datetime" + ".now",
+        "date" + ".today",
         "random",
         "calendar_feature",
     )
