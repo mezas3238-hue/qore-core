@@ -42,13 +42,13 @@ PRIMARY_STRESS = Decimal("0.05")
 SECONDARY_STRESS = Decimal("0.10")
 
 
-def _block_id(row: dict[str, Any]) -> str:
+def _block_id(row: dict[str, Any]) -> str | None:
     exited = row["outcome"].exited_at.date()
     boundaries = r35._annual_boundaries()
     for index in range(5):
         if boundaries[index] <= exited < boundaries[index + 1]:
             return f"Y{index + 1}"
-    raise ValueError(f"outcome outside exact five-year window: {exited}")
+    return None
 
 
 def _metrics(
@@ -79,7 +79,10 @@ def _breakdown_by_block(
         lambda: defaultdict(list)
     )
     for row in rows:
-        grouped[labeler(row)][_block_id(row)].append(row)
+        block = _block_id(row)
+        if block is None:
+            continue
+        grouped[labeler(row)][block].append(row)
 
     result: dict[str, dict[str, dict[str, Any]]] = {}
     for label, block_rows in sorted(grouped.items()):
@@ -222,6 +225,9 @@ def build_report(
         "schema": SCHEMA,
         "identity": IDENTITY,
         "sample": len(rows),
+        "exact_block_assigned_sample": sum(
+            _block_id(row) is not None for row in rows
+        ),
         "exact_block_boundaries": [
             value.isoformat() for value in r35._annual_boundaries()
         ],
