@@ -25,7 +25,7 @@ import math
 import random
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
