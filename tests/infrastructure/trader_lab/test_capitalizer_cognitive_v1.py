@@ -540,3 +540,95 @@ def test_position_intelligence_exits_invalidation_and_cannot_grant_reentry() -> 
         )
         is False
     )
+
+
+def test_microstructure_trace_is_chronological_and_no_lookahead() -> None:
+    from datetime import timedelta
+
+    from qore.infrastructure.trader_lab.capitalizer_microstructure import (
+        CapitalizerMicroEvent,
+        CapitalizerMicroEventKind,
+        CapitalizerMicrostructureTrace,
+    )
+
+    decision_at = datetime(2026, 9, 19, 10, 0, tzinfo=UTC)
+    trace = CapitalizerMicrostructureTrace(
+        decision_at=decision_at,
+        events=(
+            CapitalizerMicroEvent(
+                event_id="M1",
+                kind=CapitalizerMicroEventKind.BREAK_ATTEMPT,
+                observed_at=decision_at - timedelta(seconds=10),
+                value_token="UP",
+            ),
+            CapitalizerMicroEvent(
+                event_id="M2",
+                kind=CapitalizerMicroEventKind.REJECTION_CONFIRMED,
+                observed_at=decision_at - timedelta(seconds=2),
+                value_token="REJECTED",
+            ),
+        ),
+    )
+    assert trace.path == (
+        CapitalizerMicroEventKind.BREAK_ATTEMPT,
+        CapitalizerMicroEventKind.REJECTION_CONFIRMED,
+    )
+
+    with pytest.raises(ValueError, match="future microstructure event"):
+        CapitalizerMicrostructureTrace(
+            decision_at=decision_at,
+            events=(
+                CapitalizerMicroEvent(
+                    event_id="FUTURE",
+                    kind=CapitalizerMicroEventKind.DISPLACEMENT_CONFIRMED,
+                    observed_at=decision_at + timedelta(milliseconds=1),
+                    value_token="LATER",
+                ),
+            ),
+        )
+
+
+def test_market_and_session_brains_bind_exact_context() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_context_brains import (
+        CapitalizerMarketBrainState,
+        CapitalizerSessionBrainState,
+        CapitalizerSessionPhase,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_microstructure import (
+        CapitalizerMicroEvent,
+        CapitalizerMicroEventKind,
+        CapitalizerMicrostructureTrace,
+    )
+
+    now = datetime(2026, 9, 19, 10, 0, tzinfo=UTC)
+    trace = CapitalizerMicrostructureTrace(
+        decision_at=now,
+        events=(
+            CapitalizerMicroEvent(
+                event_id="M1",
+                kind=CapitalizerMicroEventKind.DISPLACEMENT_CONFIRMED,
+                observed_at=now,
+                value_token="CONFIRMED",
+            ),
+        ),
+    )
+    session = CapitalizerSessionBrainState(
+        session=CapitalizerSession.ASIA,
+        phase=CapitalizerSessionPhase.ACTIVE,
+    )
+    market = CapitalizerMarketBrainState(
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        state_family_id="ASIA_USDJPY_DISPLACEMENT",
+        microstructure=trace,
+    )
+    assert session.session is CapitalizerSession.ASIA
+    assert market.symbol == "USDJPY"
+
+    with pytest.raises(ValueError, match="outside frozen session universe"):
+        CapitalizerMarketBrainState(
+            symbol="EURUSD",
+            session=CapitalizerSession.ASIA,
+            state_family_id="INVALID",
+            microstructure=trace,
+        )
