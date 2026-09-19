@@ -19,7 +19,7 @@ import argparse
 import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Iterable
@@ -28,7 +28,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
     allowed_markets,
 )
+from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
 from qore.infrastructure.trader_lab.capitalizer_session_flow_viability import (
+    NEW_YORK,
     _session_end,
 )
 
@@ -148,14 +150,6 @@ def _load_ledgers(root: Path) -> tuple[PortfolioFlowTrade, ...]:
 
 
 def _session_key(trade: PortfolioFlowTrade) -> str:
-    from qore.infrastructure.trader_lab.capitalizer_session_flow_viability import (
-        NEW_YORK,
-    )
-    from qore.infrastructure.trader_lab.capitalizer_session_clock import (
-        capitalizer_session_at,
-    )
-    from datetime import time, timedelta
-
     session = capitalizer_session_at(trade.entry_at)
     if session is None:
         raise ValueError("portfolio candidate must belong to Capitalizer session")
