@@ -1,0 +1,131 @@
+name: QORE VT31 NAS100 WAIT1025 R8 Hybrid Tick Resolution
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_wait1025_hybrid_tick_resolution_adapter_v1.py
+      - .github/workflows/vt31-nas100-wait1025-r8-hybrid-tick-resolution.yml
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and freeze
+        run: |
+          set -euo pipefail
+          pip install -e ".[dev]"
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py)" = "3e66f4532c67e62ab2eef7ac376bb86ef7011f73"
+          python -m py_compile             scripts/vt31_nas100_wait1025_hybrid_tick_resolution_adapter_v1.py             scripts/vt31_nas100_high_density_tick_resolution_v1.py
+          ruff check             scripts/vt31_nas100_wait1025_hybrid_tick_resolution_adapter_v1.py
+
+      - name: Recover exact WAIT1025 R8 manifest
+        run: |
+          set -euo pipefail
+          mkdir -p source old extra missing result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10540592822/zip" > source.zip
+          unzip -q source.zip -d source
+          (cd source && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("source/hybrid-wait1025-tick-manifest-r8_fresh.json").read_text())
+          assert p["research_only"] is True
+          assert p["opens_new_holdout"] is False
+          assert p["variant"] == "WAIT_1025_B060"
+          assert p["partition"] == "r8_fresh"
+          print(json.dumps({
+            "window_count":p["window_count"],
+            "classification_counts":p["classification_counts"],
+            "sha256":p["sha256"],
+          },sort_keys=True))
+          PY
+
+      - name: Recover prior tick inventory
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10429417732/zip" > old.zip
+          echo "71255ebcdeeb9b278ca0f1aea3e98dd4fc1a75bb10f4b3020529a79e3aeee2ed  old.zip" | sha256sum -c -
+          unzip -q old.zip -d old
+          (cd old/acquisition && sha256sum -c SHA256SUMS)
+
+      - name: Recover prior R8 high-density supplemental ticks
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10540189029/zip" > extra.zip
+          unzip -q extra.zip -d extra
+          (cd extra/acquisition && sha256sum -c SHA256SUMS)
+
+      - name: Recover exact four missing WAIT1025 R8 windows
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10587907814/zip" > missing.zip
+          unzip -q missing.zip -d missing
+          (cd missing/acquisition && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("missing/acquisition/manifest-tick-acquisition-summary.json").read_text())
+          assert p["partition"] == "r8_fresh"
+          assert p["source_window_count"] == 4
+          assert p["available"] == 4
+          assert all(p[k] == 0 for k in ("partial","empty","probe_failure"))
+          PY
+
+      - name: Resolve hybrid WAIT1025 ambiguity with existing tick engine
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_wait1025_hybrid_tick_resolution_adapter_v1.py             --manifest source/hybrid-wait1025-tick-manifest-r8_fresh.json             --acquisition-dir old/acquisition             --acquisition-dir extra/acquisition             --acquisition-dir missing/acquisition             --output result/wait1025-hybrid-tick-resolution-r8.json             | tee result/summary.json
+
+      - name: Governance and full-coverage gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/wait1025-hybrid-tick-resolution-r8.json").read_text())
+          g=p["governance"]
+          assert p["partition"] == "r8_fresh"
+          assert p["variant"] == "WAIT_1025_B060"
+          assert p["tick_evidence_available_count"] == p["source_window_count"]
+          assert p["classification_adapter_only"] is True
+          assert g["hybrid_classification_only_normalized"] is True
+          assert g["activation_timestamp_preserved"] is True
+          assert g["entry_stop_target_preserved"] is True
+          assert g["source_window_identity_preserved"] is True
+          assert g["missing_ticks_imputed"] is False
+          assert g["same_ms_cross_stream_order_guessed"] is False
+          assert g["same_ms_multi_order_fill_guessed"] is False
+          assert g["policy_promoted"] is False
+          print(json.dumps({
+            "source_window_count":p["source_window_count"],
+            "tick_evidence_available_count":p["tick_evidence_available_count"],
+            "counts":p["counts"],
+          },sort_keys=True))
+          PY
+
+      - name: Bind
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-wait1025-r8-hybrid-tick-resolution-${{ github.sha }}
+          path: result/
+          retention-days: 90
