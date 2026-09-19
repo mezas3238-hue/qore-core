@@ -154,6 +154,7 @@ class R42AudJpyDol:
 class R42AudJpyLiveSignal:
     signal_fingerprint: str
     entry_at: datetime
+    boundary_tick_at: datetime
     timeframe: str
     side: str
     certified_entry: Decimal
@@ -176,6 +177,13 @@ class R42AudJpyLiveSignal:
     def __post_init__(self) -> None:
         if len(self.signal_fingerprint) != 64:
             raise ValueError("AUDJPY R42 signal fingerprint must be SHA-256")
+        if self.entry_at.tzinfo is None or self.entry_at.utcoffset() is None:
+            raise ValueError("AUDJPY R42 entry timestamp must be timezone-aware")
+        if (
+            self.boundary_tick_at.tzinfo is None
+            or self.boundary_tick_at.utcoffset() is None
+        ):
+            raise ValueError("AUDJPY R42 broker tick timestamp must be timezone-aware")
         if self.timeframe not in {"H1", "H4"}:
             raise ValueError("AUDJPY R42 timeframe must be H1/H4")
         if self.side not in {"long", "short"}:
@@ -1137,13 +1145,23 @@ def build_live_signal(
         ],
     ],
     state: R42AudJpyLiveState,
+    boundary_snapshot: R42AudJpyBoundarySnapshot | None = None,
 ) -> tuple[R42AudJpyLiveSignal | None, str]:
     anchor = current_anchor(now)
     if anchor is None:
         return None, "not-audjpy-r42-entry-anchor"
     if state.open_trade is not None:
         return None, "single-position-busy"
-    evidence, _latest_open = mt5_evidence(api, now=now)
+    if boundary_snapshot is None:
+        evidence, _latest_open = mt5_evidence(api, now=now)
+        broker_tick_at = now.astimezone(UTC)
+    else:
+        if boundary_snapshot.anchor != anchor:
+            raise ValueError("AUDJPY R42 boundary snapshot anchor drift")
+        if boundary_snapshot.observed_at > anchor + ENTRY_SLA:
+            raise TimeoutError("AUDJPY R42 hard 2s SLA expired before signal build")
+        evidence = boundary_snapshot.evidence
+        broker_tick_at = boundary_snapshot.broker_tick_at
     current = next(
         (bar for bar in reversed(evidence.bars) if bar.opened_at == anchor),
         None,
@@ -1225,6 +1243,7 @@ def build_live_signal(
             R42AudJpyLiveSignal(
                 signal_fingerprint=fingerprint,
                 entry_at=anchor,
+                boundary_tick_at=broker_tick_at,
                 timeframe=timeframe,
                 side=signal.side.value,
                 certified_entry=current.open,
@@ -1271,6 +1290,16 @@ def build_r42_audjpy_risk_request(
     account_equity: Decimal,
     now: datetime,
 ) -> tuple[CiboRiskRequest, Decimal]:
+    deadline = signal.entry_at.astimezone(UTC) + ENTRY_SLA
+    checked_at = now.astimezone(UTC)
+    if checked_at > deadline:
+        raise ValueError("AUDJPY R42 hard 2s entry SLA expired")
+    tick_age = checked_at - signal.boundary_tick_at.astimezone(UTC)
+    if tick_age < timedelta(seconds=-0.5):
+        raise ValueError("AUDJPY R42 broker tick is from the future")
+    if tick_age > MAX_BROKER_TICK_AGE:
+        raise ValueError("AUDJPY R42 broker tick older than 2s")
+
     for name, value in (
         ("volume_min", provider_spec.minimum_volume),
         ("volume_step", provider_spec.volume_step),
@@ -1346,7 +1375,7 @@ def build_r42_audjpy_risk_request(
         stop_loss_per_volume=stop_per_lot,
         margin_per_volume=provider_spec.margin_per_volume,
         requested_at=now,
-        expires_at=now + timedelta(seconds=30),
+        expires_at=deadline,
     )
     return request, base_risk_usd
 
@@ -1466,6 +1495,7 @@ def manage_open_position(
     now: datetime,
     store: R42AudJpyLiveStateStore,
     mutations_enabled: bool = True,
+    cache: R42AudJpyM5Cache | None = None,
 ) -> tuple[R42AudJpyLiveState, str]:
     state = store.reconcile(api, now=now)
     opened = state.open_trade
@@ -1485,7 +1515,10 @@ def manage_open_position(
     entry_at = datetime.fromisoformat(opened.entry_at)
     if now >= entry_at + timedelta(hours=24):
         return state, "audjpy-r42-24h-exit-due"
-    evidence, _ = mt5_evidence(api, now=now)
+    if cache is None:
+        evidence, _ = mt5_evidence(api, now=now)
+    else:
+        evidence = cache.evidence()
     expected = certified_stop_for_open_trade(opened, evidence, now=now)
     broker_stop = Decimal(str(position.sl))
     stored_stop = Decimal(opened.current_stop)
