@@ -1,0 +1,244 @@
+name: QORE VT31 NAS100 Existing Management Labs Replay
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - .github/workflows/vt31-nas100-existing-management-labs-replay.yml
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Freeze source and static gate existing labs
+        run: |
+          set -euo pipefail
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py)" = "3e66f4532c67e62ab2eef7ac376bb86ef7011f73"
+          ruff check \
+            scripts/vt31_nas100_high_density_management_intelligence_v1.py \
+            scripts/vt31_nas100_high_density_structural_protection_v1.py \
+            scripts/vt31_nas100_entry_intelligence_oco_lab_v1.py
+
+      - name: Recover immutable evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Run existing High Density Management V1
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_high_density_management_intelligence_v1.py \
+            "input/${EVIDENCE_PATH}" \
+            --output "result/management-${PARTITION}.json" \
+            | tee "result/management-summary-${PARTITION}.json"
+
+      - name: Run existing High Density Structural Protection V1
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_high_density_structural_protection_v1.py \
+            "input/${EVIDENCE_PATH}" \
+            --output "result/protection-${PARTITION}.json" \
+            | tee "result/protection-summary-${PARTITION}.json"
+
+      - name: Governance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=os.environ["PARTITION"]
+          m=json.loads(Path(f"result/management-{p}.json").read_text())
+          mg=m["governance"]
+          assert mg["entry_filtering_by_management_context"] is False
+          assert mg["context_classifier_uses_terminal_pnl"] is False
+          assert mg["all_contexts_remain_executable"] is True
+          assert mg["consumed_evidence_only"] is True
+          assert mg["policy_promoted"] is False
+          assert mg["opens_new_holdout"] is False
+
+          s=json.loads(Path(f"result/protection-{p}.json").read_text())
+          sg=s["governance"]
+          assert sg["entry_filtering"] is False
+          assert sg["initial_stop_widening"] is False
+          assert sg["single_structural_trail_move_max"] is True
+          assert sg["trail_effective_next_bar"] is True
+          assert sg["context_classifier_uses_terminal_pnl"] is False
+          assert sg["consumed_evidence_only"] is True
+          assert sg["policy_promoted"] is False
+          assert sg["opens_new_holdout"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-existing-management-labs-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-existing-management-labs-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+
+      - name: Aggregate existing-lab results
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds=("r5","r6","r8","consumed_holdout")
+          management={}
+          protection={}
+          for fold in folds:
+              management[fold]=json.loads(
+                  Path(f"input/management-{fold}.json").read_text()
+              )
+              protection[fold]=json.loads(
+                  Path(f"input/protection-{fold}.json").read_text()
+              )
+
+          def compact(bundle):
+              stress=bundle["stress_0_05r"]
+              mc=bundle["monte_carlo"]
+              return {
+                  "sample":stress["sample"],
+                  "profit_factor":stress["profit_factor"],
+                  "max_drawdown_r":stress["max_drawdown_r"],
+                  "max_losing_streak":stress["max_losing_streak"],
+                  "mc_positive_terminal_probability":mc[
+                      "positive_terminal_probability"
+                  ],
+                  "mc_p95_max_drawdown_r":mc["p95_max_drawdown_r"],
+              }
+
+          m_names=("BASELINE","REFERENCE_DYNAMIC","CONTEXT_DYNAMIC")
+          p_names=("BASELINE","CAUTIOUS_FIRST","NON_SUPPORTIVE_FIRST","CONTEXT_0_2_1")
+
+          m_summary={
+              name:{
+                  fold:compact(management[fold]["policy_metrics"][name])
+                  for fold in folds
+              }
+              for name in m_names
+          }
+          p_summary={
+              name:{
+                  fold:compact(protection[fold]["variant_metrics"][name])
+                  for fold in folds
+              }
+              for name in p_names
+          }
+
+          def objective(item, *, low=300, high=350):
+              pf=item["profit_factor"]
+              return {
+                  "density":low <= int(item["sample"]) <= high,
+                  "pf_ge_1_50":pf is not None and float(pf)>=1.50,
+                  "dd_le_6":float(item["max_drawdown_r"])<=6.0,
+                  "mc_positive_ge_0_90":float(
+                      item["mc_positive_terminal_probability"]
+                  )>=0.90,
+                  "mc_p95_dd_le_15":float(
+                      item["mc_p95_max_drawdown_r"]
+                  )<=15.0,
+              }
+
+          m_gate={}
+          for name,per in m_summary.items():
+              gates={fold:objective(item) for fold,item in per.items()}
+              m_gate[name]={
+                  "folds":gates,
+                  "all_folds_pass":all(all(g.values()) for g in gates.values()),
+              }
+
+          p_gate={}
+          for name,per in p_summary.items():
+              gates={fold:objective(item) for fold,item in per.items()}
+              p_gate[name]={
+                  "folds":gates,
+                  "all_folds_pass":all(all(g.values()) for g in gates.values()),
+              }
+
+          report={
+              "schema":"qore.vt31.nas100.existing_management_labs_replay.v1",
+              "management":m_summary,
+              "management_gates":m_gate,
+              "structural_protection":p_summary,
+              "structural_protection_gates":p_gate,
+              "governance":{
+                  "existing_labs_only":True,
+                  "silver_bullet_modified":False,
+                  "opens_new_holdout":False,
+                  "policy_promoted":False,
+                  "candidate_certified":False,
+              },
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(report,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-existing-management-labs-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
