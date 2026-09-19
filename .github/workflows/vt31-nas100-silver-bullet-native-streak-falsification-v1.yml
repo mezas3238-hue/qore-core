@@ -1,0 +1,244 @@
+name: QORE VT31 NAS100 Frozen Silver Bullet Streak Falsification V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-intelligence-pilot-001
+    paths:
+      - scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py
+      - .github/workflows/vt31-nas100-silver-bullet-native-streak-falsification-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Freeze and static gate
+        run: |
+          set -euo pipefail
+          test "$(git hash-object src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py)" = "3e66f4532c67e62ab2eef7ac376bb86ef7011f73"
+          python -m py_compile scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py
+          ruff check scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py
+
+      - name: Recover immutable M1 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+
+      - name: Run frozen Silver Bullet falsification
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py             "input/${EVIDENCE_PATH}"             --partition "$PARTITION"             --output "result/native-streak-${PARTITION}.json"             | tee "result/summary-${PARTITION}.json"
+
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          partition = os.environ["PARTITION"]
+          payload = json.loads(
+              Path(f"result/native-streak-{partition}.json").read_text()
+          )
+          freeze = payload["silver_bullet_freeze"]
+          assert freeze["source_sha256"] == "bd729056fadc30d20045e4677240b3a6cbb65123ced317e7413b6ffe81936ddf"
+          assert freeze["methodology_id"] == "ttrades-am-silver-bullet-nq-r2.2"
+          assert freeze["source_module_modified_by_lab"] is False
+          g = payload["governance"]
+          assert g["silver_bullet_modified"] is False
+          assert g["silver_bullet_source_frozen"] is True
+          assert g["m1_only_source_replay"] is True
+          assert g["h4_used_as_primary_causal_feature"] is False
+          assert g["h1_trend_used_as_primary_causal_feature"] is False
+          assert g["post_outcome_fields_diagnostic_only"] is True
+          assert g["opens_new_holdout"] is False
+          assert g["policy_promoted"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-native-streak-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-native-streak-*-${{ github.sha }}
+          path: input/native
+          merge-multiple: true
+
+      - name: Recover current VT31 loss-sequence aggregate
+        run: |
+          set -euo pipefail
+          mkdir -p input/current result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10576800360/zip" > current.zip
+          unzip -q current.zip -d input/current
+          test -f input/current/aggregate.json
+
+      - name: Aggregate source-vs-trader falsification
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          folds = {}
+          for path in Path("input/native").glob("native-streak-*.json"):
+              payload = json.loads(path.read_text())
+              folds[payload["partition"]] = payload
+          assert set(folds) == {"r5", "r6", "r8", "consumed_holdout"}
+
+          current = json.loads(
+              Path("input/current/aggregate.json").read_text()
+          )
+          current_longest = current["longest_losing_streak_by_fold"]
+
+          native_longest = {
+              fold: folds[fold]["streak_summary"]["longest_losing_streak"]
+              for fold in folds
+          }
+          amplification = {
+              fold: int(current_longest[fold]) - int(native_longest[fold])
+              for fold in folds
+          }
+
+          feature_maps = {
+              fold: folds[fold]["feature_diagnostics"]
+              for fold in folds
+          }
+          common = set.intersection(
+              *(set(feature_maps[fold]) for fold in folds)
+          )
+          stable_negative = []
+          stable_positive = []
+          for key in sorted(common):
+              per_fold = {
+                  fold: feature_maps[fold][key]
+                  for fold in folds
+              }
+              if min(int(item["sample"]) for item in per_fold.values()) < 10:
+                  continue
+              means = {
+                  fold: Decimal(item["mean_r"])
+                  for fold, item in per_fold.items()
+              }
+              item = {
+                  "state": key,
+                  "per_fold": per_fold,
+              }
+              if all(value < 0 for value in means.values()):
+                  stable_negative.append(item)
+              if all(value > 0 for value in means.values()):
+                  stable_positive.append(item)
+
+          sequence = {
+              fold: folds[fold]["sequence_state"]
+              for fold in folds
+          }
+          report = {
+              "schema": "qore.vt31.nas100.silver_bullet_native_streak_falsification.aggregate.v1",
+              "silver_bullet_source_frozen": True,
+              "native_trade_count_by_fold": {
+                  fold: folds[fold]["trade_count"]
+                  for fold in folds
+              },
+              "native_metrics_by_fold": {
+                  fold: folds[fold]["metrics"]
+                  for fold in folds
+              },
+              "native_longest_losing_streak_by_fold": native_longest,
+              "current_vt31_longest_losing_streak_by_fold": current_longest,
+              "vt31_streak_amplification_over_native": amplification,
+              "stable_negative_native_states": stable_negative,
+              "stable_positive_native_states": stable_positive,
+              "pre_loss_streak_transition_by_fold": sequence,
+              "native_loss_anatomy_by_fold": {
+                  fold: folds[fold]["loss_anatomy"]
+                  for fold in folds
+              },
+              "interpretation_gate": {
+                  "current_amplifies_streak_all_folds": all(
+                      amplification[fold] > 0 for fold in folds
+                  ),
+                  "native_itself_has_severe_streak_any_fold": any(
+                      native_longest[fold] >= 8 for fold in folds
+                  ),
+              },
+              "governance": {
+                  "diagnostic_only": True,
+                  "silver_bullet_modified": False,
+                  "h4_removed_from_primary_falsification": True,
+                  "opens_new_holdout": False,
+                  "policy_promoted": False,
+                  "candidate_certified": False,
+              },
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(report, sort_keys=True, indent=2) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-native-streak-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
