@@ -45,7 +45,6 @@ from qore.infrastructure.trader_lab import vt08_index_r44_candidate_freeze as fr
 from qore.infrastructure.trader_lab import (
     vt08_index_r45_frozen_recent_2y_reproduction as r45,
 )
-from qore.infrastructure.trader_lab import vt08_index_v4_regime_forensics as v4
 from qore.infrastructure.trader_lab import vt08_index_v6_ttrades_source_faithful as v6
 from qore.infrastructure.trader_lab import vt08_index_v7_ttrades_source_corrected as v7
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import Vt08IndexC2R1Bar
