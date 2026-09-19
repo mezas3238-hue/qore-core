@@ -5,7 +5,7 @@ functions. It independently reconstructs the frozen structural demotions from
 R48, applies them to the same source-complete R34 baseline, and then compares
 the complete trade ledger against the canonical R47 implementation.
 
-The purpose is implementation independence, branch-level quality binding, and drift detection. The evidence is
+The purpose is implementation independence, branch-level quality binding,\nand drift detection. The evidence is
 consumed validation evidence; it is not a fresh holdout and grants no operating
 authority.
 """
