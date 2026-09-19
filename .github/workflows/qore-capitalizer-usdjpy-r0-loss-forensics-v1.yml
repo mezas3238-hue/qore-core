@@ -113,6 +113,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_cognitive_v2_development \
             m5-source journey-source target-source forensic-output
+      - name: Run Position Intelligence lifecycle forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_position_lifecycle_forensics \
+            m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
           python - <<'PY'
@@ -201,6 +205,31 @@ jobs:
               'JOURNEY_CONFLICT_ONLY',
               'STRUCTURAL_V2',
               'STRUCTURAL_V2_MAX2_SESSION',
+          }
+
+          lifecycle = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-position-lifecycle-v1.json'
+              ).read_text()
+          )
+          assert lifecycle['identity'] == (
+              'QORE_CAPITALIZER_POSITION_LIFECYCLE_FORENSICS_V1'
+          )
+          assert lifecycle['development_only'] is True
+          assert lifecycle['entry_cognition_changed'] is False
+          assert lifecycle['causal_stop_updates_only'] is True
+          assert lifecycle['stop_can_widen'] is False
+          assert lifecycle['target_changed'] is False
+          assert lifecycle['numeric_profit_threshold_optimized'] is False
+          assert lifecycle['costs_applied'] is False
+          assert lifecycle['candidate_frozen'] is False
+          assert lifecycle['fresh_holdout_claimed'] is False
+          assert lifecycle['rule_selected'] is False
+          assert lifecycle['promotion_allowed'] is False
+          assert {row['mode'] for row in lifecycle['ablations']} == {
+              'SWING_IMPROVE',
+              'PROFITABLE_SWING_LOCK',
           }
           PY
       - name: Upload immutable R0 forensics
