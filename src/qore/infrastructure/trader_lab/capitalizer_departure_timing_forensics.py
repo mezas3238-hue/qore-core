@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -135,8 +136,8 @@ def _timing_state(
     trade: CapitalizerR0Trade,
     *,
     dimension: str,
-    episode_index: dict[tuple[str, CapitalizerSide], tuple[str, ...]],
-    timing: dict[str, dict[str, int | None]],
+    episode_index: Mapping[tuple[str, CapitalizerSide], tuple[str, ...]],
+    timing: Mapping[str, Mapping[str, int | None]],
 ) -> str:
     episode_ids = episode_index.get((trade.signal_at.isoformat(), trade.side))
     if not episode_ids:
@@ -185,8 +186,8 @@ def _select(
     trades: tuple[CapitalizerR0Trade, ...],
     *,
     state_index: dict[tuple[str, CapitalizerSide], str],
-    episode_index: dict[tuple[str, CapitalizerSide], tuple[str, ...]],
-    timing: dict[str, dict[str, int | None]],
+    episode_index: Mapping[tuple[str, CapitalizerSide], tuple[str, ...]],
+    timing: Mapping[str, Mapping[str, int | None]],
     dimension: str,
     scope: str,
 ) -> tuple[CapitalizerR0Trade, ...]:
