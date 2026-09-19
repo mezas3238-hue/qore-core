@@ -1,0 +1,62 @@
+name: VT08 Index R57 R55 Lineage Audit
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r57-r55-lineage-audit.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r57_r55_lineage_audit.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r57_r55_lineage_audit.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r57_r55_lineage_audit.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-r47-transport-safe-structural-candidate-382c9dfd606af649dca07380a2fe8cacc99f458f
+          path: artifacts/r47
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35439293342
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-r55-distributed-causal-risk-8cd917654a938478a719cc822f601bd86bcc1ed4
+          path: artifacts/r55
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35456567688
+      - name: Audit R55 lineage
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r57_r55_lineage_audit \
+            --r47 artifacts/r47/vt08-index-r47-transport-safe-structural-candidate.json \
+            --r55 artifacts/r55/vt08-index-r55-distributed-causal-risk.json \
+            --out artifacts/report/vt08-index-r57-r55-lineage-audit.json
+      - name: Verify lineage rejection
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("artifacts/report/vt08-index-r57-r55-lineage-audit.json").read_text())
+          assert r["lineage_drift_confirmed"] is True
+          assert r["decision"] == "REJECT_R55_R56_FOR_PROMOTION_LINEAGE_DRIFT"
+          assert r["governance"]["r55_r56_promotion_valid"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r57-r55-lineage-audit-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
