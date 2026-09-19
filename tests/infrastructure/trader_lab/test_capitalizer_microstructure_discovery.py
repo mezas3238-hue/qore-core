@@ -1,0 +1,161 @@
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime
+from decimal import Decimal
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from qore.infrastructure.trader_lab.capitalizer_atlas_m5_reader import (
+    CapitalizerM5Bar,
+    iter_atlas_m5,
+)
+from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_microstructure_discovery import (
+    CapitalizerMicrostructureEvent,
+    scan_microstructure,
+    summarize_microstructure,
+)
+from qore.infrastructure.trader_lab.capitalizer_session_clock import (
+    capitalizer_session_at,
+)
+
+
+_NY = ZoneInfo("America/New_York")
+
+
+def _row(
+    opened_at: datetime,
+    *,
+    low: int,
+    open_: int,
+    high: int,
+    close: int,
+) -> dict[str, object]:
+    return {
+        "schema": "qore.cibo_market_atlas.raw_m5.v1",
+        "identity": "CIBO_MARKET_ATLAS_10Y_CONSUMPTION_V1",
+        "canonical_symbol": "USDJPY",
+        "opened_at": opened_at.astimezone(UTC).isoformat(),
+        "digits": 3,
+        "volume": 100,
+        "low_relative": low,
+        "open_relative": open_,
+        "high_relative": high,
+        "close_relative": close,
+    }
+
+
+def _write_rows(root: Path, rows: tuple[dict[str, object], ...]) -> None:
+    ledger = root / "RAW_M5_LEDGER"
+    ledger.mkdir(parents=True)
+    with (ledger / "2026.jsonl").open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+def test_session_clock_is_dst_aware_and_boundary_exact() -> None:
+    assert (
+        capitalizer_session_at(datetime(2026, 7, 1, 20, 0, tzinfo=_NY))
+        is CapitalizerSession.ASIA
+    )
+    assert (
+        capitalizer_session_at(datetime(2026, 7, 2, 2, 0, tzinfo=_NY))
+        is CapitalizerSession.LONDON
+    )
+    assert (
+        capitalizer_session_at(datetime(2026, 7, 2, 8, 30, tzinfo=_NY))
+        is CapitalizerSession.NEW_YORK
+    )
+    assert capitalizer_session_at(datetime(2026, 7, 2, 16, 0, tzinfo=_NY)) is None
+    assert (
+        capitalizer_session_at(datetime(2026, 1, 2, 8, 30, tzinfo=_NY))
+        is CapitalizerSession.NEW_YORK
+    )
+
+
+def test_atlas_reader_converts_provider_relative_prices_exactly(tmp_path: Path) -> None:
+    opened = datetime(2026, 7, 1, 20, 0, tzinfo=_NY)
+    _write_rows(
+        tmp_path,
+        (
+            _row(
+                opened,
+                low=15_665_000,
+                open_=15_665_600,
+                high=15_666_700,
+                close=15_666_200,
+            ),
+        ),
+    )
+    bars = tuple(iter_atlas_m5(tmp_path))
+    assert len(bars) == 1
+    bar = bars[0]
+    assert isinstance(bar, CapitalizerM5Bar)
+    assert bar.open == Decimal("156.656")
+    assert bar.high == Decimal("156.667")
+    assert bar.low == Decimal("156.650")
+    assert bar.close == Decimal("156.662")
+    assert bar.range == Decimal("0.017")
+    assert bar.body == Decimal("0.006")
+
+
+def test_microstructure_scanner_detects_causal_high_raid_rejection(
+    tmp_path: Path,
+) -> None:
+    first = datetime(2026, 7, 1, 20, 0, tzinfo=_NY)
+    second = datetime(2026, 7, 1, 20, 5, tzinfo=_NY)
+    _write_rows(
+        tmp_path,
+        (
+            _row(
+                first,
+                low=10_000_000,
+                open_=10_005_000,
+                high=10_010_000,
+                close=10_005_000,
+            ),
+            _row(
+                second,
+                low=10_002_000,
+                open_=10_006_000,
+                high=10_015_000,
+                close=10_008_000,
+            ),
+        ),
+    )
+    observations = scan_microstructure(tmp_path)
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation.session is CapitalizerSession.ASIA
+    assert CapitalizerMicrostructureEvent.HIGH_BREAK_ATTEMPT in observation.events
+    assert CapitalizerMicrostructureEvent.HIGH_RAID_REJECTION in observation.events
+    summary = summarize_microstructure(observations)
+    assert summary.observations == 1
+    assert summary.event_counts["HIGH_RAID_REJECTION"] == 1
+    assert summary.rule_promotion_allowed is False
+
+
+def test_microstructure_scanner_skips_non_contiguous_gap(tmp_path: Path) -> None:
+    first = datetime(2026, 7, 1, 20, 0, tzinfo=_NY)
+    second = datetime(2026, 7, 1, 20, 10, tzinfo=_NY)
+    _write_rows(
+        tmp_path,
+        (
+            _row(
+                first,
+                low=10_000_000,
+                open_=10_005_000,
+                high=10_010_000,
+                close=10_005_000,
+            ),
+            _row(
+                second,
+                low=10_002_000,
+                open_=10_006_000,
+                high=10_015_000,
+                close=10_008_000,
+            ),
+        ),
+    )
+    assert scan_microstructure(tmp_path) == ()
