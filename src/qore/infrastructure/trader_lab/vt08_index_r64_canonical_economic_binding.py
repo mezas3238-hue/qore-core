@@ -526,7 +526,7 @@ def build_binding(
     requested_end = max(
         max(bars[-1].closed_at.astimezone(UTC) for bars in combined_bars.values()),
         max(item.exited_at.astimezone(UTC) for _window, item in all_items),
-    )
+    ) + timedelta(minutes=15)
 
     manifests = tuple(
         _dataset_manifest(
