@@ -421,3 +421,122 @@ def test_confidence_is_evidence_bound_not_a_free_percentage() -> None:
             mean_r=Decimal("0"),
             strength=EvidenceStrength.LOW,
         )
+
+
+def test_experience_memory_is_market_session_bound_and_runtime_immutable() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_confidence import (
+        CapitalizerEvidenceCalibration,
+        CapitalizerEvidenceSource,
+    )
+    from qore.infrastructure.trader_lab.capitalizer_experience_memory import (
+        CapitalizerExperienceMemory,
+        CapitalizerExperienceProfile,
+    )
+
+    calibration = CapitalizerEvidenceCalibration(
+        state_family_id="ASIA_USDJPY_REVERSAL",
+        source=CapitalizerEvidenceSource.WALK_FORWARD,
+        source_fingerprint="b" * 64,
+        observations=80,
+        mean_r=Decimal("0.06"),
+        strength=EvidenceStrength.MEDIUM,
+    )
+    profile = CapitalizerExperienceProfile(
+        strategy_identity="QORE_CAPITALIZER_COGNITIVE_SCALPER_V1",
+        symbol="USDJPY",
+        session=CapitalizerSession.ASIA,
+        state_family_id="ASIA_USDJPY_REVERSAL",
+        calibration=calibration,
+        behavior_tags=("FAILED_BREAK", "RECLAIM"),
+    )
+    memory = CapitalizerExperienceMemory(profiles=(profile,))
+    assert (
+        memory.lookup(
+            symbol="USDJPY",
+            session=CapitalizerSession.ASIA,
+            state_family_id="ASIA_USDJPY_REVERSAL",
+        )
+        == profile
+    )
+    with pytest.raises(ValueError, match="cannot self-train"):
+        CapitalizerExperienceMemory(profiles=(profile,), runtime_mutation_allowed=True)
+
+
+def test_journey_returns_only_available_unconsumed_destinations() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_journey import (
+        CapitalizerDestinationState,
+        CapitalizerJourneyStage,
+        CapitalizerJourneyState,
+    )
+
+    journey = CapitalizerJourneyState(
+        stage=CapitalizerJourneyStage.DELIVERY,
+        destinations=(
+            CapitalizerDestinationState(
+                destination_id="D2",
+                family="LOCAL_LIQUIDITY",
+                distance_r=Decimal("0.8"),
+                consumed=False,
+                structurally_available=True,
+                evidence_strength=EvidenceStrength.HIGH,
+            ),
+            CapitalizerDestinationState(
+                destination_id="D1",
+                family="LOCAL_LIQUIDITY",
+                distance_r=Decimal("0.3"),
+                consumed=False,
+                structurally_available=True,
+                evidence_strength=EvidenceStrength.HIGH,
+            ),
+            CapitalizerDestinationState(
+                destination_id="DONE",
+                family="LOCAL_LIQUIDITY",
+                distance_r=Decimal("0.1"),
+                consumed=True,
+                structurally_available=True,
+                evidence_strength=EvidenceStrength.HIGH,
+            ),
+        ),
+    )
+    assert tuple(item.destination_id for item in journey.eligible_destinations()) == ("D1", "D2")
+
+
+def test_position_intelligence_exits_invalidation_and_cannot_grant_reentry() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_position_intelligence import (
+        CapitalizerOpenPositionState,
+        CapitalizerPositionAction,
+        reason_open_position,
+        rearm_is_genuinely_new,
+    )
+
+    position = CapitalizerOpenPositionState(
+        hypothesis_id="H-OLD",
+        source_event_id="E-OLD",
+        invalidated=True,
+        destination_reached=False,
+        structural_protection_available=False,
+    )
+    recommendation = reason_open_position(position)
+    assert recommendation.action is CapitalizerPositionAction.EXIT
+    assert recommendation.grants_reentry is False
+    assert recommendation.grants_capital_authority is False
+
+    new_situation = _situation(hypothesis_id="H-NEW", source_event_id="E-NEW")
+    assert (
+        rearm_is_genuinely_new(
+            prior_hypothesis_id="H-OLD",
+            prior_source_event_id="E-OLD",
+            prior_event_generation=0,
+            new_situation=new_situation,
+        )
+        is True
+    )
+    assert (
+        rearm_is_genuinely_new(
+            prior_hypothesis_id="H-NEW",
+            prior_source_event_id="E-OLD",
+            prior_event_generation=0,
+            new_situation=new_situation,
+        )
+        is False
+    )
