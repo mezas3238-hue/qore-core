@@ -18,6 +18,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py'
@@ -29,6 +30,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py'
   workflow_dispatch:
 
 permissions:
@@ -73,6 +75,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py \
             src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py \
@@ -83,7 +86,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_r0_loss_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py \
@@ -96,7 +100,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_h1_boundary_type_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py \
-            src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py
+            src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
@@ -108,7 +113,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_h1_source_age_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py
 
   forensics:
     needs: quality
@@ -189,6 +195,10 @@ jobs:
       - name: Characterize full-baseline joint causal states
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_joint_state_forensics \
+            m5-source journey-source target-source forensic-output
+      - name: Run targeted joint-state categorical ablations
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_joint_state_ablation \
             m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
@@ -470,6 +480,29 @@ jobs:
           assert joint['distinct_joint_states'] > 0
           assert len(joint['cells']) == joint['distinct_joint_states']
           assert len(joint['annual']) > 0
+
+          joint_ablation = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-joint-state-ablation-v1.json'
+              ).read_text()
+          )
+          assert joint_ablation['identity'] == (
+              'QORE_CAPITALIZER_JOINT_STATE_ABLATION_V1'
+          )
+          assert joint_ablation['development_only'] is True
+          assert joint_ablation['categorical_states_only'] is True
+          assert joint_ablation['numeric_threshold_optimization_used'] is False
+          assert joint_ablation['costs_applied'] is False
+          assert joint_ablation['candidate_frozen'] is False
+          assert joint_ablation['fresh_holdout_claimed'] is False
+          assert joint_ablation['rule_selected'] is False
+          assert joint_ablation['promotion_allowed'] is False
+          assert {row['name'] for row in joint_ablation['ablations']} == {
+              'DROP_OLDER_PRIOR_STRICT_RECLAIM',
+              'DROP_OLDER_PRIOR_ALL_RECLAIM_PHASES',
+              'DROP_OLDER_NONSWING_STRICT_RECLAIM',
+          }
           PY
       - name: Upload immutable R0 forensics
         uses: actions/upload-artifact@v4
