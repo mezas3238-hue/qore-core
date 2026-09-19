@@ -8,8 +8,10 @@ on:
       - '.github/workflows/qore-capitalizer-usdjpy-r0-loss-forensics-v1.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_r0_loss_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_r0_root_cause_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py'
   workflow_dispatch:
 
 permissions:
@@ -44,14 +46,18 @@ jobs:
           ruff check --ignore E501 \
             src/qore/infrastructure/trader_lab/capitalizer_r0_loss_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_r0_root_cause_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_r0_loss_forensics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py
+            src/qore/infrastructure/trader_lab/capitalizer_r0_acceptance_failure_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_r0_root_cause_forensics.py
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_r0_root_cause_forensics.py
 
   forensics:
     needs: quality
@@ -92,6 +98,10 @@ jobs:
       - name: Run acceptance failure forensics
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_r0_acceptance_failure_forensics \
+            m5-source journey-source target-source forensic-output
+      - name: Run causal root-cause forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_r0_root_cause_forensics \
             m5-source journey-source target-source forensic-output
       - name: Enforce diagnostic-only governance
         run: |
@@ -135,6 +145,27 @@ jobs:
           assert acceptance['execution_costs_applied'] is False
           assert acceptance['fresh_holdout_claimed'] is False
           assert acceptance['rule_promotion_allowed'] is False
+
+          root = json.loads(
+              Path(
+                  'forensic-output/'
+                  'capitalizer-usdjpy-r0-root-cause-v1.json'
+              ).read_text()
+          )
+          assert root['identity'] == 'QORE_CAPITALIZER_R0_ROOT_CAUSE_FORENSICS_V1'
+          assert root['acceptance_trades'] > 0
+          assert root['diagnostic_only'] is True
+          assert root['causal_features_only'] is True
+          assert root['outcome_used_as_label_only'] is True
+          assert root['threshold_optimization_used'] is False
+          assert root['filter_selected'] is False
+          assert root['candidate_revision_defined'] is False
+          assert root['execution_costs_applied'] is False
+          assert root['fresh_holdout_claimed'] is False
+          assert root['rule_promotion_allowed'] is False
+          assert root['worst_streak_length'] > 0
+          assert len(root['by_state']) >= 3
+          assert len(root['annual']) >= 5
           PY
       - name: Upload immutable R0 forensics
         uses: actions/upload-artifact@v4
