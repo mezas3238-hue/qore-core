@@ -165,7 +165,10 @@ def write_microstructure_matrix(
         "- Evidence status: CONSUMED_RESEARCH_EVIDENCE",
         "- Rule promotion allowed: NO",
         "",
-        "| Session | Market | Observations | High raid rejection | Low raid rejection | High acceptance | Low acceptance |",
+        (
+            "| Session | Market | Observations | High raid rejection | "
+            "Low raid rejection | High acceptance | Low acceptance |"
+        ),
         "|---|---|---:|---:|---:|---:|---:|",
     ]
     for cell in matrix.cells:
@@ -185,7 +188,16 @@ def main() -> None:
     args = parser.parse_args()
     matrix = build_microstructure_matrix(args.input_root)
     write_microstructure_matrix(matrix, args.output)
-    print(json.dumps({"identity": matrix.identity, "cells": len(matrix.cells), "total_observations": matrix.total_observations}, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "identity": matrix.identity,
+                "cells": len(matrix.cells),
+                "total_observations": matrix.total_observations,
+            },
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
