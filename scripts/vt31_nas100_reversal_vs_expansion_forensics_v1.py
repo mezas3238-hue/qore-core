@@ -66,6 +66,7 @@ EXPECTED_METHODOLOGY_ID = "ttrades-am-silver-bullet-nq-r2.2"
 
 FEATURE_FIELDS = (
     "side",
+    "execution_translation_status",
     "entry_family",
     "candidate_combo",
     "candidate_count_bucket",
@@ -150,7 +151,9 @@ def _bucket_efficiency(value: Decimal) -> str:
     return "ge_0_75"
 
 
-def _bucket_target(value: Decimal) -> str:
+def _bucket_target(value: Decimal | None) -> str:
+    if value is None:
+        return "missing"
     if value <= Decimal("2"):
         return "le_2R"
     if value <= Decimal("3"):
@@ -326,7 +329,7 @@ def _features(
     *,
     day_bars: tuple[object, ...],
     source: Vt31R22SourceSetup,
-    setup: Vt31R22ExecutableSetup,
+    setup: Vt31R22ExecutableSetup | None,
 ) -> dict[str, object]:
     side = source.side.value
     reference = source.reference
@@ -402,15 +405,23 @@ def _features(
         confirmation_penetration,
     )
 
+    execution_translation_status = (
+        "executable" if setup is not None else "not_executable"
+    )
+    entry_family = (
+        setup.selected_family.value
+        if setup is not None
+        else "not_executable"
+    )
     risk_ref = (
         setup.initial_risk / ref_width
-        if ref_width > 0
-        else Decimal(0)
+        if setup is not None and ref_width > 0
+        else None
     )
     planned_target_r = (
         abs(setup.target_price - setup.entry_price) / setup.initial_risk
-        if setup.initial_risk > 0
-        else Decimal(0)
+        if setup is not None and setup.initial_risk > 0
+        else None
     )
     efficiency = _path_efficiency(
         confirmation_path,
@@ -450,7 +461,8 @@ def _features(
 
     return {
         "side": side,
-        "entry_family": setup.selected_family.value,
+        "execution_translation_status": execution_translation_status,
+        "entry_family": entry_family,
         "candidate_combo": candidate_combo,
         "candidate_count": len(source.candidates),
         "candidate_count_bucket": _bucket_count(len(source.candidates)),
@@ -477,9 +489,15 @@ def _features(
         "confirmation_penetration_ref_bucket": _bucket_ratio(
             confirmation_penetration
         ),
-        "risk_ref": format(risk_ref, "f"),
+        "risk_ref": (
+            None if risk_ref is None else format(risk_ref, "f")
+        ),
         "risk_ref_bucket": risk_bucket,
-        "planned_target_r": format(planned_target_r, "f"),
+        "planned_target_r": (
+            None
+            if planned_target_r is None
+            else format(planned_target_r, "f")
+        ),
         "planned_target_r_bucket": target_bucket,
         "raid_to_confirmation_efficiency": format(efficiency, "f"),
         "raid_to_confirmation_efficiency_bucket": efficiency_bucket,
@@ -527,7 +545,7 @@ def _features(
         "risk_x_planned_target": f"{risk_bucket}|{target_bucket}",
         "side_x_reclaim": f"{side}|{reclaim_bucket}",
         "family_x_reclaim": (
-            f"{setup.selected_family.value}|{reclaim_bucket}"
+            f"{entry_family}|{reclaim_bucket}"
         ),
     }
 
@@ -662,16 +680,23 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
                 evaluation.setup,
                 policy,
             )
-            if executable is None:
-                status[f"not-executable-{reason}"] += 1
-                break
-
             selected_source = evaluation.setup
             selected_setup = executable
+            if executable is None:
+                reason_name = (
+                    "unknown"
+                    if reason is None
+                    else reason.value
+                )
+                status[
+                    f"source-execution-not-executable-{reason_name}"
+                ] += 1
+            else:
+                status["source-execution-executable"] += 1
             break
 
-        if selected_source is None or selected_setup is None:
-            status["no-executable-source"] += 1
+        if selected_source is None:
+            status["no-source"] += 1
             continue
 
         row = {
@@ -719,6 +744,8 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
         "governance": {
             "silver_bullet_modified": False,
             "m1_source_confirmation_only": True,
+            "source_native_population_includes_non_executable_translation": True,
+            "execution_translation_is_feature_not_admission_gate": True,
             "h4_primary_causal_feature": False,
             "h1_trend_primary_causal_feature": False,
             "future_journey_label_research_only": True,
