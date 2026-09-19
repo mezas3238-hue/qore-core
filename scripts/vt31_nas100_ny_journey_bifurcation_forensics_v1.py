@@ -287,6 +287,36 @@ def _deepest_dol(
     return rank
 
 
+def _future_journey_after_checkpoint(
+    bars: tuple[object, ...],
+    *,
+    side: str,
+    stop: Decimal,
+    ladder: tuple[Decimal, ...],
+) -> tuple[int, bool, bool]:
+    """Replay future M1 chronologically.
+
+    Returns deepest DOL rank reached before invalidation, whether invalidation
+    happened first, and whether a bar ambiguously touched both the stop and a
+    previously unreached DOL.
+    """
+    rank = 0
+    for bar in bars:
+        bar_rank = 0
+        for candidate_rank, level in enumerate(ladder, start=1):
+            if _touches_level(bar, side, level):
+                bar_rank = max(bar_rank, candidate_rank)
+
+        stop_hit = _touches_stop(bar, side, stop)
+        if stop_hit and bar_rank > rank:
+            return rank, False, True
+        if stop_hit:
+            return rank, True, False
+        rank = max(rank, bar_rank)
+
+    return rank, False, False
+
+
 def _journey_label(rank: int, invalidated: bool) -> str:
     if rank == 0:
         return (
@@ -434,18 +464,6 @@ def _fill_index(
     return None
 
 
-def _original_end(
-    bars: tuple[object, ...],
-    *,
-    side: str,
-    stop: Decimal,
-) -> tuple[int, bool]:
-    for index, bar in enumerate(bars):
-        if _touches_stop(bar, side, stop):
-            return index, True
-    return len(bars) - 1, False
-
-
 def _checkpoint_row(
     *,
     partition: str,
@@ -523,15 +541,13 @@ def _checkpoint_row(
     # The decision exists only after checkpoint_bar closes.  Future labels
     # therefore start on the next M1 bar; never reuse checkpoint-bar range.
     future = path[checkpoint_index + 1 :]
-    deepest = _deepest_dol(
-        future,
-        side=side,
-        ladder=ladder,
-    )
-    _, invalidated = _original_end(
-        future,
-        side=side,
-        stop=setup.stop_price,
+    deepest, invalidated, future_path_censored = (
+        _future_journey_after_checkpoint(
+            future,
+            side=side,
+            stop=setup.stop_price,
+            ladder=ladder,
+        )
     )
 
     ref_width = (
@@ -601,6 +617,7 @@ def _checkpoint_row(
         "future_runner_ge_dol2": deepest >= 2,
         "future_extended_ge_dol3": deepest >= 3,
         "future_giveback_before_dol1": deepest == 0 and invalidated,
+        "future_path_censored": future_path_censored,
         "future_label_research_only": True,
     }
 
@@ -730,6 +747,11 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
                     f"checkpoint-{checkpoint}-dol1-already-reached"
                 ] += 1
                 continue
+            if bool(row["future_path_censored"]):
+                status[
+                    f"checkpoint-{checkpoint}-future-path-censored"
+                ] += 1
+                continue
             observations.append(row)
             status[f"checkpoint-{checkpoint}-earned-pre-dol1"] += 1
 
@@ -776,6 +798,8 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             "fill_bar_path_ambiguity_fail_closed": True,
             "pre_dol1_checkpoint_only": True,
             "future_starts_after_checkpoint_bar": True,
+            "future_replay_stops_at_invalidation": True,
+            "future_same_bar_stop_new_dol_censored": True,
             "future_journey_labels_research_only": True,
             "future_labels_allowed_at_runtime": False,
             "uses_terminal_pnl_at_runtime": False,
