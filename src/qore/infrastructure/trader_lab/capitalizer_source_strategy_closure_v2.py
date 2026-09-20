@@ -35,14 +35,15 @@ class CapitalizerSourceStrategyClosure:
     source_inventory_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
     deterministic_grammar_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
     provenance_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
-    source_strategy_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
+    source_strategy_status: CapitalizerChainStatus = CapitalizerChainStatus.RESEARCH_OPEN
+    full_source_faithful_trader_design_closed: bool = False
 
     asian_session_requires_historical_open_reference: bool = True
     london_source_window_frozen: bool = True
     new_york_source_window_frozen: bool = True
     qore_surveillance_bucket_equated_to_source_killzone: bool = False
 
-    ready_for_integrated_nine_market_replay: bool = True
+    ready_for_integrated_nine_market_replay: bool = False
     integrated_nine_market_replay_completed: bool = False
     final_nine_market_family_taxonomy_closed: bool = False
     stop_intelligence_closed: bool = False
@@ -84,8 +85,14 @@ class CapitalizerSourceStrategyClosure:
             raise ValueError("deterministic grammar status must be FROZEN_APT")
         if self.provenance_status is not CapitalizerChainStatus.FROZEN_APT:
             raise ValueError("source provenance status must be FROZEN_APT")
-        if self.source_strategy_status is not CapitalizerChainStatus.FROZEN_APT:
-            raise ValueError("source strategy status must be FROZEN_APT")
+        if self.source_strategy_status is not CapitalizerChainStatus.RESEARCH_OPEN:
+            raise ValueError(
+                "source strategy remains RESEARCH_OPEN until full trader design closes"
+            )
+        if self.full_source_faithful_trader_design_closed:
+            raise ValueError(
+                "grammar/provenance closure alone cannot claim full trader design"
+            )
         if SOURCE_STRATEGY_GRAMMAR_ID != "QORE_CAPITALIZER_SOURCE_STRATEGY_GRAMMAR_V2":
             raise ValueError("unexpected source strategy grammar identity")
         if FROZEN_SOURCE_STRATEGY_PROVENANCE.outcome_derived_rule_allowed:
@@ -96,8 +103,10 @@ class CapitalizerSourceStrategyClosure:
             raise ValueError("reviewed London/New York source windows must remain frozen")
         if self.qore_surveillance_bucket_equated_to_source_killzone:
             raise ValueError("QORE surveillance buckets cannot masquerade as source killzones")
-        if not self.ready_for_integrated_nine_market_replay:
-            raise ValueError("source closure must open integrated nine-market replay")
+        if self.ready_for_integrated_nine_market_replay:
+            raise ValueError(
+                "integrated replay remains blocked until full source-faithful trader design"
+            )
         if self.integrated_nine_market_replay_completed:
             raise ValueError("integrated replay is the next chain, not part of source closure")
         if self.final_nine_market_family_taxonomy_closed:
