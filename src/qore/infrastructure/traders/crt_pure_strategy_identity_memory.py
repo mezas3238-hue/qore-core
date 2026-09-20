@@ -15,11 +15,10 @@ from typing import Final
 
 from qore.infrastructure.traders.crt_pure_identity import CRT_PURE_IDENTITY
 from qore.infrastructure.traders.crt_pure_source_registry import (
-    CrtPureConceptId,
     CRT_PURE_SOURCE_REGISTRY,
+    CrtPureConceptId,
     promotable_concepts,
 )
-
 
 SCHEMA: Final = "qore.vt08.crt_pure.strategy_identity_memory.v1"
 STRATEGY_ID: Final = "VT08_CRT_PURE"
