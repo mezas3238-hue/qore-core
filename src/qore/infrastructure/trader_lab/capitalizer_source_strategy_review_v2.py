@@ -134,6 +134,16 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
+        source_id="TTRADES_BEST_TIMEFRAMES",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="The Best Timeframes for TTrades Fractal Model (Simple)",
+        primary_locator=(
+            "https://ttrades.com/the-best-timeframes-for-ttrades-fractal-model-simple/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
         source_id="TTRADES_INTERNAL_EXTERNAL_LIQUIDITY",
         author=CapitalizerStrategyAuthor.TTRADES,
         kind=CapitalizerPrimarySourceKind.ARTICLE,
@@ -296,6 +306,16 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
             "ICT_HIGH_PROBABILITY_SCALPING_V1",
             "ICT_NEW_YORK_KILLZONE",
         ),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_ENTRY_AFTER_CONFIRMED_PROTECTED_SWING_ON_NEXT_CONTINUATION",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades describes lower-timeframe execution after a confirmed change in delivery "
+            "and protected swing, with entry taken on the next continuation candle rather than "
+            "before structural confirmation."
+        ),
+        source_ids=("TTRADES_BEST_TIMEFRAMES", "TTRADES_SCALPING_MODEL"),
     ),
     CapitalizerSourceFact(
         fact_id="TTRADES_FVG_THREE_CANDLE_NON_OVERLAP",
