@@ -175,10 +175,14 @@ def _raw_source_records(
             DemoTradingSetupSide.LONG,
             DemoTradingSetupSide.SHORT,
         ):
-            poi = v6._last_cisd_poi(bars, side=side)
-            if poi is None:
+            cisd_poi = v6._last_cisd_poi(bars, side=side)
+            if cisd_poi is None:
                 continue
-            records[_poi_identity(poi, side)] = (side, poi, key)
+            records[_poi_identity(cisd_poi, side)] = (
+                side,
+                cisd_poi,
+                key,
+            )
 
     return tuple(
         sorted(
@@ -282,7 +286,10 @@ def _market(
         side: 0
         for side in by_side
     }
-    active = {
+    active: dict[
+        DemoTradingSetupSide,
+        dict[tuple[object, ...], PoiRecord],
+    ] = {
         side: {}
         for side in by_side
     }
