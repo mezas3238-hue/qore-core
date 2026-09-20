@@ -14,7 +14,9 @@ from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 from qore.infrastructure.traders.crt_pure_source_corpus import (
     CRT_PURE_PRIMARY_SOURCE_CORPUS,
     CrtPureSourceArtifactStatus,
+    pending_corroboration_locators,
     pending_primary_locators,
+    verified_corroboration_artifacts,
     verified_primary_artifacts,
 )
 
@@ -106,3 +108,15 @@ def test_mutually_invalidating_executable_hypotheses_create_cognitive_conflict()
     )
     assert result.state is CrtPureCompetitionState.COGNITIVE_CONFLICT
     assert result.selected_market is None
+
+
+def test_level_b_corpus_is_explicitly_non_authoritative() -> None:
+    verified = verified_corroboration_artifacts()
+    assert {item.source_name for item in verified} == {
+        "SpeculatorFL",
+        "TraderFlameseN",
+    }
+    assert all(item.source_tier.value == "LEVEL_B" for item in verified)
+
+    pending = pending_corroboration_locators()
+    assert [item.source_name for item in pending] == ["TTrades"]
