@@ -55,9 +55,6 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r74_ambiguous_bias_resolvers as r74,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r84_source_exact_ps_event_census as r84,
-)
-from qore.infrastructure.trader_lab import (
     vt08_index_r85_source_exact_ps_continuation_rearm as r85,
 )
 from qore.infrastructure.trader_lab import (
