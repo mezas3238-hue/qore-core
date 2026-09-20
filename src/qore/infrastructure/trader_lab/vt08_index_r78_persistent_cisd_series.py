@@ -415,10 +415,18 @@ def _window(
     added_ids = [item[0].identity() for item in added]
     if len(set(added_ids)) != len(added_ids):
         raise ValueError(f"R78 {window_id} recovery identity collision")
-    if canonical_ids.intersection(added_ids):
-        raise ValueError(f"R78 {window_id} recovery/canonical overlap")
 
-    combined_sample = canonical_sample + len(added)
+    overlapping_existing = sum(
+        identity in canonical_ids
+        for identity in added_ids
+    )
+    novel_added = [
+        item
+        for item in added
+        if item[0].identity() not in canonical_ids
+    ]
+
+    combined_sample = canonical_sample + len(novel_added)
     low_5y, high_5y = contract.FIVE_YEAR_TRADE_RANGE
     if window_id == "5Y":
         density_gate = low_5y <= combined_sample <= high_5y
@@ -427,10 +435,10 @@ def _window(
     else:
         density_gate = combined_sample >= r66.MIN_TRADES
 
-    primary = r74._metrics(added, stress=PRIMARY_STRESS)
-    secondary = r74._metrics(added, stress=SECONDARY_STRESS)
+    primary = r74._metrics(novel_added, stress=PRIMARY_STRESS)
+    secondary = r74._metrics(novel_added, stress=SECONDARY_STRESS)
     secondary_blocks = r74._period_blocks(
-        added,
+        novel_added,
         start_date=start_date,
         end_date=end_date,
         stress=SECONDARY_STRESS,
@@ -439,10 +447,14 @@ def _window(
     return {
         "window_id": window_id,
         "canonical_sample": canonical_sample,
-        "added_persistent_cisd_signals": len(added),
+        "recovered_signals_before_canonical_dedup": len(added),
+        "recovered_matching_existing_canonical_identity_count": (
+            overlapping_existing
+        ),
+        "added_persistent_cisd_signals": len(novel_added),
         "hypothetical_combined_sample": combined_sample,
         "density_gate": density_gate,
-        "added_market_counts": r74._market_counts(added),
+        "added_market_counts": r74._market_counts(novel_added),
         "primary": primary,
         "secondary": secondary,
         "secondary_blocks": secondary_blocks,
