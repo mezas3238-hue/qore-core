@@ -137,7 +137,9 @@ jobs:
           mkdir -p result
           python - <<'PY'
           import json
+          import sys
           from pathlib import Path
+          sys.path.insert(0, "scripts")
           import vt31_nas100_structural_target_candidate_v1 as candidate
 
           folds={}
