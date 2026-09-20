@@ -28,6 +28,7 @@ CERTIFIED_LIVE_DIRECTIONS: dict[str, frozenset[str]] = {
     "GBPJPY": frozenset({"long", "short"}),
     "EURUSD": frozenset({"long", "short"}),
     "XAUUSD": frozenset({"long", "short"}),
+    "NAS100": frozenset({"long", "short"}),
 }
 LIVE_ENTRY_ANCHORS_NY = (1, 5, 9)
 MAX_LIVE_ENTRY_DRIFT_TICKS = Decimal("1")
