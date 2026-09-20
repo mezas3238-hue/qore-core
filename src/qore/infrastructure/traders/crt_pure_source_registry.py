@@ -294,3 +294,13 @@ def evidence_backed_concepts() -> tuple[CrtPureConceptId, ...]:
         for record in CRT_PURE_SOURCE_REGISTRY
         if record.evidence
     )
+
+
+def promotable_concepts() -> tuple[CrtPureConceptId, ...]:
+    """Return concepts whose current primary evidence is closed enough for Identity."""
+
+    return tuple(
+        record.concept_id
+        for record in CRT_PURE_SOURCE_REGISTRY
+        if record.promotable_to_strategy_identity
+    )
