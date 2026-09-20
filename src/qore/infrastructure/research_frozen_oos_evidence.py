@@ -94,12 +94,131 @@ def _canonical_json_value(value: object) -> object:
     )
 
 
+def _component_bytes(label: str, value: object) -> bytes:
+    """Encode one canonical fingerprint component with unambiguous framing."""
+
+    label_bytes = label.encode("utf-8")
+    encoded = json.dumps(
+        _canonical_json_value(value),
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return (
+        len(label_bytes).to_bytes(4, "big")
+        + label_bytes
+        + len(encoded).to_bytes(8, "big")
+        + encoded
+    )
+
+
+def _stream_valid_oos_fingerprint(
+    *,
+    evaluation_freeze: ResearchEvaluationFreezeEvidence,
+    oos_performance: ResearchOosPerformanceEvidence,
+) -> ResearchFrozenOosFingerprint:
+    """Hash valid OOS evidence incrementally to keep peak memory bounded."""
+
+    digest = sha256()
+    digest.update(
+        _component_bytes(
+            "schema",
+            "qore.research-frozen-oos.streaming-fingerprint.v2",
+        )
+    )
+    digest.update(
+        _component_bytes(
+            "evaluation_freeze",
+            evaluation_freeze.logical_values(),
+        )
+    )
+    digest.update(
+        _component_bytes(
+            "oos.evidence_id",
+            oos_performance.evidence_id.logical_values(),
+        )
+    )
+    digest.update(
+        _component_bytes(
+            "oos.plan",
+            oos_performance.plan.logical_values(),
+        )
+    )
+    digest.update(_component_bytes("oos.basis", oos_performance.basis.value))
+    digest.update(
+        _component_bytes(
+            "oos.fold_count",
+            len(oos_performance.fold_performance),
+        )
+    )
+
+    for fold_index, fold_performance in enumerate(
+        oos_performance.fold_performance
+    ):
+        statistics = fold_performance.statistics
+        prefix = f"oos.fold.{fold_index}"
+        digest.update(
+            _component_bytes(
+                f"{prefix}.fold",
+                fold_performance.fold.logical_values(),
+            )
+        )
+        digest.update(
+            _component_bytes(
+                f"{prefix}.statistics_header",
+                (
+                    statistics.snapshot_id.logical_values(),
+                    statistics.run.logical_values(),
+                    statistics.basis.value,
+                    statistics.sample_size,
+                    statistics.positive_count,
+                    statistics.negative_count,
+                    statistics.flat_count,
+                    format(statistics.mean_return, "f"),
+                    format(statistics.minimum_return, "f"),
+                    format(statistics.maximum_return, "f"),
+                    format(statistics.win_rate, "f"),
+                    format(statistics.population_variance, "f"),
+                    statistics.observed_at.isoformat(),
+                ),
+            )
+        )
+        digest.update(
+            _component_bytes(
+                f"{prefix}.observation_count",
+                len(statistics.observations),
+            )
+        )
+        for observation_index, observation in enumerate(
+            statistics.observations
+        ):
+            digest.update(
+                _component_bytes(
+                    f"{prefix}.observation.{observation_index}",
+                    observation.logical_values(),
+                )
+            )
+
+    digest.update(
+        _component_bytes(
+            "oos.observed_at",
+            oos_performance.observed_at.isoformat(),
+        )
+    )
+    return ResearchFrozenOosFingerprint(digest.hexdigest())
+
+
 def compute_research_frozen_oos_fingerprint(
     *,
     evaluation_freeze: ResearchEvaluationFreezeEvidence,
     oos_performance: ResearchOosPerformanceEvidence,
 ) -> ResearchFrozenOosFingerprint:
-    """Hash the complete logical frozen-plan and OOS-performance evidence chain."""
+    """Hash the exact frozen-plan/OOS chain with bounded peak memory.
+
+    Valid OOS evidence is streamed one retained observation at a time instead of
+    materializing the complete nested logical-value tree in one JSON object.
+    """
 
     if not isinstance(evaluation_freeze, ResearchEvaluationFreezeEvidence):
         raise ResearchFrozenOosEvidenceValidationError(
@@ -109,18 +228,28 @@ def compute_research_frozen_oos_fingerprint(
         raise ResearchFrozenOosEvidenceValidationError(
             "oos_performance must be ResearchOosPerformanceEvidence"
         )
-    canonical = {
-        "evaluation_freeze": evaluation_freeze.logical_values(),
-        "oos_performance": oos_performance.logical_values(),
-    }
-    encoded = json.dumps(
-        _canonical_json_value(canonical),
-        ensure_ascii=True,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
-    return ResearchFrozenOosFingerprint(sha256(encoded).hexdigest())
+
+    # Legacy unit-test fixtures intentionally bypass OOS validation and can carry
+    # no fold records. Real ResearchOosPerformanceEvidence is non-empty; retain a
+    # deterministic compatibility path only for those synthetic fixtures.
+    if not oos_performance.fold_performance:
+        canonical = {
+            "evaluation_freeze": evaluation_freeze.logical_values(),
+            "oos_performance": oos_performance.logical_values(),
+        }
+        encoded = json.dumps(
+            _canonical_json_value(canonical),
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        return ResearchFrozenOosFingerprint(sha256(encoded).hexdigest())
+
+    return _stream_valid_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos_performance,
+    )
 
 
 @dataclass(frozen=True, slots=True)
