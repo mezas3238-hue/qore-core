@@ -664,9 +664,11 @@ class CertifiedAccountPolicyRegistrySnapshot:
                 evaluated_at=evaluated_at,
             )
             if isinstance(resolved, Failure):
-                error = resolved.error
-                if isinstance(error, AccountPolicyResolutionError):
-                    return Failure(CertifiedPolicyResolutionError(str(error)))
+                resolution_error = resolved.error
+                if isinstance(resolution_error, AccountPolicyResolutionError):
+                    return Failure(
+                        CertifiedPolicyResolutionError(str(resolution_error))
+                    )
                 return Failure(
                     CertifiedPolicyResolutionError(
                         "underlying account policy could not be resolved"
