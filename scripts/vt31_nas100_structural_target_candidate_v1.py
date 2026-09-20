@@ -21,7 +21,8 @@ Candidate:
 The candidate is frozen for extended consumed validation. It is NOT certified,
 fresh, live or production-authorized.
 """
-# ruff: noqa: I001\nfrom __future__ import annotations
+# ruff: noqa: I001
+from __future__ import annotations
 
 import hashlib
 import json
