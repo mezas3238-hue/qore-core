@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -104,7 +104,7 @@ EXPECTED_BASELINE_SECONDARY = {
 def _replay_target(
     stream: Sequence[tuple[Any, r5.ManagedTrade]],
     *,
-    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    bars_by_symbol: Mapping[str, Sequence[Vt08IndexC2R1Bar]],
     target_r: Decimal,
 ) -> tuple[tuple[Any, r5.ManagedTrade], ...]:
     policy = r8._target_policy(target_r)
@@ -137,7 +137,7 @@ def _replay_target(
 def _apply_exact_allocator(
     stream: Sequence[tuple[Any, r5.ManagedTrade]],
     *,
-    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    bars_by_symbol: Mapping[str, Sequence[Vt08IndexC2R1Bar]],
 ) -> tuple[tuple[r15.AssignedTrade, ...], dict[str, Any]]:
     base_r47, r47_diagnostics = r58._exact_r47(
         tuple(stream),
@@ -233,7 +233,7 @@ def _weighted_blocks(
 def _evaluate(
     stream: Sequence[tuple[Any, r5.ManagedTrade]],
     *,
-    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
+    bars_by_symbol: Mapping[str, Sequence[Vt08IndexC2R1Bar]],
     window_id: str,
 ) -> dict[str, Any]:
     start_date, end_date, expected_sample = r74._window_contract(window_id)
@@ -305,9 +305,9 @@ def _window(
         raise ValueError(f"R80 {window_id} baseline sample mismatch")
     baseline_pf = Decimal(str(baseline["secondary"]["profit_factor"] or "0"))
     baseline_total = Decimal(str(baseline["secondary"]["total_r"]))
-    if abs(baseline_pf - Decimal(expected["pf"])) > Decimal("0.00001"):
+    if abs(baseline_pf - Decimal(str(expected["pf"]))) > Decimal("0.00001"):
         raise ValueError(f"R80 {window_id} canonical PF reproduction drift")
-    if abs(baseline_total - Decimal(expected["total_r"])) > Decimal("0.00001"):
+    if abs(baseline_total - Decimal(str(expected["total_r"]))) > Decimal("0.00001"):
         raise ValueError(f"R80 {window_id} canonical total reproduction drift")
 
     source_stream = _replay_target(
