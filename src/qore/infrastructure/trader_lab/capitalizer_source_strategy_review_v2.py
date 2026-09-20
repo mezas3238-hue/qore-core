@@ -126,6 +126,14 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
+        source_id="TTRADES_DAILY_BIAS_MECHANICAL",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Easy Daily Bias: A Mechanical Trading Framework",
+        primary_locator="https://ttrades.com/easy-daily-bias-a-mechanical-trading-framework/",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
         source_id="TTRADES_CANDLE2_CLOSURE",
         author=CapitalizerStrategyAuthor.TTRADES,
         kind=CapitalizerPrimarySourceKind.ARTICLE,
@@ -270,6 +278,16 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
             "ICT_HIGH_PROBABILITY_SCALPING_V1",
             "ICT_NEW_YORK_KILLZONE",
         ),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_DAILY_BIAS_CLOSURE_BEFORE_INTRADAY_EXECUTION",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades establishes daily direction before intraday execution; a mechanical route "
+            "uses higher-timeframe Candle 2/Candle 3 closure at a point of interest and then "
+            "requires lower-timeframe confirmation before entry."
+        ),
+        source_ids=("TTRADES_DAILY_BIAS_MECHANICAL",),
     ),
     CapitalizerSourceFact(
         fact_id="TTRADES_SCALP_TOP_DOWN_H1_M15_M1",
