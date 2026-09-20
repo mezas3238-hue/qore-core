@@ -5,12 +5,12 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 import (
     CapitalizerDualSourceEntryAcceptance,
     CapitalizerDualSourceEntryFacts,
     assess_dual_source_entry,
 )
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerLiquiditySideTaken,
     assess_failure_to_manipulate,
