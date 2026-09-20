@@ -296,14 +296,17 @@ def _market(
             if model_kind is None:
                 model_kind = v6.H4ModelKind.SAME_C2
             for candidate in candidates:
-                row, reason = r85._executable_from_event(
+                intra_row, reason = r85._executable_from_event(
                     candidate,
                     inside=inside,
                     h4_bar=h4[opened],
                     model_kind=model_kind,
                 )
-                if row is not None and reason == "EXECUTABLE":
-                    same_h4.setdefault(_same_h4_identity(row), row)
+                if intra_row is not None and reason == "EXECUTABLE":
+                    same_h4.setdefault(
+                        _same_h4_identity(intra_row),
+                        intra_row,
+                    )
 
         lifecycle_started_before_h4 = state is not None
 
@@ -352,7 +355,7 @@ def _market(
                     else state.protected_swing - entry
                 )
                 if risk > 0:
-                    row = LifecycleExecution(
+                    lifecycle_row = LifecycleExecution(
                         symbol=symbol,
                         h4_opened_at=opened,
                         side=state.side,
@@ -363,10 +366,13 @@ def _market(
                         entry=entry,
                         source_kind=state.source_kind,
                     )
-                    lifecycle.setdefault(row.identity(), row)
+                    lifecycle.setdefault(
+                        lifecycle_row.identity(),
+                        lifecycle_row,
+                    )
                     state = replace(state, consumed=True)
                     diagnostics["LIFECYCLE_EXECUTED"] += 1
-                    by_source_kind[row.source_kind] += 1
+                    by_source_kind[lifecycle_row.source_kind] += 1
                     by_anchor[str(local.hour)] += 1
 
         closure = r96._closure_kind(
