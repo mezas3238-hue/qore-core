@@ -22,6 +22,10 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 import (
+    CapitalizerDualSourceEntryAcceptance,
+    CapitalizerEntryAcceptanceState,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerFailureToManipulateObservation,
 )
@@ -78,6 +82,7 @@ class CapitalizerSourceTraderEngineFacts:
     target_kind: CapitalizerSourceTargetKind
     fractal_alignment: CapitalizerFractalAlignmentObservation | None = None
     failure_to_manipulate: CapitalizerFailureToManipulateObservation | None = None
+    dual_source_entry_acceptance: CapitalizerDualSourceEntryAcceptance | None = None
     contradictions: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -228,6 +233,48 @@ def assess_source_trader_engine(
             trade_plan=None,
             passes_to_qore_risk=False,
             reasons=strategy.reasons,
+        )
+
+    entry_gate = facts.dual_source_entry_acceptance
+    if entry_gate is None:
+        gate_strategy = CapitalizerSourceStrategyAssessment(
+            grammar_id=SOURCE_STRATEGY_GRAMMAR_ID,
+            symbol=facts.symbol,
+            route=facts.route,
+            decision=CapitalizerSourceStrategyDecision.WAIT,
+            reasons=("DUAL_SOURCE_ENTRY_ACCEPTANCE_REQUIRED",),
+        )
+        return CapitalizerSourceTraderEngineAssessment(
+            symbol=facts.symbol,
+            route=facts.route,
+            strategy_assessment=gate_strategy,
+            trade_plan=None,
+            passes_to_qore_risk=False,
+            reasons=gate_strategy.reasons,
+        )
+
+    if not entry_gate.passes_to_qore_risk:
+        gate_decision = (
+            CapitalizerSourceStrategyDecision.REJECT
+            if entry_gate.state is CapitalizerEntryAcceptanceState.REJECT
+            else CapitalizerSourceStrategyDecision.WAIT
+        )
+        gate_strategy = CapitalizerSourceStrategyAssessment(
+            grammar_id=SOURCE_STRATEGY_GRAMMAR_ID,
+            symbol=facts.symbol,
+            route=facts.route,
+            decision=gate_decision,
+            reasons=tuple(
+                f"ENTRY_GATE:{reason}" for reason in entry_gate.reasons
+            ),
+        )
+        return CapitalizerSourceTraderEngineAssessment(
+            symbol=facts.symbol,
+            route=facts.route,
+            strategy_assessment=gate_strategy,
+            trade_plan=None,
+            passes_to_qore_risk=False,
+            reasons=gate_strategy.reasons,
         )
 
     plan = build_source_trade_plan(
