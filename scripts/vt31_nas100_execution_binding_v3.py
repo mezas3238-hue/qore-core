@@ -43,7 +43,7 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research
 SCHEMA = "qore.vt31.nas100.execution_binding.v3"
 MARKET = "NAS100"
 VARIANT = "EQ50_COMPRESSED_ACCEPT_RUN25_PHYSICAL_V3"
-EXTRA_PHYSICAL_CLOSE_FRICTION_R = Decimal("0.005")
+EXTRA_PHYSICAL_CLOSE_FRICTION_R = Decimal("0.000")
 
 
 def _d(value: object) -> Decimal:
@@ -226,7 +226,7 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
     metrics = residual._metrics(adjusted)
     mc = engine._monte_carlo(
         adjusted,
-        variant=f"EXECUTION_BINDING_V3:{partition}",
+        variant=f"PATH_CAUSAL_TARGET:{partition}",
     )
     annual = (
         annuals._annual_blocks(
@@ -294,6 +294,9 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             "opens_new_holdout": False,
             "candidate_certified": False,
             "live_authorized": False,
+            "monte_carlo_common_random_numbers": True,
+            "monte_carlo_seed_identity": "PATH_CAUSAL_TARGET:<partition>",
+            "split_close_friction_double_counted": False,
             "production_authorized": False,
         },
     }
