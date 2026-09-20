@@ -15,6 +15,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
+    CapitalizerDailyBiasObservation,
+    CapitalizerDailyBiasResolution,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerProtectedSwingObservation,
     CapitalizerSourceBar,
@@ -121,7 +125,7 @@ def assess_failure_to_manipulate(
     post_sweep_closure_observed: bool,
     expected_reversal_cisd: CapitalizerCISDObservation | None,
     continuation_protected_swing: CapitalizerProtectedSwingObservation | None,
-    higher_timeframe_bias: CapitalizerSourceDirection,
+    daily_bias: CapitalizerDailyBiasObservation,
 ) -> CapitalizerFailureToManipulateObservation:
     """Confirm continuation only after the expected post-sweep reversal fails."""
 
@@ -142,7 +146,10 @@ def assess_failure_to_manipulate(
         and continuation_protected_swing.direction is continuation
         and continuation_protected_swing.confirmed
     )
-    htf_aligned = higher_timeframe_bias is continuation
+    htf_aligned = (
+        daily_bias.resolution is CapitalizerDailyBiasResolution.CONFIRMED
+        and daily_bias.direction is continuation
+    )
 
     confirmed = (
         level_taken
