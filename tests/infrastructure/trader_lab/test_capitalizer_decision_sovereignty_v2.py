@@ -61,6 +61,7 @@ from qore.infrastructure.trader_lab.capitalizer_regime_intelligence import (
     CapitalizerRegimeResolution,
 )
 
+
 def _world(
     at: datetime,
     *,
