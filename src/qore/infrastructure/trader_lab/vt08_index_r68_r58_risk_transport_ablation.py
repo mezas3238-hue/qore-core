@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import heapq
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -199,7 +200,7 @@ def _requested_weight(
 def _apply_policy(
     baseline: tuple[r15.AssignedTrade, ...],
     *,
-    bars_by_symbol: dict[str, tuple[Vt08IndexC2R1Bar, ...]],
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
     policy: PromotionPolicy,
 ) -> tuple[tuple[r15.AssignedTrade, ...], dict[str, Any]]:
     h4_by_symbol = {
@@ -384,7 +385,7 @@ def _availability(provenance: dict[str, Any]) -> dict[str, Any]:
 def _window(
     *,
     stream: tuple[tuple[Any, Any], ...],
-    bars_by_symbol: dict[str, tuple[Vt08IndexC2R1Bar, ...]],
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]],
     provenance: dict[str, Any],
 ) -> dict[str, Any]:
     base_r47, r47_diagnostics = r58._exact_r47(
