@@ -108,7 +108,7 @@ class CrtPureConceptRecord:
 CRT_PURE_REQUIRED_CONCEPTS: tuple[CrtPureConceptId, ...] = tuple(CrtPureConceptId)
 
 
-_DISCOVERED_LEVEL_A_EVIDENCE: dict[
+_DISCOVERED_SOURCE_EVIDENCE: dict[
     CrtPureConceptId,
     tuple[CrtPureSourceEvidence, ...],
 ] = {
@@ -181,6 +181,71 @@ _DISCOVERED_LEVEL_A_EVIDENCE: dict[
                 "The post establishes more than one entry context but does not define "
                 "the exact CRT entry families or their deterministic triggers."
             ),
+        ),
+    ),
+    CrtPureConceptId.REFERENCE_RANGE: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.REFERENCE_RANGE,
+            source_name="SpeculatorFL",
+            source_tier=CrtPureSourceTier.LEVEL_B,
+            provenance="approved SpeculatorFL CRT thread mirror",
+            locator="https://threadreaderapp.com/thread/1784493604473618604#31",
+            normalized_statement=(
+                "SpeculatorFL describes the CRT core concept as every candle being "
+                "a range with high, low, open and close."
+            ),
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
+            ambiguity_notes=(
+                "Level B corroboration only. Primary RomeoTPT evidence is still required "
+                "before the reference-range definition can become CANONICAL."
+            ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.REFERENCE_RANGE,
+            source_name="TraderFlameseN",
+            source_tier=CrtPureSourceTier.LEVEL_B,
+            provenance="approved TraderFlameseN CRT thread mirror",
+            locator="https://threadreaderapp.com/thread/1790141530461622525#29",
+            normalized_statement=(
+                "TraderFlameseN independently describes every candle as a range "
+                "with high, low, open and close."
+            ),
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
+            ambiguity_notes="Primary RomeoTPT evidence remains required.",
+        ),
+    ),
+    CrtPureConceptId.CANDLE_1_2_3: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.CANDLE_1_2_3,
+            source_name="SpeculatorFL",
+            source_tier=CrtPureSourceTier.LEVEL_B,
+            provenance="approved SpeculatorFL Telegram channel",
+            locator="https://t.me/s/ShamSpeculatorFL?before=503",
+            normalized_statement=(
+                "SpeculatorFL describes a three-candle liquidity cycle: Candle 1 "
+                "generates/accumulates liquidity; Candle 2 purges/manipulates liquidity; "
+                "Candle 3 neutralizes/distributes liquidity."
+            ),
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
+            ambiguity_notes=(
+                "This is a navigation hypothesis for RomeoTPT episode 7 and related "
+                "primary material, not a canonical CRT rule yet."
+            ),
+        ),
+    ),
+    CrtPureConceptId.NESTED_CRT: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.NESTED_CRT,
+            source_name="SpeculatorFL",
+            source_tier=CrtPureSourceTier.LEVEL_B,
+            provenance="approved SpeculatorFL CRT thread mirror",
+            locator="https://threadreaderapp.com/thread/1784493604473618604#113",
+            normalized_statement=(
+                "SpeculatorFL describes lower-timeframe CRT inside higher-timeframe CRT "
+                "as a protocol for bias/direction-of-liquidity confirmation."
+            ),
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
+            ambiguity_notes="Exact source-faithful nesting semantics remain open.",
         ),
     ),
     CrtPureConceptId.CRH_CRL: (
@@ -270,7 +335,7 @@ _DISCOVERED_LEVEL_A_EVIDENCE: dict[
 CRT_PURE_SOURCE_REGISTRY: tuple[CrtPureConceptRecord, ...] = tuple(
     CrtPureConceptRecord(
         concept_id=concept_id,
-        evidence=_DISCOVERED_LEVEL_A_EVIDENCE.get(concept_id, ()),
+        evidence=_DISCOVERED_SOURCE_EVIDENCE.get(concept_id, ()),
     )
     for concept_id in CRT_PURE_REQUIRED_CONCEPTS
 )
