@@ -6,6 +6,7 @@ from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 
     IDENTITY,
     CapitalizerDualSourceEntryFacts,
     CapitalizerEntryAcceptanceState,
+    CapitalizerM1EntryStructureFacts,
     assess_dual_source_entry,
 )
 
@@ -30,6 +31,11 @@ def _facts(**overrides: object) -> CapitalizerDualSourceEntryFacts:
         "ttrades_protected_swing_confirmed": True,
         "ttrades_continuation_confirmed": True,
         "ttrades_wick_formation_confirmed": True,
+        "m1_entry_structure": CapitalizerM1EntryStructureFacts(
+            market_structure_shift_confirmed=True,
+            fair_value_gap_confirmed=True,
+            order_block_confirmed=True,
+        ),
         "contradictions": (),
     }
     values.update(overrides)
@@ -47,6 +53,51 @@ def test_entry_is_acceptable_only_when_every_source_condition_passes() -> None:
     assert result.outcome_aware is False
     assert result.executes_trade is False
     assert result.grants_capital_authority is False
+
+
+def test_m1_entry_requires_mss_fvg_and_order_block_together() -> None:
+    missing_mss = assess_dual_source_entry(
+        _facts(
+            m1_entry_structure=CapitalizerM1EntryStructureFacts(
+                market_structure_shift_confirmed=False,
+                fair_value_gap_confirmed=True,
+                order_block_confirmed=True,
+            )
+        )
+    )
+    missing_fvg = assess_dual_source_entry(
+        _facts(
+            m1_entry_structure=CapitalizerM1EntryStructureFacts(
+                market_structure_shift_confirmed=True,
+                fair_value_gap_confirmed=False,
+                order_block_confirmed=True,
+            )
+        )
+    )
+    missing_ob = assess_dual_source_entry(
+        _facts(
+            m1_entry_structure=CapitalizerM1EntryStructureFacts(
+                market_structure_shift_confirmed=True,
+                fair_value_gap_confirmed=True,
+                order_block_confirmed=False,
+            )
+        )
+    )
+
+    assert missing_mss.reasons == ("M1_MSS_NOT_CONFIRMED",)
+    assert missing_fvg.reasons == ("M1_FVG_NOT_CONFIRMED",)
+    assert missing_ob.reasons == ("M1_ORDER_BLOCK_NOT_CONFIRMED",)
+    assert missing_mss.passes_to_qore_risk is False
+    assert missing_fvg.passes_to_qore_risk is False
+    assert missing_ob.passes_to_qore_risk is False
+
+
+def test_missing_native_m1_structure_is_fail_closed() -> None:
+    result = assess_dual_source_entry(_facts(m1_entry_structure=None))
+
+    assert result.state is CapitalizerEntryAcceptanceState.WAIT
+    assert result.reasons == ("M1_ENTRY_STRUCTURE_UNRESOLVED",)
+    assert result.passes_to_qore_risk is False
 
 
 def test_missing_ict_fvg_means_no_acceptable_entry() -> None:
@@ -97,6 +148,9 @@ def test_current_engine_audit_exposes_missing_explicit_entry_conditions() -> Non
     assert audit.current_engine_explicitly_requires_ict_fvg_retrace_entry is False
     assert audit.current_engine_explicitly_rejects_entry_chasing is False
     assert audit.current_engine_explicitly_requires_wick_formed_before_body is False
+    assert audit.current_engine_explicitly_requires_m1_mss is True
+    assert audit.current_engine_explicitly_requires_m1_fvg is True
+    assert audit.current_engine_explicitly_requires_m1_order_block is True
     assert audit.current_next_bar_open_is_universally_dual_source_entry is False
     assert audit.current_engine_may_claim_full_entry_fidelity is False
     assert audit.integration_required_before_entry_acceptance is True
