@@ -208,6 +208,39 @@ class _Api:
         return ()
 
 
+
+class _NasApi(_Api):
+    def symbols_get(self) -> tuple[_Symbol, ...] | None:
+        return (
+            _Symbol(
+                name="NDX100",
+                digits=1,
+                point=0.1,
+                trade_contract_size=1.0,
+                trade_tick_size=0.1,
+                trade_tick_value=1.0,
+            ),
+        )
+
+    def symbol_select(self, symbol: str, enable: bool) -> bool:
+        return enable and symbol == "NDX100"
+
+    def symbol_info(self, symbol: str) -> _Symbol | None:
+        if symbol != "NDX100":
+            return None
+        return _Symbol(
+            name="NDX100",
+            digits=1,
+            point=0.1,
+            trade_contract_size=1.0,
+            trade_tick_size=0.1,
+            trade_tick_value=1.0,
+        )
+
+    def symbol_info_tick(self, symbol: str) -> _Tick | None:
+        return _Tick(bid=20000.0, ask=20000.2) if symbol == "NDX100" else None
+
+
 def _account_identity() -> MarketTestAccountIdentity:
     return MarketTestAccountIdentity(
         provider_key="fundednext-stellar-instant-mt5",
@@ -385,3 +418,10 @@ def test_account_observation_rejects_material_future_timestamp() -> None:
     )
     with pytest.raises(Mt5ExecutionValidationError, match="account-state-timestamp-from-future"):
         gateway.read_account(now=_NOW)
+
+
+def test_live_gateway_resolves_nas100_to_ndx100() -> None:
+    api = _NasApi()
+    gateway = _gateway(api, complete=False, submission_enabled=False)
+    spec = gateway.read_symbol("NAS100", now=_NOW)
+    assert spec.provider_symbol == "NDX100"
