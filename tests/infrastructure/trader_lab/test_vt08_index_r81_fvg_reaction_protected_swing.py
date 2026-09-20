@@ -38,7 +38,7 @@ def test_r81_reaction_series_must_be_born_inside_fvg() -> None:
     bars = (
         _bar(t0, open_="100", high="101", low="99", close="100.5"),
         _bar(t0 + timedelta(minutes=15), open_="101", high="102", low="100", close="101.5"),
-        _bar(t0 + timedelta(minutes=30), open_="102", high="103", low="102.2", close="102.8"),
+        _bar(t0 + timedelta(minutes=30), open_="102.4", high="103", low="102.2", close="102.8"),
         _bar(t0 + timedelta(minutes=45), open_="102.4", high="102.6", low="101.2", close="101.6"),
         _bar(t0 + timedelta(minutes=60), open_="101.7", high="102.5", low="101.5", close="102.4"),
     )
@@ -65,7 +65,7 @@ def test_r81_non_touching_opposing_series_is_ignored() -> None:
     bars = (
         _bar(t0, open_="100", high="101", low="99", close="100.5"),
         _bar(t0 + timedelta(minutes=15), open_="101", high="102", low="100", close="101.5"),
-        _bar(t0 + timedelta(minutes=30), open_="102", high="103", low="102.2", close="102.8"),
+        _bar(t0 + timedelta(minutes=30), open_="102.4", high="103", low="102.2", close="102.8"),
         _bar(t0 + timedelta(minutes=45), open_="103", high="103.1", low="102.6", close="102.7"),
         _bar(t0 + timedelta(minutes=60), open_="102.8", high="103.5", low="102.7", close="103.4"),
     )
