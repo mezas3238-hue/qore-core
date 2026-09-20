@@ -549,16 +549,20 @@ def build_market_report(
         ("RISK_X_REPEAT", "_risk_x_repeat"),
         ("EVENT_X_REPEAT", "_event_x_repeat"),
     )
-    cohorts = tuple(
-        cohort
-        for dimension, field in dimensions
-        for cohort in _cohorts(
-            tuple(enriched),
-            baseline=baseline,
-            dimension=dimension,
-            key_fn=lambda item, field=field: str(item[field]),
+    cohort_rows: list[CapitalizerStopCausalCohort] = []
+    for dimension, field in dimensions:
+        def key_fn(item: dict[str, Any], field_name: str = field) -> str:
+            return str(item[field_name])
+
+        cohort_rows.extend(
+            _cohorts(
+                tuple(enriched),
+                baseline=baseline,
+                dimension=dimension,
+                key_fn=key_fn,
+            )
         )
-    )
+    cohorts = tuple(cohort_rows)
 
     return CapitalizerStopCauseMarketReport(
         identity=IDENTITY,
@@ -719,21 +723,21 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "market":
-        report = build_market_report(
+        market_report = build_market_report(
             replay_root=args.replay_root,
             m5_root=args.m5_root,
             journey_root=args.journey_root,
         )
-        write_market_report(report, args.output)
+        write_market_report(market_report, args.output)
         print(
             json.dumps(
                 {
-                    "symbol": report.symbol,
-                    "trades": report.trades,
-                    "stops": report.stops,
-                    "stop_rate": report.baseline_stop_rate,
+                    "symbol": market_report.symbol,
+                    "trades": market_report.trades,
+                    "stops": market_report.stops,
+                    "stop_rate": market_report.baseline_stop_rate,
                     "later_target_reached_rate": (
-                        report.post_stop_recovery.later_target_reached_rate
+                        market_report.post_stop_recovery.later_target_reached_rate
                     ),
                 },
                 sort_keys=True,
@@ -741,15 +745,15 @@ def main() -> None:
         )
         return
 
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
     print(
         json.dumps(
             {
-                "identity": report.identity,
-                "markets": len(report.markets),
-                "universal_elevated": list(report.universal_elevated),
-                "universal_reduced": list(report.universal_reduced),
+                "identity": matrix_report.identity,
+                "markets": len(matrix_report.markets),
+                "universal_elevated": list(matrix_report.universal_elevated),
+                "universal_reduced": list(matrix_report.universal_reduced),
             },
             sort_keys=True,
         )
