@@ -47,6 +47,8 @@ class CapitalizerOrdinalEconomics:
     win_rate: str
     prior_realized_positive: int
     prior_realized_nonpositive: int
+    prior_positive_metrics: PortfolioFlowMetrics | None
+    prior_nonpositive_metrics: PortfolioFlowMetrics | None
     metrics: PortfolioFlowMetrics
 
 
@@ -58,7 +60,9 @@ class CapitalizerPolicyEconomics:
     sessions: int
     sessions_reaching_three: int
     max_trades_in_one_session: int
-    opportunities_rejected_by_ceiling: int
+    opportunities_not_selected: int
+    opportunities_rejected_by_ceiling: int | None
+    additional_policy_rejections: int
     positive_sessions: int
     flat_sessions: int
     negative_sessions: int
@@ -78,6 +82,8 @@ class CapitalizerPolicyEconomics:
     trade2_positive_rate: str | None
     trade3_positive_rate: str | None
     third_giveback_after_positive_rate: str | None
+    third_erases_prior_realized_profit: int
+    third_erases_prior_realized_profit_rate: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +199,7 @@ def _policy_economics(
     third_wins = 0
     third_losses = 0
     third_flats = 0
+    third_erases_prior_realized_profit = 0
     trade2_positive = 0
     trade2_total = 0
     trade3_positive = 0
@@ -214,6 +221,8 @@ def _policy_economics(
             prior = _prior_realized(rows[:2], rows[2])
             if prior > 0:
                 sessions_positive_before_third += 1
+                if prior + rows[2].realized_r <= 0:
+                    third_erases_prior_realized_profit += 1
                 if rows[2].realized_r > 0:
                     third_wins += 1
                 elif rows[2].realized_r < 0:
@@ -243,7 +252,24 @@ def _policy_economics(
         sessions=sessions,
         sessions_reaching_three=sum(len(rows) >= 3 for rows in groups.values()),
         max_trades_in_one_session=max(len(rows) for rows in groups.values()),
-        opportunities_rejected_by_ceiling=len(trades) - len(selected),
+        opportunities_not_selected=len(trades) - len(selected),
+        opportunities_rejected_by_ceiling=(
+            None
+            if policy == "MAX3_POSITIVE_REALIZED_CONTINUATION"
+            else len(trades) - len(selected)
+        ),
+        additional_policy_rejections=(
+            len(
+                _select(
+                    trades,
+                    mode="MAX3_ANY_VALID",
+                    tie_policy=tie_policy,
+                )
+            )
+            - len(selected)
+            if policy == "MAX3_POSITIVE_REALIZED_CONTINUATION"
+            else 0
+        ),
         positive_sessions=positive,
         flat_sessions=flat,
         negative_sessions=negative,
@@ -266,6 +292,11 @@ def _policy_economics(
             third_losses,
             sessions_positive_before_third,
         ),
+        third_erases_prior_realized_profit=third_erases_prior_realized_profit,
+        third_erases_prior_realized_profit_rate=_ratio(
+            third_erases_prior_realized_profit,
+            sessions_positive_before_third,
+        ),
     )
 
 
@@ -278,11 +309,13 @@ def _ordinal_economics(
     selected = _selected_for_policy(trades, policy=policy, tie_policy=tie_policy)
     groups = _session_groups(selected, tie_policy=tie_policy)
     cells: list[CapitalizerOrdinalEconomics] = []
-    sessions = ("ASIA", "LONDON", "NEW_YORK")
+    sessions = ("ASIA", "LONDON", "NEW_YORK", "ALL")
 
     for session in sessions:
         for ordinal in (1, 2, 3):
             rows: list[PortfolioFlowTrade] = []
+            prior_positive_rows: list[PortfolioFlowTrade] = []
+            prior_nonpositive_rows: list[PortfolioFlowTrade] = []
             prior_positive = 0
             prior_nonpositive = 0
             for accepted in groups.values():
@@ -290,14 +323,18 @@ def _ordinal_economics(
                     continue
                 trade = accepted[ordinal - 1]
                 trade_session = capitalizer_session_at(trade.entry_at)
-                if trade_session is None or trade_session.value != session:
+                if trade_session is None:
+                    continue
+                if session != "ALL" and trade_session.value != session:
                     continue
                 rows.append(trade)
                 prior = _prior_realized(accepted[: ordinal - 1], trade)
                 if prior > 0:
                     prior_positive += 1
+                    prior_positive_rows.append(trade)
                 else:
                     prior_nonpositive += 1
+                    prior_nonpositive_rows.append(trade)
             if not rows:
                 continue
             row_tuple = tuple(rows)
@@ -317,6 +354,16 @@ def _ordinal_economics(
                     win_rate=str(Decimal(wins) / Decimal(len(row_tuple))),
                     prior_realized_positive=prior_positive,
                     prior_realized_nonpositive=prior_nonpositive,
+                    prior_positive_metrics=(
+                        _metrics(tuple(prior_positive_rows))
+                        if prior_positive_rows
+                        else None
+                    ),
+                    prior_nonpositive_metrics=(
+                        _metrics(tuple(prior_nonpositive_rows))
+                        if prior_nonpositive_rows
+                        else None
+                    ),
                     metrics=_metrics(row_tuple),
                 )
             )
