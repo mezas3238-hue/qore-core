@@ -133,7 +133,7 @@ class CapitalizerFractalObservationSnapshot:
             raise ValueError("source observation engine cannot use manual context booleans")
 
 
-def _closure_from_window(
+def resolve_source_closure_window(
     window: CapitalizerSourceClosureWindow,
 ) -> CapitalizerSourceClosureObservation | None:
     c2_at_poi = any_source_poi_interaction(bar=window.candle2, pois=window.pois)
@@ -158,7 +158,7 @@ def _closure_from_window(
     )
 
 
-def _cisd_from_window(
+def resolve_source_cisd_window(
     *,
     window: CapitalizerSourceCISDWindow,
     direction: CapitalizerSourceDirection,
@@ -188,7 +188,7 @@ def build_fractal_observation_snapshot(
         asian_open_reference_at=facts.asian_open_reference_at,
     )
 
-    daily_closure = _closure_from_window(facts.daily_closure_window)
+    daily_closure = resolve_source_closure_window(facts.daily_closure_window)
     daily_bias = derive_daily_bias(daily_closure)
     if daily_bias.direction is None:
         return CapitalizerFractalObservationSnapshot(
@@ -208,14 +208,14 @@ def build_fractal_observation_snapshot(
         )
 
     direction = daily_bias.direction
-    h1_closure = _closure_from_window(facts.h1_closure_window)
+    h1_closure = resolve_source_closure_window(facts.h1_closure_window)
 
-    m15_cisd = _cisd_from_window(
+    m15_cisd = resolve_source_cisd_window(
         window=facts.m15_cisd_window,
         direction=direction,
         higher_timeframe_closure=h1_closure,
     )
-    m1_cisd = _cisd_from_window(
+    m1_cisd = resolve_source_cisd_window(
         window=facts.m1_cisd_window,
         direction=direction,
         higher_timeframe_closure=h1_closure,
