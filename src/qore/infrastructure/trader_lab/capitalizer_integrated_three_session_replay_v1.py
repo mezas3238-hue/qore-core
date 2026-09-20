@@ -448,13 +448,19 @@ def write_integrated_report(report: CapitalizerIntegratedReplayReport, output: P
         f"- Total gross R: {report.total_gross_r}",
         f"- Max chronological proxy DD: {report.max_drawdown_r}R",
         f"- Max losing streak: {report.max_losing_streak}",
-        f"- STOP / TARGET / SESSION_EXIT: {report.stop_exits} / {report.target_exits} / {report.session_exits}",
+        (
+            "- STOP / TARGET / SESSION_EXIT: "
+            f"{report.stop_exits} / {report.target_exits} / {report.session_exits}"
+        ),
         f"- Same-M5 STOP_FIRST ambiguities: {report.ambiguous_stop_first_exits}",
         f"- Operating sessions with >MAX3 proxy candidates: {report.operating_sessions_over_max3}",
         "",
         "## Sessions",
         "",
-        "| Session | Markets | Proxy trades | PF | Gross R | Stops | Targets | Session exits | >MAX3 instances |",
+        (
+            "| Session | Markets | Proxy trades | PF | Gross R | Stops | Targets | "
+            "Session exits | >MAX3 instances |"
+        ),
         "|---|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for item in report.sessions:
