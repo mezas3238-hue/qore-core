@@ -86,16 +86,20 @@ def _source_values(diagnostic: ResearchSerialDependenceDiagnostic) -> tuple[Deci
     return values
 
 
-def _draw_start(*, seed: int, replicate: int, draw: int, sample_size: int) -> int:
-    payload = (
+@lru_cache(maxsize=8192)
+def _draw_prefix(seed: int, replicate: int) -> bytes:
+    return (
         _DOMAIN
         + b":"
         + str(seed).encode("ascii")
         + b":"
         + str(replicate).encode("ascii")
         + b":"
-        + str(draw).encode("ascii")
     )
+
+
+def _draw_start(*, seed: int, replicate: int, draw: int, sample_size: int) -> int:
+    payload = _draw_prefix(seed, replicate) + str(draw).encode("ascii")
     return int.from_bytes(sha256(payload).digest(), "big") % sample_size
 
 
@@ -122,23 +126,34 @@ def _bootstrap_means_from_values(
     sample_size = len(values)
     source_mean = _mean(values)
     blocks_per_replicate = (sample_size + block_length - 1) // block_length
+    circular_blocks = tuple(
+        tuple(
+            values[(start + offset) % sample_size]
+            for offset in range(block_length)
+        )
+        for start in range(sample_size)
+    )
+    denominator = Decimal(sample_size)
     means: list[Decimal] = []
-    for replicate in range(resample_count):
-        resampled: list[Decimal] = []
-        for draw in range(blocks_per_replicate):
-            start = _draw_start(
-                seed=seed,
-                replicate=replicate,
-                draw=draw,
-                sample_size=sample_size,
-            )
-            for offset in range(block_length):
-                resampled.append(values[(start + offset) % sample_size])
-                if len(resampled) == sample_size:
+    with localcontext(_DECIMAL128):
+        for replicate in range(resample_count):
+            total = Decimal(0)
+            sample_count = 0
+            for draw in range(blocks_per_replicate):
+                start = _draw_start(
+                    seed=seed,
+                    replicate=replicate,
+                    draw=draw,
+                    sample_size=sample_size,
+                )
+                for value in circular_blocks[start]:
+                    total += value
+                    sample_count += 1
+                    if sample_count == sample_size:
+                        break
+                if sample_count == sample_size:
                     break
-            if len(resampled) == sample_size:
-                break
-        means.append(_mean(tuple(resampled)))
+            means.append(total / denominator)
     return source_mean, tuple(means)
 
 

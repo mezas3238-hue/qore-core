@@ -435,6 +435,7 @@ def _monte_carlo_reference(
     )
     if isinstance(frame, Failure):
         raise ValueError(f"R65 sampling frame failed: {frame.error}")
+    _checkpoint("mc_sampling_frame_complete")
 
     diagnostic = build_research_serial_dependence_diagnostic(
         diagnostic_id=ResearchSerialDependenceDiagnosticId(
@@ -444,6 +445,7 @@ def _monte_carlo_reference(
     )
     if isinstance(diagnostic, Failure):
         raise ValueError(f"R65 serial diagnostic failed: {diagnostic.error}")
+    _checkpoint("mc_serial_diagnostic_complete")
 
     policy = ResearchBlockBootstrapPolicy(
         block_length=BOOTSTRAP_BLOCK_LENGTH,
@@ -459,6 +461,7 @@ def _monte_carlo_reference(
     )
     if isinstance(distribution, Failure):
         raise ValueError(f"R65 bootstrap failed: {distribution.error}")
+    _checkpoint("mc_bootstrap_complete")
 
     envelope = build_research_resampling_envelope(
         envelope_id=ResearchResamplingEnvelopeId(
@@ -472,6 +475,7 @@ def _monte_carlo_reference(
     )
     if isinstance(envelope, Failure):
         raise ValueError(f"R65 envelope failed: {envelope.error}")
+    _checkpoint("mc_envelope_complete")
 
     registration = build_trader_lab_experiment_registration(
         experiment_id=TraderLabExperimentId(_uid("mc-registration")),
@@ -504,6 +508,7 @@ def _monte_carlo_reference(
     )
     if isinstance(evidence, Failure):
         raise ValueError(f"R65 MC evidence failed: {evidence.error}")
+    _checkpoint("mc_evidence_complete")
     reference = reference_trader_lab_monte_carlo(candidate, evidence.value)
     return reference, {
         "status": evidence.value.status.value,

@@ -39,6 +39,7 @@ jobs:
       - run: >-
           pytest -q
           tests/infrastructure/trader_lab/test_vt08_index_r65_canonical_lifecycle.py
+          tests/infrastructure/test_research_block_bootstrap.py
           tests/infrastructure/test_research_performance_statistics.py
           tests/infrastructure/test_research_sampling_frame.py
           tests/infrastructure/test_research_frozen_oos_evidence.py
