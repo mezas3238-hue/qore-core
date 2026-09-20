@@ -5,16 +5,18 @@ The certified strategy is not recalibrated here. This adapter owns only:
 - Account-Wide Risk authorization;
 - broker order_check / canonical submission;
 - durable virtual basket and broker-pending state;
-- fill reconciliation.
+- fill reconciliation;
+- certified Execution Binding V4 target/journey management.
 
-Target/journey management is deliberately separate from admission.
+Admission and journey execution remain separate code paths but share the same
+resident single writer, broker checks, durable state and Account-Wide Risk.
 """
 # ruff: noqa: I001
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
+from decimal import ROUND_FLOOR, Decimal
 from collections.abc import Callable
 from typing import Any
 
@@ -45,10 +47,12 @@ from qore.infrastructure.vt31_nas100_live import (
     MAX_BROKER_TICK_AGE,
     SERVICE_24_7,
     SILVER_BULLET_SOURCE_FINGERPRINT,
+    TARGET_ARCHITECTURE_ID,
     STRATEGY_IDENTITY,
     STRATEGY_MEMORY_FINGERPRINT,
     TRADER_EXPERIENCE_FINGERPRINT,
     Vt31Nas100LiveError,
+    Vt31Nas100M1Cache,
     Vt31RiskContext,
     Vt31VirtualCandidate,
     assert_deadline,
