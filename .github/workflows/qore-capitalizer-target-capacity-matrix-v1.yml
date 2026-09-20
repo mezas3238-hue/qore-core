@@ -19,6 +19,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
@@ -31,6 +32,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py'
   workflow_dispatch:
 
 permissions:
@@ -73,6 +75,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py \
             src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
@@ -100,7 +103,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py \
             src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
-            src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py
+            src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
@@ -112,7 +116,11 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py
 
   scan:
     needs: quality
@@ -360,6 +368,10 @@ jobs:
       - name: Build causal session compatibility routing falsification
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_session_compatibility_routing \
+            matrix-input matrix-output
+      - name: Build triad-aware compatibility routing falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_triad_compatibility_routing \
             matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
@@ -628,6 +640,45 @@ jobs:
               'BLOCK_CORE_WEAK_SIDE_PAIRS_V1',
               'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
               'BLOCK_CORE_WEAK_SIDE_PAIRS_PLUS_XAUUSD_ORD2_SHARED_V1',
+          }
+
+          triad_routing = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-triad-compatibility-routing-v1.json'
+              ).read_text()
+          )
+          assert triad_routing['identity'] == (
+              'QORE_CAPITALIZER_TRIAD_COMPATIBILITY_ROUTING_FORENSICS_V1'
+          )
+          assert triad_routing['market_count'] == 9
+          assert triad_routing['max_executions_per_session'] == 3
+          assert triad_routing['asia_jpy_split_state_categorical'] is True
+          assert triad_routing['mirror_orientations_share_one_rule'] is True
+          assert triad_routing['third_admission_only'] is True
+          assert triad_routing['prior_session_acceptances_only'] is True
+          assert triad_routing['future_candidates_visible'] is False
+          assert triad_routing['numeric_threshold_optimization_used'] is False
+          assert triad_routing['outcome_aware_runtime_ranking_used'] is False
+          assert triad_routing['positive_pnl_is_not_stop_condition'] is True
+          assert triad_routing['governed_profit_objective_not_modeled'] is True
+          assert triad_routing['qore_risk_authority_granted'] is False
+          assert triad_routing['costs_applied'] is False
+          assert triad_routing['candidate_frozen'] is False
+          assert triad_routing['fresh_holdout_claimed'] is False
+          assert triad_routing['rule_selected'] is False
+          assert triad_routing['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in triad_routing['policy_results']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in triad_routing['policy_results']} == {
+              'MAX3_BASELINE',
+              'BLOCK_ASIA_JPY_SPLIT_GBP_OPPOSES_V1',
+              'BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1',
+              'BLOCK_LONDON_NY_PLUS_ASIA_JPY_SPLIT_V1',
+              'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
+              'BLOCK_EXTENDED_WEAK_PAIRS_PLUS_ASIA_JPY_SPLIT_V1',
           }
           PY
       - name: Upload immutable target-capacity matrix
