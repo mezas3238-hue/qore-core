@@ -201,8 +201,11 @@ def test_risk_registry_resolves_only_certified_current_policy() -> None:
 
 
 def test_risk_registry_rejects_raw_uncertified_policy_objects() -> None:
+    registry = object.__new__(certified.CertifiedAccountPolicyRegistrySnapshot)
+    object.__setattr__(registry, "policies", (_policy(),))
+
     with pytest.raises(certified.CertifiedPolicyValidationError):
-        certified.CertifiedAccountPolicyRegistrySnapshot((_policy(),))  # type: ignore[arg-type]
+        registry.__post_init__()
 
 
 def test_risk_registry_fails_closed_when_source_is_revoked() -> None:
