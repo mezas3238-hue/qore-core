@@ -31,6 +31,28 @@ class CapitalizerEntryAcceptanceState(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalizerM1EntryStructureFacts:
+    """Owner-frozen execution structure required on the M1 entry timeframe."""
+
+    timeframe: str = "M1"
+    market_structure_shift_confirmed: bool = False
+    fair_value_gap_confirmed: bool = False
+    order_block_confirmed: bool = False
+
+    def __post_init__(self) -> None:
+        if self.timeframe != "M1":
+            raise ValueError("Capitalizer execution entry structure must be M1")
+
+    @property
+    def complete(self) -> bool:
+        return (
+            self.market_structure_shift_confirmed
+            and self.fair_value_gap_confirmed
+            and self.order_block_confirmed
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalizerDualSourceEntryFacts:
     cognitive_gate_decision: CapitalizerCognitiveGateDecision
 
@@ -54,6 +76,7 @@ class CapitalizerDualSourceEntryFacts:
     ttrades_continuation_confirmed: bool
     ttrades_wick_formation_confirmed: bool
 
+    m1_entry_structure: CapitalizerM1EntryStructureFacts | None = None
     contradictions: tuple[str, ...] = ()
 
 
@@ -135,6 +158,17 @@ def assess_dual_source_entry(
         )
 
     wait_reasons: list[str] = []
+    m1 = facts.m1_entry_structure
+    if m1 is None:
+        wait_reasons.append("M1_ENTRY_STRUCTURE_UNRESOLVED")
+    else:
+        if not m1.market_structure_shift_confirmed:
+            wait_reasons.append("M1_MSS_NOT_CONFIRMED")
+        if not m1.fair_value_gap_confirmed:
+            wait_reasons.append("M1_FVG_NOT_CONFIRMED")
+        if not m1.order_block_confirmed:
+            wait_reasons.append("M1_ORDER_BLOCK_NOT_CONFIRMED")
+
     required = (
         ("SOURCE_SESSION_CONTEXT_UNRESOLVED", facts.source_session_resolved),
         ("ICT_LIQUIDITY_REFERENCE_UNDEFINED", facts.ict_liquidity_reference_defined),
@@ -201,6 +235,9 @@ def assess_dual_source_entry(
             "TTRADES_PROTECTED_SWING_CONFIRMED",
             "TTRADES_CONTINUATION_CONFIRMED",
             "TTRADES_WICK_FORMATION_CONFIRMED",
+            "M1_MSS_CONFIRMED",
+            "M1_FVG_CONFIRMED",
+            "M1_ORDER_BLOCK_CONFIRMED",
             "STRUCTURAL_TARGET_INTACT",
             "STRUCTURAL_STOP_GEOMETRY_VALID",
         ),
@@ -226,6 +263,9 @@ class CapitalizerCurrentEntryCoverageAudit:
     current_engine_explicitly_requires_ict_fvg_retrace_entry: bool = False
     current_engine_explicitly_rejects_entry_chasing: bool = False
     current_engine_explicitly_requires_wick_formed_before_body: bool = False
+    current_engine_explicitly_requires_m1_mss: bool = True
+    current_engine_explicitly_requires_m1_fvg: bool = True
+    current_engine_explicitly_requires_m1_order_block: bool = True
 
     current_next_bar_open_is_universally_dual_source_entry: bool = False
     current_engine_may_claim_full_entry_fidelity: bool = False
