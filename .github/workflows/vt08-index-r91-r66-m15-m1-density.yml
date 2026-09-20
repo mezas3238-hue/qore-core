@@ -1,0 +1,222 @@
+name: VT08 Index R91 R66 Native M1 M15 M1 Density
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r91-r66-m15-m1-density.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r91_r66_m15_m1_density.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r91_r66_m15_m1_density.py
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,ctrader]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r91_r66_m15_m1_density.py
+
+  density:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [NAS100, SP500, US30]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[ctrader]"
+
+      - name: Verify DEMO read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download authoritative CIBO M5 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/m15
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R91 R66 M15 to native M1 density census
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r91_r66_m15_m1_density \
+            --symbol "${{ matrix.symbol }}" \
+            --m15-root artifacts/m15 \
+            --out "artifacts/report/r91-${{ matrix.symbol }}.json"
+
+      - name: Verify per-symbol R91 governance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["MATRIX_SYMBOL"]
+          report = json.loads(
+              Path(f"artifacts/report/r91-{symbol}.json").read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R91_R66_NATIVE_M1_M15_M1_DENSITY_CENSUS_001"
+          )
+          assert report["symbol"] == symbol
+          source = report["source_contract"]
+          assert source["higher_bias"] == "V7_DAILY_BIAS_FROM_CIBO_M15"
+          assert source["authorized_h4_windows_ny"] == [22, 2, 6, 10]
+          assert source["owner_disabled_14_preserved"] is True
+          assert source["context_only_18_preserved"] is True
+          assert source["nested_structure_timeframe"] == "M15"
+          assert source["nested_entry_timeframe"] == "M1_NATIVE"
+          assert source["m15_requires_15_of_15_native_m1"] is True
+          assert source["m1_continuation"] == "EXACT_V6_FIRST_CONTINUATION"
+
+          provenance = report["native_m1_provenance"]
+          assert provenance["contradictory_m1"] == 0
+          assert provenance["out_of_window_m1"] == 0
+          assert provenance["synthetic_m1"] == 0
+          assert provenance["interpolated_m1"] == 0
+
+          governance = report["governance"]
+          assert governance["forensics_only"] is True
+          assert governance["consumed_r66_only"] is True
+          assert governance["provider_demo_only"] is True
+          assert governance["read_only"] is True
+          assert governance["native_m1_only"] is True
+          assert governance["pnl_evaluated"] is False
+          assert governance["candidate_created"] is False
+          assert governance["trader_certified"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+        env:
+          MATRIX_SYMBOL: ${{ matrix.symbol }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r91-r66-m15-m1-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: density
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-r91-r66-m15-m1-*-${{ github.sha }}
+          path: artifacts/input
+          merge-multiple: true
+
+      - name: Aggregate R91 R66 density
+        run: |
+          mkdir -p artifacts/report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = sorted(Path("artifacts/input").glob("r91-*.json"))
+          assert len(paths) == 3, paths
+          rows = [json.loads(path.read_text()) for path in paths]
+          assert sorted(row["symbol"] for row in rows) == [
+              "NAS100", "SP500", "US30"
+          ]
+          total = sum(
+              int(row["counts"]["deduplicated_m15_m1_executables"])
+              for row in rows
+          )
+          first = sum(
+              int(row["counts"]["first_executables_per_h4"])
+              for row in rows
+          )
+          additional = sum(
+              int(row["counts"]["additional_executables_same_h4"])
+              for row in rows
+          )
+          payload = {
+              "schema": "qore.trader_lab.vt08_index_r91_r66_m15_m1_density.aggregate.v1",
+              "identity": "VT08_INDEX_R91_R66_NATIVE_M1_M15_M1_DENSITY_CENSUS_001",
+              "window": "R66_CONSUMED",
+              "minimum_density": 1000,
+              "deduplicated_m15_m1_executables": total,
+              "first_executables_per_h4": first,
+              "additional_executables_same_h4": additional,
+              "density_pass": total >= 1000,
+              "by_market": {
+                  row["symbol"]: row["counts"]
+                  for row in rows
+              },
+              "decision": (
+                  "R91_R66_NATIVE_M1_DENSITY_SUFFICIENT_FOR_NEXT_ECONOMIC_STAGE"
+                  if total >= 1000
+                  else "R91_R66_NATIVE_M1_DENSITY_INSUFFICIENT_NO_ECONOMIC_STAGE"
+              ),
+              "governance": {
+                  "consumed_r66_only": True,
+                  "fresh_holdout_claim": False,
+                  "pnl_evaluated": False,
+                  "candidate_created": False,
+                  "trader_certified": False,
+                  "live_authorized": False,
+                  "real_capital_authorized": False,
+                  "production_authorized": False,
+              },
+          }
+          Path("artifacts/report/r91-r66-aggregate.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(payload, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r91-r66-m15-m1-aggregate-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
