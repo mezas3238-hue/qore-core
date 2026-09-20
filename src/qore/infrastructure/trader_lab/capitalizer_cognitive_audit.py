@@ -16,6 +16,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerDecision,
     CapitalizerSession,
 )
+from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
+    CapitalizerCognitiveGateDecision,
+)
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import (
     CapitalizerAttentionState,
     CapitalizerHypothesisStage,
@@ -38,6 +41,7 @@ class CapitalizerCognitiveAuditRecord:
     contradictions: tuple[str, ...]
     adversarial_findings: tuple[str, ...]
     decision: CapitalizerDecision | None
+    cognitive_gate_decision: CapitalizerCognitiveGateDecision | None
     reasons: tuple[str, ...]
     selected_for_slot: bool = False
     grants_capital_authority: bool = False
@@ -58,7 +62,9 @@ class CapitalizerCognitiveAuditRecord:
             or self.hypothesis_stage is None
         ):
             raise ValueError("audit hypothesis identity must be complete")
-        if self.decision is not None and not self.reasons:
+        if (
+            self.decision is not None or self.cognitive_gate_decision is not None
+        ) and not self.reasons:
             raise ValueError("every audited decision requires causal reasons")
         if self.selected_for_slot and self.decision is not CapitalizerDecision.EXECUTE:
             raise ValueError("slot selection requires an EXECUTE decision")
