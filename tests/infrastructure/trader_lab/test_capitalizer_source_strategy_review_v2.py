@@ -54,13 +54,13 @@ def test_qore_governance_is_not_misattributed_to_ict_or_ttrades() -> None:
         assert fact.source_ids == ()
 
 
-def test_source_inventory_is_frozen_but_strategy_grammar_remains_open() -> None:
+def test_source_inventory_and_reviewed_strategy_grammar_are_frozen() -> None:
     review = FROZEN_SOURCE_STRATEGY_REVIEW
 
     assert review.inventory_status is CapitalizerChainStatus.FROZEN_APT
     assert (
         review.deterministic_strategy_grammar_status
-        is CapitalizerChainStatus.RESEARCH_OPEN
+        is CapitalizerChainStatus.FROZEN_APT
     )
     assert review.economic_edge_claimed is False
     assert review.integrated_nine_market_replay_completed is False
