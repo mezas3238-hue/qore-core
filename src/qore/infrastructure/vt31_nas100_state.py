@@ -203,7 +203,7 @@ class Vt31Nas100LiveStateStore:
 
     def store(self, state: Vt31Nas100LiveState) -> None:
         payload = {
-            "schema": _STATE_SCHEMA,
+            "schema": _SCHEMA,
             "identity": "VT31_NAS100_STRUCTURAL_TARGET_V1",
             "virtual_basket": (
                 None
