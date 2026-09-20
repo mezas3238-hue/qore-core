@@ -124,7 +124,7 @@ jobs:
                   "monte_carlo":v["monte_carlo"],
                   "objectives":v["objectives"],
                   "binding_diagnostics":v["binding_diagnostics"],
-              "} for k,v in sorted(folds.items())},
+              } for k,v in sorted(folds.items())},
           }
           Path("aggregate.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
           print(json.dumps(report,sort_keys=True))
