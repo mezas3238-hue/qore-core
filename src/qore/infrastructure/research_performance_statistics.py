@@ -17,8 +17,9 @@ from qore.kernel.result import Failure, Result, Success
 
 _DECIMAL128 = Context(prec=34, rounding=ROUND_HALF_EVEN)
 _PREVALIDATED_OBSERVATION_TUPLES: dict[int, object] = {}
+_VALIDATED_OBSERVATION_IDENTITIES: dict[int, object] = {}
 _VALIDATED_SNAPSHOT_IDENTITIES: dict[int, object] = {}
-_CACHE_LIMIT = 32
+_CACHE_LIMIT = 4096
 
 
 def _remember_identity(cache: dict[int, object], value: object) -> None:
@@ -74,8 +75,10 @@ class ResearchPerformanceSnapshotId:
 
 
 def _revalidate_observation_evidence(observation: ResearchReturnObservation) -> None:
-    """Deep-revalidate one retained return and its complete economic evidence tree."""
+    """Deep-revalidate one exact immutable return object at most once per process."""
 
+    if _is_remembered_identity(_VALIDATED_OBSERVATION_IDENTITIES, observation):
+        return
     try:
         source = observation.source_result
         if isinstance(source, ResearchNetEconomicResult):
@@ -91,6 +94,7 @@ def _revalidate_observation_evidence(observation: ResearchReturnObservation) -> 
                 "performance return source must be an exact research economic result"
             )
         observation.__post_init__()
+        _remember_identity(_VALIDATED_OBSERVATION_IDENTITIES, observation)
     except ResearchPerformanceStatisticsError:
         raise
     except (InfrastructureError, AttributeError, TypeError, ValueError) as error:

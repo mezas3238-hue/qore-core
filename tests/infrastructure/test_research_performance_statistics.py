@@ -482,3 +482,60 @@ def test_builder_revalidates_each_exact_observation_only_once(
         built.value
     )
     assert calls == len(observations)
+
+
+
+def test_exact_observation_identity_is_not_deep_revalidated_across_new_fold_tuple(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    performance_module._PREVALIDATED_OBSERVATION_TUPLES.clear()
+    performance_module._VALIDATED_OBSERVATION_IDENTITIES.clear()
+    performance_module._VALIDATED_SNAPSHOT_IDENTITIES.clear()
+    run = _run()
+    observations = (
+        _gross_return(run, suffix=80, pnl="10"),
+        _gross_return(run, suffix=81, pnl="-5"),
+        _gross_return(run, suffix=82, pnl="20"),
+    )
+
+    source_calls = 0
+    original = ResearchGrossEconomicResult.__post_init__
+
+    def counted(result: ResearchGrossEconomicResult) -> None:
+        nonlocal source_calls
+        source_calls += 1
+        original(result)
+
+    monkeypatch.setattr(
+        ResearchGrossEconomicResult,
+        "__post_init__",
+        counted,
+    )
+    first = build_research_performance_statistics(
+        snapshot_id=ResearchPerformanceSnapshotId(_uuid(2300)),
+        observations=observations,
+        observed_at=observations[-1].observed_at + timedelta(seconds=1),
+    )
+    assert isinstance(first, Success)
+    first_calls = source_calls
+    assert first_calls == len(observations)
+
+    second = build_research_performance_statistics(
+        snapshot_id=ResearchPerformanceSnapshotId(_uuid(2301)),
+        observations=tuple(reversed(observations)),
+        observed_at=observations[-1].observed_at + timedelta(seconds=2),
+    )
+    assert isinstance(second, Success)
+    assert source_calls == first_calls
+
+    copied = replace(
+        observations[0],
+        observation_id=ResearchReturnObservationId(_uuid(2399)),
+    )
+    third = build_research_performance_statistics(
+        snapshot_id=ResearchPerformanceSnapshotId(_uuid(2302)),
+        observations=(copied, observations[1], observations[2]),
+        observed_at=observations[-1].observed_at + timedelta(seconds=3),
+    )
+    assert isinstance(third, Success)
+    assert source_calls == first_calls + 1
