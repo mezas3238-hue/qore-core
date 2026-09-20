@@ -21,6 +21,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_daily_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
@@ -35,6 +36,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_routing_drawdown_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_daily_loss_forensics.py'
   workflow_dispatch:
 
 permissions:
@@ -79,6 +81,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
             src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py \
             src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_daily_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
@@ -108,7 +111,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
             src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py \
-            src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py
+            src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_daily_loss_forensics.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
@@ -125,7 +129,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py \
             tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py \
             tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py \
-            tests/infrastructure/trader_lab/test_capitalizer_routing_drawdown_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_routing_drawdown_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_daily_loss_forensics.py
 
   scan:
     needs: quality
@@ -381,6 +386,10 @@ jobs:
       - name: Build residual routing drawdown forensics
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_routing_drawdown_forensics \
+            matrix-input matrix-output
+      - name: Build daily-loss and cross-session path forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_daily_loss_forensics \
             matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
@@ -723,6 +732,37 @@ jobs:
           }
           assert drawdown['contribution_cells']
           assert drawdown['session_contributions']
+
+          daily = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-daily-loss-forensics-v1.json'
+              ).read_text()
+          )
+          assert daily['identity'] == 'QORE_CAPITALIZER_DAILY_LOSS_FORENSICS_V1'
+          assert daily['market_count'] == 9
+          assert daily['daily_realized_r_only'] is True
+          assert daily['cross_session_path_profiled'] is True
+          assert daily['funded_percent_conversion_applied'] is False
+          assert daily['qore_risk_sizing_applied'] is False
+          assert daily['daily_stop_rule_selected'] is False
+          assert daily['max3_contract_preserved'] is True
+          assert daily['positive_pnl_is_not_stop_condition'] is True
+          assert daily['numeric_threshold_optimization_used'] is False
+          assert daily['outcome_aware_runtime_gating_used'] is False
+          assert daily['candidate_frozen'] is False
+          assert daily['fresh_holdout_claimed'] is False
+          assert daily['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in daily['policies']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in daily['policies']} == {
+              'MAX3_BASELINE',
+              'BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1',
+              'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
+          }
+          assert daily['annual']
           PY
       - name: Upload immutable target-capacity matrix
         uses: actions/upload-artifact@v4
