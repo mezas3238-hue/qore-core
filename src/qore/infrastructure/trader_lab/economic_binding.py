@@ -24,6 +24,7 @@ from qore.infrastructure.research_economic_evidence import (
 )
 from qore.infrastructure.research_performance_statistics import (
     ResearchPerformanceStatisticsSnapshot,
+    validate_research_performance_statistics_snapshot,
 )
 from qore.infrastructure.trader_lab.candidate import (
     TraderLabCandidateBinding,
@@ -77,6 +78,23 @@ def research_return_instrument(
         gross = source.gross_result
     elif isinstance(source, ResearchGrossEconomicResult):
         source.__post_init__()
+        gross = source
+    else:
+        raise TraderLabValidationError(
+            "economic return source must be a canonical research economic result"
+        )
+    return Instrument(gross.instrument.value)
+
+
+def _validated_research_return_instrument(
+    observation: ResearchReturnObservation,
+) -> Instrument:
+    """Read instrument after the enclosing performance snapshot was deep-validated."""
+
+    source = observation.source_result
+    if isinstance(source, ResearchNetEconomicResult):
+        gross = source.gross_result
+    elif isinstance(source, ResearchGrossEconomicResult):
         gross = source
     else:
         raise TraderLabValidationError(
@@ -141,7 +159,7 @@ def validate_first_cohort_economic_binding(
         raise TraderLabValidationError(
             "instrument-bound economics require ResearchPerformanceStatisticsSnapshot"
         )
-    performance.__post_init__()
+    validate_research_performance_statistics_snapshot(performance)
     if performance.run != candidate.strategy_binding.run:
         raise TraderLabValidationError(
             "instrument-bound performance run must match the candidate"
@@ -167,7 +185,7 @@ def validate_first_cohort_economic_binding(
         )
 
     for observation in performance.observations:
-        if research_return_instrument(observation) != frozen_instrument:
+        if _validated_research_return_instrument(observation) != frozen_instrument:
             raise TraderLabValidationError(
                 "performance observations must all use the frozen Trader instrument"
             )
