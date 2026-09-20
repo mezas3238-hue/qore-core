@@ -246,6 +246,15 @@ class Vt31Nas100M1Cache:
     def last_refresh_at(self) -> datetime | None:
         return self._last_refresh_at
 
+    def closed_m1(self, *, through: datetime) -> tuple[OhlcSnapshot, ...]:
+        """Return only immutable bars closed no later than the cutoff."""
+        cutoff = _utc(through, "through")
+        return tuple(
+            self._bars[key]
+            for key in sorted(self._bars)
+            if self._bars[key].closed_at <= cutoff
+        )
+
     def _ingest(self, rows: Any) -> None:
         for row in rows:
             opened = normalise_fundednext_server_epoch(int(row["time"]))
