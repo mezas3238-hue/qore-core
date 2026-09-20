@@ -107,7 +107,7 @@ def test_r85_same_c2_valid_continuation_executes_in_body() -> None:
 def test_r85_same_c2_wick_not_body_is_rejected() -> None:
     t0 = datetime(2026, 1, 1, tzinfo=UTC)
     inside = (
-        _bar(t0, open_="100", high="99.6", low="99", close="99.5"),
+        _bar(t0, open_="99.4", high="99.6", low="99", close="99.5"),
         _bar(
             t0 + timedelta(minutes=15),
             open_="99.5",
