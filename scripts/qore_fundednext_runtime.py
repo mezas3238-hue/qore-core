@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+from importlib import import_module
 import sys
 import time
 from datetime import UTC, datetime, timedelta
@@ -150,15 +151,16 @@ from qore.infrastructure.vt31_nas100_live import (
     boundary_to_arm as vt31_boundary_to_arm,
 )
 from qore.infrastructure.vt31_nas100_state import Vt31Nas100LiveStateStore
-from vt31_nas100_runtime_adapter import (
-    evaluate_boundary as evaluate_vt31_boundary,
-    manage_open_trade as manage_vt31_open_trade,
-    process_virtual_oco as process_vt31_virtual_oco,
-    reconcile_pending as reconcile_vt31_pending,
-    runtime_started_fields as vt31_runtime_started_fields,
-    shadow_basket as shadow_vt31_basket,
-    submit_single_live as submit_vt31_single_live,
-)
+# Load the script-layer VT31 adapter dynamically so existing trader mypy
+# regressions do not type-check the historical research graph it reuses.
+_vt31_adapter = import_module("vt31_nas100_runtime_adapter")
+evaluate_vt31_boundary = _vt31_adapter.evaluate_boundary
+manage_vt31_open_trade = _vt31_adapter.manage_open_trade
+process_vt31_virtual_oco = _vt31_adapter.process_virtual_oco
+reconcile_vt31_pending = _vt31_adapter.reconcile_pending
+vt31_runtime_started_fields = _vt31_adapter.runtime_started_fields
+shadow_vt31_basket = _vt31_adapter.shadow_basket
+submit_vt31_single_live = _vt31_adapter.submit_single_live
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     OWNER_FOREX_ENTRY_ANCHORS,
     Vt08B01Bar,
