@@ -19,8 +19,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-native-m1-nine-market-replay-v1-${{ github.ref }}
-  cancel-in-progress: true
+  group: qore-capitalizer-native-m1-nine-market-replay-v1-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
