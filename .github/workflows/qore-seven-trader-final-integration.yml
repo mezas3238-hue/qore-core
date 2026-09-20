@@ -6,6 +6,9 @@ on:
       - agent/turtle-soup-gbpusd-r43-live-core-integration-001
     paths:
       - scripts/qore_fundednext_runtime.py
+      - scripts/fundednext_mt5_no_send_probe.py
+      - scripts/fundednext_mt5_order_check_probe.py
+      - src/qore/infrastructure/fundednext_live_guard.py
       - scripts/vt31_nas100_runtime_adapter.py
       - scripts/vt31_nas100_live_policy.py
       - src/qore/infrastructure/account_wide_risk.py
@@ -59,4 +62,4 @@ jobs:
         env:
           PYTHONPATH: scripts
         run: |
-          pytest -q             tests/infrastructure/test_account_wide_risk.py             tests/infrastructure/test_account_wide_risk_ledger.py             tests/infrastructure/test_fundednext_live_mt5.py             tests/infrastructure/test_fundednext_live_safety.py             tests/infrastructure/test_fundednext_position_exit_ledger.py             tests/infrastructure/test_fundednext_runtime_script_contract.py             tests/infrastructure/test_fundednext_runtime_state.py             tests/infrastructure/test_fundednext_shadow_state_rebind.py             tests/infrastructure/test_r34_xauusd_live.py             tests/infrastructure/test_r38_eurusd_live.py             tests/infrastructure/test_r43_gbpusd_live.py             tests/infrastructure/test_r38_gbpjpy_live.py             tests/infrastructure/test_r42_audjpy_live.py             tests/infrastructure/test_audjpy_r42_runtime_integration.py             tests/infrastructure/test_vt08_forex_cibo_operational.py             tests/infrastructure/test_vt08_forex_fundednext_sizing.py             tests/infrastructure/test_vt31_nas100_live_runtime.py
+          pytest -q             tests/infrastructure/test_account_wide_risk.py             tests/infrastructure/test_account_wide_risk_ledger.py             tests/infrastructure/test_fundednext_live_mt5.py             tests/infrastructure/test_fundednext_live_guard.py             tests/infrastructure/test_fundednext_live_safety.py             tests/infrastructure/test_fundednext_position_exit_ledger.py             tests/infrastructure/test_fundednext_runtime_script_contract.py             tests/infrastructure/test_fundednext_runtime_state.py             tests/infrastructure/test_fundednext_shadow_state_rebind.py             tests/infrastructure/test_r34_xauusd_live.py             tests/infrastructure/test_r38_eurusd_live.py             tests/infrastructure/test_r43_gbpusd_live.py             tests/infrastructure/test_r38_gbpjpy_live.py             tests/infrastructure/test_r42_audjpy_live.py             tests/infrastructure/test_audjpy_r42_runtime_integration.py             tests/infrastructure/test_vt08_forex_cibo_operational.py             tests/infrastructure/test_vt08_forex_fundednext_sizing.py             tests/infrastructure/test_vt31_nas100_live_runtime.py
