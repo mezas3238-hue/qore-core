@@ -56,6 +56,7 @@ from qore.infrastructure.trader_lab.capitalizer_regime_intelligence import (
     CapitalizerRegimeHypothesis,
 )
 
+
 def _world(at: datetime) -> CapitalizerGlobalWorldModel:
     markets: list[CapitalizerMarketWorldState] = []
     for session in CapitalizerSession:
