@@ -7,6 +7,8 @@ from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_cibo_10y_m1_clone_v1 import (
     IDENTITY as CLONE_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_cibo_10y_m1_clone_v1 import (
     PERIOD_M1,
     TARGET_END_EXCLUSIVE,
     TARGET_START,
