@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
