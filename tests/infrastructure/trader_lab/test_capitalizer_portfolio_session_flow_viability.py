@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.trader_lab.capitalizer_portfolio_session_flow_viability import (
     PortfolioFlowTrade,
     _select,
@@ -43,3 +45,14 @@ def test_positive_third_requires_realized_profit_before_candidate() -> None:
         tie_policy="SYMBOL_ASC",
     )
     assert len(selected) == 2
+
+
+def test_portfolio_trade_fails_closed_when_position_crosses_session_boundary() -> None:
+    entry = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    with pytest.raises(ValueError, match="crossed session boundary"):
+        PortfolioFlowTrade(
+            symbol="USDJPY",
+            entry_at=entry,
+            exit_at=entry + timedelta(hours=7),
+            realized_r=Decimal("0.2"),
+        )
