@@ -152,6 +152,7 @@ from qore.infrastructure.vt31_nas100_live import (
 from qore.infrastructure.vt31_nas100_state import Vt31Nas100LiveStateStore
 from vt31_nas100_runtime_adapter import (
     evaluate_boundary as evaluate_vt31_boundary,
+    manage_open_trade as manage_vt31_open_trade,
     process_virtual_oco as process_vt31_virtual_oco,
     reconcile_pending as reconcile_vt31_pending,
     runtime_started_fields as vt31_runtime_started_fields,
@@ -463,6 +464,9 @@ def _manage_h4_exits(
         if source is None:
             continue
         lineage = lineages.get(source.risk_authorization_id)
+        if lineage is TraderLineage.VT31_NAS100:
+            # VT31 owns its 16:00 NY lifecycle and V4 partial/runner journey.
+            continue
         if lineage in {
             TraderLineage.R34_XAUUSD,
             TraderLineage.R38_EURUSD,
