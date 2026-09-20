@@ -12,12 +12,13 @@ from qore.infrastructure.trader_lab import (
 
 
 def test_r66_binds_exact_frozen_r58_identity() -> None:
-    assert r66.freeze.CANDIDATE_ID == freeze.CANDIDATE_ID
-    assert (
-        r66.freeze.CANDIDATE_RULE_FINGERPRINT
-        == freeze.CANDIDATE_RULE_FINGERPRINT
+    assert freeze.CANDIDATE_ID == (
+        "VT08_INDEX_R58_EXACT_R47_DISTRIBUTED_CAUSAL_RISK_001"
     )
-    assert r66.freeze.FREEZE_ID == freeze.FREEZE_ID
+    assert freeze.CANDIDATE_RULE_FINGERPRINT == (
+        "e959c8578a7ac71658cd19daf6d61815dfe277ecd06d8100c2655b30a62f48fa"
+    )
+    assert freeze.FREEZE_ID == "VT08_INDEX_R59_R58_CANDIDATE_FREEZE_001"
 
 
 def test_r66_holdout_is_full_available_disjoint_pre5y_region() -> None:
