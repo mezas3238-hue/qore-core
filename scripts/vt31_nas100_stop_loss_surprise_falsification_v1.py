@@ -152,8 +152,8 @@ def _state_metrics(rows:list[dict[str,object]])->dict[str,object]:
             "0" if not rows
             else format(Decimal(len(reached))/Decimal(len(rows)),"f")
         ),
-        "loss_class_counts":dict(Counter(str(r["stop_loss_class"]) for r in rows)),
-        "post_target_delay_counts":dict(Counter(str(r["post_target_delay_bucket"]) for r in reached)),
+        "loss_class_counts":dict(\n            Counter(str(r["stop_loss_class"]) for r in rows)\n        ),
+        "post_target_delay_counts":dict(\n            Counter(str(r["post_target_delay_bucket"]) for r in reached)\n        ),
     }
 
 
@@ -169,7 +169,7 @@ def replay(path:Path, *, partition:str)->dict[str,object]:
     rows,evidence,diagnostics,stats=alt._current_rows(path)
     annotated=seq._annotate(rows)
 
-    series,account,fingerprint,checked,evidence_sha,provider=load_market_evidence(path)
+    series,account,fingerprint,checked,evidence_sha,provider=(\n        load_market_evidence(path)\n    )
     if not series or getattr(series[0],"instrument").symbol != MARKET:
         raise ValueError("stop-loss surprise falsification requires NAS100")
     raw:dict[object,list[object]]=defaultdict(list)
@@ -239,7 +239,7 @@ def replay(path:Path, *, partition:str)->dict[str,object]:
     )
 
     initial=[r for r in losses if str(r["stop_loss_class"]).startswith("INITIAL_STOP")]
-    protective=[r for r in losses if r["stop_loss_class"] in {"BREAKEVEN_STOP","PROTECTIVE_MANAGEMENT_STOP"}]
+    protective=[\n        r for r in losses\n        if r["stop_loss_class"] in {\n            "BREAKEVEN_STOP",\n            "PROTECTIVE_MANAGEMENT_STOP",\n        }\n    ]
     post_target=[r for r in losses if bool(r["post_exit_target_reached"])]
 
     return {
