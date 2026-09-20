@@ -7,7 +7,7 @@ position without predeclared sub-leg semantics.
 
 Diagnostic only. No policy changes.
 """
-from __future__ import annotations
+# ruff: noqa: B009\nfrom __future__ import annotations
 
 import argparse
 import json
