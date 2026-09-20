@@ -41,8 +41,8 @@ class CapitalizerCognitiveAuditRecord:
     contradictions: tuple[str, ...]
     adversarial_findings: tuple[str, ...]
     decision: CapitalizerDecision | None
-    cognitive_gate_decision: CapitalizerCognitiveGateDecision | None
     reasons: tuple[str, ...]
+    cognitive_gate_decision: CapitalizerCognitiveGateDecision | None = None
     selected_for_slot: bool = False
     grants_capital_authority: bool = False
 
