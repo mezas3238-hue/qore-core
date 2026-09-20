@@ -1140,7 +1140,7 @@ def _authorize_and_check(
         side=order.side,
         entry=Decimal(order.entry_price),
         stop_loss=Decimal(order.stop_loss),
-        take_profit=Decimal(order.dol1),
+        take_profit=_broker_guard_target(order),
         certified_risk_r=resolution.final_risk_r,
         provider_spec=spec,
         account_equity=account_equity,
@@ -1248,6 +1248,16 @@ def _authorize_and_check(
             (send_at - trigger_at).total_seconds() * 1000
         ),
     })
+
+
+def _broker_guard_target(order: Vt31VirtualOrderState) -> Decimal:
+    """Maximum certified route used only as the broker-side emergency TP."""
+    dol1 = Decimal(order.dol1)
+    width = Decimal(order.reference_high) - Decimal(order.reference_low)
+    if width <= 0:
+        raise Vt31Nas100LiveError("VT31 frozen reference width invalid")
+    direction = Decimal("1") if order.side == "long" else Decimal("-1")
+    return dol1 + direction * width * Decimal("0.25")
 
 
 def _virtual_candidate(order: Vt31VirtualOrderState) -> Vt31VirtualCandidate:
