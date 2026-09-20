@@ -369,7 +369,7 @@ class CTraderDemoMarketDataPayloadAdapter:
             ExternalOhlcPayload(
                 source=self.descriptor,
                 instrument=response.instrument,
-                timeframe_seconds=_M5_SECONDS,
+                timeframe_seconds=period.seconds,
                 opened_at=opened_at,
                 closed_at=closed_at,
                 open=normalized["open"],
