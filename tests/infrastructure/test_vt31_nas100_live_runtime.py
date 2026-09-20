@@ -15,6 +15,7 @@ from qore.infrastructure.vt31_nas100_live import (
     EXECUTION_BINDING_FINGERPRINT,
     EXECUTION_BINDING_ID,
     MAX_BROKER_TICK_AGE,
+    PROVIDER_SYMBOL,
     TARGET_ARCHITECTURE_ID,
     Vt31Nas100LiveError,
     Vt31Nas100SlaExpired,
@@ -67,6 +68,10 @@ def _candidate(*, entry: str, expires_at: datetime) -> Vt31VirtualCandidate:
         stop_loss=Decimal(entry) - Decimal("10"),
         take_profit=Decimal(entry) + Decimal("20"),
     )
+
+
+def test_vt31_provider_symbol_is_frozen_to_fundednext_ndx100() -> None:
+    assert PROVIDER_SYMBOL == "NDX100"
 
 
 def test_certified_v4_execution_binding_is_exact() -> None:
