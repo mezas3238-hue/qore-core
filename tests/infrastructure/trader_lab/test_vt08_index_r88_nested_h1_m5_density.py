@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 
+from qore.infrastructure.trader_lab import (
+    vt08_index_cibo_2y_density_round4 as r4,
+)
 from qore.infrastructure.trader_lab import (
     vt08_index_r88_nested_h1_m5_density as r88,
 )
@@ -101,4 +102,4 @@ def test_r88_predecessor_evidence_is_pinned() -> None:
 
 
 def test_r88_owner_disabled_14_is_preserved() -> None:
-    assert 14 not in tuple(r88.r4.V7_ANCHORS)
+    assert 14 not in tuple(r4.V7_ANCHORS)
