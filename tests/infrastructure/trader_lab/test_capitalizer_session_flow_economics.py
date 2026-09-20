@@ -65,3 +65,23 @@ def test_positive_continuation_diagnostic_does_not_turn_positive_pnl_into_stop()
     assert report.positive_pnl_is_not_stop_condition is True
     assert report.governed_profit_objective_not_modeled is True
     assert report.max_executions_per_session == 3
+
+
+def test_uncapped_research_exposes_opportunity_loss_from_session_ceiling() -> None:
+    report = _build_report(tuple(_trade(i, "1") for i in range(4)))
+    uncapped = next(
+        item
+        for item in report.policy_economics
+        if item.policy == "UNCAPPED_RESEARCH" and item.tie_policy == "SYMBOL_ASC"
+    )
+    capped = next(
+        item
+        for item in report.policy_economics
+        if item.policy == "MAX3_ANY_VALID" and item.tie_policy == "SYMBOL_ASC"
+    )
+    assert uncapped.metrics.trades == 4
+    assert uncapped.max_trades_in_one_session == 4
+    assert uncapped.opportunities_rejected_by_ceiling == 0
+    assert capped.metrics.trades == 3
+    assert capped.max_trades_in_one_session == 3
+    assert capped.opportunities_rejected_by_ceiling == 1
