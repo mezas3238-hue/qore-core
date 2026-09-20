@@ -519,21 +519,30 @@ def _monte_carlo_reference(
     }
 
 
+def _checkpoint(label: str) -> None:
+    print(f"R65_CHECKPOINT:{label}", flush=True)
+
+
 def build_report(
     *,
     nas100_root: Path,
     sp500_root: Path,
     us30_root: Path,
 ) -> dict[str, object]:
+    _checkpoint("start")
     candidate, performance, r64_details = r64.build_binding(
         nas100_root=nas100_root,
         sp500_root=sp500_root,
         us30_root=us30_root,
     )
+    _checkpoint("r64_binding_complete")
     evaluation_freeze, frozen_oos = _frozen_oos(candidate, performance)
+    _checkpoint("frozen_oos_complete")
     events = _replay_events(performance)
+    _checkpoint("replay_events_complete")
 
     lifecycle = start_trader_lab_lifecycle(candidate)
+    _checkpoint("lifecycle_started")
     lifecycle = _promote(
         lifecycle,
         stage=TraderLabStage.RESEARCH,
@@ -543,45 +552,54 @@ def build_report(
         ),
         produced_at=RESEARCH_AT,
     )
+    _checkpoint("research_complete")
     lifecycle = _promote(
         lifecycle,
         stage=TraderLabStage.REPLAY,
         reference=reference_replay_chronology(events),
         produced_at=REPLAY_AT,
     )
+    _checkpoint("replay_complete")
     lifecycle = _promote(
         lifecycle,
         stage=TraderLabStage.FAST_FORWARD,
         reference=_fast_forward_reference(candidate, events),
         produced_at=FAST_FORWARD_AT,
     )
+    _checkpoint("fast_forward_complete")
     lifecycle = _promote(
         lifecycle,
         stage=TraderLabStage.OOS,
         reference=reference_research_frozen_oos(candidate, frozen_oos),
         produced_at=OOS_AT,
     )
+    _checkpoint("oos_complete")
 
     stress_reference, stress = _stress_reference(lifecycle, performance)
+    _checkpoint("stress_reference_complete")
     lifecycle = _promote(
         lifecycle,
         stage=TraderLabStage.STRESS,
         reference=stress_reference,
         produced_at=STRESS_AT,
     )
+    _checkpoint("stress_complete")
 
     monte_reference, monte = _monte_carlo_reference(candidate, frozen_oos)
+    _checkpoint("monte_reference_complete")
     lifecycle = _promote(
         lifecycle,
         stage=TraderLabStage.MONTE_CARLO,
         reference=monte_reference,
         produced_at=MONTE_CARLO_AT,
     )
+    _checkpoint("monte_carlo_complete")
 
     economic_reference = reference_research_economic(
         candidate,
         performance.observations[-1],
     )
+    _checkpoint("economic_reference_complete")
     authority = complete_first_cohort_authority_chain(
         FirstCohortAuthorityInput(
             lifecycle=lifecycle,
@@ -598,6 +616,7 @@ def build_report(
             independent_validated_at=INDEPENDENT_AT,
         )
     )
+    _checkpoint("authority_chain_returned")
     if isinstance(authority, Failure):
         raise ValueError(f"R65 authority chain failed: {authority.error}")
     entry = authority.value
