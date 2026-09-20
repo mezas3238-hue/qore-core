@@ -25,9 +25,14 @@ def test_source_review_contains_complete_ict_scalping_series_and_primary_ttrades
     )
     assert sources["ICT_ATM_METHOD"].author is CapitalizerStrategyAuthor.ICT
     assert sources["ICT_ATM_METHOD"].primary_locator == "youtube:30petm6SZz0"
+    assert sources["ICT_2022_MENTORSHIP_EP3"].author is CapitalizerStrategyAuthor.ICT
+    assert sources["ICT_2022_MENTORSHIP_EP3"].primary_locator == "youtube:nQfHZ2DEJ8c"
     assert sources["ICT_2022_MENTORSHIP_EP6"].author is CapitalizerStrategyAuthor.ICT
+    assert sources["ICT_2022_MENTORSHIP_EP7"].author is CapitalizerStrategyAuthor.ICT
     assert sources["ICT_RISK_MANAGEMENT"].author is CapitalizerStrategyAuthor.ICT
     assert sources["TTRADES_SCALPING_MODEL"].author is CapitalizerStrategyAuthor.TTRADES
+    assert sources["TTRADES_INTRACANDLE_CISD"].author is CapitalizerStrategyAuthor.TTRADES
+    assert sources["TTRADES_WICK_THEN_BODY"].author is CapitalizerStrategyAuthor.TTRADES
     assert (
         sources["TTRADES_FAILURE_TO_MANIPULATE"].author
         is CapitalizerStrategyAuthor.TTRADES
@@ -42,6 +47,23 @@ def test_author_supported_facts_always_have_reviewed_primary_sources() -> None:
         if fact.fact_type is CapitalizerSourceFactType.AUTHOR_SUPPORTED:
             assert fact.source_ids
             assert set(fact.source_ids).issubset(available)
+
+
+def test_entry_acceptance_facts_cover_ict_and_ttrades_conditions() -> None:
+    facts = {item.fact_id: item for item in FROZEN_SOURCE_STRATEGY_REVIEW.facts}
+
+    for fact_id in (
+        "ICT_ENTRY_LIQUIDITY_RAID_PRECEDES_MSS",
+        "ICT_ENTRY_MSS_REQUIRES_SIGNIFICANT_DISPLACEMENT",
+        "ICT_ENTRY_REQUIRES_FVG_IN_DISPLACEMENT",
+        "ICT_ENTRY_USES_RETRACE_TO_FVG_NOT_CHASE",
+        "TTRADES_ENTRY_REQUIRES_HTF_POI_CISD_CONTINUATION",
+        "TTRADES_ENTRY_INVALID_IF_CISD_MISSING",
+        "TTRADES_ENTRY_WICK_FORMED_BEFORE_BODY",
+        "TTRADES_ENTRY_REQUIRES_TARGET_INTACT",
+    ):
+        assert facts[fact_id].fact_type is CapitalizerSourceFactType.AUTHOR_SUPPORTED
+        assert facts[fact_id].source_ids
 
 
 def test_qore_governance_is_not_misattributed_to_ict_or_ttrades() -> None:
