@@ -4,6 +4,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_cibo_2y_density_round4 as r4,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r84_source_exact_ps_event_census as r84,
 )
 from qore.infrastructure.trader_lab import (
@@ -11,6 +14,9 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_v6_ttrades_source_faithful as v6,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_v7_ttrades_source_corrected as v7,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
@@ -135,9 +141,9 @@ def test_r85_same_c2_wick_not_body_is_rejected() -> None:
 
 
 def test_r85_owner_disabled_14_is_not_executable() -> None:
-    assert 14 not in tuple(r85.r4.V7_ANCHORS)
-    assert tuple(r85.r4.V7_ANCHORS) == tuple(
-        r85.v7.EXECUTABLE_H4_ANCHORS_NY
+    assert 14 not in tuple(r4.V7_ANCHORS)
+    assert tuple(r4.V7_ANCHORS) == tuple(
+        v7.EXECUTABLE_H4_ANCHORS_NY
     )
 
 
