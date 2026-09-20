@@ -1,0 +1,785 @@
+"""Common live infrastructure for VT31 NAS100 on the resident MT5 runtime.
+
+This module contains only execution/runtime mechanics that do not select or
+retune the VT31 economic identity:
+
+- one-time historical M1 preload + incremental recent cache;
+- exact newly-closed M1 + exact newly-opened M1 boundary validation;
+- broker tick freshness <= 2.0 seconds;
+- T-10s pre-arm and 75ms critical-boundary retry;
+- hard 2.0s deadline guard, including post-risk/pre-send checks;
+- virtual OCO trigger selection without multiple broker pending orders;
+- certified R-unit -> broker volume translation, always rounded DOWN;
+- Account-Wide Risk request under the VT31_NAS100 lineage.
+
+The target/lifecycle policy is bound separately to the final frozen candidate.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from decimal import ROUND_FLOOR, Decimal
+from typing import Any
+from uuid import NAMESPACE_URL, UUID, uuid5
+
+from qore.domain.events import CausationId, CorrelationId
+from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
+from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
+from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
+from qore.infrastructure.market_data import (
+    Instrument,
+    MarketDataSnapshotId,
+    OhlcSnapshot,
+    Timeframe,
+)
+from qore.infrastructure.ports import (
+    AdapterId,
+    ExternalSourceDescriptor,
+    PortName,
+    SourceId,
+)
+
+IDENTITY = "VT31_NAS100"
+SYMBOL = "NAS100"
+SERVICE_24_7 = True
+MARKET_READING = "CONTINUOUS"
+
+ENTRY_SLA_SECONDS = Decimal("2.0")
+ENTRY_SLA = timedelta(seconds=float(ENTRY_SLA_SECONDS))
+MAX_BROKER_TICK_AGE = ENTRY_SLA
+FUTURE_TICK_TOLERANCE = timedelta(seconds=0.5)
+BOUNDARY_ARM_LEAD_SECONDS = Decimal("10.0")
+BOUNDARY_ARM_LEAD = timedelta(seconds=float(BOUNDARY_ARM_LEAD_SECONDS))
+NORMAL_FEED_REFRESH_SECONDS = 1.0
+BOUNDARY_RETRY_SECONDS = 0.075
+BOUNDARY_RETRY_MS = 75
+HISTORY_M1_BARS = 30_000
+MIN_PRELOAD_M1_BARS = 10_000
+RECENT_M1_BARS = 32
+BOUNDARY_RECENT_M1_BARS = 8
+
+# QORE runtime normalization used by every currently integrated specialist:
+# 1.00 strategy-R maps to 0.20% account equity before the trader's frozen
+# causal risk multipliers. This is portfolio/runtime normalization, not VT31
+# strategy calibration.
+QORE_ONE_R_ACCOUNT_FRACTION = Decimal("0.002")
+BROKER_RISK_BUFFER = Decimal("1.02")
+
+_INSTRUMENT = Instrument(SYMBOL)
+_TIMEFRAME_M1 = Timeframe(60)
+_SOURCE = ExternalSourceDescriptor(
+    adapter_id=AdapterId(UUID("9b310000-0000-0000-0000-000000000001")),
+    source_id=SourceId(UUID("9b310000-0000-0000-0000-000000000002")),
+    port_name=PortName("market-data.vt31-nas100-live"),
+)
+
+
+class Vt31Nas100LiveError(RuntimeError):
+    """VT31 NAS100 runtime invariant failed closed."""
+
+
+class Vt31Nas100SlaExpired(Vt31Nas100LiveError):
+    """Hard 2.0 second execution deadline expired."""
+
+
+@dataclass(frozen=True, slots=True)
+class Vt31Nas100BoundarySnapshot:
+    anchor: datetime
+    closed_m1: tuple[OhlcSnapshot, ...]
+    current_open: Decimal
+    broker_bid: Decimal
+    broker_ask: Decimal
+    broker_tick_at: datetime
+    observed_at: datetime
+    evidence_fingerprint: str
+
+
+@dataclass(frozen=True, slots=True)
+class Vt31VirtualCandidate:
+    candidate_id: str
+    signal_fingerprint: str
+    side: str
+    family: str
+    formed_at: datetime
+    decision_at: datetime
+    expires_at: datetime
+    entry_price: Decimal
+    stop_loss: Decimal
+    take_profit: Decimal
+
+    def __post_init__(self) -> None:
+        if self.side not in {"long", "short"}:
+            raise ValueError("VT31 virtual candidate side must be long or short")
+        if not self.candidate_id or not self.signal_fingerprint:
+            raise ValueError("VT31 virtual candidate identity missing")
+        for value in (self.formed_at, self.decision_at, self.expires_at):
+            _aware(value, "virtual candidate timestamp")
+        if self.expires_at <= self.decision_at:
+            raise ValueError("VT31 virtual candidate expiry must follow decision")
+        if self.side == "long":
+            valid = self.stop_loss < self.entry_price < self.take_profit
+        else:
+            valid = self.take_profit < self.entry_price < self.stop_loss
+        if not valid:
+            raise ValueError("VT31 virtual candidate geometry invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt31RiskContext:
+    tier: str
+    entry_family: str
+    side: str
+    nominal_risk_r: Decimal
+    h1_state: str
+    premarket_state: str
+    cash_open_state: str
+    confirmation_latency_minutes: int | None
+    risk_ref: Decimal | None
+    current_path_vs_previous: Decimal | None
+
+    def __post_init__(self) -> None:
+        if self.tier not in {"CORE", "SECONDARY", "SCOUT", "REARM"}:
+            raise ValueError("VT31 risk tier invalid")
+        if self.entry_family not in {"breaker", "fair-value-gap", "order-block"}:
+            raise ValueError("VT31 risk entry family invalid")
+        if self.side not in {"long", "short"}:
+            raise ValueError("VT31 risk side invalid")
+        if self.nominal_risk_r <= 0:
+            raise ValueError("VT31 nominal risk must be positive")
+        if (
+            self.confirmation_latency_minutes is not None
+            and self.confirmation_latency_minutes < 0
+        ):
+            raise ValueError("VT31 confirmation latency invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class Vt31RiskResolution:
+    nominal_risk_r: Decimal
+    allocation_multiplier: Decimal
+    global_scalar: Decimal
+    state_shield_multiplier: Decimal
+    loss_cluster_multiplier: Decimal
+    breaker_regime_multiplier: Decimal
+    final_risk_r: Decimal
+    reasons: tuple[str, ...]
+
+
+class Vt31Nas100M1Cache:
+    """One preload, then incremental recent M1 reads only."""
+
+    def __init__(self, *, max_bars: int = HISTORY_M1_BARS) -> None:
+        if max_bars < MIN_PRELOAD_M1_BARS:
+            raise ValueError("VT31 M1 cache max_bars below minimum")
+        self._max_bars = max_bars
+        self._bars: dict[datetime, OhlcSnapshot] = {}
+        self._preloaded = False
+        self._preload_calls = 0
+        self._incremental_calls = 0
+        self._last_refresh_at: datetime | None = None
+
+    @property
+    def preloaded(self) -> bool:
+        return self._preloaded
+
+    @property
+    def preload_calls(self) -> int:
+        return self._preload_calls
+
+    @property
+    def incremental_calls(self) -> int:
+        return self._incremental_calls
+
+    @property
+    def last_refresh_at(self) -> datetime | None:
+        return self._last_refresh_at
+
+    def _ingest(self, rows: Any) -> None:
+        for row in rows:
+            opened = normalise_fundednext_server_epoch(int(row["time"]))
+            snapshot = OhlcSnapshot(
+                snapshot_id=MarketDataSnapshotId(
+                    uuid5(
+                        NAMESPACE_URL,
+                        f"qore:vt31:nas100:m1:{opened.isoformat()}",
+                    )
+                ),
+                instrument=_INSTRUMENT,
+                source=_SOURCE,
+                timeframe=_TIMEFRAME_M1,
+                opened_at=opened,
+                closed_at=opened + timedelta(minutes=1),
+                open=float(row["open"]),
+                high=float(row["high"]),
+                low=float(row["low"]),
+                close=float(row["close"]),
+            )
+            prior = self._bars.get(opened)
+            if prior is not None and prior != snapshot:
+                # The current still-open M1 is allowed to evolve; completed
+                # bars must never mutate after their close.
+                now = datetime.now(UTC)
+                if prior.closed_at <= now:
+                    raise Vt31Nas100LiveError(
+                        "VT31 contradictory completed M1 bar"
+                    )
+            self._bars[opened] = snapshot
+
+        if len(self._bars) > self._max_bars:
+            keys = sorted(self._bars)
+            for key in keys[: len(keys) - self._max_bars]:
+                del self._bars[key]
+
+    def preload(self, api: Any, *, now: datetime) -> None:
+        if self._preloaded:
+            raise Vt31Nas100LiveError(
+                "VT31 historical M1 preload may run only once"
+            )
+        rows = api.copy_rates_from_pos(
+            SYMBOL,
+            api.TIMEFRAME_M1,
+            0,
+            HISTORY_M1_BARS,
+        )
+        if rows is None or len(rows) < MIN_PRELOAD_M1_BARS:
+            raise Vt31Nas100LiveError("VT31 historical M1 preload unavailable")
+        self._ingest(rows)
+        self._preloaded = True
+        self._preload_calls += 1
+        self._last_refresh_at = now.astimezone(UTC)
+
+    def refresh_incremental(
+        self,
+        api: Any,
+        *,
+        now: datetime,
+        count: int = RECENT_M1_BARS,
+    ) -> None:
+        if not self._preloaded:
+            raise Vt31Nas100LiveError("VT31 M1 cache not preloaded")
+        if count <= 0 or count > 64:
+            raise ValueError("VT31 incremental M1 count invalid")
+        rows = api.copy_rates_from_pos(
+            SYMBOL,
+            api.TIMEFRAME_M1,
+            0,
+            count,
+        )
+        if rows is None or len(rows) < 2:
+            raise Vt31Nas100LiveError("VT31 incremental M1 refresh unavailable")
+        self._ingest(rows)
+        self._incremental_calls += 1
+        self._last_refresh_at = now.astimezone(UTC)
+
+    def boundary_snapshot(
+        self,
+        api: Any,
+        *,
+        anchor: datetime,
+        observed_at: datetime,
+    ) -> Vt31Nas100BoundarySnapshot:
+        anchor = _utc(anchor, "anchor")
+        observed = _utc(observed_at, "observed_at")
+        assert_deadline(anchor=anchor, now=observed, stage="boundary_snapshot")
+        if observed < anchor:
+            raise Vt31Nas100LiveError("VT31 boundary not reached")
+
+        prior = self._bars.get(anchor - timedelta(minutes=1))
+        current = self._bars.get(anchor)
+        if prior is None or prior.closed_at != anchor:
+            raise Vt31Nas100LiveError("VT31 exact newly-closed M1 unavailable")
+        if current is None or current.opened_at != anchor:
+            raise Vt31Nas100LiveError("VT31 exact new M1 unavailable")
+
+        tick = api.symbol_info_tick(SYMBOL)
+        if tick is None:
+            raise Vt31Nas100LiveError("VT31 broker tick unavailable")
+        broker_tick_at = _tick_timestamp(tick)
+        tick_age = observed - broker_tick_at
+        if tick_age < -FUTURE_TICK_TOLERANCE:
+            raise Vt31Nas100LiveError("VT31 broker tick is from the future")
+        if tick_age > MAX_BROKER_TICK_AGE:
+            raise Vt31Nas100LiveError("VT31 broker tick older than 2s")
+
+        closed = tuple(
+            self._bars[key]
+            for key in sorted(self._bars)
+            if self._bars[key].closed_at <= anchor
+        )
+        if len(closed) < 120:
+            raise Vt31Nas100LiveError("VT31 M1 causal cache underfilled")
+        fingerprint = _evidence_fingerprint(closed)
+        return Vt31Nas100BoundarySnapshot(
+            anchor=anchor,
+            closed_m1=closed,
+            current_open=Decimal(str(current.open)),
+            broker_bid=Decimal(str(tick.bid)),
+            broker_ask=Decimal(str(tick.ask)),
+            broker_tick_at=broker_tick_at,
+            observed_at=observed,
+            evidence_fingerprint=fingerprint,
+        )
+
+
+def next_minute_boundary(now: datetime) -> datetime:
+    current = _utc(now, "now")
+    base = current.replace(second=0, microsecond=0)
+    return base + timedelta(minutes=1)
+
+
+def boundary_to_arm(now: datetime) -> datetime | None:
+    current = _utc(now, "now")
+    anchor = next_minute_boundary(current)
+    remaining = anchor - current
+    if timedelta(0) < remaining <= BOUNDARY_ARM_LEAD:
+        return anchor
+    return None
+
+
+def await_boundary_snapshot(
+    api: Any,
+    *,
+    cache: Vt31Nas100M1Cache,
+    anchor: datetime,
+    now_fn: Callable[[], datetime] | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> Vt31Nas100BoundarySnapshot:
+    clock = now_fn or (lambda: datetime.now(UTC))
+    anchor = _utc(anchor, "anchor")
+    deadline = anchor + ENTRY_SLA
+    last_reason = "boundary-data-not-ready"
+    last_pre_refresh: datetime | None = None
+
+    while True:
+        observed = _utc(clock(), "clock")
+        if observed > deadline:
+            raise Vt31Nas100SlaExpired(
+                f"VT31 hard 2s SLA expired:{last_reason}"
+            )
+
+        if observed < anchor:
+            if (
+                last_pre_refresh is None
+                or (
+                    observed - last_pre_refresh
+                ).total_seconds() >= NORMAL_FEED_REFRESH_SECONDS
+            ):
+                cache.refresh_incremental(
+                    api,
+                    now=observed,
+                    count=RECENT_M1_BARS,
+                )
+                last_pre_refresh = observed
+            remaining = (anchor - observed).total_seconds()
+            sleep_fn(min(BOUNDARY_RETRY_SECONDS, max(0.001, remaining)))
+            continue
+
+        cache.refresh_incremental(
+            api,
+            now=observed,
+            count=BOUNDARY_RECENT_M1_BARS,
+        )
+        checked = _utc(clock(), "clock")
+        assert_deadline(anchor=anchor, now=checked, stage="post_feed_read")
+        try:
+            return cache.boundary_snapshot(
+                api,
+                anchor=anchor,
+                observed_at=checked,
+            )
+        except Vt31Nas100LiveError as error:
+            last_reason = str(error)
+            remaining = (deadline - checked).total_seconds()
+            if remaining <= 0:
+                raise Vt31Nas100SlaExpired(
+                    f"VT31 hard 2s SLA expired:{last_reason}"
+                ) from error
+            sleep_fn(min(BOUNDARY_RETRY_SECONDS, remaining))
+
+
+def assert_deadline(
+    *,
+    anchor: datetime,
+    now: datetime,
+    stage: str,
+) -> None:
+    anchor_utc = _utc(anchor, "anchor")
+    now_utc = _utc(now, "now")
+    if now_utc > anchor_utc + ENTRY_SLA:
+        raise Vt31Nas100SlaExpired(
+            f"VT31 SLA_FAIL_CLOSED:{stage}:deadline_exceeded"
+        )
+
+
+def virtual_oco_trigger(
+    candidates: tuple[Vt31VirtualCandidate, ...],
+    *,
+    bid: Decimal,
+    ask: Decimal,
+    tick_at: datetime,
+    now: datetime,
+) -> Vt31VirtualCandidate | None:
+    if bid <= 0 or ask <= 0 or ask < bid:
+        raise Vt31Nas100LiveError("VT31 broker quote invalid")
+    tick_at = _utc(tick_at, "tick_at")
+    now = _utc(now, "now")
+    age = now - tick_at
+    if age < -FUTURE_TICK_TOLERANCE:
+        raise Vt31Nas100LiveError("VT31 virtual OCO tick is from the future")
+    if age > MAX_BROKER_TICK_AGE:
+        raise Vt31Nas100LiveError("VT31 virtual OCO tick older than 2s")
+
+    fillable: list[Vt31VirtualCandidate] = []
+    for candidate in candidates:
+        if now > candidate.expires_at:
+            continue
+        if candidate.side == "long" and ask <= candidate.entry_price:
+            fillable.append(candidate)
+        elif candidate.side == "short" and bid >= candidate.entry_price:
+            fillable.append(candidate)
+
+    if not fillable:
+        return None
+    entries = {item.entry_price for item in fillable}
+    if len(entries) != 1:
+        raise Vt31Nas100LiveError(
+            "VT31 virtual OCO ambiguous multi-price trigger"
+        )
+    return min(
+        fillable,
+        key=lambda item: (
+            item.formed_at,
+            item.family,
+            item.candidate_id,
+        ),
+    )
+
+
+def nominal_risk_r(
+    *,
+    tier: str,
+    rearm_quality: str | None = None,
+) -> Decimal:
+    if tier == "CORE":
+        return Decimal("1.00")
+    if tier == "SECONDARY":
+        return Decimal("0.05")
+    if tier == "SCOUT":
+        return Decimal("0.02")
+    if tier != "REARM":
+        raise ValueError("VT31 unknown tier")
+    if rearm_quality == "HIGH":
+        return Decimal("0.10")
+    if rearm_quality == "MID":
+        return Decimal("0.05")
+    if rearm_quality == "LOW":
+        return Decimal("0.02")
+    raise ValueError("VT31 rearm quality required")
+
+
+def resolve_certified_risk(context: Vt31RiskContext) -> Vt31RiskResolution:
+    reasons: list[str] = []
+    allocation = _allocation_multiplier(context, reasons)
+    global_scalar = Decimal("0.60")
+    state_shield = (
+        Decimal("0.60") if _state_shielded(context, reasons) else Decimal("1")
+    )
+    loss_cluster = (
+        Decimal("0.35")
+        if (
+            context.entry_family == "order-block"
+            and context.confirmation_latency_minutes is not None
+            and context.confirmation_latency_minutes >= 11
+        )
+        else Decimal("1")
+    )
+    if loss_cluster != 1:
+        reasons.append("LOSS_CLUSTER_OB_LATENCY_GE_11_X035")
+
+    breaker_regime = (
+        Decimal("0.35")
+        if _breaker_regime_shielded(context, reasons)
+        else Decimal("1")
+    )
+    final = (
+        context.nominal_risk_r
+        * allocation
+        * global_scalar
+        * state_shield
+        * loss_cluster
+        * breaker_regime
+    )
+    if final <= 0:
+        raise ValueError("VT31 final certified risk must be positive")
+    return Vt31RiskResolution(
+        nominal_risk_r=context.nominal_risk_r,
+        allocation_multiplier=allocation,
+        global_scalar=global_scalar,
+        state_shield_multiplier=state_shield,
+        loss_cluster_multiplier=loss_cluster,
+        breaker_regime_multiplier=breaker_regime,
+        final_risk_r=final,
+        reasons=tuple(reasons),
+    )
+
+
+def build_risk_request(
+    *,
+    request_id: str,
+    signal_fingerprint: str,
+    side: str,
+    entry: Decimal,
+    stop_loss: Decimal,
+    take_profit: Decimal,
+    certified_risk_r: Decimal,
+    provider_spec: Mt5SymbolSpecification,
+    account_equity: Decimal,
+    trigger_at: datetime,
+    now: datetime,
+) -> tuple[CiboRiskRequest, Decimal]:
+    trigger_at = _utc(trigger_at, "trigger_at")
+    now = _utc(now, "now")
+    assert_deadline(anchor=trigger_at, now=now, stage="risk_request")
+
+    if side not in {"long", "short"}:
+        raise ValueError("VT31 risk request side invalid")
+    if certified_risk_r <= 0 or account_equity <= 0:
+        raise ValueError("VT31 risk/equity invalid")
+    if side == "long" and not stop_loss < entry < take_profit:
+        raise ValueError("VT31 long geometry invalid")
+    if side == "short" and not take_profit < entry < stop_loss:
+        raise ValueError("VT31 short geometry invalid")
+    if not provider_spec.trade_enabled or not provider_spec.session_open:
+        raise Vt31Nas100LiveError("VT31 broker trading unavailable")
+    if provider_spec.provider_symbol != SYMBOL:
+        raise Vt31Nas100LiveError("VT31 provider symbol binding drift")
+    if now - provider_spec.observed_at > ENTRY_SLA:
+        raise Vt31Nas100LiveError("VT31 broker symbol snapshot older than 2s")
+
+    for name, value in (
+        ("volume_min", provider_spec.minimum_volume),
+        ("volume_step", provider_spec.volume_step),
+        ("volume_max", provider_spec.maximum_volume),
+        ("tick_size", provider_spec.tick_size),
+        ("tick_value", provider_spec.tick_value),
+        ("contract_size", provider_spec.contract_size),
+        ("point", provider_spec.point),
+        ("margin_per_volume", provider_spec.margin_per_volume),
+    ):
+        if value <= 0:
+            raise ValueError(f"VT31 broker {name} invalid")
+
+    stop_points = abs(entry - stop_loss) / provider_spec.point
+    target_points = abs(take_profit - entry) / provider_spec.point
+    if stop_points < provider_spec.minimum_stop_distance_points:
+        raise Vt31Nas100LiveError("VT31 stop inside broker stops level")
+    if target_points < provider_spec.minimum_stop_distance_points:
+        raise Vt31Nas100LiveError("VT31 target inside broker stops level")
+
+    ticks = abs(entry - stop_loss) / provider_spec.tick_size
+    stop_per_volume = ticks * provider_spec.tick_value * BROKER_RISK_BUFFER
+    one_r_usd = account_equity * QORE_ONE_R_ACCOUNT_FRACTION
+    requested_risk_usd = one_r_usd * certified_risk_r
+    volume = _floor_to_step(
+        requested_risk_usd / stop_per_volume,
+        provider_spec.volume_step,
+    )
+    volume = min(volume, provider_spec.maximum_volume)
+    if volume < provider_spec.minimum_volume:
+        raise Vt31Nas100LiveError(
+            "VT31 certified risk maps below broker minimum volume"
+        )
+
+    request = CiboRiskRequest(
+        request_id=request_id,
+        trader_id=TraderLineage.VT31_NAS100,
+        signal_fingerprint=signal_fingerprint,
+        qore_symbol=SYMBOL,
+        provider_symbol=provider_spec.provider_symbol,
+        side=side,
+        entry_type="limit",
+        intended_entry=entry,
+        stop_loss=stop_loss,
+        take_profit=take_profit,
+        requested_volume=volume,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=provider_spec.minimum_volume,
+        stop_loss_per_volume=stop_per_volume,
+        margin_per_volume=provider_spec.margin_per_volume,
+        requested_at=now,
+        expires_at=trigger_at + ENTRY_SLA,
+    )
+    return request, one_r_usd
+
+
+def signal_fingerprint(material: dict[str, object]) -> str:
+    encoded = json.dumps(
+        material,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _allocation_multiplier(
+    context: Vt31RiskContext,
+    reasons: list[str],
+) -> Decimal:
+    if context.tier == "CORE":
+        if context.entry_family == "breaker":
+            reasons.append("ALLOC_G_CORE_BREAKER_X120")
+            return Decimal("1.20")
+        if context.entry_family == "fair-value-gap":
+            reasons.append("ALLOC_G_CORE_FVG_X050")
+            return Decimal("0.50")
+        if context.entry_family == "order-block":
+            reasons.append("ALLOC_G_CORE_OB_X050")
+            return Decimal("0.50")
+        return Decimal("1")
+
+    if context.tier == "SCOUT":
+        reasons.append("ALLOC_G_SCOUT_X050")
+        return Decimal("0.50")
+    if context.tier == "REARM":
+        reasons.append("ALLOC_G_REARM_X050")
+        return Decimal("0.50")
+
+    if (
+        context.tier == "SECONDARY"
+        and context.entry_family == "fair-value-gap"
+        and context.h1_state == "mixed"
+    ):
+        reasons.append("ALLOC_G_SECONDARY_FVG_H1_MIXED_X100")
+        return Decimal("1.00")
+
+    weak = (
+        context.entry_family == "breaker"
+        or (
+            context.entry_family == "order-block"
+            and context.side == "long"
+        )
+        or context.cash_open_state == "bullish"
+    )
+    if weak:
+        reasons.append("ALLOC_G_SECONDARY_WEAK_X050")
+        return Decimal("0.50")
+    reasons.append("ALLOC_G_SECONDARY_OTHER_X075")
+    return Decimal("0.75")
+
+
+def _state_shielded(
+    context: Vt31RiskContext,
+    reasons: list[str],
+) -> bool:
+    matched = False
+    if (
+        context.entry_family == "fair-value-gap"
+        and context.premarket_state == "rotation"
+    ):
+        reasons.append("SHIELD_FVG_PREMARKET_ROTATION_X060")
+        matched = True
+    if context.entry_family == "fair-value-gap" and context.h1_state == "bullish":
+        reasons.append("SHIELD_FVG_H1_BULLISH_X060")
+        matched = True
+    if (
+        context.entry_family == "order-block"
+        and context.risk_ref is not None
+        and context.risk_ref < Decimal("0.30")
+    ):
+        reasons.append("SHIELD_OB_LOW_RISK_REF_X060")
+        matched = True
+    if (
+        context.entry_family == "order-block"
+        and context.current_path_vs_previous is not None
+        and context.current_path_vs_previous < Decimal("0.75")
+    ):
+        reasons.append("SHIELD_OB_LOW_CURRENT_PATH_X060")
+        matched = True
+    if context.tier == "SECONDARY" and context.entry_family == "breaker":
+        reasons.append("SHIELD_SECONDARY_BREAKER_X060")
+        matched = True
+    latency = context.confirmation_latency_minutes
+    if context.tier == "REARM" and latency is not None and 3 <= latency <= 5:
+        reasons.append("SHIELD_REARM_LATENCY_3_5_X060")
+        matched = True
+    if context.tier == "REARM" and context.premarket_state == "rotation":
+        reasons.append("SHIELD_REARM_PREMARKET_ROTATION_X060")
+        matched = True
+    if context.tier == "REARM" and context.cash_open_state == "bullish":
+        reasons.append("SHIELD_REARM_CASH_OPEN_BULLISH_X060")
+        matched = True
+    return matched
+
+
+def _breaker_regime_shielded(
+    context: Vt31RiskContext,
+    reasons: list[str],
+) -> bool:
+    latency = context.confirmation_latency_minutes
+    primary = (
+        context.entry_family == "breaker"
+        and latency is not None
+        and 3 <= latency <= 5
+        and context.premarket_state == "bearish"
+    )
+    secondary = (
+        context.entry_family == "breaker"
+        and context.side == "short"
+        and context.cash_open_state == "rotation"
+        and context.risk_ref is not None
+        and context.risk_ref < Decimal("0.30")
+    )
+    if primary:
+        reasons.append("BREAKER_REGIME_PRIMARY_X035")
+    if secondary:
+        reasons.append("BREAKER_REGIME_SECONDARY_X035")
+    return primary or secondary
+
+
+def _tick_timestamp(tick: Any) -> datetime:
+    raw_msc = int(getattr(tick, "time_msc", 0) or 0)
+    if raw_msc > 0:
+        return datetime.fromtimestamp(raw_msc / 1000, tz=UTC)
+    raw_seconds = int(getattr(tick, "time", 0) or 0)
+    if raw_seconds <= 0:
+        raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
+    return datetime.fromtimestamp(raw_seconds, tz=UTC)
+
+
+def _evidence_fingerprint(bars: tuple[OhlcSnapshot, ...]) -> str:
+    material = [
+        (
+            bar.opened_at.isoformat(),
+            bar.closed_at.isoformat(),
+            str(bar.open),
+            str(bar.high),
+            str(bar.low),
+            str(bar.close),
+        )
+        for bar in bars
+    ]
+    return hashlib.sha256(
+        json.dumps(material, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:
+    if step <= 0:
+        raise ValueError("VT31 volume step must be positive")
+    units = (value / step).to_integral_value(rounding=ROUND_FLOOR)
+    return units * step
+
+
+def _utc(value: datetime, field: str) -> datetime:
+    _aware(value, field)
+    return value.astimezone(UTC)
+
+
+def _aware(value: datetime, field: str) -> None:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{field} must be timezone-aware")
