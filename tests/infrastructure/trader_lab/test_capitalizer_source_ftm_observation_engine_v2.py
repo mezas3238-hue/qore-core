@@ -140,9 +140,8 @@ def test_raw_ftm_confirms_only_when_expected_reversal_fails() -> None:
         cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
     )
     assert pipeline.state is CapitalizerSourcePipelineState.WAIT
-    assert pipeline.source_engine is not None
-    assert pipeline.source_engine.passes_to_qore_risk is False
-    assert pipeline.source_engine.reasons == ("DUAL_SOURCE_ENTRY_ACCEPTANCE_REQUIRED",)
+    assert pipeline.source_engine is None
+    assert pipeline.reasons == ("DUAL_SOURCE_ENTRY_ACCEPTANCE_REQUIRED",)
     assert pipeline.executes_trade is False
     assert pipeline.sizes_position is False
     assert pipeline.grants_capital_authority is False
