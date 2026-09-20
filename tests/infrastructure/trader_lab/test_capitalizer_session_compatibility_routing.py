@@ -143,3 +143,30 @@ def test_baseline_keeps_owner_max3_ceiling() -> None:
     )
     assert selected == rows[:3]
     assert rejected == ()
+
+
+def test_session_ablation_policy_does_not_block_other_session_weak_pair() -> None:
+    base = datetime(2026, 1, 5, 8, 0, tzinfo=UTC)
+    eurusd = _candidate("EURUSD", CapitalizerSide.SHORT, at=base)
+    gbpusd = _candidate(
+        "GBPUSD",
+        CapitalizerSide.LONG,
+        at=base + timedelta(minutes=5),
+    )
+
+    selected, rejected = _select(
+        (eurusd, gbpusd),
+        policy="BLOCK_ASIA_WEAK_SIDE_PAIR_ONLY_V1",
+        tie_policy="SYMBOL_ASC",
+    )
+    assert selected == (eurusd, gbpusd)
+    assert rejected == ()
+
+    selected_london, rejected_london = _select(
+        (eurusd, gbpusd),
+        policy="BLOCK_LONDON_WEAK_SIDE_PAIR_ONLY_V1",
+        tie_policy="SYMBOL_ASC",
+    )
+    assert selected_london == (eurusd,)
+    assert len(rejected_london) == 1
+    assert "EURUSD_SHORT+GBPUSD_LONG" in rejected_london[0][1]
