@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.infrastructure import research_frozen_oos_evidence as frozen_module
 from qore.infrastructure.research_economic_evidence import ResearchReturnBasis
 from qore.infrastructure.research_evaluation_freeze import (
     ResearchEvaluationFreezeEvidence,
@@ -362,3 +363,36 @@ def test_fingerprint_streams_valid_oos_without_whole_tree_materialization(
 
     assert first == second
     assert len(first.value) == 64
+
+
+def test_fingerprint_reuses_exact_immutable_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frozen_module._FINGERPRINT_IDENTITY_CACHE.clear()
+    run = object()
+    plan = _plan(run)
+    evaluation_freeze = _evaluation_freeze(plan, run)
+    oos = _oos_performance(plan)
+    _patch_logical_values(monkeypatch)
+
+    calls = 0
+    original = frozen_module._canonical_json_value
+
+    def counted(value: object) -> object:
+        nonlocal calls
+        calls += 1
+        return original(value)
+
+    monkeypatch.setattr(frozen_module, "_canonical_json_value", counted)
+    first = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    first_calls = calls
+    second = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    assert first == second
+    assert first_calls > 0
+    assert calls == first_calls

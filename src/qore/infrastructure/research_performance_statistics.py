@@ -16,6 +16,20 @@ from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
 _DECIMAL128 = Context(prec=34, rounding=ROUND_HALF_EVEN)
+_PREVALIDATED_OBSERVATION_TUPLES: dict[int, object] = {}
+_VALIDATED_SNAPSHOT_IDENTITIES: dict[int, object] = {}
+_CACHE_LIMIT = 32
+
+
+def _remember_identity(cache: dict[int, object], value: object) -> None:
+    if len(cache) >= _CACHE_LIMIT:
+        cache.clear()
+    cache[id(value)] = value
+
+
+def _is_remembered_identity(cache: dict[int, object], value: object) -> bool:
+    return cache.get(id(value)) is value
+
 
 
 class ResearchPerformanceStatisticsError(InfrastructureError):
@@ -97,6 +111,8 @@ def _gross_result(
 def _canonical_observations(
     observations: tuple[ResearchReturnObservation, ...],
 ) -> tuple[ResearchReturnObservation, ...]:
+    if _is_remembered_identity(_PREVALIDATED_OBSERVATION_TUPLES, observations):
+        return observations
     if not isinstance(observations, tuple) or not observations or any(
         not isinstance(item, ResearchReturnObservation) for item in observations
     ):
@@ -255,6 +271,7 @@ class ResearchPerformanceStatisticsSnapshot:
             raise ResearchPerformanceStatisticsValidationError(
                 "performance snapshot cannot predate source return evidence"
             )
+        _remember_identity(_VALIDATED_SNAPSHOT_IDENTITIES, self)
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -275,6 +292,20 @@ class ResearchPerformanceStatisticsSnapshot:
         )
 
 
+def validate_research_performance_statistics_snapshot(
+    snapshot: ResearchPerformanceStatisticsSnapshot,
+) -> None:
+    """Deep-validate once per exact immutable snapshot identity."""
+
+    if not isinstance(snapshot, ResearchPerformanceStatisticsSnapshot):
+        raise ResearchPerformanceStatisticsValidationError(
+            "performance validation requires ResearchPerformanceStatisticsSnapshot"
+        )
+    if _is_remembered_identity(_VALIDATED_SNAPSHOT_IDENTITIES, snapshot):
+        return
+    snapshot.__post_init__()
+
+
 def build_research_performance_statistics(
     *,
     snapshot_id: ResearchPerformanceSnapshotId,
@@ -285,6 +316,7 @@ def build_research_performance_statistics(
 
     try:
         ordered = _canonical_observations(observations)
+        _remember_identity(_PREVALIDATED_OBSERVATION_TUPLES, ordered)
         (
             sample_size,
             positive_count,

@@ -68,6 +68,46 @@ class ResearchFrozenOosFingerprint:
         return (self.value,)
 
 
+_FINGERPRINT_IDENTITY_CACHE: dict[
+    tuple[int, int],
+    tuple[
+        ResearchEvaluationFreezeEvidence,
+        ResearchOosPerformanceEvidence,
+        ResearchFrozenOosFingerprint,
+    ],
+] = {}
+_FINGERPRINT_CACHE_LIMIT = 16
+
+
+def _cached_identity_fingerprint(
+    evaluation_freeze: ResearchEvaluationFreezeEvidence,
+    oos_performance: ResearchOosPerformanceEvidence,
+) -> ResearchFrozenOosFingerprint | None:
+    cached = _FINGERPRINT_IDENTITY_CACHE.get(
+        (id(evaluation_freeze), id(oos_performance))
+    )
+    if (
+        cached is not None
+        and cached[0] is evaluation_freeze
+        and cached[1] is oos_performance
+    ):
+        return cached[2]
+    return None
+
+
+def _remember_identity_fingerprint(
+    evaluation_freeze: ResearchEvaluationFreezeEvidence,
+    oos_performance: ResearchOosPerformanceEvidence,
+    fingerprint: ResearchFrozenOosFingerprint,
+) -> ResearchFrozenOosFingerprint:
+    if len(_FINGERPRINT_IDENTITY_CACHE) >= _FINGERPRINT_CACHE_LIMIT:
+        _FINGERPRINT_IDENTITY_CACHE.clear()
+    _FINGERPRINT_IDENTITY_CACHE[
+        (id(evaluation_freeze), id(oos_performance))
+    ] = (evaluation_freeze, oos_performance, fingerprint)
+    return fingerprint
+
+
 def _canonical_json_value(value: object) -> object:
     """Project logical evidence values into strict deterministic JSON values."""
 
@@ -228,6 +268,9 @@ def compute_research_frozen_oos_fingerprint(
         raise ResearchFrozenOosEvidenceValidationError(
             "oos_performance must be ResearchOosPerformanceEvidence"
         )
+    cached = _cached_identity_fingerprint(evaluation_freeze, oos_performance)
+    if cached is not None:
+        return cached
 
     # Legacy unit-test fixtures intentionally bypass OOS validation and can carry
     # no fold records. Real ResearchOosPerformanceEvidence is non-empty; retain a
@@ -244,11 +287,19 @@ def compute_research_frozen_oos_fingerprint(
             separators=(",", ":"),
             allow_nan=False,
         ).encode("utf-8")
-        return ResearchFrozenOosFingerprint(sha256(encoded).hexdigest())
+        return _remember_identity_fingerprint(
+            evaluation_freeze,
+            oos_performance,
+            ResearchFrozenOosFingerprint(sha256(encoded).hexdigest()),
+        )
 
-    return _stream_valid_oos_fingerprint(
-        evaluation_freeze=evaluation_freeze,
-        oos_performance=oos_performance,
+    return _remember_identity_fingerprint(
+        evaluation_freeze,
+        oos_performance,
+        _stream_valid_oos_fingerprint(
+            evaluation_freeze=evaluation_freeze,
+            oos_performance=oos_performance,
+        ),
     )
 
 

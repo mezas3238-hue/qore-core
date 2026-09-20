@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.infrastructure import research_performance_statistics as performance_module
 from qore.domain.events import CorrelationId
 from qore.functional.decisions import (
     DecisionId,
@@ -443,3 +444,41 @@ def test_statistics_boundary_does_not_claim_advanced_metrics() -> None:
     assert not hasattr(snapshot, "max_drawdown")
     assert not hasattr(snapshot, "annualized_return")
     assert not hasattr(snapshot, "equity_curve")
+
+
+def test_builder_revalidates_each_exact_observation_only_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    performance_module._PREVALIDATED_OBSERVATION_TUPLES.clear()
+    performance_module._VALIDATED_SNAPSHOT_IDENTITIES.clear()
+    run = _run()
+    observations = (
+        _gross_return(run, suffix=70, pnl="10"),
+        _gross_return(run, suffix=71, pnl="-5"),
+        _gross_return(run, suffix=72, pnl="20"),
+    )
+    calls = 0
+    original = performance_module._revalidate_observation_evidence
+
+    def counted(observation: ResearchReturnObservation) -> None:
+        nonlocal calls
+        calls += 1
+        original(observation)
+
+    monkeypatch.setattr(
+        performance_module,
+        "_revalidate_observation_evidence",
+        counted,
+    )
+    built = build_research_performance_statistics(
+        snapshot_id=ResearchPerformanceSnapshotId(_uuid(2200)),
+        observations=observations,
+        observed_at=observations[-1].observed_at + timedelta(seconds=1),
+    )
+    assert isinstance(built, Success)
+    assert calls == len(observations)
+
+    performance_module.validate_research_performance_statistics_snapshot(
+        built.value
+    )
+    assert calls == len(observations)

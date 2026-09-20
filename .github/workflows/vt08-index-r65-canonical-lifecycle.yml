@@ -8,6 +8,9 @@ on:
       - src/qore/infrastructure/trader_lab/vt08_index_r65_canonical_lifecycle.py
       - src/qore/infrastructure/research_frozen_oos_evidence.py
       - src/qore/infrastructure/research_block_bootstrap.py
+      - tests/infrastructure/test_research_performance_statistics.py
+      - src/qore/infrastructure/robustness_trader_lab_authority.py
+      - src/qore/infrastructure/research_performance_statistics.py
       - tests/infrastructure/test_research_block_bootstrap.py
       - tests/infrastructure/test_research_frozen_oos_evidence.py
       - tests/infrastructure/trader_lab/test_vt08_index_r65_canonical_lifecycle.py
@@ -29,7 +32,11 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: mypy src tests
-      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r65_canonical_lifecycle.py
+      - run: >-
+          pytest -q
+          tests/infrastructure/trader_lab/test_vt08_index_r65_canonical_lifecycle.py
+          tests/infrastructure/test_research_performance_statistics.py
+          tests/infrastructure/test_research_frozen_oos_evidence.py
 
   lifecycle:
     needs: quality
