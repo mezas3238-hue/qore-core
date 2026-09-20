@@ -51,7 +51,9 @@ class CapitalizerCrossMarketEdge:
 
     @property
     def canonical_pair(self) -> tuple[str, str]:
-        return tuple(sorted((self.left_symbol, self.right_symbol)))
+        if self.left_symbol < self.right_symbol:
+            return (self.left_symbol, self.right_symbol)
+        return (self.right_symbol, self.left_symbol)
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +85,9 @@ class CapitalizerCrossMarketCausalGraph:
         left_symbol: str,
         right_symbol: str,
     ) -> CapitalizerCrossMarketEdge | None:
-        pair = tuple(sorted((left_symbol.upper(), right_symbol.upper())))
+        left = left_symbol.upper()
+        right = right_symbol.upper()
+        pair = (left, right) if left < right else (right, left)
         matches = tuple(edge for edge in self.edges if edge.canonical_pair == pair)
         return matches[0] if matches else None
 
