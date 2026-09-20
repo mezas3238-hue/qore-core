@@ -11,8 +11,8 @@ from qore.infrastructure.account_policy import (
     AccountPhase,
     AccountPolicyRule,
     AccountPolicySnapshotId,
-    AccountPropPolicySnapshot,
     AccountPolicyVersion,
+    AccountPropPolicySnapshot,
     DrawdownMode,
     PolicyRuleDisposition,
     PolicyRuleScope,
@@ -23,6 +23,7 @@ from qore.infrastructure.account_policy import (
 from qore.infrastructure.certified_account_policy import (
     CertifiedAccountPolicy,
     CertifiedAccountPolicyRegistrySnapshot,
+    CertifiedPolicyError,
     CertifiedPolicySourceEvidence,
     CertifiedPolicyVerifier,
     PolicyCertificationId,
@@ -45,7 +46,7 @@ from qore.infrastructure.proprietary_accounts import (
     DrawdownBps,
     MoneyAmount,
 )
-from qore.kernel.result import Failure
+from qore.kernel.result import Failure, Result
 
 _SCHEMA = "qore.fundednext.provider-rules-refresh.v3"
 _SOURCE_VALIDITY = timedelta(hours=7)
@@ -152,7 +153,10 @@ class CertifiedStellarInstantPolicyBundle:
     facts: StellarInstantCertifiedFacts
     observed_at: datetime
 
-    def resolve_for_risk(self, now: datetime):
+    def resolve_for_risk(
+        self,
+        now: datetime,
+    ) -> Result[AccountPropPolicySnapshot, CertifiedPolicyError]:
         return self.policy_registry.resolve_for_risk(
             account_id=self.account_id,
             policy_ref=self.policy_ref,
