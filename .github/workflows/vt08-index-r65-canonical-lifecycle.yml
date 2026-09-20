@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/vt08-index-r65-canonical-lifecycle.yml
       - src/qore/infrastructure/trader_lab/vt08_index_r65_canonical_lifecycle.py
+      - src/qore/infrastructure/trader_lab/economic_binding.py
       - src/qore/infrastructure/research_frozen_oos_evidence.py
       - src/qore/infrastructure/research_block_bootstrap.py
       - tests/infrastructure/test_research_performance_statistics.py
