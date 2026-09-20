@@ -1,0 +1,199 @@
+name: QORE VT31 NAS100 Structural Target Candidate V1 Freeze
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_structural_target_candidate_v1.py
+      - .github/workflows/vt31-nas100-structural-target-candidate-v1-freeze.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_structural_target_candidate_v1.py
+          ruff check scripts/vt31_nas100_structural_target_candidate_v1.py
+      - name: Recover immutable evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Evaluate frozen candidate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from decimal import Decimal
+          import vt31_nas100_structural_target_candidate_v1 as candidate
+
+          partition=os.environ["PARTITION"]
+          payload=candidate.evaluate(
+              Path("input") / os.environ["EVIDENCE_PATH"],
+              partition=partition,
+          )
+          Path("result/fold.json").write_text(
+              json.dumps(payload, sort_keys=True, indent=2)+"\n"
+          )
+          m=payload["metrics"]
+          mc=payload["monte_carlo"]
+          assert 300 <= payload["trade_count"] <= 350
+          assert Decimal(str(m["profit_factor"])) >= Decimal("1.50")
+          assert Decimal(str(m["max_drawdown_r"])) <= Decimal("6")
+          assert Decimal(str(mc["positive_terminal_probability"])) >= Decimal("0.90")
+          assert Decimal(str(mc["p95_max_drawdown_r"])) <= Decimal("15")
+          if partition == "consumed_holdout":
+              assert len(payload["annual_blocks"]) == 2
+              assert all(bool(x["positive"]) for x in payload["annual_blocks"])
+          g=payload["governance"]
+          assert g["candidate_frozen"] is True
+          assert g["parameters_mutable_inside_extended_validation"] is False
+          assert g["candidate_certified"] is False
+          print(json.dumps({
+              "partition": partition,
+              "candidate_id": payload["candidate_id"],
+              "fingerprint": payload["contract_fingerprint"],
+              "trade_count": payload["trade_count"],
+              "metrics": m,
+              "monte_carlo": mc,
+              "annual_blocks": payload["annual_blocks"],
+          }, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-structural-target-candidate-v1-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate-freeze:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-structural-target-candidate-v1-*-${{ github.sha }}
+          path: input
+      - name: Build freeze record
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import vt31_nas100_structural_target_candidate_v1 as candidate
+
+          folds={}
+          for path in Path("input").glob("*/fold.json"):
+              p=json.loads(path.read_text())
+              partition=p["evidence"].get("partition", None)
+              if partition is None:
+                  # artifact directory contains matrix partition in its name
+                  name=path.parent.name
+                  partition=next(
+                      x for x in ("r5","r6","r8","consumed_holdout")
+                      if f"-{x}-" in name
+                  )
+              folds[partition]=p
+          if set(folds) != {"r5","r6","r8","consumed_holdout"}:
+              # evaluate payload itself does not carry partition; recover by
+              # unique evidence artifact fingerprints when directory parsing
+              # is unavailable.
+              folds={}
+              for path in Path("input").glob("*/fold.json"):
+                  p=json.loads(path.read_text())
+                  name=path.parent.name
+                  for part in ("r5","r6","r8","consumed_holdout"):
+                      if f"-{part}-" in name:
+                          folds[part]=p
+                          break
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+          fingerprints={p["contract_fingerprint"] for p in folds.values()}
+          assert fingerprints == {candidate.contract_fingerprint()}
+          freeze=candidate.freeze_payload()
+          freeze["development_results"]={
+              k:{
+                  "trade_count":v["trade_count"],
+                  "metrics":v["metrics"],
+                  "monte_carlo":v["monte_carlo"],
+                  "annual_blocks":v["annual_blocks"],
+              }
+              for k,v in sorted(folds.items())
+          }
+          freeze["governance"]["five_year_opened"]=False
+          Path("result/freeze.json").write_text(
+              json.dumps(freeze,sort_keys=True,indent=2)+"\n"
+          )
+          Path("result/contract-fingerprint.txt").write_text(
+              candidate.contract_fingerprint()+"\n"
+          )
+          print(json.dumps({
+              "candidate_id":candidate.CANDIDATE_ID,
+              "contract_fingerprint":candidate.contract_fingerprint(),
+              "development_folds":sorted(folds),
+              "five_year_opened":False,
+          },sort_keys=True))
+          PY
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-structural-target-candidate-v1-freeze-${{ github.sha }}
+          path: result/
+          retention-days: 90
