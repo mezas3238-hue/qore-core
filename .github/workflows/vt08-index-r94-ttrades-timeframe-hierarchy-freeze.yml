@@ -1,0 +1,69 @@
+name: VT08 Index R94 TTrades Timeframe Hierarchy Freeze
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r94-ttrades-timeframe-hierarchy-freeze.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r94_ttrades_timeframe_hierarchy_freeze.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r94_ttrades_timeframe_hierarchy_freeze.py
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r94_ttrades_timeframe_hierarchy_freeze.py
+      - name: Build R94 freeze evidence
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r94_ttrades_timeframe_hierarchy_freeze \
+            --out artifacts/report/vt08-index-r94-timeframe-hierarchy-freeze.json
+      - name: Verify R94 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r94-timeframe-hierarchy-freeze.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R94_TTRADES_TIMEFRAME_HIERARCHY_FREEZE_001"
+          )
+          primary = report["frozen_hierarchy"]["vt08_primary_model"]
+          assert primary == {
+              "bias_timeframe": "D1",
+              "structure_timeframe": "H4",
+              "entry_timeframe": "M15",
+              "model_role": "PRIMARY_TTRADES_PREFERRED_MODEL",
+          }
+          cascade = report["frozen_hierarchy"]["cascade_union"]
+          assert cascade["r92_r93_role"] == "DENSITY_UPPER_BOUND_DIAGNOSTIC"
+          assert cascade["promotable_as_candidate_without_model_selection_rule"] is False
+          gov = report["governance"]
+          assert gov["pnl_evaluated"] is False
+          assert gov["candidate_created"] is False
+          assert gov["trader_certified"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r94-timeframe-hierarchy-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
