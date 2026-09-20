@@ -13,6 +13,7 @@ This diagnostic measures the execution delta:
 
 No strategy policy is changed.
 """
+# ruff: noqa: I001
 from __future__ import annotations
 
 import argparse
