@@ -154,3 +154,14 @@ def test_shared_session_ordinals_are_attributed_to_the_market_that_won_the_slot(
     assert audusd.selected_opportunities == 0
     assert audusd.opportunities_not_selected == 1
     assert audusd.metrics is None
+
+    uncapped_audusd = next(
+        item
+        for item in report.symbol_selection_economics
+        if item.policy == "UNCAPPED_RESEARCH"
+        and item.tie_policy == "SYMBOL_ASC"
+        and item.symbol == "AUDUSD"
+    )
+    assert uncapped_audusd.selected_opportunities == 1
+    assert uncapped_audusd.opportunities_not_selected == 0
+    assert uncapped_audusd.metrics is not None
