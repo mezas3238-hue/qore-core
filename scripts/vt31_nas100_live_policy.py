@@ -6,7 +6,7 @@ decision into a durable virtual execution basket.
 
 No terminal PnL, future bar, calendar-edge or fold identity is used.
 """
-# ruff: noqa: B009
+# ruff: noqa: B009, I001
 from __future__ import annotations
 
 import hashlib
