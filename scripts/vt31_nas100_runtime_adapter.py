@@ -355,6 +355,746 @@ def reconcile_pending(
     })
 
 
+
+def manage_open_trade(
+    *,
+    mt5_api: Any,
+    now: datetime,
+    cache: Vt31Nas100M1Cache,
+    store: Vt31Nas100LiveStateStore,
+    mutations_enabled: bool,
+    log: Callable[[dict[str, object]], None],
+) -> tuple[object, str]:
+    """Manage the frozen V4 target journey without changing admission economics."""
+    state = store.load()
+    opened = state.open_trade
+    if opened is None:
+        return state, "no-open-vt31-position"
+    if opened.target_plan != TARGET_ARCHITECTURE_ID:
+        raise Vt31Nas100LiveError("VT31 live target-plan binding drift")
+
+    positions = mt5_api.positions_get(symbol=SYMBOL)
+    if positions is None:
+        raise Vt31Nas100LiveError("VT31 journey position snapshot unavailable")
+    magic = _magic(opened.client_order_id)
+    matches = [
+        item for item in positions
+        if int(getattr(item, "magic", -1)) == magic
+    ]
+    if len(matches) > 1:
+        raise Vt31Nas100LiveError("VT31 magic resolved to multiple positions")
+    if not matches:
+        filled_at = datetime.fromisoformat(opened.filled_at)
+        deals = mt5_api.history_deals_get(filled_at, now)
+        if deals is not None and any(
+            int(getattr(item, "magic", -1)) == magic
+            and int(getattr(item, "entry", -1))
+            != int(getattr(mt5_api, "DEAL_ENTRY_IN", 0))
+            for item in deals
+        ):
+            state = store.mark_closed(
+                closed_at=now,
+                reason="broker-terminal-reconcile",
+            )
+            log({
+                "event": "VT31_NAS100_POSITION_CLOSED_RECONCILED",
+                "signal_fingerprint": opened.signal_fingerprint,
+            })
+            return state, "broker-terminal-reconciled"
+        return state, "vt31-position-awaiting-reconcile"
+
+    position = matches[0]
+    tick = mt5_api.symbol_info_tick(SYMBOL)
+    if tick is None:
+        raise Vt31Nas100LiveError("VT31 journey tick unavailable")
+    tick_at = _tick_at(tick)
+    tick_age = now.astimezone(UTC) - tick_at
+    if tick_age < timedelta(seconds=-0.5):
+        raise Vt31Nas100LiveError("VT31 journey tick is from the future")
+    if tick_age > MAX_BROKER_TICK_AGE:
+        raise Vt31Nas100LiveError("VT31 journey tick older than 2s")
+
+    info = mt5_api.symbol_info(SYMBOL)
+    if info is None:
+        raise Vt31Nas100LiveError("VT31 journey symbol info unavailable")
+    step = Decimal(str(info.volume_step))
+    tick_size = Decimal(str(info.trade_tick_size))
+    actual_volume = Decimal(str(position.volume))
+    stored_volume = Decimal(opened.remaining_volume)
+    if abs(actual_volume - stored_volume) > step / Decimal("2"):
+        raise Vt31Nas100LiveError("VT31 broker volume/state drift")
+
+    entry = Decimal(opened.entry_price)
+    initial_stop = Decimal(opened.initial_stop)
+    current_stop = Decimal(opened.current_stop)
+    dol1 = Decimal(opened.dol1)
+    risk = abs(entry - initial_stop)
+    if risk <= 0:
+        raise Vt31Nas100LiveError("VT31 open trade risk geometry invalid")
+    reference_high = Decimal(opened.reference_high)
+    reference_low = Decimal(opened.reference_low)
+    reference_width = reference_high - reference_low
+    if reference_width <= 0:
+        raise Vt31Nas100LiveError("VT31 frozen reference width invalid")
+    equilibrium = (reference_high + reference_low) / Decimal("2")
+    direction = Decimal("1") if opened.side == "long" else Decimal("-1")
+    base_partial = entry + direction * risk * Decimal("1.25")
+    dol2 = dol1 + direction * reference_width * Decimal("0.25")
+    three_r = Decimal(opened.three_r)
+    favorable = (
+        Decimal(str(tick.bid))
+        if opened.side == "long"
+        else Decimal(str(tick.ask))
+    )
+    broker_stop = Decimal(str(position.sl))
+    if broker_stop <= 0:
+        raise Vt31Nas100LiveError("VT31 broker position has no stop")
+    if abs(broker_stop - current_stop) > tick_size:
+        raise Vt31Nas100LiveError("VT31 broker stop/state drift")
+
+    lifecycle_due = (
+        None
+        if opened.lifecycle_exit_due_at is None
+        else datetime.fromisoformat(opened.lifecycle_exit_due_at)
+    )
+    if lifecycle_due is not None and now >= lifecycle_due:
+        mutated = _close_position(
+            mt5_api,
+            position=position,
+            volume=actual_volume,
+            reason="lifecycle",
+            mutations_enabled=mutations_enabled,
+        )
+        if mutated:
+            state = store.mark_closed(
+                closed_at=now,
+                reason="16:00-lifecycle",
+            )
+            log({
+                "event": "VT31_NAS100_LIFECYCLE_EXIT_ACCEPTED",
+                "signal_fingerprint": opened.signal_fingerprint,
+            })
+            return state, "vt31-16h-lifecycle-exit"
+        return state, "vt31-shadow-lifecycle-check-pass"
+
+    # Base BE/runner protection is applied only after its next-M1 arm time.
+    if (
+        opened.base_partial_arm_after is not None
+        and now >= datetime.fromisoformat(opened.base_partial_arm_after)
+        and (
+            opened.base_partial_done
+            or opened.base_three_r_be_armed
+        )
+        and not opened.base_runner_be_active
+    ):
+        if _improves_stop(
+            side=opened.side,
+            previous=broker_stop,
+            candidate=entry,
+            target=dol2,
+        ):
+            mutated = _advance_stop(
+                mt5_api,
+                position=position,
+                stop=entry,
+                target=dol2,
+                mutations_enabled=mutations_enabled,
+            )
+            if mutated:
+                state = store.update_open_trade(
+                    current_stop=format(entry, "f"),
+                    base_runner_be_active=True,
+                )
+                opened = state.open_trade
+                assert opened is not None
+                current_stop = entry
+                broker_stop = entry
+                log({
+                    "event": "VT31_NAS100_BASE_BE_ADVANCED",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                    "stop": format(entry, "f"),
+                })
+
+    # DOL1 acceptance is a physical V4 quarter-leg state.
+    if opened.dol1_acceptance_pending:
+        if opened.dol1_touch_closed_at is None:
+            raise Vt31Nas100LiveError("VT31 DOL1 acceptance clock missing")
+        touch_close = datetime.fromisoformat(opened.dol1_touch_closed_at)
+        retraced = (
+            favorable < dol1
+            if opened.side == "long"
+            else favorable > dol1
+        )
+        if now < touch_close and retraced:
+            mutated = _close_position(
+                mt5_api,
+                position=position,
+                volume=actual_volume,
+                reason="dol1-retrace",
+                mutations_enabled=mutations_enabled,
+            )
+            if mutated:
+                state = store.mark_closed(
+                    closed_at=now,
+                    reason="dol1-nonaccept-retrace",
+                )
+                log({
+                    "event": "VT31_NAS100_DOL1_NONACCEPT_RETRACE_EXIT",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                })
+                return state, "vt31-dol1-nonaccept-retrace"
+            return state, "vt31-shadow-dol1-retrace-check-pass"
+
+        if now >= touch_close:
+            bar = next(
+                (
+                    item
+                    for item in cache.closed_m1(through=now)
+                    if item.closed_at == touch_close
+                ),
+                None,
+            )
+            if bar is None:
+                raise Vt31Nas100LiveError(
+                    "VT31 DOL1 touch M1 unavailable at acceptance boundary"
+                )
+            accepts = (
+                Decimal(str(bar.close)) >= dol1
+                if opened.side == "long"
+                else Decimal(str(bar.close)) <= dol1
+            )
+            if accepts:
+                state = store.update_open_trade(
+                    dol1_acceptance_pending=False,
+                    runner_active=True,
+                    runner_target=format(dol2, "f"),
+                )
+                opened = state.open_trade
+                assert opened is not None
+                log({
+                    "event": "VT31_NAS100_DOL1_ACCEPTED_RUNNER_ACTIVE",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                    "runner_target": format(dol2, "f"),
+                })
+            else:
+                mutated = _close_position(
+                    mt5_api,
+                    position=position,
+                    volume=actual_volume,
+                    reason="dol1-nonaccept",
+                    mutations_enabled=mutations_enabled,
+                )
+                if mutated:
+                    state = store.mark_closed(
+                        closed_at=now,
+                        reason="dol1-nonaccept-close",
+                    )
+                    log({
+                        "event": "VT31_NAS100_DOL1_NONACCEPT_CLOSE",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                    })
+                    return state, "vt31-dol1-nonaccept-close"
+                return state, "vt31-shadow-dol1-nonaccept-check-pass"
+
+    state = store.load()
+    opened = state.open_trade
+    if opened is None:
+        return state, "vt31-closed"
+    if opened.runner_active:
+        runner_target = (
+            dol2
+            if opened.runner_target is None
+            else Decimal(opened.runner_target)
+        )
+        candidate, confirmations = _ps2_candidate(
+            cache.closed_m1(through=now),
+            opened=opened,
+            target=runner_target,
+        )
+        if confirmations != opened.ps_confirmations:
+            state = store.update_open_trade(ps_confirmations=confirmations)
+            opened = state.open_trade
+            assert opened is not None
+        if (
+            candidate is not None
+            and _improves_stop(
+                side=opened.side,
+                previous=Decimal(opened.current_stop),
+                candidate=candidate,
+                target=runner_target,
+            )
+        ):
+            mutated = _advance_stop(
+                mt5_api,
+                position=position,
+                stop=candidate,
+                target=runner_target,
+                mutations_enabled=mutations_enabled,
+            )
+            if mutated:
+                state = store.update_open_trade(
+                    current_stop=format(candidate, "f"),
+                    breaker_lock_armed=True,
+                    ps_confirmations=max(2, confirmations),
+                )
+                log({
+                    "event": "VT31_NAS100_PS2_STOP_ADVANCED",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                    "stop": format(candidate, "f"),
+                })
+                return state, f"vt31-ps2-stop-advanced:{candidate}"
+        return state, "vt31-runner-hold"
+
+    # Once EQ wins the physical precedence race, V4 owns the remainder.
+    if opened.equilibrium_overlay_active:
+        if _target_reached(opened.side, favorable, dol1):
+            compressed = (
+                opened.reference_volatility_state.lower() == "compressed"
+            )
+            if compressed:
+                leg = _leg_volume(
+                    Decimal(opened.initial_volume),
+                    Decimal("0.25"),
+                    step,
+                )
+                if leg <= 0 or leg >= actual_volume:
+                    raise Vt31Nas100LiveError(
+                        "VT31 DOL1 quarter leg cannot be expressed"
+                    )
+                mutated = _close_position(
+                    mt5_api,
+                    position=position,
+                    volume=leg,
+                    reason="dol1-bank",
+                    mutations_enabled=mutations_enabled,
+                )
+                if mutated:
+                    arm_close = _m1_close_after(now)
+                    remaining = actual_volume - leg
+                    state = store.update_open_trade(
+                        remaining_volume=format(remaining, "f"),
+                        dol1_bank_done=True,
+                        dol1_acceptance_pending=True,
+                        dol1_touch_closed_at=arm_close.isoformat(),
+                    )
+                    log({
+                        "event": "VT31_NAS100_DOL1_QUARTER_BANKED",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                        "remaining_volume": format(remaining, "f"),
+                        "acceptance_at": arm_close.isoformat(),
+                    })
+                    return state, "vt31-dol1-quarter-banked"
+                return state, "vt31-shadow-dol1-quarter-check-pass"
+
+            mutated = _close_position(
+                mt5_api,
+                position=position,
+                volume=actual_volume,
+                reason="dol1-full-remainder",
+                mutations_enabled=mutations_enabled,
+            )
+            if mutated:
+                state = store.mark_closed(
+                    closed_at=now,
+                    reason="eq50-dol1-full-remainder",
+                )
+                log({
+                    "event": "VT31_NAS100_DOL1_FULL_REMAINDER_EXIT",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                })
+                return state, "vt31-dol1-full-remainder"
+            return state, "vt31-shadow-dol1-full-check-pass"
+        return state, "vt31-eq-overlay-hold"
+
+    eq_forward = (
+        equilibrium > entry
+        if opened.side == "long"
+        else equilibrium < entry
+    )
+    eq_hit = (
+        eq_forward
+        and _target_reached(opened.side, favorable, equilibrium)
+    )
+    partial_hit = _target_reached(opened.side, favorable, base_partial)
+    dol1_hit = _target_reached(opened.side, favorable, dol1)
+    noncompressed = opened.reference_volatility_state.lower() != "compressed"
+
+    # Frozen V2/V4 precedence: CORE non-compressed base partial wins a
+    # simultaneous observation; only an earlier EQ observation may reallocate.
+    if (
+        opened.tier == "CORE"
+        and noncompressed
+        and not opened.base_partial_done
+    ):
+        if partial_hit:
+            leg = _leg_volume(
+                Decimal(opened.initial_volume),
+                Decimal("0.50"),
+                step,
+            )
+            if leg <= 0 or leg >= actual_volume:
+                if dol1_hit:
+                    mutated = _close_position(
+                        mt5_api,
+                        position=position,
+                        volume=actual_volume,
+                        reason="base-dol1",
+                        mutations_enabled=mutations_enabled,
+                    )
+                    if mutated:
+                        return (
+                            store.mark_closed(
+                                closed_at=now,
+                                reason="base-dol1-full",
+                            ),
+                            "vt31-base-dol1-full",
+                        )
+                raise Vt31Nas100LiveError(
+                    "VT31 base partial cannot be expressed"
+                )
+            mutated = _close_position(
+                mt5_api,
+                position=position,
+                volume=leg,
+                reason="base-1p25",
+                mutations_enabled=mutations_enabled,
+            )
+            if mutated:
+                remaining = actual_volume - leg
+                state = store.update_open_trade(
+                    remaining_volume=format(remaining, "f"),
+                    base_partial_done=True,
+                    base_partial_first=True,
+                    base_partial_arm_after=_m1_close_after(now).isoformat(),
+                )
+                log({
+                    "event": "VT31_NAS100_BASE_PARTIAL_BANKED",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                    "remaining_volume": format(remaining, "f"),
+                })
+                return state, "vt31-base-partial-first"
+            return state, "vt31-shadow-base-partial-check-pass"
+        if eq_hit:
+            return _bank_equilibrium(
+                mt5_api=mt5_api,
+                position=position,
+                opened=opened,
+                store=store,
+                step=step,
+                now=now,
+                mutations_enabled=mutations_enabled,
+                log=log,
+            )
+
+    elif eq_hit:
+        return _bank_equilibrium(
+            mt5_api=mt5_api,
+            position=position,
+            opened=opened,
+            store=store,
+            step=step,
+            now=now,
+            mutations_enabled=mutations_enabled,
+            log=log,
+        )
+
+    state = store.load()
+    opened = state.open_trade
+    if opened is None:
+        return state, "vt31-closed"
+
+    if opened.base_partial_done:
+        if dol1_hit:
+            mutated = _close_position(
+                mt5_api,
+                position=position,
+                volume=actual_volume,
+                reason="base-dol1-runner",
+                mutations_enabled=mutations_enabled,
+            )
+            if mutated:
+                return (
+                    store.mark_closed(
+                        closed_at=now,
+                        reason="base-dol1-runner",
+                    ),
+                    "vt31-base-dol1-runner",
+                )
+            return state, "vt31-shadow-base-dol1-check-pass"
+        return state, "vt31-base-runner-hold"
+
+    if noncompressed and partial_hit:
+        leg = _leg_volume(
+            Decimal(opened.initial_volume),
+            Decimal("0.50"),
+            step,
+        )
+        if leg <= 0 or leg >= actual_volume:
+            raise Vt31Nas100LiveError("VT31 base partial cannot be expressed")
+        mutated = _close_position(
+            mt5_api,
+            position=position,
+            volume=leg,
+            reason="base-1p25",
+            mutations_enabled=mutations_enabled,
+        )
+        if mutated:
+            remaining = actual_volume - leg
+            state = store.update_open_trade(
+                remaining_volume=format(remaining, "f"),
+                base_partial_done=True,
+                base_partial_first=True,
+                base_partial_arm_after=_m1_close_after(now).isoformat(),
+            )
+            return state, "vt31-base-partial"
+        return state, "vt31-shadow-base-partial-check-pass"
+
+    if dol1_hit:
+        mutated = _close_position(
+            mt5_api,
+            position=position,
+            volume=actual_volume,
+            reason="base-dol1",
+            mutations_enabled=mutations_enabled,
+        )
+        if mutated:
+            return (
+                store.mark_closed(
+                    closed_at=now,
+                    reason="base-dol1",
+                ),
+                "vt31-base-dol1",
+            )
+        return state, "vt31-shadow-base-dol1-check-pass"
+
+    if (
+        not noncompressed
+        and not opened.base_three_r_be_armed
+        and _target_reached(opened.side, favorable, three_r)
+    ):
+        state = store.update_open_trade(
+            base_three_r_be_armed=True,
+            base_partial_arm_after=_m1_close_after(now).isoformat(),
+        )
+        return state, "vt31-base-3r-be-armed"
+
+    return state, "vt31-journey-hold"
+
+
+def _bank_equilibrium(
+    *,
+    mt5_api: Any,
+    position: Any,
+    opened: Vt31OpenTradeState,
+    store: Vt31Nas100LiveStateStore,
+    step: Decimal,
+    now: datetime,
+    mutations_enabled: bool,
+    log: Callable[[dict[str, object]], None],
+) -> tuple[object, str]:
+    actual = Decimal(str(position.volume))
+    leg = _leg_volume(
+        Decimal(opened.initial_volume),
+        Decimal("0.50"),
+        step,
+    )
+    if leg <= 0 or leg >= actual:
+        raise Vt31Nas100LiveError("VT31 EQ50 leg cannot be expressed")
+    mutated = _close_position(
+        mt5_api,
+        position=position,
+        volume=leg,
+        reason="eq50",
+        mutations_enabled=mutations_enabled,
+    )
+    if not mutated:
+        return store.load(), "vt31-shadow-eq50-check-pass"
+    remaining = actual - leg
+    state = store.update_open_trade(
+        remaining_volume=format(remaining, "f"),
+        equilibrium_bank_done=True,
+        equilibrium_overlay_active=True,
+    )
+    log({
+        "event": "VT31_NAS100_EQ50_BANKED",
+        "signal_fingerprint": opened.signal_fingerprint,
+        "remaining_volume": format(remaining, "f"),
+    })
+    return state, "vt31-eq50-banked"
+
+
+def _target_reached(side: str, price: Decimal, level: Decimal) -> bool:
+    return price >= level if side == "long" else price <= level
+
+
+def _improves_stop(
+    *,
+    side: str,
+    previous: Decimal,
+    candidate: Decimal,
+    target: Decimal,
+) -> bool:
+    if side == "long":
+        return previous < candidate < target
+    return target < candidate < previous
+
+
+def _leg_volume(
+    initial_volume: Decimal,
+    fraction: Decimal,
+    step: Decimal,
+) -> Decimal:
+    if step <= 0:
+        raise Vt31Nas100LiveError("VT31 broker volume step invalid")
+    raw = initial_volume * fraction
+    units = (raw / step).to_integral_value(rounding=ROUND_FLOOR)
+    return units * step
+
+
+def _m1_close_after(now: datetime) -> datetime:
+    current = now.astimezone(UTC)
+    return current.replace(second=0, microsecond=0) + timedelta(minutes=1)
+
+
+def _close_position(
+    api: Any,
+    *,
+    position: Any,
+    volume: Decimal,
+    reason: str,
+    mutations_enabled: bool,
+) -> bool:
+    if volume <= 0:
+        raise Vt31Nas100LiveError("VT31 close volume must be positive")
+    tick = api.symbol_info_tick(SYMBOL)
+    if tick is None:
+        raise Vt31Nas100LiveError("VT31 close tick unavailable")
+    closing_buy = int(position.type) != int(api.POSITION_TYPE_BUY)
+    request = {
+        "action": api.TRADE_ACTION_DEAL,
+        "symbol": SYMBOL,
+        "position": int(position.ticket),
+        "volume": float(volume),
+        "type": api.ORDER_TYPE_BUY if closing_buy else api.ORDER_TYPE_SELL,
+        "price": float(tick.ask if closing_buy else tick.bid),
+        "magic": int(position.magic),
+        "type_time": api.ORDER_TIME_GTC,
+        "type_filling": _filling(api),
+        "comment": f"qore-vt31-{reason}-{int(position.ticket)}"[:29],
+    }
+    checked = api.order_check(request)
+    if checked is None or int(checked.retcode) != 0:
+        raise Vt31Nas100LiveError(
+            f"VT31 {reason} order_check rejected"
+        )
+    if not mutations_enabled:
+        return False
+    result = api.order_send(request)
+    accepted = {
+        int(api.TRADE_RETCODE_DONE),
+        int(api.TRADE_RETCODE_DONE_PARTIAL),
+        int(api.TRADE_RETCODE_PLACED),
+    }
+    if result is None or int(result.retcode) not in accepted:
+        raise Vt31Nas100LiveError(f"VT31 {reason} close rejected")
+    return True
+
+
+def _advance_stop(
+    api: Any,
+    *,
+    position: Any,
+    stop: Decimal,
+    target: Decimal,
+    mutations_enabled: bool,
+) -> bool:
+    request = {
+        "action": api.TRADE_ACTION_SLTP,
+        "symbol": SYMBOL,
+        "position": int(position.ticket),
+        "sl": float(stop),
+        "tp": float(target),
+        "magic": int(position.magic),
+        "comment": f"qore-vt31-stop-{int(position.ticket)}"[:29],
+    }
+    checked = api.order_check(request)
+    if checked is None or int(checked.retcode) != 0:
+        raise Vt31Nas100LiveError("VT31 stop modification order_check rejected")
+    if not mutations_enabled:
+        return False
+    result = api.order_send(request)
+    if result is None or int(result.retcode) not in {
+        int(api.TRADE_RETCODE_DONE),
+        int(api.TRADE_RETCODE_PLACED),
+    }:
+        raise Vt31Nas100LiveError("VT31 stop modification rejected")
+    return True
+
+
+def _filling(api: Any) -> int:
+    info = api.symbol_info(SYMBOL)
+    if info is None:
+        raise Vt31Nas100LiveError("VT31 filling policy unavailable")
+    mode = int(info.filling_mode)
+    if mode & 2:
+        return int(api.ORDER_FILLING_IOC)
+    if mode & 1:
+        return int(api.ORDER_FILLING_FOK)
+    if int(info.trade_exemode) != int(api.SYMBOL_TRADE_EXECUTION_MARKET):
+        return int(api.ORDER_FILLING_RETURN)
+    raise Vt31Nas100LiveError("VT31 filling policy unavailable")
+
+
+def _ps2_candidate(
+    bars: tuple[Any, ...],
+    *,
+    opened: Vt31OpenTradeState,
+    target: Decimal,
+) -> tuple[Decimal | None, int]:
+    if opened.dol1_touch_closed_at is None:
+        return None, opened.ps_confirmations
+    start = datetime.fromisoformat(opened.dol1_touch_closed_at)
+    path = [
+        bar
+        for bar in bars
+        if bar.closed_at >= start
+    ]
+    if len(path) < 3:
+        return None, 0
+    working = Decimal(opened.initial_stop)
+    confirmations = 0
+    selected: Decimal | None = None
+    for index in range(2, len(path)):
+        left = path[index - 2]
+        middle = path[index - 1]
+        right = path[index]
+        if opened.side == "long":
+            candidate = Decimal(str(middle.low))
+            valid = (
+                candidate < Decimal(str(left.low))
+                and candidate < Decimal(str(right.low))
+            )
+        else:
+            candidate = Decimal(str(middle.high))
+            valid = (
+                candidate > Decimal(str(left.high))
+                and candidate > Decimal(str(right.high))
+            )
+        if not valid:
+            continue
+        if _improves_stop(
+            side=opened.side,
+            previous=working,
+            candidate=candidate,
+            target=target,
+        ):
+            confirmations += 1
+            if confirmations >= 2:
+                selected = candidate
+                break
+    return selected, confirmations
+
+
 def _authorize_and_check(
     *,
     order: Vt31VirtualOrderState,
