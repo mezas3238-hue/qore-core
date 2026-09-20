@@ -34,7 +34,7 @@ from qore.infrastructure.vt31_nas100_state import (
 
 def _spec(observed_at: datetime) -> Mt5SymbolSpecification:
     return Mt5SymbolSpecification(
-        provider_symbol="NAS100",
+        provider_symbol="NDX100",
         bid=Decimal("20000.0"),
         ask=Decimal("20000.2"),
         spread_points=Decimal("2"),
