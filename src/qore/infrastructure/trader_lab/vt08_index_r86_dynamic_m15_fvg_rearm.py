@@ -473,12 +473,13 @@ def _window(
 
     if window_id == "5Y":
         density_min = contract.FIVE_YEAR_TRADE_RANGE[0]
-        density_max: int | None = contract.FIVE_YEAR_TRADE_RANGE[1]
+        five_year_density_max = contract.FIVE_YEAR_TRADE_RANGE[1]
+        density_max: int | None = five_year_density_max
         union_density_pass = (
-            density_min <= union_surface <= density_max
+            density_min <= union_surface <= five_year_density_max
         )
         strict_density_pass = (
-            density_min <= strict_path_surface <= density_max
+            density_min <= strict_path_surface <= five_year_density_max
         )
     elif window_id == "2Y":
         density_min = contract.TWO_YEAR_MIN_TRADES
