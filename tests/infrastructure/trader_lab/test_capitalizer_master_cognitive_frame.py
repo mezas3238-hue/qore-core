@@ -32,7 +32,11 @@ from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import
     CapitalizerCognitivePressure,
     CapitalizerHypothesisStage,
 )
+from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
+    CapitalizerCognitiveGateDecision,
+)
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_frame import (
+    CapitalizerCandidateCognitiveContext,
     build_master_cognitive_frame,
 )
 from qore.infrastructure.trader_lab.capitalizer_memory import (
@@ -123,17 +127,42 @@ def _perceptions(at: datetime) -> tuple[CapitalizerMarketPerceptionSnapshot, ...
 
 
 def _regimes(at: datetime) -> tuple[CapitalizerRegimeHypothesis, ...]:
+    rows: list[CapitalizerRegimeHypothesis] = []
+    for session in CapitalizerSession:
+        for symbol in sorted(allowed_markets(session)):
+            decision = symbol in {"AUDJPY", "USDJPY"}
+            rows.append(
+                CapitalizerRegimeHypothesis(
+                    symbol=symbol,
+                    observed_at=at,
+                    family_id="RESEARCH_SUPPORTED_STATE" if decision else None,
+                    causal_evidence=("CAUSAL_REGIME_EVIDENCE",) if decision else (),
+                    contradictions=(),
+                    knowledge=(
+                        CapitalizerKnowledgeState.KNOWN
+                        if decision
+                        else CapitalizerKnowledgeState.UNKNOWN
+                    ),
+                )
+            )
+    return tuple(rows)
+
+
+def _candidate_contexts(
+    at: datetime,
+) -> tuple[CapitalizerCandidateCognitiveContext, ...]:
     return tuple(
-        CapitalizerRegimeHypothesis(
+        CapitalizerCandidateCognitiveContext(
             symbol=symbol,
             observed_at=at,
-            family_id=None,
-            causal_evidence=(),
-            contradictions=(),
-            knowledge=CapitalizerKnowledgeState.UNKNOWN,
+            failure_state_fingerprint=None,
+            evidence_provenance_complete=True,
+            destination_context_known=True,
+            destination_available=True,
+            event_is_fresh=True,
+            genuinely_new_causal_event=True,
         )
-        for session in CapitalizerSession
-        for symbol in sorted(allowed_markets(session))
+        for symbol in ("AUDJPY", "USDJPY")
     )
 
 
@@ -148,6 +177,7 @@ def test_master_frame_integrates_complete_pre_strategy_cognition() -> None:
             edges=(),
         ),
         pressure_facts=CapitalizerCognitivePressureFacts(),
+        candidate_contexts=_candidate_contexts(at),
     )
 
     assert len(frame.market_registry.symbols) == 9
@@ -155,6 +185,14 @@ def test_master_frame_integrates_complete_pre_strategy_cognition() -> None:
     assert len(frame.regimes) == 9
     assert frame.competition.available_slots == 1
     assert frame.competition.arbitration_required is True
+    assert tuple(item.symbol for item in frame.candidate_evaluations) == (
+        "AUDJPY",
+        "USDJPY",
+    )
+    assert all(
+        item.gate.decision is CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY
+        for item in frame.candidate_evaluations
+    )
     assert frame.strategy_decision_allowed is False
     assert frame.outcome_visibility is False
     assert frame.grants_capital_authority is False
@@ -179,6 +217,7 @@ def test_master_frame_rejects_future_perception() -> None:
                 edges=(),
             ),
             pressure_facts=CapitalizerCognitivePressureFacts(),
+            candidate_contexts=_candidate_contexts(at),
         )
 
 
