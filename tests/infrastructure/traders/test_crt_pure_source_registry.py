@@ -82,9 +82,12 @@ def test_ambiguity_blocks_promotion_even_with_primary_evidence() -> None:
 
 def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
     assert set(evidence_backed_concepts()) == {
+        CrtPureConceptId.REFERENCE_RANGE,
         CrtPureConceptId.CRH_CRL,
         CrtPureConceptId.EQUILIBRIUM,
         CrtPureConceptId.LIQUIDATION_SWEEP,
+        CrtPureConceptId.CANDLE_1_2_3,
+        CrtPureConceptId.NESTED_CRT,
         CrtPureConceptId.TIMEFRAME_HIERARCHY,
         CrtPureConceptId.SESSION_TIME_RULES,
         CrtPureConceptId.ENTRY_FAMILIES,
@@ -92,3 +95,12 @@ def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
         CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
     }
     assert promotable_concepts() == (CrtPureConceptId.MAKE_OR_BREAK_LEVEL,)
+
+
+def test_level_b_corroboration_never_promotes_core_crt_concepts() -> None:
+    assert CrtPureConceptId.REFERENCE_RANGE in evidence_backed_concepts()
+    assert CrtPureConceptId.CANDLE_1_2_3 in evidence_backed_concepts()
+    assert CrtPureConceptId.NESTED_CRT in evidence_backed_concepts()
+    assert CrtPureConceptId.REFERENCE_RANGE not in promotable_concepts()
+    assert CrtPureConceptId.CANDLE_1_2_3 not in promotable_concepts()
+    assert CrtPureConceptId.NESTED_CRT not in promotable_concepts()
