@@ -16,7 +16,7 @@ import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from decimal import Decimal, ROUND_FLOOR
+from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_portfolio_session_flow_viability import (
