@@ -2,6 +2,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
+    CapitalizerCognitiveGateDecision,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
@@ -16,6 +19,10 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_engine_v2 imp
 from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
     CapitalizerSourcePOI,
     detect_external_liquidity_swing,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_trader_pipeline_v2 import (
+    CapitalizerSourcePipelineState,
+    evaluate_fractal_snapshot,
 )
 
 
@@ -121,6 +128,17 @@ def test_raw_fractal_observation_derives_context_without_manual_booleans() -> No
     assert snapshot.complete is True
     assert snapshot.future_outcomes_used is False
     assert snapshot.manual_context_boolean_used is False
+
+    pipeline = evaluate_fractal_snapshot(
+        snapshot=snapshot,
+        cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
+    )
+    assert pipeline.state is CapitalizerSourcePipelineState.PRE_RISK_READY
+    assert pipeline.source_engine is not None
+    assert pipeline.source_engine.passes_to_qore_risk is True
+    assert pipeline.executes_trade is False
+    assert pipeline.sizes_position is False
+    assert pipeline.grants_capital_authority is False
 
 
 def test_raw_fractal_observation_fails_closed_when_daily_poi_not_reached() -> None:
