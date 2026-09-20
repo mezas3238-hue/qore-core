@@ -328,6 +328,18 @@ class Vt31Nas100LiveStateStore:
             rearm_used_dates=rearms,
         )
 
+    def update_open_trade(self, **changes: Any) -> Vt31Nas100LiveState:
+        state = self.load()
+        opened = state.open_trade
+        if opened is None:
+            raise ValueError("VT31 cannot update absent open trade")
+        payload = {
+            field: getattr(opened, field)
+            for field in opened.__dataclass_fields__
+        }
+        payload.update(changes)
+        return self.replace(open_trade=Vt31OpenTradeState(**payload))
+
     def mark_closed(
         self,
         *,
