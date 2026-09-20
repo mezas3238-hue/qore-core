@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import ast
+from datetime import timedelta
 from pathlib import Path
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.r42_audjpy_live import (
     CERTIFICATION_IDENTITY,
+    ENTRY_SLA,
     IDENTITY,
     MEMORY_SHA256,
 )
@@ -102,6 +104,7 @@ def test_audjpy_runtime_never_sends_after_deadline_guard() -> None:
     send = text.index("gateway.submit_live(submission, now=send_at)")
     assert guard < send
     assert "AUDJPY_R42_ENTRY_SLA" in text
+    assert ENTRY_SLA == timedelta(seconds=10)
     assert '"order_send_called": False' in text
 
 

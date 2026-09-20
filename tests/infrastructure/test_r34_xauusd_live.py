@@ -116,10 +116,10 @@ def test_r34_source_open_drift_over_certified_stress_fails_closed() -> None:
 
 
 def test_r34_anchor_is_hourly_and_short_grace_only() -> None:
-    assert current_anchor(datetime(2026, 9, 18, 5, 0, 30, tzinfo=UTC)) == datetime(
+    assert current_anchor(datetime(2026, 9, 18, 5, 0, 9, tzinfo=UTC)) == datetime(
         2026, 9, 18, 5, 0, tzinfo=UTC
     )
-    assert current_anchor(datetime(2026, 9, 18, 5, 0, 46, tzinfo=UTC)) is None
+    assert current_anchor(datetime(2026, 9, 18, 5, 0, 11, tzinfo=UTC)) is None
 
 
 def test_r34_wide_stop_below_broker_minimum_fails_closed() -> None:

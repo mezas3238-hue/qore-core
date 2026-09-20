@@ -93,9 +93,11 @@ def test_certified_v4_execution_binding_is_exact() -> None:
 def test_execution_profiles_are_frozen_per_timeframe() -> None:
     assert M1_PROFILE.timeframe == "M1"
     assert M1_PROFILE.decision_deadline_seconds == Decimal("5.0")
+    assert M1_PROFILE.order_send_deadline_seconds == Decimal("5.0")
     assert M1_PROFILE.tick_max_age_seconds == Decimal("2.0")
     assert M5_PROFILE.timeframe == "M5"
     assert M5_PROFILE.decision_deadline_seconds == Decimal("10.0")
+    assert M5_PROFILE.order_send_deadline_seconds == Decimal("10.0")
     assert M5_PROFILE.tick_max_age_seconds == Decimal("2.0")
     assert DECISION_DEADLINE == timedelta(seconds=5)
     assert MAX_BROKER_TICK_AGE == timedelta(seconds=2)

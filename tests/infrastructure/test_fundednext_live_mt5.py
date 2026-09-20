@@ -88,6 +88,8 @@ class _Symbol:
 class _Tick:
     bid: float = 1.2500
     ask: float = 1.2502
+    time: int = int(_NOW.timestamp())
+    time_msc: int = int(_NOW.timestamp() * 1000)
 
 
 @dataclass
@@ -145,6 +147,8 @@ class _Api:
         self.sent = 0
         self.checked = 0
         self.bid = bid
+        self.tick_time = int(_NOW.timestamp())
+        self.tick_time_msc = int(_NOW.timestamp() * 1000)
 
     def terminal_info(self) -> _Terminal | None:
         return _Terminal()
@@ -163,7 +167,12 @@ class _Api:
 
     def symbol_info_tick(self, symbol: str) -> _Tick | None:
         return (
-            _Tick(bid=self.bid, ask=self.bid + 0.0002)
+            _Tick(
+                bid=self.bid,
+                ask=self.bid + 0.0002,
+                time=self.tick_time,
+                time_msc=self.tick_time_msc,
+            )
             if symbol == "GBPUSD"
             else None
         )
@@ -406,6 +415,16 @@ def test_account_observation_allows_subsecond_call_order_skew() -> None:
     )
     state = gateway.read_account(now=_NOW)
     assert state.balance == Decimal("2000.0")
+
+
+def test_live_gateway_rejects_real_broker_tick_older_than_two_seconds() -> None:
+    api = _Api()
+    stale = _NOW - timedelta(seconds=2, milliseconds=1)
+    api.tick_time = int(stale.timestamp())
+    api.tick_time_msc = int(stale.timestamp() * 1000)
+    gateway = _gateway(api, complete=False, submission_enabled=False)
+    with pytest.raises(Mt5ExecutionBlockedError, match="broker-tick-older-than-2s"):
+        gateway.read_symbol("GBPUSD", now=_NOW)
 
 
 def test_account_observation_rejects_material_future_timestamp() -> None:
