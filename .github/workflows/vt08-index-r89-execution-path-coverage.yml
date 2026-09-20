@@ -1,0 +1,132 @@
+name: VT08 Index R89 Execution Path Coverage
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r89-execution-path-coverage.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r89_execution_path_coverage.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r89_execution_path_coverage.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r89_execution_path_coverage.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5/M15 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5/M15 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5/M15 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R89 source execution-path census
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r89_execution_path_coverage \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r89-execution-path-coverage.json
+
+      - name: Verify R89 source execution governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r89-execution-path-coverage.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R89_SOURCE_EXECUTION_PATH_COVERAGE_CENSUS_001"
+          )
+          contract = report["execution_contract"]
+          assert contract["continuation_close"] == "PRIMARY_STANDARD"
+          assert contract["continuation_retest"] == "ALTERNATE_FILL_SAME_SETUP"
+          assert contract["retest_creates_new_setup"] is False
+          assert contract["positional_entry"] == "OPTIONAL_ADVANCED_RESCUE"
+          assert contract["positional_requires_completed_fractal_model"] is True
+          assert contract["positional_requires_existing_valid_protected_swing"] is True
+          assert contract["positional_requires_immediate_next_h4"] is True
+          assert contract["stale_deferral_allowed"] is False
+          assert contract["owner_disabled_14_preserved"] is True
+          assert contract["context_only_18_preserved"] is True
+          assert contract["pnl_evaluated"] is False
+
+          assert report["five_year"]["canonical_signal_reference"] == 2448
+          assert report["recent_two_year"]["canonical_signal_reference"] == 1017
+          assert report["r66_failed_holdout"]["canonical_signal_reference"] == 773
+          assert report["decision"] == (
+              "R89_SOURCE_EXECUTION_PATH_COVERAGE_COMPLETE_NO_TRADES"
+          )
+
+          governance = report["governance"]
+          assert governance["forensics_only"] is True
+          assert governance["fresh_holdout_claim"] is False
+          assert governance["future_information_used"] is False
+          assert governance["retest_double_counted_as_setup"] is False
+          assert governance["pnl_evaluated"] is False
+          assert governance["target_changed"] is False
+          assert governance["risk_changed"] is False
+          assert governance["anchors_changed"] is False
+          assert governance["candidate_created"] is False
+          assert governance["trader_certified"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Upload R89 evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r89-execution-path-coverage-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: warn
+          retention-days: 90
