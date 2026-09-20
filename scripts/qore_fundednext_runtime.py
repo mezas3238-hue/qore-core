@@ -1683,6 +1683,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "observed_at": cycle_at.isoformat(),
                 },
             )
+        try:
+            vt31_cache.refresh_incremental(mt5, now=cycle_at)
+        except Exception as error:
+            _log(
+                log_path,
+                {
+                    "event": "VT31_NAS100_INCREMENTAL_FEED_FAIL_CLOSED",
+                    "symbol": "NAS100",
+                    "reason": type(error).__name__,
+                    "message": str(error),
+                    "observed_at": cycle_at.isoformat(),
+                },
+            )
 
         audjpy_arm_anchor = audjpy_r42_boundary_to_arm(cycle_at)
         if audjpy_arm_anchor is not None:
