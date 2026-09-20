@@ -87,6 +87,7 @@ def test_r88_h1_source_poi_uses_three_complete_h1_bars() -> None:
     }
     pois = r88._h1_source_pois(
         h1=h1,
+        h1_keys=tuple(sorted(h1)),
         components=components,
         before=t0 + timedelta(hours=3),
         side=DemoTradingSetupSide.LONG,
