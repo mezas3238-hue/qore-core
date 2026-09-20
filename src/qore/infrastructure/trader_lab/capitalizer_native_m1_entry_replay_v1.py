@@ -12,10 +12,10 @@ preceding consecutive opposing-candle series is validated by a directional close
 that series. The same displacement must also break confirmed short-term structure and
 form the directional three-candle FVG. No M1 is synthesized from M5.
 
-Target remains the exact target carried by the frozen higher-level candidate. Initial stop
-is the structural extreme of the validated M1 opposing-candle series (the execution-layer
-protected swing). Lifecycle remains same-session and fail-closed. Same-minute uncertainty
-never receives optimistic target-first treatment.
+Target and initial stop remain exactly those carried by the frozen higher-level candidate.
+The M1 Order Block is an entry condition only; it does not redefine risk geometry. Lifecycle
+remains same-session and fail-closed. Same-minute uncertainty never receives optimistic
+target-first treatment.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ class CapitalizerM1ReplayTrade:
     m1_fvg_confirmed_at: str
     m1_order_block_definition: str = "ttrades-opposing-series-confirmed-by-close"
     entry_definition: str = "FIRST_CAUSAL_M1_VALIDATED_OB_RETEST"
-    stop_definition: str = "M1_VALIDATED_OB_STRUCTURAL_EXTREME_PROTECTED_SWING"
+    stop_definition: str = "UNCHANGED_HIGHER_LEVEL_STOP"
     target_definition: str = "UNCHANGED_HIGHER_LEVEL_TARGET"
     same_minute_stop_target_ambiguity: bool = False
     outcome_used_for_selection: bool = False
@@ -115,6 +115,7 @@ class CapitalizerNativeM1MarketReport:
     higher_level_setup_changed: bool = False
     session_contract_changed: bool = False
     target_contract_changed: bool = False
+    stop_contract_changed: bool = False
     entry_timeframe: str = "M1_NATIVE"
     m1_mss_required: bool = True
     m1_fvg_required: bool = True
@@ -139,6 +140,9 @@ class CapitalizerNativeM1Matrix:
     entries_by_session: tuple[tuple[str, int], ...]
     aggregate_pf: str | None
     total_gross_r: str
+    max3_selected_trades: int
+    max3_metrics: CapitalizerR0Metrics | None
+    same_timestamp_competition_rejected: int
     methodology_changed: bool = False
     entry_timeframe: str = "M1_NATIVE"
     m1_mss_required: bool = True
@@ -247,9 +251,6 @@ def _candidate_setup(
     if displacement_index <= 1 or displacement_index + 1 >= len(bars):
         return None
     displacement = bars[displacement_index]
-    if not _significant_displacement(displacement, side=side):
-        return None
-
     pivot_indices = _pivot_indices(
         bars,
         before_index=displacement_index - 1,
@@ -355,6 +356,7 @@ def _find_entry(
     signal_at: datetime,
     side: CapitalizerSide,
     target: Decimal,
+    stop: Decimal,
 ) -> tuple[CapitalizerM1EntrySetup, int, Decimal, str] | tuple[None, None, None, str]:
     start_index = next(
         (index for index, bar in enumerate(bars) if bar.opened_at >= signal_at),
@@ -368,8 +370,6 @@ def _find_entry(
     saw_ob = False
     for displacement_index in range(max(2, start_index), len(bars) - 1):
         displacement = bars[displacement_index]
-        if not _significant_displacement(displacement, side=side):
-            continue
 
         pivots = _pivot_indices(
             bars,
@@ -450,10 +450,10 @@ def _find_entry(
             if entry_price is None:
                 continue
             if side is CapitalizerSide.LONG:
-                if not setup.protected_swing < entry_price < target:
+                if not stop < entry_price < target:
                     continue
             else:
-                if not target < entry_price < setup.protected_swing:
+                if not target < entry_price < stop:
                     continue
             return setup, entry_index, entry_price, "M1_ENTRY_CONFIRMED"
 
@@ -580,17 +580,18 @@ def _process_session(
         side = CapitalizerSide(str(row["side"]))
         signal_at = datetime.fromisoformat(str(row["signal_at"]))
         target = Decimal(str(row["target_price"]))
+        stop = Decimal(str(row["stop_price"]))
         setup, entry_index, entry_price, reason = _find_entry(
             bars,
             signal_at=signal_at,
             side=side,
             target=target,
+            stop=stop,
         )
         if setup is None or entry_index is None or entry_price is None:
             rejection[reason] += 1
             continue
 
-        stop = setup.protected_swing
         realized, exit_reason, held, ambiguous, exit_at = _lifecycle(
             bars,
             entry_index=entry_index,
@@ -774,6 +775,66 @@ def _load_reports(root: Path) -> tuple[CapitalizerNativeM1MarketReport, ...]:
     return tuple(sorted(reports, key=lambda item: item.symbol))
 
 
+def _load_all_trades(root: Path) -> tuple[CapitalizerM1ReplayTrade, ...]:
+    rows: list[CapitalizerM1ReplayTrade] = []
+    for path in sorted(
+        root.rglob("capitalizer-*-native-m1-entry-replay-v1-trades.jsonl")
+    ):
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    rows.append(CapitalizerM1ReplayTrade(**json.loads(line)))
+    return tuple(
+        sorted(
+            rows,
+            key=lambda item: (
+                datetime.fromisoformat(item.entry_at),
+                item.symbol,
+            ),
+        )
+    )
+
+
+def _apply_max3(
+    trades: tuple[CapitalizerM1ReplayTrade, ...],
+) -> tuple[tuple[CapitalizerM1ReplayTrade, ...], int]:
+    grouped: dict[str, list[CapitalizerM1ReplayTrade]] = defaultdict(list)
+    for trade in trades:
+        session = CapitalizerSession(trade.session)
+        moment = datetime.fromisoformat(trade.entry_at)
+        key = f"{trade.session}:{_operating_date(moment, session)}"
+        grouped[key].append(trade)
+
+    selected: list[CapitalizerM1ReplayTrade] = []
+    unresolved = 0
+    for key in sorted(grouped):
+        by_time: dict[str, list[CapitalizerM1ReplayTrade]] = defaultdict(list)
+        for trade in grouped[key]:
+            by_time[trade.entry_at].append(trade)
+        slots = 3
+        for entry_at in sorted(by_time):
+            if slots <= 0:
+                break
+            tied = sorted(by_time[entry_at], key=lambda item: item.symbol)
+            if len(tied) > slots:
+                unresolved += len(tied)
+                continue
+            selected.extend(tied)
+            slots -= len(tied)
+    return (
+        tuple(
+            sorted(
+                selected,
+                key=lambda item: (
+                    datetime.fromisoformat(item.entry_at),
+                    item.symbol,
+                ),
+            )
+        ),
+        unresolved,
+    )
+
+
 def build_matrix(root: Path) -> CapitalizerNativeM1Matrix:
     reports = _load_reports(root)
     expected = {
@@ -785,6 +846,8 @@ def build_matrix(root: Path) -> CapitalizerNativeM1Matrix:
 
     total_candidates = sum(item.higher_level_candidates for item in reports)
     total_entries = sum(item.m1_entries for item in reports)
+    all_trades = _load_all_trades(root)
+    max3_trades, unresolved = _apply_max3(all_trades)
     session_counts: Counter[str] = Counter()
     gross_profit = Decimal("0")
     gross_loss = Decimal("0")
@@ -804,6 +867,9 @@ def build_matrix(root: Path) -> CapitalizerNativeM1Matrix:
         entries_by_session=tuple(sorted(session_counts.items())),
         aggregate_pf=None if gross_loss == 0 else str(gross_profit / gross_loss),
         total_gross_r=str(total_r),
+        max3_selected_trades=len(max3_trades),
+        max3_metrics=_metrics(max3_trades),
+        same_timestamp_competition_rejected=unresolved,
     )
 
 
@@ -838,6 +904,16 @@ def write_matrix(report: CapitalizerNativeM1Matrix, output: Path) -> None:
             f"- Native M1 entry rate: {Decimal(report.m1_entry_rate) * 100:.2f}%",
             f"- Aggregate PF (gross pooled): {report.aggregate_pf}",
             f"- Aggregate gross R: {report.total_gross_r}",
+            f"- MAX3 selected trades: {report.max3_selected_trades}",
+            (
+                "- MAX3 PF: "
+                + ("-" if report.max3_metrics is None else str(report.max3_metrics.profit_factor))
+            ),
+            (
+                "- MAX3 DD: "
+                + ("-" if report.max3_metrics is None else f"{report.max3_metrics.max_drawdown_r}R")
+            ),
+            f"- Same-timestamp unresolved competition rejected: {report.same_timestamp_competition_rejected}",
         ]
     )
     (output / "capitalizer-nine-market-native-m1-entry-replay-v1.md").write_text(
@@ -900,6 +976,12 @@ def main() -> None:
                 "total_m1_entries": matrix_report.total_m1_entries,
                 "m1_entry_rate": matrix_report.m1_entry_rate,
                 "aggregate_pf": matrix_report.aggregate_pf,
+                "max3_selected_trades": matrix_report.max3_selected_trades,
+                "max3_metrics": (
+                    None
+                    if matrix_report.max3_metrics is None
+                    else asdict(matrix_report.max3_metrics)
+                ),
             },
             sort_keys=True,
         )
