@@ -5,10 +5,14 @@ from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     assess_failure_to_manipulate,
     detect_cisd,
 )
-from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import derive_daily_bias
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
+    CapitalizerDailyBiasObservation,
+    derive_daily_bias,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
+    CapitalizerSourceClosureObservation,
     CapitalizerSourceDirection,
     confirm_protected_swing,
     detect_candle2_reversal_closure,
@@ -24,7 +28,7 @@ def _bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
     )
 
 
-def _bullish_daily_bias():
+def _bullish_daily_bias() -> CapitalizerDailyBiasObservation:
     closure = detect_candle2_reversal_closure(
         previous=_bar("100", "102", "98", "99"),
         candle2=_bar("99", "101", "97", "99.5"),
@@ -34,7 +38,7 @@ def _bullish_daily_bias():
     return derive_daily_bias(closure)
 
 
-def _bearish_htf_closure():
+def _bearish_htf_closure() -> CapitalizerSourceClosureObservation | None:
     return detect_candle2_reversal_closure(
         previous=_bar("100", "102", "98", "101"),
         candle2=_bar("101", "103", "99", "101.5"),
