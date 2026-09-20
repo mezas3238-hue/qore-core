@@ -487,10 +487,17 @@ def _manage_h4_exits(
             "type": mt5.ORDER_TYPE_BUY if closing_buy else mt5.ORDER_TYPE_SELL,
             "price": float(tick.ask if closing_buy else tick.bid),
             "magic": int(position.magic),
-            "comment": f"qore-exit-{exit_label}-{str(position.ticket)}"[:29],
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": _exit_filling(str(position.symbol)),
         }
+        if exit_label == "VT08_H4":
+            request |= {
+                "comment": f"qore-h4-exit-{str(position.ticket)}"[:29],
+            }
+        else:
+            request["comment"] = (
+                f"qore-exit-{exit_label}-{str(position.ticket)}"[:29]
+            )
         checked = mt5.order_check(request)
         if checked is None or int(checked.retcode) != 0:
             _log(
