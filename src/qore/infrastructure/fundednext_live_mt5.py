@@ -55,6 +55,7 @@ from qore.infrastructure.market_test_environment import (
     MarketTestAccountIdentity,
 )
 from qore.infrastructure.order_intent import OrderSide, OrderType
+from qore.infrastructure.trader_execution_profile import M1_PROFILE
 
 
 class Mt5CheckResultLike(Protocol):
@@ -111,7 +112,17 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
         spec = super().symbol_info(provider_symbol)
         if spec is None:
             return None
-        return replace(spec, observed_at=self._now())
+        observed = self._now()
+        tick = self._live_api.symbol_info_tick(provider_symbol)
+        if tick is None:
+            raise Mt5ExecutionBlockedError("mt5-broker-tick-unavailable")
+        tick_at = _broker_tick_at(tick)
+        tick_age = observed - tick_at
+        if tick_age < timedelta(seconds=-0.5):
+            raise Mt5ExecutionBlockedError("mt5-broker-tick-from-future")
+        if tick_age > M1_PROFILE.tick_max_age:
+            raise Mt5ExecutionBlockedError("mt5-broker-tick-older-than-2s")
+        return replace(spec, observed_at=observed)
 
     def check_order(self, plan: FundedNextMt5OrderPlan) -> FundedNextMt5ShadowReceipt:
         self._require_bound_account()
@@ -431,6 +442,16 @@ class FundedNextLiveMt5ExecutionGateway:
     def _persist(self, record: FundedNextMt5MutationRecord) -> None:
         self._ledger.upsert(record)
         self._records[record.idempotency_key] = record
+
+
+def _broker_tick_at(tick: object) -> datetime:
+    raw_msc = int(getattr(tick, "time_msc", 0) or 0)
+    if raw_msc > 0:
+        return datetime.fromtimestamp(raw_msc / 1000.0, tz=UTC)
+    raw_seconds = int(getattr(tick, "time", 0) or 0)
+    if raw_seconds > 0:
+        return datetime.fromtimestamp(raw_seconds, tz=UTC)
+    raise Mt5ExecutionBlockedError("mt5-broker-tick-timestamp-unavailable")
 
 
 def _system_utc_now() -> datetime:

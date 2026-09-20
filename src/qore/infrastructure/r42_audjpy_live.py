@@ -33,6 +33,7 @@ from typing import Any
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
+from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.fundednext_mt5_clock import (
     NEW_YORK_TZ,
     normalise_fundednext_server_epoch,
@@ -131,13 +132,13 @@ SECOND_LAYER_POLICY = (
 BASE_RISK_FRACTION = Decimal("0.002")
 MAX_SOURCE_ENTRY_DRIFT_R = Decimal("0.10")
 BROKER_RISK_BUFFER = Decimal("1.02")
-ENTRY_SLA = timedelta(seconds=2)
-BOUNDARY_ARM_LEAD = timedelta(seconds=10)
-BOUNDARY_RETRY_SECONDS = 0.075
-NORMAL_FEED_REFRESH_SECONDS = 1.0
+ENTRY_SLA = M5_PROFILE.order_send_deadline
+BOUNDARY_ARM_LEAD = timedelta(seconds=float(M5_PROFILE.boundary_arm_lead_seconds))
+BOUNDARY_RETRY_SECONDS = M5_PROFILE.boundary_retry_ms / 1000.0
+NORMAL_FEED_REFRESH_SECONDS = float(M5_PROFILE.normal_feed_refresh_seconds)
 RECENT_M5_BARS = 8
 BOUNDARY_RECENT_M5_BARS = 4
-MAX_BROKER_TICK_AGE = timedelta(seconds=2)
+MAX_BROKER_TICK_AGE = M5_PROFILE.tick_max_age
 ANCHOR_GRACE = ENTRY_SLA
 HISTORY_M5_BARS = 15_000
 _STATE_SCHEMA = "qore.turtle_soup_audjpy.r42.live_state.v1"
@@ -553,7 +554,7 @@ class R42AudJpyM5Cache:
         if observed < anchor:
             raise RuntimeError("AUDJPY R42 boundary not reached")
         if observed > deadline:
-            raise TimeoutError("AUDJPY R42 hard 2s entry SLA expired")
+            raise TimeoutError("AUDJPY R42 M5 order-send deadline expired")
 
         prior_open = anchor - timedelta(minutes=5)
         prior = self._bars.get(prior_open)
@@ -1306,7 +1307,7 @@ def build_r42_audjpy_risk_request(
     deadline = signal.entry_at.astimezone(UTC) + ENTRY_SLA
     checked_at = now.astimezone(UTC)
     if checked_at > deadline:
-        raise ValueError("AUDJPY R42 hard 2s entry SLA expired")
+        raise ValueError("AUDJPY R42 M5 order-send deadline expired")
     tick_age = checked_at - signal.boundary_tick_at.astimezone(UTC)
     if tick_age < timedelta(seconds=-0.5):
         raise ValueError("AUDJPY R42 broker tick is from the future")

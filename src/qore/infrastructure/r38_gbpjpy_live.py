@@ -29,6 +29,7 @@ from typing import Any
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
+from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.fundednext_mt5_clock import (
     NEW_YORK_TZ,
     normalise_fundednext_server_epoch,
@@ -105,7 +106,7 @@ MEMORY_PROFILE_COUNTS = {
 BASE_RISK_FRACTION = Decimal("0.002")
 MAX_SOURCE_ENTRY_DRIFT_R = Decimal("0.10")
 BROKER_RISK_BUFFER = Decimal("1.02")
-ANCHOR_GRACE = timedelta(seconds=45)
+ANCHOR_GRACE = M5_PROFILE.decision_deadline
 HISTORY_M5_BARS = 15_000
 _STATE_SCHEMA = "qore.turtle_soup_gbpjpy.r38.live_state.v1"
 _STRATEGY_TZ = NEW_YORK_TZ
@@ -823,7 +824,7 @@ def build_live_signal(
         None,
     )
     if current is None:
-        return None, "current-m5-open-unavailable"
+        raise RuntimeError("GBPJPY R38 current M5 boundary not yet available")
     complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
     h4 = build_h4(complete)

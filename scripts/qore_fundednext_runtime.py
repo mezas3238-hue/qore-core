@@ -94,6 +94,7 @@ from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
     ExecutionSwitchState,
 )
+from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.r34_xauusd_live import (
     R34LiveSignal,
     R34LiveStateStore,
@@ -688,7 +689,20 @@ def _process_candidate(
             },
         )
         return
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    if send_at > setup.expires_at.astimezone(UTC):
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "VT08_LIVE_SEND_FAIL_CLOSED",
+                "symbol": candidate.symbol,
+                "reason": "setup-expired-before-order-send",
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     _log(
         log_path,
@@ -798,7 +812,24 @@ def _process_r34_candidate(
             },
         )
         return
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R34_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "XAUUSD",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     r34_store.mark_open(
@@ -927,7 +958,24 @@ def _process_r38_candidate(
             },
         )
         return
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R38_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "EURUSD",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     r38_store.mark_open(
@@ -1050,7 +1098,24 @@ def _process_r43_candidate(
             },
         )
         return
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R43_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "GBPUSD",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     r43_store.mark_open(
@@ -1174,7 +1239,24 @@ def _process_gbpjpy_r38_candidate(
         )
         return
 
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "GBPJPY",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     gbpjpy_r38_store.mark_open(
@@ -1849,7 +1931,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         ).total_seconds()
                                         * 1000
                                     ),
-                                    "hard_sla_seconds": 2.0,
+                                    "hard_sla_seconds": AUDJPY_R42_ENTRY_SLA.total_seconds(),
                                 },
                             )
                         else:
@@ -1883,7 +1965,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             "decision_at": audjpy_arm_anchor.isoformat(),
                             "reason": type(error).__name__,
                             "message": str(error),
-                            "hard_sla_seconds": 2.0,
+                            "hard_sla_seconds": AUDJPY_R42_ENTRY_SLA.total_seconds(),
                             "order_send_called": False,
                         },
                     )

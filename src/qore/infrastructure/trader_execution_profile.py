@@ -24,6 +24,7 @@ from decimal import Decimal
 class TraderExecutionProfile:
     timeframe: str
     decision_deadline_seconds: Decimal
+    order_send_deadline_seconds: Decimal
     tick_max_age_seconds: Decimal
     normal_feed_refresh_seconds: Decimal
     boundary_arm_lead_seconds: Decimal
@@ -34,6 +35,10 @@ class TraderExecutionProfile:
         return timedelta(seconds=float(self.decision_deadline_seconds))
 
     @property
+    def order_send_deadline(self) -> timedelta:
+        return timedelta(seconds=float(self.order_send_deadline_seconds))
+
+    @property
     def tick_max_age(self) -> timedelta:
         return timedelta(seconds=float(self.tick_max_age_seconds))
 
@@ -41,6 +46,7 @@ class TraderExecutionProfile:
 M1_PROFILE = TraderExecutionProfile(
     timeframe="M1",
     decision_deadline_seconds=Decimal("5.0"),
+    order_send_deadline_seconds=Decimal("5.0"),
     tick_max_age_seconds=Decimal("2.0"),
     normal_feed_refresh_seconds=Decimal("1.0"),
     boundary_arm_lead_seconds=Decimal("10.0"),
@@ -50,6 +56,7 @@ M1_PROFILE = TraderExecutionProfile(
 M5_PROFILE = TraderExecutionProfile(
     timeframe="M5",
     decision_deadline_seconds=Decimal("10.0"),
+    order_send_deadline_seconds=Decimal("10.0"),
     tick_max_age_seconds=Decimal("2.0"),
     normal_feed_refresh_seconds=Decimal("1.0"),
     boundary_arm_lead_seconds=Decimal("10.0"),
