@@ -67,6 +67,7 @@ from qore.infrastructure.trader_lab.capitalizer_session_journey_intelligence imp
     assess_session_journey,
 )
 
+
 @dataclass(frozen=True, slots=True)
 class CapitalizerCandidateCognitiveContext:
     symbol: str
