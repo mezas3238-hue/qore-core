@@ -12,11 +12,11 @@ from dataclasses import dataclass
 from qore.infrastructure.trader_lab.capitalizer_cognitive_closure_manifest import (
     FROZEN_COGNITIVE_CLOSURE_MANIFEST,
 )
-from qore.infrastructure.trader_lab.capitalizer_source_faithful_trader_design_v2 import (
-    FROZEN_SOURCE_FAITHFUL_TRADER_DESIGN,
-)
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import (
     CapitalizerChainStatus,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_faithful_trader_design_v2 import (
+    FROZEN_SOURCE_FAITHFUL_TRADER_DESIGN,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_strategy_grammar_v2 import (
     SOURCE_STRATEGY_GRAMMAR_ID,
