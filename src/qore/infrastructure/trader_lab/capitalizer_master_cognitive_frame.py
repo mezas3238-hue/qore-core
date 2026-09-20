@@ -19,24 +19,19 @@ from qore.infrastructure.trader_lab.capitalizer_cognitive_pressure import (
     CapitalizerCognitivePressureFacts,
     assess_cognitive_pressure,
 )
+from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
+    CapitalizerCrossMarketCausalGraph,
+)
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateAssessment,
     CapitalizerCognitiveGateFacts,
     assess_cognitive_gate,
-)
-from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
-    CapitalizerCrossMarketCausalGraph,
 )
 from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
     CapitalizerGlobalWorldModel,
 )
 from qore.infrastructure.trader_lab.capitalizer_market_brain_registry import (
     CapitalizerMarketBrainRegistry,
-)
-from qore.infrastructure.trader_lab.capitalizer_metacognition_v2 import (
-    CapitalizerMetacognitiveAssessment,
-    CapitalizerMetacognitiveFacts,
-    assess_metacognition,
 )
 from qore.infrastructure.trader_lab.capitalizer_master_brain import (
     CapitalizerMasterBrainAssessment,
@@ -45,6 +40,11 @@ from qore.infrastructure.trader_lab.capitalizer_master_brain import (
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import (
     NINE_MARKET_UNIVERSE,
     CapitalizerAttentionState,
+)
+from qore.infrastructure.trader_lab.capitalizer_metacognition_v2 import (
+    CapitalizerMetacognitiveAssessment,
+    CapitalizerMetacognitiveFacts,
+    assess_metacognition,
 )
 from qore.infrastructure.trader_lab.capitalizer_opportunity_competition import (
     CapitalizerOpportunityCompetitionState,
@@ -66,7 +66,6 @@ from qore.infrastructure.trader_lab.capitalizer_session_journey_intelligence imp
     CapitalizerSessionJourneyAssessment,
     assess_session_journey,
 )
-
 
 @dataclass(frozen=True, slots=True)
 class CapitalizerCandidateCognitiveContext:
