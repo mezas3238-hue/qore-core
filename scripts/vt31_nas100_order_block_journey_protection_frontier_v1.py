@@ -20,8 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
-from dateutil.parser import isoparse
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -117,8 +116,8 @@ def _apply_ob_management(
             if side == "long"
             else entry - risk * lock_r
         )
-        original_exit_at = isoparse(cast(str, row["exit_at"]))
-        checkpoint_at = isoparse(cast(str, features["checkpoint_at"]))
+        original_exit_at = datetime.fromisoformat(cast(str, row["exit_at"]))
+        checkpoint_at = datetime.fromisoformat(cast(str, features["checkpoint_at"]))
         applied = False
 
         for bar in bars[checkpoint_index + 1 :]:
