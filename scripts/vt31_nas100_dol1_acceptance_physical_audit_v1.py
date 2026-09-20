@@ -68,6 +68,11 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
         if str(row.get("reference_volatility_state")) != "compressed":
             continue
 
+        if any(
+            row.get(key) is None
+            for key in ("entry", "initial_stop", "structural_target", "filled_at", "exit_at")
+        ):
+            continue
         entry = _d(row["entry"])
         stop = _d(row["initial_stop"])
         dol1 = _d(row["structural_target"])
