@@ -49,12 +49,12 @@ from qore.infrastructure.trader_lab.capitalizer_r0_gross_characterization import
 from qore.infrastructure.trader_lab.capitalizer_session_clock import (
     capitalizer_session_at,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceBar,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
     CapitalizerSourcePOIKind,
     detect_fair_value_gap,
-)
-from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
-    CapitalizerSourceBar,
 )
 
 IDENTITY = "QORE_CAPITALIZER_STRICT_ENTRY_ACCEPTANCE_REPLAY_V1"
@@ -766,7 +766,10 @@ def write_matrix(report: CapitalizerStrictEntryMatrix, output: Path) -> None:
         "- This replay is an M5 causal surrogate, not full H1->M15->M1 source fidelity.",
         "- Full dual-source pass count remains 0 until native M1/finer evidence exists.",
         "",
-        "| Market | Candidates | Accepted M5 surrogate | Acceptance | PF before | PF strict+PS | DD before | DD strict+PS |",
+        (
+            "| Market | Candidates | Accepted M5 surrogate | Acceptance | PF before | "
+            "PF strict+PS | DD before | DD strict+PS |"
+        ),
         "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for market in report.markets:
