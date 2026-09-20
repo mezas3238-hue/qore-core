@@ -90,7 +90,7 @@ jobs:
           assert report["recent_two_year"]["canonical_signal_count"] == 1017
           assert report["r66_failed_holdout"]["canonical_signal_count"] == 773
           assert report["source_failure"]["r66_density_gate"] == 1000
-          assert report["generator_contract"]["anchors_new_york"] == [2, 6, 10]
+          assert report["generator_contract"]["anchors_new_york"] == [22, 2, 6, 10]
           assert report["generator_contract"]["source_poi_lookback_h4"] == 3
           assert report["decision"] == (
               "R70_FUNNEL_FORENSICS_COMPLETE_NO_CANDIDATE"
