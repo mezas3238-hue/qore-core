@@ -32,6 +32,7 @@ def test_source_review_contains_complete_ict_scalping_series_and_primary_ttrades
     assert sources["ICT_RISK_MANAGEMENT"].author is CapitalizerStrategyAuthor.ICT
     assert sources["TTRADES_SCALPING_MODEL"].author is CapitalizerStrategyAuthor.TTRADES
     assert sources["TTRADES_INTRACANDLE_CISD"].author is CapitalizerStrategyAuthor.TTRADES
+    assert sources["TTRADES_TIMEFRAME_ALIGNMENT"].author is CapitalizerStrategyAuthor.TTRADES
     assert sources["TTRADES_WICK_THEN_BODY"].author is CapitalizerStrategyAuthor.TTRADES
     assert (
         sources["TTRADES_FAILURE_TO_MANIPULATE"].author
@@ -60,10 +61,24 @@ def test_entry_acceptance_facts_cover_ict_and_ttrades_conditions() -> None:
         "TTRADES_ENTRY_REQUIRES_HTF_POI_CISD_CONTINUATION",
         "TTRADES_ENTRY_INVALID_IF_CISD_MISSING",
         "TTRADES_ENTRY_WICK_FORMED_BEFORE_BODY",
+        "TTRADES_ENTRY_TIMEFRAME_PROVIDES_PRECISION",
+        "TTRADES_ENTRY_USES_CONTINUATION_ORDER_BLOCK",
         "TTRADES_ENTRY_REQUIRES_TARGET_INTACT",
     ):
         assert facts[fact_id].fact_type is CapitalizerSourceFactType.AUTHOR_SUPPORTED
         assert facts[fact_id].source_ids
+
+
+def test_owner_frozen_m1_entry_contract_is_qore_operationalization() -> None:
+    facts = {item.fact_id: item for item in FROZEN_SOURCE_STRATEGY_REVIEW.facts}
+    fact = facts["QORE_CAPITALIZER_ENTRY_M1_MSS_FVG_OB_REQUIRED"]
+
+    assert fact.fact_type is CapitalizerSourceFactType.QORE_OPERATIONALIZATION
+    assert fact.source_ids == ()
+    assert "native M1" in fact.statement
+    assert "Market Structure Shift" in fact.statement
+    assert "Fair Value Gap" in fact.statement
+    assert "Order Block" in fact.statement
 
 
 def test_qore_governance_is_not_misattributed_to_ict_or_ttrades() -> None:
