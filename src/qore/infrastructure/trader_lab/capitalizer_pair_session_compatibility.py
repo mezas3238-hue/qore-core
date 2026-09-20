@@ -18,7 +18,7 @@ import argparse
 import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from itertools import combinations
 from pathlib import Path
@@ -36,7 +36,6 @@ from qore.infrastructure.trader_lab.capitalizer_portfolio_session_flow_viability
     _session_key,
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
-from qore.infrastructure.trader_lab.capitalizer_session_flow_viability import NEW_YORK
 
 IDENTITY = "QORE_CAPITALIZER_PAIR_SESSION_COMPATIBILITY_V1"
 
