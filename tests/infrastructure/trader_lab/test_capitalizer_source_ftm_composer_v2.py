@@ -1,6 +1,12 @@
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import derive_daily_bias
+from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
+    CapitalizerLiquiditySideTaken,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
+    CapitalizerDailyBiasObservation,
+    derive_daily_bias,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_ftm_composer_v2 import (
     compose_failure_to_manipulate,
 )
@@ -14,10 +20,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     confirm_protected_swing,
     detect_candle2_reversal_closure,
 )
-from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
-    CapitalizerLiquiditySideTaken,
-)
-
 
 def _bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
     return CapitalizerSourceBar(
@@ -28,7 +30,7 @@ def _bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
     )
 
 
-def _bullish_daily_bias():
+def _bullish_daily_bias() -> CapitalizerDailyBiasObservation:
     closure = detect_candle2_reversal_closure(
         previous=_bar("100", "102", "98", "99"),
         candle2=_bar("99", "101", "97", "99.5"),
