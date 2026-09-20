@@ -49,9 +49,6 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r70_source_complete_funnel_transport as r70,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r72_upstream_density_loss as r72,
-)
-from qore.infrastructure.trader_lab import (
     vt08_index_v6_ttrades_source_faithful as v6,
 )
 from qore.infrastructure.trader_lab import (
@@ -65,6 +62,12 @@ from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
 SCHEMA = "qore.trader_lab.vt08_index_r73_unresolved_daily_bias_families.v1"
 IDENTITY = "VT08_INDEX_R73_UNRESOLVED_DAILY_BIAS_FAMILIES_001"
 NORMALIZATION_DAYS = Decimal("364")
+SOURCE_R72_RUN_ID = 35506163421
+SOURCE_R72_ARTIFACT_ID = 10604260215
+SOURCE_R72_ARTIFACT_DIGEST = (
+    "sha256:58713e79d2c2120b0519dc27bf93220f1bcd3e7365747fead22dacb6021eee41"
+)
+R72_AMBIGUOUS_COUNTS = {"5Y": 2410, "2Y": 1050, "R66": 968}
 
 
 def _window_contract(window_id: str) -> tuple[date, date, int]:
@@ -313,24 +316,12 @@ def build_report(
     two = _window(roots=roots, window_id="2Y")
     failed = _window(roots=roots, window_id="R66")
 
-    if five["ambiguous_anchor_slots"] != (
-        r72._window(roots=roots, window_id="5Y")[
-            "no_bias_due_ambiguous_methodology"
-        ]
-    ):
-        raise ValueError("R73 5Y ambiguity count drift from R72")
-    if two["ambiguous_anchor_slots"] != (
-        r72._window(roots=roots, window_id="2Y")[
-            "no_bias_due_ambiguous_methodology"
-        ]
-    ):
-        raise ValueError("R73 recent2Y ambiguity count drift from R72")
-    if failed["ambiguous_anchor_slots"] != (
-        r72._window(roots=roots, window_id="R66")[
-            "no_bias_due_ambiguous_methodology"
-        ]
-    ):
-        raise ValueError("R73 R66 ambiguity count drift from R72")
+    if five["ambiguous_anchor_slots"] != R72_AMBIGUOUS_COUNTS["5Y"]:
+        raise ValueError("R73 5Y ambiguity count drift from official R72")
+    if two["ambiguous_anchor_slots"] != R72_AMBIGUOUS_COUNTS["2Y"]:
+        raise ValueError("R73 recent2Y ambiguity count drift from official R72")
+    if failed["ambiguous_anchor_slots"] != R72_AMBIGUOUS_COUNTS["R66"]:
+        raise ValueError("R73 R66 ambiguity count drift from official R72")
 
     return {
         "schema": SCHEMA,
@@ -338,6 +329,12 @@ def build_report(
         "source_failure": {
             "decision": r67.SOURCE_R66_DECISION,
             "r66_density_gate": r66.MIN_TRADES,
+        },
+        "source_r72": {
+            "run_id": SOURCE_R72_RUN_ID,
+            "artifact_id": SOURCE_R72_ARTIFACT_ID,
+            "artifact_digest": SOURCE_R72_ARTIFACT_DIGEST,
+            "official_ambiguous_counts": R72_AMBIGUOUS_COUNTS,
         },
         "resolver_contract": {
             "continuation_above_previous_high": "LONG",
