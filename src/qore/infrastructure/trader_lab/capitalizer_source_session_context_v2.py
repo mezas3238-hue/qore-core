@@ -6,15 +6,16 @@ Important boundary:
 They must never be silently treated as the same clock definition.
 
 London and New York windows below are frozen from the reviewed ICT lessons.
-Asian exact fixed-clock boundaries remain unresolved in this closure because the reviewed
-material is event/open-relative and reconstructed clocks can vary with seasonal time handling.
-Fail closed instead of inventing precision.
+The Asian window is source-relative to the historical Asian Open because the reviewed ICT
+lesson explicitly allows the open to shift with daylight-saving alignment. The mapper therefore
+requires an external, historical Asian Open reference and uses the source-supported two-hour
+window from that reference. It never invents a universal 19:00 or 20:00 New York start.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -61,6 +62,7 @@ def assess_source_session_context(
     *,
     session: CapitalizerSession,
     observed_at: datetime,
+    asian_open_reference_at: datetime | None = None,
 ) -> CapitalizerSourceSessionAssessment:
     """Classify only reviewed author-time context, DST-aware in New York local time."""
 
@@ -104,14 +106,39 @@ def assess_source_session_context(
             ),
         )
 
+    if asian_open_reference_at is None:
+        return CapitalizerSourceSessionAssessment(
+            session=session,
+            resolution=CapitalizerSourceSessionResolution.REVIEW_REQUIRED,
+            source_window_id="ICT_ASIAN_OPEN_REFERENCE_REQUIRED",
+            local_time=local,
+            reasons=(
+                "ASIAN_OPEN_CONTEXT_REVIEWED",
+                "SOURCE_USES_DST_RELATIVE_ASIAN_OPEN",
+                "FAIL_CLOSED_WITHOUT_HISTORICAL_ASIAN_OPEN_REFERENCE",
+            ),
+        )
+    if (
+        asian_open_reference_at.tzinfo is None
+        or asian_open_reference_at.utcoffset() is None
+    ):
+        raise ValueError("Asian Open reference must be timezone-aware")
+
+    window_end = asian_open_reference_at + timedelta(hours=2)
+    eligible = asian_open_reference_at <= observed_at < window_end
     return CapitalizerSourceSessionAssessment(
         session=session,
-        resolution=CapitalizerSourceSessionResolution.REVIEW_REQUIRED,
-        source_window_id="ICT_ASIAN_KILLZONE_EXACT_CLOCK_REVIEW_REQUIRED",
+        resolution=(
+            CapitalizerSourceSessionResolution.ELIGIBLE
+            if eligible
+            else CapitalizerSourceSessionResolution.OUTSIDE
+        ),
+        source_window_id="ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW",
         local_time=local,
         reasons=(
-            "ASIAN_OPEN_CONTEXT_REVIEWED",
-            "EXACT_FIXED_CLOCK_NOT_FROZEN",
-            "FAIL_CLOSED_PENDING_SOURCE_CLOCK_RESOLUTION",
+            "WITHIN_ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW"
+            if eligible
+            else "OUTSIDE_ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW",
+            "NO_FIXED_1900_2000_ASSUMPTION",
         ),
     )
