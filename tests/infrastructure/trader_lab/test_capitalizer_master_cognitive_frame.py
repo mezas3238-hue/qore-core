@@ -4,6 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.trader_lab.capitalizer_cognitive_explanation import (
+    explain_all_candidates,
+)
 from qore.infrastructure.trader_lab.capitalizer_cognitive_pressure import (
     CapitalizerCognitivePressureFacts,
     assess_cognitive_pressure,
@@ -161,6 +164,7 @@ def _candidate_contexts(
             destination_available=True,
             event_is_fresh=True,
             genuinely_new_causal_event=True,
+            observation_tokens=(f"OBSERVED:{symbol}",),
         )
         for symbol in ("AUDJPY", "USDJPY")
     )
@@ -192,6 +196,26 @@ def test_master_frame_integrates_complete_pre_strategy_cognition() -> None:
     assert all(
         item.gate.decision is CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY
         for item in frame.candidate_evaluations
+    )
+    explanations = explain_all_candidates(frame)
+    assert len(explanations) == 2
+    assert all(item.free_form_reasoning_used is False for item in explanations)
+    assert all(item.audit_record.decision is None for item in explanations)
+    assert all(
+        item.audit_record.cognitive_gate_decision
+        is CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY
+        for item in explanations
+    )
+    assert all(
+        any(token.startswith("COGNITIVE_GATE:") for token in item.why_tokens)
+        for item in explanations
+    )
+    assert all(
+        any(
+            token.startswith("OBSERVED:")
+            for token in item.audit_record.observations
+        )
+        for item in explanations
     )
     assert frame.strategy_decision_allowed is False
     assert frame.outcome_visibility is False
