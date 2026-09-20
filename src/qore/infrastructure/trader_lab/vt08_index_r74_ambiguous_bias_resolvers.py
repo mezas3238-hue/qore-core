@@ -314,6 +314,7 @@ def _period_blocks(
     end_date: date,
     stress: Decimal,
 ) -> dict[str, Any]:
+    boundaries: tuple[date, ...]
     if start_date == r66.START_DATE and end_date == r66.END_DATE_EXCLUSIVE:
         boundaries = (
             r66.START_DATE,
