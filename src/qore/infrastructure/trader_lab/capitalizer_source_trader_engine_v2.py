@@ -25,6 +25,10 @@ from qore.infrastructure.trader_lab.capitalizer_exposure_graph import Capitalize
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerFailureToManipulateObservation,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
+    CapitalizerDailyBiasObservation,
+    CapitalizerDailyBiasResolution,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_fractal_alignment_v2 import (
     CapitalizerFractalAlignmentObservation,
 )
@@ -67,7 +71,7 @@ class CapitalizerSourceTraderEngineFacts:
     route: CapitalizerSourceEntryRoute
     cognitive_gate_decision: CapitalizerCognitiveGateDecision
     source_session: CapitalizerSourceSessionAssessment
-    higher_timeframe_bias: CapitalizerSourceDirection
+    daily_bias: CapitalizerDailyBiasObservation
     entry_price: Decimal
     protected_swing: CapitalizerProtectedSwingObservation
     structural_target: CapitalizerStructuralTargetObservation
@@ -149,7 +153,10 @@ def assess_source_trader_engine(
     """Compose reviewed source observations into one pre-Risk trader decision."""
 
     intended_direction = _direction_for_side(facts.side)
-    htf_aligned = facts.higher_timeframe_bias is intended_direction
+    htf_aligned = (
+        facts.daily_bias.resolution is CapitalizerDailyBiasResolution.CONFIRMED
+        and facts.daily_bias.direction is intended_direction
+    )
     protected_available = (
         facts.protected_swing.confirmed
         and facts.protected_swing.direction is intended_direction
