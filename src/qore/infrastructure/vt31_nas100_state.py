@@ -47,6 +47,7 @@ class Vt31VirtualOrderState:
     risk_ref: str | None
     current_path_vs_previous: str | None
     rearm_quality: str | None = None
+    target_plan: str = "UNAVAILABLE"
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +89,8 @@ class Vt31PendingBrokerOrderState:
     risk_ref: str | None
     current_path_vs_previous: str | None
     rearm_quality: str | None = None
+    target_plan: str = "UNAVAILABLE"
+    provider_order_ref: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +130,13 @@ class Vt31OpenTradeState:
     breaker_lock_armed: bool = False
     ps_confirmations: int = 0
     lifecycle_exit_due_at: str | None = None
+    target_plan: str = "UNAVAILABLE"
+    base_three_r_be_armed: bool = False
+    base_runner_be_active: bool = False
+    base_partial_arm_after: str | None = None
+    equilibrium_overlay_active: bool = False
+    dol1_acceptance_pending: bool = False
+    dol1_touch_closed_at: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
