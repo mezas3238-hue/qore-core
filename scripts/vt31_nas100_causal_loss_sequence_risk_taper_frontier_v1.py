@@ -102,14 +102,6 @@ def _apply_history(
     return adjusted
 
 
-def _path_metrics(values: list[Decimal]) -> tuple[Decimal, Decimal]:
-    equity = Decimal(0)
-    peak = Decimal(0)
-    max_dd = Decimal(0)
-    loss_streak = 0
-    return equity, max_dd
-
-
 def _sequence_mc(
     rows: list[dict[str, object]],
     *,
