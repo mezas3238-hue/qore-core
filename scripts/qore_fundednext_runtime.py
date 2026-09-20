@@ -1613,6 +1613,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r43_short_overlay_scale": "0.005",
             "r43_rank2_overlay_scale": "0.25",
             "r43_memory_sha256": "e4a79978c0144e0b97c19ce3ee18040e62a02efe891b204fc724e4a0016734ae",
+            **vt31_runtime_started_fields(),
             "loaded_traders": [
                 "VT08",
                 "TURTLE_SOUP_XAUUSD_R34",
@@ -1620,6 +1621,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 "TURTLE_SOUP_GBPUSD_R43",
                 "TURTLE_SOUP_GBPJPY_R38",
                 "TURTLE_SOUP_AUDJPY_R42",
+                "VT31_NAS100",
             ],
             "single_mt5_writer": True,
             "account_wide_risk_active": True,
