@@ -1,0 +1,159 @@
+name: QORE VT31 NAS100 MC Terminal Failure Block Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_mc_terminal_failure_block_forensics_v1.py
+      - .github/workflows/vt31-nas100-mc-terminal-failure-block-forensics-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_mc_terminal_failure_block_forensics_v1.py
+          ruff check scripts/vt31_nas100_mc_terminal_failure_block_forensics_v1.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run MC failure-block forensics
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_mc_terminal_failure_block_forensics_v1.py \
+            "input/${EVIDENCE_PATH}" \
+            --partition "$PARTITION" \
+            --output "result/mc-failure-block-${PARTITION}.json" \
+            | tee "result/summary-${PARTITION}.json"
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path(f"result/mc-failure-block-{os.environ['PARTITION']}.json").read_text())
+          g=p["governance"]
+          assert g["diagnostic_only"] is True
+          assert g["block_identity_runtime_forbidden"] is True
+          assert g["calendar_date_runtime_forbidden"] is True
+          assert g["h4_h1_excluded_from_causal_motifs"] is True
+          assert g["terminal_path_sign_research_label_only"] is True
+          assert g["trade_policy_changed"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["policy_promoted"] is False
+          assert g["candidate_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-mc-failure-block-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-mc-failure-block-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate cross-fold motifs
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("mc-failure-block-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          feature_maps={}
+          for fold,p in folds.items():
+              feature_maps[fold]={
+                  item["feature"]:item
+                  for item in p["top_causal_feature_enrichment"]
+              }
+
+          common=set.intersection(*(set(x) for x in feature_maps.values()))
+          stable=[]
+          for feature in sorted(common):
+              per={fold:feature_maps[fold][feature] for fold in sorted(folds)}
+              if all(float(item["enrichment"])>1.0 for item in per.values()):
+                  stable.append({"feature":feature,"per_fold":per})
+          stable.sort(
+              key=lambda x:min(float(i["enrichment"]) for i in x["per_fold"].values()),
+              reverse=True,
+          )
+
+          report={
+              "schema":"qore.vt31.nas100.mc_terminal_failure_block_forensics.aggregate.v1",
+              "monte_carlo":{fold:p["monte_carlo"] for fold,p in sorted(folds.items())},
+              "stable_failure_enriched_causal_features":stable,
+              "top_loss_path_counts":{fold:p["top_block_loss_path_counts"] for fold,p in sorted(folds.items())},
+              "all_loss_path_counts":{fold:p["all_block_loss_path_counts"] for fold,p in sorted(folds.items())},
+              "top_blocks":{fold:p["top_failure_enriched_blocks"][:15] for fold,p in sorted(folds.items())},
+              "governance":{"diagnostic_only":True,"block_identity_runtime_forbidden":True,"opens_new_holdout":False,"policy_promoted":False,"candidate_certified":False},
+          }
+          Path("result/aggregate.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-mc-failure-block-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
