@@ -100,6 +100,35 @@ The enum establishes authority class semantics only. It does not claim that a pa
 official. Official-source verification belongs to the certifier/adapter boundary and is recorded
 by the certificate.
 
+## Verifier trust root
+
+A certificate is not trusted merely because it contains a verifier UUID.
+
+`PolicyVerifierRegistrySnapshot` is the explicit trust anchor consumed by the Risk-facing
+registry. Each `CertifiedPolicyVerifier` declares:
+
+```text
+verifier_ref
+authorized_at
+valid_until
+may_certify_policies
+allowed source-authority classes
+revoked_at
+```
+
+At resolution time Risk rejects:
+
+- unknown/self-declared verifier references;
+- expired or revoked verifiers;
+- a verifier that is not authorized to certify normalized policies;
+- a source verifier acting outside its certified authority class.
+
+Therefore:
+
+```text
+CERTIFICATE WITHOUT TRUSTED VERIFIER != CERTIFIED POLICY
+```
+
 ## Source evidence
 
 `CertifiedPolicySourceEvidence` contains:
@@ -259,6 +288,8 @@ source verification/certification.
 - policy certification cannot outlive evidence;
 - Risk resolves a current certified TRAILING policy;
 - raw uncertified policies are rejected by the Risk registry;
+- untrusted/self-declared verifier rejection;
+- verifier source-authority scoping;
 - source revocation fails closed;
 - certification expiry fails closed;
 - underlying UNKNOWN policy semantics still fail closed;
