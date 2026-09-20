@@ -10,8 +10,12 @@ from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.trader_execution_profile import M1_PROFILE, M5_PROFILE
 from qore.infrastructure.vt31_nas100_live import (
+    CERTIFICATION_REPORT_SHA256,
     DECISION_DEADLINE,
+    EXECUTION_BINDING_FINGERPRINT,
+    EXECUTION_BINDING_ID,
     MAX_BROKER_TICK_AGE,
+    TARGET_ARCHITECTURE_ID,
     Vt31Nas100LiveError,
     Vt31Nas100SlaExpired,
     Vt31RiskContext,
@@ -63,6 +67,22 @@ def _candidate(*, entry: str, expires_at: datetime) -> Vt31VirtualCandidate:
         stop_loss=Decimal(entry) - Decimal("10"),
         take_profit=Decimal(entry) + Decimal("20"),
     )
+
+
+def test_certified_v4_execution_binding_is_exact() -> None:
+    assert (
+        EXECUTION_BINDING_ID
+        == "VT31_NAS100_STRUCTURAL_TARGET_EXECUTION_BINDING_V4"
+    )
+    assert (
+        EXECUTION_BINDING_FINGERPRINT
+        == "e85ecc5d82f6c59061afd68863b0f641a3512b1cf132f3b8fb01be324ce7e842"
+    )
+    assert (
+        CERTIFICATION_REPORT_SHA256
+        == "0d3aaa077cf8e7de27a08fcd84a7b83f62ee45561bd4deba3a19ebe6e13e9018"
+    )
+    assert TARGET_ARCHITECTURE_ID == "EQ50_COMPRESSED_ACCEPT_RUN25_PHYSICAL_V4"
 
 
 def test_execution_profiles_are_frozen_per_timeframe() -> None:
