@@ -298,7 +298,7 @@ def _market(
         if side is None:
             continue
 
-        for row in _intra_h4_executables(
+        for intra_row in _intra_h4_executables(
             symbol=symbol,
             indexed=indexed,
             h4=h4,
@@ -307,13 +307,13 @@ def _market(
             side=side,
         ):
             key = (
-                row.event.symbol,
-                row.continuation_at.astimezone(UTC),
-                row.event.side.value,
-                row.entry,
-                row.event.protected_swing,
+                intra_row.event.symbol,
+                intra_row.continuation_at.astimezone(UTC),
+                intra_row.event.side.value,
+                intra_row.entry,
+                intra_row.event.protected_swing,
             )
-            intra.setdefault(key, row)
+            intra.setdefault(key, intra_row)
 
         closure = _closure_kind(
             h4,
@@ -381,7 +381,7 @@ def _market(
             continue
 
         for candidate in candidates:
-            row = _carry_from_candidate(
+            carry_row = _carry_from_candidate(
                 symbol=symbol,
                 formation_opened=opened,
                 execution_opened=next_open,
@@ -390,14 +390,16 @@ def _market(
                 formation_inside=formation_inside,
                 execution_inside=execution_inside,
             )
-            if row is None:
+            if carry_row is None:
                 continue
-            carry.setdefault(row.identity(), row)
+            carry.setdefault(carry_row.identity(), carry_row)
 
-    for row in carry.values():
-        carry_by_closure[row.closure_kind] += 1
+    for carry_row in carry.values():
+        carry_by_closure[carry_row.closure_kind] += 1
         carry_by_formation_anchor[
-            str(row.formation_h4_opened_at.astimezone(v7._NY).hour)
+            str(
+                carry_row.formation_h4_opened_at.astimezone(v7._NY).hour
+            )
         ] += 1
 
     exact_overlap = len(set(intra) & set(carry))
