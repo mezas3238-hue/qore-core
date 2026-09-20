@@ -33,6 +33,7 @@ from typing import cast
 import vt31_nas100_alt_tier_bifurcation_forensics_v1 as alt
 import vt31_nas100_capacity_selective_target_ladder_v1 as frontier
 import vt31_nas100_causal_hybrid_rearm_v1 as engine
+import vt31_nas100_r5_causal_state_risk_shield_frontier_v1 as annuals
 import vt31_nas100_residual_regime_forensics_v2 as residual
 
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_2 import (
@@ -166,15 +167,13 @@ def evaluate(
         variant=f"{CANDIDATE_ID}:{partition}",
     )
 
-    result: dict[str, object] = {
-        "schema": SCHEMA,
+    annual = (\n        annuals._annual_blocks(\n            adjusted,\n            start=date(2022, 7, 18),\n            years=2,\n        )\n        if partition == "consumed_holdout"\n        else []\n    )\n\n    result: dict[str, object] = {\n        "schema": SCHEMA,
         "candidate_id": CANDIDATE_ID,
         "selected_variant": SELECTED_VARIANT,
         "contract_fingerprint": contract_fingerprint(),
         "trade_count": len(adjusted),
         "metrics": metrics,
-        "monte_carlo": mc,
-        "ladder_diagnostics": ladder_diag,
+        "monte_carlo": mc,\n        "annual_blocks": annual,\n        "ladder_diagnostics": ladder_diag,
         "source_stats": source_stats,
         "diagnostics": diagnostics,
         "evidence": {
