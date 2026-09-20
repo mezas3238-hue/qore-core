@@ -45,6 +45,7 @@ from qore.infrastructure.trader_lab.capitalizer_memory import (
 )
 from qore.infrastructure.trader_lab.capitalizer_metacognition_v2 import (
     CapitalizerEpistemicReadiness,
+    CapitalizerMetacognitiveAssessment,
     CapitalizerMetacognitiveFacts,
     assess_metacognition,
 )
@@ -113,7 +114,7 @@ def _world(
     )
 
 
-def _well_supported_metacognition():
+def _well_supported_metacognition() -> CapitalizerMetacognitiveAssessment:
     return assess_metacognition(
         CapitalizerMetacognitiveFacts(
             knowledge=CapitalizerKnowledgeState.KNOWN,
