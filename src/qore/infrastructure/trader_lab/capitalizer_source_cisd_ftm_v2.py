@@ -106,6 +106,7 @@ class CapitalizerFailureToManipulateObservation:
     continuation_direction: CapitalizerSourceDirection
     expected_reversal_direction: CapitalizerSourceDirection
     level_taken: bool
+    post_sweep_closure_observed: bool
     expected_reversal_cisd_confirmed: bool
     continuation_protected_swing_confirmed: bool
     higher_timeframe_bias_aligned: bool
@@ -117,6 +118,7 @@ def assess_failure_to_manipulate(
     *,
     taken_side: CapitalizerLiquiditySideTaken,
     level_taken: bool,
+    post_sweep_closure_observed: bool,
     expected_reversal_cisd: CapitalizerCISDObservation | None,
     continuation_protected_swing: CapitalizerProtectedSwingObservation | None,
     higher_timeframe_bias: CapitalizerSourceDirection,
@@ -144,6 +146,7 @@ def assess_failure_to_manipulate(
 
     confirmed = (
         level_taken
+        and post_sweep_closure_observed
         and not reversal_confirmed
         and continuation_confirmed
         and htf_aligned
@@ -154,12 +157,16 @@ def assess_failure_to_manipulate(
         continuation_direction=continuation,
         expected_reversal_direction=expected_reversal,
         level_taken=level_taken,
+        post_sweep_closure_observed=post_sweep_closure_observed,
         expected_reversal_cisd_confirmed=reversal_confirmed,
         continuation_protected_swing_confirmed=continuation_confirmed,
         higher_timeframe_bias_aligned=htf_aligned,
         confirmed=confirmed,
         reasons=(
             "LIQUIDITY_LEVEL_TAKEN" if level_taken else "LIQUIDITY_LEVEL_NOT_TAKEN",
+            "POST_SWEEP_CLOSURE_OBSERVED"
+            if post_sweep_closure_observed
+            else "POST_SWEEP_CLOSURE_NOT_OBSERVED",
             "EXPECTED_REVERSAL_CISD_CONFIRMED"
             if reversal_confirmed
             else "EXPECTED_REVERSAL_CISD_FAILED_TO_CONFIRM",
