@@ -1,12 +1,12 @@
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import (
     COGNITIVE_LAYER_ORDER,
+    FROZEN_MASTER_COGNITIVE_CONTRACT,
     NINE_MARKET_UNIVERSE,
     RESEARCH_PHASE_ORDER,
     CapitalizerAttentionState,
     CapitalizerCognitiveLayer,
     CapitalizerHypothesisStage,
     CapitalizerResearchPhase,
-    FROZEN_MASTER_COGNITIVE_CONTRACT,
 )
 
 
