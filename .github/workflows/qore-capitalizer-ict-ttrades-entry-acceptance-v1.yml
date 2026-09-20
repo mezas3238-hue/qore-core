@@ -46,6 +46,7 @@ jobs:
           from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 import (
               CapitalizerDualSourceEntryFacts,
               CapitalizerEntryAcceptanceState,
+              CapitalizerM1EntryStructureFacts,
               assess_dual_source_entry,
           )
 
@@ -68,10 +69,31 @@ jobs:
               ttrades_protected_swing_confirmed=True,
               ttrades_continuation_confirmed=True,
               ttrades_wick_formation_confirmed=True,
+              m1_entry_structure=CapitalizerM1EntryStructureFacts(
+                  market_structure_shift_confirmed=True,
+                  fair_value_gap_confirmed=True,
+                  order_block_confirmed=True,
+              ),
           )
           accepted = assess_dual_source_entry(CapitalizerDualSourceEntryFacts(**base))
           assert accepted.state is CapitalizerEntryAcceptanceState.ACCEPTABLE_FOR_QORE_RISK
           assert accepted.passes_to_qore_risk is True
+
+          for m1_field in (
+              'market_structure_shift_confirmed',
+              'fair_value_gap_confirmed',
+              'order_block_confirmed',
+          ):
+              m1 = dict(
+                  market_structure_shift_confirmed=True,
+                  fair_value_gap_confirmed=True,
+                  order_block_confirmed=True,
+              )
+              m1[m1_field] = False
+              failed = dict(base)
+              failed['m1_entry_structure'] = CapitalizerM1EntryStructureFacts(**m1)
+              result = assess_dual_source_entry(CapitalizerDualSourceEntryFacts(**failed))
+              assert result.passes_to_qore_risk is False, m1_field
 
           for key in (
               'ict_liquidity_raid_observed',
