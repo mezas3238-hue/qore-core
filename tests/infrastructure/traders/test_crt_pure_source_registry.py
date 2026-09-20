@@ -15,12 +15,15 @@ from qore.infrastructure.traders.crt_pure_source_registry import (
 )
 
 
-def test_required_concepts_are_unique_and_only_mob_is_promotable() -> None:
+def test_required_concepts_are_unique_and_only_primary_closed_concepts_promote() -> None:
     assert len(CRT_PURE_REQUIRED_CONCEPTS) == len(set(CRT_PURE_REQUIRED_CONCEPTS))
-    assert promotable_concepts() == (CrtPureConceptId.MAKE_OR_BREAK_LEVEL,)
-    assert set(pending_concepts()) == (
-        set(CRT_PURE_REQUIRED_CONCEPTS) - {CrtPureConceptId.MAKE_OR_BREAK_LEVEL}
-    )
+    promoted = {
+        CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
+        CrtPureConceptId.MARKET_TIMEFRAME_SCOPE,
+        CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
+    }
+    assert set(promotable_concepts()) == promoted
+    assert set(pending_concepts()) == set(CRT_PURE_REQUIRED_CONCEPTS) - promoted
 
 
 def test_level_b_cannot_create_canonical_methodology_rule() -> None:
@@ -92,9 +95,15 @@ def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
         CrtPureConceptId.SESSION_TIME_RULES,
         CrtPureConceptId.ENTRY_FAMILIES,
         CrtPureConceptId.STRUCTURAL_DESTINATION,
+        CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
+        CrtPureConceptId.MARKET_TIMEFRAME_SCOPE,
         CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
     }
-    assert promotable_concepts() == (CrtPureConceptId.MAKE_OR_BREAK_LEVEL,)
+    assert set(promotable_concepts()) == {
+        CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
+        CrtPureConceptId.MARKET_TIMEFRAME_SCOPE,
+        CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
+    }
 
 
 def test_level_b_corroboration_never_promotes_core_crt_concepts() -> None:
