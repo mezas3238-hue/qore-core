@@ -11,7 +11,6 @@ from decimal import Decimal
 from enum import StrEnum
 
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
-
 from qore.infrastructure.trader_lab.capitalizer_situation_model import (
     CapitalizerSituationModel,
 )
