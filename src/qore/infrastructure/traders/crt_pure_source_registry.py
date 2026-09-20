@@ -107,8 +107,89 @@ class CrtPureConceptRecord:
 CRT_PURE_REQUIRED_CONCEPTS: tuple[CrtPureConceptId, ...] = tuple(CrtPureConceptId)
 
 
+_DISCOVERED_LEVEL_A_EVIDENCE: dict[
+    CrtPureConceptId,
+    tuple[CrtPureSourceEvidence, ...],
+] = {
+    CrtPureConceptId.SESSION_TIME_RULES: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.SESSION_TIME_RULES,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?after=6244",
+            normalized_statement=(
+                "RomeoTPT published market-family timing notation: "
+                "Forex 159159; Index futures 26102610; Crypto 12481248."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "The post does not by itself define machine semantics, timezone, "
+                "anchor interpretation, eligible candles, or execution windows."
+            ),
+        ),
+    ),
+    CrtPureConceptId.TIMEFRAME_HIERARCHY: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.TIMEFRAME_HIERARCHY,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?after=6244",
+            normalized_statement=(
+                "RomeoTPT states that the lower-timeframe picture can be difficult "
+                "to see and that moving to a higher timeframe can make the answer clearer."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "This supports higher-timeframe contextual relevance but does not "
+                "define a fixed top-down mapping or executable timeframe ladder."
+            ),
+        ),
+    ),
+    CrtPureConceptId.EQUILIBRIUM: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.EQUILIBRIUM,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram around CRT Secrets episode 8",
+            locator="https://t.me/s/officialRomeotpt?before=6461",
+            normalized_statement=(
+                "RomeoTPT references trading CRT highs/lows toward the 50 percent area."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "This is not enough to freeze 50 percent as a universal target, "
+                "partial, equilibrium rule, stop rule, or exit policy."
+            ),
+        ),
+    ),
+    CrtPureConceptId.ENTRY_FAMILIES: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.ENTRY_FAMILIES,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt",
+            normalized_statement=(
+                "RomeoTPT states that some trades are entered after chart analysis "
+                "and price action provides a reason, while some entries are based on time."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "The post establishes more than one entry context but does not define "
+                "the exact CRT entry families or their deterministic triggers."
+            ),
+        ),
+    ),
+}
+
+
 CRT_PURE_SOURCE_REGISTRY: tuple[CrtPureConceptRecord, ...] = tuple(
-    CrtPureConceptRecord(concept_id=concept_id)
+    CrtPureConceptRecord(
+        concept_id=concept_id,
+        evidence=_DISCOVERED_LEVEL_A_EVIDENCE.get(concept_id, ()),
+    )
     for concept_id in CRT_PURE_REQUIRED_CONCEPTS
 )
 
@@ -120,4 +201,14 @@ def pending_concepts() -> tuple[CrtPureConceptId, ...]:
         record.concept_id
         for record in CRT_PURE_SOURCE_REGISTRY
         if not record.promotable_to_strategy_identity
+    )
+
+
+def evidence_backed_concepts() -> tuple[CrtPureConceptId, ...]:
+    """Return concepts with discovered source evidence, regardless of promotion state."""
+
+    return tuple(
+        record.concept_id
+        for record in CRT_PURE_SOURCE_REGISTRY
+        if record.evidence
     )
