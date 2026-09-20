@@ -20,10 +20,10 @@ from qore.infrastructure.trader_lab.capitalizer_integrated_replay_v1 import (
     run_integrated_replay,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_strategy_grammar_v2 import (
-    SOURCE_STRATEGY_GRAMMAR_ID,
     CapitalizerSourceEntryRoute,
     CapitalizerSourceStrategyAssessment,
     CapitalizerSourceStrategyDecision,
+    SOURCE_STRATEGY_GRAMMAR_ID,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_trade_plan_v2 import (
     CapitalizerSourceTargetKind,
