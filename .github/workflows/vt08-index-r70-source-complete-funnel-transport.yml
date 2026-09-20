@@ -1,0 +1,124 @@
+name: VT08 Index R70 Source Complete Funnel Transport
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r70-source-complete-funnel-transport.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r70_source_complete_funnel_transport.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r70_source_complete_funnel_transport.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r70_source_complete_funnel_transport.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R70 funnel forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r70_source_complete_funnel_transport \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r70-source-complete-funnel-transport.json
+
+      - name: Verify R70 canonical reconstruction and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r70-source-complete-funnel-transport.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R70_SOURCE_COMPLETE_FUNNEL_TRANSPORT_FORENSICS_001"
+          )
+          assert report["five_year"]["canonical_signal_count"] == 2448
+          assert report["recent_two_year"]["canonical_signal_count"] == 1017
+          assert report["r66_failed_holdout"]["canonical_signal_count"] == 773
+          assert report["source_failure"]["r66_density_gate"] == 1000
+          assert report["generator_contract"]["anchors_new_york"] == [2, 6, 10]
+          assert report["generator_contract"]["source_poi_lookback_h4"] == 3
+          assert report["decision"] == (
+              "R70_FUNNEL_FORENSICS_COMPLETE_NO_CANDIDATE"
+          )
+          governance = report["governance"]
+          assert governance["forensics_only"] is True
+          assert governance["generator_modified"] is False
+          assert governance["anchors_added"] is False
+          assert governance["poi_families_added"] is False
+          assert governance["lookback_changed"] is False
+          assert governance["signals_added"] is False
+          assert governance["signals_suppressed"] is False
+          assert governance["risk_changed"] is False
+          assert governance["management_changed"] is False
+          assert governance["calendar_or_year_runtime_feature"] is False
+          assert governance["post_entry_outcome_used"] is False
+          assert governance["replacement_candidate_created"] is False
+          assert governance["trader_certified"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Upload R70 evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r70-source-complete-funnel-transport-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: warn
+          retention-days: 90
