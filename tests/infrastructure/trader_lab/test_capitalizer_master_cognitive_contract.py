@@ -17,6 +17,13 @@ def test_master_cognitive_contract_freezes_nine_market_max3_architecture() -> No
     assert contract.market_universe == NINE_MARKET_UNIVERSE
     assert contract.max_executions_per_session == 3
     assert contract.max_theoretical_daily_executions == 9
+    assert contract.market_family_research_target_count == 9
+    assert contract.cibo_research_horizon_years == 10
+    assert contract.target_drawdown_min_r == 3
+    assert contract.target_drawdown_max_r == 5
+    assert contract.absolute_max_drawdown_r == 6
+    assert contract.cibo_immutable_research_copy_required is True
+    assert contract.every_decision_requires_causal_why is True
     assert contract.max3_is_ceiling_not_quota is True
     assert contract.positive_pnl_alone_stops_session is False
     assert contract.positions_close_inside_session is True
@@ -72,3 +79,13 @@ def test_attention_and_hypothesis_lifecycle_are_explicit() -> None:
     )
     assert CapitalizerHypothesisStage.HYPOTHESIS_FORMING.value == "HYPOTHESIS_FORMING"
     assert CapitalizerHypothesisStage.THESIS_KILLED.value == "THESIS_KILLED"
+
+
+def test_source_contract_no_longer_contains_obsolete_max2_rule() -> None:
+    from qore.infrastructure.trader_lab.capitalizer_strategy_source_contract import (
+        FROZEN_CAPITALIZER_SOURCE_CONTRACT,
+    )
+
+    rule_ids = {rule.rule_id for rule in FROZEN_CAPITALIZER_SOURCE_CONTRACT.rules}
+    assert "QORE_MAX_THREE_EXECUTIONS_PER_SESSION" in rule_ids
+    assert "QORE_MAX_TWO_EXECUTIONS_PER_SESSION" not in rule_ids
