@@ -175,7 +175,7 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path $RulesRefreshPath)) {
     throw "Automated provider-rule verification failed"
 }
 $RulesRefresh = Get-Content -Raw $RulesRefreshPath | ConvertFrom-Json
-if ([string]$RulesRefresh.schema -ne "qore.fundednext.provider-rules-refresh.v2") {
+if ([string]$RulesRefresh.schema -ne "qore.fundednext.provider-rules-refresh.v3") {
     throw "Provider-rule verification schema mismatch"
 }
 if ([string]$RulesRefresh.provider_rules_fingerprint -ne [string]$Activation.provider_rules_fingerprint) {
@@ -187,7 +187,13 @@ if (
     -not [bool]$RulesRefresh.facts.trailing_maximum_loss -or
     -not [bool]$RulesRefresh.facts.ea_allowed_mt5 -or
     [string]$RulesRefresh.facts.cumulative_open_risk_fraction -ne "0.03" -or
-    -not [bool]$RulesRefresh.facts.cumulative_open_risk_applies
+    [string]$RulesRefresh.facts.reclassified_open_risk_fraction -ne "0.01" -or
+    -not [bool]$RulesRefresh.facts.cumulative_open_risk_applies -or
+    -not [bool]$RulesRefresh.facts.stop_loss_required -or
+    [int]$RulesRefresh.facts.quick_strike_seconds -ne 30 -or
+    [string]$RulesRefresh.facts.news_profit_attribution_fraction -ne "0.40" -or
+    [int]$RulesRefresh.facts.inactivity_calendar_days -ne 30 -or
+    [bool]$RulesRefresh.facts.account_merging_allowed
 ) {
     throw "Provider-rule verification facts do not match the frozen Stellar Instant contract"
 }
@@ -240,6 +246,9 @@ try {
         manual_rule_expiry_required = $false
         provider_maximum_loss_fraction = "0.06"
         provider_cumulative_open_risk_fraction = "0.03"
+        provider_reclassified_open_risk_fraction = "0.01"
+        provider_stop_loss_required = $true
+        certified_policy_schema = "qore.fundednext.provider-rules-refresh.v3"
         resident_runtime_mode = "LIVE_ARMED_WAITING_FOR_GENUINE_VT08_SIGNAL"
         runtime_pid = [int]$Process.ProcessId
         service_started_at = [string]$State.service_started_at
