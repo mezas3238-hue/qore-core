@@ -15,8 +15,8 @@ from typing import Final
 
 from qore.infrastructure.traders.crt_pure_identity import CRT_PURE_IDENTITY
 from qore.infrastructure.traders.crt_pure_source_registry import (
-    CRT_PURE_SOURCE_REGISTRY,
     CrtPureConceptId,
+    CRT_PURE_SOURCE_REGISTRY,
     promotable_concepts,
 )
 
