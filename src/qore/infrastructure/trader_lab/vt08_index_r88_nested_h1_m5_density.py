@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from bisect import bisect_left
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -226,11 +227,13 @@ def _prior_keys(
 def _h1_source_pois(
     *,
     h1: dict[datetime, Vt08IndexC2R1Bar],
+    h1_keys: tuple[datetime, ...],
     components: dict[datetime, tuple[Vt08IndexC2R1Bar, ...]],
     before: datetime,
     side: DemoTradingSetupSide,
 ) -> tuple[v6.SourcePoi, ...]:
-    keys = _prior_keys(h1, before=before, count=3)
+    stop = bisect_left(h1_keys, before.astimezone(UTC))
+    keys = h1_keys[max(0, stop - 3) : stop]
     if len(keys) < 3:
         return ()
     a, b, c = (h1[key] for key in keys)
@@ -376,7 +379,8 @@ def _market(
     *,
     symbol: str,
     m15: Sequence[Vt08IndexC2R1Bar],
-    m5: Sequence[Vt08IndexC2R1Bar],
+    h1: dict[datetime, Vt08IndexC2R1Bar],
+    h1_components: dict[datetime, tuple[Vt08IndexC2R1Bar, ...]],
     start_date: Any,
     end_date: Any,
 ) -> dict[str, Any]:
@@ -385,7 +389,7 @@ def _market(
         for bar in m15
     }
     h4 = v6._build_h4(m15_indexed)
-    h1, h1_components = _complete_h1(m5)
+    h1_keys = tuple(sorted(h1))
     side_cache: dict[Any, DemoTradingSetupSide | None] = {}
 
     rows: dict[tuple[object, ...], NestedExecutable] = {}
@@ -425,6 +429,7 @@ def _market(
 
             pois = _h1_source_pois(
                 h1=h1,
+                h1_keys=h1_keys,
                 components=h1_components,
                 before=h1_opened,
                 side=side,
@@ -497,8 +502,12 @@ def _market(
 def _window(
     *,
     roots: dict[str, Path],
-    raw_m5: dict[str, tuple[Vt08IndexC2R1Bar, ...]],
     raw_provenance: dict[str, Any],
+    h1_by_symbol: dict[str, dict[datetime, Vt08IndexC2R1Bar]],
+    h1_components_by_symbol: dict[
+        str,
+        dict[datetime, tuple[Vt08IndexC2R1Bar, ...]],
+    ],
     window_id: str,
 ) -> dict[str, Any]:
     _stream, m15_by_symbol, m15_provenance = r74._load_window(
@@ -511,7 +520,8 @@ def _window(
         symbol: _market(
             symbol=symbol,
             m15=m15_by_symbol[symbol],
-            m5=raw_m5[symbol],
+            h1=h1_by_symbol[symbol],
+            h1_components=h1_components_by_symbol[symbol],
             start_date=start_date,
             end_date=end_date,
         )
@@ -586,32 +596,41 @@ def build_report(
         "SP500": sp500_root,
         "US30": us30_root,
     }
-    raw_m5: dict[str, tuple[Vt08IndexC2R1Bar, ...]] = {}
     raw_provenance: dict[str, Any] = {}
+    h1_by_symbol: dict[str, dict[datetime, Vt08IndexC2R1Bar]] = {}
+    h1_components_by_symbol: dict[
+        str,
+        dict[datetime, tuple[Vt08IndexC2R1Bar, ...]],
+    ] = {}
     for symbol in contract.MARKETS:
         bars, provenance = _load_raw_m5(
             roots[symbol],
             symbol=symbol,
         )
-        raw_m5[symbol] = bars
+        h1, components = _complete_h1(bars)
+        h1_by_symbol[symbol] = h1
+        h1_components_by_symbol[symbol] = components
         raw_provenance[symbol] = provenance
 
     five = _window(
         roots=roots,
-        raw_m5=raw_m5,
         raw_provenance=raw_provenance,
+        h1_by_symbol=h1_by_symbol,
+        h1_components_by_symbol=h1_components_by_symbol,
         window_id="5Y",
     )
     two = _window(
         roots=roots,
-        raw_m5=raw_m5,
         raw_provenance=raw_provenance,
+        h1_by_symbol=h1_by_symbol,
+        h1_components_by_symbol=h1_components_by_symbol,
         window_id="2Y",
     )
     failed = _window(
         roots=roots,
-        raw_m5=raw_m5,
         raw_provenance=raw_provenance,
+        h1_by_symbol=h1_by_symbol,
+        h1_components_by_symbol=h1_components_by_symbol,
         window_id="R66",
     )
 
