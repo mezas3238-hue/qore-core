@@ -223,9 +223,13 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
 
     adjusted, binding_diag = _physicalize(rows, by_day=by_day)
     metrics = residual._metrics(adjusted)
+    # Common-random-number comparison: V4 is an execution-only
+    # physicalization of the already-frozen path-causal economics. Using the
+    # same bootstrap stream prevents an unchanged PnL sequence from passing or
+    # failing solely because the experiment label changed.
     mc = engine._monte_carlo(
         adjusted,
-        variant=f"EXECUTION_BINDING_V4:{partition}",
+        variant=f"PATH_CAUSAL_TARGET:{partition}",
     )
     annual = (
         annuals._annual_blocks(
@@ -295,6 +299,8 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
             "opens_new_holdout": False,
             "candidate_certified": False,
             "live_authorized": False,
+            "monte_carlo_common_random_numbers": True,
+            "monte_carlo_seed_identity": "PATH_CAUSAL_TARGET:<partition>",
             "production_authorized": False,
         },
     }
