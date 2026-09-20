@@ -70,6 +70,7 @@ def test_native_m1_entry_requires_mss_fvg_ob_then_retest() -> None:
         signal_at=bars[4].opened_at,
         side=CapitalizerSide.LONG,
         target=Decimal("106"),
+        stop=Decimal("100"),
     )
 
     assert reason == "M1_ENTRY_CONFIRMED"
@@ -103,6 +104,7 @@ def test_missing_m1_order_block_is_fail_closed() -> None:
         signal_at=bars[4].opened_at,
         side=CapitalizerSide.LONG,
         target=Decimal("106"),
+        stop=Decimal("100"),
     )
 
     assert setup is None
@@ -111,13 +113,14 @@ def test_missing_m1_order_block_is_fail_closed() -> None:
     assert reason == "M1_ORDER_BLOCK_NOT_CONFIRMED"
 
 
-def test_native_m1_lifecycle_uses_structural_ob_extreme_stop() -> None:
+def test_native_m1_lifecycle_preserves_higher_level_stop() -> None:
     bars = _long_pattern()
     setup, entry_index, entry_price, _ = _find_entry(
         bars,
         signal_at=bars[4].opened_at,
         side=CapitalizerSide.LONG,
         target=Decimal("106"),
+        stop=Decimal("100"),
     )
     assert setup is not None and entry_index is not None and entry_price is not None
 
@@ -126,11 +129,11 @@ def test_native_m1_lifecycle_uses_structural_ob_extreme_stop() -> None:
         entry_index=entry_index,
         side=CapitalizerSide.LONG,
         entry_price=entry_price,
-        stop_price=setup.protected_swing,
+        stop_price=Decimal("100"),
         target_price=Decimal("106"),
     )
 
-    assert realized == Decimal("4")
+    assert realized == Decimal("2")
     assert reason == "TARGET"
     assert held == 2
     assert ambiguous is False
