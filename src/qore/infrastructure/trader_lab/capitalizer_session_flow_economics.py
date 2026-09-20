@@ -53,6 +53,33 @@ class CapitalizerOrdinalEconomics:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalizerSymbolOrdinalEconomics:
+    policy: str
+    tie_policy: str
+    symbol: str
+    session: str
+    ordinal: int
+    trades: int
+    prior_realized_positive: int
+    prior_realized_nonpositive: int
+    prior_positive_metrics: PortfolioFlowMetrics | None
+    prior_nonpositive_metrics: PortfolioFlowMetrics | None
+    metrics: PortfolioFlowMetrics
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalizerSymbolSelectionEconomics:
+    policy: str
+    tie_policy: str
+    symbol: str
+    baseline_opportunities: int
+    selected_opportunities: int
+    opportunities_not_selected: int
+    selection_rate: str
+    metrics: PortfolioFlowMetrics | None
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalizerPolicyEconomics:
     policy: str
     tie_policy: str
@@ -94,6 +121,8 @@ class CapitalizerSessionFlowEconomicsReport:
     baseline_opportunities: int
     policy_economics: tuple[CapitalizerPolicyEconomics, ...]
     ordinal_economics: tuple[CapitalizerOrdinalEconomics, ...]
+    symbol_ordinal_economics: tuple[CapitalizerSymbolOrdinalEconomics, ...]
+    symbol_selection_economics: tuple[CapitalizerSymbolSelectionEconomics, ...]
     same_session_exit_verified: bool = True
     max_executions_per_session: int = 3
     positive_pnl_is_not_stop_condition: bool = True
@@ -370,6 +399,85 @@ def _ordinal_economics(
     return tuple(cells)
 
 
+def _symbol_economics(
+    trades: tuple[PortfolioFlowTrade, ...],
+    *,
+    policy: str,
+    tie_policy: str,
+) -> tuple[
+    tuple[CapitalizerSymbolOrdinalEconomics, ...],
+    tuple[CapitalizerSymbolSelectionEconomics, ...],
+]:
+    selected = _selected_for_policy(trades, policy=policy, tie_policy=tie_policy)
+    groups = _session_groups(selected, tie_policy=tie_policy)
+    baseline_by_symbol: dict[str, list[PortfolioFlowTrade]] = defaultdict(list)
+    selected_by_symbol: dict[str, list[PortfolioFlowTrade]] = defaultdict(list)
+    ordinal_rows: dict[
+        tuple[str, str, int],
+        list[tuple[PortfolioFlowTrade, Decimal]],
+    ] = defaultdict(list)
+
+    for trade in trades:
+        baseline_by_symbol[trade.symbol].append(trade)
+    for accepted in groups.values():
+        for index, trade in enumerate(accepted[:3], start=1):
+            selected_by_symbol[trade.symbol].append(trade)
+            trade_session = capitalizer_session_at(trade.entry_at)
+            if trade_session is None:
+                raise ValueError("selected trade lost Capitalizer session identity")
+            prior = _prior_realized(accepted[: index - 1], trade)
+            ordinal_rows[(trade.symbol, trade_session.value, index)].append(
+                (trade, prior)
+            )
+
+    ordinals: list[CapitalizerSymbolOrdinalEconomics] = []
+    for (symbol, session, ordinal), observations in sorted(ordinal_rows.items()):
+        rows = tuple(item[0] for item in observations)
+        positive_rows = tuple(
+            trade for trade, prior in observations if prior > 0
+        )
+        nonpositive_rows = tuple(
+            trade for trade, prior in observations if prior <= 0
+        )
+        ordinals.append(
+            CapitalizerSymbolOrdinalEconomics(
+                policy=policy,
+                tie_policy=tie_policy,
+                symbol=symbol,
+                session=session,
+                ordinal=ordinal,
+                trades=len(rows),
+                prior_realized_positive=len(positive_rows),
+                prior_realized_nonpositive=len(nonpositive_rows),
+                prior_positive_metrics=(
+                    _metrics(positive_rows) if positive_rows else None
+                ),
+                prior_nonpositive_metrics=(
+                    _metrics(nonpositive_rows) if nonpositive_rows else None
+                ),
+                metrics=_metrics(rows),
+            )
+        )
+
+    selections: list[CapitalizerSymbolSelectionEconomics] = []
+    for symbol in sorted(baseline_by_symbol):
+        baseline = tuple(baseline_by_symbol[symbol])
+        chosen = tuple(selected_by_symbol.get(symbol, ()))
+        selections.append(
+            CapitalizerSymbolSelectionEconomics(
+                policy=policy,
+                tie_policy=tie_policy,
+                symbol=symbol,
+                baseline_opportunities=len(baseline),
+                selected_opportunities=len(chosen),
+                opportunities_not_selected=len(baseline) - len(chosen),
+                selection_rate=str(Decimal(len(chosen)) / Decimal(len(baseline))),
+                metrics=_metrics(chosen) if chosen else None,
+            )
+        )
+    return tuple(ordinals), tuple(selections)
+
+
 def _build_report(
     trades: tuple[PortfolioFlowTrade, ...],
 ) -> CapitalizerSessionFlowEconomicsReport:
@@ -383,6 +491,8 @@ def _build_report(
     )
     policy_rows: list[CapitalizerPolicyEconomics] = []
     ordinal_rows: list[CapitalizerOrdinalEconomics] = []
+    symbol_ordinal_rows: list[CapitalizerSymbolOrdinalEconomics] = []
+    symbol_selection_rows: list[CapitalizerSymbolSelectionEconomics] = []
     for tie_policy in ("SYMBOL_ASC", "SYMBOL_DESC"):
         for policy in policies:
             policy_rows.append(
@@ -399,6 +509,13 @@ def _build_report(
                     tie_policy=tie_policy,
                 )
             )
+            symbol_ordinals, symbol_selections = _symbol_economics(
+                trades,
+                policy=policy,
+                tie_policy=tie_policy,
+            )
+            symbol_ordinal_rows.extend(symbol_ordinals)
+            symbol_selection_rows.extend(symbol_selections)
     symbols = tuple(sorted({trade.symbol for trade in trades}))
     return CapitalizerSessionFlowEconomicsReport(
         identity=IDENTITY,
@@ -407,6 +524,8 @@ def _build_report(
         baseline_opportunities=len(trades),
         policy_economics=tuple(policy_rows),
         ordinal_economics=tuple(ordinal_rows),
+        symbol_ordinal_economics=tuple(symbol_ordinal_rows),
+        symbol_selection_economics=tuple(symbol_selection_rows),
     )
 
 
