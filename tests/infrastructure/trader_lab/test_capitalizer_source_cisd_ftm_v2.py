@@ -62,7 +62,8 @@ def test_bearish_cisd_closes_below_first_up_close_candle_open() -> None:
     )
 
     assert observed.causal_series_open == Decimal("100")
-    assert observed.confirmed is True
+    assert observed.structural_confirmed is True
+    assert observed.setup_confirmed is True
     assert "CLOSE_THROUGH_FIRST_CAUSAL_CANDLE_OPEN" in observed.reasons
 
 
@@ -77,6 +78,8 @@ def test_cisd_is_not_valid_without_aligned_higher_timeframe_closure() -> None:
         higher_timeframe_closure=None,
     )
 
+    assert observed.structural_confirmed is True
+    assert observed.setup_confirmed is False
     assert observed.confirmed is False
     assert "HTF_C2_C3_CLOSURE_MISSING_OR_MISALIGNED" in observed.reasons
 
