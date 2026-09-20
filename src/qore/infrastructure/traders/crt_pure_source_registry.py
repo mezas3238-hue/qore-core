@@ -33,6 +33,8 @@ class CrtPureConceptId(StrEnum):
     NESTED_CRT = "nested_crt"
     TIMEFRAME_HIERARCHY = "timeframe_hierarchy"
     SESSION_TIME_RULES = "session_time_rules"
+    TIME_TURTLE_SOUP_RELATION = "time_turtle_soup_relation"
+    MARKET_TIMEFRAME_SCOPE = "market_timeframe_scope"
     ENTRY_FAMILIES = "entry_families"
     STRUCTURAL_STOP = "structural_stop"
     STRUCTURAL_DESTINATION = "structural_destination"
@@ -162,6 +164,39 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             ambiguity_notes=(
                 "This is not enough to freeze 50 percent as a universal target, "
                 "partial, equilibrium rule, stop rule, or exit policy."
+            ),
+        ),
+    ),
+    CrtPureConceptId.TIME_TURTLE_SOUP_RELATION: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?after=6340",
+            normalized_statement=(
+                "RomeoTPT states that T stands for theory and also symbolizes Time "
+                "and Turtle Soup; Time is the heart/brain and Turtle Soup the limbs "
+                "that combine to deliver CRT function."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+        ),
+    ),
+    CrtPureConceptId.MARKET_TIMEFRAME_SCOPE: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.MARKET_TIMEFRAME_SCOPE,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt/6455",
+            normalized_statement=(
+                "RomeoTPT states that his concepts work across all markets "
+                "and all timeframes."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "Scope applicability does not define identical session timing, "
+                "selection filters, or execution parameters across markets."
             ),
         ),
     ),
