@@ -5,9 +5,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     allowed_markets,
 )
 from qore.infrastructure.trader_lab.capitalizer_market_stop_intelligence_v1 import (
+    CAUSE_DIMENSIONS,
     IDENTITY,
     MATRIX_IDENTITY,
-    CAUSE_DIMENSIONS,
     build_market_dossier_from_payloads,
     build_matrix_from_dossiers,
 )
