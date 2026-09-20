@@ -24,7 +24,6 @@ from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
 def _bar(
     opened: datetime,
     *,
-    hours: int = 4,
     open_: str,
     high: str,
     low: str,
@@ -32,7 +31,7 @@ def _bar(
 ) -> Vt08IndexC2R1Bar:
     return Vt08IndexC2R1Bar(
         opened_at=opened,
-        closed_at=opened + timedelta(hours=hours),
+        closed_at=opened + timedelta(hours=4),
         open=Decimal(open_),
         high=Decimal(high),
         low=Decimal(low),
@@ -71,21 +70,21 @@ def test_r96_detects_bullish_c2_formation() -> None:
 def test_r96_protected_swing_must_survive_formation_close() -> None:
     t0 = datetime(2026, 1, 1, tzinfo=UTC)
     inside = (
-        _bar(
-            t0,
-            hours=0,
-            open_="100",
-            high="101",
-            low="98",
-            close="100.5",
+        Vt08IndexC2R1Bar(
+            opened_at=t0,
+            closed_at=t0 + timedelta(minutes=15),
+            open=Decimal("100"),
+            high=Decimal("101"),
+            low=Decimal("98"),
+            close=Decimal("100.5"),
         ),
-        _bar(
-            t0 + timedelta(minutes=15),
-            hours=0,
-            open_="100.5",
-            high="102",
-            low="99",
-            close="101",
+        Vt08IndexC2R1Bar(
+            opened_at=t0 + timedelta(minutes=15),
+            closed_at=t0 + timedelta(minutes=30),
+            open=Decimal("100.5"),
+            high=Decimal("102"),
+            low=Decimal("99"),
+            close=Decimal("101"),
         ),
     )
     assert r96._survives_after_confirmation(
