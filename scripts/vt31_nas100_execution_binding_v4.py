@@ -13,8 +13,9 @@ survive until the DOL1-touch M1 closes so that acceptance is causally known.
 - non-accept close: the 25% exits at that M1 close, not retroactively at DOL1.
 
 No entry, stop, risk, EQ fraction, DOL1, runner fraction, DOL2 target, PS2,
-Silver Bullet rule or admission rule changes. An extra 0.005R execution
-friction is charged to each non-accept physical close.
+Silver Bullet rule or admission rule changes. Existing certified friction is
+retained; no fixed per-order surcharge is added because broker cost is already
+modeled per traded volume.
 """
 # ruff: noqa: B009
 from __future__ import annotations
@@ -43,7 +44,7 @@ from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research
 SCHEMA = "qore.vt31.nas100.execution_binding.v4"
 MARKET = "NAS100"
 VARIANT = "EQ50_COMPRESSED_ACCEPT_RUN25_PHYSICAL_V4"
-EXTRA_PHYSICAL_CLOSE_FRICTION_R = Decimal("0.005")
+EXTRA_PHYSICAL_CLOSE_FRICTION_R = Decimal("0.000")
 
 
 def _d(value: object) -> Decimal:
