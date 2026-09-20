@@ -21,6 +21,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     detect_candle2_reversal_closure,
 )
 
+
 def _bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
     return CapitalizerSourceBar(
         open=Decimal(open_),
