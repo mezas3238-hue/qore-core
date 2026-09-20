@@ -325,7 +325,7 @@ class CapitalizerSourceStrategyReview:
     facts: tuple[CapitalizerSourceFact, ...] = SOURCE_FACTS
     inventory_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
     deterministic_strategy_grammar_status: CapitalizerChainStatus = (
-        CapitalizerChainStatus.RESEARCH_OPEN
+        CapitalizerChainStatus.FROZEN_APT
     )
     economic_edge_claimed: bool = False
     integrated_nine_market_replay_completed: bool = False
@@ -347,8 +347,8 @@ class CapitalizerSourceStrategyReview:
                 raise ValueError(f"source fact references missing source ids: {sorted(missing)}")
         if self.inventory_status is not CapitalizerChainStatus.FROZEN_APT:
             raise ValueError("reviewed source inventory must be FROZEN_APT")
-        if self.deterministic_strategy_grammar_status is not CapitalizerChainStatus.RESEARCH_OPEN:
-            raise ValueError("strategy grammar is not frozen by source inventory alone")
+        if self.deterministic_strategy_grammar_status is not CapitalizerChainStatus.FROZEN_APT:
+            raise ValueError("reviewed strategy grammar status must be FROZEN_APT")
         if (
             self.economic_edge_claimed
             or self.integrated_nine_market_replay_completed
