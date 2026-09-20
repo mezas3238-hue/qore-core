@@ -15,6 +15,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
@@ -23,6 +24,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py'
   workflow_dispatch:
 
 permissions:
@@ -61,6 +63,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
@@ -68,7 +71,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py
       - name: Mypy
         run: |
           mypy \
@@ -80,7 +84,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
@@ -91,7 +96,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py
 
   scan:
     needs: quality
@@ -324,6 +330,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_portfolio_exposure_forensics \
             matrix-input matrix-output
+      - name: Build categorical candidate-competition falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_portfolio_competition_forensics \
+            matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
           python - <<'PY'
@@ -446,6 +456,42 @@ jobs:
           assert {row['tie_policy'] for row in exposure['policy_results']} == {
               'SYMBOL_ASC',
               'SYMBOL_DESC',
+          }
+
+          competition = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-portfolio-competition-forensics-v1.json'
+              ).read_text()
+          )
+          assert competition['identity'] == (
+              'QORE_CAPITALIZER_PORTFOLIO_COMPETITION_FORENSICS_V1'
+          )
+          assert competition['market_count'] == 9
+          assert competition['max_executions_per_session'] == 3
+          assert competition['categorical_hypotheses_only'] is True
+          assert competition['numeric_threshold_optimization_used'] is False
+          assert competition['outcome_aware_ranking_used'] is False
+          assert competition['positive_pnl_is_not_stop_condition'] is True
+          assert competition['governed_profit_objective_not_modeled'] is True
+          assert competition['qore_risk_authority_granted'] is False
+          assert competition['costs_applied'] is False
+          assert competition['candidate_frozen'] is False
+          assert competition['fresh_holdout_claimed'] is False
+          assert competition['rule_selected'] is False
+          assert competition['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in competition['policies']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in competition['policies']} == {
+              'MAX3_BASELINE',
+              'BLOCK_XAUUSD_NY_ORD2_SAME_DIRECTION_SHARED_FACTOR',
+              'BLOCK_XAUUSD_NY_ORD2_ANY_SHARED_FACTOR',
+              'BLOCK_GBPJPY_ASIA_ORD3',
+              'BLOCK_ASIA_JPY_ORD3',
+              'COMBINED_XAUUSD_ANY_SHARED_AND_GBPJPY_ORD3',
+              'COMBINED_XAUUSD_ANY_SHARED_AND_ASIA_JPY_ORD3',
           }
           PY
       - name: Upload immutable target-capacity matrix
