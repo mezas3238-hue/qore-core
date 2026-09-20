@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import factor_exposures
 from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
     CapitalizerGlobalWorldModel,
 )
@@ -48,17 +49,6 @@ def assess_portfolio_positions(
     exposure_by_factor = {item.factor: item for item in world.factor_exposure_state}
 
     for position in world.open_positions:
-        for exposure in (
-            item
-            for item in world.factor_exposure_state
-            if item.gross_r > 0
-        ):
-            # Exposure membership is derived below from the canonical position map.
-            del exposure
-        from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
-            factor_exposures,
-        )
-
         one = factor_exposures((position.exposure_position,))
         for factor in one:
             factor_to_symbols.setdefault(factor.factor, set()).add(position.symbol)
