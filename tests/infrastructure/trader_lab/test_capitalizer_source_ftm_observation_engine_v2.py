@@ -42,7 +42,12 @@ def _swing_high(price: str) -> CapitalizerSourcePOI:
     poi = detect_external_liquidity_swing(
         left=_bar(str(level - 2), str(level - 1), str(level - 3), str(level - Decimal("1.5"))),
         center=_bar(str(level - 1), str(level), str(level - 2), str(level - Decimal("0.5"))),
-        right=_bar(str(level - 1), str(level - Decimal("0.5")), str(level - 2), str(level - Decimal("1.5"))),
+        right=_bar(
+            str(level - 1),
+            str(level - Decimal("0.5")),
+            str(level - 2),
+            str(level - Decimal("1.5")),
+        ),
     )
     assert poi is not None
     return poi
