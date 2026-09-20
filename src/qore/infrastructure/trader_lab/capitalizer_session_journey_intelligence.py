@@ -18,6 +18,7 @@ from qore.infrastructure.trader_lab.capitalizer_memory import (
     CapitalizerDailyJourney,
     CapitalizerLossMemory,
 )
+
 _PREVIOUS_SESSION: dict[CapitalizerSession, CapitalizerSession | None] = {
     CapitalizerSession.ASIA: None,
     CapitalizerSession.LONDON: CapitalizerSession.ASIA,
