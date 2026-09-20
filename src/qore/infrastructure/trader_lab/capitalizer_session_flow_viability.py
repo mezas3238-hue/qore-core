@@ -22,13 +22,33 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_departure_timing_forensics import (
+    _load_timing_rows,
+    _timing_state,
+)
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_h1_boundary_type_forensics import (
+    _boundary_type_state,
+    _episode_boundary_types,
+)
 from qore.infrastructure.trader_lab.capitalizer_h1_episode_multiplicity_forensics import (
     _baseline,
+    _journey_boundaries,
+)
+from qore.infrastructure.trader_lab.capitalizer_h1_source_age_forensics import (
+    _source_age_state,
+)
+from qore.infrastructure.trader_lab.capitalizer_position_lifecycle_forensics import (
+    _state_family,
 )
 from qore.infrastructure.trader_lab.capitalizer_r0_gross_characterization import (
     CapitalizerR0Metrics,
     CapitalizerR0Trade,
     summarize_r0,
+)
+from qore.infrastructure.trader_lab.capitalizer_reclaim_phase_forensics import (
+    _episode_reclaim_times,
+    _reclaim_phase,
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
 
@@ -248,16 +268,51 @@ def build_session_flow_viability_report(
 def _write_baseline_trade_ledger(
     baseline: tuple[CapitalizerR0Trade, ...],
     output: Path,
+    *,
+    journey_root: Path,
+    state_index: dict[tuple[str, CapitalizerSide], str],
+    episode_index: dict[tuple[str, CapitalizerSide], tuple[str, ...]],
 ) -> None:
     symbol = baseline[0].symbol
     path = output / f"capitalizer-{symbol.lower()}-session-flow-trades-v1.jsonl"
     rows = sorted(baseline, key=lambda item: (item.entry_at, item.exit_at))
+    timing = _load_timing_rows(journey_root)
+    boundaries = _journey_boundaries(journey_root)
+    boundary_types = _episode_boundary_types(journey_root)
+    reclaim_times = _episode_reclaim_times(journey_root)
+
     with path.open("w", encoding="utf-8") as handle:
         for trade in rows:
             row = {
                 "symbol": trade.symbol,
+                "side": trade.side.value,
+                "signal_at": trade.signal_at.isoformat(),
                 "entry_at": trade.entry_at.isoformat(),
                 "exit_at": trade.exit_at.isoformat(),
+                "event_labels": list(trade.event_labels),
+                "planned_reward_r": str(trade.planned_reward_r),
+                "state_family": _state_family(trade, state_index),
+                "cisd_timing_state": _timing_state(
+                    trade,
+                    dimension="cisd",
+                    episode_index=episode_index,
+                    timing=timing,
+                ),
+                "source_age_state": _source_age_state(
+                    trade,
+                    episode_index=episode_index,
+                    boundaries=boundaries,
+                ),
+                "boundary_type_state": _boundary_type_state(
+                    trade,
+                    episode_index=episode_index,
+                    boundary_types=boundary_types,
+                ),
+                "reclaim_phase": _reclaim_phase(
+                    trade,
+                    episode_index=episode_index,
+                    reclaim_times=reclaim_times,
+                ),
                 "realized_gross_r": str(trade.realized_gross_r),
             }
             handle.write(json.dumps(row, sort_keys=True) + "\n")
@@ -270,14 +325,20 @@ def main() -> None:
     parser.add_argument("target_root", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    baseline, _, _ = _baseline(
+    baseline, state_index, episode_index = _baseline(
         m5_root=args.m5_root,
         journey_root=args.journey_root,
         target_root=args.target_root,
     )
     report = _build_report_from_baseline(baseline)
     args.output.mkdir(parents=True, exist_ok=True)
-    _write_baseline_trade_ledger(baseline, args.output)
+    _write_baseline_trade_ledger(
+        baseline,
+        args.output,
+        journey_root=args.journey_root,
+        state_index=state_index,
+        episode_index=episode_index,
+    )
     path = args.output / f"capitalizer-{report.symbol.lower()}-session-flow-viability-v1.json"
     path.write_text(
         json.dumps(asdict(report), indent=2, sort_keys=True) + "\n",
