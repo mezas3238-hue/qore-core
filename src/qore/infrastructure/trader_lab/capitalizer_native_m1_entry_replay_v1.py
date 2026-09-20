@@ -861,24 +861,28 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "market":
-        report, trades = build_market_report(
+        market_report, trades = build_market_report(
             candidate_root=args.candidate_root,
             m1_root=args.m1_root,
         )
-        write_market(report, trades, args.output)
+        write_market(market_report, trades, args.output)
         print(
             json.dumps(
                 {
-                    "identity": report.identity,
-                    "symbol": report.symbol,
-                    "higher_level_candidates": report.higher_level_candidates,
-                    "m1_entries": report.m1_entries,
-                    "m1_entry_rate": report.m1_entry_rate,
+                    "identity": market_report.identity,
+                    "symbol": market_report.symbol,
+                    "higher_level_candidates": market_report.higher_level_candidates,
+                    "m1_entries": market_report.m1_entries,
+                    "m1_entry_rate": market_report.m1_entry_rate,
                     "profit_factor": (
-                        None if report.metrics is None else report.metrics.profit_factor
+                        None
+                        if market_report.metrics is None
+                        else market_report.metrics.profit_factor
                     ),
                     "max_drawdown_r": (
-                        None if report.metrics is None else report.metrics.max_drawdown_r
+                        None
+                        if market_report.metrics is None
+                        else market_report.metrics.max_drawdown_r
                     ),
                 },
                 sort_keys=True,
@@ -886,16 +890,16 @@ def main() -> None:
         )
         return
 
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
     print(
         json.dumps(
             {
-                "identity": report.identity,
-                "total_higher_level_candidates": report.total_higher_level_candidates,
-                "total_m1_entries": report.total_m1_entries,
-                "m1_entry_rate": report.m1_entry_rate,
-                "aggregate_pf": report.aggregate_pf,
+                "identity": matrix_report.identity,
+                "total_higher_level_candidates": matrix_report.total_higher_level_candidates,
+                "total_m1_entries": matrix_report.total_m1_entries,
+                "m1_entry_rate": matrix_report.m1_entry_rate,
+                "aggregate_pf": matrix_report.aggregate_pf,
             },
             sort_keys=True,
         )
