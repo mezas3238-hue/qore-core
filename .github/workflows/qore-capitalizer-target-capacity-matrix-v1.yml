@@ -14,6 +14,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
@@ -21,6 +22,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py'
   workflow_dispatch:
 
 permissions:
@@ -58,13 +60,15 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py \
-            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py
       - name: Mypy
         run: |
           mypy \
@@ -75,7 +79,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py \
-            src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
@@ -85,7 +90,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py \
-            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py
 
   scan:
     needs: quality
@@ -314,6 +320,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_session_flow_economics \
             matrix-input matrix-output
+      - name: Build causal portfolio exposure falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_portfolio_exposure_forensics \
+            matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
           python - <<'PY'
@@ -404,6 +414,39 @@ jobs:
           assert flow_economics['fresh_holdout_claimed'] is False
           assert flow_economics['rule_selected'] is False
           assert flow_economics['promotion_allowed'] is False
+
+          exposure = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-portfolio-exposure-forensics-v1.json'
+              ).read_text()
+          )
+          assert exposure['identity'] == (
+              'QORE_CAPITALIZER_PORTFOLIO_EXPOSURE_FORENSICS_V1'
+          )
+          assert exposure['market_count'] == 9
+          assert exposure['unit_r_exposure_proxy'] is True
+          assert exposure['causal_active_position_state_only'] is True
+          assert exposure['numeric_exposure_threshold_used'] is False
+          assert exposure['outcome_aware_ranking_used'] is False
+          assert exposure['max_executions_per_session'] == 3
+          assert exposure['positive_pnl_is_not_stop_condition'] is True
+          assert exposure['governed_profit_objective_not_modeled'] is True
+          assert exposure['qore_risk_authority_granted'] is False
+          assert exposure['costs_applied'] is False
+          assert exposure['candidate_frozen'] is False
+          assert exposure['fresh_holdout_claimed'] is False
+          assert exposure['rule_selected'] is False
+          assert exposure['promotion_allowed'] is False
+          assert {row['policy'] for row in exposure['policy_results']} == {
+              'MAX3_BASELINE',
+              'MAX3_BLOCK_SAME_DIRECTION_SHARED_FACTOR',
+              'MAX3_BLOCK_ANY_SHARED_FACTOR',
+          }
+          assert {row['tie_policy'] for row in exposure['policy_results']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
           PY
       - name: Upload immutable target-capacity matrix
         uses: actions/upload-artifact@v4
