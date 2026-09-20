@@ -2294,6 +2294,38 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             or exit_ledger.has_unresolved
             or gateway.has_unresolved_mutations
         )
+        vt31_runtime_snapshot = AccountRiskSnapshot(
+            account_binding_id=fingerprint,
+            equity=account_state.equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital.qore_authorizable_headroom,
+            provider_budget=provider,
+            reconciled_at=cycle_at,
+        )
+        reconcile_vt31_pending(
+            mt5_api=mt5,
+            transport=transport,
+            risk=risk,
+            store=vt31_store,
+            now=cycle_at,
+            log=lambda event: _log(log_path, event),
+        )
+        if mode == "live" and not new_order_blocked:
+            process_vt31_virtual_oco(
+                mt5_api=mt5,
+                now=cycle_at,
+                gateway=gateway,
+                risk=risk,
+                snapshot=vt31_runtime_snapshot,
+                account_equity=account_state.equity,
+                store=vt31_store,
+                log=lambda event: _log(log_path, event),
+            )
+
         if anchor is not None and not new_order_blocked:
             for symbol in _MARKETS:
                 anchor_key = f"{symbol}|{anchor.isoformat()}"
