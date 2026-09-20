@@ -608,7 +608,7 @@ def build_risk_request(
         raise Vt31Nas100LiveError("VT31 broker trading unavailable")
     if provider_spec.provider_symbol != SYMBOL:
         raise Vt31Nas100LiveError("VT31 provider symbol binding drift")
-    if now - provider_spec.observed_at > DECISION_DEADLINE:
+    if now - provider_spec.observed_at > MAX_BROKER_TICK_AGE:
         raise Vt31Nas100LiveError("VT31 broker symbol snapshot older than 2s")
 
     for name, value in (
