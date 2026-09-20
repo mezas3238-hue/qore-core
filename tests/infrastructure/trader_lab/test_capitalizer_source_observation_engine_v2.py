@@ -5,6 +5,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_entry_execution_v2 import (
+    CapitalizerSourceExecutionOpen,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
@@ -72,7 +75,7 @@ def test_raw_fractal_observation_derives_context_without_manual_booleans() -> No
             symbol="EURUSD",
             session=CapitalizerSession.LONDON,
             observed_at=datetime(2026, 1, 5, 7, 30, tzinfo=UTC),
-            entry_price=Decimal("100.3"),
+            execution_open=CapitalizerSourceExecutionOpen(Decimal("100.3")),
             asian_open_reference_at=None,
             daily_closure_window=CapitalizerSourceClosureWindow(
                 previous=_bar("100", "102", "98", "99"),
@@ -121,6 +124,9 @@ def test_raw_fractal_observation_derives_context_without_manual_booleans() -> No
     assert snapshot.m1_cisd.structural_confirmed is True
     assert snapshot.m1_protected_swing is not None
     assert snapshot.m1_protected_swing.swing_price == Decimal("99.0")
+    assert snapshot.entry is not None
+    assert snapshot.entry.entry_price == Decimal("100.3")
+    assert snapshot.entry.future_execution_bar_close_used is False
     assert snapshot.structural_target is not None
     assert snapshot.structural_target.target_price == Decimal("105")
     assert snapshot.fractal_alignment is not None
@@ -150,7 +156,7 @@ def test_raw_fractal_observation_fails_closed_when_daily_poi_not_reached() -> No
             symbol="EURUSD",
             session=CapitalizerSession.LONDON,
             observed_at=datetime(2026, 1, 5, 7, 30, tzinfo=UTC),
-            entry_price=Decimal("100"),
+            execution_open=CapitalizerSourceExecutionOpen(Decimal("100")),
             asian_open_reference_at=None,
             daily_closure_window=CapitalizerSourceClosureWindow(
                 previous=_bar("100", "102", "98", "99"),

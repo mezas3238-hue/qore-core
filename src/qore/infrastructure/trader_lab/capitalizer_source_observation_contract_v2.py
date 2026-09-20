@@ -29,6 +29,7 @@ class CapitalizerSourceObservationKind(StrEnum):
     TTRADES_M15_SWING_STRUCTURE = "TTRADES_M15_SWING_STRUCTURE"
     TTRADES_M1_CONTINUATION_CONFIRMATION = "TTRADES_M1_CONTINUATION_CONFIRMATION"
     TTRADES_PROTECTED_SWING = "TTRADES_PROTECTED_SWING"
+    SOURCE_ENTRY_TIMING = "SOURCE_ENTRY_TIMING"
     FTM_LIQUIDITY_LEVEL_TAKEN = "FTM_LIQUIDITY_LEVEL_TAKEN"
     FTM_EXPECTED_REVERSAL_FAILED = "FTM_EXPECTED_REVERSAL_FAILED"
     FTM_CANDLE_CLOSE_CONFIRMATION = "FTM_CANDLE_CLOSE_CONFIRMATION"
@@ -56,6 +57,8 @@ SOURCE_OBSERVATION_REQUIREMENTS: tuple[CapitalizerSourceObservationRequirement, 
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.HISTORICAL_ASIAN_OPEN_REFERENCE,
         ("ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW",),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.SOURCE_POINT_OF_INTEREST,
@@ -121,6 +124,12 @@ SOURCE_OBSERVATION_REQUIREMENTS: tuple[CapitalizerSourceObservationRequirement, 
             "TTRADES_PROTECTED_SWING_REQUIRES_CONFIRMED_CLOSURE",
             "TTRADES_PROTECTED_SWING_IS_INVALIDATION_ANCHOR",
         ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
+    ),
+    CapitalizerSourceObservationRequirement(
+        CapitalizerSourceObservationKind.SOURCE_ENTRY_TIMING,
+        ("TTRADES_ENTRY_AFTER_CONFIRMED_PROTECTED_SWING_ON_NEXT_CONTINUATION",),
         detector_implemented=True,
         source_equivalence_tested=True,
     ),

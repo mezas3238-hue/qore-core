@@ -74,6 +74,7 @@ def evaluate_fractal_snapshot(
     if (
         not snapshot.complete
         or snapshot.daily_bias.direction is None
+        or snapshot.entry is None
         or snapshot.m1_protected_swing is None
         or snapshot.structural_target is None
         or snapshot.fractal_alignment is None
@@ -94,7 +95,7 @@ def evaluate_fractal_snapshot(
             cognitive_gate_decision=cognitive_gate_decision,
             source_session=snapshot.session,
             daily_bias=snapshot.daily_bias,
-            entry_price=snapshot.entry_price,
+            entry_price=snapshot.entry.entry_price,
             protected_swing=snapshot.m1_protected_swing,
             structural_target=snapshot.structural_target,
             target_kind=CapitalizerSourceTargetKind.RECENT_DAILY_HIGH_LOW,
@@ -129,6 +130,7 @@ def evaluate_ftm_snapshot(
     if (
         not snapshot.complete
         or snapshot.daily_bias.direction is None
+        or snapshot.entry is None
         or snapshot.continuation_protected_swing is None
         or snapshot.structural_target is None
     ):
@@ -148,7 +150,7 @@ def evaluate_ftm_snapshot(
             cognitive_gate_decision=cognitive_gate_decision,
             source_session=snapshot.session,
             daily_bias=snapshot.daily_bias,
-            entry_price=snapshot.entry_price,
+            entry_price=snapshot.entry.entry_price,
             protected_swing=snapshot.continuation_protected_swing,
             structural_target=snapshot.structural_target,
             target_kind=CapitalizerSourceTargetKind.RECENT_DAILY_HIGH_LOW,

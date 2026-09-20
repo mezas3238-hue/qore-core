@@ -5,6 +5,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_entry_execution_v2 import (
+    CapitalizerSourceExecutionOpen,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_ftm_observation_engine_v2 import (
     CapitalizerFTMObservationInput,
     build_ftm_observation_snapshot,
@@ -73,7 +76,7 @@ def _input(*, reversal_confirmation_close: str) -> CapitalizerFTMObservationInpu
         symbol="USDCAD",
         session=CapitalizerSession.NEW_YORK,
         observed_at=datetime(2026, 1, 5, 12, 30, tzinfo=UTC),
-        entry_price=Decimal("102.4"),
+        execution_open=CapitalizerSourceExecutionOpen(Decimal("102.4")),
         asian_open_reference_at=None,
         daily_closure_window=CapitalizerSourceClosureWindow(
             previous=_bar("100", "102", "98", "99"),
@@ -123,6 +126,9 @@ def test_raw_ftm_confirms_only_when_expected_reversal_fails() -> None:
     assert snapshot.continuation_cisd.structural_confirmed is True
     assert snapshot.continuation_protected_swing is not None
     assert snapshot.failure_to_manipulate.confirmed is True
+    assert snapshot.entry is not None
+    assert snapshot.entry.entry_price == Decimal("102.4")
+    assert snapshot.entry.future_execution_bar_close_used is False
     assert snapshot.structural_target is not None
     assert snapshot.structural_target.valid is True
     assert snapshot.complete is True

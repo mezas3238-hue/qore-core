@@ -20,8 +20,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
-
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerCISDObservation,
@@ -30,6 +28,11 @@ from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
 from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
     CapitalizerDailyBiasObservation,
     derive_daily_bias,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_entry_execution_v2 import (
+    CapitalizerSourceEntryObservation,
+    CapitalizerSourceExecutionOpen,
+    derive_next_bar_open_entry,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_fractal_alignment_v2 import (
     CapitalizerFractalAlignmentObservation,
@@ -90,7 +93,7 @@ class CapitalizerFractalObservationInput:
     symbol: str
     session: CapitalizerSession
     observed_at: datetime
-    entry_price: Decimal
+    execution_open: CapitalizerSourceExecutionOpen
     asian_open_reference_at: datetime | None
     daily_closure_window: CapitalizerSourceClosureWindow
     h1_closure_window: CapitalizerSourceClosureWindow
@@ -104,15 +107,13 @@ class CapitalizerFractalObservationInput:
             raise ValueError("source observation symbol must be uppercase")
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
             raise ValueError("source observation timestamp must be timezone-aware")
-        if not isinstance(self.entry_price, Decimal) or not self.entry_price.is_finite():
-            raise ValueError("source observation entry price must be finite Decimal")
 
 
 @dataclass(frozen=True, slots=True)
 class CapitalizerFractalObservationSnapshot:
     symbol: str
     observed_at: datetime
-    entry_price: Decimal
+    entry: CapitalizerSourceEntryObservation | None
     session: CapitalizerSourceSessionAssessment
     daily_bias: CapitalizerDailyBiasObservation
     daily_closure: CapitalizerSourceClosureObservation | None
@@ -195,7 +196,7 @@ def build_fractal_observation_snapshot(
         return CapitalizerFractalObservationSnapshot(
             symbol=facts.symbol,
             observed_at=facts.observed_at,
-            entry_price=facts.entry_price,
+            entry=None,
             session=session,
             daily_bias=daily_bias,
             daily_closure=daily_closure,
@@ -232,24 +233,33 @@ def build_fractal_observation_snapshot(
             origin=facts.m1_cisd_window.protected_swing_origin,
         )
 
-    target_extraction = extract_previous_day_liquidity_target(
-        previous_daily_bar=facts.previous_daily_bar,
-        bars_since_current_day_open=facts.bars_since_current_day_open,
-        direction=direction,
-        entry_price=facts.entry_price,
-    )
-    target = target_extraction.observation
-
     alignment = assess_fractal_alignment(
         higher_timeframe_bias=direction,
         h1_closure=h1_closure,
         m15_cisd=m15_cisd,
         m1_protected_swing=m1_protected,
     )
+    entry: CapitalizerSourceEntryObservation | None = None
+    target: CapitalizerStructuralTargetObservation | None = None
+    if alignment.confirmed:
+        entry = derive_next_bar_open_entry(
+            direction=direction,
+            source_framework_confirmed=True,
+            execution_open=facts.execution_open,
+        )
+        target = extract_previous_day_liquidity_target(
+            previous_daily_bar=facts.previous_daily_bar,
+            bars_since_current_day_open=facts.bars_since_current_day_open,
+            direction=direction,
+            entry_price=entry.entry_price,
+        ).observation
+
     complete = (
         session.resolved
         and session.eligible
         and alignment.confirmed
+        and entry is not None
+        and target is not None
         and target.valid
     )
 
@@ -257,7 +267,7 @@ def build_fractal_observation_snapshot(
     reasons.extend(session.reasons)
     reasons.extend(daily_bias.reasons)
     reasons.extend(alignment.reasons)
-    reasons.extend(target.reasons)
+    reasons.extend(target.reasons if target is not None else ("TARGET_UNRESOLVED",))
     if not complete:
         reasons.append("SOURCE_FRACTAL_OBSERVATION_INCOMPLETE")
     else:
@@ -266,7 +276,7 @@ def build_fractal_observation_snapshot(
     return CapitalizerFractalObservationSnapshot(
         symbol=facts.symbol,
         observed_at=facts.observed_at,
-        entry_price=facts.entry_price,
+        entry=entry,
         session=session,
         daily_bias=daily_bias,
         daily_closure=daily_closure,
