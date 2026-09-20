@@ -164,10 +164,10 @@ CAPITALIZER_SOURCE_RULES: tuple[CapitalizerSourceRule, ...] = (
         source_ids=(),
     ),
     CapitalizerSourceRule(
-        rule_id="QORE_MAX_TWO_EXECUTIONS_PER_SESSION",
+        rule_id="QORE_MAX_THREE_EXECUTIONS_PER_SESSION",
         provenance=CapitalizerRuleProvenance.QORE_OPERATIONALIZATION,
         statement=(
-            "At most two executed opportunities are permitted per session; this is a QORE "
+            "At most three executed opportunities are permitted per session; this is a QORE "
             "capitalization constraint, not a claim attributed to ICT or TTrades."
         ),
         source_ids=(),
