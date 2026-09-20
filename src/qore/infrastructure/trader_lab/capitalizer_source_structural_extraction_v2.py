@@ -35,8 +35,8 @@ def protected_swing_from_cisd(
 ) -> CapitalizerProtectedSwingObservation:
     """Extract the swing extreme only after the source CISD is confirmed."""
 
-    if not cisd.confirmed:
-        raise ValueError("protected swing extraction requires confirmed CISD")
+    if not cisd.structural_confirmed:
+        raise ValueError("protected swing extraction requires structurally confirmed CISD")
     if not causal_series:
         raise ValueError("protected swing extraction requires causal series")
 
