@@ -39,10 +39,10 @@ jobs:
           from qore.infrastructure.trader_lab.capitalizer_source_stop_fidelity_audit_v1 import payload
 
           result = payload()
-          assert result['source_stop_relation'] == 'BEYOND_PROTECTED_SWING'
-          assert result['current_trade_plan_source_faithful'] is False
+          assert result['source_stop_relation'] == 'PROTECTED_SWING_ANCHOR_DEFAULT_AT_SWING_WITH_BEYOND_VARIANTS'
+          assert result['current_trade_plan_source_faithful'] is True
           assert result['current_m5_replay_source_faithful_stop'] is False
-          assert result['source_strategy_status'] == 'REOPEN_STOP_PLACEMENT_FIDELITY'
+          assert result['source_strategy_status'] == 'REPLAY_STOP_PROXY_REQUIRES_CORRECTION'
           assert result['stop_widening_authorized'] is False
           assert result['trader_certified'] is False
           print(json.dumps(result, indent=2, sort_keys=True))
