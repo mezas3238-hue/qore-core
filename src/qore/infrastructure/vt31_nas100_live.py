@@ -7,7 +7,7 @@ retune the VT31 economic identity:
 - exact newly-closed M1 + exact newly-opened M1 boundary validation;
 - broker tick freshness <= 2.0 seconds;
 - T-10s pre-arm and 75ms critical-boundary retry;
-- hard 2.0s deadline guard, including post-risk/pre-send checks;
+- M1 5.0s decision deadline guard, including post-risk/pre-send checks;
 - virtual OCO trigger selection without multiple broker pending orders;
 - certified R-unit -> broker volume translation, always rounded DOWN;
 - Account-Wide Risk request under the VT31_NAS100 lineage.
@@ -36,7 +36,8 @@ from qore.infrastructure.market_data import (
     OhlcSnapshot,
     Timeframe,
 )
-from qore.infrastructure.trader_execution_profile import M1_PROFILE\nfrom qore.infrastructure.ports import (
+from qore.infrastructure.trader_execution_profile import M1_PROFILE
+from qore.infrastructure.ports import (
     AdapterId,
     ExternalSourceDescriptor,
     PortName,
@@ -45,18 +46,57 @@ from qore.infrastructure.trader_execution_profile import M1_PROFILE\nfrom qore.i
 
 IDENTITY = "VT31_NAS100"
 SYMBOL = "NAS100"
+STRATEGY_IDENTITY = "VT31_NAS100_STRUCTURAL_TARGET_V1"
+CERTIFIED_STRATEGY_FINGERPRINT = (
+    "089c41f98a72295278063cfc29caf8419538f68315d9f5e57be144fbdae15e08"
+)
+CERTIFICATION_RUN_ID = 35519882906
+CERTIFICATION_ARTIFACT_ID = 10607439608
+CERTIFICATION_ARTIFACT_DIGEST = (
+    "sha256:a08eb5ab18833e8112002a2ab908460c152b7b39b3314c879df6b2c499858568"
+)
+CERTIFICATION_REPORT_SHA256 = (
+    "0d3aaa077cf8e7de27a08fcd84a7b83f62ee45561bd4deba3a19ebe6e13e9018"
+)
+EXECUTION_BINDING_ID = "VT31_NAS100_STRUCTURAL_TARGET_EXECUTION_BINDING_V2"
+EXECUTION_BINDING_FINGERPRINT = (
+    "604f8b06fbbb6d808da6389d9abf02a498612d7dc8a735de886eb174f54cab8c"
+)
+EXECUTION_BINDING_RUN_ID = 35525659725
+EXECUTION_BINDING_ARTIFACT_ID = 10610261058
+EXECUTION_BINDING_ARTIFACT_DIGEST = (
+    "sha256:10dd2ebf64ab06d900be9ad93dde7b1cc8f2d82933bd17f531acaefe6aadb9c5"
+)
+EXECUTION_BINDING_REPORT_SHA256 = (
+    "6f965f2d660d90589ec86e35c2ef178efbe2c77d42a3c9155807619eb42eeb56"
+)
+STRATEGY_MEMORY_FINGERPRINT = (
+    "26d7288e6ac293fdbf3fdad23969c7b815b26592209d7cb19975a6712aab8929"
+)
+CIBO_MEMORY_FINGERPRINT = (
+    "0d3531d9f87e3b6e3fad64d583bf237e44ac70d32eb111e747fdfbfdfba07621"
+)
+TRADER_EXPERIENCE_FINGERPRINT = (
+    "e21de399386c4f1fcee45f13c3e39c87828d492eb4cd32621ec2a40cbac5544b"
+)
+COGNITIVE_MEMORY_FINGERPRINT = (
+    "d160185f5717c9dd6a79b8048543938b199f101d3fc7d45de33f994f1e95dba1"
+)
+SILVER_BULLET_SOURCE_FINGERPRINT = (
+    "86f9602a5bc550c6c1f038f28779228484ac5c0a3b5f91e64460a5b7d139b9da"
+)
 SERVICE_24_7 = True
 MARKET_READING = "CONTINUOUS"
 
-ENTRY_SLA_SECONDS = Decimal("2.0")
-ENTRY_SLA = timedelta(seconds=float(ENTRY_SLA_SECONDS))
-MAX_BROKER_TICK_AGE = ENTRY_SLA
+DECISION_DEADLINE_SECONDS = M1_PROFILE.decision_deadline_seconds
+DECISION_DEADLINE = M1_PROFILE.decision_deadline
+MAX_BROKER_TICK_AGE = M1_PROFILE.tick_max_age
 FUTURE_TICK_TOLERANCE = timedelta(seconds=0.5)
-BOUNDARY_ARM_LEAD_SECONDS = Decimal("10.0")
+BOUNDARY_ARM_LEAD_SECONDS = M1_PROFILE.boundary_arm_lead_seconds
 BOUNDARY_ARM_LEAD = timedelta(seconds=float(BOUNDARY_ARM_LEAD_SECONDS))
-NORMAL_FEED_REFRESH_SECONDS = 1.0
-BOUNDARY_RETRY_SECONDS = 0.075
-BOUNDARY_RETRY_MS = 75
+NORMAL_FEED_REFRESH_SECONDS = float(M1_PROFILE.normal_feed_refresh_seconds)
+BOUNDARY_RETRY_MS = M1_PROFILE.boundary_retry_ms
+BOUNDARY_RETRY_SECONDS = BOUNDARY_RETRY_MS / 1000
 HISTORY_M1_BARS = 30_000
 MIN_PRELOAD_M1_BARS = 10_000
 RECENT_M1_BARS = 32
@@ -83,7 +123,7 @@ class Vt31Nas100LiveError(RuntimeError):
 
 
 class Vt31Nas100SlaExpired(Vt31Nas100LiveError):
-    """Hard 2.0 second execution deadline expired."""
+    """M1 execution decision deadline expired."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -568,7 +608,7 @@ def build_risk_request(
         raise Vt31Nas100LiveError("VT31 broker trading unavailable")
     if provider_spec.provider_symbol != SYMBOL:
         raise Vt31Nas100LiveError("VT31 provider symbol binding drift")
-    if now - provider_spec.observed_at > ENTRY_SLA:
+    if now - provider_spec.observed_at > DECISION_DEADLINE:
         raise Vt31Nas100LiveError("VT31 broker symbol snapshot older than 2s")
 
     for name, value in (
