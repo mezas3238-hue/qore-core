@@ -49,7 +49,7 @@ def _row(
 
 
 def _write_ledger(root: Path, symbol: str, rows: tuple[dict[str, object], ...]) -> None:
-    root.mkdir(parents=True)
+    root.mkdir(parents=True, exist_ok=True)
     path = root / f"capitalizer-{symbol.lower()}-three-session-replay-cell-v1-trades.jsonl"
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
