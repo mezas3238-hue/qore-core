@@ -62,3 +62,20 @@ def test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:
     assert "current_anchor_hour=anchor_local.hour" in source
     assert "if hour > anchor_local.hour:" in source
     assert "FINAL_CAUSAL_ENTRY_ANCHOR_NY" not in source
+
+
+def test_live_runtime_registers_vt31_as_seventh_single_writer_trader() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert '"VT31_NAS100",' in source
+    assert "**vt31_runtime_started_fields()" in source
+    assert "manage_vt31_open_trade(" in source
+    assert "evaluate_vt31_boundary(" in source
+    assert "await_vt31_boundary_snapshot(" in source
+    assert "vt31_cache.preload(mt5" in source
+    assert "vt31_cache.refresh_incremental(mt5" in source
+
+
+def test_vt31_lifecycle_is_not_routed_through_vt08_h4_exit_manager() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "if lineage is TraderLineage.VT31_NAS100:" in source
+    assert "VT31 owns its 16:00 NY lifecycle" in source
