@@ -21,7 +21,7 @@ from qore.infrastructure.fundednext_live_mt5 import MetaTrader5FundedNextLiveTra
 from qore.infrastructure.fundednext_mt5 import FundedNextMt5OrderPlan
 from qore.infrastructure.order_intent import OrderSide, OrderType
 
-_MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD")
+_MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD", "NAS100")
 _SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
 
