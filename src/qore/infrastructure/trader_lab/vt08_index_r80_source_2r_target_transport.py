@@ -53,9 +53,6 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r67_r66_failure_forensics as r67,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r68_r58_risk_transport_ablation as r68,
-)
-from qore.infrastructure.trader_lab import (
     vt08_index_r74_ambiguous_bias_resolvers as r74,
 )
 from qore.infrastructure.trader_lab import (
