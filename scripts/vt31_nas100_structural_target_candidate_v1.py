@@ -37,7 +37,7 @@ import vt31_nas100_causal_hybrid_rearm_v1 as engine
 import vt31_nas100_r5_causal_state_risk_shield_frontier_v1 as annuals
 import vt31_nas100_residual_regime_forensics_v2 as residual
 
-from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_2 import (
+from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
     METHODOLOGY_ID,
     SOURCE_SHA256,
     source_fingerprint,
