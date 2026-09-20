@@ -163,11 +163,6 @@ def _physicalize(
             continue
 
         dol1_r = abs(dol1 - entry) / risk
-        close_r = (
-            (close - entry) / risk
-            if side == "long"
-            else (entry - close) / risk
-        )
         # Hedging live execution keeps the potential runner as its own
         # quarter-leg. After first DOL1 touch the runtime watches fresh ticks
         # at 75ms cadence until the M1 close. A non-accept necessarily crosses
@@ -186,7 +181,7 @@ def _physicalize(
         updated["physical_dol1_retrace_watch_until"] = cast(
             datetime, getattr(dol1_bar, "closed_at")
         ).isoformat()
-        updated["execution_binding_v3_applied"] = True
+        updated["execution_binding_v4_applied"] = True
         counts["compressed-dol1-nonaccept-physical-close"] += 1
         total_delta += requested_risk * delta
         adjusted.append(updated)
@@ -213,7 +208,7 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
         provider,
     ) = load_market_evidence(path)
     if not series or getattr(series[0], "instrument").symbol != MARKET:
-        raise ValueError("VT31 execution binding V3 requires NAS100")
+        raise ValueError("VT31 execution binding V4 requires NAS100")
 
     raw: dict[date, list[object]] = defaultdict(list)
     for bar in series:
