@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.infrastructure.research_economic_evidence import ResearchReturnBasis
 from qore.infrastructure.research_evaluation_freeze import (
     ResearchEvaluationFreezeEvidence,
 )
@@ -17,7 +18,6 @@ from qore.infrastructure.research_frozen_oos_evidence import (
     build_research_frozen_oos_evidence,
     compute_research_frozen_oos_fingerprint,
 )
-from qore.infrastructure.research_economic_evidence import ResearchReturnBasis
 from qore.infrastructure.research_oos_performance import (
     ResearchOosFoldPerformance,
     ResearchOosPerformanceEvidence,
