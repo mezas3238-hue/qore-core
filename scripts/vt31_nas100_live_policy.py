@@ -507,6 +507,7 @@ def _virtual_order(
             else str(state["current_path_vs_previous"])
         ),
         rearm_quality=rearm_quality,
+        target_plan=str(state.get("target_plan", "UNAVAILABLE")),
     )
 
 
