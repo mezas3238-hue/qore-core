@@ -126,6 +126,30 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
+        source_id="ICT_ATM_METHOD",
+        author=CapitalizerStrategyAuthor.ICT,
+        kind=CapitalizerPrimarySourceKind.VIDEO,
+        title="ICT Forex - The ICT ATM Method",
+        primary_locator="youtube:30petm6SZz0",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="ICT_2022_MENTORSHIP_EP6",
+        author=CapitalizerStrategyAuthor.ICT,
+        kind=CapitalizerPrimarySourceKind.VIDEO,
+        title="2022 ICT Mentorship Episode 6",
+        primary_locator="youtube:Bkt8B3kLATQ",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="ICT_RISK_MANAGEMENT",
+        author=CapitalizerStrategyAuthor.ICT,
+        kind=CapitalizerPrimarySourceKind.VIDEO,
+        title="ICT Forex - Considerations In Risk Management",
+        primary_locator="youtube:tlKC9nvLRK0",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
         source_id="TTRADES_FAIR_VALUE_GAPS",
         author=CapitalizerStrategyAuthor.TTRADES,
         kind=CapitalizerPrimarySourceKind.ARTICLE,
@@ -316,6 +340,47 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
             "ICT_HIGH_PROBABILITY_SCALPING_V1",
             "ICT_NEW_YORK_KILLZONE",
         ),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_STRUCTURAL_STOP_USES_KEY_INVALIDATION_EXTREME",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT frames initial stop risk from the structural key/rejection high or low rather "
+            "than an arbitrary fixed distance. In the ATM lesson the bearish example places "
+            "risk one or two pips above the key/rejection high, while the bullish examples keep "
+            "the stop below the invalidating old low. This is model-specific evidence, not a "
+            "universal cross-market numeric buffer."
+        ),
+        source_ids=("ICT_ATM_METHOD",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_LOWER_TIMEFRAME_REFINES_STOP_WITH_SAME_OBJECTIVE",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT demonstrates lowering the execution timeframe to reduce the distance from entry "
+            "to structural invalidation while preserving the same higher-timeframe liquidity "
+            "objective; lower-timeframe refinement is therefore a risk-expression tool, not a "
+            "replacement for the higher-timeframe thesis."
+        ),
+        source_ids=("ICT_ATM_METHOD",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_PROTECTIVE_STOP_MOVES_ONLY_AFTER_STRUCTURE_EARNS_IT",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT warns against rolling a protective stop prematurely and demonstrates waiting "
+            "for meaningful market structure/liquidity to be taken before advancing the stop."
+        ),
+        source_ids=("ICT_2022_MENTORSHIP_EP6",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_DRAWDOWN_REQUIRES_RISK_REDUCTION_NOT_RECOVERY_LEVERAGE",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT risk-management teaching reduces exposure after losses rather than increasing "
+            "risk to recover drawdown; stop geometry and position risk must remain separate."
+        ),
+        source_ids=("ICT_RISK_MANAGEMENT",),
     ),
     CapitalizerSourceFact(
         fact_id="TTRADES_ENTRY_AFTER_CONFIRMED_PROTECTED_SWING_ON_NEXT_CONTINUATION",
