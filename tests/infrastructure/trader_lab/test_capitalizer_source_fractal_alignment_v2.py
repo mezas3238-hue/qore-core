@@ -1,12 +1,16 @@
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import detect_cisd
+from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
+    CapitalizerCISDObservation,
+    detect_cisd,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_fractal_alignment_v2 import (
     assess_fractal_alignment,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
+    CapitalizerSourceClosureObservation,
     CapitalizerSourceDirection,
     confirm_protected_swing,
     detect_candle2_reversal_closure,
@@ -22,7 +26,7 @@ def _bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
     )
 
 
-def _bullish_h1_closure():
+def _bullish_h1_closure() -> CapitalizerSourceClosureObservation | None:
     return detect_candle2_reversal_closure(
         previous=_bar("100", "102", "98", "99"),
         candle2=_bar("99", "101", "97", "99.5"),
@@ -30,7 +34,9 @@ def _bullish_h1_closure():
     )
 
 
-def _bullish_m15_cisd(h1):
+def _bullish_m15_cisd(
+    h1: CapitalizerSourceClosureObservation,
+) -> CapitalizerCISDObservation:
     return detect_cisd(
         causal_series=(
             _bar("100", "100.5", "99", "99.4"),
