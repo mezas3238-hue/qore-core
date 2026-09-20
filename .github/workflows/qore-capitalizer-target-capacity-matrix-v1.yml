@@ -17,6 +17,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
@@ -27,6 +28,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py'
   workflow_dispatch:
 
 permissions:
@@ -67,6 +69,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
@@ -76,7 +79,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py
+            tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py
       - name: Mypy
         run: |
           mypy \
@@ -90,7 +94,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py
+            src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
@@ -343,6 +348,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_pair_session_compatibility \
             matrix-input matrix-output
+      - name: Build three-slot session compatibility characterization
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_triad_session_compatibility \
+            matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
           python - <<'PY'
@@ -537,6 +546,40 @@ jobs:
           assert pairs['pair_aggregate_cells']
           assert pairs['pair_side_cells']
           assert pairs['transition_cells']
+
+          triads = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-triad-session-compatibility-v1.json'
+              ).read_text()
+          )
+          assert triads['identity'] == (
+              'QORE_CAPITALIZER_TRIAD_SESSION_COMPATIBILITY_V1'
+          )
+          assert triads['market_count'] == 9
+          assert triads['max_executions_per_session'] == 3
+          assert triads['complete_triad_only'] is True
+          assert triads['sides_profiled'] is True
+          assert triads['chronological_order_profiled'] is True
+          assert triads['active_position_overlap_profiled'] is True
+          assert triads['exposure_relation_profiled'] is True
+          assert triads['categorical_characterization_only'] is True
+          assert triads['numeric_threshold_optimization_used'] is False
+          assert triads['outcome_aware_routing_used'] is False
+          assert triads['triad_routing_selected'] is False
+          assert triads['positive_pnl_is_not_stop_condition'] is True
+          assert triads['governed_profit_objective_not_modeled'] is True
+          assert triads['qore_risk_authority_granted'] is False
+          assert triads['costs_applied'] is False
+          assert triads['candidate_frozen'] is False
+          assert triads['fresh_holdout_claimed'] is False
+          assert triads['promotion_allowed'] is False
+          assert set(triads['complete_three_trade_sessions_by_tie_policy']) == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert triads['triad_side_cells']
+          assert triads['triad_path_cells']
           PY
       - name: Upload immutable target-capacity matrix
         uses: actions/upload-artifact@v4
