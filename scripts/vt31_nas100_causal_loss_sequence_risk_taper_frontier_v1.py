@@ -28,8 +28,8 @@ from pathlib import Path
 from typing import cast
 
 import vt31_nas100_alt_tier_bifurcation_forensics_v1 as alt
-import vt31_nas100_residual_regime_forensics_v2 as residual
 import vt31_nas100_r5_causal_state_risk_shield_frontier_v1 as annuals
+import vt31_nas100_residual_regime_forensics_v2 as residual
 
 SCHEMA = "qore.vt31.nas100.causal_loss_sequence_risk_taper_frontier.v1"
 MC_PATHS = 10000
