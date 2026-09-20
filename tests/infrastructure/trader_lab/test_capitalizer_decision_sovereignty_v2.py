@@ -20,6 +20,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
     allowed_markets,
 )
+from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
+    CapitalizerCrossMarketCausalGraph,
+)
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
     CapitalizerCognitiveGateFacts,
@@ -57,10 +60,6 @@ from qore.infrastructure.trader_lab.capitalizer_perception_integrity import (
 from qore.infrastructure.trader_lab.capitalizer_regime_intelligence import (
     CapitalizerRegimeResolution,
 )
-from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
-    CapitalizerCrossMarketCausalGraph,
-)
-
 
 def _world(
     at: datetime,
