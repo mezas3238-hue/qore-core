@@ -233,3 +233,34 @@ def test_frozen_oos_evidence_makes_no_epistemic_or_production_claims(
     assert not hasattr(evidence, "pre_registered")
     assert not hasattr(evidence, "statistically_significant")
     assert not hasattr(evidence, "production_ready")
+
+
+def test_fingerprint_canonicalizes_nested_uuid_logical_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = object()
+    plan = _plan(run)
+    evaluation_freeze = _evaluation_freeze(plan, run)
+    oos = _oos_performance(plan)
+
+    monkeypatch.setattr(
+        ResearchEvaluationFreezeEvidence,
+        "logical_values",
+        lambda self: ("freeze", _uuid(701)),
+    )
+    monkeypatch.setattr(
+        ResearchOosPerformanceEvidence,
+        "logical_values",
+        lambda self: ("oos", (_uuid(702),)),
+    )
+
+    first = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    second = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    assert first == second
+    assert len(first.value) == 64
