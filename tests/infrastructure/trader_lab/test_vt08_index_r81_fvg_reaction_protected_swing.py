@@ -40,7 +40,7 @@ def test_r81_reaction_series_must_be_born_inside_fvg() -> None:
         _bar(t0 + timedelta(minutes=15), open_="101", high="102", low="100", close="101.5"),
         _bar(t0 + timedelta(minutes=30), open_="102.4", high="103", low="102.2", close="102.8"),
         _bar(t0 + timedelta(minutes=45), open_="102.4", high="102.6", low="101.2", close="101.6"),
-        _bar(t0 + timedelta(minutes=60), open_="101.7", high="102.5", low="101.5", close="102.4"),
+        _bar(t0 + timedelta(minutes=60), open_="101.7", high="102.6", low="101.5", close="102.5"),
     )
     fvg = r79.DirectionalFvg(
         low=Decimal("101"),
