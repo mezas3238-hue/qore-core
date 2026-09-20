@@ -38,6 +38,7 @@ class CrtPureConceptId(StrEnum):
     STRUCTURAL_DESTINATION = "structural_destination"
     CONTINUATION_REVERSAL = "continuation_reversal"
     FAILURE_CONDITIONS = "failure_conditions"
+    MAKE_OR_BREAK_LEVEL = "make_or_break_level"
     REARM_IDENTITY = "rearm_identity"
     SAME_BAR_AMBIGUITY = "same_bar_ambiguity"
     BTCUSD_CONTINUOUS_MARKET = "btcusd_continuous_market"
@@ -180,6 +181,87 @@ _DISCOVERED_LEVEL_A_EVIDENCE: dict[
                 "The post establishes more than one entry context but does not define "
                 "the exact CRT entry families or their deterministic triggers."
             ),
+        ),
+    ),
+    CrtPureConceptId.CRH_CRL: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.CRH_CRL,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?before=6354",
+            normalized_statement=(
+                "RomeoTPT explicitly refers to CRTH/L as structural price levels "
+                "from which price can travel toward the 50 percent area."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "The source confirms CRTH/L terminology and relevance but does not "
+                "in this post define the exact candle-selection algorithm that creates them."
+            ),
+        ),
+    ),
+    CrtPureConceptId.LIQUIDATION_SWEEP: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.LIQUIDATION_SWEEP,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt/6615",
+            normalized_statement=(
+                "For an ideal bearish reaction, RomeoTPT describes a candle opening, "
+                "stabbing into an old CRTH, and then dumping."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "This directly supports penetration of an old CRTH as relevant behavior, "
+                "but does not yet define universal sweep depth, close requirement, or entry trigger."
+            ),
+        ),
+    ),
+    CrtPureConceptId.STRUCTURAL_DESTINATION: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.STRUCTURAL_DESTINATION,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?before=6354",
+            normalized_statement=(
+                "RomeoTPT explicitly describes taking price from CRTH/L toward 50 percent."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "Other official examples also describe range-high to range-low travel. "
+                "More context is required before freezing one universal destination hierarchy."
+            ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.STRUCTURAL_DESTINATION,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?before=6612",
+            normalized_statement="RomeoTPT posts an example described as Nasdaq range high to range low.",
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "The example proves opposite-range travel exists in the source corpus, "
+                "not that it is always the mandatory target."
+            ),
+        ),
+    ),
+    CrtPureConceptId.MAKE_OR_BREAK_LEVEL: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?before=6745",
+            normalized_statement=(
+                "MOB means make-or-break level. If price breaks through it, RomeoTPT "
+                "states the target will be hit; if the level is respected, it blocks "
+                "the target and the trade idea should be scratched."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
         ),
     ),
 }
