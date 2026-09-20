@@ -73,18 +73,22 @@ def build_opportunity_competition_state(
             CapitalizerHypothesisStage.EXECUTABLE,
         }:
             reasons.append("HYPOTHESIS_NOT_DECISION_READY")
-        if market.hypothesis_id is None or market.source_event_id is None:
+        hypothesis_id = market.hypothesis_id
+        source_event_id = market.source_event_id
+        if hypothesis_id is None or source_event_id is None:
             reasons.append("HYPOTHESIS_IDENTITY_MISSING")
 
         if reasons:
             blocked.append((market.symbol, tuple(reasons)))
             continue
+        if hypothesis_id is None or source_event_id is None:
+            raise AssertionError("validated hypothesis identity unexpectedly missing")
 
         eligible.append(
             CapitalizerCompetitionCandidate(
                 symbol=market.symbol,
-                hypothesis_id=market.hypothesis_id,
-                source_event_id=market.source_event_id,
+                hypothesis_id=hypothesis_id,
+                source_event_id=source_event_id,
                 knowledge=market.knowledge,
                 contradictions=market.contradictions,
             )
