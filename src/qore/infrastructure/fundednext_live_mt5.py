@@ -46,7 +46,10 @@ from qore.infrastructure.fundednext_mt5_transport import (
     MetaTrader5FundedNextTransport,
 )
 from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
-from qore.infrastructure.fundednext_stellar_instant import StellarInstantRuleVerification
+from qore.infrastructure.fundednext_stellar_instant import (
+    PILOT_SYMBOL_MAP,
+    StellarInstantRuleVerification,
+)
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
     MarketTestAccountIdentity,
@@ -222,11 +225,12 @@ class FundedNextLiveMt5ExecutionGateway:
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> Mt5SymbolSpecification:
         if qore_symbol not in {"AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD", "NAS100"}:
             raise Mt5ExecutionBlockedError("symbol-outside-certified-live-universe")
+        provider_symbol = PILOT_SYMBOL_MAP.get(qore_symbol, qore_symbol)
         catalog = self._transport.available_symbols()
-        matches = tuple(symbol for symbol in catalog if symbol == qore_symbol)
+        matches = tuple(symbol for symbol in catalog if symbol == provider_symbol)
         if len(matches) != 1:
             raise Mt5ExecutionBlockedError("live-symbol-must-resolve-exactly-once")
-        spec = self._transport.symbol_info(qore_symbol)
+        spec = self._transport.symbol_info(provider_symbol)
         if spec is None:
             raise Mt5ExecutionBlockedError("mt5-symbol-info-missing")
         _fresh(spec.observed_at, now, self._max_spec_age, "symbol-info")
