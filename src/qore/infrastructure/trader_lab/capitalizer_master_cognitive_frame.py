@@ -78,6 +78,7 @@ class CapitalizerCandidateCognitiveContext:
     destination_available: bool
     event_is_fresh: bool
     genuinely_new_causal_event: bool
+    observation_tokens: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.symbol not in NINE_MARKET_UNIVERSE:
@@ -89,6 +90,9 @@ class CapitalizerCandidateCognitiveContext:
 @dataclass(frozen=True, slots=True)
 class CapitalizerCandidateCognitiveEvaluation:
     symbol: str
+    observed_at: datetime
+    observation_tokens: tuple[str, ...]
+    regime_family_id: str | None
     metacognition: CapitalizerMetacognitiveAssessment
     adversarial: CapitalizerAdversarialAssessment
     gate: CapitalizerCognitiveGateAssessment
@@ -237,6 +241,9 @@ def build_master_cognitive_frame(
         candidate_evaluations.append(
             CapitalizerCandidateCognitiveEvaluation(
                 symbol=context.symbol,
+                observed_at=context.observed_at,
+                observation_tokens=context.observation_tokens,
+                regime_family_id=regime.family_id,
                 metacognition=metacognition,
                 adversarial=adversarial,
                 gate=gate,
