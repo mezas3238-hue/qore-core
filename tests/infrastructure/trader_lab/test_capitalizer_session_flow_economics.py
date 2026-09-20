@@ -39,6 +39,8 @@ def test_session_flow_economics_exposes_third_trade_giveback_after_profit() -> N
     assert row.third_wins_after_positive == 0
     assert row.third_losses_after_positive == 1
     assert row.third_giveback_after_positive_rate == "1"
+    assert row.third_erases_prior_realized_profit == 0
+    assert row.third_erases_prior_realized_profit_rate == "0"
 
     third = next(
         item
@@ -85,3 +87,33 @@ def test_uncapped_research_exposes_opportunity_loss_from_session_ceiling() -> No
     assert capped.metrics.trades == 3
     assert capped.max_trades_in_one_session == 3
     assert capped.opportunities_rejected_by_ceiling == 1
+
+
+def test_third_trade_reports_exact_prior_positive_erasure_and_conditional_metrics() -> None:
+    report = _build_report(
+        (
+            _trade(0, "1"),
+            _trade(1, "0.5"),
+            _trade(2, "-2"),
+        )
+    )
+    row = next(
+        item
+        for item in report.policy_economics
+        if item.policy == "MAX3_ANY_VALID" and item.tie_policy == "SYMBOL_ASC"
+    )
+    assert row.third_erases_prior_realized_profit == 1
+    assert row.third_erases_prior_realized_profit_rate == "1"
+
+    third_all = next(
+        item
+        for item in report.ordinal_economics
+        if item.policy == "MAX3_ANY_VALID"
+        and item.tie_policy == "SYMBOL_ASC"
+        and item.session == "ALL"
+        and item.ordinal == 3
+    )
+    assert third_all.prior_realized_positive == 1
+    assert third_all.prior_positive_metrics is not None
+    assert third_all.prior_positive_metrics.total_r == "-2"
+    assert third_all.prior_nonpositive_metrics is None
