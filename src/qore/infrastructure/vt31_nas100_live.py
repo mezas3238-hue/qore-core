@@ -36,7 +36,7 @@ from qore.infrastructure.market_data import (
     OhlcSnapshot,
     Timeframe,
 )
-from qore.infrastructure.ports import (
+from qore.infrastructure.trader_execution_profile import M1_PROFILE\nfrom qore.infrastructure.ports import (
     AdapterId,
     ExternalSourceDescriptor,
     PortName,
@@ -350,7 +350,7 @@ def await_boundary_snapshot(
 ) -> Vt31Nas100BoundarySnapshot:
     clock = now_fn or (lambda: datetime.now(UTC))
     anchor = _utc(anchor, "anchor")
-    deadline = anchor + ENTRY_SLA
+    deadline = anchor + DECISION_DEADLINE
     last_reason = "boundary-data-not-ready"
     last_pre_refresh: datetime | None = None
 
@@ -358,7 +358,7 @@ def await_boundary_snapshot(
         observed = _utc(clock(), "clock")
         if observed > deadline:
             raise Vt31Nas100SlaExpired(
-                f"VT31 hard 2s SLA expired:{last_reason}"
+                f"VT31 hard M1 decision deadline expired:{last_reason}"
             )
 
         if observed < anchor:
@@ -396,7 +396,7 @@ def await_boundary_snapshot(
             remaining = (deadline - checked).total_seconds()
             if remaining <= 0:
                 raise Vt31Nas100SlaExpired(
-                    f"VT31 hard 2s SLA expired:{last_reason}"
+                    f"VT31 hard M1 decision deadline expired:{last_reason}"
                 ) from error
             sleep_fn(min(BOUNDARY_RETRY_SECONDS, remaining))
 
@@ -409,7 +409,7 @@ def assert_deadline(
 ) -> None:
     anchor_utc = _utc(anchor, "anchor")
     now_utc = _utc(now, "now")
-    if now_utc > anchor_utc + ENTRY_SLA:
+    if now_utc > anchor_utc + DECISION_DEADLINE:
         raise Vt31Nas100SlaExpired(
             f"VT31 SLA_FAIL_CLOSED:{stage}:deadline_exceeded"
         )
@@ -611,7 +611,7 @@ def build_risk_request(
         stop_loss_per_volume=stop_per_volume,
         margin_per_volume=provider_spec.margin_per_volume,
         requested_at=now,
-        expires_at=trigger_at + ENTRY_SLA,
+        expires_at=trigger_at + DECISION_DEADLINE,
     )
     return request, one_r_usd
 
