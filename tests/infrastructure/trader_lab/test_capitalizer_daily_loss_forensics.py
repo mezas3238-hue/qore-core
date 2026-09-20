@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_daily_loss_forensics import (
@@ -93,7 +93,7 @@ def test_intraday_realized_drawdown_tracks_peak_to_later_losses() -> None:
 
 def test_daily_distribution_counts_loss_bands_without_selecting_gate() -> None:
     base = datetime(2026, 1, 5, 13, 0, tzinfo=UTC)
-    grouped = {
+    grouped: dict[date, tuple[CapitalizerExposureCandidate, ...]] = {
         base.date(): (
             _candidate(
                 "EURUSD",
