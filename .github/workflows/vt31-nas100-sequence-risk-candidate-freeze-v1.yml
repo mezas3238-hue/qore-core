@@ -1,0 +1,114 @@
+name: QORE VT31 NAS100 Sequence Risk Candidate Freeze V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_sequence_risk_candidate_v1.py
+      - .github/workflows/vt31-nas100-sequence-risk-candidate-freeze-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static and self-test
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_sequence_risk_candidate_v1.py
+          ruff check scripts/vt31_nas100_sequence_risk_candidate_v1.py
+          python scripts/vt31_nas100_sequence_risk_candidate_v1.py --self-test | tee self-test.json
+      - name: Recover bound development aggregate
+        run: |
+          set -euo pipefail
+          mkdir -p development freeze
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10596991898/zip" > development.zip
+          unzip -q development.zip -d development
+          test -f development/aggregate.json
+      - name: Verify frozen development survivor
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          import scripts.vt31_nas100_sequence_risk_candidate_v1 as candidate
+
+          aggregate=json.loads(Path("development/aggregate.json").read_text())
+          assert aggregate["schema"] == (
+              "qore.vt31.nas100.causal_sequence_union_risk_frontier.aggregate.v1"
+          )
+          assert "B0_L1LONG_X050" in aggregate["development_passing"]
+          selected=aggregate["variant_summary"]["B0_L1LONG_X050"]
+          consumed=selected["consumed_holdout"]
+          assert consumed["trade_count"] == 334
+          assert consumed["passes_economic_objectives"] is True
+          assert consumed["objectives"]["mc_positive_ge_0_90"] is True
+          assert consumed["objectives"]["both_consumed_years_positive"] is True
+          assert consumed["metrics"]["profit_factor"].startswith("2.259299274390833")
+          assert consumed["monte_carlo"]["positive_terminal_probability"] == "0.9027"
+          assert all(
+              selected[fold]["passes_economic_objectives"]
+              for fold in ("r5","r6","r8")
+          )
+
+          script_path=Path("scripts/vt31_nas100_sequence_risk_candidate_v1.py")
+          freeze={
+              "schema":"qore.vt31.nas100.sequence_risk_candidate.freeze.v1",
+              "candidate_id":candidate.CANDIDATE_ID,
+              "contract_fingerprint":candidate.contract_fingerprint(),
+              "software_sha":os.environ["GITHUB_SHA"],
+              "candidate_script_sha256":hashlib.sha256(script_path.read_bytes()).hexdigest(),
+              "frozen_variant":candidate.FROZEN_VARIANT,
+              "development_run_id":candidate.DEVELOPMENT_RUN_ID,
+              "development_head_sha":candidate.DEVELOPMENT_HEAD_SHA,
+              "development_aggregate_artifact_id":candidate.DEVELOPMENT_AGGREGATE_ARTIFACT_ID,
+              "development_aggregate_digest":candidate.DEVELOPMENT_AGGREGATE_DIGEST,
+              "development_passing":aggregate["development_passing"],
+              "consumed_result":{
+                  "trade_count":consumed["trade_count"],
+                  "metrics":consumed["metrics"],
+                  "monte_carlo":consumed["monte_carlo"],
+                  "annual_blocks":consumed["annual_blocks"],
+              },
+              "five_year_opened":False,
+              "five_year_parameters_retunable":False,
+              "candidate_frozen":True,
+              "live_authorized":False,
+              "real_capital_authorized":False,
+              "production_authorized":False,
+          }
+          Path("freeze/vt31-nas100-sequence-risk-candidate-freeze-v1.json").write_text(
+              json.dumps(freeze,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+      - name: Bind freeze
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > freeze/git-sha.txt
+          sha256sum freeze/vt31-nas100-sequence-risk-candidate-freeze-v1.json \
+            scripts/vt31_nas100_sequence_risk_candidate_v1.py \
+            self-test.json > freeze/SHA256SUMS
+          sha256sum -c freeze/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-sequence-risk-candidate-freeze-${{ github.sha }}
+          path: freeze/
+          if-no-files-found: error
+          retention-days: 90
