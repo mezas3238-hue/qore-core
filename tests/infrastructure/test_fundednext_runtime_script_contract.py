@@ -88,3 +88,5 @@ def test_vt31_nas100_is_broker_probed_before_shadow_or_live() -> None:
     order_check = _ORDER_CHECK.read_text(encoding="utf-8-sig")
     assert '"NAS100"' in no_send
     assert '"NAS100"' in order_check
+    assert "PILOT_SYMBOL_MAP.get(symbol, symbol)" in no_send
+    assert "PILOT_SYMBOL_MAP.get(symbol, symbol)" in order_check
