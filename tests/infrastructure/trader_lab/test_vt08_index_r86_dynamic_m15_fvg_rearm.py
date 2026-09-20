@@ -98,7 +98,7 @@ def test_r86_does_not_use_fvg_formed_before_rearm_cursor() -> None:
     assert r86._directional_fvgs(
         bars,
         side=DemoTradingSetupSide.LONG,
-        earliest_formed_index=3,
+        earliest_formed_index=4,
     ) == ()
 
 
