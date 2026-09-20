@@ -242,7 +242,7 @@ def _window(
         )
         for symbol in contract.MARKETS
     }
-    aggregate = Counter()
+    aggregate: Counter[str] = Counter()
     for row in by_market.values():
         aggregate.update(row["families"])
     total = sum(aggregate.values())
