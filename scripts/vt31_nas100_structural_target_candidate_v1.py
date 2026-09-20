@@ -21,7 +21,7 @@ Candidate:
 The candidate is frozen for extended consumed validation. It is NOT certified,
 fresh, live or production-authorized.
 """
-from __future__ import annotations
+# ruff: noqa: I001\nfrom __future__ import annotations
 
 import hashlib
 import json
@@ -148,10 +148,10 @@ def evaluate(
 
     raw: dict[date, list[object]] = defaultdict(list)
     for bar in series:
-        raw[_day(getattr(bar, "opened_at"))].append(bar)
+        raw[_day(bar.opened_at)].append(bar)
     by_day = {
         local_day: tuple(
-            sorted(items, key=lambda item: getattr(item, "opened_at"))
+            sorted(items, key=lambda item: item.opened_at)
         )
         for local_day, items in raw.items()
     }
