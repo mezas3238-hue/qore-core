@@ -231,7 +231,9 @@ class CapitalizerSourceFaithfulTraderDesign:
     sizes_position: bool = False
     grants_capital_authority: bool = False
 
-    ready_for_integrated_nine_market_replay: bool = True
+    deterministic_source_observation_layer_closed: bool = False
+    source_faithful_trader_engine_closed: bool = False
+    ready_for_integrated_nine_market_replay: bool = False
     integrated_nine_market_replay_completed: bool = False
     trader_certified: bool = False
 
@@ -272,8 +274,18 @@ class CapitalizerSourceFaithfulTraderDesign:
             raise ValueError("source-faithful trader design contains forbidden methodology drift")
         if self.executes_trade or self.sizes_position or self.grants_capital_authority:
             raise ValueError("source-faithful trader design stops before QORE Risk/execution")
-        if not self.ready_for_integrated_nine_market_replay:
-            raise ValueError("complete source-faithful design must open integrated replay")
+        if self.deterministic_source_observation_layer_closed:
+            raise ValueError(
+                "methodology design contract cannot claim observation layer closure"
+            )
+        if self.source_faithful_trader_engine_closed:
+            raise ValueError(
+                "methodology design contract cannot claim composed trader engine closure"
+            )
+        if self.ready_for_integrated_nine_market_replay:
+            raise ValueError(
+                "replay remains blocked until observation layer and trader engine close"
+            )
         if self.integrated_nine_market_replay_completed or self.trader_certified:
             raise ValueError("design closure cannot claim replay/certification")
 
