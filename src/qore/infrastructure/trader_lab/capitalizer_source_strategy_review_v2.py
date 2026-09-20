@@ -304,6 +304,17 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         primary_locator="https://ttrades.com/using-order-blocks-for-continuations/",
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_TIMEFRAME_ALIGNMENT",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Time Frame Alignment",
+        primary_locator=(
+            "https://ttrades.com/timeframe-alignment-how-to-align-higher-and-lower-"
+            "time-frames-for-precision-entries/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
 )
 
 
@@ -678,6 +689,38 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
             "seeking the body/continuation."
         ),
         source_ids=("TTRADES_WICK_THEN_BODY", "TTRADES_INTRACANDLE_CISD"),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_ENTRY_TIMEFRAME_PROVIDES_PRECISION",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades separates bias, structure and entry timeframes. The entry timeframe "
+            "provides precision, and its published pairing includes 15M structure to 1M entry."
+        ),
+        source_ids=("TTRADES_TIMEFRAME_ALIGNMENT",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_ENTRY_USES_CONTINUATION_ORDER_BLOCK",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades continuation execution looks for a validated continuation order block "
+            "after the lower-timeframe confirmation sequence; an order block alone is not "
+            "sufficient without location/confirmation."
+        ),
+        source_ids=(
+            "TTRADES_ORDER_BLOCK_CONTINUATIONS",
+            "TTRADES_TIMEFRAME_ALIGNMENT",
+        ),
+    ),
+    CapitalizerSourceFact(
+        fact_id="QORE_CAPITALIZER_ENTRY_M1_MSS_FVG_OB_REQUIRED",
+        fact_type=CapitalizerSourceFactType.QORE_OPERATIONALIZATION,
+        statement=(
+            "Owner-frozen Capitalizer execution contract: the entry timeframe is native M1, "
+            "and M1 Market Structure Shift, M1 Fair Value Gap and M1 validated Order Block "
+            "must all be confirmed before an entry may pass to QORE Risk."
+        ),
+        source_ids=(),
     ),
     CapitalizerSourceFact(
         fact_id="TTRADES_ENTRY_REQUIRES_TARGET_INTACT",
