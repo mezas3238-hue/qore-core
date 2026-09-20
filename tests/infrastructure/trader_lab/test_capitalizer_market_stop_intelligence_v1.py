@@ -8,6 +8,7 @@ from qore.infrastructure.trader_lab.capitalizer_market_stop_intelligence_v1 impo
     CAUSE_DIMENSIONS,
     IDENTITY,
     MATRIX_IDENTITY,
+    CapitalizerMarketStopIntelligenceDossier,
     build_market_dossier_from_payloads,
     build_matrix_from_dossiers,
 )
@@ -193,7 +194,10 @@ def _correction(symbol: str, session: CapitalizerSession) -> dict[str, object]:
     }
 
 
-def _dossier(symbol: str, session: CapitalizerSession):
+def _dossier(
+    symbol: str,
+    session: CapitalizerSession,
+) -> CapitalizerMarketStopIntelligenceDossier:
     return build_market_dossier_from_payloads(
         cause=_cause(symbol, session),
         breathing=_breathing(symbol, session),
