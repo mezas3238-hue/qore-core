@@ -264,6 +264,12 @@ jobs:
           assert flow_economics['fresh_holdout_claimed'] is False
           assert flow_economics['rule_selected'] is False
           assert flow_economics['promotion_allowed'] is False
+          assert {row['policy'] for row in flow_economics['policy_economics']} == {
+              'UNCAPPED_RESEARCH',
+              'MAX2',
+              'MAX3_ANY_VALID',
+              'MAX3_POSITIVE_REALIZED_CONTINUATION',
+          }
           PY
         env:
           MATRIX_SYMBOL: ${{ matrix.symbol }}
