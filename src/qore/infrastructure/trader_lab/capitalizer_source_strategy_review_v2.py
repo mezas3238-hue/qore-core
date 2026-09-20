@@ -134,11 +134,27 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
+        source_id="ICT_2022_MENTORSHIP_EP3",
+        author=CapitalizerStrategyAuthor.ICT,
+        kind=CapitalizerPrimarySourceKind.VIDEO,
+        title="2022 ICT Mentorship Episode 3",
+        primary_locator="youtube:nQfHZ2DEJ8c",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
         source_id="ICT_2022_MENTORSHIP_EP6",
         author=CapitalizerStrategyAuthor.ICT,
         kind=CapitalizerPrimarySourceKind.VIDEO,
         title="2022 ICT Mentorship Episode 6",
         primary_locator="youtube:Bkt8B3kLATQ",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="ICT_2022_MENTORSHIP_EP7",
+        author=CapitalizerStrategyAuthor.ICT,
+        kind=CapitalizerPrimarySourceKind.VIDEO,
+        title="2022 ICT Mentorship Episode 7",
+        primary_locator="youtube:G8-z91acgG4",
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
@@ -260,6 +276,32 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         primary_locator=(
             "https://ttrades.com/ttrades-scalping-model-simple-day-trading-strategy/"
         ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_INTRACANDLE_CISD",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Intracandle CISD (IC-CISD) - Improve Your Entries",
+        primary_locator="https://ttrades.com/intracandle-cisd-ic-cisd-improve-your-entries/",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_WICK_THEN_BODY",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Let The Wick Form, Trade The Body (Stop Getting Stopped Out)",
+        primary_locator=(
+            "https://ttrades.com/let-the-wick-form-trade-the-body-stop-getting-stopped-out/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_ORDER_BLOCK_CONTINUATIONS",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Using Order Blocks for Continuations",
+        primary_locator="https://ttrades.com/using-order-blocks-for-continuations/",
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
 )
@@ -565,6 +607,86 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
             "rather than assuming a reversal immediately after a sweep."
         ),
         source_ids=("TTRADES_FAILURE_TO_MANIPULATE",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_ENTRY_LIQUIDITY_RAID_PRECEDES_MSS",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT 2022 intraday execution first identifies old highs/lows as liquidity, waits "
+            "for price to run that liquidity, and only then anticipates an intraday market "
+            "structure shift rather than forcing the shift in advance."
+        ),
+        source_ids=("ICT_2022_MENTORSHIP_EP3",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_ENTRY_MSS_REQUIRES_SIGNIFICANT_DISPLACEMENT",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT 2022 entry logic requires an energetic/significant displacement through "
+            "short-term structure after the liquidity run; a weak or anticipatory break is not "
+            "the reviewed execution signature."
+        ),
+        source_ids=("ICT_2022_MENTORSHIP_EP3", "ICT_2022_MENTORSHIP_EP6"),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_ENTRY_REQUIRES_FVG_IN_DISPLACEMENT",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "In the reviewed 2022 model, after the liquidity run and displaced market structure "
+            "shift, ICT requires a valid fair value gap in the displacement range before the "
+            "trade entry is considered."
+        ),
+        source_ids=("ICT_2022_MENTORSHIP_EP6",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="ICT_ENTRY_USES_RETRACE_TO_FVG_NOT_CHASE",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT 2022 execution seeks the retracement into the post-shift fair value gap/order-"
+            "flow area and rejects chasing price after it has left the favorable entry area."
+        ),
+        source_ids=("ICT_2022_MENTORSHIP_EP3", "ICT_2022_MENTORSHIP_EP7"),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_ENTRY_REQUIRES_HTF_POI_CISD_CONTINUATION",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades entry sequencing requires directional bias, a meaningful point of interest, "
+            "lower-timeframe CISD confirmation and continuation structure before entry."
+        ),
+        source_ids=(
+            "TTRADES_INTRACANDLE_CISD",
+            "TTRADES_ORDER_BLOCK_CONTINUATIONS",
+            "TTRADES_SCALPING_MODEL",
+        ),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_ENTRY_INVALID_IF_CISD_MISSING",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades explicitly treats the setup as invalid for continuation when the required "
+            "lower-timeframe CISD confirmation is missing."
+        ),
+        source_ids=("TTRADES_CISD_SWING_CONFIRMATION",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_ENTRY_WICK_FORMED_BEFORE_BODY",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades avoids entering the expected expansion body before evidence that the higher-"
+            "timeframe wick has formed; IC-CISD/protected swing confirmation is used before "
+            "seeking the body/continuation."
+        ),
+        source_ids=("TTRADES_WICK_THEN_BODY", "TTRADES_INTRACANDLE_CISD"),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_ENTRY_REQUIRES_TARGET_INTACT",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades continuation entry requires a still-valid structural objective; a consumed "
+            "target cannot support the entry."
+        ),
+        source_ids=("TTRADES_TARGETS_FRACTAL_MODEL", "TTRADES_SCALPING_MODEL"),
     ),
     CapitalizerSourceFact(
         fact_id="QORE_MAX3_IS_NOT_AUTHOR_RULE",
