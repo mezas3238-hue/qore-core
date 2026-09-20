@@ -274,7 +274,6 @@ def _trace_conditions(
 ) -> _ConditionTrace:
     start = _session_start_index(bars, index=confirmation_index)
 
-    # ICT liquidity reference: most recent completed three-bar swing before the raid.
     refs = _swing_indices(
         bars,
         start=start,
@@ -284,13 +283,19 @@ def _trace_conditions(
     if not refs:
         return _ConditionTrace()
 
+    reached_raid = False
+    reached_mss = False
+    reached_displacement = False
+    reached_fvg = False
+    reached_retrace = False
+    reached_inside = False
+
     for reference_index in reversed(refs):
         reference_price = (
             bars[reference_index].high
             if side is CapitalizerSide.SHORT
             else bars[reference_index].low
         )
-
         raid_indices = tuple(
             index
             for index in range(reference_index + 2, confirmation_index + 1)
@@ -302,6 +307,7 @@ def _trace_conditions(
         )
         if not raid_indices:
             continue
+        reached_raid = True
 
         for raid_index in raid_indices:
             opposite_swings = _swing_indices(
@@ -313,13 +319,13 @@ def _trace_conditions(
             opposite_swings = tuple(index for index in opposite_swings if index < raid_index)
             if not opposite_swings:
                 continue
+
             break_index = opposite_swings[-1]
             break_price = (
                 bars[break_index].high
                 if side is CapitalizerSide.LONG
                 else bars[break_index].low
             )
-
             mss_candidates = tuple(
                 index
                 for index in range(raid_index + 1, confirmation_index + 1)
@@ -331,10 +337,13 @@ def _trace_conditions(
             )
             if not mss_candidates:
                 continue
+            reached_mss = True
 
             for mss_index in mss_candidates:
                 if not _significant_displacement(bars[mss_index], side):
                     continue
+                reached_displacement = True
+
                 fvg = _fvg_for_mss(
                     bars,
                     mss_index=mss_index,
@@ -343,6 +352,7 @@ def _trace_conditions(
                 )
                 if fvg is None:
                     continue
+                reached_fvg = True
                 fvg_confirm_index, lower, upper = fvg
 
                 retrace_indices = tuple(
@@ -352,20 +362,12 @@ def _trace_conditions(
                 )
                 if not retrace_indices:
                     continue
+                reached_retrace = True
 
                 entry_open = bars[entry_index].open
-                inside = lower <= entry_open <= upper
-                if not inside:
-                    return _ConditionTrace(
-                        liquidity_reference=True,
-                        liquidity_raid=True,
-                        market_structure_shift=True,
-                        significant_displacement=True,
-                        fvg_in_displacement=True,
-                        retrace_into_fvg=True,
-                        anti_chase_entry_inside_fvg=False,
-                        rejection_reason="ENTRY_OPEN_OUTSIDE_FVG_CHASE",
-                    )
+                if not lower <= entry_open <= upper:
+                    continue
+                reached_inside = True
 
                 protected = _protected_swing_surrogate(
                     bars,
@@ -373,16 +375,7 @@ def _trace_conditions(
                     side=side,
                 )
                 if protected is None:
-                    return _ConditionTrace(
-                        liquidity_reference=True,
-                        liquidity_raid=True,
-                        market_structure_shift=True,
-                        significant_displacement=True,
-                        fvg_in_displacement=True,
-                        retrace_into_fvg=True,
-                        anti_chase_entry_inside_fvg=True,
-                        rejection_reason="TTRADES_CISD_PROTECTED_SWING_NOT_CONFIRMED",
-                    )
+                    continue
                 protected_price, _ = protected
                 geometry_ok = (
                     protected_price < entry_open
@@ -390,17 +383,8 @@ def _trace_conditions(
                     else protected_price > entry_open
                 )
                 if not geometry_ok:
-                    return _ConditionTrace(
-                        liquidity_reference=True,
-                        liquidity_raid=True,
-                        market_structure_shift=True,
-                        significant_displacement=True,
-                        fvg_in_displacement=True,
-                        retrace_into_fvg=True,
-                        anti_chase_entry_inside_fvg=True,
-                        ttrades_cisd_protected_swing=False,
-                        rejection_reason="PROTECTED_SWING_GEOMETRY_INVALID",
-                    )
+                    continue
+
                 return _ConditionTrace(
                     liquidity_reference=True,
                     liquidity_raid=True,
@@ -414,27 +398,32 @@ def _trace_conditions(
                     rejection_reason="ACCEPTED_M5_SURROGATE",
                 )
 
-    # Return the deepest causal stage reached across alternatives.
-    # This deliberately preserves a coarse funnel and never consults outcomes.
-    raid_any = any(
-        (
-            bars[index].high > bars[ref].high
-            if side is CapitalizerSide.SHORT
-            else bars[index].low < bars[ref].low
-        )
-        for ref in refs
-        for index in range(ref + 2, confirmation_index + 1)
-    )
+    if not reached_raid:
+        reason = "LIQUIDITY_RAID_NOT_OBSERVED"
+    elif not reached_mss:
+        reason = "MARKET_STRUCTURE_SHIFT_NOT_CONFIRMED"
+    elif not reached_displacement:
+        reason = "SIGNIFICANT_DISPLACEMENT_NOT_CONFIRMED"
+    elif not reached_fvg:
+        reason = "FVG_IN_DISPLACEMENT_NOT_CONFIRMED"
+    elif not reached_retrace:
+        reason = "FVG_RETRACE_NOT_OBSERVED"
+    elif not reached_inside:
+        reason = "ENTRY_OPEN_OUTSIDE_FVG_CHASE"
+    else:
+        reason = "TTRADES_CISD_PROTECTED_SWING_NOT_CONFIRMED"
+
     return _ConditionTrace(
         liquidity_reference=True,
-        liquidity_raid=raid_any,
-        rejection_reason=(
-            "MARKET_STRUCTURE_SHIFT_NOT_CONFIRMED"
-            if raid_any
-            else "LIQUIDITY_RAID_NOT_OBSERVED"
-        ),
+        liquidity_raid=reached_raid,
+        market_structure_shift=reached_mss,
+        significant_displacement=reached_displacement,
+        fvg_in_displacement=reached_fvg,
+        retrace_into_fvg=reached_retrace,
+        anti_chase_entry_inside_fvg=reached_inside,
+        ttrades_cisd_protected_swing=False,
+        rejection_reason=reason,
     )
-
 
 def _metrics_from_values(
     values: tuple[Decimal, ...],
