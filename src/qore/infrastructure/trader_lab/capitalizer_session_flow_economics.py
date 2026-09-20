@@ -29,6 +29,7 @@ from qore.infrastructure.trader_lab.capitalizer_portfolio_session_flow_viability
     _session_key,
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
+from qore.infrastructure.trader_lab.capitalizer_session_flow_viability import NEW_YORK
 
 IDENTITY = "QORE_CAPITALIZER_SESSION_FLOW_ECONOMICS_V1"
 
@@ -56,6 +57,8 @@ class CapitalizerPolicyEconomics:
     metrics: PortfolioFlowMetrics
     sessions: int
     sessions_reaching_three: int
+    max_trades_in_one_session: int
+    opportunities_rejected_by_ceiling: int
     positive_sessions: int
     flat_sessions: int
     negative_sessions: int
@@ -164,13 +167,24 @@ def _realized_path(
     return equity, peak, giveback
 
 
+def _selected_for_policy(
+    trades: tuple[PortfolioFlowTrade, ...],
+    *,
+    policy: str,
+    tie_policy: str,
+) -> tuple[PortfolioFlowTrade, ...]:
+    if policy == "UNCAPPED_RESEARCH":
+        return _ordered(trades, tie_policy=tie_policy)
+    return _select(trades, mode=policy, tie_policy=tie_policy)
+
+
 def _policy_economics(
     trades: tuple[PortfolioFlowTrade, ...],
     *,
     policy: str,
     tie_policy: str,
 ) -> CapitalizerPolicyEconomics:
-    selected = _select(trades, mode=policy, tie_policy=tie_policy)
+    selected = _selected_for_policy(trades, policy=policy, tie_policy=tie_policy)
     groups = _session_groups(selected, tie_policy=tie_policy)
     finals: list[Decimal] = []
     peaks: list[Decimal] = []
@@ -209,7 +223,7 @@ def _policy_economics(
 
     by_year: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
     for trade in selected:
-        by_year[trade.entry_at.year] += trade.realized_r
+        by_year[trade.entry_at.astimezone(NEW_YORK).year] += trade.realized_r
 
     final_tuple = tuple(finals)
     peak_tuple = tuple(peaks)
@@ -228,6 +242,8 @@ def _policy_economics(
         metrics=_metrics(selected),
         sessions=sessions,
         sessions_reaching_three=sum(len(rows) >= 3 for rows in groups.values()),
+        max_trades_in_one_session=max(len(rows) for rows in groups.values()),
+        opportunities_rejected_by_ceiling=len(trades) - len(selected),
         positive_sessions=positive,
         flat_sessions=flat,
         negative_sessions=negative,
@@ -259,7 +275,7 @@ def _ordinal_economics(
     policy: str,
     tie_policy: str,
 ) -> tuple[CapitalizerOrdinalEconomics, ...]:
-    selected = _select(trades, mode=policy, tie_policy=tie_policy)
+    selected = _selected_for_policy(trades, policy=policy, tie_policy=tie_policy)
     groups = _session_groups(selected, tie_policy=tie_policy)
     cells: list[CapitalizerOrdinalEconomics] = []
     sessions = ("ASIA", "LONDON", "NEW_YORK")
@@ -313,6 +329,7 @@ def _build_report(
     if not trades:
         raise ValueError("session-flow economics requires trades")
     policies = (
+        "UNCAPPED_RESEARCH",
         "MAX2",
         "MAX3_ANY_VALID",
         "MAX3_POSITIVE_REALIZED_CONTINUATION",
