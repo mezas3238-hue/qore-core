@@ -1,0 +1,156 @@
+name: QORE VT31 NAS100 Target Decision Engine Frontier V2
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_target_decision_engine_frontier_v2.py
+      - .github/workflows/vt31-nas100-target-decision-engine-frontier-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed_holdout
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_target_decision_engine_frontier_v2.py
+          ruff check scripts/vt31_nas100_target_decision_engine_frontier_v2.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run target decision engine frontier V2
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_target_decision_engine_frontier_v2.py \
+            "input/${EVIDENCE_PATH}" \
+            --partition "$PARTITION" \
+            --output "result/target-decision-v2-${PARTITION}.json" \
+            | tee "result/summary-${PARTITION}.json"
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path(f"result/target-decision-v2-{os.environ['PARTITION']}.json").read_text())
+          g=p["governance"]
+          assert g["development_frontier_only"] is True
+          assert g["shallow_uses_interactions_not_broad_singletons"] is True
+          assert g["destination_state_uses_entry_known_features_only"] is True
+          assert g["future_journey_runtime_input"] is False
+          assert g["runner_only_on_deep_state"] is True
+          assert g["stop_can_only_improve_or_hold"] is True
+          assert g["stop_widened"] is False
+          assert g["trade_admission_changed"] is False
+          assert g["silver_bullet_changed"] is False
+          assert g["opens_new_holdout"] is False
+          assert g["candidate_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-target-decision-v2-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-nas100-target-decision-v2-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Aggregate target decision frontier V2
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          folds={}
+          for path in Path("input").glob("target-decision-v2-*.json"):
+              p=json.loads(path.read_text())
+              folds[p["partition"]]=p
+          assert set(folds)=={"r5","r6","r8","consumed_holdout"}
+
+          names=set.intersection(*(set(p["variants"]) for p in folds.values()))
+          summary={}
+          passing=[]
+          for name in sorted(names):
+              per={fold:p["variants"][name] for fold,p in sorted(folds.items())}
+              summary[name]=per
+              if all(v["passes_economic_objectives"] for v in per.values()):
+                  passing.append(name)
+
+          report={
+              "schema":"qore.vt31.nas100.target_decision_engine_frontier.aggregate.v2",
+              "development_passing":passing,
+              "variant_summary":summary,
+              "governance":{
+                  "development_only":True,
+                  "shallow_interactions_only":True,
+                  "future_journey_runtime_forbidden":True,
+                  "silver_bullet_unchanged":True,
+                  "candidate_certified":False,
+                  "opens_new_holdout":False,
+              },
+          }
+          Path("result/aggregate.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-nas100-target-decision-v2-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
