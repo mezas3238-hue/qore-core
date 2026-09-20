@@ -9,7 +9,9 @@ def test_source_stop_fidelity_audit_reopens_exact_stop_placement() -> None:
 
     assert audit.identity == IDENTITY
     assert audit.source_invalidation_anchor == "CONFIRMED_LOGICAL_PROTECTED_SWING"
-    assert audit.source_stop_relation == "PROTECTED_SWING_ANCHOR_DEFAULT_AT_SWING_WITH_BEYOND_VARIANTS"
+    assert audit.source_stop_relation == (
+        "PROTECTED_SWING_ANCHOR_DEFAULT_AT_SWING_WITH_BEYOND_VARIANTS"
+    )
     assert audit.source_universal_numeric_padding_defined is False
     assert audit.current_trade_plan_relation == "DEFAULT_AT_PROTECTED_SWING"
     assert audit.current_trade_plan_source_faithful is True
