@@ -68,6 +68,32 @@ class ResearchFrozenOosFingerprint:
         return (self.value,)
 
 
+def _canonical_json_value(value: object) -> object:
+    """Project logical evidence values into strict deterministic JSON values."""
+
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, tuple):
+        return [_canonical_json_value(item) for item in value]
+    if isinstance(value, list):
+        return [_canonical_json_value(item) for item in value]
+    if isinstance(value, dict):
+        if any(not isinstance(key, str) for key in value):
+            raise ResearchFrozenOosEvidenceValidationError(
+                "frozen OOS canonical JSON mapping keys must be strings"
+            )
+        return {
+            key: _canonical_json_value(value[key])
+            for key in sorted(value)
+        }
+    raise ResearchFrozenOosEvidenceValidationError(
+        "frozen OOS logical evidence contains unsupported canonical JSON type: "
+        f"{type(value).__name__}"
+    )
+
+
 def compute_research_frozen_oos_fingerprint(
     *,
     evaluation_freeze: ResearchEvaluationFreezeEvidence,
@@ -88,7 +114,7 @@ def compute_research_frozen_oos_fingerprint(
         "oos_performance": oos_performance.logical_values(),
     }
     encoded = json.dumps(
-        canonical,
+        _canonical_json_value(canonical),
         ensure_ascii=True,
         sort_keys=True,
         separators=(",", ":"),
