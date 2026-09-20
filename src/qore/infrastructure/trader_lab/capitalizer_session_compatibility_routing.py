@@ -45,6 +45,9 @@ IDENTITY = "QORE_CAPITALIZER_SESSION_COMPATIBILITY_ROUTING_FORENSICS_V1"
 
 POLICIES = (
     "MAX3_BASELINE",
+    "BLOCK_ASIA_WEAK_SIDE_PAIR_ONLY_V1",
+    "BLOCK_LONDON_WEAK_SIDE_PAIR_ONLY_V1",
+    "BLOCK_NEW_YORK_WEAK_SIDE_PAIR_ONLY_V1",
     "BLOCK_CORE_WEAK_SIDE_PAIRS_V1",
     "BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1",
     "BLOCK_CORE_WEAK_SIDE_PAIRS_PLUS_XAUUSD_ORD2_SHARED_V1",
@@ -86,6 +89,16 @@ EXTENDED_WEAK_SIDE_PAIRS: dict[str, frozenset[PairState]] = {
             ("NAS100", CapitalizerSide.SHORT, "USDCAD", CapitalizerSide.SHORT),
         }
     ),
+}
+
+ASIA_WEAK_ONLY: dict[str, frozenset[PairState]] = {
+    "ASIA": CORE_WEAK_SIDE_PAIRS["ASIA"],
+}
+LONDON_WEAK_ONLY: dict[str, frozenset[PairState]] = {
+    "LONDON": CORE_WEAK_SIDE_PAIRS["LONDON"],
+}
+NEW_YORK_WEAK_ONLY: dict[str, frozenset[PairState]] = {
+    "NEW_YORK": CORE_WEAK_SIDE_PAIRS["NEW_YORK"],
 }
 
 
@@ -155,12 +168,11 @@ def _weak_pair_reason(
     candidate: CapitalizerExposureCandidate,
     prior: tuple[CapitalizerExposureCandidate, ...],
     *,
-    extended: bool,
+    table: dict[str, frozenset[PairState]],
 ) -> str | None:
     session = capitalizer_session_at(candidate.entry_at)
     if session is None:
         raise ValueError("compatibility candidate lost Capitalizer session")
-    table = EXTENDED_WEAK_SIDE_PAIRS if extended else CORE_WEAK_SIDE_PAIRS
     weak = table.get(session.value, frozenset())
     for accepted in prior:
         state = _canonical_pair(accepted, candidate)
@@ -202,12 +214,18 @@ def _rejection_reason(
 ) -> str | None:
     if policy == "MAX3_BASELINE":
         return None
+    if policy == "BLOCK_ASIA_WEAK_SIDE_PAIR_ONLY_V1":
+        return _weak_pair_reason(candidate, prior, table=ASIA_WEAK_ONLY)
+    if policy == "BLOCK_LONDON_WEAK_SIDE_PAIR_ONLY_V1":
+        return _weak_pair_reason(candidate, prior, table=LONDON_WEAK_ONLY)
+    if policy == "BLOCK_NEW_YORK_WEAK_SIDE_PAIR_ONLY_V1":
+        return _weak_pair_reason(candidate, prior, table=NEW_YORK_WEAK_ONLY)
     if policy == "BLOCK_CORE_WEAK_SIDE_PAIRS_V1":
-        return _weak_pair_reason(candidate, prior, extended=False)
+        return _weak_pair_reason(candidate, prior, table=CORE_WEAK_SIDE_PAIRS)
     if policy == "BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1":
-        return _weak_pair_reason(candidate, prior, extended=True)
+        return _weak_pair_reason(candidate, prior, table=EXTENDED_WEAK_SIDE_PAIRS)
     if policy == "BLOCK_CORE_WEAK_SIDE_PAIRS_PLUS_XAUUSD_ORD2_SHARED_V1":
-        weak = _weak_pair_reason(candidate, prior, extended=False)
+        weak = _weak_pair_reason(candidate, prior, table=CORE_WEAK_SIDE_PAIRS)
         if weak is not None:
             return weak
         return _xauusd_ordinal2_shared_reason(
