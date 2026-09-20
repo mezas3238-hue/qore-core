@@ -85,6 +85,10 @@ SCHEMA = "qore.trader_lab.vt08_index_r84_source_exact_ps_event_census.v1"
 IDENTITY = "VT08_INDEX_R84_SOURCE_EXACT_PROTECTED_SWING_EVENT_CENSUS_001"
 
 SOURCE_R83_RUN_ID = 35519881915
+SOURCE_R83_ARTIFACT_ID = 10607958272
+SOURCE_R83_ARTIFACT_DIGEST = (
+    "sha256:aa3171642f110d8833e225d3dd8edd6be4e44fbaf5001ba07ee159a3aa38ecf6"
+)
 
 FAMILY_LIQUIDITY = "LIQUIDITY_SWEEP"
 FAMILY_FVG = "ORIGINAL_FVG_REACTION"
@@ -474,6 +478,8 @@ def build_report(
         "source_r83": {
             "identity": r83.IDENTITY,
             "run_id": SOURCE_R83_RUN_ID,
+            "artifact_id": SOURCE_R83_ARTIFACT_ID,
+            "artifact_digest": SOURCE_R83_ARTIFACT_DIGEST,
         },
         "source_contract": {
             "protected_swing_primary_source_date": "2025-08-06",
