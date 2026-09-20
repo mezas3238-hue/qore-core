@@ -11,6 +11,7 @@ from qore.infrastructure.account_policy import (
     AccountPhase,
     AccountPolicyRule,
     AccountPolicySnapshotId,
+    AccountPropPolicySnapshot,
     AccountPolicyVersion,
     DrawdownMode,
     PolicyRuleDisposition,
@@ -310,10 +311,7 @@ def load_certified_stellar_instant_policy(
     snapshot_id = AccountPolicySnapshotId(
         _id("account-policy-snapshot", f"{account_binding_id}:{observed_at.isoformat()}")
     )
-    policy = __import__(
-        "qore.infrastructure.account_policy",
-        fromlist=["AccountPropPolicySnapshot"],
-    ).AccountPropPolicySnapshot(
+    policy = AccountPropPolicySnapshot(
         snapshot_id=snapshot_id,
         policy_ref=policy_ref,
         account_id=account_id,
