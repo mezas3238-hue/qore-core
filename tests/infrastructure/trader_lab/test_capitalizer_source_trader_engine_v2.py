@@ -11,6 +11,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     assess_failure_to_manipulate,
     detect_cisd,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import derive_daily_bias
 from qore.infrastructure.trader_lab.capitalizer_source_fractal_alignment_v2 import (
     assess_fractal_alignment,
 )
@@ -45,6 +46,16 @@ def _bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
         low=Decimal(low),
         close=Decimal(close),
     )
+
+
+def _bullish_daily_bias():
+    closure = detect_candle2_reversal_closure(
+        previous=_bar("100", "102", "98", "99"),
+        candle2=_bar("99", "101", "97", "99.5"),
+        point_of_interest_present=True,
+    )
+    assert closure is not None
+    return derive_daily_bias(closure)
 
 
 def _bullish_structure():
@@ -101,7 +112,7 @@ def test_fractal_engine_passes_only_complete_source_plan_to_qore_risk() -> None:
             route=CapitalizerSourceEntryRoute.FRACTAL_SCALP_CONTINUATION,
             cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
             source_session=source_session,
-            higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
+            daily_bias=_bullish_daily_bias(),
             entry_price=entry,
             protected_swing=protected,
             structural_target=target,
@@ -135,7 +146,7 @@ def test_ftm_engine_passes_confirmed_continuation_only_after_closure() -> None:
         post_sweep_closure_observed=True,
         expected_reversal_cisd=None,
         continuation_protected_swing=protected,
-        higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
+        daily_bias=_bullish_daily_bias(),
     )
     entry = Decimal("100")
     target = assess_structural_target(
@@ -157,7 +168,7 @@ def test_ftm_engine_passes_confirmed_continuation_only_after_closure() -> None:
             route=CapitalizerSourceEntryRoute.FAILURE_TO_MANIPULATE_CONTINUATION,
             cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
             source_session=source_session,
-            higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
+            daily_bias=_bullish_daily_bias(),
             entry_price=entry,
             protected_swing=protected,
             structural_target=target,
@@ -193,7 +204,7 @@ def test_engine_rejects_consumed_target_before_qore_risk() -> None:
             route=CapitalizerSourceEntryRoute.FRACTAL_SCALP_CONTINUATION,
             cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
             source_session=source_session,
-            higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
+            daily_bias=_bullish_daily_bias(),
             entry_price=entry,
             protected_swing=protected,
             structural_target=consumed,
@@ -230,7 +241,7 @@ def test_engine_waits_when_source_session_context_is_unresolved() -> None:
             route=CapitalizerSourceEntryRoute.FRACTAL_SCALP_CONTINUATION,
             cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
             source_session=unresolved_asia,
-            higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
+            daily_bias=_bullish_daily_bias(),
             entry_price=entry,
             protected_swing=protected,
             structural_target=target,
