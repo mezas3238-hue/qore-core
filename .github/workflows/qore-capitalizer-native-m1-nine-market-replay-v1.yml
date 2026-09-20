@@ -12,6 +12,8 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_source_observation_engine_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_source_ftm_observation_engine_v2.py'
   workflow_dispatch:
 
 permissions:
@@ -45,6 +47,8 @@ jobs:
       - name: Ruff
         run: |
           ruff check             src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py             tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py             tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py
+            tests/infrastructure/trader_lab/test_capitalizer_source_observation_engine_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_source_ftm_observation_engine_v2.py
       - name: Mypy
         run: |
           mypy             src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py \
