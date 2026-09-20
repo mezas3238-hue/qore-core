@@ -37,7 +37,7 @@ import argparse
 import json
 from collections import Counter, defaultdict
 from collections.abc import Sequence
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -188,28 +188,38 @@ def _family(
     return FAMILY_UNQUALIFIED
 
 
-def _classify_opportunity(
-    opportunity: Any,
-    *,
+def _h4_bar_cache(
     bars: Sequence[Vt08IndexC2R1Bar],
-) -> dict[str, Any]:
-    signal = opportunity.signal
+) -> dict[datetime, tuple[Vt08IndexC2R1Bar, ...]]:
+    """Materialize each complete H4's M15 bars once per market."""
     indexed = {
         bar.opened_at.astimezone(UTC): bar
         for bar in bars
     }
     h4 = v6._build_h4(indexed)
-    h4_bar = h4.get(signal.h4_opened_at.astimezone(UTC))
-    if h4_bar is None:
-        raise ValueError("R82 missing canonical H4")
+    cache: dict[datetime, tuple[Vt08IndexC2R1Bar, ...]] = {}
+    for opened, h4_bar in h4.items():
+        cursor = opened.astimezone(UTC)
+        rows: list[Vt08IndexC2R1Bar] = []
+        while cursor < h4_bar.closed_at.astimezone(UTC):
+            bar = indexed.get(cursor)
+            if bar is None:
+                raise ValueError("R82 complete H4 lost an M15 constituent")
+            rows.append(bar)
+            cursor += timedelta(minutes=15)
+        cache[opened.astimezone(UTC)] = tuple(rows)
+    return cache
 
-    inside = tuple(
-        bar
-        for bar in bars
-        if signal.h4_opened_at.astimezone(UTC)
-        <= bar.opened_at.astimezone(UTC)
-        < h4_bar.closed_at.astimezone(UTC)
-    )
+
+def _classify_opportunity(
+    opportunity: Any,
+    *,
+    h4_bars: dict[datetime, tuple[Vt08IndexC2R1Bar, ...]],
+) -> dict[str, Any]:
+    signal = opportunity.signal
+    inside = h4_bars.get(signal.h4_opened_at.astimezone(UTC))
+    if inside is None:
+        raise ValueError("R82 missing canonical H4")
     touch_index = next(
         (
             index
@@ -298,11 +308,16 @@ def _window(
     by_anchor: dict[str, Counter[str]] = defaultdict(Counter)
     by_poi: dict[str, Counter[str]] = defaultdict(Counter)
 
+    h4_bars_by_symbol = {
+        symbol: _h4_bar_cache(bars_by_symbol[symbol])
+        for symbol in contract.MARKETS
+    }
+
     for opportunity, outcome in stream:
         symbol = str(opportunity.signal.symbol)
         classification = _classify_opportunity(
             opportunity,
-            bars=bars_by_symbol[symbol],
+            h4_bars=h4_bars_by_symbol[symbol],
         )
         family = str(classification["family"])
         grouped[family].append((opportunity, outcome))
