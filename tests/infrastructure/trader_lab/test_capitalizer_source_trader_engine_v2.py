@@ -6,6 +6,10 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 import (
+    CapitalizerDualSourceEntryFacts,
+    assess_dual_source_entry,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerLiquiditySideTaken,
     assess_failure_to_manipulate,
@@ -61,6 +65,31 @@ def _bullish_daily_bias() -> CapitalizerDailyBiasObservation:
     )
     assert closure is not None
     return derive_daily_bias(closure)
+
+
+def _accepted_entry_gate():
+    return assess_dual_source_entry(
+        CapitalizerDualSourceEntryFacts(
+            cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
+            source_session_resolved=True,
+            source_session_eligible=True,
+            higher_timeframe_bias_confirmed_aligned=True,
+            structural_target_intact=True,
+            structural_stop_geometry_valid=True,
+            ict_liquidity_reference_defined=True,
+            ict_liquidity_raid_observed=True,
+            ict_market_structure_shift_confirmed=True,
+            ict_displacement_significant=True,
+            ict_fvg_present_in_displacement=True,
+            ict_entry_retrace_into_valid_pd_array=True,
+            ict_entry_not_chasing=True,
+            ttrades_htf_closure_at_poi_confirmed=True,
+            ttrades_ltf_cisd_confirmed=True,
+            ttrades_protected_swing_confirmed=True,
+            ttrades_continuation_confirmed=True,
+            ttrades_wick_formation_confirmed=True,
+        )
+    )
 
 
 def _bullish_structure() -> tuple[
@@ -126,6 +155,7 @@ def test_fractal_engine_passes_only_complete_source_plan_to_qore_risk() -> None:
             structural_target=target,
             target_kind=CapitalizerSourceTargetKind.HIGHER_TIMEFRAME_STRUCTURAL_OBJECTIVE,
             fractal_alignment=alignment,
+            dual_source_entry_acceptance=_accepted_entry_gate(),
         )
     )
 
@@ -182,12 +212,49 @@ def test_ftm_engine_passes_confirmed_continuation_only_after_closure() -> None:
             structural_target=target,
             target_kind=CapitalizerSourceTargetKind.HIGHER_TIMEFRAME_STRUCTURAL_OBJECTIVE,
             failure_to_manipulate=ftm,
+            dual_source_entry_acceptance=_accepted_entry_gate(),
         )
     )
 
     assert ftm.confirmed is True
     assert result.passes_to_qore_risk is True
     assert result.trade_plan is not None
+
+
+def test_engine_waits_when_dual_source_entry_gate_is_missing() -> None:
+    alignment, protected = _bullish_structure()
+    entry = Decimal("100")
+    target = assess_structural_target(
+        direction=CapitalizerSourceDirection.BULLISH,
+        entry_price=entry,
+        target_price=Decimal("104"),
+        untouched=True,
+        higher_timeframe=True,
+    )
+    source_session = assess_source_session_context(
+        session=CapitalizerSession.LONDON,
+        observed_at=datetime(2026, 1, 5, 7, 30, tzinfo=UTC),
+    )
+
+    result = assess_source_trader_engine(
+        CapitalizerSourceTraderEngineFacts(
+            symbol="EURUSD",
+            side=CapitalizerSide.LONG,
+            route=CapitalizerSourceEntryRoute.FRACTAL_SCALP_CONTINUATION,
+            cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
+            source_session=source_session,
+            daily_bias=_bullish_daily_bias(),
+            entry_price=entry,
+            protected_swing=protected,
+            structural_target=target,
+            target_kind=CapitalizerSourceTargetKind.HIGHER_TIMEFRAME_STRUCTURAL_OBJECTIVE,
+            fractal_alignment=alignment,
+        )
+    )
+
+    assert result.strategy_assessment.decision is CapitalizerSourceStrategyDecision.WAIT
+    assert result.passes_to_qore_risk is False
+    assert result.reasons == ("DUAL_SOURCE_ENTRY_ACCEPTANCE_REQUIRED",)
 
 
 def test_engine_rejects_consumed_target_before_qore_risk() -> None:
