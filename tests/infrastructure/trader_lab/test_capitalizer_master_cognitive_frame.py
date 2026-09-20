@@ -23,6 +23,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
     CapitalizerCrossMarketCausalGraph,
 )
+from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
+    CapitalizerCognitiveGateDecision,
+)
 from qore.infrastructure.trader_lab.capitalizer_global_world_model import (
     CapitalizerGlobalWorldModel,
     CapitalizerMarketWorldState,
@@ -31,9 +34,6 @@ from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import
     CapitalizerAttentionState,
     CapitalizerCognitivePressure,
     CapitalizerHypothesisStage,
-)
-from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
-    CapitalizerCognitiveGateDecision,
 )
 from qore.infrastructure.trader_lab.capitalizer_master_cognitive_frame import (
     CapitalizerCandidateCognitiveContext,
@@ -55,7 +55,6 @@ from qore.infrastructure.trader_lab.capitalizer_perception_integrity import (
 from qore.infrastructure.trader_lab.capitalizer_regime_intelligence import (
     CapitalizerRegimeHypothesis,
 )
-
 
 def _world(at: datetime) -> CapitalizerGlobalWorldModel:
     markets: list[CapitalizerMarketWorldState] = []
