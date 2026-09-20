@@ -135,6 +135,13 @@ class CapitalizerMasterCognitiveContract:
     market_universe: frozenset[str] = NINE_MARKET_UNIVERSE
     max_executions_per_session: int = MAX_EXECUTIONS_PER_SESSION
     max_theoretical_daily_executions: int = MAX_EXECUTIONS_PER_SESSION * 3
+    market_family_research_target_count: int = 9
+    cibo_research_horizon_years: int = 10
+    target_drawdown_min_r: int = 3
+    target_drawdown_max_r: int = 5
+    absolute_max_drawdown_r: int = 6
+    cibo_immutable_research_copy_required: bool = True
+    every_decision_requires_causal_why: bool = True
     positions_close_inside_session: bool = True
     max3_is_ceiling_not_quota: bool = True
     positive_pnl_alone_stops_session: bool = False
@@ -167,6 +174,20 @@ class CapitalizerMasterCognitiveContract:
             raise ValueError("Capitalizer MAX3 session ceiling is frozen")
         if self.max_theoretical_daily_executions != 9:
             raise ValueError("Capitalizer theoretical daily ceiling is nine")
+        if self.market_family_research_target_count != 9:
+            raise ValueError("Capitalizer research target is nine market families")
+        if self.cibo_research_horizon_years != 10:
+            raise ValueError("Capitalizer integrated simulation requires the 10Y CIBO horizon")
+        if (
+            self.target_drawdown_min_r != 3
+            or self.target_drawdown_max_r != 5
+            or self.absolute_max_drawdown_r != 6
+        ):
+            raise ValueError("Capitalizer drawdown envelope is frozen at 3-5R, max 6R")
+        if not self.cibo_immutable_research_copy_required:
+            raise ValueError("CIBO research data must be consumed through immutable copies")
+        if not self.every_decision_requires_causal_why:
+            raise ValueError("Capitalizer decisions require an auditable causal why")
         if not self.positions_close_inside_session:
             raise ValueError("Capitalizer positions must close inside their session")
         if not self.max3_is_ceiling_not_quota:
