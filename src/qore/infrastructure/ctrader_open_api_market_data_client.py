@@ -29,7 +29,10 @@ from qore.infrastructure.ports import (
 )
 from qore.kernel.result import Failure, Result, Success
 
-_PERIOD_VALUES = {CTraderTrendbarPeriod.M5: 5}
+_PERIOD_VALUES = {
+    CTraderTrendbarPeriod.M1: 1,
+    CTraderTrendbarPeriod.M5: 5,
+}
 _RELATIVE_PRICE_SCALE = Decimal(100_000)
 
 
