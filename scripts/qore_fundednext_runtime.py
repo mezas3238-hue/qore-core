@@ -2233,6 +2233,32 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
+        vt31_live_state, vt31_manage_reason = manage_vt31_open_trade(
+            mt5_api=mt5,
+            now=cycle_at,
+            cache=vt31_cache,
+            store=vt31_store,
+            mutations_enabled=mode == "live",
+            log=lambda event: _log(log_path, event),
+        )
+        if vt31_manage_reason not in {
+            "no-open-vt31-position",
+            "vt31-position-awaiting-reconcile",
+            "vt31-journey-hold",
+            "vt31-base-runner-hold",
+            "vt31-eq-overlay-hold",
+            "vt31-runner-hold",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "VT31_NAS100_POSITION_MANAGEMENT",
+                    "symbol": "NAS100",
+                    "reason": vt31_manage_reason,
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
+
         highest = max(highest, account_state.balance)
         provider = evaluate_stellar_instant_budget(
             StellarInstantAccountSnapshot(
