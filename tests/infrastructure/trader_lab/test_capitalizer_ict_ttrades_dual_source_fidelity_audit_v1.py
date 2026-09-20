@@ -1,6 +1,6 @@
 from qore.infrastructure.trader_lab.capitalizer_ict_ttrades_dual_source_fidelity_audit_v1 import (
-    IDENTITY,
     FROZEN_DUAL_SOURCE_FIDELITY_AUDIT,
+    IDENTITY,
     CapitalizerDualSourceStatus,
     CapitalizerSourceAuthorityTier,
 )
