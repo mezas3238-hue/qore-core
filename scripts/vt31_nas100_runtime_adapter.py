@@ -15,7 +15,6 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, datetime
 from decimal import Decimal
-from pathlib import Path
 from typing import Any, Callable
 
 from qore.infrastructure.account_wide_risk import (
@@ -48,8 +47,6 @@ from qore.infrastructure.vt31_nas100_live import (
     STRATEGY_MEMORY_FINGERPRINT,
     TRADER_EXPERIENCE_FINGERPRINT,
     Vt31Nas100LiveError,
-    Vt31Nas100M1Cache,
-    Vt31Nas100SlaExpired,
     Vt31RiskContext,
     Vt31VirtualCandidate,
     assert_deadline,
@@ -364,8 +361,6 @@ def _authorize_and_check(
 ) -> None:
     trigger_at = trigger_at.astimezone(UTC)
     expires_at = datetime.fromisoformat(order.expires_at)
-    deadline = trigger_at + DECISION_DEADLINE
-
     def stage(stage_name: str) -> datetime:
         observed = datetime.now(UTC)
         assert_deadline(anchor=trigger_at, now=observed, stage=stage_name)
@@ -405,10 +400,6 @@ def _authorize_and_check(
         reservation_expires_at=expires_at,
         now=request_at,
     )
-    if snapshot.account_binding_id != request.account_binding_id:
-        # request does not expose account identity; this branch is retained for
-        # type/contract clarity via the actual authorization below.
-        pass
     auth_at = stage("before-account-wide-risk")
     if risk.recovery_required:
         risk.complete_boot_reconciliation(snapshot, now=auth_at)
