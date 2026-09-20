@@ -139,13 +139,17 @@ def _apply_exact_allocator(
     *,
     bars_by_symbol: Mapping[str, Sequence[Vt08IndexC2R1Bar]],
 ) -> tuple[tuple[r15.AssignedTrade, ...], dict[str, Any]]:
+    materialized_bars = {
+        symbol: bars
+        for symbol, bars in bars_by_symbol.items()
+    }
     base_r47, r47_diagnostics = r58._exact_r47(
         tuple(stream),
-        bars_by_symbol=bars_by_symbol,
+        bars_by_symbol=materialized_bars,
     )
     assigned, r58_diagnostics = r55._apply_candidate(
         base_r47,
-        bars_by_symbol=bars_by_symbol,
+        bars_by_symbol=materialized_bars,
     )
     return tuple(assigned), {
         "r47": r47_diagnostics,
