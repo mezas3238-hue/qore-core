@@ -572,9 +572,12 @@ class R42AudJpyM5Cache:
             raw_seconds = int(getattr(tick, "time", 0) or 0)
             if raw_seconds <= 0:
                 raise RuntimeError("AUDJPY R42 broker tick timestamp unavailable")
-            broker_tick_at = datetime.fromtimestamp(raw_seconds, tz=UTC)
+            broker_tick_at = normalise_fundednext_server_epoch(raw_seconds)
         else:
-            broker_tick_at = datetime.fromtimestamp(raw_msc / 1000, tz=UTC)
+            raw_seconds, millis = divmod(raw_msc, 1000)
+            broker_tick_at = normalise_fundednext_server_epoch(
+                raw_seconds
+            ) + timedelta(milliseconds=millis)
         tick_age = observed - broker_tick_at
         if tick_age < timedelta(seconds=-0.5):
             raise RuntimeError("AUDJPY R42 broker tick is from the future")

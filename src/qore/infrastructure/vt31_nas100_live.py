@@ -831,11 +831,14 @@ def _breaker_regime_shielded(
 def _tick_timestamp(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
-        return datetime.fromtimestamp(raw_msc / 1000, tz=UTC)
+        raw_seconds, millis = divmod(raw_msc, 1000)
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+            milliseconds=millis
+        )
     raw_seconds = int(getattr(tick, "time", 0) or 0)
     if raw_seconds <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
-    return datetime.fromtimestamp(raw_seconds, tz=UTC)
+    return normalise_fundednext_server_epoch(raw_seconds)
 
 
 def _evidence_fingerprint(bars: tuple[OhlcSnapshot, ...]) -> str:

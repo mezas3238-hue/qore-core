@@ -35,6 +35,7 @@ from qore.infrastructure.fundednext_mt5 import (
     Mt5ProviderOutcome,
     Mt5SymbolSpecification,
 )
+from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
 from qore.infrastructure.fundednext_mt5_mutation_ledger import (
     FundedNextMt5MutationLedger,
     FundedNextMt5MutationRecord,
@@ -495,10 +496,13 @@ class FundedNextLiveMt5ExecutionGateway:
 def _broker_tick_at(tick: object) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
-        return datetime.fromtimestamp(raw_msc / 1000.0, tz=UTC)
+        raw_seconds, millis = divmod(raw_msc, 1000)
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+            milliseconds=millis
+        )
     raw_seconds = int(getattr(tick, "time", 0) or 0)
     if raw_seconds > 0:
-        return datetime.fromtimestamp(raw_seconds, tz=UTC)
+        return normalise_fundednext_server_epoch(raw_seconds)
     raise Mt5ExecutionBlockedError("mt5-broker-tick-timestamp-unavailable")
 
 

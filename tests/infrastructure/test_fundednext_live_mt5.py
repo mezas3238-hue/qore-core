@@ -24,6 +24,7 @@ from qore.infrastructure.fundednext_mt5 import (
     Mt5ExecutionBlockedError,
     Mt5ExecutionValidationError,
 )
+from qore.infrastructure.fundednext_mt5_clock import FUNDEDNEXT_SERVER_TZ
 from qore.infrastructure.fundednext_mt5_mutation_ledger import (
     InMemoryFundedNextMt5MutationLedger,
 )
@@ -45,6 +46,16 @@ from qore.infrastructure.pretrade_safety import (
 _NOW = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
 _SHA = "a" * 40
 _HASH = "b" * 64
+
+
+def _server_epoch(at: datetime) -> int:
+    local_wall = at.astimezone(FUNDEDNEXT_SERVER_TZ).replace(tzinfo=None)
+    return int(local_wall.replace(tzinfo=UTC).timestamp())
+
+
+def _server_epoch_msc(at: datetime) -> int:
+    local_wall = at.astimezone(FUNDEDNEXT_SERVER_TZ).replace(tzinfo=None)
+    return int(local_wall.replace(tzinfo=UTC).timestamp() * 1000)
 
 
 @dataclass
@@ -88,8 +99,8 @@ class _Symbol:
 class _Tick:
     bid: float = 1.2500
     ask: float = 1.2502
-    time: int = int(_NOW.timestamp())
-    time_msc: int = int(_NOW.timestamp() * 1000)
+    time: int = _server_epoch(_NOW)
+    time_msc: int = _server_epoch_msc(_NOW)
 
 
 @dataclass
@@ -147,8 +158,8 @@ class _Api:
         self.sent = 0
         self.checked = 0
         self.bid = bid
-        self.tick_time = int(_NOW.timestamp())
-        self.tick_time_msc = int(_NOW.timestamp() * 1000)
+        self.tick_time = _server_epoch(_NOW)
+        self.tick_time_msc = _server_epoch_msc(_NOW)
 
     def terminal_info(self) -> _Terminal | None:
         return _Terminal()
@@ -428,8 +439,8 @@ def test_account_observation_allows_subsecond_call_order_skew() -> None:
 def test_shadow_read_allows_retained_tick_but_live_send_requires_fresh_tick() -> None:
     api = _Api()
     stale = _NOW - timedelta(seconds=2, milliseconds=1)
-    api.tick_time = int(stale.timestamp())
-    api.tick_time_msc = int(stale.timestamp() * 1000)
+    api.tick_time = _server_epoch(stale)
+    api.tick_time_msc = _server_epoch_msc(stale)
 
     shadow_gateway = _gateway(api, complete=False, submission_enabled=False)
     spec = shadow_gateway.read_symbol("GBPUSD", now=_NOW)
