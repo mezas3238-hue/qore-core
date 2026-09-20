@@ -56,7 +56,7 @@ def assess_fractal_alignment(
     )
     m15_confirmed = (
         m15_cisd is not None
-        and m15_cisd.confirmed
+        and m15_cisd.setup_confirmed
         and m15_cisd.direction is higher_timeframe_bias
     )
     m1_confirmed = (
