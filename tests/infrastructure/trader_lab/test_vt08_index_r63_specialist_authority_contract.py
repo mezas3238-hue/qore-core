@@ -52,3 +52,10 @@ def test_r63_generic_vt08_contract_remains_unchanged() -> None:
     assert authority._derived_qualified_timeframes(values) == ("M5", "H4")
     markets = authority._derived_qualified_markets(values)
     assert tuple(item.value for item in markets) == ("NAS100",)
+
+
+def test_r63_specialist_cibo_timeframe_refs_use_canonical_order() -> None:
+    values = dict(contract.manifest_parameters())
+    refs = authority._canonical_qualified_timeframes(values)
+    assert tuple(item.value for item in refs) == ("h4", "m15")
+    assert set(item.value for item in refs) == {"h4", "m15"}
