@@ -154,7 +154,12 @@ TRADER_DESIGN_RULES: tuple[CapitalizerTraderDesignRule, ...] = (
         rule_id="STOP_AT_LOGICAL_PROTECTED_SWING",
         component=CapitalizerTraderDesignComponent.STOP_PLACEMENT,
         authority=CapitalizerTraderDesignAuthority.TTRADES,
-        statement="Initial stop placement is anchored to the logical protected swing.",
+        statement=(
+            "Initial stop placement is anchored to the confirmed logical protected swing. "
+            "The reviewed TTrades material supports the protected low/high itself as the "
+            "default invalidation and also describes beneath/above or beyond placement in "
+            "fractal examples; no universal numeric padding is attributed to the author."
+        ),
         source_fact_ids=("TTRADES_PROTECTED_SWING_STOP",),
     ),
     CapitalizerTraderDesignRule(
