@@ -146,6 +146,149 @@ class PolicySourceAuthority(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class CertifiedPolicyVerifier:
+    """Governed trust anchor allowed to certify policy facts and/or source evidence."""
+
+    verifier_ref: PolicyVerifierReference
+    authorized_at: datetime
+    valid_until: datetime
+    may_certify_policies: bool
+    source_authorities: tuple[PolicySourceAuthority, ...]
+    revoked_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.verifier_ref, PolicyVerifierReference):
+            raise CertifiedPolicyValidationError(
+                "trusted verifier_ref must be PolicyVerifierReference"
+            )
+        _validate_timestamp(self.authorized_at, field_name="verifier authorized_at")
+        _validate_timestamp(self.valid_until, field_name="verifier valid_until")
+        if self.valid_until <= self.authorized_at:
+            raise CertifiedPolicyValidationError(
+                "verifier valid_until must be after authorized_at"
+            )
+        if type(self.may_certify_policies) is not bool:
+            raise CertifiedPolicyValidationError(
+                "verifier may_certify_policies must be bool"
+            )
+        if not isinstance(self.source_authorities, tuple):
+            raise CertifiedPolicyValidationError(
+                "verifier source_authorities must be a tuple"
+            )
+        if any(
+            not isinstance(authority, PolicySourceAuthority)
+            for authority in self.source_authorities
+        ):
+            raise CertifiedPolicyValidationError(
+                "verifier source_authorities must contain PolicySourceAuthority values"
+            )
+        if len(set(self.source_authorities)) != len(self.source_authorities):
+            raise CertifiedPolicyValidationError(
+                "verifier source_authorities must be unique"
+            )
+        if not self.may_certify_policies and not self.source_authorities:
+            raise CertifiedPolicyValidationError(
+                "verifier must have at least one certification capability"
+            )
+        if self.revoked_at is not None:
+            _validate_timestamp(self.revoked_at, field_name="verifier revoked_at")
+            if self.revoked_at < self.authorized_at:
+                raise CertifiedPolicyValidationError(
+                    "verifier revoked_at cannot be before authorized_at"
+                )
+
+        object.__setattr__(
+            self,
+            "source_authorities",
+            tuple(sorted(self.source_authorities, key=lambda authority: authority.value)),
+        )
+
+    def is_active_at(self, evaluated_at: datetime) -> bool:
+        _validate_timestamp(evaluated_at, field_name="verifier evaluated_at")
+        if evaluated_at < self.authorized_at or evaluated_at >= self.valid_until:
+            return False
+        return self.revoked_at is None or evaluated_at < self.revoked_at
+
+    def permits_source(self, authority: PolicySourceAuthority) -> bool:
+        return authority in self.source_authorities
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.verifier_ref.logical_values(),
+            self.authorized_at.isoformat(),
+            self.valid_until.isoformat(),
+            self.may_certify_policies,
+            tuple(authority.value for authority in self.source_authorities),
+            self.revoked_at.isoformat() if self.revoked_at is not None else None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyVerifierRegistrySnapshot:
+    """Immutable trust-root registry for account-policy certification."""
+
+    verifiers: tuple[CertifiedPolicyVerifier, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.verifiers, tuple) or not self.verifiers:
+            raise CertifiedPolicyValidationError(
+                "verifier registry must be a non-empty tuple"
+            )
+        if any(
+            not isinstance(verifier, CertifiedPolicyVerifier)
+            for verifier in self.verifiers
+        ):
+            raise CertifiedPolicyValidationError(
+                "verifier registry accepts only CertifiedPolicyVerifier values"
+            )
+        refs = [verifier.verifier_ref.value for verifier in self.verifiers]
+        if len(set(refs)) != len(refs):
+            raise CertifiedPolicyValidationError(
+                "verifier registry references must be unique"
+            )
+        object.__setattr__(
+            self,
+            "verifiers",
+            tuple(
+                sorted(
+                    self.verifiers,
+                    key=lambda verifier: verifier.verifier_ref.value.hex,
+                )
+            ),
+        )
+
+    def resolve(
+        self,
+        *,
+        verifier_ref: PolicyVerifierReference,
+        evaluated_at: datetime,
+    ) -> Result[CertifiedPolicyVerifier, CertifiedPolicyError]:
+        if not isinstance(verifier_ref, PolicyVerifierReference):
+            return Failure(
+                CertifiedPolicyResolutionError(
+                    "verifier_ref must be PolicyVerifierReference"
+                )
+            )
+        try:
+            _validate_timestamp(evaluated_at, field_name="verifier evaluated_at")
+        except CertifiedPolicyValidationError as error:
+            return Failure(CertifiedPolicyResolutionError(str(error)))
+
+        for verifier in self.verifiers:
+            if verifier.verifier_ref != verifier_ref:
+                continue
+            if not verifier.is_active_at(evaluated_at):
+                return Failure(
+                    CertifiedPolicyResolutionError(
+                        "policy verifier is expired, revoked or not yet authorized"
+                    )
+                )
+            return Success(verifier)
+
+        return Failure(CertifiedPolicyResolutionError("policy verifier is not trusted"))
+
+
+@dataclass(frozen=True, slots=True)
 class CertifiedPolicySourceEvidence:
     """Certified evidence from one provider-authoritative source.
 
@@ -388,8 +531,13 @@ class CertifiedAccountPolicyRegistrySnapshot:
     """Risk-facing registry that accepts only source-certified account policies."""
 
     policies: tuple[CertifiedAccountPolicy, ...]
+    verifiers: PolicyVerifierRegistrySnapshot
 
     def __post_init__(self) -> None:
+        if not isinstance(self.verifiers, PolicyVerifierRegistrySnapshot):
+            raise CertifiedPolicyValidationError(
+                "certified policy registry requires PolicyVerifierRegistrySnapshot"
+            )
         if not isinstance(self.policies, tuple) or not self.policies:
             raise CertifiedPolicyValidationError(
                 "certified policy registry policies must be a non-empty tuple"
@@ -469,6 +617,19 @@ class CertifiedAccountPolicyRegistrySnapshot:
                         "certified policy reference belongs to a different account"
                     )
                 )
+            policy_verifier = self.verifiers.resolve(
+                verifier_ref=certified.verifier_ref,
+                evaluated_at=evaluated_at,
+            )
+            if isinstance(policy_verifier, Failure):
+                return Failure(CertifiedPolicyResolutionError(str(policy_verifier.error)))
+            if not policy_verifier.value.may_certify_policies:
+                return Failure(
+                    CertifiedPolicyResolutionError(
+                        "trusted verifier is not authorized to certify policies"
+                    )
+                )
+
             try:
                 source_valid = certified.is_source_certification_valid_at(evaluated_at)
             except CertifiedPolicyValidationError as error:
@@ -479,6 +640,22 @@ class CertifiedAccountPolicyRegistrySnapshot:
                         "certified policy source evidence is stale, revoked or not yet valid"
                     )
                 )
+
+            for source in certified.sources:
+                source_verifier = self.verifiers.resolve(
+                    verifier_ref=source.verifier_ref,
+                    evaluated_at=evaluated_at,
+                )
+                if isinstance(source_verifier, Failure):
+                    return Failure(
+                        CertifiedPolicyResolutionError(str(source_verifier.error))
+                    )
+                if not source_verifier.value.permits_source(source.authority):
+                    return Failure(
+                        CertifiedPolicyResolutionError(
+                            "trusted verifier is not authorized for source authority"
+                        )
+                    )
 
             raw_registry = AccountPolicyRegistrySnapshot((certified.policy,))
             resolved = raw_registry.resolve_for_new_trading(
