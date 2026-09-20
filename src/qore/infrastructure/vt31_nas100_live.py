@@ -538,12 +538,23 @@ def build_risk_request(
     certified_risk_r: Decimal,
     provider_spec: Mt5SymbolSpecification,
     account_equity: Decimal,
-    trigger_at: datetime,
+    decision_anchor: datetime,
+    reservation_expires_at: datetime,
     now: datetime,
 ) -> tuple[CiboRiskRequest, Decimal]:
-    trigger_at = _utc(trigger_at, "trigger_at")
+    decision_anchor = _utc(decision_anchor, "decision_anchor")
+    reservation_expires_at = _utc(
+        reservation_expires_at,
+        "reservation_expires_at",
+    )
     now = _utc(now, "now")
-    assert_deadline(anchor=trigger_at, now=now, stage="risk_request")
+    assert_deadline(
+        anchor=decision_anchor,
+        now=now,
+        stage="risk_request",
+    )
+    if reservation_expires_at <= now:
+        raise Vt31Nas100LiveError("VT31 pending expiry already elapsed")
 
     if side not in {"long", "short"}:
         raise ValueError("VT31 risk request side invalid")
@@ -593,6 +604,21 @@ def build_risk_request(
         raise Vt31Nas100LiveError(
             "VT31 certified risk maps below broker minimum volume"
         )
+    half_leg = _floor_to_step(
+        volume * Decimal("0.50"),
+        provider_spec.volume_step,
+    )
+    quarter_leg = _floor_to_step(
+        volume * Decimal("0.25"),
+        provider_spec.volume_step,
+    )
+    if (
+        half_leg < provider_spec.minimum_volume
+        or quarter_leg < provider_spec.minimum_volume
+    ):
+        raise Vt31Nas100LiveError(
+            "VT31 broker granularity cannot express certified partial legs"
+        )
 
     request = CiboRiskRequest(
         request_id=request_id,
@@ -611,7 +637,7 @@ def build_risk_request(
         stop_loss_per_volume=stop_per_volume,
         margin_per_volume=provider_spec.margin_per_volume,
         requested_at=now,
-        expires_at=trigger_at + DECISION_DEADLINE,
+        expires_at=reservation_expires_at,
     )
     return request, one_r_usd
 
