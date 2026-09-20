@@ -8,6 +8,7 @@ _ACTIVATOR = _ROOT / "scripts" / "authorize_fundednext_live.ps1"
 _WATCHDOG = _ROOT / "scripts" / "qore_fundednext_watchdog.ps1"
 _NO_SEND = _ROOT / "scripts" / "fundednext_mt5_no_send_probe.py"
 _ORDER_CHECK = _ROOT / "scripts" / "fundednext_mt5_order_check_probe.py"
+_VT31_LIVE = _ROOT / "src" / "qore" / "infrastructure" / "vt31_nas100_live.py"
 
 
 def test_h4_exit_comment_uses_broker_verified_29_character_limit() -> None:
@@ -90,3 +91,9 @@ def test_vt31_nas100_is_broker_probed_before_shadow_or_live() -> None:
     assert '"NAS100"' in order_check
     assert "PILOT_SYMBOL_MAP.get(symbol, symbol)" in no_send
     assert "PILOT_SYMBOL_MAP.get(symbol, symbol)" in order_check
+
+
+def test_vt31_m1_feed_uses_ndx100_provider_symbol_for_preload_and_incremental() -> None:
+    source = _VT31_LIVE.read_text(encoding="utf-8-sig")
+    assert source.count("copy_rates_from_pos(\n            PROVIDER_SYMBOL,") >= 2
+    assert "symbol_info_tick(PROVIDER_SYMBOL)" in source
