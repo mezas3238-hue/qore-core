@@ -203,6 +203,16 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
+        source_id="TTRADES_STOP_LOSS_MASTERY",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Stop Loss Mastery – Using Protected Swings for Precise Invalidations",
+        primary_locator=(
+            "https://ttrades.com/stop-loss-mastery-using-protected-swings-for-precise-invalidations/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
         source_id="TTRADES_TARGETS_FRACTAL_MODEL",
         author=CapitalizerStrategyAuthor.TTRADES,
         kind=CapitalizerPrimarySourceKind.ARTICLE,
@@ -375,8 +385,19 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
     CapitalizerSourceFact(
         fact_id="TTRADES_PROTECTED_SWING_STOP",
         fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
-        statement="TTrades places the scalp stop at a logical protected swing.",
-        source_ids=("TTRADES_SCALPING_MODEL",),
+        statement=(
+            "TTrades uses the confirmed protected swing as the stop/invalidation anchor. The "
+            "dedicated stop-loss lesson gives the default as the protected low/high itself, "
+            "while other fractal-model examples describe the execution stop as beneath/above "
+            "or beyond that protected swing. The reviewed source does not prescribe one "
+            "universal numeric padding distance."
+        ),
+        source_ids=(
+            "TTRADES_SCALPING_MODEL",
+            "TTRADES_PROTECTED_SWINGS",
+            "TTRADES_STOP_LOSS_MASTERY",
+            "TTRADES_BEST_TIMEFRAMES",
+        ),
     ),
     CapitalizerSourceFact(
         fact_id="TTRADES_TARGET_USES_HIGHER_TIMEFRAME_OBJECTIVE",
