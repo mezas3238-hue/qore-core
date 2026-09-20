@@ -181,11 +181,21 @@ def test_refresh_rejects_source_read_failure(
             "cumulative open-position",
         ),
         (
-            {"clarity": b"Risk Limit cumulative across all open positions 3%"},
+            {
+                "clarity": (
+                    b"Risk Limit default risk limit is 3% cumulative across all "
+                    b"open positions."
+                )
+            },
             "1% reclassification",
         ),
         (
-            {"copy": b"Copy trading between same individual is allowed."},
+            {
+                "copy": (
+                    b"Copy trading between accounts owned by the same individual "
+                    b"is allowed. Across individuals is strictly prohibited."
+                )
+            },
             "cross-program restriction",
         ),
         (
