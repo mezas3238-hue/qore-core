@@ -37,7 +37,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_trader_pipeline_v2 import
     CapitalizerSourcePipelineState,
 )
 
-
 _BASE = datetime(2026, 1, 5, 0, 0, tzinfo=UTC)
 _OPERATING_DATE = date(2026, 1, 5)
 
