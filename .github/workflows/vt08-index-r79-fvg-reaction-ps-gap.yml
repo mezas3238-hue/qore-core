@@ -1,0 +1,130 @@
+name: VT08 Index R79 FVG Reaction PS Gap
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r79-fvg-reaction-ps-gap.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r79_fvg_reaction_ps_gap.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r79_fvg_reaction_ps_gap.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r79_fvg_reaction_ps_gap.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R79 FVG reaction gap forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r79_fvg_reaction_ps_gap \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r79-fvg-reaction-ps-gap.json
+
+      - name: Verify R79 diagnostic-only governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r79-fvg-reaction-ps-gap.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R79_FVG_REACTION_PROTECTED_SWING_GAP_FORENSICS_001"
+          )
+          assert report["source_r78"]["run_id"] == 35515878213
+          assert report["source_r78"]["artifact_id"] == 10606817895
+          assert report["source_r78"]["persistent_cisd_recovery_survived"] is False
+          assert report["five_year"]["canonical_sample"] == 2448
+          assert report["recent_two_year"]["canonical_sample"] == 1017
+          assert report["r66_failed_holdout"]["canonical_sample"] == 773
+
+          diagnostic = report["diagnostic_contract"]
+          assert diagnostic["fvg_retest_equated_to_protected_swing"] is False
+          assert diagnostic["pnl_evaluated"] is False
+          assert diagnostic["signals_created"] is False
+
+          assert report["decision"] == (
+              "R79_FVG_REACTION_PS_GAP_FORENSICS_COMPLETE_NO_RULE_CREATED"
+          )
+          governance = report["governance"]
+          assert governance["forensics_only"] is True
+          assert governance["fresh_holdout_claim"] is False
+          assert governance["provider_observations_only"] is True
+          assert governance["future_information_used"] is False
+          assert governance["fvg_retest_promoted_to_protected_swing"] is False
+          assert governance["signals_created"] is False
+          assert governance["signals_suppressed"] is False
+          assert governance["entry_changed"] is False
+          assert governance["stop_changed"] is False
+          assert governance["target_changed"] is False
+          assert governance["risk_changed"] is False
+          assert governance["candidate_created"] is False
+          assert governance["trader_certified"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Upload R79 evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r79-fvg-reaction-ps-gap-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: warn
+          retention-days: 90
