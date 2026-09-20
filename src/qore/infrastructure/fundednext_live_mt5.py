@@ -220,7 +220,7 @@ class FundedNextLiveMt5ExecutionGateway:
         return state
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> Mt5SymbolSpecification:
-        if qore_symbol not in {"AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD"}:
+        if qore_symbol not in {"AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD", "NAS100"}:
             raise Mt5ExecutionBlockedError("symbol-outside-certified-live-universe")
         catalog = self._transport.available_symbols()
         matches = tuple(symbol for symbol in catalog if symbol == qore_symbol)
