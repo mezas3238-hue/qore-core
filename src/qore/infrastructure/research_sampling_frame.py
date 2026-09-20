@@ -45,7 +45,7 @@ def _remember_prevalidated_frame_components(
     frozen_oos: ResearchFrozenOosEvidence,
     samples: tuple[ResearchReturnObservation, ...],
     fold_sample_sizes: tuple[int, ...],
-    holding_intervals: tuple["ResearchHoldingInterval", ...],
+    holding_intervals: tuple[ResearchHoldingInterval, ...],
     overlap_status: ResearchHoldingOverlapStatus,
     overlapping_pairs: tuple[
         tuple[ResearchReturnObservationId, ResearchReturnObservationId], ...
