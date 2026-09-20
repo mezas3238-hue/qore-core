@@ -1,0 +1,62 @@
+name: QORE Seven-Trader Final Integration
+
+on:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-r43-live-core-integration-001
+    paths:
+      - scripts/qore_fundednext_runtime.py
+      - scripts/vt31_nas100_runtime_adapter.py
+      - scripts/vt31_nas100_live_policy.py
+      - src/qore/infrastructure/account_wide_risk.py
+      - src/qore/infrastructure/account_wide_risk_ledger.py
+      - src/qore/infrastructure/fundednext_live_mt5.py
+      - src/qore/infrastructure/r34_xauusd_live.py
+      - src/qore/infrastructure/r38_eurusd_live.py
+      - src/qore/infrastructure/r43_gbpusd_live.py
+      - src/qore/infrastructure/r38_gbpjpy_live.py
+      - src/qore/infrastructure/r42_audjpy_live.py
+      - src/qore/infrastructure/vt31_nas100_live.py
+      - src/qore/infrastructure/vt31_nas100_state.py
+      - src/qore/infrastructure/trader_execution_profile.py
+      - tests/infrastructure/test_fundednext_runtime_script_contract.py
+      - tests/infrastructure/test_vt31_nas100_live_runtime.py
+      - .github/workflows/qore-seven-trader-final-integration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resident-final:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+
+      - name: Syntax
+        run: |
+          python -m py_compile scripts/qore_fundednext_runtime.py
+          python -m py_compile scripts/vt31_nas100_runtime_adapter.py
+          python -m py_compile scripts/vt31_nas100_live_policy.py
+          python -m py_compile src/qore/infrastructure/vt31_nas100_live.py
+          python -m py_compile src/qore/infrastructure/vt31_nas100_state.py
+          PYTHONPATH=scripts python -c "import vt31_nas100_runtime_adapter"
+
+      - name: Ruff resident integration
+        run: |
+          ruff check --ignore E501,I001             scripts/qore_fundednext_runtime.py             scripts/vt31_nas100_runtime_adapter.py             src/qore/infrastructure/account_wide_risk.py             src/qore/infrastructure/account_wide_risk_ledger.py             src/qore/infrastructure/r34_xauusd_live.py             src/qore/infrastructure/r38_eurusd_live.py             src/qore/infrastructure/r43_gbpusd_live.py             src/qore/infrastructure/r38_gbpjpy_live.py             src/qore/infrastructure/r42_audjpy_live.py             src/qore/infrastructure/vt31_nas100_live.py             src/qore/infrastructure/vt31_nas100_state.py             tests/infrastructure/test_fundednext_runtime_script_contract.py             tests/infrastructure/test_vt31_nas100_live_runtime.py
+
+      - name: Mypy resident integration
+        run: |
+          mypy --disable-error-code attr-defined             scripts/qore_fundednext_runtime.py             src/qore/infrastructure/account_wide_risk.py             src/qore/infrastructure/account_wide_risk_ledger.py             src/qore/infrastructure/r34_xauusd_live.py             src/qore/infrastructure/r38_eurusd_live.py             src/qore/infrastructure/r43_gbpusd_live.py             src/qore/infrastructure/r38_gbpjpy_live.py             src/qore/infrastructure/r42_audjpy_live.py             src/qore/infrastructure/vt31_nas100_live.py             src/qore/infrastructure/vt31_nas100_state.py             src/qore/infrastructure/trader_execution_profile.py
+
+      - name: Seven-trader resident regression
+        env:
+          PYTHONPATH: scripts
+        run: |
+          pytest -q             tests/infrastructure/test_account_wide_risk.py             tests/infrastructure/test_account_wide_risk_ledger.py             tests/infrastructure/test_fundednext_live_mt5.py             tests/infrastructure/test_fundednext_live_safety.py             tests/infrastructure/test_fundednext_position_exit_ledger.py             tests/infrastructure/test_fundednext_runtime_script_contract.py             tests/infrastructure/test_fundednext_runtime_state.py             tests/infrastructure/test_fundednext_shadow_state_rebind.py             tests/infrastructure/test_r34_xauusd_live.py             tests/infrastructure/test_r38_eurusd_live.py             tests/infrastructure/test_r43_gbpusd_live.py             tests/infrastructure/test_r38_gbpjpy_live.py             tests/infrastructure/test_r42_audjpy_live.py             tests/infrastructure/test_audjpy_r42_runtime_integration.py             tests/infrastructure/test_vt08_forex_cibo_operational.py             tests/infrastructure/test_vt08_forex_fundednext_sizing.py             tests/infrastructure/test_vt31_nas100_live_runtime.py
