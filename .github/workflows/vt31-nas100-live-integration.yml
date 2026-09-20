@@ -12,6 +12,9 @@ on:
       - scripts/vt31_nas100_live_policy.py
       - scripts/vt31_nas100_runtime_adapter.py
       - scripts/qore_fundednext_runtime.py
+      - scripts/fundednext_mt5_no_send_probe.py
+      - scripts/fundednext_mt5_order_check_probe.py
+      - src/qore/infrastructure/fundednext_live_guard.py
       - tests/infrastructure/test_vt31_nas100_live_runtime.py
       - .github/workflows/vt31-nas100-live-integration.yml
   workflow_dispatch:
@@ -54,6 +57,7 @@ jobs:
       - name: Focused tests
         run: |
           pytest -q tests/infrastructure/test_vt31_nas100_live_runtime.py \
+            tests/infrastructure/test_fundednext_live_guard.py \
             tests/infrastructure/test_account_wide_risk.py \
             tests/infrastructure/test_account_wide_risk_ledger.py \
             tests/infrastructure/test_fundednext_runtime_script_contract.py
