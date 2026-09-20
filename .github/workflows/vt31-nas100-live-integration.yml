@@ -6,6 +6,7 @@ on:
       - agent/turtle-soup-gbpusd-r43-live-core-integration-001
     paths:
       - src/qore/infrastructure/vt31_nas100_live.py
+      - src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_5_multi_index_research.py
       - src/qore/infrastructure/vt31_nas100_state.py
       - src/qore/infrastructure/trader_execution_profile.py
       - scripts/vt31_nas100_live_policy.py
