@@ -170,7 +170,70 @@ ambiguity notes and contradiction notes before promotion.
 - AUDUSD/USDJPY learned behavior cannot silently rewrite BTCUSD.
 - BTCUSD 24/7 behavior cannot silently rewrite FX.
 
-## 8. Next source work
+## 8. First canonical source closures
+
+Three source concepts are now closed independently from the still-open execution model.
+
+### TIME_TURTLE_SOUP_RELATION — CANONICAL
+
+RomeoTPT explicitly states that the T in CRT stands for theory and also symbolizes Time and
+Turtle Soup. He describes Time as the heart/brain and Turtle Soup as the limbs that combine
+to deliver CRT function.
+
+Engineering consequence:
+
+- CRT PURE does **not** exclude source-faithful Turtle Soup semantics that RomeoTPT defines
+  as part of CRT;
+- it **does** exclude importing the separate QORE Turtle Soup trader's parameters, thresholds,
+  entries or lifecycle by analogy.
+
+### MARKET_TIMEFRAME_SCOPE — CANONICAL
+
+RomeoTPT explicitly states that his concepts work across markets and timeframes.
+
+Engineering consequence:
+
+- AUDUSD, USDJPY and BTCUSD are all admissible research markets for CRT;
+- this does not imply shared timing/session/volatility rules;
+- each market retains isolated Trader Experience Memory.
+
+### MAKE_OR_BREAK_LEVEL — CANONICAL
+
+RomeoTPT defines MOB as the make-or-break level. If price breaks through MOB, the target is
+expected to be reached; if MOB is respected and blocks the target, the trade idea should be
+scratched and another opportunity sought.
+
+Engineering consequence:
+
+- MOB can enter Strategy Identity as a source-proven concept;
+- broader failure/invalidation rules remain open.
+
+## 9. Strategy Identity readiness
+
+A source-gated Strategy Identity Memory now exists.
+
+Current canonical subset:
+
+- TIME_TURTLE_SOUP_RELATION
+- MARKET_TIMEFRAME_SCOPE
+- MAKE_OR_BREAK_LEVEL
+
+The execution identity remains **NOT READY** until the following core concepts close from
+primary evidence:
+
+- REFERENCE_RANGE
+- CRH_CRL
+- LIQUIDATION_SWEEP
+- RECLAIM_CLOSE_BACK_INSIDE
+- CANDLE_1_2_3
+- INVALIDATION
+- ENTRY_FAMILIES
+- STRUCTURAL_STOP
+- STRUCTURAL_DESTINATION
+
+This prevents a partial understanding of CRT from becoming an executable trader.
+
+## 10. Next source work
 
 1. Bind the missing primary locators.
 2. Obtain primary-text/timestamp evidence from the RomeoTPT videos/documents.
