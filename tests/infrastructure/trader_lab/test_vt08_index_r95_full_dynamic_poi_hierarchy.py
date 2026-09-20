@@ -4,6 +4,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_r94_ttrades_timeframe_hierarchy_freeze as r94,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r95_full_dynamic_poi_hierarchy as r95,
 )
 from qore.infrastructure.trader_lab import (
@@ -172,7 +175,7 @@ def test_r95_seed_advances_with_new_protected_swing() -> None:
 
 
 def test_r95_timeframe_freeze_is_primary_model_only() -> None:
-    hierarchy = r95.r94.payload()["frozen_hierarchy"]
+    hierarchy = r94.payload()["frozen_hierarchy"]
     assert hierarchy["vt08_primary_model"]["bias_timeframe"] == "D1"
     assert hierarchy["vt08_primary_model"]["structure_timeframe"] == "H4"
     assert hierarchy["vt08_primary_model"]["entry_timeframe"] == "M15"
