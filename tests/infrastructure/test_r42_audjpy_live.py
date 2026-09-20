@@ -207,29 +207,30 @@ def test_r42_audjpy_broker_stop_level_fails_closed() -> None:
         )
 
 
-def test_r42_audjpy_risk_request_rejects_after_two_seconds() -> None:
+def test_r42_audjpy_risk_request_rejects_after_m5_deadline() -> None:
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    with pytest.raises(ValueError, match="hard 2s entry SLA expired"):
+    fresh = replace(_spec(), observed_at=anchor + timedelta(seconds=10, milliseconds=1))
+    with pytest.raises(ValueError, match="M5 order-send deadline expired"):
         build_r42_audjpy_risk_request(
             request_id="r42-audjpy-late",
             signal=_signal(),
-            provider_spec=_spec(),
+            provider_spec=fresh,
             account_equity=Decimal("2000"),
-            now=anchor + timedelta(seconds=2, milliseconds=1),
+            now=anchor + timedelta(seconds=10, milliseconds=1),
         )
 
 
 def test_r42_audjpy_risk_request_rejects_stale_broker_tick() -> None:
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    stale = replace(
-        _signal(),
-        boundary_tick_at=anchor - timedelta(seconds=2, milliseconds=1),
+    stale_spec = replace(
+        _spec(),
+        observed_at=anchor - timedelta(seconds=2, milliseconds=1),
     )
-    with pytest.raises(ValueError, match="broker tick older than 2s"):
+    with pytest.raises(ValueError, match="broker executable snapshot older than 2s"):
         build_r42_audjpy_risk_request(
             request_id="r42-audjpy-stale-tick",
-            signal=stale,
-            provider_spec=_spec(),
+            signal=_signal(),
+            provider_spec=stale_spec,
             account_equity=Decimal("2000"),
             now=anchor,
         )
@@ -368,11 +369,11 @@ def test_r42_audjpy_boundary_snapshot_rejects_tick_older_than_two_seconds(
         )
 
 
-def test_r42_audjpy_anchor_has_hard_two_second_sla() -> None:
+def test_r42_audjpy_anchor_uses_m5_ten_second_decision_window() -> None:
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    assert current_anchor(anchor + timedelta(seconds=1, milliseconds=999)) == anchor
-    assert current_anchor(anchor + timedelta(seconds=2, milliseconds=1)) is None
-    assert ENTRY_SLA == timedelta(seconds=2)
+    assert current_anchor(anchor + timedelta(seconds=9, milliseconds=999)) == anchor
+    assert current_anchor(anchor + timedelta(seconds=10, milliseconds=1)) is None
+    assert ENTRY_SLA == timedelta(seconds=10)
     assert BOUNDARY_ARM_LEAD == timedelta(seconds=10)
     assert BOUNDARY_RETRY_SECONDS == pytest.approx(0.075)
     assert NORMAL_FEED_REFRESH_SECONDS == pytest.approx(1.0)

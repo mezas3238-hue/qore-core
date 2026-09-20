@@ -1308,11 +1308,14 @@ def build_r42_audjpy_risk_request(
     checked_at = now.astimezone(UTC)
     if checked_at > deadline:
         raise ValueError("AUDJPY R42 M5 order-send deadline expired")
-    tick_age = checked_at - signal.boundary_tick_at.astimezone(UTC)
+    # The boundary tick is causal strategy evidence. Execution freshness is a
+    # separate transport concern and must use the current broker-executable
+    # snapshot so the M5 decision window can be wider than the 2s tick-age cap.
+    tick_age = checked_at - provider_spec.observed_at.astimezone(UTC)
     if tick_age < timedelta(seconds=-0.5):
-        raise ValueError("AUDJPY R42 broker tick is from the future")
+        raise ValueError("AUDJPY R42 broker executable snapshot is from the future")
     if tick_age > MAX_BROKER_TICK_AGE:
-        raise ValueError("AUDJPY R42 broker tick older than 2s")
+        raise ValueError("AUDJPY R42 broker executable snapshot older than 2s")
 
     for name, value in (
         ("volume_min", provider_spec.minimum_volume),

@@ -100,8 +100,11 @@ def test_audjpy_runtime_hard_sla_prearms_before_maintenance() -> None:
 
 def test_audjpy_runtime_never_sends_after_deadline_guard() -> None:
     text = _runtime_text()
-    guard = text.index('stage_time("before-order-send")')
-    send = text.index("gateway.submit_live(submission, now=send_at)")
+    start = text.index("def _process_audjpy_r42_candidate(")
+    end = text.index("\ndef ", start + 1)
+    audjpy = text[start:end]
+    guard = audjpy.index('stage_time("before-order-send")')
+    send = audjpy.index("gateway.submit_live(submission, now=send_at)")
     assert guard < send
     assert "AUDJPY_R42_ENTRY_SLA" in text
     assert ENTRY_SLA == timedelta(seconds=10)
