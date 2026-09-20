@@ -18,9 +18,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
-    CapitalizerSourceBar,
     CapitalizerSourceDirection,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalizerSourceExecutionOpen:
+    open_price: Decimal
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.open_price, Decimal) or not self.open_price.is_finite():
+            raise ValueError("execution open price must be finite Decimal")
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +61,7 @@ def derive_next_bar_open_entry(
     *,
     direction: CapitalizerSourceDirection,
     source_framework_confirmed: bool,
-    execution_bar: CapitalizerSourceBar,
+    execution_open: CapitalizerSourceExecutionOpen,
 ) -> CapitalizerSourceEntryObservation:
     """Plan entry at next bar open only after the source framework is already complete."""
 
@@ -61,6 +69,6 @@ def derive_next_bar_open_entry(
         raise ValueError("next-bar entry requires completed source framework")
     return CapitalizerSourceEntryObservation(
         direction=direction,
-        entry_price=execution_bar.open,
+        entry_price=execution_open.open_price,
         source_framework_confirmed_before_entry=True,
     )
