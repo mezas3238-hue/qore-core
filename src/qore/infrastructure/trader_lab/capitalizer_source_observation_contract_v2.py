@@ -22,6 +22,7 @@ SOURCE_OBSERVATION_CONTRACT_ID = "QORE_CAPITALIZER_SOURCE_OBSERVATION_CONTRACT_V
 
 class CapitalizerSourceObservationKind(StrEnum):
     HISTORICAL_ASIAN_OPEN_REFERENCE = "HISTORICAL_ASIAN_OPEN_REFERENCE"
+    SOURCE_POINT_OF_INTEREST = "SOURCE_POINT_OF_INTEREST"
     ICT_HIGHER_TIMEFRAME_DAILY_BIAS = "ICT_HIGHER_TIMEFRAME_DAILY_BIAS"
     TTRADES_H1_C2_C3_EXPANSION_BIAS = "TTRADES_H1_C2_C3_EXPANSION_BIAS"
     STRUCTURAL_LIQUIDITY_OBJECTIVE = "STRUCTURAL_LIQUIDITY_OBJECTIVE"
@@ -57,35 +58,77 @@ SOURCE_OBSERVATION_REQUIREMENTS: tuple[CapitalizerSourceObservationRequirement, 
         ("ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW",),
     ),
     CapitalizerSourceObservationRequirement(
+        CapitalizerSourceObservationKind.SOURCE_POINT_OF_INTEREST,
+        (
+            "TTRADES_FVG_THREE_CANDLE_NON_OVERLAP",
+            "TTRADES_EXTERNAL_LIQUIDITY_SWING_HIGH_LOW",
+        ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
+    ),
+    CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.ICT_HIGHER_TIMEFRAME_DAILY_BIAS,
-        ("ICT_DAILY_BIAS_PRECEDES_SCALP_EXECUTION",),
+        (
+            "ICT_DAILY_BIAS_PRECEDES_SCALP_EXECUTION",
+            "TTRADES_DAILY_BIAS_CLOSURE_BEFORE_INTRADAY_EXECUTION",
+        ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.TTRADES_H1_C2_C3_EXPANSION_BIAS,
-        ("TTRADES_H1_EXPANSION_BIAS_C2_C3",),
+        (
+            "TTRADES_H1_EXPANSION_BIAS_C2_C3",
+            "TTRADES_C2_SWEEP_CLOSE_INSIDE_AT_POI",
+            "TTRADES_C3_BODY_CLOSURE_AFTER_C2_FAILURE",
+        ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.STRUCTURAL_LIQUIDITY_OBJECTIVE,
         (
             "ICT_LIQUIDITY_TARGETS_RECENT_DAILY_HIGHS_LOWS",
             "TTRADES_TARGET_USES_HIGHER_TIMEFRAME_OBJECTIVE",
+            "TTRADES_TARGETS_UNTOUCHED_HTF_HIGHS_LOWS",
         ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.TTRADES_M15_SWING_STRUCTURE,
-        ("TTRADES_M15_SWING_THEN_M1_CONTINUATION",),
+        (
+            "TTRADES_M15_SWING_THEN_M1_CONTINUATION",
+            "TTRADES_CISD_CLOSES_THROUGH_CAUSAL_CANDLE_SERIES",
+            "TTRADES_CISD_REQUIRES_HTF_C2_OR_C3_CONTEXT",
+        ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.TTRADES_M1_CONTINUATION_CONFIRMATION,
-        ("TTRADES_M15_SWING_THEN_M1_CONTINUATION",),
+        (
+            "TTRADES_M15_SWING_THEN_M1_CONTINUATION",
+            "TTRADES_CISD_CLOSES_THROUGH_CAUSAL_CANDLE_SERIES",
+        ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.TTRADES_PROTECTED_SWING,
-        ("TTRADES_PROTECTED_SWING_STOP",),
+        (
+            "TTRADES_PROTECTED_SWING_STOP",
+            "TTRADES_PROTECTED_SWING_REQUIRES_CONFIRMED_CLOSURE",
+            "TTRADES_PROTECTED_SWING_IS_INVALIDATION_ANCHOR",
+        ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.FTM_LIQUIDITY_LEVEL_TAKEN,
         ("TTRADES_FAILURE_TO_MANIPULATE_REQUIRES_FAILED_REVERSAL",),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.FTM_EXPECTED_REVERSAL_FAILED,
@@ -93,17 +136,24 @@ SOURCE_OBSERVATION_REQUIREMENTS: tuple[CapitalizerSourceObservationRequirement, 
             "TTRADES_FAILURE_TO_MANIPULATE_REQUIRES_FAILED_REVERSAL",
             "TTRADES_FAILURE_TO_MANIPULATE_USES_HTF_BIAS",
         ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.FTM_CANDLE_CLOSE_CONFIRMATION,
         ("TTRADES_WAIT_FOR_CANDLE_CLOSURE_CONFIRMATION",),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
     CapitalizerSourceObservationRequirement(
         CapitalizerSourceObservationKind.FTM_CONTINUATION_STRUCTURE,
         (
             "TTRADES_FAILURE_TO_MANIPULATE_REQUIRES_FAILED_REVERSAL",
             "TTRADES_FAILURE_TO_MANIPULATE_USES_HTF_BIAS",
+            "TTRADES_PROTECTED_SWING_REQUIRES_CONFIRMED_CLOSURE",
         ),
+        detector_implemented=True,
+        source_equivalence_tested=True,
     ),
 )
 
