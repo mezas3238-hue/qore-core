@@ -104,6 +104,9 @@ from qore.infrastructure.trader_lab.cohort_authority import (
     FirstCohortAuthorityInput,
     complete_first_cohort_authority_chain,
 )
+from qore.infrastructure.trader_lab.economic_binding import (
+    reference_instrument_bound_research_economic,
+)
 from qore.infrastructure.trader_lab.fast_forward import (
     TraderLabFastForwardQualificationId,
     TraderLabFastForwardSchedule,
@@ -133,7 +136,6 @@ from qore.infrastructure.trader_lab.stage_evidence import (
     TraderLabStageEvidenceId,
     build_trader_lab_stage_evidence,
     reference_replay_chronology,
-    reference_research_economic,
     reference_research_evaluation_freeze,
     reference_research_frozen_oos,
 )
@@ -600,7 +602,7 @@ def build_report(
     )
     _checkpoint("monte_carlo_complete")
 
-    economic_reference = reference_research_economic(
+    economic_reference = reference_instrument_bound_research_economic(
         candidate,
         performance.observations[-1],
     )
