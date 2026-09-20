@@ -167,13 +167,26 @@ def evaluate(
         variant=f"{CANDIDATE_ID}:{partition}",
     )
 
-    annual = (\n        annuals._annual_blocks(\n            adjusted,\n            start=date(2022, 7, 18),\n            years=2,\n        )\n        if partition == "consumed_holdout"\n        else []\n    )\n\n    result: dict[str, object] = {\n        "schema": SCHEMA,
+    annual = (
+        annuals._annual_blocks(
+            adjusted,
+            start=date(2022, 7, 18),
+            years=2,
+        )
+        if partition == "consumed_holdout"
+        else []
+    )
+
+    result: dict[str, object] = {
+        "schema": SCHEMA,
         "candidate_id": CANDIDATE_ID,
         "selected_variant": SELECTED_VARIANT,
         "contract_fingerprint": contract_fingerprint(),
         "trade_count": len(adjusted),
         "metrics": metrics,
-        "monte_carlo": mc,\n        "annual_blocks": annual,\n        "ladder_diagnostics": ladder_diag,
+        "monte_carlo": mc,
+        "annual_blocks": annual,
+        "ladder_diagnostics": ladder_diag,
         "source_stats": source_stats,
         "diagnostics": diagnostics,
         "evidence": {
