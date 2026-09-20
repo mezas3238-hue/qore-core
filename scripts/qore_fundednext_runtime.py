@@ -145,7 +145,6 @@ from qore.infrastructure.r42_audjpy_live import (
 )
 from qore.infrastructure.vt31_nas100_live import (
     DECISION_DEADLINE as VT31_DECISION_DEADLINE,
-    NORMAL_FEED_REFRESH_SECONDS as VT31_FEED_REFRESH_SECONDS,
     Vt31Nas100M1Cache,
     await_boundary_snapshot as await_vt31_boundary_snapshot,
     boundary_to_arm as vt31_boundary_to_arm,
