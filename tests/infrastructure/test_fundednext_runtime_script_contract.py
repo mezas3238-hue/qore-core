@@ -6,6 +6,8 @@ _ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME = _ROOT / "scripts" / "qore_fundednext_runtime.py"
 _ACTIVATOR = _ROOT / "scripts" / "authorize_fundednext_live.ps1"
 _WATCHDOG = _ROOT / "scripts" / "qore_fundednext_watchdog.ps1"
+_NO_SEND = _ROOT / "scripts" / "fundednext_mt5_no_send_probe.py"
+_ORDER_CHECK = _ROOT / "scripts" / "fundednext_mt5_order_check_probe.py"
 
 
 def test_h4_exit_comment_uses_broker_verified_29_character_limit() -> None:
@@ -79,3 +81,10 @@ def test_vt31_lifecycle_is_not_routed_through_vt08_h4_exit_manager() -> None:
     source = _RUNTIME.read_text(encoding="utf-8-sig")
     assert "if lineage is TraderLineage.VT31_NAS100:" in source
     assert "VT31 owns its 16:00 NY lifecycle" in source
+
+
+def test_vt31_nas100_is_broker_probed_before_shadow_or_live() -> None:
+    no_send = _NO_SEND.read_text(encoding="utf-8-sig")
+    order_check = _ORDER_CHECK.read_text(encoding="utf-8-sig")
+    assert '"NAS100"' in no_send
+    assert '"NAS100"' in order_check
