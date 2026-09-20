@@ -11,7 +11,7 @@ from typing import Any
 
 mt5 = importlib.import_module("MetaTrader5")
 
-RETAINED_SYMBOLS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD")
+RETAINED_SYMBOLS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD", "NAS100")
 EXPECTED_SERVER = "FundedNext-Server"
 
 
