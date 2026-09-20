@@ -76,6 +76,7 @@ class CapitalizerFTMObservationInput:
 class CapitalizerFTMObservationSnapshot:
     symbol: str
     observed_at: datetime
+    entry_price: Decimal
     session: CapitalizerSourceSessionAssessment
     daily_closure: CapitalizerSourceClosureObservation | None
     daily_bias: CapitalizerDailyBiasObservation
@@ -190,6 +191,7 @@ def build_ftm_observation_snapshot(
     return CapitalizerFTMObservationSnapshot(
         symbol=facts.symbol,
         observed_at=facts.observed_at,
+        entry_price=facts.entry_price,
         session=session,
         daily_closure=daily_closure,
         daily_bias=daily_bias,
