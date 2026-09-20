@@ -26,7 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 from bisect import bisect_left
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -45,9 +45,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r59_candidate_freeze as freeze,
-)
-from qore.infrastructure.trader_lab import (
-    vt08_index_r66_fresh_historical_holdout as r66,
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r67_r66_failure_forensics as r67,
