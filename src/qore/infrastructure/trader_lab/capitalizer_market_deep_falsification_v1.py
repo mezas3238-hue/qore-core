@@ -213,6 +213,7 @@ def _drawdown(
     max_streak = 0
     max_dd = Decimal("0")
     dd_peak_at: datetime | None = None
+    dd_peak_equity = Decimal("0")
     dd_trough_at: datetime | None = None
 
     for row in rows:
@@ -226,6 +227,7 @@ def _drawdown(
         if drawdown > max_dd:
             max_dd = drawdown
             dd_peak_at = peak_at
+            dd_peak_equity = peak
             dd_trough_at = at
         if value < 0:
             current_streak += 1
@@ -239,15 +241,13 @@ def _drawdown(
     recovery_at: datetime | None = None
     if max_dd > 0:
         equity = Decimal("0")
-        peak_before = Decimal("0")
         target_peak: Decimal | None = None
         for row in rows:
             value = Decimal(str(row["realized_gross_r"]))
             at = datetime.fromisoformat(str(row["exit_at"]))
             equity += value
-            peak_before = max(peak_before, equity)
             if at == dd_trough_at:
-                target_peak = peak_before + max_dd
+                target_peak = dd_peak_equity
                 continue
             if target_peak is not None and at > dd_trough_at and equity >= target_peak:
                 recovery_at = at
