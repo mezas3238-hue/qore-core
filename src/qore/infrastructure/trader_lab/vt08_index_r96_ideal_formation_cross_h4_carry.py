@@ -83,6 +83,10 @@ SCHEMA = "qore.trader_lab.vt08_index_r96_ideal_formation_cross_h4_carry.v1"
 IDENTITY = "VT08_INDEX_R96_IDEAL_FORMATION_CROSS_H4_PS_CARRY_001"
 
 SOURCE_R95_RUN_ID = 35531957789
+SOURCE_R95_ARTIFACT_ID = 10611990582
+SOURCE_R95_ARTIFACT_DIGEST = (
+    "sha256:1bfa717e1172768d00fc6e615cd8b37d58695fb7b41ba8fa83390cab2c3533c5"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -513,7 +517,11 @@ def build_report(
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
-        "source_r95_run_id": SOURCE_R95_RUN_ID,
+        "source_r95": {
+            "run_id": SOURCE_R95_RUN_ID,
+            "artifact_id": SOURCE_R95_ARTIFACT_ID,
+            "artifact_digest": SOURCE_R95_ARTIFACT_DIGEST,
+        },
         "source_contract": {
             "primary_model": "D1_H4_M15",
             "formation_h4_may_be_context_only": True,
