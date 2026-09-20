@@ -368,6 +368,14 @@ def test_shadow_order_check_never_sends() -> None:
     assert api.sent == 0
 
 
+def test_live_send_rechecks_broker_order_after_final_fresh_market_gate() -> None:
+    api = _Api()
+    gateway = _gateway(api, complete=True, submission_enabled=True)
+    gateway.submit_live(_submission(), now=_NOW)
+    assert api.checked == 2
+    assert api.sent == 1
+
+
 def test_live_send_requires_complete_activation() -> None:
     api = _Api()
     gateway = _gateway(api, complete=False, submission_enabled=True)
@@ -417,14 +425,22 @@ def test_account_observation_allows_subsecond_call_order_skew() -> None:
     assert state.balance == Decimal("2000.0")
 
 
-def test_live_gateway_rejects_real_broker_tick_older_than_two_seconds() -> None:
+def test_shadow_read_allows_retained_tick_but_live_send_requires_fresh_tick() -> None:
     api = _Api()
     stale = _NOW - timedelta(seconds=2, milliseconds=1)
     api.tick_time = int(stale.timestamp())
     api.tick_time_msc = int(stale.timestamp() * 1000)
-    gateway = _gateway(api, complete=False, submission_enabled=False)
+
+    shadow_gateway = _gateway(api, complete=False, submission_enabled=False)
+    spec = shadow_gateway.read_symbol("GBPUSD", now=_NOW)
+    assert spec.provider_symbol == "GBPUSD"
+    assert shadow_gateway.shadow_check(_submission(), now=_NOW).broker_valid is True
+    assert api.sent == 0
+
+    live_gateway = _gateway(api, complete=True, submission_enabled=True)
     with pytest.raises(Mt5ExecutionBlockedError, match="broker-tick-older-than-2s"):
-        gateway.read_symbol("GBPUSD", now=_NOW)
+        live_gateway.submit_live(_submission(), now=_NOW)
+    assert api.sent == 0
 
 
 def test_account_observation_rejects_material_future_timestamp() -> None:
