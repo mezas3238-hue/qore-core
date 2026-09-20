@@ -45,6 +45,7 @@ from qore.infrastructure.vt31_nas100_live import (
     EXECUTION_BINDING_FINGERPRINT,
     EXECUTION_BINDING_ID,
     MAX_BROKER_TICK_AGE,
+    PROVIDER_SYMBOL,
     SERVICE_24_7,
     SILVER_BULLET_SOURCE_FINGERPRINT,
     TARGET_ARCHITECTURE_ID,
@@ -78,6 +79,7 @@ def runtime_started_fields() -> dict[str, object]:
         "vt31_nas100_enabled": True,
         "vt31_nas100_identity": STRATEGY_IDENTITY,
         "vt31_nas100_lineage": "VT31_NAS100",
+        "vt31_nas100_provider_symbol": PROVIDER_SYMBOL,
         "vt31_nas100_execution_binding": EXECUTION_BINDING_ID,
         "vt31_nas100_execution_binding_fingerprint": EXECUTION_BINDING_FINGERPRINT,
         "vt31_nas100_strategy_memory_sha256": STRATEGY_MEMORY_FINGERPRINT,
@@ -199,7 +201,7 @@ def process_virtual_oco(
     basket = state.virtual_basket
     if basket is None or len(basket.candidates) <= 1:
         return
-    tick = mt5_api.symbol_info_tick(SYMBOL)
+    tick = mt5_api.symbol_info_tick(PROVIDER_SYMBOL)
     if tick is None:
         raise Vt31Nas100LiveError("VT31 OCO broker tick unavailable")
     tick_at = _tick_at(tick)
@@ -252,7 +254,7 @@ def reconcile_pending(
     if pending is None:
         return
 
-    positions = mt5_api.positions_get(symbol=SYMBOL)
+    positions = mt5_api.positions_get(symbol=PROVIDER_SYMBOL)
     if positions is None:
         raise Vt31Nas100LiveError("VT31 position reconciliation unavailable")
     magic = _magic(pending.client_order_id)
@@ -404,7 +406,7 @@ def manage_open_trade(
         return state, "vt31-position-awaiting-reconcile"
 
     position = matches[0]
-    tick = mt5_api.symbol_info_tick(SYMBOL)
+    tick = mt5_api.symbol_info_tick(PROVIDER_SYMBOL)
     if tick is None:
         raise Vt31Nas100LiveError("VT31 journey tick unavailable")
     tick_at = _tick_at(tick)
@@ -414,7 +416,7 @@ def manage_open_trade(
     if tick_age > MAX_BROKER_TICK_AGE:
         raise Vt31Nas100LiveError("VT31 journey tick older than 2s")
 
-    info = mt5_api.symbol_info(SYMBOL)
+    info = mt5_api.symbol_info(PROVIDER_SYMBOL)
     if info is None:
         raise Vt31Nas100LiveError("VT31 journey symbol info unavailable")
     step = Decimal(str(info.volume_step))
@@ -946,7 +948,7 @@ def _close_position(
     closing_buy = int(position.type) != int(api.POSITION_TYPE_BUY)
     request = {
         "action": api.TRADE_ACTION_DEAL,
-        "symbol": SYMBOL,
+        "symbol": PROVIDER_SYMBOL,
         "position": int(position.ticket),
         "volume": float(volume),
         "type": api.ORDER_TYPE_BUY if closing_buy else api.ORDER_TYPE_SELL,
@@ -1006,7 +1008,7 @@ def _advance_stop(
 
 
 def _filling(api: Any) -> int:
-    info = api.symbol_info(SYMBOL)
+    info = api.symbol_info(PROVIDER_SYMBOL)
     if info is None:
         raise Vt31Nas100LiveError("VT31 filling policy unavailable")
     mode = int(info.filling_mode)
