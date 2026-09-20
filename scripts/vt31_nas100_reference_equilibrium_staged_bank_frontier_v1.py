@@ -343,7 +343,7 @@ def main() -> None:
         json.dumps(payload, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({"partition": payload["partition"], "variants": payload["variants"]}, sort_keys=True))
+    print(\n        json.dumps(\n            {\n                "partition": payload["partition"],\n                "variants": payload["variants"],\n            },\n            sort_keys=True,\n        )\n    )
 
 
 if __name__ == "__main__":
