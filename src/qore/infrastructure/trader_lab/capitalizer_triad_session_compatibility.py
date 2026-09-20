@@ -21,6 +21,9 @@ from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_pair_session_compatibility import (
+    _selected_by_session,
+)
 from qore.infrastructure.trader_lab.capitalizer_portfolio_exposure_forensics import (
     CapitalizerExposureCandidate,
     _assessment,
@@ -30,9 +33,6 @@ from qore.infrastructure.trader_lab.capitalizer_portfolio_session_flow_viability
     PortfolioFlowMetrics,
     _metrics,
     _session_key,
-)
-from qore.infrastructure.trader_lab.capitalizer_pair_session_compatibility import (
-    _selected_by_session,
 )
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
 
