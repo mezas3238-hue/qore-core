@@ -10,8 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from qore.infrastructure.traders.crt_pure_identity import (\n    CrtPureMarket,\n)
-
+from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
 CRT_PURE_COGNITIVE_CONTRACT_ID = "VT08_CRT_PURE_COGNITIVE_CONTRACT_V1"
 
