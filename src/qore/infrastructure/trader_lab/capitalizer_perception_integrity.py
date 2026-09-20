@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
+
+from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import (
+    NINE_MARKET_UNIVERSE,
+)
 
 
 class CapitalizerPerceptionStatus(StrEnum):
@@ -32,6 +37,19 @@ class CapitalizerPerceptionAssessment:
         if self.grants_capital_authority:
             raise ValueError("perception integrity cannot grant capital authority")
 
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalizerMarketPerceptionSnapshot:
+    symbol: str
+    observed_at: datetime
+    assessment: CapitalizerPerceptionAssessment
+
+    def __post_init__(self) -> None:
+        if self.symbol not in NINE_MARKET_UNIVERSE:
+            raise ValueError("perception symbol outside Capitalizer universe")
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("perception timestamp must be timezone-aware")
 
 def assess_perception_integrity(
     facts: CapitalizerPerceptionFacts,
