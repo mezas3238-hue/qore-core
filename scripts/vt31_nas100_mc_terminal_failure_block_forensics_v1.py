@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
