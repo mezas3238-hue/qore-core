@@ -1925,6 +1925,200 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             store.store(state)
             continue
 
+        vt31_arm_anchor = vt31_boundary_to_arm(cycle_at)
+        if (
+            vt31_arm_anchor is not None
+            and _vt31_entry_boundary(vt31_arm_anchor)
+        ):
+            vt31_arm_started_at = datetime.now(UTC)
+            _log(
+                log_path,
+                {
+                    "event": "VT31_NAS100_BOUNDARY_ARMED",
+                    "symbol": "NAS100",
+                    "decision_at": vt31_arm_anchor.isoformat(),
+                    "armed_at": vt31_arm_started_at.isoformat(),
+                    "lead_ms": int(
+                        (vt31_arm_anchor - vt31_arm_started_at).total_seconds()
+                        * 1000
+                    ),
+                    "maintenance_frozen": True,
+                    "risk_preflight_only": True,
+                },
+            )
+            try:
+                vt31_account = gateway.read_account(now=vt31_arm_started_at)
+                gateway.reconcile_unknown(now=vt31_arm_started_at)
+                vt31_highest = max(highest, vt31_account.balance)
+                vt31_provider = evaluate_stellar_instant_budget(
+                    StellarInstantAccountSnapshot(
+                        initial_balance=PILOT_INITIAL_BALANCE,
+                        balance=vt31_account.balance,
+                        equity=vt31_account.equity,
+                        highest_closed_balance=vt31_highest,
+                        previous_active_mll=previous_mll,
+                    )
+                )
+                (
+                    vt31_open_stop,
+                    vt31_floating_loss,
+                    vt31_pending_stop,
+                ) = _broker_risk(transport)
+                vt31_aggregate = (
+                    vt31_open_stop
+                    + vt31_pending_stop
+                    + risk.active_reserved_stop_risk()
+                )
+                vt31_posture = request_cibo_posture(
+                    initial_balance=PILOT_INITIAL_BALANCE,
+                    balance=vt31_account.balance,
+                    equity=vt31_account.equity,
+                    current_aggregate_risk=vt31_aggregate,
+                )
+                vt31_capital = evaluate_qore_operational_capital_budget(
+                    provider_budget=vt31_provider,
+                    initial_balance=PILOT_INITIAL_BALANCE,
+                    balance=vt31_account.balance,
+                    equity=vt31_account.equity,
+                    highest_closed_balance=vt31_highest,
+                    current_aggregate_stop_risk=vt31_aggregate,
+                    requested_posture=vt31_posture,
+                )
+                vt31_snapshot = AccountRiskSnapshot(
+                    account_binding_id=fingerprint,
+                    equity=vt31_account.equity,
+                    margin_used=vt31_account.margin,
+                    free_margin=vt31_account.free_margin,
+                    open_stop_worst_case_loss=vt31_open_stop,
+                    open_floating_loss=vt31_floating_loss,
+                    pending_broker_worst_case_loss=vt31_pending_stop,
+                    qore_authorizable_headroom=(
+                        vt31_capital.qore_authorizable_headroom
+                    ),
+                    provider_budget=vt31_provider,
+                    reconciled_at=vt31_arm_started_at,
+                )
+                vt31_accepted_times = [
+                    item.transitioned_at
+                    for item in mutation_ledger.records()
+                    if item.state is FundedNextMt5MutationState.ACCEPTED
+                ]
+                vt31_last_activity = max(
+                    vt31_accepted_times,
+                    default=activation.authorization.activation_timestamp,
+                )
+                vt31_lifecycle = inactivity_state(
+                    last_activity_at=vt31_last_activity,
+                    now=vt31_arm_started_at,
+                )
+                vt31_blocked = (
+                    vt31_capital.decision is CapitalBudgetDecision.REJECT
+                    or vt31_lifecycle is InactivityState.BLOCKED
+                    or exit_ledger.has_unresolved
+                    or gateway.has_unresolved_mutations
+                )
+                vt31_boundary = await_vt31_boundary_snapshot(
+                    mt5,
+                    cache=vt31_cache,
+                    anchor=vt31_arm_anchor,
+                )
+                if vt31_blocked:
+                    _log(
+                        log_path,
+                        {
+                            "event": "VT31_NAS100_BOUNDARY_FAIL_CLOSED",
+                            "symbol": "NAS100",
+                            "decision_at": vt31_arm_anchor.isoformat(),
+                            "reason": "preflight-new-order-blocked",
+                            "observed_at": vt31_boundary.observed_at.isoformat(),
+                            "order_send_called": False,
+                        },
+                    )
+                else:
+                    vt31_basket, vt31_reason = evaluate_vt31_boundary(
+                        closed_m1=vt31_boundary.closed_m1,
+                        evidence_fingerprint=(
+                            vt31_boundary.evidence_fingerprint
+                        ),
+                        store=vt31_store,
+                    )
+                    if vt31_basket is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT31_NAS100_CAUSAL_ABSTAIN",
+                                "symbol": "NAS100",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "reason": vt31_reason,
+                                "observed_at": (
+                                    vt31_boundary.observed_at.isoformat()
+                                ),
+                            },
+                        )
+                    elif mode == "shadow":
+                        shadow_vt31_basket(
+                            basket=vt31_basket,
+                            boundary_at=vt31_arm_anchor,
+                            gateway=gateway,
+                            risk=risk,
+                            snapshot=vt31_snapshot,
+                            account_equity=vt31_account.equity,
+                            store=vt31_store,
+                            log=lambda event: _log(log_path, event),
+                        )
+                    elif len(vt31_basket.candidates) == 1:
+                        submit_vt31_single_live(
+                            basket=vt31_basket,
+                            boundary_at=vt31_arm_anchor,
+                            gateway=gateway,
+                            risk=risk,
+                            snapshot=vt31_snapshot,
+                            account_equity=vt31_account.equity,
+                            store=vt31_store,
+                            log=lambda event: _log(log_path, event),
+                        )
+                    else:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT31_NAS100_VIRTUAL_OCO_ARMED",
+                                "symbol": "NAS100",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "basket_id": vt31_basket.basket_id,
+                                "candidate_count": len(
+                                    vt31_basket.candidates
+                                ),
+                            },
+                        )
+            except Exception as error:
+                freeze_until = vt31_arm_anchor + VT31_DECISION_DEADLINE
+                remaining = (freeze_until - datetime.now(UTC)).total_seconds()
+                if remaining > 0:
+                    time.sleep(remaining)
+                _log(
+                    log_path,
+                    {
+                        "event": "VT31_NAS100_BOUNDARY_FAIL_CLOSED",
+                        "symbol": "NAS100",
+                        "decision_at": vt31_arm_anchor.isoformat(),
+                        "reason": type(error).__name__,
+                        "message": str(error),
+                        "decision_deadline_seconds": (
+                            VT31_DECISION_DEADLINE.total_seconds()
+                        ),
+                    },
+                )
+            completed_at = datetime.now(UTC)
+            state = state.with_cycle(
+                highest_closed_balance=str(highest),
+                active_mll=str(previous_mll),
+                processed_anchor=None,
+                reconciled_at=completed_at,
+                heartbeat_at=completed_at,
+            )
+            store.store(state)
+            continue
+
         account_state = gateway.read_account(now=cycle_at)
         gateway.reconcile_unknown(now=cycle_at)
         _manage_h4_exits(
