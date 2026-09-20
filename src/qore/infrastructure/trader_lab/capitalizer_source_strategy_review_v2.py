@@ -126,6 +126,24 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
+        source_id="TTRADES_FAIR_VALUE_GAPS",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Understanding Fair Value Gaps",
+        primary_locator="https://ttrades.com/understanding-fair-value-gaps/",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_INTERNAL_EXTERNAL_LIQUIDITY",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Internal & External Liquidity Using the TTrades Fractal Model",
+        primary_locator=(
+            "https://ttrades.com/internal-external-liquidity-using-the-ttrades-fractal-model/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
         source_id="TTRADES_DAILY_BIAS_MECHANICAL",
         author=CapitalizerStrategyAuthor.TTRADES,
         kind=CapitalizerPrimarySourceKind.ARTICLE,
@@ -278,6 +296,24 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
             "ICT_HIGH_PROBABILITY_SCALPING_V1",
             "ICT_NEW_YORK_KILLZONE",
         ),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_FVG_THREE_CANDLE_NON_OVERLAP",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades defines a fair value gap as a three-candle inefficiency where the wick/range "
+            "of candle one and candle three do not overlap, creating internal liquidity."
+        ),
+        source_ids=("TTRADES_FAIR_VALUE_GAPS", "TTRADES_INTERNAL_EXTERNAL_LIQUIDITY"),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_EXTERNAL_LIQUIDITY_SWING_HIGH_LOW",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades defines external liquidity at swing highs and lows: a swing high has a "
+            "lower high on each side; a swing low has a higher low on each side."
+        ),
+        source_ids=("TTRADES_INTERNAL_EXTERNAL_LIQUIDITY",),
     ),
     CapitalizerSourceFact(
         fact_id="TTRADES_DAILY_BIAS_CLOSURE_BEFORE_INTRADAY_EXECUTION",
