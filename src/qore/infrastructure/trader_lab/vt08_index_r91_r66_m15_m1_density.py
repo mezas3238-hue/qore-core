@@ -24,7 +24,7 @@ import json
 from bisect import bisect_left
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -39,9 +39,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_cibo_2y_tuning_round1 as r1,
-)
-from qore.infrastructure.trader_lab import (
-    vt08_index_r6_five_year_validation as r6,
 )
 from qore.infrastructure.trader_lab import (
     vt08_index_r66_fresh_historical_holdout as r66,
