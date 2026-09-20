@@ -60,6 +60,7 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
     Vt08IndexC2R1Bar,
+    resolve_daily_bias,
 )
 
 SCHEMA = "qore.trader_lab.vt08_index_r72_upstream_density_loss.v1"
@@ -108,7 +109,7 @@ def _source_day_reason(
     )
     if source_days is None:
         return "NO_TWO_COMPLETE_SOURCE_DAYS"
-    bias = v7.resolve_daily_bias(
+    bias = resolve_daily_bias(
         previous_day=source_days[0],
         current_day=source_days[1],
     )
