@@ -2,9 +2,6 @@ from decimal import Decimal
 
 import pytest
 
-from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
-    CapitalizerCognitiveGateDecision,
-)
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_source_strategy_grammar_v2 import (
     SOURCE_STRATEGY_GRAMMAR_ID,
@@ -22,7 +19,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_trade_plan_v2 import (
 def _assessment(
     decision: CapitalizerSourceStrategyDecision,
 ) -> CapitalizerSourceStrategyAssessment:
-    del CapitalizerCognitiveGateDecision
     return CapitalizerSourceStrategyAssessment(
         grammar_id=SOURCE_STRATEGY_GRAMMAR_ID,
         symbol="EURUSD",
