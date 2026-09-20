@@ -88,7 +88,8 @@ SCHEMA = "qore.trader_lab.vt08_index_r95_full_dynamic_poi_hierarchy.v1"
 IDENTITY = "VT08_INDEX_R95_FULL_DYNAMIC_CONTINUATION_POI_HIERARCHY_001"
 
 SOURCE_R94_RUN_ID = 35531601091
-
+SOURCE_R94_ARTIFACT_ID = 10611591229
+SOURCE_R94_ARTIFACT_DIGEST = (\n    "sha256:4fe16cb8a7246239cf88745f1cd13081babd4885017371f2648d1330ce777e48"\n)\n
 _PRIORITY = {
     v6.PoiKind.FVG: 0,
     v6.PoiKind.RELEVANT_SWING: 1,
@@ -714,8 +715,7 @@ def build_report(
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
-        "source_r94_run_id": SOURCE_R94_RUN_ID,
-        "dynamic_hierarchy_contract": {
+        "source_r94": {\n            "run_id": SOURCE_R94_RUN_ID,\n            "artifact_id": SOURCE_R94_ARTIFACT_ID,\n            "artifact_digest": SOURCE_R94_ARTIFACT_DIGEST,\n        },\n        "dynamic_hierarchy_contract": {
             "primary_model": "D1_H4_M15",
             "seed": "R85_SOURCE_EXACT_EXECUTABLE",
             "poi_priority": ["fvg", "relevant-swing", "cisd"],
