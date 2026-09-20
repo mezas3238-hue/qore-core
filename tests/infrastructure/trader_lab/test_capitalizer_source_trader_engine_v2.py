@@ -8,6 +8,7 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 import (
     CapitalizerDualSourceEntryAcceptance,
     CapitalizerDualSourceEntryFacts,
+    CapitalizerM1EntryStructureFacts,
     assess_dual_source_entry,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
@@ -89,6 +90,11 @@ def _accepted_entry_gate() -> CapitalizerDualSourceEntryAcceptance:
             ttrades_protected_swing_confirmed=True,
             ttrades_continuation_confirmed=True,
             ttrades_wick_formation_confirmed=True,
+            m1_entry_structure=CapitalizerM1EntryStructureFacts(
+                market_structure_shift_confirmed=True,
+                fair_value_gap_confirmed=True,
+                order_block_confirmed=True,
+            ),
         )
     )
 
