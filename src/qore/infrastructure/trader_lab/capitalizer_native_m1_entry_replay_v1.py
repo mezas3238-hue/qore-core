@@ -32,7 +32,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
-    BAR_DURATION,
     CapitalizerM1Bar,
     iter_cibo_m1,
 )
@@ -155,7 +154,9 @@ class CapitalizerNativeM1Matrix:
 def _load_candidates(root: Path) -> tuple[dict[str, Any], ...]:
     paths = sorted(root.rglob("capitalizer-*-three-session-replay-cell-v1-trades.jsonl"))
     if len(paths) != 1:
-        raise ValueError(f"native M1 replay requires exactly one candidate ledger, got {len(paths)}")
+        raise ValueError(
+            f"native M1 replay requires exactly one candidate ledger, got {len(paths)}"
+        )
     rows: list[dict[str, Any]] = []
     with paths[0].open(encoding="utf-8") as handle:
         for line in handle:
@@ -873,8 +874,12 @@ def main() -> None:
                     "higher_level_candidates": report.higher_level_candidates,
                     "m1_entries": report.m1_entries,
                     "m1_entry_rate": report.m1_entry_rate,
-                    "profit_factor": None if report.metrics is None else report.metrics.profit_factor,
-                    "max_drawdown_r": None if report.metrics is None else report.metrics.max_drawdown_r,
+                    "profit_factor": (
+                        None if report.metrics is None else report.metrics.profit_factor
+                    ),
+                    "max_drawdown_r": (
+                        None if report.metrics is None else report.metrics.max_drawdown_r
+                    ),
                 },
                 sort_keys=True,
             )
