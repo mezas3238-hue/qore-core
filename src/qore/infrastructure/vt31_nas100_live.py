@@ -30,6 +30,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
+from qore.infrastructure.fundednext_stellar_instant import resolve_pilot_symbol
 from qore.infrastructure.market_data import (
     Instrument,
     MarketDataSnapshotId,
@@ -46,6 +47,7 @@ from qore.infrastructure.ports import (
 
 IDENTITY = "VT31_NAS100"
 SYMBOL = "NAS100"
+PROVIDER_SYMBOL = resolve_pilot_symbol(SYMBOL)
 STRATEGY_IDENTITY = "VT31_NAS100_STRUCTURAL_TARGET_V1"
 CERTIFIED_STRATEGY_FINGERPRINT = (
     "089c41f98a72295278063cfc29caf8419538f68315d9f5e57be144fbdae15e08"
@@ -299,7 +301,7 @@ class Vt31Nas100M1Cache:
                 "VT31 historical M1 preload may run only once"
             )
         rows = api.copy_rates_from_pos(
-            SYMBOL,
+            PROVIDER_SYMBOL,
             api.TIMEFRAME_M1,
             0,
             HISTORY_M1_BARS,
@@ -354,7 +356,7 @@ class Vt31Nas100M1Cache:
         if current is None or current.opened_at != anchor:
             raise Vt31Nas100LiveError("VT31 exact new M1 unavailable")
 
-        tick = api.symbol_info_tick(SYMBOL)
+        tick = api.symbol_info_tick(PROVIDER_SYMBOL)
         if tick is None:
             raise Vt31Nas100LiveError("VT31 broker tick unavailable")
         broker_tick_at = _tick_timestamp(tick)
@@ -625,7 +627,7 @@ def build_risk_request(
         raise ValueError("VT31 short geometry invalid")
     if not provider_spec.trade_enabled or not provider_spec.session_open:
         raise Vt31Nas100LiveError("VT31 broker trading unavailable")
-    if provider_spec.provider_symbol != SYMBOL:
+    if provider_spec.provider_symbol != PROVIDER_SYMBOL:
         raise Vt31Nas100LiveError("VT31 provider symbol binding drift")
     if now - provider_spec.observed_at > MAX_BROKER_TICK_AGE:
         raise Vt31Nas100LiveError("VT31 broker symbol snapshot older than 2s")
