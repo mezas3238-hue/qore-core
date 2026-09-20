@@ -17,7 +17,7 @@ Required gates:
 - MC positive terminal >= 0.90;
 - MC p95 DD <= 15R.
 """
-# ruff: noqa: E402
+# ruff: noqa: B009, E402, I001
 from __future__ import annotations
 
 import argparse
@@ -35,6 +35,7 @@ os.environ["QORE_EVAL_END_EXCLUSIVE_DATE"] = "2022-07-01"
 os.environ["QORE_INCLUDE_TRADE_ROWS"] = "1"
 
 import vt31_nas100_capacity_selective_target_ladder_v1 as frontier
+import vt31_nas100_causal_hybrid_rearm_v1 as engine
 import vt31_nas100_residual_regime_forensics_v2 as residual
 import vt31_nas100_structural_target_candidate_v1 as candidate
 
@@ -259,11 +260,31 @@ def validate(
     ):
         raise AssertionError("candidate fingerprint changed inside 5Y")
 
-    rows = cast(list[dict[str, object]], evaluation.pop("trade_rows"))
+    all_rows = cast(
+        list[dict[str, object]],
+        evaluation.pop("trade_rows"),
+    )
+    rows = [
+        row
+        for row in all_rows
+        if START_DATE
+        <= date.fromisoformat(cast(str, row["local_date"]))
+        < END_EXCLUSIVE_DATE
+    ]
+    metrics = residual._metrics(rows)
+    mc = engine._monte_carlo(
+        rows,
+        variant=f"{candidate.CANDIDATE_ID}:five_year_consumed",
+    )
     annual = _annual_blocks(rows)
-    metrics = cast(dict[str, object], evaluation["metrics"])
-    mc = cast(dict[str, object], evaluation["monte_carlo"])
-    trade_count = int(cast(int, evaluation["trade_count"]))
+    trade_count = len(rows)
+    evaluation["trade_count"] = trade_count
+    evaluation["metrics"] = metrics
+    evaluation["monte_carlo"] = mc
+    evaluation["exact_window_row_count"] = trade_count
+    evaluation["pre_window_or_post_window_rows_excluded"] = (
+        len(all_rows) - trade_count
+    )
 
     gates = {
         "exact_five_calendar_year_window": (
