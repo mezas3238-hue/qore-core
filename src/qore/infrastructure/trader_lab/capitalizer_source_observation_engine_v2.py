@@ -266,6 +266,7 @@ def build_fractal_observation_snapshot(
     return CapitalizerFractalObservationSnapshot(
         symbol=facts.symbol,
         observed_at=facts.observed_at,
+        entry_price=facts.entry_price,
         session=session,
         daily_bias=daily_bias,
         daily_closure=daily_closure,
