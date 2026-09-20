@@ -69,7 +69,10 @@ def _fetch(url: str) -> bytes:
     with urlopen(request, timeout=15) as response:  # noqa: S310 - fixed trusted HTTPS URLs
         if getattr(response, "status", 200) != 200:
             raise RuntimeError(f"provider rule source returned HTTP {response.status}")
-        return response.read()
+        raw = response.read()
+        if not isinstance(raw, bytes):
+            raise RuntimeError("provider rule source did not return bytes")
+        return raw
 
 
 def _text(raw: bytes) -> str:
@@ -216,7 +219,10 @@ def refresh(root: Path) -> dict[str, object]:
         "news execution window not verified",
     )
     _require("40%" in news, "news profit attribution not verified")
-    _require("1% safety buffer" in news or "1% equity extension" in news, "news MLL buffer not verified")
+    _require(
+        "1% safety buffer" in news or "1% equity extension" in news,
+        "news MLL buffer not verified",
+    )
     _require(
         "maximum of 3 times" in news or "maximum of three times" in news,
         "news MLL buffer usage cap not verified",
@@ -279,6 +285,8 @@ def main() -> int:
     payload = refresh(Path(args.root).resolve())
     facts = payload["facts"]
     assert isinstance(facts, dict)
+    source_payload = payload["sources"]
+    assert isinstance(source_payload, dict)
     print(
         json.dumps(
             {
@@ -287,7 +295,7 @@ def main() -> int:
                 "cumulative_open_risk_fraction": facts[
                     "cumulative_open_risk_fraction"
                 ],
-                "source_count": len(payload["sources"]),
+                "source_count": len(source_payload),
             }
         )
     )
