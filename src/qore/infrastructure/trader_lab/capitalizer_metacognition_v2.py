@@ -33,7 +33,7 @@ class CapitalizerMetacognitiveFacts:
     perception_status: CapitalizerPerceptionStatus
     regime_resolution: CapitalizerRegimeResolution
     contradictions: tuple[str, ...] = ()
-    source_evidence_complete: bool = False
+    evidence_provenance_complete: bool = False
     destination_context_known: bool = False
 
 
@@ -79,8 +79,8 @@ def assess_metacognition(
         unresolved.append("KNOWLEDGE_UNKNOWN")
     if facts.regime_resolution is CapitalizerRegimeResolution.UNRESOLVED:
         unresolved.append("REGIME_UNRESOLVED")
-    if not facts.source_evidence_complete:
-        unresolved.append("SOURCE_EVIDENCE_INCOMPLETE")
+    if not facts.evidence_provenance_complete:
+        unresolved.append("EVIDENCE_PROVENANCE_INCOMPLETE")
     if unresolved:
         return CapitalizerMetacognitiveAssessment(
             readiness=CapitalizerEpistemicReadiness.UNRESOLVED,
