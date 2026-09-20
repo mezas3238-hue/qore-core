@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_cibo_2y_density_round4 as r4,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r91_r66_m15_m1_density as r91,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
@@ -72,5 +75,5 @@ def test_r91_source_r90_evidence_and_scope_are_frozen() -> None:
     assert r91.SOURCE_R90_ARTIFACT_ID == 10609363779
     assert r91.PERIOD_M1 == 1
     assert r91.CHUNK_DAYS == 2
-    assert 14 not in tuple(r91.r4.V7_ANCHORS)
-    assert 18 not in tuple(r91.r4.V7_ANCHORS)
+    assert 14 not in tuple(r4.V7_ANCHORS)
+    assert 18 not in tuple(r4.V7_ANCHORS)
