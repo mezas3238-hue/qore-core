@@ -15,7 +15,8 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
@@ -55,7 +56,6 @@ from qore.infrastructure.vt31_nas100_live import (
     virtual_oco_trigger,
 )
 from qore.infrastructure.vt31_nas100_state import (
-    Vt31Nas100LiveState,
     Vt31Nas100LiveStateStore,
     Vt31OpenTradeState,
     Vt31PendingBrokerOrderState,
@@ -265,8 +265,8 @@ def reconcile_pending(
             if "filled-unreconciled" not in str(error).lower():
                 raise
         filled_at = _position_time(position, now)
-        entry = Decimal(str(getattr(position, "price_open")))
-        volume = Decimal(str(getattr(position, "volume")))
+        entry = Decimal(str(position.price_open))
+        volume = Decimal(str(position.volume))
         stop = Decimal(str(getattr(position, "sl", pending.stop_loss)))
         if stop <= 0:
             stop = Decimal(pending.stop_loss)
@@ -304,7 +304,7 @@ def reconcile_pending(
         log({
             "event": "VT31_NAS100_FILL_CONFIRMED",
             "signal_fingerprint": pending.signal_fingerprint,
-            "position_ticket": int(getattr(position, "ticket")),
+            "position_ticket": int(position.ticket),
             "filled_at": filled_at.isoformat(),
         })
         return
