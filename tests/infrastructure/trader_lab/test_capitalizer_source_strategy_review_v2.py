@@ -23,6 +23,10 @@ def test_source_review_contains_complete_ict_scalping_series_and_primary_ttrades
     assert sources["ICT_HIGH_PROBABILITY_SCALPING_V3"].primary_locator == (
         "youtube:UuMaC9n8Uy4"
     )
+    assert sources["ICT_ATM_METHOD"].author is CapitalizerStrategyAuthor.ICT
+    assert sources["ICT_ATM_METHOD"].primary_locator == "youtube:30petm6SZz0"
+    assert sources["ICT_2022_MENTORSHIP_EP6"].author is CapitalizerStrategyAuthor.ICT
+    assert sources["ICT_RISK_MANAGEMENT"].author is CapitalizerStrategyAuthor.ICT
     assert sources["TTRADES_SCALPING_MODEL"].author is CapitalizerStrategyAuthor.TTRADES
     assert (
         sources["TTRADES_FAILURE_TO_MANIPULATE"].author
