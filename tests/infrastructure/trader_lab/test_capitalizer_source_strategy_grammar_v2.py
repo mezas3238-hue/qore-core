@@ -16,6 +16,7 @@ def _base(route: CapitalizerSourceEntryRoute) -> CapitalizerSourceStrategyFacts:
         symbol="EURUSD",
         route=route,
         cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
+        source_session_context_resolved=True,
         source_session_context_eligible=True,
         higher_timeframe_bias_aligned=True,
         structural_liquidity_objective_available=True,
@@ -110,3 +111,19 @@ def test_cognitive_abstain_cannot_be_resurrected_by_strategy() -> None:
 
     assert result.decision is CapitalizerSourceStrategyDecision.REJECT
     assert result.reasons == ("COGNITIVE_GATE_ABSTAIN",)
+
+
+def test_unresolved_source_session_context_waits_instead_of_rejecting() -> None:
+    facts = replace(
+        _base(CapitalizerSourceEntryRoute.FRACTAL_SCALP_CONTINUATION),
+        source_session_context_resolved=False,
+        source_session_context_eligible=False,
+        hourly_expansion_bias_confirmed=True,
+        m15_swing_structure_confirmed=True,
+        m1_continuation_confirmed=True,
+    )
+
+    result = assess_source_strategy(facts)
+
+    assert result.decision is CapitalizerSourceStrategyDecision.WAIT
+    assert "SOURCE_SESSION_CONTEXT_UNRESOLVED" in result.reasons
