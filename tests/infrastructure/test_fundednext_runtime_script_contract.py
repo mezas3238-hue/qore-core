@@ -10,9 +10,9 @@ _WATCHDOG = _ROOT / "scripts" / "qore_fundednext_watchdog.ps1"
 
 def test_h4_exit_comment_uses_broker_verified_29_character_limit() -> None:
     source = _RUNTIME.read_text(encoding="utf-8-sig")
-    expected = '"comment": f"qore-h4-exit-{str(position.ticket)}"[:29],'
+    expected = '"comment": f"qore-exit-{exit_label}-{str(position.ticket)}"[:29],'
     assert expected in source
-    assert '"comment": f"qore-h4-exit-{str(position.ticket)}"[:31],' not in source
+    assert '"comment": f"qore-exit-{exit_label}-{str(position.ticket)}"[:31],' not in source
 
 
 def test_live_activation_has_no_owner_rule_expiry_and_uses_automated_verification() -> None:
