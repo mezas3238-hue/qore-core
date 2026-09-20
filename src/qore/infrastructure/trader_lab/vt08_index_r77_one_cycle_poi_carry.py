@@ -43,9 +43,6 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r6_five_year_validation as r6,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r8_priority_poi_rearm_reset as r8,
-)
-from qore.infrastructure.trader_lab import (
     vt08_index_r31_source_complete_structural_concurrency as r31,
 )
 from qore.infrastructure.trader_lab import (
