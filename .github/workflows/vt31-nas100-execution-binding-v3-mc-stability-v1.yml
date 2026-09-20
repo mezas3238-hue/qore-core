@@ -1,0 +1,62 @@
+name: QORE VT31 NAS100 V3 MC Stability V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-nas100-hypothesis-lifecycle-v1
+    paths:
+      - scripts/vt31_nas100_execution_binding_v3_mc_stability_v1.py
+      - .github/workflows/vt31-nas100-execution-binding-v3-mc-stability-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          python -m py_compile scripts/vt31_nas100_execution_binding_v3_mc_stability_v1.py
+          ruff check scripts/vt31_nas100_execution_binding_v3_mc_stability_v1.py
+      - name: Recover consumed evidence
+        run: |
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10557487418/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          echo "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09  input/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run multi-seed stability
+        run: |
+          python scripts/vt31_nas100_execution_binding_v3_mc_stability_v1.py \
+            input/NAS100/market-evidence.json \
+            --output result/mc-stability.json | tee result/summary.json
+      - name: Governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc-stability.json").read_text())
+          g=p["governance"]
+          assert g["diagnostic_only"] is True
+          assert g["strategy_changed"] is False
+          assert g["execution_binding_changed"] is False
+          assert g["trades_changed"] is False
+          assert g["returns_changed"] is False
+          assert g["certification_gate_changed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-v3-mc-stability-${{ github.sha }}
+          path: result/
+          retention-days: 90
