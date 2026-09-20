@@ -18,11 +18,22 @@ def test_source_observation_contract_covers_every_required_detector() -> None:
     assert all(item.source_fact_ids for item in contract.requirements)
 
 
-def test_source_observation_contract_keeps_replay_blocked_until_detectors_close() -> None:
+def test_source_observation_contract_keeps_replay_blocked_only_for_open_requirements() -> None:
     contract = SOURCE_OBSERVATION_CONTRACT
+    by_kind = {item.kind: item for item in contract.requirements}
 
-    assert all(item.detector_implemented is False for item in contract.requirements)
-    assert all(item.source_equivalence_tested is False for item in contract.requirements)
+    asian = by_kind[CapitalizerSourceObservationKind.HISTORICAL_ASIAN_OPEN_REFERENCE]
+    assert asian.detector_implemented is False
+    assert asian.source_equivalence_tested is False
+
+    implemented = tuple(
+        item
+        for item in contract.requirements
+        if item.kind is not CapitalizerSourceObservationKind.HISTORICAL_ASIAN_OPEN_REFERENCE
+    )
+    assert implemented
+    assert all(item.detector_implemented is True for item in implemented)
+    assert all(item.source_equivalence_tested is True for item in implemented)
     assert contract.outcome_aware_detector_allowed is False
     assert contract.numeric_fit_to_backtest_allowed is False
     assert contract.replay_authorized is False
