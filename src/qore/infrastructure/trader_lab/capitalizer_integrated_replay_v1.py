@@ -251,7 +251,10 @@ def _state_before_risk(
         )
     if frame.risk_decision is CapitalizerReplayRiskDecision.REJECTED:
         return CapitalizerIntegratedReplayState.RISK_BLOCKED, frame.risk_reasons
-    raise AssertionError("AUTHORIZED candidate must be resolved by session admission")
+    return (
+        CapitalizerIntegratedReplayState.PRE_RISK_READY,
+        ("QORE_RISK_AUTHORIZED_PENDING_SESSION_ADMISSION",),
+    )
 
 
 def run_integrated_replay(
