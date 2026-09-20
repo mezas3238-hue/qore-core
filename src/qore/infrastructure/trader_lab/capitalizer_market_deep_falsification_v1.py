@@ -362,7 +362,10 @@ def _universal_claims(
         ),
         CapitalizerFalsificationClaim(
             claim_id="ALL_CANDIDATES_RESOLVE_STRUCTURALLY_INTRASESSION",
-            statement="Every proxy candidate resolves by structural stop or target before session end.",
+            statement=(
+                "Every proxy candidate resolves by structural stop or target "
+                "before session end."
+            ),
             status="SUPPORTED_IN_PROXY" if session_exits == 0 else "FALSIFIED_IN_PROXY",
             evidence=(f"session_exits={session_exits}",),
         ),
@@ -374,7 +377,10 @@ def _universal_claims(
         ),
         CapitalizerFalsificationClaim(
             claim_id="MAX3_NEVER_BINDS_WITHIN_MARKET",
-            statement="A single market never produces more than MAX3 proxy candidates in one session.",
+            statement=(
+                "A single market never produces more than MAX3 proxy candidates "
+                "in one session."
+            ),
             status=(
                 "SUPPORTED_IN_PROXY"
                 if sessions_over_max3 == 0
@@ -504,7 +510,10 @@ def write_market_report(
         f"- Total gross R: {report.total_gross_r}",
         f"- Max proxy DD: {report.max_drawdown_r}R",
         f"- Max losing streak: {report.max_losing_streak}",
-        f"- Stops / targets / session exits: {report.stop_exits} / {report.target_exits} / {report.session_exits}",
+        (
+            "- Stops / targets / session exits: "
+            f"{report.stop_exits} / {report.target_exits} / {report.session_exits}"
+        ),
         f"- Same-M5 ambiguities: {report.ambiguous_stop_first_exits}",
         f"- Operating sessions >MAX3: {report.operating_sessions_over_max3}",
         "",
@@ -644,10 +653,19 @@ def write_matrix(report: CapitalizerNineMarketFalsificationMatrix, output: Path)
     lines.extend(
         [
             "",
-            f"- Markets above Owner 6R DD envelope: {', '.join(report.markets_above_owner_dd_envelope)}",
+            (
+                "- Markets above Owner 6R DD envelope: "
+                f"{', '.join(report.markets_above_owner_dd_envelope)}"
+            ),
             f"- Markets with MAX3 binding: {', '.join(report.markets_with_max3_binding)}",
-            f"- Markets with session-exit residual: {', '.join(report.markets_with_session_exit_residual)}",
-            f"- Markets with same-M5 ambiguity: {', '.join(report.markets_with_same_m5_ambiguity)}",
+            (
+                "- Markets with session-exit residual: "
+                f"{', '.join(report.markets_with_session_exit_residual)}"
+            ),
+            (
+                "- Markets with same-M5 ambiguity: "
+                f"{', '.join(report.markets_with_same_m5_ambiguity)}"
+            ),
         ]
     )
     (output / "capitalizer-nine-market-falsification-matrix-v1.md").write_text(
