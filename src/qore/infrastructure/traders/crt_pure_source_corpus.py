@@ -15,7 +15,9 @@ from qore.infrastructure.traders.crt_pure_identity import CrtPureSourceTier
 
 class CrtPureSourceArtifactStatus(StrEnum):
     VERIFIED_PRIMARY_LINK = "VERIFIED_PRIMARY_LINK"
+    VERIFIED_CORROBORATION_MIRROR = "VERIFIED_CORROBORATION_MIRROR"
     PENDING_PRIMARY_LOCATOR = "PENDING_PRIMARY_LOCATOR"
+    PENDING_CORROBORATION_LOCATOR = "PENDING_CORROBORATION_LOCATOR"
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,9 +42,17 @@ class CrtPureSourceArtifact:
                 raise ValueError("verified primary link must be LEVEL_A or LEVEL_A_PLUS")
             if not self.canonical_url or not self.provenance_url:
                 raise ValueError("verified primary link requires canonical/provenance URLs")
-        if self.status is CrtPureSourceArtifactStatus.PENDING_PRIMARY_LOCATOR:
+        if self.status is CrtPureSourceArtifactStatus.VERIFIED_CORROBORATION_MIRROR:
+            if self.source_tier is not CrtPureSourceTier.LEVEL_B:
+                raise ValueError("corroboration mirror must be LEVEL_B")
+            if not self.canonical_url or not self.provenance_url:
+                raise ValueError("corroboration mirror requires URL provenance")
+        if self.status in {
+            CrtPureSourceArtifactStatus.PENDING_PRIMARY_LOCATOR,
+            CrtPureSourceArtifactStatus.PENDING_CORROBORATION_LOCATOR,
+        }:
             if self.canonical_url is not None:
-                raise ValueError("pending primary locator cannot claim canonical URL")
+                raise ValueError("pending locator cannot claim canonical URL")
 
 
 CRT_PURE_PRIMARY_SOURCE_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
@@ -179,6 +189,40 @@ CRT_PURE_PRIMARY_SOURCE_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
 )
 
 
+CRT_PURE_CORROBORATION_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
+    CrtPureSourceArtifact(
+        artifact_id="SPECULATORFL_CRT_THREAD_2024_04_28",
+        title="CRT: Candle Ranges Theory — detailed thread",
+        source_name="SpeculatorFL",
+        source_tier=CrtPureSourceTier.LEVEL_B,
+        status=CrtPureSourceArtifactStatus.VERIFIED_CORROBORATION_MIRROR,
+        canonical_url="https://threadreaderapp.com/thread/1784493604473618604",
+        provenance_url="https://threadreaderapp.com/thread/1784493604473618604",
+        notes="Mirror of the approved secondary-source X thread; never methodology authority.",
+    ),
+    CrtPureSourceArtifact(
+        artifact_id="TRADERFLAMESEN_CRT_THREAD_2024_05_13",
+        title="Candle Range Theory: Choose the best CRT Candle",
+        source_name="TraderFlameseN",
+        source_tier=CrtPureSourceTier.LEVEL_B,
+        status=CrtPureSourceArtifactStatus.VERIFIED_CORROBORATION_MIRROR,
+        canonical_url="https://threadreaderapp.com/thread/1790141530461622525",
+        provenance_url="https://threadreaderapp.com/thread/1790141530461622525",
+        notes="Mirror of the approved secondary-source X thread; credits RomeoTPT.",
+    ),
+    CrtPureSourceArtifact(
+        artifact_id="TTRADES_CRT_CORROBORATION",
+        title="TTrades CRT corroboration corpus",
+        source_name="TTrades",
+        source_tier=CrtPureSourceTier.LEVEL_B,
+        status=CrtPureSourceArtifactStatus.PENDING_CORROBORATION_LOCATOR,
+        canonical_url=None,
+        provenance_url=None,
+        notes="Approved Level B source. Exact CRT-specific locator remains to be bound before use.",
+    ),
+)
+
+
 def verified_primary_artifacts() -> tuple[CrtPureSourceArtifact, ...]:
     return tuple(
         artifact
@@ -192,4 +236,22 @@ def pending_primary_locators() -> tuple[CrtPureSourceArtifact, ...]:
         artifact
         for artifact in CRT_PURE_PRIMARY_SOURCE_CORPUS
         if artifact.status is CrtPureSourceArtifactStatus.PENDING_PRIMARY_LOCATOR
+    )
+
+
+def verified_corroboration_artifacts() -> tuple[CrtPureSourceArtifact, ...]:
+    return tuple(
+        artifact
+        for artifact in CRT_PURE_CORROBORATION_CORPUS
+        if artifact.status
+        is CrtPureSourceArtifactStatus.VERIFIED_CORROBORATION_MIRROR
+    )
+
+
+def pending_corroboration_locators() -> tuple[CrtPureSourceArtifact, ...]:
+    return tuple(
+        artifact
+        for artifact in CRT_PURE_CORROBORATION_CORPUS
+        if artifact.status
+        is CrtPureSourceArtifactStatus.PENDING_CORROBORATION_LOCATOR
     )
