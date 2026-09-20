@@ -216,6 +216,22 @@ def _derived_qualified_timeframes(values: dict[str, str]) -> tuple[str, ...]:
     return (evaluator.timeframe,)
 
 
+def _canonical_qualified_timeframes(
+    values: dict[str, str],
+) -> tuple[CiboTimeframeCode, ...]:
+    """Return CIBO's canonical sorted representation of frozen timeframes."""
+
+    return tuple(
+        sorted(
+            (
+                CiboTimeframeCode(item.lower())
+                for item in _derived_qualified_timeframes(values)
+            ),
+            key=lambda item: item.value,
+        )
+    )
+
+
 def _derived_qualified_markets(
     values: dict[str, str],
 ) -> tuple[CiboTradeableMarketRef, ...]:
@@ -323,9 +339,7 @@ def build_cibo_profile_from_trader_lab(
             ),
             specialty=CiboSpecialtyCode(values["trader.methodology_id"]),
             qualified_markets=_derived_qualified_markets(values),
-            qualified_timeframes=tuple(
-                CiboTimeframeCode(item.lower()) for item in expected_timeframes
-            ),
+            qualified_timeframes=_canonical_qualified_timeframes(values),
             certified_lab_evidence=tuple(certified),
             certification_state=CiboCertificationState.EVIDENCE_COLLECTED,
             freshness=CiboEvidenceFreshness(
@@ -440,10 +454,7 @@ def issue_cibo_trader_lab_approval(
         review.__post_init__()
         candidate = lifecycle.candidate
         values = _manifest_values(candidate)
-        expected_timeframes = tuple(
-            CiboTimeframeCode(item.lower())
-            for item in _derived_qualified_timeframes(values)
-        )
+        expected_timeframes = _canonical_qualified_timeframes(values)
         expected_markets = _derived_qualified_markets(values)
         expected_identity = _identity(candidate, trader_code=values["trader.code"])
         if review.profile.trader_identity != expected_identity:
