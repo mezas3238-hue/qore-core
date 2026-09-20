@@ -419,9 +419,10 @@ def _symbol_economics(
 
     for trade in trades:
         baseline_by_symbol[trade.symbol].append(trade)
+    for trade in selected:
+        selected_by_symbol[trade.symbol].append(trade)
     for accepted in groups.values():
         for index, trade in enumerate(accepted[:3], start=1):
-            selected_by_symbol[trade.symbol].append(trade)
             trade_session = capitalizer_session_at(trade.entry_at)
             if trade_session is None:
                 raise ValueError("selected trade lost Capitalizer session identity")
