@@ -24,7 +24,6 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerExposurePosition,
     CapitalizerSide,
@@ -312,12 +311,15 @@ def _select(
 ) -> tuple[
     tuple[CapitalizerExposureCandidate, ...],
     tuple[CapitalizerExposureCandidate, ...],
-    dict[str, tuple[CapitalizerExposureAssessment, int]],
+    dict[CapitalizerExposureCandidate, tuple[CapitalizerExposureAssessment, int]],
 ]:
     per_session: dict[str, list[CapitalizerExposureCandidate]] = defaultdict(list)
     selected: list[CapitalizerExposureCandidate] = []
     rejected: list[CapitalizerExposureCandidate] = []
-    accepted_context: dict[str, tuple[CapitalizerExposureAssessment, int]] = {}
+    accepted_context: dict[
+        CapitalizerExposureCandidate,
+        tuple[CapitalizerExposureAssessment, int],
+    ] = {}
 
     for candidate in _ordered(candidates, tie_policy=tie_policy):
         key = _session_key(candidate.as_trade())
@@ -335,9 +337,7 @@ def _select(
 
         accepted.append(candidate)
         selected.append(candidate)
-        accepted_context[
-            f"{candidate.symbol}|{candidate.entry_at.isoformat()}|{len(accepted)}"
-        ] = (assessment, len(accepted))
+        accepted_context[candidate] = (assessment, len(accepted))
 
     return tuple(selected), tuple(rejected), accepted_context
 
@@ -367,9 +367,7 @@ def _policy_result(
         ordinal = grouped[key]
         if ordinal == 3:
             thirds += 1
-            assessment, _ = context[
-                f"{candidate.symbol}|{candidate.entry_at.isoformat()}|{ordinal}"
-            ]
+            assessment, _ = context[candidate]
             if assessment.active_positions > 0:
                 third_active += 1
             if assessment.same_direction_factors > 0:
@@ -414,9 +412,7 @@ def _state_cells(
         key = _session_key(candidate.as_trade())
         per_session[key] += 1
         ordinal = per_session[key]
-        assessment, _ = context[
-            f"{candidate.symbol}|{candidate.entry_at.isoformat()}|{ordinal}"
-        ]
+        assessment, _ = context[candidate]
         session = capitalizer_session_at(candidate.entry_at)
         if session is None:
             raise ValueError("selected exposure candidate lost session identity")
