@@ -9,6 +9,7 @@ from qore.infrastructure.traders.crt_pure_source_registry import (
     CrtPureConceptId,
     CrtPureConceptRecord,
     CrtPureSourceEvidence,
+    evidence_backed_concepts,
     pending_concepts,
 )
 
@@ -73,3 +74,13 @@ def test_ambiguity_blocks_promotion_even_with_primary_evidence() -> None:
         evidence=(canonical, ambiguous),
     )
     assert record.promotable_to_strategy_identity is False
+
+
+def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
+    assert set(evidence_backed_concepts()) == {
+        CrtPureConceptId.EQUILIBRIUM,
+        CrtPureConceptId.TIMEFRAME_HIERARCHY,
+        CrtPureConceptId.SESSION_TIME_RULES,
+        CrtPureConceptId.ENTRY_FAMILIES,
+    }
+    assert pending_concepts() == CRT_PURE_REQUIRED_CONCEPTS
