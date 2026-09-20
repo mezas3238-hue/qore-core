@@ -11,12 +11,16 @@ from qore.infrastructure.traders.crt_pure_source_registry import (
     CrtPureSourceEvidence,
     evidence_backed_concepts,
     pending_concepts,
+    promotable_concepts,
 )
 
 
-def test_all_required_concepts_start_unpromoted() -> None:
-    assert pending_concepts() == CRT_PURE_REQUIRED_CONCEPTS
+def test_required_concepts_are_unique_and_only_mob_is_promotable() -> None:
     assert len(CRT_PURE_REQUIRED_CONCEPTS) == len(set(CRT_PURE_REQUIRED_CONCEPTS))
+    assert promotable_concepts() == (CrtPureConceptId.MAKE_OR_BREAK_LEVEL,)
+    assert set(pending_concepts()) == (
+        set(CRT_PURE_REQUIRED_CONCEPTS) - {CrtPureConceptId.MAKE_OR_BREAK_LEVEL}
+    )
 
 
 def test_level_b_cannot_create_canonical_methodology_rule() -> None:
@@ -78,9 +82,13 @@ def test_ambiguity_blocks_promotion_even_with_primary_evidence() -> None:
 
 def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
     assert set(evidence_backed_concepts()) == {
+        CrtPureConceptId.CRH_CRL,
         CrtPureConceptId.EQUILIBRIUM,
+        CrtPureConceptId.LIQUIDATION_SWEEP,
         CrtPureConceptId.TIMEFRAME_HIERARCHY,
         CrtPureConceptId.SESSION_TIME_RULES,
         CrtPureConceptId.ENTRY_FAMILIES,
+        CrtPureConceptId.STRUCTURAL_DESTINATION,
+        CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
     }
-    assert pending_concepts() == CRT_PURE_REQUIRED_CONCEPTS
+    assert promotable_concepts() == (CrtPureConceptId.MAKE_OR_BREAK_LEVEL,)
