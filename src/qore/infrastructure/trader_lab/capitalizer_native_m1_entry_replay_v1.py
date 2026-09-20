@@ -913,7 +913,10 @@ def write_matrix(report: CapitalizerNativeM1Matrix, output: Path) -> None:
                 "- MAX3 DD: "
                 + ("-" if report.max3_metrics is None else f"{report.max3_metrics.max_drawdown_r}R")
             ),
-            f"- Same-timestamp unresolved competition rejected: {report.same_timestamp_competition_rejected}",
+            (
+                "- Same-timestamp unresolved competition rejected: "
+                f"{report.same_timestamp_competition_rejected}"
+            ),
         ]
     )
     (output / "capitalizer-nine-market-native-m1-entry-replay-v1.md").write_text(
