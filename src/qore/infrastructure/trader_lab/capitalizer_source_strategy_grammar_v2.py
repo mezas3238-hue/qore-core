@@ -36,6 +36,7 @@ class CapitalizerSourceStrategyFacts:
     route: CapitalizerSourceEntryRoute
     cognitive_gate_decision: CapitalizerCognitiveGateDecision
 
+    source_session_context_resolved: bool
     source_session_context_eligible: bool
     higher_timeframe_bias_aligned: bool
     structural_liquidity_objective_available: bool
@@ -112,7 +113,7 @@ def assess_source_strategy(
     hard_reasons: list[str] = []
     if facts.contradictions:
         hard_reasons.extend(f"CONTRADICTION:{item}" for item in facts.contradictions)
-    if not facts.source_session_context_eligible:
+    if facts.source_session_context_resolved and not facts.source_session_context_eligible:
         hard_reasons.append("OUTSIDE_SOURCE_SESSION_CONTEXT")
     if not facts.higher_timeframe_bias_aligned:
         hard_reasons.append("HIGHER_TIMEFRAME_BIAS_NOT_ALIGNED")
@@ -133,6 +134,8 @@ def assess_source_strategy(
         )
 
     wait_reasons: list[str] = []
+    if not facts.source_session_context_resolved:
+        wait_reasons.append("SOURCE_SESSION_CONTEXT_UNRESOLVED")
     if facts.route is CapitalizerSourceEntryRoute.FRACTAL_SCALP_CONTINUATION:
         if not facts.hourly_expansion_bias_confirmed:
             wait_reasons.append("H1_EXPANSION_BIAS_NOT_CONFIRMED")
