@@ -40,8 +40,14 @@ class CapitalizerCISDObservation:
     confirmation_close: Decimal
     important_level_reached: bool
     higher_timeframe_closure_confirmed: bool
-    confirmed: bool
+    structural_confirmed: bool
+    setup_confirmed: bool
     reasons: tuple[str, ...]
+
+    @property
+    def confirmed(self) -> bool:
+        """Backward-compatible alias for setup eligibility, not raw CISD structure."""
+        return self.setup_confirmed
 
 
 def detect_cisd(
@@ -73,7 +79,8 @@ def detect_cisd(
         and higher_timeframe_closure.source_rule_satisfied
         and higher_timeframe_closure.direction is direction
     )
-    confirmed = important_level_reached and htf_confirmed and confirmed_close
+    structural_confirmed = important_level_reached and confirmed_close
+    setup_confirmed = structural_confirmed and htf_confirmed
 
     reasons = (
         f"CAUSAL_SERIES:{series_kind.value}",
@@ -94,7 +101,8 @@ def detect_cisd(
         confirmation_close=confirmation_bar.close,
         important_level_reached=important_level_reached,
         higher_timeframe_closure_confirmed=htf_confirmed,
-        confirmed=confirmed,
+        structural_confirmed=structural_confirmed,
+        setup_confirmed=setup_confirmed,
         reasons=reasons,
     )
 
@@ -139,7 +147,7 @@ def assess_failure_to_manipulate(
     reversal_confirmed = (
         expected_reversal_cisd is not None
         and expected_reversal_cisd.direction is expected_reversal
-        and expected_reversal_cisd.confirmed
+        and expected_reversal_cisd.structural_confirmed
     )
     continuation_confirmed = (
         continuation_protected_swing is not None
