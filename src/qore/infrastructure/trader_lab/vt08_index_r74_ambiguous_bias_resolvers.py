@@ -21,9 +21,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Callable, Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
