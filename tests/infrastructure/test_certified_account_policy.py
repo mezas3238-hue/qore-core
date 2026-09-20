@@ -94,6 +94,10 @@ def _source(
     *,
     firm_ref: account_policy.PropFirmReference | None = _FIRM_REF,
     program_ref: account_policy.PropProgramReference | None = _PROGRAM_REF,
+    verifier_ref: certified.PolicyVerifierReference = _SOURCE_VERIFIER_REF,
+    authority: certified.PolicySourceAuthority = (
+        certified.PolicySourceAuthority.OFFICIAL_PROVIDER_TERMS
+    ),
     certified_at: datetime = _T0 - timedelta(minutes=10),
     valid_until: datetime = _T0 + timedelta(days=30),
     revoked_at: datetime | None = None,
@@ -101,8 +105,8 @@ def _source(
     return certified.CertifiedPolicySourceEvidence(
         evidence_id=_SOURCE_ID,
         certificate_id=_SOURCE_CERT_ID,
-        verifier_ref=_SOURCE_VERIFIER_REF,
-        authority=certified.PolicySourceAuthority.OFFICIAL_PROVIDER_TERMS,
+        verifier_ref=verifier_ref,
+        authority=authority,
         locator=certified.PolicySourceLocator(
             "https://provider.example/legal/stellar-instant-rules"
         ),
@@ -113,6 +117,29 @@ def _source(
         firm_ref=firm_ref,
         program_ref=program_ref,
         revoked_at=revoked_at,
+    )
+
+
+def _verifier_registry() -> certified.PolicyVerifierRegistrySnapshot:
+    return certified.PolicyVerifierRegistrySnapshot(
+        (
+            certified.CertifiedPolicyVerifier(
+                verifier_ref=_VERIFIER_REF,
+                authorized_at=_T0 - timedelta(days=1),
+                valid_until=_T0 + timedelta(days=60),
+                may_certify_policies=True,
+                source_authorities=(),
+            ),
+            certified.CertifiedPolicyVerifier(
+                verifier_ref=_SOURCE_VERIFIER_REF,
+                authorized_at=_T0 - timedelta(days=1),
+                valid_until=_T0 + timedelta(days=60),
+                may_certify_policies=False,
+                source_authorities=(
+                    certified.PolicySourceAuthority.OFFICIAL_PROVIDER_TERMS,
+                ),
+            ),
+        )
     )
 
 
@@ -186,7 +213,10 @@ def test_certification_cannot_outlive_supporting_source() -> None:
 
 def test_risk_registry_resolves_only_certified_current_policy() -> None:
     certified_policy = _certified_policy()
-    registry = certified.CertifiedAccountPolicyRegistrySnapshot((certified_policy,))
+    registry = certified.CertifiedAccountPolicyRegistrySnapshot(
+        (certified_policy,),
+        _verifier_registry(),
+    )
 
     resolved = registry.resolve_for_risk(
         account_id=_ACCOUNT,
@@ -203,15 +233,64 @@ def test_risk_registry_resolves_only_certified_current_policy() -> None:
 def test_risk_registry_rejects_raw_uncertified_policy_objects() -> None:
     registry = object.__new__(certified.CertifiedAccountPolicyRegistrySnapshot)
     object.__setattr__(registry, "policies", (_policy(),))
+    object.__setattr__(registry, "verifiers", _verifier_registry())
 
     with pytest.raises(certified.CertifiedPolicyValidationError):
         registry.__post_init__()
 
 
+def test_risk_registry_fails_closed_for_untrusted_source_verifier() -> None:
+    untrusted_ref = certified.PolicyVerifierReference(
+        UUID("71000000-0000-0000-0000-000000000803")
+    )
+    certified_policy = _certified_policy(
+        source=_source(verifier_ref=untrusted_ref),
+    )
+    registry = certified.CertifiedAccountPolicyRegistrySnapshot(
+        (certified_policy,),
+        _verifier_registry(),
+    )
+
+    resolved = registry.resolve_for_risk(
+        account_id=_ACCOUNT,
+        policy_ref=_POLICY_REF,
+        evaluated_at=_T0,
+    )
+
+    assert isinstance(resolved, result.Failure)
+    assert str(resolved.error) == "policy verifier is not trusted"
+
+
+def test_risk_registry_enforces_verifier_source_authority_scope() -> None:
+    certified_policy = _certified_policy(
+        source=_source(
+            authority=certified.PolicySourceAuthority.OFFICIAL_PROVIDER_HELP_CENTER,
+        ),
+    )
+    registry = certified.CertifiedAccountPolicyRegistrySnapshot(
+        (certified_policy,),
+        _verifier_registry(),
+    )
+
+    resolved = registry.resolve_for_risk(
+        account_id=_ACCOUNT,
+        policy_ref=_POLICY_REF,
+        evaluated_at=_T0,
+    )
+
+    assert isinstance(resolved, result.Failure)
+    assert str(resolved.error) == (
+        "trusted verifier is not authorized for source authority"
+    )
+
+
 def test_risk_registry_fails_closed_when_source_is_revoked() -> None:
     source = _source(revoked_at=_T0 - timedelta(minutes=1))
     certified_policy = _certified_policy(source=source)
-    registry = certified.CertifiedAccountPolicyRegistrySnapshot((certified_policy,))
+    registry = certified.CertifiedAccountPolicyRegistrySnapshot(
+        (certified_policy,),
+        _verifier_registry(),
+    )
 
     resolved = registry.resolve_for_risk(
         account_id=_ACCOUNT,
@@ -229,7 +308,10 @@ def test_risk_registry_fails_closed_after_certification_expiry() -> None:
     certified_policy = _certified_policy(
         valid_until=_T0 + timedelta(hours=1),
     )
-    registry = certified.CertifiedAccountPolicyRegistrySnapshot((certified_policy,))
+    registry = certified.CertifiedAccountPolicyRegistrySnapshot(
+        (certified_policy,),
+        _verifier_registry(),
+    )
 
     resolved = registry.resolve_for_risk(
         account_id=_ACCOUNT,
@@ -246,7 +328,10 @@ def test_risk_registry_fails_closed_after_certification_expiry() -> None:
 def test_risk_registry_preserves_underlying_fail_closed_semantics() -> None:
     unresolved_policy = _policy(drawdown_mode=account_policy.DrawdownMode.UNKNOWN)
     certified_policy = _certified_policy(policy=unresolved_policy)
-    registry = certified.CertifiedAccountPolicyRegistrySnapshot((certified_policy,))
+    registry = certified.CertifiedAccountPolicyRegistrySnapshot(
+        (certified_policy,),
+        _verifier_registry(),
+    )
 
     resolved = registry.resolve_for_risk(
         account_id=_ACCOUNT,
@@ -259,7 +344,10 @@ def test_risk_registry_preserves_underlying_fail_closed_semantics() -> None:
 
 
 def test_risk_registry_rejects_wrong_account_and_missing_policy() -> None:
-    registry = certified.CertifiedAccountPolicyRegistrySnapshot((_certified_policy(),))
+    registry = certified.CertifiedAccountPolicyRegistrySnapshot(
+        (_certified_policy(),),
+        _verifier_registry(),
+    )
 
     wrong_account = registry.resolve_for_risk(
         account_id=_OTHER_ACCOUNT,
