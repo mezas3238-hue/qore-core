@@ -31,6 +31,7 @@ GRAMMAR_REQUIREMENT_PROVENANCE: tuple[
     CapitalizerGrammarRequirementProvenance(
         "SOURCE_SESSION_CONTEXT",
         (
+            "ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW",
             "ICT_ASIA_FAVORS_AUD_NZD_JPY_ACTIVITY",
             "ICT_LONDON_KILLZONE_0200_0500_NY",
             "ICT_NEW_YORK_KILLZONE_0700_0900_NY",
