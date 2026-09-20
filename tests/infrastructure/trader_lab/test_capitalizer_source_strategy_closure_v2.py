@@ -6,7 +6,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_strategy_closure_v2 impor
 )
 
 
-def test_source_methodology_is_frozen_but_runtime_trader_remains_open() -> None:
+def test_source_methodology_and_runtime_trader_are_frozen_before_replay() -> None:
     closure = FROZEN_SOURCE_STRATEGY_CLOSURE
 
     assert closure.cognitive_dependency_status is CapitalizerChainStatus.FROZEN_APT
@@ -14,13 +14,13 @@ def test_source_methodology_is_frozen_but_runtime_trader_remains_open() -> None:
     assert closure.deterministic_grammar_status is CapitalizerChainStatus.FROZEN_APT
     assert closure.provenance_status is CapitalizerChainStatus.FROZEN_APT
     assert closure.methodology_design_status is CapitalizerChainStatus.FROZEN_APT
-    assert closure.source_strategy_status is CapitalizerChainStatus.RESEARCH_OPEN
+    assert closure.source_strategy_status is CapitalizerChainStatus.FROZEN_APT
     assert closure.source_faithful_methodology_design_closed is True
-    assert closure.deterministic_source_observation_layer_closed is False
-    assert closure.source_faithful_trader_engine_closed is False
-    assert closure.full_source_faithful_trader_design_closed is False
+    assert closure.deterministic_source_observation_layer_closed is True
+    assert closure.source_faithful_trader_engine_closed is True
+    assert closure.full_source_faithful_trader_design_closed is True
     assert closure.source_trade_plan_closed is True
-    assert closure.ready_for_integrated_nine_market_replay is False
+    assert closure.ready_for_integrated_nine_market_replay is True
     assert closure.integrated_nine_market_replay_completed is False
 
 

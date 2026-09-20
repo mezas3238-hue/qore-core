@@ -4,8 +4,9 @@ This is the missing bridge between reviewed ICT/TTrades methodology and raw mark
 The contract enumerates every observation that must be produced causally from historical bars
 before integrated nine-market replay is allowed.
 
-The contract itself is not evidence that the detectors are implemented; status remains
-RESEARCH_OPEN until every detector is implemented and source-equivalence tested.
+Closure is permitted only because every required detector is implemented, decision-time causal,
+and source-equivalence tested. This contract authorizes replay research only; it does not claim
+edge, certification, execution authority, or live deployment.
 """
 
 from __future__ import annotations
@@ -173,10 +174,10 @@ class CapitalizerSourceObservationContract:
     requirements: tuple[
         CapitalizerSourceObservationRequirement, ...
     ] = SOURCE_OBSERVATION_REQUIREMENTS
-    status: CapitalizerChainStatus = CapitalizerChainStatus.RESEARCH_OPEN
+    status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
     outcome_aware_detector_allowed: bool = False
     numeric_fit_to_backtest_allowed: bool = False
-    replay_authorized: bool = False
+    replay_authorized: bool = True
 
     def __post_init__(self) -> None:
         if self.contract_id != SOURCE_OBSERVATION_CONTRACT_ID:
@@ -186,12 +187,16 @@ class CapitalizerSourceObservationContract:
             raise ValueError("source observation contract must cover every required detector")
         if len(kinds) != len(set(kinds)):
             raise ValueError("source observation contract cannot duplicate detector kinds")
-        if self.status is not CapitalizerChainStatus.RESEARCH_OPEN:
-            raise ValueError("source observation layer remains RESEARCH_OPEN")
+        if self.status is not CapitalizerChainStatus.FROZEN_APT:
+            raise ValueError("source observation layer must be FROZEN_APT")
+        if not all(item.detector_implemented for item in self.requirements):
+            raise ValueError("source observation closure requires every detector implemented")
+        if not all(item.source_equivalence_tested for item in self.requirements):
+            raise ValueError("source observation closure requires source-equivalence tests")
         if self.outcome_aware_detector_allowed or self.numeric_fit_to_backtest_allowed:
             raise ValueError("source observation detectors cannot be outcome-fitted")
-        if self.replay_authorized:
-            raise ValueError("replay remains blocked until all source detectors close")
+        if not self.replay_authorized:
+            raise ValueError("closed source observation layer must permit replay research")
 
 
 SOURCE_OBSERVATION_CONTRACT = CapitalizerSourceObservationContract()

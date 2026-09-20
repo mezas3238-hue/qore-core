@@ -18,6 +18,9 @@ from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import
 from qore.infrastructure.trader_lab.capitalizer_source_faithful_trader_design_v2 import (
     FROZEN_SOURCE_FAITHFUL_TRADER_DESIGN,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_observation_contract_v2 import (
+    SOURCE_OBSERVATION_CONTRACT,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_strategy_grammar_v2 import (
     SOURCE_STRATEGY_GRAMMAR_ID,
 )
@@ -39,11 +42,11 @@ class CapitalizerSourceStrategyClosure:
     deterministic_grammar_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
     provenance_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
     methodology_design_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
-    source_strategy_status: CapitalizerChainStatus = CapitalizerChainStatus.RESEARCH_OPEN
+    source_strategy_status: CapitalizerChainStatus = CapitalizerChainStatus.FROZEN_APT
     source_faithful_methodology_design_closed: bool = True
-    deterministic_source_observation_layer_closed: bool = False
-    source_faithful_trader_engine_closed: bool = False
-    full_source_faithful_trader_design_closed: bool = False
+    deterministic_source_observation_layer_closed: bool = True
+    source_faithful_trader_engine_closed: bool = True
+    full_source_faithful_trader_design_closed: bool = True
     source_trade_plan_closed: bool = True
 
     asian_session_requires_historical_open_reference: bool = True
@@ -51,7 +54,7 @@ class CapitalizerSourceStrategyClosure:
     new_york_source_window_frozen: bool = True
     qore_surveillance_bucket_equated_to_source_killzone: bool = False
 
-    ready_for_integrated_nine_market_replay: bool = False
+    ready_for_integrated_nine_market_replay: bool = True
     integrated_nine_market_replay_completed: bool = False
     final_nine_market_family_taxonomy_closed: bool = False
     stop_intelligence_closed: bool = False
@@ -95,20 +98,23 @@ class CapitalizerSourceStrategyClosure:
             raise ValueError("source provenance status must be FROZEN_APT")
         if self.methodology_design_status is not CapitalizerChainStatus.FROZEN_APT:
             raise ValueError("source methodology design must be FROZEN_APT")
-        if self.source_strategy_status is not CapitalizerChainStatus.RESEARCH_OPEN:
-            raise ValueError(
-                "source trader remains RESEARCH_OPEN until observation/engine layers close"
-            )
+        if self.source_strategy_status is not CapitalizerChainStatus.FROZEN_APT:
+            raise ValueError("source trader must be FROZEN_APT after full engine closure")
         if not self.source_faithful_methodology_design_closed:
             raise ValueError("source-faithful methodology design must be closed")
-        if self.deterministic_source_observation_layer_closed:
-            raise ValueError("deterministic source observation layer is not closed yet")
-        if self.source_faithful_trader_engine_closed:
-            raise ValueError("composed source-faithful trader engine is not closed yet")
-        if self.full_source_faithful_trader_design_closed:
-            raise ValueError(
-                "full trader cannot close before observation and engine layers"
-            )
+        if (
+            SOURCE_OBSERVATION_CONTRACT.status
+            is not CapitalizerChainStatus.FROZEN_APT
+        ):
+            raise ValueError("deterministic source observation dependency must be frozen")
+        if not SOURCE_OBSERVATION_CONTRACT.replay_authorized:
+            raise ValueError("source observation dependency must permit replay research")
+        if not self.deterministic_source_observation_layer_closed:
+            raise ValueError("deterministic source observation layer must be closed")
+        if not self.source_faithful_trader_engine_closed:
+            raise ValueError("composed source-faithful trader engine must be closed")
+        if not self.full_source_faithful_trader_design_closed:
+            raise ValueError("full source-faithful trader design must be closed")
         if not self.source_trade_plan_closed:
             raise ValueError("source-faithful trade plan boundary must be closed")
         if (
@@ -126,10 +132,8 @@ class CapitalizerSourceStrategyClosure:
             raise ValueError("reviewed London/New York source windows must remain frozen")
         if self.qore_surveillance_bucket_equated_to_source_killzone:
             raise ValueError("QORE surveillance buckets cannot masquerade as source killzones")
-        if self.ready_for_integrated_nine_market_replay:
-            raise ValueError(
-                "integrated replay remains blocked until source observation and engine close"
-            )
+        if not self.ready_for_integrated_nine_market_replay:
+            raise ValueError("closed source-faithful trader must permit integrated replay research")
         if self.integrated_nine_market_replay_completed:
             raise ValueError("integrated replay is the next chain, not part of source closure")
         if self.final_nine_market_family_taxonomy_closed:
