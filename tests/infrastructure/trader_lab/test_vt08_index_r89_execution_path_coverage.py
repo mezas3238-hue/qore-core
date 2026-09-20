@@ -4,6 +4,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_cibo_2y_density_round4 as r4,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r89_execution_path_coverage as r89,
 )
 from qore.infrastructure.trader_lab import (
@@ -121,9 +124,9 @@ def test_r89_protected_swing_survival_is_pre_boundary_only() -> None:
 
 
 def test_r89_owner_anchor_constraints_remain_frozen() -> None:
-    assert 14 not in tuple(r89.r4.V7_ANCHORS)
-    assert 18 not in tuple(r89.r4.V7_ANCHORS)
-    assert tuple(r89.r4.V7_ANCHORS) == (22, 2, 6, 10)
+    assert 14 not in tuple(r4.V7_ANCHORS)
+    assert 18 not in tuple(r4.V7_ANCHORS)
+    assert tuple(r4.V7_ANCHORS) == (22, 2, 6, 10)
 
 
 def test_r89_predecessor_runs_are_pinned() -> None:
