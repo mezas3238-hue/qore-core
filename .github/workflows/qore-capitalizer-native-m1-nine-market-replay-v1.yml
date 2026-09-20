@@ -47,7 +47,8 @@ jobs:
           ruff check             src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py             tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py             tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py
       - name: Mypy
         run: |
-          mypy             src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py \
+            src/qore/infrastructure/ctrader_demo_account_discovery.py
       - name: Focused tests
         run: |
           pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py             tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py
@@ -90,9 +91,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_CTRADER_DEMO_ACCOUNT_ID; do
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
             test -n "${!name:-}" || { echo "missing required read-only DEMO input: $name" >&2; exit 2; }
           done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
       - name: Download unchanged higher-level Capitalizer candidate ledger
         uses: actions/download-artifact@v4
         with:
