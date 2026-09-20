@@ -44,6 +44,7 @@ jobs:
             src/qore/infrastructure/traders/crt_pure_identity.py \
             src/qore/infrastructure/traders/crt_pure_source_registry.py \
             src/qore/infrastructure/traders/crt_pure_source_corpus.py \
+            src/qore/infrastructure/traders/crt_pure_strategy_identity_memory.py \
             src/qore/infrastructure/traders/crt_pure_cognitive_contract.py \
             src/qore/infrastructure/traders/crt_pure_cognitive_state.py \
             src/qore/infrastructure/traders/crt_pure_position_intelligence.py \
@@ -53,5 +54,6 @@ jobs:
           pytest -q \
             tests/infrastructure/traders/test_crt_pure_identity.py \
             tests/infrastructure/traders/test_crt_pure_source_registry.py \
+            tests/infrastructure/traders/test_crt_pure_strategy_identity_memory.py \
             tests/infrastructure/traders/test_crt_pure_cognitive_architecture.py \
             tests/infrastructure/traders/test_crt_pure_source_corpus_and_cross_market.py
