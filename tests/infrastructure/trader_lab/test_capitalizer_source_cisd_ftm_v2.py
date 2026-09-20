@@ -76,6 +76,7 @@ def test_failure_to_manipulate_requires_failed_reversal_and_new_continuation_str
     ftm = assess_failure_to_manipulate(
         taken_side=CapitalizerLiquiditySideTaken.HIGH,
         level_taken=True,
+        post_sweep_closure_observed=True,
         expected_reversal_cisd=None,
         continuation_protected_swing=bullish_protected_low,
         higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
@@ -109,6 +110,7 @@ def test_failure_to_manipulate_is_false_when_expected_reversal_actually_confirms
     ftm = assess_failure_to_manipulate(
         taken_side=CapitalizerLiquiditySideTaken.HIGH,
         level_taken=True,
+        post_sweep_closure_observed=True,
         expected_reversal_cisd=bearish_reversal,
         continuation_protected_swing=bullish_protected_low,
         higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
