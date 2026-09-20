@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
+from functools import lru_cache
 from hashlib import sha256
 from uuid import UUID
 
@@ -103,6 +104,44 @@ def _mean(values: tuple[Decimal, ...]) -> Decimal:
         return sum(values, Decimal(0)) / Decimal(len(values))
 
 
+@lru_cache(maxsize=8)
+def _bootstrap_means_from_values(
+    values: tuple[Decimal, ...],
+    block_length: int,
+    resample_count: int,
+    seed: int,
+) -> tuple[Decimal, tuple[Decimal, ...]]:
+    """Compute one exact deterministic distribution and memoize identical reuse.
+
+    Construction and dataclass validation intentionally invoke the same canonical
+    bootstrap calculation. Memoization avoids repeating millions of identical
+    SHA256 draws inside one process while preserving the exact values, policy,
+    seed, draw order, Decimal arithmetic, and tamper-detection comparison.
+    """
+
+    sample_size = len(values)
+    source_mean = _mean(values)
+    blocks_per_replicate = (sample_size + block_length - 1) // block_length
+    means: list[Decimal] = []
+    for replicate in range(resample_count):
+        resampled: list[Decimal] = []
+        for draw in range(blocks_per_replicate):
+            start = _draw_start(
+                seed=seed,
+                replicate=replicate,
+                draw=draw,
+                sample_size=sample_size,
+            )
+            for offset in range(block_length):
+                resampled.append(values[(start + offset) % sample_size])
+                if len(resampled) == sample_size:
+                    break
+            if len(resampled) == sample_size:
+                break
+        means.append(_mean(tuple(resampled)))
+    return source_mean, tuple(means)
+
+
 def _bootstrap_means(
     diagnostic: ResearchSerialDependenceDiagnostic,
     policy: ResearchBlockBootstrapPolicy,
@@ -117,26 +156,12 @@ def _bootstrap_means(
         raise ResearchBlockBootstrapValidationError(
             "block_length cannot exceed source sample size"
         )
-    source_mean = _mean(values)
-    blocks_per_replicate = (sample_size + policy.block_length - 1) // policy.block_length
-    means: list[Decimal] = []
-    for replicate in range(policy.resample_count):
-        resampled: list[Decimal] = []
-        for draw in range(blocks_per_replicate):
-            start = _draw_start(
-                seed=policy.seed,
-                replicate=replicate,
-                draw=draw,
-                sample_size=sample_size,
-            )
-            for offset in range(policy.block_length):
-                resampled.append(values[(start + offset) % sample_size])
-                if len(resampled) == sample_size:
-                    break
-            if len(resampled) == sample_size:
-                break
-        means.append(_mean(tuple(resampled)))
-    return source_mean, tuple(means)
+    return _bootstrap_means_from_values(
+        values,
+        policy.block_length,
+        policy.resample_count,
+        policy.seed,
+    )
 
 
 @dataclass(frozen=True, slots=True)
