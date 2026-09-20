@@ -15,6 +15,9 @@ from qore.infrastructure.research_frozen_oos_evidence import ResearchFrozenOosEv
 from qore.kernel.errors import InfrastructureError
 from qore.kernel.result import Failure, Result, Success
 
+_PREVALIDATED_FRAME_COMPONENTS: dict[int, object] = {}
+_FRAME_COMPONENT_CACHE_LIMIT = 16
+
 
 class ResearchSamplingFrameError(InfrastructureError):
     """Base error for explicit OOS sampling-frame evidence."""
@@ -35,6 +38,29 @@ class ResearchSamplingUnit(StrEnum):
 class ResearchHoldingOverlapStatus(StrEnum):
     NON_OVERLAPPING = "non_overlapping"
     OVERLAPPING = "overlapping"
+
+
+def _remember_prevalidated_frame_components(
+    *,
+    frozen_oos: ResearchFrozenOosEvidence,
+    samples: tuple[ResearchReturnObservation, ...],
+    fold_sample_sizes: tuple[int, ...],
+    holding_intervals: tuple["ResearchHoldingInterval", ...],
+    overlap_status: ResearchHoldingOverlapStatus,
+    overlapping_pairs: tuple[
+        tuple[ResearchReturnObservationId, ResearchReturnObservationId], ...
+    ],
+) -> None:
+    if len(_PREVALIDATED_FRAME_COMPONENTS) >= _FRAME_COMPONENT_CACHE_LIMIT:
+        _PREVALIDATED_FRAME_COMPONENTS.clear()
+    _PREVALIDATED_FRAME_COMPONENTS[id(samples)] = (
+        frozen_oos,
+        samples,
+        fold_sample_sizes,
+        holding_intervals,
+        overlap_status,
+        overlapping_pairs,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,6 +233,18 @@ class ResearchSamplingFrame:
             raise ResearchSamplingFrameValidationError(
                 "sampling frame unit must be closed economic-result return"
             )
+        cached = _PREVALIDATED_FRAME_COMPONENTS.get(id(self.samples))
+        if (
+            isinstance(cached, tuple)
+            and len(cached) == 6
+            and cached[0] is self.frozen_oos
+            and cached[1] is self.samples
+            and cached[2] == self.fold_sample_sizes
+            and cached[3] is self.holding_intervals
+            and cached[4] is self.overlap_status
+            and cached[5] is self.overlapping_pairs
+        ):
+            return
         expected_samples, expected_fold_sizes = _canonical_samples(self.frozen_oos)
         if self.samples != expected_samples:
             raise ResearchSamplingFrameValidationError(
@@ -271,6 +309,14 @@ def build_research_sampling_frame(
             ResearchHoldingOverlapStatus.OVERLAPPING
             if pairs
             else ResearchHoldingOverlapStatus.NON_OVERLAPPING
+        )
+        _remember_prevalidated_frame_components(
+            frozen_oos=frozen_oos,
+            samples=samples,
+            fold_sample_sizes=fold_sizes,
+            holding_intervals=intervals,
+            overlap_status=status,
+            overlapping_pairs=pairs,
         )
         return Success(
             ResearchSamplingFrame(

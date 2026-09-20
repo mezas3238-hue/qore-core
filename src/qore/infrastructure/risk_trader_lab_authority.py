@@ -22,6 +22,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qore.infrastructure.research_performance_statistics import (
     ResearchPerformanceStatisticsSnapshot,
+    validate_research_performance_statistics_snapshot,
 )
 from qore.infrastructure.trader_lab.candidate import TraderLabCandidateBinding
 from qore.infrastructure.trader_lab.governed_gate import (
@@ -152,7 +153,7 @@ class RiskTraderLabReview:
             raise RiskTraderLabAuthorityValidationError(
                 "risk Trader Lab review requires performance statistics"
             )
-        self.performance.__post_init__()
+        validate_research_performance_statistics_snapshot(self.performance)
         if self.performance.run != self.candidate.strategy_binding.run:
             raise RiskTraderLabAuthorityValidationError(
                 "risk review performance run must match the exact candidate run"
@@ -259,7 +260,7 @@ def review_trader_lab_candidate_risk(
             raise RiskTraderLabAuthorityValidationError(
                 "Risk review requires ResearchPerformanceStatisticsSnapshot"
             )
-        performance.__post_init__()
+        validate_research_performance_statistics_snapshot(performance)
         if performance.run != lifecycle.candidate.strategy_binding.run:
             raise RiskTraderLabAuthorityBlockedError(
                 "Risk performance evidence does not bind the candidate run"
@@ -295,14 +296,56 @@ def review_trader_lab_candidate_risk(
 
 
 def _review_digest(review: RiskTraderLabReview) -> TraderLabEvidenceDigest:
-    payload = json.dumps(
-        review.logical_values(),
-        ensure_ascii=True,
-        sort_keys=True,
-        separators=(",", ":"),
-        default=str,
-    ).encode("utf-8")
-    return TraderLabEvidenceDigest(sha256(payload).hexdigest())
+    """Stream exact Risk evidence without materializing the full return tree."""
+
+    digest = sha256()
+
+    def update(label: str, value: object) -> None:
+        label_bytes = label.encode("utf-8")
+        encoded = json.dumps(
+            value,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+        digest.update(len(label_bytes).to_bytes(4, "big"))
+        digest.update(label_bytes)
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+
+    performance = review.performance
+    update("schema", "qore.risk.trader_lab.authority.streaming.v2")
+    update("candidate_fingerprint", review.candidate.fingerprint.value)
+    update("lifecycle", review.lifecycle.logical_values())
+    update(
+        "performance_header",
+        (
+            performance.snapshot_id.logical_values(),
+            performance.run.logical_values(),
+            performance.basis.value,
+            performance.sample_size,
+            performance.positive_count,
+            performance.negative_count,
+            performance.flat_count,
+            format(performance.mean_return, "f"),
+            format(performance.minimum_return, "f"),
+            format(performance.maximum_return, "f"),
+            format(performance.win_rate, "f"),
+            format(performance.population_variance, "f"),
+            performance.observed_at.isoformat(),
+        ),
+    )
+    for index, observation in enumerate(performance.observations):
+        update(f"performance_observation.{index}", observation.logical_values())
+    update("policy", review.policy.logical_values())
+    update("decision", review.decision.value)
+    update("reasons", review.reasons)
+    update(
+        "reviewed_at",
+        review.reviewed_at.astimezone(UTC).isoformat(timespec="microseconds"),
+    )
+    return TraderLabEvidenceDigest(digest.hexdigest())
 
 
 def _issued_proof(

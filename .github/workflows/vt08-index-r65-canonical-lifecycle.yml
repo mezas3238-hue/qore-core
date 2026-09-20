@@ -11,6 +11,10 @@ on:
       - tests/infrastructure/test_research_performance_statistics.py
       - src/qore/infrastructure/robustness_trader_lab_authority.py
       - src/qore/infrastructure/research_performance_statistics.py
+      - tests/infrastructure/test_research_sampling_frame.py
+      - src/qore/infrastructure/independent_trader_lab_validation.py
+      - src/qore/infrastructure/risk_trader_lab_authority.py
+      - src/qore/infrastructure/research_sampling_frame.py
       - tests/infrastructure/test_research_block_bootstrap.py
       - tests/infrastructure/test_research_frozen_oos_evidence.py
       - tests/infrastructure/trader_lab/test_vt08_index_r65_canonical_lifecycle.py
@@ -36,6 +40,7 @@ jobs:
           pytest -q
           tests/infrastructure/trader_lab/test_vt08_index_r65_canonical_lifecycle.py
           tests/infrastructure/test_research_performance_statistics.py
+          tests/infrastructure/test_research_sampling_frame.py
           tests/infrastructure/test_research_frozen_oos_evidence.py
 
   lifecycle:

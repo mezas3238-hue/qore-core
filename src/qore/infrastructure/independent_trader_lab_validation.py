@@ -21,6 +21,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qore.infrastructure.research_performance_statistics import (
     ResearchPerformanceStatisticsSnapshot,
+    validate_research_performance_statistics_snapshot,
 )
 from qore.infrastructure.trader_lab.candidate import TraderLabCandidateBinding
 from qore.infrastructure.trader_lab.governed_gate import (
@@ -143,7 +144,7 @@ class IndependentTraderLabReview:
             raise IndependentTraderLabValidationInputError(
                 "independent validation requires performance statistics"
             )
-        self.performance.__post_init__()
+        validate_research_performance_statistics_snapshot(self.performance)
         if self.performance.run != self.candidate.strategy_binding.run:
             raise IndependentTraderLabValidationInputError(
                 "performance statistics must bind the exact candidate run"
@@ -257,7 +258,7 @@ def review_trader_lab_candidate_independently(
             raise IndependentTraderLabValidationInputError(
                 "performance must be ResearchPerformanceStatisticsSnapshot"
             )
-        performance.__post_init__()
+        validate_research_performance_statistics_snapshot(performance)
         if performance.run != candidate.strategy_binding.run:
             raise IndependentTraderLabValidationBlockedError(
                 "performance run does not match the candidate"
@@ -294,14 +295,55 @@ def review_trader_lab_candidate_independently(
 
 
 def _review_digest(review: IndependentTraderLabReview) -> TraderLabEvidenceDigest:
-    encoded = json.dumps(
-        review.logical_values(),
-        ensure_ascii=True,
-        sort_keys=True,
-        separators=(",", ":"),
-        default=str,
-    ).encode("utf-8")
-    return TraderLabEvidenceDigest(sha256(encoded).hexdigest())
+    """Stream exact independent evidence without one giant logical-value tree."""
+
+    digest = sha256()
+
+    def update(label: str, value: object) -> None:
+        label_bytes = label.encode("utf-8")
+        encoded = json.dumps(
+            value,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+        digest.update(len(label_bytes).to_bytes(4, "big"))
+        digest.update(label_bytes)
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+
+    performance = review.performance
+    update("schema", "qore.independent.trader_lab.validation.streaming.v2")
+    update("candidate_fingerprint", review.candidate.fingerprint.value)
+    update("lifecycle", review.lifecycle.logical_values())
+    update("economic_evidence", review.economic_evidence.logical_values())
+    update(
+        "performance_header",
+        (
+            performance.snapshot_id.logical_values(),
+            performance.run.logical_values(),
+            performance.basis.value,
+            performance.sample_size,
+            performance.positive_count,
+            performance.negative_count,
+            performance.flat_count,
+            format(performance.mean_return, "f"),
+            format(performance.minimum_return, "f"),
+            format(performance.maximum_return, "f"),
+            format(performance.win_rate, "f"),
+            format(performance.population_variance, "f"),
+            performance.observed_at.isoformat(),
+        ),
+    )
+    for index, observation in enumerate(performance.observations):
+        update(f"performance_observation.{index}", observation.logical_values())
+    update("checks", tuple(item.value for item in review.checks))
+    update(
+        "validated_at",
+        review.validated_at.astimezone(UTC).isoformat(timespec="microseconds"),
+    )
+    return TraderLabEvidenceDigest(digest.hexdigest())
 
 
 def _issued_proof(
