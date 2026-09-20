@@ -234,6 +234,7 @@ def _opportunities_for_h4_wait(
                 continue
             cisd_index, cisd_level, protected_swing = cisd
 
+            wick_count = 0
             if model_kind is v6.H4ModelKind.SAME_C2:
                 continuation_index, wick_count = _wait_body_continuation(
                     bars,
@@ -301,7 +302,7 @@ def _opportunities_for_h4_wait(
             diagnostics["signals"] += 1
             diagnostics["signals_after_wait"] += int(
                 model_kind is v6.H4ModelKind.SAME_C2
-                and diagnostics["wick_continuations_waited"] > 0
+                and wick_count > 0
             )
             rearm_index += 1
             cursor = continuation_index + 1
