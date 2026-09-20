@@ -40,13 +40,32 @@ def test_new_york_source_window_is_0700_0900_new_york() -> None:
     assert before.resolution is CapitalizerSourceSessionResolution.OUTSIDE
 
 
-def test_asian_exact_fixed_clock_fails_closed_pending_source_resolution() -> None:
+def test_asian_without_historical_open_reference_fails_closed() -> None:
     result = assess_source_session_context(
         session=CapitalizerSession.ASIA,
         observed_at=datetime(2026, 1, 5, 1, 0, tzinfo=UTC),
     )
 
     assert result.resolution is CapitalizerSourceSessionResolution.REVIEW_REQUIRED
-    assert result.source_window_id == "ICT_ASIAN_KILLZONE_EXACT_CLOCK_REVIEW_REQUIRED"
-    assert "EXACT_FIXED_CLOCK_NOT_FROZEN" in result.reasons
+    assert result.source_window_id == "ICT_ASIAN_OPEN_REFERENCE_REQUIRED"
+    assert "SOURCE_USES_DST_RELATIVE_ASIAN_OPEN" in result.reasons
     assert result.qore_surveillance_bucket_equated_to_source_window is False
+
+
+def test_asian_uses_two_hour_window_relative_to_historical_open_reference() -> None:
+    asian_open = datetime(2026, 1, 5, 0, 0, tzinfo=UTC)
+    inside = assess_source_session_context(
+        session=CapitalizerSession.ASIA,
+        observed_at=datetime(2026, 1, 5, 1, 30, tzinfo=UTC),
+        asian_open_reference_at=asian_open,
+    )
+    boundary_out = assess_source_session_context(
+        session=CapitalizerSession.ASIA,
+        observed_at=datetime(2026, 1, 5, 2, 0, tzinfo=UTC),
+        asian_open_reference_at=asian_open,
+    )
+
+    assert inside.resolution is CapitalizerSourceSessionResolution.ELIGIBLE
+    assert inside.source_window_id == "ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW"
+    assert "NO_FIXED_1900_2000_ASSUMPTION" in inside.reasons
+    assert boundary_out.resolution is CapitalizerSourceSessionResolution.OUTSIDE
