@@ -46,9 +46,11 @@ jobs:
           import hashlib
           import json
           import os
+          import sys
           from pathlib import Path
 
-          import scripts.vt31_nas100_sequence_risk_candidate_v1 as candidate
+          sys.path.insert(0, "scripts")
+          import vt31_nas100_sequence_risk_candidate_v1 as candidate
 
           aggregate=json.loads(Path("development/aggregate.json").read_text())
           assert aggregate["schema"] == (
