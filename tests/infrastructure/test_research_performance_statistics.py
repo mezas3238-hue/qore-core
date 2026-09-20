@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pytest
 
-from qore.infrastructure import research_performance_statistics as performance_module
 from qore.domain.events import CorrelationId
 from qore.functional.decisions import (
     DecisionId,
@@ -20,6 +19,7 @@ from qore.functional.decisions import (
     DecisionType,
     FunctionalDecision,
 )
+from qore.infrastructure import research_performance_statistics as performance_module
 from qore.infrastructure.historical_dataset import (
     HistoricalDatasetId,
     HistoricalDatasetNormalizationVersion,
