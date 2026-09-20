@@ -502,26 +502,26 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "cell":
-        report = write_cell_replay(
+        cell_report = write_cell_replay(
             m5_root=args.m5_root,
             journey_root=args.journey_root,
             target_root=args.target_root,
             output=args.output,
         )
-        print(json.dumps(asdict(report), sort_keys=True))
+        print(json.dumps(asdict(cell_report), sort_keys=True))
         return
 
-    report = build_integrated_report(args.input_root)
-    write_integrated_report(report, args.output)
+    integrated_report = build_integrated_report(args.input_root)
+    write_integrated_report(integrated_report, args.output)
     print(
         json.dumps(
             {
-                "identity": report.identity,
-                "proxy_trades": report.proxy_trades,
-                "profit_factor": report.profit_factor,
-                "total_gross_r": report.total_gross_r,
-                "max_drawdown_r": report.max_drawdown_r,
-                "source_strategy_status": report.source_strategy_status,
+                "identity": integrated_report.identity,
+                "proxy_trades": integrated_report.proxy_trades,
+                "profit_factor": integrated_report.profit_factor,
+                "total_gross_r": integrated_report.total_gross_r,
+                "max_drawdown_r": integrated_report.max_drawdown_r,
+                "source_strategy_status": integrated_report.source_strategy_status,
             },
             sort_keys=True,
         )
