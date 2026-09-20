@@ -50,8 +50,9 @@ CERTIFIED_STRATEGY_FINGERPRINT = (
     "089c41f98a72295278063cfc29caf8419538f68315d9f5e57be144fbdae15e08"
 )
 EXECUTION_BINDING_FINGERPRINT = (
-    "604f8b06fbbb6d808da6389d9abf02a498612d7dc8a735de886eb174f54cab8c"
+    "e85ecc5d82f6c59061afd68863b0f641a3512b1cf132f3b8fb01be324ce7e842"
 )
+TARGET_ARCHITECTURE_ID = "EQ50_COMPRESSED_ACCEPT_RUN25_PHYSICAL_V4"
 WAIT_RELEASE_MINUTE = 10 * 60 + 25
 MONTHLY_ALT_BUDGET = Decimal("0.60")
 ACTIVITY_L = corrective.ACTIVITY_L
@@ -507,7 +508,7 @@ def _virtual_order(
             else str(state["current_path_vs_previous"])
         ),
         rearm_quality=rearm_quality,
-        target_plan=str(state.get("target_plan", "UNAVAILABLE")),
+        target_plan=TARGET_ARCHITECTURE_ID,
     )
 
 
