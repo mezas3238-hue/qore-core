@@ -314,24 +314,26 @@ def _period_blocks(
     end_date: date,
     stress: Decimal,
 ) -> dict[str, Any]:
-    total_days = (end_date - start_date).days
-    years = 5 if total_days > 1000 else 2
-    result: dict[str, Any] = {}
-    for index in range(years):
-        block_start = date(
-            start_date.year + index,
-            start_date.month,
-            start_date.day,
+    if start_date == r66.START_DATE and end_date == r66.END_DATE_EXCLUSIVE:
+        boundaries = (
+            r66.START_DATE,
+            r66.BLOCK_BOUNDARY,
+            r66.END_DATE_EXCLUSIVE,
         )
-        block_end = (
-            end_date
-            if index == years - 1
-            else date(
-                start_date.year + index + 1,
+    else:
+        years = 5 if (end_date - start_date).days > 1000 else 2
+        boundaries = tuple(
+            date(
+                start_date.year + index,
                 start_date.month,
                 start_date.day,
             )
-        )
+            for index in range(years)
+        ) + (end_date,)
+    result: dict[str, Any] = {}
+    for index in range(len(boundaries) - 1):
+        block_start = boundaries[index]
+        block_end = boundaries[index + 1]
         rows = [
             item
             for item in stream
