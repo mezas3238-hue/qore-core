@@ -13,7 +13,9 @@ def test_source_faithful_trader_design_covers_every_required_component() -> None
 
     assert design.status is CapitalizerChainStatus.FROZEN_APT
     assert {rule.component for rule in design.rules} == set(CapitalizerTraderDesignComponent)
-    assert design.ready_for_integrated_nine_market_replay is True
+    assert design.deterministic_source_observation_layer_closed is False
+    assert design.source_faithful_trader_engine_closed is False
+    assert design.ready_for_integrated_nine_market_replay is False
     assert design.integrated_nine_market_replay_completed is False
 
 
