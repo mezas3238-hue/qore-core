@@ -48,6 +48,7 @@ POLICIES = (
     "BLOCK_ASIA_WEAK_SIDE_PAIR_ONLY_V1",
     "BLOCK_LONDON_WEAK_SIDE_PAIR_ONLY_V1",
     "BLOCK_NEW_YORK_WEAK_SIDE_PAIR_ONLY_V1",
+    "BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1",
     "BLOCK_CORE_WEAK_SIDE_PAIRS_V1",
     "BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1",
     "BLOCK_CORE_WEAK_SIDE_PAIRS_PLUS_XAUUSD_ORD2_SHARED_V1",
@@ -98,6 +99,11 @@ LONDON_WEAK_ONLY: dict[str, frozenset[PairState]] = {
     "LONDON": CORE_WEAK_SIDE_PAIRS["LONDON"],
 }
 NEW_YORK_WEAK_ONLY: dict[str, frozenset[PairState]] = {
+    "NEW_YORK": CORE_WEAK_SIDE_PAIRS["NEW_YORK"],
+}
+
+LONDON_PLUS_NEW_YORK_WEAK: dict[str, frozenset[PairState]] = {
+    "LONDON": CORE_WEAK_SIDE_PAIRS["LONDON"],
     "NEW_YORK": CORE_WEAK_SIDE_PAIRS["NEW_YORK"],
 }
 
@@ -220,6 +226,8 @@ def _rejection_reason(
         return _weak_pair_reason(candidate, prior, table=LONDON_WEAK_ONLY)
     if policy == "BLOCK_NEW_YORK_WEAK_SIDE_PAIR_ONLY_V1":
         return _weak_pair_reason(candidate, prior, table=NEW_YORK_WEAK_ONLY)
+    if policy == "BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1":
+        return _weak_pair_reason(candidate, prior, table=LONDON_PLUS_NEW_YORK_WEAK)
     if policy == "BLOCK_CORE_WEAK_SIDE_PAIRS_V1":
         return _weak_pair_reason(candidate, prior, table=CORE_WEAK_SIDE_PAIRS)
     if policy == "BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1":
