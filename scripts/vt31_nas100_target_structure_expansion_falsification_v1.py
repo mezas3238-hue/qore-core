@@ -574,6 +574,7 @@ def replay(path: Path, *, partition: str) -> dict[str, object]:
         "target_winner_count": len(observations),
         "overall": _stats(observations),
         "feature_diagnostics": feature_diagnostics,
+        "observations": observations,
         "censored_geometry_count": censored_geometry,
         "source_stats": source_stats,
         "diagnostics": diagnostics,
