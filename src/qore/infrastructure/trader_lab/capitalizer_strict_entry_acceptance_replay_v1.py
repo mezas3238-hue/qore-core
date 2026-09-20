@@ -492,8 +492,8 @@ def build_market_report(
         raise ValueError("strict entry M5 artifact must match replay symbol")
     by_open = {bar.opened_at: index for index, bar in enumerate(bars)}
 
-    counts = Counter()
-    rejection = Counter()
+    counts: Counter[str] = Counter()
+    rejection: Counter[str] = Counter()
     accepted: list[_AcceptedTrade] = []
 
     for row in rows:
@@ -668,15 +668,16 @@ def _aggregate_metrics(
     # Market reports do not retain trade-level chronology. The aggregate metrics below are
     # therefore additive except DD/streak, which are conservatively reported as the worst
     # market values rather than fabricating cross-market chronology.
-    metrics = tuple(
-        (
+    selected: list[CapitalizerR0Metrics] = []
+    for report in reports:
+        item = (
             report.accepted_corrected_metrics
             if corrected
             else report.baseline_matched_metrics
         )
-        for report in reports
-    )
-    metrics = tuple(item for item in metrics if item is not None)
+        if item is not None:
+            selected.append(item)
+    metrics = tuple(selected)
     if not metrics:
         return None
 
