@@ -28,7 +28,7 @@ import argparse
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -171,15 +171,24 @@ def _feature_rows(
     }
     reaction_bars, reaction_opened = overlay._reaction_bars(bars_by_symbol)
 
+    trace_by_identity = {
+        stream_item[0].identity(): state
+        for stream_item, state in zip(stream, trace, strict=True)
+    }
+    base_by_identity = {
+        item.opportunity.identity(): item
+        for item in base_r47
+    }
+    if len(trace_by_identity) != len(trace) or len(base_by_identity) != len(base_r47):
+        raise ValueError("R67 duplicate structural opportunity identity")
+
     rows: list[dict[str, Any]] = []
-    for base_item, item, state in zip(
-        base_r47,
-        assigned,
-        trace,
-        strict=True,
-    ):
-        if base_item.opportunity.identity() != item.opportunity.identity():
-            raise ValueError("R67 R47-to-R58 opportunity ordering drift")
+    for item in assigned:
+        identity = item.opportunity.identity()
+        base_item = base_by_identity.get(identity)
+        state = trace_by_identity.get(identity)
+        if base_item is None or state is None:
+            raise ValueError("R67 R47-to-R58 opportunity identity drift")
 
         # R46's feature constructor contains only causal pre-entry predictors.
         # For R66 we overwrite the period/window labels because R46 predates R66.
