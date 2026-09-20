@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
-from datetime import UTC, date
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -110,10 +110,10 @@ def validate(
 
     raw: dict[date, list[object]] = defaultdict(list)
     for bar in series:
-        raw[_day(getattr(bar, "opened_at"))].append(bar)
+        raw[_day(bar.opened_at)].append(bar)
     by_day = {
         local_day: tuple(
-            sorted(items, key=lambda item: getattr(item, "opened_at"))
+            sorted(items, key=lambda item: item.opened_at)
         )
         for local_day, items in raw.items()
     }
