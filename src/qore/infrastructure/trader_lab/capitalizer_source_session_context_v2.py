@@ -44,6 +44,14 @@ class CapitalizerSourceSessionAssessment:
         if not self.source_window_id or not self.reasons:
             raise ValueError("source session assessment requires id and reasons")
 
+    @property
+    def resolved(self) -> bool:
+        return self.resolution is not CapitalizerSourceSessionResolution.REVIEW_REQUIRED
+
+    @property
+    def eligible(self) -> bool:
+        return self.resolution is CapitalizerSourceSessionResolution.ELIGIBLE
+
 
 def _in_half_open_window(value: time, start: time, end: time) -> bool:
     return start <= value < end
