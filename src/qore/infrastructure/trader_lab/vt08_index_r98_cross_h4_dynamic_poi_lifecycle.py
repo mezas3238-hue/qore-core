@@ -599,7 +599,7 @@ def _market(
                         else state.protected_swing - entry
                     )
                     if risk > 0:
-                        row = DynamicExecution(
+                        dynamic_row = DynamicExecution(
                             symbol=symbol,
                             continuation_at=bar.closed_at.astimezone(UTC),
                             side=state.side,
@@ -607,9 +607,12 @@ def _market(
                             protected_swing=state.protected_swing,
                             source_kind=state.source_kind,
                         )
-                        executions.setdefault(row.identity(), row)
+                        executions.setdefault(
+                            dynamic_row.identity(),
+                            dynamic_row,
+                        )
                         diagnostics["AUTHORIZED_CONTINUATION_EXECUTED"] += 1
-                        by_source[row.source_kind] += 1
+                        by_source[dynamic_row.source_kind] += 1
                         by_anchor[str(local_anchor)] += 1
                 else:
                     diagnostics["CONTINUATION_OUTSIDE_EXECUTION_ANCHOR"] += 1
