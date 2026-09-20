@@ -117,3 +117,40 @@ def test_third_trade_reports_exact_prior_positive_erasure_and_conditional_metric
     assert third_all.prior_positive_metrics is not None
     assert third_all.prior_positive_metrics.total_r == "-2"
     assert third_all.prior_nonpositive_metrics is None
+
+
+def test_shared_session_ordinals_are_attributed_to_the_market_that_won_the_slot() -> None:
+    start = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    trades = tuple(
+        PortfolioFlowTrade(
+            symbol=symbol,
+            entry_at=start + timedelta(minutes=10 * index),
+            exit_at=start + timedelta(minutes=10 * index + 5),
+            realized_r=Decimal("1"),
+        )
+        for index, symbol in enumerate(("USDJPY", "AUDJPY", "GBPJPY", "AUDUSD"))
+    )
+    report = _build_report(trades)
+
+    third = next(
+        item
+        for item in report.symbol_ordinal_economics
+        if item.policy == "MAX3_ANY_VALID"
+        and item.tie_policy == "SYMBOL_ASC"
+        and item.ordinal == 3
+    )
+    assert third.symbol == "GBPJPY"
+    assert third.session == "ASIA"
+    assert third.trades == 1
+
+    audusd = next(
+        item
+        for item in report.symbol_selection_economics
+        if item.policy == "MAX3_ANY_VALID"
+        and item.tie_policy == "SYMBOL_ASC"
+        and item.symbol == "AUDUSD"
+    )
+    assert audusd.baseline_opportunities == 1
+    assert audusd.selected_opportunities == 0
+    assert audusd.opportunities_not_selected == 1
+    assert audusd.metrics is None
