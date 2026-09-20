@@ -497,6 +497,8 @@ def _market(
 def _window(
     *,
     roots: dict[str, Path],
+    raw_m5: dict[str, tuple[Vt08IndexC2R1Bar, ...]],
+    raw_provenance: dict[str, Any],
     window_id: str,
 ) -> dict[str, Any]:
     _stream, m15_by_symbol, m15_provenance = r74._load_window(
@@ -504,13 +506,6 @@ def _window(
         window_id=window_id,
     )
     start_date, end_date, canonical_reference = r74._window_contract(window_id)
-
-    raw_m5: dict[str, tuple[Vt08IndexC2R1Bar, ...]] = {}
-    raw_provenance: dict[str, Any] = {}
-    for symbol in contract.MARKETS:
-        bars, provenance = _load_raw_m5(roots[symbol], symbol=symbol)
-        raw_m5[symbol] = bars
-        raw_provenance[symbol] = provenance
 
     markets = {
         symbol: _market(
@@ -591,9 +586,34 @@ def build_report(
         "SP500": sp500_root,
         "US30": us30_root,
     }
-    five = _window(roots=roots, window_id="5Y")
-    two = _window(roots=roots, window_id="2Y")
-    failed = _window(roots=roots, window_id="R66")
+    raw_m5: dict[str, tuple[Vt08IndexC2R1Bar, ...]] = {}
+    raw_provenance: dict[str, Any] = {}
+    for symbol in contract.MARKETS:
+        bars, provenance = _load_raw_m5(
+            roots[symbol],
+            symbol=symbol,
+        )
+        raw_m5[symbol] = bars
+        raw_provenance[symbol] = provenance
+
+    five = _window(
+        roots=roots,
+        raw_m5=raw_m5,
+        raw_provenance=raw_provenance,
+        window_id="5Y",
+    )
+    two = _window(
+        roots=roots,
+        raw_m5=raw_m5,
+        raw_provenance=raw_provenance,
+        window_id="2Y",
+    )
+    failed = _window(
+        roots=roots,
+        raw_m5=raw_m5,
+        raw_provenance=raw_provenance,
+        window_id="R66",
+    )
 
     return {
         "schema": SCHEMA,
