@@ -64,7 +64,11 @@ CRT_PURE_PRIMARY_SOURCE_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
         status=CrtPureSourceArtifactStatus.PENDING_PRIMARY_LOCATOR,
         canonical_url=None,
         provenance_url=None,
-        notes="Known official RomeoTPT video; direct primary locator still to be bound in corpus.",
+        notes=(
+            "Known official RomeoTPT video. Navigation indexes identify YouTube id "
+            "UUq_wKQ61Wo, but official-channel provenance is still being bound before "
+            "promoting the locator to VERIFIED_PRIMARY_LINK."
+        ),
     ),
     CrtPureSourceArtifact(
         artifact_id="ROMEO_CRT_SECRETS_EP01",
@@ -74,6 +78,16 @@ CRT_PURE_PRIMARY_SOURCE_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
         status=CrtPureSourceArtifactStatus.VERIFIED_PRIMARY_LINK,
         canonical_url="https://youtu.be/T7udbrWlARI",
         provenance_url="https://t.me/s/officialRomeotpt?before=6184",
+    ),
+    CrtPureSourceArtifact(
+        artifact_id="ROMEO_CRT_LIVE_TAPE_READING",
+        title="CRT live tape-reading session",
+        source_name="RomeoTPT",
+        source_tier=CrtPureSourceTier.LEVEL_A,
+        status=CrtPureSourceArtifactStatus.VERIFIED_PRIMARY_LINK,
+        canonical_url="https://youtu.be/1EK-LMwgJ3c",
+        provenance_url="https://t.me/s/officialRomeotpt?before=6196",
+        notes="Official live tape-reading lecture released between CRT Secrets episodes 1 and 2.",
     ),
     CrtPureSourceArtifact(
         artifact_id="ROMEO_CRT_SECRETS_EP02",
