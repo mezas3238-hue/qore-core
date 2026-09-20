@@ -63,6 +63,7 @@ def require_asian_open_reference(
     resolved = book.resolve(operating_date)
     if resolved is None:
         raise ValueError(
-            f"historical Asian Open reference missing for operating date {operating_date.isoformat()}"
+            "historical Asian Open reference missing for operating date "
+            f"{operating_date.isoformat()}"
         )
     return resolved
