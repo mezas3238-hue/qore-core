@@ -31,6 +31,10 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.fundednext_certified_policy import (
+    CertifiedStellarInstantPolicyBundle,
+    load_certified_stellar_instant_policy,
+)
 from qore.infrastructure.fundednext_live_activation import load_verified_live_activation
 from qore.infrastructure.fundednext_live_guard import (
     LIVE_ENTRY_ANCHORS_NY,
@@ -155,6 +159,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 from qore.infrastructure.vt08_forex_fundednext_sizing import (
     build_certified_vt08_forex_cibo_request,
 )
+from qore.kernel.result import Failure
 
 _NY = NEW_YORK_TZ
 _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
@@ -1461,6 +1466,23 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "provider-rule-refresh-failed").strip()
             raise RuntimeError(detail[:500])
+
+    def load_current_certified_policy(
+        now: datetime,
+    ) -> CertifiedStellarInstantPolicyBundle:
+        bundle = load_certified_stellar_instant_policy(
+            refresh_path=state_dir / "provider-rules-refresh.json",
+            account_binding_id=fingerprint,
+            account_size=PILOT_INITIAL_BALANCE,
+        )
+        resolved = bundle.resolve_for_risk(now)
+        if isinstance(resolved, Failure):
+            raise RuntimeError(f"certified-prop-policy-unavailable:{resolved.error}")
+        return bundle
+
+    refresh_provider_rules_before_submission()
+    certified_policy = load_current_certified_policy(datetime.now(UTC))
+    certified_policy_last_reload = certified_policy.observed_at
     safety_path = state_dir / "live-safety.json"
     load_live_safety_state(safety_path)
     safety = JsonFileLiveOperationalSafetyBoundary(safety_path)
@@ -1589,6 +1611,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             ],
             "single_mt5_writer": True,
             "account_wide_risk_active": True,
+            "certified_prop_policy_active": True,
+            "certified_prop_policy_observed_at": (
+                certified_policy.observed_at.isoformat()
+            ),
+            "certified_prop_policy_default_open_risk_fraction": str(
+                certified_policy.facts.cumulative_open_risk_fraction
+            ),
+            "certified_prop_policy_fail_closed_open_risk_fraction": str(
+                certified_policy.facts.reclassified_open_risk_fraction
+            ),
+            "certified_prop_policy_stop_loss_required": (
+                certified_policy.facts.stop_loss_required
+            ),
             "gbpjpy_r38_enabled": True,
             "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
             "gbpjpy_r38_certification": "TURTLE_SOUP_GBPJPY_R39_FINAL_CERTIFICATION_SUITE_V1",
@@ -1600,7 +1635,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "gbpjpy_r38_ensemble": "R35_RANGE_DIRECTION_MINIMAL_ROBUST",
             "gbpjpy_r38_policy": "CONFIDENCE_100_050_010",
             "gbpjpy_r38_fragility_policy": ["1", "0.25", "0.10", "0.05"],
-            "gbpjpy_r38_memory_sha256": "16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f",
+            "gbpjpy_r38_memory_sha256": (
+                "16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f"
+            ),
             "audjpy_r42_enabled": True,
             "audjpy_r42_identity": "TURTLE_SOUP_AUDJPY_R42",
             "audjpy_r42_certification": "TURTLE_SOUP_AUDJPY_R43_FINAL_CERTIFICATION_SUITE_V1",
@@ -1613,7 +1650,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_policy": "AUDJPY_CONFIDENCE_100_075_025",
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
             "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
-            "audjpy_r42_memory_sha256": "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6",
+            "audjpy_r42_memory_sha256": (
+                "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6"
+            ),
             "audjpy_r42_entry_sla_seconds": str(
                 AUDJPY_R42_ENTRY_SLA.total_seconds()
             ),
@@ -1649,6 +1688,32 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             )
 
         audjpy_arm_anchor = audjpy_r42_boundary_to_arm(cycle_at)
+        certified_policy_ready = True
+        policy_resolution = certified_policy.resolve_for_risk(cycle_at)
+        if isinstance(policy_resolution, Failure):
+            certified_policy_ready = False
+
+        reload_due = cycle_at - certified_policy_last_reload >= timedelta(minutes=5)
+        refresh_due = cycle_at - certified_policy.observed_at >= timedelta(hours=6)
+        if audjpy_arm_anchor is None and (reload_due or not certified_policy_ready):
+            try:
+                if refresh_due:
+                    refresh_provider_rules_before_submission()
+                certified_policy = load_current_certified_policy(cycle_at)
+                certified_policy_last_reload = cycle_at
+                certified_policy_ready = True
+            except Exception as error:
+                certified_policy_ready = False
+                _log(
+                    log_path,
+                    {
+                        "event": "CERTIFIED_PROP_POLICY_FAIL_CLOSED",
+                        "reason": type(error).__name__,
+                        "message": str(error),
+                        "observed_at": cycle_at.isoformat(),
+                    },
+                )
+
         if audjpy_arm_anchor is not None:
             audjpy_anchor_key = (
                 f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
@@ -1711,6 +1776,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         highest_closed_balance=arm_highest,
                         current_aggregate_stop_risk=arm_aggregate,
                         requested_posture=arm_posture,
+                        certified_open_risk_fraction=(
+                            certified_policy.facts.reclassified_open_risk_fraction
+                        ),
                     )
                     arm_snapshot = AccountRiskSnapshot(
                         account_binding_id=fingerprint,
@@ -1744,6 +1812,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         or arm_lifecycle is InactivityState.BLOCKED
                         or exit_ledger.has_unresolved
                         or gateway.has_unresolved_mutations
+                        or not certified_policy_ready
                     )
 
                     boundary_snapshot = await_audjpy_r42_boundary_snapshot(
@@ -2020,6 +2089,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             highest_closed_balance=highest,
             current_aggregate_stop_risk=aggregate,
             requested_posture=posture,
+            certified_open_risk_fraction=(
+                certified_policy.facts.reclassified_open_risk_fraction
+            ),
         )
         accepted_times = [
             item.transitioned_at
@@ -2050,6 +2122,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             or lifecycle is InactivityState.BLOCKED
             or exit_ledger.has_unresolved
             or gateway.has_unresolved_mutations
+            or not certified_policy_ready
         )
         if anchor is not None and not new_order_blocked:
             for symbol in _MARKETS:

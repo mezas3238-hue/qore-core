@@ -10,9 +10,9 @@ _WATCHDOG = _ROOT / "scripts" / "qore_fundednext_watchdog.ps1"
 
 def test_h4_exit_comment_uses_broker_verified_29_character_limit() -> None:
     source = _RUNTIME.read_text(encoding="utf-8-sig")
-    expected = '"comment": f"qore-h4-exit-{str(position.ticket)}"[:29],'
+    expected = '"comment": f"qore-exit-{exit_label}-{str(position.ticket)}"[:29],'
     assert expected in source
-    assert '"comment": f"qore-h4-exit-{str(position.ticket)}"[:31],' not in source
+    assert '"comment": f"qore-exit-{exit_label}-{str(position.ticket)}"[:31],' not in source
 
 
 def test_live_activation_has_no_owner_rule_expiry_and_uses_automated_verification() -> None:
@@ -20,8 +20,10 @@ def test_live_activation_has_no_owner_rule_expiry_and_uses_automated_verificatio
     assert "rules_verified_at" not in source
     assert "rules_valid_until" not in source
     assert "--lease-hours" not in source
-    assert "qore.fundednext.provider-rules-refresh.v2" in source
+    assert "qore.fundednext.provider-rules-refresh.v3" in source
     assert 'maximum_loss_fraction -ne "0.06"' in source
+    assert 'reclassified_open_risk_fraction -ne "0.01"' in source
+    assert "stop_loss_required" in source
     assert "AUTOMATIC_JIT_BEFORE_ORDER_SEND_PLUS_6H_PREWARM" in source
     assert "manual_rule_expiry_required = $false" in source
 
@@ -62,3 +64,13 @@ def test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:
     assert "current_anchor_hour=anchor_local.hour" in source
     assert "if hour > anchor_local.hour:" in source
     assert "FINAL_CAUSAL_ENTRY_ANCHOR_NY" not in source
+
+
+def test_runtime_gates_new_risk_on_certified_prop_policy() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "load_certified_stellar_instant_policy" in source
+    assert "certified-prop-policy-unavailable" in source
+    assert '"CERTIFIED_PROP_POLICY_FAIL_CLOSED"' in source
+    assert "or not certified_policy_ready" in source
+    assert "certified_open_risk_fraction=(" in source
+    assert "reclassified_open_risk_fraction" in source

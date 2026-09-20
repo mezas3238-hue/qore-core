@@ -38,7 +38,7 @@ def _write_evidence(
     maximum_loss: str = "0.06",
 ) -> None:
     payload = {
-        "schema": "qore.fundednext.provider-rules-refresh.v2",
+        "schema": "qore.fundednext.provider-rules-refresh.v3",
         "provider_rules_fingerprint": fingerprint,
         "facts": {
             "no_daily_loss_limit": True,
@@ -46,7 +46,9 @@ def _write_evidence(
             "trailing_maximum_loss": True,
             "ea_allowed_mt5": True,
             "cumulative_open_risk_fraction": "0.03",
+            "reclassified_open_risk_fraction": "0.01",
             "cumulative_open_risk_applies": True,
+            "stop_loss_required": True,
         },
         "sources": {},
     }

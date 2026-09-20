@@ -125,6 +125,7 @@ def evaluate_qore_operational_capital_budget(
     highest_closed_balance: Decimal,
     current_aggregate_stop_risk: Decimal,
     requested_posture: Vt08ForexCiboPosture,
+    certified_open_risk_fraction: Decimal | None = None,
 ) -> QoreOperationalCapitalBudget:
     """Resolve CIBO posture against provider distance and conservative QORE limits."""
 
@@ -144,6 +145,12 @@ def evaluate_qore_operational_capital_budget(
         raise AccountWideRiskError("requested posture must be canonical")
     if provider_budget.initial_balance != initial_balance:
         raise AccountWideRiskError("provider/QORE initial balance mismatch")
+    if certified_open_risk_fraction is not None:
+        _positive(certified_open_risk_fraction, "certified_open_risk_fraction")
+        if certified_open_risk_fraction > Decimal("0.03"):
+            raise AccountWideRiskError(
+                "certified open-risk fraction cannot exceed provider default 3%"
+            )
 
     # The trailing Maximum Loss is exactly the provider's 6% MLL.
     # QORE adds a safety buffer and heat caps; it does not invent a separate
@@ -169,6 +176,11 @@ def evaluate_qore_operational_capital_budget(
         Vt08ForexCiboPosture.ATTACK: QORE_INTERNAL_ATTACK_HEAT_FRACTION,
     }[authorized_posture]
     heat_cap = initial_balance * heat_fraction
+    if certified_open_risk_fraction is not None:
+        heat_cap = min(
+            heat_cap,
+            initial_balance * certified_open_risk_fraction,
+        )
     dd_capacity = max(Decimal(0), equity - internal_floor - safety_buffer)
     total_headroom = min(
         provider_budget.provider_headroom,

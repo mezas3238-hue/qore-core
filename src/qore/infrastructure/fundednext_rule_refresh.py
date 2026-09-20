@@ -20,7 +20,7 @@ from qore.infrastructure.fundednext_stellar_instant import (
     StellarInstantRuleVerification,
 )
 
-_SCHEMA = "qore.fundednext.provider-rules-refresh.v2"
+_SCHEMA = "qore.fundednext.provider-rules-refresh.v3"
 
 
 def _aware(value: datetime, name: str) -> None:
@@ -35,7 +35,9 @@ class ProviderRulesRefreshEvidence:
     trailing_maximum_loss: bool
     ea_allowed_mt5: bool
     cumulative_open_risk_fraction: str
+    reclassified_open_risk_fraction: str
     cumulative_open_risk_applies: bool
+    stop_loss_required: bool
 
     def __post_init__(self) -> None:
         fingerprint = self.provider_rules_fingerprint
@@ -54,7 +56,9 @@ class ProviderRulesRefreshEvidence:
             and self.trailing_maximum_loss
             and self.ea_allowed_mt5
             and self.cumulative_open_risk_fraction == "0.03"
+            and self.reclassified_open_risk_fraction == "0.01"
             and self.cumulative_open_risk_applies
+            and self.stop_loss_required
         )
 
 
@@ -74,9 +78,13 @@ def load_provider_rules_refresh(path: Path) -> ProviderRulesRefreshEvidence:
         cumulative_open_risk_fraction=str(
             facts.get("cumulative_open_risk_fraction", "")
         ),
+        reclassified_open_risk_fraction=str(
+            facts.get("reclassified_open_risk_fraction", "")
+        ),
         cumulative_open_risk_applies=(
             facts.get("cumulative_open_risk_applies") is True
         ),
+        stop_loss_required=facts.get("stop_loss_required") is True,
     )
 
 
