@@ -54,6 +54,7 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     vt08_index_r82_protected_swing_source_qualification as r82,
 )
+
 SCHEMA = "qore.trader_lab.vt08_index_r83_ps_qualification_r58_transport.v1"
 IDENTITY = "VT08_INDEX_R83_PROTECTED_SWING_QUALIFICATION_R58_TRANSPORT_001"
 
