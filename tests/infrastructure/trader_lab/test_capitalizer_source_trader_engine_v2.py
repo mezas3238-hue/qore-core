@@ -7,6 +7,7 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_dual_source_entry_acceptance_v1 import (
+    CapitalizerDualSourceEntryAcceptance,
     CapitalizerDualSourceEntryFacts,
     assess_dual_source_entry,
 )
@@ -67,7 +68,7 @@ def _bullish_daily_bias() -> CapitalizerDailyBiasObservation:
     return derive_daily_bias(closure)
 
 
-def _accepted_entry_gate():
+def _accepted_entry_gate() -> CapitalizerDualSourceEntryAcceptance:
     return assess_dual_source_entry(
         CapitalizerDualSourceEntryFacts(
             cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
