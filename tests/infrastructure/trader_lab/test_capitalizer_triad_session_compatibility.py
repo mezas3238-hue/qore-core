@@ -4,12 +4,14 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_pair_session_compatibility import (
+    _selected_by_session,
+)
 from qore.infrastructure.trader_lab.capitalizer_portfolio_exposure_forensics import (
     CapitalizerExposureCandidate,
 )
 from qore.infrastructure.trader_lab.capitalizer_triad_session_compatibility import (
     _observations,
-    _selected_by_session,
 )
 
 
