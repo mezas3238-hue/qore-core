@@ -126,6 +126,55 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
         review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
     ),
     CapitalizerReviewedSource(
+        source_id="TTRADES_CANDLE2_CLOSURE",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Understanding Candle 2 Closures Within the Fractal Model",
+        primary_locator=(
+            "https://ttrades.com/understanding-candle-2-closures-within-the-fractal-model/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_CANDLE3_CLOSURE",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Candle 3 Closure: A Complete Guide to Identifying Continuations and Reversals",
+        primary_locator=(
+            "https://ttrades.com/candle-3-closure-a-complete-guide-to-identifying-"
+            "continuations-and-reversals/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_CISD_SWING_CONFIRMATION",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="How Change in the State of Delivery (CISD) Confirms Swing Points",
+        primary_locator=(
+            "https://ttrades.com/how-change-in-the-state-of-delivery-cisd-confirms-swing-points/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_PROTECTED_SWINGS",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="Protected Swings in Trading: How to Identify and Use Them",
+        primary_locator=(
+            "https://ttrades.com/protected-swings-understanding-trends-and-invalidations/"
+        ),
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
+        source_id="TTRADES_TARGETS_FRACTAL_MODEL",
+        author=CapitalizerStrategyAuthor.TTRADES,
+        kind=CapitalizerPrimarySourceKind.ARTICLE,
+        title="How to Set Price Targets Using the Fractal Model",
+        primary_locator="https://ttrades.com/how-to-set-price-targets-using-the-fractal-model/",
+        review_state=CapitalizerSourceReviewState.CONTENT_REVIEWED,
+    ),
+    CapitalizerReviewedSource(
         source_id="TTRADES_FAILURE_TO_MANIPULATE",
         author=CapitalizerStrategyAuthor.TTRADES,
         kind=CapitalizerPrimarySourceKind.ARTICLE,
@@ -263,6 +312,72 @@ SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
             "than an arbitrary exit chosen only because the trade is a scalp."
         ),
         source_ids=("TTRADES_SCALPING_MODEL",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_C2_SWEEP_CLOSE_INSIDE_AT_POI",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "A valid TTrades Candle 2 reversal closure sweeps the previous candle high or low, "
+            "closes back inside the previous candle range, and is meaningful only at a valid "
+            "higher-timeframe point of interest."
+        ),
+        source_ids=("TTRADES_CANDLE2_CLOSURE",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_C3_BODY_CLOSURE_AFTER_C2_FAILURE",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "When Candle 2 fails to provide the required reversal closure, TTrades permits "
+            "Candle 3 confirmation when Candle 3 closes through/over the body of Candle 2 in "
+            "the contextual direction without relying on an automatic sweep assumption."
+        ),
+        source_ids=("TTRADES_CANDLE3_CLOSURE",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_CISD_CLOSES_THROUGH_CAUSAL_CANDLE_SERIES",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades confirms CISD when price closes through the candle series that caused the "
+            "move into the important level; the closure is required for confirmation."
+        ),
+        source_ids=("TTRADES_CISD_SWING_CONFIRMATION",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_CISD_REQUIRES_HTF_C2_OR_C3_CONTEXT",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades does not use lower-timeframe CISD standalone: it must confirm a higher-"
+            "timeframe Candle 2 or Candle 3 closure before continuation is considered."
+        ),
+        source_ids=("TTRADES_CISD_SWING_CONFIRMATION",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_PROTECTED_SWING_REQUIRES_CONFIRMED_CLOSURE",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "A protected swing is confirmed only after the appropriate closure through the "
+            "relevant candle series following a liquidity sweep or FVG interaction; anticipation "
+            "alone is not confirmation."
+        ),
+        source_ids=("TTRADES_PROTECTED_SWINGS",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_PROTECTED_SWING_IS_INVALIDATION_ANCHOR",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades uses the confirmed protected swing as a structural invalidation and stop "
+            "anchor for continuation entries."
+        ),
+        source_ids=("TTRADES_PROTECTED_SWINGS",),
+    ),
+    CapitalizerSourceFact(
+        fact_id="TTRADES_TARGETS_UNTOUCHED_HTF_HIGHS_LOWS",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "TTrades target selection uses existing higher-timeframe swing highs/lows and prior "
+            "candle highs/lows; a level already taken is no longer a valid untouched target."
+        ),
+        source_ids=("TTRADES_TARGETS_FRACTAL_MODEL",),
     ),
     CapitalizerSourceFact(
         fact_id="TTRADES_FAILURE_TO_MANIPULATE_REQUIRES_FAILED_REVERSAL",
