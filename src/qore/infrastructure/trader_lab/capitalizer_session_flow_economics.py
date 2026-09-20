@@ -463,7 +463,7 @@ def _symbol_economics(
     selections: list[CapitalizerSymbolSelectionEconomics] = []
     for symbol in sorted(baseline_by_symbol):
         baseline = tuple(baseline_by_symbol[symbol])
-        chosen = tuple(selected_by_symbol.get(symbol, ()))
+        chosen = tuple(selected_by_symbol[symbol])
         selections.append(
             CapitalizerSymbolSelectionEconomics(
                 policy=policy,
