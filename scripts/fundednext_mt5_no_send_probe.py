@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.fundednext_stellar_instant import PILOT_SYMBOL_MAP
+
 mt5 = importlib.import_module("MetaTrader5")
 
 RETAINED_SYMBOLS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD", "NAS100")
@@ -54,19 +56,27 @@ def _account_fingerprint(account: Any) -> str:
 
 
 def _symbol_snapshot(symbol: str) -> dict[str, Any]:
-    info = mt5.symbol_info(symbol)
+    provider_symbol = PILOT_SYMBOL_MAP.get(symbol, symbol)
+    info = mt5.symbol_info(provider_symbol)
     if info is None:
-        raise RuntimeError(f"symbol_info_unavailable:{symbol}")
+        raise RuntimeError(
+            f"symbol_info_unavailable:{symbol}:{provider_symbol}"
+        )
 
-    if not info.visible and not mt5.symbol_select(symbol, True):
-        raise RuntimeError(f"symbol_select_failed:{symbol}")
+    if not info.visible and not mt5.symbol_select(provider_symbol, True):
+        raise RuntimeError(
+            f"symbol_select_failed:{symbol}:{provider_symbol}"
+        )
 
-    tick = mt5.symbol_info_tick(symbol)
+    tick = mt5.symbol_info_tick(provider_symbol)
     if tick is None:
-        raise RuntimeError(f"symbol_tick_unavailable:{symbol}")
+        raise RuntimeError(
+            f"symbol_tick_unavailable:{symbol}:{provider_symbol}"
+        )
 
     return {
         "symbol": symbol,
+        "provider_symbol": provider_symbol,
         "visible": bool(info.visible),
         "digits": int(info.digits),
         "point": float(info.point),
