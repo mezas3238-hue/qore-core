@@ -31,6 +31,7 @@ class TraderLineage(StrEnum):
     R43_GBPUSD = "R43_GBPUSD"
     R38_GBPJPY = "R38_GBPJPY"
     R42_AUDJPY = "R42_AUDJPY"
+    VT31_NAS100 = "VT31_NAS100"
 
 
 class RiskDecision(StrEnum):
