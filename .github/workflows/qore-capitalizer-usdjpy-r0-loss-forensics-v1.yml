@@ -22,6 +22,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_v1.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py'
@@ -36,6 +37,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py'
       - 'docs/research/QORE-CAPITALIZER-COGNITIVE-ARCHITECTURE-FREEZE-V1.md'
   workflow_dispatch:
 
@@ -85,6 +87,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
             tests/infrastructure/trader_lab/test_capitalizer_cognitive_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_acceptance_failure_forensics.py \
@@ -98,7 +101,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py \
-            tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py
           mypy \
             src/qore/infrastructure/trader_lab/capitalizer_contract.py \
             src/qore/infrastructure/trader_lab/capitalizer_governor.py \
@@ -114,7 +118,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_reclaim_phase_forensics.py \
             src/qore/infrastructure/trader_lab/capitalizer_residual_dd_trace.py \
             src/qore/infrastructure/trader_lab/capitalizer_joint_state_forensics.py \
-            src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py
+            src/qore/infrastructure/trader_lab/capitalizer_joint_state_ablation.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_cognitive_v1.py \
             tests/infrastructure/trader_lab/test_capitalizer_r0_loss_forensics.py \
@@ -128,7 +133,9 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_h1_boundary_type_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_reclaim_phase_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_joint_state_forensics.py \
-            tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py
+            tests/infrastructure/trader_lab/test_capitalizer_joint_state_ablation.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py
 
   forensics:
     needs: quality
@@ -218,6 +225,10 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_session_flow_viability \
             m5-source journey-source target-source forensic-output
+      - name: Run detailed session-flow economic diagnostics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_session_flow_economics \
+            forensic-output forensic-output
       - name: Enforce diagnostic-only governance
         run: |
           python - <<'PY'
@@ -543,6 +554,26 @@ jobs:
               'MAX3_ANY_VALID',
               'MAX3_POSITIVE_REALIZED_CONTINUATION',
           }
+
+          flow_economics = json.loads(
+              Path(
+                  'forensic-output/capitalizer-session-flow-economics-v1.json'
+              ).read_text()
+          )
+          assert flow_economics['identity'] == (
+              'QORE_CAPITALIZER_SESSION_FLOW_ECONOMICS_V1'
+          )
+          assert flow_economics['symbol_count'] == 1
+          assert flow_economics['symbols'] == ['USDJPY']
+          assert flow_economics['max_executions_per_session'] == 3
+          assert flow_economics['same_session_exit_verified'] is True
+          assert flow_economics['positive_pnl_is_not_stop_condition'] is True
+          assert flow_economics['governed_profit_objective_not_modeled'] is True
+          assert flow_economics['realized_equity_peak_is_not_intrabar_mfe'] is True
+          assert flow_economics['candidate_frozen'] is False
+          assert flow_economics['fresh_holdout_claimed'] is False
+          assert flow_economics['rule_selected'] is False
+          assert flow_economics['promotion_allowed'] is False
           PY
       - name: Upload immutable R0 forensics
         uses: actions/upload-artifact@v4
