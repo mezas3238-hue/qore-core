@@ -38,6 +38,7 @@ from qore.infrastructure.pretrade_safety import (
 from qore.infrastructure.vt31_nas100_live import (
     CIBO_MEMORY_FINGERPRINT,
     COGNITIVE_MEMORY_FINGERPRINT,
+    CERTIFICATION_REPORT_SHA256,
     DECISION_DEADLINE,
     EXECUTION_BINDING_FINGERPRINT,
     EXECUTION_BINDING_ID,
@@ -72,12 +73,15 @@ def runtime_started_fields() -> dict[str, object]:
     return {
         "vt31_nas100_enabled": True,
         "vt31_nas100_identity": STRATEGY_IDENTITY,
+        "vt31_nas100_lineage": "VT31_NAS100",
         "vt31_nas100_execution_binding": EXECUTION_BINDING_ID,
         "vt31_nas100_execution_binding_fingerprint": EXECUTION_BINDING_FINGERPRINT,
         "vt31_nas100_strategy_memory_sha256": STRATEGY_MEMORY_FINGERPRINT,
         "vt31_nas100_cibo_memory_sha256": CIBO_MEMORY_FINGERPRINT,
         "vt31_nas100_trader_experience_sha256": TRADER_EXPERIENCE_FINGERPRINT,
         "vt31_nas100_cognitive_memory_sha256": COGNITIVE_MEMORY_FINGERPRINT,
+        "vt31_nas100_memory_sha256": COGNITIVE_MEMORY_FINGERPRINT,
+        "vt31_nas100_certification_report_sha256": CERTIFICATION_REPORT_SHA256,
         "vt31_nas100_silver_bullet_source_sha256": SILVER_BULLET_SOURCE_FINGERPRINT,
         "vt31_nas100_service_24_7": SERVICE_24_7,
         "vt31_nas100_timeframe": "M1",
