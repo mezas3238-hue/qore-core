@@ -177,7 +177,7 @@ _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
 _EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
-_LOOP_SECONDS = AUDJPY_R42_FEED_REFRESH_SECONDS
+_LOOP_SECONDS = min(AUDJPY_R42_FEED_REFRESH_SECONDS, VT31_FEED_REFRESH_SECONDS)
 _ANCHOR_GRACE = timedelta(seconds=30)
 _HISTORY_DAYS = 14
 _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
@@ -259,6 +259,12 @@ def _current_anchor(now: datetime) -> datetime | None:
     if current < anchor or current - anchor > _ANCHOR_GRACE:
         return None
     return anchor
+
+
+def _vt31_entry_boundary(anchor: datetime) -> bool:
+    """Only the certified 10:00-11:00 NY Silver Bullet admission window."""
+    local = anchor.astimezone(_NY)
+    return local.hour == 10 and 1 <= local.minute <= 59
 
 
 def _causal_candidate(symbol: str, anchor: datetime) -> tuple[Vt08B01Candidate | None, str]:
@@ -1466,6 +1472,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     audjpy_r42_store.reconcile(mt5, now=datetime.now(UTC))
     audjpy_r42_cache = R42AudJpyM5Cache()
     audjpy_r42_cache.preload(mt5, now=datetime.now(UTC))
+    vt31_store = Vt31Nas100LiveStateStore(
+        state_dir / "vt31-nas100-state.json"
+    )
+    vt31_cache = Vt31Nas100M1Cache()
+    vt31_cache.preload(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
