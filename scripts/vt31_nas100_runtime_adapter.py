@@ -823,32 +823,6 @@ def manage_open_trade(
             return state, "vt31-shadow-base-dol1-check-pass"
         return state, "vt31-base-runner-hold"
 
-    if noncompressed and partial_hit:
-        leg = _leg_volume(
-            Decimal(opened.initial_volume),
-            Decimal("0.50"),
-            step,
-        )
-        if leg <= 0 or leg >= actual_volume:
-            raise Vt31Nas100LiveError("VT31 base partial cannot be expressed")
-        mutated = _close_position(
-            mt5_api,
-            position=position,
-            volume=leg,
-            reason="base-1p25",
-            mutations_enabled=mutations_enabled,
-        )
-        if mutated:
-            remaining = actual_volume - leg
-            state = store.update_open_trade(
-                remaining_volume=format(remaining, "f"),
-                base_partial_done=True,
-                base_partial_first=True,
-                base_partial_arm_after=_m1_close_after(now).isoformat(),
-            )
-            return state, "vt31-base-partial"
-        return state, "vt31-shadow-base-partial-check-pass"
-
     if dol1_hit:
         mutated = _close_position(
             mt5_api,
