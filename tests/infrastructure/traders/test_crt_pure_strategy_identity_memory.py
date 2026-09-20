@@ -14,10 +14,18 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
     assert payload["methodology_family"] == "CRT"
     assert payload["methodology_variant"] == "PURE"
     assert payload["markets"] == ("AUDUSD", "USDJPY", "BTCUSD")
-    assert payload["canonical_concepts"] == ("make_or_break_level",)
+    assert set(payload["canonical_concepts"]) == {
+        "time_turtle_soup_relation",
+        "market_timeframe_scope",
+        "make_or_break_level",
+    }
     rules = payload["canonical_rules"]
     assert isinstance(rules, dict)
-    assert set(rules) == {"make_or_break_level"}
+    assert set(rules) == {
+        "time_turtle_soup_relation",
+        "market_timeframe_scope",
+        "make_or_break_level",
+    }
 
 
 def test_core_execution_remains_fail_closed_until_source_closure() -> None:
