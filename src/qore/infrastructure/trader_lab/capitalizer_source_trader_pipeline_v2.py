@@ -20,7 +20,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_engine_v2 imp
 )
 from qore.infrastructure.trader_lab.capitalizer_source_strategy_grammar_v2 import (
     CapitalizerSourceEntryRoute,
-    CapitalizerSourceStrategyDecision,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_trade_plan_v2 import (
     CapitalizerSourceTargetKind,
