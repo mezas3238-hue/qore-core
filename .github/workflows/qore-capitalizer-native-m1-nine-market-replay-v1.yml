@@ -165,6 +165,7 @@ jobs:
           assert result["higher_level_setup_changed"] is False
           assert result["session_contract_changed"] is False
           assert result["target_contract_changed"] is False
+          assert result["stop_contract_changed"] is False
           assert result["entry_timeframe"] == "M1_NATIVE"
           assert result["m1_mss_required"] is True
           assert result["m1_fvg_required"] is True
@@ -175,6 +176,8 @@ jobs:
           assert result["fresh_holdout_claimed"] is False
           assert result["economic_candidate"] is False
           assert result["trader_certified"] is False
+          assert result["max3_selected_trades"] <= result["total_m1_entries"]
+          assert result["same_timestamp_competition_rejected"] >= 0
           assert result["live_authorized"] is False
           assert result["real_capital_authorized"] is False
           PY
