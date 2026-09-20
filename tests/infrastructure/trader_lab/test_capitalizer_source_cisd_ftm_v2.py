@@ -5,6 +5,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     assess_failure_to_manipulate,
     detect_cisd,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import derive_daily_bias
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
@@ -21,6 +22,16 @@ def _bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
         low=Decimal(low),
         close=Decimal(close),
     )
+
+
+def _bullish_daily_bias():
+    closure = detect_candle2_reversal_closure(
+        previous=_bar("100", "102", "98", "99"),
+        candle2=_bar("99", "101", "97", "99.5"),
+        point_of_interest_present=True,
+    )
+    assert closure is not None
+    return derive_daily_bias(closure)
 
 
 def _bearish_htf_closure():
@@ -79,7 +90,7 @@ def test_failure_to_manipulate_requires_failed_reversal_and_new_continuation_str
         post_sweep_closure_observed=True,
         expected_reversal_cisd=None,
         continuation_protected_swing=bullish_protected_low,
-        higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
+        daily_bias=_bullish_daily_bias(),
     )
 
     assert ftm.continuation_direction is CapitalizerSourceDirection.BULLISH
@@ -113,7 +124,7 @@ def test_failure_to_manipulate_is_false_when_expected_reversal_actually_confirms
         post_sweep_closure_observed=True,
         expected_reversal_cisd=bearish_reversal,
         continuation_protected_swing=bullish_protected_low,
-        higher_timeframe_bias=CapitalizerSourceDirection.BULLISH,
+        daily_bias=_bullish_daily_bias(),
     )
 
     assert ftm.expected_reversal_cisd_confirmed is True
