@@ -280,7 +280,8 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             adjudication=CrtPureAdjudicationState.AMBIGUOUS,
             ambiguity_notes=(
                 "This directly supports penetration of an old CRTH as relevant behavior, "
-                "but does not yet define universal sweep depth, close requirement, or entry trigger."
+                "but does not yet define universal sweep depth, close requirement, "
+                "or entry trigger."
             ),
         ),
     ),
@@ -306,7 +307,9 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             source_tier=CrtPureSourceTier.LEVEL_A,
             provenance="official RomeoTPT Telegram",
             locator="https://t.me/s/officialRomeotpt?before=6612",
-            normalized_statement="RomeoTPT posts an example described as Nasdaq range high to range low.",
+            normalized_statement=(
+                "RomeoTPT posts an example described as Nasdaq range high to range low."
+            ),
             adjudication=CrtPureAdjudicationState.AMBIGUOUS,
             ambiguity_notes=(
                 "The example proves opposite-range travel exists in the source corpus, "
