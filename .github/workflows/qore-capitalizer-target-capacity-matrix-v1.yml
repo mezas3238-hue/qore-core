@@ -20,6 +20,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
@@ -33,6 +34,7 @@ on:
       - 'tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_routing_drawdown_forensics.py'
   workflow_dispatch:
 
 permissions:
@@ -76,6 +78,7 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
             src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
             tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
@@ -104,7 +107,8 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py \
             src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
             src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
-            src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py
+            src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
@@ -120,7 +124,8 @@ jobs:
             tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py \
             tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py \
             tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py \
-            tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py
+            tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py \
+            tests/infrastructure/trader_lab/test_capitalizer_routing_drawdown_forensics.py
 
   scan:
     needs: quality
@@ -372,6 +377,10 @@ jobs:
       - name: Build triad-aware compatibility routing falsification
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_triad_compatibility_routing \
+            matrix-input matrix-output
+      - name: Build residual routing drawdown forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_routing_drawdown_forensics \
             matrix-input matrix-output
       - name: Enforce matrix governance
         run: |
@@ -680,6 +689,40 @@ jobs:
               'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
               'BLOCK_EXTENDED_WEAK_PAIRS_PLUS_ASIA_JPY_SPLIT_V1',
           }
+
+          drawdown = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-routing-drawdown-forensics-v1.json'
+              ).read_text()
+          )
+          assert drawdown['identity'] == (
+              'QORE_CAPITALIZER_ROUTING_DRAWDOWN_FORENSICS_V1'
+          )
+          assert drawdown['market_count'] == 9
+          assert drawdown['realized_exit_order_used'] is True
+          assert drawdown['max3_contract_preserved'] is True
+          assert drawdown['exact_peak_to_trough_only'] is True
+          assert drawdown['diagnostic_only'] is True
+          assert drawdown['numeric_threshold_optimization_used'] is False
+          assert drawdown['outcome_aware_runtime_ranking_used'] is False
+          assert drawdown['new_rule_selected'] is False
+          assert drawdown['qore_risk_authority_granted'] is False
+          assert drawdown['costs_applied'] is False
+          assert drawdown['candidate_frozen'] is False
+          assert drawdown['fresh_holdout_claimed'] is False
+          assert drawdown['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in drawdown['episodes']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in drawdown['episodes']} == {
+              'MAX3_BASELINE',
+              'BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1',
+              'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
+          }
+          assert drawdown['contribution_cells']
+          assert drawdown['session_contributions']
           PY
       - name: Upload immutable target-capacity matrix
         uses: actions/upload-artifact@v4
