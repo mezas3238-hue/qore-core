@@ -325,7 +325,7 @@ class Vt31Nas100M1Cache:
         if count <= 0 or count > 64:
             raise ValueError("VT31 incremental M1 count invalid")
         rows = api.copy_rates_from_pos(
-            SYMBOL,
+            PROVIDER_SYMBOL,
             api.TIMEFRAME_M1,
             0,
             count,
