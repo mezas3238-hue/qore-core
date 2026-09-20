@@ -148,6 +148,17 @@ REVIEWED_SOURCES: tuple[CapitalizerReviewedSource, ...] = (
 
 SOURCE_FACTS: tuple[CapitalizerSourceFact, ...] = (
     CapitalizerSourceFact(
+        fact_id="ICT_ASIAN_OPEN_RELATIVE_TWO_HOUR_WINDOW",
+        fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
+        statement=(
+            "ICT describes the Asian setup window as roughly two hours from the Asian Open and "
+            "explicitly notes that the open reference can shift around 7/8 PM with daylight-"
+            "saving alignment; QORE must therefore resolve Asia from a historical open reference "
+            "instead of inventing one universal fixed New York start."
+        ),
+        source_ids=("ICT_ASIAN_KILLZONE",),
+    ),
+    CapitalizerSourceFact(
         fact_id="ICT_ASIA_FAVORS_AUD_NZD_JPY_ACTIVITY",
         fact_type=CapitalizerSourceFactType.AUTHOR_SUPPORTED,
         statement=(
