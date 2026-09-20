@@ -1,0 +1,191 @@
+name: QORE Capitalizer Protected Swing Corrected Replay V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-protected-swing-corrected-replay-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_protected_swing_corrected_replay_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_protected_swing_corrected_replay_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_faithful_trader_design_v2.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_stop_fidelity_audit_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-protected-swing-corrected-replay-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_REPLAY_RUN_ID: '35528346941'
+  SOURCE_REPLAY_SHA: 'e0338846170003fd7b346c98883f63257b6cdf45'
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_M5_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_protected_swing_corrected_replay_v1.py             tests/infrastructure/trader_lab/test_capitalizer_protected_swing_corrected_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py             src/qore/infrastructure/trader_lab/capitalizer_source_faithful_trader_design_v2.py             src/qore/infrastructure/trader_lab/capitalizer_source_stop_fidelity_audit_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_protected_swing_corrected_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py             src/qore/infrastructure/trader_lab/capitalizer_source_faithful_trader_design_v2.py             src/qore/infrastructure/trader_lab/capitalizer_source_stop_fidelity_audit_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_protected_swing_corrected_replay_v1.py             tests/infrastructure/trader_lab/test_capitalizer_source_strategy_review_v2.py             tests/infrastructure/trader_lab/test_capitalizer_source_faithful_trader_design_v2.py             tests/infrastructure/trader_lab/test_capitalizer_source_stop_fidelity_audit_v1.py
+
+  market:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symbol: USDJPY
+            session: ASIA
+          - symbol: AUDJPY
+            session: ASIA
+          - symbol: AUDUSD
+            session: ASIA
+          - symbol: GBPJPY
+            session: ASIA
+          - symbol: EURUSD
+            session: LONDON
+          - symbol: GBPUSD
+            session: LONDON
+          - symbol: XAUUSD
+            session: NEW_YORK
+          - symbol: USDCAD
+            session: NEW_YORK
+          - symbol: NAS100
+            session: NEW_YORK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable replay cell
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-three-session-replay-cell-${{ matrix.symbol }}-${{ env.SOURCE_REPLAY_SHA }}
+          path: replay-cell
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_REPLAY_RUN_ID }}
+      - name: Download immutable RAW M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-${{ env.SOURCE_M5_SHA }}
+          path: m5
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Run protected-swing corrected replay proxy
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_protected_swing_corrected_replay_v1             market replay-cell m5 market-output
+      - name: Enforce evidence boundary
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ['EXPECTED_SYMBOL']
+          session = os.environ['EXPECTED_SESSION']
+          result = json.loads(
+              (
+                  Path('market-output')
+                  / f"capitalizer-{symbol.lower()}-protected-swing-corrected-replay-v1.json"
+              ).read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_PROTECTED_SWING_CORRECTED_REPLAY_V1'
+          assert result['symbol'] == symbol
+          assert result['session'] == session
+          assert result['total_replay_trades'] > 0
+          assert result['protected_swing_surrogate_matched_trades'] > 0
+          assert result['entry_changed'] is False
+          assert result['target_changed'] is False
+          assert result['arbitrary_numeric_buffer_added'] is False
+          assert result['m1_evidence_required'] is True
+          assert result['m1_evidence_present'] is False
+          assert result['source_faithful_replay_complete'] is False
+          assert result['geometry_proxy_only'] is True
+          assert result['rule_promotion_allowed'] is False
+          assert result['economic_candidate'] is False
+          assert result['trader_certified'] is False
+          PY
+      - name: Upload market correction artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-protected-swing-correction-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: market-output
+          if-no-files-found: error
+          retention-days: 90
+
+  matrix:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download all market correction artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-protected-swing-correction-v1-*-${{ github.sha }}
+          path: market-reports
+          merge-multiple: false
+      - name: Build nine-market correction matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_protected_swing_corrected_replay_v1             matrix market-reports matrix-output
+      - name: Enforce matrix boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path(
+                  'matrix-output/capitalizer-nine-market-protected-swing-correction-v1.json'
+              ).read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_NINE_MARKET_PROTECTED_SWING_CORRECTION_V1'
+          assert result['complete_nine_market_universe'] is True
+          assert len(result['markets']) == 9
+          assert result['m1_evidence_required'] is True
+          assert result['m1_evidence_present'] is False
+          assert result['source_faithful_replay_complete'] is False
+          assert result['geometry_proxy_only'] is True
+          assert result['rule_promotion_allowed'] is False
+          assert result['economic_candidate'] is False
+          assert result['trader_certified'] is False
+          PY
+      - name: Upload correction matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-protected-swing-correction-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90
