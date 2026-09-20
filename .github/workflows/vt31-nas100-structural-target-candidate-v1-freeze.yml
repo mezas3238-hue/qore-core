@@ -72,8 +72,10 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import sys
           from pathlib import Path
           from decimal import Decimal
+          sys.path.insert(0, "scripts")
           import vt31_nas100_structural_target_candidate_v1 as candidate
 
           partition=os.environ["PARTITION"]
