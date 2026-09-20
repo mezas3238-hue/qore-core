@@ -621,6 +621,9 @@ jobs:
           }
           assert {row['policy'] for row in routing['policy_results']} == {
               'MAX3_BASELINE',
+              'BLOCK_ASIA_WEAK_SIDE_PAIR_ONLY_V1',
+              'BLOCK_LONDON_WEAK_SIDE_PAIR_ONLY_V1',
+              'BLOCK_NEW_YORK_WEAK_SIDE_PAIR_ONLY_V1',
               'BLOCK_CORE_WEAK_SIDE_PAIRS_V1',
               'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
               'BLOCK_CORE_WEAK_SIDE_PAIRS_PLUS_XAUUSD_ORD2_SHARED_V1',
