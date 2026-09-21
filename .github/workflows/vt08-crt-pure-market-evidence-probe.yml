@@ -1,0 +1,239 @@
+name: QORE VT08 CRT PURE Market Evidence Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-market-evidence-probe.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: \${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: \${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: \${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: \${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: \${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [AUDUSD, USDJPY, BTCUSD]
+    env:
+      QORE_SYMBOL: \${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify DEMO read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "\${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "\${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "invalid DEMO account discovery" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Probe exact symbol and yearly M5 history
+        shell: bash
+        run: |
+          mkdir -p "artifacts/$QORE_SYMBOL"
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from collections.abc import Iterable
+          from datetime import UTC, datetime
+          from pathlib import Path
+          from typing import cast
+
+          from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
+          from qore.infrastructure.ctrader_demo_account_discovery import _credentials
+          from qore.kernel.result import Failure
+
+          symbol_name = os.environ["QORE_SYMBOL"]
+          frozen_close = datetime(2026, 9, 20, 23, 59, tzinfo=UTC)
+          start_year = 2010
+          period_m5 = 5
+
+          client = SpotwareCTraderOpenApiClient(credentials=_credentials())
+          try:
+              ready = client.connect_and_authenticate()
+              if isinstance(ready, Failure):
+                  raise RuntimeError(f"authentication failed: {ready.error}")
+
+              account_id = client.account_id
+              listed = client.request(
+                  "ProtoOASymbolsListReq",
+                  {"ctidTraderAccountId": account_id, "includeArchivedSymbols": False},
+                  client_msg_id=f"crt-pure-symbol-list:{symbol_name}",
+                  timeout_seconds=30.0,
+              )
+              if isinstance(listed, Failure):
+                  raise RuntimeError(f"symbol list failed: {listed.error}")
+
+              native = tuple(cast(Iterable[object], getattr(listed.value, "symbol", ())))
+              selected = next(
+                  (
+                      item
+                      for item in native
+                      if getattr(item, "symbolName", None) == symbol_name
+                      and getattr(item, "enabled", None) is True
+                  ),
+                  None,
+              )
+
+              if selected is None:
+                  payload = {
+                      "schema": "qore.vt08.crt_pure.market_evidence_probe.v1",
+                      "identity": "VT08_CRT_PURE",
+                      "symbol": symbol_name,
+                      "status": "UNAVAILABLE_EXACT_SYMBOL",
+                      "first_observed_year": None,
+                      "last_observed_year": None,
+                      "years_with_m5": [],
+                      "read_only": True,
+                      "demo_eligible": False,
+                      "live_authorized": False,
+                      "real_capital_authorized": False,
+                      "production_authorized": False,
+                  }
+              else:
+                  symbol_id = int(getattr(selected, "symbolId"))
+                  observed_years: list[int] = []
+                  for year in range(start_year, frozen_close.year + 1):
+                      opened = datetime(year, 1, 1, tzinfo=UTC)
+                      closed = min(datetime(year + 1, 1, 1, tzinfo=UTC), frozen_close)
+                      if opened >= closed:
+                          continue
+                      result = client.request(
+                          "ProtoOAGetTrendbarsReq",
+                          {
+                              "ctidTraderAccountId": account_id,
+                              "count": 2,
+                              "fromTimestamp": int(opened.timestamp() * 1000),
+                              "period": period_m5,
+                              "symbolId": symbol_id,
+                              "toTimestamp": int(closed.timestamp() * 1000),
+                          },
+                          client_msg_id=f"crt-pure-m5:{symbol_name}:{year}",
+                          timeout_seconds=45.0,
+                      )
+                      if isinstance(result, Failure):
+                          raise RuntimeError(
+                              f"M5 probe failed for {symbol_name}/{year}: {result.error}"
+                          )
+                      bars = tuple(cast(Iterable[object], getattr(result.value, "trendbar", ())))
+                      if bars:
+                          observed_years.append(year)
+
+                  payload = {
+                      "schema": "qore.vt08.crt_pure.market_evidence_probe.v1",
+                      "identity": "VT08_CRT_PURE",
+                      "symbol": symbol_name,
+                      "provider_symbol_id": symbol_id,
+                      "status": "AVAILABLE" if observed_years else "NO_M5_HISTORY_OBSERVED",
+                      "first_observed_year": observed_years[0] if observed_years else None,
+                      "last_observed_year": observed_years[-1] if observed_years else None,
+                      "years_with_m5": observed_years,
+                      "frozen_close": frozen_close.isoformat(),
+                      "read_only": True,
+                      "demo_eligible": False,
+                      "live_authorized": False,
+                      "real_capital_authorized": False,
+                      "production_authorized": False,
+                  }
+
+              out = Path("artifacts") / symbol_name
+              out.mkdir(parents=True, exist_ok=True)
+              (out / "availability.json").write_text(
+                  json.dumps(payload, indent=2, sort_keys=True) + "\n"
+              )
+              print(json.dumps(payload, sort_keys=True))
+          finally:
+              client.close()
+          PY
+      - name: Bind git SHA and digest
+        shell: bash
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > "artifacts/$QORE_SYMBOL/git-sha.txt"
+          cd "artifacts/$QORE_SYMBOL"
+          sha256sum availability.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-crt-pure-market-evidence-\${{ matrix.symbol }}-\${{ github.sha }}
+          path: artifacts/\${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-crt-pure-market-evidence-*-\${{ github.sha }}
+          path: artifacts/input
+      - name: Aggregate exact three-market evidence
+        shell: bash
+        run: |
+          mkdir -p artifacts/aggregate
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = sorted(Path("artifacts/input").rglob("availability.json"))
+          assert len(files) == 3, len(files)
+          rows = [json.loads(path.read_text()) for path in files]
+          assert sorted(row["symbol"] for row in rows) == ["AUDUSD", "BTCUSD", "USDJPY"]
+          payload = {
+              "schema": "qore.vt08.crt_pure.market_evidence_probe.aggregate.v1",
+              "identity": "VT08_CRT_PURE",
+              "symbols": rows,
+              "all_exact_symbols_available": all(
+                  row["status"] == "AVAILABLE" for row in rows
+              ),
+              "read_only": True,
+              "demo_eligible": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+              "production_authorized": False,
+          }
+          Path("artifacts/aggregate/market-evidence.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(payload, sort_keys=True))
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/aggregate/git-sha.txt
+          cd artifacts/aggregate
+          sha256sum market-evidence.json git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-crt-pure-market-evidence-aggregate-\${{ github.sha }}
+          path: artifacts/aggregate
+          if-no-files-found: error
+          retention-days: 90
