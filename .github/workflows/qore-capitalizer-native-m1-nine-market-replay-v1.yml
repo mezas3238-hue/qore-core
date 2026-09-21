@@ -194,8 +194,9 @@ jobs:
           assert result["fresh_holdout_claimed"] is False
           assert result["economic_candidate"] is False
           assert result["trader_certified"] is False
-          assert result["max3_selected_trades"] <= result["total_m1_entries"]
-          assert result["same_timestamp_competition_rejected"] >= 0
+          assert result["m1_entries"] >= 0
+          assert result["sessions_over_max3"] >= 0
+          assert result["max_entries_one_session"] >= 0
           assert result["live_authorized"] is False
           assert result["real_capital_authorized"] is False
           PY
@@ -256,6 +257,8 @@ jobs:
           assert result["fresh_holdout_claimed"] is False
           assert result["economic_candidate"] is False
           assert result["trader_certified"] is False
+          assert result["max3_selected_trades"] <= result["total_m1_entries"]
+          assert result["same_timestamp_competition_rejected"] >= 0
           PY
       - name: Upload nine-market native M1 replay matrix
         uses: actions/upload-artifact@v4
