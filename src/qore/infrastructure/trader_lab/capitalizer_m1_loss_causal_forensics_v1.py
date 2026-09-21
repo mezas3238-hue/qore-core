@@ -411,7 +411,9 @@ def _prepare_trade(raw: dict[str, Any], source: dict[str, Any]) -> dict[str, Any
     if remaining_minutes <= 0:
         raise ValueError("entry must occur before session end")
     event_labels = source.get("event_labels", [])
-    if not isinstance(event_labels, list) or not all(isinstance(item, str) for item in event_labels):
+    if not isinstance(event_labels, list) or not all(
+        isinstance(item, str) for item in event_labels
+    ):
         raise ValueError("higher-source event_labels must be string list")
     return {
         **raw,
@@ -422,7 +424,9 @@ def _prepare_trade(raw: dict[str, Any], source: dict[str, Any]) -> dict[str, Any
         "m1_fvg_confirmed_at": fvg_confirmed_at.isoformat(),
         "setup_age_minutes": int((entry_at - signal_at).total_seconds() // 60),
         "retest_delay_minutes": int((entry_at - fvg_confirmed_at).total_seconds() // 60),
-        "displacement_to_entry_minutes": int((entry_at - displacement_closed_at).total_seconds() // 60),
+        "displacement_to_entry_minutes": int(
+            (entry_at - displacement_closed_at).total_seconds() // 60
+        ),
         "risk_price": str(risk),
         "fvg_width_r": str(fvg_width / risk),
         "order_block_width_r": str(ob_width / risk),
@@ -549,7 +553,9 @@ def _enrich_with_m1(rows: list[dict[str, Any]], m1_root: Path) -> None:
                     adverse = max(Decimal("0"), bar.high - entry_price)
                 row["entry_adverse_excursion_upper_bound_r"] = str(adverse / risk)
                 row["entry_range_r"] = str(bar.range / risk)
-                row["entry_body_ratio"] = str(Decimal("0") if bar.range == 0 else bar.body / bar.range)
+                row["entry_body_ratio"] = str(
+                    Decimal("0") if bar.range == 0 else bar.body / bar.range
+                )
 
         for index in tuple(active):
             row = rows[index]
@@ -621,7 +627,10 @@ def _enrich_with_m1(rows: list[dict[str, Any]], m1_root: Path) -> None:
             row["loss_classification"] = "SAME_MINUTE_PRECEDENCE_AMBIGUITY"
         elif str(row["exit_reason"]) == "SESSION_EXIT":
             row["loss_classification"] = "SESSION_LIFECYCLE_CONFLICT"
-        elif str(row["exit_reason"]) == "STOP" and bool(row["target_reached_after_stop_same_session"]):
+        elif (
+            str(row["exit_reason"]) == "STOP"
+            and bool(row["target_reached_after_stop_same_session"])
+        ):
             row["loss_classification"] = "PREMATURE_STOP_EVIDENCE"
         elif str(row["exit_reason"]) == "STOP":
             row["loss_classification"] = "THESIS_INVALIDATED_NO_SAME_SESSION_TARGET_RECOVERY"
@@ -858,22 +867,52 @@ def build_market_forensics(
     ]
     classifications = Counter(str(row["loss_classification"]) for row in losses)
     target_reach = {
-        "reached_25pct_before_exit": sum(bool(row["target_25pct_reached_before_exit"]) for row in rows),
-        "reached_50pct_before_exit": sum(bool(row["target_50pct_reached_before_exit"]) for row in rows),
-        "reached_75pct_before_exit": sum(bool(row["target_75pct_reached_before_exit"]) for row in rows),
-        "reached_100pct_before_exit": sum(bool(row["target_100pct_reached_before_exit"]) for row in rows),
+        "reached_25pct_before_exit": sum(
+            bool(row["target_25pct_reached_before_exit"]) for row in rows
+        ),
+        "reached_50pct_before_exit": sum(
+            bool(row["target_50pct_reached_before_exit"]) for row in rows
+        ),
+        "reached_75pct_before_exit": sum(
+            bool(row["target_75pct_reached_before_exit"]) for row in rows
+        ),
+        "reached_100pct_before_exit": sum(
+            bool(row["target_100pct_reached_before_exit"]) for row in rows
+        ),
     }
     stop_target_progress = {
         "stops": len(stops),
-        "reached_25pct_before_stop": sum(bool(row["target_25pct_reached_before_exit"]) for row in stops),
-        "reached_50pct_before_stop": sum(bool(row["target_50pct_reached_before_exit"]) for row in stops),
-        "reached_75pct_before_stop": sum(bool(row["target_75pct_reached_before_exit"]) for row in stops),
-        "reached_100pct_before_stop": sum(bool(row["target_100pct_reached_before_exit"]) for row in stops),
+        "reached_25pct_before_stop": sum(
+            bool(row["target_25pct_reached_before_exit"]) for row in stops
+        ),
+        "reached_50pct_before_stop": sum(
+            bool(row["target_50pct_reached_before_exit"]) for row in stops
+        ),
+        "reached_75pct_before_stop": sum(
+            bool(row["target_75pct_reached_before_exit"]) for row in stops
+        ),
+        "reached_100pct_before_stop": sum(
+            bool(row["target_100pct_reached_before_exit"]) for row in stops
+        ),
         "target_recovered_after_stop_same_session": len(recovered),
-        "target_recovery_rate": None if not stops else str(Decimal(len(recovered)) / Decimal(len(stops))),
-        "median_extra_stop_r_needed_for_recovered": None if not extra_needed else str(median(extra_needed)),
-        "p75_extra_stop_r_needed_for_recovered": None if not extra_needed else str(_quantile(extra_needed, Decimal("0.75"))),
-        "p90_extra_stop_r_needed_for_recovered": None if not extra_needed else str(_quantile(extra_needed, Decimal("0.90"))),
+        "target_recovery_rate": (
+            None
+            if not stops
+            else str(Decimal(len(recovered)) / Decimal(len(stops)))
+        ),
+        "median_extra_stop_r_needed_for_recovered": (
+            None if not extra_needed else str(median(extra_needed))
+        ),
+        "p75_extra_stop_r_needed_for_recovered": (
+            None
+            if not extra_needed
+            else str(_quantile(extra_needed, Decimal("0.75")))
+        ),
+        "p90_extra_stop_r_needed_for_recovered": (
+            None
+            if not extra_needed
+            else str(_quantile(extra_needed, Decimal("0.90")))
+        ),
     }
     medians = _winner_loser_feature_medians(rows)
     report = {
@@ -954,9 +993,15 @@ def write_market(report: dict[str, Any], rows: list[dict[str, Any]], output: Pat
             "",
             "## Stop evidence",
             f"- Stops: {stop['stops']}",
-            f"- Same-session original-target recovery after stop: {stop['target_recovered_after_stop_same_session']}",
+            (
+                "- Same-session original-target recovery after stop: "
+                f"{stop['target_recovered_after_stop_same_session']}"
+            ),
             f"- Recovery rate: {stop['target_recovery_rate']}",
-            f"- Median extra stop R needed among recovered cases: {stop['median_extra_stop_r_needed_for_recovered']}",
+            (
+                "- Median extra stop R needed among recovered cases: "
+                f"{stop['median_extra_stop_r_needed_for_recovered']}"
+            ),
             "",
             "## New York time STOP profile",
         ]
@@ -983,7 +1028,10 @@ def write_market(report: dict[str, Any], rows: list[dict[str, Any]], output: Pat
     )
     for feature, data in report["winner_loser_feature_medians"].items():
         lines.append(
-            f"- {feature}: winners={data['winner_median']} losers={data['loser_median']} ({data['direction']})"
+            (
+                f"- {feature}: winners={data['winner_median']} "
+                f"losers={data['loser_median']} ({data['direction']})"
+            )
         )
     (output / f"{stem}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -1073,13 +1121,26 @@ def build_matrix(root: Path) -> dict[str, Any]:
     if len(paths) != 9:
         raise ValueError(f"nine-market failure matrix requires 9 reports, got {len(paths)}")
     reports = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
-    expected = {"AUDJPY", "AUDUSD", "EURUSD", "GBPJPY", "GBPUSD", "NAS100", "USDCAD", "USDJPY", "XAUUSD"}
+    expected = {
+        "AUDJPY",
+        "AUDUSD",
+        "EURUSD",
+        "GBPJPY",
+        "GBPUSD",
+        "NAS100",
+        "USDCAD",
+        "USDJPY",
+        "XAUUSD",
+    }
     if {str(report["symbol"]) for report in reports} != expected:
         raise ValueError("nine-market forensic universe mismatch")
     directions: dict[str, Counter[str]] = {feature: Counter() for feature in FEATURES}
     for report in reports:
         for feature in FEATURES:
-            directions[feature][str(report["winner_loser_feature_medians"][feature]["direction"])] += 1
+            direction = str(
+                report["winner_loser_feature_medians"][feature]["direction"]
+            )
+            directions[feature][direction] += 1
     return {
         "identity": MATRIX_IDENTITY,
         "market_count": 9,
