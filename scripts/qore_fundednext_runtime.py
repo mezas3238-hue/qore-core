@@ -1896,38 +1896,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         provider_budget=arm_provider,
                         reconciled_at=arm_started_at,
                     )
-                    mission_snapshot = evaluate_capitalization_mission(
-            config=mission_config,
-            closed_balance=account_state.balance,
-            equity=account_state.equity,
-            now=cycle_at,
-            previous=mission_snapshot,
-            defend=(capital.decision is CapitalBudgetDecision.REJECT),
-            payout_eligible=False,
-        )
-        mission_store.store(mission_snapshot)
-        if mission_snapshot.state is not prior_mission_state:
-            _log(
-                log_path,
-                {
-                    "event": "CAPITALIZATION_MISSION_STATE_CHANGED",
-                    "from_state": prior_mission_state.value,
-                    "to_state": mission_snapshot.state.value,
-                    "closed_balance": str(account_state.balance),
-                    "realized_profit": str(mission_snapshot.realized_profit),
-                    "target_remaining": str(mission_snapshot.target_remaining),
-                    "bank_balance_threshold": str(
-                        mission_snapshot.bank_balance_threshold
-                    ),
-                    "mission_balance_target": str(
-                        mission_snapshot.mission_balance_target
-                    ),
-                    "new_risk_allowed_by_mission": (
-                        mission_snapshot.new_risk_allowed_by_mission
-                    ),
-                },
-            )
-        accepted_times = [
+                    accepted_times = [
                         item.transitioned_at
                         for item in mutation_ledger.records()
                         if item.state is FundedNextMt5MutationState.ACCEPTED
@@ -2239,6 +2208,37 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 certified_policy.facts.reclassified_open_risk_fraction
             ),
         )
+        mission_snapshot = evaluate_capitalization_mission(
+            config=mission_config,
+            closed_balance=account_state.balance,
+            equity=account_state.equity,
+            now=cycle_at,
+            previous=mission_snapshot,
+            defend=(capital.decision is CapitalBudgetDecision.REJECT),
+            payout_eligible=False,
+        )
+        mission_store.store(mission_snapshot)
+        if mission_snapshot.state is not prior_mission_state:
+            _log(
+                log_path,
+                {
+                    "event": "CAPITALIZATION_MISSION_STATE_CHANGED",
+                    "from_state": prior_mission_state.value,
+                    "to_state": mission_snapshot.state.value,
+                    "closed_balance": str(account_state.balance),
+                    "realized_profit": str(mission_snapshot.realized_profit),
+                    "target_remaining": str(mission_snapshot.target_remaining),
+                    "bank_balance_threshold": str(
+                        mission_snapshot.bank_balance_threshold
+                    ),
+                    "mission_balance_target": str(
+                        mission_snapshot.mission_balance_target
+                    ),
+                    "new_risk_allowed_by_mission": (
+                        mission_snapshot.new_risk_allowed_by_mission
+                    ),
+                },
+            )
         accepted_times = [
             item.transitioned_at
             for item in mutation_ledger.records()
