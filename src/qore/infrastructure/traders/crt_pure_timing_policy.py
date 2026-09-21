@@ -11,15 +11,15 @@ engineering policy that must survive robustness testing before certification.
 
 from __future__ import annotations
 
-import zoneinfo
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
 
-NY = zoneinfo.ZoneInfo("America/New_York")
+NY = ZoneInfo("America/New_York")
 
 
 class CrtPureTimingAuthority(StrEnum):
@@ -124,10 +124,10 @@ def utc_triplet_windows_for_local_date(
     return tuple(
         CrtPureH4TripletWindow(
             market=window.market,
-            candle_1_open=window.candle_1_open.astimezone(zoneinfo.ZoneInfo("UTC")),
-            candle_2_open=window.candle_2_open.astimezone(zoneinfo.ZoneInfo("UTC")),
-            candle_3_open=window.candle_3_open.astimezone(zoneinfo.ZoneInfo("UTC")),
-            window_close=window.window_close.astimezone(zoneinfo.ZoneInfo("UTC")),
+            candle_1_open=window.candle_1_open.astimezone(UTC),
+            candle_2_open=window.candle_2_open.astimezone(UTC),
+            candle_3_open=window.candle_3_open.astimezone(UTC),
+            window_close=window.window_close.astimezone(UTC),
         )
         for window in h4_triplet_windows_for_local_date(market, local_date)
     )
