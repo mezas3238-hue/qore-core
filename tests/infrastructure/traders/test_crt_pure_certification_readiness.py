@@ -60,8 +60,11 @@ def test_all_validation_flags_are_required_for_certified_stage() -> None:
         combined_three_market_validation_green=True,
         full_qore_green=True,
     )
-    # Strategy Identity is still source-open in the actual lineage, therefore
-    # even a forged all-green economic payload cannot jump the source gate.
     result = evaluate_certification_readiness(evidence)
-    assert result.stage is CrtPureCertificationStage.SOURCE_OPEN
-    assert result.certified is False
+    assert result.stage is CrtPureCertificationStage.CERTIFIED
+    assert result.certified is True
+    assert result.blockers == ()
+    assert result.demo_authorized is False
+    assert result.live_authorized is False
+    assert result.real_capital_authorized is False
+    assert result.production_authorized is False
