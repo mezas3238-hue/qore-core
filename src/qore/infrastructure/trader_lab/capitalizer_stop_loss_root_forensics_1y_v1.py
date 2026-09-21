@@ -648,7 +648,6 @@ def _protected_swing(
 
 
 def _session_bounds(session: CapitalizerSession, moment: datetime) -> tuple[datetime, datetime]:
-    local = moment.astimezone(NEW_YORK)
     op_date = datetime.fromisoformat(_operating_date(moment, session)).date()
     if session is CapitalizerSession.ASIA:
         start = datetime.combine(op_date, datetime.min.time(), tzinfo=NEW_YORK).replace(hour=20)
