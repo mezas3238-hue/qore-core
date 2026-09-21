@@ -11,10 +11,10 @@ engineering policy that must survive robustness testing before certification.
 
 from __future__ import annotations
 
-import zoneinfo
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
+import zoneinfo
 
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
