@@ -23,6 +23,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
     END_EXCLUSIVE,
     START,
     ReplayBar,
+    ReplayTrade,
     run_market_replay,
     summarize,
 )
@@ -163,14 +164,17 @@ def load_coinbase_two_year_m5() -> tuple[ReplayBar, ...]:
     return bars
 
 
-def _triplet_summary(trades: tuple[object, ...], triplet: str) -> dict[str, Any]:
-    selected = tuple(item for item in trades if getattr(item, "timing_triplet") == triplet)
-    return summarize(selected)  # type: ignore[arg-type]
+def _triplet_summary(
+    trades: tuple[ReplayTrade, ...],
+    triplet: str,
+) -> dict[str, Any]:
+    selected = tuple(item for item in trades if item.timing_triplet == triplet)
+    return summarize(selected)
 
 
 def build_coinbase_report(
     bars: tuple[ReplayBar, ...],
-) -> tuple[dict[str, Any], tuple[object, ...]]:
+) -> tuple[dict[str, Any], tuple[ReplayTrade, ...]]:
     trades = run_market_replay(CrtPureMarket.BTCUSD, bars)
     fetch_start = START - FETCH_MARGIN
     fetch_end = END_EXCLUSIVE + FETCH_MARGIN
@@ -183,8 +187,8 @@ def build_coinbase_report(
         "window_end_exclusive": END_EXCLUSIVE.isoformat(),
         "coverage": _coverage(bars, fetch_start, fetch_end),
         "full_2y": summarize(trades),
-        "triplet_1": _triplet_summary(tuple(trades), "1"),
-        "triplet_2": _triplet_summary(tuple(trades), "2"),
+        "triplet_1": _triplet_summary(trades, "1"),
+        "triplet_2": _triplet_summary(trades, "2"),
         "provider_mixing": False,
         "synthetic_bars": False,
         "research_only": True,
