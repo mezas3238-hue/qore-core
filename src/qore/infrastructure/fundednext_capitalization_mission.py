@@ -171,14 +171,14 @@ class CapitalizationMissionSnapshot:
         if not isinstance(self.realized_profit, Decimal) or not self.realized_profit.is_finite():
             raise CapitalizationMissionError("realized_profit must be finite Decimal")
         _aware(self.updated_at, "updated_at")
-        for name, value in (
+        for name, flag in (
             ("bank_latched", self.bank_latched),
             ("target_reached_latched", self.target_reached_latched),
             ("payout_ready_latched", self.payout_ready_latched),
             ("mission_complete", self.mission_complete),
             ("new_risk_allowed_by_mission", self.new_risk_allowed_by_mission),
         ):
-            if type(value) is not bool:
+            if type(flag) is not bool:
                 raise CapitalizationMissionError(f"{name} must be bool")
         if self.target_reached_latched and not self.bank_latched:
             raise CapitalizationMissionError("target reached requires BANK to be latched")
