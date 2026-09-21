@@ -2521,7 +2521,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             )
             store.store(state)
 
-        if armed_m5_snapshots is None:
+        m5_portfolio_keys = (
+            f"R43_GBPUSD|{current_hour.isoformat()}",
+            f"R34_XAUUSD|{current_hour.isoformat()}",
+            f"R38_GBPJPY|{current_hour.isoformat()}",
+            f"R38_EURUSD|{current_hour.isoformat()}",
+            f"R42_AUDJPY|{current_hour.isoformat()}",
+        )
+        if armed_m5_snapshots is None and any(
+            key not in state.processed_anchors for key in m5_portfolio_keys
+        ):
             m5_late_delta = cycle_at - current_hour
             if timedelta(0) <= m5_late_delta <= M5_PROFILE.order_send_deadline:
                 _log(
