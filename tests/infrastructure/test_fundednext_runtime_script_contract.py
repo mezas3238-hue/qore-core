@@ -39,7 +39,7 @@ def test_live_activation_waits_for_old_writer_and_requires_new_live_runtime() ->
     assert "$Heartbeat -ge $ServiceStarted" in source
     assert "$Reconciled -ge $ServiceStarted" in source
     assert 'CommandLine -match "--mode\\s+live' in source
-    assert '$Processes.Count -gt 1' in source
+    assert "$Processes.Count -gt 1" in source
 
 
 def test_live_activation_rolls_back_fail_closed_and_self_checks_watchdog() -> None:
@@ -60,6 +60,21 @@ def test_watchdog_detects_missing_wrong_mode_and_multiple_runtime_processes() ->
     assert '"WATCHDOG_FAIL_CLOSED"' in source
     assert '"WATCHDOG_RESTART"' in source
     assert "runtime.lock" in source
+    assert '"WATCHDOG_MAINTENANCE"' in source
+    assert "owner-maintenance-fence-active" in source
+    assert "FileShare]::Delete" in source
+    assert "restart-storm-fenced" in source
+    assert "$MaximumRestartsPerWindow = 3" in source
+
+
+def test_runtime_has_one_supervisor_and_cannot_self_restart_storm() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    main = source[source.index("def main() -> None:") :]
+    assert "RUNTIME_FATAL_EXIT" in main
+    assert "external-watchdog-with-storm-fence" in main
+    assert "RUNTIME_FATAL_RECOVERY" not in main
+    assert "restart_delay_seconds" not in main
+
 
 def test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:
     source = _RUNTIME.read_text(encoding="utf-8-sig")

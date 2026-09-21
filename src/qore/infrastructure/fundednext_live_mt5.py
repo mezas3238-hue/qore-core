@@ -170,11 +170,7 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
             provider_symbol=plan.provider_symbol,
             broker_valid=valid,
             retcode=int(result.retcode),
-            reason=(
-                "mt5-order-check-ok"
-                if valid
-                else f"mt5-order-check-retcode-{result.retcode}"
-            ),
+            reason=("mt5-order-check-ok" if valid else f"mt5-order-check-retcode-{result.retcode}"),
             checked_at=now,
         )
 
@@ -183,6 +179,11 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
         if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
             raise Mt5ExecutionValidationError("live MT5 clock must be timezone-aware")
         return value.astimezone(UTC)
+
+    def observed_now(self) -> datetime:
+        """Read the same clock used to timestamp completed MT5 observations."""
+
+        return self._now()
 
 
 class FundedNextLiveMt5ExecutionGateway:
@@ -243,7 +244,8 @@ class FundedNextLiveMt5ExecutionGateway:
     @property
     def has_unresolved_mutations(self) -> bool:
         return any(
-            item.state in {
+            item.state
+            in {
                 FundedNextMt5MutationState.ATTEMPT_STARTED,
                 FundedNextMt5MutationState.OUTCOME_UNKNOWN,
             }
@@ -256,7 +258,8 @@ class FundedNextLiveMt5ExecutionGateway:
         state = self._transport.account_state(self._account.account_ref)
         if state is None:
             raise Mt5ExecutionBlockedError("mt5-account-state-unavailable")
-        _fresh(state.observed_at, now, self._max_spec_age, "account-state")
+        validation_now = max(now.astimezone(UTC), self._transport.observed_now())
+        _fresh(state.observed_at, validation_now, self._max_spec_age, "account-state")
         return state
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> Mt5SymbolSpecification:
@@ -270,7 +273,8 @@ class FundedNextLiveMt5ExecutionGateway:
         spec = self._transport.symbol_info(provider_symbol)
         if spec is None:
             raise Mt5ExecutionBlockedError("mt5-symbol-info-missing")
-        _fresh(spec.observed_at, now, self._max_spec_age, "symbol-info")
+        validation_now = max(now.astimezone(UTC), self._transport.observed_now())
+        _fresh(spec.observed_at, validation_now, self._max_spec_age, "symbol-info")
         if not spec.trade_enabled or not spec.session_open:
             raise Mt5ExecutionBlockedError("mt5-symbol-not-tradable")
         if self._max_spread_points is not None and spec.spread_points > self._max_spread_points:
@@ -497,9 +501,7 @@ def _broker_tick_at(tick: object) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
-            milliseconds=millis
-        )
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(milliseconds=millis)
     raw_seconds = int(getattr(tick, "time", 0) or 0)
     if raw_seconds > 0:
         return normalise_fundednext_server_epoch(raw_seconds)
@@ -540,9 +542,7 @@ def _assert_broker_executable_risk(
                 else max(Decimal(0), intended_entry - entry)
             )
             if adverse / base_risk > Decimal("0.02"):
-                raise Mt5ExecutionBlockedError(
-                    "r34-live-entry-drift-exceeds-buffer"
-                )
+                raise Mt5ExecutionBlockedError("r34-live-entry-drift-exceeds-buffer")
         else:
             try:
                 assert_certified_entry_drift(

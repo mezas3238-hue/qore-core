@@ -22,6 +22,7 @@ Certified lifecycle:
 - 24H maximum lifecycle;
 - single-position busy within R43.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -318,8 +319,7 @@ class R43LiveStateStore:
         exits = [
             item
             for item in matching
-            if int(getattr(item, "entry", -1))
-            == int(getattr(api, "DEAL_ENTRY_OUT", -2))
+            if int(getattr(item, "entry", -1)) == int(getattr(api, "DEAL_ENTRY_OUT", -2))
         ]
         if not exits:
             return state
@@ -327,11 +327,7 @@ class R43LiveStateStore:
         closed_at = normalise_fundednext_server_epoch(int(last.time))
         trailing_exit = state.last_trailing_exit_at
         moved = Decimal(opened.current_stop) != Decimal(opened.initial_stop)
-        if (
-            moved
-            and int(getattr(last, "reason", -1))
-            == int(getattr(api, "DEAL_REASON_SL", -2))
-        ):
+        if moved and int(getattr(last, "reason", -1)) == int(getattr(api, "DEAL_REASON_SL", -2)):
             trailing_exit = closed_at.isoformat()
 
         realized_usd = sum(
@@ -351,9 +347,7 @@ class R43LiveStateStore:
         equity = Decimal(state.strategy_equity_r) + realized_r
         peak = max(Decimal(state.strategy_peak_r), equity)
 
-        closed = tuple(
-            (*state.closed_signal_fingerprints, opened.signal_fingerprint)
-        )[-256:]
+        closed = tuple((*state.closed_signal_fingerprints, opened.signal_fingerprint))[-256:]
         next_state = R43LiveState(
             open_trade=None,
             closed_signal_fingerprints=closed,
@@ -508,7 +502,7 @@ def _live_setup(
         session_bucket=r1._session_bucket(raid_at),
         prior_body_alignment=r1._prior_alignment(c1, side),
     )
-    previous = candles[max(0, pos - 20):pos]
+    previous = candles[max(0, pos - 20) : pos]
     mean_range = sum(
         (item.high - item.low for item in previous),
         Decimal(0),
@@ -519,18 +513,12 @@ def _live_setup(
     raid_units = None if mean_range <= 0 else abs(raid_extreme - raid_level) / mean_range
     reclaim = r2._first_reclaim_latency(c2, c1, side, raid_at)
     duration = Decimal(60 if timeframe == "H1" else 240)
-    cisd_progress = (
-        Decimal(str((cisd.confirmed_at - c2.opened_at).total_seconds() / 60))
-        / duration
-    )
+    cisd_progress = Decimal(str((cisd.confirmed_at - c2.opened_at).total_seconds() / 60)) / duration
     protected_ratio = None if source_range <= 0 else risk / source_range
     range_state = None if mean_range <= 0 else source_range / mean_range
     body, wick, close_location = r2._geometry(c2, side)
     target_ratio = None if source_range <= 0 else reward / source_range
-    peers = [
-        r2._same_boundary(item, side)
-        for item in candles[max(0, pos - 21):pos - 1]
-    ]
+    peers = [r2._same_boundary(item, side) for item in candles[max(0, pos - 21) : pos - 1]]
     equal = any(level == r2._same_boundary(c1, side) for level in peers)
     local = raid_at.astimezone(r2.NY)
     context = r2.ContextSignal(
@@ -540,11 +528,7 @@ def _live_setup(
         session=signal.session_bucket,
         weekday=local.strftime("%A"),
         prior_body_alignment=signal.prior_body_alignment,
-        fvg_before_entry=(
-            "yes"
-            if r2._fvg_before_entry(c2.m5, raid_at, anchor, side)
-            else "no"
-        ),
+        fvg_before_entry=("yes" if r2._fvg_before_entry(c2.m5, raid_at, anchor, side) else "no"),
         exact_equal_liquidity="yes" if equal else "no",
         raid_depth_range_bucket=r2._bucket(
             raid_units,
@@ -597,31 +581,28 @@ def _decision_for_setup(
         dict[tuple[str, str], r32.Profile],
     ],
     current_open: Decimal,
+    prepared_snapshot: M5BoundarySnapshot | None = None,
 ) -> tuple[r37.Decision, tuple[native.NativeTarget, ...], dict[str, str]] | None:
-    bars = tuple(
-        bar for bar in evidence.bars
-        if bar.closed_at <= setup.context.signal.entry_at
+    bars = (
+        prepared_snapshot.complete_bars
+        if prepared_snapshot is not None
+        else tuple(bar for bar in evidence.bars if bar.closed_at <= setup.context.signal.entry_at)
     )
     opens = tuple(bar.opened_at for bar in bars)
-    h4 = build_h4(bars)
-    frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
-    frame_opens = {
-        name: tuple(item.opened_at for item in items)
-        for name, items in frames.items()
-    }
-    frame_closes = {
-        name: tuple(item.closed_at for item in items)
-        for name, items in frames.items()
-    }
-    swings = {
-        name: td._swing_candidates(items, name)
-        for name, items in frames.items()
-    }
-    swing_known = {
-        name: {
-            side: tuple(item.known_at for item in by_side[side])
-            for side in by_side
+    if prepared_snapshot is None:
+        h4 = build_h4(bars)
+        frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
+    else:
+        frames = {
+            "H1": prepared_snapshot.h1,
+            "H4": prepared_snapshot.h4,
+            "D1": prepared_snapshot.d1,
         }
+    frame_opens = {name: tuple(item.opened_at for item in items) for name, items in frames.items()}
+    frame_closes = {name: tuple(item.closed_at for item in items) for name, items in frames.items()}
+    swings = {name: td._swing_candidates(items, name) for name, items in frames.items()}
+    swing_known = {
+        name: {side: tuple(item.known_at for item in by_side[side]) for side in by_side}
         for name, by_side in swings.items()
     }
     signal = setup.context.signal
@@ -660,9 +641,7 @@ def _decision_for_setup(
         target_rows.append(
             {
                 "candidate_known_at": candidate.known_at.isoformat(),
-                "touch_m5_opened_at": (
-                    None if touched is None else touched.opened_at.isoformat()
-                ),
+                "touch_m5_opened_at": (None if touched is None else touched.opened_at.isoformat()),
                 "candidate_price": str(candidate.level),
                 "candidate_type": candidate.kind,
                 "source_timeframe": candidate.timeframe,
@@ -726,15 +705,9 @@ def _risk_scale_for(
         STRUCTURAL_POLICY_RULE,
     )
     side_overlay = (
-        SHORT_OVERLAY_SCALE
-        if setup.context.signal.side.value == "short"
-        else Decimal("1")
+        SHORT_OVERLAY_SCALE if setup.context.signal.side.value == "short" else Decimal("1")
     )
-    rank_overlay = (
-        RANK2_OVERLAY_SCALE
-        if decision.target.rank == 2
-        else Decimal("1")
-    )
+    rank_overlay = RANK2_OVERLAY_SCALE if decision.target.rank == 2 else Decimal("1")
     drawdown = r37._risk_scale(state.drawdown_r, DRAWDOWN_GOVERNOR_RULE)
     overlay = min(side_overlay, rank_overlay)
     return structural, side_overlay, rank_overlay, drawdown, structural * overlay * drawdown
@@ -771,12 +744,17 @@ def build_live_signal(
     )
     if current is None:
         raise RuntimeError("R43 current M5 boundary not yet available")
-    complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
-    h4 = build_h4(complete)
+    if boundary_snapshot is None:
+        complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
+        h4 = build_h4(complete)
+        h1 = build_h1(complete)
+    else:
+        h4 = boundary_snapshot.h4
+        h1 = boundary_snapshot.h1
     if _h4_open_for(anchor) == anchor:
         frames.append(("H4", h4))
-    frames.append(("H1", build_h1(complete)))
+    frames.append(("H1", h1))
 
     rearm_blocked = False
     for timeframe, candles in frames:
@@ -796,6 +774,7 @@ def build_live_signal(
             evidence=evidence,
             memory_bundle=memory_bundle,
             current_open=current.open,
+            prepared_snapshot=boundary_snapshot,
         )
         if resolved is None:
             continue
@@ -901,8 +880,7 @@ def build_r43_risk_request(
         raise ValueError("R43 live short geometry invalid")
     ticks = abs(executable - signal.stop_loss) / provider_spec.tick_size
     stop_per_lot = (
-        ticks * provider_spec.tick_value
-        + FOREX_OPEN_COMMISSION_PER_LOT_USD
+        ticks * provider_spec.tick_value + FOREX_OPEN_COMMISSION_PER_LOT_USD
     ) * BROKER_RISK_BUFFER
     base_risk_usd = account_equity * BASE_RISK_FRACTION
     requested_risk = base_risk_usd * signal.risk_scale
@@ -962,8 +940,7 @@ def certified_stop_for_open_trade(
     path = [
         bar
         for bar in evidence.bars
-        if entry_at <= bar.opened_at < entry_at + timedelta(hours=24)
-        and bar.closed_at <= now
+        if entry_at <= bar.opened_at < entry_at + timedelta(hours=24) and bar.closed_at <= now
     ]
     pending: Decimal | None = None
     observed: list[Bar] = []
@@ -1004,9 +981,7 @@ def certified_stop_for_open_trade(
                         target=target,
                     ):
                         pending = (
-                            level
-                            if pending is None
-                            else native._better_stop(side, pending, level)
+                            level if pending is None else native._better_stop(side, pending, level)
                         )
 
         if opened.posture == native.POSTURE_PROTECT:
@@ -1016,29 +991,19 @@ def certified_stop_for_open_trade(
                 entry=entry,
                 target=target,
             )
-            if (
-                swing is not None
-                and native._improves_stop(
-                    side=side,
-                    previous=current_stop,
-                    candidate=swing,
-                    target=target,
-                )
+            if swing is not None and native._improves_stop(
+                side=side,
+                previous=current_stop,
+                candidate=swing,
+                target=target,
             ):
-                pending = (
-                    swing
-                    if pending is None
-                    else native._better_stop(side, pending, swing)
-                )
+                pending = swing if pending is None else native._better_stop(side, pending, swing)
 
-    if (
-        pending is not None
-        and native._improves_stop(
-            side=side,
-            previous=current_stop,
-            candidate=pending,
-            target=target,
-        )
+    if pending is not None and native._improves_stop(
+        side=side,
+        previous=current_stop,
+        candidate=pending,
+        target=target,
     ):
         current_stop = pending
     return current_stop
@@ -1056,11 +1021,7 @@ def manage_open_position(
     if opened is None:
         return state, "no-open-r43-position"
     magic = _magic(opened.client_order_id)
-    positions = [
-        item
-        for item in (api.positions_get() or ())
-        if int(item.magic) == magic
-    ]
+    positions = [item for item in (api.positions_get() or ()) if int(item.magic) == magic]
     if len(positions) != 1:
         if not positions:
             return state, "r43-position-awaiting-reconcile"

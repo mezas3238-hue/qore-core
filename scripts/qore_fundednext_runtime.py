@@ -13,12 +13,15 @@ import argparse
 import hashlib
 import json
 import subprocess
+from collections.abc import Callable
+from functools import partial
 from importlib import import_module
 import sys
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import MetaTrader5 as mt5  # type: ignore
 
@@ -58,6 +61,7 @@ from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
 )
+from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.fundednext_mt5_clock import (
     NEW_YORK_TZ,
     normalise_fundednext_server_epoch,
@@ -101,6 +105,11 @@ from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
     MarketTestAccountIdentity,
 )
+from qore.infrastructure.market_boundary_actor import (
+    MarketBoundaryJob,
+    MarketBoundaryResult,
+    ResidentMarketActorPool,
+)
 from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
     ExecutionSwitchState,
@@ -114,6 +123,7 @@ from qore.infrastructure.m5_boundary_cache import (
 )
 from qore.infrastructure.r34_xauusd_live import (
     R34LiveSignal,
+    R34LiveState,
     R34LiveStateStore,
     build_live_signal as build_r34_live_signal,
     build_r34_risk_request,
@@ -122,6 +132,7 @@ from qore.infrastructure.r34_xauusd_live import (
 )
 from qore.infrastructure.r38_eurusd_live import (
     R38LiveSignal,
+    R38LiveState,
     R38LiveStateStore,
     build_live_signal as build_r38_live_signal,
     build_r38_risk_request,
@@ -131,6 +142,7 @@ from qore.infrastructure.r38_eurusd_live import (
 )
 from qore.infrastructure.r43_gbpusd_live import (
     R43LiveSignal,
+    R43LiveState,
     R43LiveStateStore,
     build_live_signal as build_r43_live_signal,
     build_r43_risk_request,
@@ -140,6 +152,7 @@ from qore.infrastructure.r43_gbpusd_live import (
 )
 from qore.infrastructure.r38_gbpjpy_live import (
     R38GbpJpyLiveSignal,
+    R38GbpJpyLiveState,
     R38GbpJpyLiveStateStore,
     build_live_signal as build_gbpjpy_r38_live_signal,
     build_r38_gbpjpy_risk_request,
@@ -153,6 +166,7 @@ from qore.infrastructure.r42_audjpy_live import (
     NORMAL_FEED_REFRESH_SECONDS as AUDJPY_R42_FEED_REFRESH_SECONDS,
     MEMORY_SHA256 as AUDJPY_R42_MEMORY_SHA256,
     R42AudJpyLiveSignal,
+    R42AudJpyLiveState,
     R42AudJpyLiveStateStore,
     build_live_signal as build_audjpy_r42_live_signal,
     build_r42_audjpy_risk_request,
@@ -401,6 +415,52 @@ def _log(path: Path, event: dict[str, object]) -> None:
         handle.write(json.dumps(value, sort_keys=True, default=str) + "\n")
 
 
+def _latency_ms(started_at: datetime, finished_at: datetime) -> int:
+    return int((finished_at - started_at).total_seconds() * 1000)
+
+
+def _log_market_decision_telemetry(
+    *,
+    log_path: Path,
+    anchor: datetime,
+    snapshot: M5BoundarySnapshot,
+    result: MarketBoundaryResult,
+) -> None:
+    _log(
+        log_path,
+        {
+            "event": "MARKET_BOUNDARY_DECISION_TELEMETRY",
+            "trader": result.identity,
+            "symbol": result.symbol,
+            "boundary_at": anchor.isoformat(),
+            "new_bar_first_seen_at": snapshot.new_bar_first_seen_at.isoformat(),
+            "market_state_updated_at": snapshot.market_state_updated_at.isoformat(),
+            "aggregate_finished_at": snapshot.aggregate_finished_at.isoformat(),
+            "strategy_started_at": result.strategy_started_at.isoformat(),
+            "strategy_finished_at": result.strategy_finished_at.isoformat(),
+            "feed_latency_ms": _latency_ms(
+                anchor,
+                snapshot.new_bar_first_seen_at,
+            ),
+            "market_state_latency_ms": _latency_ms(
+                snapshot.new_bar_first_seen_at,
+                snapshot.market_state_updated_at,
+            ),
+            "aggregate_latency_ms": _latency_ms(
+                snapshot.market_state_updated_at,
+                snapshot.aggregate_finished_at,
+            ),
+            "strategy_latency_ms": result.strategy_latency_ms,
+            "decision_latency_ms": _latency_ms(
+                anchor,
+                result.strategy_finished_at,
+            ),
+            "candidate": result.signal is not None,
+            "error": None if result.error is None else type(result.error).__name__,
+        },
+    )
+
+
 def _signal_anchor(accepted_at: datetime) -> datetime:
     local = accepted_at.astimezone(_NY).replace(minute=0, second=0, microsecond=0)
     if local.hour not in LIVE_ENTRY_ANCHORS_NY:
@@ -541,9 +601,7 @@ def _manage_h4_exits(
                 "comment": f"qore-h4-exit-{str(position.ticket)}"[:29],
             }
         else:
-            request["comment"] = (
-                f"qore-exit-{exit_label}-{str(position.ticket)}"[:29]
-            )
+            request["comment"] = f"qore-exit-{exit_label}-{str(position.ticket)}"[:29]
         checked = mt5.order_check(request)
         if checked is None or int(checked.retcode) != 0:
             _log(
@@ -749,8 +807,10 @@ def _process_r34_candidate(
     account_equity: Decimal,
     r34_store: R34LiveStateStore,
     log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
+    preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("XAUUSD", now=now)
+    spec = preflight_spec or gateway.read_symbol("XAUUSD", now=now)
     request, base_risk_usd = build_r34_risk_request(
         request_id=f"r34-{signal.signal_fingerprint[:24]}",
         signal=signal,
@@ -758,20 +818,25 @@ def _process_r34_candidate(
         account_equity=account_equity,
         now=now,
     )
-    open_stop, floating_loss, pending_stop = _broker_risk(transport)
-    account_state = gateway.read_account(now=now)
-    snapshot = AccountRiskSnapshot(
-        account_binding_id=account_binding_id,
-        equity=account_equity,
-        margin_used=account_state.margin,
-        free_margin=account_state.free_margin,
-        open_stop_worst_case_loss=open_stop,
-        open_floating_loss=floating_loss,
-        pending_broker_worst_case_loss=pending_stop,
-        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-        provider_budget=provider_budget,
-        reconciled_at=now,
-    )
+    if preflight_snapshot is None:
+        open_stop, floating_loss, pending_stop = _broker_risk(transport)
+        account_state = gateway.read_account(now=now)
+        snapshot = AccountRiskSnapshot(
+            account_binding_id=account_binding_id,
+            equity=account_equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+            provider_budget=provider_budget,
+            reconciled_at=now,
+        )
+    else:
+        snapshot = preflight_snapshot
+        if snapshot.account_binding_id != account_binding_id:
+            raise RuntimeError("R34 preflight account binding drift")
     if risk.recovery_required:
         risk.complete_boot_reconciliation(snapshot, now=now)
     authorization = risk.authorize(request, snapshot, now=now)
@@ -888,8 +953,10 @@ def _process_r38_candidate(
     account_equity: Decimal,
     r38_store: R38LiveStateStore,
     log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
+    preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("EURUSD", now=now)
+    spec = preflight_spec or gateway.read_symbol("EURUSD", now=now)
     request, base_risk_usd = build_r38_risk_request(
         request_id=f"r38-{signal.signal_fingerprint[:24]}",
         signal=signal,
@@ -897,20 +964,25 @@ def _process_r38_candidate(
         account_equity=account_equity,
         now=now,
     )
-    open_stop, floating_loss, pending_stop = _broker_risk(transport)
-    account_state = gateway.read_account(now=now)
-    snapshot = AccountRiskSnapshot(
-        account_binding_id=account_binding_id,
-        equity=account_equity,
-        margin_used=account_state.margin,
-        free_margin=account_state.free_margin,
-        open_stop_worst_case_loss=open_stop,
-        open_floating_loss=floating_loss,
-        pending_broker_worst_case_loss=pending_stop,
-        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-        provider_budget=provider_budget,
-        reconciled_at=now,
-    )
+    if preflight_snapshot is None:
+        open_stop, floating_loss, pending_stop = _broker_risk(transport)
+        account_state = gateway.read_account(now=now)
+        snapshot = AccountRiskSnapshot(
+            account_binding_id=account_binding_id,
+            equity=account_equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+            provider_budget=provider_budget,
+            reconciled_at=now,
+        )
+    else:
+        snapshot = preflight_snapshot
+        if snapshot.account_binding_id != account_binding_id:
+            raise RuntimeError("R38 preflight account binding drift")
     if risk.recovery_required:
         risk.complete_boot_reconciliation(snapshot, now=now)
     authorization = risk.authorize(request, snapshot, now=now)
@@ -1011,7 +1083,6 @@ def _process_r38_candidate(
     )
 
 
-
 def _process_r43_candidate(
     *,
     signal: R43LiveSignal,
@@ -1026,8 +1097,10 @@ def _process_r43_candidate(
     account_equity: Decimal,
     r43_store: R43LiveStateStore,
     log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
+    preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPUSD", now=now)
+    spec = preflight_spec or gateway.read_symbol("GBPUSD", now=now)
     request, base_risk_usd = build_r43_risk_request(
         request_id=f"r43-{signal.signal_fingerprint[:24]}",
         signal=signal,
@@ -1035,20 +1108,25 @@ def _process_r43_candidate(
         account_equity=account_equity,
         now=now,
     )
-    open_stop, floating_loss, pending_stop = _broker_risk(transport)
-    account_state = gateway.read_account(now=now)
-    snapshot = AccountRiskSnapshot(
-        account_binding_id=account_binding_id,
-        equity=account_equity,
-        margin_used=account_state.margin,
-        free_margin=account_state.free_margin,
-        open_stop_worst_case_loss=open_stop,
-        open_floating_loss=floating_loss,
-        pending_broker_worst_case_loss=pending_stop,
-        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-        provider_budget=provider_budget,
-        reconciled_at=now,
-    )
+    if preflight_snapshot is None:
+        open_stop, floating_loss, pending_stop = _broker_risk(transport)
+        account_state = gateway.read_account(now=now)
+        snapshot = AccountRiskSnapshot(
+            account_binding_id=account_binding_id,
+            equity=account_equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+            provider_budget=provider_budget,
+            reconciled_at=now,
+        )
+    else:
+        snapshot = preflight_snapshot
+        if snapshot.account_binding_id != account_binding_id:
+            raise RuntimeError("R43 preflight account binding drift")
     if risk.recovery_required:
         risk.complete_boot_reconciliation(snapshot, now=now)
     authorization = risk.authorize(request, snapshot, now=now)
@@ -1165,8 +1243,10 @@ def _process_gbpjpy_r38_candidate(
     account_equity: Decimal,
     gbpjpy_r38_store: R38GbpJpyLiveStateStore,
     log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
+    preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPJPY", now=now)
+    spec = preflight_spec or gateway.read_symbol("GBPJPY", now=now)
     request, base_risk_usd = build_r38_gbpjpy_risk_request(
         request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
         signal=signal,
@@ -1174,20 +1254,25 @@ def _process_gbpjpy_r38_candidate(
         account_equity=account_equity,
         now=now,
     )
-    open_stop, floating_loss, pending_stop = _broker_risk(transport)
-    account_state = gateway.read_account(now=now)
-    snapshot = AccountRiskSnapshot(
-        account_binding_id=account_binding_id,
-        equity=account_equity,
-        margin_used=account_state.margin,
-        free_margin=account_state.free_margin,
-        open_stop_worst_case_loss=open_stop,
-        open_floating_loss=floating_loss,
-        pending_broker_worst_case_loss=pending_stop,
-        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-        provider_budget=provider_budget,
-        reconciled_at=now,
-    )
+    if preflight_snapshot is None:
+        open_stop, floating_loss, pending_stop = _broker_risk(transport)
+        account_state = gateway.read_account(now=now)
+        snapshot = AccountRiskSnapshot(
+            account_binding_id=account_binding_id,
+            equity=account_equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+            provider_budget=provider_budget,
+            reconciled_at=now,
+        )
+    else:
+        snapshot = preflight_snapshot
+        if snapshot.account_binding_id != account_binding_id:
+            raise RuntimeError("GBPJPY R38 preflight account binding drift")
     if risk.recovery_required:
         risk.complete_boot_reconciliation(snapshot, now=now)
     authorization = risk.authorize(request, snapshot, now=now)
@@ -1307,6 +1392,7 @@ def _process_audjpy_r42_candidate(
     audjpy_r42_store: R42AudJpyLiveStateStore,
     log_path: Path,
     preflight_snapshot: AccountRiskSnapshot | None = None,
+    preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
     deadline = signal.entry_at.astimezone(UTC) + AUDJPY_R42_ENTRY_SLA
 
@@ -1323,9 +1409,7 @@ def _process_audjpy_r42_candidate(
                     "entry_at": signal.entry_at.isoformat(),
                     "deadline_at": deadline.isoformat(),
                     "observed_at": observed.isoformat(),
-                    "latency_ms": int(
-                        (observed - signal.entry_at).total_seconds() * 1000
-                    ),
+                    "latency_ms": int((observed - signal.entry_at).total_seconds() * 1000),
                     "order_send_called": False,
                 },
             )
@@ -1335,7 +1419,7 @@ def _process_audjpy_r42_candidate(
     processing_at = stage_time("before-symbol-read")
     if processing_at is None:
         return
-    spec = gateway.read_symbol("AUDJPY", now=processing_at)
+    spec = preflight_spec or gateway.read_symbol("AUDJPY", now=processing_at)
 
     request_at = stage_time("before-risk-request")
     if request_at is None:
@@ -1382,9 +1466,7 @@ def _process_audjpy_r42_candidate(
                 "symbol": "AUDJPY",
                 "reason": authorization.reason,
                 "signal_fingerprint": signal.signal_fingerprint,
-                "latency_ms": int(
-                    (authorize_at - signal.entry_at).total_seconds() * 1000
-                ),
+                "latency_ms": int((authorize_at - signal.entry_at).total_seconds() * 1000),
             },
         )
         return
@@ -1437,21 +1519,15 @@ def _process_audjpy_r42_candidate(
         "classification": signal.classification,
         "posture": signal.posture,
         "base_risk_scale": str(signal.base_risk_scale),
-        "first_layer_fragility_flags": list(
-            signal.first_layer_fragility_flags
-        ),
+        "first_layer_fragility_flags": list(signal.first_layer_fragility_flags),
         "first_layer_overlay_scale": str(signal.first_layer_overlay_scale),
-        "second_layer_fragility_flags": list(
-            signal.second_layer_fragility_flags
-        ),
+        "second_layer_fragility_flags": list(signal.second_layer_fragility_flags),
         "second_layer_overlay_scale": str(signal.second_layer_overlay_scale),
         "risk_scale": str(signal.risk_scale),
         "risk_usd": str(authorization.monetary_stop_loss),
         "volume": str(authorization.authorized_volume),
         "boundary_tick_at": signal.boundary_tick_at.isoformat(),
-        "latency_ms": int(
-            (checked_at - signal.entry_at).total_seconds() * 1000
-        ),
+        "latency_ms": int((checked_at - signal.entry_at).total_seconds() * 1000),
         "entry_sla_ms": int(AUDJPY_R42_ENTRY_SLA.total_seconds() * 1000),
     }
     if mode == "shadow":
@@ -1488,12 +1564,8 @@ def _process_audjpy_r42_candidate(
             "provider_order_ref": provider_ref,
             "order_send_started_at": send_at.isoformat(),
             "provider_ack_at": accepted_at.isoformat(),
-            "send_started_latency_ms": int(
-                (send_at - signal.entry_at).total_seconds() * 1000
-            ),
-            "provider_ack_latency_ms": int(
-                (accepted_at - signal.entry_at).total_seconds() * 1000
-            ),
+            "send_started_latency_ms": int((send_at - signal.entry_at).total_seconds() * 1000),
+            "provider_ack_latency_ms": int((accepted_at - signal.entry_at).total_seconds() * 1000),
         },
     )
 
@@ -1547,33 +1619,18 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     r38_store = R38LiveStateStore(state_dir / "r38-state.json")
     r38_store.reconcile(mt5, now=datetime.now(UTC))
-    r43_memory = load_r43_memory(
-        root
-        / "runtime_data"
-        / "gbpusd"
-        / "r43-r32-regime-memory.json"
-    )
+    r43_memory = load_r43_memory(root / "runtime_data" / "gbpusd" / "r43-r32-regime-memory.json")
     r43_store = R43LiveStateStore(state_dir / "r43-state.json")
     r43_store.reconcile(mt5, now=datetime.now(UTC))
     gbpjpy_r38_memory = load_gbpjpy_r38_memory(
-        root
-        / "runtime_data"
-        / "gbpjpy"
-        / "r38-confidence-tier-memory.json"
+        root / "runtime_data" / "gbpjpy" / "r38-confidence-tier-memory.json"
     )
-    gbpjpy_r38_store = R38GbpJpyLiveStateStore(
-        state_dir / "r38-gbpjpy-state.json"
-    )
+    gbpjpy_r38_store = R38GbpJpyLiveStateStore(state_dir / "r38-gbpjpy-state.json")
     gbpjpy_r38_store.reconcile(mt5, now=datetime.now(UTC))
     audjpy_r42_memory = load_audjpy_r42_memory(
-        root
-        / "runtime_data"
-        / "audjpy"
-        / "r42-causal-authority-memory.json"
+        root / "runtime_data" / "audjpy" / "r42-causal-authority-memory.json"
     )
-    audjpy_r42_store = R42AudJpyLiveStateStore(
-        state_dir / "r42-audjpy-state.json"
-    )
+    audjpy_r42_store = R42AudJpyLiveStateStore(state_dir / "r42-audjpy-state.json")
     audjpy_r42_store.reconcile(mt5, now=datetime.now(UTC))
     m5_caches: dict[str, M5BoundaryCache] = {
         "XAUUSD": M5BoundaryCache(
@@ -1601,9 +1658,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     for cache in m5_caches.values():
         cache.preload(mt5, now=preload_at)
     audjpy_r42_cache = m5_caches["AUDJPY"]
-    vt31_store = Vt31Nas100LiveStateStore(
-        state_dir / "vt31-nas100-state.json"
-    )
+    vt31_store = Vt31Nas100LiveStateStore(state_dir / "vt31-nas100-state.json")
     vt31_cache = Vt31Nas100M1Cache()
     vt31_cache.preload(mt5, now=datetime.now(UTC))
 
@@ -1641,27 +1696,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     refresh_provider_rules_before_submission()
     certified_policy = load_current_certified_policy(datetime.now(UTC))
     certified_policy_last_reload = certified_policy.observed_at
-    mission_store = DurableCapitalizationMissionStore(
-        state_dir / "capitalization-mission.json"
-    )
+    mission_store = DurableCapitalizationMissionStore(state_dir / "capitalization-mission.json")
     mission_config = build_5k_mission_config(
         account_identity_fingerprint=fingerprint,
         start_balance=PILOT_INITIAL_BALANCE,
-        purchase_cash_required=(
-            certified_policy.facts.stellar_instant_5k_purchase_price_usd
-        ),
+        purchase_cash_required=(certified_policy.facts.stellar_instant_5k_purchase_price_usd),
         reward_split_fraction=certified_policy.facts.reward_split_tier_1_2,
     )
-    mission_snapshot: CapitalizationMissionSnapshot = (
-        evaluate_capitalization_mission(
-            config=mission_config,
-            closed_balance=Decimal(str(account_info.balance)),
-            equity=Decimal(str(account_info.equity)),
-            now=datetime.now(UTC),
-            previous=mission_store.load(),
-            defend=False,
-            payout_eligible=False,
-        )
+    mission_snapshot: CapitalizationMissionSnapshot = evaluate_capitalization_mission(
+        config=mission_config,
+        closed_balance=Decimal(str(account_info.balance)),
+        equity=Decimal(str(account_info.equity)),
+        now=datetime.now(UTC),
+        previous=mission_store.load(),
+        defend=False,
+        payout_eligible=False,
     )
     mission_store.store(mission_snapshot)
     safety_path = state_dir / "live-safety.json"
@@ -1795,39 +1844,23 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "single_mt5_writer": True,
             "account_wide_risk_active": True,
             "certified_prop_policy_active": True,
-            "certified_prop_policy_observed_at": (
-                certified_policy.observed_at.isoformat()
-            ),
+            "certified_prop_policy_observed_at": (certified_policy.observed_at.isoformat()),
             "certified_prop_policy_default_open_risk_fraction": str(
                 certified_policy.facts.cumulative_open_risk_fraction
             ),
             "certified_prop_policy_fail_closed_open_risk_fraction": str(
                 certified_policy.facts.reclassified_open_risk_fraction
             ),
-            "certified_prop_policy_stop_loss_required": (
-                certified_policy.facts.stop_loss_required
-            ),
+            "certified_prop_policy_stop_loss_required": (certified_policy.facts.stop_loss_required),
             "capitalization_mission_active": True,
             "capitalization_mission_id": mission_snapshot.mission_id,
             "capitalization_mission_state": mission_snapshot.state.value,
-            "capitalization_purchase_cash_required": str(
-                mission_snapshot.purchase_cash_required
-            ),
-            "capitalization_gross_reward_required": str(
-                mission_snapshot.gross_reward_required
-            ),
-            "capitalization_post_withdrawal_reserve": str(
-                mission_snapshot.post_withdrawal_reserve
-            ),
-            "capitalization_bank_balance_threshold": str(
-                mission_snapshot.bank_balance_threshold
-            ),
-            "capitalization_balance_target": str(
-                mission_snapshot.mission_balance_target
-            ),
-            "capitalization_target_remaining": str(
-                mission_snapshot.target_remaining
-            ),
+            "capitalization_purchase_cash_required": str(mission_snapshot.purchase_cash_required),
+            "capitalization_gross_reward_required": str(mission_snapshot.gross_reward_required),
+            "capitalization_post_withdrawal_reserve": str(mission_snapshot.post_withdrawal_reserve),
+            "capitalization_bank_balance_threshold": str(mission_snapshot.bank_balance_threshold),
+            "capitalization_balance_target": str(mission_snapshot.mission_balance_target),
+            "capitalization_target_remaining": str(mission_snapshot.target_remaining),
             "gbpjpy_r38_enabled": True,
             "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
             "gbpjpy_r38_certification": "TURTLE_SOUP_GBPJPY_R39_FINAL_CERTIFICATION_SUITE_V1",
@@ -1855,15 +1888,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
             "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
             "audjpy_r42_memory_sha256": AUDJPY_R42_MEMORY_SHA256,
-            "audjpy_r42_entry_sla_seconds": str(
-                AUDJPY_R42_ENTRY_SLA.total_seconds()
-            ),
+            "audjpy_r42_entry_sla_seconds": str(AUDJPY_R42_ENTRY_SLA.total_seconds()),
             "audjpy_r42_boundary_arm_lead_seconds": str(
                 AUDJPY_R42_BOUNDARY_ARM_LEAD.total_seconds()
             ),
-            "audjpy_r42_feed_refresh_seconds": str(
-                AUDJPY_R42_FEED_REFRESH_SECONDS
-            ),
+            "audjpy_r42_feed_refresh_seconds": str(AUDJPY_R42_FEED_REFRESH_SECONDS),
             "audjpy_r42_boundary_retry_ms": 75,
             "audjpy_r42_history_preload_once": True,
             "audjpy_r42_incremental_cache": True,
@@ -1924,9 +1953,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     purchase_cash_required=(
                         certified_policy.facts.stellar_instant_5k_purchase_price_usd
                     ),
-                    reward_split_fraction=(
-                        certified_policy.facts.reward_split_tier_1_2
-                    ),
+                    reward_split_fraction=(certified_policy.facts.reward_split_tier_1_2),
                 )
                 certified_policy_ready = True
             except Exception as error:
@@ -1941,9 +1968,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     },
                 )
         if audjpy_arm_anchor is not None:
-            audjpy_anchor_key = (
-                f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
-            )
+            audjpy_anchor_key = f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
             if audjpy_anchor_key not in state.processed_anchors:
                 m5_fast_processed_keys: list[str] = []
                 arm_started_at = datetime.now(UTC)
@@ -1954,12 +1979,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "symbol": "AUDJPY",
                         "decision_at": audjpy_arm_anchor.isoformat(),
                         "armed_at": arm_started_at.isoformat(),
-                        "lead_ms": int(
-                            (
-                                audjpy_arm_anchor - arm_started_at
-                            ).total_seconds()
-                            * 1000
-                        ),
+                        "lead_ms": int((audjpy_arm_anchor - arm_started_at).total_seconds() * 1000),
                         "maintenance_frozen": True,
                         "risk_preflight_only": True,
                     },
@@ -1997,13 +2017,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             previous_active_mll=previous_mll,
                         )
                     )
-                    arm_open_stop, arm_floating_loss, arm_pending_stop = (
-                        _broker_risk(transport)
-                    )
+                    arm_open_stop, arm_floating_loss, arm_pending_stop = _broker_risk(transport)
                     arm_aggregate = (
-                        arm_open_stop
-                        + arm_pending_stop
-                        + risk.active_reserved_stop_risk()
+                        arm_open_stop + arm_pending_stop + risk.active_reserved_stop_risk()
                     )
                     prior_mission_state = mission_snapshot.state
                     mission_snapshot = evaluate_capitalization_mission(
@@ -2041,9 +2057,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         equity=arm_account.equity,
                         now=arm_started_at,
                         previous=mission_snapshot,
-                        defend=(
-                            arm_capital.decision is CapitalBudgetDecision.REJECT
-                        ),
+                        defend=(arm_capital.decision is CapitalBudgetDecision.REJECT),
                         payout_eligible=False,
                     )
                     mission_store.store(mission_snapshot)
@@ -2055,9 +2069,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "from_state": prior_mission_state.value,
                                 "to_state": mission_snapshot.state.value,
                                 "closed_balance": str(arm_account.balance),
-                                "target_remaining": str(
-                                    mission_snapshot.target_remaining
-                                ),
+                                "target_remaining": str(mission_snapshot.target_remaining),
                                 "new_risk_allowed_by_mission": (
                                     mission_snapshot.new_risk_allowed_by_mission
                                 ),
@@ -2071,12 +2083,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         open_stop_worst_case_loss=arm_open_stop,
                         open_floating_loss=arm_floating_loss,
                         pending_broker_worst_case_loss=arm_pending_stop,
-                        qore_authorizable_headroom=(
-                            arm_capital.qore_authorizable_headroom
-                        ),
+                        qore_authorizable_headroom=(arm_capital.qore_authorizable_headroom),
                         provider_budget=arm_provider,
                         reconciled_at=arm_started_at,
                     )
+                    arm_specs = {
+                        symbol: gateway.read_symbol(symbol, now=arm_started_at)
+                        for symbol in (
+                            "XAUUSD",
+                            "EURUSD",
+                            "GBPUSD",
+                            "GBPJPY",
+                            "AUDJPY",
+                        )
+                    }
                     accepted_times = [
                         item.transitioned_at
                         for item in mutation_ledger.records()
@@ -2099,34 +2119,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         or not mission_snapshot.new_risk_allowed_by_mission
                     )
 
-                    armed_m5_snapshots = await_m5_boundary_snapshots(
-                        mt5,
-                        caches=m5_caches,
-                        anchor=audjpy_arm_anchor,
-                    )
-                    boundary_snapshot = armed_m5_snapshots["AUDJPY"]
-                    boundary_observed = max(
-                        item.observed_at for item in armed_m5_snapshots.values()
-                    )
-                    cycle_at = boundary_observed
-                    m5_deadline = (
-                        audjpy_arm_anchor + M5_PROFILE.decision_deadline
-                    )
                     fast_plan = (
                         (
                             "R43_GBPUSD",
                             "GBPUSD",
                             "R43_CAUSAL_ABSTAIN",
-                            lambda: build_r43_live_signal(
-                                mt5,
-                                now=boundary_observed,
-                                memory_bundle=r43_memory,
-                                state=arm_r43_state,
-                                boundary_snapshot=armed_m5_snapshots["GBPUSD"],
-                            ),
-                            lambda signal, at: _process_r43_candidate(
-                                signal=signal,
-                                now=at,
+                            partial(
+                                _process_r43_candidate,
                                 mode=mode,
                                 gateway=gateway,
                                 transport=transport,
@@ -2137,22 +2136,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 account_equity=arm_account.equity,
                                 r43_store=r43_store,
                                 log_path=log_path,
+                                preflight_snapshot=arm_snapshot,
+                                preflight_spec=arm_specs["GBPUSD"],
                             ),
                         ),
                         (
                             "R34_XAUUSD",
                             "XAUUSD",
                             "R34_CAUSAL_ABSTAIN",
-                            lambda: build_r34_live_signal(
-                                mt5,
-                                now=boundary_observed,
-                                cognitive=r34_cognitive,
-                                state=arm_r34_state,
-                                boundary_snapshot=armed_m5_snapshots["XAUUSD"],
-                            ),
-                            lambda signal, at: _process_r34_candidate(
-                                signal=signal,
-                                now=at,
+                            partial(
+                                _process_r34_candidate,
                                 mode=mode,
                                 gateway=gateway,
                                 transport=transport,
@@ -2163,22 +2156,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 account_equity=arm_account.equity,
                                 r34_store=r34_store,
                                 log_path=log_path,
+                                preflight_snapshot=arm_snapshot,
+                                preflight_spec=arm_specs["XAUUSD"],
                             ),
                         ),
                         (
                             "R38_GBPJPY",
                             "GBPJPY",
                             "GBPJPY_R38_CAUSAL_ABSTAIN",
-                            lambda: build_gbpjpy_r38_live_signal(
-                                mt5,
-                                now=boundary_observed,
-                                memory_bundle=gbpjpy_r38_memory,
-                                state=arm_gbpjpy_state,
-                                boundary_snapshot=armed_m5_snapshots["GBPJPY"],
-                            ),
-                            lambda signal, at: _process_gbpjpy_r38_candidate(
-                                signal=signal,
-                                now=at,
+                            partial(
+                                _process_gbpjpy_r38_candidate,
                                 mode=mode,
                                 gateway=gateway,
                                 transport=transport,
@@ -2189,22 +2176,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 account_equity=arm_account.equity,
                                 gbpjpy_r38_store=gbpjpy_r38_store,
                                 log_path=log_path,
+                                preflight_snapshot=arm_snapshot,
+                                preflight_spec=arm_specs["GBPJPY"],
                             ),
                         ),
                         (
                             "R38_EURUSD",
                             "EURUSD",
                             "R38_CAUSAL_ABSTAIN",
-                            lambda: build_r38_live_signal(
-                                mt5,
-                                now=boundary_observed,
-                                cognitive=r38_cognitive,
-                                state=arm_r38_state,
-                                boundary_snapshot=armed_m5_snapshots["EURUSD"],
-                            ),
-                            lambda signal, at: _process_r38_candidate(
-                                signal=signal,
-                                now=at,
+                            partial(
+                                _process_r38_candidate,
                                 mode=mode,
                                 gateway=gateway,
                                 transport=transport,
@@ -2215,19 +2196,107 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 account_equity=arm_account.equity,
                                 r38_store=r38_store,
                                 log_path=log_path,
+                                preflight_snapshot=arm_snapshot,
+                                preflight_spec=arm_specs["EURUSD"],
                             ),
                         ),
                     )
+                    with ResidentMarketActorPool(max_workers=5) as market_actors:
+
+                        def submit_ready_market(
+                            symbol: str,
+                            snapshot: M5BoundarySnapshot,
+                            blocked: bool = arm_blocked,
+                            r43_state: R43LiveState = arm_r43_state,
+                            r34_state: R34LiveState = arm_r34_state,
+                            gbpjpy_state: R38GbpJpyLiveState = arm_gbpjpy_state,
+                            r38_state: R38LiveState = arm_r38_state,
+                            r42_state: R42AudJpyLiveState = arm_r42_state,
+                        ) -> None:
+                            if blocked:
+                                return
+                            evaluate: Callable[[], tuple[Any | None, str]]
+                            if symbol == "GBPUSD":
+                                identity = "R43_GBPUSD"
+                                evaluate = partial(
+                                    build_r43_live_signal,
+                                    mt5,
+                                    now=snapshot.observed_at,
+                                    memory_bundle=r43_memory,
+                                    state=r43_state,
+                                    boundary_snapshot=snapshot,
+                                )
+                            elif symbol == "XAUUSD":
+                                identity = "R34_XAUUSD"
+                                evaluate = partial(
+                                    build_r34_live_signal,
+                                    mt5,
+                                    now=snapshot.observed_at,
+                                    cognitive=r34_cognitive,
+                                    state=r34_state,
+                                    boundary_snapshot=snapshot,
+                                )
+                            elif symbol == "GBPJPY":
+                                identity = "R38_GBPJPY"
+                                evaluate = partial(
+                                    build_gbpjpy_r38_live_signal,
+                                    mt5,
+                                    now=snapshot.observed_at,
+                                    memory_bundle=gbpjpy_r38_memory,
+                                    state=gbpjpy_state,
+                                    boundary_snapshot=snapshot,
+                                )
+                            elif symbol == "EURUSD":
+                                identity = "R38_EURUSD"
+                                evaluate = partial(
+                                    build_r38_live_signal,
+                                    mt5,
+                                    now=snapshot.observed_at,
+                                    cognitive=r38_cognitive,
+                                    state=r38_state,
+                                    boundary_snapshot=snapshot,
+                                )
+                            elif symbol == "AUDJPY":
+                                identity = "R42_AUDJPY"
+                                evaluate = partial(
+                                    build_audjpy_r42_live_signal,
+                                    mt5,
+                                    now=snapshot.observed_at,
+                                    memory_bundle=audjpy_r42_memory,
+                                    state=r42_state,
+                                    boundary_snapshot=snapshot,
+                                )
+                            else:
+                                raise RuntimeError(f"unsupported resident M5 market:{symbol}")
+                            market_actors.submit(
+                                MarketBoundaryJob(
+                                    identity=identity,
+                                    symbol=symbol,
+                                    evaluate=evaluate,
+                                )
+                            )
+
+                        armed_m5_snapshots = await_m5_boundary_snapshots(
+                            mt5,
+                            caches=m5_caches,
+                            anchor=audjpy_arm_anchor,
+                            on_snapshot=submit_ready_market,
+                        )
+                        boundary_results = {
+                            result.identity: result for result in market_actors.results()
+                        }
+                    boundary_observed = max(
+                        item.observed_at for item in armed_m5_snapshots.values()
+                    )
+                    cycle_at = boundary_observed
+                    m5_deadline = audjpy_arm_anchor + M5_PROFILE.decision_deadline
                     for (
                         fast_identity,
                         fast_symbol,
                         abstain_event,
-                        build_fast,
                         process_fast,
                     ) in fast_plan:
-                        fast_key = (
-                            f"{fast_identity}|{audjpy_arm_anchor.isoformat()}"
-                        )
+                        fast_key = f"{fast_identity}|{audjpy_arm_anchor.isoformat()}"
                         if fast_key in state.processed_anchors:
                             continue
                         m5_fast_processed_keys.append(fast_key)
@@ -2244,23 +2313,26 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             )
                             continue
                         try:
-                            fast_signal, fast_reason = build_fast()
-                            fast_done = datetime.now(UTC)
-                            latency_ms = int(
-                                (
-                                    fast_done - audjpy_arm_anchor
-                                ).total_seconds()
-                                * 1000
+                            actor_result = boundary_results[fast_identity]
+                            _log_market_decision_telemetry(
+                                log_path=log_path,
+                                anchor=audjpy_arm_anchor,
+                                snapshot=armed_m5_snapshots[fast_symbol],
+                                result=actor_result,
                             )
+                            if actor_result.error is not None:
+                                raise actor_result.error
+                            fast_signal = actor_result.signal
+                            fast_reason = actor_result.reason
+                            fast_done = actor_result.strategy_finished_at
+                            latency_ms = int((fast_done - audjpy_arm_anchor).total_seconds() * 1000)
                             if fast_done > m5_deadline:
                                 _log(
                                     log_path,
                                     {
                                         "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
                                         "symbol": fast_symbol,
-                                        "decision_at": (
-                                            audjpy_arm_anchor.isoformat()
-                                        ),
+                                        "decision_at": (audjpy_arm_anchor.isoformat()),
                                         "reason": "decision-deadline-expired",
                                         "latency_ms": latency_ms,
                                         "order_send_called": False,
@@ -2273,17 +2345,22 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     {
                                         "event": abstain_event,
                                         "symbol": fast_symbol,
-                                        "decision_at": (
-                                            audjpy_arm_anchor.isoformat()
-                                        ),
+                                        "decision_at": (audjpy_arm_anchor.isoformat()),
                                         "observed_at": fast_done.isoformat(),
                                         "latency_ms": latency_ms,
                                         "reason": fast_reason,
                                         "fast_path": True,
+                                        "strategy_started_at": (
+                                            actor_result.strategy_started_at.isoformat()
+                                        ),
+                                        "strategy_finished_at": (
+                                            actor_result.strategy_finished_at.isoformat()
+                                        ),
+                                        "strategy_latency_ms": (actor_result.strategy_latency_ms),
                                     },
                                 )
                             else:
-                                process_fast(fast_signal, fast_done)
+                                process_fast(signal=fast_signal, now=fast_done)
                         except Exception as fast_error:
                             _log(
                                 log_path,
@@ -2306,28 +2383,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "reason": "preflight-new-order-blocked",
                                 "observed_at": boundary_observed.isoformat(),
                                 "latency_ms": int(
-                                    (
-                                        boundary_observed
-                                        - audjpy_arm_anchor
-                                    ).total_seconds()
-                                    * 1000
+                                    (boundary_observed - audjpy_arm_anchor).total_seconds() * 1000
                                 ),
                             },
                         )
                     else:
-                        audjpy_signal, reason = build_audjpy_r42_live_signal(
-                            mt5,
-                            now=boundary_observed,
-                            memory_bundle=audjpy_r42_memory,
-                            state=arm_r42_state,
-                            boundary_snapshot=boundary_snapshot,
+                        audjpy_result = boundary_results["R42_AUDJPY"]
+                        _log_market_decision_telemetry(
+                            log_path=log_path,
+                            anchor=audjpy_arm_anchor,
+                            snapshot=armed_m5_snapshots["AUDJPY"],
+                            result=audjpy_result,
                         )
-                        audjpy_done = datetime.now(UTC)
+                        if audjpy_result.error is not None:
+                            raise audjpy_result.error
+                        audjpy_signal = audjpy_result.signal
+                        reason = audjpy_result.reason
+                        audjpy_done = audjpy_result.strategy_finished_at
                         audjpy_latency_ms = int(
-                            (
-                                audjpy_done - audjpy_arm_anchor
-                            ).total_seconds()
-                            * 1000
+                            (audjpy_done - audjpy_arm_anchor).total_seconds() * 1000
                         )
                         if audjpy_done > m5_deadline:
                             _log(
@@ -2339,9 +2413,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     "reason": "decision-deadline-expired",
                                     "observed_at": audjpy_done.isoformat(),
                                     "latency_ms": audjpy_latency_ms,
-                                    "hard_sla_seconds": (
-                                        AUDJPY_R42_ENTRY_SLA.total_seconds()
-                                    ),
+                                    "hard_sla_seconds": (AUDJPY_R42_ENTRY_SLA.total_seconds()),
                                     "order_send_called": False,
                                 },
                             )
@@ -2355,9 +2427,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     "reason": reason,
                                     "observed_at": audjpy_done.isoformat(),
                                     "latency_ms": audjpy_latency_ms,
-                                    "hard_sla_seconds": (
-                                        AUDJPY_R42_ENTRY_SLA.total_seconds()
+                                    "hard_sla_seconds": (AUDJPY_R42_ENTRY_SLA.total_seconds()),
+                                    "strategy_started_at": (
+                                        audjpy_result.strategy_started_at.isoformat()
                                     ),
+                                    "strategy_finished_at": (
+                                        audjpy_result.strategy_finished_at.isoformat()
+                                    ),
+                                    "strategy_latency_ms": (audjpy_result.strategy_latency_ms),
                                 },
                             )
                         else:
@@ -2375,12 +2452,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 audjpy_r42_store=audjpy_r42_store,
                                 log_path=log_path,
                                 preflight_snapshot=arm_snapshot,
+                                preflight_spec=arm_specs["AUDJPY"],
                             )
                 except Exception as error:
                     freeze_until = audjpy_arm_anchor + AUDJPY_R42_ENTRY_SLA
-                    remaining = (
-                        freeze_until - datetime.now(UTC)
-                    ).total_seconds()
+                    remaining = (freeze_until - datetime.now(UTC)).total_seconds()
                     if remaining > 0:
                         time.sleep(remaining)
                     _log(
@@ -2448,35 +2524,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         if armed_m5_snapshots is None:
             m5_late_delta = cycle_at - current_hour
             if timedelta(0) <= m5_late_delta <= M5_PROFILE.order_send_deadline:
-                try:
-                    armed_m5_snapshots = await_m5_boundary_snapshots(
-                        mt5,
-                        caches=m5_caches,
-                        anchor=current_hour,
-                    )
-                    cycle_at = max(
-                        item.observed_at for item in armed_m5_snapshots.values()
-                    )
-                except Exception as error:
-                    _log(
-                        log_path,
-                        {
-                            "event": "M5_PORTFOLIO_BOUNDARY_FAIL_CLOSED",
-                            "decision_at": current_hour.isoformat(),
-                            "reason": type(error).__name__,
-                            "message": str(error),
-                            "hard_sla_seconds": (
-                                M5_PROFILE.order_send_deadline.total_seconds()
-                            ),
-                            "order_send_called": False,
-                        },
-                    )
+                _log(
+                    log_path,
+                    {
+                        "event": "M5_PORTFOLIO_BOUNDARY_FAIL_CLOSED",
+                        "decision_at": current_hour.isoformat(),
+                        "reason": "boundary-not-prearmed",
+                        "hard_sla_seconds": (M5_PROFILE.order_send_deadline.total_seconds()),
+                        "order_send_called": False,
+                    },
+                )
 
         vt31_arm_anchor = vt31_boundary_to_arm(cycle_at)
-        if (
-            vt31_arm_anchor is not None
-            and _vt31_entry_boundary(vt31_arm_anchor)
-        ):
+        if vt31_arm_anchor is not None and _vt31_entry_boundary(vt31_arm_anchor):
             vt31_arm_started_at = datetime.now(UTC)
             _log(
                 log_path,
@@ -2485,10 +2545,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "symbol": "NAS100",
                     "decision_at": vt31_arm_anchor.isoformat(),
                     "armed_at": vt31_arm_started_at.isoformat(),
-                    "lead_ms": int(
-                        (vt31_arm_anchor - vt31_arm_started_at).total_seconds()
-                        * 1000
-                    ),
+                    "lead_ms": int((vt31_arm_anchor - vt31_arm_started_at).total_seconds() * 1000),
                     "maintenance_frozen": True,
                     "risk_preflight_only": True,
                 },
@@ -2512,9 +2569,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     vt31_pending_stop,
                 ) = _broker_risk(transport)
                 vt31_aggregate = (
-                    vt31_open_stop
-                    + vt31_pending_stop
-                    + risk.active_reserved_stop_risk()
+                    vt31_open_stop + vt31_pending_stop + risk.active_reserved_stop_risk()
                 )
                 prior_mission_state = mission_snapshot.state
                 mission_snapshot = evaluate_capitalization_mission(
@@ -2552,9 +2607,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     equity=vt31_account.equity,
                     now=vt31_arm_started_at,
                     previous=mission_snapshot,
-                    defend=(
-                        vt31_capital.decision is CapitalBudgetDecision.REJECT
-                    ),
+                    defend=(vt31_capital.decision is CapitalBudgetDecision.REJECT),
                     payout_eligible=False,
                 )
                 mission_store.store(mission_snapshot)
@@ -2566,9 +2619,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             "from_state": prior_mission_state.value,
                             "to_state": mission_snapshot.state.value,
                             "closed_balance": str(vt31_account.balance),
-                            "target_remaining": str(
-                                mission_snapshot.target_remaining
-                            ),
+                            "target_remaining": str(mission_snapshot.target_remaining),
                             "new_risk_allowed_by_mission": (
                                 mission_snapshot.new_risk_allowed_by_mission
                             ),
@@ -2582,9 +2633,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     open_stop_worst_case_loss=vt31_open_stop,
                     open_floating_loss=vt31_floating_loss,
                     pending_broker_worst_case_loss=vt31_pending_stop,
-                    qore_authorizable_headroom=(
-                        vt31_capital.qore_authorizable_headroom
-                    ),
+                    qore_authorizable_headroom=(vt31_capital.qore_authorizable_headroom),
                     provider_budget=vt31_provider,
                     reconciled_at=vt31_arm_started_at,
                 )
@@ -2629,9 +2678,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 else:
                     vt31_basket, vt31_reason = evaluate_vt31_boundary(
                         closed_m1=vt31_boundary.closed_m1,
-                        evidence_fingerprint=(
-                            vt31_boundary.evidence_fingerprint
-                        ),
+                        evidence_fingerprint=(vt31_boundary.evidence_fingerprint),
                         store=vt31_store,
                     )
                     if vt31_basket is None:
@@ -2642,9 +2689,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "symbol": "NAS100",
                                 "decision_at": vt31_arm_anchor.isoformat(),
                                 "reason": vt31_reason,
-                                "observed_at": (
-                                    vt31_boundary.observed_at.isoformat()
-                                ),
+                                "observed_at": (vt31_boundary.observed_at.isoformat()),
                             },
                         )
                     elif mode == "shadow":
@@ -2677,9 +2722,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "symbol": "NAS100",
                                 "decision_at": vt31_arm_anchor.isoformat(),
                                 "basket_id": vt31_basket.basket_id,
-                                "candidate_count": len(
-                                    vt31_basket.candidates
-                                ),
+                                "candidate_count": len(vt31_basket.candidates),
                             },
                         )
             except Exception as error:
@@ -2695,9 +2738,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "decision_at": vt31_arm_anchor.isoformat(),
                         "reason": type(error).__name__,
                         "message": str(error),
-                        "decision_deadline_seconds": (
-                            VT31_DECISION_DEADLINE.total_seconds()
-                        ),
+                        "decision_deadline_seconds": (VT31_DECISION_DEADLINE.total_seconds()),
                     },
                 )
             completed_at = datetime.now(UTC)
@@ -2770,14 +2811,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
-        gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = (
-            manage_gbpjpy_r38_open_position(
-                mt5,
-                now=cycle_at,
-                store=gbpjpy_r38_store,
-                mutations_enabled=mode == "live",
-                cache=m5_caches["GBPJPY"],
-            )
+        gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = manage_gbpjpy_r38_open_position(
+            mt5,
+            now=cycle_at,
+            store=gbpjpy_r38_store,
+            mutations_enabled=mode == "live",
+            cache=m5_caches["GBPJPY"],
         )
         if gbpjpy_r38_manage_reason not in {
             "no-open-gbpjpy-r38-position",
@@ -2791,20 +2830,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "event": "GBPJPY_R38_POSITION_MANAGEMENT",
                     "symbol": "GBPJPY",
                     "reason": gbpjpy_r38_manage_reason,
-                    "strategy_drawdown_r": str(
-                        gbpjpy_r38_live_state.drawdown_r
-                    ),
+                    "strategy_drawdown_r": str(gbpjpy_r38_live_state.drawdown_r),
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
-        audjpy_r42_live_state, audjpy_r42_manage_reason = (
-            manage_audjpy_r42_open_position(
-                mt5,
-                now=cycle_at,
-                store=audjpy_r42_store,
-                mutations_enabled=mode == "live",
-                cache=audjpy_r42_cache,
-            )
+        audjpy_r42_live_state, audjpy_r42_manage_reason = manage_audjpy_r42_open_position(
+            mt5,
+            now=cycle_at,
+            store=audjpy_r42_store,
+            mutations_enabled=mode == "live",
+            cache=audjpy_r42_cache,
         )
         if audjpy_r42_manage_reason not in {
             "no-open-audjpy-r42-position",
@@ -2818,9 +2853,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "event": "AUDJPY_R42_POSITION_MANAGEMENT",
                     "symbol": "AUDJPY",
                     "reason": audjpy_r42_manage_reason,
-                    "strategy_drawdown_r": str(
-                        audjpy_r42_live_state.drawdown_r
-                    ),
+                    "strategy_drawdown_r": str(audjpy_r42_live_state.drawdown_r),
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
@@ -2896,9 +2929,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             highest_closed_balance=highest,
             current_aggregate_stop_risk=aggregate,
             requested_posture=posture,
-            certified_open_risk_fraction=(
-                certified_policy.facts.reclassified_open_risk_fraction
-            ),
+            certified_open_risk_fraction=(certified_policy.facts.reclassified_open_risk_fraction),
         )
         mission_snapshot = evaluate_capitalization_mission(
             config=mission_config,
@@ -2920,15 +2951,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "closed_balance": str(account_state.balance),
                     "realized_profit": str(mission_snapshot.realized_profit),
                     "target_remaining": str(mission_snapshot.target_remaining),
-                    "bank_balance_threshold": str(
-                        mission_snapshot.bank_balance_threshold
-                    ),
-                    "mission_balance_target": str(
-                        mission_snapshot.mission_balance_target
-                    ),
-                    "new_risk_allowed_by_mission": (
-                        mission_snapshot.new_risk_allowed_by_mission
-                    ),
+                    "bank_balance_threshold": str(mission_snapshot.bank_balance_threshold),
+                    "mission_balance_target": str(mission_snapshot.mission_balance_target),
+                    "new_risk_allowed_by_mission": (mission_snapshot.new_risk_allowed_by_mission),
                 },
             )
         accepted_times = [
@@ -3047,7 +3072,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     )
 
         r34_anchor = current_r34_anchor(cycle_at)
-        if r34_anchor is not None and not new_order_blocked:
+        if r34_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked:
             r34_anchor_key = f"R34_XAUUSD|{r34_anchor.isoformat()}"
             if r34_anchor_key not in state.processed_anchors:
                 try:
@@ -3058,9 +3083,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         cognitive=r34_cognitive,
                         state=r34_live_state,
                         boundary_snapshot=(
-                            None
-                            if armed_m5_snapshots is None
-                            else armed_m5_snapshots.get("XAUUSD")
+                            None if armed_m5_snapshots is None else armed_m5_snapshots.get("XAUUSD")
                         ),
                     )
                     if r34_signal is None:
@@ -3113,7 +3136,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
         r38_anchor = current_r38_anchor(cycle_at)
-        if r38_anchor is not None and not new_order_blocked:
+        if r38_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked:
             r38_anchor_key = f"R38_EURUSD|{r38_anchor.isoformat()}"
             if r38_anchor_key not in state.processed_anchors:
                 try:
@@ -3124,9 +3147,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         cognitive=r38_cognitive,
                         state=r38_live_state,
                         boundary_snapshot=(
-                            None
-                            if armed_m5_snapshots is None
-                            else armed_m5_snapshots.get("EURUSD")
+                            None if armed_m5_snapshots is None else armed_m5_snapshots.get("EURUSD")
                         ),
                     )
                     if r38_signal is None:
@@ -3183,7 +3204,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     )
 
         r43_anchor = current_r43_anchor(cycle_at)
-        if r43_anchor is not None and not new_order_blocked:
+        if r43_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked:
             r43_anchor_key = f"R43_GBPUSD|{r43_anchor.isoformat()}"
             if r43_anchor_key not in state.processed_anchors:
                 try:
@@ -3194,9 +3215,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         memory_bundle=r43_memory,
                         state=r43_live_state,
                         boundary_snapshot=(
-                            None
-                            if armed_m5_snapshots is None
-                            else armed_m5_snapshots.get("GBPUSD")
+                            None if armed_m5_snapshots is None else armed_m5_snapshots.get("GBPUSD")
                         ),
                     )
                     if r43_signal is None:
@@ -3253,12 +3272,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
 
-
         gbpjpy_r38_anchor = current_gbpjpy_r38_anchor(cycle_at)
-        if gbpjpy_r38_anchor is not None and not new_order_blocked:
-            gbpjpy_r38_anchor_key = (
-                f"R38_GBPJPY|{gbpjpy_r38_anchor.isoformat()}"
-            )
+        if (
+            gbpjpy_r38_anchor is not None
+            and armed_m5_snapshots is not None
+            and not new_order_blocked
+        ):
+            gbpjpy_r38_anchor_key = f"R38_GBPJPY|{gbpjpy_r38_anchor.isoformat()}"
             if gbpjpy_r38_anchor_key not in state.processed_anchors:
                 try:
                     gbpjpy_r38_live_state = gbpjpy_r38_store.reconcile(
@@ -3271,9 +3291,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         memory_bundle=gbpjpy_r38_memory,
                         state=gbpjpy_r38_live_state,
                         boundary_snapshot=(
-                            None
-                            if armed_m5_snapshots is None
-                            else armed_m5_snapshots.get("GBPJPY")
+                            None if armed_m5_snapshots is None else armed_m5_snapshots.get("GBPJPY")
                         ),
                     )
                     if gbpjpy_r38_signal is None:
@@ -3285,9 +3303,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "decision_at": gbpjpy_r38_anchor.isoformat(),
                                 "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                                 "reason": reason,
-                                "strategy_drawdown_r": str(
-                                    gbpjpy_r38_live_state.drawdown_r
-                                ),
+                                "strategy_drawdown_r": str(gbpjpy_r38_live_state.drawdown_r),
                                 "last_trailing_exit_at": (
                                     None
                                     if gbpjpy_r38_live_state.trailing_exit_at is None
@@ -3332,7 +3348,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
 
-
         if processed_anchor is None:
             state = state.with_cycle(
                 highest_closed_balance=str(highest),
@@ -3357,34 +3372,31 @@ def main() -> None:
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     recovery_log = root / "artifacts" / "fundednext_runtime_events.jsonl"
-    while True:
-        lock = SingleWriterRuntimeLock(
-            root / "var" / "fundednext" / "runtime.lock"
-        )
-        try:
-            with lock:
-                run(
-                    root,
-                    mode=args.mode,
-                    activation_path=(root / args.activation),
-                )
-            raise RuntimeError("resident runtime returned unexpectedly")
-        except KeyboardInterrupt:
-            mt5.shutdown()
-            raise
-        except Exception as error:
-            _log(
-                recovery_log,
-                {
-                    "event": "RUNTIME_FATAL_RECOVERY",
-                    "reason": type(error).__name__,
-                    "message": str(error),
-                    "observed_at": datetime.now(UTC).isoformat(),
-                    "restart_delay_seconds": 1.0,
-                },
+    lock = SingleWriterRuntimeLock(root / "var" / "fundednext" / "runtime.lock")
+    try:
+        with lock:
+            run(
+                root,
+                mode=args.mode,
+                activation_path=(root / args.activation),
             )
-            mt5.shutdown()
-            time.sleep(1.0)
+        raise RuntimeError("resident runtime returned unexpectedly")
+    except KeyboardInterrupt:
+        mt5.shutdown()
+        raise
+    except Exception as error:
+        _log(
+            recovery_log,
+            {
+                "event": "RUNTIME_FATAL_EXIT",
+                "reason": type(error).__name__,
+                "message": str(error),
+                "observed_at": datetime.now(UTC).isoformat(),
+                "restart_owner": "external-watchdog-with-storm-fence",
+            },
+        )
+        mt5.shutdown()
+        raise SystemExit(1) from error
 
 
 if __name__ == "__main__":

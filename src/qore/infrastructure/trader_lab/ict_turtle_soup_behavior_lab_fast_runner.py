@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 from bisect import bisect_left
 from collections import defaultdict
 from collections.abc import Sequence
@@ -17,6 +16,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+from qore.infrastructure.deterministic_sampling import DeterministicChooser
 from qore.infrastructure.trader_lab import ict_turtle_soup_behavior_lab as lab
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar, Side
 
@@ -45,9 +45,7 @@ def _reclaim(
     for bar in _window(bars, raid_at, until):
         if bar.closed_at > until:
             continue
-        reclaimed = (
-            bar.close > ref.level if ref.side is Side.LONG else bar.close < ref.level
-        )
+        reclaimed = bar.close > ref.level if ref.side is Side.LONG else bar.close < ref.level
         if reclaimed:
             minutes = int((bar.closed_at - raid_at).total_seconds() // 60)
             depth = (
@@ -100,9 +98,7 @@ def _opposite_hit(
     return False, None
 
 
-def _bootstrap_ci(
-    events: Sequence[lab.Event], attr: str
-) -> tuple[float | None, float | None]:
+def _bootstrap_ci(events: Sequence[lab.Event], attr: str) -> tuple[float | None, float | None]:
     if not events:
         return None, None
     blocks: dict[str, tuple[int, int]] = {}
@@ -119,7 +115,7 @@ def _bootstrap_ci(
         successes, total = population[0]
         value = successes / total
         return value, value
-    rng = random.Random(lab.BOOTSTRAP_SEED)
+    rng = DeterministicChooser(lab.BOOTSTRAP_SEED)
     estimates: list[float] = []
     for _ in range(400):
         successes = 0

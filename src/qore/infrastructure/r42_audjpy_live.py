@@ -16,6 +16,7 @@ profile counts are retained in the snapshot summaries for drift detection.
 Broker granularity and entry drift are fail-closed; certified risk is never
 rounded upward to reach broker minimum volume.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -75,23 +76,15 @@ CERTIFICATION_ARTIFACT_DIGEST = (
     "sha256:6e4c0cdae038f4d8a0819a6eb4714d922f07d7a6360ac1e711c4434565567473"
 )
 CERTIFICATION_GIT_SHA = "e4801f5bb2c5b2eb2c03f8ae83593f226101f8c9"
-CERTIFICATION_REPORT_SHA256 = (
-    "701cefb92afbc1c871315969559beed5f232e929de60ea61484000729dbf683d"
-)
-CERTIFICATION_MANIFEST_SHA256 = (
-    "c9984463dda62dbb7efa5d1b87c8d1eb32bfd166dc4935c28abb40f62b2dd3f1"
-)
+CERTIFICATION_REPORT_SHA256 = "701cefb92afbc1c871315969559beed5f232e929de60ea61484000729dbf683d"
+CERTIFICATION_MANIFEST_SHA256 = "c9984463dda62dbb7efa5d1b87c8d1eb32bfd166dc4935c28abb40f62b2dd3f1"
 R41_SOURCE_RUN_ID = 35399430491
 R41_SOURCE_ARTIFACT_ID = 10569333275
 R41_SOURCE_ARTIFACT_DIGEST = (
     "sha256:93492c9d0c982b008b108e9a6a8cd7596fe29cb6bdd59cb2880de808e624c4cf"
 )
-R41_SOURCE_REPORT_SHA256 = (
-    "e0c32f8fc7d8db9ba3d48391b2d488d65ebbcdbe8421c036f5b59234927f6656"
-)
-R41_SOURCE_TRADES_SHA256 = (
-    "a17501de87921c5095fa004600509a321454cfec6a83469e2e71d557cd31de7e"
-)
+R41_SOURCE_REPORT_SHA256 = "e0c32f8fc7d8db9ba3d48391b2d488d65ebbcdbe8421c036f5b59234927f6656"
+R41_SOURCE_TRADES_SHA256 = "a17501de87921c5095fa004600509a321454cfec6a83469e2e71d557cd31de7e"
 
 SYMBOL = "AUDJPY"
 SELECTED_ENSEMBLE = "R38_FROZEN_SIGNAL_BASELINE"
@@ -145,6 +138,7 @@ HISTORY_M5_BARS = 15_000
 _STATE_SCHEMA = "qore.turtle_soup_audjpy.r42.live_state.v1"
 _STRATEGY_TZ = NEW_YORK_TZ
 
+
 @dataclass(frozen=True, slots=True)
 class R42AudJpyDol:
     rank: int
@@ -181,10 +175,7 @@ class R42AudJpyLiveSignal:
             raise ValueError("AUDJPY R42 signal fingerprint must be SHA-256")
         if self.entry_at.tzinfo is None or self.entry_at.utcoffset() is None:
             raise ValueError("AUDJPY R42 entry timestamp must be timezone-aware")
-        if (
-            self.boundary_tick_at.tzinfo is None
-            or self.boundary_tick_at.utcoffset() is None
-        ):
+        if self.boundary_tick_at.tzinfo is None or self.boundary_tick_at.utcoffset() is None:
             raise ValueError("AUDJPY R42 broker tick timestamp must be timezone-aware")
         if self.timeframe not in {"H1", "H4"}:
             raise ValueError("AUDJPY R42 timeframe must be H1/H4")
@@ -207,9 +198,7 @@ class R42AudJpyLiveSignal:
         if self.second_layer_overlay_scale not in set(SECOND_LAYER_POLICY):
             raise ValueError("AUDJPY R42 second fragility overlay drift")
         expected = (
-            self.base_risk_scale
-            * self.first_layer_overlay_scale
-            * self.second_layer_overlay_scale
+            self.base_risk_scale * self.first_layer_overlay_scale * self.second_layer_overlay_scale
         )
         if self.risk_scale != expected:
             raise ValueError("AUDJPY R42 final risk arithmetic drift")
@@ -259,6 +248,7 @@ class R42AudJpyLiveState:
         if peak < equity:
             raise ValueError("AUDJPY R42 strategy peak cannot be below equity")
         return peak - equity
+
 
 class R42AudJpyLiveStateStore:
     def __init__(self, path: Path) -> None:
@@ -387,8 +377,7 @@ class R42AudJpyLiveStateStore:
         exits = [
             item
             for item in matching
-            if int(getattr(item, "entry", -1))
-            == int(getattr(api, "DEAL_ENTRY_OUT", -2))
+            if int(getattr(item, "entry", -1)) == int(getattr(api, "DEAL_ENTRY_OUT", -2))
         ]
         if not exits:
             return state
@@ -396,11 +385,7 @@ class R42AudJpyLiveStateStore:
         closed_at = normalise_fundednext_server_epoch(int(last.time))
         trailing_exit = state.last_trailing_exit_at
         moved = Decimal(opened.current_stop) != Decimal(opened.initial_stop)
-        if (
-            moved
-            and int(getattr(last, "reason", -1))
-            == int(getattr(api, "DEAL_REASON_SL", -2))
-        ):
+        if moved and int(getattr(last, "reason", -1)) == int(getattr(api, "DEAL_REASON_SL", -2)):
             trailing_exit = closed_at.isoformat()
 
         realized_usd = sum(
@@ -420,9 +405,7 @@ class R42AudJpyLiveStateStore:
         equity = Decimal(state.strategy_equity_r) + realized_r
         peak = max(Decimal(state.strategy_peak_r), equity)
 
-        closed = tuple(
-            (*state.closed_signal_fingerprints, opened.signal_fingerprint)
-        )[-256:]
+        closed = tuple((*state.closed_signal_fingerprints, opened.signal_fingerprint))[-256:]
         next_state = R42AudJpyLiveState(
             open_trade=None,
             closed_signal_fingerprints=closed,
@@ -576,9 +559,9 @@ class R42AudJpyM5Cache:
             broker_tick_at = normalise_fundednext_server_epoch(raw_seconds)
         else:
             raw_seconds, millis = divmod(raw_msc, 1000)
-            broker_tick_at = normalise_fundednext_server_epoch(
-                raw_seconds
-            ) + timedelta(milliseconds=millis)
+            broker_tick_at = normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+                milliseconds=millis
+            )
         tick_age = observed - broker_tick_at
         if tick_age < timedelta(seconds=-0.5):
             raise RuntimeError("AUDJPY R42 broker tick is from the future")
@@ -626,15 +609,12 @@ def await_boundary_snapshot(
     while True:
         observed = clock().astimezone(UTC)
         if observed > deadline:
-            raise TimeoutError(
-                f"AUDJPY R42 hard 2s SLA expired:{last_reason}"
-            )
+            raise TimeoutError(f"AUDJPY R42 hard 2s SLA expired:{last_reason}")
         if observed < anchor:
             if (
                 last_preboundary_refresh is None
-                or (
-                    observed - last_preboundary_refresh
-                ).total_seconds() >= NORMAL_FEED_REFRESH_SECONDS
+                or (observed - last_preboundary_refresh).total_seconds()
+                >= NORMAL_FEED_REFRESH_SECONDS
             ):
                 cache.refresh_incremental(
                     api,
@@ -664,9 +644,7 @@ def await_boundary_snapshot(
             last_reason = str(error)
             remaining = (deadline - checked_at).total_seconds()
             if remaining <= 0:
-                raise TimeoutError(
-                    f"AUDJPY R42 hard 2s SLA expired:{last_reason}"
-                ) from error
+                raise TimeoutError(f"AUDJPY R42 hard 2s SLA expired:{last_reason}") from error
             sleep_fn(min(BOUNDARY_RETRY_SECONDS, remaining))
 
 
@@ -709,7 +687,6 @@ def mt5_evidence(api: Any, *, now: datetime) -> tuple[Evidence, Decimal]:
         Evidence(symbol=SYMBOL, digits=int(info.digits), bars=bars),
         Decimal(str(rows[-1]["open"])),
     )
-
 
 
 def load_memory(
@@ -844,6 +821,7 @@ def load_memory(
         memories[scheme] = (fields, route_mode, memory, summary)
     return memories
 
+
 def _live_setup(
     *,
     timeframe: str,
@@ -890,7 +868,7 @@ def _live_setup(
         session_bucket=r1._session_bucket(raid_at),
         prior_body_alignment=r1._prior_alignment(c1, side),
     )
-    previous = candles[max(0, pos - 20):pos]
+    previous = candles[max(0, pos - 20) : pos]
     mean_range = sum(
         (item.high - item.low for item in previous),
         Decimal(0),
@@ -901,18 +879,12 @@ def _live_setup(
     raid_units = None if mean_range <= 0 else abs(raid_extreme - raid_level) / mean_range
     reclaim = r2._first_reclaim_latency(c2, c1, side, raid_at)
     duration = Decimal(60 if timeframe == "H1" else 240)
-    cisd_progress = (
-        Decimal(str((cisd.confirmed_at - c2.opened_at).total_seconds() / 60))
-        / duration
-    )
+    cisd_progress = Decimal(str((cisd.confirmed_at - c2.opened_at).total_seconds() / 60)) / duration
     protected_ratio = None if source_range <= 0 else risk / source_range
     range_state = None if mean_range <= 0 else source_range / mean_range
     body, wick, close_location = r2._geometry(c2, side)
     target_ratio = None if source_range <= 0 else reward / source_range
-    peers = [
-        r2._same_boundary(item, side)
-        for item in candles[max(0, pos - 21):pos - 1]
-    ]
+    peers = [r2._same_boundary(item, side) for item in candles[max(0, pos - 21) : pos - 1]]
     equal = any(level == r2._same_boundary(c1, side) for level in peers)
     local = raid_at.astimezone(r2.NY)
     context = r2.ContextSignal(
@@ -922,11 +894,7 @@ def _live_setup(
         session=signal.session_bucket,
         weekday=local.strftime("%A"),
         prior_body_alignment=signal.prior_body_alignment,
-        fvg_before_entry=(
-            "yes"
-            if r2._fvg_before_entry(c2.m5, raid_at, anchor, side)
-            else "no"
-        ),
+        fvg_before_entry=("yes" if r2._fvg_before_entry(c2.m5, raid_at, anchor, side) else "no"),
         exact_equal_liquidity="yes" if equal else "no",
         raid_depth_range_bucket=r2._bucket(
             raid_units,
@@ -969,7 +937,6 @@ def _live_setup(
     return r3.Setup(context=context, source=c2, cisd_threshold=cisd.threshold)
 
 
-
 def _decision_for_setup(
     *,
     setup: r3.Setup,
@@ -984,32 +951,28 @@ def _decision_for_setup(
         ],
     ],
     current_open: Decimal,
+    prepared_snapshot: M5BoundarySnapshot | None = None,
 ) -> tuple[r38.Decision, tuple[native.NativeTarget, ...], dict[str, str]] | None:
-    bars = tuple(
-        bar
-        for bar in evidence.bars
-        if bar.closed_at <= setup.context.signal.entry_at
+    bars = (
+        prepared_snapshot.complete_bars
+        if prepared_snapshot is not None
+        else tuple(bar for bar in evidence.bars if bar.closed_at <= setup.context.signal.entry_at)
     )
     opens = tuple(bar.opened_at for bar in bars)
-    h4 = build_h4(bars)
-    frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
-    frame_opens = {
-        name: tuple(item.opened_at for item in items)
-        for name, items in frames.items()
-    }
-    frame_closes = {
-        name: tuple(item.closed_at for item in items)
-        for name, items in frames.items()
-    }
-    swings = {
-        name: td._swing_candidates(items, name)
-        for name, items in frames.items()
-    }
-    swing_known = {
-        name: {
-            side: tuple(item.known_at for item in by_side[side])
-            for side in by_side
+    if prepared_snapshot is None:
+        h4 = build_h4(bars)
+        frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
+    else:
+        frames = {
+            "H1": prepared_snapshot.h1,
+            "H4": prepared_snapshot.h4,
+            "D1": prepared_snapshot.d1,
         }
+    frame_opens = {name: tuple(item.opened_at for item in items) for name, items in frames.items()}
+    frame_closes = {name: tuple(item.closed_at for item in items) for name, items in frames.items()}
+    swings = {name: td._swing_candidates(items, name) for name, items in frames.items()}
+    swing_known = {
+        name: {side: tuple(item.known_at for item in by_side[side]) for side in by_side}
         for name, by_side in swings.items()
     }
     signal = setup.context.signal
@@ -1048,9 +1011,7 @@ def _decision_for_setup(
         target_rows.append(
             {
                 "candidate_known_at": candidate.known_at.isoformat(),
-                "touch_m5_opened_at": (
-                    None if touched is None else touched.opened_at.isoformat()
-                ),
+                "touch_m5_opened_at": (None if touched is None else touched.opened_at.isoformat()),
                 "candidate_price": str(candidate.level),
                 "candidate_type": candidate.kind,
                 "source_timeframe": candidate.timeframe,
@@ -1130,13 +1091,9 @@ def _risk_scale_for(
         raise ValueError("AUDJPY R42 unexpected authority classification")
 
     first_flags = decision.fragility_flags
-    first_overlay = r38.FRAGILITY_POLICY[
-        min(len(first_flags), len(r38.FRAGILITY_POLICY) - 1)
-    ]
+    first_overlay = r38.FRAGILITY_POLICY[min(len(first_flags), len(r38.FRAGILITY_POLICY) - 1)]
     second_flags = _second_layer_flags(setup=setup, regime=regime)
-    second_overlay = SECOND_LAYER_POLICY[
-        min(len(second_flags), len(SECOND_LAYER_POLICY) - 1)
-    ]
+    second_overlay = SECOND_LAYER_POLICY[min(len(second_flags), len(SECOND_LAYER_POLICY) - 1)]
     final = base * first_overlay * second_overlay
     if final <= 0:
         raise ValueError("AUDJPY R42 risk overlay must remain non-zero")
@@ -1148,6 +1105,7 @@ def _risk_scale_for(
         second_overlay,
         final,
     )
+
 
 def build_live_signal(
     api: Any,
@@ -1186,12 +1144,20 @@ def build_live_signal(
     )
     if current is None:
         return None, "current-m5-open-unavailable"
-    complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
-    h4 = build_h4(complete)
+    prepared_snapshot = (
+        boundary_snapshot if isinstance(boundary_snapshot, M5BoundarySnapshot) else None
+    )
+    if prepared_snapshot is None:
+        complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
+        h4 = build_h4(complete)
+        h1 = build_h1(complete)
+    else:
+        h4 = prepared_snapshot.h4
+        h1 = prepared_snapshot.h1
     if _h4_open_for(anchor) == anchor:
         frames.append(("H4", h4))
-    frames.append(("H1", build_h1(complete)))
+    frames.append(("H1", h1))
 
     rearm_blocked = False
     for timeframe, candles in frames:
@@ -1211,6 +1177,7 @@ def build_live_signal(
             evidence=evidence,
             memory_bundle=memory_bundle,
             current_open=current.open,
+            prepared_snapshot=prepared_snapshot,
         )
         if resolved is None:
             continue
@@ -1367,8 +1334,7 @@ def build_r42_audjpy_risk_request(
 
     ticks = abs(executable - signal.stop_loss) / provider_spec.tick_size
     stop_per_lot = (
-        ticks * provider_spec.tick_value
-        + FOREX_OPEN_COMMISSION_PER_LOT_USD
+        ticks * provider_spec.tick_value + FOREX_OPEN_COMMISSION_PER_LOT_USD
     ) * BROKER_RISK_BUFFER
     base_risk_usd = account_equity * BASE_RISK_FRACTION
     requested_risk = base_risk_usd * signal.risk_scale
@@ -1428,8 +1394,7 @@ def certified_stop_for_open_trade(
     path = [
         bar
         for bar in evidence.bars
-        if entry_at <= bar.opened_at < entry_at + timedelta(hours=24)
-        and bar.closed_at <= now
+        if entry_at <= bar.opened_at < entry_at + timedelta(hours=24) and bar.closed_at <= now
     ]
     pending: Decimal | None = None
     observed: list[Bar] = []
@@ -1470,9 +1435,7 @@ def certified_stop_for_open_trade(
                         target=target,
                     ):
                         pending = (
-                            level
-                            if pending is None
-                            else native._better_stop(side, pending, level)
+                            level if pending is None else native._better_stop(side, pending, level)
                         )
 
         if opened.posture == native.POSTURE_PROTECT:
@@ -1482,29 +1445,19 @@ def certified_stop_for_open_trade(
                 entry=entry,
                 target=target,
             )
-            if (
-                swing is not None
-                and native._improves_stop(
-                    side=side,
-                    previous=current_stop,
-                    candidate=swing,
-                    target=target,
-                )
+            if swing is not None and native._improves_stop(
+                side=side,
+                previous=current_stop,
+                candidate=swing,
+                target=target,
             ):
-                pending = (
-                    swing
-                    if pending is None
-                    else native._better_stop(side, pending, swing)
-                )
+                pending = swing if pending is None else native._better_stop(side, pending, swing)
 
-    if (
-        pending is not None
-        and native._improves_stop(
-            side=side,
-            previous=current_stop,
-            candidate=pending,
-            target=target,
-        )
+    if pending is not None and native._improves_stop(
+        side=side,
+        previous=current_stop,
+        candidate=pending,
+        target=target,
     ):
         current_stop = pending
     return current_stop
@@ -1523,11 +1476,7 @@ def manage_open_position(
     if opened is None:
         return state, "no-open-audjpy-r42-position"
     magic = _magic(opened.client_order_id)
-    positions = [
-        item
-        for item in (api.positions_get() or ())
-        if int(item.magic) == magic
-    ]
+    positions = [item for item in (api.positions_get() or ()) if int(item.magic) == magic]
     if len(positions) != 1:
         if not positions:
             return state, "audjpy-r42-position-awaiting-reconcile"

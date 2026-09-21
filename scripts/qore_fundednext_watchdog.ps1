@@ -5,6 +5,35 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $StatePath = "$Root\var\fundednext\runtime-state.json"
 $RuntimeTaskName = "QORE-FundedNext-Runtime"
 $EventPath = "$Root\artifacts\fundednext_watchdog.jsonl"
+$MaintenancePath = "$Root\var\fundednext\maintenance.json"
+$RestartGuardPath = "$Root\var\fundednext\watchdog-restart-guard.json"
+$RestartWindowSeconds = 600
+$MaximumRestartsPerWindow = 3
+
+function Read-JsonShared([string]$Path) {
+    $Share = [System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete
+    $Stream = [System.IO.FileStream]::new(
+        $Path,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        $Share
+    )
+    try {
+        $Reader = [System.IO.StreamReader]::new($Stream)
+        try { return ($Reader.ReadToEnd() | ConvertFrom-Json) }
+        finally { $Reader.Dispose() }
+    } finally {
+        $Stream.Dispose()
+    }
+}
+
+function Write-JsonAtomic([object]$Value, [string]$Path) {
+    $Directory = Split-Path -Parent $Path
+    New-Item -ItemType Directory -Force -Path $Directory | Out-Null
+    $Temporary = "$Path.$PID.tmp"
+    $Value | ConvertTo-Json -Compress | Set-Content -Encoding UTF8 $Temporary
+    Move-Item -Force $Temporary $Path
+}
 
 function Get-QoreRuntimeProcesses {
     return @(
@@ -24,6 +53,11 @@ function Log-Watchdog([string]$Event, [string]$Reason) {
     }
     New-Item -ItemType Directory -Force -Path "$Root\artifacts" | Out-Null
     $Value | ConvertTo-Json -Compress | Add-Content -Encoding UTF8 $EventPath
+}
+
+if (Test-Path $MaintenancePath) {
+    Log-Watchdog "WATCHDOG_MAINTENANCE" "owner-maintenance-fence-active"
+    exit 0
 }
 
 $Task = Get-ScheduledTask -TaskName $RuntimeTaskName
@@ -53,7 +87,7 @@ if (-not $Restart) {
         $Reason = "runtime-state-missing"
     } else {
         try {
-            $State = Get-Content -Raw $StatePath | ConvertFrom-Json
+            $State = Read-JsonShared $StatePath
             $Heartbeat = [DateTimeOffset]::Parse([string]$State.heartbeat_at)
             if (([DateTimeOffset]::UtcNow - $Heartbeat).TotalSeconds -gt 120) {
                 $Restart = $true
@@ -67,6 +101,34 @@ if (-not $Restart) {
 }
 
 if ($Restart) {
+    $Now = [DateTimeOffset]::UtcNow
+    $WindowStartedAt = $Now
+    $RestartCount = 0
+    if (Test-Path $RestartGuardPath) {
+        try {
+            $Guard = Read-JsonShared $RestartGuardPath
+            $PriorWindow = [DateTimeOffset]::Parse([string]$Guard.window_started_at)
+            if (($Now - $PriorWindow).TotalSeconds -le $RestartWindowSeconds) {
+                $WindowStartedAt = $PriorWindow
+                $RestartCount = [int]$Guard.restart_count
+            }
+        } catch {
+            $RestartCount = $MaximumRestartsPerWindow
+        }
+    }
+    if ($RestartCount -ge $MaximumRestartsPerWindow) {
+        Disable-ScheduledTask -TaskName $RuntimeTaskName | Out-Null
+        Log-Watchdog "WATCHDOG_FAIL_CLOSED" "restart-storm-fenced:$Reason"
+        exit 4
+    }
+    $RestartCount += 1
+    Write-JsonAtomic ([ordered]@{
+        window_started_at = $WindowStartedAt.ToString("o")
+        restart_count = $RestartCount
+        last_reason = $Reason
+        last_restart_at = $Now.ToString("o")
+    }) $RestartGuardPath
+
     Stop-ScheduledTask -TaskName $RuntimeTaskName -ErrorAction SilentlyContinue
     $Deadline = [DateTimeOffset]::UtcNow.AddSeconds(20)
     do {
@@ -84,4 +146,6 @@ if ($Restart) {
     Remove-Item "$Root\var\fundednext\runtime.lock" -Force -ErrorAction SilentlyContinue
     Start-ScheduledTask -TaskName $RuntimeTaskName
     Log-Watchdog "WATCHDOG_RESTART" $Reason
+} elseif (Test-Path $RestartGuardPath) {
+    Remove-Item $RestartGuardPath -Force -ErrorAction SilentlyContinue
 }

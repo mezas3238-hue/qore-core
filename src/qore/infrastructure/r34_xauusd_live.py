@@ -4,6 +4,7 @@ The methodology is not reimplemented here: this adapter reuses the exact R34
 research primitives, Cognitive V3, R30 nearest-DOL resolver and R33 five-family
 expansion.  MT5 supplies M5 market evidence and broker execution only.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -142,7 +143,9 @@ class R34LiveStateStore:
             "closed_signal_fingerprints": list(state.closed_signal_fingerprints[-256:]),
         }
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        fd, name = tempfile.mkstemp(prefix=f".{self._path.name}.", suffix=".tmp", dir=self._path.parent)
+        fd, name = tempfile.mkstemp(
+            prefix=f".{self._path.name}.", suffix=".tmp", dir=self._path.parent
+        )
         temp = Path(name)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
@@ -265,7 +268,9 @@ def mt5_evidence(api: Any, *, now: datetime) -> tuple[Evidence, Decimal]:
     latest = bars[-1].opened_at
     if abs((now.astimezone(UTC) - latest).total_seconds()) > 600:
         raise RuntimeError("R34 MT5 clock normalization stale")
-    return Evidence(symbol=SYMBOL, digits=int(info.digits), bars=bars), Decimal(str(rows[-1]["open"]))
+    return Evidence(symbol=SYMBOL, digits=int(info.digits), bars=bars), Decimal(
+        str(rows[-1]["open"])
+    )
 
 
 def load_cognitive(path: Path) -> dict[str, Any]:
@@ -330,8 +335,10 @@ def _live_setup(
         session_bucket=r1._session_bucket(raid_at),
         prior_body_alignment=r1._prior_alignment(c1, side),
     )
-    previous = candles[max(0, pos - 20):pos]
-    mean_range = sum((item.high - item.low for item in previous), Decimal(0)) / Decimal(len(previous))
+    previous = candles[max(0, pos - 20) : pos]
+    mean_range = sum((item.high - item.low for item in previous), Decimal(0)) / Decimal(
+        len(previous)
+    )
     source_range = c2.high - c2.low
     raid_level = c1.low if side is Side.LONG else c1.high
     raid_extreme = c2.low if side is Side.LONG else c2.high
@@ -343,7 +350,7 @@ def _live_setup(
     range_state = None if mean_range <= 0 else source_range / mean_range
     body, wick, close_location = r2._geometry(c2, side)
     target_ratio = None if source_range <= 0 else reward / source_range
-    peers = [r2._same_boundary(item, side) for item in candles[max(0, pos - 21):pos - 1]]
+    peers = [r2._same_boundary(item, side) for item in candles[max(0, pos - 21) : pos - 1]]
     equal = any(level == r2._same_boundary(c1, side) for level in peers)
     local = raid_at.astimezone(r2.NY)
     context = r2.ContextSignal(
@@ -355,16 +362,30 @@ def _live_setup(
         prior_body_alignment=signal.prior_body_alignment,
         fvg_before_entry="yes" if r2._fvg_before_entry(c2.m5, raid_at, anchor, side) else "no",
         exact_equal_liquidity="yes" if equal else "no",
-        raid_depth_range_bucket=r2._bucket(raid_units, (Decimal("0.05"), Decimal("0.10"), Decimal("0.25"), Decimal("0.50"))),
+        raid_depth_range_bucket=r2._bucket(
+            raid_units, (Decimal("0.05"), Decimal("0.10"), Decimal("0.25"), Decimal("0.50"))
+        ),
         reclaim_latency_bucket=r2._latency_bucket(reclaim),
-        cisd_progress_bucket=r2._bucket(cisd_progress, (Decimal("0.25"), Decimal("0.50"), Decimal("0.75"))),
-        protected_risk_range_bucket=r2._bucket(protected_ratio, (Decimal("0.25"), Decimal("0.50"), Decimal("1.0"), Decimal("2.0"))),
-        source_range_state_bucket=r2._bucket(range_state, (Decimal("0.75"), Decimal("1.0"), Decimal("1.5"), Decimal("2.0"))),
+        cisd_progress_bucket=r2._bucket(
+            cisd_progress, (Decimal("0.25"), Decimal("0.50"), Decimal("0.75"))
+        ),
+        protected_risk_range_bucket=r2._bucket(
+            protected_ratio, (Decimal("0.25"), Decimal("0.50"), Decimal("1.0"), Decimal("2.0"))
+        ),
+        source_range_state_bucket=r2._bucket(
+            range_state, (Decimal("0.75"), Decimal("1.0"), Decimal("1.5"), Decimal("2.0"))
+        ),
         body_fraction_bucket=r2._bucket(body, (Decimal("0.25"), Decimal("0.50"), Decimal("0.75"))),
         rejection_wick_bucket=r2._bucket(wick, (Decimal("0.10"), Decimal("0.25"), Decimal("0.50"))),
-        close_location_bucket=r2._bucket(close_location, (Decimal("0.25"), Decimal("0.50"), Decimal("0.75"))),
-        projected_r_bucket=r2._bucket(signal.projected_r, (Decimal("0.5"), Decimal("1.0"), Decimal("1.5"), Decimal("2.5"))),
-        target_distance_range_bucket=r2._bucket(target_ratio, (Decimal("0.5"), Decimal("1.0"), Decimal("2.0"), Decimal("4.0"))),
+        close_location_bucket=r2._bucket(
+            close_location, (Decimal("0.25"), Decimal("0.50"), Decimal("0.75"))
+        ),
+        projected_r_bucket=r2._bucket(
+            signal.projected_r, (Decimal("0.5"), Decimal("1.0"), Decimal("1.5"), Decimal("2.5"))
+        ),
+        target_distance_range_bucket=r2._bucket(
+            target_ratio, (Decimal("0.5"), Decimal("1.0"), Decimal("2.0"), Decimal("4.0"))
+        ),
     )
     return r3.Setup(context=context, source=c2, cisd_threshold=cisd.threshold)
 
@@ -375,11 +396,23 @@ def _decision_for_setup(
     evidence: Evidence,
     cognitive: dict[str, Any],
     current_open: Decimal,
+    prepared_snapshot: M5BoundarySnapshot | None = None,
 ) -> tuple[Any, Any] | None:
-    bars = tuple(bar for bar in evidence.bars if bar.closed_at <= setup.context.signal.entry_at)
+    bars = (
+        prepared_snapshot.complete_bars
+        if prepared_snapshot is not None
+        else tuple(bar for bar in evidence.bars if bar.closed_at <= setup.context.signal.entry_at)
+    )
     opens = tuple(bar.opened_at for bar in bars)
-    h4 = build_h4(bars)
-    frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
+    if prepared_snapshot is None:
+        h4 = build_h4(bars)
+        frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
+    else:
+        frames = {
+            "H1": prepared_snapshot.h1,
+            "H4": prepared_snapshot.h4,
+            "D1": prepared_snapshot.d1,
+        }
     frame_opens = {name: tuple(item.opened_at for item in items) for name, items in frames.items()}
     frame_closes = {name: tuple(item.closed_at for item in items) for name, items in frames.items()}
     swings = {name: td._swing_candidates(items, name) for name, items in frames.items()}
@@ -484,12 +517,17 @@ def build_live_signal(
     current = next((bar for bar in reversed(evidence.bars) if bar.opened_at == anchor), None)
     if current is None:
         raise RuntimeError("R34 current M5 boundary not yet available")
-    complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
-    h4 = build_h4(complete)
+    if boundary_snapshot is None:
+        complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
+        h4 = build_h4(complete)
+        h1 = build_h1(complete)
+    else:
+        h4 = boundary_snapshot.h4
+        h1 = boundary_snapshot.h1
     if _h4_open_for(anchor) == anchor:
         frames.append(("H4", h4))
-    frames.append(("H1", build_h1(complete)))
+    frames.append(("H1", h1))
     for timeframe, candles in frames:
         setup = _live_setup(
             timeframe=timeframe,
@@ -504,6 +542,7 @@ def build_live_signal(
             evidence=evidence,
             cognitive=cognitive,
             current_open=current.open,
+            prepared_snapshot=boundary_snapshot,
         )
         if resolved is None:
             continue

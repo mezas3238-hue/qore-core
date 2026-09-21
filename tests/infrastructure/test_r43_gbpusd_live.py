@@ -18,12 +18,12 @@ from qore.infrastructure.r43_gbpusd_live import (
     MEMORY_PROFILE_COUNT,
     MEMORY_SHA256,
     RANK2_OVERLAY_SCALE,
+    SHORT_OVERLAY_SCALE,
+    STRUCTURAL_POLICY,
     R43Dol,
     R43LiveSignal,
     R43LiveState,
     R43OpenTrade,
-    SHORT_OVERLAY_SCALE,
-    STRUCTURAL_POLICY,
     _risk_scale_for,
     build_r43_risk_request,
     certified_stop_for_open_trade,
@@ -108,9 +108,7 @@ def test_r43_certified_identity_and_lineage() -> None:
 
 
 def test_r43_committed_memory_is_exactly_bound() -> None:
-    fields, route_mode, memory = load_memory(
-        Path("runtime_data/gbpusd/r43-r32-regime-memory.json")
-    )
+    fields, route_mode, memory = load_memory(Path("runtime_data/gbpusd/r43-r32-regime-memory.json"))
     assert len(MEMORY_SHA256) == 64
     assert len(memory) == MEMORY_PROFILE_COUNT == 4246
     assert route_mode == "TYPES_ONLY"
@@ -174,10 +172,10 @@ def test_r43_source_open_drift_over_certified_stress_fails_closed() -> None:
 
 
 def test_r43_anchor_is_hourly_and_short_grace_only() -> None:
-    assert current_anchor(datetime(2026, 9, 18, 15, 0, 9, tzinfo=UTC)) == datetime(
+    assert current_anchor(datetime(2026, 9, 18, 15, 0, 1, tzinfo=UTC)) == datetime(
         2026, 9, 18, 15, 0, tzinfo=UTC
     )
-    assert current_anchor(datetime(2026, 9, 18, 15, 0, 11, tzinfo=UTC)) is None
+    assert current_anchor(datetime(2026, 9, 18, 15, 0, 2, 1_000, tzinfo=UTC)) is None
 
 
 def test_r43_frozen_structural_and_drawdown_scales(

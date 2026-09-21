@@ -108,9 +108,11 @@ def test_all_m5_turtle_soup_traders_share_the_hard_fast_path() -> None:
     assert '"R38_EURUSD"' in text
     assert '"AUDJPY"' in text
     assert '"M5_FAST_BOUNDARY_FAIL_CLOSED"' in text
-    assert "m5_deadline = (" in text
+    assert "m5_deadline = audjpy_arm_anchor + M5_PROFILE.decision_deadline" in text
     assert "M5_PROFILE.decision_deadline" in text
     assert '"fast_path": True' in text
+    assert "on_snapshot=submit_ready_market" in text
+    assert "ResidentMarketActorPool(max_workers=5)" in text
 
 
 def test_audjpy_runtime_never_sends_after_deadline_guard() -> None:

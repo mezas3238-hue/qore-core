@@ -14,6 +14,7 @@ Cognitive V2 observations used by the certified research lineage. Broker
 granularity and entry drift are fail-closed; certified risk is never rounded
 upward to reach a broker minimum lot.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -68,23 +69,15 @@ CERTIFICATION_ARTIFACT_ID = 10559463231
 CERTIFICATION_ARTIFACT_DIGEST = (
     "sha256:ff388da8e29866bca831a75b3edcc4f30c5ba3b1f6229c88f85896f86bfcc12e"
 )
-CERTIFICATION_REPORT_SHA256 = (
-    "a51cd25520fbd9d182315e56a36cf5c6301560499ea94bf48f04a3c40168a364"
-)
-CERTIFICATION_MANIFEST_SHA256 = (
-    "a6ac26d0af0be2613eff172a96421dc6ffc4e8516af2a4978bfcca5e2afce6a0"
-)
+CERTIFICATION_REPORT_SHA256 = "a51cd25520fbd9d182315e56a36cf5c6301560499ea94bf48f04a3c40168a364"
+CERTIFICATION_MANIFEST_SHA256 = "a6ac26d0af0be2613eff172a96421dc6ffc4e8516af2a4978bfcca5e2afce6a0"
 R38_SOURCE_RUN_ID = 35373705221
 R38_SOURCE_ARTIFACT_ID = 10559845896
 R38_SOURCE_ARTIFACT_DIGEST = (
     "sha256:862bd7951806e17d62dddafb800ac18f19a600b5b9dfcb7b16bc79703ca1fd1f"
 )
-R38_SOURCE_REPORT_SHA256 = (
-    "9e0d30d4ba6553439ec675077e05c1579a65b6c32476ac0b616427f0663c802c"
-)
-R38_SOURCE_TRADES_SHA256 = (
-    "0021b69adf8862178915b68c5208bc9b409b533c8a123e35642443bbad257e8c"
-)
+R38_SOURCE_REPORT_SHA256 = "9e0d30d4ba6553439ec675077e05c1579a65b6c32476ac0b616427f0663c802c"
+R38_SOURCE_TRADES_SHA256 = "0021b69adf8862178915b68c5208bc9b409b533c8a123e35642443bbad257e8c"
 
 SYMBOL = "GBPJPY"
 SELECTED_ENSEMBLE = "R35_RANGE_DIRECTION_MINIMAL_ROBUST"
@@ -213,6 +206,7 @@ class R38GbpJpyLiveState:
             raise ValueError("GBPJPY R38 strategy peak cannot be below equity")
         return peak - equity
 
+
 class R38GbpJpyLiveStateStore:
     def __init__(self, path: Path) -> None:
         self._path = path
@@ -340,8 +334,7 @@ class R38GbpJpyLiveStateStore:
         exits = [
             item
             for item in matching
-            if int(getattr(item, "entry", -1))
-            == int(getattr(api, "DEAL_ENTRY_OUT", -2))
+            if int(getattr(item, "entry", -1)) == int(getattr(api, "DEAL_ENTRY_OUT", -2))
         ]
         if not exits:
             return state
@@ -349,11 +342,7 @@ class R38GbpJpyLiveStateStore:
         closed_at = normalise_fundednext_server_epoch(int(last.time))
         trailing_exit = state.last_trailing_exit_at
         moved = Decimal(opened.current_stop) != Decimal(opened.initial_stop)
-        if (
-            moved
-            and int(getattr(last, "reason", -1))
-            == int(getattr(api, "DEAL_REASON_SL", -2))
-        ):
+        if moved and int(getattr(last, "reason", -1)) == int(getattr(api, "DEAL_REASON_SL", -2)):
             trailing_exit = closed_at.isoformat()
 
         realized_usd = sum(
@@ -373,9 +362,7 @@ class R38GbpJpyLiveStateStore:
         equity = Decimal(state.strategy_equity_r) + realized_r
         peak = max(Decimal(state.strategy_peak_r), equity)
 
-        closed = tuple(
-            (*state.closed_signal_fingerprints, opened.signal_fingerprint)
-        )[-256:]
+        closed = tuple((*state.closed_signal_fingerprints, opened.signal_fingerprint))[-256:]
         next_state = R38GbpJpyLiveState(
             open_trade=None,
             closed_signal_fingerprints=closed,
@@ -433,7 +420,6 @@ def mt5_evidence(api: Any, *, now: datetime) -> tuple[Evidence, Decimal]:
     )
 
 
-
 def load_memory(
     path: Path,
 ) -> dict[
@@ -463,9 +449,7 @@ def load_memory(
     }
     for source_key, value in expected_source.items():
         if source.get(source_key) != value:
-            raise ValueError(
-                f"GBPJPY R38 live memory source {source_key} drift"
-            )
+            raise ValueError(f"GBPJPY R38 live memory source {source_key} drift")
     if payload.get("selected_ensemble") != SELECTED_ENSEMBLE:
         raise ValueError("GBPJPY R38 ensemble drift")
     if payload.get("selected_policy") != SELECTED_POLICY:
@@ -580,7 +564,7 @@ def _live_setup(
         session_bucket=r1._session_bucket(raid_at),
         prior_body_alignment=r1._prior_alignment(c1, side),
     )
-    previous = candles[max(0, pos - 20):pos]
+    previous = candles[max(0, pos - 20) : pos]
     mean_range = sum(
         (item.high - item.low for item in previous),
         Decimal(0),
@@ -591,18 +575,12 @@ def _live_setup(
     raid_units = None if mean_range <= 0 else abs(raid_extreme - raid_level) / mean_range
     reclaim = r2._first_reclaim_latency(c2, c1, side, raid_at)
     duration = Decimal(60 if timeframe == "H1" else 240)
-    cisd_progress = (
-        Decimal(str((cisd.confirmed_at - c2.opened_at).total_seconds() / 60))
-        / duration
-    )
+    cisd_progress = Decimal(str((cisd.confirmed_at - c2.opened_at).total_seconds() / 60)) / duration
     protected_ratio = None if source_range <= 0 else risk / source_range
     range_state = None if mean_range <= 0 else source_range / mean_range
     body, wick, close_location = r2._geometry(c2, side)
     target_ratio = None if source_range <= 0 else reward / source_range
-    peers = [
-        r2._same_boundary(item, side)
-        for item in candles[max(0, pos - 21):pos - 1]
-    ]
+    peers = [r2._same_boundary(item, side) for item in candles[max(0, pos - 21) : pos - 1]]
     equal = any(level == r2._same_boundary(c1, side) for level in peers)
     local = raid_at.astimezone(r2.NY)
     context = r2.ContextSignal(
@@ -612,11 +590,7 @@ def _live_setup(
         session=signal.session_bucket,
         weekday=local.strftime("%A"),
         prior_body_alignment=signal.prior_body_alignment,
-        fvg_before_entry=(
-            "yes"
-            if r2._fvg_before_entry(c2.m5, raid_at, anchor, side)
-            else "no"
-        ),
+        fvg_before_entry=("yes" if r2._fvg_before_entry(c2.m5, raid_at, anchor, side) else "no"),
         exact_equal_liquidity="yes" if equal else "no",
         raid_depth_range_bucket=r2._bucket(
             raid_units,
@@ -659,7 +633,6 @@ def _live_setup(
     return r3.Setup(context=context, source=c2, cisd_threshold=cisd.threshold)
 
 
-
 def _decision_for_setup(
     *,
     setup: r3.Setup,
@@ -674,32 +647,28 @@ def _decision_for_setup(
         ],
     ],
     current_open: Decimal,
+    prepared_snapshot: M5BoundarySnapshot | None = None,
 ) -> tuple[r35.Decision, tuple[native.NativeTarget, ...], dict[str, str]] | None:
-    bars = tuple(
-        bar
-        for bar in evidence.bars
-        if bar.closed_at <= setup.context.signal.entry_at
+    bars = (
+        prepared_snapshot.complete_bars
+        if prepared_snapshot is not None
+        else tuple(bar for bar in evidence.bars if bar.closed_at <= setup.context.signal.entry_at)
     )
     opens = tuple(bar.opened_at for bar in bars)
-    h4 = build_h4(bars)
-    frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
-    frame_opens = {
-        name: tuple(item.opened_at for item in items)
-        for name, items in frames.items()
-    }
-    frame_closes = {
-        name: tuple(item.closed_at for item in items)
-        for name, items in frames.items()
-    }
-    swings = {
-        name: td._swing_candidates(items, name)
-        for name, items in frames.items()
-    }
-    swing_known = {
-        name: {
-            side: tuple(item.known_at for item in by_side[side])
-            for side in by_side
+    if prepared_snapshot is None:
+        h4 = build_h4(bars)
+        frames = {"H1": build_h1(bars), "H4": h4, "D1": build_daily(h4)}
+    else:
+        frames = {
+            "H1": prepared_snapshot.h1,
+            "H4": prepared_snapshot.h4,
+            "D1": prepared_snapshot.d1,
         }
+    frame_opens = {name: tuple(item.opened_at for item in items) for name, items in frames.items()}
+    frame_closes = {name: tuple(item.closed_at for item in items) for name, items in frames.items()}
+    swings = {name: td._swing_candidates(items, name) for name, items in frames.items()}
+    swing_known = {
+        name: {side: tuple(item.known_at for item in by_side[side]) for side in by_side}
         for name, by_side in swings.items()
     }
     signal = setup.context.signal
@@ -738,9 +707,7 @@ def _decision_for_setup(
         target_rows.append(
             {
                 "candidate_known_at": candidate.known_at.isoformat(),
-                "touch_m5_opened_at": (
-                    None if touched is None else touched.opened_at.isoformat()
-                ),
+                "touch_m5_opened_at": (None if touched is None else touched.opened_at.isoformat()),
                 "candidate_price": str(candidate.level),
                 "candidate_type": candidate.kind,
                 "source_timeframe": candidate.timeframe,
@@ -836,12 +803,17 @@ def build_live_signal(
     )
     if current is None:
         raise RuntimeError("GBPJPY R38 current M5 boundary not yet available")
-    complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
-    h4 = build_h4(complete)
+    if boundary_snapshot is None:
+        complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
+        h4 = build_h4(complete)
+        h1 = build_h1(complete)
+    else:
+        h4 = boundary_snapshot.h4
+        h1 = boundary_snapshot.h1
     if _h4_open_for(anchor) == anchor:
         frames.append(("H4", h4))
-    frames.append(("H1", build_h1(complete)))
+    frames.append(("H1", h1))
 
     rearm_blocked = False
     for timeframe, candles in frames:
@@ -861,6 +833,7 @@ def build_live_signal(
             evidence=evidence,
             memory_bundle=memory_bundle,
             current_open=current.open,
+            prepared_snapshot=boundary_snapshot,
         )
         if resolved is None:
             continue
@@ -992,8 +965,7 @@ def build_r38_gbpjpy_risk_request(
 
     ticks = abs(executable - signal.stop_loss) / provider_spec.tick_size
     stop_per_lot = (
-        ticks * provider_spec.tick_value
-        + FOREX_OPEN_COMMISSION_PER_LOT_USD
+        ticks * provider_spec.tick_value + FOREX_OPEN_COMMISSION_PER_LOT_USD
     ) * BROKER_RISK_BUFFER
     base_risk_usd = account_equity * BASE_RISK_FRACTION
     requested_risk = base_risk_usd * signal.risk_scale
@@ -1053,8 +1025,7 @@ def certified_stop_for_open_trade(
     path = [
         bar
         for bar in evidence.bars
-        if entry_at <= bar.opened_at < entry_at + timedelta(hours=24)
-        and bar.closed_at <= now
+        if entry_at <= bar.opened_at < entry_at + timedelta(hours=24) and bar.closed_at <= now
     ]
     pending: Decimal | None = None
     observed: list[Bar] = []
@@ -1095,9 +1066,7 @@ def certified_stop_for_open_trade(
                         target=target,
                     ):
                         pending = (
-                            level
-                            if pending is None
-                            else native._better_stop(side, pending, level)
+                            level if pending is None else native._better_stop(side, pending, level)
                         )
 
         if opened.posture == native.POSTURE_PROTECT:
@@ -1107,29 +1076,19 @@ def certified_stop_for_open_trade(
                 entry=entry,
                 target=target,
             )
-            if (
-                swing is not None
-                and native._improves_stop(
-                    side=side,
-                    previous=current_stop,
-                    candidate=swing,
-                    target=target,
-                )
+            if swing is not None and native._improves_stop(
+                side=side,
+                previous=current_stop,
+                candidate=swing,
+                target=target,
             ):
-                pending = (
-                    swing
-                    if pending is None
-                    else native._better_stop(side, pending, swing)
-                )
+                pending = swing if pending is None else native._better_stop(side, pending, swing)
 
-    if (
-        pending is not None
-        and native._improves_stop(
-            side=side,
-            previous=current_stop,
-            candidate=pending,
-            target=target,
-        )
+    if pending is not None and native._improves_stop(
+        side=side,
+        previous=current_stop,
+        candidate=pending,
+        target=target,
     ):
         current_stop = pending
     return current_stop
@@ -1148,11 +1107,7 @@ def manage_open_position(
     if opened is None:
         return state, "no-open-gbpjpy-r38-position"
     magic = _magic(opened.client_order_id)
-    positions = [
-        item
-        for item in (api.positions_get() or ())
-        if int(item.magic) == magic
-    ]
+    positions = [item for item in (api.positions_get() or ()) if int(item.magic) == magic]
     if len(positions) != 1:
         if not positions:
             return state, "gbpjpy-r38-position-awaiting-reconcile"

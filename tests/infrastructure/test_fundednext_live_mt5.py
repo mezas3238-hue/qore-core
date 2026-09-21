@@ -228,7 +228,6 @@ class _Api:
         return ()
 
 
-
 class _NasApi(_Api):
     def symbols_get(self) -> tuple[_Symbol, ...] | None:
         return (
@@ -424,16 +423,19 @@ def test_broker_price_may_not_expand_sovereign_risk_in_shadow() -> None:
     assert api.sent == 0
 
 
-def test_account_observation_allows_subsecond_call_order_skew() -> None:
+@pytest.mark.parametrize("delay_ms", [0, 500, 1500, 3000])
+def test_account_observation_uses_post_read_clock(delay_ms: int) -> None:
     api = _Api()
+    completed_at = _NOW + timedelta(milliseconds=delay_ms)
     gateway = _gateway(
         api,
         complete=False,
         submission_enabled=False,
-        clock=lambda: _NOW + timedelta(milliseconds=500),
+        clock=lambda: completed_at,
     )
     state = gateway.read_account(now=_NOW)
     assert state.balance == Decimal("2000.0")
+    assert state.observed_at == completed_at
 
 
 def test_shadow_read_allows_retained_tick_but_live_send_requires_fresh_tick() -> None:
@@ -456,11 +458,12 @@ def test_shadow_read_allows_retained_tick_but_live_send_requires_fresh_tick() ->
 
 def test_account_observation_rejects_material_future_timestamp() -> None:
     api = _Api()
+    readings = iter((_NOW + timedelta(seconds=2), _NOW))
     gateway = _gateway(
         api,
         complete=False,
         submission_enabled=False,
-        clock=lambda: _NOW + timedelta(seconds=2),
+        clock=lambda: next(readings),
     )
     with pytest.raises(Mt5ExecutionValidationError, match="account-state-timestamp-from-future"):
         gateway.read_account(now=_NOW)

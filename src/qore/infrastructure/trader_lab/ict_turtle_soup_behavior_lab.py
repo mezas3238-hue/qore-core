@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import random
 from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
@@ -21,6 +20,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+from qore.infrastructure.deterministic_sampling import DeterministicChooser
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Bar,
     Evidence,
@@ -145,8 +145,7 @@ def load_evidence(path: Path) -> tuple[Evidence, dict[str, Any]]:
 
 def _m5_sources(bars: Sequence[Bar]) -> tuple[SourceCandle, ...]:
     return tuple(
-        SourceCandle(b.opened_at, b.closed_at, b.open, b.high, b.low, b.close, (b,))
-        for b in bars
+        SourceCandle(b.opened_at, b.closed_at, b.open, b.high, b.low, b.close, (b,)) for b in bars
     )
 
 
@@ -205,11 +204,7 @@ def _references(
             )
         )
         swing_index = next(
-            (
-                cursor
-                for cursor in range(index - 2, 0, -1)
-                if _is_swing(candles, cursor, side)
-            ),
+            (cursor for cursor in range(index - 2, 0, -1) if _is_swing(candles, cursor, side)),
             None,
         )
         if swing_index is not None:
@@ -247,9 +242,7 @@ def _first_raid(candle: SourceCandle, ref: Reference) -> Bar | None:
     return None
 
 
-def _range_mean(
-    candles: Sequence[SourceCandle], index: int, lookback: int = 20
-) -> Decimal | None:
+def _range_mean(candles: Sequence[SourceCandle], index: int, lookback: int = 20) -> Decimal | None:
     sample = candles[max(0, index - lookback) : index]
     if not sample:
         return None
@@ -274,9 +267,7 @@ def _prior_alignment(previous: SourceCandle, side: Side) -> str:
     if previous.close == previous.open:
         return "doji"
     aligned = (
-        previous.close > previous.open
-        if side is Side.LONG
-        else previous.close < previous.open
+        previous.close > previous.open if side is Side.LONG else previous.close < previous.open
     )
     return "aligned" if aligned else "opposed"
 
@@ -291,9 +282,7 @@ def _reclaim(
     for bar in bars:
         if bar.opened_at < raid_at or bar.closed_at > until:
             continue
-        reclaimed = (
-            bar.close > ref.level if ref.side is Side.LONG else bar.close < ref.level
-        )
+        reclaimed = bar.close > ref.level if ref.side is Side.LONG else bar.close < ref.level
         if reclaimed:
             minutes = int((bar.closed_at - raid_at).total_seconds() // 60)
             depth = (
@@ -327,11 +316,7 @@ def _forward_extremes(
 
 
 def _fvg_after_raid(bars: Sequence[Bar], raid_at: datetime, side: Side) -> bool:
-    sample = [
-        bar
-        for bar in bars
-        if raid_at <= bar.opened_at < raid_at + timedelta(minutes=90)
-    ]
+    sample = [bar for bar in bars if raid_at <= bar.opened_at < raid_at + timedelta(minutes=90)]
     for index in range(2, len(sample)):
         first, third = sample[index - 2], sample[index]
         if side is Side.LONG and third.low > first.high:
@@ -403,12 +388,8 @@ def _make_event(
     reclaim_latency, reclaim_depth = _reclaim(
         evidence.bars, ref, raid.opened_at, candle.closed_at, tick
     )
-    cisd, cisd_latency, protected_distance = _cisd(
-        candle, ref.timeframe, ref.side, tick
-    )
-    hit, hit_minutes = _opposite_hit(
-        evidence.bars, ref.side, ref.opposite, raid.opened_at
-    )
+    cisd, cisd_latency, protected_distance = _cisd(candle, ref.timeframe, ref.side, tick)
+    hit, hit_minutes = _opposite_hit(evidence.bars, ref.side, ref.opposite, raid.opened_at)
     forward = {
         horizon: _forward_extremes(
             evidence.bars, ref.side, ref.level, raid.opened_at, horizon, tick
@@ -546,9 +527,7 @@ def summarize(events: Sequence[Event]) -> dict[str, Any]:
         "reclaim_rate": _rate([item.same_source_reclaim for item in events]),
         "cisd_rate": _rate([item.cisd_confirmed for item in events]),
         "fvg_rate": _rate([item.fvg_after_raid for item in events]),
-        "opposite_hit_24h_rate": _rate(
-            [item.opposite_reference_hit_24h for item in events]
-        ),
+        "opposite_hit_24h_rate": _rate([item.opposite_reference_hit_24h for item in events]),
         "median_raid_depth_ticks": _med([item.raid_depth_ticks for item in events]),
         "median_raid_depth_range_units": _med(
             [
@@ -564,9 +543,7 @@ def summarize(events: Sequence[Event]) -> dict[str, Any]:
     }
 
 
-def _bootstrap_ci(
-    events: Sequence[Event], attr: str
-) -> tuple[float | None, float | None]:
+def _bootstrap_ci(events: Sequence[Event], attr: str) -> tuple[float | None, float | None]:
     if not events:
         return None, None
     blocks: dict[str, list[Event]] = defaultdict(list)
@@ -576,7 +553,7 @@ def _bootstrap_ci(
     if len(populations) < 2:
         value = _rate([bool(getattr(item, attr)) for item in events])
         return value, value
-    rng = random.Random(BOOTSTRAP_SEED)
+    rng = DeterministicChooser(BOOTSTRAP_SEED)
     estimates: list[float] = []
     for _ in range(400):
         sample: list[Event] = []
@@ -600,9 +577,7 @@ def group_rows(events: Sequence[Event]) -> list[dict[str, Any]]:
         "side": lambda item: item.side,
         "session": lambda item: item.session_bucket,
         "year": lambda item: str(item.raid_at.year),
-        "quarter": lambda item: (
-            f"{item.raid_at.year}-Q{(item.raid_at.month - 1) // 3 + 1}"
-        ),
+        "quarter": lambda item: f"{item.raid_at.year}-Q{(item.raid_at.month - 1) // 3 + 1}",
     }
     rows: list[dict[str, Any]] = []
     for dimension, getter in dimensions.items():
@@ -675,17 +650,13 @@ def leave_one_out_rows(events: Sequence[Event]) -> list[dict[str, Any]]:
         remaining = [item for item in events if item.symbol != symbol]
         rows.append({"leave_out": f"symbol:{symbol}", **summarize(remaining)})
     quarters = sorted(
-        {
-            f"{item.raid_at.year}-Q{(item.raid_at.month - 1) // 3 + 1}"
-            for item in events
-        }
+        {f"{item.raid_at.year}-Q{(item.raid_at.month - 1) // 3 + 1}" for item in events}
     )
     for quarter in quarters:
         remaining = [
             item
             for item in events
-            if f"{item.raid_at.year}-Q{(item.raid_at.month - 1) // 3 + 1}"
-            != quarter
+            if f"{item.raid_at.year}-Q{(item.raid_at.month - 1) // 3 + 1}" != quarter
         ]
         rows.append({"leave_out": f"quarter:{quarter}", **summarize(remaining)})
     return rows
@@ -706,9 +677,7 @@ def write_outputs(
 ) -> dict[str, Any]:
     output.mkdir(parents=True, exist_ok=True)
     payloads = [event_dict(item) for item in events]
-    (output / "events.json").write_text(
-        json.dumps(payloads, indent=2, sort_keys=True) + "\n"
-    )
+    (output / "events.json").write_text(json.dumps(payloads, indent=2, sort_keys=True) + "\n")
     _write_csv(output / "events.csv", payloads)
     _write_csv(output / "group_stats.csv", group_rows(events))
     _write_csv(output / "quantile_response.csv", quantile_rows(events))
@@ -724,9 +693,7 @@ def write_outputs(
         "overall": summarize(events),
         "outcomes": dict(sorted(Counter(item.outcome for item in events).items())),
         "timeframes": dict(sorted(Counter(item.timeframe for item in events).items())),
-        "reference_types": dict(
-            sorted(Counter(item.reference_type for item in events).items())
-        ),
+        "reference_types": dict(sorted(Counter(item.reference_type for item in events).items())),
         "symbols": dict(sorted(Counter(item.symbol for item in events).items())),
         "session_filter_applied": False,
         "pnl_used_for_filter_selection": False,
@@ -735,9 +702,7 @@ def write_outputs(
         "real_capital_authorized": False,
         "production_authorized": False,
     }
-    (output / "summary.json").write_text(
-        json.dumps(summary, indent=2, sort_keys=True) + "\n"
-    )
+    (output / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     return summary
 
 
@@ -753,9 +718,7 @@ def analyze_files(
     evidence_ids: list[str] = []
     for path in paths:
         evidence, payload = load_evidence(path)
-        source_id = str(
-            payload.get("holdout_id") or payload.get("evidence_id") or path.stem
-        )
+        source_id = str(payload.get("holdout_id") or payload.get("evidence_id") or path.stem)
         evidence_id = f"{evidence_prefix}:{source_id}:{evidence.symbol}"
         evidence_ids.append(evidence_id)
         events.extend(

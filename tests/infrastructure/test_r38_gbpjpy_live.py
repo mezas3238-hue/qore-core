@@ -17,12 +17,12 @@ from qore.infrastructure.r38_gbpjpy_live import (
     IDENTITY,
     MEMORY_PROFILE_COUNTS,
     MEMORY_SHA256,
+    SELECTED_ENSEMBLE,
+    SELECTED_POLICY,
     R38GbpJpyDol,
     R38GbpJpyLiveSignal,
     R38GbpJpyLiveState,
     R38GbpJpyOpenTrade,
-    SELECTED_ENSEMBLE,
-    SELECTED_POLICY,
     _risk_scale_for,
     build_r38_gbpjpy_risk_request,
     certified_stop_for_open_trade,
@@ -123,23 +123,16 @@ def test_r38_gbpjpy_certified_identity_and_lineage() -> None:
 
 
 def test_r38_gbpjpy_committed_memory_is_exactly_bound() -> None:
-    memories = load_memory(
-        Path("runtime_data/gbpjpy/r38-confidence-tier-memory.json")
-    )
+    memories = load_memory(Path("runtime_data/gbpjpy/r38-confidence-tier-memory.json"))
     assert len(MEMORY_SHA256) == 64
     assert set(memories) == set(MEMORY_PROFILE_COUNTS)
-    assert {
-        scheme: len(bundle[2])
-        for scheme, bundle in memories.items()
-    } == MEMORY_PROFILE_COUNTS
+    assert {scheme: len(bundle[2]) for scheme, bundle in memories.items()} == MEMORY_PROFILE_COUNTS
 
 
 def test_r38_gbpjpy_memory_hash_is_cross_platform_line_ending_stable(
     tmp_path: Path,
 ) -> None:
-    source = Path(
-        "runtime_data/gbpjpy/r38-confidence-tier-memory.json"
-    ).read_bytes()
+    source = Path("runtime_data/gbpjpy/r38-confidence-tier-memory.json").read_bytes()
     target = tmp_path / "r38-gbpjpy-memory.json"
     target.write_bytes(source.replace(b"\n", b"\r\n"))
     memories = load_memory(target)
@@ -204,12 +197,10 @@ def test_r38_gbpjpy_broker_minimum_stop_level_fails_closed() -> None:
 
 
 def test_r38_gbpjpy_anchor_is_hourly_and_short_grace_only() -> None:
-    assert current_anchor(
-        datetime(2026, 9, 18, 15, 0, 9, tzinfo=UTC)
-    ) == datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    assert current_anchor(
-        datetime(2026, 9, 18, 15, 0, 11, tzinfo=UTC)
-    ) is None
+    assert current_anchor(datetime(2026, 9, 18, 15, 0, 1, tzinfo=UTC)) == datetime(
+        2026, 9, 18, 15, 0, tzinfo=UTC
+    )
+    assert current_anchor(datetime(2026, 9, 18, 15, 0, 2, 1_000, tzinfo=UTC)) is None
 
 
 def test_r38_gbpjpy_core_three_flag_overlay_is_exact(
