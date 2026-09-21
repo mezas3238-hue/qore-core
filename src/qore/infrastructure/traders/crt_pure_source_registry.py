@@ -41,6 +41,10 @@ class CrtPureConceptId(StrEnum):
     CONTINUATION_REVERSAL = "continuation_reversal"
     FAILURE_CONDITIONS = "failure_conditions"
     MAKE_OR_BREAK_LEVEL = "make_or_break_level"
+    FIFTY_PERCENT_DESTINATION_FAMILY = "fifty_percent_destination_family"
+    INCOMPLETE_CRT_TRAP = "incomplete_crt_trap"
+    OPPOSITE_CRT_BIAS_REVERSAL = "opposite_crt_bias_reversal"
+    OLD_CRTH_CRL_STAB_REACTION = "old_crth_crl_stab_reaction"
     REARM_IDENTITY = "rearm_identity"
     SAME_BAR_AMBIGUITY = "same_bar_ambiguity"
     BTCUSD_CONTINUOUS_MARKET = "btcusd_continuous_market"
@@ -349,6 +353,77 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             ambiguity_notes=(
                 "The example proves opposite-range travel exists in the source corpus, "
                 "not that it is always the mandatory target."
+            ),
+        ),
+    ),
+    CrtPureConceptId.FIFTY_PERCENT_DESTINATION_FAMILY: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.FIFTY_PERCENT_DESTINATION_FAMILY,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram around CRT Secrets episode 8",
+            locator="https://t.me/s/officialRomeotpt/6455",
+            normalized_statement=(
+                "RomeoTPT explicitly states that trading from CRT highs/lows "
+                "toward the 50 percent can form a complete trading approach."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "This closes 50 percent as a source-authorized destination family, "
+                "not as the mandatory universal final target for every CRT."
+            ),
+        ),
+    ),
+    CrtPureConceptId.INCOMPLETE_CRT_TRAP: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.INCOMPLETE_CRT_TRAP,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram / CRT Secrets episode 8 excerpt",
+            locator="https://t.me/s/officialRomeotpt?before=6521",
+            normalized_statement=(
+                "RomeoTPT identifies incomplete CRTs as a market-maker CRT trap."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "The existence of incomplete CRT failure is closed; the exact "
+                "machine definition of incomplete remains part of FAILURE_CONDITIONS."
+            ),
+        ),
+    ),
+    CrtPureConceptId.OPPOSITE_CRT_BIAS_REVERSAL: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.OPPOSITE_CRT_BIAS_REVERSAL,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt?after=6340",
+            normalized_statement=(
+                "When the market presents a convincing CRT opposite to the expected "
+                "bias, RomeoTPT instructs the trader to evaluate changing bias and act."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "The source closes bias adaptability; what qualifies as convincing "
+                "still requires the complete CRT validity contract."
+            ),
+        ),
+    ),
+    CrtPureConceptId.OLD_CRTH_CRL_STAB_REACTION: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.OLD_CRTH_CRL_STAB_REACTION,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram",
+            locator="https://t.me/s/officialRomeotpt/6615",
+            normalized_statement=(
+                "For an ideal bearish reaction, RomeoTPT describes a candle opening, "
+                "stabbing into an old CRTH, then dumping."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "This closes the existence of an old-CRTH stab reaction family. "
+                "It does not by itself close universal sweep or entry semantics."
             ),
         ),
     ),
