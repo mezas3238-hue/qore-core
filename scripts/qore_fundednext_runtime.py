@@ -32,6 +32,17 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.fundednext_capitalization_mission import (
+    CapitalizationMissionSnapshot,
+    CapitalizationMissionState,
+    DurableCapitalizationMissionStore,
+    build_5k_mission_config,
+    evaluate_capitalization_mission,
+)
+from qore.infrastructure.fundednext_certified_policy import (
+    CertifiedStellarInstantPolicyBundle,
+    load_certified_stellar_instant_policy,
+)
 from qore.infrastructure.fundednext_live_activation import load_verified_live_activation
 from qore.infrastructure.fundednext_live_guard import (
     LIVE_ENTRY_ANCHORS_NY,
@@ -159,11 +170,13 @@ from qore.infrastructure.traders.vt08_b01_r3_8 import (
 )
 from qore.infrastructure.vt08_forex_cibo_operational import (
     Vt08ForexCiboDecision,
+    Vt08ForexCiboPosture,
     evaluate_vt08_forex_cibo,
 )
 from qore.infrastructure.vt08_forex_fundednext_sizing import (
     build_certified_vt08_forex_cibo_request,
 )
+from qore.kernel.result import Failure
 
 # Load the script-layer VT31 adapter dynamically so existing trader mypy
 # regressions do not type-check the historical research graph it reuses.
@@ -1583,6 +1596,46 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "provider-rule-refresh-failed").strip()
             raise RuntimeError(detail[:500])
+
+    def load_current_certified_policy(
+        now: datetime,
+    ) -> CertifiedStellarInstantPolicyBundle:
+        bundle = load_certified_stellar_instant_policy(
+            refresh_path=state_dir / "provider-rules-refresh.json",
+            account_binding_id=fingerprint,
+            account_size=PILOT_INITIAL_BALANCE,
+        )
+        resolved = bundle.resolve_for_risk(now)
+        if isinstance(resolved, Failure):
+            raise RuntimeError(f"certified-prop-policy-unavailable:{resolved.error}")
+        return bundle
+
+    refresh_provider_rules_before_submission()
+    certified_policy = load_current_certified_policy(datetime.now(UTC))
+    certified_policy_last_reload = certified_policy.observed_at
+    mission_store = DurableCapitalizationMissionStore(
+        state_dir / "capitalization-mission.json"
+    )
+    mission_config = build_5k_mission_config(
+        account_identity_fingerprint=fingerprint,
+        start_balance=PILOT_INITIAL_BALANCE,
+        purchase_cash_required=(
+            certified_policy.facts.stellar_instant_5k_purchase_price_usd
+        ),
+        reward_split_fraction=certified_policy.facts.reward_split_tier_1_2,
+    )
+    mission_snapshot: CapitalizationMissionSnapshot = (
+        evaluate_capitalization_mission(
+            config=mission_config,
+            closed_balance=Decimal(str(account_info.balance)),
+            equity=Decimal(str(account_info.equity)),
+            now=datetime.now(UTC),
+            previous=mission_store.load(),
+            defend=False,
+            payout_eligible=False,
+        )
+    )
+    mission_store.store(mission_snapshot)
     safety_path = state_dir / "live-safety.json"
     load_live_safety_state(safety_path)
     safety = JsonFileLiveOperationalSafetyBoundary(safety_path)
@@ -1713,6 +1766,40 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             ],
             "single_mt5_writer": True,
             "account_wide_risk_active": True,
+            "certified_prop_policy_active": True,
+            "certified_prop_policy_observed_at": (
+                certified_policy.observed_at.isoformat()
+            ),
+            "certified_prop_policy_default_open_risk_fraction": str(
+                certified_policy.facts.cumulative_open_risk_fraction
+            ),
+            "certified_prop_policy_fail_closed_open_risk_fraction": str(
+                certified_policy.facts.reclassified_open_risk_fraction
+            ),
+            "certified_prop_policy_stop_loss_required": (
+                certified_policy.facts.stop_loss_required
+            ),
+            "capitalization_mission_active": True,
+            "capitalization_mission_id": mission_snapshot.mission_id,
+            "capitalization_mission_state": mission_snapshot.state.value,
+            "capitalization_purchase_cash_required": str(
+                mission_snapshot.purchase_cash_required
+            ),
+            "capitalization_gross_reward_required": str(
+                mission_snapshot.gross_reward_required
+            ),
+            "capitalization_post_withdrawal_reserve": str(
+                mission_snapshot.post_withdrawal_reserve
+            ),
+            "capitalization_bank_balance_threshold": str(
+                mission_snapshot.bank_balance_threshold
+            ),
+            "capitalization_balance_target": str(
+                mission_snapshot.mission_balance_target
+            ),
+            "capitalization_target_remaining": str(
+                mission_snapshot.target_remaining
+            ),
             "gbpjpy_r38_enabled": True,
             "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
             "gbpjpy_r38_certification": "TURTLE_SOUP_GBPJPY_R39_FINAL_CERTIFICATION_SUITE_V1",
@@ -1724,7 +1811,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "gbpjpy_r38_ensemble": "R35_RANGE_DIRECTION_MINIMAL_ROBUST",
             "gbpjpy_r38_policy": "CONFIDENCE_100_050_010",
             "gbpjpy_r38_fragility_policy": ["1", "0.25", "0.10", "0.05"],
-            "gbpjpy_r38_memory_sha256": "16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f",
+            "gbpjpy_r38_memory_sha256": (
+                "16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f"
+            ),
             "audjpy_r42_enabled": True,
             "audjpy_r42_identity": "TURTLE_SOUP_AUDJPY_R42",
             "audjpy_r42_certification": "TURTLE_SOUP_AUDJPY_R43_FINAL_CERTIFICATION_SUITE_V1",
@@ -1737,7 +1826,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_policy": "AUDJPY_CONFIDENCE_100_075_025",
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
             "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
-            "audjpy_r42_memory_sha256": "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6",
+            "audjpy_r42_memory_sha256": (
+                "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6"
+            ),
             "audjpy_r42_entry_sla_seconds": str(
                 AUDJPY_R42_ENTRY_SLA.total_seconds()
             ),
@@ -1786,6 +1877,41 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             )
 
         audjpy_arm_anchor = audjpy_r42_boundary_to_arm(cycle_at)
+        certified_policy_ready = True
+        policy_resolution = certified_policy.resolve_for_risk(cycle_at)
+        if isinstance(policy_resolution, Failure):
+            certified_policy_ready = False
+
+        reload_due = cycle_at - certified_policy_last_reload >= timedelta(minutes=5)
+        refresh_due = cycle_at - certified_policy.observed_at >= timedelta(hours=6)
+        if audjpy_arm_anchor is None and (reload_due or not certified_policy_ready):
+            try:
+                if refresh_due:
+                    refresh_provider_rules_before_submission()
+                certified_policy = load_current_certified_policy(cycle_at)
+                certified_policy_last_reload = cycle_at
+                mission_config = build_5k_mission_config(
+                    account_identity_fingerprint=fingerprint,
+                    start_balance=PILOT_INITIAL_BALANCE,
+                    purchase_cash_required=(
+                        certified_policy.facts.stellar_instant_5k_purchase_price_usd
+                    ),
+                    reward_split_fraction=(
+                        certified_policy.facts.reward_split_tier_1_2
+                    ),
+                )
+                certified_policy_ready = True
+            except Exception as error:
+                certified_policy_ready = False
+                _log(
+                    log_path,
+                    {
+                        "event": "CERTIFIED_PROP_POLICY_FAIL_CLOSED",
+                        "reason": type(error).__name__,
+                        "message": str(error),
+                        "observed_at": cycle_at.isoformat(),
+                    },
+                )
         if audjpy_arm_anchor is not None:
             audjpy_anchor_key = (
                 f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
@@ -1834,12 +1960,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         + arm_pending_stop
                         + risk.active_reserved_stop_risk()
                     )
+                    prior_mission_state = mission_snapshot.state
+                    mission_snapshot = evaluate_capitalization_mission(
+                        config=mission_config,
+                        closed_balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        now=arm_started_at,
+                        previous=mission_snapshot,
+                        defend=False,
+                        payout_eligible=False,
+                    )
                     arm_posture = request_cibo_posture(
                         initial_balance=PILOT_INITIAL_BALANCE,
                         balance=arm_account.balance,
                         equity=arm_account.equity,
                         current_aggregate_risk=arm_aggregate,
                     )
+                    if mission_snapshot.state is CapitalizationMissionState.BANK:
+                        arm_posture = Vt08ForexCiboPosture.BANK
                     arm_capital = evaluate_qore_operational_capital_budget(
                         provider_budget=arm_provider,
                         initial_balance=PILOT_INITIAL_BALANCE,
@@ -1848,7 +1986,38 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         highest_closed_balance=arm_highest,
                         current_aggregate_stop_risk=arm_aggregate,
                         requested_posture=arm_posture,
+                        certified_open_risk_fraction=(
+                            certified_policy.facts.reclassified_open_risk_fraction
+                        ),
                     )
+                    mission_snapshot = evaluate_capitalization_mission(
+                        config=mission_config,
+                        closed_balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        now=arm_started_at,
+                        previous=mission_snapshot,
+                        defend=(
+                            arm_capital.decision is CapitalBudgetDecision.REJECT
+                        ),
+                        payout_eligible=False,
+                    )
+                    mission_store.store(mission_snapshot)
+                    if mission_snapshot.state is not prior_mission_state:
+                        _log(
+                            log_path,
+                            {
+                                "event": "CAPITALIZATION_MISSION_STATE_CHANGED",
+                                "from_state": prior_mission_state.value,
+                                "to_state": mission_snapshot.state.value,
+                                "closed_balance": str(arm_account.balance),
+                                "target_remaining": str(
+                                    mission_snapshot.target_remaining
+                                ),
+                                "new_risk_allowed_by_mission": (
+                                    mission_snapshot.new_risk_allowed_by_mission
+                                ),
+                            },
+                        )
                     arm_snapshot = AccountRiskSnapshot(
                         account_binding_id=fingerprint,
                         equity=arm_account.equity,
@@ -1881,6 +2050,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         or arm_lifecycle is InactivityState.BLOCKED
                         or exit_ledger.has_unresolved
                         or gateway.has_unresolved_mutations
+                        or not certified_policy_ready
+                        or not mission_snapshot.new_risk_allowed_by_mission
                     )
 
                     boundary_snapshot = await_audjpy_r42_boundary_snapshot(
@@ -2057,12 +2228,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     + vt31_pending_stop
                     + risk.active_reserved_stop_risk()
                 )
+                prior_mission_state = mission_snapshot.state
+                mission_snapshot = evaluate_capitalization_mission(
+                    config=mission_config,
+                    closed_balance=vt31_account.balance,
+                    equity=vt31_account.equity,
+                    now=vt31_arm_started_at,
+                    previous=mission_snapshot,
+                    defend=False,
+                    payout_eligible=False,
+                )
                 vt31_posture = request_cibo_posture(
                     initial_balance=PILOT_INITIAL_BALANCE,
                     balance=vt31_account.balance,
                     equity=vt31_account.equity,
                     current_aggregate_risk=vt31_aggregate,
                 )
+                if mission_snapshot.state is CapitalizationMissionState.BANK:
+                    vt31_posture = Vt08ForexCiboPosture.BANK
                 vt31_capital = evaluate_qore_operational_capital_budget(
                     provider_budget=vt31_provider,
                     initial_balance=PILOT_INITIAL_BALANCE,
@@ -2071,7 +2254,38 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     highest_closed_balance=vt31_highest,
                     current_aggregate_stop_risk=vt31_aggregate,
                     requested_posture=vt31_posture,
+                    certified_open_risk_fraction=(
+                        certified_policy.facts.reclassified_open_risk_fraction
+                    ),
                 )
+                mission_snapshot = evaluate_capitalization_mission(
+                    config=mission_config,
+                    closed_balance=vt31_account.balance,
+                    equity=vt31_account.equity,
+                    now=vt31_arm_started_at,
+                    previous=mission_snapshot,
+                    defend=(
+                        vt31_capital.decision is CapitalBudgetDecision.REJECT
+                    ),
+                    payout_eligible=False,
+                )
+                mission_store.store(mission_snapshot)
+                if mission_snapshot.state is not prior_mission_state:
+                    _log(
+                        log_path,
+                        {
+                            "event": "CAPITALIZATION_MISSION_STATE_CHANGED",
+                            "from_state": prior_mission_state.value,
+                            "to_state": mission_snapshot.state.value,
+                            "closed_balance": str(vt31_account.balance),
+                            "target_remaining": str(
+                                mission_snapshot.target_remaining
+                            ),
+                            "new_risk_allowed_by_mission": (
+                                mission_snapshot.new_risk_allowed_by_mission
+                            ),
+                        },
+                    )
                 vt31_snapshot = AccountRiskSnapshot(
                     account_binding_id=fingerprint,
                     equity=vt31_account.equity,
@@ -2104,6 +2318,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     or vt31_lifecycle is InactivityState.BLOCKED
                     or exit_ledger.has_unresolved
                     or gateway.has_unresolved_mutations
+                    or not certified_policy_ready
+                    or not mission_snapshot.new_risk_allowed_by_mission
                 )
                 vt31_boundary = await_vt31_boundary_snapshot(
                     mt5,
@@ -2363,12 +2579,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
 
         open_stop, floating_loss, pending_stop = _broker_risk(transport)
         aggregate = open_stop + pending_stop + risk.active_reserved_stop_risk()
+        prior_mission_state = mission_snapshot.state
+        mission_snapshot = evaluate_capitalization_mission(
+            config=mission_config,
+            closed_balance=account_state.balance,
+            equity=account_state.equity,
+            now=cycle_at,
+            previous=mission_snapshot,
+            defend=False,
+            payout_eligible=False,
+        )
         posture = request_cibo_posture(
             initial_balance=PILOT_INITIAL_BALANCE,
             balance=account_state.balance,
             equity=account_state.equity,
             current_aggregate_risk=aggregate,
         )
+        if mission_snapshot.state is CapitalizationMissionState.BANK:
+            posture = Vt08ForexCiboPosture.BANK
         capital = evaluate_qore_operational_capital_budget(
             provider_budget=provider,
             initial_balance=PILOT_INITIAL_BALANCE,
@@ -2377,7 +2605,41 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             highest_closed_balance=highest,
             current_aggregate_stop_risk=aggregate,
             requested_posture=posture,
+            certified_open_risk_fraction=(
+                certified_policy.facts.reclassified_open_risk_fraction
+            ),
         )
+        mission_snapshot = evaluate_capitalization_mission(
+            config=mission_config,
+            closed_balance=account_state.balance,
+            equity=account_state.equity,
+            now=cycle_at,
+            previous=mission_snapshot,
+            defend=(capital.decision is CapitalBudgetDecision.REJECT),
+            payout_eligible=False,
+        )
+        mission_store.store(mission_snapshot)
+        if mission_snapshot.state is not prior_mission_state:
+            _log(
+                log_path,
+                {
+                    "event": "CAPITALIZATION_MISSION_STATE_CHANGED",
+                    "from_state": prior_mission_state.value,
+                    "to_state": mission_snapshot.state.value,
+                    "closed_balance": str(account_state.balance),
+                    "realized_profit": str(mission_snapshot.realized_profit),
+                    "target_remaining": str(mission_snapshot.target_remaining),
+                    "bank_balance_threshold": str(
+                        mission_snapshot.bank_balance_threshold
+                    ),
+                    "mission_balance_target": str(
+                        mission_snapshot.mission_balance_target
+                    ),
+                    "new_risk_allowed_by_mission": (
+                        mission_snapshot.new_risk_allowed_by_mission
+                    ),
+                },
+            )
         accepted_times = [
             item.transitioned_at
             for item in mutation_ledger.records()
@@ -2407,6 +2669,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             or lifecycle is InactivityState.BLOCKED
             or exit_ledger.has_unresolved
             or gateway.has_unresolved_mutations
+            or not certified_policy_ready
+            or not mission_snapshot.new_risk_allowed_by_mission
         )
         vt31_runtime_snapshot = AccountRiskSnapshot(
             account_binding_id=fingerprint,
