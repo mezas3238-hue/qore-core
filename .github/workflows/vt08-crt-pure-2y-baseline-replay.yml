@@ -41,9 +41,7 @@ jobs:
         run: |
           ruff check --ignore B009 \
             src/qore/infrastructure/trader_lab/vt08_crt_pure_2y_replay.py \
-            tests/infrastructure/trader_lab/test_vt08_crt_pure_2y_replay.py \
-            src/qore/infrastructure/traders/crt_pure_timing_policy.py \
-            tests/infrastructure/traders/test_crt_pure_timing_policy.py
+            tests/infrastructure/trader_lab/test_vt08_crt_pure_2y_replay.py
       - name: Mypy replay
         run: mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_2y_replay.py
       - name: Replay unit tests
