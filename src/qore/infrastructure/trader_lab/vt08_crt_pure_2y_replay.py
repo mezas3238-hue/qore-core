@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
 from qore.infrastructure.trader_lab.vt08_crt_pure_m5_consumer import (
