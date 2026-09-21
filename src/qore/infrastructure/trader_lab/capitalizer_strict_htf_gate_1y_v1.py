@@ -74,7 +74,6 @@ from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 i
     ICTReplayMetrics,
     _aware,
     _lifecycle,
-    _operating_date,
     _significant_displacement,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
