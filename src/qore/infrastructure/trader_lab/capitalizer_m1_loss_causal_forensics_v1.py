@@ -542,11 +542,11 @@ def _enrich_with_m1(rows: list[dict[str, Any]], m1_root: Path) -> None:
             for index in by_entry[at]:
                 row = rows[index]
                 risk = _decimal_field(row, "risk_price")
-                entry = _decimal_field(row, "entry_price")
+                entry_price = _decimal_field(row, "entry_price")
                 if str(row["side"]) == "LONG":
-                    adverse = max(Decimal("0"), entry - bar.low)
+                    adverse = max(Decimal("0"), entry_price - bar.low)
                 else:
-                    adverse = max(Decimal("0"), bar.high - entry)
+                    adverse = max(Decimal("0"), bar.high - entry_price)
                 row["entry_adverse_excursion_upper_bound_r"] = str(adverse / risk)
                 row["entry_range_r"] = str(bar.range / risk)
                 row["entry_body_ratio"] = str(Decimal("0") if bar.range == 0 else bar.body / bar.range)
@@ -558,13 +558,13 @@ def _enrich_with_m1(rows: list[dict[str, Any]], m1_root: Path) -> None:
             if not (entry_at <= at < exit_at):
                 continue
             risk = _decimal_field(row, "risk_price")
-            entry = _decimal_field(row, "entry_price")
+            entry_price = _decimal_field(row, "entry_price")
             if str(row["side"]) == "LONG":
-                favorable = max(Decimal("0"), bar.high - entry) / risk
-                adverse = max(Decimal("0"), entry - bar.low) / risk
+                favorable = max(Decimal("0"), bar.high - entry_price) / risk
+                adverse = max(Decimal("0"), entry_price - bar.low) / risk
             else:
-                favorable = max(Decimal("0"), entry - bar.low) / risk
-                adverse = max(Decimal("0"), bar.high - entry) / risk
+                favorable = max(Decimal("0"), entry_price - bar.low) / risk
+                adverse = max(Decimal("0"), bar.high - entry_price) / risk
             row["mfe_r_before_exit"] = str(max(_decimal_field(row, "mfe_r_before_exit"), favorable))
             row["mae_r_before_exit"] = str(max(_decimal_field(row, "mae_r_before_exit"), adverse))
 
@@ -574,16 +574,16 @@ def _enrich_with_m1(rows: list[dict[str, Any]], m1_root: Path) -> None:
             if not (_aware(str(row["exit_at"])) <= at < session_end):
                 continue
             risk = _decimal_field(row, "risk_price")
-            entry = _decimal_field(row, "entry_price")
-            target = _decimal_field(row, "target_price")
+            entry_price = _decimal_field(row, "entry_price")
+            target_price = _decimal_field(row, "target_price")
             if str(row["side"]) == "LONG":
-                favorable = max(Decimal("0"), bar.high - entry) / risk
-                adverse = max(Decimal("0"), entry - bar.low) / risk
-                target_hit = bar.high >= target
+                favorable = max(Decimal("0"), bar.high - entry_price) / risk
+                adverse = max(Decimal("0"), entry_price - bar.low) / risk
+                target_hit = bar.high >= target_price
             else:
-                favorable = max(Decimal("0"), entry - bar.low) / risk
-                adverse = max(Decimal("0"), bar.high - entry) / risk
-                target_hit = bar.low <= target
+                favorable = max(Decimal("0"), entry_price - bar.low) / risk
+                adverse = max(Decimal("0"), bar.high - entry_price) / risk
+                target_hit = bar.low <= target_price
             prev_fav = row["post_stop_max_favorable_r_before_session_end"]
             prev_adv = row["post_stop_max_adverse_r_before_session_end"]
             max_fav = favorable if prev_fav is None else max(Decimal(str(prev_fav)), favorable)
@@ -989,6 +989,85 @@ def write_market(report: dict[str, Any], rows: list[dict[str, Any]], output: Pat
 
 
 
+def _aggregate_session_time_profiles(reports: list[dict[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for session in ("ASIA", "LONDON", "NEW_YORK"):
+        selected = [report for report in reports if str(report["session"]) == session]
+        if not selected:
+            continue
+
+        hourly: dict[str, dict[str, int]] = defaultdict(
+            lambda: {
+                "entries": 0,
+                "entries_that_stopped": 0,
+                "stop_exits": 0,
+            }
+        )
+        windows: dict[str, dict[str, int]] = defaultdict(
+            lambda: {
+                "entries": 0,
+                "entries_that_stopped": 0,
+                "stop_exits": 0,
+            }
+        )
+        for report in selected:
+            profile = report["ny_time_stop_profile"]
+            for bucket in profile["hourly"]:
+                key = str(bucket["ny_hour"])
+                hourly[key]["entries"] += int(bucket["entries"])
+                hourly[key]["entries_that_stopped"] += int(bucket["entries_that_stopped"])
+                hourly[key]["stop_exits"] += int(bucket["stop_exits"])
+            for window in profile["hypothesis_windows"]:
+                label = str(window["label"])
+                windows[label]["entries"] += int(window["entries"])
+                windows[label]["entries_that_stopped"] += int(window["entries_that_stopped"])
+                windows[label]["stop_exits"] += int(window["stop_exits"])
+
+        hourly_rows: list[dict[str, Any]] = []
+        for key in sorted(hourly, key=lambda value: int(value[:2])):
+            values = hourly[key]
+            entries = values["entries"]
+            stopped = values["entries_that_stopped"]
+            hourly_rows.append(
+                {
+                    "ny_hour": key,
+                    **values,
+                    "entry_stop_rate": (
+                        None
+                        if entries == 0
+                        else str(Decimal(stopped) / Decimal(entries))
+                    ),
+                }
+            )
+
+        window_rows: list[dict[str, Any]] = []
+        for label in sorted(windows):
+            values = windows[label]
+            entries = values["entries"]
+            stopped = values["entries_that_stopped"]
+            window_rows.append(
+                {
+                    "label": label,
+                    **values,
+                    "entry_stop_rate": (
+                        None
+                        if entries == 0
+                        else str(Decimal(stopped) / Decimal(entries))
+                    ),
+                }
+            )
+
+        result[session] = {
+            "market_count": len(selected),
+            "hourly": hourly_rows,
+            "hypothesis_windows": window_rows,
+            "historical_spread_series_present": False,
+            "spread_causality_proven": False,
+        }
+    return result
+
+
+
 def build_matrix(root: Path) -> dict[str, Any]:
     paths = sorted(root.rglob("capitalizer-*-m1-loss-causal-forensics-v1.json"))
     if len(paths) != 9:
@@ -1006,6 +1085,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "market_count": 9,
         "total_trades": sum(int(report["source_trade_count"]) for report in reports),
         "total_losses": sum(int(report["loss_count"]) for report in reports),
+        "session_ny_time_stop_profiles": _aggregate_session_time_profiles(reports),
         "feature_direction_counts": {
             feature: dict(sorted(counter.items()))
             for feature, counter in directions.items()
