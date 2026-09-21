@@ -78,7 +78,7 @@ def run_schedule_aware_replay(
     start_day = (START - timedelta(days=1)).astimezone(NY).date()
     end_day = END_EXCLUSIVE.astimezone(NY).date()
     trades: list[ReplayTrade] = []
-    counters = {
+    counters: dict[str, Counter[str]] = {
         "1": Counter(),
         "2": Counter(),
     }
