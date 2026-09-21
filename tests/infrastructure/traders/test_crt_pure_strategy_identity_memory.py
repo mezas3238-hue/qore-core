@@ -18,6 +18,10 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
         "time_turtle_soup_relation",
         "market_timeframe_scope",
         "make_or_break_level",
+        "fifty_percent_destination_family",
+        "incomplete_crt_trap",
+        "opposite_crt_bias_reversal",
+        "old_crth_crl_stab_reaction",
     }
     rules = payload["canonical_rules"]
     assert isinstance(rules, dict)
@@ -25,6 +29,10 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
         "time_turtle_soup_relation",
         "market_timeframe_scope",
         "make_or_break_level",
+        "fifty_percent_destination_family",
+        "incomplete_crt_trap",
+        "opposite_crt_bias_reversal",
+        "old_crth_crl_stab_reaction",
     }
 
 
