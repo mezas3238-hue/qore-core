@@ -74,6 +74,12 @@ from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
 SCHEMA = "qore.trader_lab.vt08_index_r101_standard_cisd_wick_routing.v1"
 IDENTITY = "VT08_INDEX_R101_STANDARD_CISD_WICK_ROUTING_DENSITY_001"
 
+SOURCE_R100_RUN_ID = 35553739444
+SOURCE_R100_ARTIFACT_ID = 10619881275
+SOURCE_R100_ARTIFACT_DIGEST = (
+    "sha256:c58d8e8844c5b99e46ae94653ded118b0f6564d285afe8ecbcdff227d657bb4b"
+)
+
 TTRADES_PO3_URL = (
     "https://ttrades.com/"
     "trading-the-4-hour-power-of-3-open-high-low-close-strategy/"
@@ -386,6 +392,11 @@ def build_report(
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
+        "source_r100": {
+            "run_id": SOURCE_R100_RUN_ID,
+            "artifact_id": SOURCE_R100_ARTIFACT_ID,
+            "artifact_digest": SOURCE_R100_ARTIFACT_DIGEST,
+        },
         "primary_sources": {
             "four_hour_power_of_three": TTRADES_PO3_URL,
             "wick_body": TTRADES_WICK_URL,
