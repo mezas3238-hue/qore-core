@@ -4,6 +4,7 @@ from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_m1_loss_causal_forensics_v1 import (
     IDENTITY,
+    _hourly_stop_profile,
     build_market_forensics,
 )
 
@@ -33,6 +34,32 @@ def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
         "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
         encoding="utf-8",
     )
+
+
+
+def test_ny_after_14_profile_separates_entry_time_from_stop_exit_time() -> None:
+    entry = datetime(2024, 6, 3, 18, 5, tzinfo=UTC)  # 14:05 New York
+    exit_at = datetime(2024, 6, 3, 19, 10, tzinfo=UTC)  # 15:10 New York
+    rows = [
+        {
+            "session": "NEW_YORK",
+            "entry_at": entry.isoformat(),
+            "exit_at": exit_at.isoformat(),
+            "exit_reason": "STOP",
+        }
+    ]
+
+    profile = _hourly_stop_profile(rows)
+    after_14 = {
+        item["label"]: item
+        for item in profile["hypothesis_windows"]
+    }["NEW_YORK_AFTER_14"]
+
+    assert after_14["entries"] == 1
+    assert after_14["entries_that_stopped"] == 1
+    assert after_14["entry_stop_rate"] == "1"
+    assert after_14["stop_exits"] == 1
+    assert profile["spread_causality_proven"] is False
 
 
 def test_consumed_stop_recovery_is_forensic_not_rule_promotion(tmp_path: Path) -> None:
@@ -145,9 +172,9 @@ def test_consumed_stop_recovery_is_forensic_not_rule_promotion(tmp_path: Path) -
         item["label"]: item
         for item in time_profile["hypothesis_windows"]
     }["NEW_YORK_AFTER_14"]
-    assert after_14["entries"] == 1
-    assert after_14["entries_that_stopped"] == 1
-    assert after_14["entry_stop_rate"] == "1"
-    assert after_14["stop_exits"] == 1
+    assert after_14["entries"] == 0
+    assert after_14["entries_that_stopped"] == 0
+    assert after_14["entry_stop_rate"] is None
+    assert after_14["stop_exits"] == 0
     assert enriched[0]["loss_classification"] == "PREMATURE_STOP_EVIDENCE"
     assert enriched[0]["target_reached_after_stop_same_session"] is True
