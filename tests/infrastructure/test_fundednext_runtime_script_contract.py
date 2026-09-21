@@ -83,6 +83,15 @@ def test_completed_m5_actor_portfolio_is_not_reported_as_unarmed() -> None:
     assert "armed_m5_snapshots is None and any(" in source
 
 
+def test_startup_overlaps_immutable_memory_loading_without_parallel_mt5_preload() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert 'thread_name_prefix="qore-startup-memory"' in source
+    assert "r34_cognitive_future = startup_memory.submit(" in source
+    assert "audjpy_r42_memory_future = startup_memory.submit(" in source
+    assert "for cache in m5_caches.values():\n        cache.preload(mt5" in source
+    assert "startup_memory.shutdown(wait=True, cancel_futures=True)" in source
+
+
 def test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:
     source = _RUNTIME.read_text(encoding="utf-8-sig")
     assert "local.hour not in LIVE_ENTRY_ANCHORS_NY" in source
