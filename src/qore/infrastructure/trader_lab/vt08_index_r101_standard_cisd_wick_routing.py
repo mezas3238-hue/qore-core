@@ -209,6 +209,9 @@ def _window(
 
     for opportunity, _outcome in stream:
         signal = opportunity.signal
+        side = signal.side
+        if side is None:
+            raise ValueError("R101 canonical signal side missing")
         symbol = str(signal.symbol)
         current_open = signal.h4_opened_at.astimezone(UTC)
         inside = h4_bars[symbol].get(current_open)
@@ -221,7 +224,7 @@ def _window(
         )
         wick_state, _adverse, _directional = r99._wick_state(
             observed,
-            side=signal.side,
+            side=side,
             h4_open=inside[0].open,
             entry=signal.entry,
         )
@@ -246,7 +249,7 @@ def _window(
             row = RoutedExecution(
                 symbol=symbol,
                 continuation_at=signal.signal_at.astimezone(UTC),
-                side=signal.side,
+                side=side,
                 entry=signal.entry,
                 protected_swing=signal.protected_swing_extreme,
                 route="SMALL_WICK_SAME_H4",
@@ -267,7 +270,7 @@ def _window(
         if not _survives_remainder(
             inside,
             signal_at=signal.signal_at,
-            side=signal.side,
+            side=side,
             protected_swing=signal.protected_swing_extreme,
         ):
             counts["LARGE_FAIL_INVALIDATED_BEFORE_H4_CLOSE"] += 1
@@ -299,7 +302,7 @@ def _window(
             indexed[symbol],
             before=next_open,
         )
-        if next_side is not signal.side:
+        if next_side is None or next_side is not side:
             counts["LARGE_FAIL_BIAS_CHANGED_OR_AMBIGUOUS"] += 1
             by_market[symbol][
                 "LARGE_FAIL_BIAS_CHANGED_OR_AMBIGUOUS"
@@ -308,7 +311,7 @@ def _window(
 
         continuation = _next_h4_continuation(
             next_inside,
-            side=signal.side,
+            side=side,
             protected_swing=signal.protected_swing_extreme,
         )
         if continuation is None:
@@ -322,7 +325,7 @@ def _window(
         row = RoutedExecution(
             symbol=symbol,
             continuation_at=continuation_at,
-            side=signal.side,
+            side=side,
             entry=entry,
             protected_swing=signal.protected_swing_extreme,
             route="LARGE_WICK_NEXT_H4",
@@ -338,8 +341,9 @@ def _window(
     exact_count = len(routed)
     if window_id == "5Y":
         density_min = contract.FIVE_YEAR_TRADE_RANGE[0]
-        density_max: int | None = contract.FIVE_YEAR_TRADE_RANGE[1]
-        density_pass = density_min <= exact_count <= density_max
+        five_year_max = contract.FIVE_YEAR_TRADE_RANGE[1]
+        density_max: int | None = five_year_max
+        density_pass = density_min <= exact_count <= five_year_max
     elif window_id == "2Y":
         density_min = contract.TWO_YEAR_MIN_TRADES
         density_max = None
