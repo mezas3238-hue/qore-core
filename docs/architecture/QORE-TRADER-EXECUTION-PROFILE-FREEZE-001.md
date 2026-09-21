@@ -31,6 +31,25 @@ Execution freshness and execution deadline are transport/runtime concerns only.
 - boundary_arm_lead = 10.0 seconds
 - boundary_retry = 75 ms
 
+## Feed-latency diagnosis
+
+QORE distinguishes three different clocks and never treats them as the same signal:
+
+1. **Transport latency** — measured only when a *new* broker tick timestamp is first
+   observed locally. This answers whether the broker/terminal/Core path delivered
+   new market data late.
+2. **Tick inter-arrival time** — the time since the market last produced a new quote.
+   A quiet instrument can legitimately exceed two seconds without any transport
+   fault. This must not be reported as broker/Core delivery latency.
+3. **Execution quote age** — immediately before LIVE mutation, the last executable
+   broker quote must still be <= 2.0 seconds old. This remains a hard fail-closed
+   safety invariant even when transport health is otherwise good.
+
+Activation/readiness diagnostics therefore must not require every instrument to have
+a <=2 second quote at the exact same wall-clock instant. They must verify the
+delivery latency of newly observed ticks/candles. The LIVE send boundary separately
+enforces quote age <=2 seconds on the instrument that is actually about to execute.
+
 ## Pre-send invariants
 
 Immediately before a LIVE order can reach MT5:
