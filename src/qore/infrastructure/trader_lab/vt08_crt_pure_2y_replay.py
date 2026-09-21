@@ -203,7 +203,11 @@ def _segment(
     return tuple(expected)
 
 
-def _aggregate(segment: tuple[ReplayBar, ...], opened_at: datetime, closed_at: datetime) -> AggregatedCandle:
+def _aggregate(
+    segment: tuple[ReplayBar, ...],
+    opened_at: datetime,
+    closed_at: datetime,
+) -> AggregatedCandle:
     if not segment:
         raise ValueError("cannot aggregate an empty segment")
     return AggregatedCandle(
@@ -328,7 +332,10 @@ def _trade_from_window(
     )
 
 
-def run_market_replay(market: CrtPureMarket, bars: tuple[ReplayBar, ...]) -> tuple[ReplayTrade, ...]:
+def run_market_replay(
+    market: CrtPureMarket,
+    bars: tuple[ReplayBar, ...],
+) -> tuple[ReplayTrade, ...]:
     by_time = {bar.opened_at: bar for bar in bars}
     start_day = (START - timedelta(days=1)).astimezone(NY).date()
     end_day = END_EXCLUSIVE.astimezone(NY).date()
@@ -406,7 +413,11 @@ def summarize(trades: tuple[ReplayTrade, ...]) -> dict[str, Any]:
     }
 
 
-def _fold(trades: tuple[ReplayTrade, ...], opened: datetime, closed: datetime) -> tuple[ReplayTrade, ...]:
+def _fold(
+    trades: tuple[ReplayTrade, ...],
+    opened: datetime,
+    closed: datetime,
+) -> tuple[ReplayTrade, ...]:
     return tuple(
         item
         for item in trades
