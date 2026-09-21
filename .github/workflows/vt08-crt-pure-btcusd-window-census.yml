@@ -90,8 +90,8 @@ jobs:
       - name: Run BTCUSD window census
         run: |
           mkdir -p "artifacts/${QORE_MARKET}"
-          python -m qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay \
-            "$QORE_MARKET" "artifacts/${QORE_MARKET}" \
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_window_census \
+            "$QORE_MARKET" "artifacts/${QORE_MARKET}/window-census.json" \
             | tee "artifacts/${QORE_MARKET}/stdout.json"
       - name: Bind git SHA and hashes
         shell: bash
