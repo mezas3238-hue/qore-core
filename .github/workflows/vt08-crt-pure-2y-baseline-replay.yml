@@ -133,7 +133,11 @@ jobs:
 
           per_market = {}
           for market in CrtPureMarket:
-              matches = list(Path('artifacts/input').rglob(f'{market.value}/trades.jsonl'))
+              matches = [
+                  path
+                  for path in Path('artifacts/input').rglob('trades.jsonl')
+                  if market.value in str(path.parent)
+              ]
               assert len(matches) == 1, (market.value, matches)
               rows = []
               for line in matches[0].read_text().splitlines():
