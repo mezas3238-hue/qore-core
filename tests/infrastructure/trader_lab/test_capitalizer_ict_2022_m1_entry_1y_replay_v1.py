@@ -27,10 +27,12 @@ def _bar(
     return CapitalizerM1Bar(
         symbol="EURUSD",
         opened_at=datetime(2026, 1, 1, 12, minute, tzinfo=UTC),
+        closed_at=datetime(2026, 1, 1, 12, minute, tzinfo=UTC) + __import__("datetime").timedelta(minutes=1),
         open=Decimal(open_),
         high=Decimal(high),
         low=Decimal(low),
         close=Decimal(close),
+        volume=None,
         digits=5,
     )
 
