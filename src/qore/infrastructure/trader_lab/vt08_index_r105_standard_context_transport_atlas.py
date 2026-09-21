@@ -32,9 +32,6 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r6_5y_failure_forensics as fx,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r15_concurrent_portfolio_validation as r15,
-)
-from qore.infrastructure.trader_lab import (
     vt08_index_r35_five_year_temporal_contract as r35,
 )
 from qore.infrastructure.trader_lab import (
