@@ -68,7 +68,6 @@ from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 i
     _aware,
     _is_directional_raid,
     _lifecycle,
-    _metrics,
     _operating_date,
     _pivot_indices,
 )
@@ -511,6 +510,51 @@ def _process_candidate(
     )
 
 
+def _ttrades_metrics(
+    trades: tuple[TTradesM1Trade, ...],
+) -> ICTReplayMetrics | None:
+    if not trades:
+        return None
+    ordered = tuple(sorted(trades, key=lambda item: _aware(item.entry_at)))
+    values = tuple(Decimal(item.realized_gross_r) for item in ordered)
+    gross_profit = sum((value for value in values if value > 0), Decimal("0"))
+    gross_loss = -sum((value for value in values if value < 0), Decimal("0"))
+    total = sum(values, Decimal("0"))
+    equity = Decimal("0")
+    peak = Decimal("0")
+    max_dd = Decimal("0")
+    streak = 0
+    max_streak = 0
+    for value in values:
+        equity += value
+        peak = max(peak, equity)
+        max_dd = max(max_dd, peak - equity)
+        if value < 0:
+            streak += 1
+            max_streak = max(max_streak, streak)
+        else:
+            streak = 0
+    return ICTReplayMetrics(
+        trades=len(values),
+        wins=sum(value > 0 for value in values),
+        losses=sum(value < 0 for value in values),
+        flats=sum(value == 0 for value in values),
+        total_r=str(total),
+        mean_r=str(total / Decimal(len(values))),
+        gross_profit_r=str(gross_profit),
+        gross_loss_r=str(gross_loss),
+        profit_factor=None if gross_loss == 0 else str(gross_profit / gross_loss),
+        max_drawdown_r=str(max_dd),
+        max_losing_streak=max_streak,
+        stop_exits=sum(trade.exit_reason == "STOP" for trade in ordered),
+        target_exits=sum(trade.exit_reason == "TARGET" for trade in ordered),
+        session_exits=sum(trade.exit_reason == "SESSION_EXIT" for trade in ordered),
+        ambiguous_stop_first_exits=sum(
+            trade.same_minute_stop_target_ambiguity for trade in ordered
+        ),
+    )
+
+
 def _variant_report(
     *,
     variant: str,
@@ -523,13 +567,7 @@ def _variant_report(
         entry_definition=ENTRY_CLOSE if variant == "CLOSE" else ENTRY_RETEST,
         entries=len(trades),
         entry_rate_vs_raid_candidates=str(Decimal(len(trades)) / Decimal(raid_candidates)),
-        metrics=_metrics(
-            tuple(
-                # _metrics consumes the structurally compatible fields on these dataclasses.
-                trade  # type: ignore[arg-type]
-                for trade in trades
-            )
-        ),
+        metrics=_ttrades_metrics(trades),
         sessions_with_entry=sum(count > 0 for count in session_counts.values()),
         sessions_over_max3=sum(
             count > MAX_EXECUTIONS_PER_SESSION for count in session_counts.values()
@@ -732,9 +770,7 @@ def _pooled_variant(reports: list[dict[str, Any]], root: Path, variant: str) -> 
             total += Decimal(str(metrics["total_r"]))
     all_trades = _load_variant_trades(root, variant)
     max3 = _apply_max3(all_trades)
-    max3_metrics = _metrics(
-        tuple(trade for trade in max3)  # type: ignore[arg-type]
-    )
+    max3_metrics = _ttrades_metrics(max3)
     return {
         "variant": variant,
         "entry_definition": ENTRY_CLOSE if variant == "CLOSE" else ENTRY_RETEST,
@@ -750,10 +786,12 @@ def _load_ict_matrix(root: Path) -> dict[str, Any]:
     paths = sorted(root.rglob("capitalizer-nine-market-ict-2022-m1-entry-1y-matrix-v1.json"))
     if len(paths) != 1:
         raise ValueError(f"comparison requires one ICT matrix, got {len(paths)}")
-    raw = json.loads(paths[0].read_text(encoding="utf-8"))
+    raw: Any = json.loads(paths[0].read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("ICT comparison matrix must be an object")
     if raw.get("identity") != "QORE_CAPITALIZER_NINE_MARKET_ICT_2022_M1_ENTRY_1Y_MATRIX_V1":
         raise ValueError("unexpected ICT comparison identity")
-    return raw
+    return dict(raw)
 
 
 def build_matrix(root: Path, ict_root: Path) -> dict[str, Any]:
