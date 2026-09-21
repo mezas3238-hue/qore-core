@@ -822,29 +822,45 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "market":
-        report, trades = build_market_report(
+        market_report, trades = build_market_report(
             candidate_root=args.candidate_root,
             m1_root=args.m1_root,
         )
-        write_market(report, trades, args.output)
+        write_market(market_report, trades, args.output)
         print(
             json.dumps(
                 {
-                    "symbol": report.symbol,
-                    "raid_candidates": report.directional_raid_candidates,
-                    "entries": report.ict_m1_entries,
-                    "pf": None if report.metrics is None else report.metrics.profit_factor,
-                    "total_r": None if report.metrics is None else report.metrics.total_r,
-                    "dd": None if report.metrics is None else report.metrics.max_drawdown_r,
-                    "ls": None if report.metrics is None else report.metrics.max_losing_streak,
+                    "symbol": market_report.symbol,
+                    "raid_candidates": market_report.directional_raid_candidates,
+                    "entries": market_report.ict_m1_entries,
+                    "pf": (
+                        None
+                        if market_report.metrics is None
+                        else market_report.metrics.profit_factor
+                    ),
+                    "total_r": (
+                        None
+                        if market_report.metrics is None
+                        else market_report.metrics.total_r
+                    ),
+                    "dd": (
+                        None
+                        if market_report.metrics is None
+                        else market_report.metrics.max_drawdown_r
+                    ),
+                    "ls": (
+                        None
+                        if market_report.metrics is None
+                        else market_report.metrics.max_losing_streak
+                    ),
                 },
                 sort_keys=True,
             )
         )
         return
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
