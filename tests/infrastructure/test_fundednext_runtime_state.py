@@ -37,6 +37,53 @@ def test_runtime_state_round_trips_atomically(tmp_path: Path) -> None:
     assert store.load() == _state()
 
 
+def test_runtime_state_retries_transient_windows_replace_contention(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "state.json"
+    store = DurableFundedNextRuntimeStateStore(path)
+    real_replace = os.replace
+    attempts = 0
+    delays: list[float] = []
+
+    def replace_with_transient_contention(source: Path, target: Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise PermissionError("reader temporarily denies delete sharing")
+        real_replace(source, target)
+
+    monkeypatch.setattr(os, "replace", replace_with_transient_contention)
+    monkeypatch.setattr("qore.infrastructure.fundednext_runtime_state.time.sleep", delays.append)
+
+    store.store(_state())
+
+    assert store.load() == _state()
+    assert attempts == 3
+    assert delays == [0.01, 0.02]
+
+
+def test_runtime_state_fails_closed_after_bounded_replace_contention(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = DurableFundedNextRuntimeStateStore(tmp_path / "state.json")
+    delays: list[float] = []
+
+    def replace_blocked(_source: Path, _target: Path) -> None:
+        raise PermissionError("persistent delete-sharing violation")
+
+    monkeypatch.setattr(os, "replace", replace_blocked)
+    monkeypatch.setattr("qore.infrastructure.fundednext_runtime_state.time.sleep", delays.append)
+
+    with pytest.raises(FundedNextRuntimeStateError, match="atomic write failed"):
+        store.store(_state())
+
+    assert sum(delays) < 1.0
+    assert not tuple(tmp_path.glob("*.tmp"))
+
+
 def test_processed_anchor_is_durable_and_unique() -> None:
     state = _state().with_cycle(
         highest_closed_balance="2010",
