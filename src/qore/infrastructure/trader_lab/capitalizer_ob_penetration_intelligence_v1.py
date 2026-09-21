@@ -56,6 +56,16 @@ FX_SYMBOLS = frozenset(
         "USDJPY",
     }
 )
+OVERSHOOT_R_BANDS: tuple[tuple[str, Decimal, Decimal | None], ...] = (
+    ("0_TO_0_25R", Decimal("0"), Decimal("0.25")),
+    ("0_25_TO_0_50R", Decimal("0.25"), Decimal("0.50")),
+    ("0_50_TO_0_75R", Decimal("0.50"), Decimal("0.75")),
+    ("0_75_TO_1_00R", Decimal("0.75"), Decimal("1.00")),
+    ("1_00_TO_1_50R", Decimal("1.00"), Decimal("1.50")),
+    ("1_50_TO_2_00R", Decimal("1.50"), Decimal("2.00")),
+    ("2_00_TO_3_00R", Decimal("2.00"), Decimal("3.00")),
+    ("3R_PLUS", Decimal("3.00"), None),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,12 +126,26 @@ class _PenetrationState:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalizerOBOvershootBand:
+    label: str
+    lower_r_inclusive: str
+    upper_r_exclusive: str | None
+    trades: int
+    target_reached_same_session: int
+    target_rate: str
+    close_outside_ob: int
+    close_outside_ob_rate: str
+    same_bar_target_ambiguity: int
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalizerOBPenetrationMarketReport:
     identity: str
     symbol: str
     session: str
     source_trade_count: int
     path_classification_counts: tuple[tuple[str, int], ...]
+    overshoot_r_bands: tuple[CapitalizerOBOvershootBand, ...]
     overshoot_trades: int
     overshoot_then_target: int
     overshoot_no_target: int
@@ -607,6 +631,45 @@ def _enrich_rows(rows: list[dict[str, Any]], m1_root: Path) -> None:
         row["outcome_used_for_entry_selection"] = False
 
 
+def _overshoot_r_bands(
+    rows: list[dict[str, Any]],
+) -> tuple[CapitalizerOBOvershootBand, ...]:
+    result: list[CapitalizerOBOvershootBand] = []
+    for label, lower, upper in OVERSHOOT_R_BANDS:
+        selected = [
+            row
+            for row in rows
+            if (value := Decimal(str(row["max_ob_overshoot_r"]))) > 0
+            and value >= lower
+            and (upper is None or value < upper)
+        ]
+        targets = sum(bool(row["target_reached_same_session"]) for row in selected)
+        closes = sum(
+            Decimal(str(row["max_close_overshoot_beyond_distal_price"])) > 0
+            for row in selected
+        )
+        ambiguities = sum(
+            bool(row["same_bar_overshoot_target_ambiguity"]) for row in selected
+        )
+        count = len(selected)
+        result.append(
+            CapitalizerOBOvershootBand(
+                label=label,
+                lower_r_inclusive=str(lower),
+                upper_r_exclusive=None if upper is None else str(upper),
+                trades=count,
+                target_reached_same_session=targets,
+                target_rate="0" if count == 0 else str(Decimal(targets) / Decimal(count)),
+                close_outside_ob=closes,
+                close_outside_ob_rate=(
+                    "0" if count == 0 else str(Decimal(closes) / Decimal(count))
+                ),
+                same_bar_target_ambiguity=ambiguities,
+            )
+        )
+    return tuple(result)
+
+
 def build_market_report(
     source_root: Path,
     m1_root: Path,
@@ -677,6 +740,7 @@ def build_market_report(
         session=session,
         source_trade_count=len(rows),
         path_classification_counts=tuple(sorted(classes.items())),
+        overshoot_r_bands=_overshoot_r_bands(rows),
         overshoot_trades=len(overshoot_rows),
         overshoot_then_target=len(overshoot_target_rows),
         overshoot_no_target=len(overshoot_no_target_rows),
