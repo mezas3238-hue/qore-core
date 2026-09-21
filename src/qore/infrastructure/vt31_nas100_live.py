@@ -229,6 +229,10 @@ class Vt31Nas100M1Cache:
             raise ValueError("VT31 M1 cache max_bars below minimum")
         self._max_bars = max_bars
         self._bars: dict[datetime, OhlcSnapshot] = {}
+        # Keys enter this set only after QORE has observed them as completed.
+        # A bar first seen while open may therefore publish exactly one final
+        # closed snapshot without being mistaken for historical mutation.
+        self._finalized_bars: set[datetime] = set()
         self._preloaded = False
         self._preload_calls = 0
         self._incremental_calls = 0
@@ -259,7 +263,8 @@ class Vt31Nas100M1Cache:
             if self._bars[key].closed_at <= cutoff
         )
 
-    def _ingest(self, rows: Any) -> None:
+    def _ingest(self, rows: Any, *, observed_at: datetime) -> None:
+        observed = _utc(observed_at, "observed_at")
         for row in rows:
             opened = normalise_fundednext_server_epoch(int(row["time"]))
             snapshot = OhlcSnapshot(
@@ -281,19 +286,22 @@ class Vt31Nas100M1Cache:
             )
             prior = self._bars.get(opened)
             if prior is not None and prior != snapshot:
-                # The current still-open M1 is allowed to evolve; completed
-                # bars must never mutate after their close.
-                now = datetime.now(UTC)
-                if prior.closed_at <= now:
+                # A bar may evolve while open. On the first read after its
+                # close, accept the broker's final published OHLC once. From
+                # that point forward the completed bar is immutable.
+                if opened in self._finalized_bars:
                     raise Vt31Nas100LiveError(
                         "VT31 contradictory completed M1 bar"
                     )
             self._bars[opened] = snapshot
+            if snapshot.closed_at <= observed:
+                self._finalized_bars.add(opened)
 
         if len(self._bars) > self._max_bars:
             keys = sorted(self._bars)
             for key in keys[: len(keys) - self._max_bars]:
                 del self._bars[key]
+                self._finalized_bars.discard(key)
 
     def preload(self, api: Any, *, now: datetime) -> None:
         if self._preloaded:
@@ -308,7 +316,7 @@ class Vt31Nas100M1Cache:
         )
         if rows is None or len(rows) < MIN_PRELOAD_M1_BARS:
             raise Vt31Nas100LiveError("VT31 historical M1 preload unavailable")
-        self._ingest(rows)
+        self._ingest(rows, observed_at=now)
         self._preloaded = True
         self._preload_calls += 1
         self._last_refresh_at = now.astimezone(UTC)
@@ -332,7 +340,7 @@ class Vt31Nas100M1Cache:
         )
         if rows is None or len(rows) < 2:
             raise Vt31Nas100LiveError("VT31 incremental M1 refresh unavailable")
-        self._ingest(rows)
+        self._ingest(rows, observed_at=now)
         self._incremental_calls += 1
         self._last_refresh_at = now.astimezone(UTC)
 

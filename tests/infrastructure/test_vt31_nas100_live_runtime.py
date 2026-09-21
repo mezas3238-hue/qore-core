@@ -18,6 +18,7 @@ from qore.infrastructure.vt31_nas100_live import (
     PROVIDER_SYMBOL,
     TARGET_ARCHITECTURE_ID,
     Vt31Nas100LiveError,
+    Vt31Nas100M1Cache,
     Vt31Nas100SlaExpired,
     Vt31RiskContext,
     Vt31VirtualCandidate,
@@ -243,3 +244,49 @@ def test_live_state_store_roundtrips_empty_state(tmp_path: Path) -> None:
     assert store.load() == Vt31Nas100LiveState()
     store.store(Vt31Nas100LiveState())
     assert store.load() == Vt31Nas100LiveState()
+
+
+def test_m1_cache_accepts_one_close_finalization_then_freezes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import vt31_nas100_live as live
+
+    opened = datetime(2026, 9, 20, 14, 0, tzinfo=UTC)
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda _raw: opened,
+    )
+    cache = Vt31Nas100M1Cache()
+
+    open_row = {
+        "time": 1,
+        "open": 20000.0,
+        "high": 20002.0,
+        "low": 19999.0,
+        "close": 20001.0,
+    }
+    final_row = {
+        **open_row,
+        "high": 20003.0,
+        "close": 20002.0,
+    }
+    rewritten_row = {
+        **final_row,
+        "close": 20002.5,
+    }
+
+    cache._ingest([open_row], observed_at=opened + timedelta(seconds=30))
+    cache._ingest(
+        [final_row],
+        observed_at=opened + timedelta(minutes=1, milliseconds=100),
+    )
+
+    with pytest.raises(
+        Vt31Nas100LiveError,
+        match="contradictory completed M1 bar",
+    ):
+        cache._ingest(
+            [rewritten_row],
+            observed_at=opened + timedelta(minutes=1, seconds=1),
+        )
