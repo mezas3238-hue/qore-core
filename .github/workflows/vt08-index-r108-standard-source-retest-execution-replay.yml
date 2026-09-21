@@ -42,8 +42,8 @@ jobs:
         with:
           name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
           path: artifacts/NAS100
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          repository: \${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
           run-id: 35166210458
 
       - name: Download SP500 CIBO evidence
@@ -51,8 +51,8 @@ jobs:
         with:
           name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
           path: artifacts/SP500
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          repository: \${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
           run-id: 35166210458
 
       - name: Download US30 CIBO evidence
@@ -60,8 +60,8 @@ jobs:
         with:
           name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
           path: artifacts/US30
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          repository: \${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
           run-id: 35166210458
 
       - name: Execute R108 source-retest execution replay
@@ -154,7 +154,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qore-vt08-index-r108-standard-source-retest-execution-replay-\${{ github.sha }}
+          name: qore-vt08-index-r108-standard-source-retest-execution-replay-${{ github.sha }}
           path: artifacts/report
           if-no-files-found: error
           retention-days: 90
