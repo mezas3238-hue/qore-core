@@ -74,3 +74,15 @@ def test_runtime_gates_new_risk_on_certified_prop_policy() -> None:
     assert "or not certified_policy_ready" in source
     assert "certified_open_risk_fraction=(" in source
     assert "reclassified_open_risk_fraction" in source
+
+
+def test_runtime_binds_capitalization_mission_to_account_wide_risk() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "build_5k_mission_config" in source
+    assert "DurableCapitalizationMissionStore" in source
+    assert '"capitalization-mission.json"' in source
+    assert "CapitalizationMissionState.BANK" in source
+    assert "Vt08ForexCiboPosture.BANK" in source
+    assert "mission_snapshot.new_risk_allowed_by_mission" in source
+    assert '"CAPITALIZATION_MISSION_STATE_CHANGED"' in source
+    assert '"capitalization_balance_target"' in source
