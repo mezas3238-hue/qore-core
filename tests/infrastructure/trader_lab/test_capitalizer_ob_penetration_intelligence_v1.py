@@ -3,10 +3,10 @@ from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_ob_penetration_intelligence_v1 import (
     M1Bar,
-    _PenetrationState,
     _classify,
     _fx_pip_size,
     _overshoot_price,
+    _PenetrationState,
     _update_state,
 )
 

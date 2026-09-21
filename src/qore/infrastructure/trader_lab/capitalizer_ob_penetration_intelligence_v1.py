@@ -32,7 +32,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, time, timedelta
-from decimal import Decimal, ROUND_FLOOR
+from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
 from statistics import median
 from typing import Any
