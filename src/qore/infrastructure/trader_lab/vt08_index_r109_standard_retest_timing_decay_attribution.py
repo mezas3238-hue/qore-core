@@ -38,6 +38,9 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r74_ambiguous_bias_resolvers as r74,
 )
 from qore.infrastructure.trader_lab import (
+    vt08_index_r80_source_2r_target_transport as r80,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r82_protected_swing_source_qualification as r82,
 )
 from qore.infrastructure.trader_lab import (
@@ -206,7 +209,7 @@ def _period_label(
     start_date: date,
     end_date: date,
 ) -> str:
-    boundaries = r108.r80._boundaries(
+    boundaries = r80._boundaries(
         window_id=window_id,
         start_date=start_date,
         end_date=end_date,
