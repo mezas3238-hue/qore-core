@@ -1,0 +1,136 @@
+name: VT08 Index R100 CISD Protected Swing Semantics Correction
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r100-cisd-ps-semantics-correction.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r100_cisd_ps_semantics_correction.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r100_cisd_ps_semantics_correction.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r100_cisd_ps_semantics_correction.py
+
+  freeze:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Build R100 semantic correction evidence
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r100_cisd_ps_semantics_correction \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r100-cisd-ps-semantics-correction.json
+
+      - name: Verify R100 semantic invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r100-cisd-ps-semantics-correction.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R100_CISD_PROTECTED_SWING_SEMANTICS_CORRECTION_001"
+          )
+          assert report["source_r98"]["run_id"] == 35553502458
+          assert report["source_r98"]["artifact_id"] == 10619516510
+          assert report["source_r98"]["artifact_digest"] == (
+              "sha256:7878ee790fe11f9e8a6965dee74406cad8f5409705c7b1905288bed68788e05e"
+          )
+
+          sem = report["corrected_source_semantics"]
+          assert sem["primary_model"] == "D1_H4_M15"
+          assert sem["higher_timeframe_poi_required"] is True
+          assert sem["lower_timeframe_cisd_required"] is True
+          assert sem["cisd_confirms_swing_or_wick"] is True
+          assert sem["continuation_required_for_entry"] is True
+          assert sem["explicit_ps_mechanism_is_universal_gate"] is False
+          assert sem["canonical_surface_changed"] is False
+
+          assert report["five_year"]["canonical_sample"] == 2448
+          assert report["recent_two_year"]["canonical_sample"] == 1017
+          assert report["r66_failed_holdout"]["canonical_sample"] == 773
+          assert report["five_year"]["semantic_counts"][
+              "STANDARD_CISD_CONFIRMED"
+          ] == 2448
+          assert report["recent_two_year"]["semantic_counts"][
+              "STANDARD_CISD_CONFIRMED"
+          ] == 1017
+          assert report["r66_failed_holdout"]["semantic_counts"][
+              "STANDARD_CISD_CONFIRMED"
+          ] == 773
+
+          gov = report["governance"]
+          assert gov["source_semantics_freeze"] is True
+          assert gov["canonical_signal_surface_changed"] is False
+          assert gov["signals_added"] is False
+          assert gov["signals_suppressed"] is False
+          assert gov["pnl_evaluated"] is False
+          assert gov["candidate_created"] is False
+          assert gov["trader_certified"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r100-cisd-ps-semantics-correction-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
