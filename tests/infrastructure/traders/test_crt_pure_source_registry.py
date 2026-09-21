@@ -127,6 +127,15 @@ def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
         CrtPureConceptId.INCOMPLETE_CRT_TRAP,
         CrtPureConceptId.OPPOSITE_CRT_BIAS_REVERSAL,
         CrtPureConceptId.OLD_CRTH_CRL_STAB_REACTION,
+        CrtPureConceptId.REFERENCE_RANGE,
+        CrtPureConceptId.CRH_CRL,
+        CrtPureConceptId.LIQUIDATION_SWEEP,
+        CrtPureConceptId.RECLAIM_CLOSE_BACK_INSIDE,
+        CrtPureConceptId.CANDLE_1_2_3,
+        CrtPureConceptId.INVALIDATION,
+        CrtPureConceptId.ENTRY_FAMILIES,
+        CrtPureConceptId.STRUCTURAL_STOP,
+        CrtPureConceptId.STRUCTURAL_DESTINATION,
     }
 
 
