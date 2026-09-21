@@ -22,11 +22,11 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
 )
 
 
-def _source(o: str, h: str, l: str, c: str) -> CapitalizerSourceBar:
+def _source(o: str, h: str, low: str, c: str) -> CapitalizerSourceBar:
     return CapitalizerSourceBar(
         open=Decimal(o),
         high=Decimal(h),
-        low=Decimal(l),
+        low=Decimal(low),
         close=Decimal(c),
     )
 
