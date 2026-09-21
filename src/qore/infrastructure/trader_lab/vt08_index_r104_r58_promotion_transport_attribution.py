@@ -26,7 +26,7 @@ import argparse
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
