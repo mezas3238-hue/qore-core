@@ -1,4 +1,4 @@
-name: QORE Capitalizer Strict HTF Gate 1Y V1
+name: QORE Capitalizer Strict HTF Gate 1Y V1\n# replay trigger revision 5
 
 on:
   push:
