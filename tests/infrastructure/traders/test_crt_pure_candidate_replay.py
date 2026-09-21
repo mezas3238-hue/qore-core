@@ -3,15 +3,15 @@ from decimal import Decimal
 
 import pytest
 
-from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
-from qore.infrastructure.traders.crt_pure_methodology_candidate import (
-    CrtPureCandidateDirection,
-    CrtPureRangeOutcome,
-)
 from qore.infrastructure.traders.crt_pure_candidate_replay import (
     CrtPureReplayCandle,
     detect_candidate_formation,
     scan_candidate_formations,
+)
+from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
+from qore.infrastructure.traders.crt_pure_methodology_candidate import (
+    CrtPureCandidateDirection,
+    CrtPureRangeOutcome,
 )
 
 
