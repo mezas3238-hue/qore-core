@@ -22,6 +22,15 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
         "incomplete_crt_trap",
         "opposite_crt_bias_reversal",
         "old_crth_crl_stab_reaction",
+        "reference_range",
+        "crh_crl",
+        "liquidation_sweep",
+        "reclaim_close_back_inside",
+        "candle_1_2_3",
+        "invalidation",
+        "entry_families",
+        "structural_stop",
+        "structural_destination",
     }
     rules = payload["canonical_rules"]
     assert isinstance(rules, dict)
@@ -36,11 +45,20 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
     }
 
 
-def test_core_execution_remains_fail_closed_until_source_closure() -> None:
-    assert strategy_identity_ready() is False
-    unresolved = unresolved_core_execution_concepts()
-    assert unresolved == CRT_PURE_CORE_EXECUTION_CONCEPTS
-    assert CrtPureConceptId.MAKE_OR_BREAK_LEVEL not in unresolved
+def test_core_execution_source_contract_is_closed() -> None:
+    assert strategy_identity_ready() is True
+    assert unresolved_core_execution_concepts() == ()
+    assert set(CRT_PURE_CORE_EXECUTION_CONCEPTS) == {
+        CrtPureConceptId.REFERENCE_RANGE,
+        CrtPureConceptId.CRH_CRL,
+        CrtPureConceptId.LIQUIDATION_SWEEP,
+        CrtPureConceptId.RECLAIM_CLOSE_BACK_INSIDE,
+        CrtPureConceptId.CANDLE_1_2_3,
+        CrtPureConceptId.INVALIDATION,
+        CrtPureConceptId.ENTRY_FAMILIES,
+        CrtPureConceptId.STRUCTURAL_STOP,
+        CrtPureConceptId.STRUCTURAL_DESTINATION,
+    }
 
 
 def test_strategy_identity_guards_exclude_amd_and_level_b_authority() -> None:
@@ -50,7 +68,7 @@ def test_strategy_identity_guards_exclude_amd_and_level_b_authority() -> None:
     assert guards["crt_amd_allowed"] is False
     assert guards["level_b_may_define_methodology"] is False
     assert guards["unresolved_rule_may_execute"] is False
-    assert payload["strategy_identity_ready"] is False
+    assert payload["strategy_identity_ready"] is True
 
 
 def test_strategy_identity_is_fingerprinted_and_valid() -> None:
