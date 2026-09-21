@@ -76,6 +76,13 @@ def test_runtime_has_one_supervisor_and_cannot_self_restart_storm() -> None:
     assert "restart_delay_seconds" not in main
 
 
+def test_completed_m5_actor_portfolio_is_not_reported_as_unarmed() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "m5_portfolio_keys = (" in source
+    assert "key not in state.processed_anchors for key in m5_portfolio_keys" in source
+    assert "armed_m5_snapshots is None and any(" in source
+
+
 def test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:
     source = _RUNTIME.read_text(encoding="utf-8-sig")
     assert "local.hour not in LIVE_ENTRY_ANCHORS_NY" in source
