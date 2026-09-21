@@ -18,7 +18,6 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
-
 NY = ZoneInfo("America/New_York")
 
 
