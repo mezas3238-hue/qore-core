@@ -36,11 +36,12 @@ def test_primary_corpus_contains_verified_romeo_series_and_kod_pdf() -> None:
     )
 
 
-def test_unresolved_primary_locators_remain_explicit() -> None:
-    pending = {item.artifact_id for item in pending_primary_locators()}
-    assert "ROMEO_CRT_FOUNDATION_VIDEO" in pending
-    assert "ROMEO_CRT_SECRETS_EP06" in pending
-    assert "ROMEO_CRT_SECRETS_EP10" in pending
+def test_primary_locators_are_now_fully_bound() -> None:
+    assert pending_primary_locators() == ()
+    ids = {item.artifact_id for item in verified_primary_artifacts()}
+    assert "ROMEO_CRT_FOUNDATION_VIDEO" in ids
+    assert "ROMEO_CRT_SECRETS_EP06" in ids
+    assert "ROMEO_CRT_SECRETS_EP10" in ids
     assert len(CRT_PURE_PRIMARY_SOURCE_CORPUS) == len(
         {item.artifact_id for item in CRT_PURE_PRIMARY_SOURCE_CORPUS}
     )
