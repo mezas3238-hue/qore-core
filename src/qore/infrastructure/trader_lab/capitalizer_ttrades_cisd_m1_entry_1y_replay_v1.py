@@ -62,9 +62,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 import (
-    ICTReplayMetrics,
     WINDOW_END,
     WINDOW_START,
+    ICTReplayMetrics,
     _aware,
     _is_directional_raid,
     _lifecycle,
@@ -531,7 +531,9 @@ def _variant_report(
             )
         ),
         sessions_with_entry=sum(count > 0 for count in session_counts.values()),
-        sessions_over_max3=sum(count > MAX_EXECUTIONS_PER_SESSION for count in session_counts.values()),
+        sessions_over_max3=sum(
+            count > MAX_EXECUTIONS_PER_SESSION for count in session_counts.values()
+        ),
         max_entries_one_session=max(session_counts.values(), default=0),
     )
 
@@ -870,7 +872,9 @@ def main() -> None:
                     ),
                     "retest_entries": report.retest.entries,
                     "retest_pf": (
-                        None if report.retest.metrics is None else report.retest.metrics.profit_factor
+                        None
+                        if report.retest.metrics is None
+                        else report.retest.metrics.profit_factor
                     ),
                 },
                 sort_keys=True,
