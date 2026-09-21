@@ -63,6 +63,9 @@ from qore.infrastructure.trader_lab import (
     vt08_index_v7_ttrades_source_corrected as v7,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
+from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
+    Vt08IndexC2R1Bar,
+)
 
 SCHEMA = "qore.trader_lab.vt08_index_r111_continuation_semantic_parity_attribution.v1"
 IDENTITY = "VT08_INDEX_R111_CONTINUATION_SEMANTIC_PARITY_ATTRIBUTION_001"
@@ -195,7 +198,7 @@ def _window(
         window_id=window_id,
     )
     start_date, end_date, expected = r74._window_contract(window_id)
-    bars_by_symbol = {
+    bars_by_symbol: dict[str, Sequence[Vt08IndexC2R1Bar]] = {
         symbol: tuple(bars)
         for symbol, bars in bars_by_symbol_raw.items()
     }
