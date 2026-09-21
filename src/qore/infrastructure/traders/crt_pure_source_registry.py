@@ -215,11 +215,27 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
                 "RomeoTPT states that some trades are entered after chart analysis "
                 "and price action provides a reason, while some entries are based on time."
             ),
-            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
             ambiguity_notes=(
-                "The post establishes more than one entry context but does not define "
-                "the exact CRT entry families or their deterministic triggers."
+                "The source keeps multiple entry contexts; the baseline C3 family is "
+                "closed separately and does not erase other source-authorized families."
             ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.ENTRY_FAMILIES,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical CRT Secrets episode 7 and foundational video; "
+                "indexed transcript extraction used only as transport"
+            ),
+            locator="https://www.youtube.com/watch?v=h7NCST2wPw8",
+            normalized_statement=(
+                "A source-authorized baseline entry family waits for Candle 2 to close "
+                "and trades the Candle 3 opportunity in relation to a key level; "
+                "the source also teaches additional entry families."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
         ),
     ),
     CrtPureConceptId.REFERENCE_RANGE: (
@@ -252,6 +268,38 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             adjudication=CrtPureAdjudicationState.CORROBORATED,
             ambiguity_notes="Primary RomeoTPT evidence remains required.",
         ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.REFERENCE_RANGE,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical foundational RomeoTPT video; timestamp extraction "
+                "cross-checked through indexed transcript summaries"
+            ),
+            locator="https://www.youtube.com/watch?v=UUq_wKQ61Wo&t=79s",
+            normalized_statement=(
+                "Every candle represents a range with its own open, high, low and close; "
+                "the trader must select which candle range is being traded."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+        ),
+    ),
+    CrtPureConceptId.RECLAIM_CLOSE_BACK_INSIDE: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.RECLAIM_CLOSE_BACK_INSIDE,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical foundational RomeoTPT video; timestamp extraction "
+                "cross-checked through indexed transcript summaries"
+            ),
+            locator="https://www.youtube.com/watch?v=UUq_wKQ61Wo&t=116s",
+            normalized_statement=(
+                "The Turtle Soup outcome is distinguished from breakout acceptance by "
+                "penetrating a range boundary and closing back on the range side of it."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+        ),
     ),
     CrtPureConceptId.CANDLE_1_2_3: (
         CrtPureSourceEvidence(
@@ -270,6 +318,40 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
                 "This is a navigation hypothesis for RomeoTPT episode 7 and related "
                 "primary material, not a canonical CRT rule yet."
             ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.CANDLE_1_2_3,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical foundational video plus CRT Secrets episode 7; "
+                "indexed transcript extraction used only as transport"
+            ),
+            locator="https://www.youtube.com/watch?v=h7NCST2wPw8",
+            normalized_statement=(
+                "The baseline three-candle cycle is Candle 1 accumulation/range, "
+                "Candle 2 manipulation, and Candle 3 distribution; Candle 2 must close "
+                "before the Candle 3 opportunity is acted upon."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+        ),
+    ),
+    CrtPureConceptId.INVALIDATION: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.INVALIDATION,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical foundational video and CRT Secrets episode 8; "
+                "indexed transcript extraction used only as transport"
+            ),
+            locator="https://www.youtube.com/watch?v=UUq_wKQ61Wo&t=2589s",
+            normalized_statement=(
+                "Do not force a reversal when the required Turtle Soup is absent; "
+                "acceptance by close outside the selected range is a breakout rather than "
+                "the reclaimed Turtle Soup thesis."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
         ),
     ),
     CrtPureConceptId.NESTED_CRT: (
@@ -298,11 +380,26 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
                 "RomeoTPT explicitly refers to CRTH/L as structural price levels "
                 "from which price can travel toward the 50 percent area."
             ),
-            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
             ambiguity_notes=(
-                "The source confirms CRTH/L terminology and relevance but does not "
-                "in this post define the exact candle-selection algorithm that creates them."
+                "Telegram confirms CRTH/L relevance; the selected-candle derivation "
+                "is closed separately from the canonical foundational/KOD videos."
             ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.CRH_CRL,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical CRT Secrets episode 2 with foundational range definition; "
+                "transcript extraction used only as transport"
+            ),
+            locator="https://www.youtube.com/watch?v=FYr6J5pIDB4",
+            normalized_statement=(
+                "For the selected CRT reference candle, the candle high and low define "
+                "the CRT range boundaries used as CRTH and CRTL."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
         ),
     ),
     CrtPureConceptId.LIQUIDATION_SWEEP: (
@@ -316,11 +413,47 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
                 "For an ideal bearish reaction, RomeoTPT describes a candle opening, "
                 "stabbing into an old CRTH, and then dumping."
             ),
-            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
             ambiguity_notes=(
-                "This directly supports penetration of an old CRTH as relevant behavior, "
-                "but does not yet define universal sweep depth, close requirement, "
-                "or entry trigger."
+                "Telegram corroborates the penetration reaction; exact Turtle Soup "
+                "penetration/reclaim semantics are closed from the foundational video."
+            ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.LIQUIDATION_SWEEP,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical foundational RomeoTPT video; timestamp extraction "
+                "cross-checked through indexed transcript summaries"
+            ),
+            locator="https://www.youtube.com/watch?v=UUq_wKQ61Wo&t=116s",
+            normalized_statement=(
+                "A Turtle Soup manipulates one boundary of the selected candle range "
+                "by trading beyond that boundary rather than accepting the breakout."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+        ),
+    ),
+    CrtPureConceptId.STRUCTURAL_STOP: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.STRUCTURAL_STOP,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical CRT Secrets episode 2; indexed transcript extraction "
+                "used only as transport"
+            ),
+            locator="https://www.youtube.com/watch?v=FYr6J5pIDB4",
+            normalized_statement=(
+                "For the KOD/Turtle Soup execution family, risk is placed beyond the "
+                "Turtle Soup manipulation area, so the stop is structural rather than "
+                "an arbitrary fixed distance."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "This closes the baseline structural-stop family; other source-authorized "
+                "entry families may use their own tighter structural invalidation."
             ),
         ),
     ),
@@ -334,10 +467,10 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             normalized_statement=(
                 "RomeoTPT explicitly describes taking price from CRTH/L toward 50 percent."
             ),
-            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
             ambiguity_notes=(
-                "Other official examples also describe range-high to range-low travel. "
-                "More context is required before freezing one universal destination hierarchy."
+                "The destination hierarchy is closed separately: 50 percent first, "
+                "then contextual continuation toward the opposite range edge."
             ),
         ),
         CrtPureSourceEvidence(
@@ -349,11 +482,26 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             normalized_statement=(
                 "RomeoTPT posts an example described as Nasdaq range high to range low."
             ),
-            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            adjudication=CrtPureAdjudicationState.CORROBORATED,
             ambiguity_notes=(
-                "The example proves opposite-range travel exists in the source corpus, "
-                "not that it is always the mandatory target."
+                "Opposite-edge travel is an extension family, not a mandatory first target."
             ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.STRUCTURAL_DESTINATION,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical CRT Secrets episode 8 plus official Telegram teaching; "
+                "indexed transcript extraction used only as transport"
+            ),
+            locator="https://www.youtube.com/watch?v=-mWYppebugo",
+            normalized_statement=(
+                "CRT target number one is the 50 percent midpoint of the selected CRT "
+                "candle; after that target completes, continuation may extend toward "
+                "the opposite range edge or price may reverse."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
         ),
     ),
     CrtPureConceptId.FIFTY_PERCENT_DESTINATION_FAMILY: (
