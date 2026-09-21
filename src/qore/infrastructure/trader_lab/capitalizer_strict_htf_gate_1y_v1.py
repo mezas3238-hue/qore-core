@@ -375,6 +375,65 @@ def _execution_bars(
     )
 
 
+def _index_day_inputs(
+    all_bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    session: CapitalizerSession,
+) -> tuple[
+    dict[str, tuple[CapitalizerM1Bar, ...]],
+    dict[str, ReferenceLiquidity],
+]:
+    execution_lists: dict[str, list[CapitalizerM1Bar]] = defaultdict(list)
+    reference_lists: dict[str, list[CapitalizerM1Bar]] = defaultdict(list)
+
+    for bar in all_bars:
+        local = bar.opened_at.astimezone(NEW_YORK)
+        wall = local.timetz().replace(tzinfo=None)
+        local_day = local.date()
+
+        if session is CapitalizerSession.ASIA:
+            if time(20, 0) <= wall < time(23, 59, 59, 999999):
+                execution_lists[local_day.isoformat()].append(bar)
+            if time(8, 30) <= wall < time(16, 0):
+                reference_lists[local_day.isoformat()].append(bar)
+        elif session is CapitalizerSession.LONDON:
+            if time(2, 0) <= wall < time(5, 0):
+                execution_lists[local_day.isoformat()].append(bar)
+            if time(20, 0) <= wall:
+                reference_day = (local_day + timedelta(days=1)).isoformat()
+                reference_lists[reference_day].append(bar)
+        else:
+            if time(8, 30) <= wall < time(11, 0):
+                execution_lists[local_day.isoformat()].append(bar)
+            if time(2, 0) <= wall < time(5, 0):
+                reference_lists[local_day.isoformat()].append(bar)
+
+    execution = {
+        key: tuple(sorted(rows, key=lambda item: item.opened_at))
+        for key, rows in execution_lists.items()
+    }
+    references: dict[str, ReferenceLiquidity] = {}
+    for key, rows in reference_lists.items():
+        ordered = sorted(rows, key=lambda item: item.opened_at)
+        if len(ordered) < 30:
+            continue
+        source = (
+            "PREVIOUS_COMPLETED_NEW_YORK_RANGE"
+            if session is CapitalizerSession.ASIA
+            else "COMPLETED_ASIA_RANGE"
+            if session is CapitalizerSession.LONDON
+            else "COMPLETED_LONDON_RANGE"
+        )
+        references[key] = ReferenceLiquidity(
+            opened_at=ordered[0].opened_at,
+            closed_at=ordered[-1].closed_at,
+            high=max(item.high for item in ordered),
+            low=min(item.low for item in ordered),
+            source=source,
+        )
+    return execution, references
+
+
 def _latest_completed_h1(
     h1: tuple[AggregatedBar, ...],
     moment: datetime,
@@ -629,7 +688,8 @@ def _scan_operating_day(
     symbol: str,
     session: CapitalizerSession,
     operating_day: date,
-    all_bars: tuple[CapitalizerM1Bar, ...],
+    reference: ReferenceLiquidity | None,
+    execution: tuple[CapitalizerM1Bar, ...],
     h1: tuple[AggregatedBar, ...],
     bias_events: tuple[HTFBiasEvent, ...],
     m15: tuple[TFBar, ...],
@@ -638,21 +698,11 @@ def _scan_operating_day(
     m5_pivots: tuple[Pivot, ...],
     stages: Counter[str],
 ) -> tuple[StrictTrade, ...]:
-    reference = _reference_liquidity(
-        all_bars,
-        operating_day=operating_day,
-        session=session,
-    )
     if reference is None:
         stages["REFERENCE_LIQUIDITY_UNAVAILABLE"] += 1
         return ()
     stages["REFERENCE_LIQUIDITY_AVAILABLE"] += 1
 
-    execution = _execution_bars(
-        all_bars,
-        operating_day=operating_day,
-        session=session,
-    )
     if len(execution) < 15:
         stages["EXECUTION_WINDOW_TOO_SPARSE"] += 1
         return ()
@@ -835,12 +885,14 @@ def build_market_report(
     m15_pivots = _pivots(m15)
     m5_pivots = _pivots(m5)
 
+    execution_by_day, reference_by_day = _index_day_inputs(
+        all_bars,
+        session=session,
+    )
     grouped_dates = sorted(
-        {
-            _operating_date(bar.opened_at, session)
-            for bar in all_bars
-            if WINDOW_START <= bar.opened_at < WINDOW_END
-        }
+        key
+        for key in execution_by_day
+        if WINDOW_START.date().isoformat() <= key < WINDOW_END.date().isoformat()
     )
     stages: Counter[str] = Counter()
     trades: list[StrictTrade] = []
@@ -851,7 +903,8 @@ def build_market_report(
             symbol=symbol,
             session=session,
             operating_day=operating_day,
-            all_bars=all_bars,
+            reference=reference_by_day.get(value),
+            execution=execution_by_day.get(value, ()),
             h1=h1,
             bias_events=bias_events,
             m15=m15,
