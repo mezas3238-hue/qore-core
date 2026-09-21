@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
@@ -27,7 +27,8 @@ def _bar(
     return CapitalizerM1Bar(
         symbol="EURUSD",
         opened_at=datetime(2026, 1, 1, 12, minute, tzinfo=UTC),
-        closed_at=datetime(2026, 1, 1, 12, minute, tzinfo=UTC) + __import__("datetime").timedelta(minutes=1),
+        closed_at=datetime(2026, 1, 1, 12, minute, tzinfo=UTC)
+        + timedelta(minutes=1),
         open=Decimal(open_),
         high=Decimal(high),
         low=Decimal(low),
