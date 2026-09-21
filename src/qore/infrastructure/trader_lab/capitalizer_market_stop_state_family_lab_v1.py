@@ -355,25 +355,27 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "market":
-        report = build_market_report(args.forensic_root)
-        write_market_report(report, args.output)
+        market_report = build_market_report(args.forensic_root)
+        write_market_report(market_report, args.output)
         print(
             json.dumps(
                 {
-                    "identity": report.identity,
-                    "symbol": report.symbol,
-                    "trades": report.source_trade_count,
-                    "families": report.family_count,
-                    "buffer_candidate_frozen": report.buffer_candidate_frozen,
+                    "identity": market_report.identity,
+                    "symbol": market_report.symbol,
+                    "trades": market_report.source_trade_count,
+                    "families": market_report.family_count,
+                    "buffer_candidate_frozen": (
+                        market_report.buffer_candidate_frozen
+                    ),
                 },
                 sort_keys=True,
             )
         )
         return
 
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
