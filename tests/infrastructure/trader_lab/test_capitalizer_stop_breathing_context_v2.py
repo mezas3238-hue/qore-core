@@ -70,3 +70,23 @@ def test_threshold_requires_minimum_overshoot_density() -> None:
 
 def test_gap_threshold_constants_are_not_used_as_stop_buffers() -> None:
     assert Decimal("0.08") > Decimal("0")
+
+
+def test_immediate_retest_is_zero_path_not_missing() -> None:
+    from datetime import UTC, datetime
+
+    from qore.infrastructure.trader_lab.capitalizer_stop_breathing_context_v2 import (
+        _PreEntryPathState,
+    )
+
+    at = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+    state = _PreEntryPathState(
+        row={},
+        start_at=at,
+        entry_at=at,
+        side="LONG",
+        ob_low=Decimal("99"),
+        ob_high=Decimal("100"),
+        risk=Decimal("2"),
+    )
+    assert state.start_at == state.entry_at

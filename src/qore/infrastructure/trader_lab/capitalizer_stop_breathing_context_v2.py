@@ -406,8 +406,20 @@ def _enrich_pre_entry_paths(
     for state in all_states:
         row = state.row
         row["pre_entry_expansion_bars"] = state.bars
+        if state.bars == 0 and state.start_at == state.entry_at:
+            row["pre_entry_path_state"] = "IMMEDIATE_RETEST_ZERO_PATH"
+            row["pre_entry_path_observed"] = True
+            row["pre_entry_peak_extension_r"] = "0"
+            row["pre_entry_peak_close_extension_r"] = "0"
+            row["pre_entry_peak_extension_speed_r_per_minute"] = "0"
+            row["pre_entry_mean_bar_range_r"] = "0"
+            row["pre_entry_mean_bar_body_r"] = "0"
+            row["pre_entry_median_bar_range_r"] = "0"
+            row["pre_entry_median_bar_body_r"] = "0"
+            continue
         row["pre_entry_path_observed"] = state.bars > 0
         if state.bars == 0:
+            row["pre_entry_path_state"] = "FEED_GAP_UNKNOWN"
             row["pre_entry_peak_extension_r"] = None
             row["pre_entry_peak_close_extension_r"] = None
             row["pre_entry_peak_extension_speed_r_per_minute"] = None
@@ -416,6 +428,7 @@ def _enrich_pre_entry_paths(
             row["pre_entry_median_bar_range_r"] = None
             row["pre_entry_median_bar_body_r"] = None
             continue
+        row["pre_entry_path_state"] = "OBSERVED_PRE_RETEST_PATH"
 
         elapsed_to_peak = Decimal("1")
         if state.peak_at is not None:
