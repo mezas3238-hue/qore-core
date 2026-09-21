@@ -12,14 +12,14 @@ def _relative(value: float) -> int:
     return int(round(value * 100_000))
 
 
-def _m1_row(opened_at: datetime, *, o: float, h: float, l: float, c: float) -> dict[str, object]:
+def _m1_row(opened_at: datetime, *, o: float, h: float, low: float, c: float) -> dict[str, object]:
     return {
         "canonical_symbol": "NAS100",
         "close_relative": _relative(c),
         "digits": 2,
         "high_relative": _relative(h),
         "identity": "QORE_CAPITALIZER_CIBO_10Y_NATIVE_M1_CLONE_V1",
-        "low_relative": _relative(l),
+        "low_relative": _relative(low),
         "open_relative": _relative(o),
         "opened_at": opened_at.isoformat(),
         "schema": "qore.capitalizer.cibo.raw_m1.v1",
@@ -113,13 +113,13 @@ def test_consumed_stop_recovery_is_forensic_not_rule_promotion(tmp_path: Path) -
     )
 
     rows = [
-        _m1_row(signal, o=100.00, h=100.05, l=99.40, c=99.70),
-        _m1_row(signal + timedelta(minutes=1), o=99.70, h=100.60, l=99.65, c=100.50),
-        _m1_row(signal + timedelta(minutes=2), o=100.50, h=100.80, l=100.10, c=100.60),
-        _m1_row(signal + timedelta(minutes=3), o=100.00, h=100.40, l=99.80, c=100.20),
-        _m1_row(signal + timedelta(minutes=4), o=100.20, h=100.30, l=98.90, c=99.10),
-        _m1_row(signal + timedelta(minutes=5), o=99.10, h=101.00, l=98.80, c=100.80),
-        _m1_row(signal + timedelta(minutes=6), o=100.80, h=102.20, l=100.70, c=102.00),
+        _m1_row(signal, o=100.00, h=100.05, low=99.40, c=99.70),
+        _m1_row(signal + timedelta(minutes=1), o=99.70, h=100.60, low=99.65, c=100.50),
+        _m1_row(signal + timedelta(minutes=2), o=100.50, h=100.80, low=100.10, c=100.60),
+        _m1_row(signal + timedelta(minutes=3), o=100.00, h=100.40, low=99.80, c=100.20),
+        _m1_row(signal + timedelta(minutes=4), o=100.20, h=100.30, low=98.90, c=99.10),
+        _m1_row(signal + timedelta(minutes=5), o=99.10, h=101.00, low=98.80, c=100.80),
+        _m1_row(signal + timedelta(minutes=6), o=100.80, h=102.20, low=100.70, c=102.00),
     ]
     _write_jsonl(m1 / "RAW_M1_LEDGER" / "2024.jsonl", rows)
 

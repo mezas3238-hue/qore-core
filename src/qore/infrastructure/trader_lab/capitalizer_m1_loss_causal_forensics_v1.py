@@ -14,12 +14,13 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict, deque
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
 from statistics import median
-from typing import Any, Iterable
+from typing import Any
 from zoneinfo import ZoneInfo
 
 IDENTITY = "QORE_CAPITALIZER_M1_LOSS_CAUSAL_FORENSICS_V1"
@@ -386,7 +387,6 @@ def _prepare_trade(raw: dict[str, Any], source: dict[str, Any]) -> dict[str, Any
     session_start, session_end = _session_bounds(entry_at, session)
     entry = _decimal_field(raw, "entry_price")
     stop = _decimal_field(raw, "stop_price")
-    target = _decimal_field(raw, "target_price")
     risk = abs(entry - stop)
     if risk <= 0:
         raise ValueError("forensic trade requires positive initial risk")
