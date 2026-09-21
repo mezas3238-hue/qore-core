@@ -23,8 +23,10 @@ def test_live_activation_has_no_owner_rule_expiry_and_uses_automated_verificatio
     assert "rules_verified_at" not in source
     assert "rules_valid_until" not in source
     assert "--lease-hours" not in source
-    assert "qore.fundednext.provider-rules-refresh.v2" in source
+    assert "qore.fundednext.provider-rules-refresh.v3" in source
     assert 'maximum_loss_fraction -ne "0.06"' in source
+    assert 'reclassified_open_risk_fraction -ne "0.01"' in source
+    assert "stop_loss_required" in source
     assert "AUTOMATIC_JIT_BEFORE_ORDER_SEND_PLUS_6H_PREWARM" in source
     assert "manual_rule_expiry_required = $false" in source
 
@@ -97,3 +99,20 @@ def test_vt31_m1_feed_uses_ndx100_provider_symbol_for_preload_and_incremental() 
     source = _VT31_LIVE.read_text(encoding="utf-8-sig")
     assert source.count("copy_rates_from_pos(\n            PROVIDER_SYMBOL,") >= 2
     assert "symbol_info_tick(PROVIDER_SYMBOL)" in source
+
+
+def test_runtime_binds_certified_policy_and_capitalization_without_changing_vt31() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "load_certified_stellar_instant_policy" in source
+    assert "certified-prop-policy-unavailable" in source
+    assert '"CERTIFIED_PROP_POLICY_FAIL_CLOSED"' in source
+    assert "build_5k_mission_config" in source
+    assert "DurableCapitalizationMissionStore" in source
+    assert '"capitalization-mission.json"' in source
+    assert "CapitalizationMissionState.BANK" in source
+    assert "Vt08ForexCiboPosture.BANK" in source
+    assert "mission_snapshot.new_risk_allowed_by_mission" in source
+    assert '"CAPITALIZATION_MISSION_STATE_CHANGED"' in source
+    assert '"capitalization_balance_target"' in source
+    assert "VT31_DECISION_DEADLINE" in source
+    assert "await_vt31_boundary_snapshot" in source
