@@ -17,6 +17,7 @@ from typing import Any
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
     END_EXCLUSIVE,
+    FOLD_1_END,
     PERIOD_MINUTES,
     START,
     AggregatedCandle,
@@ -24,6 +25,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
     ReplayTrade,
     _aggregate,
     _days,
+    _fold,
     _trade_from_window,
     load_two_year_m5,
     summarize,
@@ -166,8 +168,30 @@ def build_report(
         ],
         "window_coverage": coverage,
         "full_2y": summarize(trades),
-        "triplet_1": _triplet_summary(trades, "1"),
-        "triplet_2": _triplet_summary(trades, "2"),
+        "year_1": summarize(_fold(trades, START, FOLD_1_END)),
+        "year_2": summarize(_fold(trades, FOLD_1_END, END_EXCLUSIVE)),
+        "triplet_1": {
+            "full_2y": _triplet_summary(trades, "1"),
+            "year_1": _triplet_summary(
+                _fold(trades, START, FOLD_1_END),
+                "1",
+            ),
+            "year_2": _triplet_summary(
+                _fold(trades, FOLD_1_END, END_EXCLUSIVE),
+                "1",
+            ),
+        },
+        "triplet_2": {
+            "full_2y": _triplet_summary(trades, "2"),
+            "year_1": _triplet_summary(
+                _fold(trades, START, FOLD_1_END),
+                "2",
+            ),
+            "year_2": _triplet_summary(
+                _fold(trades, FOLD_1_END, END_EXCLUSIVE),
+                "2",
+            ),
+        },
         "synthetic_bars": False,
         "scheduled_closures_are_not_missing_data": True,
         "observed_bar_overrides_current_schedule_for_historical_evidence": True,
