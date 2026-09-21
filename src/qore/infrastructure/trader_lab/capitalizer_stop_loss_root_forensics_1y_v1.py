@@ -390,17 +390,17 @@ def _session_extremes(
 ) -> tuple[SessionExtreme, ...]:
     grouped: dict[tuple[str, str], list[CapitalizerM1Bar]] = defaultdict(list)
     for bar in bars:
-        session = capitalizer_session_at(bar.opened_at)
-        if session is None:
+        session_value = capitalizer_session_at(bar.opened_at)
+        if session_value is None:
             continue
-        op_date = _operating_date(bar.opened_at, session)
-        grouped[(session.value, op_date)].append(bar)
+        op_date = _operating_date(bar.opened_at, session_value)
+        grouped[(session_value.value, op_date)].append(bar)
     result: list[SessionExtreme] = []
-    for (session, op_date), chunk in grouped.items():
+    for (session_name, op_date), chunk in grouped.items():
         ordered = sorted(chunk, key=lambda item: item.opened_at)
         result.append(
             SessionExtreme(
-                session=session,
+                session=session_name,
                 operating_date=op_date,
                 opened_at=ordered[0].opened_at,
                 closed_at=ordered[-1].closed_at,
