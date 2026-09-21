@@ -45,6 +45,7 @@ def _payload(*, observed_at: datetime = _T0) -> dict[str, object]:
         "account_merging_allowed": False,
         "max_scaled_allocation_usd": "2000000",
         "vps_allowed": True,
+        "stellar_instant_5k_purchase_price_usd": "149.99",
     }
     sources = {
         name: {
@@ -63,6 +64,7 @@ def _payload(*, observed_at: datetime = _T0) -> dict[str, object]:
                 "mll",
                 "news",
                 "payout",
+                "pricing",
                 "reward",
             )
         )
@@ -99,6 +101,7 @@ def test_certified_stellar_policy_resolves_for_risk(tmp_path: Path) -> None:
     assert bundle.facts.cumulative_open_risk_fraction == Decimal("0.03")
     assert bundle.facts.reclassified_open_risk_fraction == Decimal("0.01")
     assert bundle.facts.stop_loss_required is True
+    assert bundle.facts.stellar_instant_5k_purchase_price_usd == Decimal("149.99")
 
 
 def test_certified_stellar_policy_expires_fail_closed(tmp_path: Path) -> None:
